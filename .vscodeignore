@@ -1,0 +1,30 @@
+# Source (only compiled JS ships)
+src/
+**/*.ts
+tsconfig.json
+
+# Build scaffolding
+build-steps/
+build-runner.sh
+build-runner.bat
+BUILD_PLAN.md
+
+# Dev docs (not needed by end users)
+docs/
+CLAUDE.md
+
+# Dev config
+.claude/
+.gitignore
+.git/
+
+# Tests
+**/test/
+**/*.test.js
+**/*.test.js.map
+
+# Misc
+node_modules/
+*.vsix
+.DS_Store
+Thumbs.db

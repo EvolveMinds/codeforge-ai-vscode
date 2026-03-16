@@ -1,0 +1,1215 @@
+{
+  "name": "codeforge-ai",
+  "displayName": "CodeForge AI",
+  "description": "Context-aware AI coding assistant with 16 auto-detecting plugins. Works with Ollama (local/offline), Claude, OpenAI, and HuggingFace. Understands your project, errors, git state, and cloud platforms (AWS, GCP, Azure, Databricks).",
+  "version": "1.0.0",
+  "publisher": "codeforge-ai",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "license": "MIT",
+  "categories": [
+    "Programming Languages",
+    "Machine Learning",
+    "Data Science",
+    "Other"
+  ],
+  "keywords": [
+    "ai",
+    "code assistant",
+    "ollama",
+    "anthropic",
+    "openai",
+    "copilot alternative",
+    "databricks",
+    "aws",
+    "azure",
+    "gcp",
+    "terraform",
+    "docker",
+    "kubernetes",
+    "dbt",
+    "local llm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SAAS-Models/codeforge-ai-vscode"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "ai-forge",
+          "title": "AI Forge",
+          "icon": "media/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "ai-forge": [
+        {
+          "type": "webview",
+          "id": "aiForge.chatPanel",
+          "name": "AI Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "aiForge.openChat",
+        "title": "AI Forge: Open Chat Panel"
+      },
+      {
+        "command": "aiForge.generateFromDesc",
+        "title": "AI Forge: Generate Code from Description",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "aiForge.explainSelection",
+        "title": "AI Forge: Explain Selected Code"
+      },
+      {
+        "command": "aiForge.fixErrors",
+        "title": "AI Forge: Fix Current Errors",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "aiForge.addTests",
+        "title": "AI Forge: Generate Tests for File"
+      },
+      {
+        "command": "aiForge.addDocstrings",
+        "title": "AI Forge: Add Documentation Comments"
+      },
+      {
+        "command": "aiForge.refactorSelection",
+        "title": "AI Forge: Refactor Selected Code"
+      },
+      {
+        "command": "aiForge.applyToFolder",
+        "title": "AI Forge: Apply Transform to Folder"
+      },
+      {
+        "command": "aiForge.gitCommitMessage",
+        "title": "AI Forge: Generate Commit Message",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "aiForge.gitExplainDiff",
+        "title": "AI Forge: Explain Current Changes"
+      },
+      {
+        "command": "aiForge.gitPRDescription",
+        "title": "AI Forge: Generate PR Description"
+      },
+      {
+        "command": "aiForge.buildFramework",
+        "title": "AI Forge: Build Framework from Description"
+      },
+      {
+        "command": "aiForge.runAndFix",
+        "title": "AI Forge: Run File & Auto-Fix Errors"
+      },
+      {
+        "command": "aiForge.switchProvider",
+        "title": "AI Forge: Switch AI Provider"
+      },
+      {
+        "command": "aiForge.setupOllama",
+        "title": "AI Forge: Setup Ollama"
+      },
+      {
+        "command": "aiForge.codelens.explain",
+        "title": "AI Forge: Explain (CodeLens)"
+      },
+      {
+        "command": "aiForge.codelens.refactor",
+        "title": "AI Forge: Refactor (CodeLens)"
+      },
+      {
+        "command": "aiForge.codelens.tests",
+        "title": "AI Forge: Generate Tests (CodeLens)"
+      },
+      {
+        "command": "aiForge.databricks.explainJob",
+        "title": "Databricks: Explain Spark Job",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.optimiseQuery",
+        "title": "Databricks: Optimise Query",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.convertToDataFrame",
+        "title": "Databricks: Convert SQL \u2194 DataFrame API",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.convertToDelta",
+        "title": "Databricks: Convert to Delta Lake",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.addDltDecorator",
+        "title": "Databricks: Wrap as Delta Live Tables",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.addMlflowTracking",
+        "title": "Databricks: Add MLflow Tracking",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.fixCollect",
+        "title": "Databricks: Fix .collect() OOM Risk",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.replaceUdf",
+        "title": "Databricks: Replace Python UDF with Built-in",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.addUnityRef",
+        "title": "Databricks: Add Unity Catalog 3-Part Names",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.generateJobYaml",
+        "title": "Databricks: Generate Job YAML",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.connect",
+        "title": "Databricks: Connect to Workspace",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.disconnect",
+        "title": "Databricks: Disconnect",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.status",
+        "title": "Databricks: Connection Status",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.listClusters",
+        "title": "Databricks: List Clusters",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.clusterInfo",
+        "title": "Databricks: Cluster Details & Optimization",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.listJobs",
+        "title": "Databricks: List Jobs",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.runJob",
+        "title": "Databricks: Run Job",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.analyzeFailure",
+        "title": "Databricks: Analyse Failed Job Run",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.designWorkflow",
+        "title": "Databricks: Design Workflow with AI",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.browseNotebooks",
+        "title": "Databricks: Browse & Import Notebook",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.deployNotebook",
+        "title": "Databricks: Deploy Current File as Notebook",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.exploreCatalog",
+        "title": "Databricks: Explore Unity Catalog",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.queryTable",
+        "title": "Databricks: AI Query Suggestion for Table",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.runSQL",
+        "title": "Databricks: Execute SQL on Warehouse",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.databricks.managePipeline",
+        "title": "Databricks: Manage DLT Pipeline",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.connect",
+        "title": "AWS: Connect to Account",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.disconnect",
+        "title": "AWS: Disconnect",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.accountStatus",
+        "title": "AWS: Account Status",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.listLambdas",
+        "title": "AWS: List Lambda Functions",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.lambdaDetails",
+        "title": "AWS: Lambda Function Details",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.invokeLambda",
+        "title": "AWS: Invoke Lambda Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.lambdaLogs",
+        "title": "AWS: View Lambda Logs",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.debugLambda",
+        "title": "AWS: Debug Lambda Errors",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.listGlueJobs",
+        "title": "AWS: List Glue Jobs",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.glueJobDetails",
+        "title": "AWS: Glue Job Details",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.runGlueJob",
+        "title": "AWS: Run Glue Job",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.analyzeGlueFailure",
+        "title": "AWS: Analyse Glue Job Failure",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.glueDataCatalog",
+        "title": "AWS: Browse Glue Data Catalog",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.browseS3",
+        "title": "AWS: Browse S3",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.deployToS3",
+        "title": "AWS: Deploy File to S3",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.listStacks",
+        "title": "AWS: List CloudFormation Stacks",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.stackDetails",
+        "title": "AWS: CloudFormation Stack Details",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.listStateMachines",
+        "title": "AWS: List Step Functions",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.designStepFunction",
+        "title": "AWS: Design Step Function with AI",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.exploreDynamo",
+        "title": "AWS: Explore DynamoDB",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.connect",
+        "title": "Google Cloud: Connect to Project",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.disconnect",
+        "title": "Google Cloud: Disconnect",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.projectStatus",
+        "title": "Google Cloud: Project Status",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.listFunctions",
+        "title": "Google Cloud: List Cloud Functions",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.functionDetails",
+        "title": "Google Cloud: Function Details",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.invokeFunction",
+        "title": "Google Cloud: Invoke Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.functionLogs",
+        "title": "Google Cloud: View Function Logs",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.debugFunction",
+        "title": "Google Cloud: Debug Function Errors",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.listCloudRun",
+        "title": "Google Cloud: List Cloud Run Services",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.cloudRunDetails",
+        "title": "Google Cloud: Cloud Run Details",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.exploreBigQuery",
+        "title": "Google Cloud: Explore BigQuery",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.runBigQuery",
+        "title": "Google Cloud: Run BigQuery SQL",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.analyzeBQJob",
+        "title": "Google Cloud: Analyse BigQuery Failures",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.browseGCS",
+        "title": "Google Cloud: Browse Cloud Storage",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.deployToGCS",
+        "title": "Google Cloud: Deploy to Cloud Storage",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.listPubSub",
+        "title": "Google Cloud: List Pub/Sub Topics",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.publishMessage",
+        "title": "Google Cloud: Publish Pub/Sub Message",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.exploreFirestore",
+        "title": "Google Cloud: Explore Firestore",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.connect",
+        "title": "Azure: Connect to Subscription",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.disconnect",
+        "title": "Azure: Disconnect",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.subscriptionStatus",
+        "title": "Azure: Subscription Status",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.listFunctionApps",
+        "title": "Azure: List Function Apps",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.functionAppDetails",
+        "title": "Azure: Function App Details",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.invokeFunction",
+        "title": "Azure: Invoke Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.functionLogs",
+        "title": "Azure: View Function Logs",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.debugFunction",
+        "title": "Azure: Debug Function Errors",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.listLogicApps",
+        "title": "Azure: List Logic Apps",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.analyzeLogicAppFailure",
+        "title": "Azure: Analyse Logic App Failure",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.exploreCosmosDB",
+        "title": "Azure: Explore Cosmos DB",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.queryCosmos",
+        "title": "Azure: Query Cosmos DB",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.browseStorage",
+        "title": "Azure: Browse Storage",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.deployToStorage",
+        "title": "Azure: Deploy to Storage",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.listPipelines",
+        "title": "Azure: List DevOps Pipelines",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.analyzePipelineFailure",
+        "title": "Azure: Analyse Pipeline Failure",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.listWebApps",
+        "title": "Azure: List Web Apps",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.restartWebApp",
+        "title": "Azure: Restart Web App",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.queryLogs",
+        "title": "Azure: Query Log Analytics",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.listAlerts",
+        "title": "Azure: List Active Alerts",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.dbt.explainModel",
+        "title": "AI Forge: Explain dbt Model",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.dbt.addTest",
+        "title": "AI Forge: Add dbt Test",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.dbt.convertIncremental",
+        "title": "AI Forge: Convert to Incremental",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.dbt.generateDocs",
+        "title": "AI Forge: Generate dbt Documentation",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.dbt.optimiseModel",
+        "title": "AI Forge: Optimise dbt Model",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.dbt.addSourceYaml",
+        "title": "AI Forge: Generate Source YAML",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.airflow.explainDag",
+        "title": "AI Forge: Explain Airflow DAG",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.airflow.convertToTaskflow",
+        "title": "AI Forge: Convert to TaskFlow API",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.airflow.addSensor",
+        "title": "AI Forge: Add Airflow Sensor",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.airflow.addRetryPolicy",
+        "title": "AI Forge: Add Retry Policy",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.airflow.generateDag",
+        "title": "AI Forge: Generate Airflow DAG",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.airflow.addMonitoring",
+        "title": "AI Forge: Add DAG Monitoring",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytest.generateTest",
+        "title": "AI Forge: Generate pytest Tests",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytest.addFixture",
+        "title": "AI Forge: Extract pytest Fixture",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytest.addParametrize",
+        "title": "AI Forge: Add Parametrize",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytest.convertUnittest",
+        "title": "AI Forge: Convert unittest to pytest",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytest.addCoverage",
+        "title": "AI Forge: Add Coverage Config",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytest.explainTest",
+        "title": "AI Forge: Explain Test",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.fastapi.explainEndpoint",
+        "title": "AI Forge: Explain FastAPI Endpoint",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.fastapi.addValidation",
+        "title": "AI Forge: Add Request Validation",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.fastapi.addResponseModel",
+        "title": "AI Forge: Add Response Model",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.fastapi.generateCrud",
+        "title": "AI Forge: Generate CRUD Router",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.fastapi.addAuth",
+        "title": "AI Forge: Add Authentication",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.fastapi.addTest",
+        "title": "AI Forge: Generate Endpoint Test",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.django.explainModel",
+        "title": "AI Forge: Explain Django Model",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.django.addSerializer",
+        "title": "AI Forge: Generate DRF Serializer",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.django.addAdmin",
+        "title": "AI Forge: Generate Admin Registration",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.django.addView",
+        "title": "AI Forge: Generate View for Model",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.django.addUrls",
+        "title": "AI Forge: Generate URL Patterns",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.django.addTest",
+        "title": "AI Forge: Generate Django Tests",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.terraform.explainResource",
+        "title": "AI Forge: Explain Terraform Resource",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.terraform.extractVariable",
+        "title": "AI Forge: Extract to Variable",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.terraform.addTags",
+        "title": "AI Forge: Add Tags to Resource",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.terraform.generateModule",
+        "title": "AI Forge: Generate Terraform Module",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.terraform.addOutput",
+        "title": "AI Forge: Add Output",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.terraform.validateSecurity",
+        "title": "AI Forge: Check Security Best Practices",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.k8s.explainResource",
+        "title": "AI Forge: Explain K8s Resource",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.k8s.addProbes",
+        "title": "AI Forge: Add Health Probes",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.k8s.addResources",
+        "title": "AI Forge: Add Resource Limits",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.k8s.addSecurity",
+        "title": "AI Forge: Add Security Context",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.k8s.generateManifest",
+        "title": "AI Forge: Generate K8s Manifest",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.k8s.addNetworkPolicy",
+        "title": "AI Forge: Add Network Policy",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.docker.explainDockerfile",
+        "title": "AI Forge: Explain Dockerfile",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.docker.optimize",
+        "title": "AI Forge: Optimize Dockerfile",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.docker.addHealthcheck",
+        "title": "AI Forge: Add Healthcheck",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.docker.securityAudit",
+        "title": "AI Forge: Docker Security Audit",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.docker.generateCompose",
+        "title": "AI Forge: Generate Docker Compose",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.docker.generateDockerfile",
+        "title": "AI Forge: Generate Dockerfile",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.jupyter.explainNotebook",
+        "title": "AI Forge: Explain Notebook",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.jupyter.addDocumentation",
+        "title": "AI Forge: Add Notebook Documentation",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.jupyter.cleanOutputs",
+        "title": "AI Forge: Clean Notebook Outputs",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.jupyter.convertToNotebook",
+        "title": "AI Forge: Convert Script to Notebook",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.jupyter.generateNotebook",
+        "title": "AI Forge: Generate Notebook",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytorch.explainModel",
+        "title": "AI Forge: Explain PyTorch Model",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytorch.addTrainingLoop",
+        "title": "AI Forge: Generate Training Loop",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytorch.addCheckpoint",
+        "title": "AI Forge: Add Model Checkpoint",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytorch.optimizeTraining",
+        "title": "AI Forge: Optimize Training",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytorch.addMixedPrecision",
+        "title": "AI Forge: Add Mixed Precision",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.pytorch.generateDataset",
+        "title": "AI Forge: Generate Dataset Class",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.security.scanFile",
+        "title": "AI Forge: Security Scan Current File",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.security.scanWorkspace",
+        "title": "AI Forge: Security Scan Workspace",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.security.fixFinding",
+        "title": "AI Forge: Fix Security Issue",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.git.blame",
+        "title": "AI Forge: Git Blame Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.git.changelog",
+        "title": "AI Forge: Generate Changelog",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.git.commitMessage",
+        "title": "AI Forge: Smart Commit Message",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.git.prTemplate",
+        "title": "AI Forge: Generate PR Template",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.explainStack",
+        "title": "AWS: Explain CloudFormation/SAM Stack",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.optimizeLambda",
+        "title": "AWS: Optimize Lambda Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.generateIAM",
+        "title": "AWS: Generate IAM Policy",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.addErrorHandling",
+        "title": "AWS: Add SDK Error Handling",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.convertToCDK",
+        "title": "AWS: Convert CloudFormation to CDK",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.generateSAM",
+        "title": "AWS: Generate SAM Template",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.explainCost",
+        "title": "AWS: Explain Cost Implications",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.aws.addLogging",
+        "title": "AWS: Add CloudWatch Logging",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.explainService",
+        "title": "Google Cloud: Explain Service",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.optimizeFunction",
+        "title": "Google Cloud: Optimize Cloud Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.generateCloudBuild",
+        "title": "Google Cloud: Generate Cloud Build Config",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.addErrorHandling",
+        "title": "Google Cloud: Add SDK Error Handling",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.optimizeBigQuery",
+        "title": "Google Cloud: Optimize BigQuery Query",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.generateFirestoreRules",
+        "title": "Google Cloud: Generate Firestore Rules",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.explainCost",
+        "title": "Google Cloud: Explain Cost Implications",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.gcp.addLogging",
+        "title": "Google Cloud: Add Cloud Logging",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.explainResource",
+        "title": "Azure: Explain Resource",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.optimizeFunction",
+        "title": "Azure: Optimize Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.generatePipeline",
+        "title": "Azure: Generate Pipeline",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.addRetryPolicy",
+        "title": "Azure: Add Retry Policy",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.convertToBicep",
+        "title": "Azure: Convert ARM to Bicep",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.generateFunction",
+        "title": "Azure: Generate Function",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.explainCost",
+        "title": "Azure: Explain Cost Implications",
+        "category": "AI Forge"
+      },
+      {
+        "command": "aiForge.azure.addManagedIdentity",
+        "title": "Azure: Add Managed Identity",
+        "category": "AI Forge"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "aiForge.openChat",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      },
+      {
+        "command": "aiForge.generateFromDesc",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g"
+      },
+      {
+        "command": "aiForge.fixErrors",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f"
+      },
+      {
+        "command": "aiForge.explainSelection",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "aiForge.gitCommitMessage",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "aiForge.submenu",
+          "group": "aiforge@1",
+          "when": "editorTextFocus"
+        }
+      ],
+      "aiForge.submenu": [
+        {
+          "command": "aiForge.explainSelection",
+          "when": "editorHasSelection",
+          "group": "1_understand@1"
+        },
+        {
+          "command": "aiForge.refactorSelection",
+          "when": "editorHasSelection",
+          "group": "1_understand@2"
+        },
+        {
+          "command": "aiForge.fixErrors",
+          "group": "2_fix@1"
+        },
+        {
+          "command": "aiForge.addDocstrings",
+          "group": "2_fix@2"
+        },
+        {
+          "command": "aiForge.addTests",
+          "group": "3_generate@1"
+        },
+        {
+          "command": "aiForge.generateFromDesc",
+          "group": "3_generate@2"
+        },
+        {
+          "command": "aiForge.gitCommitMessage",
+          "group": "4_git@1"
+        },
+        {
+          "command": "aiForge.gitExplainDiff",
+          "group": "4_git@2"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "aiForge.gitCommitMessage",
+          "group": "navigation",
+          "when": "scmProvider == git"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "aiForge.applyToFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "aiforge"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "aiForge.submenu",
+        "label": "AI Forge"
+      }
+    ],
+    "configuration": {
+      "title": "AI Forge",
+      "properties": {
+        "aiForge.provider": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "ollama",
+            "anthropic",
+            "openai",
+            "huggingface",
+            "offline"
+          ],
+          "enumDescriptions": [
+            "Auto-detect: use Ollama if running, else offline AI",
+            "Ollama \u2014 local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
+            "Anthropic Claude \u2014 cloud, requires API key",
+            "OpenAI / compatible \u2014 works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
+            "Hugging Face Inference API \u2014 cloud, requires API key. Access thousands of open models",
+            "Built-in offline AI \u2014 no LLM, pattern-based, instant"
+          ],
+          "description": "AI provider to use"
+        },
+        "aiForge.ollamaHost": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama server URL"
+        },
+        "aiForge.ollamaModel": {
+          "type": "string",
+          "default": "qwen2.5-coder:7b",
+          "description": "Ollama model to use"
+        },
+        "aiForge.openaiBaseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "OpenAI-compatible base URL (Groq, Mistral, LM Studio, etc.)"
+        },
+        "aiForge.openaiModel": {
+          "type": "string",
+          "default": "gpt-4o",
+          "description": "OpenAI model name"
+        },
+        "aiForge.anthropicModel": {
+          "type": "string",
+          "default": "claude-sonnet-4-6",
+          "description": "Anthropic model to use (e.g., claude-sonnet-4-6, claude-opus-4-6)"
+        },
+        "aiForge.huggingfaceModel": {
+          "type": "string",
+          "default": "Qwen/Qwen2.5-Coder-32B-Instruct",
+          "description": "Hugging Face model ID (e.g., Qwen/Qwen2.5-Coder-32B-Instruct, meta-llama/Llama-3.3-70B-Instruct, mistralai/Mistral-Small-24B-Instruct-2501)"
+        },
+        "aiForge.huggingfaceBaseUrl": {
+          "type": "string",
+          "default": "https://api-inference.huggingface.co",
+          "description": "Hugging Face Inference API base URL (change for dedicated endpoints)"
+        },
+        "aiForge.codeLensEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show AI Forge hints above functions (Code Lens)"
+        },
+        "aiForge.includeErrorsInContext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically include current diagnostics/errors in AI context"
+        },
+        "aiForge.includeGitDiffInContext": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically include git diff in AI context"
+        },
+        "aiForge.maxContextFiles": {
+          "type": "number",
+          "default": 5,
+          "description": "Max number of related files to include as context"
+        },
+        "aiForge.autoRunFix": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically attempt to fix errors after running a script"
+        },
+        "aiForge.contextBudgetChars": {
+          "type": "number",
+          "default": 24000,
+          "description": "Total character budget shared across all context parts (active file, related files, git diff, plugin data). Increase for larger models, decrease for faster/cheaper ones."
+        },
+        "aiForge.disabledPlugins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "List of plugin IDs to disable. E.g. [\"databricks\", \"dbt\"]. Disabled plugins are never activated even when detected."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.22.0",
+    "@vscode/test-electron": "^2.3.0",
+    "mocha": "^10.2.0",
+    "@types/mocha": "^10.0.0",
+    "glob": "^10.3.0"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,31 @@
+# Compiled output
+out/
+
+# Dependencies
+node_modules/
+
+# Build scaffolding (internal dev only)
+build-steps/
+build-runner.sh
+build-runner.bat
+BUILD_PLAN.md
+
+# VS Code extension package
+*.vsix
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/settings.json
+*.swp
+*.swo
+
+# Claude Code local settings
+.claude/
+
+# Environment / secrets
+.env
+.env.*
