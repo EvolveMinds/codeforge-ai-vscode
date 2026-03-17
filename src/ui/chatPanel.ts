@@ -68,6 +68,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getStatus':      await this._postStatus();               break;
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
+          case 'action':         await this._handleAction(msg);           break;
           default: console.warn('[Evolve AI] Unknown webview message type:', msg.type); break;
         }
       } catch (e) {
@@ -227,6 +228,35 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     }, 300);
   }
 
+  private async _handleAction(msg: Record<string, string>): Promise<void> {
+    switch (msg.action) {
+      case 'openUrl':
+        if (msg.url) {
+          await vscode.env.openExternal(vscode.Uri.parse(msg.url));
+        }
+        break;
+      case 'openSettings':
+        if (msg.query) {
+          await vscode.commands.executeCommand('workbench.action.openSettings', msg.query);
+        }
+        break;
+      case 'pullModel': {
+        const cfg = vscode.workspace.getConfiguration('aiForge');
+        const model = cfg.get<string>('ollamaModel', 'qwen2.5-coder:7b');
+        const term = vscode.window.createTerminal('Evolve AI: Install Model');
+        term.show();
+        term.sendText(`ollama pull ${model}`);
+        this._post({ type: 'notice', text: `Installing model "${model}"... Once complete, try your request again.` });
+        break;
+      }
+      case 'switchProvider':
+        await vscode.commands.executeCommand('aiForge.switchProvider');
+        break;
+      default:
+        console.warn('[Evolve AI] Unknown action:', msg.action);
+    }
+  }
+
   private async _postStatus(): Promise<void> {
     // [FIX-18] Return cached status if recent
     const now = Date.now();
@@ -248,6 +278,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       ollamaModels:  models,
       currentModel:  cfg.get<string>('ollamaModel', ''),
       activePlugins: active.map(p => ({ id: p.id, name: p.displayName, icon: p.icon })),
+      os: process.platform,
     };
     this._statusCache = { data: statusMsg, ts: now };
     this._post(statusMsg);
@@ -319,6 +350,22 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .welcome h3 { color: var(--text); margin-bottom: 8px; font-size: 13px; }
 .welcome p { font-size: 11px; line-height: 1.6; margin: 3px 0; }
 .welcome kbd { background: var(--bg2); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; font-size: 10px; font-family: var(--mono); }
+
+/* Onboarding guide */
+.onboarding { padding: 12px 16px; color: var(--text); font-size: 11px; line-height: 1.7; }
+.onboarding h3 { color: var(--text); margin-bottom: 10px; font-size: 14px; font-weight: 600; }
+.onboarding h4 { color: var(--text); margin: 12px 0 4px; font-size: 12px; font-weight: 600; }
+.onboarding p { margin: 4px 0; }
+.onboarding ol { margin: 4px 0 8px 18px; padding: 0; }
+.onboarding li { margin: 3px 0; }
+.onboarding a { color: var(--vscode-textLink-foreground, #3794ff); text-decoration: none; cursor: pointer; }
+.onboarding a:hover { text-decoration: underline; }
+.onboarding code { background: var(--bg2); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 10px; }
+.setup-option { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin: 8px 0; }
+.setup-table { width: 100%; border-collapse: collapse; margin: 6px 0; }
+.setup-table td { padding: 4px 8px 4px 0; font-size: 11px; vertical-align: middle; }
+.setup-table tr:not(:last-child) td { border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+.setup-table tr:not(:first-child) td { padding-top: 6px; }
 
 /* Thinking indicator */
 .thinking { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; padding: 8px 12px; }
@@ -427,6 +474,99 @@ function setMode(m) {
 function resize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
 function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
 
+function showOnboardingGuide(statusData) {
+  // Don't duplicate
+  let guide = document.getElementById('onboardingGuide');
+  if (guide) guide.remove();
+
+  const msgs = document.getElementById('msgs');
+  guide = document.createElement('div');
+  guide.id = 'onboardingGuide';
+  guide.className = 'onboarding';
+
+  const os = statusData.os || 'unknown';
+  const ollamaRunning = statusData.ollamaRunning;
+  const provider = statusData.provider;
+
+  // Detect specific scenario
+  let title, body;
+
+  if (provider === 'ollama' && !ollamaRunning) {
+    // Ollama is selected but not running
+    title = 'Ollama is not running';
+    body = '<p>Evolve AI is configured to use <strong>Ollama</strong> but cannot connect to it.</p>';
+    if (os === 'win32') {
+      body += '<p><strong>To fix:</strong></p>'
+        + '<ol>'
+        + '<li>Make sure Ollama is installed. If not: <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://ollama.com/download/windows\\'});return false;">Download Ollama for Windows</a></li>'
+        + '<li>Launch the Ollama app from your Start menu</li>'
+        + '<li>If localhost doesn\\u2019t work, try setting <code>aiForge.ollamaHost</code> to <code>http://127.0.0.1:11434</code> in <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openSettings\\',query:\\'aiForge.ollamaHost\\'});return false;">Settings</a></li>'
+        + '</ol>';
+    } else if (os === 'darwin') {
+      body += '<p><strong>To fix:</strong></p>'
+        + '<ol>'
+        + '<li>Make sure Ollama is installed. If not: <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://ollama.com/download/mac\\'});return false;">Download Ollama for Mac</a></li>'
+        + '<li>Launch Ollama from your Applications folder or run <code>ollama serve</code> in terminal</li>'
+        + '</ol>';
+    } else {
+      body += '<p><strong>To fix:</strong></p>'
+        + '<ol>'
+        + '<li>Install Ollama: <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://ollama.com/download/linux\\'});return false;">Download Ollama for Linux</a> or run: <code>curl -fsSL https://ollama.ai/install.sh | sh</code></li>'
+        + '<li>Start the server: <code>ollama serve</code></li>'
+        + '</ol>';
+    }
+  } else {
+    // Fully offline — no provider configured
+    title = 'Welcome to Evolve AI!';
+    body = '<p>No AI provider is connected. Choose how you want to use Evolve AI:</p>';
+
+    // Option 1: Ollama (free, local)
+    body += '<div class="setup-option">'
+      + '<h4>Option 1: Ollama (Free, Private, Local)</h4>'
+      + '<p>Run AI completely on your machine — no API key, no cost, no data leaves your computer.</p>';
+
+    if (os === 'win32') {
+      body += '<p><strong>Step 1:</strong> <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://ollama.com/download/windows\\'});return false;">Download Ollama for Windows</a></p>';
+    } else if (os === 'darwin') {
+      body += '<p><strong>Step 1:</strong> <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://ollama.com/download/mac\\'});return false;">Download Ollama for Mac</a></p>';
+    } else {
+      body += '<p><strong>Step 1:</strong> <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://ollama.com/download/linux\\'});return false;">Download Ollama for Linux</a></p>';
+    }
+
+    body += '<p><strong>Step 2:</strong> <a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'pullModel\\'});return false;">Install the AI Model (one click)</a></p>'
+      + '<p>This will open a terminal and run <code>ollama pull qwen2.5-coder:7b</code> for you.</p>'
+      + '</div>';
+
+    // Option 2: Cloud providers
+    body += '<div class="setup-option">'
+      + '<h4>Option 2: Cloud AI Providers</h4>'
+      + '<p>Use a cloud AI for the best quality responses. Requires an API key.</p>'
+      + '<table class="setup-table">'
+      + '<tr><td><strong>Anthropic Claude</strong></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://console.anthropic.com/\\'});return false;">Get API Key</a></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'switchProvider\\',provider:\\'anthropic\\'});return false;">Connect</a></td></tr>'
+      + '<tr><td><strong>OpenAI</strong></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://platform.openai.com/api-keys\\'});return false;">Get API Key</a></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'switchProvider\\',provider:\\'openai\\'});return false;">Connect</a></td></tr>'
+      + '<tr><td><strong>HuggingFace</strong></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://huggingface.co/settings/tokens\\'});return false;">Get Token</a></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'switchProvider\\',provider:\\'huggingface\\'});return false;">Connect</a></td></tr>'
+      + '</table>'
+      + '</div>';
+
+    // Option 3: LM Studio / llama.cpp
+    body += '<div class="setup-option">'
+      + '<h4>Option 3: LM Studio / llama.cpp / Jan</h4>'
+      + '<p>Already running a local LLM server? Point Evolve AI to it:</p>'
+      + '<p><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openSettings\\',query:\\'aiForge.ollamaHost\\'});return false;">Set your server URL in Settings</a> (e.g., <code>http://localhost:1234/v1</code>)</p>'
+      + '</div>';
+  }
+
+  guide.innerHTML = '<h3>' + title + '</h3>' + body;
+  // Insert after the welcome message
+  const welcome = msgs.querySelector('.welcome');
+  if (welcome) {
+    welcome.style.display = 'none';
+    msgs.insertBefore(guide, welcome.nextSibling);
+  } else {
+    msgs.prepend(guide);
+  }
+}
+
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -503,6 +643,15 @@ window.addEventListener('message', ({ data }) => {
       pb.innerHTML = (data.activePlugins || []).map(p =>
         '<span class="badge" title="' + esc(p.name) + '">' + esc(p.icon) + '</span>'
       ).join('');
+
+      // Show onboarding guide when offline or Ollama not running
+      if (!isReady) {
+        showOnboardingGuide(data);
+      } else {
+        // Remove onboarding if provider becomes ready
+        const existing = document.getElementById('onboardingGuide');
+        if (existing) existing.remove();
+      }
       break;
     }
     case 'historyLoad': {

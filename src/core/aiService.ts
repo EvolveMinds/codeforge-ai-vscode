@@ -283,7 +283,14 @@ export class AIService implements IAIService {
   private async* _streamAnthropic(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     // [FIX-4] Read from SecretStorage only — never fall back to settings.json
     const key = await this._secrets.get(SECRET_ANTHROPIC) ?? '';
-    if (!key) { yield '⚠ No Anthropic API key — run: Evolve AI: Switch AI Provider'; return; }
+    if (!key) {
+      yield `⚠ **No Anthropic API key configured**\n\n`;
+      yield `To use Claude:\n`;
+      yield `1. Get an API key at https://console.anthropic.com/\n`;
+      yield `2. Click **Switch** in the header above, select **Anthropic**, and paste your key\n\n`;
+      yield `Your key is stored securely in VS Code's encrypted storage — never in plaintext.\n`;
+      return;
+    }
     const url  = new URL('https://api.anthropic.com/v1/messages');
     const body = JSON.stringify({
       model: cfg.get<string>('anthropicModel', 'claude-sonnet-4-6'), max_tokens: 4096, stream: true,
@@ -305,7 +312,15 @@ export class AIService implements IAIService {
     const key     = await this._secrets.get(SECRET_OPENAI) ?? '';
     const baseUrl = cfg.get<string>('openaiBaseUrl', 'https://api.openai.com/v1');
     const model   = cfg.get<string>('openaiModel', 'gpt-4o');
-    if (!key) { yield '⚠ No OpenAI API key — run: Evolve AI: Switch AI Provider'; return; }
+    if (!key) {
+      yield `⚠ **No OpenAI API key configured**\n\n`;
+      yield `To use OpenAI (or compatible providers like Groq, Mistral, Together AI):\n`;
+      yield `1. Get an API key at https://platform.openai.com/api-keys\n`;
+      yield `2. Click **Switch** in the header above, select **OpenAI**, and paste your key\n`;
+      yield `3. For non-OpenAI providers, also set \`aiForge.openaiBaseUrl\` in Settings\n\n`;
+      yield `Your key is stored securely in VS Code's encrypted storage — never in plaintext.\n`;
+      return;
+    }
     const url  = new URL(baseUrl + '/chat/completions');
     const body = JSON.stringify({
       model, stream: true, temperature: 0.2, max_tokens: 4096,
@@ -325,7 +340,15 @@ export class AIService implements IAIService {
     const key   = await this._secrets.get(SECRET_HUGGINGFACE) ?? '';
     const model = cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
     const base  = cfg.get<string>('huggingfaceBaseUrl', 'https://api-inference.huggingface.co');
-    if (!key) { yield '⚠ No Hugging Face API key — run: Evolve AI: Switch AI Provider'; return; }
+    if (!key) {
+      yield `⚠ **No Hugging Face token configured**\n\n`;
+      yield `To use HuggingFace Inference API:\n`;
+      yield `1. Get a token at https://huggingface.co/settings/tokens\n`;
+      yield `2. Click **Switch** in the header above, select **HuggingFace**, and paste your token\n\n`;
+      yield `Current model: \`${model}\`. Change it in Settings if needed.\n`;
+      yield `Your token is stored securely in VS Code's encrypted storage — never in plaintext.\n`;
+      return;
+    }
     const url  = new URL(`${base}/models/${model}/v1/chat/completions`);
     const body = JSON.stringify({
       model, stream: true, temperature: 0.2, max_tokens: 4096,
@@ -342,15 +365,35 @@ export class AIService implements IAIService {
   }
 
   private async* _offline(req: AIRequest): AsyncGenerator<string> {
+    const os = process.platform;
+    const ollamaUrl = os === 'win32'  ? 'https://ollama.com/download/windows'
+                    : os === 'darwin' ? 'https://ollama.com/download/mac'
+                    :                   'https://ollama.com/download/linux';
+    const installCmd = os === 'linux' ? '\n\nOr install via terminal:\n```\ncurl -fsSL https://ollama.ai/install.sh | sh\n```' : '';
+
     const low = req.instruction.toLowerCase();
-    if (low.includes('explain') || low.includes('what')) {
-      yield '📖 **Offline mode** — install Ollama for explanations:\n```\nollama pull qwen2.5-coder:7b\n```'; return;
+    const taskHint = low.includes('explain') || low.includes('what') ? 'explain code'
+                   : low.includes('test') ? 'generate tests'
+                   : low.includes('fix')  ? 'fix errors'
+                   : low.includes('refactor') ? 'refactor code'
+                   : 'assist with this request';
+
+    yield `⚠ **No AI provider connected** — Evolve AI needs an AI model to ${taskHint}.\n\n`;
+    yield `### Quick Setup Options\n\n`;
+    yield `**1. Ollama (Free, Private, Local)**\n`;
+    yield `Your code never leaves your machine.\n`;
+    yield `- Download Ollama: ${ollamaUrl}${installCmd}\n`;
+    yield `- Then run: \`ollama pull qwen2.5-coder:7b\`\n`;
+    yield `- Evolve AI will detect it automatically\n\n`;
+    yield `**2. Cloud AI (API key required)**\n`;
+    yield `- **Anthropic Claude**: https://console.anthropic.com/\n`;
+    yield `- **OpenAI**: https://platform.openai.com/api-keys\n`;
+    yield `- **HuggingFace**: https://huggingface.co/settings/tokens\n\n`;
+    yield `Click **Switch** in the header to configure any provider.\n`;
+
+    if (os === 'win32') {
+      yield `\n💡 **Windows tip:** If Ollama is installed but not detected, change \`aiForge.ollamaHost\` to \`http://127.0.0.1:11434\` in Settings.\n`;
     }
-    if (low.includes('test'))  { yield '🧪 Offline mode: install Ollama for test generation.'; return; }
-    if (low.includes('fix'))   { yield '🔧 Offline mode: install Ollama for error fixing.';    return; }
-    yield '💡 **Offline mode** — no AI model configured.\n\n' +
-          'Free local option: `ollama pull qwen2.5-coder:7b`\n' +
-          'Or press **Switch** to configure an API key.';
   }
 
   // ── HTTP streaming engine ────────────────────────────────────────────────────
@@ -383,7 +426,42 @@ export class AIService implements IAIService {
       if ((res.statusCode ?? 0) >= 400) {
         let err = '';
         res.on('data', d => err += d);
-        res.on('end',  () => { pending.push(`⚠ API ${res.statusCode}: ${err.slice(0, 200)}`); done = true; wake(); });
+        res.on('end',  () => {
+          const code = res.statusCode ?? 0;
+          const host = url.hostname;
+          let msg = '';
+
+          if (code === 401 || code === 403) {
+            msg = `⚠ **Authentication failed** (${code})\n\n`
+              + `Your API key may be invalid or expired.\n`
+              + `Run **Evolve AI: Switch AI Provider** to re-enter your credentials.\n`;
+          } else if (code === 404) {
+            const errLow = err.toLowerCase();
+            if (errLow.includes('model') || errLow.includes('not found')) {
+              msg = `⚠ **Model not found** (404)\n\n`
+                + `The configured model does not exist on the server.\n`
+                + `${err.slice(0, 200)}\n\n`
+                + `Check your model name in Settings or click **Switch** to reconfigure.\n`;
+            } else {
+              msg = `⚠ **API endpoint not found** (404): ${err.slice(0, 200)}\n\n`
+                + `Check that the server URL is correct in Settings.\n`;
+            }
+          } else if (code === 429) {
+            msg = `⚠ **Rate limit exceeded** (429)\n\n`
+              + `You've sent too many requests. Wait a moment and try again.\n`
+              + `Consider using Ollama (free, no rate limits) for heavy usage.\n`;
+          } else if (code === 500 || code === 502 || code === 503) {
+            msg = `⚠ **Server error** (${code})\n\n`
+              + `The AI provider is experiencing issues. Try again in a few moments.\n`
+              + `If using Ollama, make sure the model finished loading.\n`;
+          } else {
+            msg = `⚠ **API error** (${code}): ${err.slice(0, 200)}\n`;
+          }
+
+          pending.push(msg);
+          done = true;
+          wake();
+        });
         return;
       }
       res.setEncoding('utf8');
@@ -404,8 +482,41 @@ export class AIService implements IAIService {
       res.on('error', (e: Error) => { pending.push(`⚠ Stream error: ${e.message}`); done = true; wake(); });
     });
 
-    req.on('error',   (e: Error) => { pending.push(`⚠ Connection error: ${e.message}`); done = true; wake(); });
-    req.setTimeout(60000, () => { req.destroy(); pending.push('⚠ Request timeout (60s)'); done = true; wake(); });
+    req.on('error', (e: Error) => {
+      const host = url.hostname;
+      let msg = '';
+      if (e.message.includes('ECONNREFUSED')) {
+        if (host === 'localhost' || host === '127.0.0.1') {
+          msg = `⚠ **Cannot connect to local server** at ${url.origin}\n\n`
+            + `Make sure Ollama is running. `
+            + (process.platform === 'win32'
+              ? `Launch it from the Start menu, or try changing \`aiForge.ollamaHost\` to \`http://127.0.0.1:11434\`.\n`
+              : `Run \`ollama serve\` in your terminal.\n`);
+        } else {
+          msg = `⚠ **Connection refused** by ${host}\n\nCheck the server URL and that the service is running.\n`;
+        }
+      } else if (e.message.includes('ENOTFOUND')) {
+        msg = `⚠ **Server not found**: ${host}\n\nCheck your internet connection and the server URL in Settings.\n`;
+      } else if (e.message.includes('ETIMEDOUT') || e.message.includes('ENETUNREACH')) {
+        msg = `⚠ **Network unreachable** — cannot reach ${host}\n\nCheck your internet connection. For local AI, use Ollama (no internet required).\n`;
+      } else {
+        msg = `⚠ **Connection error**: ${e.message}\n`;
+      }
+      pending.push(msg);
+      done = true;
+      wake();
+    });
+    req.setTimeout(60000, () => {
+      req.destroy();
+      pending.push(`⚠ **Request timed out** after 60 seconds\n\n`
+        + `The AI provider took too long to respond. This can happen with:\n`
+        + `- Large models loading for the first time\n`
+        + `- Slow network connections\n`
+        + `- Overloaded servers\n\n`
+        + `Try again, or use a smaller/faster model.\n`);
+      done = true;
+      wake();
+    });
 
     // [FIX-5] Abort handler
     signal?.addEventListener('abort', () => { req.destroy(); pending.push(''); done = true; wake(); });
