@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Context-aware AI coding assistant with 16 auto-detecting plugins. Works with Ollama (local/offline), Claude, OpenAI, and HuggingFace. Understands your project, errors, git state, and cloud platforms (AWS, GCP, Azure, Databricks).",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -147,7 +147,7 @@
       },
       {
         "command": "aiForge.databricks.convertToDataFrame",
-        "title": "Databricks: Convert SQL \u2194 DataFrame API",
+        "title": "Databricks: Convert SQL ↔ DataFrame API",
         "category": "Evolve AI"
       },
       {
@@ -1110,11 +1110,11 @@
           ],
           "enumDescriptions": [
             "Auto-detect: use Ollama if running, else offline AI",
-            "Ollama \u2014 local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
-            "Anthropic Claude \u2014 cloud, requires API key",
-            "OpenAI / compatible \u2014 works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
-            "Hugging Face Inference API \u2014 cloud, requires API key. Access thousands of open models",
-            "Built-in offline AI \u2014 no LLM, pattern-based, instant"
+            "Ollama — local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
+            "Anthropic Claude — cloud, requires API key",
+            "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
+            "Hugging Face Inference API — cloud, requires API key. Access thousands of open models",
+            "Built-in offline AI — no LLM, pattern-based, instant"
           ],
           "description": "AI provider to use"
         },
