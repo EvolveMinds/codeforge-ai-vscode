@@ -45,7 +45,7 @@ suite('GitPlugin', () => {
     });
 
     test('returns true when .git/ directory exists', async () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-forge-git-test-'));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'evolve-ai-git-test-'));
       try {
         const gitDir = path.join(tmpDir, '.git');
         fs.mkdirSync(gitDir);
@@ -63,7 +63,7 @@ suite('GitPlugin', () => {
     });
 
     test('returns false when .git/ directory does not exist', async () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-forge-git-nodir-'));
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'evolve-ai-git-nodir-'));
       try {
         const fakeWs = {
           uri:   { fsPath: tmpDir } as any,

@@ -13,7 +13,7 @@ import { DjangoPlugin } from '../../plugins/django';
 
 /** Create a temporary workspace directory and return its path */
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'ai-forge-django-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'evolve-ai-django-test-'));
 }
 
 /** Remove a directory recursively */

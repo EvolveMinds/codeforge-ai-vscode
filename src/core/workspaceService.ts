@@ -62,7 +62,7 @@ export class WorkspaceService implements IWorkspaceService {
     const tmpDir  = this._vsCtx.globalStorageUri.fsPath;
     fs.mkdirSync(tmpDir, { recursive: true });
 
-    const tmpPath = path.join(tmpDir, 'ai-forge-diff-preview.tmp');
+    const tmpPath = path.join(tmpDir, 'evolve-ai-diff-preview.tmp');
     fs.writeFileSync(tmpPath, proposed, 'utf8');
 
     const editor = vscode.window.activeTextEditor;

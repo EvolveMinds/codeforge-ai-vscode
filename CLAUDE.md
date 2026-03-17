@@ -1,4 +1,4 @@
-# AI Forge — VS Code Extension
+# Evolve AI — VS Code Extension
 
 > **For Claude Code:** Read this file first, then read `docs/ARCHITECTURE.md` for full structural
 > detail, and `docs/PLUGIN_GUIDE.md` when building a new plugin. Between the three files you have
@@ -8,7 +8,7 @@
 
 ## What this project is
 
-AI Forge is a VS Code extension that brings AI code assistance into the editor. It supports
+Evolve AI is a VS Code extension that brings AI code assistance into the editor. It supports
 Ollama (local/offline), Anthropic Claude, and OpenAI-compatible providers. Its defining feature is
 a **plugin architecture** that lets stack-specific modules inject deep domain knowledge into every
 AI interaction — automatically, based on what files are in the workspace.
@@ -21,7 +21,7 @@ All future plugins follow its exact pattern.
 ## Repository layout
 
 ```
-ai-forge-vscode/
+evolve-ai-vscode/
 ├── CLAUDE.md                    ← you are here
 ├── docs/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces

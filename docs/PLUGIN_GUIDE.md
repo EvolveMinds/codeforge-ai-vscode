@@ -1,4 +1,4 @@
-# AI Forge — Plugin Guide
+# Evolve AI — Plugin Guide
 
 How to build a new stack plugin from scratch. The guide has three parts:
 1. Checklist — the steps in order
@@ -34,7 +34,7 @@ Delete sections you don't need — all contribution points are optional.
 
 ```typescript
 /**
- * plugins/YOUR_PLUGIN_ID.ts — YOUR_DISPLAY_NAME stack plugin for AI Forge
+ * plugins/YOUR_PLUGIN_ID.ts — YOUR_DISPLAY_NAME stack plugin for Evolve AI
  *
  * Activates when: [describe what triggers detection]
  * Contributes:
@@ -191,7 +191,7 @@ export class YourPlugin implements IPlugin {
       }),
     ];
 
-    console.log(`[AI Forge] ${this.displayName} plugin activated: ${this._envType}`);
+    console.log(`[Evolve AI] ${this.displayName} plugin activated: ${this._envType}`);
     return disposables;
   }
 
@@ -697,15 +697,15 @@ For every entry in `plugin.commands`, add to `package.json`:
       {
         "command": "aiForge.YOUR_PLUGIN_ID.commandName",
         "title": "YOUR_DISPLAY_NAME: Command Title",
-        "category": "AI Forge"
+        "category": "Evolve AI"
       }
     ]
   }
 }
 ```
 
-The `category` field must be `"AI Forge"` — this groups all commands together in the
-command palette under "AI Forge: ...".
+The `category` field must be `"Evolve AI"` — this groups all commands together in the
+command palette under "Evolve AI: ...".
 
 Commands that are only triggered by CodeLens (not intended for direct palette use) can
 be omitted from `package.json`, but then users cannot assign keybindings to them.

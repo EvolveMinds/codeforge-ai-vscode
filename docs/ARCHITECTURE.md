@@ -1,8 +1,8 @@
-# AI Forge — Architecture
+# Evolve AI — Architecture
 
 ## Overview
 
-AI Forge is a VS Code extension with a plugin architecture. The core system provides AI-powered
+Evolve AI is a VS Code extension with a plugin architecture. The core system provides AI-powered
 code assistance (chat, edit, generate, explain, git). Stack plugins extend the core with deep
 domain knowledge about specific frameworks and tools, injected automatically based on what's
 in the workspace.
@@ -473,7 +473,7 @@ Rust, C++, C, C#, Ruby, PHP, Shell, SQL.
 
 ### `ui/statusBar.ts` — status bar item
 
-Shows: `$(icon) AI Forge[: modelName][ · pluginIcons]`
+Shows: `$(icon) Evolve AI[: modelName][ · pluginIcons]`
 
 Updates when: `provider.changed`, `plugin.activated`, `plugin.deactivated`, `ui.status.update`
 events fire, and on a 30-second timer (Ollama can start/stop independently).
@@ -632,7 +632,7 @@ The compiler will enforce the payload type at all emit and subscribe sites.
    ```
 3. Add to `package.json` `contributes.commands`:
    ```json
-   { "command": "aiForge.myCommand", "title": "AI Forge: My Command", "category": "AI Forge" }
+   { "command": "aiForge.myCommand", "title": "Evolve AI: My Command", "category": "Evolve AI" }
    ```
 4. Optionally add a keybinding to `contributes.keybindings`
 

@@ -13,7 +13,7 @@ import { PytestPlugin } from '../../plugins/pytest';
 
 /** Create a temporary workspace directory and return its path */
 function makeTmpDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'ai-forge-pytest-test-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'evolve-ai-pytest-test-'));
 }
 
 /** Remove a directory recursively */

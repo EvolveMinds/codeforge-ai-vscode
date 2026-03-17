@@ -194,7 +194,7 @@ Connect to your Databricks workspace for live cluster management, job monitoring
 
 **Setup:**
 1. Open the command palette (`Ctrl+Shift+P`)
-2. Run **AI Forge: Databricks: Connect to Workspace**
+2. Run **Evolve AI: Databricks: Connect to Workspace**
 3. Enter your workspace URL (e.g., `https://adb-1234567890.12.azuredatabricks.net`)
 4. Enter your Personal Access Token
    - Generate one at: Workspace > User Settings > Developer > Access Tokens > Generate New Token
@@ -229,7 +229,7 @@ Connect to your AWS account for Lambda management, Glue job monitoring, S3 brows
 
 **Setup:**
 1. Open the command palette (`Ctrl+Shift+P`)
-2. Run **AI Forge: AWS: Connect to Account**
+2. Run **Evolve AI: AWS: Connect to Account**
 3. Enter your AWS Access Key ID
 4. Enter your AWS Secret Access Key
 5. Enter your AWS Region (e.g., `us-east-1`, `eu-west-1`)
@@ -269,7 +269,7 @@ Connect to your GCP project for Cloud Functions management, Cloud Run monitoring
 
 **Setup:**
 1. Open the command palette (`Ctrl+Shift+P`)
-2. Run **AI Forge: Google Cloud: Connect to Project**
+2. Run **Evolve AI: Google Cloud: Connect to Project**
 3. Select your service account JSON key file (file picker dialog)
    - Create one at: GCP Console > IAM & Admin > Service Accounts > Keys > Add Key > JSON
 4. Enter your GCP project ID
@@ -307,7 +307,7 @@ Connect to your Azure subscription for Functions management, Logic Apps monitori
 
 **Setup:**
 1. Open the command palette (`Ctrl+Shift+P`)
-2. Run **AI Forge: Azure: Connect to Subscription**
+2. Run **Evolve AI: Azure: Connect to Subscription**
 3. Enter your Tenant ID
 4. Enter your Application (Client) ID
 5. Enter your Client Secret
@@ -357,7 +357,7 @@ This outputs `appId` (Client ID), `password` (Client Secret), and `tenant` (Tena
 4. Check the model name matches `aiForge.ollamaModel` (default: `qwen2.5-coder:7b`)
 
 **Cloud provider not responding:**
-1. Check your API key is set: run **AI Forge: Switch AI Provider** and re-enter your key
+1. Check your API key is set: run **Evolve AI: Switch AI Provider** and re-enter your key
 2. Verify network connectivity to the provider's API endpoint
 3. Check VS Code's Developer Tools console (`Help > Toggle Developer Tools`) for error messages
 
@@ -401,10 +401,10 @@ This happens when a cloud plugin command is triggered but the plugin isn't activ
 ### How to disconnect / change credentials
 
 Run the disconnect command for your provider:
-- **AI Forge: AWS: Disconnect**
-- **AI Forge: Google Cloud: Disconnect**
-- **AI Forge: Azure: Disconnect**
-- **AI Forge: Databricks: Disconnect**
+- **Evolve AI: AWS: Disconnect**
+- **Evolve AI: Google Cloud: Disconnect**
+- **Evolve AI: Azure: Disconnect**
+- **Evolve AI: Databricks: Disconnect**
 
 Then run the connect command again with new credentials.
 
@@ -421,7 +421,7 @@ A: It depends on your provider. With **Ollama**, everything stays on your machin
 A: For **privacy and cost**: Ollama (free, local). For **best quality**: Anthropic Claude or OpenAI GPT-4o. For **speed on a budget**: Groq (via OpenAI-compatible endpoint). For **no setup**: the built-in offline mode (limited to pattern-based analysis).
 
 **Q: Can I use multiple providers?**
-A: You can switch providers at any time via **AI Forge: Switch AI Provider**. The extension uses one provider at a time.
+A: You can switch providers at any time via **Evolve AI: Switch AI Provider**. The extension uses one provider at a time.
 
 **Q: What models work with Ollama?**
 A: Any model Ollama supports. Recommended: `qwen2.5-coder:7b` (default, good balance), `codellama:13b` (larger, better quality), `deepseek-coder:6.7b`, or `starcoder2:7b`. Run `ollama list` to see installed models.
