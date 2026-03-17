@@ -174,6 +174,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
   private async _clearHistory(): Promise<void> {
     this._history = [];
     await this._svc.vsCtx.workspaceState.update(HISTORY_KEY, []);
+    this._statusCache = null;  // Invalidate so onboarding guide re-evaluates
     this._post({ type: 'historyClear' });
   }
 
@@ -623,7 +624,6 @@ function send() {
 function cancel() { vscode.postMessage({ type: 'cancel' }); }
 
 function clearHistory() {
-  if (!confirm('Clear all chat history?')) return;
   vscode.postMessage({ type: 'clear' });
 }
 
@@ -672,9 +672,23 @@ window.addEventListener('message', ({ data }) => {
       }
       break;
     }
-    case 'historyClear':
-      document.getElementById('msgs').innerHTML = '<div class="msg notice">History cleared.</div>';
+    case 'historyClear': {
+      const msgsEl = document.getElementById('msgs');
+      msgsEl.innerHTML = '';
+      // Restore welcome message
+      const w = document.createElement('div');
+      w.className = 'welcome';
+      w.innerHTML = '<h3>Evolve AI</h3>'
+        + '<p><strong>Chat</strong> &mdash; ask questions about your code</p>'
+        + '<p><strong>Edit</strong> &mdash; describe changes to the active file</p>'
+        + '<p><strong>Create</strong> &mdash; generate new files from scratch</p>'
+        + '<p style="margin-top:8px">Right-click code for inline actions</p>'
+        + '<p><kbd>Ctrl+Shift+A</kbd> to open &middot; <kbd>Ctrl+Alt+E</kbd> to explain selection</p>';
+      msgsEl.appendChild(w);
+      // Re-check status to show onboarding guide if offline
+      vscode.postMessage({ type: 'getStatus' });
       break;
+    }
     case 'userMsg':
       addMsg('user', esc(data.text) + (data.context ? '<div class="ctx">' + esc(data.context) + '</div>' : ''));
       break;
