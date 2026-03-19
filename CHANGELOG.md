@@ -2,6 +2,11 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.0.6] — 2026-03-19
+
+### Improved
+- **Auto model detection for Ollama** — If the configured model isn't installed but other models are available, the extension now automatically uses the first installed model instead of blocking with a dialog. The setting is updated so subsequent requests use the same model. A prompt is only shown when no models are installed at all.
+
 ## [1.1.0] — 2026-03-16
 
 ### Added

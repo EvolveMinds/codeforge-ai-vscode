@@ -199,12 +199,19 @@ export class AIService implements IAIService {
     // Pre-check: verify the model exists before streaming
     const available = await this._getOllamaModels(resolved);
     if (available !== null && !available.some(m => m === model || m.startsWith(model + ':'))) {
-      // Show one-click install notification
-      const useExisting = available.length > 0 ? 'Use Installed Model' : undefined;
-      const choices = ['Install Model Now', ...(useExisting ? [useExisting] : []), 'Open Settings'];
+      if (available.length > 0) {
+        // Auto-fallback: pick the first installed model and update the setting
+        const fallback = available[0];
+        await vscode.workspace.getConfiguration('aiForge').update('ollamaModel', fallback, vscode.ConfigurationTarget.Global);
+        yield `ℹ️ Model **${model}** not found — automatically switched to **${fallback}**.\n\n`;
+        yield* this._streamOllamaWithModel(req, resolved, fallback);
+        return;
+      }
+
+      // No models installed at all — offer to pull the configured one
       const pick = await vscode.window.showWarningMessage(
-        `Ollama model "${model}" is not installed.`,
-        ...choices
+        `No Ollama models installed. Install "${model}"?`,
+        'Install Model Now', 'Open Settings'
       );
 
       if (pick === 'Install Model Now') {
@@ -214,30 +221,13 @@ export class AIService implements IAIService {
         yield `⏳ Installing model **${model}**...\n\n`;
         yield `A terminal has been opened to download the model. Once it finishes, try your request again.\n`;
         return;
-      } else if (pick === 'Use Installed Model' && available.length > 0) {
-        // Let user pick from installed models
-        const selected = await vscode.window.showQuickPick(available, {
-          placeHolder: 'Select an installed Ollama model to use',
-          title: 'Evolve AI: Choose Model',
-        });
-        if (selected) {
-          await vscode.workspace.getConfiguration('aiForge').update('ollamaModel', selected, vscode.ConfigurationTarget.Global);
-          yield `✓ Switched to model **${selected}**. Retrying...\n\n`;
-          // Retry with the new model
-          yield* this._streamOllamaWithModel(req, resolved, selected);
-          return;
-        }
-        yield `⚠ No model selected. Please try again.\n`;
-        return;
       } else if (pick === 'Open Settings') {
         await vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.ollamaModel');
         yield `⚠ Update the **aiForge.ollamaModel** setting to a model you have installed, then try again.\n`;
         return;
       }
 
-      // User dismissed the dialog
-      const list = available.length > 0 ? available.slice(0, 10).join(', ') : 'none';
-      yield `⚠ Model **${model}** not found. Installed models: ${list}\n`;
+      yield `⚠ No Ollama models installed. Run \`ollama pull <model>\` to get started.\n`;
       return;
     }
 
