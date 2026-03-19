@@ -2,6 +2,11 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.0.7] — 2026-03-19
+
+### Fixed
+- **Command palette branding** — All commands now show under "Evolve AI:" consistently. Fixed 66 plugin commands that previously displayed a duplicate "Evolve AI: Evolve AI:" prefix due to the category and title both containing the brand name.
+
 ## [1.0.6] — 2026-03-19
 
 ### Improved

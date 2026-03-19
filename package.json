@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Context-aware AI coding assistant with 16 auto-detecting plugins. Works with Ollama (local/offline), Claude, OpenAI, and HuggingFace. Understands your project, errors, git state, and cloud platforms (AWS, GCP, Azure, Databricks).",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -552,332 +552,332 @@
       },
       {
         "command": "aiForge.dbt.explainModel",
-        "title": "Evolve AI: Explain dbt Model",
+        "title": "Explain dbt Model",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.dbt.addTest",
-        "title": "Evolve AI: Add dbt Test",
+        "title": "Add dbt Test",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.dbt.convertIncremental",
-        "title": "Evolve AI: Convert to Incremental",
+        "title": "Convert to Incremental",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.dbt.generateDocs",
-        "title": "Evolve AI: Generate dbt Documentation",
+        "title": "Generate dbt Documentation",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.dbt.optimiseModel",
-        "title": "Evolve AI: Optimise dbt Model",
+        "title": "Optimise dbt Model",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.dbt.addSourceYaml",
-        "title": "Evolve AI: Generate Source YAML",
+        "title": "Generate Source YAML",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.airflow.explainDag",
-        "title": "Evolve AI: Explain Airflow DAG",
+        "title": "Explain Airflow DAG",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.airflow.convertToTaskflow",
-        "title": "Evolve AI: Convert to TaskFlow API",
+        "title": "Convert to TaskFlow API",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.airflow.addSensor",
-        "title": "Evolve AI: Add Airflow Sensor",
+        "title": "Add Airflow Sensor",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.airflow.addRetryPolicy",
-        "title": "Evolve AI: Add Retry Policy",
+        "title": "Add Retry Policy",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.airflow.generateDag",
-        "title": "Evolve AI: Generate Airflow DAG",
+        "title": "Generate Airflow DAG",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.airflow.addMonitoring",
-        "title": "Evolve AI: Add DAG Monitoring",
+        "title": "Add DAG Monitoring",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytest.generateTest",
-        "title": "Evolve AI: Generate pytest Tests",
+        "title": "Generate pytest Tests",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytest.addFixture",
-        "title": "Evolve AI: Extract pytest Fixture",
+        "title": "Extract pytest Fixture",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytest.addParametrize",
-        "title": "Evolve AI: Add Parametrize",
+        "title": "Add Parametrize",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytest.convertUnittest",
-        "title": "Evolve AI: Convert unittest to pytest",
+        "title": "Convert unittest to pytest",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytest.addCoverage",
-        "title": "Evolve AI: Add Coverage Config",
+        "title": "Add Coverage Config",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytest.explainTest",
-        "title": "Evolve AI: Explain Test",
+        "title": "Explain Test",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.fastapi.explainEndpoint",
-        "title": "Evolve AI: Explain FastAPI Endpoint",
+        "title": "Explain FastAPI Endpoint",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.fastapi.addValidation",
-        "title": "Evolve AI: Add Request Validation",
+        "title": "Add Request Validation",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.fastapi.addResponseModel",
-        "title": "Evolve AI: Add Response Model",
+        "title": "Add Response Model",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.fastapi.generateCrud",
-        "title": "Evolve AI: Generate CRUD Router",
+        "title": "Generate CRUD Router",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.fastapi.addAuth",
-        "title": "Evolve AI: Add Authentication",
+        "title": "Add Authentication",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.fastapi.addTest",
-        "title": "Evolve AI: Generate Endpoint Test",
+        "title": "Generate Endpoint Test",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.django.explainModel",
-        "title": "Evolve AI: Explain Django Model",
+        "title": "Explain Django Model",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.django.addSerializer",
-        "title": "Evolve AI: Generate DRF Serializer",
+        "title": "Generate DRF Serializer",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.django.addAdmin",
-        "title": "Evolve AI: Generate Admin Registration",
+        "title": "Generate Admin Registration",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.django.addView",
-        "title": "Evolve AI: Generate View for Model",
+        "title": "Generate View for Model",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.django.addUrls",
-        "title": "Evolve AI: Generate URL Patterns",
+        "title": "Generate URL Patterns",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.django.addTest",
-        "title": "Evolve AI: Generate Django Tests",
+        "title": "Generate Django Tests",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.terraform.explainResource",
-        "title": "Evolve AI: Explain Terraform Resource",
+        "title": "Explain Terraform Resource",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.terraform.extractVariable",
-        "title": "Evolve AI: Extract to Variable",
+        "title": "Extract to Variable",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.terraform.addTags",
-        "title": "Evolve AI: Add Tags to Resource",
+        "title": "Add Tags to Resource",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.terraform.generateModule",
-        "title": "Evolve AI: Generate Terraform Module",
+        "title": "Generate Terraform Module",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.terraform.addOutput",
-        "title": "Evolve AI: Add Output",
+        "title": "Add Output",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.terraform.validateSecurity",
-        "title": "Evolve AI: Check Security Best Practices",
+        "title": "Check Security Best Practices",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.k8s.explainResource",
-        "title": "Evolve AI: Explain K8s Resource",
+        "title": "Explain K8s Resource",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.k8s.addProbes",
-        "title": "Evolve AI: Add Health Probes",
+        "title": "Add Health Probes",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.k8s.addResources",
-        "title": "Evolve AI: Add Resource Limits",
+        "title": "Add Resource Limits",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.k8s.addSecurity",
-        "title": "Evolve AI: Add Security Context",
+        "title": "Add Security Context",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.k8s.generateManifest",
-        "title": "Evolve AI: Generate K8s Manifest",
+        "title": "Generate K8s Manifest",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.k8s.addNetworkPolicy",
-        "title": "Evolve AI: Add Network Policy",
+        "title": "Add Network Policy",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.docker.explainDockerfile",
-        "title": "Evolve AI: Explain Dockerfile",
+        "title": "Explain Dockerfile",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.docker.optimize",
-        "title": "Evolve AI: Optimize Dockerfile",
+        "title": "Optimize Dockerfile",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.docker.addHealthcheck",
-        "title": "Evolve AI: Add Healthcheck",
+        "title": "Add Healthcheck",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.docker.securityAudit",
-        "title": "Evolve AI: Docker Security Audit",
+        "title": "Docker Security Audit",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.docker.generateCompose",
-        "title": "Evolve AI: Generate Docker Compose",
+        "title": "Generate Docker Compose",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.docker.generateDockerfile",
-        "title": "Evolve AI: Generate Dockerfile",
+        "title": "Generate Dockerfile",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.jupyter.explainNotebook",
-        "title": "Evolve AI: Explain Notebook",
+        "title": "Explain Notebook",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.jupyter.addDocumentation",
-        "title": "Evolve AI: Add Notebook Documentation",
+        "title": "Add Notebook Documentation",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.jupyter.cleanOutputs",
-        "title": "Evolve AI: Clean Notebook Outputs",
+        "title": "Clean Notebook Outputs",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.jupyter.convertToNotebook",
-        "title": "Evolve AI: Convert Script to Notebook",
+        "title": "Convert Script to Notebook",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.jupyter.generateNotebook",
-        "title": "Evolve AI: Generate Notebook",
+        "title": "Generate Notebook",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytorch.explainModel",
-        "title": "Evolve AI: Explain PyTorch Model",
+        "title": "Explain PyTorch Model",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytorch.addTrainingLoop",
-        "title": "Evolve AI: Generate Training Loop",
+        "title": "Generate Training Loop",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytorch.addCheckpoint",
-        "title": "Evolve AI: Add Model Checkpoint",
+        "title": "Add Model Checkpoint",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytorch.optimizeTraining",
-        "title": "Evolve AI: Optimize Training",
+        "title": "Optimize Training",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytorch.addMixedPrecision",
-        "title": "Evolve AI: Add Mixed Precision",
+        "title": "Add Mixed Precision",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.pytorch.generateDataset",
-        "title": "Evolve AI: Generate Dataset Class",
+        "title": "Generate Dataset Class",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.security.scanFile",
-        "title": "Evolve AI: Security Scan Current File",
+        "title": "Security Scan Current File",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.security.scanWorkspace",
-        "title": "Evolve AI: Security Scan Workspace",
+        "title": "Security Scan Workspace",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.security.fixFinding",
-        "title": "Evolve AI: Fix Security Issue",
+        "title": "Fix Security Issue",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.git.blame",
-        "title": "Evolve AI: Git Blame Function",
+        "title": "Git Blame Function",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.git.changelog",
-        "title": "Evolve AI: Generate Changelog",
+        "title": "Generate Changelog",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.git.commitMessage",
-        "title": "Evolve AI: Smart Commit Message",
+        "title": "Smart Commit Message",
         "category": "Evolve AI"
       },
       {
         "command": "aiForge.git.prTemplate",
-        "title": "Evolve AI: Generate PR Template",
+        "title": "Generate PR Template",
         "category": "Evolve AI"
       },
       {
