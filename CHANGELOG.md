@@ -2,6 +2,37 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.2.0] — 2026-04-16
+
+### Added
+
+#### Gemma 4 — First-class provider with guided setup
+- **Gemma 4 provider** — Google's latest open-weight multimodal model (Apache 2.0). Runs locally via Ollama with zero cloud dependency. 4 variants: E2B (2.3B), E4B (4.5B), 26B MoE, 31B Dense.
+- **Guided setup wizard** — Select Gemma 4 in Switch Provider → checks Ollama → picks variant with hardware recommendations → downloads model → auto-configures. One-click setup.
+- **`aiForge.gemma4Info` command** — Shows current variant status, comparison table, tips, and keyboard shortcuts directly in chat.
+- **Post-setup welcome** — After Gemma 4 setup, chat shows what it can do with tips for best results.
+- **First-use tip** — Dismissible tip after first Gemma 4 response with privacy note and example prompts.
+
+#### Gemma 4 advanced features
+- **Thinking mode** — Toggle chain-of-thought reasoning via the "Think" button in chat header. Shows internal reasoning in collapsible blocks before the answer. Better results for complex tasks. New setting: `aiForge.gemma4ThinkingMode`.
+- **Vision / image input** — Paste images from clipboard (Ctrl+V) or drag-and-drop into chat. Gemma 4 analyses screenshots, UI mockups, error screenshots, diagrams. Image preview with thumbnails before sending.
+- **Structured output** — In edit mode, Gemma 4 returns structured JSON with file content instead of markdown. More reliable code extraction and fewer parsing failures.
+- **Dynamic context budget** — Auto-scales context from 24K chars to 80K (E2B/E4B) or 120K (26B/31B) to leverage Gemma 4's 128K-256K context windows. More related files, fuller git diffs, richer plugin data.
+
+#### Marketplace & distribution
+- **Comparison table** in README — vs GitHub Copilot, Continue.dev, Cody
+- **"Get Started in 60 Seconds"** — 3-command quick start at top of README
+- **Marketplace badges** — Version, installs, rating, license
+- **CONTRIBUTING.md** — Full contributor guide with wanted plugin list
+- **Launch post drafts** — Ready-to-post texts for Hacker News, Reddit (r/LocalLLaMA, r/vscode, r/devops, r/dataengineering), and Product Hunt
+
+### Improved
+- **Status bar** — Shows `$(sparkle) Evolve AI: Gemma 4 (E4B)` with enhanced tooltip (variant, params, context window, capabilities)
+- **Onboarding guide** — Gemma 4 is now Option 1 in the "Welcome to Evolve AI" guide with feature highlights
+- **Offline guide** — Lists Gemma 4 as the first recommended setup option
+- **Marketplace metadata** — Optimised keywords (5 max), gallery banner, homepage/bugs URLs, extension kind, badges
+- **README** — "Why Evolve AI?" hero section, Gemma 4 FAQ entry, updated model recommendations
+
 ## [1.0.7] — 2026-03-19
 
 ### Fixed

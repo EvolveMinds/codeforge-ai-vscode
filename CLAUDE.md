@@ -199,9 +199,9 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (25 total)
+## Commands currently registered (26 total)
 
-### Core (15)
+### Core (16)
 | Command ID | Keybinding | Description |
 |---|---|---|
 | `aiForge.openChat` | Ctrl+Shift+A | Open sidebar chat |
@@ -219,6 +219,7 @@ are merged into the core system transparently:
 | `aiForge.runAndFix` | — | Run file and auto-fix errors |
 | `aiForge.switchProvider` | — | Switch AI provider |
 | `aiForge.setupOllama` | — | Open Ollama setup page |
+| `aiForge.gemma4Info` | — | Show Gemma 4 info, tips & variant comparison |
 
 ### Databricks plugin (10)
 `aiForge.databricks.explainJob` · `aiForge.databricks.optimiseQuery` ·
@@ -233,9 +234,11 @@ are merged into the core system transparently:
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `provider` | string | `auto` | `auto` / `ollama` / `anthropic` / `openai` / `huggingface` / `offline` |
+| `provider` | string | `auto` | `auto` / `ollama` / `gemma4` / `anthropic` / `openai` / `huggingface` / `offline` |
 | `ollamaHost` | string | `http://localhost:11434` | Ollama / LM Studio / llama.cpp server URL |
 | `ollamaModel` | string | `qwen2.5-coder:7b` | Ollama model |
+| `gemma4Model` | string | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b` / `gemma4:e4b` / `gemma4:26b` / `gemma4:31b` |
+| `gemma4ThinkingMode` | boolean | `false` | Enable chain-of-thought reasoning (better results, slower) |
 | `openaiBaseUrl` | string | `https://api.openai.com/v1` | Also works for Groq, Mistral, Together AI, LiteLLM |
 | `openaiModel` | string | `gpt-4o` | OpenAI model name |
 | `anthropicModel` | string | `claude-sonnet-4-6` | Anthropic model name |

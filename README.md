@@ -1,8 +1,56 @@
 # Evolve AI — Context-Aware AI Coding Assistant for VS Code
 
-**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Anthropic Claude**, **OpenAI-compatible APIs**, and **Hugging Face** — so you choose where your code goes.
+<!-- TODO: Add banner image here: ![Evolve AI](media/banner.png) -->
+<!-- TODO: Add animated GIF demo here: ![Demo](media/demo.gif) -->
 
-What sets it apart: a **plugin architecture** that automatically detects your tech stack and injects deep domain knowledge into every AI interaction. Working on Databricks? The Databricks plugin activates with live workspace integration. Deploying to AWS? Lambda, Glue, S3, and CloudFormation commands appear automatically. No configuration needed.
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/codeforge-ai.evolve-ai?label=VS%20Code%20Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/codeforge-ai.evolve-ai?color=green)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
+[![License: MIT](https://img.shields.io/github/license/EvolveMinds/codeforge-ai-vscode?color=brightgreen)](LICENSE)
+
+**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **Anthropic Claude**, **OpenAI-compatible APIs**, and **Hugging Face** — so you choose where your code goes.
+
+### Why Evolve AI?
+
+- **Free & private** — runs fully offline with Ollama or Gemma 4. Your code never leaves your machine.
+- **Auto-detecting stack plugins** — 13 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, and more.
+- **Any AI provider** — bring your own model or API key. Switch between local and cloud in one click.
+- **Deep context** — understands your active file, related files, diagnostics, git state, and cloud platform connections.
+
+> Also works in **Cursor**, **VSCodium**, and other VS Code forks.
+
+---
+
+## Get Started in 60 Seconds
+
+```bash
+# 1. Install Ollama (free, local AI)
+# Download from https://ollama.com — or on Linux:
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 2. Pull a model (pick one)
+ollama pull gemma4:e4b        # Google Gemma 4 — multimodal, 128K context (recommended)
+ollama pull qwen2.5-coder:7b  # Qwen — optimized for code
+
+# 3. Install the extension and start coding
+# Ctrl+Shift+A to open chat — Evolve AI detects Ollama automatically
+```
+
+No API key. No account. No data leaving your machine. That's it.
+
+---
+
+## How Does It Compare?
+
+| Feature | Evolve AI | GitHub Copilot | Continue.dev | Cody |
+|---------|-----------|---------------|-------------|------|
+| **Free local AI** (Ollama, Gemma 4) | Yes | No | Yes | No |
+| **Auto-detecting stack plugins** (13) | Yes | No | No | No |
+| **Cloud platform integration** (AWS, GCP, Azure, Databricks) | Yes | No | No | No |
+| **Multimodal** (images via Gemma 4) | Yes | No | Partial | No |
+| **Multiple AI providers** | 6 | 1 | Multiple | 1 |
+| **Offline mode** | Yes | No | No | No |
+| **Open source** | MIT | No | Apache 2.0 | Apache 2.0 |
+| **Price** | Free | $10-19/mo | Free | Free tier |
 
 ---
 
@@ -13,6 +61,7 @@ What sets it apart: a **plugin architecture** that automatically detects your te
 | Provider | Privacy | Setup |
 |---|---|---|
 | **Ollama** (local) | Code never leaves your machine | Free, runs locally |
+| **Gemma 4** (local) | Code never leaves your machine | Free, guided setup via Ollama |
 | **Anthropic Claude** | Cloud API | API key required |
 | **OpenAI / Compatible** | Cloud API (Groq, Mistral, Together AI, LM Studio) | API key required |
 | **Hugging Face** | Cloud API | API key required |
@@ -112,6 +161,28 @@ Set `aiForge.provider` to `ollama` (or leave on `auto` — it detects Ollama aut
 
 Also compatible with **LM Studio**, **llama.cpp**, and **Jan** — point `aiForge.ollamaHost` at your server.
 
+### Gemma 4 (local, multimodal)
+
+Google's latest open model with text, image, and audio understanding. Runs locally and privately via Ollama. Apache 2.0 licensed.
+
+Run **Switch AI Provider** -> select **Gemma 4** and follow the guided setup wizard. It handles Ollama installation, model download, and configuration automatically.
+
+Or set up manually:
+
+```bash
+# Install Ollama: https://ollama.com
+ollama pull gemma4:e4b    # Recommended for most users (~9.6GB)
+```
+
+Choose your variant in `aiForge.gemma4Model`:
+
+| Variant | Params | Size | Best for |
+|---------|--------|------|----------|
+| `gemma4:e4b` | 4.5B | ~9.6GB | Balanced speed & quality (recommended) |
+| `gemma4:e2b` | 2.3B | ~7.2GB | Fast, lightweight tasks |
+| `gemma4:26b` | 25.2B MoE | ~18GB | High-quality reasoning (32GB+ RAM) |
+| `gemma4:31b` | 30.7B | ~20GB | Maximum quality (32GB+ RAM, GPU) |
+
 ### Anthropic Claude
 
 1. Get an API key from [console.anthropic.com](https://console.anthropic.com)
@@ -144,9 +215,10 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 
 | Setting | Default | Description |
 |---|---|---|
-| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `anthropic`, `openai`, `huggingface`, `offline` |
+| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `huggingface`, `offline` |
 | `aiForge.ollamaHost` | `http://localhost:11434` | Ollama server URL (also LM Studio, llama.cpp) |
 | `aiForge.ollamaModel` | `qwen2.5-coder:7b` | Ollama model name |
+| `aiForge.gemma4Model` | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b`, `gemma4:e4b`, `gemma4:26b`, `gemma4:31b` |
 | `aiForge.openaiBaseUrl` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
 | `aiForge.openaiModel` | `gpt-4o` | OpenAI model name |
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |
@@ -418,13 +490,16 @@ Then run the connect command again with new credentials.
 A: It depends on your provider. With **Ollama**, everything stays on your machine — no data leaves your network. With cloud providers (Anthropic, OpenAI, HuggingFace), your code context is sent to their API. Choose based on your privacy requirements.
 
 **Q: Which AI provider should I use?**
-A: For **privacy and cost**: Ollama (free, local). For **best quality**: Anthropic Claude or OpenAI GPT-4o. For **speed on a budget**: Groq (via OpenAI-compatible endpoint). For **no setup**: the built-in offline mode (limited to pattern-based analysis).
+A: For **privacy and cost**: Gemma 4 or Ollama (free, local, your code never leaves your machine). For **best quality**: Anthropic Claude or OpenAI GPT-4o. For **speed on a budget**: Groq (via OpenAI-compatible endpoint). For **no setup**: the built-in offline mode (limited to pattern-based analysis).
+
+**Q: What is Gemma 4 and why should I use it?**
+A: Gemma 4 is Google's latest open-weight AI model (Apache 2.0 license). It runs locally via Ollama with no API key, no cost, and no data leaving your machine. It supports text, image, and audio input with 128K-256K context windows. The E4B variant (~9.6GB) is recommended for most users. Select **Gemma 4** in the provider switcher for a guided setup wizard.
 
 **Q: Can I use multiple providers?**
 A: You can switch providers at any time via **Evolve AI: Switch AI Provider**. The extension uses one provider at a time.
 
 **Q: What models work with Ollama?**
-A: Any model Ollama supports. Recommended: `qwen2.5-coder:7b` (default, good balance), `codellama:13b` (larger, better quality), `deepseek-coder:6.7b`, or `starcoder2:7b`. Run `ollama list` to see installed models.
+A: Any model Ollama supports. Recommended: `gemma4:e4b` (Google Gemma 4, multimodal, strong coding), `qwen2.5-coder:7b` (code-optimized), `codellama:13b` (larger, better quality), `deepseek-coder:6.7b`. Run `ollama list` to see installed models.
 
 **Q: Does Evolve AI work with LM Studio / llama.cpp / Jan?**
 A: Yes. Set `aiForge.ollamaHost` to your server's URL (e.g., `http://localhost:1234/v1` for LM Studio). These servers implement the same API as Ollama.
@@ -461,19 +536,29 @@ A: The extension only performs the actions you explicitly trigger via commands. 
 
 ## Contributing
 
-Evolve AI uses a plugin architecture that makes adding new stack support straightforward.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full guide.
 
-1. Read `docs/ARCHITECTURE.md` for the full structural design
-2. Read `docs/PLUGIN_GUIDE.md` for the step-by-step plugin template
-3. Create `src/plugins/<name>.ts` implementing the `IPlugin` interface
-4. Register it in `src/plugins/index.ts`
-5. Add commands to `package.json` under `contributes.commands`
+**Quick start for contributors:**
 
-Future plugin ideas (community contributions welcome):
+1. Fork the repo and clone it
+2. `npm install && npm run watch`
+3. Press `F5` to launch the Extension Development Host
+4. Make your changes and test them
+
+**Easiest way to contribute** — add a new stack plugin:
+
+1. Read `docs/PLUGIN_GUIDE.md` for the step-by-step template
+2. Create `src/plugins/<name>.ts` implementing the `IPlugin` interface
+3. Register it in `src/plugins/index.ts`
+4. Add commands to `package.json` under `contributes.commands`
+
+**Plugin ideas (community contributions welcome):**
 - **Next.js** — App Router, Server Components, API routes
 - **Rust** — ownership, lifetimes, async patterns
 - **Go** — goroutines, interfaces, error handling
 - **GraphQL** — schema, resolvers, queries
+- **React Native** — Expo, Metro, native modules
+- **Spring Boot** — Java/Kotlin, dependency injection, JPA
 
 ---
 

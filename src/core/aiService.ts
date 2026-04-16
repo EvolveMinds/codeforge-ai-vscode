@@ -14,11 +14,13 @@ import * as https  from 'https';
 import type { EventBus }   from './eventBus';
 import type { IAIService } from './interfaces';
 
-export type ProviderName = 'auto' | 'ollama' | 'anthropic' | 'openai' | 'huggingface' | 'offline';
+export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'anthropic' | 'openai' | 'huggingface' | 'offline';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+  /** Base64-encoded images for vision-capable models (Gemma 4 via Ollama) */
+  images?: string[];
 }
 
 export interface AIRequest {
@@ -77,7 +79,16 @@ export class AIService implements IAIService {
     const cfg  = this._cfg();
     const pref = cfg.get<ProviderName>('provider', 'auto');
     if (pref !== 'auto') return pref;
-    return (await this.isOllamaRunning()) ? 'ollama' : 'offline';
+    if (await this.isOllamaRunning()) {
+      // Prefer Gemma 4 in auto mode if explicitly configured and installed
+      const gemma4Explicit = cfg.inspect<string>('gemma4Model')?.globalValue;
+      if (gemma4Explicit) {
+        const { installed } = await this.isGemma4Available();
+        if (installed) return 'gemma4';
+      }
+      return 'ollama';
+    }
+    return 'offline';
   }
 
   // [FIX-23] On Windows, 'localhost' may resolve to IPv6 ::1 while Ollama listens on IPv4.
@@ -148,6 +159,12 @@ export class AIService implements IAIService {
     });
   }
 
+  async isGemma4Available(): Promise<{ installed: boolean; variants: string[] }> {
+    const models = await this.getOllamaModels();
+    const variants = models.filter(m => m.startsWith('gemma4'));
+    return { installed: variants.length > 0, variants };
+  }
+
   // ── Core streaming ───────────────────────────────────────────────────────────
 
   async* stream(request: AIRequest): AsyncGenerator<string> {
@@ -168,6 +185,7 @@ export class AIService implements IAIService {
       const cfg      = this._cfg();
 
       if (provider === 'ollama')         { yield* this._streamOllama(req, cfg);       }
+      else if (provider === 'gemma4')     { yield* this._streamGemma4(req, cfg);     }
       else if (provider === 'anthropic')  { yield* this._streamAnthropic(req, cfg);  }
       else if (provider === 'openai')     { yield* this._streamOpenAI(req, cfg);     }
       else if (provider === 'huggingface'){ yield* this._streamHuggingFace(req, cfg);}
@@ -236,11 +254,95 @@ export class AIService implements IAIService {
 
   private async* _streamOllamaWithModel(req: AIRequest, resolvedHost: string, model: string): AsyncGenerator<string> {
     const url   = new URL(resolvedHost + '/api/chat');
+    // Preserve images in messages for vision-capable models
+    const msgs = [{ role: 'system' as const, content: req.system }, ...req.messages].map(m => {
+      const entry: Record<string, unknown> = { role: m.role, content: m.content };
+      if (m.images?.length) { entry.images = m.images; }
+      return entry;
+    });
     const body  = JSON.stringify({
       model, stream: true,
-      messages: [{ role: 'system', content: req.system }, ...req.messages],
+      messages: msgs,
       options: { temperature: 0.2, num_predict: 4096 },
     });
+    yield* this._httpStream(url, body,
+      c => { try { return JSON.parse(c).message?.content || ''; } catch { return ''; } },
+      {}, req.signal
+    );
+  }
+
+  private async* _streamGemma4(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
+    const host     = cfg.get<string>('ollamaHost', 'http://localhost:11434');
+    const resolved = await this._resolveOllamaHost(host);
+    const model    = cfg.get<string>('gemma4Model', 'gemma4:e4b');
+
+    // Pre-check: verify the Gemma 4 variant is installed
+    const available = await this._getOllamaModels(resolved);
+    if (available !== null && !available.some(m => m === model || m.startsWith(model + ':'))) {
+      // Check if any gemma4 variant is installed
+      const anyGemma4 = available.filter(m => m.startsWith('gemma4'));
+      if (anyGemma4.length > 0) {
+        const fallback = anyGemma4[0];
+        await vscode.workspace.getConfiguration('aiForge').update('gemma4Model', fallback, vscode.ConfigurationTarget.Global);
+        yield `\u2139\uFE0F Model **${model}** not found \u2014 switched to **${fallback}**.\n\n`;
+        yield* this._streamOllamaWithModel(req, resolved, fallback);
+        return;
+      }
+
+      // No Gemma 4 model installed at all
+      const pick = await vscode.window.showWarningMessage(
+        `Gemma 4 model "${model}" is not downloaded yet. Install it now?`,
+        'Download Now', 'Choose Different Variant', 'Open Settings'
+      );
+
+      if (pick === 'Download Now') {
+        const term = vscode.window.createTerminal('Evolve AI: Gemma 4 Setup');
+        term.show();
+        term.sendText(`ollama pull ${model}`);
+        yield `\u23F3 Downloading **${model}**...\n\n`;
+        yield `A terminal has been opened to download Gemma 4. Once it finishes, try your request again.\n`;
+        return;
+      } else if (pick === 'Choose Different Variant') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.gemma4Model');
+        yield `\u2699\uFE0F Select a Gemma 4 variant in Settings, then try again.\n`;
+        return;
+      } else if (pick === 'Open Settings') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.gemma4Model');
+        yield `\u2699\uFE0F Update the **aiForge.gemma4Model** setting, then try again.\n`;
+        return;
+      }
+
+      yield `\u26A0 Gemma 4 model not installed. Run \`ollama pull ${model}\` to get started.\n`;
+      return;
+    }
+
+    // Build Gemma 4 request with optional thinking mode + vision support
+    const thinking = cfg.get<boolean>('gemma4ThinkingMode', false);
+    const url   = new URL(resolved + '/api/chat');
+    const msgs = [{ role: 'system' as const, content: req.system }, ...req.messages].map(m => {
+      const entry: Record<string, unknown> = { role: m.role, content: m.content };
+      if (m.images?.length) { entry.images = m.images; }
+      return entry;
+    });
+    const payload: Record<string, unknown> = {
+      model, stream: true,
+      messages: msgs,
+      options: { temperature: 0.2, num_predict: 8192 },
+    };
+    // Only set think: true — never set think: false (Ollama bug: breaks format param)
+    if (thinking) { payload.think = true; }
+    // Structured output for edit mode — ask for JSON with file content
+    if (req.mode === 'edit' && !thinking) {
+      payload.format = {
+        type: 'object',
+        properties: {
+          content: { type: 'string', description: 'The complete new file content with the requested changes applied' },
+          explanation: { type: 'string', description: 'Brief explanation of what was changed' },
+        },
+        required: ['content'],
+      };
+    }
+    const body = JSON.stringify(payload);
     yield* this._httpStream(url, body,
       c => { try { return JSON.parse(c).message?.content || ''; } catch { return ''; } },
       {}, req.signal
@@ -370,12 +472,16 @@ export class AIService implements IAIService {
 
     yield `⚠ **No AI provider connected** — Evolve AI needs an AI model to ${taskHint}.\n\n`;
     yield `### Quick Setup Options\n\n`;
-    yield `**1. Ollama (Free, Private, Local)**\n`;
+    yield `**1. Gemma 4 (Free, Private, Local, Multimodal)**\n`;
+    yield `Google's latest open model — text, image & audio. Runs locally via Ollama.\n`;
+    yield `- Click **Switch** in the header and select **Gemma 4** for guided setup\n`;
+    yield `- Or manually: Download Ollama from ${ollamaUrl}, then run: \`ollama pull gemma4:e4b\`\n\n`;
+    yield `**2. Ollama (Free, Private, Local)**\n`;
     yield `Your code never leaves your machine.\n`;
     yield `- Download Ollama: ${ollamaUrl}${installCmd}\n`;
     yield `- Then run: \`ollama pull qwen2.5-coder:7b\`\n`;
     yield `- Evolve AI will detect it automatically\n\n`;
-    yield `**2. Cloud AI (API key required)**\n`;
+    yield `**3. Cloud AI (API key required)**\n`;
     yield `- **Anthropic Claude**: https://console.anthropic.com/\n`;
     yield `- **OpenAI**: https://platform.openai.com/api-keys\n`;
     yield `- **HuggingFace**: https://huggingface.co/settings/tokens\n\n`;

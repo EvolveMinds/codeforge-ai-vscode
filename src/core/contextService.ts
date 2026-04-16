@@ -61,6 +61,9 @@ export interface BuildContextOptions {
 // ── [FIX-9] Budget constants ──────────────────────────────────────────────────
 
 const DEFAULT_BUDGET     = 24_000;  // chars — ~6 000 tokens at 4 chars/token
+// Gemma 4 models have much larger context windows — auto-scale budget when active
+const GEMMA4_BUDGET_SMALL = 80_000;  // E2B/E4B: 128K context → 80K char budget
+const GEMMA4_BUDGET_LARGE = 120_000; // 26B/31B: 256K context → 120K char budget
 const ACTIVE_FILE_SHARE  = 0.50;    // 50% for active file
 const RELATED_FILE_SHARE = 0.25;    // 25% for related files (shared)
 const PLUGIN_DATA_SHARE  = 0.10;    // 10% for plugin-contributed context
@@ -92,6 +95,18 @@ export class ContextService implements IContextService {
     this._hookCache.clear();
   }
 
+  /** Auto-scale context budget for Gemma 4's larger context windows */
+  private _getDefaultBudget(cfg: vscode.WorkspaceConfiguration): number {
+    // If user explicitly set a budget, respect it (handled by caller via cfg.get default)
+    const provider = cfg.get<string>('provider', 'auto');
+    if (provider !== 'gemma4') return DEFAULT_BUDGET;
+    const model = cfg.get<string>('gemma4Model', 'gemma4:e4b');
+    // 26B/31B have 256K context, E2B/E4B have 128K
+    return (model === 'gemma4:26b' || model === 'gemma4:31b')
+      ? GEMMA4_BUDGET_LARGE
+      : GEMMA4_BUDGET_SMALL;
+  }
+
   async build(options: BuildContextOptions = {}): Promise<ProjectContext> {
     const cfg = vscode.workspace.getConfiguration('aiForge');
     const {
@@ -99,7 +114,7 @@ export class ContextService implements IContextService {
       includeGitDiff  = cfg.get<boolean>('includeGitDiffInContext', false), // [FIX-7] Default false
       includeRelated  = true,
       maxRelatedFiles = cfg.get<number>('maxContextFiles', 5),
-      budgetChars     = cfg.get<number>('contextBudgetChars', DEFAULT_BUDGET),
+      budgetChars     = cfg.get<number>('contextBudgetChars', this._getDefaultBudget(cfg)),
     } = options;
 
     const editor   = vscode.window.activeTextEditor;

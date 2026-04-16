@@ -21,7 +21,7 @@ const MSG_WINDOW_BUDGET = 48_000; // [FIX-10] Max chars for conversation history
 export class ChatPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = 'aiForge.chatPanel';
   private _view?: vscode.WebviewView;
-  private _history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  private _history: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> = [];
   private _activeAbort: AbortController | null = null;   // FIX 5
   private _lastActiveFileUri: string | undefined;        // [FIX-5] Track file for apply safety
 
@@ -60,7 +60,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     view.webview.onDidReceiveMessage(async (msg) => {
       try {
         switch (msg.type) {
-          case 'send':           await this.send(msg.text, msg.mode);    break;
+          case 'send':           await this.send(msg.text, msg.mode, msg.images);    break;
           case 'cancel':         this._activeAbort?.abort();             break;  // FIX 5
           case 'apply':          await this._apply(msg.content, msg.expectedUri); break;
           case 'applyNew':       await this._applyNew(msg.content);      break;
@@ -68,6 +68,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getStatus':      await this._postStatus();               break;
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
+          case 'toggleThinking': await vscode.workspace.getConfiguration('aiForge').update('gemma4ThinkingMode', msg.enabled, vscode.ConfigurationTarget.Global); break;
           case 'action':         await this._handleAction(msg);           break;
           default: console.warn('[Evolve AI] Unknown webview message type:', msg.type); break;
         }
@@ -85,7 +86,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 
   // ── Send ──────────────────────────────────────────────────────────────────────
 
-  async send(instruction: string, mode: 'chat' | 'edit' | 'new' = 'chat'): Promise<void> {
+  async send(instruction: string, mode: 'chat' | 'edit' | 'new' = 'chat', images?: string[]): Promise<void> {
     this.show();
 
     // [FIX-5] Track the active file at request time for safe apply
@@ -113,7 +114,9 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     ].filter(Boolean).join(' · ');
 
     this._post({ type: 'userMsg', text: instruction, context: ctxTag });
-    this._history.push({ role: 'user', content: user });
+    const userMsg: { role: 'user' | 'assistant'; content: string; images?: string[] } = { role: 'user', content: user };
+    if (images?.length) { userMsg.images = images; }
+    this._history.push(userMsg);
     this._post({ type: 'aiStart' });
 
     // FIX 5 — create abort controller, send stop signal to panel
@@ -277,7 +280,9 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       provider,
       ollamaRunning: running,
       ollamaModels:  models,
-      currentModel:  cfg.get<string>('ollamaModel', ''),
+      currentModel:  provider === 'gemma4'
+        ? cfg.get<string>('gemma4Model', 'gemma4:e4b')
+        : cfg.get<string>('ollamaModel', ''),
       activePlugins: active.map(p => ({ id: p.id, name: p.displayName, icon: p.icon })),
       os: process.platform,
     };
@@ -386,6 +391,20 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 
 /* Actions */
 .actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.hbtn.active { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
+#imagePreview { display: flex; gap: 6px; padding: 6px 8px; flex-wrap: wrap; }
+#imagePreview .img-thumb { position: relative; display: inline-block; }
+#imagePreview .img-thumb img { max-height: 60px; max-width: 100px; border-radius: 4px; border: 1px solid var(--border); }
+#imagePreview .img-thumb .remove-img { position: absolute; top: -4px; right: -4px; background: var(--vscode-errorForeground, #f44); color: #fff; border: none; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; cursor: pointer; line-height: 16px; text-align: center; padding: 0; }
+.drop-highlight { outline: 2px dashed var(--vscode-textLink-foreground, #3794ff); outline-offset: -2px; }
+.thinking-block { background: var(--bg2); border-left: 3px solid var(--vscode-textLink-foreground, #3794ff); border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; font-size: 11px; color: var(--vscode-descriptionForeground, #888); line-height: 1.5; }
+.thinking-block summary { cursor: pointer; font-weight: 600; font-size: 11px; color: var(--vscode-textLink-foreground, #3794ff); user-select: none; }
+.thinking-block summary:hover { text-decoration: underline; }
+.thinking-block .thinking-content { margin-top: 6px; white-space: pre-wrap; }
+.gemma4-tip { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--text); }
+.gemma4-tip code { background: var(--bg1); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 10px; }
+.gemma4-tip a { color: var(--vscode-textLink-foreground, #3794ff); text-decoration: none; cursor: pointer; font-size: 11px; }
+.gemma4-tip a:hover { text-decoration: underline; }
 .btn { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; transition: background 0.15s, transform 0.1s; }
 .btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
 .btn:active { transform: scale(0.97); }
@@ -416,6 +435,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   <span id="modelLabel"></span>
   <div id="pluginBadges"></div>
   <div id="rightBtns">
+    <button class="hbtn" id="thinkBtn" title="Toggle Gemma 4 thinking mode — shows chain-of-thought reasoning" style="display:none;">Think</button>
     <button class="hbtn" id="switchBtn" title="Switch AI provider">Switch</button>
     <button class="hbtn" id="clearBtn" title="Clear conversation history">Clear</button>
   </div>
@@ -439,6 +459,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 </div>
 
 <div id="inputArea">
+  <div id="imagePreview" style="display:none;"></div>
   <div id="row">
     <textarea id="input" rows="1" placeholder="Ask Evolve AI..."></textarea>
     <button id="stopBtn">Stop</button>
@@ -452,6 +473,8 @@ const vscode = acquireVsCodeApi();
 let mode = 'chat', streaming = false, lastContent = '', lastExpectedUri = null, aiEl = null;
 let renderPending = false;
 let currentProvider = 'offline';
+let gemma4TipShown = false;
+let pendingImages = [];
 
 function setMode(m) {
   mode = m;
@@ -492,10 +515,11 @@ function showOnboardingGuide(statusData) {
   // Detect specific scenario
   let title, body;
 
-  if (provider === 'ollama' && !ollamaRunning) {
-    // Ollama is selected but not running
+  if ((provider === 'ollama' || provider === 'gemma4') && !ollamaRunning) {
+    // Ollama/Gemma 4 is selected but not running
+    const provName = provider === 'gemma4' ? 'Gemma 4' : 'Ollama';
     title = 'Ollama is not running';
-    body = '<p>Evolve AI is configured to use <strong>Ollama</strong> but cannot connect to it.</p>';
+    body = '<p>Evolve AI is configured to use <strong>' + provName + '</strong> but cannot connect to Ollama.</p>';
     if (os === 'win32') {
       body += '<p><strong>To fix:</strong></p>'
         + '<ol>'
@@ -521,9 +545,24 @@ function showOnboardingGuide(statusData) {
     title = 'Welcome to Evolve AI!';
     body = '<p>No AI provider is connected. Choose how you want to use Evolve AI:</p>';
 
-    // Option 1: Ollama (free, local)
+    // Option 1: Gemma 4 (free, local, multimodal)
     body += '<div class="setup-option">'
-      + '<h4>Option 1: Ollama (Free, Private, Local)</h4>'
+      + '<h4>Option 1: Gemma 4 (Free, Local, Multimodal) \\u2014 Recommended</h4>'
+      + '<p>Google\\u2019s latest open-weight AI model. Runs entirely on your machine \\u2014 '
+      + 'no API key, no cost, no data ever leaves your computer. Apache 2.0 licensed.</p>'
+      + '<ul style="margin:6px 0;padding-left:18px;font-size:12px;">'
+      + '<li><strong>Code-focused</strong> \\u2014 trained on 140+ programming languages</li>'
+      + '<li><strong>Multimodal</strong> \\u2014 understands text, images, and audio</li>'
+      + '<li><strong>128K\\u2013256K context</strong> \\u2014 handles large files and full repositories</li>'
+      + '<li><strong>4 sizes</strong> \\u2014 from lightweight (8GB RAM) to maximum quality (32GB+)</li>'
+      + '</ul>'
+      + '<p><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'switchProvider\\',provider:\\'gemma4\\'});return false;">'
+      + '<strong>\\u2728 Set up Gemma 4</strong> (guided wizard, ~2 minutes)</a></p>'
+      + '</div>';
+
+    // Option 2: Ollama (free, local)
+    body += '<div class="setup-option">'
+      + '<h4>Option 2: Ollama (Free, Private, Local)</h4>'
       + '<p>Run AI completely on your machine — no API key, no cost, no data leaves your computer.</p>';
 
     if (os === 'win32') {
@@ -538,9 +577,9 @@ function showOnboardingGuide(statusData) {
       + '<p>This will open a terminal and run <code>ollama pull qwen2.5-coder:7b</code> for you.</p>'
       + '</div>';
 
-    // Option 2: Cloud providers
+    // Option 3: Cloud providers
     body += '<div class="setup-option">'
-      + '<h4>Option 2: Cloud AI Providers</h4>'
+      + '<h4>Option 3: Cloud AI Providers</h4>'
       + '<p>Use a cloud AI for the best quality responses. Requires an API key.</p>'
       + '<table class="setup-table">'
       + '<tr><td><strong>Anthropic Claude</strong></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openUrl\\',url:\\'https://console.anthropic.com/\\'});return false;">Get API Key</a></td><td><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'switchProvider\\',provider:\\'anthropic\\'});return false;">Connect</a></td></tr>'
@@ -549,9 +588,9 @@ function showOnboardingGuide(statusData) {
       + '</table>'
       + '</div>';
 
-    // Option 3: LM Studio / llama.cpp
+    // Option 4: LM Studio / llama.cpp
     body += '<div class="setup-option">'
-      + '<h4>Option 3: LM Studio / llama.cpp / Jan</h4>'
+      + '<h4>Option 4: LM Studio / llama.cpp / Jan</h4>'
       + '<p>Already running a local LLM server? Point Evolve AI to it:</p>'
       + '<p><a href="#" onclick="vscode.postMessage({type:\\'action\\',action:\\'openSettings\\',query:\\'aiForge.ollamaHost\\'});return false;">Set your server URL in Settings</a> (e.g., <code>http://localhost:1234/v1</code>)</p>'
       + '</div>';
@@ -572,7 +611,53 @@ function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function parseThinking(s) {
+  // Gemma 4 thinking markers: <|channel>thought\\n...content...<channel|>
+  // Also handle partial markers during streaming
+  const parts = [];
+  let rest = s;
+  const thinkStart = /<\\|channel>thought\\n/g;
+  const thinkEnd = /<channel\\|>/g;
+  let match;
+  while ((match = thinkStart.exec(rest)) !== null) {
+    const before = rest.slice(0, match.index);
+    if (before.trim()) parts.push({ type: 'text', content: before });
+    thinkEnd.lastIndex = thinkStart.lastIndex;
+    const endMatch = thinkEnd.exec(rest);
+    if (endMatch) {
+      const thought = rest.slice(thinkStart.lastIndex, endMatch.index);
+      parts.push({ type: 'thinking', content: thought });
+      rest = rest.slice(endMatch.index + endMatch[0].length);
+      thinkStart.lastIndex = 0;
+    } else {
+      // Partial thinking block (still streaming) — show as open thinking
+      const thought = rest.slice(thinkStart.lastIndex);
+      parts.push({ type: 'thinking_partial', content: thought });
+      rest = '';
+      break;
+    }
+  }
+  if (rest.trim()) parts.push({ type: 'text', content: rest });
+  return parts;
+}
+
 function md(s) {
+  // Parse thinking blocks first
+  const parts = parseThinking(s);
+  if (parts.length > 1 || (parts.length === 1 && parts[0].type !== 'text')) {
+    return parts.map(p => {
+      if (p.type === 'thinking') {
+        return '<details class="thinking-block"><summary>Thinking...</summary><div class="thinking-content">' + mdInner(esc(p.content)) + '</div></details>';
+      } else if (p.type === 'thinking_partial') {
+        return '<details class="thinking-block" open><summary>Thinking...</summary><div class="thinking-content">' + mdInner(esc(p.content)) + '</div></details>';
+      }
+      return mdInner(p.content);
+    }).join('');
+  }
+  return mdInner(s);
+}
+
+function mdInner(s) {
   const blocks = [];
   s = s.replace(/\`\`\`(\\w*)\\n([\\s\\S]*?)\`\`\`/g, (_, lang, code) => {
     blocks.push('<pre>' + code + '</pre>');
@@ -611,14 +696,50 @@ function addMsg(cls, html, id) {
   return el;
 }
 
+function addImage(base64) {
+  pendingImages.push(base64);
+  const preview = document.getElementById('imagePreview');
+  preview.style.display = 'flex';
+  const thumb = document.createElement('span');
+  thumb.className = 'img-thumb';
+  const idx = pendingImages.length - 1;
+  thumb.innerHTML = '<img src="data:image/png;base64,' + base64 + '"><button class="remove-img" data-idx="' + idx + '">&times;</button>';
+  thumb.querySelector('.remove-img').addEventListener('click', function() {
+    pendingImages[this.dataset.idx] = null;
+    this.parentElement.remove();
+    if (!pendingImages.some(Boolean)) {
+      preview.style.display = 'none';
+      pendingImages = [];
+    }
+  });
+  preview.appendChild(thumb);
+}
+
+function fileToBase64(file) {
+  return new Promise(function(resolve) {
+    const reader = new FileReader();
+    reader.onload = function() {
+      const result = reader.result;
+      resolve(result.split(',')[1]); // strip data:...;base64, prefix
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function send() {
   if (streaming) return;
   const inp = document.getElementById('input');
   const t = inp.value.trim();
-  if (!t) return;
+  if (!t && !pendingImages.some(Boolean)) return;
   inp.value = ''; inp.style.height = 'auto';
   document.getElementById('sendBtn').disabled = true;
-  vscode.postMessage({ type: 'send', text: t, mode });
+  const images = pendingImages.filter(Boolean);
+  pendingImages = [];
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('imagePreview').innerHTML = '';
+  const msg = { type: 'send', text: t || 'Describe this image.', mode: mode };
+  if (images.length) { msg.images = images; }
+  vscode.postMessage(msg);
 }
 
 function cancel() { vscode.postMessage({ type: 'cancel' }); }
@@ -633,11 +754,15 @@ window.addEventListener('message', ({ data }) => {
       currentProvider = data.provider;
       const d = document.getElementById('dot');
       // Green when any provider is configured and working
-      const isReady = data.provider === 'ollama' ? data.ollamaRunning
+      const isReady = (data.provider === 'ollama' || data.provider === 'gemma4') ? data.ollamaRunning
         : (data.provider !== 'offline' && data.provider !== 'auto');
       d.className = 'dot ' + (isReady ? 'green' : 'yellow');
       d.title = isReady ? 'Provider connected' : 'No AI provider active';
-      document.getElementById('providerLabel').textContent = data.provider.toUpperCase();
+      const providerLabel = data.provider === 'gemma4' ? 'GEMMA 4' : data.provider.toUpperCase();
+      document.getElementById('providerLabel').textContent = providerLabel;
+      // Show thinking toggle only for Gemma 4
+      const thinkBtn = document.getElementById('thinkBtn');
+      thinkBtn.style.display = data.provider === 'gemma4' ? '' : 'none';
       document.getElementById('modelLabel').textContent = data.currentModel ? ' \\u00B7 ' + data.currentModel : '';
       const pb = document.getElementById('pluginBadges');
       pb.innerHTML = (data.activePlugins || []).map(p =>
@@ -766,6 +891,19 @@ window.addEventListener('message', ({ data }) => {
           acts.appendChild(copyBtn);
         }
         aiEl.appendChild(acts);
+
+        // First-use tip for Gemma 4 — shown once per session
+        if (currentProvider === 'gemma4' && !gemma4TipShown) {
+          gemma4TipShown = true;
+          const tip = document.createElement('div');
+          tip.className = 'gemma4-tip';
+          tip.innerHTML = '<strong>\\u2728 Running Gemma 4 locally</strong> \\u2014 your code stays on your machine. '
+            + 'Try <em>"Explain this code"</em>, <em>"Write tests"</em>, or <em>"Refactor to use async/await"</em>. '
+            + 'Use <code>Ctrl+Alt+E</code> to explain selected code, <code>Ctrl+Alt+F</code> to fix errors. '
+            + '<a href="#" onclick="this.parentElement.remove();return false;" style="margin-left:6px;">Dismiss</a>';
+          aiEl.appendChild(tip);
+        }
+
         aiEl = null;
       }
       break;
@@ -787,6 +925,12 @@ function copy() {
 function on(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); else console.warn('[Evolve AI] Missing element:', id); }
 on('switchBtn', 'click', () => vscode.postMessage({type:'switchProvider'}));
 on('clearBtn',  'click', () => clearHistory());
+on('thinkBtn',  'click', () => {
+  const btn = document.getElementById('thinkBtn');
+  const active = btn.classList.toggle('active');
+  btn.title = active ? 'Thinking mode ON — click to disable' : 'Toggle Gemma 4 thinking mode';
+  vscode.postMessage({ type: 'toggleThinking', enabled: active });
+});
 on('tabChat',   'click', () => setMode('chat'));
 on('tabEdit',   'click', () => setMode('edit'));
 on('tabNew',    'click', () => setMode('new'));
@@ -798,6 +942,38 @@ on('input',     'input', function() { resize(this); });
 // Auto-focus input and request initial state
 const inputEl = document.getElementById('input');
 if (inputEl) inputEl.focus();
+
+// Image paste handler (Ctrl+V with image in clipboard)
+if (inputEl) inputEl.addEventListener('paste', function(e) {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image') !== -1) {
+      e.preventDefault();
+      const file = items[i].getAsFile();
+      if (file) fileToBase64(file).then(addImage);
+    }
+  }
+});
+
+// Drag-and-drop image handler
+const inputArea = document.getElementById('inputArea');
+if (inputArea) {
+  inputArea.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('drop-highlight'); });
+  inputArea.addEventListener('dragleave', function() { this.classList.remove('drop-highlight'); });
+  inputArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    this.classList.remove('drop-highlight');
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files) return;
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].type.indexOf('image') !== -1) {
+        fileToBase64(files[i]).then(addImage);
+      }
+    }
+  });
+}
+
 vscode.postMessage({ type: 'getStatus' });
 vscode.postMessage({ type: 'getHistory' });
 </script>

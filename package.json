@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "Context-aware AI coding assistant with 16 auto-detecting plugins. Works with Ollama (local/offline), Claude, OpenAI, and HuggingFace. Understands your project, errors, git state, and cloud platforms (AWS, GCP, Azure, Databricks).",
-  "version": "1.0.7",
+  "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more.",
+  "version": "1.2.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -13,29 +13,52 @@
     "Programming Languages",
     "Machine Learning",
     "Data Science",
-    "Other"
+    "Testing"
   ],
   "keywords": [
     "ai",
-    "code assistant",
-    "ollama",
-    "anthropic",
-    "openai",
     "copilot alternative",
-    "databricks",
-    "aws",
-    "azure",
-    "gcp",
-    "terraform",
-    "docker",
-    "kubernetes",
-    "dbt",
+    "ollama",
+    "code assistant",
     "local llm"
   ],
   "repository": {
     "type": "git",
     "url": "https://github.com/EvolveMinds/codeforge-ai-vscode"
   },
+  "homepage": "https://github.com/EvolveMinds/codeforge-ai-vscode#readme",
+  "bugs": {
+    "url": "https://github.com/EvolveMinds/codeforge-ai-vscode/issues"
+  },
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "extensionKind": [
+    "workspace"
+  ],
+  "badges": [
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/v/codeforge-ai.evolve-ai?label=version&color=blue",
+      "href": "https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai",
+      "description": "Version"
+    },
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/i/codeforge-ai.evolve-ai?color=green",
+      "href": "https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai",
+      "description": "Installs"
+    },
+    {
+      "url": "https://img.shields.io/visual-studio-marketplace/r/codeforge-ai.evolve-ai?color=yellow",
+      "href": "https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai",
+      "description": "Rating"
+    },
+    {
+      "url": "https://img.shields.io/github/license/EvolveMinds/codeforge-ai-vscode?color=brightgreen",
+      "href": "https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/LICENSE",
+      "description": "MIT License"
+    }
+  ],
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -122,6 +145,10 @@
       {
         "command": "aiForge.setupOllama",
         "title": "Evolve AI: Setup Ollama"
+      },
+      {
+        "command": "aiForge.gemma4Info",
+        "title": "Evolve AI: Gemma 4 Info & Tips"
       },
       {
         "command": "aiForge.codelens.explain",
@@ -1103,6 +1130,7 @@
           "enum": [
             "auto",
             "ollama",
+            "gemma4",
             "anthropic",
             "openai",
             "huggingface",
@@ -1111,6 +1139,7 @@
           "enumDescriptions": [
             "Auto-detect: use Ollama if running, else offline AI",
             "Ollama — local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
+            "Gemma 4 — Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
             "Anthropic Claude — cloud, requires API key",
             "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
             "Hugging Face Inference API — cloud, requires API key. Access thousands of open models",
@@ -1127,6 +1156,28 @@
           "type": "string",
           "default": "qwen2.5-coder:7b",
           "description": "Ollama model to use"
+        },
+        "aiForge.gemma4Model": {
+          "type": "string",
+          "default": "gemma4:e4b",
+          "enum": [
+            "gemma4:e2b",
+            "gemma4:e4b",
+            "gemma4:26b",
+            "gemma4:31b"
+          ],
+          "enumDescriptions": [
+            "E2B — 2.3B active params, ~7.2GB download, fast, good for quick tasks (text+image+audio)",
+            "E4B — 4.5B active params, ~9.6GB download, balanced speed and quality (text+image+audio, recommended)",
+            "26B MoE — 25.2B total (3.8B active), ~18GB download, high quality reasoning (text+image, needs 32GB+ RAM)",
+            "31B Dense — 30.7B params, ~20GB download, highest quality (text+image, needs 32GB+ RAM and GPU)"
+          ],
+          "description": "Gemma 4 model variant. E4B recommended for most users."
+        },
+        "aiForge.gemma4ThinkingMode": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable Gemma 4 thinking/reasoning mode. Shows chain-of-thought reasoning before the answer. Produces better results for complex tasks but uses more tokens and is slower."
         },
         "aiForge.openaiBaseUrl": {
           "type": "string",

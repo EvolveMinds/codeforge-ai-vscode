@@ -51,6 +51,7 @@ plugin requires zero changes to core code — only a new file in `plugins/` and 
   ┌──────────────────────────────────────┐
   │  AI Providers                        │
   │  Ollama (localhost:11434)            │
+  │  Gemma 4 (via Ollama, guided setup) │
   │  Anthropic API                       │
   │  OpenAI-compatible API               │
   │  Offline fallback (static responses) │
@@ -260,8 +261,10 @@ editor changes (to catch file-open-triggered detection).
 #### Provider detection
 
 ```
-provider setting = 'auto'  →  check Ollama port → running: 'ollama', else: 'offline'
+provider setting = 'auto'  →  check Ollama port → running + gemma4 configured: 'gemma4',
+                                                    running: 'ollama', else: 'offline'
 provider setting = 'ollama'     →  use Ollama regardless
+provider setting = 'gemma4'     →  use Gemma 4 (via Ollama /api/chat, guided setup wizard)
 provider setting = 'anthropic'  →  use Anthropic
 provider setting = 'openai'     →  use OpenAI-compatible
 provider setting = 'offline'    →  static fallback responses

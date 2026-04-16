@@ -31,6 +31,8 @@ export interface IAIService {
   send(request: AIRequest): Promise<string>;
   /** Register a plugin interceptor. Returns a disposable. */
   addInterceptor(interceptor: RequestInterceptor): vscode.Disposable;
+  /** Check if any Gemma 4 model variant is installed in Ollama */
+  isGemma4Available(): Promise<{ installed: boolean; variants: string[] }>;
   /** Store a credential in SecretStorage */
   storeSecret(key: string, value: string): Promise<void>;
   /** Retrieve a credential from SecretStorage */

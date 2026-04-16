@@ -24,6 +24,10 @@ export class MockAIService implements IAIService {
   async isOllamaRunning(): Promise<boolean> { return false; }
   async getOllamaModels(): Promise<string[]> { return []; }
 
+  async isGemma4Available(): Promise<{ installed: boolean; variants: string[] }> {
+    return { installed: false, variants: [] };
+  }
+
   async *stream(request: AIRequest): AsyncGenerator<string> {
     this.lastRequest = request;
     yield this.response;
