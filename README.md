@@ -80,7 +80,7 @@ No API key. No account. No data leaving your machine. That's it.
 - **Right-click menu**: Explain, refactor, fix, document, generate tests
 - **Keyboard shortcuts**: Quick access to common actions
 
-### 15 Core Commands
+### 16 Core Commands
 
 - Open AI Chat (`Ctrl+Shift+A`)
 - Generate Code from Description (`Ctrl+Alt+G`)
@@ -89,7 +89,7 @@ No API key. No account. No data leaving your machine. That's it.
 - Generate Commit Message (`Ctrl+Alt+M`)
 - Refactor Selection, Add Documentation, Generate Tests, Apply Folder Transforms
 - Explain Changes, Generate PR Description, Build Framework, Run & Auto-Fix
-- Switch Provider, Setup Ollama
+- Switch Provider, Setup Ollama, Gemma 4 Info & Tips
 
 ### 16 Auto-Detecting Plugins
 
@@ -219,6 +219,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.ollamaHost` | `http://localhost:11434` | Ollama server URL (also LM Studio, llama.cpp) |
 | `aiForge.ollamaModel` | `qwen2.5-coder:7b` | Ollama model name |
 | `aiForge.gemma4Model` | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b`, `gemma4:e4b`, `gemma4:26b`, `gemma4:31b` |
+| `aiForge.gemma4ThinkingMode` | `false` | Enable chain-of-thought reasoning (better results, slower) |
 | `aiForge.openaiBaseUrl` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
 | `aiForge.openaiModel` | `gpt-4o` | OpenAI model name |
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |

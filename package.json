@@ -19,8 +19,8 @@
     "ai",
     "copilot alternative",
     "ollama",
-    "code assistant",
-    "local llm"
+    "gemma",
+    "code assistant"
   ],
   "repository": {
     "type": "git",
