@@ -199,9 +199,9 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (26 total)
+## Commands currently registered (27 total)
 
-### Core (16)
+### Core (17)
 | Command ID | Keybinding | Description |
 |---|---|---|
 | `aiForge.openChat` | Ctrl+Shift+A | Open sidebar chat |
@@ -220,6 +220,7 @@ are merged into the core system transparently:
 | `aiForge.switchProvider` | — | Switch AI provider |
 | `aiForge.setupOllama` | — | Open Ollama setup page |
 | `aiForge.gemma4Info` | — | Show Gemma 4 info, tips & variant comparison |
+| `aiForge.whatsNew` | — | Show release notes for the current version |
 
 ### Databricks plugin (10)
 `aiForge.databricks.explainJob` · `aiForge.databricks.optimiseQuery` ·
@@ -272,6 +273,7 @@ All events are in `core/eventBus.ts`. Subscribe with `services.events.on(event, 
 | `context.refreshed` | `{ activePlugins }` | Plugin detection ran |
 | `ui.notify` | `{ message, level }` | Plugin wants to show notification |
 | `ui.status.update` | `{}` | Plugin wants to refresh status bar |
+| `ui.whatsNew.show` | `{ version }` | Show What's New banner after extension upgrade |
 
 ---
 

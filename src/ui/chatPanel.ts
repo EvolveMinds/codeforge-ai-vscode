@@ -49,6 +49,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       _svc.events.on('plugin.activated',   () => this._scheduleStatus()),
       _svc.events.on('plugin.deactivated', () => this._scheduleStatus()),
       _svc.events.on('provider.changed',   () => { this._statusCache = null; this._scheduleStatus(); }),
+      _svc.events.on('ui.whatsNew.show',   ({ version }) => this._post({ type: 'whatsNew', version })),
     );
   }
 
@@ -69,6 +70,18 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
           case 'toggleThinking': await vscode.workspace.getConfiguration('aiForge').update('gemma4ThinkingMode', msg.enabled, vscode.ConfigurationTarget.Global); break;
+          case 'viewWhatsNew': {
+            const v1 = this._svc.vsCtx.extension.packageJSON.version as string;
+            await this._svc.vsCtx.globalState.update(`aiForge.whatsNewPending.${v1}`, false);
+            await vscode.commands.executeCommand('aiForge.whatsNew');
+            break;
+          }
+          case 'dismissWhatsNew': {
+            const version = this._svc.vsCtx.extension.packageJSON.version as string;
+            await this._svc.vsCtx.globalState.update(`aiForge.whatsNewDismissed.${version}`, true);
+            await this._svc.vsCtx.globalState.update(`aiForge.whatsNewPending.${version}`, false);
+            break;
+          }
           case 'action':         await this._handleAction(msg);           break;
           default: console.warn('[Evolve AI] Unknown webview message type:', msg.type); break;
         }
@@ -288,6 +301,14 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     };
     this._statusCache = { data: statusMsg, ts: now };
     this._post(statusMsg);
+
+    // Replay "What's New" banner if there's a pending upgrade notification.
+    // The pending flag is set by activate() and cleared on dismiss/view.
+    const version = this._svc.vsCtx.extension.packageJSON.version as string;
+    const pending = this._svc.vsCtx.globalState.get<boolean>(`aiForge.whatsNewPending.${version}`, false);
+    if (pending) {
+      this._post({ type: 'whatsNew', version });
+    }
   }
 
   private _post(msg: Record<string, unknown>): void {
@@ -401,6 +422,12 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 .thinking-block summary { cursor: pointer; font-weight: 600; font-size: 11px; color: var(--vscode-textLink-foreground, #3794ff); user-select: none; }
 .thinking-block summary:hover { text-decoration: underline; }
 .thinking-block .thinking-content { margin-top: 6px; white-space: pre-wrap; }
+#whatsNewBanner { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: linear-gradient(90deg, var(--vscode-textLink-foreground, #3794ff) 0%, var(--vscode-textLink-activeForeground, #4ca0ff) 100%); color: #fff; font-size: 11px; border-bottom: 1px solid var(--border); }
+#whatsNewText { flex: 1; font-weight: 500; }
+.banner-btn { background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 3px; padding: 2px 8px; cursor: pointer; font-size: 11px; font-weight: 500; }
+.banner-btn:hover { background: rgba(255,255,255,0.3); }
+.banner-close { background: transparent; color: #fff; border: none; cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; opacity: 0.7; }
+.banner-close:hover { opacity: 1; }
 .gemma4-tip { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-top: 10px; font-size: 11px; line-height: 1.6; color: var(--text); }
 .gemma4-tip code { background: var(--bg1); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 10px; }
 .gemma4-tip a { color: var(--vscode-textLink-foreground, #3794ff); text-decoration: none; cursor: pointer; font-size: 11px; }
@@ -439,6 +466,12 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
     <button class="hbtn" id="switchBtn" title="Switch AI provider">Switch</button>
     <button class="hbtn" id="clearBtn" title="Clear conversation history">Clear</button>
   </div>
+</div>
+
+<div id="whatsNewBanner" style="display:none;">
+  <span id="whatsNewText">What's new in this version</span>
+  <button class="banner-btn" id="viewWhatsNewBtn">View</button>
+  <button class="banner-close" id="dismissBannerBtn" aria-label="Dismiss" title="Dismiss">&times;</button>
 </div>
 
 <div id="tabs">
@@ -750,6 +783,15 @@ function clearHistory() {
 
 window.addEventListener('message', ({ data }) => {
   switch (data.type) {
+    case 'whatsNew': {
+      const banner = document.getElementById('whatsNewBanner');
+      const text = document.getElementById('whatsNewText');
+      if (banner && text) {
+        text.textContent = "What's new in v" + data.version + " \\u2014 click to see highlights";
+        banner.style.display = 'flex';
+      }
+      break;
+    }
     case 'status': {
       currentProvider = data.provider;
       const d = document.getElementById('dot');
@@ -930,6 +972,16 @@ on('thinkBtn',  'click', () => {
   const active = btn.classList.toggle('active');
   btn.title = active ? 'Thinking mode ON — click to disable' : 'Toggle Gemma 4 thinking mode';
   vscode.postMessage({ type: 'toggleThinking', enabled: active });
+});
+on('viewWhatsNewBtn', 'click', () => {
+  const banner = document.getElementById('whatsNewBanner');
+  if (banner) banner.style.display = 'none';
+  vscode.postMessage({ type: 'viewWhatsNew' });
+});
+on('dismissBannerBtn', 'click', () => {
+  const banner = document.getElementById('whatsNewBanner');
+  if (banner) banner.style.display = 'none';
+  vscode.postMessage({ type: 'dismissWhatsNew' });
 });
 on('tabChat',   'click', () => setMode('chat'));
 on('tabEdit',   'click', () => setMode('edit'));

@@ -2,6 +2,20 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.2.1] — 2026-04-18
+
+### Added
+- **"What's New" notification system** — On extension upgrade, users see:
+  - A non-blocking toast notification with **See What's New / Remind me later / Dismiss** options
+  - A dismissible banner at the top of the chat panel
+  - New **Evolve AI: What's New** command palette entry for anytime access
+- Release notes are rendered directly in the chat panel with rich markdown formatting
+- Version-aware: fresh installs skip the toast, upgrades fire once per version
+- Per-version dismiss tracking means each release is only announced once
+
+### Fixed
+- Documentation: corrected core command count (16 → 17) to include the new command
+
 ## [1.2.0] — 2026-04-16
 
 ### Added

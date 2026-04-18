@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more.",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -149,6 +149,10 @@
       {
         "command": "aiForge.gemma4Info",
         "title": "Evolve AI: Gemma 4 Info & Tips"
+      },
+      {
+        "command": "aiForge.whatsNew",
+        "title": "Evolve AI: What's New"
       },
       {
         "command": "aiForge.codelens.explain",

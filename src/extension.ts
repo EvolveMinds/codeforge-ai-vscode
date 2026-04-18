@@ -85,6 +85,9 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
     )
   );
 
+  // Upgrade detection: show "What's New" toast on version change
+  await checkForUpgrade(vsCtx, svc);
+
   // Diagnostic: test Ollama connectivity
   const testUrl = vscode.workspace.getConfiguration('aiForge').get<string>('ollamaHost', 'http://localhost:11434');
   console.log('[Evolve AI] Testing Ollama at:', testUrl);
@@ -107,4 +110,44 @@ function scheduleRefresh(fn: () => Promise<void>): void {
     _refreshTimer = null;
     fn().catch(console.error);
   }, 2000);
+}
+
+// ── Upgrade detection ─────────────────────────────────────────────────────────
+// On first activation after a version change, show a non-blocking toast
+// and emit `ui.whatsNew.show` so the chat panel can render a banner.
+// Fresh installs (no prior version) skip the toast to avoid spamming new users.
+async function checkForUpgrade(vsCtx: vscode.ExtensionContext, svc: ServiceContainer): Promise<void> {
+  const currentVersion = vsCtx.extension.packageJSON.version as string;
+  const prevVersion = vsCtx.globalState.get<string>('aiForge.installedVersion');
+  await vsCtx.globalState.update('aiForge.installedVersion', currentVersion);
+
+  // Skip fresh installs — no upgrade to announce
+  if (!prevVersion || prevVersion === currentVersion) return;
+
+  const dismissKey = `aiForge.whatsNewDismissed.${currentVersion}`;
+  if (vsCtx.globalState.get<boolean>(dismissKey, false)) return;
+
+  // Mark a pending notification so the chat panel shows the banner next time it opens,
+  // even if it wasn't open when this ran.
+  const pendingKey = `aiForge.whatsNewPending.${currentVersion}`;
+  await vsCtx.globalState.update(pendingKey, true);
+
+  // Tell chat panel to show the banner (fires whether or not the user interacts with the toast)
+  svc.events.emit('ui.whatsNew.show', { version: currentVersion });
+
+  // Non-blocking toast
+  vscode.window.showInformationMessage(
+    `Evolve AI updated to ${currentVersion} — now with Gemma 4 support!`,
+    "See What's New", 'Remind me later', 'Dismiss'
+  ).then(choice => {
+    if (choice === "See What's New") {
+      vscode.commands.executeCommand('aiForge.whatsNew');
+      vsCtx.globalState.update(dismissKey, true);
+      vsCtx.globalState.update(pendingKey, false);
+    } else if (choice === 'Dismiss') {
+      vsCtx.globalState.update(dismissKey, true);
+      vsCtx.globalState.update(pendingKey, false);
+    }
+    // 'Remind me later' or no choice → don't set dismissKey; toast fires again on next activation
+  });
 }

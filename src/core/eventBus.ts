@@ -46,6 +46,9 @@ export interface AIForgeEvents {
 
   /** Plugin wants to update the status bar */
   'ui.status.update':     Record<string, never>;
+
+  /** Show "What's New" banner in chat panel after extension upgrade */
+  'ui.whatsNew.show':     { version: string };
 }
 
 export type EventName = keyof AIForgeEvents;

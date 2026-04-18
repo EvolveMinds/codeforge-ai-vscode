@@ -49,6 +49,7 @@ export class CoreCommands {
     r('aiForge.switchProvider',    ()          => this.switchProvider());
     r('aiForge.setupOllama',       ()          => this.setupOllama());
     r('aiForge.gemma4Info',        ()          => this.gemma4Info());
+    r('aiForge.whatsNew',          ()          => this.whatsNew());
 
     // CodeLens handlers
     r('aiForge.codelens.explain',  (u: unknown, rng: unknown) =>
@@ -551,6 +552,18 @@ export class CoreCommands {
     await vscode.commands.executeCommand('aiForge.chatPanel.focus');
   }
 
+  async whatsNew(): Promise<void> {
+    const version = this._svc.vsCtx.extension.packageJSON.version as string;
+    const notes   = getReleaseNotes(version);
+
+    await vscode.commands.executeCommand('aiForge.chatPanel.focus');
+    await vscode.commands.executeCommand('aiForge._sendToChat', notes, 'chat');
+
+    // User has explicitly viewed the notes — mark dismissed and clear pending banner
+    await this._svc.vsCtx.globalState.update(`aiForge.whatsNewDismissed.${version}`, true);
+    await this._svc.vsCtx.globalState.update(`aiForge.whatsNewPending.${version}`, false);
+  }
+
   // ── CodeLens handlers ─────────────────────────────────────────────────────────
 
   async codelensExplain(uri: vscode.Uri, range: vscode.Range): Promise<void> {
@@ -662,4 +675,49 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
   // Trim trailing blank lines
   while (lines.length > 1 && lines[lines.length - 1].trim() === '') lines.pop();
   return lines.join('\n');
+}
+
+// ── Release notes ─────────────────────────────────────────────────────────────
+// Add a new entry here for each version. The `whatsNew` command reads from this map.
+const RELEASE_NOTES: Record<string, string> = {
+  '1.2.1': [
+    `## \u2728 What's New in Evolve AI 1.2.1\n`,
+    `### You'll always know when we ship something new`,
+    `- A **What's New** toast pops up in the bottom-right when you upgrade`,
+    `- A **dismissible banner** in the chat panel shows release highlights`,
+    `- Run **Evolve AI: What's New** from the command palette anytime\n`,
+    `### Everything from 1.2.0 is still here too`,
+    `This release builds on Gemma 4 integration \u2014 thinking mode, vision input, structured output, dynamic context budget, and the guided setup wizard.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
+  '1.2.0': [
+    `## \u2728 What's New in Evolve AI 1.2.0\n`,
+    `### Gemma 4 \u2014 first-class provider with guided setup`,
+    `- **4 variants** supported: E2B (2.3B), E4B (4.5B, recommended), 26B MoE, 31B Dense`,
+    `- **One-click setup wizard** \u2014 checks Ollama, picks variant based on your hardware, downloads the model, auto-configures everything`,
+    `- **\`Evolve AI: Gemma 4 Info & Tips\`** command \u2014 variant comparison, tips, and shortcuts in chat\n`,
+    `### Advanced Gemma 4 capabilities`,
+    `- **\ud83e\udde0 Thinking mode** \u2014 toggle chain-of-thought reasoning via the new **Think** button in chat. Better results for complex tasks.`,
+    `- **\ud83d\uddbc\ufe0f Vision / image input** \u2014 paste (\`Ctrl+V\`) or drag-drop images into the chat. Gemma 4 analyses screenshots, diagrams, error messages, UI mockups.`,
+    `- **\ud83d\udcdd Structured output** \u2014 in edit mode, Gemma 4 returns JSON for more reliable code extraction.`,
+    `- **\ud83d\udcd0 Dynamic context budget** \u2014 auto-scales from 24K to 80K\u2013120K chars to leverage Gemma 4's 128K\u2013256K context windows.\n`,
+    `### Quick start`,
+    `1. Click **Switch** in the chat header`,
+    `2. Select **Gemma 4** \u2192 follow the wizard`,
+    `3. Or run **Evolve AI: Gemma 4 Info & Tips** anytime\n`,
+    `### Other improvements`,
+    `- Enhanced status bar tooltip with variant, params, context window, and capabilities`,
+    `- Updated onboarding guide with Gemma 4 as the top recommended option`,
+    `- Marketplace metadata optimisation for better discoverability\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
+};
+
+function getReleaseNotes(version: string): string {
+  return RELEASE_NOTES[version] ??
+    `## What's New in Evolve AI ${version}\n\nSee the [full changelog](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md) for details on this release.`;
 }

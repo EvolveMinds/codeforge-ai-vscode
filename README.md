@@ -80,7 +80,7 @@ No API key. No account. No data leaving your machine. That's it.
 - **Right-click menu**: Explain, refactor, fix, document, generate tests
 - **Keyboard shortcuts**: Quick access to common actions
 
-### 16 Core Commands
+### 17 Core Commands
 
 - Open AI Chat (`Ctrl+Shift+A`)
 - Generate Code from Description (`Ctrl+Alt+G`)
@@ -89,7 +89,7 @@ No API key. No account. No data leaving your machine. That's it.
 - Generate Commit Message (`Ctrl+Alt+M`)
 - Refactor Selection, Add Documentation, Generate Tests, Apply Folder Transforms
 - Explain Changes, Generate PR Description, Build Framework, Run & Auto-Fix
-- Switch Provider, Setup Ollama, Gemma 4 Info & Tips
+- Switch Provider, Setup Ollama, Gemma 4 Info & Tips, What's New
 
 ### 16 Auto-Detecting Plugins
 
