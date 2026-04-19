@@ -2,6 +2,26 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.4.1] — 2026-04-19
+
+### Fixed
+- **Gemma 4 setup crashed with "aiForge.gemma4Model is not a registered configuration"** on fresh installs/upgrades. Caused by a known VS Code race (issues [#115992](https://github.com/microsoft/vscode/issues/115992), [#90249](https://github.com/microsoft/vscode/issues/90249)) where the Configuration Registry hadn't ingested the extension's new settings schema before the wizard tried to write them.
+
+### Added
+- **Proactive "Reload required" notification** — on every activation, the extension probes whether its own settings schema is loaded. If not (auto-update race), a non-blocking toast appears asking the user to reload, **before** they can hit any broken path. Tracked per-version in globalState so users aren't nagged.
+- **`src/core/configSafe.ts`** — `safeUpdateConfig` and `persistOrPromptReload` helpers that detect the registry race at write time, fall back to Workspace target, and surface a one-click **Reload Window** prompt.
+- **Smarter wizard error handling** — the wizard's `_handleSetupResult` now recognises the registry error specifically and offers **Reload Window** / **Retry Now** / **Dismiss** actions instead of just a generic error toast.
+- **Troubleshooting entries** in README.md and GETTING_STARTED.md explaining the fix for users on v1.4.0.
+
+### Security
+- **Ollama minimum version bumped from 0.3.10 → 0.12.4.** Closes the window of known Ollama CVEs: [CVE-2024-37032](https://nvd.nist.gov/vuln/detail/CVE-2024-37032) (RCE via malicious model files, fixed in 0.7.0), [CVE-2025-51471](https://www.wiz.io/vulnerability-database/cve/cve-2025-51471) (cross-domain token exposure), and [CVE-2025-63389](https://github.com/advisories/GHSA-f6mr-38g8-39rg) (missing auth on model-management ops, fixed in 0.12.4). The smart-setup wizard now prompts for an Ollama upgrade when a vulnerable version is detected.
+- **Workspace Trust: limited support.** Added `capabilities.untrustedWorkspaces: "limited"` to package.json. In untrusted workspaces, Evolve AI now **ignores workspace-level overrides** of provider host URLs (`aiForge.ollamaHost`, `aiForge.openaiBaseUrl`, `aiForge.huggingfaceBaseUrl`). This prevents a malicious `.vscode/settings.json` in a cloned repo from silently redirecting chat traffic (and any pasted API keys) to an attacker-controlled server. User-level (Global) settings still apply — the extension stays functional.
+- **Remote-host warning for provider URLs.** When the user's configured Ollama/OpenAI/HuggingFace host is not loopback or a private RFC1918 address, a one-time warning toast appears before the first request of the session: *"\`aiForge.ollamaHost\` is set to \`<host>\`, which is not a local address. All chat content (code, git diffs, errors) will be sent to this server."* with Open Settings / I Understand actions. Helps users notice if they've accidentally pointed the extension at a public URL.
+- **Image upload validation** (chat panel vision input). Paste / drag-and-drop now enforces a 10 MB size cap and MIME whitelist (PNG, JPEG, WEBP, GIF). Prevents memory pressure from arbitrary large files and rejects non-image binaries.
+
+### For users stuck on v1.4.0
+Run `Ctrl+Shift+P` → "Developer: Reload Window", then re-run **Switch AI Provider → Gemma 4**. Setup will complete normally. v1.4.1+ handles this automatically with a proactive reload prompt.
+
 ## [1.4.0] — 2026-04-19
 
 ### Added — Smart hardware detection + one-click Gemma 4 setup

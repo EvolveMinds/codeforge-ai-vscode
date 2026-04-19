@@ -14,6 +14,7 @@
 import * as vscode from 'vscode';
 import * as http   from 'http';
 import { spawn }   from 'child_process';
+import { persistOrPromptReload } from './configSafe';
 import type { HardwareProfile } from './hardwareInspector';
 
 export interface SetupStep {
@@ -70,14 +71,27 @@ export class SetupOrchestrator {
     }
 
     // Step 3: configure provider
+    // Use persistOrPromptReload to survive the VS Code config-registry race on
+    // extension upgrade (issues #115992, #90249). If Global write fails with
+    // ERROR_UNKNOWN_KEY, falls back to Workspace target, else prompts reload.
+    // Throws on failure so the orchestrator reports a meaningful error
+    // (surfaces through _handleSetupResult with a Reload Window action).
     steps.push({
       id:     'configure',
       label:  'Configure Evolve AI to use Gemma 4',
       needed: true,
       run:    async () => {
-        const cfg = vscode.workspace.getConfiguration('aiForge');
-        await cfg.update('provider',    'gemma4', vscode.ConfigurationTarget.Global);
-        await cfg.update('gemma4Model', variant,  vscode.ConfigurationTarget.Global);
+        const okProvider = await persistOrPromptReload('aiForge', 'provider', 'gemma4');
+        const okModel    = await persistOrPromptReload('aiForge', 'gemma4Model', variant);
+        if (!okProvider || !okModel) {
+          // persistOrPromptReload already handled the reload prompt; throw so
+          // the orchestrator rolls up as a failed step rather than showing
+          // a misleading success toast.
+          throw new Error(
+            'aiForge.gemma4Model is not a registered configuration. ' +
+            'Reload the VS Code window and run the wizard again.'
+          );
+        }
       },
     });
 

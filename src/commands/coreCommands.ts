@@ -570,9 +570,31 @@ export class CoreCommands {
       } else if (action === 'Open Chat') {
         await vscode.commands.executeCommand('aiForge.chatPanel.focus');
       }
-    } else {
-      vscode.window.showErrorMessage(`Gemma 4 setup failed: ${result.error ?? 'Unknown error'}`);
+      return;
     }
+
+    const err = result.error ?? 'Unknown error';
+
+    // Known VS Code race: extension was installed/upgraded into a running window
+    // and the configuration registry hasn't caught up. A reload fixes it.
+    if (err.includes('is not a registered configuration')) {
+      const pick = await vscode.window.showWarningMessage(
+        `Gemma 4 setup almost finished, but VS Code hasn't loaded the extension's ` +
+        `settings schema yet (this happens on fresh installs/upgrades). ` +
+        `Reload the window and run Switch AI Provider \u2192 Gemma 4 again to complete setup.`,
+        { modal: false },
+        'Reload Window', 'Retry Now', 'Dismiss'
+      );
+      if (pick === 'Reload Window') {
+        await vscode.commands.executeCommand('workbench.action.reloadWindow');
+      } else if (pick === 'Retry Now') {
+        // One retry — often the registry has caught up by now
+        await vscode.commands.executeCommand('aiForge.switchProvider');
+      }
+      return;
+    }
+
+    vscode.window.showErrorMessage(`Gemma 4 setup failed: ${err}`);
   }
 
   setupOllama(): void {
@@ -777,6 +799,26 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.4.1': [
+    `## \ud83d\udd12 Evolve AI 1.4.1 \u2014 Gemma 4 fix + security hardening\n`,
+    `### Gemma 4 setup race fixed`,
+    `If you hit **"aiForge.gemma4Model is not a registered configuration"** during Gemma 4 setup on v1.4.0, this release fixes it.`,
+    ``,
+    `The root cause was a VS Code timing issue: when the extension is installed or upgraded into a running window, VS Code's settings registry needed a moment to catch up before the wizard could save its configuration.\n`,
+    `### What's better now`,
+    `- **Proactive reload prompt** \u2014 when you auto-update the extension, you now get a clear notification asking you to reload before things break, instead of finding out at setup time`,
+    `- The Gemma 4 wizard detects the race automatically and offers a one-click **Reload Window** button if it hits the problem`,
+    `- Writes fall back to workspace-scope when possible so setup can complete without a reload\n`,
+    `### \ud83d\udd12 Security hardening`,
+    `- **Ollama minimum version bumped to 0.12.4** \u2014 closes known RCE and auth-bypass CVEs (CVE-2024-37032, CVE-2025-51471, CVE-2025-63389). The wizard prompts for an upgrade if it detects a vulnerable version.`,
+    `- **Workspace Trust enforced** \u2014 in untrusted workspaces, malicious \`.vscode/settings.json\` files can no longer redirect your chat (and API keys) to attacker-controlled servers by overriding \`aiForge.ollamaHost\` / \`openaiBaseUrl\` / \`huggingfaceBaseUrl\`.`,
+    `- **Remote-host warning** \u2014 if a provider URL isn't a local address, a one-time warning toast explains that your code is leaving your machine.`,
+    `- **Image upload validation** \u2014 paste/drag-drop now enforces 10 MB size cap and PNG/JPEG/WEBP/GIF whitelist.\n`,
+    `### Still seeing issues?`,
+    `Run \`Ctrl+Shift+P\` \u2192 **Developer: Reload Window**, then retry **Switch AI Provider \u2192 Gemma 4**.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+  ].join('\n'),
   '1.4.0': [
     `## \u2728 What's New in Evolve AI 1.4.0\n`,
     `### Smart hardware detection + one-click Gemma 4 setup`,

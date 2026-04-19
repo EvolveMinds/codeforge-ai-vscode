@@ -264,6 +264,11 @@ Check the status dot:
 
 ### Gemma 4 setup wizard issues
 
+**"aiForge.gemma4Model is not a registered configuration" error (v1.4.0 only)**
+- Happens when the extension is installed/upgraded into a running VS Code window. The config schema hasn't been loaded yet.
+- **Fix:** `Ctrl+Shift+P` → "Developer: Reload Window", then re-run **Switch AI Provider** → Gemma 4.
+- **v1.4.1 and later** handle this automatically with a one-click Reload Window prompt.
+
 **"System cannot run Gemma 4" appears**
 - Your RAM or disk space is below the minimum (8GB / 8GB)
 - The modal lists specific blockers and offers cloud / offline alternatives — pick one to continue

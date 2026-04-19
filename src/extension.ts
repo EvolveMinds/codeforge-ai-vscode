@@ -89,6 +89,11 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
     )
   );
 
+  // Post-update reload nudge: if the settings schema for this version isn't
+  // fully registered, proactively ask the user to reload (prevents "not a
+  // registered configuration" crashes mid-setup).
+  await checkReloadRequiredAfterUpdate(vsCtx);
+
   // Upgrade detection: show "What's New" toast on version change
   await checkForUpgrade(vsCtx, svc);
 
@@ -154,4 +159,44 @@ async function checkForUpgrade(vsCtx: vscode.ExtensionContext, svc: ServiceConta
     }
     // 'Remind me later' or no choice → don't set dismissKey; toast fires again on next activation
   });
+}
+
+// ── Post-update reload nudge ─────────────────────────────────────────────────
+// When VS Code auto-updates an extension in a running window, the Extension
+// Host activates the new code BUT the ConfigurationRegistry may not yet have
+// ingested the new package.json schema. Any write to a freshly-added setting
+// will throw "is not a registered configuration" (issues #115992, #90249).
+//
+// We detect this deterministically: if the extension's current package.json
+// declares a setting but cfg.inspect() returns undefined for its defaultValue,
+// the schema hasn't loaded. Show a non-blocking prompt asking the user to
+// reload the window — this fixes the race before they hit any broken path.
+async function checkReloadRequiredAfterUpdate(vsCtx: vscode.ExtensionContext): Promise<void> {
+  try {
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    // Probe a setting added in 1.4.0. If the schema isn't registered, inspect()
+    // returns undefined for defaultValue even though package.json declares it.
+    const inspection = cfg.inspect<string>('gemma4Model');
+    if (inspection?.defaultValue !== undefined) return;   // schema loaded — no-op
+
+    // Only nudge once per version per window to avoid nagging
+    const currentVersion = vsCtx.extension.packageJSON.version as string;
+    const nudgedKey = `aiForge.reloadNudged.${currentVersion}`;
+    if (vsCtx.globalState.get<boolean>(nudgedKey, false)) return;
+    await vsCtx.globalState.update(nudgedKey, true);
+
+    const pick = await vscode.window.showWarningMessage(
+      `Evolve AI was just installed or updated. Reload VS Code to finish loading the ` +
+      `extension's settings \u2014 otherwise Gemma 4 setup and some provider switches will fail.`,
+      'Reload Window', 'Remind me later'
+    );
+    if (pick === 'Reload Window') {
+      await vscode.commands.executeCommand('workbench.action.reloadWindow');
+    } else if (pick === 'Remind me later') {
+      // Clear the flag so we nudge again next activation
+      await vsCtx.globalState.update(nudgedKey, false);
+    }
+  } catch (e) {
+    console.warn('[Evolve AI] reload-nudge probe failed:', e);
+  }
 }

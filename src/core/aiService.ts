@@ -11,6 +11,7 @@
 import * as vscode from 'vscode';
 import * as http   from 'http';
 import * as https  from 'https';
+import { safeUpdateConfig, readHostSetting, warnIfRemoteHost } from './configSafe';
 import type { EventBus }   from './eventBus';
 import type { IAIService } from './interfaces';
 
@@ -131,7 +132,7 @@ export class AIService implements IAIService {
   }
 
   async isOllamaRunning(host?: string): Promise<boolean> {
-    const h = host ?? this._cfg().get<string>('ollamaHost', 'http://localhost:11434');
+    const h = host ?? readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     const resolved = await this._resolveOllamaHost(h);
     const result = await this._pingUrl(resolved);
     console.log(`[Evolve AI] isOllamaRunning: host=${h}, resolved=${resolved}, result=${result}`);
@@ -139,7 +140,7 @@ export class AIService implements IAIService {
   }
 
   async getOllamaModels(host?: string): Promise<string[]> {
-    const h   = host ?? this._cfg().get<string>('ollamaHost', 'http://localhost:11434');
+    const h   = host ?? readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     const resolved = await this._resolveOllamaHost(h);
     return new Promise(resolve => {
       const req = http.request(
@@ -210,7 +211,8 @@ export class AIService implements IAIService {
   // ── Providers ────────────────────────────────────────────────────────────────
 
   private async* _streamOllama(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
-    const host  = cfg.get<string>('ollamaHost', 'http://localhost:11434');
+    const host  = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
+    warnIfRemoteHost('aiForge.ollamaHost', host);
     const resolved = await this._resolveOllamaHost(host);
     const model = cfg.get<string>('ollamaModel', 'qwen2.5-coder:7b');
 
@@ -272,7 +274,8 @@ export class AIService implements IAIService {
   }
 
   private async* _streamGemma4(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
-    const host     = cfg.get<string>('ollamaHost', 'http://localhost:11434');
+    const host     = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
+    warnIfRemoteHost('aiForge.ollamaHost', host);
     const resolved = await this._resolveOllamaHost(host);
     const model    = cfg.get<string>('gemma4Model', 'gemma4:e4b');
 
@@ -283,7 +286,10 @@ export class AIService implements IAIService {
       const anyGemma4 = available.filter(m => m.startsWith('gemma4'));
       if (anyGemma4.length > 0) {
         const fallback = anyGemma4[0];
-        await vscode.workspace.getConfiguration('aiForge').update('gemma4Model', fallback, vscode.ConfigurationTarget.Global);
+        // Mid-stream: never interrupt with a reload prompt. If the registry
+        // race bites us, safeUpdateConfig silently returns ok:false and we
+        // proceed with the in-memory fallback.
+        await safeUpdateConfig('aiForge', 'gemma4Model', fallback);
         yield `\u2139\uFE0F Model **${model}** not found \u2014 switched to **${fallback}**.\n\n`;
         yield* this._streamOllamaWithModel(req, resolved, fallback);
         return;
@@ -402,7 +408,7 @@ export class AIService implements IAIService {
   private async* _streamOpenAI(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     // [FIX-4] Read from SecretStorage only — never fall back to settings.json
     const key     = await this._secrets.get(SECRET_OPENAI) ?? '';
-    const baseUrl = cfg.get<string>('openaiBaseUrl', 'https://api.openai.com/v1');
+    const baseUrl = readHostSetting('aiForge', 'openaiBaseUrl', 'https://api.openai.com/v1');
     const model   = cfg.get<string>('openaiModel', 'gpt-4o');
     if (!key) {
       yield `⚠ **No OpenAI API key configured**\n\n`;
@@ -431,7 +437,7 @@ export class AIService implements IAIService {
   private async* _streamHuggingFace(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const key   = await this._secrets.get(SECRET_HUGGINGFACE) ?? '';
     const model = cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
-    const base  = cfg.get<string>('huggingfaceBaseUrl', 'https://api-inference.huggingface.co');
+    const base  = readHostSetting('aiForge', 'huggingfaceBaseUrl', 'https://api-inference.huggingface.co');
     if (!key) {
       yield `⚠ **No Hugging Face token configured**\n\n`;
       yield `To use HuggingFace Inference API:\n`;

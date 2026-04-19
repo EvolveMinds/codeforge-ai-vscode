@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -37,6 +37,12 @@
   "extensionKind": [
     "workspace"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In untrusted workspaces, Evolve AI ignores workspace-level overrides of provider host URLs (aiForge.ollamaHost, aiForge.openaiBaseUrl, aiForge.huggingfaceBaseUrl). Chat still works using your user-level provider settings. This prevents a malicious workspace from redirecting your code to an attacker-controlled server."
+    }
+  },
   "badges": [
     {
       "url": "https://img.shields.io/visual-studio-marketplace/v/codeforge-ai.evolve-ai?label=version&color=blue",

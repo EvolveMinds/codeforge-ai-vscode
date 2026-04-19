@@ -47,7 +47,11 @@ export type Recommendation =
   | { kind: 'ok';          variant: string; reason: string; warnings: string[] }
   | { kind: 'unsupported'; reasons: string[]; suggestions: string[] };
 
-const MIN_OLLAMA_VERSION = '0.3.10';
+// Minimum Ollama version: covers CVE-2024-37032 (RCE via malicious model files,
+// fixed in 0.7.0), CVE-2025-51471 (cross-domain token exposure), and
+// CVE-2025-63389 (missing auth on model-management ops, fixed in 0.12.4).
+// Gemma 4 also needs 0.3.10+ for the model itself.
+const MIN_OLLAMA_VERSION = '0.12.4';
 const SHELL_TIMEOUT_MS   = 3_000;
 
 export class HardwareInspector {

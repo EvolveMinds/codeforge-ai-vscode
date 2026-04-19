@@ -995,6 +995,24 @@ on('input',     'input', function() { resize(this); });
 const inputEl = document.getElementById('input');
 if (inputEl) inputEl.focus();
 
+// Image validation: whitelist MIME types + enforce size cap (10 MB).
+// Prevents (a) arbitrary-binary upload, (b) webview crash from huge base64 strings.
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+
+function validateAndAddImage(file) {
+  if (!file) return;
+  if (ALLOWED_MIME.indexOf(file.type) === -1) {
+    toast('Image type not supported. Use PNG, JPEG, WEBP, or GIF.');
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    toast('Image too large (max 10 MB). Resize and try again.');
+    return;
+  }
+  fileToBase64(file).then(addImage);
+}
+
 // Image paste handler (Ctrl+V with image in clipboard)
 if (inputEl) inputEl.addEventListener('paste', function(e) {
   const items = e.clipboardData && e.clipboardData.items;
@@ -1002,8 +1020,7 @@ if (inputEl) inputEl.addEventListener('paste', function(e) {
   for (let i = 0; i < items.length; i++) {
     if (items[i].type.indexOf('image') !== -1) {
       e.preventDefault();
-      const file = items[i].getAsFile();
-      if (file) fileToBase64(file).then(addImage);
+      validateAndAddImage(items[i].getAsFile());
     }
   }
 });
@@ -1020,7 +1037,7 @@ if (inputArea) {
     if (!files) return;
     for (let i = 0; i < files.length; i++) {
       if (files[i].type.indexOf('image') !== -1) {
-        fileToBase64(files[i]).then(addImage);
+        validateAndAddImage(files[i]);
       }
     }
   });

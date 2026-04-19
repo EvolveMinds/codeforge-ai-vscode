@@ -127,11 +127,15 @@ The **Databricks**, **AWS**, **Google Cloud**, and **Azure** plugins go beyond c
 
 ### Secure by Design
 
-- API keys stored in VS Code's encrypted `SecretStorage` — never in plaintext settings
-- Cloud credentials use standard provider SDKs and authentication flows
-- All file edits go through VS Code's undo stack
-- Diff preview before applying AI-generated changes
-- Context budget caps prevent excessive token usage
+- **API keys** stored in VS Code's encrypted `SecretStorage` — never in plaintext settings
+- **Cloud credentials** use standard provider SDKs and authentication flows
+- **All file edits** go through VS Code's undo stack
+- **Diff preview** before applying AI-generated changes
+- **Context budget** caps prevent excessive token usage
+- **Workspace Trust enforced** — in untrusted workspaces, workspace-level overrides of provider host URLs (`ollamaHost`, `openaiBaseUrl`, `huggingfaceBaseUrl`) are ignored so a malicious `.vscode/settings.json` can't redirect your chat to an attacker-controlled server
+- **Remote-host warning** — if a provider URL isn't loopback/private, a one-time toast tells you your code is leaving your machine
+- **Image uploads** validated (10 MB cap, PNG/JPEG/WEBP/GIF only)
+- **Ollama minimum 0.12.4** — the smart-setup wizard prompts for upgrades to close known Ollama CVEs
 
 ---
 
@@ -480,6 +484,11 @@ This happens when a cloud plugin command is triggered but the plugin isn't activ
 3. **Cloud context:** Connected plugins add live data to context — this adds a small delay on each request
 
 ### Gemma 4 setup wizard issues
+
+**"aiForge.gemma4Model is not a registered configuration" error**
+- This happens on v1.4.0 only, when the extension is installed or upgraded into a running VS Code window. VS Code's Configuration Registry hasn't picked up the new settings schema yet.
+- **Fix:** Reload the window (`Ctrl+Shift+P` → "Developer: Reload Window"), then run **Switch AI Provider** → Gemma 4 again. Setup will complete normally.
+- **Fixed in v1.4.1+**: The wizard now detects this and shows a one-click **Reload Window** button automatically.
 
 **"System cannot run Gemma 4" modal appears**
 - Your RAM or free disk space is below the minimum for any variant (8GB RAM, 8GB disk)
