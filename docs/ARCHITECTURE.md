@@ -256,6 +256,35 @@ editor changes (to catch file-open-triggered detection).
 
 ---
 
+### `core/hardwareInspector.ts` — System detection for smart Gemma 4 setup
+
+Detects RAM (`os.totalmem()`), CPU (`os.cpus()`), GPU (NVIDIA via `nvidia-smi`,
+AMD via `rocm-smi`, Apple via `system_profiler`), free disk space (`fs.statfs()`),
+Ollama version (`ollama --version`), and installed Gemma 4 variants (`ollama list`).
+
+All checks run in parallel with 3-second timeouts. Failures degrade gracefully —
+missing tools never throw. The `recommend()` method scores variants against
+detected hardware and returns either `{ kind: 'ok', variant, reason, warnings }`
+or `{ kind: 'unsupported', reasons, suggestions }`. Wizard uses the latter to
+show actionable alternatives instead of dead-ends.
+
+Privacy: opt-in via `aiForge.allowHardwareDetection` setting + one-time consent
+modal stored in `globalState`. Nothing leaves the machine.
+
+### `core/setupOrchestrator.ts` — One-click Gemma 4 install pipeline
+
+Plans and executes Gemma 4 setup steps via `vscode.window.withProgress` with
+cancellation support:
+1. Install Ollama (platform-specific installer download)
+2. Upgrade Ollama (if version < 0.3.10)
+3. Pull the chosen variant via Ollama's `/api/pull` NDJSON stream — parses
+   live progress events to show MB/total in the notification
+4. Update `aiForge.provider` and `aiForge.gemma4Model` settings
+
+Steps are independent and idempotent — already-satisfied steps are skipped.
+The `_waitForOllama` helper polls `ollama --version` post-install with a
+5-minute timeout for asynchronous installer flows on Windows/macOS.
+
 ### `core/aiService.ts` — AI provider abstraction
 
 #### Provider detection

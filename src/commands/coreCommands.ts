@@ -299,126 +299,7 @@ export class CoreCommands {
         }
       }
     } else if (provider === 'gemma4') {
-      // ── Gemma 4 guided setup wizard ────────────────────────────────────────
-      // Step 1: Check Ollama is running
-      let ollamaReady = running;
-      if (!ollamaReady) {
-        const action = await vscode.window.showWarningMessage(
-          'Gemma 4 runs locally through Ollama. Ollama is not currently running.',
-          'Install Ollama', 'I Already Installed It (Retry)', 'Cancel'
-        );
-        if (action === 'Install Ollama') {
-          vscode.env.openExternal(vscode.Uri.parse('https://ollama.com/download'));
-          vscode.window.showInformationMessage(
-            'After installing Ollama, start it and run "Evolve AI: Switch AI Provider" again to continue Gemma 4 setup.'
-          );
-          return;
-        } else if (action === 'I Already Installed It (Retry)') {
-          ollamaReady = await this._svc.ai.isOllamaRunning();
-          if (!ollamaReady) {
-            vscode.window.showErrorMessage(
-              'Still cannot connect to Ollama. Make sure it is running, then try again.'
-            );
-            return;
-          }
-        } else {
-          return;
-        }
-      }
-
-      // Step 2: Choose variant with hardware recommendations
-      type VariantItem = vscode.QuickPickItem & { tag: string };
-      const { variants: installedVariants } = ollamaReady
-        ? await this._svc.ai.isGemma4Available()
-        : { variants: [] as string[] };
-
-      // Show hardware guidance before variant selection
-      const ramGb = Math.round(require('os').totalmem() / (1024 ** 3));
-      let hwHint = '';
-      if (ramGb >= 32) {
-        hwHint = `Your system has ~${ramGb}GB RAM — all variants should work well.`;
-      } else if (ramGb >= 16) {
-        hwHint = `Your system has ~${ramGb}GB RAM — E4B (recommended) and E2B will run smoothly. 26B/31B may be slow without a GPU.`;
-      } else {
-        hwHint = `Your system has ~${ramGb}GB RAM — E2B is recommended for your hardware. E4B may also work.`;
-      }
-
-      const variantItems: VariantItem[] = [
-        { label: '$(zap) E4B (Recommended)',
-          description: '4.5B params \u00B7 ~9.6GB \u00B7 128K context \u00B7 text+image+audio',
-          detail: `16GB+ RAM, no GPU needed. Best balance of speed and quality. ~30 tok/s on modern CPU.`,
-          tag: 'gemma4:e4b' },
-        { label: '$(rocket) E2B (Lightweight)',
-          description: '2.3B params \u00B7 ~7.2GB \u00B7 128K context \u00B7 text+image+audio',
-          detail: `8GB+ RAM. Fastest responses, great for quick tasks. ~50 tok/s on CPU.`,
-          tag: 'gemma4:e2b' },
-        { label: '$(beaker) 26B MoE (Advanced)',
-          description: '25.2B total (3.8B active) \u00B7 ~18GB \u00B7 256K context \u00B7 text+image',
-          detail: `32GB+ RAM or 16GB+ VRAM GPU. Mixture-of-Experts — high quality, efficient inference.`,
-          tag: 'gemma4:26b' },
-        { label: '$(star-full) 31B Dense (Maximum Quality)',
-          description: '30.7B params \u00B7 ~20GB \u00B7 256K context \u00B7 text+image',
-          detail: `32GB+ RAM + GPU with 20GB+ VRAM. Highest quality, best for complex reasoning.`,
-          tag: 'gemma4:31b' },
-      ];
-
-      // Mark already-installed variants
-      for (const item of variantItems) {
-        if (installedVariants.some(v => v === item.tag || v.startsWith(item.tag + ':'))) {
-          item.label += ' \u2713 installed';
-        }
-      }
-
-      const variantChoice = await vscode.window.showQuickPick(variantItems, {
-        title: `Gemma 4 Setup \u2014 ${hwHint}`,
-        placeHolder: 'Choose a Gemma 4 variant (E4B recommended for most users)',
-        matchOnDescription: true,
-        matchOnDetail: true,
-      });
-      if (!variantChoice) return;
-      const chosenTag = variantChoice.tag;
-
-      // Step 3: Pull model if not installed
-      const alreadyInstalled = installedVariants.some(v => v === chosenTag || v.startsWith(chosenTag + ':'));
-      if (!alreadyInstalled) {
-        const pull = await vscode.window.showInformationMessage(
-          `"${chosenTag}" is not yet downloaded. Download it now? This may take several minutes depending on your connection.`,
-          'Download Now', 'Cancel'
-        );
-        if (pull === 'Download Now') {
-          const term = vscode.window.createTerminal('Evolve AI: Gemma 4 Setup');
-          term.show();
-          term.sendText(`ollama pull ${chosenTag}`);
-          vscode.window.showInformationMessage(
-            `Downloading ${chosenTag}... Once the terminal shows "success", your Gemma 4 setup is complete. Evolve AI will use it automatically.`
-          );
-        } else {
-          return;
-        }
-      }
-
-      // Step 4: Configure settings + show welcome
-      await cfg.update('gemma4Model', chosenTag, vscode.ConfigurationTarget.Global);
-      if (alreadyInstalled) {
-        const action = await vscode.window.showInformationMessage(
-          `Gemma 4 (${chosenTag}) is ready! All requests will now use Gemma 4 locally. Your code never leaves your machine.`,
-          'Show Tips', 'Open Chat'
-        );
-        if (action === 'Show Tips') {
-          await vscode.commands.executeCommand('aiForge.gemma4Info');
-        } else if (action === 'Open Chat') {
-          await vscode.commands.executeCommand('aiForge.chatPanel.focus');
-        }
-      } else {
-        // Model is downloading — show tips option after download info
-        const action = await vscode.window.showInformationMessage(
-          'Once the download completes, Gemma 4 will be ready. Want to see tips on getting the best results?',
-          'Show Tips', 'Dismiss'
-        );
-        if (action === 'Show Tips') {
-          await vscode.commands.executeCommand('aiForge.gemma4Info');
-        }
-      }
+      await this._runGemma4Wizard(cfg);
     } else if (provider === 'anthropic') {
       // [SEC-6] Inform user that code will be sent to cloud API
       const consent = await vscode.window.showWarningMessage(
@@ -487,6 +368,213 @@ export class CoreCommands {
     });
   }
 
+  // ── Gemma 4 smart setup wizard ─────────────────────────────────────────────
+  // Detects hardware → recommends a variant → runs a one-click install pipeline.
+  // Falls back to a simpler manual flow if user declines hardware detection.
+  private async _runGemma4Wizard(cfg: vscode.WorkspaceConfiguration): Promise<void> {
+    // Step 1: get one-time consent for hardware detection
+    const consentKey = 'aiForge.hardwareConsent';
+    const allowDetect = cfg.get<boolean>('allowHardwareDetection', true);
+    let consented = this._svc.vsCtx.globalState.get<boolean | undefined>(consentKey);
+
+    if (consented === undefined && allowDetect) {
+      const choice = await vscode.window.showInformationMessage(
+        'Evolve AI can check your system (RAM, GPU, disk space, Ollama version) to recommend the best Gemma 4 variant for your hardware. ' +
+        'No data leaves your machine — this is purely to tailor the recommendation.',
+        { modal: true },
+        'Yes, check my system', 'No, show all options'
+      );
+      consented = choice === 'Yes, check my system';
+      await this._svc.vsCtx.globalState.update(consentKey, consented);
+    }
+
+    // No consent or detection disabled — fall back to manual flow
+    if (!consented || !allowDetect) {
+      await this._gemma4ManualFlow(cfg);
+      return;
+    }
+
+    // Step 2: detect hardware
+    const hw = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'Inspecting your system\u2026' },
+      () => this._svc.inspector.inspect()
+    );
+
+    // Step 3: get recommendation
+    const rec = this._svc.inspector.recommend(hw);
+
+    if (rec.kind === 'unsupported') {
+      await this._showUnsupportedDialog(cfg, hw, rec.reasons, rec.suggestions);
+      return;
+    }
+
+    // Step 4: build setup plan and show summary
+    const ollamaHost = cfg.get<string>('ollamaHost', 'http://localhost:11434');
+    const plan = this._svc.setup.planSteps(hw, rec.variant, ollamaHost);
+    const summary = this._svc.inspector.summary(hw);
+    const planLines = plan.steps.map((s, i) => `  ${i + 1}. ${s.label}`).join('\n');
+    const warningLines = rec.warnings.length
+      ? '\n\n\u26A0 Notes:\n' + rec.warnings.map(w => `  \u2022 ${w}`).join('\n')
+      : '';
+
+    const detail =
+      `Detected: ${summary}\n\n` +
+      `Recommended: ${rec.variant}\nWhy: ${rec.reason}\n\n` +
+      `Setup plan:\n${planLines}` + warningLines;
+
+    const choice = await vscode.window.showInformationMessage(
+      detail,
+      { modal: true },
+      'Install Everything', 'Choose Different Variant'
+    );
+
+    if (choice === 'Choose Different Variant') {
+      const altTag = await this._pickVariantManually(hw);
+      if (!altTag) return;
+      const altPlan = this._svc.setup.planSteps(hw, altTag, ollamaHost);
+      if (!await this._confirmInstallIfNeeded(altPlan, cfg)) return;
+      const result = await this._svc.setup.execute(altPlan);
+      await this._handleSetupResult(result, altTag);
+      return;
+    }
+
+    if (choice !== 'Install Everything') return;
+
+    // Extra consent for Ollama install/upgrade if allowAutoInstall is off
+    if (!await this._confirmInstallIfNeeded(plan, cfg)) return;
+
+    // Execute the plan
+    const result = await this._svc.setup.execute(plan);
+    await this._handleSetupResult(result, rec.variant);
+  }
+
+  /** Ask explicit consent before Ollama install/upgrade unless allowAutoInstall is enabled. */
+  private async _confirmInstallIfNeeded(
+    plan: { steps: { id: string; label: string }[] },
+    cfg: vscode.WorkspaceConfiguration
+  ): Promise<boolean> {
+    const installStep = plan.steps.find(s => s.id === 'install-ollama' || s.id === 'upgrade-ollama');
+    if (!installStep) return true;
+    if (cfg.get<boolean>('allowAutoInstall', false)) return true;
+
+    const confirm = await vscode.window.showWarningMessage(
+      `This will: ${installStep.label}. Ollama is downloaded from ollama.com (~250MB). Continue?\n\n` +
+      `Tip: enable \`aiForge.allowAutoInstall\` in settings to skip this prompt for future setups.`,
+      { modal: true },
+      'Yes, install Ollama', 'Cancel'
+    );
+    return confirm === 'Yes, install Ollama';
+  }
+
+  /** Manual variant picker (fallback when consent denied or user wants to override). */
+  private async _pickVariantManually(hw: import('../core/hardwareInspector').HardwareProfile | null): Promise<string | undefined> {
+    type VariantItem = vscode.QuickPickItem & { tag: string };
+    const installedVariants = hw?.gemma4.variants ?? [];
+
+    const variantItems: VariantItem[] = [
+      { label: '$(zap) E4B (Recommended)',
+        description: '4.5B params \u00B7 ~9.6GB \u00B7 128K context \u00B7 text+image+audio',
+        detail: '16GB+ RAM, no GPU needed. Best balance of speed and quality.',
+        tag: 'gemma4:e4b' },
+      { label: '$(rocket) E2B (Lightweight)',
+        description: '2.3B params \u00B7 ~7.2GB \u00B7 128K context \u00B7 text+image+audio',
+        detail: '8GB+ RAM. Fastest responses, great for quick tasks.',
+        tag: 'gemma4:e2b' },
+      { label: '$(beaker) 26B MoE (Advanced)',
+        description: '25.2B total \u00B7 ~18GB \u00B7 256K context \u00B7 text+image',
+        detail: '32GB+ RAM. High quality with efficient inference.',
+        tag: 'gemma4:26b' },
+      { label: '$(star-full) 31B Dense (Maximum Quality)',
+        description: '30.7B params \u00B7 ~20GB \u00B7 256K context \u00B7 text+image',
+        detail: '32GB+ RAM + GPU with 20GB+ VRAM. Highest quality.',
+        tag: 'gemma4:31b' },
+    ];
+
+    for (const item of variantItems) {
+      if (installedVariants.some(v => v === item.tag || v.startsWith(item.tag + ':'))) {
+        item.label += ' \u2713 installed';
+      }
+    }
+
+    const choice = await vscode.window.showQuickPick(variantItems, {
+      placeHolder: 'Choose a Gemma 4 variant',
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
+    return choice?.tag;
+  }
+
+  /** "System cannot run Gemma 4" dialog with actionable alternatives. */
+  private async _showUnsupportedDialog(
+    cfg: vscode.WorkspaceConfiguration,
+    hw: import('../core/hardwareInspector').HardwareProfile,
+    reasons: string[],
+    suggestions: string[]
+  ): Promise<void> {
+    const summary = this._svc.inspector.summary(hw);
+    const reasonLines = reasons.map(r => `  \u2022 ${r}`).join('\n');
+    const suggestionLines = suggestions.map(s => `  \u2022 ${s}`).join('\n');
+
+    const detail =
+      `Your system: ${summary}\n\n` +
+      `Why Gemma 4 won't work:\n${reasonLines}\n\n` +
+      `What you can do instead:\n${suggestionLines}`;
+
+    const choice = await vscode.window.showWarningMessage(
+      detail,
+      { modal: true },
+      'Switch to Cloud Provider', 'Use Offline Mode', 'Cancel'
+    );
+
+    if (choice === 'Switch to Cloud Provider') {
+      // Re-open Switch Provider — user can pick Anthropic/OpenAI/HuggingFace
+      await vscode.commands.executeCommand('aiForge.switchProvider');
+    } else if (choice === 'Use Offline Mode') {
+      await cfg.update('provider', 'offline', vscode.ConfigurationTarget.Global);
+      vscode.window.showInformationMessage('Switched to Offline Mode. Pattern-based assistance, no LLM required.');
+    }
+  }
+
+  /** Manual Gemma 4 flow when hardware consent is denied. */
+  private async _gemma4ManualFlow(cfg: vscode.WorkspaceConfiguration): Promise<void> {
+    const tag = await this._pickVariantManually(null);
+    if (!tag) return;
+    const ollamaHost = cfg.get<string>('ollamaHost', 'http://localhost:11434');
+    // Build a minimal hardware profile just for orchestrator (treat as install-everything)
+    const hw: import('../core/hardwareInspector').HardwareProfile = {
+      ramGb: 0, cpu: { model: '', cores: 0, arch: '' }, gpu: null, diskFreeGb: 0,
+      ollama: await this._minimalOllamaCheck(),
+      gemma4: await this._svc.ai.isGemma4Available().then(g => ({ installed: g.installed, variants: g.variants })),
+      platform: process.platform, detectedAt: Date.now(),
+    };
+    const plan = this._svc.setup.planSteps(hw, tag, ollamaHost);
+    if (!await this._confirmInstallIfNeeded(plan, cfg)) return;
+    const result = await this._svc.setup.execute(plan);
+    await this._handleSetupResult(result, tag);
+  }
+
+  private async _minimalOllamaCheck(): Promise<{ installed: boolean; version: string | null; needsUpdate: boolean }> {
+    const running = await this._svc.ai.isOllamaRunning();
+    return { installed: running, version: null, needsUpdate: false };
+  }
+
+  /** Show success toast or error after orchestrator finishes. */
+  private async _handleSetupResult(result: { ok: boolean; error?: string }, variant: string): Promise<void> {
+    if (result.ok) {
+      const action = await vscode.window.showInformationMessage(
+        `\u2728 Gemma 4 (${variant}) is ready! All requests now run locally on your machine.`,
+        'Show Tips', 'Open Chat'
+      );
+      if (action === 'Show Tips') {
+        await vscode.commands.executeCommand('aiForge.gemma4Info');
+      } else if (action === 'Open Chat') {
+        await vscode.commands.executeCommand('aiForge.chatPanel.focus');
+      }
+    } else {
+      vscode.window.showErrorMessage(`Gemma 4 setup failed: ${result.error ?? 'Unknown error'}`);
+    }
+  }
+
   setupOllama(): void {
     vscode.env.openExternal(vscode.Uri.parse('https://ollama.com/download'));
   }
@@ -529,12 +617,21 @@ export class CoreCommands {
       `| **E4B** | 4.5B | ~9.6GB | 128K | 16GB+ | ~30 tok/s | Everyday coding (recommended) |`,
       `| **26B MoE** | 3.8B active | ~18GB | 256K | 32GB+ | ~15 tok/s | Complex reasoning, large codebases |`,
       `| **31B** | 30.7B | ~20GB | 256K | 32GB+ GPU | ~10 tok/s | Maximum quality, architecture decisions |\n`,
+      `### Smart Setup Wizard\n`,
+      `Run **Evolve AI: Switch AI Provider** \u2192 select **Gemma 4** to launch the one-click setup:`,
+      `- **Hardware inspection** (with consent) detects RAM, GPU, disk, Ollama version`,
+      `- **Smart recommendation** picks the right variant for your machine`,
+      `- **One-click install** \u2014 handles Ollama install/upgrade + model download + config`,
+      `- **Live progress** shows MB/total as the model downloads`,
+      `- **Privacy-first** \u2014 all detection is local, no data leaves your machine`,
+      `- If your system can't run any variant, alternative options (cloud, offline) are offered\n`,
       `### Tips for Best Results\n`,
       `- **Be specific:** "Add error handling to the fetchUser function" works better than "improve this code"`,
       `- **Use Edit mode** for file changes, **Chat mode** for questions and explanations`,
       `- **Select code first** then ask \u2014 the AI gets better context about what you mean`,
       `- **Large files?** Gemma 4's ${contextSize} context window handles them well`,
-      `- **Complex task?** Try the 26B or 31B variant for better reasoning\n`,
+      `- **Complex task?** Try the 26B or 31B variant for better reasoning`,
+      `- **Toggle the "Think" button** in the chat header for chain-of-thought reasoning on hard problems\n`,
       `### Keyboard Shortcuts\n`,
       `| Shortcut | Action |`,
       `|----------|--------|`,
@@ -680,6 +777,26 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.4.0': [
+    `## \u2728 What's New in Evolve AI 1.4.0\n`,
+    `### Smart hardware detection + one-click Gemma 4 setup`,
+    `Pick **Gemma 4** in Switch Provider \u2014 we now do the work for you:\n`,
+    `- **Inspects your system** (RAM, GPU, disk, Ollama version) with your consent`,
+    `- **Recommends the best variant** for your hardware \u2014 no more guessing`,
+    `- **One-click "Install Everything"** runs Ollama install, upgrade, model download, and config in a single progress notification`,
+    `- **Live download progress** \u2014 see MB/total as the model pulls (no more opening a terminal)`,
+    `- **System-can't-run-it handling** \u2014 if your hardware can't fit any variant, we point you to cloud or offline alternatives instead of leaving you stuck\n`,
+    `### Privacy & control`,
+    `- **Hardware detection requires explicit consent** \u2014 nothing happens silently`,
+    `- **No data leaves your machine** \u2014 detection results stay local`,
+    `- **Cancellable** \u2014 every install step can be aborted mid-way`,
+    `- **Settings:** \`aiForge.allowHardwareDetection\` (default on), \`aiForge.allowAutoInstall\` (default off, asks before each install)\n`,
+    `### Try it`,
+    `Run **Evolve AI: Switch AI Provider** \u2192 select **Gemma 4** \u2192 click **Install Everything**.`,
+    `That's it. The wizard handles the rest.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+  ].join('\n'),
   '1.2.1': [
     `## \u2728 What's New in Evolve AI 1.2.1\n`,
     `### You'll always know when we ship something new`,

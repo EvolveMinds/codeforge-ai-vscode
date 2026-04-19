@@ -38,6 +38,8 @@ function makeServices(bus: MockEventBus, registry: PluginRegistry): IServices {
     workspace: new MockWorkspaceService(),
     plugins:   registry,
     events:    bus as unknown as import('../../../core/eventBus').EventBus,
+    inspector: new (require('../../../core/hardwareInspector').HardwareInspector)(),
+    setup:     new (require('../../../core/setupOrchestrator').SetupOrchestrator)(),
     vsCtx:     makeFakeContext(),
   };
 }

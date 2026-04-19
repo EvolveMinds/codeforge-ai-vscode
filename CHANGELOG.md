@@ -2,6 +2,76 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.4.0] — 2026-04-19
+
+### Added — Smart hardware detection + one-click Gemma 4 setup
+
+The Gemma 4 wizard now does the work for the user. Pick **Gemma 4** in Switch Provider
+and you get a single button that handles everything.
+
+- **Hardware inspection** with explicit one-time consent — detects RAM, CPU, GPU
+  (NVIDIA via `nvidia-smi`, AMD via `rocm-smi`, Apple Silicon via `system_profiler`),
+  free disk space on the Ollama models directory, installed Ollama version, and
+  any Gemma 4 variants already pulled. All checks parallel, all with 3s timeouts,
+  all degrade gracefully on failure. **No data leaves your machine.**
+- **Smart variant recommendation** — instead of showing 4 generic options, the
+  wizard picks exactly the right variant for the user's hardware and explains why.
+  GPU detected? Recommends 31B. 32GB RAM, no GPU? 26B MoE. 16GB? E4B. 8GB? E2B.
+- **One-click install pipeline** — when the user clicks "Install Everything",
+  the orchestrator runs:
+  1. Install Ollama (if not present) — opens platform-specific installer
+  2. Upgrade Ollama (if older than 0.3.10) — explicit consent, then auto-upgrade
+  3. Pull the chosen Gemma 4 variant — live progress in MB/total via Ollama's
+     `/api/pull` NDJSON stream (e.g. `Downloading gemma4:e4b — 1.5GB / 9.6GB (16%)`)
+  4. Configure Evolve AI to use Gemma 4
+  Each step shows up in a single VS Code progress notification, fully cancellable.
+- **"System cannot run Gemma 4" handling** — if RAM or disk is too low for any
+  variant, the wizard shows a modal with specific reasons and three actionable
+  alternatives: switch to a cloud provider, use offline mode, or free up resources.
+  Users are never left at a dead end.
+- **Consent layers** — separate prompts for hardware detection (one-time),
+  Ollama install (per-setup), Ollama upgrade (per-setup). Each explains what
+  will happen and why. Settings: `aiForge.allowHardwareDetection` (default true),
+  `aiForge.allowAutoInstall` (default false).
+- **Manual fallback** — declining hardware detection drops back to the original
+  variant picker. Existing users who prefer manual control lose nothing.
+
+### New code modules
+- `src/core/hardwareInspector.ts` — `HardwareInspector` class: `inspect()`, `recommend()`, `summary()`
+- `src/core/setupOrchestrator.ts` — `SetupOrchestrator` class: `planSteps()`, `execute()` with progress
+
+## [1.3.0] — 2026-04-18
+
+### Added — Deterministic code cleanup (Tier 1)
+
+- **Automatic lint + format on save** for JavaScript, TypeScript, JSX/TSX, Python, Go, and Rust. Zero configuration required.
+- **Bundled tools:**
+  - **Biome** — single-binary replacement for ESLint + Prettier when no project config is present
+  - **Ruff** — single-binary replacement for flake8 + isort + Black for Python
+- **Project-config-aware fallback:**
+  - **ESLint + Prettier** — if the project has its own config (`.eslintrc`, `.prettierrc`), Evolve AI uses the project's `node_modules` install so rules and plugins apply
+  - **gofmt, rustfmt** — used from the installed Go / Rust toolchain
+- **Risk-tiered auto-fix:**
+  - Safe fixes (whitespace, quotes, semicolons, import order) can be auto-applied
+  - Risky fixes (unused vars, any-types) always prompt for review
+  - Consent persists per workspace — asked once, remembered
+- **New status bar entry** — `✓ Clean` / `⚠ 3 fixable` / `✗ 12 errors`. Click to review and apply.
+- **Diff preview** before applying formatter changes so nothing is applied blind.
+- **Content-hash cache** — unchanged files skip re-analysis instantly.
+- **New commands:**
+  - `Evolve AI: Analyze & Clean Current File` — manual trigger
+  - `Evolve AI: Apply All Safe Fixes`
+  - `Evolve AI: Toggle Auto Code Analysis`
+  - `Evolve AI: Reset Code-Analysis Consent`
+- **New configuration tree** under `aiForge.codeAnalysis.*`:
+  - `enabled`, `trigger` (onOpen / onSave / onFocus / manual), `debounceMs`
+  - `scope.maxFileSizeKb`, `scope.exclude`
+  - `ui.surface` (statusBar / popup / both), `ui.popupThreshold`
+  - `consent.autoApply` (per-category safe/risky tuning)
+
+### Distribution note
+Binaries (Biome + Ruff) are bundled per-platform; the marketplace serves the correct `.vsix` for each user's OS/arch. Install size is ~40 MB per platform.
+
 ## [1.2.1] — 2026-04-18
 
 ### Added

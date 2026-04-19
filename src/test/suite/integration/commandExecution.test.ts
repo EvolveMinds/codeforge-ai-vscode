@@ -60,6 +60,8 @@ function makeServices(
     workspace: ws,
     plugins:   registry,
     events:    bus as unknown as import('../../../core/eventBus').EventBus,
+    inspector: new (require('../../../core/hardwareInspector').HardwareInspector)(),
+    setup:     new (require('../../../core/setupOrchestrator').SetupOrchestrator)(),
     vsCtx:     makeFakeContext(),
   };
 }

@@ -165,7 +165,13 @@ Also compatible with **LM Studio**, **llama.cpp**, and **Jan** — point `aiForg
 
 Google's latest open model with text, image, and audio understanding. Runs locally and privately via Ollama. Apache 2.0 licensed.
 
-Run **Switch AI Provider** -> select **Gemma 4** and follow the guided setup wizard. It handles Ollama installation, model download, and configuration automatically.
+**One-click setup** — run **Switch AI Provider** → select **Gemma 4**. Evolve AI:
+1. Asks consent to inspect your system (RAM, GPU, disk, Ollama version) — *no data leaves your machine*
+2. Recommends the variant that fits your hardware
+3. Shows a single **"Install Everything"** button that handles Ollama install/upgrade + model download + config
+4. Reports live download progress (MB/total) right in the notification
+
+If your system can't run any variant, you get actionable alternatives instead of a dead end (cloud providers or offline mode).
 
 Or set up manually:
 
@@ -220,6 +226,8 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.ollamaModel` | `qwen2.5-coder:7b` | Ollama model name |
 | `aiForge.gemma4Model` | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b`, `gemma4:e4b`, `gemma4:26b`, `gemma4:31b` |
 | `aiForge.gemma4ThinkingMode` | `false` | Enable chain-of-thought reasoning (better results, slower) |
+| `aiForge.allowHardwareDetection` | `true` | Allow inspecting system specs (RAM, GPU, disk) to recommend best Gemma 4 variant |
+| `aiForge.allowAutoInstall` | `false` | When `true`, skip the per-install confirmation dialog. When `false` (default), the wizard asks before downloading the Ollama installer |
 | `aiForge.openaiBaseUrl` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
 | `aiForge.openaiModel` | `gpt-4o` | OpenAI model name |
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |
@@ -471,6 +479,35 @@ This happens when a cloud plugin command is triggered but the plugin isn't activ
 2. **Context too large:** Reduce `aiForge.contextBudgetChars` (try `12000`) or `aiForge.maxContextFiles` (try `3`)
 3. **Cloud context:** Connected plugins add live data to context — this adds a small delay on each request
 
+### Gemma 4 setup wizard issues
+
+**"System cannot run Gemma 4" modal appears**
+- Your RAM or free disk space is below the minimum for any variant (8GB RAM, 8GB disk)
+- The modal lists the specific blockers and three alternatives (cloud, offline, free up resources)
+- If you know you have plenty of disk, the check looks at the Ollama models directory (`~/.ollama/models` on Linux/macOS, `%USERPROFILE%\.ollama\models` on Windows). Run `df -h ~/.ollama` (or check disk in Explorer) to confirm
+
+**Setup hangs at "Downloading… 0%"**
+- Verify Ollama is running: open `http://localhost:11434` in your browser
+- Verify internet connectivity: `ping ollama.ai`
+- If stuck more than 5 minutes, click Cancel in the progress notification and retry
+
+**Hardware detection shows "No GPU detected" but you have one**
+- NVIDIA: ensure `nvidia-smi` is on your PATH (`nvidia-smi --version` in terminal)
+- AMD: ensure `rocm-smi` is installed (Linux only)
+- Apple Silicon: detection requires `system_profiler` (built-in on macOS)
+- Intel integrated GPUs are not detected — Gemma 4 won't use them anyway
+- You can manually pick a variant via the "Choose Different Variant" button in the wizard
+
+**Ollama upgrade fails during setup**
+- The wizard auto-upgrades Ollama when it's older than 0.3.10 (required for Gemma 4)
+- If the upgrade fails, manually download from [ollama.com](https://ollama.com) and run the installer
+- Then re-run **Evolve AI: Switch AI Provider** → Gemma 4
+
+**"Could not find gemma4 variant" after setup completes**
+- Ollama may still be pulling the model in the background — wait 5-10 minutes
+- Verify with `ollama list` in your terminal — should show your `gemma4:*` tag
+- If missing, run `ollama pull gemma4:e4b` manually and try again
+
 ### How to disconnect / change credentials
 
 Run the disconnect command for your provider:
@@ -495,6 +532,26 @@ A: For **privacy and cost**: Gemma 4 or Ollama (free, local, your code never lea
 
 **Q: What is Gemma 4 and why should I use it?**
 A: Gemma 4 is Google's latest open-weight AI model (Apache 2.0 license). It runs locally via Ollama with no API key, no cost, and no data leaving your machine. It supports text, image, and audio input with 128K-256K context windows. The E4B variant (~9.6GB) is recommended for most users. Select **Gemma 4** in the provider switcher for a guided setup wizard.
+
+**Q: How does the Gemma 4 setup wizard pick the right variant for me?**
+A: When you select Gemma 4, Evolve AI asks one-time consent to inspect your system: RAM (`os.totalmem()`), GPU (NVIDIA via `nvidia-smi`, AMD via `rocm-smi`, Apple Silicon via `system_profiler`), free disk space, and your Ollama version. It scores each variant against your hardware and recommends one — typically E2B for 8GB RAM, E4B for 16GB, 26B MoE for 32GB+, 31B Dense for 32GB+ with a GPU. **No data leaves your machine** — detection is purely local.
+
+**Q: Will the wizard auto-install Ollama or download models without asking?**
+A: No. Each step asks explicit consent before running:
+- "Install Ollama?" — opens the official installer download (only if Ollama isn't installed)
+- "Upgrade Ollama?" — only if your version is older than 0.3.10 (required for Gemma 4)
+- "Download <variant>?" — confirms before pulling the model
+You see a setup plan listing every step before clicking **"Install Everything"**, and the whole process is cancellable mid-way.
+
+**Q: What if my system can't run Gemma 4?**
+A: The wizard shows a modal explaining exactly why (e.g. "only 4GB RAM detected — needs at least 8GB") and offers three actionable alternatives:
+- **Switch to a cloud provider** (Anthropic Claude, OpenAI, HuggingFace) — runs in the cloud, only needs an API key
+- **Use Offline mode** — pattern-based AI, no LLM required, works instantly
+- **Free up resources** — disk-space tips if that's the blocker
+You're never left at a dead end.
+
+**Q: Can I disable hardware detection?**
+A: Yes. Set `aiForge.allowHardwareDetection` to `false` in settings. The wizard then falls back to showing all 4 variants without inspection — you pick manually. Or decline the one-time consent dialog when it first appears.
 
 **Q: Can I use multiple providers?**
 A: You can switch providers at any time via **Evolve AI: Switch AI Provider**. The extension uses one provider at a time.

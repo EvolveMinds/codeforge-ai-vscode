@@ -6,9 +6,33 @@ Welcome! This guide walks you through setting up Evolve AI for the first time. B
 
 ## Step 1: Choose Your AI Provider
 
-Evolve AI needs an AI model to power its features. You have four options:
+Evolve AI needs an AI model to power its features. You have five options:
 
-### Option A: Ollama (Free, Local, Private) — Recommended
+### Option A: Gemma 4 (Free, Local, Multimodal) — Recommended
+
+Google's latest open-weight model — text, image, and audio. Runs locally via Ollama. Apache 2.0 licensed.
+**One click handles everything.**
+
+1. In VS Code, press `Ctrl+Shift+P` → **Evolve AI: Switch AI Provider**
+2. Select **Gemma 4**
+3. Approve the one-time consent dialog (asks permission to inspect your system — RAM, GPU, disk)
+4. Review the recommended variant for your hardware (e.g. *"Recommended: gemma4:e4b — Best balance of quality and speed for your system"*)
+5. Click **"Install Everything"** — the wizard handles:
+   - Installing Ollama (if not present)
+   - Upgrading Ollama (if older than 0.3.10)
+   - Downloading the model with live MB/total progress
+   - Configuring Evolve AI to use Gemma 4
+
+**Privacy:** All hardware detection is local. Nothing is sent anywhere.
+
+**If your system can't run any variant**, the wizard shows a modal with three actionable alternatives:
+- Switch to a cloud provider (Claude, OpenAI, HuggingFace)
+- Use offline mode (pattern-based, no setup)
+- Free up disk space (with tips)
+
+You're never left at a dead end.
+
+### Option B: Ollama (Free, Local, Any Model)
 
 Your code never leaves your machine. No API key. No cost.
 
@@ -28,14 +52,14 @@ Your code never leaves your machine. No API key. No cost.
 
 **That's it!** Evolve AI auto-detects Ollama. No configuration needed.
 
-### Option B: Anthropic Claude (Cloud, Best Quality)
+### Option C: Anthropic Claude (Cloud, Best Quality)
 
 1. Get an API key from [console.anthropic.com](https://console.anthropic.com)
 2. In VS Code, press `Ctrl+Shift+P` and run **Evolve AI: Switch AI Provider**
 3. Select **Anthropic**
 4. Paste your API key when prompted
 
-### Option C: OpenAI / Groq / Mistral (Cloud)
+### Option D: OpenAI / Groq / Mistral (Cloud)
 
 1. Get an API key from your provider
 2. In VS Code Settings (`Ctrl+,`), search `aiForge.openaiBaseUrl` and set it to your endpoint:
@@ -47,7 +71,7 @@ Your code never leaves your machine. No API key. No cost.
 3. Set `aiForge.openaiModel` to your model name
 4. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **OpenAI** > paste your key
 
-### Option D: No Setup (Offline Mode)
+### Option E: No Setup (Offline Mode)
 
 Evolve AI works without any AI provider! It uses pattern-based analysis — less powerful, but instant and free. Just install the extension and go.
 
@@ -238,6 +262,28 @@ Check the status dot:
 - **Yellow dot / OFFLINE** = no AI provider. Follow Step 1 above.
 - **Green dot** = provider connected. Try typing "hello" and pressing Enter or clicking the green arrow. If no response, check the Developer Tools console (`Help > Toggle Developer Tools`) for errors.
 
+### Gemma 4 setup wizard issues
+
+**"System cannot run Gemma 4" appears**
+- Your RAM or disk space is below the minimum (8GB / 8GB)
+- The modal lists specific blockers and offers cloud / offline alternatives — pick one to continue
+- Disk check looks at the Ollama models directory (`~/.ollama/models` on Linux/macOS, `%USERPROFILE%\.ollama\models` on Windows)
+
+**Setup hangs at "Downloading… 0%"**
+- Verify Ollama is running: `http://localhost:11434` should say "Ollama is running"
+- Check internet: `ping ollama.ai`
+- Cancel via the progress notification and retry
+
+**Hardware detection shows no GPU but you have one**
+- NVIDIA: ensure `nvidia-smi --version` works in your terminal
+- AMD: ensure `rocm-smi` is installed (Linux only)
+- Apple Silicon: requires `system_profiler` (built-in on macOS)
+- Click **"Choose Different Variant"** in the wizard to override the recommendation
+
+**Ollama upgrade fails during setup**
+- The wizard auto-upgrades Ollama when it's older than 0.3.10
+- If it fails, manually download from [ollama.com](https://ollama.com), install, then re-run the wizard
+
 ---
 
 ## Settings Reference
@@ -246,9 +292,13 @@ Open Settings (`Ctrl+,`) and search "aiForge" to see all options:
 
 | Setting | What it does | When to change |
 |---|---|---|
-| `aiForge.provider` | Which AI to use (`auto`, `ollama`, `anthropic`, `openai`, `offline`) | Set to `ollama` if auto-detect doesn't work |
+| `aiForge.provider` | Which AI to use (`auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `huggingface`, `offline`) | Set to `gemma4` for smart Gemma 4 setup |
 | `aiForge.ollamaHost` | Ollama server URL | Change to `http://127.0.0.1:11434` on Windows if needed |
 | `aiForge.ollamaModel` | Which Ollama model | If you pulled a different model |
+| `aiForge.gemma4Model` | Which Gemma 4 variant (`gemma4:e2b`, `e4b`, `26b`, `31b`) | The wizard sets this automatically |
+| `aiForge.gemma4ThinkingMode` | Toggle chain-of-thought reasoning | Enable for complex tasks (slower, better) |
+| `aiForge.allowHardwareDetection` | Consent to inspect system specs for the Gemma 4 wizard | Leave `true` for smart recommendations |
+| `aiForge.allowAutoInstall` | When `true`, skips the per-install confirmation dialog. When `false`, asks before downloading Ollama | Set to `true` only if you want fully hands-off setup |
 | `aiForge.openaiBaseUrl` | API endpoint for OpenAI-compatible services | When using Groq, Mistral, LM Studio, etc. |
 | `aiForge.codeLensEnabled` | Show Explain/Tests/Refactor above functions | Set to false if too noisy |
 | `aiForge.contextBudgetChars` | Max characters sent to AI | Reduce for faster/cheaper responses |

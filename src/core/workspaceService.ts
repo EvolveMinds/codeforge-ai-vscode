@@ -14,6 +14,8 @@
 import * as vscode from 'vscode';
 import * as path   from 'path';
 import * as fs     from 'fs';
+import { HardwareInspector } from './hardwareInspector';
+import { SetupOrchestrator } from './setupOrchestrator';
 import type { PluginRegistry, PluginTransform } from './plugin';
 import type { AIRequest }                       from './aiService';
 import type { IAIService, IContextService }     from './interfaces';
@@ -269,6 +271,8 @@ export class WorkspaceService implements IWorkspaceService {
               workspace: this,
               plugins:   this._plugins,
               events:    this._events,
+              inspector: new HardwareInspector(),
+              setup:     new SetupOrchestrator(),
               vsCtx:     this._vsCtx,
             };
             updated = await pluginTransform.apply(original, filePath, lang, svcObj);

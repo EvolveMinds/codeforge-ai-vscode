@@ -15,6 +15,10 @@ import { ContextService }   from './contextService';
 import { WorkspaceService } from './workspaceService';
 import { PluginRegistry }   from './plugin';
 import { EventBus }         from './eventBus';
+import { HardwareInspector } from './hardwareInspector';
+import { SetupOrchestrator } from './setupOrchestrator';
+import { AnalysisService }  from '../analysis/analysisService';
+import { ConsentStore }     from '../analysis/consentStore';
 import type { IAIService }        from './interfaces';
 import type { IContextService }   from './interfaces';
 import type { IWorkspaceService } from './interfaces';
@@ -27,6 +31,12 @@ export interface IServices {
   readonly workspace: IWorkspaceService;
   readonly plugins:   PluginRegistry;
   readonly events:    EventBus;
+  readonly inspector: HardwareInspector;
+  readonly setup:     SetupOrchestrator;
+  /** Present in production; plugins and tests may use mocks that omit it. */
+  readonly analysis?: AnalysisService;
+  /** Present in production; plugins and tests may use mocks that omit it. */
+  readonly consent?:  ConsentStore;
   readonly vsCtx:     vscode.ExtensionContext;
 }
 
@@ -39,6 +49,10 @@ export class ServiceContainer implements IServices {
   readonly ai:        IAIService;
   readonly context:   IContextService;
   readonly workspace: IWorkspaceService;
+  readonly inspector: HardwareInspector;
+  readonly setup:     SetupOrchestrator;
+  readonly analysis:  AnalysisService;
+  readonly consent:   ConsentStore;
 
   constructor(readonly vsCtx: vscode.ExtensionContext) {
     this.events    = new EventBus();
@@ -46,6 +60,10 @@ export class ServiceContainer implements IServices {
     this.ai        = new AIService(this.events, vsCtx.secrets);
     this.context   = new ContextService(this.plugins);
     this.workspace = new WorkspaceService(this.plugins, this.ai, this.context, vsCtx, this.events);
+    this.inspector = new HardwareInspector();
+    this.setup     = new SetupOrchestrator();
+    this.analysis  = new AnalysisService({ extensionPath: vsCtx.extensionPath, ctx: vsCtx });
+    this.consent   = new ConsentStore(vsCtx);
   }
 
   dispose(): void {

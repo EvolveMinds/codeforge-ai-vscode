@@ -39,7 +39,9 @@ evolve-ai-vscode/
     │   ├── aiService.ts         ← AI provider abstraction (Ollama/Anthropic/OpenAI/offline)
     │   ├── contextService.ts    ← project context assembly + plugin hooks
     │   ├── workspaceService.ts  ← file ops, transforms, diff preview
-    │   └── eventBus.ts          ← typed pub/sub event system
+    │   ├── eventBus.ts          ← typed pub/sub event system
+    │   ├── hardwareInspector.ts ← RAM/GPU/disk/Ollama detection for Gemma 4 wizard
+    │   └── setupOrchestrator.ts ← one-click Gemma 4 install pipeline (Ollama + model)
     ├── ui/
     │   ├── chatPanel.ts         ← sidebar webview chat panel
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
@@ -84,6 +86,8 @@ to undo.
 | Context assembly | `core/contextService.ts` | ✅ Complete |
 | Workspace ops | `core/workspaceService.ts` | ✅ Complete |
 | Event bus | `core/eventBus.ts` | ✅ Complete |
+| Hardware inspector | `core/hardwareInspector.ts` | ✅ Complete |
+| Setup orchestrator | `core/setupOrchestrator.ts` | ✅ Complete |
 | Chat panel | `ui/chatPanel.ts` | ✅ Complete |
 | Status bar | `ui/statusBar.ts` | ✅ Complete |
 | Inline actions | `ui/inlineActions.ts` | ✅ Complete |
@@ -240,6 +244,8 @@ are merged into the core system transparently:
 | `ollamaModel` | string | `qwen2.5-coder:7b` | Ollama model |
 | `gemma4Model` | string | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b` / `gemma4:e4b` / `gemma4:26b` / `gemma4:31b` |
 | `gemma4ThinkingMode` | boolean | `false` | Enable chain-of-thought reasoning (better results, slower) |
+| `allowHardwareDetection` | boolean | `true` | Allow detecting system specs to recommend best Gemma 4 variant. First use asks for consent. |
+| `allowAutoInstall` | boolean | `false` | When `true`, skips per-install confirmation. When `false`, the wizard asks before downloading Ollama |
 | `openaiBaseUrl` | string | `https://api.openai.com/v1` | Also works for Groq, Mistral, Together AI, LiteLLM |
 | `openaiModel` | string | `gpt-4o` | OpenAI model name |
 | `anthropicModel` | string | `claude-sonnet-4-6` | Anthropic model name |

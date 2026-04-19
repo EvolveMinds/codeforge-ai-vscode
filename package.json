@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more.",
-  "version": "1.2.1",
+  "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
+  "version": "1.4.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -86,6 +86,23 @@
       {
         "command": "aiForge.openChat",
         "title": "Evolve AI: Open Chat Panel"
+      },
+      {
+        "command": "aiForge.analysis.runNow",
+        "title": "Evolve AI: Analyze & Clean Current File",
+        "icon": "$(wand)"
+      },
+      {
+        "command": "aiForge.analysis.applyAll",
+        "title": "Evolve AI: Apply All Safe Fixes"
+      },
+      {
+        "command": "aiForge.analysis.toggle",
+        "title": "Evolve AI: Toggle Auto Code Analysis"
+      },
+      {
+        "command": "aiForge.analysis.resetConsent",
+        "title": "Evolve AI: Reset Code-Analysis Consent"
       },
       {
         "command": "aiForge.generateFromDesc",
@@ -1084,8 +1101,12 @@
           "group": "2_fix@1"
         },
         {
-          "command": "aiForge.addDocstrings",
+          "command": "aiForge.analysis.runNow",
           "group": "2_fix@2"
+        },
+        {
+          "command": "aiForge.addDocstrings",
+          "group": "2_fix@3"
         },
         {
           "command": "aiForge.addTests",
@@ -1183,6 +1204,16 @@
           "default": false,
           "description": "Enable Gemma 4 thinking/reasoning mode. Shows chain-of-thought reasoning before the answer. Produces better results for complex tasks but uses more tokens and is slower."
         },
+        "aiForge.allowHardwareDetection": {
+          "type": "boolean",
+          "default": true,
+          "description": "Allow Evolve AI to check your system (RAM, GPU, disk space, Ollama version) to recommend the best Gemma 4 variant. No data leaves your machine. First use will ask for explicit consent."
+        },
+        "aiForge.allowAutoInstall": {
+          "type": "boolean",
+          "default": false,
+          "description": "When enabled, the Gemma 4 wizard installs/upgrades Ollama without asking per-step consent (the wizard's main 'Install Everything' button still requires explicit click). When disabled (default), the wizard shows a confirmation dialog before downloading the Ollama installer."
+        },
         "aiForge.openaiBaseUrl": {
           "type": "string",
           "default": "https://api.openai.com/v1",
@@ -1245,6 +1276,64 @@
           },
           "default": [],
           "description": "List of plugin IDs to disable. E.g. [\"databricks\", \"dbt\"]. Disabled plugins are never activated even when detected."
+        },
+        "aiForge.codeAnalysis.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable deterministic code analysis (ESLint, Prettier, Biome, Ruff, gofmt, rustfmt)."
+        },
+        "aiForge.codeAnalysis.trigger": {
+          "type": "string",
+          "enum": ["onOpen", "onSave", "onFocus", "manual"],
+          "default": "onSave",
+          "description": "When to automatically run code analysis. 'manual' disables automatic runs; use the status bar or the 'Analyze & Clean' command."
+        },
+        "aiForge.codeAnalysis.debounceMs": {
+          "type": "number",
+          "default": 500,
+          "description": "Debounce delay before analysis runs after the trigger fires."
+        },
+        "aiForge.codeAnalysis.scope.maxFileSizeKb": {
+          "type": "number",
+          "default": 1024,
+          "description": "Skip files larger than this size (KB)."
+        },
+        "aiForge.codeAnalysis.scope.exclude": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [
+            "**/node_modules/**",
+            "**/dist/**",
+            "**/.next/**",
+            "**/out/**",
+            "**/build/**",
+            "**/target/**",
+            "**/*.generated.*"
+          ],
+          "description": "Glob patterns to exclude from analysis."
+        },
+        "aiForge.codeAnalysis.ui.surface": {
+          "type": "string",
+          "enum": ["statusBar", "popup", "both"],
+          "default": "statusBar",
+          "description": "Where to surface analysis results. 'statusBar' is least intrusive; 'popup' prompts above the threshold; 'both' always prompts."
+        },
+        "aiForge.codeAnalysis.ui.popupThreshold": {
+          "type": "number",
+          "default": 10,
+          "description": "Minimum number of issues before a popup is shown (when surface = 'popup' or 'both')."
+        },
+        "aiForge.codeAnalysis.consent.autoApply": {
+          "type": "object",
+          "default": {
+            "whitespace": true,
+            "quotes": true,
+            "semicolons": true,
+            "importOrder": true,
+            "unusedVars": false,
+            "anyTypes": false
+          },
+          "description": "Which fix categories are considered 'safe' and may be auto-applied (when consent allows)."
         }
       }
     }
@@ -1253,7 +1342,16 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
+    "postinstall": "node scripts/download-binaries.js",
+    "download-bins": "node scripts/download-binaries.js",
+    "download-bins:all": "node scripts/download-binaries.js --all",
     "package": "vsce package",
+    "package:win-x64":    "node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
+    "package:win-arm64":  "node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
+    "package:mac-x64":    "node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
+    "package:mac-arm64":  "node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
+    "package:linux-x64":  "node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
+    "package:linux-arm64":"node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {

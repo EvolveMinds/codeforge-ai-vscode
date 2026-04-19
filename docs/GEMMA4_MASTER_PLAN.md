@@ -1,5 +1,12 @@
 # Gemma 4 Master Build Plan — Evolve AI VS Code Extension
 
+> **Status: HISTORICAL REFERENCE** — This document is the pre-implementation spec
+> for the Gemma 4 integration that shipped in v1.2.0 through v1.4.0. The smart
+> hardware detection and one-click install pipeline (described as future work
+> here) shipped in **v1.4.0** (April 2026). For current architecture and module
+> responsibilities, read [`ARCHITECTURE.md`](ARCHITECTURE.md). For the up-to-date
+> changelog, see [`CHANGELOG.md`](../CHANGELOG.md).
+
 > Complete low-level implementation plan covering everything discussed.
 > Every section below is work to be built and shipped.
 

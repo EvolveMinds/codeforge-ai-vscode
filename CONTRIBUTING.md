@@ -101,26 +101,62 @@ Tests live in `src/test/suite/`. Mock implementations are in `src/test/mocks.ts`
 
 ```
 src/
-  extension.ts          <- entry point (thin wiring only)
+  extension.ts             <- entry point (thin wiring only)
   core/
-    interfaces.ts       <- IAIService, IContextService, IWorkspaceService
-    services.ts         <- IServices + ServiceContainer (DI root)
-    plugin.ts           <- IPlugin + PluginRegistry
-    aiService.ts        <- AI provider abstraction
-    contextService.ts   <- project context assembly
-    workspaceService.ts <- file ops, transforms, diff preview
-    eventBus.ts         <- typed pub/sub event system
+    interfaces.ts          <- IAIService, IContextService, IWorkspaceService
+    services.ts            <- IServices + ServiceContainer (DI root)
+    plugin.ts              <- IPlugin + PluginRegistry
+    aiService.ts           <- AI provider abstraction
+    contextService.ts      <- project context assembly
+    workspaceService.ts    <- file ops, transforms, diff preview
+    eventBus.ts            <- typed pub/sub event system
+    hardwareInspector.ts   <- system detection (RAM/GPU/disk/Ollama) for Gemma 4 wizard
+    setupOrchestrator.ts   <- one-click Gemma 4 install pipeline
   ui/
-    chatPanel.ts        <- sidebar webview chat panel
-    statusBar.ts        <- status bar item
-    inlineActions.ts    <- CodeLens + CodeAction providers
+    chatPanel.ts           <- sidebar webview chat panel
+    statusBar.ts           <- status bar item
+    inlineActions.ts       <- CodeLens + CodeAction providers
   commands/
-    coreCommands.ts     <- all core commands
+    coreCommands.ts        <- all core commands
   plugins/
-    index.ts            <- plugin registration (only file to edit)
-    databricks.ts       <- reference plugin implementation
-    ...                 <- 12 more plugins
+    index.ts               <- plugin registration (only file to edit)
+    databricks.ts          <- reference plugin implementation
+    ...                    <- 12 more plugins
 ```
+
+## Understanding the Gemma 4 Smart Setup
+
+Two modules power the one-click Gemma 4 experience:
+
+### `src/core/hardwareInspector.ts`
+Runs all detection checks in parallel with 3-second timeouts. Failures degrade
+gracefully (no nvidia-smi? returns `gpu: null`, never throws).
+
+**Public API:**
+- `inspect(): Promise<HardwareProfile>` — gather RAM, CPU, GPU, disk, Ollama version, installed Gemma 4 variants
+- `recommend(hw): Recommendation` — score variants against hardware, return either `{kind:'ok', variant, reason, warnings}` or `{kind:'unsupported', reasons, suggestions}`
+- `summary(hw): string` — human-readable one-liner like `"32GB RAM · NVIDIA RTX 4090 (24GB VRAM) · 215GB free disk"`
+
+**Privacy:** Opt-in via `aiForge.allowHardwareDetection` setting + one-time consent
+modal stored in `globalState`. No data leaves the machine.
+
+### `src/core/setupOrchestrator.ts`
+Plans and executes the install pipeline with a single VS Code progress notification.
+Each step is independent and idempotent — already-satisfied steps are skipped.
+
+**Public API:**
+- `planSteps(hw, variant, ollamaHost): SetupPlan` — determine which steps are needed
+- `execute(plan): Promise<{ok, error?}>` — run sequentially with progress + cancellation
+
+**Steps:**
+1. Install Ollama (platform-specific installer)
+2. Upgrade Ollama (if version < 0.3.10)
+3. Pull Gemma 4 model — parses Ollama's `/api/pull` NDJSON for live MB/total progress
+4. Update settings (`aiForge.provider`, `aiForge.gemma4Model`)
+
+**Adding a new install step:** Append to the `planSteps()` switch block. Each step
+is a `{id, label, needed, run}` tuple. Use `progress.message()` to update the
+notification, and respect `signal.aborted` for cancellation.
 
 ## License
 

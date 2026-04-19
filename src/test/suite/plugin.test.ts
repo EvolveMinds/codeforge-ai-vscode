@@ -42,6 +42,8 @@ function makeServices(registry: PluginRegistry, bus: EventBus): IServices {
     workspace: new MockWorkspaceService(),
     plugins:   registry,
     events:    bus,
+    inspector: new (require('../../core/hardwareInspector').HardwareInspector)(),
+    setup:     new (require('../../core/setupOrchestrator').SetupOrchestrator)(),
     vsCtx,
   };
 }
