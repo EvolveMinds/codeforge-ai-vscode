@@ -29,3 +29,6 @@ desktop.ini
 # Environment / secrets
 .env
 .env.*
+
+# Bundled code-analysis binaries (downloaded by scripts/download-binaries.js)
+bin/

@@ -17,6 +17,7 @@ import { ChatPanelProvider }       from './ui/chatPanel';
 import { StatusBarService }        from './ui/statusBar';
 import { registerInlineProviders } from './ui/inlineActions';
 import { CoreCommands }            from './commands/coreCommands';
+import { AnalysisController }      from './analysis/controller';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   // 1. Service container — EventBus, PluginRegistry, AIService, etc. all wired here
@@ -35,6 +36,9 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
 
   // 4. Commands
   new CoreCommands(svc).register();
+
+  // 4a. Code analysis (lint/format) — triggers + commands + status bar
+  new AnalysisController(svc);
 
   // 5. Plugin detection — run for EVERY workspace folder (multi-root support)
   // [FIX-26] First matching folder wins — once a plugin activates, subsequent
