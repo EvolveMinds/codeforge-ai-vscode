@@ -2,6 +2,17 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.4.2] — 2026-04-19
+
+### Fixed
+- **What's New and Gemma 4 Info commands no longer show plugin-context preamble.** Previously these commands sent their pre-written markdown through the AI pipeline, which prepended Git Status, Recent Commits, and Security Scan sections (from plugin context hooks) and then round-tripped everything through the configured AI provider. The AI's response echoed both the context and the original content, polluting the chat display. These informational commands now render directly in the chat panel as static markdown — zero AI calls, zero context injection, zero plugin-data leakage.
+
+### Added
+- New internal command `aiForge._postInfoToChat` + `ChatPanelProvider._sendInfo()` — a static-info rendering path for pre-written markdown that bypasses the AI and context pipeline. Used by `whatsNew` and `gemma4Info`. Not exposed to users; intended for future informational commands.
+
+### Security
+- **`aiForge.ollamaHost` schema hardened** — added `"pattern": "^https?://"` to package.json so the VS Code settings UI validates the scheme before writing. Complements the existing runtime `readHostSetting` + `warnIfRemoteHost` defences (from 1.4.1) by rejecting `file://`, `javascript:`, `ftp://`, and typos at the settings editor.
+
 ## [1.4.1] — 2026-04-19
 
 ### Fixed

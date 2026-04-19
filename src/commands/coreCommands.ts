@@ -666,9 +666,9 @@ export class CoreCommands {
       `To switch variants: run **Evolve AI: Switch AI Provider** \u2192 Gemma 4`,
     ].join('\n');
 
-    // Post to chat panel
-    await vscode.commands.executeCommand('aiForge._sendToChat', info, 'chat');
+    // Post to chat as static info (no AI round-trip, no plugin-context preamble)
     await vscode.commands.executeCommand('aiForge.chatPanel.focus');
+    await vscode.commands.executeCommand('aiForge._postInfoToChat', info);
   }
 
   async whatsNew(): Promise<void> {
@@ -676,7 +676,8 @@ export class CoreCommands {
     const notes   = getReleaseNotes(version);
 
     await vscode.commands.executeCommand('aiForge.chatPanel.focus');
-    await vscode.commands.executeCommand('aiForge._sendToChat', notes, 'chat');
+    // Static info: no AI call, no plugin context injection
+    await vscode.commands.executeCommand('aiForge._postInfoToChat', notes);
 
     // User has explicitly viewed the notes — mark dismissed and clear pending banner
     await this._svc.vsCtx.globalState.update(`aiForge.whatsNewDismissed.${version}`, true);
@@ -799,6 +800,18 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.4.2': [
+    `## \ud83e\uddf9 Evolve AI 1.4.2 \u2014 Cleaner info display + settings hardening\n`,
+    `### Fixed`,
+    `- **What's New** and **Gemma 4 Info & Tips** commands now render the exact content you expect \u2014 just the release notes / tips, nothing else.`,
+    `- Previously, these commands round-tripped their content through the AI, which prepended Git Status / Recent Commits / Security Scan sections from context plugins. That display contamination is gone.\n`,
+    `### Security`,
+    `- \`aiForge.ollamaHost\` setting now validates the URL scheme (\`http://\` or \`https://\` only). Typos or weird schemes like \`file://\` are rejected in the Settings editor before they reach the extension.\n`,
+    `### No action needed`,
+    `This release is a bug fix on top of v1.4.1. All security fixes from v1.4.1 (Ollama CVE min-version, Workspace Trust, remote-host warning, image upload validation) remain in place.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+  ].join('\n'),
   '1.4.1': [
     `## \ud83d\udd12 Evolve AI 1.4.1 \u2014 Gemma 4 fix + security hardening\n`,
     `### Gemma 4 setup race fixed`,

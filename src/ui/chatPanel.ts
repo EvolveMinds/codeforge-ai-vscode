@@ -39,6 +39,13 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     _svc.vsCtx.subscriptions.push(
       vscode.commands.registerCommand('aiForge._sendToChat',
         (instruction: string, mode: string) => this.send(instruction, mode as 'chat' | 'edit' | 'new')
+      ),
+      // Post pre-rendered markdown (release notes, static info) directly into
+      // the chat — no AI call, no context build, no prompt construction.
+      // Prevents plugin context (Git Status / Recent Commits / Security Scan)
+      // from leaking into the display for informational commands.
+      vscode.commands.registerCommand('aiForge._postInfoToChat',
+        (markdown: string) => this._sendInfo(markdown)
       )
     );
 
@@ -96,6 +103,15 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
   }
 
   show(): void { this._view?.show(true); }
+
+  // ── Static info (no AI call) ─────────────────────────────────────────────────
+  // Renders pre-written markdown directly into the chat. Used for release notes,
+  // Gemma 4 tips, and other informational content that should NOT round-trip
+  // through the AI (which would inject plugin context and restate the content).
+  private _sendInfo(markdown: string): void {
+    this.show();
+    this._post({ type: 'infoMsg', text: markdown });
+  }
 
   // ── Send ──────────────────────────────────────────────────────────────────────
 
@@ -854,6 +870,14 @@ window.addEventListener('message', ({ data }) => {
       msgsEl.appendChild(w);
       // Re-check status to show onboarding guide if offline
       vscode.postMessage({ type: 'getStatus' });
+      break;
+    }
+    case 'infoMsg': {
+      // Static info: release notes / Gemma 4 tips / etc. No AI call, no actions.
+      // Renders as an AI-style message bubble but with class 'ai info' so we
+      // can style it distinctly if desired.
+      const infoEl = addMsg('ai info', md(esc(data.text || '')));
+      if (infoEl) infoEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
       break;
     }
     case 'userMsg':
