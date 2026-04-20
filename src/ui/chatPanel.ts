@@ -338,6 +338,8 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
   private _html(): string {
     // [SEC-3] Generate a nonce for CSP — prevents inline script injection
     const nonce = getNonce();
+    // Platform-aware modifier key for shortcuts (Cmd on macOS, Ctrl elsewhere)
+    const mod = process.platform === 'darwin' ? 'Cmd' : 'Ctrl';
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -503,7 +505,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
     <p><strong>Edit</strong> &mdash; describe changes to the active file</p>
     <p><strong>Create</strong> &mdash; generate new files from scratch</p>
     <p style="margin-top:8px">Right-click code for inline actions</p>
-    <p><kbd>Ctrl+Shift+A</kbd> to open &middot; <kbd>Ctrl+Alt+E</kbd> to explain selection</p>
+    <p><kbd>${mod}+Shift+A</kbd> to open &middot; <kbd>${mod}+Alt+E</kbd> to explain selection</p>
   </div>
 </div>
 
@@ -524,6 +526,9 @@ let renderPending = false;
 let currentProvider = 'offline';
 let gemma4TipShown = false;
 let pendingImages = [];
+// Platform-aware modifier key for shortcut labels (Cmd on macOS, Ctrl elsewhere).
+// Injected at HTML-template time based on process.platform.
+const MOD = '${mod}';
 
 function setMode(m) {
   mode = m;
@@ -866,7 +871,7 @@ window.addEventListener('message', ({ data }) => {
         + '<p><strong>Edit</strong> &mdash; describe changes to the active file</p>'
         + '<p><strong>Create</strong> &mdash; generate new files from scratch</p>'
         + '<p style="margin-top:8px">Right-click code for inline actions</p>'
-        + '<p><kbd>Ctrl+Shift+A</kbd> to open &middot; <kbd>Ctrl+Alt+E</kbd> to explain selection</p>';
+        + '<p><kbd>' + MOD + '+Shift+A</kbd> to open &middot; <kbd>' + MOD + '+Alt+E</kbd> to explain selection</p>';
       msgsEl.appendChild(w);
       // Re-check status to show onboarding guide if offline
       vscode.postMessage({ type: 'getStatus' });
@@ -965,7 +970,7 @@ window.addEventListener('message', ({ data }) => {
           tip.className = 'gemma4-tip';
           tip.innerHTML = '<strong>\\u2728 Running Gemma 4 locally</strong> \\u2014 your code stays on your machine. '
             + 'Try <em>"Explain this code"</em>, <em>"Write tests"</em>, or <em>"Refactor to use async/await"</em>. '
-            + 'Use <code>Ctrl+Alt+E</code> to explain selected code, <code>Ctrl+Alt+F</code> to fix errors. '
+            + 'Use <code>' + MOD + '+Alt+E</code> to explain selected code, <code>' + MOD + '+Alt+F</code> to fix errors. '
             + '<a href="#" onclick="this.parentElement.remove();return false;" style="margin-left:6px;">Dismiss</a>';
           aiEl.appendChild(tip);
         }

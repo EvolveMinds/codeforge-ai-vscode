@@ -144,9 +144,9 @@ async function checkForUpgrade(vsCtx: vscode.ExtensionContext, svc: ServiceConta
   // Tell chat panel to show the banner (fires whether or not the user interacts with the toast)
   svc.events.emit('ui.whatsNew.show', { version: currentVersion });
 
-  // Non-blocking toast
+  // Non-blocking toast — version-agnostic tagline so it doesn't go stale
   vscode.window.showInformationMessage(
-    `Evolve AI updated to ${currentVersion} — now with Gemma 4 support!`,
+    `Evolve AI updated to ${currentVersion}. See what's new in this release.`,
     "See What's New", 'Remind me later', 'Dismiss'
   ).then(choice => {
     if (choice === "See What's New") {

@@ -655,14 +655,14 @@ export class CoreCommands {
       `- **Complex task?** Try the 26B or 31B variant for better reasoning`,
       `- **Toggle the "Think" button** in the chat header for chain-of-thought reasoning on hard problems\n`,
       `### Keyboard Shortcuts\n`,
-      `| Shortcut | Action |`,
-      `|----------|--------|`,
-      `| \`Ctrl+Shift+A\` | Open AI Chat |`,
-      `| \`Ctrl+Alt+E\` | Explain selected code |`,
-      `| \`Ctrl+Alt+F\` | Fix errors in current file |`,
-      `| \`Ctrl+Alt+G\` | Generate code from description |`,
-      `| \`Ctrl+Alt+M\` | Generate git commit message |`,
-      `| Right-click | Evolve AI context menu |\n`,
+      `| Action | Windows / Linux | macOS |`,
+      `|--------|-----------------|-------|`,
+      `| Open AI Chat | \`Ctrl+Shift+A\` | \`Cmd+Shift+A\` |`,
+      `| Explain selected code | \`Ctrl+Alt+E\` | \`Cmd+Alt+E\` |`,
+      `| Fix errors in current file | \`Ctrl+Alt+F\` | \`Cmd+Alt+F\` |`,
+      `| Generate code from description | \`Ctrl+Alt+G\` | \`Cmd+Alt+G\` |`,
+      `| Generate git commit message | \`Ctrl+Alt+M\` | \`Cmd+Alt+M\` |`,
+      `| Right-click for context menu | mouse | mouse |\n`,
       `To switch variants: run **Evolve AI: Switch AI Provider** \u2192 Gemma 4`,
     ].join('\n');
 
@@ -800,6 +800,16 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.4.3': [
+    `## \u2328\ufe0f Evolve AI 1.4.3 \u2014 Cross-platform keyboard shortcuts\n`,
+    `### Fixed`,
+    `- **macOS users**: keyboard shortcuts in the chat panel, Gemma 4 tips, and info messages now show **\u2318 Cmd** instead of \`Ctrl\`.`,
+    `- The underlying keybindings always worked on macOS \u2014 only the displayed labels were Windows/Linux-only. Now they adapt to your platform.\n`,
+    `### Improved`,
+    `- **"What's New" toast** no longer ties its tagline to one specific feature. It now reads *"Evolve AI updated to X.Y.Z. See what's new in this release."* \u2014 accurate for every future update.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+  ].join('\n'),
   '1.4.2': [
     `## \ud83e\uddf9 Evolve AI 1.4.2 \u2014 Cleaner info display + settings hardening\n`,
     `### Fixed`,

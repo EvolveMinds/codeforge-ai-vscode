@@ -2,6 +2,16 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.4.3] — 2026-04-19
+
+### Fixed
+- **Keyboard shortcuts now render correctly on macOS.** The chat panel's welcome message, Gemma 4 first-use tip, and `Evolve AI: Gemma 4 Info & Tips` output previously displayed `Ctrl+Shift+A` etc. regardless of platform. They now show `Cmd+Shift+A` on macOS (detected via `process.platform === 'darwin'`). The underlying keybindings themselves were already cross-platform — only the displayed labels were Windows/Linux-only.
+- **Gemma 4 Info shortcuts table expanded** — now shows both Windows/Linux and macOS columns side-by-side instead of only the Windows/Linux form.
+- **Chat panel welcome block** uses a platform-aware `MOD` constant (`Cmd` on macOS, `Ctrl` elsewhere) injected at HTML-template time.
+
+### Improved
+- **"What's New" toast text is no longer version-specific.** Previously read *"Evolve AI updated to X.Y.Z — now with Gemma 4 support!"* which went stale after the initial Gemma 4 release. Now reads *"Evolve AI updated to X.Y.Z. See what's new in this release."* — neutral and accurate for every future release.
+
 ## [1.4.2] — 2026-04-19
 
 ### Fixed
