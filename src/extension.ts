@@ -18,6 +18,9 @@ import { StatusBarService }        from './ui/statusBar';
 import { registerInlineProviders } from './ui/inlineActions';
 import { CoreCommands }            from './commands/coreCommands';
 import { AnalysisController }      from './analysis/controller';
+import { LineageStore }            from './ui/lineageStore';
+import { registerLineageProviders } from './ui/lineageProviders';
+import { LineagePanel }            from './ui/lineagePanel';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   // 1. Service container — EventBus, PluginRegistry, AIService, etc. all wired here
@@ -31,11 +34,34 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   vsCtx.subscriptions.push(
     vscode.window.registerWebviewViewProvider(ChatPanelProvider.viewId, new ChatPanelProvider(svc))
   );
-  new StatusBarService(svc);
+  const statusBar = new StatusBarService(svc);
   const lens = registerInlineProviders(vsCtx, svc.plugins);
+
+  // 3a. [DE-1] Lineage: store + CodeLens/Hover/Completion/Diagnostics + status badge
+  const lineageStore = new LineageStore(svc);
+  vsCtx.subscriptions.push({ dispose: () => lineageStore.dispose() });
+  registerLineageProviders(vsCtx, lineageStore);
+  statusBar.attachLineageStore(lineageStore);
 
   // 4. Commands
   new CoreCommands(svc).register();
+
+  // 4b. [DE-1] Lineage commands
+  vsCtx.subscriptions.push(
+    vscode.commands.registerCommand('aiForge.lineage.showPanel', (focusFqn?: string) => {
+      LineagePanel.show(svc, lineageStore, typeof focusFqn === 'string' ? focusFqn : undefined);
+    }),
+    vscode.commands.registerCommand('aiForge.lineage.refresh', async () => {
+      const active = vscode.window.activeTextEditor;
+      if (!active) { vscode.window.showInformationMessage('No active file to refresh lineage for.'); return; }
+      lineageStore.invalidateAll();
+      await lineageStore.refresh(active.document.uri);
+      vscode.window.setStatusBarMessage('Evolve AI: lineage refreshed', 2000);
+    }),
+  );
+
+  // 4c. [DE-1] First-use onboarding toast — show once per workspace when lineage resolves
+  showLineageOnboardingOnce(vsCtx, lineageStore);
 
   // 4a. Code analysis (lint/format) — triggers + commands + status bar
   new AnalysisController(svc);
@@ -159,6 +185,66 @@ async function checkForUpgrade(vsCtx: vscode.ExtensionContext, svc: ServiceConta
     }
     // 'Remind me later' or no choice → don't set dismissKey; toast fires again on next activation
   });
+}
+
+// ── [DE-1] Lineage first-use onboarding ──────────────────────────────────────
+// Show a single toast the first time lineage resolves in a workspace, so users
+// discover the feature without reading release notes. Offers a one-click jump
+// to the Lineage panel. Dismissible forever via 'Don't show again'.
+
+function showLineageOnboardingOnce(vsCtx: vscode.ExtensionContext, store: LineageStore): void {
+  const ONBOARD_KEY = 'aiForge.lineage.onboarded';
+  if (vsCtx.workspaceState.get<boolean>(ONBOARD_KEY, false)) return;
+
+  const sub = store.onDidChange(async snap => {
+    if (snap.schemas.length === 0) return;
+    sub.dispose();
+    await vsCtx.workspaceState.update(ONBOARD_KEY, true);
+    const total = snap.schemas.reduce((a, s) => a + s.columns.length, 0);
+    const pick = await vscode.window.showInformationMessage(
+      `Evolve AI found ${snap.schemas.length} upstream ${snap.schemas.length === 1 ? 'table' : 'tables'} (${total} columns). AI answers will now use real column names.`,
+      'Show me', 'Settings', 'Dismiss',
+    );
+    if (pick === 'Show me') {
+      vscode.commands.executeCommand('aiForge.lineage.showPanel');
+    } else if (pick === 'Settings') {
+      vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.lineage');
+    }
+
+    // If any resolved column has a pii-ish tag AND a cloud provider is active,
+    // ask once whether to include those columns in prompts.
+    await maybeRequestPiiConsent(vsCtx, snap);
+  });
+  vsCtx.subscriptions.push(sub);
+}
+
+async function maybeRequestPiiConsent(
+  vsCtx: vscode.ExtensionContext,
+  snap: { schemas: Array<{ columns: Array<{ tags?: string[] }> }> },
+): Promise<void> {
+  const PII_ASKED = 'aiForge.lineage.piiPromptAsked';
+  if (vsCtx.workspaceState.get<boolean>(PII_ASKED, false)) return;
+
+  const hasPii = snap.schemas.some(s => s.columns.some(c =>
+    c.tags?.some(t => ['pii', 'pci', 'sensitive'].includes(t.toLowerCase())),
+  ));
+  if (!hasPii) return;
+
+  const cfg = vscode.workspace.getConfiguration('aiForge');
+  const provider = cfg.get<string>('provider', 'auto');
+  const isCloud = provider === 'anthropic' || provider === 'openai' || provider === 'huggingface';
+  if (!isCloud) return;
+
+  await vsCtx.workspaceState.update(PII_ASKED, true);
+  const pick = await vscode.window.showWarningMessage(
+    'Evolve AI: some upstream columns are tagged PII / sensitive. By default these are redacted before being sent to cloud AI providers. Include them?',
+    'Keep redacted (default)', 'Include PII', 'Learn more',
+  );
+  if (pick === 'Include PII') {
+    await cfg.update('lineage.includePii', true, vscode.ConfigurationTarget.Workspace);
+  } else if (pick === 'Learn more') {
+    vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.lineage.includePii');
+  }
 }
 
 // ── Post-update reload nudge ─────────────────────────────────────────────────

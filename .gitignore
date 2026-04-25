@@ -32,3 +32,7 @@ desktop.ini
 
 # Bundled code-analysis binaries (downloaded by scripts/download-binaries.js)
 bin/
+
+# Local simulation / test harnesses (not shipped)
+.de1-sim/
+.*-sim/

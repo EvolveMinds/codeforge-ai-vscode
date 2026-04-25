@@ -153,7 +153,7 @@ No circular dependencies.
 
 ### `core/plugin.ts` — plugin contracts and registry
 
-#### IPlugin interface — 9 contribution points
+#### IPlugin interface — 10 contribution points
 
 ```typescript
 interface IPlugin {
@@ -169,6 +169,7 @@ interface IPlugin {
 
   // Contribution points (all optional)
   contextHooks?:        PluginContextHook[];      // inject data into every AI prompt
+  lineageHooks?:        PluginLineageHook[];      // resolve upstream table schemas (DE #1)
   systemPromptSection?(): string;                  // append domain knowledge to system prompt
   codeLensActions?:     PluginCodeLensAction[];   // buttons above code lines
   codeActions?:         PluginCodeAction[];        // lightbulb quickfix/refactor items
@@ -178,6 +179,29 @@ interface IPlugin {
   commands?:            PluginCommand[];           // VS Code commands
 }
 ```
+
+#### PluginLineageHook (DE #1 — lineage-aware context)
+
+A specialised hook for data-engineering plugins. Where `contextHooks` emit free-form
+markdown into the prompt, `lineageHooks` produce structured `LineageSchema` objects that
+the context service treats as a first-class section (its own budget slice, its own prompt
+header, and its own UI surfaces: CodeLens, Hover, Completion, Diagnostics, Lineage Panel).
+
+```typescript
+interface PluginLineageHook {
+  key: string;
+  extract(file: FileContext): Promise<LineageRef[]>;
+  resolve(refs: LineageRef[], ws: WorkspaceFolder | undefined): Promise<LineageSchema[]>;
+}
+```
+
+Two shipping implementations:
+- `DbtLineageHook` (`plugins/dbtLineage.ts`) — `{{ ref() }}` / `{{ source() }}` → `target/manifest.json` → `schema.yml` fallback.
+- `DatabricksLineageHook` (`plugins/databricksLineage.ts`) — `spark.table(...)` / `spark.sql(...)` → Unity Catalog API.
+
+Providers are ranked by `aiForge.lineage.providerOrder`; the first hit wins per FQN.
+PII-tagged columns are redacted before cloud-LLM prompts unless the user opts in via
+`aiForge.lineage.includePii`. See `docs/LINEAGE.md` for the full user-facing guide.
 
 #### PluginContextHook
 

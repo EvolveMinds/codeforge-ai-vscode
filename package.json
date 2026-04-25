@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -176,6 +176,16 @@
       {
         "command": "aiForge.whatsNew",
         "title": "Evolve AI: What's New"
+      },
+      {
+        "command": "aiForge.lineage.showPanel",
+        "title": "Evolve AI: Show Lineage Panel",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.lineage.refresh",
+        "title": "Evolve AI: Refresh Lineage",
+        "category": "Evolve AI"
       },
       {
         "command": "aiForge.codelens.explain",
@@ -1081,6 +1091,11 @@
         "command": "aiForge.gitCommitMessage",
         "key": "ctrl+alt+m",
         "mac": "cmd+alt+m"
+      },
+      {
+        "command": "aiForge.lineage.showPanel",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l"
       }
     ],
     "menus": {
@@ -1284,6 +1299,27 @@
           },
           "default": [],
           "description": "List of plugin IDs to disable. E.g. [\"databricks\", \"dbt\"]. Disabled plugins are never activated even when detected."
+        },
+        "aiForge.lineage.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Resolve upstream table schemas (dbt refs/sources, Spark tables, Unity Catalog) and inject them into AI prompts so suggestions use real column names."
+        },
+        "aiForge.lineage.includePii": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include columns tagged pii / pci / sensitive when sending prompts to cloud AI providers (Anthropic, OpenAI, Hugging Face). Local providers (Ollama, Gemma 4) always receive full schemas."
+        },
+        "aiForge.lineage.maxUpstreamTables": {
+          "type": "number",
+          "default": 8,
+          "description": "Maximum number of upstream tables resolved per AI request. Lower values save budget; higher values give the AI more context."
+        },
+        "aiForge.lineage.providerOrder": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["dbtManifest", "schemaYml", "unityCatalog"],
+          "description": "Preferred order for resolving upstream schemas. The first provider to return a match wins."
         },
         "aiForge.codeAnalysis.enabled": {
           "type": "boolean",

@@ -800,6 +800,30 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.5.0': [
+    `## 🔗 Evolve AI 1.5.0 — Lineage-aware context\n`,
+    `### The AI now uses your **real** column names\n`,
+    `Open a dbt model or a PySpark notebook and Evolve AI walks the file for upstream table references — dbt \`ref()\` / \`source()\`, \`spark.table()\`, \`spark.sql()\` — then looks up their real schemas and feeds them to the AI.\n`,
+    `No more hallucinated columns. Ask for a new calculation and the AI writes SQL that actually compiles against your tables.\n`,
+    `### What you'll see\n`,
+    `- **Inline CodeLens** above every \`ref()\` / \`spark.table()\`: column count, last-built age, stale-manifest warnings.`,
+    `- **Hover any table or column** — types, descriptions, passing tests, tags.`,
+    `- **Column autocomplete** after typing \`table.\` — real columns, not guesses.`,
+    `- **Diagnostics** (yellow squiggle) on broken \`ref()\` calls with "did you mean..." suggestions, so typos are caught before \`dbt run\`.`,
+    `- **Status bar badge** — \`$(link) N upstream\` — click to open the Lineage Explorer panel (\`Ctrl+Alt+L\` / \`⌘⌥L\`).\n`,
+    `### Providers\n`,
+    `- **dbt**: parses \`target/manifest.json\` for the highest fidelity (types, descriptions, tests). Falls back to \`schema.yml\` when no \`dbt compile\` has run.`,
+    `- **Databricks / Unity Catalog**: resolves three-part \`catalog.schema.table\` names against the connected workspace's UC API. Requires **Databricks: Connect**.\n`,
+    `### Privacy\n`,
+    `Columns tagged \`pii\` / \`pci\` / \`sensitive\` are **redacted** before prompts reach cloud providers (Anthropic, OpenAI, HF). Local providers (Ollama, Gemma 4) always get the full schema — data never leaves your machine. Override in settings if your workspace policy allows it.\n`,
+    `### Settings (all under \`aiForge.lineage.*\`)`,
+    `- \`enabled\` (default \`true\`) — master switch`,
+    `- \`includePii\` (default \`false\`) — include PII columns in cloud prompts`,
+    `- \`maxUpstreamTables\` (default \`8\`) — cap per request`,
+    `- \`providerOrder\` — which provider wins when multiple resolve the same ref\n`,
+    `---\n`,
+    `Full user guide: [docs/LINEAGE.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/docs/LINEAGE.md)`,
+  ].join('\n'),
   '1.4.3': [
     `## \u2328\ufe0f Evolve AI 1.4.3 \u2014 Cross-platform keyboard shortcuts\n`,
     `### Fixed`,

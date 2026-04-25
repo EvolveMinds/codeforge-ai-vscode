@@ -20,6 +20,7 @@ import * as fs     from 'fs';
 import type {
   IPlugin,
   PluginContextHook,
+  PluginLineageHook,
   PluginCodeLensAction,
   PluginCodeAction,
   PluginTransform,
@@ -29,6 +30,7 @@ import type {
 } from '../core/plugin';
 import type { IServices } from '../core/services';
 import type { AIRequest } from '../core/aiService';
+import { DatabricksLineageHook } from './databricksLineage';
 
 // ── Detection markers (same as base Databricks plugin) ───────────────────────
 
@@ -579,6 +581,14 @@ export class DatabricksConnectedPlugin implements IPlugin {
       return this._cachedContext; // return stale cache if available
     }
   }
+
+  // ── [DE-1] lineageHooks ─────────────────────────────────────────────────
+  // Resolves spark.table(...) / spark.sql(...) refs against Unity Catalog.
+  // Uses a getter so the hook picks up the current client after reconnects.
+
+  readonly lineageHooks: PluginLineageHook[] = [
+    new DatabricksLineageHook(() => this._client),
+  ];
 
   // ── contextHooks ────────────────────────────────────────────────────────
 

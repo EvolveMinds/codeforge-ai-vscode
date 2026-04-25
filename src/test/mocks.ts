@@ -59,6 +59,7 @@ export function emptyContext(): ProjectContext {
     workspaceName: 'test-workspace',
     language:      'typescript',
     pluginData:    new Map(),
+    lineage:       [],
     contextBudget: { total: 24_000, used: 0 },
   };
 }

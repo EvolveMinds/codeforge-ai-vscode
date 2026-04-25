@@ -20,6 +20,7 @@ import * as fs     from 'fs';
 import type {
   IPlugin,
   PluginContextHook,
+  PluginLineageHook,
   PluginCodeLensAction,
   PluginCodeAction,
   PluginTransform,
@@ -29,6 +30,7 @@ import type {
 } from '../core/plugin';
 import type { IServices } from '../core/services';
 import type { AIRequest } from '../core/aiService';
+import { DbtLineageHook } from './dbtLineage';
 
 // ── Detection helpers ─────────────────────────────────────────────────────────
 
@@ -353,6 +355,14 @@ export class DbtPlugin implements IPlugin {
         return lines.join('\n');
       },
     },
+  ];
+
+  // ── [DE-1] lineageHooks ─────────────────────────────────────────────────
+  // Resolves {{ ref('x') }} and {{ source('a','b') }} to real column schemas
+  // via target/manifest.json, with schema.yml as a graceful fallback.
+
+  readonly lineageHooks: PluginLineageHook[] = [
+    new DbtLineageHook(),
   ];
 
   // ── systemPromptSection ─────────────────────────────────────────────────

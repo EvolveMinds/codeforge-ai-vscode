@@ -12,11 +12,56 @@ import * as vscode from 'vscode';
 import * as path   from 'path';
 import type { IServices } from '../core/services';
 import type { AIRequest, Message } from '../core/aiService';
+import type { LineageSchema }      from '../core/plugin';
 
 const HISTORY_KEY     = 'aiForge.chatHistory';
 const MAX_HISTORY     = 40; // messages to keep in state
 const HISTORY_UI_SHOW = 20; // messages shown in panel on load
 const MSG_WINDOW_BUDGET = 48_000; // [FIX-10] Max chars for conversation history sent to AI
+
+// [DE-1] Detect likely column references in the user's question that do NOT
+// exist in the resolved lineage schemas. Returns a user-facing hint or undefined.
+function detectUnknownColumnReferences(
+  instruction: string,
+  schemas: LineageSchema[],
+): string | undefined {
+  if (schemas.length === 0) return undefined;
+  // Build a lookup of known column names across all schemas
+  const known = new Set<string>();
+  for (const s of schemas) for (const c of s.columns) known.add(c.name.toLowerCase());
+  if (known.size === 0) return undefined;
+
+  // Extract candidate column references from the instruction:
+  //  1. table.column style   (order_id in "orders.order_id")
+  //  2. backticked `col`     (markdown / SQL convention)
+  const candidates = new Set<string>();
+  for (const m of instruction.matchAll(/\b[a-z_][\w]*\.([a-z_][\w]*)\b/gi)) {
+    candidates.add(m[1].toLowerCase());
+  }
+  for (const m of instruction.matchAll(/`([a-z_][\w]*)`/gi)) {
+    candidates.add(m[1].toLowerCase());
+  }
+  if (candidates.size === 0) return undefined;
+
+  const missing: string[] = [];
+  for (const c of candidates) {
+    if (!known.has(c) && !COMMON_SQL_KEYWORDS.has(c)) missing.push(c);
+  }
+  if (missing.length === 0) return undefined;
+  if (missing.length > 3) return undefined; // probably unrelated words — stay quiet
+
+  // Offer nearest real columns as suggestions
+  const suggestions = missing.map(m => {
+    const near = [...known].filter(k => k.includes(m) || m.includes(k)).slice(0, 3);
+    return near.length > 0 ? `${m} (did you mean ${near.join(', ')}?)` : m;
+  });
+  return `Evolve AI notes: the following look like column names but aren't in the resolved schemas: ${suggestions.join('; ')}. The AI will be told to avoid them.`;
+}
+
+const COMMON_SQL_KEYWORDS = new Set([
+  'select', 'from', 'where', 'join', 'on', 'and', 'or', 'not', 'null', 'true', 'false',
+  'group', 'order', 'by', 'limit', 'distinct', 'having', 'as', 'in', 'exists',
+]);
 
 export class ChatPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = 'aiForge.chatPanel';
@@ -127,7 +172,16 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     try {
       ctx    = await this._svc.context.build();
       system = this._svc.context.buildSystemPrompt(ctx);
-      user   = this._svc.context.buildUserPrompt(ctx, instruction);
+      // [DE-1] Column-existence check: warn the user and hint the AI when
+      // their question mentions columns that don't exist in resolved schemas.
+      const columnHint = detectUnknownColumnReferences(instruction, ctx.lineage ?? []);
+      if (columnHint) {
+        this._post({ type: 'aiChunk', text: `💡 ${columnHint}\n\n` });
+      }
+      const augmentedInstruction = columnHint
+        ? `NOTE FROM LINEAGE: ${columnHint}\n\n${instruction}`
+        : instruction;
+      user   = this._svc.context.buildUserPrompt(ctx, augmentedInstruction);
     } catch (e) {
       this._post({ type: 'aiChunk', text: `\n\n⚠ Context build failed: ${String(e)}` });
       this._post({ type: 'aiDone', content: '', mode, expectedUri: undefined });

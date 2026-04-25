@@ -17,6 +17,7 @@
 import * as vscode from 'vscode';
 import type { IServices }       from './services';
 import type { EventBus }        from './eventBus';
+import type { FileContext }     from './contextService';
 
 // ── Plugin contribution interfaces ────────────────────────────────────────────
 
@@ -24,6 +25,52 @@ export interface PluginContextHook {
   key: string;
   collect(ws: vscode.WorkspaceFolder | undefined): Promise<unknown>;
   format(data: unknown): string;
+}
+
+// ── Lineage (DE #1) ───────────────────────────────────────────────────────────
+// Plugins resolve upstream table references found in the active file and return
+// real column schemas so the AI can stop inventing column names.
+
+export interface LineageRef {
+  /** Fully-qualified name as written, or canonicalised (e.g. 'stg_orders' or 'analytics.marts.fct_orders') */
+  fqn: string;
+  kind: 'dbt_ref' | 'dbt_source' | 'spark_table' | 'sql_table';
+  origin: { line: number; col: number };
+  /** Columns actually selected from this table, if resolvable from SELECT projection */
+  referencedColumns?: string[];
+}
+
+export interface LineageColumn {
+  name: string;
+  type: string;
+  description?: string;
+  /** Tags like 'pii', 'pci', 'sensitive' — used for redaction when targeting cloud LLMs */
+  tags?: string[];
+  /** dbt tests that passed on the last run — e.g. ['unique', 'not_null'] */
+  testsPass?: string[];
+}
+
+export interface LineageSchema {
+  fqn: string;
+  displayName: string;
+  source: 'dbt_manifest' | 'unity_catalog' | 'schema_yml' | 'bigquery' | 'other';
+  columns: LineageColumn[];
+  meta?: {
+    lastBuiltAt?: string;
+    rowCount?: number;
+    /** Age in hours since last build — used to flag stale data */
+    staleHours?: number;
+    /** Free-form note shown alongside the schema (e.g. "manifest stale: 72h") */
+    note?: string;
+  };
+}
+
+export interface PluginLineageHook {
+  key: string;
+  /** Extract refs from a file. Return [] when nothing matches. */
+  extract(file: FileContext): Promise<LineageRef[]>;
+  /** Resolve refs to schemas. Should honour its own caching. */
+  resolve(refs: LineageRef[], ws: vscode.WorkspaceFolder | undefined): Promise<LineageSchema[]>;
 }
 
 export interface PluginCodeLensAction {
@@ -89,6 +136,7 @@ export interface IPlugin {
 
   // Optional contributions
   contextHooks?:       PluginContextHook[];
+  lineageHooks?:       PluginLineageHook[];   // [DE-1] upstream table schema resolvers
   systemPromptSection?(): string;
   codeLensActions?:    PluginCodeLensAction[];
   codeActions?:        PluginCodeAction[];   // [FIX-8]
@@ -269,6 +317,11 @@ export class PluginRegistry {
 
   get contextHooks(): PluginContextHook[] {
     return this.active.flatMap(p => p.contextHooks ?? []);
+  }
+
+  /** [DE-1] Expose lineage hooks across active plugins */
+  get lineageHooks(): PluginLineageHook[] {
+    return this.active.flatMap(p => p.lineageHooks ?? []);
   }
 
   get systemPromptSections(): string[] {

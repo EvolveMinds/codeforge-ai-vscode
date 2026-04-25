@@ -28,3 +28,7 @@ node_modules/
 *.vsix
 .DS_Store
 Thumbs.db
+
+# Local simulation harnesses
+.de1-sim/
+.*-sim/
