@@ -63,9 +63,17 @@ const COMMON_SQL_KEYWORDS = new Set([
   'group', 'order', 'by', 'limit', 'distinct', 'having', 'as', 'in', 'exists',
 ]);
 
+// A surface that can host the chat UI. Both the sidebar WebviewView and the
+// editor-tab WebviewPanel implement this contract via thin adapters.
+export interface ChatSurface {
+  webview: vscode.Webview;
+  reveal(): void;
+}
+
 export class ChatPanelProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = 'aiForge.chatPanel';
   private _view?: vscode.WebviewView;
+  private _surfaces: Set<ChatSurface> = new Set();
   private _history: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> = [];
   private _activeAbort: AbortController | null = null;   // FIX 5
   private _lastActiveFileUri: string | undefined;        // [FIX-5] Track file for apply safety
@@ -107,10 +115,24 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this._view = view;
-    view.webview.options = { enableScripts: true };
-    view.webview.html    = this._html();
+    this.attachSurface(
+      { webview: view.webview, reveal: () => view.show?.(true) },
+      // When the sidebar view goes away, drop it from the surface set.
+      view.onDidDispose ? (cb) => view.onDidDispose(cb) : undefined,
+    );
+  }
 
-    view.webview.onDidReceiveMessage(async (msg) => {
+  // Public — also used by ChatEditorPanel to wire up the right-side editor tab.
+  attachSurface(
+    surface: ChatSurface,
+    onDispose?: (cb: () => void) => vscode.Disposable,
+  ): vscode.Disposable {
+    const { webview } = surface;
+    webview.options = { enableScripts: true };
+    webview.html    = this._html();
+    this._surfaces.add(surface);
+
+    const sub = webview.onDidReceiveMessage(async (msg) => {
       try {
         switch (msg.type) {
           case 'send':           await this.send(msg.text, msg.mode, msg.images);    break;
@@ -121,6 +143,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getStatus':      await this._postStatus();               break;
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
+          case 'pickModel':      await this._pickModel(msg.model);          break;
           case 'toggleThinking': await vscode.workspace.getConfiguration('aiForge').update('gemma4ThinkingMode', msg.enabled, vscode.ConfigurationTarget.Global); break;
           case 'viewWhatsNew': {
             const v1 = this._svc.vsCtx.extension.packageJSON.version as string;
@@ -145,9 +168,21 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 
     this._postStatus();
     this._sendHistory();
+
+    const disposeSurface = () => {
+      this._surfaces.delete(surface);
+      sub.dispose();
+    };
+    if (onDispose) onDispose(disposeSurface);
+    return { dispose: disposeSurface };
   }
 
-  show(): void { this._view?.show(true); }
+  show(): void {
+    // Reveal whichever surface is already attached. Prefer the sidebar view
+    // when present; otherwise reveal any attached editor-tab surface.
+    if (this._view) { this._view.show?.(true); return; }
+    for (const s of this._surfaces) { s.reveal(); return; }
+  }
 
   // ── Static info (no AI call) ─────────────────────────────────────────────────
   // Renders pre-written markdown directly into the chat. Used for release notes,
@@ -315,6 +350,36 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     }, 300);
   }
 
+  // Persist the picked model to the config setting that backs the active
+  // provider. Then invalidate the status cache + re-post so every surface
+  // (sidebar + editor tab) updates immediately.
+  private async _pickModel(model: string): Promise<void> {
+    if (!model || typeof model !== 'string') return;
+    const cfg      = vscode.workspace.getConfiguration('aiForge');
+    const provider = await this._svc.ai.detectProvider();
+    const settingByProvider: Record<string, string> = {
+      gemma4:      'gemma4Model',
+      ollama:      'ollamaModel',
+      anthropic:   'anthropicModel',
+      openai:      'openaiModel',
+      huggingface: 'huggingfaceModel',
+    };
+    const settingKey = settingByProvider[provider];
+    if (!settingKey) {
+      this._post({ type: 'notice', text: `Cannot change model for provider "${provider}". Use "More providers…" to switch.` });
+      return;
+    }
+    try {
+      await cfg.update(settingKey, model, vscode.ConfigurationTarget.Global);
+      this._statusCache = null;
+      this._svc.events.emit('provider.changed', { provider, model });
+      await this._postStatus();
+      this._post({ type: 'notice', text: `Model set to ${model}` });
+    } catch (e) {
+      this._post({ type: 'notice', text: `✗ Failed to set model: ${String(e)}` });
+    }
+  }
+
   private async _handleAction(msg: Record<string, string>): Promise<void> {
     switch (msg.action) {
       case 'openUrl':
@@ -358,14 +423,19 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     const models   = running ? await this._svc.ai.getOllamaModels(host) : [];
     const provider = await this._svc.ai.detectProvider();
     const active   = this._svc.plugins.active;
+
+    // Resolve the model name + same-provider alternatives so the chat-panel
+    // model pill can switch within the active provider without a full
+    // provider-change quick-pick.
+    const { currentModel, availableModels } = resolveModelView(provider, cfg, models);
+
     const statusMsg: Record<string, unknown> = {
       type: 'status',
       provider,
       ollamaRunning: running,
       ollamaModels:  models,
-      currentModel:  provider === 'gemma4'
-        ? cfg.get<string>('gemma4Model', 'gemma4:e4b')
-        : cfg.get<string>('ollamaModel', ''),
+      currentModel,
+      availableModels,
       activePlugins: active.map(p => ({ id: p.id, name: p.displayName, icon: p.icon })),
       os: process.platform,
     };
@@ -382,7 +452,9 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
   }
 
   private _post(msg: Record<string, unknown>): void {
-    this._view?.webview.postMessage(msg);
+    for (const s of this._surfaces) {
+      s.webview.postMessage(msg);
+    }
   }
 
   // ── HTML ──────────────────────────────────────────────────────────────────────
@@ -514,6 +586,28 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 .streaming::after { content: '\\25CB'; animation: blink .7s infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
+/* Mode + model pills (above input) */
+#pillRow { display: flex; gap: 6px; align-items: center; padding: 0 2px 6px; flex-wrap: wrap; }
+.pill { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 3px 9px; border-radius: 999px; cursor: pointer; font-size: 11px; display: inline-flex; align-items: center; gap: 5px; transition: border-color 0.15s, background 0.15s; user-select: none; }
+.pill:hover { border-color: var(--accent); background: var(--vscode-list-hoverBackground, var(--bg2)); }
+.pill .caret { font-size: 9px; opacity: 0.6; }
+.pill .pill-icon { font-size: 11px; opacity: 0.85; }
+.pill-spacer { flex: 1; }
+
+/* Popover (mode + model chooser) */
+.popover { position: absolute; bottom: 100%; left: 0; margin-bottom: 6px; background: var(--vscode-editorWidget-background, var(--bg2)); border: 1px solid var(--border); border-radius: 6px; padding: 4px; min-width: 240px; max-width: 360px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); z-index: 50; max-height: 320px; overflow-y: auto; }
+.popover[hidden] { display: none; }
+.popover .pop-title { font-size: 10px; color: var(--muted); padding: 6px 10px 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.popover .pop-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border-radius: 4px; cursor: pointer; }
+.popover .pop-item:hover { background: var(--vscode-list-hoverBackground, var(--bg)); }
+.popover .pop-item.selected { background: var(--vscode-list-activeSelectionBackground, var(--bg)); }
+.popover .pop-item .pop-icon { font-size: 13px; line-height: 1.3; flex-shrink: 0; width: 16px; text-align: center; opacity: 0.85; }
+.popover .pop-item .pop-body { flex: 1; min-width: 0; }
+.popover .pop-item .pop-name { font-size: 12px; font-weight: 500; color: var(--text); }
+.popover .pop-item .pop-desc { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+.popover .pop-item .pop-check { color: var(--vscode-textLink-foreground, #3794ff); font-size: 12px; padding-top: 1px; }
+.popover .pop-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+
 /* Input */
 #inputArea { border-top: 1px solid var(--border); padding: 8px; flex-shrink: 0; }
 #row { display: flex; gap: 6px; align-items: flex-end; }
@@ -546,12 +640,6 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   <button class="banner-close" id="dismissBannerBtn" aria-label="Dismiss" title="Dismiss">&times;</button>
 </div>
 
-<div id="tabs">
-  <button class="tab active" id="tabChat" title="Ask questions about your code">Chat</button>
-  <button class="tab"        id="tabEdit" title="Describe changes to apply to the active file">Edit</button>
-  <button class="tab"        id="tabNew"  title="Generate new files from a description">Create</button>
-</div>
-
 <div id="msgs">
   <div class="welcome">
     <h3>Evolve AI</h3>
@@ -563,8 +651,68 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   </div>
 </div>
 
-<div id="inputArea">
+<div id="inputArea" style="position:relative;">
   <div id="imagePreview" style="display:none;"></div>
+
+  <div id="pillRow">
+    <div style="position:relative;">
+      <button class="pill" id="modePill" title="Choose what the AI does with your prompt">
+        <span class="pill-icon" id="modePillIcon">&#128172;</span>
+        <span id="modePillLabel">Chat</span>
+        <span class="caret">&#9662;</span>
+      </button>
+      <div class="popover" id="modePopover" hidden>
+        <div class="pop-title">Mode</div>
+        <div class="pop-item" data-mode="chat">
+          <div class="pop-icon">&#128172;</div>
+          <div class="pop-body">
+            <div class="pop-name">Chat</div>
+            <div class="pop-desc">Ask questions about your code. AI explains, suggests, no edits applied automatically.</div>
+          </div>
+          <div class="pop-check" data-check="chat">&#10003;</div>
+        </div>
+        <div class="pop-item" data-mode="edit">
+          <div class="pop-icon">&#9998;</div>
+          <div class="pop-body">
+            <div class="pop-name">Edit</div>
+            <div class="pop-desc">Describe a change. AI returns code; you review &amp; apply to the active file (undoable).</div>
+          </div>
+          <div class="pop-check" data-check="edit" style="display:none;">&#10003;</div>
+        </div>
+        <div class="pop-item" data-mode="new">
+          <div class="pop-icon">&#10010;</div>
+          <div class="pop-body">
+            <div class="pop-name">Create</div>
+            <div class="pop-desc">Describe what to generate. AI produces new files; you review &amp; create them.</div>
+          </div>
+          <div class="pop-check" data-check="new" style="display:none;">&#10003;</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:relative;">
+      <button class="pill" id="modelPill" title="Switch model within the current provider">
+        <span class="pill-icon">&#129302;</span>
+        <span id="modelPillLabel">model</span>
+        <span class="caret">&#9662;</span>
+      </button>
+      <div class="popover" id="modelPopover" hidden>
+        <div class="pop-title" id="modelPopoverTitle">Model</div>
+        <div id="modelPopoverList"></div>
+        <div class="pop-divider"></div>
+        <div class="pop-item" id="modelPopoverMore">
+          <div class="pop-icon">&#8230;</div>
+          <div class="pop-body">
+            <div class="pop-name">More providers&#8230;</div>
+            <div class="pop-desc">Switch to Anthropic, OpenAI, Hugging Face, Gemma 4, or offline mode.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pill-spacer"></div>
+  </div>
+
   <div id="row">
     <textarea id="input" rows="1" placeholder="Ask Evolve AI..."></textarea>
     <button id="stopBtn">Stop</button>
@@ -586,9 +734,8 @@ const MOD = '${mod}';
 
 function setMode(m) {
   mode = m;
-  document.querySelectorAll('.tab').forEach((t, i) =>
-    t.classList.toggle('active', ['chat', 'edit', 'new'][i] === m)
-  );
+  const labels  = { chat: 'Chat', edit: 'Edit', new: 'Create' };
+  const icons   = { chat: '\\u{1F4AC}', edit: '\\u270E', new: '\\u271A' };
   const hints = {
     chat: 'Chat: ask anything \\u00B7 Shift+Enter for newline',
     edit: 'Edit: describe the change to apply \\u00B7 Shift+Enter for newline',
@@ -599,8 +746,84 @@ function setMode(m) {
     edit: 'Describe the change to make...',
     new:  'Describe what to create...'
   };
-  document.getElementById('hint').textContent = hints[m];
-  document.getElementById('input').placeholder = placeholders[m];
+  const lbl = document.getElementById('modePillLabel');
+  const icn = document.getElementById('modePillIcon');
+  if (lbl) lbl.textContent = labels[m] || m;
+  if (icn) icn.innerHTML = icons[m] || '';
+  // Update checkmarks in popover
+  ['chat','edit','new'].forEach(k => {
+    const c = document.querySelector('[data-check="' + k + '"]');
+    if (c) c.style.display = (k === m) ? '' : 'none';
+  });
+  const hintEl = document.getElementById('hint');
+  if (hintEl) hintEl.textContent = hints[m];
+  const inp = document.getElementById('input');
+  if (inp) inp.placeholder = placeholders[m];
+}
+
+// ─── Pill popover helpers ────────────────────────────────────────────────────
+function togglePopover(id) {
+  const pop = document.getElementById(id);
+  if (!pop) return;
+  const willShow = pop.hasAttribute('hidden');
+  // Close all other popovers first
+  document.querySelectorAll('.popover').forEach(p => p.setAttribute('hidden', ''));
+  if (willShow) pop.removeAttribute('hidden');
+}
+
+function closeAllPopovers() {
+  document.querySelectorAll('.popover').forEach(p => p.setAttribute('hidden', ''));
+}
+
+// Click-outside handler — closes any open popover
+document.addEventListener('click', (e) => {
+  const inPopover = e.target.closest && e.target.closest('.popover');
+  const inPill    = e.target.closest && e.target.closest('.pill');
+  if (!inPopover && !inPill) closeAllPopovers();
+});
+
+// ─── Model picker rendering ─────────────────────────────────────────────────
+let availableModels = [];
+let currentModel = '';
+
+function renderModelPopover() {
+  const list = document.getElementById('modelPopoverList');
+  const title = document.getElementById('modelPopoverTitle');
+  if (!list) return;
+  const provLabel = currentProvider === 'gemma4' ? 'Gemma 4'
+    : currentProvider === 'ollama' ? 'Ollama'
+    : currentProvider === 'anthropic' ? 'Anthropic'
+    : currentProvider === 'openai' ? 'OpenAI / Compatible'
+    : currentProvider === 'huggingface' ? 'Hugging Face'
+    : currentProvider === 'offline' ? 'Offline'
+    : (currentProvider || '').toUpperCase();
+  if (title) title.textContent = provLabel + ' \\u00B7 Model';
+  list.innerHTML = '';
+  if (!availableModels || availableModels.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'pop-item';
+    empty.style.cursor = 'default';
+    empty.innerHTML = '<div class="pop-icon">!</div><div class="pop-body"><div class="pop-name">No models available</div><div class="pop-desc">Install a model or pick another provider via "More providers&#8230;".</div></div>';
+    list.appendChild(empty);
+    return;
+  }
+  availableModels.forEach(m => {
+    const item = document.createElement('div');
+    item.className = 'pop-item' + (m === currentModel ? ' selected' : '');
+    item.innerHTML = '<div class="pop-icon">&#129302;</div>'
+      + '<div class="pop-body"><div class="pop-name">' + esc(m) + '</div></div>'
+      + (m === currentModel ? '<div class="pop-check">&#10003;</div>' : '');
+    item.addEventListener('click', () => {
+      vscode.postMessage({ type: 'pickModel', model: m });
+      closeAllPopovers();
+    });
+    list.appendChild(item);
+  });
+}
+
+function updateModelPill(model) {
+  const lbl = document.getElementById('modelPillLabel');
+  if (lbl) lbl.textContent = model || 'model';
 }
 
 function resize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
@@ -881,6 +1104,11 @@ window.addEventListener('message', ({ data }) => {
       const thinkBtn = document.getElementById('thinkBtn');
       thinkBtn.style.display = data.provider === 'gemma4' ? '' : 'none';
       document.getElementById('modelLabel').textContent = data.currentModel ? ' \\u00B7 ' + data.currentModel : '';
+      // Update model pill + popover list
+      currentModel = data.currentModel || '';
+      availableModels = Array.isArray(data.availableModels) ? data.availableModels : [];
+      updateModelPill(currentModel);
+      renderModelPopover();
       const pb = document.getElementById('pluginBadges');
       pb.innerHTML = (data.activePlugins || []).map(p =>
         '<span class="badge" title="' + esc(p.name) + '">' + esc(p.icon) + '</span>'
@@ -1066,13 +1294,30 @@ on('dismissBannerBtn', 'click', () => {
   if (banner) banner.style.display = 'none';
   vscode.postMessage({ type: 'dismissWhatsNew' });
 });
-on('tabChat',   'click', () => setMode('chat'));
-on('tabEdit',   'click', () => setMode('edit'));
-on('tabNew',    'click', () => setMode('new'));
+// Mode pill: open popover; popover items pick the mode
+on('modePill', 'click', (e) => { e.stopPropagation(); togglePopover('modePopover'); });
+document.querySelectorAll('#modePopover .pop-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const m = item.getAttribute('data-mode');
+    if (m) setMode(m);
+    closeAllPopovers();
+  });
+});
+
+// Model pill: open popover; "More providers..." escape hatch goes to full switchProvider flow
+on('modelPill', 'click', (e) => { e.stopPropagation(); renderModelPopover(); togglePopover('modelPopover'); });
+on('modelPopoverMore', 'click', () => {
+  vscode.postMessage({ type: 'switchProvider' });
+  closeAllPopovers();
+});
+
 on('sendBtn',   'click', () => send());
 on('stopBtn',   'click', () => cancel());
 on('input',     'keydown', (e) => onKey(e));
 on('input',     'input', function() { resize(this); });
+
+// Initialize the mode pill label/icon and current-mode placeholder
+setMode('chat');
 
 // Auto-focus input and request initial state
 const inputEl = document.getElementById('input');
@@ -1131,6 +1376,60 @@ vscode.postMessage({ type: 'getHistory' });
 </script>
 </body></html>`;
   }
+}
+
+// Resolve the model pill view-model: the currently configured model for the
+// active provider, plus the list of alternatives we can switch to without
+// changing provider. Cloud providers have no "discovery" API in this codebase,
+// so we offer a curated list of well-known model IDs the user can pick from
+// instantly. Anything not listed is still reachable via the full Switch flow.
+function resolveModelView(
+  provider: string,
+  cfg: vscode.WorkspaceConfiguration,
+  ollamaModels: string[],
+): { currentModel: string; availableModels: string[] } {
+  switch (provider) {
+    case 'gemma4': {
+      const current = cfg.get<string>('gemma4Model', 'gemma4:e4b');
+      // Match the enum in package.json
+      const variants = ['gemma4:e2b', 'gemma4:e4b', 'gemma4:26b', 'gemma4:31b'];
+      return { currentModel: current, availableModels: variants };
+    }
+    case 'ollama': {
+      const current = cfg.get<string>('ollamaModel', '');
+      return { currentModel: current, availableModels: ollamaModels };
+    }
+    case 'anthropic': {
+      const current = cfg.get<string>('anthropicModel', 'claude-sonnet-4-6');
+      const known = ['claude-opus-4-7', 'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'];
+      return { currentModel: current, availableModels: dedupe([current, ...known]) };
+    }
+    case 'openai': {
+      const current = cfg.get<string>('openaiModel', 'gpt-4o');
+      const known = ['gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o3-mini'];
+      return { currentModel: current, availableModels: dedupe([current, ...known]) };
+    }
+    case 'huggingface': {
+      const current = cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
+      const known = [
+        'Qwen/Qwen2.5-Coder-32B-Instruct',
+        'meta-llama/Llama-3.3-70B-Instruct',
+        'mistralai/Mistral-Small-24B-Instruct-2501',
+      ];
+      return { currentModel: current, availableModels: dedupe([current, ...known]) };
+    }
+    case 'offline':
+      return { currentModel: 'pattern-based', availableModels: ['pattern-based'] };
+    default:
+      return { currentModel: '', availableModels: [] };
+  }
+}
+
+function dedupe(arr: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of arr) { if (v && !seen.has(v)) { seen.add(v); out.push(v); } }
+  return out;
 }
 
 // [SEC-3] Cryptographically random nonce for webview CSP

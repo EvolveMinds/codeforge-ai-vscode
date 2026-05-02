@@ -43,11 +43,12 @@ evolve-ai-vscode/
     │   ├── hardwareInspector.ts ← RAM/GPU/disk/Ollama detection for Gemma 4 wizard
     │   └── setupOrchestrator.ts ← one-click Gemma 4 install pipeline (Ollama + model)
     ├── ui/
-    │   ├── chatPanel.ts         ← sidebar webview chat panel
+    │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
+    │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
     │   └── inlineActions.ts     ← CodeLens + lightbulb CodeAction providers
     ├── commands/
-    │   └── coreCommands.ts      ← all 15 core commands as a class
+    │   └── coreCommands.ts      ← all core commands as a class
     ├── test/
     │   ├── runTest.ts           ← VS Code test runner entry point
     │   ├── mocks.ts             ← Mock implementations of IAIService, IContextService, etc.
@@ -88,7 +89,8 @@ to undo.
 | Event bus | `core/eventBus.ts` | ✅ Complete |
 | Hardware inspector | `core/hardwareInspector.ts` | ✅ Complete |
 | Setup orchestrator | `core/setupOrchestrator.ts` | ✅ Complete |
-| Chat panel | `ui/chatPanel.ts` | ✅ Complete |
+| Chat panel (sidebar) | `ui/chatPanel.ts` | ✅ Complete |
+| Chat editor tab (Claude-style) | `ui/chatEditorPanel.ts` | ✅ Complete |
 | Status bar | `ui/statusBar.ts` | ✅ Complete |
 | Inline actions | `ui/inlineActions.ts` | ✅ Complete |
 | Core commands | `commands/coreCommands.ts` | ✅ Complete |
@@ -148,6 +150,12 @@ Future plugin ideas (community contributions welcome):
    Both go through VS Code's undo stack. Never use `fs.writeFileSync` on files the user
    can see — only use it for intermediate scratch files.
 
+8. **The chat is multi-surface.** `ChatPanelProvider` owns history, in-flight streams,
+   and status. Both the sidebar (`WebviewView`) and the editor tab (`WebviewPanel` via
+   `ChatEditorPanel`) attach to the same provider through `attachSurface(...)`. Posts are
+   broadcast to every attached surface so the two views stay in sync. Never store
+   chat state directly on a surface — always go through the provider.
+
 ---
 
 ## How a request flows through the system
@@ -203,12 +211,13 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (27 total)
+## Commands currently registered (28 total)
 
-### Core (17)
+### Core (18)
 | Command ID | Keybinding | Description |
 |---|---|---|
 | `aiForge.openChat` | Ctrl+Shift+A | Open sidebar chat |
+| `aiForge.openChatTab` | — | Open chat as a right-side editor tab (Claude-style). Also bound to the editor title-bar icon. |
 | `aiForge.generateFromDesc` | Ctrl+Alt+G | Generate code from description |
 | `aiForge.fixErrors` | Ctrl+Alt+F | Fix current file errors |
 | `aiForge.explainSelection` | Ctrl+Alt+E | Explain selected code |

@@ -67,11 +67,19 @@ No API key. No account. No data leaving your machine. That's it.
 | **Hugging Face** | Cloud API | API key required |
 | **Offline mode** | Fully offline, pattern-based | No setup needed |
 
-### AI Chat Sidebar
+### AI Chat — Sidebar **or** Editor Tab
 
-- Streaming responses with full project context
-- Understands your active file, related files, diagnostics, and git state
-- Context budget system ensures efficient token usage
+- **Two ways to chat.** Open in the sidebar (`Ctrl+Shift+A`), or click the Evolve AI icon
+  in any file's editor title bar to open the chat as a tab to the right of your code —
+  Claude Code-style. Both views share the same conversation in real time.
+- **Inline mode pill** — pick `Chat` (ask), `Edit` (modify the active file), or
+  `Create` (generate new files) directly above the input box.
+- **Inline model pill** — switch models within the active provider (e.g., between your
+  installed Ollama models, or between `claude-sonnet-4-6` and `claude-opus-4-7`) without
+  leaving the chat. A *More providers…* item handles cross-provider changes.
+- Streaming responses with full project context.
+- Understands your active file, related files, diagnostics, and git state.
+- Context budget system ensures efficient token usage.
 
 ### Smart Code Actions
 
@@ -80,9 +88,10 @@ No API key. No account. No data leaving your machine. That's it.
 - **Right-click menu**: Explain, refactor, fix, document, generate tests
 - **Keyboard shortcuts**: Quick access to common actions
 
-### 17 Core Commands
+### 18 Core Commands
 
-- Open AI Chat (`Ctrl+Shift+A`)
+- Open AI Chat — sidebar (`Ctrl+Shift+A`)
+- Open AI Chat — editor tab (top-right icon in any file)
 - Generate Code from Description (`Ctrl+Alt+G`)
 - Fix Current Errors (`Ctrl+Alt+F`)
 - Explain Selected Code (`Ctrl+Alt+E`)
@@ -247,7 +256,8 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 
 | Action | Windows / Linux | macOS |
 |---|---|---|
-| Open chat panel | `Ctrl+Shift+A` | `Cmd+Shift+A` |
+| Open chat (sidebar) | `Ctrl+Shift+A` | `Cmd+Shift+A` |
+| Open chat (editor tab) | Click the Evolve AI icon in the editor title bar | Same |
 | Generate code from description | `Ctrl+Alt+G` | `Cmd+Alt+G` |
 | Fix current file errors | `Ctrl+Alt+F` | `Cmd+Alt+F` |
 | Explain selected code | `Ctrl+Alt+E` | `Cmd+Alt+E` |

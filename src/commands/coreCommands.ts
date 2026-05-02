@@ -800,6 +800,29 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.6.0': [
+    `## 💬 Evolve AI 1.6.0 — Claude-style chat\n`,
+    `### Open chat as an editor tab\n`,
+    `Click the **Evolve AI icon** in the top-right of any file's title bar. The chat opens as a regular tab to the right of your code — exactly like Claude Code or Copilot Chat. Click the icon again to reveal the existing tab; close the tab to dismiss.\n`,
+    `Sidebar still works (\`Ctrl+Shift+A\`). Both views share the same conversation in real time, so you can keep one open without losing context in the other.\n`,
+    `### Mode pill\n`,
+    `The old \`Chat / Edit / Create\` tab strip is replaced with a single pill above the input box. Click it to pick a mode with a description for each:\n`,
+    `- **Chat** — ask questions, no edits applied automatically.`,
+    `- **Edit** — describe a change; you review &amp; apply to the active file (undoable).`,
+    `- **Create** — describe what to generate; you review &amp; create new files.\n`,
+    `### Model picker — switch models without leaving chat\n`,
+    `A second pill shows your current model and opens a popover listing same-provider alternatives:\n`,
+    `- **Ollama** — your installed models, fetched live.`,
+    `- **Gemma 4** — e2b / e4b / 26b / 31b.`,
+    `- **Anthropic** — Opus 4.7, Opus 4.6, Sonnet 4.6, Haiku 4.5.`,
+    `- **OpenAI** — gpt-4o, gpt-4o-mini, o1-mini, o3-mini.`,
+    `- **Hugging Face** — Qwen Coder 32B, Llama 3.3 70B, Mistral Small 24B.\n`,
+    `Your currently configured value always appears first, so a custom model never disappears. The **More providers…** item at the bottom opens the full provider switch flow for cross-provider changes (with API-key prompts handled via SecretStorage as before).\n`,
+    `### Fixed\n`,
+    `- The status header showed the Ollama model name even when Anthropic or OpenAI was the active provider. Now resolves the correct setting per provider.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+  ].join('\n'),
   '1.5.0': [
     `## 🔗 Evolve AI 1.5.0 — Lineage-aware context\n`,
     `### The AI now uses your **real** column names\n`,

@@ -487,25 +487,48 @@ Full event catalogue: see `CLAUDE.md` → Events section.
 
 ---
 
-### `ui/chatPanel.ts` — sidebar chat
+### `ui/chatPanel.ts` — chat brain (sidebar + editor tab)
 
-A `WebviewViewProvider` that renders a self-contained HTML/CSS/JS chat UI in the VS Code
-sidebar. Communicates with the extension host via `postMessage`.
+`ChatPanelProvider` is both a `WebviewViewProvider` (for the sidebar) **and** the shared
+brain for any other webview that wants to host the chat UI (the editor-tab variant — see
+`chatEditorPanel.ts` below). It owns chat history, the in-flight `AbortController`, and
+the status cache. The HTML/CSS/JS template, message dispatcher, and prompt-construction
+all live here.
 
-Message types (webview → extension): `send`, `apply`, `applyNew`, `clear`, `getStatus`,
-`switchProvider`.
+To support multiple simultaneous surfaces (sidebar visible **and** editor tab open), the
+provider tracks a `Set<ChatSurface>`. Each surface is a `{ webview, reveal() }` pair.
+`_post(...)` broadcasts every message to all attached surfaces, so the two views never
+drift out of sync. The sidebar attaches via `resolveWebviewView`; the editor-tab variant
+attaches via the public `attachSurface(...)` method.
 
-Message types (extension → webview): `status`, `userMsg`, `aiStart`, `aiChunk`, `aiDone`,
-`notice`.
+Message types (webview → extension): `send`, `cancel`, `apply`, `applyNew`, `clear`,
+`getStatus`, `getHistory`, `switchProvider`, `pickModel`, `toggleThinking`,
+`viewWhatsNew`, `dismissWhatsNew`, `action`.
+
+Message types (extension → webview): `status` (now includes `availableModels` for the
+in-chat model pill), `userMsg`, `aiStart`, `streamStart`, `aiChunk`, `aiDone`,
+`historyLoad`, `historyClear`, `infoMsg`, `notice`, `whatsNew`.
 
 The panel streams AI responses chunk-by-chunk using the `aiChunk` message type — each chunk
 is appended to the current AI message element in real time.
 
-Chat history is held in `_history: Array<{role, content}>`. Only the last 10 messages are
-sent to the AI on each turn (sliding window). History is in-memory only — cleared on reload.
+Chat history is persisted to `workspaceState` (`HISTORY_KEY`) and windowed by character
+budget (`MSG_WINDOW_BUDGET = 48,000`) on every send so older turns drop out before exceeding
+the model's context limit.
 
 The internal command `aiForge._sendToChat(instruction, mode)` lets `CoreCommands` push
 instructions into the panel without coupling to the panel's implementation.
+
+### `ui/chatEditorPanel.ts` — Claude-style editor-tab chat
+
+A thin `WebviewPanel` host that opens the same chat UI in `ViewColumn.Beside` (a regular
+editor tab to the right of the active file), mirroring how Claude Code and Copilot Chat
+appear. Single-instance — `ChatEditorPanel.show(...)` reveals the existing tab if one is
+open, otherwise creates a new one and calls `provider.attachSurface(...)` so the new
+webview shares state with the sidebar.
+
+Wired to the `editor/title` menu via the `aiForge.openChatTab` command — the icon
+appears in the top-right toolbar of every file editor.
 
 ---
 
@@ -540,7 +563,7 @@ Clicking the status bar item runs `aiForge.switchProvider`.
 
 ### `commands/coreCommands.ts` — all core commands
 
-All 15 core commands are methods on the `CoreCommands` class, which receives `IServices`.
+All core commands are methods on the `CoreCommands` class, which receives `IServices`.
 No command implementation imports from `core/` directly — everything goes through `services`.
 
 The internal `_editCommand(instruction, mode)` method is the shared implementation for all

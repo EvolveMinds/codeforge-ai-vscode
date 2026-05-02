@@ -14,6 +14,7 @@ import { ServiceContainer }        from './core/services';
 import { ContextService }         from './core/contextService';
 import { registerPlugins }         from './plugins/index';
 import { ChatPanelProvider }       from './ui/chatPanel';
+import { ChatEditorPanel }         from './ui/chatEditorPanel';
 import { StatusBarService }        from './ui/statusBar';
 import { registerInlineProviders } from './ui/inlineActions';
 import { CoreCommands }            from './commands/coreCommands';
@@ -31,8 +32,13 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   registerPlugins(svc.plugins);
 
   // 3. UI
+  const chatProvider = new ChatPanelProvider(svc);
   vsCtx.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(ChatPanelProvider.viewId, new ChatPanelProvider(svc))
+    vscode.window.registerWebviewViewProvider(ChatPanelProvider.viewId, chatProvider),
+    // Claude-style editor-tab chat — opens to the right of the active file
+    vscode.commands.registerCommand('aiForge.openChatTab', () => {
+      ChatEditorPanel.show(vsCtx, chatProvider);
+    }),
   );
   const statusBar = new StatusBarService(svc);
   const lens = registerInlineProviders(vsCtx, svc.plugins);

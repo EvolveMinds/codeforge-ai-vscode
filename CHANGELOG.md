@@ -2,6 +2,22 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.6.0] — 2026-05-02
+
+### Added
+- **Claude-style editor-tab chat.** A new icon appears in the top-right title bar of every file editor. Clicking it opens the chat as a regular tab to the right of your code (`ViewColumn.Beside`), mirroring how Claude Code and Copilot Chat appear. Single-instance — clicking the icon again reveals the existing tab. The tab and the sidebar share state in real time, so you can keep one open without losing the conversation in the other.
+- **Mode pill above the input.** Replaces the old `Chat / Edit / Create` tab strip with a single Claude-style pill that opens a popover listing all three modes with descriptions and a checkmark on the active one. Frees vertical space and matches mainstream AI-chat UX.
+- **In-chat model picker.** A second pill shows the current model and opens a popover with same-provider alternatives — installed Ollama models (live), Gemma 4 variants (e2b/e4b/26b/31b), Anthropic models (Opus 4.7 / Opus 4.6 / Sonnet 4.6 / Haiku 4.5), OpenAI (gpt-4o / gpt-4o-mini / o1-mini / o3-mini), and Hugging Face presets. The user's currently configured value always appears first so a custom model never disappears.
+- **"More providers…" escape hatch** at the bottom of the model popover triggers the existing `aiForge.switchProvider` quick-pick for cross-provider changes (handles API-key prompts via SecretStorage as before).
+- **`aiForge.openChatTab` command** — also reachable from the command palette and bindable to a custom keyboard shortcut.
+
+### Changed
+- `ChatPanelProvider` is now multi-surface. Both the sidebar `WebviewView` and the editor-tab `WebviewPanel` attach to the same provider via the new `attachSurface(...)` API, so the two views never drift out of sync.
+- `status` payload sent to the webview now includes `availableModels` (array, same-provider) so the model pill can render without an extra round-trip.
+
+### Fixed
+- **Status payload model name was wrong for cloud providers.** Previously `currentModel` always read from `aiForge.ollamaModel` regardless of the active provider, so the chat header showed the Ollama model name even when Anthropic or OpenAI was active. Now resolves the correct setting per provider (`anthropicModel` / `openaiModel` / `huggingfaceModel` / `gemma4Model` / `ollamaModel`).
+
 ## [1.4.3] — 2026-04-19
 
 ### Fixed

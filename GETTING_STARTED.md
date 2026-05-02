@@ -79,14 +79,25 @@ Evolve AI works without any AI provider! It uses pattern-based analysis — less
 
 ## Step 2: Open the Chat
 
-Press `Ctrl+Shift+A` (or `Cmd+Shift+A` on Mac) to open the Evolve AI sidebar.
+You can open Evolve AI's chat in **two places**:
 
-You'll see three tabs:
-- **Chat** — Ask questions about your code
-- **Edit** — Describe changes to apply to your current file
-- **Create** — Generate new files from a description
+- **Sidebar:** press `Ctrl+Shift+A` (`Cmd+Shift+A` on Mac).
+- **Editor tab (Claude-style):** open any file and click the Evolve AI icon in the
+  editor's top-right title bar. The chat opens as a tab to the right of your code.
+  The two views share the same conversation in real time.
 
-**Check the status indicator** in the top-left of the sidebar:
+Above the input box you'll see two **pills**:
+
+- **Mode pill** — pick what the AI does with your prompt:
+  - **Chat** — Ask questions about your code.
+  - **Edit** — Describe changes to apply to the current file (you review &amp; apply).
+  - **Create** — Generate new files from a description.
+- **Model pill** — switch model within the active provider (e.g., between installed
+  Ollama models, or between `claude-sonnet-4-6` / `claude-opus-4-7`). The
+  *More providers…* item at the bottom opens the full provider switch flow if you want
+  to move between Ollama, Anthropic, OpenAI, Hugging Face, Gemma 4, or offline.
+
+**Check the status indicator** in the top-left of the chat:
 - Green dot + "OLLAMA" = connected to local AI
 - Green dot + "ANTHROPIC" / "OPENAI" = connected to cloud AI
 - Yellow dot + "OFFLINE" = no AI provider detected (see Step 1)
@@ -218,7 +229,8 @@ This outputs `appId`, `password`, and `tenant`.
 
 | Action | Windows / Linux | Mac |
 |---|---|---|
-| Open chat | `Ctrl+Shift+A` | `Cmd+Shift+A` |
+| Open chat (sidebar) | `Ctrl+Shift+A` | `Cmd+Shift+A` |
+| Open chat (editor tab) | Click the Evolve AI icon in the editor title bar | Same |
 | Generate code | `Ctrl+Alt+G` | `Cmd+Alt+G` |
 | Fix errors | `Ctrl+Alt+F` | `Cmd+Alt+F` |
 | Explain selection | `Ctrl+Alt+E` | `Cmd+Alt+E` |

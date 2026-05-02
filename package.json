@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -92,6 +92,14 @@
       {
         "command": "aiForge.openChat",
         "title": "Evolve AI: Open Chat Panel"
+      },
+      {
+        "command": "aiForge.openChatTab",
+        "title": "Evolve AI: Open Chat (Editor Tab)",
+        "icon": {
+          "light": "media/sidebar-icon.svg",
+          "dark": "media/sidebar-icon.svg"
+        }
       },
       {
         "command": "aiForge.analysis.runNow",
@@ -1099,6 +1107,13 @@
       }
     ],
     "menus": {
+      "editor/title": [
+        {
+          "command": "aiForge.openChatTab",
+          "group": "navigation@99",
+          "when": "resourceScheme == file"
+        }
+      ],
       "editor/context": [
         {
           "submenu": "aiForge.submenu",
