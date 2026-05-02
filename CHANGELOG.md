@@ -2,6 +2,12 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.7.1] — 2026-05-02
+
+### Fixed
+- **Editor title-bar icon was invisible on macOS** (and frequently hidden inside the `…` overflow on crowded title bars). Two fixes: (1) the menu contribution no longer pins itself to `navigation@99`, which had been pushing the icon into the overflow whenever other extensions claimed earlier slots; it now joins the regular `navigation` group with default ordering. (2) The icon used the existing thin-stroke `sidebar-icon.svg`, which read fine at 32 px in the activity bar but disappeared at 16 px in the editor title bar. A new dedicated `media/title-icon.svg` (bolder, filled, 16×16-optimised) ships for both the title-bar button and the editor tab itself.
+- **Removed the `resourceScheme == file` guard** on the title-bar button so the icon also appears for remote files (SSH, WSL, Codespaces) and other non-`file://` schemes where users still want the chat.
+
 ## [1.6.0] — 2026-05-02
 
 ### Added
