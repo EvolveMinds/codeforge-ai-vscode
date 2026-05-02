@@ -73,6 +73,58 @@ export interface PluginLineageHook {
   resolve(refs: LineageRef[], ws: vscode.WorkspaceFolder | undefined): Promise<LineageSchema[]>;
 }
 
+// ── Query Analysis (DE #2) ────────────────────────────────────────────────────
+// Plugins analyse SQL statements and return cost / perf facts that the UI
+// surfaces (CodeLens, Hover, dedicated panel) and that flow into AI prompts
+// for optimise-query commands.
+
+export interface QueryWarning {
+  /** Short code, e.g. 'missing-partition-filter', 'cross-join', 'select-star' */
+  code: string;
+  /** Severity */
+  severity: 'info' | 'warning' | 'error';
+  /** User-readable explanation */
+  message: string;
+}
+
+export interface QueryAnalysis {
+  engine: 'databricks' | 'bigquery' | 'snowflake' | 'other';
+  /** SHA-1 of the SQL text — used for cache keys */
+  sqlHash: string;
+  sql: string;
+  /** Bytes the engine estimates this query will scan */
+  bytesScanned?: number;
+  /** Cost in USD (best-effort estimate from engine pricing) */
+  estimatedCostUsd?: number;
+  /** Number of partitions accessed */
+  partitionsRead?: number;
+  /** Estimated rows produced (BigQuery) or shuffled (Databricks) */
+  rowsProcessed?: number;
+  /** Per-table reads when known */
+  tablesRead?: Array<{ fqn: string; bytes?: number }>;
+  /** Heuristic warnings raised by the analyzer */
+  warnings: QueryWarning[];
+  /** Optional plan text — usually a small excerpt for the panel */
+  plan?: string;
+  /** When the engine rejected the SQL outright */
+  error?: string;
+  /** Wall-clock ms taken to analyse */
+  elapsedMs: number;
+  /** Engine-reported timestamp */
+  analysedAt: number;
+}
+
+export interface PluginQueryAnalyzer {
+  /** Engine identifier, used for ranking and display */
+  engine: 'databricks' | 'bigquery' | 'snowflake' | 'other';
+  /** Human-readable name shown in the panel header */
+  displayName: string;
+  /** Whether this analyzer applies to the given file (typically by extension / language) */
+  supports(file: FileContext): boolean;
+  /** Run dry-run / EXPLAIN against the engine. Should never execute the query. */
+  analyze(sql: string): Promise<QueryAnalysis>;
+}
+
 export interface PluginCodeLensAction {
   title:       string;
   command:     string;
@@ -137,6 +189,7 @@ export interface IPlugin {
   // Optional contributions
   contextHooks?:       PluginContextHook[];
   lineageHooks?:       PluginLineageHook[];   // [DE-1] upstream table schema resolvers
+  queryAnalyzers?:     PluginQueryAnalyzer[]; // [DE-2] cost / perf preview from engines
   systemPromptSection?(): string;
   codeLensActions?:    PluginCodeLensAction[];
   codeActions?:        PluginCodeAction[];   // [FIX-8]
@@ -322,6 +375,11 @@ export class PluginRegistry {
   /** [DE-1] Expose lineage hooks across active plugins */
   get lineageHooks(): PluginLineageHook[] {
     return this.active.flatMap(p => p.lineageHooks ?? []);
+  }
+
+  /** [DE-2] Expose query analyzers across active plugins */
+  get queryAnalyzers(): PluginQueryAnalyzer[] {
+    return this.active.flatMap(p => p.queryAnalyzers ?? []);
   }
 
   get systemPromptSections(): string[] {

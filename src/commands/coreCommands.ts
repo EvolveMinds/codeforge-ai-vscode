@@ -800,6 +800,30 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.7.0': [
+    `## ⚡ Evolve AI 1.7.0 — Query cost / perf preview\n`,
+    `### See what your query will cost before you run it\n`,
+    `Click the new **\`$(zap) Preview cost\`** CodeLens above any SQL statement and Evolve AI runs a dry-run / EXPLAIN against your connected engine — no actual execution, no surprise bill.\n`,
+    `Get bytes scanned, estimated cost, row count, tables read, and warnings (\`SELECT *\`, missing partition filter, cross join, large-scan). The plan excerpt sits right below for deeper digging.\n`,
+    `### Two engines wired today\n`,
+    `- **Databricks** — runs \`EXPLAIN COST\` on a SQL warehouse (falls back to plain \`EXPLAIN\` on older runtimes). Picks a warehouse on first use and remembers it.`,
+    `- **BigQuery** — calls \`jobs.insert\` with \`dryRun: true\`. Free on BigQuery's side.`,
+    `- *Snowflake coming next* — the contribution point is open for any plugin to implement.\n`,
+    `### Optimise with one click\n`,
+    `The Query Cost panel has an **Optimise with AI** button that pipes the analysis (engine, bytes, warnings, tables) into the chat panel — so the AI's rewrite is grounded in real cost data, not guesses. Stacks with v1.5.0's lineage-aware context: column types and tests from upstream tables flow in automatically.\n`,
+    `### How to use\n`,
+    `- **\`Ctrl+Alt+Q\`** / **\`⌘⌥Q\`** — Preview the query at the cursor`,
+    `- Right-click selection → *Preview Query Cost (Selection)*`,
+    `- CodeLens above each \`spark.sql(...)\` block in PySpark notebooks\n`,
+    `### Settings (under \`aiForge.queryAnalysis.*\`)`,
+    `- \`enabled\` — master toggle`,
+    `- \`databricksUsdPerTb\` / \`bigqueryUsdPerTb\` — override engine pricing for your account`,
+    `- \`databricksWarehouseId\` — sticky warehouse choice (clear to be re-prompted)\n`,
+    `### Privacy\n`,
+    `Both analyzers use **dry-run / EXPLAIN** — your query is never executed. BigQuery dry-run is free; Databricks \`EXPLAIN COST\` consumes a few seconds of warehouse time. Results cache for 5 minutes per SQL hash so repeated lens views don't re-burn warehouse cycles.\n`,
+    `---\n`,
+    `Full guide: [docs/QUERY_ANALYSIS.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/docs/QUERY_ANALYSIS.md)`,
+  ].join('\n'),
   '1.6.0': [
     `## 💬 Evolve AI 1.6.0 — Claude-style chat\n`,
     `### Open chat as an editor tab\n`,

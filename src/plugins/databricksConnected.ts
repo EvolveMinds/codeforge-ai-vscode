@@ -21,6 +21,7 @@ import type {
   IPlugin,
   PluginContextHook,
   PluginLineageHook,
+  PluginQueryAnalyzer,
   PluginCodeLensAction,
   PluginCodeAction,
   PluginTransform,
@@ -31,6 +32,7 @@ import type {
 import type { IServices } from '../core/services';
 import type { AIRequest } from '../core/aiService';
 import { DatabricksLineageHook } from './databricksLineage';
+import { DatabricksQueryAnalyzer } from './databricksQueryAnalyzer';
 
 // ── Detection markers (same as base Databricks plugin) ───────────────────────
 
@@ -589,6 +591,50 @@ export class DatabricksConnectedPlugin implements IPlugin {
   readonly lineageHooks: PluginLineageHook[] = [
     new DatabricksLineageHook(() => this._client),
   ];
+
+  // ── [DE-2] queryAnalyzers ───────────────────────────────────────────────
+  // Runs EXPLAIN COST against a SQL warehouse to estimate scan size + cost.
+  // Warehouse selection is sticky per workspace via _pickWarehouse().
+
+  readonly queryAnalyzers: PluginQueryAnalyzer[] = [
+    new DatabricksQueryAnalyzer(
+      () => this._client,
+      () => this._pickWarehouse(),
+      () => vscode.workspace.getConfiguration('aiForge').get<number>('queryAnalysis.databricksUsdPerTb', 5),
+    ),
+  ];
+
+  /** Sticky warehouse choice per workspace. Prompts on first use. */
+  private async _pickWarehouse(): Promise<string | undefined> {
+    if (!this._client) return undefined;
+    const STICKY_KEY = 'aiForge.queryAnalysis.databricksWarehouse';
+    const remembered = vscode.workspace.getConfiguration('aiForge').get<string>('queryAnalysis.databricksWarehouseId', '');
+    if (remembered) return remembered;
+
+    try {
+      const warehouses = await this._client.listWarehouses();
+      const running = warehouses.filter(w => w.state === 'RUNNING');
+      const candidates = running.length > 0 ? running : warehouses;
+      if (candidates.length === 0) {
+        vscode.window.showWarningMessage('Databricks: no SQL warehouses available for query analysis.');
+        return undefined;
+      }
+      if (candidates.length === 1) return candidates[0].id;
+      const pick = await vscode.window.showQuickPick(
+        candidates.map(w => ({ label: w.name, description: `[${w.state}]`, id: w.id })),
+        { placeHolder: 'Select a SQL warehouse for cost preview (will be remembered)' },
+      );
+      if (!pick) return undefined;
+      await vscode.workspace.getConfiguration('aiForge').update(
+        'queryAnalysis.databricksWarehouseId', pick.id, vscode.ConfigurationTarget.Workspace,
+      );
+      void STICKY_KEY; // reserved for future workspaceState fallback
+      return pick.id;
+    } catch (e) {
+      console.warn('[Evolve AI] Warehouse picker failed:', e);
+      return undefined;
+    }
+  }
 
   // ── contextHooks ────────────────────────────────────────────────────────
 

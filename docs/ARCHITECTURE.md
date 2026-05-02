@@ -153,7 +153,7 @@ No circular dependencies.
 
 ### `core/plugin.ts` — plugin contracts and registry
 
-#### IPlugin interface — 10 contribution points
+#### IPlugin interface — 11 contribution points
 
 ```typescript
 interface IPlugin {
@@ -170,6 +170,7 @@ interface IPlugin {
   // Contribution points (all optional)
   contextHooks?:        PluginContextHook[];      // inject data into every AI prompt
   lineageHooks?:        PluginLineageHook[];      // resolve upstream table schemas (DE #1)
+  queryAnalyzers?:      PluginQueryAnalyzer[];    // dry-run cost / perf preview (DE #2)
   systemPromptSection?(): string;                  // append domain knowledge to system prompt
   codeLensActions?:     PluginCodeLensAction[];   // buttons above code lines
   codeActions?:         PluginCodeAction[];        // lightbulb quickfix/refactor items
@@ -202,6 +203,31 @@ Two shipping implementations:
 Providers are ranked by `aiForge.lineage.providerOrder`; the first hit wins per FQN.
 PII-tagged columns are redacted before cloud-LLM prompts unless the user opts in via
 `aiForge.lineage.includePii`. See `docs/LINEAGE.md` for the full user-facing guide.
+
+#### PluginQueryAnalyzer (DE #2 — query cost / perf preview)
+
+A second DE-flavoured contribution point. Analyzers run dry-run / EXPLAIN against
+a connected query engine and return cost facts:
+
+```typescript
+interface PluginQueryAnalyzer {
+  engine:      'databricks' | 'bigquery' | 'snowflake' | 'other';
+  displayName: string;
+  supports(file: FileContext): boolean;
+  analyze(sql: string): Promise<QueryAnalysis>;   // bytes, cost, warnings, plan
+}
+```
+
+Two shipping implementations:
+- `DatabricksQueryAnalyzer` — runs `EXPLAIN COST` on a SQL warehouse (falls back to plain `EXPLAIN`); parses `Statistics(sizeInBytes=…, rowCount=…)` lines.
+- `BigQueryQueryAnalyzer` — calls `jobs.insert` with `dryRun: true`; reads `totalBytesProcessed` and `referencedTables` (free on BigQuery's side).
+
+Results are cached per SQL hash (TTL 5 min) by `QueryAnalysisStore`. The
+`QueryAnalysisCodeLensProvider` shows a `$(zap) Preview cost` lens above each
+detected statement; clicking opens `QueryAnalysisPanel`. The panel's "Optimise
+with AI" button injects the analysis into the chat-panel prompt so the AI's
+rewrite is grounded in real cost data. See `docs/QUERY_ANALYSIS.md` for the
+user-facing guide.
 
 #### PluginContextHook
 

@@ -22,6 +22,10 @@ import { AnalysisController }      from './analysis/controller';
 import { LineageStore }            from './ui/lineageStore';
 import { registerLineageProviders } from './ui/lineageProviders';
 import { LineagePanel }            from './ui/lineagePanel';
+import { QueryAnalysisStore }      from './ui/queryAnalysisStore';
+import { registerQueryAnalysisProviders } from './ui/queryAnalysisProviders';
+import { QueryAnalysisPanel }      from './ui/queryAnalysisPanel';
+import { extractStatementsFromFile, sha1, summariseAnalysisOneLine } from './plugins/queryAnalysis';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   // 1. Service container — EventBus, PluginRegistry, AIService, etc. all wired here
@@ -68,6 +72,77 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
 
   // 4c. [DE-1] First-use onboarding toast — show once per workspace when lineage resolves
   showLineageOnboardingOnce(vsCtx, lineageStore);
+
+  // 4d. [DE-2] Query analysis: store + CodeLens/Hover + commands
+  const queryStore = new QueryAnalysisStore(svc);
+  registerQueryAnalysisProviders(vsCtx, queryStore);
+  vsCtx.subscriptions.push(
+    vscode.commands.registerCommand('aiForge.queryAnalysis.runForStatement',
+      async (uri: vscode.Uri, sql: string, _startLine?: number, _endLine?: number) => {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const file = {
+          path: doc.uri.fsPath,
+          relPath: vscode.workspace.asRelativePath(doc.uri),
+          content: doc.getText(),
+          language: doc.languageId,
+        };
+        QueryAnalysisPanel.show(svc, queryStore, null);
+        const analysis = await vscode.window.withProgress(
+          { location: vscode.ProgressLocation.Notification, title: 'Evolve AI: analysing query…' },
+          () => queryStore.analyse(sql, file),
+        );
+        QueryAnalysisPanel.show(svc, queryStore, analysis);
+      }),
+
+    vscode.commands.registerCommand('aiForge.queryAnalysis.previewActive', async () => {
+      const active = vscode.window.activeTextEditor;
+      if (!active) { vscode.window.showInformationMessage('No active file.'); return; }
+      const file = {
+        path: active.document.uri.fsPath,
+        relPath: vscode.workspace.asRelativePath(active.document.uri),
+        content: active.document.getText(),
+        language: active.document.languageId,
+      };
+      const stmts = extractStatementsFromFile(file.content, file.language, file.relPath);
+      if (stmts.length === 0) {
+        vscode.window.showInformationMessage('No SQL statements detected in this file.');
+        return;
+      }
+      // Pick the statement at cursor, or the first one if cursor is between
+      const cursorLine = active.selection.active.line + 1;
+      const stmt = stmts.find(s => cursorLine >= s.startLine && cursorLine <= s.endLine) ?? stmts[0];
+      await vscode.commands.executeCommand('aiForge.queryAnalysis.runForStatement', active.document.uri, stmt.sql);
+    }),
+
+    vscode.commands.registerCommand('aiForge.queryAnalysis.previewSelection', async () => {
+      const active = vscode.window.activeTextEditor;
+      if (!active || active.selection.isEmpty) {
+        vscode.window.showInformationMessage('Select SQL text first.');
+        return;
+      }
+      const sql = active.document.getText(active.selection);
+      await vscode.commands.executeCommand('aiForge.queryAnalysis.runForStatement', active.document.uri, sql);
+    }),
+
+    // Optimise-with-AI: pulls cached analysis into the chat prompt
+    vscode.commands.registerCommand('aiForge.queryAnalysis.optimiseWithAi', async (sqlHash?: string) => {
+      const analysis = sqlHash ? queryStore.get(sqlHash) : undefined;
+      if (!analysis) {
+        vscode.window.showWarningMessage('No analysed query available — run Preview Cost first.');
+        return;
+      }
+      const summary = summariseAnalysisOneLine(analysis);
+      const warnList = analysis.warnings.length > 0
+        ? '\nWarnings:\n' + analysis.warnings.map(w => `- [${w.code}] ${w.message}`).join('\n')
+        : '';
+      const tableList = analysis.tablesRead && analysis.tablesRead.length > 0
+        ? '\nTables: ' + analysis.tablesRead.map(t => t.fqn).join(', ')
+        : '';
+      const instruction = `Rewrite this SQL to reduce cost / improve performance. Engine: ${analysis.engine}. Current cost preview: ${summary}.${warnList}${tableList}\n\nSQL:\n\`\`\`sql\n${analysis.sql}\n\`\`\``;
+      await vscode.commands.executeCommand('aiForge._sendToChat', instruction, 'edit');
+    }),
+  );
+  void sha1;
 
   // 4a. Code analysis (lint/format) — triggers + commands + status bar
   new AnalysisController(svc);

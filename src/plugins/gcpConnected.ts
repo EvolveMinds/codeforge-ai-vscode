@@ -20,6 +20,7 @@ import * as fs     from 'fs';
 import type {
   IPlugin,
   PluginContextHook,
+  PluginQueryAnalyzer,
   PluginCodeLensAction,
   PluginCodeAction,
   PluginTransform,
@@ -29,6 +30,7 @@ import type {
 } from '../core/plugin';
 import type { IServices } from '../core/services';
 import type { AIRequest } from '../core/aiService';
+import { BigQueryQueryAnalyzer } from './bigqueryQueryAnalyzer';
 import {
   GcpClient,
   GcpApiError,
@@ -314,6 +316,16 @@ export class GCPConnectedPlugin implements IPlugin {
       return this._cachedContext; // return stale cache if available
     }
   }
+
+  // ── [DE-2] queryAnalyzers ───────────────────────────────────────────────
+  // BigQuery dry-run for cost / scan-size preview. Free on BigQuery's side.
+
+  readonly queryAnalyzers: PluginQueryAnalyzer[] = [
+    new BigQueryQueryAnalyzer(
+      () => this._client,
+      () => vscode.workspace.getConfiguration('aiForge').get<number>('queryAnalysis.bigqueryUsdPerTb', 5),
+    ),
+  ];
 
   // ── contextHooks ────────────────────────────────────────────────────────
 

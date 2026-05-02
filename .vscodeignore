@@ -31,4 +31,5 @@ Thumbs.db
 
 # Local simulation harnesses
 .de1-sim/
+.de2-sim/
 .*-sim/

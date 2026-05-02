@@ -96,6 +96,25 @@ export interface BQQueryResult {
   errors?: Array<{ reason: string; message: string }>;
 }
 
+/**
+ * Result of a BigQuery dry-run (jobs.insert with dryRun: true). Returns
+ * the same statistics block the real query would, without billing or
+ * executing. Used by DE #2 query analyzer.
+ */
+export interface BQDryRunResult {
+  status: { state: string; errorResult?: { reason: string; message: string } };
+  statistics?: {
+    totalBytesProcessed?: string;
+    totalBytesBilled?:    string;
+    query?: {
+      schema?:           { fields: Array<{ name: string; type: string }> };
+      referencedTables?: Array<{ projectId: string; datasetId: string; tableId: string }>;
+      statementType?:    string;
+      ddlOperationPerformance?: string;
+    };
+  };
+}
+
 export interface BQJob {
   jobReference: { projectId: string; jobId: string };
   configuration: { jobType: string; query?: { query: string } };
@@ -456,6 +475,20 @@ export class GcpClient {
       query: sql,
       useLegacySql,
       maxResults: 1000,
+    }, BQ_QUERY_TIMEOUT_MS);
+  }
+
+  /**
+   * Validate a query and get bytes-processed estimate WITHOUT running it.
+   * Posts to jobs.insert with dryRun: true. Costs nothing on BigQuery's side.
+   */
+  async dryRunQuery(sql: string, useLegacySql = false): Promise<BQDryRunResult> {
+    const url = `https://bigquery.googleapis.com/bigquery/v2/projects/${encodeURIComponent(this.projectId)}/jobs`;
+    return this.post<BQDryRunResult>(url, {
+      configuration: {
+        dryRun: true,
+        query: { query: sql, useLegacySql },
+      },
     }, BQ_QUERY_TIMEOUT_MS);
   }
 

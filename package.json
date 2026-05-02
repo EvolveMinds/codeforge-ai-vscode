@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -193,6 +193,26 @@
       {
         "command": "aiForge.lineage.refresh",
         "title": "Evolve AI: Refresh Lineage",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.queryAnalysis.previewActive",
+        "title": "Evolve AI: Preview Query Cost (Active Statement)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.queryAnalysis.previewSelection",
+        "title": "Evolve AI: Preview Query Cost (Selection)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.queryAnalysis.runForStatement",
+        "title": "Evolve AI: Run Query Analyser (internal)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.queryAnalysis.optimiseWithAi",
+        "title": "Evolve AI: Optimise Query with AI",
         "category": "Evolve AI"
       },
       {
@@ -1104,6 +1124,11 @@
         "command": "aiForge.lineage.showPanel",
         "key": "ctrl+alt+l",
         "mac": "cmd+alt+l"
+      },
+      {
+        "command": "aiForge.queryAnalysis.previewActive",
+        "key": "ctrl+alt+q",
+        "mac": "cmd+alt+q"
       }
     ],
     "menus": {
@@ -1335,6 +1360,26 @@
           "items": { "type": "string" },
           "default": ["dbtManifest", "schemaYml", "unityCatalog"],
           "description": "Preferred order for resolving upstream schemas. The first provider to return a match wins."
+        },
+        "aiForge.queryAnalysis.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show CodeLens / Hover cost previews for SQL statements when a connected query engine (Databricks, BigQuery) is available."
+        },
+        "aiForge.queryAnalysis.databricksUsdPerTb": {
+          "type": "number",
+          "default": 5,
+          "description": "Cost-per-TB-scanned used for Databricks USD estimates. Override to match your workspace pricing (Serverless / Pro SQL warehouses vary)."
+        },
+        "aiForge.queryAnalysis.bigqueryUsdPerTb": {
+          "type": "number",
+          "default": 5,
+          "description": "Cost-per-TB-scanned used for BigQuery USD estimates. BigQuery on-demand pricing is typically $5/TB."
+        },
+        "aiForge.queryAnalysis.databricksWarehouseId": {
+          "type": "string",
+          "default": "",
+          "description": "SQL warehouse ID used by the cost-preview analyzer. Set automatically the first time you run a cost preview; clear to be re-prompted."
         },
         "aiForge.codeAnalysis.enabled": {
           "type": "boolean",
