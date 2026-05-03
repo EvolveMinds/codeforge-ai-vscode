@@ -30,7 +30,10 @@ export class ChatEditorPanel {
       { enableScripts: true, retainContextWhenHidden: true },
     );
 
-    panel.iconPath = vscode.Uri.joinPath(svcCtx.extensionUri, 'media', 'title-icon.svg');
+    panel.iconPath = {
+      light: vscode.Uri.joinPath(svcCtx.extensionUri, 'media', 'title-icon-light.svg'),
+      dark:  vscode.Uri.joinPath(svcCtx.extensionUri, 'media', 'title-icon-dark.svg'),
+    };
 
     ChatEditorPanel._current = new ChatEditorPanel(panel, provider);
   }

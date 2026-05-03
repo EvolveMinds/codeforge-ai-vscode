@@ -2,6 +2,11 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.7.2] — 2026-05-02
+
+### Fixed
+- **Editor title-bar icon was rendering in muted gray on dark themes**, making it almost invisible against the VS Code background. The single `title-icon.svg` used `fill="currentColor"`, which inherited the *muted* toolbar foreground rather than the active foreground. Replaced with two theme-specific files — `media/title-icon-dark.svg` (light gray `#E8E8E8` for dark themes) and `media/title-icon-light.svg` (near-black `#1F1F1F` for light themes) — wired through both the `editor/title` menu contribution and the `WebviewPanel.iconPath`. Now reads cleanly on every built-in VS Code theme, matching the contrast level of the Claude Code / Copilot icons in the same toolbar.
+
 ## [1.7.1] — 2026-05-02
 
 ### Fixed
