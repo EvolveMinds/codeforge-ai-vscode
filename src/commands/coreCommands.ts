@@ -800,6 +800,27 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.8.0': [
+    `## 🌳 Evolve AI 1.8.0 — dbt Manifest Integration\n`,
+    `### Know what breaks before you ship it\n`,
+    `Open any dbt model and Evolve AI now shows you what depends on it — direct + transitive downstream models, exposures, and tests. No more grepping the repo for \`ref('model_name')\` to figure out blast radius.\n`,
+    `### Three new surfaces\n`,
+    `- **Impact CodeLens** at the top of every model: \`$(symbol-class) Impact: 4 downstream · 1 exposure · 12 tests\`. Click to open the panel.`,
+    `- **Impact panel** (\`Ctrl+Alt+I\` / \`⌘⌥I\`): direct + transitive descendants with materialization, exposures with owners + types + URLs, total tests in the impacted graph, plus upstream parents and sources.`,
+    `- **Refactor with AI (impact-aware)** button: pipes the downstream impact summary into the chat panel so the AI rewrites your model with the *blast radius* in mind, not just the SQL in front of it.\n`,
+    `### Two new commands\n`,
+    `- **\`dbt: List Exposures\`** — quick-pick across every exposure in the project, with owner + type + upstream model count.`,
+    `- **\`dbt: Refresh Manifest Cache\`** — for paranoia (the cache auto-invalidates on \`manifest.json\` mtime change).\n`,
+    `### Settings (under \`aiForge.dbt.*\`)\n`,
+    `- \`impactCodeLensEnabled\` (default \`true\`) — show the impact CodeLens at the top of every model`,
+    `- \`impactDepth\` (default \`5\`) — max graph hops when computing transitive impact\n`,
+    `### Built on the existing manifest reader\n`,
+    `Both v1.5.0's lineage-aware context (column schemas) and this release's impact analysis now share a single mtime-cached \`target/manifest.json\` reader — manifest parses once per save, not once per feature. Same parse, two views.\n`,
+    `### Privacy\n`,
+    `Everything is local. The manifest is read from disk and parsed in-memory; nothing is uploaded. The "Refactor with AI" button only sends model names + materializations + exposure metadata into the prompt — never the source SQL of downstream models.\n`,
+    `---\n`,
+    `Full guide: [docs/DBT_MANIFEST.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/docs/DBT_MANIFEST.md)`,
+  ].join('\n'),
   '1.7.0': [
     `## ⚡ Evolve AI 1.7.0 — Query cost / perf preview\n`,
     `### See what your query will cost before you run it\n`,

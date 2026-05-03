@@ -21,6 +21,13 @@ import type {
   LineageColumn,
 } from '../core/plugin';
 import type { FileContext } from '../core/contextService';
+import {
+  loadManifest as sharedLoadManifest,
+  findDbtProjectRoot as sharedFindDbtProjectRoot,
+  getManifestStaleHours as sharedGetManifestStaleHours,
+  type ManifestNode,
+  type CachedManifest,
+} from './dbtManifest';
 
 // ── Ref extraction ───────────────────────────────────────────────────────────
 
@@ -77,129 +84,13 @@ function dedupe(refs: LineageRef[]): LineageRef[] {
   return out;
 }
 
-// ── dbt project discovery (monorepo-aware) ───────────────────────────────────
+// ── Re-exports for backward compatibility (DE #3 split) ──────────────────────
+// The reader was extracted to ./dbtManifest so impact-analysis features
+// can share it. These re-exports keep the public API stable for callers.
 
-/** Walk up from `startDir` until we find a dbt_project.yml or hit workspace root. */
-export function findDbtProjectRoot(
-  startDir: string,
-  wsRoot: string,
-): string | undefined {
-  let cur = startDir;
-  // Normalise both ends for comparison on Windows
-  const stop = path.resolve(wsRoot);
-  for (let i = 0; i < 15; i++) {
-    if (fs.existsSync(path.join(cur, 'dbt_project.yml'))) return cur;
-    const parent = path.dirname(cur);
-    if (parent === cur) return undefined;
-    if (path.resolve(parent).length < stop.length) return undefined;
-    cur = parent;
-  }
-  return undefined;
-}
-
-// ── manifest.json parsing with mtime cache ───────────────────────────────────
-
-interface Manifest {
-  metadata?: { generated_at?: string };
-  nodes?:    Record<string, ManifestNode>;
-  sources?:  Record<string, ManifestNode>;
-  child_map?: Record<string, string[]>;
-  parent_map?: Record<string, string[]>;
-}
-
-interface ManifestNode {
-  name:          string;
-  resource_type: string;              // 'model' | 'source' | 'test' | ...
-  schema?:       string;
-  database?:     string;
-  description?:  string;
-  columns?:      Record<string, {
-    name:        string;
-    data_type?:  string;
-    description?: string;
-    tags?:       string[];
-    meta?:       { tags?: string[] };
-  }>;
-  tags?:         string[];
-  meta?:         Record<string, unknown>;
-  depends_on?:   { nodes?: string[] };
-  raw_code?:     string;
-  package_name?: string;
-  source_name?:  string;
-  identifier?:   string;
-}
-
-interface CachedManifest {
-  mtime:   number;
-  parsed:  Manifest;
-  modelsByName:  Map<string, ManifestNode>;
-  sourcesByName: Map<string, ManifestNode>;   // key: `${source_name}.${name}`
-  /** Map from node id → passed test names (e.g. {'model.proj.stg_orders.id': ['unique','not_null']}) */
-  testsPassed:   Map<string, string[]>;
-}
-
-const _manifestCache = new Map<string, CachedManifest>();
-
-function loadManifest(projectRoot: string): CachedManifest | undefined {
-  const manifestPath = path.join(projectRoot, 'target', 'manifest.json');
-  if (!fs.existsSync(manifestPath)) return undefined;
-
-  const stat  = fs.statSync(manifestPath);
-  const cached = _manifestCache.get(projectRoot);
-  if (cached && cached.mtime === stat.mtimeMs) return cached;
-
-  try {
-    const raw = fs.readFileSync(manifestPath, 'utf8');
-    const parsed: Manifest = JSON.parse(raw);
-
-    const modelsByName = new Map<string, ManifestNode>();
-    const sourcesByName = new Map<string, ManifestNode>();
-    for (const node of Object.values(parsed.nodes ?? {})) {
-      if (node.resource_type === 'model') modelsByName.set(node.name.toLowerCase(), node);
-    }
-    for (const node of Object.values(parsed.sources ?? {})) {
-      const src = node.source_name?.toLowerCase() ?? '';
-      sourcesByName.set(`${src}.${node.name.toLowerCase()}`, node);
-    }
-
-    // Collect test results: a test node refers to model + column; if present in
-    // manifest it was compiled/run. We use test.name heuristics — unique/not_null/relationships.
-    const testsPassed = new Map<string, string[]>();
-    const TEST_HINTS = ['unique', 'not_null', 'relationships', 'accepted_values'];
-    for (const [nodeId, node] of Object.entries(parsed.nodes ?? {})) {
-      if (node.resource_type !== 'test') continue;
-      const nameLower = node.name.toLowerCase();
-      const testKind = TEST_HINTS.find(h => nameLower.includes(h));
-      if (!testKind) continue;
-      // Tests depend on exactly one model in manifest convention
-      const depModel = node.depends_on?.nodes?.find(id => id.startsWith('model.'));
-      if (!depModel) continue;
-      const existing = testsPassed.get(depModel) ?? [];
-      if (!existing.includes(testKind)) existing.push(testKind);
-      testsPassed.set(depModel, existing);
-      // Column-level: test name often includes column — `not_null_stg_orders_id` →  id
-      // We store at model level; column-level attribution happens at resolve time.
-      void nodeId;
-    }
-
-    const fresh: CachedManifest = { mtime: stat.mtimeMs, parsed, modelsByName, sourcesByName, testsPassed };
-    _manifestCache.set(projectRoot, fresh);
-    return fresh;
-  } catch (e) {
-    console.warn('[Evolve AI] dbt manifest parse failed:', e);
-    return undefined;
-  }
-}
-
-export function getManifestStaleHours(projectRoot: string): number | undefined {
-  const cached = loadManifest(projectRoot);
-  const gen = cached?.parsed.metadata?.generated_at;
-  if (!gen) return undefined;
-  const ts = Date.parse(gen);
-  if (Number.isNaN(ts)) return undefined;
-  // Clock skew / manifest generated_at in the future — floor at 0
-  return Math.max(0, (Date.now() - ts) / (1000 * 60 * 60));
-}
+export const findDbtProjectRoot = sharedFindDbtProjectRoot;
+export const getManifestStaleHours = sharedGetManifestStaleHours;
+const loadManifest = sharedLoadManifest;
 
 function nodeToSchema(
   node: ManifestNode,
@@ -355,7 +246,7 @@ export class DbtLineageHook implements PluginLineageHook {
           if (node) {
             // Find tests that reference this model
             const modelId = `model.${findProjectName(projectRoot)}.${node.name}`;
-            const tests = manifest.testsPassed.get(modelId);
+            const tests = manifest.testsByModel.get(modelId);
             schemas.push(nodeToSchema(node, 'dbt_manifest', staleHours, tests));
             continue;
           }

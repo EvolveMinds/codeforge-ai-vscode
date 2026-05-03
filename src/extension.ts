@@ -26,6 +26,17 @@ import { QueryAnalysisStore }      from './ui/queryAnalysisStore';
 import { registerQueryAnalysisProviders } from './ui/queryAnalysisProviders';
 import { QueryAnalysisPanel }      from './ui/queryAnalysisPanel';
 import { extractStatementsFromFile, sha1, summariseAnalysisOneLine } from './plugins/queryAnalysis';
+import { DbtImpactPanel }          from './ui/dbtImpactPanel';
+import { registerDbtImpactProvider } from './ui/dbtImpactProvider';
+import {
+  loadManifest as loadDbtManifest,
+  findDbtProjectRoot as findDbtRoot,
+  getModelByFile as getDbtModelByFile,
+  getDownstream as getDbtDownstream,
+  listExposures as listDbtExposures,
+  invalidateManifestCache as invalidateDbtManifestCache,
+} from './plugins/dbtManifest';
+import * as nodePath from 'path';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   // 1. Service container — EventBus, PluginRegistry, AIService, etc. all wired here
@@ -143,6 +154,109 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
     }),
   );
   void sha1;
+
+  // 4e. [DE-3] dbt manifest impact analysis
+  const dbtImpactProvider = registerDbtImpactProvider(vsCtx);
+  vsCtx.subscriptions.push(
+    vscode.commands.registerCommand('aiForge.dbt.impact', async (uri?: vscode.Uri) => {
+      if (uri) {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.One, preserveFocus: true });
+      }
+      DbtImpactPanel.showForActive(svc);
+    }),
+
+    vscode.commands.registerCommand('aiForge.dbt.refreshManifest', async () => {
+      const ws = vscode.workspace.workspaceFolders?.[0];
+      if (!ws) return;
+      const active = vscode.window.activeTextEditor;
+      const start = active ? nodePath.dirname(active.document.uri.fsPath) : ws.uri.fsPath;
+      const projectRoot = findDbtRoot(start, ws.uri.fsPath);
+      invalidateDbtManifestCache(projectRoot);
+      dbtImpactProvider.fireRefresh();
+      vscode.window.setStatusBarMessage('Evolve AI: dbt manifest cache cleared', 2000);
+    }),
+
+    vscode.commands.registerCommand('aiForge.dbt.exposures', async () => {
+      const active = vscode.window.activeTextEditor;
+      const ws = active ? vscode.workspace.getWorkspaceFolder(active.document.uri) : vscode.workspace.workspaceFolders?.[0];
+      if (!ws) { vscode.window.showWarningMessage('Open a workspace first.'); return; }
+      const start = active ? nodePath.dirname(active.document.uri.fsPath) : ws.uri.fsPath;
+      const projectRoot = findDbtRoot(start, ws.uri.fsPath);
+      if (!projectRoot) { vscode.window.showWarningMessage('No dbt project found.'); return; }
+      const exposures = listDbtExposures(projectRoot);
+      if (!exposures || exposures.length === 0) {
+        vscode.window.showInformationMessage('No dbt exposures defined in this project.');
+        return;
+      }
+      const items = exposures.map(e => ({
+        label: `$(symbol-event) ${e.exposure.name}`,
+        description: e.exposure.type ?? '',
+        detail: [
+          e.exposure.owner?.name ? `owner: ${e.exposure.owner.name}` : '',
+          `${e.upstreamModelIds.length} upstream model${e.upstreamModelIds.length === 1 ? '' : 's'}`,
+          e.exposure.url ?? '',
+        ].filter(Boolean).join(' · '),
+        exposure: e,
+      }));
+      const pick = await vscode.window.showQuickPick(items, { placeHolder: 'dbt exposures (downstream consumers)' });
+      if (!pick) return;
+      const md = new vscode.MarkdownString();
+      md.appendMarkdown(`# ${pick.exposure.exposure.name}\n\n`);
+      if (pick.exposure.exposure.type) md.appendMarkdown(`**Type:** ${pick.exposure.exposure.type}\n\n`);
+      if (pick.exposure.exposure.owner?.name) md.appendMarkdown(`**Owner:** ${pick.exposure.exposure.owner.name}${pick.exposure.exposure.owner.email ? ` <${pick.exposure.exposure.owner.email}>` : ''}\n\n`);
+      if (pick.exposure.exposure.url) md.appendMarkdown(`**URL:** ${pick.exposure.exposure.url}\n\n`);
+      if (pick.exposure.exposure.description) md.appendMarkdown(`${pick.exposure.exposure.description}\n\n`);
+      md.appendMarkdown(`**Upstream models:**\n${pick.exposure.upstreamModelIds.map(id => `- \`${id.replace(/^model\.[^.]+\./, '')}\``).join('\n')}`);
+      // Open as a virtual document
+      const uri = vscode.Uri.parse(`untitled:${pick.exposure.exposure.name}.md`);
+      const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content: md.value });
+      await vscode.window.showTextDocument(doc, { preview: true });
+      void uri;
+    }),
+
+    // Refactor with impact context — pulls downstream impact into a chat prompt
+    vscode.commands.registerCommand('aiForge.dbt.refactorWithImpact', async (modelId?: string) => {
+      const active = vscode.window.activeTextEditor;
+      if (!active) { vscode.window.showWarningMessage('Open a dbt model file first.'); return; }
+      const ws = vscode.workspace.getWorkspaceFolder(active.document.uri);
+      if (!ws) return;
+      const projectRoot = findDbtRoot(nodePath.dirname(active.document.uri.fsPath), ws.uri.fsPath);
+      if (!projectRoot) { vscode.window.showWarningMessage('No dbt project found.'); return; }
+      const match = getDbtModelByFile(projectRoot, active.document.uri.fsPath);
+      if (!match) { vscode.window.showWarningMessage('Active file is not a model in target/manifest.json.'); return; }
+      void modelId;
+      const cfg = vscode.workspace.getConfiguration('aiForge');
+      const ds = getDbtDownstream(projectRoot, match.node.name, cfg.get<number>('dbt.impactDepth', 5));
+      if (!ds) return;
+
+      const lines: string[] = [];
+      lines.push(`## Downstream impact of \`${match.node.name}\``);
+      lines.push(`- Direct downstream models: ${ds.directModels.length}`);
+      lines.push(`- Transitive downstream models: ${ds.transitiveModels.length}`);
+      lines.push(`- Exposures consuming: ${ds.exposures.length}`);
+      lines.push(`- Tests in graph: ${ds.totalTests}`);
+      if (ds.transitiveModels.length > 0) {
+        lines.push('\nDownstream models (refactor must not break these):');
+        for (const m of ds.transitiveModels.slice(0, 25)) {
+          lines.push(`- \`${m.node.name}\`${m.node.config?.materialized ? ` (${m.node.config.materialized})` : ''}`);
+        }
+        if (ds.transitiveModels.length > 25) lines.push(`- ...and ${ds.transitiveModels.length - 25} more`);
+      }
+      if (ds.exposures.length > 0) {
+        lines.push('\nExposures that depend on this model:');
+        for (const e of ds.exposures) {
+          lines.push(`- ${e.exposure.name}${e.exposure.owner?.name ? ` (${e.exposure.owner.name})` : ''}${e.via === 'transitive' ? ' [transitive]' : ''}`);
+        }
+      }
+
+      const sql = active.document.getText();
+      const instruction = `Refactor this dbt model below. Consider the downstream impact context above — your refactor must not break the downstream models or exposures listed.\n\nSQL:\n\`\`\`sql\n${sql}\n\`\`\``;
+      const prefix = lines.join('\n');
+      await vscode.commands.executeCommand('aiForge._sendToChat', `${prefix}\n\n${instruction}`, 'edit');
+    }),
+  );
+  void loadDbtManifest;
 
   // 4a. Code analysis (lint/format) — triggers + commands + status bar
   new AnalysisController(svc);

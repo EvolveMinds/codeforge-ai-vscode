@@ -229,6 +229,26 @@ with AI" button injects the analysis into the chat-panel prompt so the AI's
 rewrite is grounded in real cost data. See `docs/QUERY_ANALYSIS.md` for the
 user-facing guide.
 
+#### dbt Manifest reader (DE #3 — impact analysis)
+
+`src/plugins/dbtManifest.ts` is a shared, mtime-cached reader for
+`target/manifest.json`. Both DE #1 (lineage / column schemas) and DE #3
+(downstream impact) consume it via the same module — manifest parses once
+per save, not once per feature.
+
+Public API:
+- `loadManifest(projectRoot)` → cached `Manifest` + indexed lookups
+- `getModelByFile(root, path)` → match an open `.sql` to its node
+- `getDownstream(root, modelName, depth)` → direct + transitive children, exposures, total tests
+- `getUpstream(root, modelName, depth)` → direct + transitive parents, sources
+- `listExposures(root)` → every exposure with its upstream model ids
+- `findDbtProjectRoot(start, ws)` → monorepo-aware root walk
+- `getManifestStaleHours(root)` / `invalidateManifestCache(root?)`
+
+The impact features (`ui/dbtImpactPanel.ts`, `ui/dbtImpactProvider.ts`) and the
+`aiForge.dbt.*` commands in `extension.ts` are pure consumers of these APIs.
+See `docs/DBT_MANIFEST.md` for the user-facing guide.
+
 #### PluginContextHook
 
 Called on every `ContextService.build()`. The plugin collects data from the workspace and

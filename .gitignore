@@ -36,4 +36,5 @@ bin/
 # Local simulation / test harnesses (not shipped)
 .de1-sim/
 .de2-sim/
+.de3-sim/
 .*-sim/

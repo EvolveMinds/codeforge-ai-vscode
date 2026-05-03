@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
-  "version": "1.7.2",
+  "version": "1.8.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -213,6 +213,26 @@
       {
         "command": "aiForge.queryAnalysis.optimiseWithAi",
         "title": "Evolve AI: Optimise Query with AI",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.dbt.impact",
+        "title": "dbt: Show Downstream Impact",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.dbt.refreshManifest",
+        "title": "dbt: Refresh Manifest Cache",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.dbt.exposures",
+        "title": "dbt: List Exposures",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.dbt.refactorWithImpact",
+        "title": "dbt: Refactor with Impact Context (AI)",
         "category": "Evolve AI"
       },
       {
@@ -1129,6 +1149,12 @@
         "command": "aiForge.queryAnalysis.previewActive",
         "key": "ctrl+alt+q",
         "mac": "cmd+alt+q"
+      },
+      {
+        "command": "aiForge.dbt.impact",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i",
+        "when": "editorLangId == sql || editorLangId == jinja-sql"
       }
     ],
     "menus": {
@@ -1379,6 +1405,16 @@
           "type": "string",
           "default": "",
           "description": "SQL warehouse ID used by the cost-preview analyzer. Set automatically the first time you run a cost preview; clear to be re-prompted."
+        },
+        "aiForge.dbt.impactCodeLensEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a CodeLens at the top of every dbt model with downstream impact (number of dependent models, exposures, tests)."
+        },
+        "aiForge.dbt.impactDepth": {
+          "type": "number",
+          "default": 5,
+          "description": "Maximum depth (in graph hops) when computing transitive downstream impact. Higher values cover more of the DAG but cost more to compute."
         },
         "aiForge.codeAnalysis.enabled": {
           "type": "boolean",
