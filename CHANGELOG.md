@@ -2,6 +2,36 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [1.9.0] — 2026-05-04
+
+### Added — DE #4: Airflow DAG Simulator
+- **Static analysis for Airflow DAG files** — no Python interpreter required. Detects cycles, broken `>>` edges, duplicate `task_id`s, missing `default_args.retries`, sensors with `mode='poke'` + long timeouts (slot starvation), missing `catchup=False` with past `start_date`, invalid cron expressions, `@task` functions referenced without `()` in dependency chains, and missing `default_args` entirely.
+- **Inline diagnostics** — yellow/red squiggles on the offending lines, identified by source `aiForge.airflow` so they can be selectively dismissed without affecting Pylance / Ruff.
+- **CodeLens at line 0** of every DAG file: `$(circuit-board) Airflow DAG: 7 tasks · 2 warnings — open simulator`. Click opens the simulator panel.
+- **Simulator panel** (`Ctrl+Alt+D` / `⌘⌥D`): stats (tasks, edges, root/leaf, longest path), ASCII task graph, issue list grouped by severity with click-to-jump, and a **Fix all with AI** button that pipes the issue list + DAG into the chat panel for an AI rewrite.
+- **Three commands**: `Airflow: DAG Simulator`, `Airflow: Re-run DAG Simulator`, `Airflow: Fix DAG Issues with AI`.
+- **Three settings** (under `aiForge.airflow.simulator.*`): `enabled`, `runOnSave`, `severity`.
+- See `docs/AIRFLOW_SIMULATOR.md` for the full guide.
+
+### Changed
+- **Marketplace description and keywords overhauled** — now leads with the data-engineering features (lineage, query cost, dbt impact, Airflow simulator) so DEs searching for "dbt lineage", "bigquery cost", "airflow lint" etc. can find the extension.
+
+## [1.8.0] — 2026-05-04
+
+### Added — DE #3: dbt Manifest Integration
+- **Downstream impact analysis for dbt models.** Open any model and Evolve AI now shows what depends on it — direct + transitive downstream models, exposures with owners + types + URLs, and total tests in the impacted graph.
+- **Impact CodeLens** at the top of every model: `$(symbol-class) Impact: 4 downstream · 1 exposure · 12 tests`.
+- **Impact panel** (`Ctrl+Alt+I` / `⌘⌥I`): direct + transitive descendants with materialization, exposures with owners, total tests, plus upstream parents and sources.
+- **Refactor with AI (impact-aware)** button: pipes the downstream impact summary into the chat panel so AI rewrites stay aware of what they could break.
+- **Two new commands**: `dbt: List Exposures` (quick-pick across every exposure with owner + type + upstream count), `dbt: Refresh Manifest Cache`.
+- **Two settings**: `aiForge.dbt.impactCodeLensEnabled`, `aiForge.dbt.impactDepth`.
+
+### Changed
+- **Extracted `target/manifest.json` reader** from `dbtLineage.ts` into a shared `src/plugins/dbtManifest.ts` module. Both v1.5.0's lineage-aware context (column schemas) and this release's impact analysis now share one mtime-cached parse.
+
+### Docs
+- New `docs/DBT_MANIFEST.md` — user-facing guide.
+
 ## [1.7.2] — 2026-05-02
 
 ### Fixed
@@ -28,6 +58,28 @@ All notable changes to Evolve AI are documented here.
 
 ### Fixed
 - **Status payload model name was wrong for cloud providers.** Previously `currentModel` always read from `aiForge.ollamaModel` regardless of the active provider, so the chat header showed the Ollama model name even when Anthropic or OpenAI was active. Now resolves the correct setting per provider (`anthropicModel` / `openaiModel` / `huggingfaceModel` / `gemma4Model` / `ollamaModel`).
+
+## [1.7.0] — 2026-05-03
+
+### Added — DE #2: Query Cost / Perf Preview for Databricks + BigQuery
+- **`$(zap) Preview cost` CodeLens** above every detected SQL statement (standalone `.sql` files plus `spark.sql("...")` blocks in PySpark). Click runs a dry-run / EXPLAIN against the connected engine: bytes scanned, estimated USD cost, rows, tables, warnings, and a plan excerpt. **No actual execution.**
+- **DatabricksQueryAnalyzer** — runs `EXPLAIN COST` on a SQL warehouse with fallback to plain `EXPLAIN` on older runtimes. Parses `Statistics(sizeInBytes=…, rowCount=…)` blocks. Sticky warehouse choice via `aiForge.queryAnalysis.databricksWarehouseId`.
+- **BigQueryQueryAnalyzer** — `jobs.insert` with `dryRun: true`. Free on BigQuery's side. Pulls `totalBytesProcessed` and `referencedTables`.
+- **Heuristic warnings** (engine-agnostic): `SELECT *`, missing partition filter on date-y columns, `CROSS JOIN`, wide date range (>180d via `DATE_SUB`). Engine warnings stack on top: `large-scan` when scan exceeds 50 GB.
+- **QueryAnalysisPanel** — refresh button + **Optimise with AI** button that pipes the analysis into the chat panel so the AI's rewrite is grounded in real cost data.
+- **Settings**: `aiForge.queryAnalysis.enabled`, `databricksUsdPerTb`, `bigqueryUsdPerTb`, `databricksWarehouseId`. Keybinding `Ctrl+Alt+Q` / `⌘⌥Q`.
+- See `docs/QUERY_ANALYSIS.md`.
+
+## [1.5.0] — 2026-05-02
+
+### Added — DE #1: Lineage-Aware Context for dbt + Databricks
+- **AI prompts now include real upstream column schemas.** Open a dbt model or PySpark notebook and Evolve AI walks the file for upstream references — `{{ ref() }}` / `{{ source() }}`, `spark.table()`, `spark.sql(...)` — then looks up real schemas from `target/manifest.json` (with `schema.yml` fallback) or Unity Catalog. **No more hallucinated column names.**
+- **Five UI surfaces** over the same data: CodeLens (column count + stale warnings), Hover (table + column details), Completion (real columns after `table.`), Diagnostics (broken-ref squiggle + Levenshtein "did you mean…?" suggestions), and a **Lineage Explorer panel** (`Ctrl+Alt+L` / `⌘⌥L`).
+- **Chat panel pre-send check** — when a user instruction references a column that doesn't exist in the resolved schemas, Evolve AI flags it pre-send with fuzzy suggestions.
+- **Privacy**: columns tagged `pii` / `pci` / `sensitive` are **redacted** before prompts reach cloud providers (Anthropic / OpenAI / HF). Local providers (Ollama / Gemma 4) always get the full schema.
+- **New contribution point**: `IPlugin.lineageHooks: PluginLineageHook[]` — `extract(file)` → refs, `resolve(refs)` → schemas. Two implementations ship: dbt and Databricks Connected.
+- **Settings**: `aiForge.lineage.enabled`, `includePii`, `maxUpstreamTables`, `providerOrder`.
+- See `docs/LINEAGE.md`.
 
 ## [1.4.3] — 2026-04-19
 

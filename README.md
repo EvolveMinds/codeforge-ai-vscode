@@ -20,6 +20,19 @@
 
 ---
 
+## Built for Data Engineers
+
+If you live in **dbt + Airflow + Databricks/BigQuery** files, Evolve AI is purpose-built for your day:
+
+- **Lineage-aware AI prompts** *(v1.5)* — open a dbt model or PySpark notebook and the AI's suggestions use your **real column names**. Walks `{{ ref() }}` / `{{ source() }}` / `spark.table(...)` and pulls schemas from `target/manifest.json`, `schema.yml`, or Unity Catalog. No more hallucinated columns. → [docs/LINEAGE.md](docs/LINEAGE.md)
+- **Query cost preview** *(v1.7)* — `Ctrl+Alt+Q` shows bytes scanned, estimated USD cost, warnings (`SELECT *`, missing partition filter, cross join, large-scan) before you run. Databricks `EXPLAIN COST` and BigQuery dry-run. Free on BigQuery's side. → [docs/QUERY_ANALYSIS.md](docs/QUERY_ANALYSIS.md)
+- **dbt impact analysis** *(v1.8)* — `Ctrl+Alt+I` opens an Impact panel showing every model + exposure that depends on the one you're editing. *Refactor with AI (impact-aware)* button injects the blast radius into the prompt. → [docs/DBT_MANIFEST.md](docs/DBT_MANIFEST.md)
+- **Airflow DAG simulator** *(v1.9)* — `Ctrl+Alt+D` does static analysis on DAG files: cycles, broken `>>` edges, duplicate `task_id`s, sensor poke-starvation, missing `catchup=False`, invalid cron, TaskFlow `()` mistakes — inline diagnostics + a *Fix all with AI* button. No Python interpreter, no Airflow install required. → [docs/AIRFLOW_SIMULATOR.md](docs/AIRFLOW_SIMULATOR.md)
+
+All four work on cloud LLMs (Anthropic / OpenAI / HF) **and** on local providers (Ollama / Gemma 4) — your data stays where you decide.
+
+---
+
 ## Get Started in 60 Seconds
 
 ```bash

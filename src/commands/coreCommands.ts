@@ -800,6 +800,32 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '1.9.0': [
+    `## 🪂 Evolve AI 1.9.0 — Airflow DAG Simulator\n`,
+    `### Catch broken DAGs before you push\n`,
+    `Open any \`.py\` file containing \`DAG(...)\` or \`@dag(...)\` and Evolve AI now does static analysis on it — no Python interpreter required, no Airflow install needed.\n`,
+    `### What it catches\n`,
+    `- **Cycles** (direct + transitive) and broken \`>>\` edges`,
+    `- **Duplicate \`task_id\`s** (Airflow rejects these at parse time)`,
+    `- **Sensor pitfalls**: \`mode='poke'\` with >1h timeout (worker-slot starvation), missing \`timeout\``,
+    `- **Schedule mistakes**: invalid cron, missing \`catchup=False\` with past \`start_date\``,
+    `- **TaskFlow gotchas**: \`@task\` function referenced without \`()\` in dep chains`,
+    `- **Operator config**: missing \`default_args\` / missing \`retries\`\n`,
+    `### How you'll see it\n`,
+    `- **Inline diagnostics** — yellow/red squiggles on the offending line, source \`aiForge.airflow\``,
+    `- **CodeLens at line 0**: \`$(circuit-board) Airflow DAG: 7 tasks · 2 warnings — open simulator\``,
+    `- **Simulator panel** (\`Ctrl+Alt+D\` / \`⌘⌥D\`): stats, ASCII task graph, click-to-jump issue list, **Fix all with AI** button\n`,
+    `### How "Fix all with AI" works\n`,
+    `The analyzer's exact issue list is prepended to your AI prompt — so the rewrite targets the actual problems, not generic "improve this DAG" guidance.\n`,
+    `### Settings (under \`aiForge.airflow.simulator.*\`)\n`,
+    `- \`enabled\` (default \`true\`)`,
+    `- \`runOnSave\` (default \`true\`) — false for live diagnostics`,
+    `- \`severity\` (default \`warning\`) — minimum severity to surface\n`,
+    `### Marketplace discoverability — major refresh\n`,
+    `The Marketplace listing now leads with the data-engineering features. Description and keywords overhauled so DEs searching for "dbt lineage", "bigquery cost", "airflow lint", "data engineering" can find the extension.\n`,
+    `---\n`,
+    `Full guide: [docs/AIRFLOW_SIMULATOR.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/docs/AIRFLOW_SIMULATOR.md)`,
+  ].join('\n'),
   '1.8.0': [
     `## 🌳 Evolve AI 1.8.0 — dbt Manifest Integration\n`,
     `### Know what breaks before you ship it\n`,

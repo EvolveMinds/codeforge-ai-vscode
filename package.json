@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "Free AI coding assistant with auto-detecting stack plugins. Runs locally with Ollama & Gemma 4 (private, offline) or cloud (Claude, OpenAI, HuggingFace). 13 plugins for Databricks, Terraform, Docker, K8s, Django, FastAPI & more. Now with deterministic code cleanup (Biome, Ruff, ESLint, Prettier, gofmt, rustfmt).",
-  "version": "1.8.0",
+  "description": "AI coding assistant for data engineers — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, Spark/Unity Catalog. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "1.9.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -13,14 +13,37 @@
     "Programming Languages",
     "Machine Learning",
     "Data Science",
-    "Testing"
+    "Testing",
+    "Linters"
   ],
   "keywords": [
     "ai",
     "copilot alternative",
     "ollama",
     "gemma",
-    "code assistant"
+    "claude",
+    "code assistant",
+    "data engineering",
+    "dbt",
+    "dbt lineage",
+    "dbt impact",
+    "dbt manifest",
+    "databricks",
+    "unity catalog",
+    "spark",
+    "pyspark",
+    "bigquery",
+    "bigquery cost",
+    "query cost",
+    "explain cost",
+    "airflow",
+    "dag",
+    "airflow lint",
+    "etl",
+    "data pipeline",
+    "data lineage",
+    "snowflake",
+    "delta lake"
   ],
   "repository": {
     "type": "git",
@@ -233,6 +256,21 @@
       {
         "command": "aiForge.dbt.refactorWithImpact",
         "title": "dbt: Refactor with Impact Context (AI)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.airflow.simulate",
+        "title": "Airflow: DAG Simulator (Static Analysis)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.airflow.refresh",
+        "title": "Airflow: Re-run DAG Simulator",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.airflow.fixIssues",
+        "title": "Airflow: Fix DAG Issues with AI",
         "category": "Evolve AI"
       },
       {
@@ -1155,6 +1193,12 @@
         "key": "ctrl+alt+i",
         "mac": "cmd+alt+i",
         "when": "editorLangId == sql || editorLangId == jinja-sql"
+      },
+      {
+        "command": "aiForge.airflow.simulate",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d",
+        "when": "editorLangId == python"
       }
     ],
     "menus": {
@@ -1415,6 +1459,22 @@
           "type": "number",
           "default": 5,
           "description": "Maximum depth (in graph hops) when computing transitive downstream impact. Higher values cover more of the DAG but cost more to compute."
+        },
+        "aiForge.airflow.simulator.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable static analysis (cycle / orphan / schedule / operator checks) on Airflow DAG files."
+        },
+        "aiForge.airflow.simulator.runOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-run DAG analysis only on save. When false, runs on every edit (live diagnostics — slower on big DAGs)."
+        },
+        "aiForge.airflow.simulator.severity": {
+          "type": "string",
+          "enum": ["error", "warning", "info"],
+          "default": "warning",
+          "description": "Minimum severity to surface as a diagnostic. Lower values show more issues."
         },
         "aiForge.codeAnalysis.enabled": {
           "type": "boolean",

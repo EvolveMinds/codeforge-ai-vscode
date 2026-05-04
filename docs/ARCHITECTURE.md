@@ -249,6 +249,29 @@ The impact features (`ui/dbtImpactPanel.ts`, `ui/dbtImpactProvider.ts`) and the
 `aiForge.dbt.*` commands in `extension.ts` are pure consumers of these APIs.
 See `docs/DBT_MANIFEST.md` for the user-facing guide.
 
+#### Airflow DAG Static Analyzer (DE #4 — DAG simulator)
+
+`src/plugins/airflowDagAnalyzer.ts` is a pure-string parser + checker for
+Airflow DAG files. No Python interpreter required; the analyzer is
+vscode-import-free so it can be unit-tested directly under Node.
+
+Public API:
+- `looksLikeAirflowDag(content, path)` → boolean (heuristic file detection)
+- `parseDag(content)` → `DagModel { dagId, schedule, startDate, catchup, defaultArgs, tasks, edges }`
+- `analyzeDag(content)` → `DagAnalysis { dag, issues, stats }`
+- `renderAnalysisOneLine(a)` → CodeLens summary
+- `renderAnalysisForPrompt(a)` → markdown summary for the AI fix flow
+
+Checks: cycles, undefined dependencies, duplicate task_ids, missing
+default_args / retries, sensor poke-starvation, missing-catchup-false,
+invalid cron, TaskFlow `@task` referenced without parens.
+
+Consumers in `src/ui/`:
+- `airflowSimulatorProvider.ts` — `AirflowSimulatorController` (diagnostics + per-doc cache) + `AirflowSimulatorCodeLensProvider`
+- `airflowSimulatorPanel.ts` — `AirflowSimulatorPanel` webview with ASCII task graph
+
+See `docs/AIRFLOW_SIMULATOR.md` for the user-facing guide.
+
 #### PluginContextHook
 
 Called on every `ContextService.build()`. The plugin collects data from the workspace and

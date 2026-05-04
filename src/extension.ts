@@ -28,6 +28,9 @@ import { QueryAnalysisPanel }      from './ui/queryAnalysisPanel';
 import { extractStatementsFromFile, sha1, summariseAnalysisOneLine } from './plugins/queryAnalysis';
 import { DbtImpactPanel }          from './ui/dbtImpactPanel';
 import { registerDbtImpactProvider } from './ui/dbtImpactProvider';
+import { registerAirflowSimulator } from './ui/airflowSimulatorProvider';
+import { AirflowSimulatorPanel }   from './ui/airflowSimulatorPanel';
+import { renderAnalysisForPrompt } from './plugins/airflowDagAnalyzer';
 import {
   loadManifest as loadDbtManifest,
   findDbtProjectRoot as findDbtRoot,
@@ -257,6 +260,42 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
     }),
   );
   void loadDbtManifest;
+
+  // 4f. [DE-4] Airflow DAG simulator (static analysis, diagnostics, CodeLens, panel)
+  const airflowController = registerAirflowSimulator(vsCtx);
+  vsCtx.subscriptions.push(
+    vscode.commands.registerCommand('aiForge.airflow.simulate', async (uri?: vscode.Uri) => {
+      if (uri) {
+        const doc = await vscode.workspace.openTextDocument(uri);
+        await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.One, preserveFocus: true });
+        AirflowSimulatorPanel.showForUri(airflowController, uri);
+      } else {
+        AirflowSimulatorPanel.showForActive(airflowController);
+      }
+    }),
+
+    vscode.commands.registerCommand('aiForge.airflow.refresh', () => {
+      const active = vscode.window.activeTextEditor;
+      if (!active) { vscode.window.showInformationMessage('No active file.'); return; }
+      airflowController.refresh(active.document);
+      vscode.window.setStatusBarMessage('Evolve AI: DAG analysis refreshed', 2000);
+    }),
+
+    vscode.commands.registerCommand('aiForge.airflow.fixIssues', async (uri?: vscode.Uri) => {
+      const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!targetUri) { vscode.window.showWarningMessage('No active DAG file.'); return; }
+      const analysis = airflowController.get(targetUri);
+      if (!analysis || analysis.issues.length === 0) {
+        vscode.window.showInformationMessage('No DAG issues to fix.');
+        return;
+      }
+      const doc = await vscode.workspace.openTextDocument(targetUri);
+      const code = doc.getText();
+      const summary = renderAnalysisForPrompt(analysis);
+      const instruction = `Fix the issues in this Airflow DAG. The static analyzer found:\n\n${summary}\n\nReturn ONLY the complete updated file. Preserve the existing logic; just fix the issues.\n\nDAG file:\n\`\`\`python\n${code}\n\`\`\``;
+      await vscode.commands.executeCommand('aiForge._sendToChat', instruction, 'edit');
+    }),
+  );
 
   // 4a. Code analysis (lint/format) — triggers + commands + status bar
   new AnalysisController(svc);

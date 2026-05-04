@@ -159,6 +159,24 @@ Evolve AI automatically detects your tech stack and activates matching plugins. 
 
 ---
 
+## For Data Engineers — Quick Start
+
+If you work with **dbt + Airflow + Databricks/BigQuery**, four features turn on automatically when the right files are in your workspace:
+
+| Feature | Trigger | Keybinding | What it does |
+|---|---|---|---|
+| **Lineage-aware AI** | Open a dbt model or PySpark file | (no key — just runs) | AI prompts use real column names from `target/manifest.json` / Unity Catalog. CodeLens, Hover, Completion, Diagnostics on `ref()` / `spark.table()`. |
+| **Lineage panel** | Same as above | `Ctrl+Alt+L` / `⌘⌥L` | Webview listing every resolved upstream table + columns + tests |
+| **dbt Impact panel** | Open any dbt model | `Ctrl+Alt+I` / `⌘⌥I` | Direct + transitive downstream models, exposures, tests; "Refactor with AI (impact-aware)" button |
+| **Query cost preview** | SQL file or `spark.sql(...)` block | `Ctrl+Alt+Q` / `⌘⌥Q` | Bytes scanned + estimated cost via Databricks `EXPLAIN COST` or BigQuery dry-run. *No execution.* "Optimise with AI" button. |
+| **Airflow DAG simulator** | Python file containing `DAG(...)` or `@dag(...)` | `Ctrl+Alt+D` / `⌘⌥D` | Inline diagnostics for cycles, broken deps, sensor traps, cron typos, more. "Fix all with AI" button. |
+
+**To unlock query cost previews:** run `Databricks: Connect` (provides EXPLAIN COST) or `GCP: Connect` (provides BigQuery dry-run, free). Lineage falls back to local `schema.yml` if Unity Catalog isn't connected, and to manifest-only if neither connection exists.
+
+Detailed guides: [LINEAGE.md](docs/LINEAGE.md) · [QUERY_ANALYSIS.md](docs/QUERY_ANALYSIS.md) · [DBT_MANIFEST.md](docs/DBT_MANIFEST.md) · [AIRFLOW_SIMULATOR.md](docs/AIRFLOW_SIMULATOR.md)
+
+---
+
 ## Step 5: Connect to Cloud Platforms (Optional)
 
 If you work with Databricks, AWS, GCP, or Azure, you can connect Evolve AI to your cloud accounts for live management, debugging, and deployment.
