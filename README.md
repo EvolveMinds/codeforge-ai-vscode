@@ -15,6 +15,7 @@
 - **Auto-detecting stack plugins** — 13 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, and more.
 - **Any AI provider** — bring your own model or API key. Switch between local and cloud in one click.
 - **Deep context** — understands your active file, related files, diagnostics, git state, and cloud platform connections.
+- **Connect to GitHub or Bitbucket in one click** *(v2.0)* — wizard handles git install, identity, init/clone, auth (PAT / SSH / VS Code GitHub auth / `gh` CLI), and verifies the connection. → [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md)
 
 > Also works in **Cursor**, **VSCodium**, and other VS Code forks.
 
@@ -49,6 +50,19 @@ ollama pull qwen2.5-coder:7b  # Qwen — optimized for code
 ```
 
 No API key. No account. No data leaving your machine. That's it.
+
+### Connecting your repo to GitHub or Bitbucket *(new in v2.0)*
+
+Open the command palette and run **Evolve AI: Connect Git Remote (Wizard)**, or click the `· not connected` hint in the status bar. The wizard:
+
+1. Installs Git if missing (Win / mac / linux instructions)
+2. Sets your `user.name` / `user.email` if not already configured
+3. Initialises / clones / links a repo
+4. Authenticates: **VS Code GitHub** (built-in, recommended for github.com) · **PAT** · **SSH ed25519** · **`gh auth login`** — pick what fits you
+5. Optionally creates a new repo on GitHub or Bitbucket via API
+6. Verifies the connection with `git ls-remote origin`
+
+Tokens are stored in `vscode.SecretStorage` — they never touch `settings.json`. Existing `credential.helper` is never overwritten. Full guide: [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md).
 
 ---
 

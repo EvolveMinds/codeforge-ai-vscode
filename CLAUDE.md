@@ -25,7 +25,8 @@ evolve-ai-vscode/
 ├── CLAUDE.md                    ← you are here
 ├── docs/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
-│   └── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
+│   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
+│   └── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -40,15 +41,19 @@ evolve-ai-vscode/
     │   ├── contextService.ts    ← project context assembly + plugin hooks
     │   ├── workspaceService.ts  ← file ops, transforms, diff preview
     │   ├── eventBus.ts          ← typed pub/sub event system
+    │   ├── processUtil.ts       ← shared spawn-with-timeout helpers (used by both wizards)
     │   ├── hardwareInspector.ts ← RAM/GPU/disk/Ollama detection for Gemma 4 wizard
-    │   └── setupOrchestrator.ts ← one-click Gemma 4 install pipeline (Ollama + model)
+    │   ├── setupOrchestrator.ts ← one-click Gemma 4 install pipeline (Ollama + model)
+    │   ├── gitConnectInspector.ts    ← detects git/identity/repo/remote/auth for Git wizard
+    │   └── gitConnectOrchestrator.ts ← step-by-step Git/Bitbucket connect (PAT/SSH/built-in/gh)
     ├── ui/
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
     │   └── inlineActions.ts     ← CodeLens + lightbulb CodeAction providers
     ├── commands/
-    │   └── coreCommands.ts      ← all core commands as a class
+    │   ├── coreCommands.ts      ← all core commands as a class
+    │   └── gitConnectCommands.ts ← Git/Bitbucket Connect Wizard commands (4 cmds)
     ├── test/
     │   ├── runTest.ts           ← VS Code test runner entry point
     │   ├── mocks.ts             ← Mock implementations of IAIService, IContextService, etc.
@@ -89,6 +94,10 @@ to undo.
 | Event bus | `core/eventBus.ts` | ✅ Complete |
 | Hardware inspector | `core/hardwareInspector.ts` | ✅ Complete |
 | Setup orchestrator | `core/setupOrchestrator.ts` | ✅ Complete |
+| Process util (shared) | `core/processUtil.ts` | ✅ Complete |
+| Git Connect inspector | `core/gitConnectInspector.ts` | ✅ Complete |
+| Git Connect orchestrator | `core/gitConnectOrchestrator.ts` | ✅ Complete |
+| Git Connect commands | `commands/gitConnectCommands.ts` | ✅ Complete |
 | Chat panel (sidebar) | `ui/chatPanel.ts` | ✅ Complete |
 | Chat editor tab (Claude-style) | `ui/chatEditorPanel.ts` | ✅ Complete |
 | Status bar | `ui/statusBar.ts` | ✅ Complete |
@@ -211,7 +220,7 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (28 total)
+## Commands currently registered (32 total)
 
 ### Core (18)
 | Command ID | Keybinding | Description |
@@ -234,6 +243,14 @@ are merged into the core system transparently:
 | `aiForge.setupOllama` | — | Open Ollama setup page |
 | `aiForge.gemma4Info` | — | Show Gemma 4 info, tips & variant comparison |
 | `aiForge.whatsNew` | — | Show release notes for the current version |
+
+### Git Connect Wizard (4)
+| Command ID | Keybinding | Description |
+|---|---|---|
+| `aiForge.gitConnect.start` | — | Run the Git/Bitbucket connect wizard end-to-end |
+| `aiForge.gitConnect.status` | — | One-line summary of connection state + jump to wizard |
+| `aiForge.gitConnect.disconnect` | — | Clear stored PATs and the VS Code GitHub session |
+| `aiForge.gitConnect.testConnection` | — | Re-run `git ls-remote origin` to verify the remote |
 
 ### Databricks plugin (10)
 `aiForge.databricks.explainJob` · `aiForge.databricks.optimiseQuery` ·
@@ -267,6 +284,20 @@ are merged into the core system transparently:
 | `contextBudgetChars` | number | `24000` | Total character cap across all context parts |
 | `autoRunFix` | boolean | `false` | Auto-fix errors after running a script |
 | `disabledPlugins` | array | `[]` | Plugin IDs to disable (`["databricks"]`) |
+| `gitConnect.preferredAuth` | string | `auto` | `auto` / `github-builtin` / `pat` / `ssh` / `gh-cli` — pre-selected auth method in the wizard |
+| `gitConnect.autoVerify` | boolean | `true` | Run `git ls-remote origin` after the wizard finishes |
+| `gitConnect.pushOnConnect` | boolean | `false` | After creating remote, run `git push -u origin HEAD` |
+| `gitConnect.statusHint` | boolean | `true` | Show `· not connected` in status bar + first-run nudge toast |
+
+### SecretStorage keys (never in settings.json)
+
+| Key | Purpose |
+|---|---|
+| `aiForge.anthropicKey` | Anthropic API key |
+| `aiForge.openaiKey` | OpenAI API key |
+| `aiForge.huggingfaceKey` | Hugging Face API key |
+| `aiForge.githubPAT` | GitHub Personal Access Token (Git Connect Wizard) |
+| `aiForge.bitbucketPAT` | Bitbucket App Password — stored as `username:app_password` |
 
 ---
 

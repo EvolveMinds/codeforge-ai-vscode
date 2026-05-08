@@ -18,6 +18,7 @@ import { ChatEditorPanel }         from './ui/chatEditorPanel';
 import { StatusBarService }        from './ui/statusBar';
 import { registerInlineProviders } from './ui/inlineActions';
 import { CoreCommands }            from './commands/coreCommands';
+import { GitConnectCommands }      from './commands/gitConnectCommands';
 import { AnalysisController }      from './analysis/controller';
 import { LineageStore }            from './ui/lineageStore';
 import { registerLineageProviders } from './ui/lineageProviders';
@@ -69,6 +70,7 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
 
   // 4. Commands
   new CoreCommands(svc).register();
+  new GitConnectCommands(svc).register();
 
   // 4b. [DE-1] Lineage commands
   vsCtx.subscriptions.push(

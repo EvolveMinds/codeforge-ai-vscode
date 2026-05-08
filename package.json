@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, Spark/Unity Catalog. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "1.9.0",
+  "description": "AI coding assistant for data engineers — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, Spark/Unity Catalog. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "2.0.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -43,7 +43,16 @@
     "data pipeline",
     "data lineage",
     "snowflake",
-    "delta lake"
+    "delta lake",
+    "github setup",
+    "github auth",
+    "bitbucket connect",
+    "git wizard",
+    "git connect",
+    "ssh key",
+    "personal access token",
+    "pat",
+    "git remote"
   ],
   "repository": {
     "type": "git",
@@ -207,6 +216,23 @@
       {
         "command": "aiForge.whatsNew",
         "title": "Evolve AI: What's New"
+      },
+      {
+        "command": "aiForge.gitConnect.start",
+        "title": "Evolve AI: Connect Git Remote (Wizard)",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "aiForge.gitConnect.status",
+        "title": "Evolve AI: Git Connection Status"
+      },
+      {
+        "command": "aiForge.gitConnect.disconnect",
+        "title": "Evolve AI: Disconnect Git Credentials"
+      },
+      {
+        "command": "aiForge.gitConnect.testConnection",
+        "title": "Evolve AI: Test Git Remote Connection"
       },
       {
         "command": "aiForge.lineage.showPanel",
@@ -1522,6 +1548,40 @@
           "default": 10,
           "description": "Minimum number of issues before a popup is shown (when surface = 'popup' or 'both')."
         },
+        "aiForge.gitConnect.preferredAuth": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "github-builtin",
+            "pat",
+            "ssh",
+            "gh-cli"
+          ],
+          "enumDescriptions": [
+            "Auto-detect: VS Code GitHub auth for github.com, PAT for everything else",
+            "Sign in to GitHub via VS Code's built-in auth provider (recommended for github.com)",
+            "Personal Access Token / Bitbucket app password — works everywhere, you paste a token",
+            "SSH key — generate ed25519, add to platform, test",
+            "GitHub CLI (`gh auth login`) — only available if `gh` is installed"
+          ],
+          "default": "auto",
+          "description": "Pre-selected authentication method shown first in the Git Connect wizard."
+        },
+        "aiForge.gitConnect.autoVerify": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run `git ls-remote origin` after the wizard finishes to confirm the remote is reachable."
+        },
+        "aiForge.gitConnect.pushOnConnect": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, the wizard runs `git push -u origin HEAD` after creating / linking the remote so your first commits ship immediately."
+        },
+        "aiForge.gitConnect.statusHint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When a repo has no remote configured, show a `· not connected` hint in the status bar and a one-time toast offering to run the Git Connect wizard. Set to false to disable both."
+        },
         "aiForge.codeAnalysis.consent.autoApply": {
           "type": "object",
           "default": {
@@ -1544,13 +1604,14 @@
     "postinstall": "node scripts/download-binaries.js",
     "download-bins": "node scripts/download-binaries.js",
     "download-bins:all": "node scripts/download-binaries.js --all",
+    "clean:bin":          "node -e \"require('fs').rmSync('bin', { recursive: true, force: true })\"",
     "package": "vsce package",
-    "package:win-x64":    "node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
-    "package:win-arm64":  "node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
-    "package:mac-x64":    "node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
-    "package:mac-arm64":  "node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
-    "package:linux-x64":  "node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
-    "package:linux-arm64":"node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
+    "package:win-x64":    "npm run clean:bin && node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
+    "package:win-arm64":  "npm run clean:bin && node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
+    "package:mac-x64":    "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
+    "package:mac-arm64":  "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
+    "package:linux-x64":  "npm run clean:bin && node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
+    "package:linux-arm64":"npm run clean:bin && node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {

@@ -243,6 +243,60 @@ This outputs `appId`, `password`, and `tenant`.
 
 ---
 
+## Step 6: Connect Your Repo to GitHub or Bitbucket *(new in v2.0)*
+
+If your workspace isn't connected to a remote yet — or you want to rotate auth — Evolve AI ships a one-click wizard that mirrors the Gemma 4 setup flow.
+
+### Run the wizard
+
+1. Press `Ctrl+Shift+P` → **Evolve AI: Connect Git Remote (Wizard)**
+   *(Or click the `· not connected` hint in the bottom status bar.)*
+2. The wizard inspects your system (git installed? identity set? remote configured? SSH keys? gh CLI? VS Code GitHub session?) and tells you exactly what's missing.
+3. It walks you through whichever steps need attention:
+   - **Install Git** if missing — installer link on Win/macOS, install command in a managed terminal on Linux. The wizard polls `git --version` and resumes when ready (5-min timeout).
+   - **Set name + email** if `git config --global user.name`/`user.email` aren't set.
+   - **Initialise / clone / link** the workspace as a git repo.
+   - **Authenticate** — pick the method that fits you:
+     - **Sign in with VS Code** *(recommended for github.com)* — uses VS Code's built-in GitHub auth. No token to paste, refresh handled for you.
+     - **Personal Access Token / Bitbucket App Password** — wizard opens the right "create token" page, validates the token against the platform's API, then stores it in `vscode.SecretStorage`. Bitbucket app passwords use the form `username:app_password`.
+     - **SSH** — generates an ed25519 keypair, copies the `.pub` to your clipboard, opens the platform's "Add SSH key" page, then tests `ssh -T`.
+     - **GitHub CLI** — only offered if `gh --version` works. Runs `gh auth login` in a managed terminal.
+   - **Create a new repo** on GitHub or Bitbucket via API *(optional)* — provide `owner/name`, choose visibility, the wizard calls `POST /user/repos` (or Bitbucket equivalent) and links it as `origin`.
+   - **Push HEAD** *(optional, off by default)* — set `aiForge.gitConnect.pushOnConnect` to `true` to run `git push -u origin HEAD` after creating the remote.
+   - **Verify** — `git ls-remote origin` confirms the connection works before the wizard finishes.
+
+### Where things are stored
+
+- **PATs and app passwords** → `vscode.SecretStorage`. Never `settings.json`.
+- **SSH private keys** → `~/.ssh/id_ed25519`. The wizard never reads them; only generates them at your request.
+- **Existing `credential.helper`** → never overwritten. If one is present, we use SecretStorage + a URL-embedded token (with explicit consent).
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `Evolve AI: Connect Git Remote (Wizard)` | Run the full wizard end-to-end |
+| `Evolve AI: Git Connection Status` | One-line summary, jump back into the wizard if needed |
+| `Evolve AI: Disconnect Git Credentials` | Clear stored PATs / VS Code GitHub session (SSH keys are never deleted) |
+| `Evolve AI: Test Git Remote Connection` | Re-run `git ls-remote origin` on demand |
+
+### Settings (`aiForge.gitConnect.*`)
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `preferredAuth` | `auto` | Pre-select an auth method in the wizard |
+| `autoVerify` | `true` | Run `git ls-remote` after the wizard finishes |
+| `pushOnConnect` | `false` | Push HEAD to origin after creating the remote |
+| `statusHint` | `true` | Show `· not connected` in status bar + first-run nudge toast |
+
+Full guide: [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md).
+
+### Untrusted workspaces
+
+The wizard refuses to run in untrusted workspaces (matches the policy that protects host settings). Trust the workspace from the toolbar before connecting Git.
+
+---
+
 ## Keyboard Shortcuts
 
 | Action | Windows / Linux | Mac |
@@ -318,6 +372,30 @@ Check the status dot:
 **Ollama upgrade fails during setup**
 - The wizard auto-upgrades Ollama when it's older than 0.3.10
 - If it fails, manually download from [ollama.com](https://ollama.com), install, then re-run the wizard
+
+### Git Connect Wizard issues
+
+**"This workspace is not trusted" — wizard refuses to start**
+- The wizard never runs in untrusted workspaces (matches the policy that protects host settings).
+- Click "Trust" in the workbench toolbar, then re-run **Evolve AI: Connect Git Remote (Wizard)**.
+
+**`ssh-keygen: command not found` on Windows**
+- The OpenSSH client isn't installed. Open **Settings → Apps → Optional features → Add a feature → "OpenSSH Client"** and install it. Re-run the wizard.
+
+**SSH test reports "Host key verification failed"**
+- This usually means a stale entry in `~/.ssh/known_hosts`. The wizard passes `-o StrictHostKeyChecking=accept-new`, which auto-accepts on first connect; if you're hitting this on an existing key, run `ssh-keygen -R github.com` (or `bitbucket.org`) and retry.
+
+**Bitbucket PAT is rejected**
+- Bitbucket app passwords need the form `username:app_password` — paste the username and the app password joined by a colon. Token-only doesn't work because Bitbucket uses HTTP Basic auth.
+
+**`gh auth login` opens a browser but the wizard says "not logged in"**
+- Make sure you completed the browser flow before clicking "I'm done" in the wizard prompt. The wizard verifies with `gh auth status --hostname github.com` — if it fails, run that command in a terminal to see the real error.
+
+**"git push failed" after `pushOnConnect` is enabled**
+- The default branch may differ from `HEAD` on the platform. Check the platform's repo page for the expected default branch (`main` vs `master`), then run `git push -u origin <branch>` manually.
+
+**Clearing credentials but the user still seems "logged in"**
+- `Evolve AI: Disconnect Git Credentials` clears stored PATs. To fully sign out of VS Code's GitHub provider, click the **Accounts** icon (bottom-left of the workbench) → GitHub → **Sign Out**.
 
 ---
 

@@ -13,8 +13,8 @@
 
 import * as vscode from 'vscode';
 import * as http   from 'http';
-import { spawn }   from 'child_process';
 import { persistOrPromptReload } from './configSafe';
+import { waitForCommand }        from './processUtil';
 import type { HardwareProfile } from './hardwareInspector';
 
 export interface SetupStep {
@@ -165,22 +165,7 @@ export class SetupOrchestrator {
 
   /** Poll for `ollama --version` to succeed, up to timeoutMs. */
   private _waitForOllama(signal: AbortSignal, timeoutMs: number): Promise<boolean> {
-    const start = Date.now();
-    return new Promise(resolve => {
-      const check = () => {
-        if (signal.aborted)              return resolve(false);
-        if (Date.now() - start > timeoutMs) return resolve(false);
-        const proc = spawn('ollama', ['--version'], { shell: false, windowsHide: true });
-        let ok = false;
-        proc.on('close', (code: number | null) => {
-          ok = code === 0;
-          if (ok) return resolve(true);
-          setTimeout(check, 3_000);
-        });
-        proc.on('error', () => setTimeout(check, 3_000));
-      };
-      check();
-    });
+    return waitForCommand('ollama', ['--version'], signal, timeoutMs);
   }
 
   private async _pullModel(ollamaHost: string, model: string, progress: StepProgress, signal: AbortSignal): Promise<void> {

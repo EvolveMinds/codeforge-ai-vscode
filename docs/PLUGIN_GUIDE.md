@@ -712,6 +712,40 @@ be omitted from `package.json`, but then users cannot assign keybindings to them
 
 ---
 
+## Reading Git auth state from a plugin (v2.0.0+)
+
+The Git Connect Wizard stores credentials in two places. If your plugin needs to know whether the workspace is connected — for example, a CI/CD plugin that wants to call the GitHub API — read from these *in this order*:
+
+1. **VS Code's GitHub auth provider** *(preferred for github.com)*
+   ```ts
+   const session = await vscode.authentication.getSession('github', ['repo'], { silent: true });
+   if (session?.accessToken) { /* authenticated */ }
+   ```
+   - `silent: true` — never prompts the user; returns `undefined` if no session exists.
+   - VS Code handles refresh and revocation. **Never persist this token** to disk.
+
+2. **SecretStorage PATs** *(GitHub fallback + Bitbucket only)*
+   ```ts
+   const githubPAT    = await services.ai.getSecret('aiForge.githubPAT');
+   const bitbucketPAT = await services.ai.getSecret('aiForge.bitbucketPAT');
+   ```
+   Bitbucket app passwords are stored as `username:app_password`.
+
+3. **Read-only connection state** *(for context hooks)*
+   The Git plugin already exposes a `git.connection` context hook that returns `{ connected, host, protocol }`. If you need this in a system-prompt section, read it from the plugin registry — don't reinvent the detection.
+
+### Don't roll your own auth flow
+
+The four auth methods (`github-builtin`, `pat`, `ssh`, `gh-cli`) are unified through `services.gitConnectOrchestrator`. If your plugin needs the user to authenticate, **invoke the wizard** instead of building your own prompts:
+
+```ts
+await vscode.commands.executeCommand('aiForge.gitConnect.start');
+```
+
+This way users get the same secure, validated, cancellable flow regardless of which plugin asked.
+
+---
+
 ## Verification checklist
 
 Run this after building your plugin to catch structural problems:

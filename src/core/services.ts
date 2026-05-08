@@ -17,6 +17,8 @@ import { PluginRegistry }   from './plugin';
 import { EventBus }         from './eventBus';
 import { HardwareInspector } from './hardwareInspector';
 import { SetupOrchestrator } from './setupOrchestrator';
+import { GitConnectInspector }    from './gitConnectInspector';
+import { GitConnectOrchestrator } from './gitConnectOrchestrator';
 import { AnalysisService }  from '../analysis/analysisService';
 import { ConsentStore }     from '../analysis/consentStore';
 import type { IAIService }        from './interfaces';
@@ -33,6 +35,10 @@ export interface IServices {
   readonly events:    EventBus;
   readonly inspector: HardwareInspector;
   readonly setup:     SetupOrchestrator;
+  /** Git Connect wizard. Present in production; tests may omit. */
+  readonly gitConnectInspector?:    GitConnectInspector;
+  /** Git Connect wizard. Present in production; tests may omit. */
+  readonly gitConnectOrchestrator?: GitConnectOrchestrator;
   /** Present in production; plugins and tests may use mocks that omit it. */
   readonly analysis?: AnalysisService;
   /** Present in production; plugins and tests may use mocks that omit it. */
@@ -51,6 +57,8 @@ export class ServiceContainer implements IServices {
   readonly workspace: IWorkspaceService;
   readonly inspector: HardwareInspector;
   readonly setup:     SetupOrchestrator;
+  readonly gitConnectInspector:    GitConnectInspector;
+  readonly gitConnectOrchestrator: GitConnectOrchestrator;
   readonly analysis:  AnalysisService;
   readonly consent:   ConsentStore;
 
@@ -62,6 +70,8 @@ export class ServiceContainer implements IServices {
     this.workspace = new WorkspaceService(this.plugins, this.ai, this.context, vsCtx, this.events);
     this.inspector = new HardwareInspector();
     this.setup     = new SetupOrchestrator();
+    this.gitConnectInspector    = new GitConnectInspector(vsCtx.secrets);
+    this.gitConnectOrchestrator = new GitConnectOrchestrator(this.gitConnectInspector, vsCtx.secrets);
     this.analysis  = new AnalysisService({ extensionPath: vsCtx.extensionPath, ctx: vsCtx });
     this.consent   = new ConsentStore(vsCtx);
   }

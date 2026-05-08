@@ -150,7 +150,14 @@ function extractSingleFromZip(zipPath, innerName, destPath) {
 function extractSingleFromTarGz(tarPath, innerName, destPath) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ruff-'));
   try {
-    execSync(`tar -xzf "${tarPath}" -C "${tmpDir}"`, { stdio: 'inherit' });
+    // Workaround: GNU tar on Windows (Git-for-Windows tar.exe) interprets
+    // `D:\path\file.tar.gz` as `host:path` (rsh remote syntax) and tries to
+    // SSH into "D". Copy the archive into tmpDir first and extract via a
+    // relative path so no drive-letter ever appears in tar's args.
+    const localTar = path.join(tmpDir, 'archive.tar.gz');
+    fs.copyFileSync(tarPath, localTar);
+    execSync(`tar -xzf archive.tar.gz`, { cwd: tmpDir, stdio: 'inherit' });
+    fs.unlinkSync(localTar);
     const found = findFile(tmpDir, innerName);
     if (!found) throw new Error(`Not found in archive: ${innerName}`);
     fs.copyFileSync(found, destPath);

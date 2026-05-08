@@ -2,6 +2,37 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.0.0] — 2026-05-08
+
+### Added — Git/Bitbucket Connect Wizard
+- **One-click wizard** that takes a user from "fresh folder" or "disconnected repo" to a verified remote, mirroring the Gemma 4 setup wizard pattern. Run **Evolve AI: Connect Git Remote (Wizard)** from the command palette, or click the `· not connected` hint in the status bar.
+- **Detects** git installation + version, global identity (`user.name` / `user.email`), repo state (init? branch? has commits?), remote configuration (origin URL, host, protocol), SSH keys in `~/.ssh`, GitHub CLI presence + auth state, an existing VS Code GitHub session, the user's current `credential.helper`, and previously-stored PATs.
+- **Walks** the user through whichever steps are missing: installs git via official installer / `xcode-select` / package manager, sets identity, runs `git init` / `git clone` / `git remote add origin`, configures auth, optionally **creates a new repo on GitHub or Bitbucket via API**, optionally `git push -u origin HEAD`, and finally verifies with `git ls-remote origin`.
+- **Four auth methods**, picked from a quick pick filtered to what makes sense for the host:
+  - **VS Code GitHub auth** (`vscode.authentication.getSession('github', …)`) — recommended for github.com; no token to paste, refresh handled for you.
+  - **Personal Access Token / Bitbucket App Password** — validates against `GET /user` (GitHub) or `GET /2.0/user` (Bitbucket) before storing in `vscode.SecretStorage`.
+  - **SSH** — generates an ed25519 keypair via `ssh-keygen` (no shell quoting issues on Windows), copies `.pub` to clipboard, opens the platform's "Add SSH key" page, then tests with `ssh -T`.
+  - **GitHub CLI** — runs `gh auth login` in a managed terminal; only offered if `gh --version` works.
+- **Four new commands**: `aiForge.gitConnect.start`, `aiForge.gitConnect.status`, `aiForge.gitConnect.disconnect`, `aiForge.gitConnect.testConnection`.
+- **Four new settings** under `aiForge.gitConnect.*`: `preferredAuth`, `autoVerify`, `pushOnConnect`, `statusHint`.
+- **Two new SecretStorage keys**: `aiForge.githubPAT`, `aiForge.bitbucketPAT`. Tokens never touch `settings.json`.
+- **First-run nudge**: when a repo with no remote opens, a single non-blocking toast offers to run the wizard. Dismissed forever via "Don't show again".
+- **Status bar hint**: the Git plugin's status item appends `· not connected` when no `origin` is configured (toggle via `aiForge.gitConnect.statusHint`).
+- **AI context hook**: a new `git.connection` plugin context hook tells the AI whether the workspace is connected to a remote and which platform it's on.
+- See [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md) for the full guide, troubleshooting, and what gets stored where.
+
+### Security & privacy
+- Wizard **refuses to run** in untrusted workspaces.
+- An existing `credential.helper` is **never overwritten** — when one is present, we use SecretStorage + a URL-embedded token (with explicit consent) instead.
+- SSH private keys are **never read**; we only ever generate them at the user's request and copy the `.pub` to the clipboard.
+- All API calls have a 10s timeout and degrade to a single error toast — no nested errors, no silent hangs.
+
+### Refactor
+- Extracted spawn-with-timeout helpers into a new `src/core/processUtil.ts`. `hardwareInspector.ts` and `setupOrchestrator.ts` now share `runCommand`, `runForStdout`, `waitForCommand`, and `versionLessThan` helpers with the new wizard, killing three near-duplicate copies of the pattern.
+
+### Marketplace
+- Description and keywords expanded with "github setup", "bitbucket connect", "git wizard", "ssh key", "personal access token", "git remote" so users searching for git-onboarding tooling find Evolve AI.
+
 ## [1.9.0] — 2026-05-04
 
 ### Added — DE #4: Airflow DAG Simulator

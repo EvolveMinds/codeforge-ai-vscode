@@ -378,6 +378,59 @@ Steps are independent and idempotent — already-satisfied steps are skipped.
 The `_waitForOllama` helper polls `ollama --version` post-install with a
 5-minute timeout for asynchronous installer flows on Windows/macOS.
 
+### `core/processUtil.ts` — shared spawn-with-timeout helpers
+
+A small extracted utility used by both the Gemma 4 setup wizard and the Git
+Connect Wizard. Centralises three patterns that were independently duplicated
+across `hardwareInspector.ts` and `setupOrchestrator.ts` before v2.0.0:
+
+- `runCommand(cmd, args, opts)` — one-shot spawn with timeout, returns `{ code, stdout, stderr }` or `null`. Uses `shell: false` and an args array exclusively (avoids platform shell-quoting pitfalls).
+- `runForStdout(cmd, args, opts)` — convenience: stdout if exit code 0, else `null`.
+- `waitForCommand(cmd, args, signal, totalTimeoutMs, intervalMs)` — poll until success, abort, or timeout. Used to wait for out-of-band installs (e.g. "user just downloaded git").
+- `versionLessThan(a, b)` — tolerant semver comparator.
+
+Never throws. Always honours `AbortSignal`. Future wizards should reuse these helpers rather than re-rolling spawn boilerplate.
+
+### `core/gitConnectInspector.ts` — Detection for the Git Connect Wizard
+
+Mirrors `hardwareInspector.ts` in shape: a single `inspect()` returns a
+structured `GitConnectProfile`, plus `summary()` and `recommendNextStep()`.
+
+Probes (all parallel, all timeboxed, all silent on failure):
+- `git --version`
+- `git config --global user.name` / `user.email`
+- `git rev-parse --is-inside-work-tree` / `--abbrev-ref HEAD` / `--verify HEAD`
+- `git remote get-url origin` (classifies host: github / bitbucket / gitlab / other; protocol: https / ssh)
+- `~/.ssh/*.pub` enumeration
+- `gh --version` and `gh auth status`
+- `vscode.authentication.getSession('github', …, { silent: true })`
+- `git config --global --get credential.helper`
+- SecretStorage probe for `aiForge.githubPAT` / `aiForge.bitbucketPAT`
+- `vscode.workspace.isTrusted` — gates the orchestrator
+
+`recommendNextStep(profile)` returns a discriminated union (`install-git` / `set-identity` / `init-repo` / `add-remote` / `configure-auth` / `verify` / `ready` / `untrusted`) that drives which screen the wizard opens to.
+
+`testConnection(workspacePath)` runs `git ls-remote --heads origin` with a 10-second timeout and is reused by the **Test Connection** command.
+
+### `core/gitConnectOrchestrator.ts` — One-click Git/Bitbucket connect pipeline
+
+Sibling to `setupOrchestrator.ts`. `planSteps(profile, choice)` returns a `GitConnectPlan { steps, totalSteps, choice }`; `execute(plan)` runs each step inside a single `vscode.window.withProgress` notification with a working Cancel button and a shared `AbortSignal`.
+
+Step library (only included when needed):
+1. **install-git** — installer URL or terminal command per platform; `waitForCommand('git', ['--version'], …)` until success.
+2. **set-identity** — `git config --global user.name` / `user.email`.
+3. **repo-{init,clone,link}** — `git init -b main`, `git clone <url> .`, or `git remote add origin <url>` (with idempotent set-url fallback).
+4. **auth-{github-builtin,pat,ssh,gh-cli}** — branches the implementation based on the user's pick; PATs are validated against the platform's `/user` endpoint **before** SecretStorage write.
+5. **create-remote** — optional `POST /user/repos` (GitHub) or `POST /2.0/repositories/<workspace>/<slug>` (Bitbucket); links the returned URL as `origin`.
+6. **push** — optional `git push -u origin HEAD` (gated by `aiForge.gitConnect.pushOnConnect`).
+7. **verify** — `git ls-remote --heads origin` with 10s timeout.
+
+Security invariants:
+- Workspace must be trusted; otherwise the inspector returns `{ kind: 'untrusted' }` and the orchestrator never builds a plan.
+- Tokens are validated against the platform API before persistence.
+- Existing `credential.helper` is **never** overwritten — we use SecretStorage + URL-embedded token (with explicit consent) instead.
+- SSH private keys are never read; only generated at the user's request and `.pub` copied to clipboard.
+
 ### `core/aiService.ts` — AI provider abstraction
 
 #### Provider detection

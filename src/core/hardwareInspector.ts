@@ -13,7 +13,7 @@
 import * as os    from 'os';
 import * as path  from 'path';
 import * as fs    from 'fs';
-import { spawn } from 'child_process';
+import { runForStdout, versionLessThan } from './processUtil';
 
 export interface GpuInfo {
   vendor:  'nvidia' | 'amd' | 'apple' | 'intel';
@@ -249,35 +249,11 @@ export class HardwareInspector {
 
   /** Run a shell command with a timeout. Returns stdout or null on failure. */
   private _runCommand(cmd: string, args: string[]): Promise<string | null> {
-    return new Promise(resolve => {
-      let settled = false;
-      const done = (val: string | null) => { if (!settled) { settled = true; resolve(val); } };
-      try {
-        const proc = spawn(cmd, args, { shell: false, windowsHide: true });
-        let stdout = '';
-        const timer = setTimeout(() => { proc.kill(); done(null); }, SHELL_TIMEOUT_MS);
-        proc.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
-        proc.on('error', () => { clearTimeout(timer); done(null); });
-        proc.on('close', (code: number | null) => {
-          clearTimeout(timer);
-          done(code === 0 ? stdout : null);
-        });
-      } catch {
-        done(null);
-      }
-    });
+    return runForStdout(cmd, args, { timeoutMs: SHELL_TIMEOUT_MS });
   }
 
   /** Compare semver strings. Returns true if a < b. */
   private _versionLessThan(a: string, b: string): boolean {
-    const aParts = a.split('.').map(Number);
-    const bParts = b.split('.').map(Number);
-    for (let i = 0; i < 3; i++) {
-      const av = aParts[i] ?? 0;
-      const bv = bParts[i] ?? 0;
-      if (av < bv) return true;
-      if (av > bv) return false;
-    }
-    return false;
+    return versionLessThan(a, b);
   }
 }

@@ -94,7 +94,7 @@ export class GitPlugin implements IPlugin {
 
   async activate(
     _services: IServices,
-    _vsCtx: vscode.ExtensionContext
+    vsCtx: vscode.ExtensionContext
   ): Promise<vscode.Disposable[]> {
     const ws = vscode.workspace.workspaceFolders?.[0];
     if (ws) {
@@ -105,6 +105,31 @@ export class GitPlugin implements IPlugin {
     }
 
     console.log(`[Evolve AI] Git plugin activated — branch: ${this._branch}, dirty: ${this._dirty}`);
+
+    // First-run nudge: when the user opens a repo with no remote configured,
+    // surface the Git Connect wizard once per workspace. Dismissed forever
+    // via "Don't show again" so we don't nag established users.
+    if (this._wsPath && !this._remote) {
+      const NUDGE_KEY = 'aiForge.gitConnect.nudged';
+      const hintEnabled = vscode.workspace.getConfiguration('aiForge').get<boolean>('gitConnect.statusHint', true);
+      if (hintEnabled && !vsCtx.workspaceState.get<boolean>(NUDGE_KEY, false)) {
+        // Fire-and-forget — never block activation on a toast.
+        setTimeout(() => {
+          vscode.window.showInformationMessage(
+            'Evolve AI: this repo has no remote yet. Want help connecting it to GitHub or Bitbucket?',
+            'Run wizard', "Don't show again", 'Dismiss',
+          ).then(pick => {
+            if (pick === 'Run wizard') {
+              vscode.commands.executeCommand('aiForge.gitConnect.start');
+              vsCtx.workspaceState.update(NUDGE_KEY, true);
+            } else if (pick === "Don't show again") {
+              vsCtx.workspaceState.update(NUDGE_KEY, true);
+            }
+          });
+        }, 5000); // wait until the rest of the UI has settled
+      }
+    }
+
     return [];
   }
 
@@ -172,6 +197,31 @@ export class GitPlugin implements IPlugin {
         }
         if (d.remoteUrl) { lines.push(`Remote: ${d.remoteUrl}`); }
         return lines.join('\n');
+      },
+    },
+
+    {
+      key: 'git.connection',
+
+      async collect(ws: vscode.WorkspaceFolder | undefined): Promise<unknown> {
+        if (!ws) return { connected: false, host: null, protocol: null };
+        const url = gitExec('git remote get-url origin', ws.uri.fsPath);
+        if (!url) return { connected: false, host: null, protocol: null };
+        const lower = url.toLowerCase();
+        const host =
+          lower.includes('github.com')    ? 'github'    :
+          lower.includes('bitbucket.org') ? 'bitbucket' :
+          lower.includes('gitlab.com')    ? 'gitlab'    : 'other';
+        const protocol = (url.startsWith('http://') || url.startsWith('https://')) ? 'https' : 'ssh';
+        return { connected: true, host, protocol };
+      },
+
+      format(data: unknown): string {
+        const d = data as { connected: boolean; host: string | null; protocol: string | null };
+        if (!d.connected) {
+          return '## Git Connection\nNo remote configured. The user can run `Evolve AI: Connect Git Remote` to set one up.';
+        }
+        return `## Git Connection\nConnected to ${d.host} via ${d.protocol}.`;
       },
     },
 
@@ -733,8 +783,15 @@ Return ONLY the Markdown PR description, no explanation, no code fences.`,
       const wsPath = ws.uri.fsPath;
       const branch = getBranch(wsPath) || 'unknown';
       const dirty  = isDirty(wsPath);
+      const remote = getRemoteUrl(wsPath);
 
-      return `$(git-branch) ${branch}${dirty ? '*' : ''}`;
+      // Append a "not connected" hint when the repo has no origin configured.
+      // The Git Connect wizard is one click away (aiForge.gitConnect.start).
+      const cfg = vscode.workspace.getConfiguration('aiForge');
+      const hintEnabled = cfg.get<boolean>('gitConnect.statusHint', true);
+      const notConnected = (hintEnabled && !remote) ? ' · not connected' : '';
+
+      return `$(git-branch) ${branch}${dirty ? '*' : ''}${notConnected}`;
     },
   };
 }
