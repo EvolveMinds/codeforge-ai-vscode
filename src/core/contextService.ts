@@ -221,6 +221,16 @@ export class ContextService implements IContextService {
       `Project: ${ctx.workspaceName}`,
       ctx.gitBranch ? `Git branch: ${ctx.gitBranch}` : '',
       '',
+      'HOW TO READ THE PROMPT:',
+      // [v2.0.2] Small local models (e.g. qwen2.5-coder:7b) were latching onto the
+      // first big block in the prompt — usually a Security Scan or Errors list — and
+      // ignoring the user's actual question. Make the contract explicit so the model
+      // knows which block to answer.
+      '- The user\'s real question is in the "## Instruction" block at the TOP of the user prompt. Always answer THAT.',
+      '- Other blocks (Active file, Errors, Security Scan, Git Status, plugin findings, related files) are BACKGROUND CONTEXT — use them only when the question relates to them.',
+      '- For meta questions ("what does this repo do?", "can you read my code?", "what is this app?"): describe the project at a high level using the active file, language, branch, and plugin signals. Do NOT recite plugin findings unless asked about security / errors specifically.',
+      '- Do not list every error / finding / hook output unless the user asked for them.',
+      '',
       'RULES:',
       '- When editing code, return ONLY the complete updated file. No markdown fences unless asked.',
       '- When generating new files, use ## filename.ext before each file\'s content.',
@@ -234,7 +244,13 @@ export class ContextService implements IContextService {
   }
 
   buildUserPrompt(ctx: ProjectContext, instruction: string): string {
-    const parts: string[] = [];
+    // [v2.0.2] Instruction goes FIRST so the model encounters the user's actual
+    // question before any context blocks. Previously the instruction was last,
+    // and small models (Qwen 7B, Gemma 4 E2B) would answer whatever big block
+    // they saw first — typically the security findings or the errors list.
+    const parts: string[] = [
+      `## Instruction:\n${instruction}`,
+    ];
 
     if (ctx.activeFile) {
       parts.push(`## Active file: ${ctx.activeFile.relPath} (${ctx.activeFile.language})`);
@@ -271,7 +287,10 @@ export class ContextService implements IContextService {
       parts.push(`## Related: ${rf.relPath}\n\`\`\`${rf.language}\n${rf.content}\n\`\`\``)
     );
 
-    parts.push(`## Instruction:\n${instruction}`);
+    // [v2.0.2] Repeat the instruction at the bottom for long-context models that
+    // attend more strongly to recency. Keeps small-model behaviour (top-anchored)
+    // and large-model behaviour (recency-anchored) both correct.
+    parts.push(`## Reminder — answer this instruction:\n${instruction}`);
     return parts.join('\n\n');
   }
 

@@ -223,13 +223,24 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       return;
     }
 
-    const ctxTag = [
-      ctx.activeFile?.relPath,
-      ctx.selection        ? 'selection'            : null,
-      ctx.errors.length    ? `${ctx.errors.length} error(s)` : null,
-      ctx.gitDiff          ? 'git diff'             : null,
-      ...[...ctx.pluginData.keys()],
-    ].filter(Boolean).join(' · ');
+    // [v2.0.2] Friendlier context chip. Previously showed raw hook keys
+    // ("git.connection · security.findings · aws-live") which looked alarming
+    // for casual questions — users couldn't tell whether the AI was using
+    // those signals or just had them in scope. Use plain-English labels and
+    // show how much of the context budget was consumed.
+    const ctxParts: string[] = [];
+    if (ctx.activeFile)         ctxParts.push(`📄 ${ctx.activeFile.relPath}`);
+    if (ctx.selection)          ctxParts.push('selected text');
+    if (ctx.errors.length)      ctxParts.push(`${ctx.errors.length} diagnostic${ctx.errors.length === 1 ? '' : 's'}`);
+    if (ctx.gitDiff)            ctxParts.push('git diff');
+    if (ctx.relatedFiles.length) ctxParts.push(`${ctx.relatedFiles.length} related file${ctx.relatedFiles.length === 1 ? '' : 's'}`);
+    const pluginKeys = [...ctx.pluginData.keys()];
+    if (pluginKeys.length)      ctxParts.push(`${pluginKeys.length} plugin signal${pluginKeys.length === 1 ? '' : 's'}`);
+    if (ctx.contextBudget?.total) {
+      const pct = Math.min(100, Math.round((ctx.contextBudget.used / ctx.contextBudget.total) * 100));
+      ctxParts.push(`${pct}% of context budget`);
+    }
+    const ctxTag = ctxParts.length ? `Context sent: ${ctxParts.join(' · ')}` : '';
 
     this._post({ type: 'userMsg', text: instruction, context: ctxTag });
     const userMsg: { role: 'user' | 'assistant'; content: string; images?: string[] } = { role: 'user', content: user };

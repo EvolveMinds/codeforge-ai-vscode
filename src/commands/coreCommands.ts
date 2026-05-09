@@ -846,6 +846,24 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.0.2': [
+    `## 🩹 Evolve AI 2.0.2 — Patch: prompt construction & context transparency\n`,
+    `### What was wrong\n`,
+    `Some users reported that asking the AI a meta question like *"can you read my repo and understand the application?"* made it ignore the question and instead recite a list of security findings or errors from the active file. Local-model users (especially Qwen 7B and Gemma 4 E2B) were the most affected.\n`,
+    `Root cause: the user prompt was assembled with the actual question (\`## Instruction\`) at the **bottom**, after the active file, errors, security scan, and every plugin's context block. Small models attend most strongly to whichever big block they encounter first — usually the security scan — and treat that as the question.\n`,
+    `### What changed\n`,
+    `- **\`## Instruction\` block now goes FIRST** in every user prompt, with a \`## Reminder\` repeating it at the bottom for long-context models that anchor on recency.`,
+    `- **System prompt explicitly tells the model**: "the user's real question is in the Instruction block; other blocks are background context — use them only when the question relates to them; for meta questions, describe the project at a high level instead of reciting findings."`,
+    `- **Context chip below your message is now in plain English** — \`Context sent: 📄 src/foo.ts · 3 diagnostics · 2 plugin signals · 18% of context budget\` instead of raw hook keys like \`security.findings · git.connection · aws-live\`. You can see exactly what was sent without guessing.\n`,
+    `### What you'll notice\n`,
+    `- Asking *"what does this app do?"* now gets a high-level project description.`,
+    `- Asking *"what security issues are in this file?"* still surfaces the security findings — that block is still in the context, just no longer hijacking unrelated questions.`,
+    `- The chip below your sent message tells you exactly what context the AI received.\n`,
+    `### No new features\n`,
+    `Pure prompt-quality patch. The v2.0.0 Git Connect Wizard and v2.0.1 Markdown-tab fix are both unchanged.\n`,
+    `---\n`,
+    `Full changelog: [CHANGELOG.md](https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md)`,
+  ].join('\n'),
   '2.0.1': [
     `## 🩹 Evolve AI 2.0.1 — Patch: "What's New" reliability\n`,
     `### What changed\n`,

@@ -2,6 +2,16 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.0.2] — 2026-05-09
+
+### Fixed
+- **AI ignored the user's question and recited security findings / errors instead.** Reported on Ollama Qwen 7B: asking *"can you read my repo and understand the application?"* returned a list of XSS warnings and HTTP-URL findings from the active file. Root cause: `buildUserPrompt` placed `## Instruction` at the *end* of the prompt, after the active file, errors, git status, security scan, and every plugin's context block. Small local models latch onto the first large block they see — usually the security scan — and treat it as the question.
+  - **Fix:** `## Instruction` is now the **first** block in every user prompt, with a `## Reminder` block repeating it at the bottom for long-context models that anchor on recency. Both anchoring strategies are now satisfied simultaneously.
+  - **System prompt strengthened** with a `HOW TO READ THE PROMPT` section that explicitly tells the model: the user's question is in the Instruction block; other blocks are background context; for meta questions describe the project at a high level rather than reciting plugin findings.
+
+### Changed
+- **Context chip rewritten in plain English.** Previously showed raw hook keys like `15 error(s) · databricks · security.findings · git.status · git.connection · git.recentCommits · aws · aws-live` below every user message — looked alarming on casual questions and gave no signal about what the AI actually received. Now reads `Context sent: 📄 src/foo.ts · 3 diagnostics · 2 plugin signals · 18% of context budget` so users see exactly what went to the model and how much of the budget was used.
+
 ## [2.0.1] — 2026-05-09
 
 ### Fixed
