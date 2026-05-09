@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, Spark/Unity Catalog. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.0.2",
+  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "2.1.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -52,7 +52,20 @@
     "ssh key",
     "personal access token",
     "pat",
-    "git remote"
+    "git remote",
+    "ci/cd",
+    "cicd",
+    "continuous integration",
+    "github actions",
+    "gitlab ci",
+    "jenkins",
+    "circleci",
+    "azure pipelines",
+    "bitbucket pipelines",
+    "devops",
+    "pipeline",
+    "oidc",
+    "workflow"
   ],
   "repository": {
     "type": "git",
@@ -233,6 +246,59 @@
       {
         "command": "aiForge.gitConnect.testConnection",
         "title": "Evolve AI: Test Git Remote Connection"
+      },
+      {
+        "command": "aiForge.cicd.setup.start",
+        "title": "Evolve AI: CI/CD Setup Wizard",
+        "icon": "$(github-action)"
+      },
+      {
+        "command": "aiForge.cicd.setup.status",
+        "title": "Evolve AI: CI/CD Status"
+      },
+      {
+        "command": "aiForge.cicd.setup.stageAndCommit",
+        "title": "Evolve AI: Stage & Commit CI/CD Setup"
+      },
+      {
+        "command": "aiForge.cicd.explainJob",
+        "title": "CI/CD: Explain Job",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.optimizePipeline",
+        "title": "CI/CD: Optimize Pipeline",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.fixFailingRun",
+        "title": "CI/CD: Fix Failing Run (paste log)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.addCache",
+        "title": "CI/CD: Add Cache Step",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.convertMatrix",
+        "title": "CI/CD: Convert to Matrix Strategy",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.useOIDC",
+        "title": "CI/CD: Replace Long-Lived Secrets with OIDC",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.pinActions",
+        "title": "CI/CD: Pin Actions to Commit SHA",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.cicd.addConcurrency",
+        "title": "CI/CD: Add Concurrency Control",
+        "category": "Evolve AI"
       },
       {
         "command": "aiForge.lineage.showPanel",

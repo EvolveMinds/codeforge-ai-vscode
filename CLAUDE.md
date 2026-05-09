@@ -26,7 +26,8 @@ evolve-ai-vscode/
 ├── docs/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
-│   └── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
+│   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
+│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.1.0)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -45,7 +46,8 @@ evolve-ai-vscode/
     │   ├── hardwareInspector.ts ← RAM/GPU/disk/Ollama detection for Gemma 4 wizard
     │   ├── setupOrchestrator.ts ← one-click Gemma 4 install pipeline (Ollama + model)
     │   ├── gitConnectInspector.ts    ← detects git/identity/repo/remote/auth for Git wizard
-    │   └── gitConnectOrchestrator.ts ← step-by-step Git/Bitbucket connect (PAT/SSH/built-in/gh)
+    │   ├── gitConnectOrchestrator.ts ← step-by-step Git/Bitbucket connect (PAT/SSH/built-in/gh)
+    │   └── cicdSetupOrchestrator.ts  ← stack detection + starter-pipeline generation for CI/CD wizard
     ├── ui/
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
@@ -53,7 +55,8 @@ evolve-ai-vscode/
     │   └── inlineActions.ts     ← CodeLens + lightbulb CodeAction providers
     ├── commands/
     │   ├── coreCommands.ts      ← all core commands as a class
-    │   └── gitConnectCommands.ts ← Git/Bitbucket Connect Wizard commands (4 cmds)
+    │   ├── gitConnectCommands.ts ← Git/Bitbucket Connect Wizard commands (4 cmds)
+    │   └── cicdSetupCommands.ts  ← CI/CD Setup Wizard commands (2 cmds)
     ├── test/
     │   ├── runTest.ts           ← VS Code test runner entry point
     │   ├── mocks.ts             ← Mock implementations of IAIService, IContextService, etc.
@@ -98,6 +101,9 @@ to undo.
 | Git Connect inspector | `core/gitConnectInspector.ts` | ✅ Complete |
 | Git Connect orchestrator | `core/gitConnectOrchestrator.ts` | ✅ Complete |
 | Git Connect commands | `commands/gitConnectCommands.ts` | ✅ Complete |
+| CI/CD plugin | `plugins/cicd.ts` | ✅ Complete |
+| CI/CD setup orchestrator | `core/cicdSetupOrchestrator.ts` | ✅ Complete |
+| CI/CD setup commands | `commands/cicdSetupCommands.ts` | ✅ Complete |
 | Chat panel (sidebar) | `ui/chatPanel.ts` | ✅ Complete |
 | Chat editor tab (Claude-style) | `ui/chatEditorPanel.ts` | ✅ Complete |
 | Status bar | `ui/statusBar.ts` | ✅ Complete |
@@ -116,7 +122,8 @@ to undo.
 | PyTorch plugin | `plugins/pytorch.ts` | ✅ Complete |
 | Security plugin | `plugins/security.ts` | ✅ Complete |
 | Git plugin | `plugins/git.ts` | ✅ Complete |
-| Plugin loader | `plugins/index.ts` | ✅ All 13 plugins wired |
+| CI/CD plugin | `plugins/cicd.ts` | ✅ Complete |
+| Plugin loader | `plugins/index.ts` | ✅ All 14 plugins wired |
 
 ### What is next to build
 
@@ -220,7 +227,7 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (32 total)
+## Commands currently registered (44 total)
 
 ### Core (18)
 | Command ID | Keybinding | Description |
@@ -251,6 +258,21 @@ are merged into the core system transparently:
 | `aiForge.gitConnect.status` | — | One-line summary of connection state + jump to wizard |
 | `aiForge.gitConnect.disconnect` | — | Clear stored PATs and the VS Code GitHub session |
 | `aiForge.gitConnect.testConnection` | — | Re-run `git ls-remote origin` to verify the remote |
+
+### CI/CD Wizard + plugin (12)
+| Command ID | Description |
+|---|---|
+| `aiForge.cicd.setup.start` | First-time CI/CD setup wizard — picks platform, template, deploy target |
+| `aiForge.cicd.setup.status` | One-line summary of detected stack + existing pipelines |
+| `aiForge.cicd.setup.stageAndCommit` | Stage the wizard-written file, AI-draft a Conventional Commits message, commit. Refuses on protected branches without a feature-branch dialog first |
+| `aiForge.cicd.explainJob` | Explain the CI job at the cursor (CodeLens) |
+| `aiForge.cicd.optimizePipeline` | Refactor active pipeline file for speed + reliability |
+| `aiForge.cicd.fixFailingRun` | Paste a failing CI run log → AI diagnoses against the active pipeline file |
+| `aiForge.cicd.addCache` | Insert dependency cache step after checkout (CodeLens) |
+| `aiForge.cicd.convertMatrix` | Convert active job to a matrix strategy (CodeLens) |
+| `aiForge.cicd.useOIDC` | Replace long-lived secrets with OIDC (lightbulb) |
+| `aiForge.cicd.pinActions` | Pin all `uses:` references to commit SHA (lightbulb) |
+| `aiForge.cicd.addConcurrency` | Add a concurrency block at workflow level (lightbulb) |
 
 ### Databricks plugin (10)
 `aiForge.databricks.explainJob` · `aiForge.databricks.optimiseQuery` ·

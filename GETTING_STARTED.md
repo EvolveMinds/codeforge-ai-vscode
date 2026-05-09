@@ -297,6 +297,68 @@ The wizard refuses to run in untrusted workspaces (matches the policy that prote
 
 ---
 
+## Step 7: Set Up CI/CD *(new in v2.1)*
+
+Once your repo is connected, set up a continuous-integration pipeline so every push tests / lints / builds before it reaches main.
+
+### Run the wizard
+
+1. Press `Ctrl+Shift+P` → **Evolve AI: CI/CD Setup Wizard**
+2. The wizard inspects your stack:
+   - **Language**: detected from `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `pom.xml` / `*.csproj`
+   - **Package manager**: npm / yarn / pnpm / pip / poetry / cargo / maven / gradle / dotnet
+   - **Test framework**: jest / vitest / mocha / pytest / go-test / cargo-test / junit / xunit
+   - **Git host**: github.com / gitlab.com / bitbucket.org — recommends the matching CI platform automatically
+3. Pick a CI platform (the matching one for your git host is starred):
+   - GitHub Actions · GitLab CI · Jenkins · CircleCI · Azure Pipelines · Bitbucket Pipelines
+4. Pick a template:
+   - **Test only** — lint + tests on PR / push (safest starter)
+   - **Test + deploy** — adds a deploy job on tag push
+   - **Test + container build + deploy** — adds a Docker build step
+5. Pick a deploy target *(if you chose test+deploy)*:
+   - npm / PyPI (uses Trusted Publisher OIDC — no token needed) · Docker registry · AWS ECS · AWS Lambda · GCP Cloud Run · Azure App Service · Kubernetes
+6. The wizard generates a starter pipeline tailored to your stack with the **quality bar built in**:
+   - Third-party actions / images pinned to commit SHA placeholders
+   - Workflow-level `permissions: { contents: read }` (least privilege)
+   - `timeout-minutes` on every job
+   - Cache dependencies keyed by lockfile hash
+   - Concurrency control: cancel in-progress on PR, queue on main
+   - OIDC for cloud auth where the platform supports it
+   - Secret references in `env:` blocks, not `run:` strings
+7. Reviews the file (opens automatically) and commit when ready
+
+### Stage & Commit (after the wizard)
+
+When the wizard finishes, the success toast offers a **Stage & Commit** button:
+
+- Stages exactly the file the wizard wrote (never `git add -A` — your other in-flight changes are left alone)
+- If you're on `main` / `master` / `develop` / `production` / `release` / `trunk`, **forces** a feature-branch dialog before staging — no commits straight to a protected branch
+- Asks the AI to draft a Conventional Commits message from the staged diff, shows it in an editable InputBox
+- Commits when you confirm; if you cancel the InputBox, **unstages the file** so you never end up with half-finished state
+- Does NOT push and does NOT open a PR — those land in v2.2 once the in-the-wild UX is verified
+
+You can also re-run it any time via `Evolve AI: Stage & Commit CI/CD Setup` from the command palette.
+
+### Daily-use commands
+
+For existing pipelines, the **CI/CD plugin** activates whenever it sees a pipeline file:
+
+| Command | Description |
+|---|---|
+| `CI/CD: Optimize Pipeline` | Refactor for speed and reliability — adds missing caches, timeouts, fail-fast, etc. |
+| `CI/CD: Fix Failing Run (paste log)` | Paste the tail of a failing run's log; AI diagnoses against your pipeline file |
+| `CI/CD: Replace Long-Lived Secrets with OIDC` | Convert AWS_ACCESS_KEY/GCP_KEY/AZURE_CREDENTIALS to OIDC |
+| `CI/CD: Pin Actions to Commit SHA` | Mass-replace floating tags (`@v4`, `@main`) with SHA placeholders |
+| `CI/CD: Add Concurrency Control` | Cancel-in-progress on PR, queue on main |
+
+### Status & follow-ups
+
+After the wizard finishes, replace any `# pin-me` placeholders with real action SHAs (one trick: `gh api repos/owner/name/git/ref/tags/v4.1.1` to find the SHA for a given tag), configure the secrets the file references, and branch-protect main to require the workflow before merge.
+
+Full guide: [docs/CICD.md](docs/CICD.md).
+
+---
+
 ## Keyboard Shortcuts
 
 | Action | Windows / Linux | Mac |
@@ -396,6 +458,23 @@ Check the status dot:
 
 **Clearing credentials but the user still seems "logged in"**
 - `Evolve AI: Disconnect Git Credentials` clears stored PATs. To fully sign out of VS Code's GitHub provider, click the **Accounts** icon (bottom-left of the workbench) → GitHub → **Sign Out**.
+
+### CI/CD Setup Wizard issues
+
+**"This workspace is not trusted" — wizard refuses to start**
+- Same policy as the Git Connect Wizard. Click **Trust** in the workbench toolbar and re-run **Evolve AI: CI/CD Setup Wizard**.
+
+**Wizard says "language: unknown"**
+- The inspector looks for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, `*.csproj`. If your project uses none of these (a polyglot monorepo, for example), the wizard still works — it generates a language-agnostic pipeline. Add language-specific steps after.
+
+**Generated pipeline has `# pin-me` placeholders**
+- The AI cannot fetch live action SHAs offline. Replace each `# pin-me` with the real SHA. Quick one-liner: `gh api repos/actions/checkout/git/ref/tags/v4 | jq -r .object.sha`.
+
+**`Fix Failing Run` returns generic advice**
+- Paste *more* of the log — at least the error itself plus 20-30 lines around it. The AI diagnoses better with the actual stderr / exit code, not just "build failed".
+
+**The CI/CD plugin doesn't activate for my pipeline file**
+- Confirm the file is at one of the recognised paths: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile` (case-sensitive), `.circleci/config.yml`, `azure-pipelines.yml`, `bitbucket-pipelines.yml`. Custom paths (e.g. `ci/build.yml`) aren't auto-detected.
 
 ---
 

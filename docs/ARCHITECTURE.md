@@ -412,6 +412,17 @@ Probes (all parallel, all timeboxed, all silent on failure):
 
 `testConnection(workspacePath)` runs `git ls-remote --heads origin` with a 10-second timeout and is reused by the **Test Connection** command.
 
+### `core/cicdSetupOrchestrator.ts` — First-time CI/CD setup wizard
+
+Sibling to the other two orchestrators (Gemma 4, Git Connect). Two classes:
+
+- **`CICDStackInspector`** detects the workspace's stack — language, package manager, test framework, git host — by reading manifest files (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, `*.csproj`). All probes are file-existence checks; no shell calls except `git remote get-url origin` (which goes through the shared `processUtil.runForStdout`). Never throws.
+- **`CICDSetupOrchestrator`** plans the output path for the chosen platform (e.g. `.github/workflows/ci.yml` for github-actions), builds the AI prompt with the detected stack and a hard quality bar (pinned actions, OIDC, cache by lockfile hash, concurrency, timeouts), and writes the AI-generated content to disk after the user reviews.
+
+The orchestrator does NOT run inside `vscode.window.withProgress` — it's mostly file IO with one AI call. The wizard command (`commands/cicdSetupCommands.ts`) wraps the AI call in its own progress notification.
+
+The wizard never modifies live infrastructure or pushes to remotes; it writes one local file and the user reviews + commits.
+
 ### `core/gitConnectOrchestrator.ts` — One-click Git/Bitbucket connect pipeline
 
 Sibling to `setupOrchestrator.ts`. `planSteps(profile, choice)` returns a `GitConnectPlan { steps, totalSteps, choice }`; `execute(plan)` runs each step inside a single `vscode.window.withProgress` notification with a working Cancel button and a shared `AbortSignal`.

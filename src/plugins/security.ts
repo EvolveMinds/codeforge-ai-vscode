@@ -156,11 +156,22 @@ const SECURITY_PATTERNS: SecurityPattern[] = [
 
   // ── Insecure URLs / IPs ────────────────────────────────────────────────────
   {
-    pattern:  /http:\/\/(?!localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])/,
+    // Real dangerous HTTP URLs are followed by a hostname character
+    // (alphanumeric, dot, dash, underscore). Explanatory prose like
+    // "http:// or https://" has whitespace after the slashes — those should
+    // not match. Loopback addresses are explicitly allowed.
+    pattern:  /http:\/\/(?!localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])[\w.-]/,
     category: 'insecure-url',
     severity: 'medium',
     message:  'Insecure HTTP URL detected. Use HTTPS to encrypt data in transit.',
-    exclude:  /(?:example\.com|test|localhost|placeholder|todo|fixme|schema|namespace|xmlns|dtd|w3\.org|ietf\.org)/i,
+    // Additional excludes:
+    //   - Documentation domains and protocol literals in schemas / namespaces.
+    //   - Markdown code spans inside backticks: `http://` (used in release notes,
+    //     docstrings, error messages) — `\`http:` only matches when the http
+    //     literal is enclosed in backticks.
+    //   - String-prefix detection: `'http://'` / `"http://"` (URL classifiers
+    //     and parsers, e.g. `url.startsWith('http://')`).
+    exclude:  /(?:example\.com|test|localhost|placeholder|todo|fixme|schema|namespace|xmlns|dtd|w3\.org|ietf\.org|`http:|['"]http:\/\/['"])/i,
   },
   {
     pattern:  /\b(?:192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b/,

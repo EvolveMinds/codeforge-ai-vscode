@@ -789,17 +789,29 @@ EOF
 | Plugin | File | Status |
 |---|---|---|
 | Databricks | `plugins/databricks.ts` | ✅ Complete |
+| dbt | `plugins/dbt.ts` | ✅ Complete |
+| Airflow | `plugins/airflow.ts` | ✅ Complete |
+| pytest | `plugins/pytest.ts` | ✅ Complete |
+| FastAPI | `plugins/fastapi.ts` | ✅ Complete |
+| Django | `plugins/django.ts` | ✅ Complete |
+| Terraform | `plugins/terraform.ts` | ✅ Complete |
+| Kubernetes | `plugins/kubernetes.ts` | ✅ Complete |
+| Docker | `plugins/docker.ts` | ✅ Complete |
+| Jupyter | `plugins/jupyter.ts` | ✅ Complete |
+| PyTorch | `plugins/pytorch.ts` | ✅ Complete |
+| Security | `plugins/security.ts` | ✅ Complete |
+| Git | `plugins/git.ts` | ✅ Complete |
+| **CI/CD** *(v2.1)* | `plugins/cicd.ts` | ✅ Complete |
+| AWS | `plugins/aws.ts` | ✅ Complete |
+| GCP | `plugins/gcp.ts` | ✅ Complete |
+| Azure | `plugins/azure.ts` | ✅ Complete |
 
-## Plugins to build next
+## Plugins to build next (community contributions welcome)
 
 | Plugin | Detect by | Key contribution |
 |---|---|---|
-| dbt | `dbt_project.yml` | ref() / source() guidance, model lenses, test generation |
-| Airflow | `airflow.cfg` or DAG imports | TaskFlow API, operator patterns, DAG templates |
-| pytest | `pytest.ini` / `conftest.py` | parametrize, fixtures, coverage, conftest templates |
-| FastAPI | `fastapi` in requirements | Route lenses, Pydantic models, dependency injection |
-| Terraform | `*.tf` files | Resource explain, module extract, tagging transforms |
-| Kubernetes | `apiVersion:` in YAML | Manifest explain, add limits/probes, Helm templates |
-| Django | `manage.py` + `settings.py` | ORM query optimisation, view/serialiser lenses |
-| Docker | `Dockerfile` | Multi-stage build transform, security scan, layer hints |
-| Security | Always active | Pattern-scan for secrets/injection, no AI calls needed |
+| Next.js | `next.config.*` | App Router, Server Components, API routes |
+| Rust | `Cargo.toml` | Ownership/lifetimes, async patterns, error handling |
+| Go | `go.mod` | Goroutines, interfaces, error handling |
+| GraphQL | `*.graphql` / `*.gql` | Schema, resolvers, queries |
+| Helm | `Chart.yaml` | Template authoring, values schema, lint |

@@ -2,6 +2,34 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.1.0] — 2026-05-09
+
+### Added — DevOps authoring bundle
+
+**1. CI/CD plugin (`src/plugins/cicd.ts`).** Auto-detects every common pipeline file: GitHub Actions (`.github/workflows/*.yml`), GitLab CI (`.gitlab-ci.yml`), Jenkins (`Jenkinsfile`), CircleCI (`.circleci/config.yml`), Azure Pipelines, Bitbucket Pipelines. Once active, the plugin:
+
+- **Context hook (`cicd.pipelines`)**: parses each file and exposes a structured summary — jobs, secrets referenced, runners, matrix presence, concurrency presence, action references with unpinned-SHA detection. Pipeline-aware AI prompts.
+- **System-prompt section (~3 KB)**: consolidated CI/CD best practices — pin actions to commit SHA, OIDC over long-lived secrets, fail-fast / matrix-strategy / cache-by-lockfile-hash, concurrency control, least-privilege `permissions:`, secret-leak prevention. Platform-specific subsections for GitHub Actions, GitLab, Jenkins.
+- **CodeLens**: *Explain job* (above each job declaration), *Add cache step* (after checkout), *Convert to matrix* (above runs-on lines).
+- **Lightbulb (CodeActions)**: *Replace long-lived secrets with OIDC*, *Pin actions to commit SHA*, *Add concurrency control*.
+- **Transforms**: *Lint pipeline (find anti-patterns)*, *Add OIDC auth (replace long-lived secrets)*.
+- **Templates**: GitHub Actions Python test+deploy with PyPI Trusted Publisher, Node + npm publish with provenance, GitLab CI Docker build+push, Jenkinsfile declarative starter.
+- **Commands**: `aiForge.cicd.explainJob`, `aiForge.cicd.optimizePipeline`, `aiForge.cicd.fixFailingRun` (paste log → AI diagnoses against active pipeline file), `aiForge.cicd.addCache`, `aiForge.cicd.convertMatrix`, `aiForge.cicd.useOIDC`, `aiForge.cicd.pinActions`, `aiForge.cicd.addConcurrency`.
+- **Status item**: `$(github-action) github-actions · 3 pipelines` in the chat header when active.
+
+**2. CI/CD Setup Wizard (`src/core/cicdSetupOrchestrator.ts` + `src/commands/cicdSetupCommands.ts`).** Mirrors the Git Connect Wizard pattern. `Evolve AI: CI/CD Setup Wizard` walks the user through a first-time pipeline setup:
+
+- **Inspector** detects: language (`package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `pom.xml` / `*.csproj`), package manager (npm/yarn/pnpm/pip/poetry/cargo/maven/gradle), test framework (jest/vitest/pytest/go-test/cargo-test/junit/xunit), git host (parsed from `origin` URL — recommends the matching CI platform).
+- **Wizard UX**: pick platform (recommended one is starred) → pick template (test-only / + deploy / + container build + deploy) → pick deploy target (npm / PyPI / Docker registry / AWS ECS / AWS Lambda / GCP Cloud Run / Azure App Service / k8s / none).
+- **Generation**: builds an AI prompt that includes the detected stack and a hard quality bar (pinned actions, OIDC, cache by lockfile hash, concurrency control, timeouts). The output file is written to the right path (`.github/workflows/ci.yml`, `.gitlab-ci.yml`, etc.) and opened for review with a checklist of follow-ups.
+- **Stage & Commit follow-up** (`aiForge.cicd.setup.stageAndCommit`): the wizard's success toast now offers a **Stage & Commit** button that closes the loop. Stages exactly the file the wizard wrote (never `git add -A`), forces a feature-branch dialog if the user is on `main` / `master` / `develop` / `production` / `release` / `trunk`, asks the AI to draft a Conventional Commits message from the staged diff, shows it in an editable InputBox, and commits when the user confirms. Cancelling the InputBox unstages the file so no half-finished state is left behind. Push and PR creation are deliberately deferred to v2.2 once the in-the-wild UX is validated.
+- **Safety**: refuses to run in untrusted workspaces, asks before overwriting an existing pipeline file.
+
+**3. Marketplace + discoverability**. Description and keywords expanded with `ci/cd`, `cicd`, `continuous integration`, `github actions`, `gitlab ci`, `jenkins`, `circleci`, `azure pipelines`, `bitbucket pipelines`, `devops`, `pipeline`, `oidc`, `workflow` so devops users searching for these terms find Evolve AI.
+
+### Fixed
+- **`insecure-url` security-rule false positives**. The pattern was flagging `http://` literals inside markdown code spans (`` `http://` ``) in release-notes strings, `'http://'` / `"http://"` quoted prefixes used by URL classifiers (`url.startsWith('http://')`), and prose like `"http:// or https://"` in setting descriptions / error messages. Two-part fix: tightened the pattern to require a hostname character (`[\w.-]`) immediately after `://` so `http:// ` (with trailing whitespace, i.e. prose) no longer matches; extended the rule's `exclude` regex to skip backtick code spans and quoted-prefix string literals. Real `fetch("http://attacker.com")` matches still flagged, loopback still skipped. Full-codebase + `package.json` rescan: zero false positives.
+
 ## [2.0.2] — 2026-05-09
 
 ### Fixed

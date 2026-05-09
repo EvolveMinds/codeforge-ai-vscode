@@ -16,6 +16,7 @@
 - **Any AI provider** — bring your own model or API key. Switch between local and cloud in one click.
 - **Deep context** — understands your active file, related files, diagnostics, git state, and cloud platform connections.
 - **Connect to GitHub or Bitbucket in one click** *(v2.0)* — wizard handles git install, identity, init/clone, auth (PAT / SSH / VS Code GitHub auth / `gh` CLI), and verifies the connection. → [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md)
+- **Author CI/CD pipelines with AI** *(v2.1)* — auto-detecting plugin for GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket, plus a setup wizard that generates a stack-tailored starter pipeline (pinned actions, OIDC, caching, concurrency built in). Includes a *"Fix failing run"* command — paste a CI log, AI diagnoses against your active pipeline file. → [docs/CICD.md](docs/CICD.md)
 
 > Also works in **Cursor**, **VSCodium**, and other VS Code forks.
 
@@ -63,6 +64,17 @@ Open the command palette and run **Evolve AI: Connect Git Remote (Wizard)**, or 
 6. Verifies the connection with `git ls-remote origin`
 
 Tokens are stored in `vscode.SecretStorage` — they never touch `settings.json`. Existing `credential.helper` is never overwritten. Full guide: [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md).
+
+### Setting up CI/CD *(new in v2.1)*
+
+Open the command palette and run **Evolve AI: CI/CD Setup Wizard**, or click *Optimize Pipeline* on a CodeLens above any existing pipeline. The wizard:
+
+1. Detects your stack (language, package manager, test framework, git host)
+2. Asks: which CI platform · what kind of pipeline (test only / + deploy / + container build) · which deploy target (npm / PyPI / Docker / AWS ECS / GCP Cloud Run / Azure / k8s)
+3. Generates a starter pipeline tailored to your stack — pinned actions, OIDC where the platform supports it, dependency caching by lockfile hash, concurrency control, timeouts, least-privilege permissions
+4. Writes it to the right path and opens it for review
+
+For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/config.yml`, `azure-pipelines.yml`, or `bitbucket-pipelines.yml`. It contributes platform-aware best practices into every AI prompt and adds CodeLens / lightbulb actions like *Pin actions to commit SHA*, *Replace long-lived secrets with OIDC*, *Convert to matrix strategy*. Full guide: [docs/CICD.md](docs/CICD.md).
 
 ---
 

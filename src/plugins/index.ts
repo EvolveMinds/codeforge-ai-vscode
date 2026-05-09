@@ -20,6 +20,7 @@ import { JupyterPlugin }    from './jupyter';
 import { PyTorchPlugin }   from './pytorch';
 import { SecurityPlugin }  from './security';
 import { GitPlugin }       from './git';
+import { CICDPlugin }      from './cicd';
 import { AwsPlugin }       from './aws';
 import { GCPPlugin }       from './gcp';
 import { AzurePlugin }     from './azure';
@@ -44,6 +45,7 @@ export function registerPlugins(registry: PluginRegistry): void {
   registry.register(new PyTorchPlugin());
   registry.register(new SecurityPlugin());
   registry.register(new GitPlugin());
+  registry.register(new CICDPlugin());
   registry.register(new AwsPlugin());
   registry.register(new GCPPlugin());
   registry.register(new AzurePlugin());
@@ -54,5 +56,5 @@ export function registerPlugins(registry: PluginRegistry): void {
 
   // Add more plugins here as they are built:
 
-  console.log('[Evolve AI] Plugins registered: Databricks, Databricks Connected, dbt, Airflow, pytest, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, AWS, GCP, Azure, AWS Connected, GCP Connected, Azure Connected');
+  console.log('[Evolve AI] Plugins registered: Databricks, Databricks Connected, dbt, Airflow, pytest, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, CI/CD, AWS, GCP, Azure, AWS Connected, GCP Connected, Azure Connected');
 }
