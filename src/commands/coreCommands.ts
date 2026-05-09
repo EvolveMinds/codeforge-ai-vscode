@@ -12,6 +12,7 @@
 
 import * as vscode from 'vscode';
 import * as path   from 'path';
+import * as fs     from 'fs';
 import type { IServices }                       from '../core/services';
 import type { AIRequest }                       from '../core/aiService';
 import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_HUGGINGFACE } from '../core/aiService';
@@ -666,22 +667,67 @@ export class CoreCommands {
       `To switch variants: run **Evolve AI: Switch AI Provider** \u2192 Gemma 4`,
     ].join('\n');
 
-    // Post to chat as static info (no AI round-trip, no plugin-context preamble)
-    await vscode.commands.executeCommand('aiForge.chatPanel.focus');
-    await vscode.commands.executeCommand('aiForge._postInfoToChat', info);
+    // [v2.0.1] Render as a Markdown preview tab (same safe path as whatsNew).
+    // Previously posted via `_postInfoToChat`, which had a webview-timing race
+    // and a focus-steal AI-hijack risk.
+    await this._showMarkdownPreview('gemma4-info.md', info);
   }
 
   async whatsNew(): Promise<void> {
     const version = this._svc.vsCtx.extension.packageJSON.version as string;
     const notes   = getReleaseNotes(version);
 
-    await vscode.commands.executeCommand('aiForge.chatPanel.focus');
-    // Static info: no AI call, no plugin context injection
-    await vscode.commands.executeCommand('aiForge._postInfoToChat', notes);
+    await this._showMarkdownPreview(`whats-new-${version}.md`, notes);
 
     // User has explicitly viewed the notes — mark dismissed and clear pending banner
     await this._svc.vsCtx.globalState.update(`aiForge.whatsNewDismissed.${version}`, true);
     await this._svc.vsCtx.globalState.update(`aiForge.whatsNewPending.${version}`, false);
+  }
+
+  /**
+   * [v2.0.1] Render static markdown content (release notes, Gemma 4 tips) as a
+   * Markdown preview tab. NEVER inject through the chat panel — that path has
+   * two failure modes:
+   *   1. The webview's `message` listener may not be wired up yet when the
+   *      post fires; the payload gets silently dropped.
+   *   2. Stealing focus to the chat panel risks submitting any in-flight
+   *      keystrokes to the AI, which hallucinates generic content
+   *      (e.g. AWS extension docs instead of our release notes).
+   *
+   * A Markdown preview tab is read-only, has zero chance of AI hijack, renders
+   * identically on every platform, and supports links / images / lists natively.
+   */
+  private async _showMarkdownPreview(filename: string, content: string): Promise<void> {
+    try {
+      const dir = this._svc.vsCtx.globalStorageUri.fsPath;
+      await fs.promises.mkdir(dir, { recursive: true });
+      const file = path.join(dir, filename);
+      await fs.promises.writeFile(file, content, 'utf8');
+
+      const uri = vscode.Uri.file(file);
+      await vscode.commands.executeCommand('markdown.showPreview', uri);
+    } catch (e) {
+      // Fallback: open the markdown as a regular editor tab if the preview
+      // command is unavailable (very old VS Code or a fork without the
+      // markdown extension). Still safer than chat injection.
+      console.warn('[Evolve AI] markdown.showPreview failed, opening as plain markdown:', e);
+      try {
+        const doc = await vscode.workspace.openTextDocument({ language: 'markdown', content });
+        await vscode.window.showTextDocument(doc, { preview: true });
+      } catch (e2) {
+        console.error('[Evolve AI] Could not open markdown preview:', e2);
+        vscode.window.showInformationMessage(
+          'Evolve AI: see CHANGELOG.md on the GitHub repo for details.',
+          'Open CHANGELOG'
+        ).then(p => {
+          if (p === 'Open CHANGELOG') {
+            vscode.env.openExternal(vscode.Uri.parse(
+              'https://github.com/EvolveMinds/codeforge-ai-vscode/blob/main/CHANGELOG.md'
+            ));
+          }
+        });
+      }
+    }
   }
 
   // ── CodeLens handlers ─────────────────────────────────────────────────────────
@@ -800,6 +846,21 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.0.1': [
+    `## 🩹 Evolve AI 2.0.1 — Patch: "What's New" reliability\n`,
+    `### What changed\n`,
+    `Clicking **"See What's New"** on the upgrade toast now opens a clean Markdown preview tab instead of trying to inject release notes into the chat panel. Two issues are fixed:\n`,
+    `1. **Empty-chat / wrong-content bug** — on a small fraction of upgrades the chat webview hadn't finished wiring its message listener when release notes were posted, so the payload was silently dropped. Some users saw a generic AI-hallucinated answer (e.g. AWS extension docs) instead of the 2.0.0 highlights.`,
+    `2. **Focus-steal hijack risk** — opening the chat panel for the release notes also stole focus to the chat input. If the user had typed anything in that input, pressing Enter could submit it as an AI prompt with the active file as context.\n`,
+    `### What you'll see\n`,
+    `- **What's New** (Command Palette → \`Evolve AI: What's New\`) opens a Markdown preview tab — looks the same on every platform, no AI involvement, can be closed safely.`,
+    `- **Gemma 4 Info & Tips** uses the same path now.`,
+    `- The chat-panel banner still fires; clicking **View** opens the same Markdown tab.\n`,
+    `### No new features\n`,
+    `This is a pure reliability patch — the v2.0.0 Git/Bitbucket Connect Wizard is unchanged.\n`,
+    `---\n`,
+    `Full v2.0.0 highlights are still available below.`,
+  ].join('\n'),
   '2.0.0': [
     `## 🔗 Evolve AI 2.0.0 — Git/Bitbucket Connect Wizard\n`,
     `### From "fresh folder" to "✓ remote works" in one command\n`,

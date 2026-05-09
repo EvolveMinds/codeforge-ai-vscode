@@ -2,6 +2,11 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.0.1] — 2026-05-09
+
+### Fixed
+- **"What's New" sometimes showed AI-hallucinated content (e.g. a generic AWS Toolkit cheat-sheet) instead of the actual release notes.** Root cause: `aiForge.whatsNew` focused the chat panel and then posted release notes through `_postInfoToChat`, which (a) raced the webview's message-listener wire-up so the payload was occasionally dropped, and (b) stole focus to the chat input — meaning any in-flight keystrokes could submit a stray AI prompt that got rendered in the same panel. Fix: release notes (and the Gemma 4 info screen) now open as a read-only Markdown preview tab via `markdown.showPreview`. Zero webview, zero AI involvement, identical rendering on every platform. Falls back to a plain Markdown editor tab on forks that don't ship the markdown preview command.
+
 ## [2.0.0] — 2026-05-08
 
 ### Added — Git/Bitbucket Connect Wizard
