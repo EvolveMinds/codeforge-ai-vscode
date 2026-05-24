@@ -2,6 +2,37 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.3.0] — 2026-05-24
+
+### Added — Monorepo support for the CI/CD Setup Wizard
+
+The CI/CD Setup Wizard used to assume the entire workspace was a single project rooted at the workspace folder. v2.3.0 detects sub-projects (Next.js + Python backend, `apps/web` + `apps/api`, `services/*` layouts, etc.) and lets you pick which one a pipeline targets.
+
+**How it works:**
+
+1. **Subproject detection** — `CICDStackInspector.detectSubprojects()` scans up to **2 levels deep** for known manifest files (`package.json`, `pyproject.toml`, `setup.py`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`, `build.gradle.kts`, `*.csproj`). Skips `node_modules`, `.git`, `.venv`, `dist`, `target`, `build`, `vendor`, etc. Hard-capped at **200 directory visits / 30 entries per directory** so monorepos with thousands of folders don't hang the wizard.
+2. **Subproject QuickPick** — when ≥2 subprojects are found, the wizard inserts a new step between the intro and the platform pick: *"Multiple subprojects detected (N). Which one is this pipeline for?"* Each entry shows the manifest filename + detected language.
+3. **Re-inspection scoped to the chosen subproject** — language, package manager, and test framework are recomputed against the subproject's files (not the repo root). The wizard's intro summary now includes `scope: <subproject>` when applicable.
+4. **Output filename disambiguation** — pipeline files **stay at the repo root** (CI providers don't look in subdirectories), but the filename is disambiguated by a slug derived from the subproject's directory name:
+   - `apps/web` → `.github/workflows/ci-web.yml`
+   - `services/api` → `.github/workflows/ci-api.yml`
+5. **Platform-specific warnings** — Bitbucket Pipelines and CircleCI only read **one** config file at a canonical path. The wizard surfaces a modal warning when picking those platforms for a subproject, explaining the trade-off (single-pipeline-per-repo limit; jobs scoped via `working_directory` / `cd ...`). GitLab gets a warning that `CI_CONFIG_PATH` must be set if writing to a non-default path.
+6. **AI prompt instructs working-directory idiom per platform** — when targeting a subproject, the prompt tells the AI to:
+   - GitHub Actions: set `defaults: { run: { working-directory: <subproject> } }` + `paths:` trigger filter
+   - GitLab CI: `cd $CI_WORK_DIR` + `rules: changes:`
+   - Jenkins: wrap stages in `dir('<subproject>') { ... }`
+   - CircleCI: `working_directory: ~/project/<subproject>` on every job
+   - Azure: `workingDirectory:` on every script step + `paths:` filter
+   - Bitbucket: prefix each step's script with `cd <subproject> && ...`
+7. **Cache keys reference the subproject lockfile**, not the root.
+
+**Files edited:**
+
+- `src/core/cicdSetupOrchestrator.ts` — new `Subproject` interface, `detectSubprojects()`, `slugifySubproject()`, scoped `inspect(ws, subprojectRel)`. `outputPathFor()` now takes a slug; `pipelinePathWarning()` surfaces single-pipeline-per-repo platform constraints. `buildPrompt()` injects monorepo working-directory instructions.
+- `src/commands/cicdSetupCommands.ts` — new `_pickSubproject()` QuickPick. `start()` re-inspects scoped to the chosen subproject. `_collectChoices()` threads subproject + slug into the resulting `CICDChoice` and surfaces the platform warning.
+
+**Why this matters:** ~half of new repos in 2025+ are monorepo-shaped (Turborepo, Nx, pnpm workspaces, uv workspaces, Go workspaces). Without subproject scoping, the wizard would write a pipeline that ran tests against the wrong directory's manifest and dependencies — a real footgun. This was item #4 on the deferred-work inventory.
+
 ## [2.2.0] — 2026-05-24
 
 ### Added — Stage & Commit closes the loop: now Stage → Commit → Push → PR (Level E)

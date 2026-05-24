@@ -83,14 +83,30 @@ export class CICDSetupCommands {
       return;
     }
 
-    const profile = await this._inspector.inspect(ws);
-    const summary = this._inspector.summary(profile);
+    // First pass: discover subprojects (always at workspace root).
+    let profile = await this._inspector.inspect(ws);
+    let summary = this._inspector.summary(profile);
 
     const intro = `Detected stack: ${summary}\n\nThe wizard will:\n1. Ask which CI/CD platform to use\n2. Ask what kind of pipeline (test-only / + deploy)\n3. Use AI to generate a starter file tailored to your stack\n4. Write it to your repo (you review + commit)\n\nTokens are not requested. The wizard never modifies live infrastructure.`;
     const proceed = await vscode.window.showInformationMessage(intro, { modal: true }, 'Start wizard', 'Cancel');
     if (proceed !== 'Start wizard') return;
 
-    const choice = await this._collectChoices(profile);
+    // v2.3.0 — monorepo support: if multiple subprojects detected, ask which
+    // one the pipeline targets, then re-inspect scoped to that path.
+    let subprojectRel = '';
+    let subprojectSlug = '';
+    if (profile.subprojects.length > 1) {
+      const picked = await this._pickSubproject(profile);
+      if (picked === undefined) return;   // user cancelled
+      subprojectRel = picked;
+      subprojectSlug = this._inspector.slugifySubproject(picked);
+      // Re-inspect scoped to the chosen subproject so language / pkgMgr /
+      // testFramework reflect that subproject's files, not the root.
+      profile = await this._inspector.inspect(ws, subprojectRel);
+      summary = this._inspector.summary(profile);
+    }
+
+    const choice = await this._collectChoices(profile, subprojectRel, subprojectSlug);
     if (!choice) return;
 
     const plan = this._orchestrator.planSteps(profile, choice);
@@ -479,7 +495,26 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
 
   // ── Choice gathering ─────────────────────────────────────────────────────
 
-  private async _collectChoices(profile: StackProfile): Promise<CICDChoice | null> {
+  /**
+   * v2.3.0 — present the detected subprojects as a QuickPick. Returns the
+   * chosen subproject's relative path ('' for repo root), or undefined if the
+   * user cancelled.
+   */
+  private async _pickSubproject(profile: StackProfile): Promise<string | undefined> {
+    const items = profile.subprojects.map(s => ({
+      label:  s.label,
+      detail: s.relPath === ''
+        ? `repo root · ${s.manifest} · ${s.language}`
+        : `${s.relPath}/ · ${s.manifest} · ${s.language}`,
+      value: s.relPath,
+    }));
+    const pick = await vscode.window.showQuickPick(items, {
+      placeHolder: `Multiple subprojects detected (${profile.subprojects.length}). Which one is this pipeline for?`,
+    });
+    return pick?.value;
+  }
+
+  private async _collectChoices(profile: StackProfile, subprojectRel = '', subprojectSlug = ''): Promise<CICDChoice | null> {
     // 1. Pick platform — recommend the one matching the user's git host.
     const recommended = this._inspector.recommendPlatform(profile);
     const platformItems = (Object.keys(PLATFORM_LABELS) as CIPlatform[]).map(p => ({
@@ -495,8 +530,17 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
     if (!platformPick) return null;
     const platform = platformPick.value;
 
+    // 1b. (v2.3.0) Surface platform-specific monorepo warning if applicable.
+    if (subprojectSlug) {
+      const warn = this._orchestrator.pipelinePathWarning(platform, subprojectSlug);
+      if (warn) {
+        const proceed = await vscode.window.showWarningMessage(warn, { modal: true }, 'Continue anyway', 'Cancel');
+        if (proceed !== 'Continue anyway') return null;
+      }
+    }
+
     // 2. Check for existing file at the target path → confirm overwrite.
-    const targetPath = this._orchestrator.outputPathFor(platform);
+    const targetPath = this._orchestrator.outputPathFor(platform, subprojectSlug);
     const existing   = profile.existing.find(e => e.file === targetPath);
     let overwrite = false;
     if (existing) {
@@ -542,7 +586,7 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
       deployTo = deployPick.value;
     }
 
-    return { platform, template, deployTo, overwrite };
+    return { platform, template, deployTo, overwrite, subproject: subprojectRel, subprojectSlug };
   }
 
   /**

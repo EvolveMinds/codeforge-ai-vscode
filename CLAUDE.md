@@ -27,7 +27,7 @@ evolve-ai-vscode/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
-│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.2.0 — Stage→Commit→Push→PR)
+│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.3.0 — monorepo subproject support)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/

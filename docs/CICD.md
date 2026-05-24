@@ -121,13 +121,15 @@ All probes have timeouts and never throw. Workspace must be trusted.
 ### Wizard flow
 
 1. **Intro screen** — shows detected stack and what the wizard will do. Click **Start wizard** or **Cancel**.
-2. **Pick CI platform** — quick-pick lists all six platforms; the one matching your git host is starred as recommended.
-3. **Confirm overwrite** — only fires if a file already exists at the target path. Modal warning, default cancel.
-4. **Pick template**:
+2. **Pick subproject** *(monorepos only — added in v2.3.0)* — if the wizard finds multiple subprojects (depth-2 scan for `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `pom.xml`, `build.gradle`, `*.csproj`), it asks which one this pipeline targets. Each entry shows the manifest filename and detected language. The wizard then re-inspects stack signals (language / package manager / test framework) scoped to that subproject, and the eventual pipeline filename is suffixed with the subproject name (e.g. `.github/workflows/ci-web.yml`, `.github/workflows/ci-api.yml`). Skipped entirely when only one subproject (or none) exists.
+3. **Pick CI platform** — quick-pick lists all six platforms; the one matching your git host is starred as recommended.
+4. **Platform warning** *(monorepos + Bitbucket / CircleCI / GitLab only)* — Bitbucket Pipelines and CircleCI only read one config file at their canonical path, so the wizard surfaces a modal explaining the trade-off (only one pipeline per repo; jobs are scoped via `working_directory` / `cd ...` instead of separate files). GitLab gets a similar note about needing to set `CI_CONFIG_PATH` if the file isn't at the default path.
+5. **Confirm overwrite** — only fires if a file already exists at the target path. Modal warning, default cancel.
+6. **Pick template**:
    - **Test only** — lint + tests on PR / push. Safest starter, no deploy step.
    - **Test + deploy** — adds a deploy job triggered on tag push.
    - **Test + container build + deploy** — adds a Docker build step before deploy.
-5. **Pick deploy target** *(only if template includes deploy)*:
+7. **Pick deploy target** *(only if template includes deploy)*:
    - npm registry (OIDC trusted-publisher)
    - PyPI (Trusted Publisher — no token needed)
    - Docker registry (ghcr / Docker Hub)
@@ -137,15 +139,16 @@ All probes have timeouts and never throw. Workspace must be trusted.
    - Azure App Service (federated credentials)
    - Kubernetes (kubectl apply)
    - None (skip the deploy step entirely)
-6. **AI generates** — under a cancellable progress notification, builds a prompt that includes your detected stack and a hard quality bar:
+8. **AI generates** — under a cancellable progress notification, builds a prompt that includes your detected stack and a hard quality bar:
    - Pin third-party actions / images to commit SHA (uses `# pin-me` placeholders)
    - Workflow-level `permissions: { contents: read }`
    - `timeout-minutes: 15` on each job
-   - Cache dependencies keyed by lockfile hash
+   - Cache dependencies keyed by lockfile hash (lockfile path is scoped to the chosen subproject in monorepo mode)
    - Concurrency control: cancel in-progress on PR, queue on main
    - OIDC for cloud auth where the platform supports it
    - Secrets in `env:` blocks, not `run:` strings
-7. **Writes the file** to the right path (`.github/workflows/ci.yml`, `.gitlab-ci.yml`, etc.), opens it for review, and surfaces a checklist of follow-ups.
+   - *In monorepo mode:* platform-specific working-directory idiom (GitHub Actions `defaults: { run: { working-directory: ... } }`, GitLab `cd $CI_WORK_DIR`, Jenkins `dir('...') { ... }`, etc.) and trigger-path filters so the pipeline only runs when files in the targeted subproject change.
+9. **Writes the file** to the right path (`.github/workflows/ci.yml` for repo-root projects; `.github/workflows/ci-<subproject>.yml` for monorepo subprojects), opens it for review, and surfaces a checklist of follow-ups.
 
 ### Stage & Commit (closing the loop)
 
