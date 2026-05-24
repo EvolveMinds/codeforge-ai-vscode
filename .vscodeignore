@@ -18,6 +18,12 @@ CLAUDE.md
 .gitignore
 .git/
 
+# Secrets (must never be packaged)
+.env
+.env.*
+.ovsx-token
+.vsce-token
+
 # Tests
 **/test/
 **/*.test.js

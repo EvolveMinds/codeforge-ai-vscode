@@ -2,6 +2,12 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.1.1] — 2026-05-24
+
+### Distribution — Open VSX
+
+- Republished v2.1.0 to **Open VSX Registry** under publisher `evolvecode-ai`. Same feature set as 2.1.0 — version bumped only because each marketplace tracks publisher metadata inside the `.vsix`, so a republish under a different namespace requires a fresh version. VS Code Marketplace remains on 2.1.0 (no functional changes); Open VSX users (VSCodium, Cursor, Theia, Gitpod, code-server) can now `Install Extension` directly. No code changes.
+
 ## [2.1.0] — 2026-05-09
 
 ### Added — DevOps authoring bundle
