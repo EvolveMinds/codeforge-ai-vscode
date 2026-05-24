@@ -27,7 +27,7 @@ evolve-ai-vscode/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
-│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.1.0)
+│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.2.0 — Stage→Commit→Push→PR)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -47,7 +47,9 @@ evolve-ai-vscode/
     │   ├── setupOrchestrator.ts ← one-click Gemma 4 install pipeline (Ollama + model)
     │   ├── gitConnectInspector.ts    ← detects git/identity/repo/remote/auth for Git wizard
     │   ├── gitConnectOrchestrator.ts ← step-by-step Git/Bitbucket connect (PAT/SSH/built-in/gh)
-    │   └── cicdSetupOrchestrator.ts  ← stack detection + starter-pipeline generation for CI/CD wizard
+    │   ├── cicdSetupOrchestrator.ts  ← stack detection + starter-pipeline generation for CI/CD wizard
+    │   ├── gitPushUtil.ts            ← pushBranch / getDefaultBranch / parseOwnerRepo (Stage & Commit v2.2)
+    │   └── prCreator.ts              ← createPR (GitHub + Bitbucket API + browser fallback)
     ├── ui/
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
@@ -104,6 +106,8 @@ to undo.
 | CI/CD plugin | `plugins/cicd.ts` | ✅ Complete |
 | CI/CD setup orchestrator | `core/cicdSetupOrchestrator.ts` | ✅ Complete |
 | CI/CD setup commands | `commands/cicdSetupCommands.ts` | ✅ Complete |
+| Git push util (Stage & Commit) | `core/gitPushUtil.ts` | ✅ Complete (v2.2.0) |
+| PR creator (Stage & Commit) | `core/prCreator.ts` | ✅ Complete (v2.2.0) |
 | Chat panel (sidebar) | `ui/chatPanel.ts` | ✅ Complete |
 | Chat editor tab (Claude-style) | `ui/chatEditorPanel.ts` | ✅ Complete |
 | Status bar | `ui/statusBar.ts` | ✅ Complete |
@@ -264,7 +268,7 @@ are merged into the core system transparently:
 |---|---|
 | `aiForge.cicd.setup.start` | First-time CI/CD setup wizard — picks platform, template, deploy target |
 | `aiForge.cicd.setup.status` | One-line summary of detected stack + existing pipelines |
-| `aiForge.cicd.setup.stageAndCommit` | Stage the wizard-written file, AI-draft a Conventional Commits message, commit. Refuses on protected branches without a feature-branch dialog first |
+| `aiForge.cicd.setup.stageAndCommit` | Stage the wizard-written file, AI-draft a Conventional Commits message, commit, **push, and open a PR** (v2.2.0). GitHub uses `vscode.authentication`; Bitbucket uses stored PAT; GitLab/other → browser fallback. Refuses on protected branches without a feature-branch dialog first. Set `aiForge.cicd.openPRAfterCommit: false` to stop at commit. |
 | `aiForge.cicd.explainJob` | Explain the CI job at the cursor (CodeLens) |
 | `aiForge.cicd.optimizePipeline` | Refactor active pipeline file for speed + reliability |
 | `aiForge.cicd.fixFailingRun` | Paste a failing CI run log → AI diagnoses against the active pipeline file |
@@ -310,6 +314,7 @@ are merged into the core system transparently:
 | `gitConnect.autoVerify` | boolean | `true` | Run `git ls-remote origin` after the wizard finishes |
 | `gitConnect.pushOnConnect` | boolean | `false` | After creating remote, run `git push -u origin HEAD` |
 | `gitConnect.statusHint` | boolean | `true` | Show `· not connected` in status bar + first-run nudge toast |
+| `cicd.openPRAfterCommit` | boolean | `true` | After Stage & Commit, offer to push the branch and open a PR. v2.2.0+. |
 
 ### SecretStorage keys (never in settings.json)
 

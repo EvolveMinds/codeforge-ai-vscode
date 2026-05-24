@@ -94,7 +94,7 @@ Right-click a YAML pipeline file or hit `Ctrl+.`:
 | `aiForge.cicd.useOIDC`           | Replace long-lived AWS/GCP/Azure secrets with OIDC (federated credentials). Adds a TODO with the cloud-side IAM trust policy. |
 | `aiForge.cicd.pinActions`        | Mass-replace floating action tags (`@v4`, `@main`) with `# pin-me` SHA placeholders. |
 | `aiForge.cicd.addConcurrency`    | Add a workflow-level concurrency block: cancel in-progress on PR, queue on main. |
-| `aiForge.cicd.setup.stageAndCommit` | Stage the wizard-written file and commit it. Forces a feature-branch dialog if you're on a protected branch (`main`/`master`/`develop`/`production`/`release`/`trunk`). AI drafts a Conventional Commits message; you review in an InputBox before commit. Cancelling unstages, never leaves a half-finished state. |
+| `aiForge.cicd.setup.stageAndCommit` | Stage the wizard-written file, commit, push, and open a PR. Forces a feature-branch dialog on protected branches. AI drafts a Conventional Commits message; you review before commit. After commit, offers `Push & open PR` (creates PR via GitHub / Bitbucket API or falls back to opening the platform's compare URL). Set `aiForge.cicd.openPRAfterCommit: false` to stop after the commit. |
 
 ### Status item
 
@@ -159,13 +159,27 @@ After the wizard writes the file, the success toast offers a **Stage & Commit** 
 6. On accept: `git commit -m <message>`.
 7. On cancel: **unstages** the file via `git reset HEAD --` so you don't end up with half-staged state.
 
-What it deliberately does **not** do:
+After the commit (added in v2.2.0):
 
-- **No `git push`.** You decide when to push.
-- **No `gh pr create` / `glab mr create`.** You decide when to open the PR.
+8. **Push & PR.** A follow-up toast asks: *"Committed `…`. Push to origin and open a pull request?"* with `Push & open PR`, `Push only`, and `Skip`.
+9. On `Push & open PR`:
+   - **Pushes the branch** to `origin`. First push automatically uses `-u` so upstream tracking is set. Never force-pushes; if the remote has diverged, surfaces a clean toast with a `git pull --rebase` hint instead.
+   - **Detects host + default branch** (`refs/remotes/origin/HEAD` first, then `git remote show origin`, falling back to `main`).
+   - Asks **Draft vs Standard PR**.
+   - **Creates the PR via API:** GitHub uses the existing `vscode.authentication` session; Bitbucket uses `aiForge.bitbucketPAT` (stored by the Git Connect Wizard). GitLab / other / any API failure → opens the platform's `compare` page pre-filled with title + body so you click "Create PR" once.
+   - **Returns the PR URL** in a toast with `Open in browser` and `Copy link`.
+
+To disable the automatic push + PR step and stop at the commit, set:
+
+```jsonc
+"aiForge.cicd.openPRAfterCommit": false
+```
+
+What Stage & Commit deliberately still does **not** do:
+
+- **No force push.** If the push is rejected non-fast-forward, you resolve it manually — that's a sign someone else has pushed to the same branch.
 - **No multi-file batching.** Only the single file the wizard wrote.
-
-Push and PR creation will land in v2.2 once the in-the-wild UX is verified.
+- **No standalone "push current branch + PR" command** — Stage & Commit must follow a wizard run. We may generalise this in v2.3+ if it proves useful.
 
 ### Follow-up checklist
 

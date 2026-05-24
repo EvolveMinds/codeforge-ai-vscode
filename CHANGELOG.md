@@ -2,6 +2,46 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.2.0] — 2026-05-24
+
+### Added — Stage & Commit closes the loop: now Stage → Commit → Push → PR (Level E)
+
+The CI/CD Setup Wizard's `Stage & Commit CI/CD Setup` command used to stop after the commit. v2.2.0 finishes the loop: it pushes the branch and opens a pull request, all in one flow.
+
+**New behaviour after a successful commit:**
+
+1. **Push the branch** to `origin`. First-time push adds `-u` automatically so upstream tracking is set. Never force-pushes — if the remote has diverged, surfaces a clean toast with a `git pull --rebase` hint.
+2. **Detect the host** (GitHub / Bitbucket / GitLab / other) and **default branch** (`refs/remotes/origin/HEAD` → `git remote show origin` fallback → `main`).
+3. **Offer Draft vs Standard PR.**
+4. **Create the PR** via API where possible:
+   - **GitHub** — uses `vscode.authentication.getSession('github', ['repo'])`. Same session the Git Connect Wizard establishes; no extra config needed.
+   - **Bitbucket** — uses `aiForge.bitbucketPAT` (stored by the Git Connect Wizard as `username:app_password`).
+   - **GitLab / other / any API failure** — opens the platform's `compare` URL pre-filled with title + body so the user just clicks "Create PR" in the browser.
+5. **Surface the PR URL** in a toast with `Open in browser` and `Copy link` actions. Stashes the URL in workspace state keyed by branch.
+
+**Files added:**
+
+- `src/core/gitPushUtil.ts` — `pushBranch()` (no force, auto-`-u` on first push), `getDefaultBranch()`, `getCurrentBranch()`, `getOriginUrl()`, `parseOwnerRepo()`.
+- `src/core/prCreator.ts` — `createPR()` (GitHub + Bitbucket API paths), `compareUrl()` (browser fallback for GitHub / Bitbucket / GitLab).
+
+**Files edited:**
+
+- `src/commands/cicdSetupCommands.ts` — extended `stageAndCommit()` with `_pushAndOpenPR()`, `_openPRForBranch()`, `_showPRSuccess()`, `_showPushFailure()`.
+- `package.json` — new setting `aiForge.cicd.openPRAfterCommit` (boolean, default `true`).
+
+**New setting:**
+
+| Key | Default | Purpose |
+|---|---|---|
+| `aiForge.cicd.openPRAfterCommit` | `true` | After Stage & Commit succeeds, offer to push + open PR. Set to false to stop at the commit. |
+
+**Scope decisions (kept narrow for v2.2):**
+
+- **CI/CD-only.** Only `stageAndCommit` invokes the new push + PR flow. v2.3 may generalise this into a shared `commitWizard` service that any plugin can opt into.
+- **No force pushing**, ever. If push fails with `non-fast-forward`, we surface the error and let the user resolve manually.
+- **No "Push current branch + open PR" standalone command** — wizard-only for now to keep the surface small.
+- **Default branch is detected**, not hardcoded — works with repos using `master`, `trunk`, `develop`, etc.
+
 ## [2.1.1] — 2026-05-24
 
 ### Distribution — Open VSX

@@ -24,6 +24,14 @@ import {
 } from '../core/cicdSetupOrchestrator';
 import type { AIRequest } from '../core/aiService';
 import { runCommand, runForStdout } from '../core/processUtil';
+import {
+  pushBranch,
+  getDefaultBranch,
+  getCurrentBranch,
+  getOriginUrl,
+  parseOwnerRepo,
+} from '../core/gitPushUtil';
+import { createPR, compareUrl, PRHost } from '../core/prCreator';
 
 // [v2.1.0] Workspace-state key recording the path of the most recent file the
 // wizard wrote, so `Stage & Commit CI/CD Setup` knows exactly which file to
@@ -270,9 +278,170 @@ export class CICDSetupCommands {
     // `Stage & Commit` invocations should not reuse this state.
     await this._svc.vsCtx.workspaceState.update(WROTE_KEY, undefined);
 
-    vscode.window.showInformationMessage(
-      `Committed \`${relPath}\` to \`${branch === 'unknown' ? 'current branch' : branch}\`. Push when you're ready.`,
+    // Resolve the branch name we actually committed on. `branch` was captured
+    // before any feature-branch checkout, so re-read it now.
+    const committedOn = (await getCurrentBranch(ws)) || branch;
+
+    // v2.2.0 — Level E: continue to push + PR.
+    const cfg = vscode.workspace.getConfiguration('aiForge.cicd');
+    const offerPushPR = cfg.get<boolean>('openPRAfterCommit', true);
+
+    if (!offerPushPR) {
+      vscode.window.showInformationMessage(
+        `Committed \`${relPath}\` to \`${committedOn}\`. (Auto-push + PR disabled in settings.)`,
+      );
+      return;
+    }
+
+    await this._pushAndOpenPR(ws, committedOn, relPath, finalMessage.trim());
+  }
+
+  /**
+   * v2.2.0 — push the just-committed branch and, on success, offer to open a PR.
+   * Called only from stageAndCommit() after a successful commit. Stays graceful
+   * on every failure mode: push errors show a single toast with a recovery hint;
+   * PR API failures fall back to the browser compare URL.
+   */
+  private async _pushAndOpenPR(ws: string, branch: string, relPath: string, commitSubject: string): Promise<void> {
+    // 1. Confirm with the user before pushing — Stage & Commit was Level C, so
+    //    users may still expect to push manually.
+    const pushAns = await vscode.window.showInformationMessage(
+      `Committed \`${relPath}\` to \`${branch}\`. Push to origin and open a pull request?`,
+      'Push & open PR',
+      'Push only',
+      'Skip',
     );
+    if (pushAns === 'Skip' || !pushAns) return;
+
+    // 2. Push, with progress.
+    const push = await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `Pushing \`${branch}\` to origin…`, cancellable: false },
+      () => pushBranch(ws, branch),
+    );
+
+    if (!push.ok) {
+      this._showPushFailure(push.message, push.reason);
+      return;
+    }
+
+    const upstreamNote = push.setUpstream ? ' (set upstream)' : '';
+    if (pushAns === 'Push only') {
+      vscode.window.showInformationMessage(`Pushed \`${branch}\` to origin${upstreamNote}.`);
+      return;
+    }
+
+    // 3. Open PR — detect host, look up owner/repo, compare against default branch.
+    await this._openPRForBranch(ws, branch, relPath, commitSubject);
+  }
+
+  private _showPushFailure(message: string, reason: string | undefined): void {
+    let hint = '';
+    if (reason === 'rejected-non-ff') {
+      hint = ' Pull with rebase first: `git pull --rebase origin <branch>`.';
+    } else if (reason === 'auth-failed') {
+      hint = ' Run the Git Connect Wizard to set up credentials.';
+    } else if (reason === 'network') {
+      hint = ' Check your network connection.';
+    }
+    vscode.window.showErrorMessage(`Push failed: ${message}.${hint}`);
+  }
+
+  private async _openPRForBranch(ws: string, branch: string, relPath: string, commitSubject: string): Promise<void> {
+    const inspector = this._svc.gitConnectInspector;
+    const remoteUrl = await getOriginUrl(ws);
+    if (!remoteUrl) {
+      vscode.window.showWarningMessage('No `origin` remote — cannot open a PR.');
+      return;
+    }
+    const ownerRepo = parseOwnerRepo(remoteUrl);
+    if (!ownerRepo) {
+      vscode.window.showWarningMessage(`Could not parse owner/repo from origin URL: ${remoteUrl}`);
+      return;
+    }
+    const host: PRHost = inspector ? (inspector.classifyHost(remoteUrl) as PRHost) : 'other';
+    const base = await getDefaultBranch(ws);
+    if (branch === base) {
+      vscode.window.showInformationMessage(`Already on default branch \`${base}\` — no PR needed.`);
+      return;
+    }
+
+    // Optional: draft PR?
+    const draftPick = await vscode.window.showQuickPick(
+      [
+        { label: '$(git-pull-request) Standard PR',       value: false, detail: 'Ready for review' },
+        { label: '$(git-pull-request-draft) Draft PR',    value: true,  detail: 'Sits while CI runs / WIP' },
+      ],
+      { placeHolder: 'PR mode?' },
+    );
+    if (!draftPick) return;
+    const draft = draftPick.value;
+
+    const title = commitSubject.slice(0, 120);
+    const body  = [
+      commitSubject,
+      '',
+      `Adds \`${relPath}\` via the Evolve AI CI/CD Setup Wizard.`,
+      '',
+      '<details><summary>Review checklist</summary>',
+      '',
+      '- [ ] Replace any `# pin-me` placeholders with real action SHAs.',
+      '- [ ] Configure required secrets in the CI provider.',
+      '- [ ] Branch-protect default branch (require this workflow to pass).',
+      '- [ ] Run a test PR to verify everything works end-to-end.',
+      '',
+      '</details>',
+    ].join('\n');
+
+    // 4. Try the API path first; fall back to browser on failure.
+    if (host === 'github' || host === 'bitbucket') {
+      const result = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Opening PR on ${host}…`, cancellable: false },
+        () => createPR({
+          host, owner: ownerRepo.owner, repo: ownerRepo.repo,
+          base, head: branch, title, body, draft,
+          secrets: inspector?.secrets ?? this._svc.vsCtx.secrets,
+        }),
+      );
+      if (result.ok && result.url) {
+        await this._showPRSuccess(result.url, branch);
+        return;
+      }
+      // API failed — offer browser fallback (unless user has no remote auth).
+      const url = compareUrl({ host, owner: ownerRepo.owner, repo: ownerRepo.repo, base, head: branch, title, body });
+      const ans = await vscode.window.showWarningMessage(
+        `PR API failed: ${result.error}. Open the compare page in browser instead?`,
+        'Open in browser',
+        'Cancel',
+      );
+      if (ans === 'Open in browser') {
+        vscode.env.openExternal(vscode.Uri.parse(url));
+      }
+      return;
+    }
+
+    // GitLab / other → browser only.
+    const url = compareUrl({ host, owner: ownerRepo.owner, repo: ownerRepo.repo, base, head: branch, title, body });
+    const ans = await vscode.window.showInformationMessage(
+      `PR API not supported for ${host} — open compare page in browser?`,
+      'Open in browser',
+      'Cancel',
+    );
+    if (ans === 'Open in browser') {
+      vscode.env.openExternal(vscode.Uri.parse(url));
+    }
+  }
+
+  private async _showPRSuccess(url: string, branch: string): Promise<void> {
+    // Remember the PR URL keyed by branch so re-runs can show "PR already open".
+    const stateKey = `aiForge.cicd.prUrl.${branch}`;
+    await this._svc.vsCtx.workspaceState.update(stateKey, url);
+    const ans = await vscode.window.showInformationMessage(
+      `PR opened: ${url}`,
+      'Open in browser',
+      'Copy link',
+    );
+    if (ans === 'Open in browser') vscode.env.openExternal(vscode.Uri.parse(url));
+    if (ans === 'Copy link')       vscode.env.clipboard.writeText(url);
   }
 
   /**
