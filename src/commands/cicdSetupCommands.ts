@@ -32,6 +32,8 @@ import {
   parseOwnerRepo,
 } from '../core/gitPushUtil';
 import { createPR, compareUrl, PRHost } from '../core/prCreator';
+import { installHook, uninstallHook, detectHookState } from '../core/hookInstaller';
+import { spawn } from 'child_process';
 
 // [v2.1.0] Workspace-state key recording the path of the most recent file the
 // wizard wrote, so `Stage & Commit CI/CD Setup` knows exactly which file to
@@ -71,6 +73,10 @@ export class CICDSetupCommands {
     r('aiForge.cicd.setup.start',          () => this.start());
     r('aiForge.cicd.setup.status',         () => this.status());
     r('aiForge.cicd.setup.stageAndCommit', () => this.stageAndCommit());
+    // v2.4.0 — pre-push hook commands
+    r('aiForge.cicd.installHook',          () => this.installPrePushHook());
+    r('aiForge.cicd.uninstallHook',        () => this.uninstallPrePushHook());
+    r('aiForge.cicd.checkPipelinesNow',    () => this.checkPipelinesNow());
   }
 
   // ── Main wizard ──────────────────────────────────────────────────────────
@@ -609,6 +615,182 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
       .replace(/\n?```\s*$/, '')
       .trim();
     return cleaned.length > 0 ? cleaned : null;
+  }
+
+  // ── Pre-push hook commands (v2.4.0) ──────────────────────────────────────
+
+  /**
+   * Install the pre-push hook. Walks the user through:
+   *   1. Workspace trust check + workspace folder selection.
+   *   2. Hook conflict handling (existing-non-evolve / Husky-detected paths).
+   *   3. Mode selection (block / warn / off) — pre-fills from setting.
+   *   4. Writes scripts/check-pipelines.js path resolved from extension dir.
+   *
+   * Idempotent: re-running just updates mode / path. Always opt-in (we do
+   * NOT install on workspace open).
+   */
+  async installPrePushHook(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) { vscode.window.showWarningMessage('Open a folder first.'); return; }
+    if (!vscode.workspace.isTrusted) {
+      vscode.window.showWarningMessage('Install Hook refuses to run in untrusted workspaces.');
+      return;
+    }
+
+    // Resolve the absolute path of scripts/check-pipelines.js inside the
+    // extension's install dir. Falls back to extensionPath/scripts/... if
+    // extensionUri is not file-scheme.
+    const scriptPath = path.join(this._svc.vsCtx.extensionPath, 'scripts', 'check-pipelines.js');
+    try {
+      await vscode.workspace.fs.stat(vscode.Uri.file(scriptPath));
+    } catch {
+      vscode.window.showErrorMessage(`Cannot find pipeline checker at ${scriptPath}. Reinstall the extension.`);
+      return;
+    }
+
+    // Detect current state to drive the conflict flow.
+    const state = detectHookState(ws);
+    let conflictAction: 'replace' | 'append' | undefined;
+
+    if (state.kind === 'theirs') {
+      const pick = await vscode.window.showWarningMessage(
+        `An existing pre-push hook is present at ${state.path}. Pick how to handle it:`,
+        { modal: true },
+        'Append our check',
+        'Replace it',
+        'Cancel',
+      );
+      if (pick === 'Append our check') conflictAction = 'append';
+      else if (pick === 'Replace it')  conflictAction = 'replace';
+      else return;
+    }
+
+    if (state.kind === 'husky') {
+      const proceed = await vscode.window.showInformationMessage(
+        `Husky detected. Install will write the check into ${state.huskyPath} so Husky doesn't overwrite it.`,
+        { modal: true },
+        'Continue',
+        'Cancel',
+      );
+      if (proceed !== 'Continue') return;
+    }
+
+    // Pick mode — pre-fill from setting.
+    const cfgMode = vscode.workspace.getConfiguration('aiForge.cicd').get<string>('hookMode', 'block');
+    const modePick = await vscode.window.showQuickPick(
+      [
+        { label: '$(shield) Block  — refuse pushes with hard issues (Recommended)', value: 'block' as const, picked: cfgMode === 'block' },
+        { label: '$(warning) Warn  — surface issues but allow push',                  value: 'warn'  as const, picked: cfgMode === 'warn'  },
+        { label: '$(circle-slash) Off — skip all checks (effectively disabled)',     value: 'off'   as const, picked: cfgMode === 'off'   },
+      ],
+      { placeHolder: 'Pick the hook mode (can be changed later via aiForge.cicd.hookMode setting)' },
+    );
+    if (!modePick) return;
+
+    const result = installHook({ repoRoot: ws, scriptPath, mode: modePick.value, conflictAction });
+    if (!result.ok) {
+      vscode.window.showErrorMessage(`Install failed: ${result.message}`);
+      return;
+    }
+    // Persist the chosen mode to settings so the user's preference survives reinstall.
+    try {
+      await vscode.workspace.getConfiguration('aiForge.cicd').update('hookMode', modePick.value, vscode.ConfigurationTarget.Workspace);
+    } catch { /* setting may already match; ignore */ }
+
+    const followup = await vscode.window.showInformationMessage(
+      result.message + '\n\nBypass any specific push with: git push --no-verify',
+      'Test it now',
+      'Open hook file',
+      'OK',
+    );
+    if (followup === 'Test it now')   await this.checkPipelinesNow();
+    if (followup === 'Open hook file' && result.path) {
+      const doc = await vscode.workspace.openTextDocument(result.path);
+      await vscode.window.showTextDocument(doc, { preview: false });
+    }
+  }
+
+  async uninstallPrePushHook(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) { vscode.window.showWarningMessage('Open a folder first.'); return; }
+    if (!vscode.workspace.isTrusted) {
+      vscode.window.showWarningMessage('Uninstall Hook refuses to run in untrusted workspaces.');
+      return;
+    }
+    const result = uninstallHook(ws);
+    if (result.ok) vscode.window.showInformationMessage(result.message);
+    else           vscode.window.showWarningMessage(result.message);
+  }
+
+  /**
+   * Run the same checker the hook runs, but against the current workspace's
+   * pipeline files. Surfaces findings in the Output channel and shows a
+   * one-line toast with the count. Useful for verifying installs and for
+   * the "check before committing" workflow.
+   */
+  async checkPipelinesNow(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) { vscode.window.showWarningMessage('Open a folder first.'); return; }
+    const scriptPath = path.join(this._svc.vsCtx.extensionPath, 'scripts', 'check-pipelines.js');
+
+    // Find all pipeline files in the workspace via VS Code's glob.
+    const patterns = [
+      '.github/workflows/*.yml',
+      '.github/workflows/*.yaml',
+      '.gitlab-ci.yml',
+      '.gitlab-ci*.yml',
+      'Jenkinsfile',
+      'Jenkinsfile.*',
+      '.circleci/config.yml',
+      '.circleci/config.yaml',
+      'azure-pipelines.yml',
+      'azure-pipelines*.yml',
+      'bitbucket-pipelines.yml',
+      'bitbucket-pipelines.yaml',
+    ];
+    const uris: vscode.Uri[] = [];
+    for (const p of patterns) {
+      const found = await vscode.workspace.findFiles(p, '**/node_modules/**', 100);
+      uris.push(...found);
+    }
+    if (uris.length === 0) {
+      vscode.window.showInformationMessage('No pipeline files found in this workspace.');
+      return;
+    }
+
+    const relFiles = uris.map(u => path.relative(ws, u.fsPath));
+    const out = vscode.window.createOutputChannel('Evolve AI — Pipeline Check');
+    out.clear();
+    out.show(true);
+    out.appendLine(`Checking ${relFiles.length} pipeline file(s)…`);
+
+    const mode = vscode.workspace.getConfiguration('aiForge.cicd').get<string>('hookMode', 'block');
+
+    const result = await this._runChecker(scriptPath, relFiles, mode, ws);
+    if (result.stdout) out.append(result.stdout);
+    if (result.stderr) out.append(result.stderr);
+    if (result.code === 0) {
+      vscode.window.showInformationMessage(`Pipeline check: no blocking issues. (See Output for details.)`);
+    } else {
+      vscode.window.showWarningMessage(`Pipeline check: blocking issues detected. (See Output for details.)`);
+    }
+  }
+
+  private _runChecker(scriptPath: string, relFiles: string[], mode: string, cwd: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
+    return new Promise(resolve => {
+      const proc = spawn('node', [scriptPath, `--mode=${mode}`], { cwd, shell: false, windowsHide: true });
+      let stdout = '';
+      let stderr = '';
+      proc.stdout?.on('data', d => { stdout += d.toString('utf8'); });
+      proc.stderr?.on('data', d => { stderr += d.toString('utf8'); });
+      proc.on('error', e => resolve({ code: null, stdout, stderr: stderr + e.message }));
+      proc.on('close', code => resolve({ code, stdout, stderr }));
+      // NUL-separated file list to stdin.
+      try {
+        proc.stdin?.write(relFiles.join('\0'));
+        proc.stdin?.end();
+      } catch { /* ignore */ }
+    });
   }
 }
 

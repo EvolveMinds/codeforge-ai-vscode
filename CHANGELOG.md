@@ -2,6 +2,61 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.4.0] — 2026-05-24
+
+### Added — Pre-push gating for CI/CD pipeline anti-patterns
+
+The CI/CD plugin (v2.1.0) catches anti-patterns in your editor. v2.4.0 catches them at **push time** with a per-repo opt-in git hook, so supply-chain risks (unpinned actions) and credential-leak risks (long-lived AWS/GCP/Azure keys) never reach origin.
+
+**How it works:**
+
+1. Run `Evolve AI: Install CI/CD Pre-Push Hook`. The wizard:
+   - Detects whether `.git/hooks/pre-push` already exists. If it's not ours, offers **Append our check** / **Replace** / **Cancel** — never silently clobbers other hooks.
+   - Detects Husky (`.husky/` directory). If found, writes to `.husky/pre-push` instead so Husky doesn't overwrite our hook on next `husky install`.
+   - Asks for the mode: **Block** (default), **Warn**, or **Off**.
+2. On every `git push`, the hook computes the pipeline-file diff (using `git diff --name-only @{push}..HEAD` semantics), pipes the file list to `scripts/check-pipelines.js`, and either allows or blocks the push based on findings.
+3. Bypass any specific push with `git push --no-verify` (standard git mechanism — we don't override it).
+
+**Rule split (hard-block vs warn):**
+
+| Rule | Severity | Reason |
+|---|---|---|
+| Unpinned `uses: owner/name@v4` references (anything but a 40-char SHA) | **Block** | Supply-chain attack vector — a hijacked tag silently runs new code on every CI run. |
+| Long-lived cloud creds in secrets (`AWS_ACCESS_KEY_ID`, `GCP_SA_KEY`, `AZURE_CLIENT_SECRET`, etc.) | **Block** | Credential-leak risk — these rotate manually and live in repo secrets indefinitely. Use OIDC. |
+| Missing top-level `permissions:` block (GitHub Actions) | **Warn** | Implicit write permissions on `GITHUB_TOKEN`. |
+| Job without `timeout-minutes` | **Warn** | Runaway runs can sit idle for 6h burning runner minutes. |
+| No `concurrency:` block | **Warn** | Duplicate runs race / waste runner minutes. |
+
+The warn tier exists deliberately — gating on every nit trains users to reach for `--no-verify`, which is worse than no hook at all.
+
+**Files added:**
+
+- `scripts/check-pipelines.js` — self-contained Node script (no extension imports). Survives extension uninstall: hook prints a one-line "extension is gone, remove me" notice and exits 0 (never blocks if extension is missing).
+- `src/core/hookInstaller.ts` — `installHook()`, `uninstallHook()`, `detectHookState()` returning `'none' | 'ours' | 'theirs' | 'husky'`. Respects `core.hooksPath` config for teams using shared hook directories.
+
+**Three new commands:**
+
+| Command | Purpose |
+|---|---|
+| `aiForge.cicd.installHook` | Install / update the pre-push hook for the current repo. Handles conflicts, Husky detection, mode selection. |
+| `aiForge.cicd.uninstallHook` | Remove the hook (or strip our appended block if we shared the file with another hook). Refuses to touch hooks we didn't write. |
+| `aiForge.cicd.checkPipelinesNow` | Dry-run the checker against the current workspace's pipeline files. Useful to verify install + see what the hook would say without pushing. |
+
+**One new setting:**
+
+| Key | Default | Purpose |
+|---|---|---|
+| `aiForge.cicd.hookMode` | `block` | `block` (refuse pushes with hard issues), `warn` (surface but allow), or `off` (skip all checks — disables hook without uninstalling it). |
+
+**Cross-platform:** Hook is POSIX shell. Works on Git for Windows (MINGW64 sh), macOS, and Linux. No PowerShell or .bat hook.
+
+**What's NOT in v2.4.0 (deferred):**
+
+- **No pre-commit hook** — only pre-push for now. Pre-commit would catch issues earlier but doubles install surface; most users push immediately after commit.
+- **No auto-install on workspace open** — always explicit opt-in. Hooks are too intrusive to install silently.
+- **No per-rule severity override** — single global mode (block/warn/off). Per-rule control adds complexity without clear demand yet.
+- **No detection of `pre-commit` framework** (the Python one) or **lefthook** — could add later.
+
 ## [2.3.0] — 2026-05-24
 
 ### Added — Monorepo support for the CI/CD Setup Wizard

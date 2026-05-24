@@ -27,7 +27,7 @@ evolve-ai-vscode/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
-│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.3.0 — monorepo subproject support)
+│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -49,7 +49,8 @@ evolve-ai-vscode/
     │   ├── gitConnectOrchestrator.ts ← step-by-step Git/Bitbucket connect (PAT/SSH/built-in/gh)
     │   ├── cicdSetupOrchestrator.ts  ← stack detection + starter-pipeline generation for CI/CD wizard
     │   ├── gitPushUtil.ts            ← pushBranch / getDefaultBranch / parseOwnerRepo (Stage & Commit v2.2)
-    │   └── prCreator.ts              ← createPR (GitHub + Bitbucket API + browser fallback)
+    │   ├── prCreator.ts              ← createPR (GitHub + Bitbucket API + browser fallback)
+    │   └── hookInstaller.ts          ← Pre-push hook install/uninstall (v2.4) — Husky-aware, conflict-safe
     ├── ui/
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
@@ -108,6 +109,8 @@ to undo.
 | CI/CD setup commands | `commands/cicdSetupCommands.ts` | ✅ Complete |
 | Git push util (Stage & Commit) | `core/gitPushUtil.ts` | ✅ Complete (v2.2.0) |
 | PR creator (Stage & Commit) | `core/prCreator.ts` | ✅ Complete (v2.2.0) |
+| Pre-push hook installer | `core/hookInstaller.ts` | ✅ Complete (v2.4.0) |
+| Pre-push checker (self-contained Node) | `scripts/check-pipelines.js` | ✅ Complete (v2.4.0) |
 | Chat panel (sidebar) | `ui/chatPanel.ts` | ✅ Complete |
 | Chat editor tab (Claude-style) | `ui/chatEditorPanel.ts` | ✅ Complete |
 | Status bar | `ui/statusBar.ts` | ✅ Complete |
@@ -263,7 +266,7 @@ are merged into the core system transparently:
 | `aiForge.gitConnect.disconnect` | — | Clear stored PATs and the VS Code GitHub session |
 | `aiForge.gitConnect.testConnection` | — | Re-run `git ls-remote origin` to verify the remote |
 
-### CI/CD Wizard + plugin (12)
+### CI/CD Wizard + plugin (15)
 | Command ID | Description |
 |---|---|
 | `aiForge.cicd.setup.start` | First-time CI/CD setup wizard — picks platform, template, deploy target |
@@ -277,6 +280,9 @@ are merged into the core system transparently:
 | `aiForge.cicd.useOIDC` | Replace long-lived secrets with OIDC (lightbulb) |
 | `aiForge.cicd.pinActions` | Pin all `uses:` references to commit SHA (lightbulb) |
 | `aiForge.cicd.addConcurrency` | Add a concurrency block at workflow level (lightbulb) |
+| `aiForge.cicd.installHook` | Install pre-push hook for current repo (v2.4.0). Conflict-aware, Husky-aware, mode-configurable |
+| `aiForge.cicd.uninstallHook` | Remove the pre-push hook (or strip our appended block). Refuses to touch hooks we didn't write |
+| `aiForge.cicd.checkPipelinesNow` | Dry-run the pipeline checker against the current workspace's pipeline files. Output channel shows findings |
 
 ### Databricks plugin (10)
 `aiForge.databricks.explainJob` · `aiForge.databricks.optimiseQuery` ·
@@ -315,6 +321,7 @@ are merged into the core system transparently:
 | `gitConnect.pushOnConnect` | boolean | `false` | After creating remote, run `git push -u origin HEAD` |
 | `gitConnect.statusHint` | boolean | `true` | Show `· not connected` in status bar + first-run nudge toast |
 | `cicd.openPRAfterCommit` | boolean | `true` | After Stage & Commit, offer to push the branch and open a PR. v2.2.0+. |
+| `cicd.hookMode` | string | `block` | Pre-push hook mode: `block` (refuse push on hard issues), `warn` (surface but allow), `off` (skip checks). v2.4.0+. |
 
 ### SecretStorage keys (never in settings.json)
 

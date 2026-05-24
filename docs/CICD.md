@@ -195,6 +195,50 @@ After the wizard finishes (whether you used Stage & Commit or did it manually):
 
 ---
 
+## Pre-push hook (v2.4.0)
+
+The CI/CD plugin catches anti-patterns in your editor. The pre-push hook catches them at **push time** so supply-chain and credential-leak risks never reach origin.
+
+### Install
+
+Run `Evolve AI: Install CI/CD Pre-Push Hook` from the command palette. The wizard handles:
+
+- **Conflict with an existing hook** — if `.git/hooks/pre-push` already exists and wasn't written by us, you'll see a modal: **Append our check** (preserves existing hook), **Replace** (overwrites), **Cancel**.
+- **Husky detection** — if `.husky/` exists, we write to `.husky/pre-push` instead so Husky doesn't overwrite our hook on next `husky install`.
+- **Mode selection** — `block` (default, refuses pushes with hard issues), `warn` (surfaces but allows), `off` (skip all checks).
+
+The chosen mode is persisted to `aiForge.cicd.hookMode` in workspace settings.
+
+### What it checks
+
+| Rule | Severity | Why |
+|---|---|---|
+| Unpinned `uses: owner/name@v4` references | **Block** | Hijacked tags silently re-run new code on every CI run. Pin to a 40-char SHA. |
+| Long-lived cloud creds in secrets (`AWS_ACCESS_KEY_ID`, `GCP_SA_KEY`, `AZURE_CLIENT_SECRET`, etc.) | **Block** | These rotate manually and live in repo secrets indefinitely. Use OIDC. |
+| Missing top-level `permissions:` (GitHub Actions) | **Warn** | Implicit write permissions on `GITHUB_TOKEN`. |
+| Job without `timeout-minutes` | **Warn** | Runaway runs can sit idle for 6h. |
+| No `concurrency:` block | **Warn** | Duplicate runs race / waste runner minutes. |
+
+The warn tier exists deliberately: gating on every nit trains users to reach for `--no-verify`, which is worse than no hook.
+
+### Bypass / uninstall
+
+| Want to… | Do this |
+|---|---|
+| Push once without running the hook | `git push --no-verify` (standard git mechanism) |
+| Temporarily disable without uninstalling | Set `aiForge.cicd.hookMode` to `"off"` |
+| Remove the hook entirely | Run `Evolve AI: Uninstall CI/CD Pre-Push Hook`. If we appended to an existing hook, only our lines are stripped — yours stay. |
+| See what the hook would say without pushing | Run `Evolve AI: Check Pipelines Now (Pre-Push Dry Run)`. Findings go to the Output channel. |
+
+### Implementation notes
+
+- **POSIX shell.** Works on Git for Windows (MINGW64 sh), macOS, Linux. No `.bat` or `.ps1` hook.
+- **Self-contained checker.** `scripts/check-pipelines.js` has zero extension imports. Survives extension uninstall (hook prints "extension is gone, remove me" and exits 0 instead of blocking).
+- **Respects `core.hooksPath`.** Teams using shared hook collections (`git config core.hooksPath .githooks`) get the hook written there.
+- **Never blocks on internal error.** A crash in the hook script exits 0 with a stderr note — better than locking the user out of pushing.
+
+---
+
 ## Privacy & security
 
 | Concern | What we do |
