@@ -26,7 +26,7 @@ Google's latest open-weight model — text, image, and audio. Runs locally via O
 **Privacy:** All hardware detection is local. Nothing is sent anywhere.
 
 **If your system can't run any variant**, the wizard shows a modal with three actionable alternatives:
-- Switch to a cloud provider (Claude, OpenAI, HuggingFace)
+- Switch to a cloud provider (Claude, OpenAI, Gemini, HuggingFace)
 - Use offline mode (pattern-based, no setup)
 - Free up disk space (with tips)
 
@@ -71,7 +71,13 @@ Your code never leaves your machine. No API key. No cost.
 3. Set `aiForge.openaiModel` to your model name
 4. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **OpenAI** > paste your key
 
-### Option E: No Setup (Offline Mode)
+### Option E: Google Gemini (Cloud)
+
+1. Get an API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+2. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **Google Gemini** > paste your key
+3. Pick a model — `gemini-2.5-flash` (default), `gemini-2.5-pro`, or `gemini-2.0-flash`
+
+### Option F: No Setup (Offline Mode)
 
 Evolve AI works without any AI provider! It uses pattern-based analysis — less powerful, but instant and free. Just install the extension and go.
 
@@ -95,7 +101,7 @@ Above the input box you'll see two **pills**:
 - **Model pill** — switch model within the active provider (e.g., between installed
   Ollama models, or between `claude-sonnet-4-6` / `claude-opus-4-7`). The
   *More providers…* item at the bottom opens the full provider switch flow if you want
-  to move between Ollama, Anthropic, OpenAI, Hugging Face, Gemma 4, or offline.
+  to move between Ollama, Anthropic, OpenAI, Google Gemini, Hugging Face, Gemma 4, or offline.
 
 **Check the status indicator** in the top-left of the chat:
 - Green dot + "OLLAMA" = connected to local AI
@@ -484,7 +490,7 @@ Open Settings (`Ctrl+,`) and search "aiForge" to see all options:
 
 | Setting | What it does | When to change |
 |---|---|---|
-| `aiForge.provider` | Which AI to use (`auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `huggingface`, `offline`) | Set to `gemma4` for smart Gemma 4 setup |
+| `aiForge.provider` | Which AI to use (`auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `gemini`, `huggingface`, `offline`) | Set to `gemma4` for smart Gemma 4 setup |
 | `aiForge.ollamaHost` | Ollama server URL | Change to `http://127.0.0.1:11434` on Windows if needed |
 | `aiForge.ollamaModel` | Which Ollama model | If you pulled a different model |
 | `aiForge.gemma4Model` | Which Gemma 4 variant (`gemma4:e2b`, `e4b`, `26b`, `31b`) | The wizard sets this automatically |

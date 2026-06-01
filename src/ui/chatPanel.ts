@@ -373,6 +373,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       ollama:      'ollamaModel',
       anthropic:   'anthropicModel',
       openai:      'openaiModel',
+      gemini:      'geminiModel',
       huggingface: 'huggingfaceModel',
     };
     const settingKey = settingByProvider[provider];
@@ -715,7 +716,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
           <div class="pop-icon">&#8230;</div>
           <div class="pop-body">
             <div class="pop-name">More providers&#8230;</div>
-            <div class="pop-desc">Switch to Anthropic, OpenAI, Hugging Face, Gemma 4, or offline mode.</div>
+            <div class="pop-desc">Switch to Anthropic, OpenAI, Google Gemini, Hugging Face, Gemma 4, or offline mode.</div>
           </div>
         </div>
       </div>
@@ -805,6 +806,7 @@ function renderModelPopover() {
     : currentProvider === 'ollama' ? 'Ollama'
     : currentProvider === 'anthropic' ? 'Anthropic'
     : currentProvider === 'openai' ? 'OpenAI / Compatible'
+    : currentProvider === 'gemini' ? 'Google Gemini'
     : currentProvider === 'huggingface' ? 'Hugging Face'
     : currentProvider === 'offline' ? 'Offline'
     : (currentProvider || '').toUpperCase();
@@ -1418,6 +1420,11 @@ function resolveModelView(
     case 'openai': {
       const current = cfg.get<string>('openaiModel', 'gpt-4o');
       const known = ['gpt-4o', 'gpt-4o-mini', 'o1-mini', 'o3-mini'];
+      return { currentModel: current, availableModels: dedupe([current, ...known]) };
+    }
+    case 'gemini': {
+      const current = cfg.get<string>('geminiModel', 'gemini-2.5-flash');
+      const known = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
       return { currentModel: current, availableModels: dedupe([current, ...known]) };
     }
     case 'huggingface': {

@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.4.0",
+  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, Gemini, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "2.5.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -22,6 +22,8 @@
     "ollama",
     "gemma",
     "claude",
+    "gemini",
+    "google gemini",
     "code assistant",
     "data engineering",
     "dbt",
@@ -1392,6 +1394,7 @@
             "gemma4",
             "anthropic",
             "openai",
+            "gemini",
             "huggingface",
             "offline"
           ],
@@ -1401,6 +1404,7 @@
             "Gemma 4 — Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
             "Anthropic Claude — cloud, requires API key",
             "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
+            "Google Gemini — cloud, requires API key. gemini-2.5-pro, 2.5-flash, 2.0-flash",
             "Hugging Face Inference API — cloud, requires API key. Access thousands of open models",
             "Built-in offline AI — no LLM, pattern-based, instant"
           ],
@@ -1465,6 +1469,16 @@
           "default": "claude-sonnet-4-6",
           "description": "Anthropic model to use (e.g., claude-sonnet-4-6, claude-opus-4-6)"
         },
+        "aiForge.geminiModel": {
+          "type": "string",
+          "default": "gemini-2.5-flash",
+          "description": "Google Gemini model name (e.g., gemini-2.5-pro, gemini-2.5-flash, gemini-2.0-flash, gemini-2.0-flash-lite)"
+        },
+        "aiForge.geminiBaseUrl": {
+          "type": "string",
+          "default": "https://generativelanguage.googleapis.com/v1beta/openai",
+          "description": "Google Gemini OpenAI-compatible base URL. Change only for a proxy or a future endpoint version."
+        },
         "aiForge.huggingfaceModel": {
           "type": "string",
           "default": "Qwen/Qwen2.5-Coder-32B-Instruct",
@@ -1521,7 +1535,7 @@
         "aiForge.lineage.includePii": {
           "type": "boolean",
           "default": false,
-          "description": "Include columns tagged pii / pci / sensitive when sending prompts to cloud AI providers (Anthropic, OpenAI, Hugging Face). Local providers (Ollama, Gemma 4) always receive full schemas."
+          "description": "Include columns tagged pii / pci / sensitive when sending prompts to cloud AI providers (Anthropic, OpenAI, Google Gemini, Hugging Face). Local providers (Ollama, Gemma 4) always receive full schemas."
         },
         "aiForge.lineage.maxUpstreamTables": {
           "type": "number",

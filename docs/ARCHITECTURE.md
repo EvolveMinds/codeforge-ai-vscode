@@ -453,6 +453,8 @@ provider setting = 'ollama'     →  use Ollama regardless
 provider setting = 'gemma4'     →  use Gemma 4 (via Ollama /api/chat, guided setup wizard)
 provider setting = 'anthropic'  →  use Anthropic
 provider setting = 'openai'     →  use OpenAI-compatible
+provider setting = 'gemini'     →  use Google Gemini (OpenAI-compatible endpoint)
+provider setting = 'huggingface'→  use Hugging Face Inference API
 provider setting = 'offline'    →  static fallback responses
 ```
 

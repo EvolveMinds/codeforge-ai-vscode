@@ -2,6 +2,32 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.5.0] — 2026-06-01
+
+### Added — Google Gemini as a first-class AI provider
+
+Gemini now has its own entry in the provider switcher alongside Claude, OpenAI, Ollama, Gemma 4 and Hugging Face — its own API key, model picker, and status-bar/header branding. Previously Gemini was only reachable by repurposing the OpenAI provider with a custom base URL.
+
+**How to use it:**
+
+1. Get an API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey).
+2. Click **Switch** in the chat header → **Google Gemini** → paste your key → pick a model.
+3. The key is stored in VS Code's encrypted `SecretStorage` (`aiForge.geminiKey`), never in `settings.json`.
+
+**Models offered:** `gemini-2.5-pro`, `gemini-2.5-flash` (default), `gemini-2.0-flash`, `gemini-2.0-flash-lite`, plus a custom-ID option.
+
+**Implementation notes:**
+
+- Talks to Gemini's **official OpenAI-compatible endpoint** (`https://generativelanguage.googleapis.com/v1beta/openai`), so the SSE streaming parser, mid-stream cancellation (`AbortSignal`), and HTTP error handling are reused verbatim from the OpenAI path.
+- Gemini is classified as a **cloud provider**: PII-tagged lineage columns are redacted before being sent (same guard as Anthropic / OpenAI / Hugging Face), and the cloud-consent dialog is shown on first switch.
+
+**Settings added:**
+
+- `aiForge.geminiModel` (default `gemini-2.5-flash`)
+- `aiForge.geminiBaseUrl` (default the compat endpoint above — change only for a proxy)
+
+**SecretStorage key added:** `aiForge.geminiKey`.
+
 ## [2.4.0] — 2026-05-24
 
 ### Added — Pre-push gating for CI/CD pipeline anti-patterns

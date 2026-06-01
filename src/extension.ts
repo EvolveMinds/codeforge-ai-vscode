@@ -470,7 +470,7 @@ async function maybeRequestPiiConsent(
 
   const cfg = vscode.workspace.getConfiguration('aiForge');
   const provider = cfg.get<string>('provider', 'auto');
-  const isCloud = provider === 'anthropic' || provider === 'openai' || provider === 'huggingface';
+  const isCloud = provider === 'anthropic' || provider === 'openai' || provider === 'gemini' || provider === 'huggingface';
   if (!isCloud) return;
 
   await vsCtx.workspaceState.update(PII_ASKED, true);

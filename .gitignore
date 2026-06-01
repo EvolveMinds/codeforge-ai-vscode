@@ -1,6 +1,9 @@
 # Compiled output
 out/
 
+# VS Code test runner download cache (@vscode/test-electron)
+.vscode-test/
+
 # Dependencies
 node_modules/
 
