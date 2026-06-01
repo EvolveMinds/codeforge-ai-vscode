@@ -28,6 +28,7 @@ CLAUDE.md
 **/test/
 **/*.test.js
 **/*.test.js.map
+.vscode-test/
 
 # Misc
 node_modules/
