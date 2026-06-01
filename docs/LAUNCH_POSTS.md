@@ -17,7 +17,7 @@ Open a Terraform project? The Terraform plugin activates with HCL best practices
 
 The key architectural decision: plugins implement a standard IPlugin interface and contribute context hooks, system prompt sections, CodeLens actions, code transforms, and commands. Adding a new stack plugin is ~800 lines of TypeScript with no core changes needed.
 
-On the AI provider side, it supports Ollama and Gemma 4 for fully local/private usage (code never leaves your machine), plus Anthropic Claude, OpenAI-compatible endpoints, and HuggingFace. Switching between local and cloud is one click.
+On the AI provider side, it supports Ollama and Gemma 4 for fully local/private usage (code never leaves your machine), plus Anthropic Claude, OpenAI-compatible endpoints, Google Gemini, and HuggingFace. Switching between local and cloud is one click.
 
 Technical details:
 - TypeScript, strict mode, DI container with interface contracts
@@ -97,7 +97,7 @@ I've been working on a VS Code extension that takes a different approach to AI c
 
 **Provider flexibility:**
 - **Local/free**: Ollama, Gemma 4, LM Studio, llama.cpp — code stays on your machine
-- **Cloud**: Anthropic Claude, OpenAI/Groq/Mistral, HuggingFace
+- **Cloud**: Anthropic Claude, OpenAI/Groq/Mistral, Google Gemini, HuggingFace
 - Switch with one click, no restart needed
 
 **Features:**
@@ -204,7 +204,7 @@ Evolve AI is a VS Code extension that brings AI code assistance with deep domain
 
 Each plugin injects stack-specific context into every AI interaction. Ask "optimize this" in a Databricks project and the AI knows about partition pruning and Z-ordering. Ask in a Django project and it knows about QuerySet optimization and N+1 queries.
 
-Runs fully local with Ollama or Gemma 4 (free, private, your code never leaves your machine) or any cloud provider (Claude, OpenAI, HuggingFace). MIT licensed and open source.
+Runs fully local with Ollama or Gemma 4 (free, private, your code never leaves your machine) or any cloud provider (Claude, OpenAI, Google Gemini, HuggingFace). MIT licensed and open source.
 
 **Topics:** Artificial Intelligence, Developer Tools, Open Source, Visual Studio Code
 

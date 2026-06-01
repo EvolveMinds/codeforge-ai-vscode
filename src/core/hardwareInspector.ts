@@ -102,7 +102,7 @@ export class HardwareInspector {
         reasons: blockers,
         suggestions: [
           'Free up disk space (need at least 8GB for the smallest variant)',
-          'Use a cloud provider instead (Anthropic Claude, OpenAI, HuggingFace) — runs in the cloud, only needs an API key',
+          'Use a cloud provider instead (Anthropic Claude, OpenAI, Google Gemini, HuggingFace) — runs in the cloud, only needs an API key',
           'Use the built-in Offline mode — pattern-based, no LLM required',
         ],
       };
@@ -131,7 +131,7 @@ export class HardwareInspector {
       suggestions: [
         'Free up RAM by closing other applications',
         'Free up disk space (need at least 8GB)',
-        'Use a cloud provider (Anthropic Claude, OpenAI) instead',
+        'Use a cloud provider (Anthropic Claude, OpenAI, Google Gemini) instead',
       ],
     };
   }

@@ -15,7 +15,7 @@ import { safeUpdateConfig, readHostSetting, warnIfRemoteHost } from './configSaf
 import type { EventBus }   from './eventBus';
 import type { IAIService } from './interfaces';
 
-export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'anthropic' | 'openai' | 'huggingface' | 'offline';
+export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'anthropic' | 'openai' | 'gemini' | 'huggingface' | 'offline';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -40,6 +40,7 @@ export interface RequestInterceptor {
 // Secret storage keys
 const SECRET_ANTHROPIC    = 'aiForge.anthropicKey';
 const SECRET_OPENAI       = 'aiForge.openaiKey';
+const SECRET_GEMINI       = 'aiForge.geminiKey';
 const SECRET_HUGGINGFACE  = 'aiForge.huggingfaceKey';
 
 // ── AIService ─────────────────────────────────────────────────────────────────
@@ -189,6 +190,7 @@ export class AIService implements IAIService {
       else if (provider === 'gemma4')     { yield* this._streamGemma4(req, cfg);     }
       else if (provider === 'anthropic')  { yield* this._streamAnthropic(req, cfg);  }
       else if (provider === 'openai')     { yield* this._streamOpenAI(req, cfg);     }
+      else if (provider === 'gemini')     { yield* this._streamGemini(req, cfg);    }
       else if (provider === 'huggingface'){ yield* this._streamHuggingFace(req, cfg);}
       else                                { yield* this._offline(req);                }
 
@@ -434,6 +436,38 @@ export class AIService implements IAIService {
     );
   }
 
+  private async* _streamGemini(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
+    // [FIX-4] Read from SecretStorage only — never fall back to settings.json
+    const key   = await this._secrets.get(SECRET_GEMINI) ?? '';
+    const model = cfg.get<string>('geminiModel', 'gemini-2.5-flash');
+    // Gemini's OpenAI-compatible endpoint — same SSE shape as _streamOpenAI,
+    // so the existing chunk parser is reused verbatim. The base URL is fixed
+    // (no custom override) because compat lives at a single Google endpoint.
+    const baseUrl = readHostSetting('aiForge', 'geminiBaseUrl', 'https://generativelanguage.googleapis.com/v1beta/openai');
+    if (!key) {
+      yield `⚠ **No Google Gemini API key configured**\n\n`;
+      yield `To use Gemini:\n`;
+      yield `1. Get an API key at https://aistudio.google.com/apikey\n`;
+      yield `2. Click **Switch** in the header above, select **Google Gemini**, and paste your key\n\n`;
+      yield `Current model: \`${model}\`. Change it in Settings if needed.\n`;
+      yield `Your key is stored securely in VS Code's encrypted storage — never in plaintext.\n`;
+      return;
+    }
+    const url  = new URL(baseUrl + '/chat/completions');
+    const body = JSON.stringify({
+      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      messages: [{ role: 'system', content: req.system }, ...req.messages],
+    });
+    yield* this._httpStream(url, body,
+      c => {
+        if (!c.startsWith('data:') || c.includes('[DONE]')) return '';
+        try { return JSON.parse(c.slice(5).trim()).choices?.[0]?.delta?.content || ''; } catch { return ''; }
+      },
+      { Authorization: `Bearer ${key}` },
+      req.signal
+    );
+  }
+
   private async* _streamHuggingFace(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const key   = await this._secrets.get(SECRET_HUGGINGFACE) ?? '';
     const model = cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
@@ -640,4 +674,4 @@ export class AIService implements IAIService {
 }
 
 // Export constant keys so switchProvider command can use them
-export { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_HUGGINGFACE };
+export { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_HUGGINGFACE };

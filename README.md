@@ -7,7 +7,7 @@
 [![Installs](https://img.shields.io/visual-studio-marketplace/i/codeforge-ai.evolve-ai?color=green)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
 [![License: MIT](https://img.shields.io/github/license/EvolveMinds/codeforge-ai-vscode?color=brightgreen)](LICENSE)
 
-**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **Anthropic Claude**, **OpenAI-compatible APIs**, and **Hugging Face** — so you choose where your code goes.
+**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, and **Hugging Face** — so you choose where your code goes.
 
 ### Why Evolve AI?
 
@@ -31,7 +31,7 @@ If you live in **dbt + Airflow + Databricks/BigQuery** files, Evolve AI is purpo
 - **dbt impact analysis** *(v1.8)* — `Ctrl+Alt+I` opens an Impact panel showing every model + exposure that depends on the one you're editing. *Refactor with AI (impact-aware)* button injects the blast radius into the prompt. → [docs/DBT_MANIFEST.md](docs/DBT_MANIFEST.md)
 - **Airflow DAG simulator** *(v1.9)* — `Ctrl+Alt+D` does static analysis on DAG files: cycles, broken `>>` edges, duplicate `task_id`s, sensor poke-starvation, missing `catchup=False`, invalid cron, TaskFlow `()` mistakes — inline diagnostics + a *Fix all with AI* button. No Python interpreter, no Airflow install required. → [docs/AIRFLOW_SIMULATOR.md](docs/AIRFLOW_SIMULATOR.md)
 
-All four work on cloud LLMs (Anthropic / OpenAI / HF) **and** on local providers (Ollama / Gemma 4) — your data stays where you decide.
+All four work on cloud LLMs (Anthropic / OpenAI / Gemini / HF) **and** on local providers (Ollama / Gemma 4) — your data stays where you decide.
 
 ---
 
@@ -86,7 +86,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 | **Auto-detecting stack plugins** (13) | Yes | No | No | No |
 | **Cloud platform integration** (AWS, GCP, Azure, Databricks) | Yes | No | No | No |
 | **Multimodal** (images via Gemma 4) | Yes | No | Partial | No |
-| **Multiple AI providers** | 6 | 1 | Multiple | 1 |
+| **Multiple AI providers** | 7 | 1 | Multiple | 1 |
 | **Offline mode** | Yes | No | No | No |
 | **Open source** | MIT | No | Apache 2.0 | Apache 2.0 |
 | **Price** | Free | $10-19/mo | Free | Free tier |
@@ -103,6 +103,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 | **Gemma 4** (local) | Code never leaves your machine | Free, guided setup via Ollama |
 | **Anthropic Claude** | Cloud API | API key required |
 | **OpenAI / Compatible** | Cloud API (Groq, Mistral, Together AI, LM Studio) | API key required |
+| **Google Gemini** | Cloud API | API key required |
 | **Hugging Face** | Cloud API | API key required |
 | **Offline mode** | Fully offline, pattern-based | No setup needed |
 
@@ -255,6 +256,14 @@ Works with OpenAI, Groq, Mistral, Together AI, LiteLLM, and any OpenAI-compatibl
 2. Set `aiForge.openaiModel` to your model name
 3. Run **Switch AI Provider** -> select OpenAI -> enter API key
 
+### Google Gemini
+
+Use Google's Gemini models via the official OpenAI-compatible endpoint.
+
+1. Get an API key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+2. Set `aiForge.geminiModel` (default: `gemini-2.5-flash`; also `gemini-2.5-pro`, `gemini-2.0-flash`)
+3. Run **Switch AI Provider** -> select Google Gemini -> enter API key
+
 ### HuggingFace Inference API
 
 Access thousands of open models via the HuggingFace Inference API.
@@ -273,7 +282,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 
 | Setting | Default | Description |
 |---|---|---|
-| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `huggingface`, `offline` |
+| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `gemini`, `huggingface`, `offline` |
 | `aiForge.ollamaHost` | `http://localhost:11434` | Ollama server URL (also LM Studio, llama.cpp) |
 | `aiForge.ollamaModel` | `qwen2.5-coder:7b` | Ollama model name |
 | `aiForge.gemma4Model` | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b`, `gemma4:e4b`, `gemma4:26b`, `gemma4:31b` |
@@ -283,6 +292,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.openaiBaseUrl` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
 | `aiForge.openaiModel` | `gpt-4o` | OpenAI model name |
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |
+| `aiForge.geminiModel` | `gemini-2.5-flash` | Google Gemini model name |
 | `aiForge.huggingfaceModel` | `Qwen/Qwen2.5-Coder-32B-Instruct` | Hugging Face model ID |
 | `aiForge.codeLensEnabled` | `true` | Show CodeLens hints above functions |
 | `aiForge.contextBudgetChars` | `24000` | Total character cap for AI context |
@@ -583,10 +593,10 @@ Then run the connect command again with new credentials.
 ### General
 
 **Q: Is my code sent to the cloud?**
-A: It depends on your provider. With **Ollama**, everything stays on your machine — no data leaves your network. With cloud providers (Anthropic, OpenAI, HuggingFace), your code context is sent to their API. Choose based on your privacy requirements.
+A: It depends on your provider. With **Ollama**, everything stays on your machine — no data leaves your network. With cloud providers (Anthropic, OpenAI, Google Gemini, HuggingFace), your code context is sent to their API. Choose based on your privacy requirements.
 
 **Q: Which AI provider should I use?**
-A: For **privacy and cost**: Gemma 4 or Ollama (free, local, your code never leaves your machine). For **best quality**: Anthropic Claude or OpenAI GPT-4o. For **speed on a budget**: Groq (via OpenAI-compatible endpoint). For **no setup**: the built-in offline mode (limited to pattern-based analysis).
+A: For **privacy and cost**: Gemma 4 or Ollama (free, local, your code never leaves your machine). For **best quality**: Anthropic Claude, OpenAI GPT-4o, or Google Gemini 2.5 Pro. For **speed on a budget**: Groq (via OpenAI-compatible endpoint) or Gemini 2.0 Flash. For **no setup**: the built-in offline mode (limited to pattern-based analysis).
 
 **Q: What is Gemma 4 and why should I use it?**
 A: Gemma 4 is Google's latest open-weight AI model (Apache 2.0 license). It runs locally via Ollama with no API key, no cost, and no data leaving your machine. It supports text, image, and audio input with 128K-256K context windows. The E4B variant (~9.6GB) is recommended for most users. Select **Gemma 4** in the provider switcher for a guided setup wizard.
@@ -603,7 +613,7 @@ You see a setup plan listing every step before clicking **"Install Everything"**
 
 **Q: What if my system can't run Gemma 4?**
 A: The wizard shows a modal explaining exactly why (e.g. "only 4GB RAM detected — needs at least 8GB") and offers three actionable alternatives:
-- **Switch to a cloud provider** (Anthropic Claude, OpenAI, HuggingFace) — runs in the cloud, only needs an API key
+- **Switch to a cloud provider** (Anthropic Claude, OpenAI, Google Gemini, HuggingFace) — runs in the cloud, only needs an API key
 - **Use Offline mode** — pattern-based AI, no LLM required, works instantly
 - **Free up resources** — disk-space tips if that's the blocker
 You're never left at a dead end.

@@ -15,7 +15,7 @@ import * as path   from 'path';
 import * as fs     from 'fs';
 import type { IServices }                       from '../core/services';
 import type { AIRequest }                       from '../core/aiService';
-import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_HUGGINGFACE } from '../core/aiService';
+import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_HUGGINGFACE } from '../core/aiService';
 import { getActiveWorkspaceFolder }             from '../core/contextService';
 
 export class CoreCommands {
@@ -265,6 +265,7 @@ export class CoreCommands {
       // ── Cloud options
       { label: '$(cloud) Anthropic Claude',    description: 'Requires API key — claude-sonnet-4-6, opus, haiku',  detail: 'anthropic' },
       { label: '$(globe) OpenAI / Compatible', description: 'Also works with Groq, Mistral, Together AI, LiteLLM',  detail: 'openai' },
+      { label: '$(sparkle) Google Gemini',     description: 'Requires API key — gemini-2.5-pro, 2.5-flash, 2.0-flash',  detail: 'gemini' },
       { label: '$(hubot) Hugging Face',        description: 'Access thousands of open models — Qwen, Llama, Mistral, etc.',  detail: 'huggingface' },
     ];
 
@@ -332,6 +333,33 @@ export class CoreCommands {
         value: cfg.get<string>('openaiModel', 'gpt-4o'),
       });
       if (model) await cfg.update('openaiModel', model, vscode.ConfigurationTarget.Global);
+    } else if (provider === 'gemini') {
+      // [SEC-6] Inform user that code will be sent to cloud API
+      const consent = await vscode.window.showWarningMessage(
+        'Evolve AI will send your code and workspace context to the Google Gemini API over HTTPS for processing. Continue?',
+        { modal: true }, 'I Understand', 'Cancel'
+      );
+      if (consent !== 'I Understand') return;
+      // [FIX-4] Store in SecretStorage
+      const key = await vscode.window.showInputBox({ prompt: 'Google Gemini API key (from aistudio.google.com/apikey)', password: true });
+      if (key) await this._svc.ai.storeSecret(SECRET_GEMINI, key);
+      // Let user pick a model
+      const geminiModels = [
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+      ];
+      const modelChoice = await vscode.window.showQuickPick(
+        [...geminiModels, '$(edit) Enter custom model ID…'],
+        { placeHolder: 'Choose a Gemini model' }
+      );
+      if (modelChoice?.includes('custom')) {
+        const custom = await vscode.window.showInputBox({ prompt: 'Gemini model ID (e.g., gemini-2.5-flash)' });
+        if (custom) await cfg.update('geminiModel', custom, vscode.ConfigurationTarget.Global);
+      } else if (modelChoice) {
+        await cfg.update('geminiModel', modelChoice, vscode.ConfigurationTarget.Global);
+      }
     } else if (provider === 'huggingface') {
       // [SEC-6] Inform user that code will be sent to cloud API
       const consent = await vscode.window.showWarningMessage(
@@ -528,7 +556,7 @@ export class CoreCommands {
     );
 
     if (choice === 'Switch to Cloud Provider') {
-      // Re-open Switch Provider — user can pick Anthropic/OpenAI/HuggingFace
+      // Re-open Switch Provider — user can pick Anthropic/OpenAI/Gemini/HuggingFace
       await vscode.commands.executeCommand('aiForge.switchProvider');
     } else if (choice === 'Use Offline Mode') {
       await cfg.update('provider', 'offline', vscode.ConfigurationTarget.Global);
@@ -846,6 +874,27 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.5.0': [
+    `## 🚀 Evolve AI 2.5.0 — Google Gemini is now a first-class provider\n`,
+    `### What's new\n`,
+    `Gemini joins Claude, OpenAI, Ollama, Gemma 4 and Hugging Face as a first-class AI provider — its own entry in the provider switcher, its own key, its own model picker.\n`,
+    `### How to use it\n`,
+    `1. Get an API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)`,
+    `2. Click **Switch** in the chat header → **Google Gemini**`,
+    `3. Paste your key (stored in VS Code's encrypted SecretStorage — never in settings.json) and pick a model\n`,
+    `### Models\n`,
+    `| Model | Best for |`,
+    `|---|---|`,
+    `| \`gemini-2.5-pro\` | Maximum quality, complex reasoning |`,
+    `| \`gemini-2.5-flash\` | **Default** — fast, strong on code |`,
+    `| \`gemini-2.0-flash\` / \`-flash-lite\` | Fastest, cheapest |\n`,
+    `### Implementation notes\n`,
+    `- Uses Gemini's **official OpenAI-compatible endpoint**, so streaming, cancellation, and error handling all reuse the existing engine.`,
+    `- Gemini is treated as a **cloud provider** — PII-tagged lineage columns are redacted before being sent, same as Anthropic/OpenAI/HF.`,
+    `- Two new settings: \`aiForge.geminiModel\` and \`aiForge.geminiBaseUrl\` (the base URL only needs changing for a proxy).\n`,
+    `---\n`,
+    `Already using the OpenAI provider pointed at Gemini's compat URL? You can keep that, but switching to the dedicated **Google Gemini** provider gives you the model picker and the right branding.`,
+  ].join('\n'),
   '2.4.0': [
     `## 🚀 Evolve AI 2.4.0 — Pre-push gating for CI/CD anti-patterns\n`,
     `### What's new\n`,

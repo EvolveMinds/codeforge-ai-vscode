@@ -205,7 +205,7 @@ ContextService.buildSystemPrompt()
          ▼
 AIService.stream(request)
   ├─ RequestInterceptors (plugins can modify request before send)
-  ├─ provider detection (ollama / anthropic / openai / offline)
+  ├─ provider detection (ollama / gemma4 / anthropic / openai / gemini / huggingface / offline)
   └─ HTTP streaming with back-pressure
          │
          ▼
@@ -297,7 +297,7 @@ are merged into the core system transparently:
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `provider` | string | `auto` | `auto` / `ollama` / `gemma4` / `anthropic` / `openai` / `huggingface` / `offline` |
+| `provider` | string | `auto` | `auto` / `ollama` / `gemma4` / `anthropic` / `openai` / `gemini` / `huggingface` / `offline` |
 | `ollamaHost` | string | `http://localhost:11434` | Ollama / LM Studio / llama.cpp server URL |
 | `ollamaModel` | string | `qwen2.5-coder:7b` | Ollama model |
 | `gemma4Model` | string | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b` / `gemma4:e4b` / `gemma4:26b` / `gemma4:31b` |
@@ -307,6 +307,8 @@ are merged into the core system transparently:
 | `openaiBaseUrl` | string | `https://api.openai.com/v1` | Also works for Groq, Mistral, Together AI, LiteLLM |
 | `openaiModel` | string | `gpt-4o` | OpenAI model name |
 | `anthropicModel` | string | `claude-sonnet-4-6` | Anthropic model name |
+| `geminiModel` | string | `gemini-2.5-flash` | Google Gemini model: `gemini-2.5-pro` / `gemini-2.5-flash` / `gemini-2.0-flash` |
+| `geminiBaseUrl` | string | `https://generativelanguage.googleapis.com/v1beta/openai` | Gemini OpenAI-compatible base URL |
 | `huggingfaceModel` | string | `Qwen/Qwen2.5-Coder-32B-Instruct` | Hugging Face model ID |
 | `huggingfaceBaseUrl` | string | `https://api-inference.huggingface.co` | HF Inference API base URL |
 | `codeLensEnabled` | boolean | `true` | Show CodeLens hints above functions |
@@ -329,6 +331,7 @@ are merged into the core system transparently:
 |---|---|
 | `aiForge.anthropicKey` | Anthropic API key |
 | `aiForge.openaiKey` | OpenAI API key |
+| `aiForge.geminiKey` | Google Gemini API key |
 | `aiForge.huggingfaceKey` | Hugging Face API key |
 | `aiForge.githubPAT` | GitHub Personal Access Token (Git Connect Wizard) |
 | `aiForge.bitbucketPAT` | Bitbucket App Password — stored as `username:app_password` |

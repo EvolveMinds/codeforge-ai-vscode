@@ -10,7 +10,7 @@
 
 import * as assert from 'assert';
 import type { ProviderName, AIRequest, RequestInterceptor } from '../../core/aiService';
-import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_HUGGINGFACE } from '../../core/aiService';
+import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_HUGGINGFACE } from '../../core/aiService';
 import type { IAIService } from '../../core/interfaces';
 import { MockAIService } from '../mocks';
 
@@ -26,13 +26,17 @@ suite('AIService', () => {
     assert.strictEqual(SECRET_OPENAI, 'aiForge.openaiKey');
   });
 
+  test('SECRET_GEMINI has expected string value', () => {
+    assert.strictEqual(SECRET_GEMINI, 'aiForge.geminiKey');
+  });
+
   test('SECRET_HUGGINGFACE has expected string value', () => {
     assert.strictEqual(SECRET_HUGGINGFACE, 'aiForge.huggingfaceKey');
   });
 
-  test('all three secret keys are distinct', () => {
-    const keys = new Set([SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_HUGGINGFACE]);
-    assert.strictEqual(keys.size, 3, 'All secret key constants must be unique');
+  test('all secret keys are distinct', () => {
+    const keys = new Set([SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_HUGGINGFACE]);
+    assert.strictEqual(keys.size, 4, 'All secret key constants must be unique');
   });
 
   // ── ProviderName type — valid assignments ──────────────────────────────────
@@ -45,9 +49,10 @@ suite('AIService', () => {
     const d: ProviderName = 'openai';
     const e: ProviderName = 'huggingface';
     const f: ProviderName = 'offline';
+    const g: ProviderName = 'gemini';
 
-    const all = [a, b, c, d, e, f];
-    assert.strictEqual(all.length, 6, 'All six provider names should be assignable');
+    const all = [a, b, c, d, e, f, g];
+    assert.strictEqual(all.length, 7, 'All seven provider names should be assignable');
   });
 
   // ── AIRequest interface shape ───────────────────────────────────────────────

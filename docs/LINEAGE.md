@@ -64,8 +64,8 @@ existing client from the Databricks Connected plugin — no extra setup.
 ## Privacy — PII / PCI / sensitive columns
 
 Columns tagged `pii`, `pci`, or `sensitive` (in dbt meta or UC) are
-**redacted** before prompts reach cloud providers (Anthropic, OpenAI, Hugging
-Face). Local providers (Ollama, Gemma 4) always get the full schema — the
+**redacted** before prompts reach cloud providers (Anthropic, OpenAI, Google
+Gemini, Hugging Face). Local providers (Ollama, Gemma 4) always get the full schema — the
 data never leaves your machine.
 
 Override with `aiForge.lineage.includePii: true`. The first time we detect

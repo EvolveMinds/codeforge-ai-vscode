@@ -56,6 +56,7 @@ export class StatusBarService {
         gemma4:       '$(sparkle)',
         anthropic:    '$(cloud)',
         openai:       '$(globe)',
+        gemini:       '$(sparkle)',
         huggingface:  '$(hubot)',
         offline:      '$(circuit-board)',
         auto:         '$(circuit-board)',
