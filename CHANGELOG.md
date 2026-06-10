@@ -2,6 +2,12 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.5.1] — 2026-06-10
+
+### Fixed
+
+- **Marketplace README badges showed "retired".** shields.io deprecated its `visual-studio-marketplace/*` badge family, so the version and installs badges rendered a literal "retired" label on the Marketplace listing. Switched to `vsmarketplacebadges.dev` (the maintained replacement) for version / installs / rating, and made the license a static MIT badge so it no longer hits shields.io's rate-limited GitHub token pool ("Unable to select next GitHub token from pool"). No functional change.
+
 ## [2.5.0] — 2026-06-01
 
 ### Added — Google Gemini as a first-class AI provider
