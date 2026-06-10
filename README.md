@@ -3,9 +3,10 @@
 <!-- TODO: Add banner image here: ![Evolve AI](media/banner.png) -->
 <!-- TODO: Add animated GIF demo here: ![Demo](media/demo.gif) -->
 
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/codeforge-ai.evolve-ai?label=VS%20Code%20Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
-[![Installs](https://img.shields.io/visual-studio-marketplace/i/codeforge-ai.evolve-ai?color=green)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
-[![License: MIT](https://img.shields.io/github/license/EvolveMinds/codeforge-ai-vscode?color=brightgreen)](LICENSE)
+[![VS Code Marketplace](https://vsmarketplacebadges.dev/version-short/codeforge-ai.evolve-ai.svg?label=VS%20Code%20Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
+[![Installs](https://vsmarketplacebadges.dev/installs-short/codeforge-ai.evolve-ai.svg?color=green)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai)
+[![Rating](https://vsmarketplacebadges.dev/rating-short/codeforge-ai.evolve-ai.svg?color=orange)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai&ssr=false#review-details)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
 **Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, and **Hugging Face** — so you choose where your code goes.
 
