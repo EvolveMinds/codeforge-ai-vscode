@@ -1489,6 +1489,12 @@
           "default": "https://api-inference.huggingface.co",
           "description": "Hugging Face Inference API base URL (change for dedicated endpoints)"
         },
+        "aiForge.requestTimeoutMs": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Idle timeout for AI requests, in milliseconds. The timer resets on every streamed chunk, so it only fires when the server goes silent (no response / cold-start stall) — it never cuts off a response that is still streaming. 0 = auto: 300000 (5 min) for local runtimes (Ollama / Gemma 4 / Hugging Face) which can be slow to warm up, and 120000 (2 min) for cloud APIs. Set a positive value to override both."
+        },
         "aiForge.codeLensEnabled": {
           "type": "boolean",
           "default": true,
