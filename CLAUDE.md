@@ -316,6 +316,7 @@ are merged into the core system transparently:
 | `includeGitDiffInContext` | boolean | `false` | Include git diff in every AI call |
 | `maxContextFiles` | number | `5` | Max related files to include |
 | `contextBudgetChars` | number | `24000` | Total character cap across all context parts |
+| `requestTimeoutMs` | number | `0` | Idle (no-bytes) timeout per AI request. Resets on every streamed chunk — only fires on a silent/stalled socket, never mid-stream. `0` = auto (300s local Ollama/Gemma/HF, 120s cloud). Positive value overrides both. |
 | `autoRunFix` | boolean | `false` | Auto-fix errors after running a script |
 | `disabledPlugins` | array | `[]` | Plugin IDs to disable (`["databricks"]`) |
 | `gitConnect.preferredAuth` | string | `auto` | `auto` / `github-builtin` / `pat` / `ssh` / `gh-cli` — pre-selected auth method in the wizard |

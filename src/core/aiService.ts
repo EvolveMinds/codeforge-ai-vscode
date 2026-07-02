@@ -271,7 +271,7 @@ export class AIService implements IAIService {
     });
     yield* this._httpStream(url, body,
       c => { try { return JSON.parse(c).message?.content || ''; } catch { return ''; } },
-      {}, req.signal
+      {}, req.signal, this._timeoutMs('local')
     );
   }
 
@@ -353,7 +353,7 @@ export class AIService implements IAIService {
     const body = JSON.stringify(payload);
     yield* this._httpStream(url, body,
       c => { try { return JSON.parse(c).message?.content || ''; } catch { return ''; } },
-      {}, req.signal
+      {}, req.signal, this._timeoutMs('local')
     );
   }
 
@@ -403,7 +403,7 @@ export class AIService implements IAIService {
         try { return JSON.parse(c.slice(5).trim()).delta?.text || ''; } catch { return ''; }
       },
       { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      req.signal
+      req.signal, this._timeoutMs('cloud')
     );
   }
 
@@ -432,7 +432,7 @@ export class AIService implements IAIService {
         try { return JSON.parse(c.slice(5).trim()).choices?.[0]?.delta?.content || ''; } catch { return ''; }
       },
       { Authorization: `Bearer ${key}` },
-      req.signal
+      req.signal, this._timeoutMs('cloud')
     );
   }
 
@@ -464,7 +464,7 @@ export class AIService implements IAIService {
         try { return JSON.parse(c.slice(5).trim()).choices?.[0]?.delta?.content || ''; } catch { return ''; }
       },
       { Authorization: `Bearer ${key}` },
-      req.signal
+      req.signal, this._timeoutMs('cloud')
     );
   }
 
@@ -492,7 +492,7 @@ export class AIService implements IAIService {
         try { return JSON.parse(c.slice(5).trim()).choices?.[0]?.delta?.content || ''; } catch { return ''; }
       },
       { Authorization: `Bearer ${key}` },
-      req.signal
+      req.signal, this._timeoutMs('local')
     );
   }
 
@@ -539,7 +539,12 @@ export class AIService implements IAIService {
     body: string,
     parseChunk: (raw: string) => string,
     extraHeaders: Record<string, string | number> = {},
-    signal?: AbortSignal   // [FIX-5]
+    signal?: AbortSignal,  // [FIX-5]
+    // [TIMEOUT-FIX] Idle timeout in ms — resets on every received chunk, so a
+    // long-but-actively-streaming response is never killed. Only a stalled
+    // socket (no bytes for this long) trips it. Defaults to 120s; callers pass
+    // a provider-appropriate value (local models need far longer to warm up).
+    timeoutMs: number = 120_000
   ): AsyncGenerator<string> {
     // [FIX-5] Check for pre-cancelled request
     if (signal?.aborted) { yield '⚠ Request cancelled'; return; }
@@ -605,6 +610,9 @@ export class AIService implements IAIService {
       res.on('data', (d: string) => {
         // [FIX-5] Stop processing if cancelled
         if (signal?.aborted) { res.destroy(); done = true; wake(); return; }
+        // [TIMEOUT-FIX] Bytes arrived — reset the idle timer so an actively
+        // streaming response can run as long as it needs.
+        req.setTimeout(timeoutMs);
         buf += d;
         const lines = buf.split('\n');
         buf = lines.pop() ?? '';
@@ -642,14 +650,24 @@ export class AIService implements IAIService {
       done = true;
       wake();
     });
-    req.setTimeout(60000, () => {
+    // [TIMEOUT-FIX] Idle timeout: fires only if the socket goes silent for
+    // `timeoutMs` (no connection, no first byte, or a mid-stream stall). The
+    // 'data' handler above re-arms it on every chunk, so this never interrupts
+    // a response that is still actively streaming.
+    const timeoutSecs = Math.round(timeoutMs / 1000);
+    req.setTimeout(timeoutMs, () => {
       req.destroy();
-      pending.push(`⚠ **Request timed out** after 60 seconds\n\n`
-        + `The AI provider took too long to respond. This can happen with:\n`
-        + `- Large models loading for the first time\n`
-        + `- Slow network connections\n`
-        + `- Overloaded servers\n\n`
-        + `Try again, or use a smaller/faster model.\n`);
+      const host = url.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1';
+      pending.push(`⚠ **Request timed out** — no response for ${timeoutSecs}s\n\n`
+        + (isLocal
+          ? `The local model didn't send anything for ${timeoutSecs} seconds. This usually means:\n`
+            + `- A large model is loading into memory for the first time (cold start can take minutes on CPU)\n`
+            + `- The machine is low on RAM/VRAM and the model is swapping\n\n`
+            + `Tips: keep the model warm by leaving Ollama running, try a smaller model (e.g. a 1.5B/3B coder), `
+            + `or raise \`aiForge.requestTimeoutMs\` in Settings if your hardware just needs more time.\n`
+          : `The AI provider didn't respond for ${timeoutSecs} seconds. This can happen with slow networks or an overloaded server.\n\n`
+            + `Try again, or raise \`aiForge.requestTimeoutMs\` in Settings.\n`));
       done = true;
       wake();
     });
@@ -671,6 +689,24 @@ export class AIService implements IAIService {
   }
 
   private _cfg() { return vscode.workspace.getConfiguration('aiForge'); }
+
+  /**
+   * [TIMEOUT-FIX] Resolve the idle (no-bytes) timeout for a request, in ms.
+   *
+   * Local model runtimes (Ollama / Gemma 4) can take minutes on the first
+   * request while the model loads into memory — especially on CPU — so they
+   * get a much longer grace period than cloud APIs, which respond in seconds.
+   *
+   * The `aiForge.requestTimeoutMs` setting overrides everything when set to a
+   * positive value; `0` (the default) means "auto" and picks the right value
+   * per provider. The timeout is an *idle* timeout (re-armed on every chunk),
+   * so it never cuts off a response that is still streaming.
+   */
+  private _timeoutMs(kind: 'local' | 'cloud'): number {
+    const override = this._cfg().get<number>('requestTimeoutMs', 0);
+    if (override && override > 0) return override;
+    return kind === 'local' ? 300_000 : 120_000;
+  }
 }
 
 // Export constant keys so switchProvider command can use them

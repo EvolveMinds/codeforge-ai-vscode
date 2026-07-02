@@ -298,6 +298,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.codeLensEnabled` | `true` | Show CodeLens hints above functions |
 | `aiForge.contextBudgetChars` | `24000` | Total character cap for AI context |
 | `aiForge.maxContextFiles` | `5` | Max related files in context |
+| `aiForge.requestTimeoutMs` | `0` | Idle timeout per request (resets on each streamed chunk). `0` = auto: 5 min for local (Ollama/Gemma/HF), 2 min for cloud. Raise it if a slow local model cold-starts past the limit |
 | `aiForge.disabledPlugins` | `[]` | Plugin IDs to disable (e.g., `["databricks", "aws"]`) |
 
 ---
