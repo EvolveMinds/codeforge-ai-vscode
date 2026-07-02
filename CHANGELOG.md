@@ -2,6 +2,16 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.5.2] — 2026-06-18
+
+### Fixed
+
+- **Premature "Request timed out after 60 seconds" on local models.** The HTTP streaming engine used a fixed 60s socket timeout that was never re-armed, so local models (e.g. `qwen2.5-coder:7b` on CPU) that take longer than a minute to load on the first request timed out even though they were working — and a long-but-actively-streaming response could be cut off mid-answer.
+  - The timeout is now an **idle** timeout: it resets on every streamed chunk, so it only fires when the socket goes genuinely silent (no connection, no first byte, or a mid-stream stall), never while tokens are still flowing.
+  - **Provider-aware defaults**: 300s for local runtimes (Ollama / Gemma 4 / Hugging Face, which can cold-start for minutes) and 120s for cloud APIs (Anthropic / OpenAI / Gemini).
+  - New setting **`aiForge.requestTimeoutMs`** (default `0` = auto) to override.
+  - The timeout message now distinguishes a local cold-start from cloud latency and points at the new setting.
+
 ## [2.5.1] — 2026-06-10
 
 ### Fixed

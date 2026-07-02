@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, Gemini, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
