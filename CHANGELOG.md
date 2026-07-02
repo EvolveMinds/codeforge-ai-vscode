@@ -2,6 +2,21 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.6.0] — 2026-07-02
+
+### Added — GLM as two first-class providers (local + Z.ai cloud)
+
+GLM (Zhipu / Z.ai) support arrives as **two distinct providers**, so the choice between "runs on my laptop" and "the flagship model" is explicit and honest:
+
+- **GLM (local)** — runs a GLM / CodeGeeX coding model **fully offline via Ollama**, no API key, no data leaving your machine. Default `codegeex4-all-9b` (a coding model built on GLM-4-9B, ~5.5GB, 128K context); `glm4:9b` and `glm4` also offered. Switch → **GLM (local)** picks a model and offers a one-click `ollama pull`. Auto-detected in `auto` mode when configured + installed (same pattern as Gemma 4).
+- **GLM (Z.ai)** — the large flagship models (`glm-4.6`, `glm-4.5`) via Z.ai's OpenAI-compatible cloud API. These are 355B+ parameter models that cannot run on a normal machine, so they're cloud-only. Switch → **GLM (Z.ai)** → paste an API key from z.ai → pick a model. Key stored in encrypted SecretStorage (`aiForge.zaiKey`).
+
+**Why two providers:** GLM-5.x / GLM-4.6 flagships are hundreds of billions of parameters — they physically can't run offline on a laptop. Rather than pretend otherwise, the local provider ships the 9B-class coding models that *do* run offline, and the cloud provider gives you the flagship when you want it.
+
+**Settings added:** `aiForge.glmModel` (default `codegeex4-all-9b`), `aiForge.zaiModel` (default `glm-4.6`), `aiForge.zaiBaseUrl`. **SecretStorage key added:** `aiForge.zaiKey`.
+
+**Implementation notes:** The local provider reuses the Ollama streaming engine; the cloud provider reuses the OpenAI-compatible SSE parser. GLM (Z.ai) is classified as a cloud provider, so PII-tagged lineage columns are redacted before send.
+
 ## [2.5.2] — 2026-06-18
 
 ### Fixed

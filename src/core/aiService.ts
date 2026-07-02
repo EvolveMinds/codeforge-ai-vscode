@@ -15,7 +15,7 @@ import { safeUpdateConfig, readHostSetting, warnIfRemoteHost } from './configSaf
 import type { EventBus }   from './eventBus';
 import type { IAIService } from './interfaces';
 
-export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'anthropic' | 'openai' | 'gemini' | 'huggingface' | 'offline';
+export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'glm' | 'anthropic' | 'openai' | 'gemini' | 'zai' | 'huggingface' | 'offline';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -41,6 +41,7 @@ export interface RequestInterceptor {
 const SECRET_ANTHROPIC    = 'aiForge.anthropicKey';
 const SECRET_OPENAI       = 'aiForge.openaiKey';
 const SECRET_GEMINI       = 'aiForge.geminiKey';
+const SECRET_ZAI          = 'aiForge.zaiKey';
 const SECRET_HUGGINGFACE  = 'aiForge.huggingfaceKey';
 
 // ── AIService ─────────────────────────────────────────────────────────────────
@@ -87,6 +88,12 @@ export class AIService implements IAIService {
       if (gemma4Explicit) {
         const { installed } = await this.isGemma4Available();
         if (installed) return 'gemma4';
+      }
+      // Same for GLM: prefer it in auto mode if explicitly configured + installed
+      const glmExplicit = cfg.inspect<string>('glmModel')?.globalValue;
+      if (glmExplicit) {
+        const { installed } = await this.isGlmAvailable();
+        if (installed) return 'glm';
       }
       return 'ollama';
     }
@@ -167,6 +174,13 @@ export class AIService implements IAIService {
     return { installed: variants.length > 0, variants };
   }
 
+  async isGlmAvailable(): Promise<{ installed: boolean; variants: string[] }> {
+    const models = await this.getOllamaModels();
+    // Local GLM coding models served via Ollama: glm4* and codegeex4* (built on GLM-4-9B)
+    const variants = models.filter(m => m.startsWith('glm') || m.startsWith('codegeex'));
+    return { installed: variants.length > 0, variants };
+  }
+
   // ── Core streaming ───────────────────────────────────────────────────────────
 
   async* stream(request: AIRequest): AsyncGenerator<string> {
@@ -188,9 +202,11 @@ export class AIService implements IAIService {
 
       if (provider === 'ollama')         { yield* this._streamOllama(req, cfg);       }
       else if (provider === 'gemma4')     { yield* this._streamGemma4(req, cfg);     }
+      else if (provider === 'glm')        { yield* this._streamGlm(req, cfg);        }
       else if (provider === 'anthropic')  { yield* this._streamAnthropic(req, cfg);  }
       else if (provider === 'openai')     { yield* this._streamOpenAI(req, cfg);     }
       else if (provider === 'gemini')     { yield* this._streamGemini(req, cfg);    }
+      else if (provider === 'zai')        { yield* this._streamZai(req, cfg);        }
       else if (provider === 'huggingface'){ yield* this._streamHuggingFace(req, cfg);}
       else                                { yield* this._offline(req);                }
 
@@ -357,6 +373,53 @@ export class AIService implements IAIService {
     );
   }
 
+  /**
+   * Local GLM provider — runs a GLM/CodeGeeX coding model offline via Ollama.
+   * Mirrors _streamGemma4 but simpler: no thinking/vision specifics. Default
+   * model is codegeex4-all-9b (a coding model built on GLM-4-9B, ~5.5GB).
+   */
+  private async* _streamGlm(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
+    const host     = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
+    warnIfRemoteHost('aiForge.ollamaHost', host);
+    const resolved = await this._resolveOllamaHost(host);
+    const model    = cfg.get<string>('glmModel', 'codegeex4-all-9b');
+
+    // Pre-check: verify the GLM model is installed; offer a guided pull if not
+    const available = await this._getOllamaModels(resolved);
+    if (available !== null && !available.some(m => m === model || m.startsWith(model + ':'))) {
+      // If any other GLM/CodeGeeX model is installed, fall back to it
+      const anyGlm = available.filter(m => m.startsWith('glm') || m.startsWith('codegeex'));
+      if (anyGlm.length > 0) {
+        const fallback = anyGlm[0];
+        await safeUpdateConfig('aiForge', 'glmModel', fallback);
+        yield `ℹ️ Model **${model}** not found — switched to **${fallback}**.\n\n`;
+        yield* this._streamOllamaWithModel(req, resolved, fallback);
+        return;
+      }
+
+      const pick = await vscode.window.showWarningMessage(
+        `GLM model "${model}" is not downloaded yet. Install it now?`,
+        'Download Now', 'Open Settings'
+      );
+      if (pick === 'Download Now') {
+        const term = vscode.window.createTerminal('Evolve AI: GLM Setup');
+        term.show();
+        term.sendText(`ollama pull ${model}`);
+        yield `⏳ Downloading **${model}**...\n\n`;
+        yield `A terminal has been opened to download the model. Once it finishes, try your request again.\n`;
+        return;
+      } else if (pick === 'Open Settings') {
+        await vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.glmModel');
+        yield `⚙️ Update the **aiForge.glmModel** setting, then try again.\n`;
+        return;
+      }
+      yield `⚠ GLM model not installed. Run \`ollama pull ${model}\` to get started.\n`;
+      return;
+    }
+
+    yield* this._streamOllamaWithModel(req, resolved, model);
+  }
+
   /** Fetch list of installed Ollama model names, or null on failure */
   private async _getOllamaModels(resolvedHost: string): Promise<string[] | null> {
     try {
@@ -454,6 +517,40 @@ export class AIService implements IAIService {
       return;
     }
     const url  = new URL(baseUrl + '/chat/completions');
+    const body = JSON.stringify({
+      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      messages: [{ role: 'system', content: req.system }, ...req.messages],
+    });
+    yield* this._httpStream(url, body,
+      c => {
+        if (!c.startsWith('data:') || c.includes('[DONE]')) return '';
+        try { return JSON.parse(c.slice(5).trim()).choices?.[0]?.delta?.content || ''; } catch { return ''; }
+      },
+      { Authorization: `Bearer ${key}` },
+      req.signal, this._timeoutMs('cloud')
+    );
+  }
+
+  /**
+   * GLM (Z.ai) cloud provider — Zhipu/Z.ai's OpenAI-compatible endpoint.
+   * This is the path for the large flagship GLM models (glm-4.6, glm-4.5,
+   * and newer) that are too big to run locally. Reuses the OpenAI SSE parser.
+   */
+  private async* _streamZai(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
+    // [FIX-4] Read from SecretStorage only — never fall back to settings.json
+    const key   = await this._secrets.get(SECRET_ZAI) ?? '';
+    const model = cfg.get<string>('zaiModel', 'glm-4.6');
+    const base  = readHostSetting('aiForge', 'zaiBaseUrl', 'https://api.z.ai/api/paas/v4');
+    if (!key) {
+      yield `⚠ **No GLM (Z.ai) API key configured**\n\n`;
+      yield `To use GLM cloud models (glm-4.6, glm-4.5, and newer):\n`;
+      yield `1. Get an API key at https://z.ai/manage-apikey/apikey-list\n`;
+      yield `2. Click **Switch** in the header above, select **GLM (Z.ai)**, and paste your key\n\n`;
+      yield `Current model: \`${model}\`. Change it in Settings if needed.\n`;
+      yield `Your key is stored securely in VS Code's encrypted storage — never in plaintext.\n`;
+      return;
+    }
+    const url  = new URL(base + '/chat/completions');
     const body = JSON.stringify({
       model, stream: true, temperature: 0.2, max_tokens: 4096,
       messages: [{ role: 'system', content: req.system }, ...req.messages],
@@ -710,4 +807,4 @@ export class AIService implements IAIService {
 }
 
 // Export constant keys so switchProvider command can use them
-export { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_HUGGINGFACE };
+export { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_ZAI, SECRET_HUGGINGFACE };

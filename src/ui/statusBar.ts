@@ -44,19 +44,24 @@ export class StatusBarService {
       const provider = await this._svc.ai.detectProvider();
       // [FIX-21] Pass configured host so non-default Ollama servers are detected
       const host     = cfg.get<string>('ollamaHost', 'http://localhost:11434');
-      const running  = (provider === 'ollama' || provider === 'gemma4')
+      const running  = (provider === 'ollama' || provider === 'gemma4' || provider === 'glm')
         ? await this._svc.ai.isOllamaRunning(host) : false;
-      const model    = provider === 'gemma4'
-        ? cfg.get<string>('gemma4Model', 'gemma4:e4b')
-        : cfg.get<string>('ollamaModel', '');
+      const modelByProvider: Record<string, string> = {
+        gemma4: 'gemma4Model', glm: 'glmModel', ollama: 'ollamaModel',
+        anthropic: 'anthropicModel', openai: 'openaiModel',
+        gemini: 'geminiModel', zai: 'zaiModel', huggingface: 'huggingfaceModel',
+      };
+      const model    = modelByProvider[provider] ? cfg.get<string>(modelByProvider[provider], '') : '';
       const active   = this._svc.plugins.active;
 
       const icon = {
         ollama:       '$(server)',
         gemma4:       '$(sparkle)',
+        glm:          '$(code)',
         anthropic:    '$(cloud)',
         openai:       '$(globe)',
         gemini:       '$(sparkle)',
+        zai:          '$(code)',
         huggingface:  '$(hubot)',
         offline:      '$(circuit-board)',
         auto:         '$(circuit-board)',
@@ -70,6 +75,8 @@ export class StatusBarService {
       if (provider === 'gemma4') {
         const variant = (model.split(':')[1] || 'e4b').toUpperCase();
         label = `${icon} Evolve AI: Gemma 4 (${variant})${pluginTag}`;
+      } else if (provider === 'zai') {
+        label = `${icon} Evolve AI: GLM (${model || 'z.ai'})${pluginTag}`;
       } else {
         const modelShort = model ? model.split(':')[0] : '';
         label = `${icon} Evolve AI${modelShort ? ': ' + modelShort : ''}${pluginTag}`;

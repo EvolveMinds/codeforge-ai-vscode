@@ -33,6 +33,8 @@ export interface IAIService {
   addInterceptor(interceptor: RequestInterceptor): vscode.Disposable;
   /** Check if any Gemma 4 model variant is installed in Ollama */
   isGemma4Available(): Promise<{ installed: boolean; variants: string[] }>;
+  /** Check if any local GLM/CodeGeeX model is installed in Ollama */
+  isGlmAvailable(): Promise<{ installed: boolean; variants: string[] }>;
   /** Store a credential in SecretStorage */
   storeSecret(key: string, value: string): Promise<void>;
   /** Retrieve a credential from SecretStorage */

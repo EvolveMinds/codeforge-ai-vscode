@@ -15,7 +15,7 @@ import * as path   from 'path';
 import * as fs     from 'fs';
 import type { IServices }                       from '../core/services';
 import type { AIRequest }                       from '../core/aiService';
-import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_HUGGINGFACE } from '../core/aiService';
+import { SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_ZAI, SECRET_HUGGINGFACE } from '../core/aiService';
 import { getActiveWorkspaceFolder }             from '../core/contextService';
 
 export class CoreCommands {
@@ -243,9 +243,10 @@ export class CoreCommands {
   async switchProvider(): Promise<void> {
     const cfg     = vscode.workspace.getConfiguration('aiForge');
     const running = await this._svc.ai.isOllamaRunning();
-    const [models, gemma4Status] = await Promise.all([
+    const [models, gemma4Status, glmStatus] = await Promise.all([
       running ? this._svc.ai.getOllamaModels() : Promise.resolve([]),
       running ? this._svc.ai.isGemma4Available() : Promise.resolve({ installed: false, variants: [] as string[] }),
+      running ? this._svc.ai.isGlmAvailable() : Promise.resolve({ installed: false, variants: [] as string[] }),
     ]);
 
     type ProviderItem = vscode.QuickPickItem & { detail: string };
@@ -259,6 +260,11 @@ export class CoreCommands {
           ? `Ready — ${gemma4Status.variants.join(', ')} installed`
           : 'Google\'s latest open model — free, local, multimodal. Guided setup',
         detail: 'gemma4' },
+      { label: `$(code) GLM (local)${glmStatus.installed ? ' ✓' : ''}`,
+        description: glmStatus.installed
+          ? `Ready — ${glmStatus.variants.join(', ')} installed`
+          : 'GLM / CodeGeeX coding model — free, local, runs offline via Ollama',
+        detail: 'glm' },
       { label: '$(circuit-board) Offline AI',  description: 'Built-in — instant, no setup, no LLM needed', detail: 'offline' },
       // ── separator
       { label: '── Cloud providers ──', description: '', detail: '', kind: vscode.QuickPickItemKind.Separator } as ProviderItem,
@@ -266,6 +272,7 @@ export class CoreCommands {
       { label: '$(cloud) Anthropic Claude',    description: 'Requires API key — claude-sonnet-4-6, opus, haiku',  detail: 'anthropic' },
       { label: '$(globe) OpenAI / Compatible', description: 'Also works with Groq, Mistral, Together AI, LiteLLM',  detail: 'openai' },
       { label: '$(sparkle) Google Gemini',     description: 'Requires API key — gemini-2.5-pro, 2.5-flash, 2.0-flash',  detail: 'gemini' },
+      { label: '$(code) GLM (Z.ai)',           description: 'Requires API key — glm-4.6, glm-4.5 flagship cloud models',  detail: 'zai' },
       { label: '$(hubot) Hugging Face',        description: 'Access thousands of open models — Qwen, Llama, Mistral, etc.',  detail: 'huggingface' },
     ];
 
@@ -302,6 +309,39 @@ export class CoreCommands {
       }
     } else if (provider === 'gemma4') {
       await this._runGemma4Wizard(cfg);
+    } else if (provider === 'glm') {
+      // Local GLM coding model via Ollama — pick a model, offer to pull it
+      const glmModels = ['codegeex4-all-9b', 'glm4:9b', 'glm4'];
+      const current   = cfg.get<string>('glmModel', 'codegeex4-all-9b');
+      const modelChoice = await vscode.window.showQuickPick(
+        [...glmModels, '$(edit) Enter custom model tag…'],
+        { placeHolder: `Choose a local GLM model (current: ${current})` }
+      );
+      if (!modelChoice) return;
+      let model = modelChoice;
+      if (modelChoice.includes('custom')) {
+        const custom = await vscode.window.showInputBox({ prompt: 'Ollama model tag (e.g. codegeex4-all-9b)', value: current });
+        if (!custom) return;
+        model = custom;
+      }
+      await cfg.update('glmModel', model, vscode.ConfigurationTarget.Global);
+      // Offer to download now if Ollama is running but the model isn't installed
+      if (running && !models.some(m => m === model || m.startsWith(model + ':'))) {
+        const pull = await vscode.window.showInformationMessage(
+          `GLM model "${model}" isn't downloaded yet. Download it now (~5.5GB)?`,
+          'Download Now', 'Later'
+        );
+        if (pull === 'Download Now') {
+          const term = vscode.window.createTerminal('Evolve AI: GLM Setup');
+          term.show();
+          term.sendText(`ollama pull ${model}`);
+        }
+      } else if (!running) {
+        vscode.window.showWarningMessage(
+          'Ollama is not running. Install/start Ollama (ollama.com), then the GLM model will run locally.',
+          'Get Ollama'
+        ).then(a => { if (a === 'Get Ollama') vscode.env.openExternal(vscode.Uri.parse('https://ollama.com/download')); });
+      }
     } else if (provider === 'anthropic') {
       // [SEC-6] Inform user that code will be sent to cloud API
       const consent = await vscode.window.showWarningMessage(
@@ -360,6 +400,28 @@ export class CoreCommands {
       } else if (modelChoice) {
         await cfg.update('geminiModel', modelChoice, vscode.ConfigurationTarget.Global);
       }
+    } else if (provider === 'zai') {
+      // [SEC-6] Inform user that code will be sent to cloud API
+      const consent = await vscode.window.showWarningMessage(
+        'Evolve AI will send your code and workspace context to the GLM (Z.ai) API over HTTPS for processing. Continue?',
+        { modal: true }, 'I Understand', 'Cancel'
+      );
+      if (consent !== 'I Understand') return;
+      // [FIX-4] Store in SecretStorage
+      const key = await vscode.window.showInputBox({ prompt: 'GLM (Z.ai) API key (from z.ai/manage-apikey/apikey-list)', password: true });
+      if (key) await this._svc.ai.storeSecret(SECRET_ZAI, key);
+      // Let user pick a model
+      const zaiModels = ['glm-4.6', 'glm-4.5', 'glm-4.5-air', 'glm-4-flash'];
+      const modelChoice = await vscode.window.showQuickPick(
+        [...zaiModels, '$(edit) Enter custom model ID…'],
+        { placeHolder: 'Choose a GLM (Z.ai) model' }
+      );
+      if (modelChoice?.includes('custom')) {
+        const custom = await vscode.window.showInputBox({ prompt: 'GLM model ID (e.g., glm-4.6)' });
+        if (custom) await cfg.update('zaiModel', custom, vscode.ConfigurationTarget.Global);
+      } else if (modelChoice) {
+        await cfg.update('zaiModel', modelChoice, vscode.ConfigurationTarget.Global);
+      }
     } else if (provider === 'huggingface') {
       // [SEC-6] Inform user that code will be sent to cloud API
       const consent = await vscode.window.showWarningMessage(
@@ -389,11 +451,15 @@ export class CoreCommands {
       }
     }
 
+    const modelSettingByProvider: Record<string, string> = {
+      gemma4: 'gemma4Model', glm: 'glmModel', ollama: 'ollamaModel',
+      anthropic: 'anthropicModel', openai: 'openaiModel',
+      gemini: 'geminiModel', zai: 'zaiModel', huggingface: 'huggingfaceModel',
+    };
+    const modelKey = modelSettingByProvider[provider];
     this._svc.events.emit('provider.changed', {
       provider,
-      model: provider === 'gemma4'
-        ? cfg.get('gemma4Model', 'gemma4:e4b')
-        : cfg.get('ollamaModel', ''),
+      model: modelKey ? cfg.get(modelKey, '') : '',
     });
   }
 
@@ -874,6 +940,27 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.6.0': [
+    `## 🚀 Evolve AI 2.6.0 — GLM, two ways: local (offline) and Z.ai (cloud)\n`,
+    `### What's new\n`,
+    `GLM (Zhipu / Z.ai) joins as **two first-class providers** — because "runs on my laptop" and "the flagship model" are genuinely different things.\n`,
+    `### 🖥️ GLM (local) — runs offline\n`,
+    `A GLM / CodeGeeX **coding model** that runs fully offline via Ollama. No API key, no data leaves your machine.\n`,
+    `1. Install [Ollama](https://ollama.com/download)`,
+    `2. **Switch** → **GLM (local)** → pick a model → it offers to download it`,
+    `3. Default is \`codegeex4-all-9b\` (built on GLM-4-9B, ~5.5GB, 128K context). \`glm4:9b\` and \`glm4\` also available.\n`,
+    `### ☁️ GLM (Z.ai) — the flagship, via cloud\n`,
+    `The large \`glm-4.6\` / \`glm-4.5\` models via Z.ai's API. These are 355B+ parameter models — too big to run locally, so they run in the cloud.\n`,
+    `1. Get a key at [z.ai](https://z.ai/manage-apikey/apikey-list)`,
+    `2. **Switch** → **GLM (Z.ai)** → paste your key → pick a model`,
+    `3. Key stored in VS Code's encrypted storage (never in settings.json)\n`,
+    `### Honest about hardware\n`,
+    `GLM-5.x / GLM-4.6 flagships are hundreds of billions of parameters — they can't run offline on a laptop. So the **local** provider ships the 9B-class coding models that actually do, and the **cloud** provider gives you the flagship when you want it. No pretending.\n`,
+    `### Settings added\n`,
+    `- \`aiForge.glmModel\` (default \`codegeex4-all-9b\`) — local model tag`,
+    `- \`aiForge.zaiModel\` (default \`glm-4.6\`) — cloud model name`,
+    `- \`aiForge.zaiBaseUrl\` — Z.ai OpenAI-compatible endpoint\n`,
+  ].join('\n'),
   '2.5.0': [
     `## 🚀 Evolve AI 2.5.0 — Google Gemini is now a first-class provider\n`,
     `### What's new\n`,
