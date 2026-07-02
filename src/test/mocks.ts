@@ -28,6 +28,10 @@ export class MockAIService implements IAIService {
     return { installed: false, variants: [] };
   }
 
+  async isGlmAvailable(): Promise<{ installed: boolean; variants: string[] }> {
+    return { installed: false, variants: [] };
+  }
+
   async *stream(request: AIRequest): AsyncGenerator<string> {
     this.lastRequest = request;
     yield this.response;

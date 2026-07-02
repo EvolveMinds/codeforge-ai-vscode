@@ -205,7 +205,7 @@ ContextService.buildSystemPrompt()
          ▼
 AIService.stream(request)
   ├─ RequestInterceptors (plugins can modify request before send)
-  ├─ provider detection (ollama / gemma4 / anthropic / openai / gemini / huggingface / offline)
+  ├─ provider detection (ollama / gemma4 / glm / anthropic / openai / gemini / zai / huggingface / offline)
   └─ HTTP streaming with back-pressure
          │
          ▼
@@ -297,11 +297,12 @@ are merged into the core system transparently:
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `provider` | string | `auto` | `auto` / `ollama` / `gemma4` / `anthropic` / `openai` / `gemini` / `huggingface` / `offline` |
+| `provider` | string | `auto` | `auto` / `ollama` / `gemma4` / `glm` / `anthropic` / `openai` / `gemini` / `zai` / `huggingface` / `offline` |
 | `ollamaHost` | string | `http://localhost:11434` | Ollama / LM Studio / llama.cpp server URL |
 | `ollamaModel` | string | `qwen2.5-coder:7b` | Ollama model |
 | `gemma4Model` | string | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b` / `gemma4:e4b` / `gemma4:26b` / `gemma4:31b` |
 | `gemma4ThinkingMode` | boolean | `false` | Enable chain-of-thought reasoning (better results, slower) |
+| `glmModel` | string | `codegeex4-all-9b` | Local GLM/CodeGeeX model tag via Ollama (offline). Also `glm4:9b`, `glm4` |
 | `allowHardwareDetection` | boolean | `true` | Allow detecting system specs to recommend best Gemma 4 variant. First use asks for consent. |
 | `allowAutoInstall` | boolean | `false` | When `true`, skips per-install confirmation. When `false`, the wizard asks before downloading Ollama |
 | `openaiBaseUrl` | string | `https://api.openai.com/v1` | Also works for Groq, Mistral, Together AI, LiteLLM |
@@ -309,6 +310,8 @@ are merged into the core system transparently:
 | `anthropicModel` | string | `claude-sonnet-4-6` | Anthropic model name |
 | `geminiModel` | string | `gemini-2.5-flash` | Google Gemini model: `gemini-2.5-pro` / `gemini-2.5-flash` / `gemini-2.0-flash` |
 | `geminiBaseUrl` | string | `https://generativelanguage.googleapis.com/v1beta/openai` | Gemini OpenAI-compatible base URL |
+| `zaiModel` | string | `glm-4.6` | GLM (Z.ai) cloud model: `glm-4.6` / `glm-4.5` / `glm-4.5-air` / `glm-4-flash` |
+| `zaiBaseUrl` | string | `https://api.z.ai/api/paas/v4` | Z.ai OpenAI-compatible base URL |
 | `huggingfaceModel` | string | `Qwen/Qwen2.5-Coder-32B-Instruct` | Hugging Face model ID |
 | `huggingfaceBaseUrl` | string | `https://api-inference.huggingface.co` | HF Inference API base URL |
 | `codeLensEnabled` | boolean | `true` | Show CodeLens hints above functions |
@@ -333,6 +336,7 @@ are merged into the core system transparently:
 | `aiForge.anthropicKey` | Anthropic API key |
 | `aiForge.openaiKey` | OpenAI API key |
 | `aiForge.geminiKey` | Google Gemini API key |
+| `aiForge.zaiKey` | GLM (Z.ai) API key |
 | `aiForge.huggingfaceKey` | Hugging Face API key |
 | `aiForge.githubPAT` | GitHub Personal Access Token (Git Connect Wizard) |
 | `aiForge.bitbucketPAT` | Bitbucket App Password — stored as `username:app_password` |

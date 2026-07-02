@@ -8,7 +8,7 @@
 [![Rating](https://vsmarketplacebadges.dev/rating-short/codeforge-ai.evolve-ai.svg?color=orange)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
-**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, and **Hugging Face** — so you choose where your code goes.
+**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
 
 ### Why Evolve AI?
 
@@ -87,7 +87,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 | **Auto-detecting stack plugins** (13) | Yes | No | No | No |
 | **Cloud platform integration** (AWS, GCP, Azure, Databricks) | Yes | No | No | No |
 | **Multimodal** (images via Gemma 4) | Yes | No | Partial | No |
-| **Multiple AI providers** | 7 | 1 | Multiple | 1 |
+| **Multiple AI providers** | 9 | 1 | Multiple | 1 |
 | **Offline mode** | Yes | No | No | No |
 | **Open source** | MIT | No | Apache 2.0 | Apache 2.0 |
 | **Price** | Free | $10-19/mo | Free | Free tier |
@@ -102,9 +102,11 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 |---|---|---|
 | **Ollama** (local) | Code never leaves your machine | Free, runs locally |
 | **Gemma 4** (local) | Code never leaves your machine | Free, guided setup via Ollama |
+| **GLM / CodeGeeX** (local) | Code never leaves your machine | Free, coding model via Ollama (offline) |
 | **Anthropic Claude** | Cloud API | API key required |
 | **OpenAI / Compatible** | Cloud API (Groq, Mistral, Together AI, LM Studio) | API key required |
 | **Google Gemini** | Cloud API | API key required |
+| **GLM (Z.ai)** | Cloud API | API key required — flagship glm-4.6 / glm-4.5 |
 | **Hugging Face** | Cloud API | API key required |
 | **Offline mode** | Fully offline, pattern-based | No setup needed |
 
@@ -265,6 +267,24 @@ Use Google's Gemini models via the official OpenAI-compatible endpoint.
 2. Set `aiForge.geminiModel` (default: `gemini-2.5-flash`; also `gemini-2.5-pro`, `gemini-2.0-flash`)
 3. Run **Switch AI Provider** -> select Google Gemini -> enter API key
 
+### GLM (local, offline)
+
+Run a GLM / CodeGeeX coding model **fully offline** via Ollama — no API key, no data leaves your machine. Default is `codegeex4-all-9b` (a coding model built on GLM-4-9B, ~5.5GB, 128K context).
+
+1. Install [Ollama](https://ollama.com/download)
+2. Run **Switch AI Provider** -> select **GLM (local)** -> pick a model (`codegeex4-all-9b`, `glm4:9b`, or `glm4`) -> it offers to download it
+3. Runs locally from then on
+
+> Note: the 355B+ GLM-4.5 / GLM-4.6 flagships are too large to run on a normal machine — those are cloud-only (see below).
+
+### GLM (Z.ai, cloud)
+
+Use Zhipu / Z.ai's flagship GLM models (`glm-4.6`, `glm-4.5`) via their OpenAI-compatible cloud API.
+
+1. Get an API key from [z.ai](https://z.ai/manage-apikey/apikey-list)
+2. Run **Switch AI Provider** -> select **GLM (Z.ai)** -> enter API key -> pick a model
+3. Set `aiForge.zaiModel` (default: `glm-4.6`)
+
 ### HuggingFace Inference API
 
 Access thousands of open models via the HuggingFace Inference API.
@@ -283,7 +303,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 
 | Setting | Default | Description |
 |---|---|---|
-| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `anthropic`, `openai`, `gemini`, `huggingface`, `offline` |
+| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `glm`, `anthropic`, `openai`, `gemini`, `zai`, `huggingface`, `offline` |
 | `aiForge.ollamaHost` | `http://localhost:11434` | Ollama server URL (also LM Studio, llama.cpp) |
 | `aiForge.ollamaModel` | `qwen2.5-coder:7b` | Ollama model name |
 | `aiForge.gemma4Model` | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b`, `gemma4:e4b`, `gemma4:26b`, `gemma4:31b` |
@@ -294,6 +314,8 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.openaiModel` | `gpt-4o` | OpenAI model name |
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |
 | `aiForge.geminiModel` | `gemini-2.5-flash` | Google Gemini model name |
+| `aiForge.glmModel` | `codegeex4-all-9b` | Local GLM / CodeGeeX model tag (runs offline via Ollama) |
+| `aiForge.zaiModel` | `glm-4.6` | GLM (Z.ai) cloud model name |
 | `aiForge.huggingfaceModel` | `Qwen/Qwen2.5-Coder-32B-Instruct` | Hugging Face model ID |
 | `aiForge.codeLensEnabled` | `true` | Show CodeLens hints above functions |
 | `aiForge.contextBudgetChars` | `24000` | Total character cap for AI context |
@@ -615,7 +637,7 @@ You see a setup plan listing every step before clicking **"Install Everything"**
 
 **Q: What if my system can't run Gemma 4?**
 A: The wizard shows a modal explaining exactly why (e.g. "only 4GB RAM detected — needs at least 8GB") and offers three actionable alternatives:
-- **Switch to a cloud provider** (Anthropic Claude, OpenAI, Google Gemini, HuggingFace) — runs in the cloud, only needs an API key
+- **Switch to a cloud provider** (Anthropic Claude, OpenAI, Google Gemini, GLM/Z.ai, HuggingFace) — runs in the cloud, only needs an API key
 - **Use Offline mode** — pattern-based AI, no LLM required, works instantly
 - **Free up resources** — disk-space tips if that's the blocker
 You're never left at a dead end.

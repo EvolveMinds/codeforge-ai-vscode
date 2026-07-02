@@ -403,7 +403,7 @@ export class ContextService implements IContextService {
   ): LineageSchema[] {
     if (cfg.get<boolean>('lineage.includePii', false)) return schemas;
     const provider = cfg.get<string>('provider', 'auto');
-    const isCloud = provider === 'anthropic' || provider === 'openai' || provider === 'gemini' || provider === 'huggingface';
+    const isCloud = provider === 'anthropic' || provider === 'openai' || provider === 'gemini' || provider === 'zai' || provider === 'huggingface';
     if (!isCloud) return schemas;
 
     return schemas.map(s => ({

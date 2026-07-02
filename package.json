@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4) or cloud (Claude, OpenAI, Gemini, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.5.2",
+  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "2.6.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -24,6 +24,9 @@
     "claude",
     "gemini",
     "google gemini",
+    "glm",
+    "codegeex",
+    "zhipu",
     "code assistant",
     "data engineering",
     "dbt",
@@ -1392,9 +1395,11 @@
             "auto",
             "ollama",
             "gemma4",
+            "glm",
             "anthropic",
             "openai",
             "gemini",
+            "zai",
             "huggingface",
             "offline"
           ],
@@ -1402,9 +1407,11 @@
             "Auto-detect: use Ollama if running, else offline AI",
             "Ollama — local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
             "Gemma 4 — Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
+            "GLM (local) — GLM / CodeGeeX coding model, runs offline via Ollama. Free, private. Default codegeex4-all-9b (~5.5GB)",
             "Anthropic Claude — cloud, requires API key",
             "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
             "Google Gemini — cloud, requires API key. gemini-2.5-pro, 2.5-flash, 2.0-flash",
+            "GLM (Z.ai) — cloud, requires API key. Zhipu/Z.ai flagship GLM models: glm-4.6, glm-4.5",
             "Hugging Face Inference API — cloud, requires API key. Access thousands of open models",
             "Built-in offline AI — no LLM, pattern-based, instant"
           ],
@@ -1444,6 +1451,11 @@
           "default": false,
           "description": "Enable Gemma 4 thinking/reasoning mode. Shows chain-of-thought reasoning before the answer. Produces better results for complex tasks but uses more tokens and is slower."
         },
+        "aiForge.glmModel": {
+          "type": "string",
+          "default": "codegeex4-all-9b",
+          "description": "Local GLM / CodeGeeX model tag to run via Ollama (e.g. codegeex4-all-9b, glm4:9b, glm4). codegeex4-all-9b is a coding model built on GLM-4-9B (~5.5GB, 128K context). Runs fully offline. This is NOT the 355B+ GLM-4.5/4.6 flagship — those are cloud-only (use the GLM (Z.ai) provider)."
+        },
         "aiForge.allowHardwareDetection": {
           "type": "boolean",
           "default": true,
@@ -1478,6 +1490,16 @@
           "type": "string",
           "default": "https://generativelanguage.googleapis.com/v1beta/openai",
           "description": "Google Gemini OpenAI-compatible base URL. Change only for a proxy or a future endpoint version."
+        },
+        "aiForge.zaiModel": {
+          "type": "string",
+          "default": "glm-4.6",
+          "description": "GLM (Z.ai) cloud model name (e.g., glm-4.6, glm-4.5, glm-4.5-air, glm-4-flash). These are the large flagship GLM models served by Z.ai's API — for local/offline GLM use the 'glm' provider instead."
+        },
+        "aiForge.zaiBaseUrl": {
+          "type": "string",
+          "default": "https://api.z.ai/api/paas/v4",
+          "description": "GLM (Z.ai) OpenAI-compatible base URL. Change only for a proxy or a future endpoint version."
         },
         "aiForge.huggingfaceModel": {
           "type": "string",

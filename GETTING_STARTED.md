@@ -77,7 +77,19 @@ Your code never leaves your machine. No API key. No cost.
 2. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **Google Gemini** > paste your key
 3. Pick a model — `gemini-2.5-flash` (default), `gemini-2.5-pro`, or `gemini-2.0-flash`
 
-### Option F: No Setup (Offline Mode)
+### Option F: GLM (local, offline — coding model)
+
+1. Install [Ollama](https://ollama.com/download)
+2. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **GLM (local)**
+3. Pick a model (`codegeex4-all-9b`, `glm4:9b`, or `glm4`) — it offers to download it (~5.5GB). Runs offline from then on.
+
+### Option G: GLM (Z.ai, cloud — flagship glm-4.6 / glm-4.5)
+
+1. Get an API key from [z.ai](https://z.ai/manage-apikey/apikey-list)
+2. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **GLM (Z.ai)** > paste your key
+3. Pick a model (`glm-4.6` default)
+
+### Option H: No Setup (Offline Mode)
 
 Evolve AI works without any AI provider! It uses pattern-based analysis — less powerful, but instant and free. Just install the extension and go.
 
@@ -101,7 +113,7 @@ Above the input box you'll see two **pills**:
 - **Model pill** — switch model within the active provider (e.g., between installed
   Ollama models, or between `claude-sonnet-4-6` / `claude-opus-4-7`). The
   *More providers…* item at the bottom opens the full provider switch flow if you want
-  to move between Ollama, Anthropic, OpenAI, Google Gemini, Hugging Face, Gemma 4, or offline.
+  to move between Ollama, Anthropic, OpenAI, Google Gemini, GLM (local or Z.ai), Hugging Face, Gemma 4, or offline.
 
 **Check the status indicator** in the top-left of the chat:
 - Green dot + "OLLAMA" = connected to local AI

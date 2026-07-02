@@ -370,10 +370,12 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     const provider = await this._svc.ai.detectProvider();
     const settingByProvider: Record<string, string> = {
       gemma4:      'gemma4Model',
+      glm:         'glmModel',
       ollama:      'ollamaModel',
       anthropic:   'anthropicModel',
       openai:      'openaiModel',
       gemini:      'geminiModel',
+      zai:         'zaiModel',
       huggingface: 'huggingfaceModel',
     };
     const settingKey = settingByProvider[provider];
@@ -716,7 +718,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
           <div class="pop-icon">&#8230;</div>
           <div class="pop-body">
             <div class="pop-name">More providers&#8230;</div>
-            <div class="pop-desc">Switch to Anthropic, OpenAI, Google Gemini, Hugging Face, Gemma 4, or offline mode.</div>
+            <div class="pop-desc">Switch to Anthropic, OpenAI, Google Gemini, GLM (local or Z.ai), Hugging Face, Gemma 4, or offline mode.</div>
           </div>
         </div>
       </div>
@@ -803,10 +805,12 @@ function renderModelPopover() {
   const title = document.getElementById('modelPopoverTitle');
   if (!list) return;
   const provLabel = currentProvider === 'gemma4' ? 'Gemma 4'
+    : currentProvider === 'glm' ? 'GLM (local)'
     : currentProvider === 'ollama' ? 'Ollama'
     : currentProvider === 'anthropic' ? 'Anthropic'
     : currentProvider === 'openai' ? 'OpenAI / Compatible'
     : currentProvider === 'gemini' ? 'Google Gemini'
+    : currentProvider === 'zai' ? 'GLM (Z.ai)'
     : currentProvider === 'huggingface' ? 'Hugging Face'
     : currentProvider === 'offline' ? 'Offline'
     : (currentProvider || '').toUpperCase();
@@ -859,9 +863,9 @@ function showOnboardingGuide(statusData) {
   // Detect specific scenario
   let title, body;
 
-  if ((provider === 'ollama' || provider === 'gemma4') && !ollamaRunning) {
+  if ((provider === 'ollama' || provider === 'gemma4' || provider === 'glm') && !ollamaRunning) {
     // Ollama/Gemma 4 is selected but not running
-    const provName = provider === 'gemma4' ? 'Gemma 4' : 'Ollama';
+    const provName = provider === 'gemma4' ? 'Gemma 4' : provider === 'glm' ? 'GLM (local)' : 'Ollama';
     title = 'Ollama is not running';
     body = '<p>Evolve AI is configured to use <strong>' + provName + '</strong> but cannot connect to Ollama.</p>';
     if (os === 'win32') {
@@ -1107,11 +1111,11 @@ window.addEventListener('message', ({ data }) => {
       currentProvider = data.provider;
       const d = document.getElementById('dot');
       // Green when any provider is configured and working
-      const isReady = (data.provider === 'ollama' || data.provider === 'gemma4') ? data.ollamaRunning
+      const isReady = (data.provider === 'ollama' || data.provider === 'gemma4' || data.provider === 'glm') ? data.ollamaRunning
         : (data.provider !== 'offline' && data.provider !== 'auto');
       d.className = 'dot ' + (isReady ? 'green' : 'yellow');
       d.title = isReady ? 'Provider connected' : 'No AI provider active';
-      const providerLabel = data.provider === 'gemma4' ? 'GEMMA 4' : data.provider.toUpperCase();
+      const providerLabel = data.provider === 'gemma4' ? 'GEMMA 4' : data.provider === 'glm' ? 'GLM' : data.provider === 'zai' ? 'GLM (Z.AI)' : data.provider.toUpperCase();
       document.getElementById('providerLabel').textContent = providerLabel;
       // Show thinking toggle only for Gemma 4
       const thinkBtn = document.getElementById('thinkBtn');
@@ -1408,6 +1412,13 @@ function resolveModelView(
       const variants = ['gemma4:e2b', 'gemma4:e4b', 'gemma4:26b', 'gemma4:31b'];
       return { currentModel: current, availableModels: variants };
     }
+    case 'glm': {
+      const current = cfg.get<string>('glmModel', 'codegeex4-all-9b');
+      // Installed GLM/CodeGeeX models first, then the known local tags
+      const glmInstalled = ollamaModels.filter(m => m.startsWith('glm') || m.startsWith('codegeex'));
+      const known = ['codegeex4-all-9b', 'glm4:9b', 'glm4'];
+      return { currentModel: current, availableModels: dedupe([current, ...glmInstalled, ...known]) };
+    }
     case 'ollama': {
       const current = cfg.get<string>('ollamaModel', '');
       return { currentModel: current, availableModels: ollamaModels };
@@ -1425,6 +1436,11 @@ function resolveModelView(
     case 'gemini': {
       const current = cfg.get<string>('geminiModel', 'gemini-2.5-flash');
       const known = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+      return { currentModel: current, availableModels: dedupe([current, ...known]) };
+    }
+    case 'zai': {
+      const current = cfg.get<string>('zaiModel', 'glm-4.6');
+      const known = ['glm-4.6', 'glm-4.5', 'glm-4.5-air', 'glm-4-flash'];
       return { currentModel: current, availableModels: dedupe([current, ...known]) };
     }
     case 'huggingface': {
