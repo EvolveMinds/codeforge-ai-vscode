@@ -2,6 +2,28 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.9.0] — 2026-07-22
+
+### Added — a proper Data Analysis panel (friendly front door)
+
+Choosing **Analyse** (from the chat Mode dropdown or the command palette, with no file already selected) now opens a dedicated **Data Analysis** panel instead of a bare file picker. It makes "how do I feed my data?" obvious:
+
+- **Browse for a file…** — a native dialog, so your data can live *anywhere* on your machine, not just the open project.
+- **Drag & drop** a data file onto the panel (falls back to the picker when the sandbox hides the path).
+- **Pick a workspace file** — now correctly filtered (see the fix below).
+- **Database or cloud source** and **Run a data pipeline** buttons, so every way to provide data is in one place.
+- Deliverable buttons (Insights / HTML report / Notebook / Profile) and an optional focus box are right there — pick and hit **Analyse →**.
+
+When a file is already known (Explorer right-click or a CodeLens on an open data file), the fast quick-pick path is unchanged.
+
+### Fixed — workspace file picker showed non-data JSON
+
+The picker previously listed config/build JSON (e.g. `build-steps/progress.json`, `package.json`). Now:
+
+- Build/config directories (`build`, `build-steps`, `.vscode`, `coverage`, `target`, `dist`, `out`, …) are skipped.
+- Known config filenames (`package.json`, `tsconfig.json`, `*.config.json`, lockfiles, …) are excluded.
+- Remaining `.json` files are only listed when their contents **actually look tabular** (an array of row-objects, or a `{ "data": [ … ] }` wrapper). CSV/TSV/Excel/Parquet always count.
+
 ## [2.8.0] — 2026-07-22
 
 ### Added — Declarative data pipelines (repeatable multi-step analysis)

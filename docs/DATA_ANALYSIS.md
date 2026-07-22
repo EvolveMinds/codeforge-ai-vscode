@@ -31,8 +31,21 @@ Three ways to start:
 - **Right-click a data file** in the Explorer → *Analyze Data & Report*.
 - Open the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type "Data".
 
-If no data file is found in your workspace, the flow opens a file picker so you can browse to
-any file — including one outside the open folder.
+### The Data Analysis panel *(v2.9.0)*
+
+When you pick **Analyse** without a file already selected, Evolve AI opens a dedicated
+**Data Analysis panel** — the friendly front door. From there you can:
+
+- **Browse for a file…** anywhere on your machine (your data doesn't have to be in the open
+  project).
+- **Drag & drop** a data file onto the panel.
+- **Pick a file from this workspace** — the list is filtered to real data files (CSV / TSV /
+  Excel / Parquet, and JSON only when it actually looks tabular; config/build JSON is hidden).
+- Jump to **Database or cloud source** or **Run a data pipeline**.
+
+Then choose a deliverable (Insights / Report / Notebook / Profile), add an optional focus, and
+hit **Analyse →**. If you came in via the Explorer right-click or a CodeLens, you skip the
+panel and go straight to the quick-pick.
 
 | Command | What it does |
 |---|---|

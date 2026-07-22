@@ -44,12 +44,27 @@ import { GcpClient }        from '../core/gcpClient';
 import { AzureClient }      from '../core/azureClient';
 import { AwsClient }        from '../core/awsClient';
 import { DatabricksClient } from '../core/databricksClient';
+import { DataAnalysisPanel } from '../ui/dataAnalysisPanel';
+import type { WorkspaceDataFile } from '../ui/dataAnalysisPanel';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
 const DATA_EXTENSIONS = ['.csv', '.tsv', '.parquet', '.xlsx', '.xls'];
 // .json is data-ish but very common as config; only count it when it looks tabular.
 const MAX_SCAN = 200;
+
+// Directories that never contain user data (config/build/deps).
+const SKIP_DIRS = new Set([
+  'node_modules', '.git', 'out', 'dist', 'build', 'build-steps', 'bin', '.vscode',
+  '.vscode-test', '__pycache__', 'venv', '.venv', 'coverage', 'target', '.next', '.nuxt',
+]);
+// JSON filenames that are almost always config/metadata, not tabular data.
+const CONFIG_JSON = new Set([
+  'package.json', 'package-lock.json', 'tsconfig.json', 'jsconfig.json', 'settings.json',
+  'launch.json', 'tasks.json', '.eslintrc.json', 'composer.json', 'manifest.json',
+  'angular.json', 'nx.json', 'lerna.json', 'renovate.json', 'now.json', 'vercel.json',
+  'babel.config.json', 'components.json', 'evolve-data-pipeline.json',
+]);
 
 /** True if a path points at a data file we can analyse (incl. .json). */
 function isDataPath(p: string | undefined): boolean {
@@ -60,7 +75,6 @@ function isDataPath(p: string | undefined): boolean {
 /** Recursively collect data files (bounded), skipping heavy/irrelevant dirs. */
 function findDataFiles(wsPath: string, limit = MAX_SCAN): string[] {
   const out: string[] = [];
-  const skip = new Set(['node_modules', '.git', 'out', 'dist', 'bin', '.vscode-test', '__pycache__', 'venv', '.venv']);
   const walk = (dir: string, depth: number) => {
     if (out.length >= limit || depth > 5) return;
     let entries: fs.Dirent[];
@@ -68,7 +82,7 @@ function findDataFiles(wsPath: string, limit = MAX_SCAN): string[] {
     for (const e of entries) {
       if (out.length >= limit) return;
       if (e.isDirectory()) {
-        if (skip.has(e.name) || e.name.startsWith('.')) continue;
+        if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue;
         walk(path.join(dir, e.name), depth + 1);
       } else {
         const ext = path.extname(e.name).toLowerCase();
@@ -465,12 +479,19 @@ export class DataAnalysisPlugin implements IPlugin {
     await vscode.commands.executeCommand('aiForge._sendToChat', message, 'chat');
   }
 
-  // ── The main "analyze" entry: pick file, ask what they want, choose deliverable ──
+  // ── The main "analyze" entry ──────────────────────────────────────────────
+  // If a file is already known (Explorer right-click / CodeLens on an open data
+  // file), go straight to the fast quick-pick. Otherwise open the friendly panel
+  // that lets the user browse for a file anywhere, pick a workspace file, drag &
+  // drop, or connect a database/cloud source.
   private async _analyze(services: IServices, args: unknown[]): Promise<void> {
-    // If invoked from a CodeLens on an open data file, args may carry a uri.
-    let file = this._uriFromArgs(args) ?? (await this._pickDataFile(services));
-    if (!file) return;
+    const known = this._uriFromArgs(args);
+    if (known) { await this._directAnalyze(services, known); return; }
+    await this._openPanel(services);
+  }
 
+  /** Fast path when the data file is already known. */
+  private async _directAnalyze(services: IServices, file: string): Promise<void> {
     const kindPick = await vscode.window.showQuickPick(
       [
         { label: '$(comment-discussion) Insights in chat', description: 'Narrative analysis inline — ask follow-ups (Gemini-style)', detail: 'insights' },
@@ -478,10 +499,9 @@ export class DataAnalysisPlugin implements IPlugin {
         { label: '$(notebook) Analysis notebook/script', description: 'Reproducible pandas + plotly (.py / .ipynb)', detail: 'notebook' },
         { label: '$(list-flat) Profiling summary', description: 'Types, nulls, distributions, correlations', detail: 'profile' },
       ],
-      { placeHolder: 'What would you like Evolve AI to produce?' }
+      { placeHolder: `What would you like Evolve AI to produce from ${path.basename(file)}?` }
     );
     if (!kindPick) return;
-
     let instruction: string | undefined;
     if (kindPick.detail !== 'profile') {
       instruction = await vscode.window.showInputBox({
@@ -490,12 +510,69 @@ export class DataAnalysisPlugin implements IPlugin {
         ignoreFocusOut: true,
       });
     }
-
-    if (kindPick.detail === 'insights') {
-      await this._insightsInChat(file, instruction || undefined);
-      return;
-    }
+    if (kindPick.detail === 'insights') { await this._insightsInChat(file, instruction || undefined); return; }
     await this._run(services, file, kindPick.detail as Deliverable, instruction || undefined);
+  }
+
+  // ── The friendly entry panel ──────────────────────────────────────────────
+  private async _openPanel(services: IServices): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    const wsFiles: WorkspaceDataFile[] = [];
+    if (ws) {
+      const seen = new Set<string>();
+      for (const f of [...findDataFiles(ws.uri.fsPath), ...findJsonFiles(ws.uri.fsPath)]) {
+        if (seen.has(f)) continue; seen.add(f);
+        wsFiles.push({ path: f, rel: path.relative(ws.uri.fsPath, f) });
+      }
+    }
+
+    // Per-open selection state.
+    let selectedFile: string | undefined;
+    let deliverable: Deliverable | 'insights' = 'insights';
+    let focus = '';
+
+    const panel = DataAnalysisPanel.show(wsFiles, async (msg) => {
+      switch (msg.type) {
+        case 'browse':
+          await this._openBrowse(panel, (f) => { selectedFile = f; });
+          break;
+        case 'droppedFile':
+        case 'useWorkspaceFile': {
+          const p = (msg as { path: string }).path;
+          if (p && isDataPath(p)) { selectedFile = p; panel.setSelected(path.basename(p)); }
+          else panel.setStatus('That file type isn\'t supported — pick a CSV, Excel, JSON, or Parquet file.');
+          break;
+        }
+        case 'dropFallback':
+          // The webview couldn't read a filesystem path from the dropped file
+          // (VS Code sandbox). Fall back to the native picker so drop still works.
+          panel.setStatus('Opening file picker…');
+          await this._openBrowse(panel, (f) => { selectedFile = f; });
+          break;
+        case 'setDeliverable': deliverable = (msg as { deliverable: Deliverable | 'insights' }).deliverable; break;
+        case 'setFocus':       focus = (msg as { focus: string }).focus; break;
+        case 'connectSource':  await this._analyzeSource(services); break;
+        case 'runPipeline':    await this._runPipeline(services, []); break;
+        case 'analyze': {
+          if (!selectedFile) { panel.setStatus('Choose a data file first.'); return; }
+          panel.setStatus(`Analysing ${path.basename(selectedFile)}…`);
+          if (deliverable === 'insights') await this._insightsInChat(selectedFile, focus || undefined);
+          else await this._run(services, selectedFile, deliverable, focus || undefined);
+          panel.setStatus(`Done — ${path.basename(selectedFile)}.`);
+          break;
+        }
+      }
+    });
+  }
+
+  /** Native file picker shared by the panel's Browse button and drop-fallback. */
+  private async _openBrowse(panel: DataAnalysisPanel, onPick: (file: string) => void): Promise<void> {
+    const picked = await vscode.window.showOpenDialog({
+      canSelectMany: false, openLabel: 'Use this file',
+      filters: { Data: ['csv', 'tsv', 'json', 'xlsx', 'xls', 'parquet'] },
+    });
+    if (picked?.[0]) { onPick(picked[0].fsPath); panel.setSelected(path.basename(picked[0].fsPath)); }
+    else panel.setStatus('');
   }
 
   // ── Analyze from a database or cloud source ───────────────────────────────
@@ -1249,10 +1326,25 @@ function extractCodeBlock(raw: string): { body: string; lang: string } {
   return { lang: '', body: raw.trim() };
 }
 
+/** Cheap check: does a JSON file's head look like an array of row-objects? */
+function looksTabularJson(filePath: string): boolean {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    try {
+      const buf = Buffer.alloc(Math.min(fs.statSync(filePath).size, 4096));
+      fs.readSync(fd, buf, 0, buf.length, 0);
+      const head = buf.toString('utf8').trimStart();
+      // Tabular data is an array of objects: starts with '[' then soon a '{',
+      // or a wrapper object with a "data": [ … ] array.
+      if (head.startsWith('[')) return /\[\s*\{/.test(head.slice(0, 200));
+      if (head.startsWith('{')) return /"(data|rows|records|items)"\s*:\s*\[/.test(head.slice(0, 500));
+      return false;
+    } finally { fs.closeSync(fd); }
+  } catch { return false; }
+}
+
 function findJsonFiles(wsPath: string, limit = MAX_SCAN): string[] {
   const out: string[] = [];
-  const skip = new Set(['node_modules', '.git', 'out', 'dist', 'bin', '.vscode-test', '__pycache__', 'venv', '.venv']);
-  const configish = new Set(['package.json', 'tsconfig.json', 'package-lock.json', 'settings.json', '.eslintrc.json']);
   const walk = (dir: string, depth: number) => {
     if (out.length >= limit || depth > 4) return;
     let entries: fs.Dirent[];
@@ -1260,10 +1352,15 @@ function findJsonFiles(wsPath: string, limit = MAX_SCAN): string[] {
     for (const e of entries) {
       if (out.length >= limit) return;
       if (e.isDirectory()) {
-        if (skip.has(e.name) || e.name.startsWith('.')) continue;
+        if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue;
         walk(path.join(dir, e.name), depth + 1);
-      } else if (e.name.toLowerCase().endsWith('.json') && !configish.has(e.name.toLowerCase())) {
-        out.push(path.join(dir, e.name));
+      } else {
+        const lower = e.name.toLowerCase();
+        if (!lower.endsWith('.json') || CONFIG_JSON.has(lower)) continue;
+        if (lower.endsWith('.config.json') || lower.endsWith('lock.json') || lower.endsWith('.tsbuildinfo')) continue;
+        const full = path.join(dir, e.name);
+        // Only include JSON that actually looks like tabular data.
+        if (looksTabularJson(full)) out.push(full);
       }
     }
   };

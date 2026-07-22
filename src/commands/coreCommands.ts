@@ -940,6 +940,18 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.9.0': [
+    `## 📊 Evolve AI 2.9.0 — A proper Data Analysis panel\n`,
+    `### What's new\n`,
+    `Choosing **Analyse** now opens a friendly **Data Analysis panel** instead of a bare file picker. It makes feeding your data obvious:\n`,
+    `- **📁 Browse for a file…** — your data can live *anywhere* on your machine, not just the open project.`,
+    `- **Drag & drop** a file onto the panel.`,
+    `- **Pick a workspace file** — now filtered to real data (no more \`package.json\` / build JSON noise).`,
+    `- **🗄️ Database or cloud source** and **▶️ Run a pipeline** buttons — every way to provide data in one place.`,
+    `- Deliverable buttons (Insights / Report / Notebook / Profile) + a focus box, then hit **Analyse →**.\n`,
+    `### Fixed\n`,
+    `The workspace file list used to show config/build JSON (e.g. \`build-steps/progress.json\`). It now skips build/config folders, excludes known config filenames, and only lists \`.json\` that actually looks tabular.\n`,
+  ].join('\n'),
   '2.8.0': [
     `## 📊 Evolve AI 2.8.0 — Data pipelines + "Analyse" chat mode\n`,
     `### Declarative data pipelines\n`,
