@@ -165,6 +165,16 @@ Plugins activate automatically based on your workspace files. No configuration r
 | **PyTorch** | PyTorch imports | 6 commands: models, training loops, checkpoints, mixed precision |
 | **Security** | Always active | 3 commands: scan file, scan workspace, fix findings |
 | **Git** | Always active | 4 commands: blame, changelog, commit messages, PR templates |
+| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 4 commands: analyze & report, HTML report, notebook/script, profile — PowerBI-style, size-adaptive |
+
+### Data Analysis & Reporting
+
+Give Evolve AI a data file and an instruction — get insights and a report, PowerBI-style, without leaving your editor.
+
+- **Right-click a data file** (`.csv` / `.tsv` / `.json` / `.xlsx` / `.parquet`) → **Analyze Data & Report**, or use the command palette.
+- **Deliverables:** a self-contained **HTML report** (KPI tiles, charts, AI insights), a reproducible **pandas/plotly notebook or script**, or a **profiling summary** (types, nulls, distributions, correlations).
+- **Size-adaptive:** small files are analysed directly by the AI; for large files it generates a script that reads the *full* dataset locally — your data never leaves your machine. If a sample would go to a cloud provider, you're asked first.
+- **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script.
 
 ### Cloud Platform Integration
 
