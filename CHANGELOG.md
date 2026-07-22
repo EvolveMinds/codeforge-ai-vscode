@@ -29,6 +29,20 @@ Give Evolve AI a data file and an instruction, get a report. A new auto-detectin
 
 **Zero new dependencies:** a tiny hand-rolled sniffer reads CSV/TSV/JSON headers + a row sample (binary `.xlsx`/`.parquet` get loader code generated instead). The heavy parsing always happens in the generated Python.
 
+#### Data sourcing beyond local files — databases & cloud
+
+The plugin no longer sources only from local files. **Analyze Data from Database or Cloud Source** (command palette) pulls a sample directly and runs the same report/insights/profiling flow:
+
+- **BigQuery** (SQL), **Databricks SQL** (warehouse), **Azure Cosmos DB**, **Azure Log Analytics** (KQL), **AWS DynamoDB** (scan) — a live query returns rows the AI analyses.
+- **Cloud object storage** — fetch a CSV/JSON from **S3 / GCS / Azure Blob** and run it through the same sniffer.
+- **Any other SQL database** (Postgres / MySQL / SQLite / Snowflake / SQL Server) — generates a `pandas.read_sql` analysis script that reads your connection string from a `DB_URL` environment variable. The extension never stores database passwords, and no live connection is opened.
+
+All cloud sources **reuse the extension's existing connected-plugin clients** (BigQuery/Databricks/Azure/AWS), built from the same SecretStorage credentials — no new dependencies and no new credential storage. Cloud clients return a capped sample (~1000 rows), which is exactly what the AI needs; for a full-table report, the generated-script path reads everything locally.
+
+#### Insights in chat (Gemini-style, conversational)
+
+New **Data Insights in Chat** deliverable streams a narrative analysis straight into the chat panel — key patterns, trends, outliers, data-quality issues, and recommendations — so you can read insights inline **and ask follow-up questions in the same thread**, then turn the analysis into an HTML report or chart. Complements the artifact deliverables (report / notebook / profile).
+
 ## [2.6.0] — 2026-07-02
 
 ### Added — GLM as two first-class providers (local + Z.ai cloud)
