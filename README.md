@@ -172,7 +172,8 @@ Plugins activate automatically based on your workspace files. No configuration r
 Give Evolve AI a data file and an instruction — get insights and a report, PowerBI-style, without leaving your editor.
 
 - **Right-click a data file** (`.csv` / `.tsv` / `.json` / `.xlsx` / `.parquet`) → **Analyze Data & Report**, or use the command palette.
-- **Deliverables:** a self-contained **HTML report** (KPI tiles, charts, AI insights), a reproducible **pandas/plotly notebook or script**, or a **profiling summary** (types, nulls, distributions, correlations).
+- **Deliverables:** **Insights in chat** (Gemini-style narrative analysis inline, with follow-up questions), a self-contained **HTML report** (KPI tiles, charts, AI insights), a reproducible **pandas/plotly notebook or script**, or a **profiling summary**.
+- **Not just local files** — **Analyze Data from Database or Cloud Source** pulls a sample from **BigQuery**, **Databricks SQL**, **Cosmos DB**, **Azure Log Analytics**, **DynamoDB**, or **S3 / GCS / Azure Blob** objects, reusing your existing connected-plugin credentials. For **Postgres / MySQL / SQLite / Snowflake / SQL Server**, it generates a `pandas.read_sql` script you run with your own connection string (`DB_URL` env var — no passwords stored).
 - **Size-adaptive:** small files are analysed directly by the AI; for large files it generates a script that reads the *full* dataset locally — your data never leaves your machine. If a sample would go to a cloud provider, you're asked first.
 - **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script.
 

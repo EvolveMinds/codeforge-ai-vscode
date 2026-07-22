@@ -270,6 +270,16 @@
         "title": "Evolve AI: Generate Data Analysis Notebook/Script"
       },
       {
+        "command": "aiForge.data.insights",
+        "title": "Evolve AI: Data Insights in Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "aiForge.data.analyzeSource",
+        "title": "Evolve AI: Analyze Data from Database or Cloud Source",
+        "icon": "$(database)"
+      },
+      {
         "command": "aiForge.cicd.setup.start",
         "title": "Evolve AI: CI/CD Setup Wizard",
         "icon": "$(github-action)"
