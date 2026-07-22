@@ -51,6 +51,12 @@ const DATA_EXTENSIONS = ['.csv', '.tsv', '.parquet', '.xlsx', '.xls'];
 // .json is data-ish but very common as config; only count it when it looks tabular.
 const MAX_SCAN = 200;
 
+/** True if a path points at a data file we can analyse (incl. .json). */
+function isDataPath(p: string | undefined): boolean {
+  if (!p) return false;
+  return DATA_EXTENSIONS.concat('.json').includes(path.extname(p).toLowerCase());
+}
+
 /** Recursively collect data files (bounded), skipping heavy/irrelevant dirs. */
 function findDataFiles(wsPath: string, limit = MAX_SCAN): string[] {
   const out: string[] = [];
@@ -307,11 +313,18 @@ export class DataAnalysisPlugin implements IPlugin {
   private _fileCount = 0;
 
   async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
-    if (!ws) return false;
-    this._wsPath = ws.uri.fsPath;
-    const files = findDataFiles(this._wsPath, 20);
-    this._fileCount = files.length;
-    return files.length > 0;
+    // Record how many data files we can see, so the status bar + domain-knowledge
+    // injection stay relevant to actual data projects.
+    this._wsPath = ws?.uri.fsPath ?? '';
+    const activeIsData = isDataPath(vscode.window.activeTextEditor?.document.uri.fsPath);
+    this._fileCount = (this._wsPath ? findDataFiles(this._wsPath, 20).length : 0) + (activeIsData ? 1 : 0);
+
+    // Activate whenever a folder is open OR the user is looking at a data file.
+    // The plugin's commands (Analyze, Insights, Report, …) are manual actions and
+    // should always be reachable — never dead-end on the "plugin not active"
+    // popup just because no CSV happens to sit in the workspace root. The
+    // status bar and prompt-injection remain conditional on _fileCount below.
+    return !!ws || activeIsData;
   }
 
   async activate(_services: IServices, _vsCtx: vscode.ExtensionContext): Promise<vscode.Disposable[]> {
@@ -320,7 +333,11 @@ export class DataAnalysisPlugin implements IPlugin {
   }
 
   // ── Domain knowledge injected into the system prompt when active ──────────
+  // Only inject when the project actually has data files, so non-data projects
+  // (where the plugin stays active purely to keep the Analyse action available)
+  // don't get their prompts polluted.
   systemPromptSection(): string {
+    if (this._fileCount === 0) return '';
     return [
       '## Data Analysis & Reporting',
       'The workspace contains tabular data files. When the user asks to analyse data or build a report:',
@@ -411,6 +428,16 @@ export class DataAnalysisPlugin implements IPlugin {
       id: 'aiForge.data.analyzeSource',
       title: 'Data: Analyze from Database or Cloud Source',
       handler: async (services) => this._analyzeSource(services),
+    },
+    {
+      id: 'aiForge.data.createPipeline',
+      title: 'Data: Create Data Pipeline',
+      handler: async (services) => this._createPipeline(services),
+    },
+    {
+      id: 'aiForge.data.runPipeline',
+      title: 'Data: Run Data Pipeline',
+      handler: async (services, ...args) => this._runPipeline(services, args),
     },
   ];
 
@@ -922,9 +949,298 @@ export class DataAnalysisPlugin implements IPlugin {
     if (active && DATA_EXTENSIONS.concat('.json').includes(path.extname(active).toLowerCase())) return active;
     return undefined;
   }
+
+  // ══ Declarative data pipelines ═════════════════════════════════════════════
+  // A pipeline is a JSON file listing steps; each step = a source + an analysis.
+  // Run them all with one command. This is the backend-free version of an "agent
+  // workflow": a reproducible, versioned, multi-source analysis run — no hosted
+  // orchestration, no scheduling, nothing running when the editor is closed.
+
+  private async _createPipeline(services: IServices): Promise<void> {
+    void services;
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) { vscode.window.showWarningMessage('Open a folder first — the pipeline file is written into your workspace.'); return; }
+    const outPath = path.join(ws.uri.fsPath, 'evolve-data-pipeline.json');
+    if (fs.existsSync(outPath)) {
+      const over = await vscode.window.showWarningMessage(
+        'evolve-data-pipeline.json already exists. Overwrite with a fresh template?', 'Overwrite', 'Open Existing', 'Cancel');
+      if (over === 'Cancel' || !over) return;
+      if (over === 'Open Existing') {
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(outPath)));
+        return;
+      }
+    }
+    await vscode.workspace.fs.writeFile(vscode.Uri.file(outPath), new TextEncoder().encode(PIPELINE_TEMPLATE));
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(outPath)));
+    vscode.window.showInformationMessage(
+      'Created evolve-data-pipeline.json. Edit the steps, then run "Evolve AI: Run Data Pipeline".');
+  }
+
+  private async _runPipeline(services: IServices, args: unknown[]): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    // Resolve the pipeline file: from args (Explorer/palette), active editor, or a picker.
+    let pipePath = this._uriFromArgs(args) && this._uriFromArgs(args)!.endsWith('.json') ? this._uriFromArgs(args) : undefined;
+    if (!pipePath) {
+      const active = vscode.window.activeTextEditor?.document.uri.fsPath;
+      if (active && path.basename(active).includes('pipeline') && active.endsWith('.json')) pipePath = active;
+    }
+    if (!pipePath && ws) {
+      const candidate = path.join(ws.uri.fsPath, 'evolve-data-pipeline.json');
+      if (fs.existsSync(candidate)) pipePath = candidate;
+    }
+    if (!pipePath) {
+      const picked = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: 'Run', filters: { 'Pipeline JSON': ['json'] } });
+      pipePath = picked?.[0]?.fsPath;
+    }
+    if (!pipePath) return;
+
+    let pipeline: Pipeline;
+    try {
+      pipeline = JSON.parse(stripJsonComments(fs.readFileSync(pipePath, 'utf8')));
+    } catch (e) {
+      vscode.window.showErrorMessage(`Evolve AI: could not parse pipeline JSON: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    const steps = Array.isArray(pipeline.steps) ? pipeline.steps : [];
+    if (!steps.length) { vscode.window.showWarningMessage('Pipeline has no steps.'); return; }
+
+    // Output folder: pipeline.output (relative to the pipeline file) or alongside it.
+    const baseDir = path.dirname(pipePath);
+    const outDir = pipeline.output ? path.resolve(baseDir, pipeline.output) : baseDir;
+
+    const results: string[] = [];
+    await vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: `Evolve AI: running pipeline (${steps.length} steps)…`, cancellable: true },
+      async (progress, token) => {
+        for (let i = 0; i < steps.length; i++) {
+          if (token.isCancellationRequested) { results.push('⏹ cancelled'); break; }
+          const step = steps[i];
+          const label = step.name || `step ${i + 1}`;
+          progress.report({ message: `${i + 1}/${steps.length}: ${label}` });
+          try {
+            const written = await this._runStep(services, step, outDir, baseDir);
+            results.push(`✓ ${label} → ${written.map(w => path.basename(w)).join(', ') || '(chat)'}`);
+          } catch (e) {
+            // Continue past a failed step; summarise at the end.
+            results.push(`✗ ${label} — ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
+      }
+    );
+
+    const summary = results.join('\n');
+    const ok = results.filter(r => r.startsWith('✓')).length;
+    const action = await vscode.window.showInformationMessage(
+      `Evolve AI pipeline finished — ${ok}/${steps.length} step(s) succeeded.`, 'Show Details', 'Open Output Folder');
+    if (action === 'Show Details') {
+      const doc = await vscode.workspace.openTextDocument({ content: `# Pipeline run\n\n${summary}\n`, language: 'markdown' });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    } else if (action === 'Open Output Folder') {
+      await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outDir));
+    }
+  }
+
+  /** Execute one pipeline step headlessly (no per-step dialogs). Returns written file paths. */
+  private async _runStep(services: IServices, step: PipelineStep, outDir: string, baseDir: string): Promise<string[]> {
+    const kind = (step.analysis || 'report') as Deliverable | 'insights';
+    const source = step.source || {};
+
+    // 1) Resolve the data into a profile (+ optional remote label for output naming).
+    let profile: DataProfile;
+    let remote: RemoteResult | undefined;
+    let stem: string;
+
+    if (source.type === 'file') {
+      if (!source.path) throw new Error('file source requires "path"');
+      const filePath = path.resolve(baseDir, source.path);
+      if (!fs.existsSync(filePath)) throw new Error(`file not found: ${source.path}`);
+      profile = sniffDataFile(filePath);
+      stem = path.basename(filePath, path.extname(filePath));
+    } else {
+      remote = await this._fetchRemoteHeadless(services, source);
+      profile = remote.profile;
+      stem = remote.outStem;
+    }
+
+    // 2) Insights → stream to chat (no file written).
+    if (kind === 'insights') {
+      await this._insightsInChat(remote ? outDir : path.resolve(baseDir, source.path!), step.focus, remote);
+      return [];
+    }
+
+    // 3) Build the request and generate.
+    const useScript = remote ? (kind === 'notebook') : (kind === 'notebook' || !isSmallEnoughForDirect(profile));
+    const req = this._buildRequest(profile, kind as Deliverable, step.focus, useScript, remote);
+    const output = await services.ai.send(req);
+    if (!output.trim()) throw new Error('empty AI response');
+
+    // 4) Write the deliverable into the pipeline output folder (headless — no prompts).
+    return [await this._writeStepOutput(services, outDir, stem, kind as Deliverable, useScript, output)];
+  }
+
+  /** Headless output writer for pipeline steps — same naming as _writeOutput, no dialogs. */
+  private async _writeStepOutput(services: IServices, outDir: string, stem: string, kind: Deliverable, useScript: boolean, raw: string): Promise<string> {
+    const { body, lang } = extractCodeBlock(raw);
+    let outName: string;
+    if (useScript || kind === 'notebook') outName = lang === 'html' ? `${stem}-report.html` : `${stem}-analysis.py`;
+    else if (kind === 'report') outName = `${stem}-report.html`;
+    else outName = `${stem}-profile.md`;
+    const outPath = path.join(outDir, outName);
+    await services.workspace.writeFile(outPath, body, /*openAfter*/ false);
+    return outPath;
+  }
+
+  /** Fetch a remote source from declarative config (no interactive prompts). */
+  private async _fetchRemoteHeadless(services: IServices, s: PipelineSource): Promise<RemoteResult> {
+    const need = (v: string | undefined, name: string): string => {
+      if (!v) throw new Error(`${s.type} source requires "${name}"`);
+      return v;
+    };
+    switch (s.type) {
+      case 'bigquery': {
+        const client = await GcpClient.fromSecrets(services.ai);
+        if (!client) throw new Error('Google Cloud not connected');
+        const res = await client.runQuery(need(s.query, 'query'));
+        const columns = (res.schema?.fields ?? []).map(f => f.name);
+        const rows = (res.rows ?? []).map(r => (r.f ?? []).map(c => cell(c.v)));
+        return { label: 'BigQuery', outStem: s.name ? slug(s.name) : 'bigquery', profile: rowsToProfile('bigquery://query', columns, rows, res.totalRows ? parseInt(res.totalRows, 10) : rows.length) };
+      }
+      case 'databricks': {
+        const client = await DatabricksClient.fromSecrets(services.ai);
+        if (!client) throw new Error('Databricks not connected');
+        const res = await client.executeStatement(need(s.warehouseId, 'warehouseId'), need(s.query, 'query'));
+        if (res.status?.error) throw new Error(res.status.error.message);
+        const columns = (res.manifest?.schema.columns ?? []).map(c => c.name);
+        const rows = (res.result?.data_array ?? []).map(r => r.map(cell));
+        return { label: 'Databricks SQL', outStem: s.name ? slug(s.name) : 'databricks', profile: rowsToProfile('databricks://query', columns, rows, res.manifest?.total_row_count ?? rows.length) };
+      }
+      case 'cosmos': {
+        const client = await AzureClient.fromSecrets(services.ai);
+        if (!client) throw new Error('Azure not connected');
+        const res = await client.queryCosmosDocuments(need(s.endpoint, 'endpoint'), need(s.key, 'key'), need(s.database, 'database'), need(s.container, 'container'), s.query || 'SELECT * FROM c');
+        const { columns, rows } = objectsToRows(res.Documents as Array<Record<string, unknown>>);
+        return { label: 'Cosmos DB', outStem: s.name ? slug(s.name) : 'cosmos', profile: rowsToProfile('cosmos://query', columns, rows, res._count ?? rows.length) };
+      }
+      case 'loganalytics': {
+        const client = await AzureClient.fromSecrets(services.ai);
+        if (!client) throw new Error('Azure not connected');
+        const res = await client.queryLogs(need(s.workspaceId, 'workspaceId'), need(s.query, 'query'));
+        const t = res.tables?.[0];
+        const columns = (t?.columns ?? []).map(c => c.name);
+        const rows = (t?.rows ?? []).map(r => r.map(cell));
+        return { label: 'Log Analytics', outStem: s.name ? slug(s.name) : 'loganalytics', profile: rowsToProfile('loganalytics://query', columns, rows, rows.length) };
+      }
+      case 'dynamodb': {
+        const client = await AwsClient.fromSecrets(services.ai);
+        if (!client) throw new Error('AWS not connected');
+        const items = await client.scanTable(need(s.table, 'table'), s.limit ?? 1000);
+        const { columns, rows } = objectsToRows(items as Array<Record<string, unknown>>);
+        return { label: `DynamoDB: ${s.table}`, outStem: s.name ? slug(s.name) : `dynamodb-${slug(s.table!)}`, profile: rowsToProfile('dynamodb://scan', columns, rows, rows.length) };
+      }
+      case 's3': case 'gcs': case 'blob': {
+        let text: string;
+        if (s.type === 's3') { const c = await AwsClient.fromSecrets(services.ai); if (!c) throw new Error('AWS not connected'); text = await c.getObject(need(s.bucket, 'bucket'), need(s.object, 'object')); }
+        else if (s.type === 'gcs') { const c = await GcpClient.fromSecrets(services.ai); if (!c) throw new Error('Google Cloud not connected'); text = await c.getObject(need(s.bucket, 'bucket'), need(s.object, 'object')); }
+        else { const c = await AzureClient.fromSecrets(services.ai); if (!c) throw new Error('Azure not connected'); text = await c.downloadBlob(need(s.account, 'account'), need(s.container, 'container'), need(s.object, 'object')); }
+        const objKey = need(s.object, 'object');
+        return { label: `${s.type.toUpperCase()}: ${objKey}`, outStem: s.name ? slug(s.name) : (path.basename(objKey, path.extname(objKey)) || 'object'), profile: sniffText(text, objKey) };
+      }
+      default:
+        throw new Error(`unknown source type "${(s as { type?: string }).type}" (use file/bigquery/databricks/cosmos/loganalytics/dynamodb/s3/gcs/blob)`);
+    }
+  }
 }
 
 type Deliverable = 'report' | 'notebook' | 'profile';
+
+// ── Pipeline schema ──────────────────────────────────────────────────────────
+
+interface PipelineSource {
+  type: 'file' | 'bigquery' | 'databricks' | 'cosmos' | 'loganalytics' | 'dynamodb' | 's3' | 'gcs' | 'blob';
+  name?: string;
+  // file
+  path?: string;
+  // sql-ish
+  query?: string;
+  warehouseId?: string;   // databricks
+  workspaceId?: string;   // loganalytics
+  // cosmos
+  endpoint?: string; key?: string; database?: string; container?: string;
+  // dynamodb
+  table?: string; limit?: number;
+  // object storage
+  bucket?: string; object?: string; account?: string;
+}
+
+interface PipelineStep {
+  name?: string;
+  source: PipelineSource;
+  analysis?: 'insights' | 'report' | 'notebook' | 'profile';
+  focus?: string;
+}
+
+interface Pipeline {
+  output?: string;        // folder (relative to the pipeline file) for deliverables
+  steps: PipelineStep[];
+}
+
+/** Filesystem-safe slug for output filenames. */
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'step';
+}
+
+/** Strip `//` line comments (JSONC) so the commented template parses. Quote-aware
+ *  so `//` inside string values (e.g. https:// URLs) is preserved. */
+function stripJsonComments(src: string): string {
+  let out = '';
+  let inStr = false, esc = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inStr) {
+      out += ch;
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') { inStr = true; out += ch; continue; }
+    if (ch === '/' && src[i + 1] === '/') {           // line comment → skip to EOL
+      while (i < src.length && src[i] !== '\n') i++;
+      out += '\n';
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
+const PIPELINE_TEMPLATE = `{
+  "output": "reports",
+  "steps": [
+    {
+      "name": "Sales overview",
+      "source": { "type": "file", "path": "sales.csv" },
+      "analysis": "report",
+      "focus": "revenue trends by month and region"
+    },
+    {
+      "name": "Quick data check",
+      "source": { "type": "file", "path": "sales.csv" },
+      "analysis": "profile"
+    }
+
+    // ── More source types (delete the ones you don't need) ──
+    // ,{ "name": "BigQuery", "source": { "type": "bigquery", "query": "SELECT * FROM \\\`project.dataset.table\\\` LIMIT 1000" }, "analysis": "report" }
+    // ,{ "name": "Databricks", "source": { "type": "databricks", "warehouseId": "<warehouse-id>", "query": "SELECT * FROM catalog.schema.table LIMIT 1000" }, "analysis": "insights" }
+    // ,{ "name": "Cosmos", "source": { "type": "cosmos", "endpoint": "https://<acct>.documents.azure.com", "key": "<key>", "database": "<db>", "container": "<c>", "query": "SELECT * FROM c" }, "analysis": "profile" }
+    // ,{ "name": "Log Analytics", "source": { "type": "loganalytics", "workspaceId": "<ws-id>", "query": "AppRequests | take 1000" }, "analysis": "report" }
+    // ,{ "name": "DynamoDB", "source": { "type": "dynamodb", "table": "<table>", "limit": 1000 }, "analysis": "report" }
+    // ,{ "name": "S3 object", "source": { "type": "s3", "bucket": "<bucket>", "object": "data/sales.csv" }, "analysis": "report" }
+    // ,{ "name": "GCS object", "source": { "type": "gcs", "bucket": "<bucket>", "object": "data/sales.csv" }, "analysis": "report" }
+    // ,{ "name": "Azure Blob", "source": { "type": "blob", "account": "<acct>", "container": "<container>", "object": "data/sales.csv" }, "analysis": "report" }
+  ]
+}
+`;
 
 /** Extract the first fenced code block; returns its language + body (or the raw text). */
 function extractCodeBlock(raw: string): { body: string; lang: string } {

@@ -940,6 +940,19 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.8.0': [
+    `## 📊 Evolve AI 2.8.0 — Data pipelines + "Analyse" chat mode\n`,
+    `### Declarative data pipelines\n`,
+    `Define a repeatable analysis once, run it on demand. A pipeline is a small JSON file listing **steps** — each step is a **source** (a local file, BigQuery / Databricks / Cosmos / Log Analytics / DynamoDB, a cloud object, or a SQL database) and an **analysis** (insights / report / notebook / profile).\n`,
+    `- **Create Data Pipeline** scaffolds \`evolve-data-pipeline.json\` with examples for every source type.`,
+    `- **Run Data Pipeline** executes each step in sequence and drops the deliverables in your output folder.\n`,
+    `It's the backend-free version of an "agent workflow": a reproducible, versioned, multi-source run you own as a file in your repo — no hosted orchestration, no scheduling.\n`,
+    `### "Analyse" is now a chat mode\n`,
+    `Data analysis is a first-class action in the chat **Mode** dropdown — alongside Chat / Edit / Create. Pick **Analyse** to launch the flow (a file *or* a database/cloud source → insights, report, notebook, profile) right from the chat panel.\n`,
+    `### Fixed\n`,
+    `- **"Data Analysis plugin is not active" popup** when your data file lives outside the open workspace folder. The plugin now activates when you're looking at a data file, and the Analyse action always opens a file picker rather than dead-ending.`,
+    `- Detection re-runs when you switch editor tabs, so opening a data file activates the plugin immediately.\n`,
+  ].join('\n'),
   '2.7.0': [
     `## 📊 Evolve AI 2.7.0 — Data Analysis & Reporting (PowerBI-style, in your editor)\n`,
     `### What's new\n`,

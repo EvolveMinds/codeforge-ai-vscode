@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into a PowerBI-style HTML report, notebook, or inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -36,6 +36,7 @@
     "data profiling",
     "powerbi",
     "pandas",
+    "data pipeline",
     "code assistant",
     "data engineering",
     "dbt",
@@ -287,6 +288,16 @@
         "command": "aiForge.data.analyzeSource",
         "title": "Evolve AI: Analyze Data from Database or Cloud Source",
         "icon": "$(database)"
+      },
+      {
+        "command": "aiForge.data.createPipeline",
+        "title": "Evolve AI: Create Data Pipeline",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "aiForge.data.runPipeline",
+        "title": "Evolve AI: Run Data Pipeline",
+        "icon": "$(run-all)"
       },
       {
         "command": "aiForge.cicd.setup.start",
@@ -1416,6 +1427,11 @@
         {
           "command": "aiForge.data.analyze",
           "when": "resourceExtname =~ /\\.(csv|tsv|json|xlsx|xls|parquet)$/",
+          "group": "aiforge"
+        },
+        {
+          "command": "aiForge.data.runPipeline",
+          "when": "resourceFilename =~ /pipeline.*\\.json$/",
           "group": "aiforge"
         }
       ]

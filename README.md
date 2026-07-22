@@ -165,7 +165,7 @@ Plugins activate automatically based on your workspace files. No configuration r
 | **PyTorch** | PyTorch imports | 6 commands: models, training loops, checkpoints, mixed precision |
 | **Security** | Always active | 3 commands: scan file, scan workspace, fix findings |
 | **Git** | Always active | 4 commands: blame, changelog, commit messages, PR templates |
-| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 6 commands: analyze & report, insights in chat, HTML report, notebook/script, profile, analyze from database/cloud source — PowerBI-style, size-adaptive |
+| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 8 commands: analyze & report, insights in chat, HTML report, notebook/script, profile, analyze from database/cloud source, create + run data pipeline — PowerBI-style, size-adaptive |
 
 ### Data Analysis & Reporting
 
@@ -175,7 +175,8 @@ Give Evolve AI a data file and an instruction — get insights and a report, Pow
 - **Deliverables:** **Insights in chat** (Gemini-style narrative analysis inline, with follow-up questions), a self-contained **HTML report** (KPI tiles, charts, AI insights), a reproducible **pandas/plotly notebook or script**, or a **profiling summary**.
 - **Not just local files** — **Analyze Data from Database or Cloud Source** pulls a sample from **BigQuery**, **Databricks SQL**, **Cosmos DB**, **Azure Log Analytics**, **DynamoDB**, or **S3 / GCS / Azure Blob** objects, reusing your existing connected-plugin credentials. For **Postgres / MySQL / SQLite / Snowflake / SQL Server**, it generates a `pandas.read_sql` script you run with your own connection string (`DB_URL` env var — no passwords stored).
 - **Size-adaptive:** small files are analysed directly by the AI; for large files it generates a script that reads the *full* dataset locally — your data never leaves your machine. If a sample would go to a cloud provider, you're asked first.
-- **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script. Full guide: [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
+- **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script.
+- **Declarative pipelines** — define a repeatable analysis once in `evolve-data-pipeline.json` (steps = source + analysis) and run them all with **Run Data Pipeline**. A versioned, backend-free "workflow" you own in your repo. Full guide: [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
 
 ### Cloud Platform Integration
 
