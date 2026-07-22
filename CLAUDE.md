@@ -27,7 +27,8 @@ evolve-ai-vscode/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
-│   └── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
+│   ├── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
+│   └── DATA_ANALYSIS.md        ← Data Analysis & Reporting plugin user guide (v2.7.0 — files + DB/cloud sourcing, insights-in-chat)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -135,7 +136,7 @@ to undo.
 
 ### What is next to build
 
-All 13 planned plugins are complete. The extension is ready for packaging and release.
+All planned plugins are complete (17 auto-detecting plugins). The extension is ready for packaging and release.
 
 Future plugin ideas (community contributions welcome):
 - `plugins/nextjs.ts` — detect `next.config.*`. App Router, Server Components, API routes.
@@ -235,7 +236,7 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (44 total)
+## Commands currently registered (50 total)
 
 ### Core (18)
 | Command ID | Keybinding | Description |
@@ -291,6 +292,16 @@ are merged into the core system transparently:
 `aiForge.databricks.addDltDecorator` · `aiForge.databricks.addMlflowTracking` ·
 `aiForge.databricks.fixCollect` · `aiForge.databricks.replaceUdf` ·
 `aiForge.databricks.addUnityRef` · `aiForge.databricks.generateJobYaml`
+
+### Data Analysis & Reporting plugin (6)
+| Command ID | Description |
+|---|---|
+| `aiForge.data.analyze` | Pick a data file → choose deliverable (insights / report / notebook / profile). Also on the Explorer right-click for data files. |
+| `aiForge.data.insights` | Gemini-style narrative insights streamed into the chat panel, with follow-ups |
+| `aiForge.data.report` | Generate a self-contained HTML report (KPI tiles, charts, insights) |
+| `aiForge.data.notebook` | Generate a reproducible pandas/plotly notebook or `.py` script |
+| `aiForge.data.profile` | Profiling summary — types, nulls, distributions, correlations, data-quality flags |
+| `aiForge.data.analyzeSource` | Analyze from a database or cloud source: BigQuery / Databricks SQL / Cosmos / Log Analytics / DynamoDB / S3-GCS-Blob objects, or a generated `pandas.read_sql` script for any SQL DB. Reuses the connected-plugin clients + SecretStorage credentials; no new deps, no stored DB passwords. |
 
 ---
 

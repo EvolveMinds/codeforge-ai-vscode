@@ -13,7 +13,7 @@
 
 I built an open-source AI coding assistant for VS Code that does something I haven't seen elsewhere: it auto-detects your tech stack and injects domain knowledge into every AI interaction.
 
-Open a Terraform project? The Terraform plugin activates with HCL best practices, state management patterns, and provider-specific guidance. Working on Databricks? It adds Spark optimization rules, Delta Lake patterns, and Unity Catalog conventions. 13 plugins ship out of the box: Databricks, dbt, Airflow, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, and pytest.
+Open a Terraform project? The Terraform plugin activates with HCL best practices, state management patterns, and provider-specific guidance. Working on Databricks? It adds Spark optimization rules, Delta Lake patterns, and Unity Catalog conventions. Got a CSV or a database? The Data Analysis plugin turns it into a PowerBI-style report or inline insights. 17 plugins ship out of the box: Databricks, dbt, Airflow, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, pytest, CI/CD, AWS, Azure, and Data Analysis & Reporting.
 
 The key architectural decision: plugins implement a standard IPlugin interface and contribute context hooks, system prompt sections, CodeLens actions, code transforms, and commands. Adding a new stack plugin is ~800 lines of TypeScript with no core changes needed.
 
@@ -93,7 +93,7 @@ I've been working on a VS Code extension that takes a different approach to AI c
 - Open a project with `Dockerfile` → Docker plugin activates with container best practices
 - Open a project with `*.tf` files → Terraform plugin activates with HCL patterns and state management
 - Open a project with `manage.py` → Django plugin activates with ORM, views, and migration guidance
-- 13 plugins total, all activate silently based on your workspace files
+- 17 plugins total, all activate silently based on your workspace files
 
 **Provider flexibility:**
 - **Local/free**: Ollama, Gemma 4, LM Studio, llama.cpp — code stays on your machine

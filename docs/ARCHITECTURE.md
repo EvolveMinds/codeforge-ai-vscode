@@ -451,12 +451,22 @@ provider setting = 'auto'  →  check Ollama port → running + gemma4 configure
                                                     running: 'ollama', else: 'offline'
 provider setting = 'ollama'     →  use Ollama regardless
 provider setting = 'gemma4'     →  use Gemma 4 (via Ollama /api/chat, guided setup wizard)
+provider setting = 'glm'        →  use local GLM / CodeGeeX (via Ollama)
 provider setting = 'anthropic'  →  use Anthropic
 provider setting = 'openai'     →  use OpenAI-compatible
 provider setting = 'gemini'     →  use Google Gemini (OpenAI-compatible endpoint)
+provider setting = 'zai'        →  use GLM (Z.ai) cloud (OpenAI-compatible endpoint)
 provider setting = 'huggingface'→  use Hugging Face Inference API
 provider setting = 'offline'    →  static fallback responses
 ```
+
+> **Cross-plugin client reuse (v2.7.0):** the Data Analysis plugin
+> (`plugins/dataAnalysis.ts`) sources from databases and cloud by importing the
+> exported `core/*Client.ts` classes (`GcpClient`, `AzureClient`, `AwsClient`,
+> `DatabricksClient`) and building them from the *same* SecretStorage credentials
+> the connected plugins use. Plugins remain isolated — it never touches another
+> plugin's private client — but shared `core/` clients are legitimate reuse and
+> avoid new dependencies or duplicate credential storage.
 
 #### Streaming pipeline
 

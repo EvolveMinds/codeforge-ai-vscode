@@ -10,12 +10,14 @@ Give Evolve AI a data file and an instruction, get a report. A new auto-detectin
 
 **Detects** workspaces containing `.csv`, `.tsv`, `.json`, `.xlsx`, or `.parquet` files.
 
-**Four commands** (palette + right-click a data file in the Explorer):
+**Six commands** (palette + right-click a data file in the Explorer):
 
 - **Analyze Data & Report** — pick a file, say what you want, choose the deliverable.
+- **Data Insights in Chat** — Gemini-style narrative analysis streamed into the chat panel, with follow-up questions.
 - **Generate HTML Data Report** — a self-contained HTML report: KPI tiles, charts, tables, and an AI "Key insights" narrative. The PowerBI-style deliverable.
 - **Generate Data Analysis Notebook/Script** — a reproducible pandas + plotly `.py` / percent-format notebook you can run and customize.
 - **Profile Dataset** — types, null counts, distributions, correlations, and data-quality flags.
+- **Analyze Data from Database or Cloud Source** — pull from BigQuery / Databricks SQL / Cosmos / Log Analytics / DynamoDB / object storage, or generate a script for any SQL database.
 
 **Size-adaptive execution** (your data, your choice):
 
@@ -42,6 +44,8 @@ All cloud sources **reuse the extension's existing connected-plugin clients** (B
 #### Insights in chat (Gemini-style, conversational)
 
 New **Data Insights in Chat** deliverable streams a narrative analysis straight into the chat panel — key patterns, trends, outliers, data-quality issues, and recommendations — so you can read insights inline **and ask follow-up questions in the same thread**, then turn the analysis into an HTML report or chart. Complements the artifact deliverables (report / notebook / profile).
+
+Full guide: [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md).
 
 ## [2.6.0] — 2026-07-02
 

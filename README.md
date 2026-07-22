@@ -13,7 +13,7 @@
 ### Why Evolve AI?
 
 - **Free & private** — runs fully offline with Ollama or Gemma 4. Your code never leaves your machine.
-- **Auto-detecting stack plugins** — 13 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, and more.
+- **Auto-detecting stack plugins** — 17 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, Data Analysis & Reporting, and more.
 - **Any AI provider** — bring your own model or API key. Switch between local and cloud in one click.
 - **Deep context** — understands your active file, related files, diagnostics, git state, and cloud platform connections.
 - **Connect to GitHub or Bitbucket in one click** *(v2.0)* — wizard handles git install, identity, init/clone, auth (PAT / SSH / VS Code GitHub auth / `gh` CLI), and verifies the connection. → [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md)
@@ -84,7 +84,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 | Feature | Evolve AI | GitHub Copilot | Continue.dev | Cody |
 |---------|-----------|---------------|-------------|------|
 | **Free local AI** (Ollama, Gemma 4) | Yes | No | Yes | No |
-| **Auto-detecting stack plugins** (13) | Yes | No | No | No |
+| **Auto-detecting stack plugins** (17) | Yes | No | No | No |
 | **Cloud platform integration** (AWS, GCP, Azure, Databricks) | Yes | No | No | No |
 | **Multimodal** (images via Gemma 4) | Yes | No | Partial | No |
 | **Multiple AI providers** | 9 | 1 | Multiple | 1 |
@@ -143,7 +143,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 - Explain Changes, Generate PR Description, Build Framework, Run & Auto-Fix
 - Switch Provider, Setup Ollama, Gemma 4 Info & Tips, What's New
 
-### 16 Auto-Detecting Plugins
+### 17 Auto-Detecting Plugins
 
 Plugins activate automatically based on your workspace files. No configuration required.
 
@@ -165,7 +165,7 @@ Plugins activate automatically based on your workspace files. No configuration r
 | **PyTorch** | PyTorch imports | 6 commands: models, training loops, checkpoints, mixed precision |
 | **Security** | Always active | 3 commands: scan file, scan workspace, fix findings |
 | **Git** | Always active | 4 commands: blame, changelog, commit messages, PR templates |
-| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 4 commands: analyze & report, HTML report, notebook/script, profile — PowerBI-style, size-adaptive |
+| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 6 commands: analyze & report, insights in chat, HTML report, notebook/script, profile, analyze from database/cloud source — PowerBI-style, size-adaptive |
 
 ### Data Analysis & Reporting
 
@@ -175,7 +175,7 @@ Give Evolve AI a data file and an instruction — get insights and a report, Pow
 - **Deliverables:** **Insights in chat** (Gemini-style narrative analysis inline, with follow-up questions), a self-contained **HTML report** (KPI tiles, charts, AI insights), a reproducible **pandas/plotly notebook or script**, or a **profiling summary**.
 - **Not just local files** — **Analyze Data from Database or Cloud Source** pulls a sample from **BigQuery**, **Databricks SQL**, **Cosmos DB**, **Azure Log Analytics**, **DynamoDB**, or **S3 / GCS / Azure Blob** objects, reusing your existing connected-plugin credentials. For **Postgres / MySQL / SQLite / Snowflake / SQL Server**, it generates a `pandas.read_sql` script you run with your own connection string (`DB_URL` env var — no passwords stored).
 - **Size-adaptive:** small files are analysed directly by the AI; for large files it generates a script that reads the *full* dataset locally — your data never leaves your machine. If a sample would go to a cloud provider, you're asked first.
-- **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script.
+- **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script. Full guide: [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
 
 ### Cloud Platform Integration
 

@@ -169,6 +169,7 @@ Evolve AI automatically detects your tech stack and activates matching plugins. 
 | PyTorch | Python files with `import torch` |
 | Security | Always active |
 | Git | Always active |
+| Data Analysis & Reporting | `.csv`, `.tsv`, `.json`, `.xlsx`, or `.parquet` files |
 
 **If a plugin isn't activating:**
 1. Make sure the required files exist in your workspace root
