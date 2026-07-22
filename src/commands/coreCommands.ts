@@ -940,6 +940,24 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.7.0': [
+    `## 📊 Evolve AI 2.7.0 — Data Analysis & Reporting (PowerBI-style, in your editor)\n`,
+    `### What's new\n`,
+    `Give Evolve AI a data file and an instruction — get a report. A new auto-detecting plugin turns tabular data into insights without leaving VS Code.\n`,
+    `### How to use it\n`,
+    `Right-click a \`.csv\` / \`.tsv\` / \`.json\` / \`.xlsx\` / \`.parquet\` file in the Explorer → **Analyze Data & Report**, or run it from the command palette. Pick what you want:\n`,
+    `- **HTML report** — KPI tiles, charts, tables, and an AI "Key insights" narrative. The PowerBI-style deliverable.`,
+    `- **Analysis notebook/script** — reproducible pandas + plotly \`.py\` you can run and tweak.`,
+    `- **Profiling summary** — types, nulls, distributions, correlations, data-quality flags.\n`,
+    `### Your data, your choice\n`,
+    `- **Small files** → the AI reads a sample and writes the finished report directly.`,
+    `- **Large files** → the AI generates a script that reads the *full* dataset locally and writes the report — nothing leaves your machine.`,
+    `- If a sample would go to a cloud provider, you're told first and offered the local/script path instead.\n`,
+    `### Where it goes\n`,
+    `Output is written next to your data (\`sales.csv\` → \`sales-report.html\`), and Evolve AI offers to open the report or run the script.\n`,
+    `### Coming later\n`,
+    `Emailing reports was intentionally deferred — this release focuses on getting the analysis and reports right first.\n`,
+  ].join('\n'),
   '2.6.0': [
     `## 🚀 Evolve AI 2.6.0 — GLM, two ways: local (offline) and Z.ai (cloud)\n`,
     `### What's new\n`,

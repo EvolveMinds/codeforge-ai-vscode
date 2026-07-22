@@ -130,7 +130,8 @@ to undo.
 | Security plugin | `plugins/security.ts` | ✅ Complete |
 | Git plugin | `plugins/git.ts` | ✅ Complete |
 | CI/CD plugin | `plugins/cicd.ts` | ✅ Complete |
-| Plugin loader | `plugins/index.ts` | ✅ All 14 plugins wired |
+| Data Analysis & Reporting plugin | `plugins/dataAnalysis.ts` | ✅ Complete — CSV/TSV/JSON/Excel/Parquet → HTML report / notebook / profiling. Size-adaptive (AI-direct for small data, generated script for large). Dependency-free sniffer. |
+| Plugin loader | `plugins/index.ts` | ✅ All plugins wired |
 
 ### What is next to build
 

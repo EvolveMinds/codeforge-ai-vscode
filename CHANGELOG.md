@@ -2,6 +2,33 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.7.0] — 2026-07-22
+
+### Added — Data Analysis & Reporting plugin (PowerBI-style, in your editor)
+
+Give Evolve AI a data file and an instruction, get a report. A new auto-detecting plugin (`plugins/dataAnalysis.ts`) turns tabular data into insights without leaving VS Code.
+
+**Detects** workspaces containing `.csv`, `.tsv`, `.json`, `.xlsx`, or `.parquet` files.
+
+**Four commands** (palette + right-click a data file in the Explorer):
+
+- **Analyze Data & Report** — pick a file, say what you want, choose the deliverable.
+- **Generate HTML Data Report** — a self-contained HTML report: KPI tiles, charts, tables, and an AI "Key insights" narrative. The PowerBI-style deliverable.
+- **Generate Data Analysis Notebook/Script** — a reproducible pandas + plotly `.py` / percent-format notebook you can run and customize.
+- **Profile Dataset** — types, null counts, distributions, correlations, and data-quality flags.
+
+**Size-adaptive execution** (your data, your choice):
+
+- **Small files** — the AI reads a schema + sample and writes the finished report directly.
+- **Large files** — the AI generates a self-contained script that reads the *full* dataset locally and writes the report. Your full dataset never leaves the machine.
+- When a sample would be sent to a **cloud** provider, the plugin says so and offers to switch to the local/script path — consistent with the existing cloud-consent model.
+
+**Output** is written next to the source data (`sales.csv` → `sales-report.html` / `sales-analysis.py`), and the plugin offers to open the report in a browser or run the script.
+
+**Excel/PDF export** is handled inside the generated script (`df.to_excel`, HTML→PDF). Emailing reports is intentionally deferred to a future release.
+
+**Zero new dependencies:** a tiny hand-rolled sniffer reads CSV/TSV/JSON headers + a row sample (binary `.xlsx`/`.parquet` get loader code generated instead). The heavy parsing always happens in the generated Python.
+
 ## [2.6.0] — 2026-07-02
 
 ### Added — GLM as two first-class providers (local + Z.ai cloud)

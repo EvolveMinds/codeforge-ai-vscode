@@ -28,6 +28,7 @@ import { DatabricksConnectedPlugin } from './databricksConnected';
 import { AwsConnectedPlugin }        from './awsConnected';
 import { GCPConnectedPlugin }        from './gcpConnected';
 import { AzureConnectedPlugin }      from './azureConnected';
+import { DataAnalysisPlugin }        from './dataAnalysis';
 
 // ── Register all plugins ──────────────────────────────────────────────────────
 
@@ -53,8 +54,9 @@ export function registerPlugins(registry: PluginRegistry): void {
   registry.register(new AwsConnectedPlugin());
   registry.register(new GCPConnectedPlugin());
   registry.register(new AzureConnectedPlugin());
+  registry.register(new DataAnalysisPlugin());
 
   // Add more plugins here as they are built:
 
-  console.log('[Evolve AI] Plugins registered: Databricks, Databricks Connected, dbt, Airflow, pytest, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, CI/CD, AWS, GCP, Azure, AWS Connected, GCP Connected, Azure Connected');
+  console.log('[Evolve AI] Plugins registered: Databricks, Databricks Connected, dbt, Airflow, pytest, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, CI/CD, AWS, GCP, Azure, AWS Connected, GCP Connected, Azure Connected, Data Analysis');
 }
