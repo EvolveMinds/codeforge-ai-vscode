@@ -236,7 +236,7 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (50 total)
+## Commands currently registered (52 total)
 
 ### Core (18)
 | Command ID | Keybinding | Description |
@@ -302,6 +302,8 @@ are merged into the core system transparently:
 | `aiForge.data.notebook` | Generate a reproducible pandas/plotly notebook or `.py` script |
 | `aiForge.data.profile` | Profiling summary — types, nulls, distributions, correlations, data-quality flags |
 | `aiForge.data.analyzeSource` | Analyze from a database or cloud source: BigQuery / Databricks SQL / Cosmos / Log Analytics / DynamoDB / S3-GCS-Blob objects, or a generated `pandas.read_sql` script for any SQL DB. Reuses the connected-plugin clients + SecretStorage credentials; no new deps, no stored DB passwords. |
+| `aiForge.data.createPipeline` | Scaffold a declarative `evolve-data-pipeline.json` (steps = source + analysis) with commented examples for every source type |
+| `aiForge.data.runPipeline` | Run a data pipeline JSON — each step's deliverable written to the pipeline's output folder; JSONC (`//` comments) tolerated; continues past failures and summarises |
 
 ---
 

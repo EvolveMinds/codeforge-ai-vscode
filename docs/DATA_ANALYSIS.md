@@ -24,8 +24,15 @@ Automatically, when your workspace contains any `.csv`, `.tsv`, `.json`, `.xlsx`
 
 ## The six commands
 
-Open the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type "Data", or **right-click
-a data file in the Explorer** → *Analyze Data & Report*.
+Three ways to start:
+
+- In the **chat panel**, open the **Mode** dropdown (bottom-left, next to the model pill) and
+  pick **Analyse**.
+- **Right-click a data file** in the Explorer → *Analyze Data & Report*.
+- Open the command palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type "Data".
+
+If no data file is found in your workspace, the flow opens a file picker so you can browse to
+any file — including one outside the open folder.
 
 | Command | What it does |
 |---|---|
@@ -118,11 +125,51 @@ Excel workbook with a sheet per region"*.
 
 ---
 
+## Declarative data pipelines *(v2.8.0)*
+
+Define a repeatable analysis once and run it on demand. A pipeline is a small JSON file
+(`evolve-data-pipeline.json`) listing **steps** — each step names a **source** and an
+**analysis**. It is the backend-free version of an "agent workflow": a reproducible,
+versioned, multi-source run you own as a file in your repo. Nothing is hosted, nothing is
+scheduled, nothing runs when your editor is closed.
+
+- **Create Data Pipeline** (command palette) scaffolds a starter `evolve-data-pipeline.json`
+  with commented examples for every source type, and opens it.
+- **Run Data Pipeline** runs each step in sequence, writing deliverables into the pipeline's
+  `output` folder. It continues past a failed step and summarises what succeeded/failed. Also
+  available by right-clicking a `*pipeline*.json` file in the Explorer.
+
+### Pipeline file shape
+
+```jsonc
+{
+  "output": "reports",                       // folder (relative to this file) for deliverables
+  "steps": [
+    {
+      "name": "Sales overview",
+      "source": { "type": "file", "path": "sales.csv" },
+      "analysis": "report",                  // insights | report | notebook | profile
+      "focus": "revenue trends by month and region"
+    },
+    { "name": "BigQuery",
+      "source": { "type": "bigquery", "query": "SELECT * FROM `p.d.t` LIMIT 1000" },
+      "analysis": "profile" }
+  ]
+}
+```
+
+`//` line comments are allowed (the template ships with commented examples). Supported
+`source.type` values: `file`, `bigquery`, `databricks`, `cosmos`, `loganalytics`, `dynamodb`,
+`s3`, `gcs`, `blob`. Cloud sources reuse your connected-plugin credentials, exactly like the
+interactive **Analyze from Database or Cloud Source** command.
+
+---
+
 ## Not yet included
 
 - **Emailing reports** is intentionally deferred to a future release.
-- A **declarative multi-step data pipeline** (define sources + analyses once, run them
-  together) is planned as a follow-up.
+- **Scheduling** pipelines to run unattended — a VS Code extension can't run when the editor
+  is closed, so this needs infrastructure a local extension doesn't provide.
 
 ---
 

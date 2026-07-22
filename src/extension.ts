@@ -338,6 +338,10 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
       lens.refresh();
       const f = vscode.window.activeTextEditor?.document;
       if (f) svc.events.emit('editor.fileChanged', { filePath: f.uri.fsPath, language: f.languageId });
+      // Re-run plugin detection when the active file changes — activates
+      // editor-driven plugins (e.g. Data Analysis) when you switch to a data
+      // file that lives outside the open workspace folder.
+      scheduleRefresh(refreshAll);
     }),
     vscode.workspace.onDidSaveTextDocument(() => {
       lens.refresh();

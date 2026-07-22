@@ -2,6 +2,39 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.8.0] — 2026-07-22
+
+### Added — Declarative data pipelines (repeatable multi-step analysis)
+
+Define a reusable data pipeline once and run it on demand. A pipeline is a small JSON file
+(`evolve-data-pipeline.json`) listing **steps** — each step names a **source** (a local file,
+BigQuery / Databricks SQL / Cosmos / Log Analytics / DynamoDB, a cloud object, or a SQL
+database) and an **analysis** (insights / report / notebook / profile). Run them all with one
+command; each step produces its deliverable, written to the pipeline's output folder.
+
+This is the achievable, backend-free version of an "agent workflow": a reproducible,
+multi-source analysis run you own as a versioned file in your repo — no hosted orchestration,
+no scheduling infrastructure, nothing running when your editor is closed.
+
+- **Create Data Pipeline** — scaffolds a starter `evolve-data-pipeline.json` with commented
+  examples for each source type, and opens it for editing.
+- **Run Data Pipeline** — pick a pipeline file → runs each step in sequence → reports progress
+  and where each deliverable landed. Continues past a failed step and summarises what
+  succeeded/failed at the end.
+- Uses the same source providers and deliverables as the interactive commands, so anything you
+  can do by hand you can put in a pipeline.
+
+### Added — "Analyse" mode in the chat panel
+
+Data analysis is now a first-class action in the chat **Mode** dropdown, alongside Chat / Edit / Create. Selecting **Analyse** launches the data-analysis flow (pick a file or a database/cloud source → insights / report / notebook / profile) directly from the chat surface — no need to hunt for a command. Also surfaced in the empty-panel welcome text.
+
+### Fixed — "Data Analysis plugin is not active" popup when analysing files outside the workspace
+
+- The plugin now **activates when the file you're looking at is a data file**, even if it lives outside the open workspace folder (e.g. a CSV one directory up from your project). Previously `detect()` only scanned the workspace root, so opening such a file dead-ended on the "plugin not active" popup.
+- Detection **re-runs when you switch the active editor**, not only on file open, so switching to a data-file tab activates the plugin immediately.
+- The Analyse action is now **always reachable** when a folder is open — if no data file is found in the workspace, it opens a file picker so you can browse to any file. It no longer refuses with the inactive-plugin popup.
+- Domain-knowledge injection and the status-bar item stay **conditional on actually having data files**, so non-data projects aren't affected by the plugin staying available.
+
 ## [2.7.0] — 2026-07-22
 
 ### Added — Data Analysis & Reporting plugin (PowerBI-style, in your editor)
