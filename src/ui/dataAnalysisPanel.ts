@@ -36,7 +36,8 @@ export type PanelMessage =
   | { type: 'dropFallback' }
   | { type: 'setDeliverable'; deliverable: string }
   | { type: 'setFocus'; focus: string }
-  | { type: 'analyze' };
+  | { type: 'analyze' }
+  | { type: 'cancelAnalyze' };
 
 export class DataAnalysisPanel {
   private static _instance: DataAnalysisPanel | null = null;
@@ -82,6 +83,24 @@ export class DataAnalysisPanel {
   setStatus(text: string): void {
     if (this._disposed) return;
     this._panel.webview.postMessage({ type: 'status', text });
+  }
+
+  /** Enter/leave the "generating" state. Pass a message to enter, null to leave. */
+  setBusy(message: string | null): void {
+    if (this._disposed) return;
+    this._panel.webview.postMessage({ type: 'busy', message });
+  }
+
+  /** Update the elapsed-seconds ticker shown while generating. */
+  setElapsed(secs: number): void {
+    if (this._disposed) return;
+    this._panel.webview.postMessage({ type: 'elapsed', secs });
+  }
+
+  /** Show a contextual hint (e.g. faster-provider tip). Empty string clears it. */
+  setHint(text: string): void {
+    if (this._disposed) return;
+    this._panel.webview.postMessage({ type: 'hint', text });
   }
 
   reveal(): void { this._reveal(); }
@@ -137,6 +156,14 @@ export class DataAnalysisPanel {
       #go { margin-top: 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none;
         padding: 9px 20px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }
       #go:disabled { opacity: .5; cursor: default; }
+      #cancel { margin-top: 16px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+        border: none; padding: 9px 20px; font-size: 13px; border-radius: 6px; cursor: pointer; }
+      .hint { margin-top: 12px; font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.5; min-height: 0; }
+      #busy { margin-top: 14px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+      #busy #busymsg { color: var(--vscode-foreground); }
+      .spin { width: 12px; height: 12px; border: 2px solid var(--vscode-descriptionForeground); border-top-color: transparent;
+        border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; flex: 0 0 auto; }
+      @keyframes spin { to { transform: rotate(360deg); } }
       #status { margin-top: 10px; font-size: 12px; color: var(--vscode-descriptionForeground); min-height: 16px; }
     </style></head><body>
       <h1>📊 Data Analysis</h1>
@@ -164,7 +191,14 @@ export class DataAnalysisPanel {
       </div>
       <input id="focus" type="text" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" />
 
+      <div id="hint" class="hint"></div>
       <button id="go" disabled>Analyse →</button>
+      <button id="cancel" style="display:none;">■ Cancel</button>
+      <div id="busy" style="display:none;">
+        <span class="spin"></span>
+        <span id="busymsg"></span>
+        <span id="elapsed" class="muted"></span>
+      </div>
       <div id="status"></div>
 
       <script nonce="${nonce}">
@@ -194,6 +228,14 @@ export class DataAnalysisPanel {
 
         document.getElementById('focus').addEventListener('input', e => post({ type:'setFocus', focus: e.target.value }));
         document.getElementById('go').onclick = () => post({ type:'analyze' });
+        document.getElementById('cancel').onclick = () => post({ type:'cancelAnalyze' });
+
+        let elapsedSecs = 0;
+        function setGenerating(on){
+          document.getElementById('go').style.display = on ? 'none' : '';
+          document.getElementById('cancel').style.display = on ? '' : 'none';
+          document.getElementById('busy').style.display = on ? 'flex' : 'none';
+        }
 
         // Drag & drop
         const drop = document.getElementById('drop');
@@ -226,6 +268,19 @@ export class DataAnalysisPanel {
             refreshGo();
           } else if (m.type === 'status') {
             document.getElementById('status').textContent = m.text || '';
+          } else if (m.type === 'busy') {
+            if (m.message) {
+              document.getElementById('busymsg').textContent = m.message;
+              document.getElementById('elapsed').textContent = '';
+              setGenerating(true);
+            } else {
+              setGenerating(false);
+            }
+          } else if (m.type === 'elapsed') {
+            elapsedSecs = m.secs || 0;
+            document.getElementById('elapsed').textContent = elapsedSecs > 0 ? '(' + elapsedSecs + 's)' : '';
+          } else if (m.type === 'hint') {
+            document.getElementById('hint').textContent = m.text || '';
           }
         });
       </script>

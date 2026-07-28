@@ -940,6 +940,13 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.9.1': [
+    `## 📊 Evolve AI 2.9.1 — Clearer reports + live progress\n`,
+    `### Fixed\n`,
+    `Asking for an **HTML report** on a larger file used to quietly produce a \`.py\` script with no explanation. Now the panel tells you why: for accurate totals on a big file it generates a script that reads the *full* data and writes the HTML — and offers **Run Now** to produce it. Small files still go straight to HTML. The "small enough for direct HTML" limit was also raised (200 KB → ~1 MB / 2,000 rows), so ordinary CSVs don't get needlessly scripted.\n`,
+    `### Added — live progress + cancel\n`,
+    `The Data Analysis panel no longer looks frozen while generating: a spinner, the current step, a **live seconds counter**, and a working **Cancel**. When you're on a local model, a hint notes cloud providers are faster (the analysis itself still runs locally in the generated script).\n`,
+  ].join('\n'),
   '2.9.0': [
     `## 📊 Evolve AI 2.9.0 — A proper Data Analysis panel\n`,
     `### What's new\n`,
