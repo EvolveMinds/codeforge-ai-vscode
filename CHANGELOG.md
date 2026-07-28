@@ -2,6 +2,19 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.9.1] — 2026-07-22
+
+### Fixed — "HTML report" produced a .py script with no explanation, and looked stuck
+
+When you asked the Data Analysis panel for an **HTML report** on a larger file, it silently generated a Python *script* instead of HTML (because accurate report totals can't be computed from a 25-row sample — the script reads the full file). Two fixes:
+
+- **No more silent surprise.** The panel now tells you up front: *"this file is ~N rows — to keep the numbers accurate, Evolve AI is generating a Python script that reads the full file and writes the HTML report — then runs it for you."* When the script is ready it offers **Run Now**, which executes it and produces the HTML. For genuinely small files you still get the HTML directly.
+- **The direct-analysis threshold was too conservative** (200 KB). Raised to ~2,000 rows / ~1 MB, so ordinary CSVs are analysed straight to HTML instead of needlessly generating a script. (The direct path only sends a schema + sample, so this stays cheap.)
+
+### Added — live progress + cancel in the Data Analysis panel
+
+Generation no longer looks frozen. The panel shows a spinner, the current step, and a **live elapsed-seconds** counter, with a working **Cancel** button. When the active model is local (Ollama / Gemma / GLM), a hint notes that cloud providers generate faster — while the heavy analysis still runs locally in the generated script.
+
 ## [2.9.0] — 2026-07-22
 
 ### Added — a proper Data Analysis panel (friendly front door)

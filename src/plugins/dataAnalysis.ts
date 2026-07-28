@@ -299,11 +299,21 @@ function profileToMarkdown(p: DataProfile): string {
     `Schema:\n${schema}\n\nSample (first ${Math.min(15, p.sampleRows.length)} rows):\n${sampleTable}`;
 }
 
-/** Heuristic: can the AI reasonably analyse the sample directly, or must it generate a script? */
+/**
+ * Heuristic: can the AI analyse the sample directly, or must it generate a
+ * script that reads the full file? The direct path sends only a schema + ~25-row
+ * sample, so file size barely matters — what matters is whether numbers computed
+ * from a sample would mislead. We allow direct for genuinely small datasets
+ * (where the sample ≈ the whole file) and always script larger ones so report
+ * aggregates stay accurate.
+ */
 function isSmallEnoughForDirect(p: DataProfile): boolean {
   if (p.binary) return false;                        // can't sample binary here
   if (p.approxRows == null) return false;
-  return p.approxRows <= 500 && p.sizeBytes <= 200 * 1024;
+  // ~2000 rows or ~1MB: the sample is representative enough for a direct look,
+  // and small enough that sample-based aggregates aren't wildly off. Larger →
+  // accurate full-data script (the panel explains this to the user).
+  return p.approxRows <= 2000 && p.sizeBytes <= 1024 * 1024;
 }
 
 const REPORT_SYSTEM =
@@ -555,14 +565,139 @@ export class DataAnalysisPlugin implements IPlugin {
         case 'runPipeline':    await this._runPipeline(services, []); break;
         case 'analyze': {
           if (!selectedFile) { panel.setStatus('Choose a data file first.'); return; }
-          panel.setStatus(`Analysing ${path.basename(selectedFile)}…`);
-          if (deliverable === 'insights') await this._insightsInChat(selectedFile, focus || undefined);
-          else await this._run(services, selectedFile, deliverable, focus || undefined);
-          panel.setStatus(`Done — ${path.basename(selectedFile)}.`);
+          await this._runFromPanel(services, panel, selectedFile, deliverable, focus || undefined);
           break;
         }
+        case 'cancelAnalyze':
+          this._panelAbort?.abort();
+          break;
       }
     });
+  }
+
+  private _panelAbort: AbortController | null = null;
+
+  /**
+   * Panel-driven analysis with honest, live feedback. Unlike the interactive
+   * quick-pick path (_run), this reports progress INTO the panel, explains when
+   * a large file forces the accurate-script route, and offers a one-click run.
+   */
+  private async _runFromPanel(
+    services: IServices,
+    panel: DataAnalysisPanel,
+    filePath: string,
+    kind: Deliverable | 'insights',
+    focus: string | undefined,
+  ): Promise<void> {
+    const name = path.basename(filePath);
+
+    // Insights → stream to chat (its own surface), quick to kick off.
+    if (kind === 'insights') {
+      panel.setBusy(`Sending ${name} to chat for insights…`);
+      await this._insightsInChat(filePath, focus);
+      panel.setBusy(null);
+      panel.setStatus(`Insights for ${name} are in the chat panel →`);
+      return;
+    }
+
+    let profile: DataProfile;
+    try { profile = sniffDataFile(filePath); }
+    catch (e) { panel.setBusy(null); panel.setStatus(`✗ Could not read ${name}: ${String(e)}`); return; }
+
+    const small = isSmallEnoughForDirect(profile);
+    // report/profile can go direct on a small file; notebook always scripts;
+    // a large report/profile becomes an accurate full-data script.
+    const useScript = kind === 'notebook' || !small;
+
+    // Tell the user up front what they'll get — no silent .py surprise.
+    if (useScript && kind !== 'notebook') {
+      const rows = profile.approxRows != null ? `~${profile.approxRows.toLocaleString()} rows` : 'a large file';
+      panel.setBusy(
+        `${name} is ${rows}. To keep the numbers accurate, Evolve AI is generating a Python script that ` +
+        `reads the full file and writes the ${kind === 'report' ? 'HTML report' : 'profile'} — then runs it for you…`,
+      );
+    } else {
+      panel.setBusy(`Building ${kind === 'report' ? 'HTML report' : kind} for ${name}…`);
+    }
+
+    // Faster-provider hint for slow local generations.
+    const provider = await services.ai.detectProvider();
+    if (provider === 'ollama' || provider === 'gemma4' || provider === 'glm') {
+      panel.setHint('Tip: local models are thorough but slower on CPU. Switch to a cloud provider (Switch in the chat header) for faster generation — the analysis itself still runs locally in the generated script.');
+    } else {
+      panel.setHint('');
+    }
+
+    // Cloud-consent for a direct send of a sample.
+    if (!useScript) {
+      const isCloud = ['anthropic', 'openai', 'gemini', 'zai', 'huggingface'].includes(provider);
+      if (isCloud) {
+        const ok = await vscode.window.showWarningMessage(
+          `A sample of "${name}" will be sent to the ${provider} cloud API. For sensitive data, cancel and use a local provider instead.`,
+          { modal: true }, 'Send Sample', 'Cancel');
+        if (ok !== 'Send Sample') { panel.setBusy(null); panel.setStatus('Cancelled.'); return; }
+      }
+    }
+
+    // Generate with live ticking + cancel.
+    this._panelAbort = new AbortController();
+    const started = Date.now();
+    const tick = setInterval(() => {
+      const secs = Math.round((Date.now() - started) / 1000);
+      panel.setElapsed(secs);
+    }, 1000);
+
+    let output = '';
+    try {
+      const req = this._buildRequest(profile, kind as Deliverable, focus, useScript);
+      for await (const chunk of services.ai.stream({ ...req, signal: this._panelAbort.signal })) {
+        if (this._panelAbort.signal.aborted) break;
+        output += chunk;
+      }
+    } finally {
+      clearInterval(tick);
+    }
+
+    if (this._panelAbort.signal.aborted) { panel.setBusy(null); panel.setStatus('Cancelled.'); this._panelAbort = null; return; }
+    this._panelAbort = null;
+    if (!output.trim()) { panel.setBusy(null); panel.setStatus('✗ The model returned nothing — try again.'); return; }
+
+    // Write output next to the data file.
+    const dir  = path.dirname(filePath);
+    const stem = path.basename(filePath, path.extname(filePath));
+    const { body, lang } = extractCodeBlock(output);
+    let outName: string;
+    if (useScript) outName = lang === 'html' ? `${stem}-report.html` : `${stem}-analysis.py`;
+    else if (kind === 'report') outName = `${stem}-report.html`;
+    else outName = `${stem}-profile.md`;
+    const outPath = path.join(dir, outName);
+    await services.workspace.writeFile(outPath, body, /*openAfter*/ !outName.endsWith('.py'));
+
+    panel.setBusy(null);
+    panel.setElapsed(0);
+
+    if (outName.endsWith('.html')) {
+      panel.setStatus(`✓ Report written: ${outName}`);
+      const open = await vscode.window.showInformationMessage(`Evolve AI: report ready — ${outName}`, 'Open in Browser', 'Reveal');
+      if (open === 'Open in Browser') await vscode.env.openExternal(vscode.Uri.file(outPath));
+      else if (open === 'Reveal') await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outPath));
+    } else if (outName.endsWith('.py')) {
+      // The accurate-report route: offer to RUN it now so the user gets the HTML.
+      panel.setStatus(`✓ Script written: ${outName}. Run it to produce the report from your full data.`);
+      const run = await vscode.window.showInformationMessage(
+        `Evolve AI: ${kind === 'report' ? 'report' : 'analysis'} script ready — ${outName}. Run it now to build the ${kind === 'report' ? 'HTML report' : 'output'} from your full dataset? (needs Python with pandas${kind === 'report' ? ' + plotly' : ''})`,
+        'Run Now', 'Show File');
+      if (run === 'Run Now') {
+        const term = vscode.window.createTerminal('Evolve AI: Data Analysis');
+        term.show();
+        term.sendText(`python "${outPath}"`);
+        panel.setStatus(`▶ Running ${outName} — the report opens when it finishes.`);
+      } else if (run === 'Show File') {
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(outPath)));
+      }
+    } else {
+      panel.setStatus(`✓ Profile written: ${outName}`);
+    }
   }
 
   /** Native file picker shared by the panel's Browse button and drop-fallback. */
