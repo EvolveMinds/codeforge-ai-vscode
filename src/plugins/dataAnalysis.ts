@@ -6,7 +6,7 @@
  * it reads a schema + sample from the user's data file and asks the active AI
  * provider to produce one of three deliverables:
  *   - a self-contained HTML report (KPI tiles, charts, narrative insights)
- *   - a reproducible analysis script/notebook (pandas + plotly, .py / .ipynb)
+ *   - a reproducible analysis script/notebook (pandas + matplotlib, .py)
  *   - a data profiling summary (types, nulls, distributions, correlations)
  *
  * Size-adaptive execution:
@@ -316,15 +316,34 @@ function isSmallEnoughForDirect(p: DataProfile): boolean {
   return p.approxRows <= 2000 && p.sizeBytes <= 1024 * 1024;
 }
 
+// Rules that make generated Python actually run on a fresh machine against
+// messy real-world data. Appended to every script-generation task.
+const SCRIPT_RULES = [
+  'The script MUST run as-is on a clean machine with only Python installed. Follow ALL of these:',
+  '1. Dependencies: at the very top, auto-install any needed packages before importing them, e.g.:',
+  '   `import subprocess, sys`',
+  '   `for pkg in ["pandas", "matplotlib"]:`',
+  '   `    try: __import__(pkg)`',
+  '   `    except ImportError: subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", pkg])`',
+  '   Use pandas + matplotlib for charts (matplotlib is far more commonly installed than plotly — do NOT use plotly). Read Excel/Parquet only if the source needs it (openpyxl / pyarrow), installing them the same way.',
+  '2. Correlations: NEVER call df.corr() on the whole frame. Use `df.corr(numeric_only=True)` and skip it if there are <2 numeric columns.',
+  '3. Coerce stringy-numeric columns before math: values like "50+", "1,000+", "$4.99", "10M" are common. Strip non-numeric characters and use `pd.to_numeric(series, errors="coerce")`; only aggregate columns that successfully convert.',
+  '4. Wrap every risky step (a chart, a stat, a parse) in try/except so one bad column never aborts the whole report — print a short note and continue.',
+  '5. Never assume a column exists — check `if col in df.columns` first.',
+  '6. For charts, embed matplotlib figures into the HTML as base64-encoded <img> tags (savefig to a BytesIO, base64) so the HTML report is fully self-contained with no external files.',
+  '7. Print a clear final line with the absolute path of any file written.',
+].join('\n');
+
 const REPORT_SYSTEM =
   'You are a senior data analyst and BI report builder. You produce clear, accurate, decision-ready ' +
   'analysis. When asked for an HTML report, you output a single self-contained HTML document ' +
-  '(inline CSS, inline JS, no external network calls unless explicitly allowed) with: a header, ' +
-  'KPI/summary tiles, appropriate charts (inline SVG for simple charts; only use a JS charting ' +
-  'approach when the data genuinely needs interactivity, and keep it dependency-light), data tables ' +
-  'where useful, and a short written "Key insights" narrative grounded ONLY in the provided data. ' +
-  'Never invent numbers you were not given. When generating Python, use pandas + plotly/matplotlib, ' +
-  'make the script self-contained and runnable, read the real file path, and write outputs next to it.';
+  '(inline CSS, inline JS, no external network calls) with: a header, KPI/summary tiles, appropriate ' +
+  'charts, data tables where useful, and a short written "Key insights" narrative grounded ONLY in the ' +
+  'provided data. Never invent numbers you were not given. ' +
+  'When you generate a Python SCRIPT, it must be robust and self-contained — auto-install its own ' +
+  'dependencies (pandas + matplotlib, never plotly), use df.corr(numeric_only=True), coerce ' +
+  'stringy-numeric columns with pd.to_numeric(errors="coerce"), guard every risky step in try/except, ' +
+  'and read the real file path. The script must run as-is on a clean machine.';
 
 // ── Plugin ──────────────────────────────────────────────────────────────────
 
@@ -506,7 +525,7 @@ export class DataAnalysisPlugin implements IPlugin {
       [
         { label: '$(comment-discussion) Insights in chat', description: 'Narrative analysis inline — ask follow-ups (Gemini-style)', detail: 'insights' },
         { label: '$(graph) HTML report', description: 'PowerBI-style: KPI tiles, charts, insights', detail: 'report' },
-        { label: '$(notebook) Analysis notebook/script', description: 'Reproducible pandas + plotly (.py / .ipynb)', detail: 'notebook' },
+        { label: '$(notebook) Analysis notebook/script', description: 'Reproducible pandas + matplotlib (.py) — auto-installs deps', detail: 'notebook' },
         { label: '$(list-flat) Profiling summary', description: 'Types, nulls, distributions, correlations', detail: 'profile' },
       ],
       { placeHolder: `What would you like Evolve AI to produce from ${path.basename(file)}?` }
@@ -685,7 +704,7 @@ export class DataAnalysisPlugin implements IPlugin {
       // The accurate-report route: offer to RUN it now so the user gets the HTML.
       panel.setStatus(`✓ Script written: ${outName}. Run it to produce the report from your full data.`);
       const run = await vscode.window.showInformationMessage(
-        `Evolve AI: ${kind === 'report' ? 'report' : 'analysis'} script ready — ${outName}. Run it now to build the ${kind === 'report' ? 'HTML report' : 'output'} from your full dataset? (needs Python with pandas${kind === 'report' ? ' + plotly' : ''})`,
+        `Evolve AI: ${kind === 'report' ? 'report' : 'analysis'} script ready — ${outName}. Run it now to build the ${kind === 'report' ? 'HTML report' : 'output'} from your full dataset? (the script auto-installs pandas + matplotlib on first run)`,
         'Run Now', 'Show File');
       if (run === 'Run Now') {
         const term = vscode.window.createTerminal('Evolve AI: Data Analysis');
@@ -909,11 +928,12 @@ export class DataAnalysisPlugin implements IPlugin {
         `Generate a self-contained, runnable Python script that:\n` +
         `1. Connects to a ${engine} database using SQLAlchemy. Read the connection string from an environment ` +
         `variable named DB_URL (do NOT hard-code credentials); include a comment showing the expected URL format ` +
-        `for ${engine} and the pip install line for the required driver.\n` +
+        `for ${engine}. Auto-install the required driver + sqlalchemy the same way as the other packages.\n` +
         `2. Runs this query into a pandas DataFrame via pandas.read_sql:\n\`\`\`sql\n${query}\n\`\`\`\n` +
-        `3. Performs a full analysis and writes a single self-contained HTML report (KPI tiles, charts with ` +
-        `plotly, tables, and a "Key insights" section) to "db-report.html" in the current directory.\n` +
+        `3. Performs a full analysis and writes a single self-contained HTML report (KPI tiles, matplotlib charts ` +
+        `embedded as base64 <img> tags, tables, and a "Key insights" section) to "db-report.html" in the current directory.\n` +
         (instruction ? `Focus: ${instruction}\n` : '') +
+        `\n${SCRIPT_RULES}\n\n` +
         `Output ONLY the script in one fenced \`\`\`python block.` }],
       system: REPORT_SYSTEM,
       instruction: 'data sql script',
@@ -933,7 +953,7 @@ export class DataAnalysisPlugin implements IPlugin {
     if (run === 'Show How') {
       const term = vscode.window.createTerminal('Evolve AI: Data Analysis');
       term.show();
-      term.sendText('# 1) pip install the driver shown at the top of db-analysis.py + sqlalchemy pandas plotly');
+      term.sendText('# The script auto-installs pandas/matplotlib/sqlalchemy + the driver on first run.');
       term.sendText('# 2) set DB_URL to your connection string, e.g.:');
       term.sendText('#    export DB_URL="postgresql+psycopg2://user:pass@host:5432/dbname"   (mac/linux)');
       term.sendText('#    $env:DB_URL = "postgresql+psycopg2://user:pass@host:5432/dbname"   (PowerShell)');
@@ -1026,7 +1046,7 @@ export class DataAnalysisPlugin implements IPlugin {
       const notebookHint = kind === 'notebook'
         ? `Generate a reproducible Python script that reconnects to the source (${remote.label}) using the ` +
           `appropriate client library and credentials from the environment, re-runs the query/fetch, then does ` +
-          `a full exploratory analysis and writes an HTML report. Do NOT hard-code credentials. Output one fenced code block only.`
+          `a full exploratory analysis and writes an HTML report. Do NOT hard-code credentials.\n\n${SCRIPT_RULES}\n\nOutput one fenced \`\`\`python block only.`
         : kind === 'report'
         ? `Produce a single self-contained HTML report for this dataset (source: ${remote.label}) — KPI tiles, ` +
           `appropriate charts, tables, and a short "Key insights" narrative. Ground every number strictly in the ` +
@@ -1045,31 +1065,31 @@ export class DataAnalysisPlugin implements IPlugin {
     let task: string;
     if (kind === 'profile') {
       task = useScript
-        ? `Generate a self-contained Python script (pandas) that profiles this dataset: dtypes, non-null counts, ` +
-          `descriptive stats, cardinality, top values for categoricals, correlations for numerics, and flags ` +
-          `likely data-quality issues. It must read the real file at "${abspath}" and print a clear report. ` +
+        ? `Generate a self-contained Python script that profiles this dataset: dtypes, non-null counts, ` +
+          `descriptive stats, cardinality, top values for categoricals, correlations for NUMERIC columns only, and flags ` +
+          `likely data-quality issues. It must read the real file at "${abspath}" and print a clear report.\n\n${SCRIPT_RULES}\n\n` +
           `Output the script as a fenced \`\`\`python block only.`
         : `Produce a concise data profiling summary in Markdown for this dataset: per-column type, null counts, ` +
           `min/max/mean for numerics, distinct counts and top values for categoricals, notable correlations, ` +
           `and any data-quality issues you can see. Base everything strictly on the provided sample.`;
     } else if (kind === 'report') {
       task = useScript
-        ? `Generate a self-contained Python script (pandas + plotly) that reads the FULL dataset at "${abspath}", ` +
+        ? `Generate a self-contained Python script that reads the FULL dataset at "${abspath}", ` +
           `computes the key metrics, and writes a single self-contained HTML report file next to it ` +
           `(same folder, named "${path.basename(p.filePath, p.ext)}-report.html"). The report must include KPI ` +
-          `tiles, appropriate charts, tables, and a short "Key insights" section. Output the script as a fenced ` +
-          `\`\`\`python block only.`
+          `tiles, matplotlib charts embedded as base64 <img> tags, tables, and a short "Key insights" section.\n\n${SCRIPT_RULES}\n\n` +
+          `Output the script as a fenced \`\`\`python block only.`
         : `Produce a single self-contained HTML report document for this dataset — KPI/summary tiles, ` +
           `appropriate charts (inline SVG for simple ones; a light JS approach only if interactivity is truly ` +
           `needed), data tables where useful, and a short "Key insights" narrative. Ground every number strictly ` +
           `in the provided sample. Output ONLY the HTML inside a single fenced \`\`\`html block.`;
     } else { // notebook
       task =
-        `Generate a reproducible analysis notebook for this dataset as Jupyter percent-format ` +
-        `(\`# %%\` cell markers) OR a clean .py script — your choice, but make it runnable. It must: read the ` +
+        `Generate a reproducible analysis script for this dataset as a clean runnable .py file. It must: read the ` +
         `real file at "${abspath}", do a full exploratory analysis (shape, dtypes, missingness, distributions, ` +
-        `correlations), create the most relevant charts with plotly or matplotlib, and end by writing an HTML ` +
-        `report next to the data. Use pandas. Output the notebook/script as a single fenced code block only.`;
+        `correlations for numeric columns), create the most relevant charts with matplotlib, and end by writing a ` +
+        `self-contained HTML report next to the data.\n\n${SCRIPT_RULES}\n\n` +
+        `Output the script as a single fenced \`\`\`python block only.`;
     }
 
     return {
