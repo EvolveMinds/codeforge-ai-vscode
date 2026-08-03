@@ -11,6 +11,15 @@ When you asked the Data Analysis panel for an **HTML report** on a larger file, 
 - **No more silent surprise.** The panel now tells you up front: *"this file is ~N rows — to keep the numbers accurate, Evolve AI is generating a Python script that reads the full file and writes the HTML report — then runs it for you."* When the script is ready it offers **Run Now**, which executes it and produces the HTML. For genuinely small files you still get the HTML directly.
 - **The direct-analysis threshold was too conservative** (200 KB). Raised to ~2,000 rows / ~1 MB, so ordinary CSVs are analysed straight to HTML instead of needlessly generating a script. (The direct path only sends a schema + sample, so this stays cheap.)
 
+### Fixed — generated analysis scripts now run on a clean machine
+
+The Python scripts Evolve AI generates used to fail on real data and fresh environments:
+
+- `df.corr()` crashed on datasets with text columns (`could not convert string to float`). Scripts now use `df.corr(numeric_only=True)` and skip correlations when there are fewer than two numeric columns.
+- Scripts imported `plotly` (rarely installed) and died with `ModuleNotFoundError`. They now use **matplotlib** (near-ubiquitous) and **auto-install their own dependencies** (`pandas`, `matplotlib`, drivers) on first run via a `pip install` bootstrap at the top.
+- Stringy-numeric columns (`"50+"`, `"1,000+"`, `"$4.99"`) are now coerced with `pd.to_numeric(errors="coerce")` before any math, and every risky step is wrapped in `try/except` so one bad column can't abort the whole report.
+- Report charts are embedded as base64 `<img>` tags, keeping the HTML fully self-contained.
+
 ### Added — live progress + cancel in the Data Analysis panel
 
 Generation no longer looks frozen. The panel shows a spinner, the current step, and a **live elapsed-seconds** counter, with a working **Cancel** button. When the active model is local (Ollama / Gemma / GLM), a hint notes that cloud providers generate faster — while the heavy analysis still runs locally in the generated script.
