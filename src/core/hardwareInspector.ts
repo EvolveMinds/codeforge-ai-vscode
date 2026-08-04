@@ -47,6 +47,31 @@ export type Recommendation =
   | { kind: 'ok';          variant: string; reason: string; warnings: string[] }
   | { kind: 'unsupported'; reasons: string[]; suggestions: string[] };
 
+/**
+ * Feasibility verdict for running a large MoE model under Colibri.
+ *
+ * `tier` describes the realistic experience, not just whether it boots:
+ *   - 'comfortable' — enough fast memory that decode is usable (multi-GPU / big unified memory)
+ *   - 'slow'        — it will run, but expect minutes per response
+ *   - 'crawling'    — technically runs, practically unusable for interactive coding
+ *   - 'blocked'     — a hard requirement (disk) isn't met; it won't run at all
+ */
+export interface ColibriVerdict {
+  tier:        'comfortable' | 'slow' | 'crawling' | 'blocked';
+  estTokensPerSec: string;
+  headline:    string;
+  reasons:     string[];
+  suggestions: string[];
+}
+
+/**
+ * Disk required for the GLM-5.2 INT4 weights Colibri streams from.
+ * This is a hard floor — unlike RAM, no amount of tuning avoids it.
+ */
+export const COLIBRI_MODEL_DISK_GB = 372;
+/** Colibri's documented minimum working set. Below this it will not stream. */
+export const COLIBRI_MIN_RAM_GB    = 25;
+
 // Minimum Ollama version: covers CVE-2024-37032 (RCE via malicious model files,
 // fixed in 0.7.0), CVE-2025-51471 (cross-domain token exposure), and
 // CVE-2025-63389 (missing auth on model-management ops, fixed in 0.12.4).
@@ -133,6 +158,97 @@ export class HardwareInspector {
         'Free up disk space (need at least 8GB)',
         'Use a cloud provider (Anthropic Claude, OpenAI, Google Gemini) instead',
       ],
+    };
+  }
+
+  /**
+   * Assess whether this machine can realistically run GLM-5.2 under Colibri.
+   *
+   * Speed tiers are anchored to the figures published by the Colibri project:
+   *   25GB RAM CPU-only ....... 0.05–0.1 tok/s
+   *   single mid-range GPU .... ~1.07 tok/s
+   *   128GB desktop, warm ..... ~1.8 tok/s
+   *   6x RTX 5090 residency ... 5.8–6.8 tok/s
+   *
+   * The disk requirement is checked first and is absolute: without ~372GB free
+   * for the INT4 weights there is nothing to stream, regardless of RAM or GPU.
+   */
+  assessColibri(hw: HardwareProfile): ColibriVerdict {
+    const ram  = hw.ramGb;
+    const vram = hw.gpu?.vramGb ?? 0;
+    const disk = hw.diskFreeGb;
+
+    const altSuggestions = [
+      'Use GLM via Ollama with an Unsloth GGUF quant — far smaller download, much faster on the same hardware',
+      'Use GLM (Z.ai) cloud — the same model family, no local hardware requirement, needs an API key',
+      'Use a local coding model instead (Gemma 4, Qwen2.5-Coder) — built for interactive editor use',
+    ];
+
+    // Hard blocker: disk. Reported as 0 when detection failed — don't block on unknown.
+    if (disk > 0 && disk < COLIBRI_MODEL_DISK_GB) {
+      return {
+        tier: 'blocked',
+        estTokensPerSec: 'n/a',
+        headline: `Not enough disk space — GLM-5.2 INT4 needs about ${COLIBRI_MODEL_DISK_GB}GB`,
+        reasons: [
+          `Only ${disk}GB free where models are stored, but the weights alone are ~${COLIBRI_MODEL_DISK_GB}GB`,
+          'Colibri streams experts from disk, so the full model must be present locally',
+        ],
+        suggestions: [
+          `Free up at least ${COLIBRI_MODEL_DISK_GB - disk}GB, ideally on an NVMe SSD`,
+          ...altSuggestions,
+        ],
+      };
+    }
+
+    if (ram < COLIBRI_MIN_RAM_GB) {
+      return {
+        tier: 'blocked',
+        estTokensPerSec: 'n/a',
+        headline: `Not enough RAM — Colibri needs at least ${COLIBRI_MIN_RAM_GB}GB`,
+        reasons: [`${ram}GB RAM detected; Colibri's documented minimum working set is ${COLIBRI_MIN_RAM_GB}GB`],
+        suggestions: altSuggestions,
+      };
+    }
+
+    // Multi-GPU or very large unified memory — the only genuinely usable tier.
+    if (vram >= 100 || (hw.gpu?.vendor === 'apple' && ram >= 256)) {
+      return {
+        tier: 'comfortable',
+        estTokensPerSec: '~5–7 tok/s',
+        headline: 'Your hardware can run GLM-5.2 at usable speed',
+        reasons: [`${vram}GB of fast memory allows most experts to stay resident`],
+        suggestions: [],
+      };
+    }
+
+    // Enough RAM to keep a meaningful working set warm.
+    if (ram >= 128 || vram >= 24) {
+      return {
+        tier: 'slow',
+        estTokensPerSec: '~1–2 tok/s',
+        headline: 'GLM-5.2 will run, but expect minutes per response',
+        reasons: [
+          `${ram}GB RAM${vram ? ` and ${vram}GB VRAM` : ''} keeps part of the model warm`,
+          'A 500-token answer will take roughly 4–8 minutes',
+        ],
+        suggestions: [
+          'Best suited to deep one-off questions rather than interactive editing',
+          ...altSuggestions.slice(0, 2),
+        ],
+      };
+    }
+
+    // Meets the floor but nothing more — the headline "25GB" configuration.
+    return {
+      tier: 'crawling',
+      estTokensPerSec: '~0.05–0.1 tok/s',
+      headline: 'GLM-5.2 will technically run, but far too slowly to use',
+      reasons: [
+        `${ram}GB RAM means almost every expert is read from disk on every token`,
+        'A 500-token answer would take roughly 1.5–3 hours',
+      ],
+      suggestions: altSuggestions,
     };
   }
 

@@ -332,6 +332,12 @@ const SCRIPT_RULES = [
   '5. Never assume a column exists — check `if col in df.columns` first.',
   '6. For charts, embed matplotlib figures into the HTML as base64-encoded <img> tags (savefig to a BytesIO, base64) so the HTML report is fully self-contained with no external files.',
   '7. Print a clear final line with the absolute path of any file written.',
+  '8. F-STRING SAFETY (critical): a Python f-string expression `{...}` MUST NOT contain a backslash. ' +
+    'Do NOT put file paths, "\\n", .replace("\\n", ...), or any backslash inside `{...}`. Build such values in a ' +
+    'separate variable on its own line first, then reference the plain variable inside the f-string. ' +
+    'Prefer raw strings (r"...") or forward slashes for Windows paths. Keep HTML building simple — use ' +
+    'str concatenation or .format() if an f-string would need a backslash.',
+  '9. Write files with an explicit encoding: `open(path, "w", encoding="utf-8")`. Use `matplotlib.use("Agg")` before importing pyplot so it works headless.',
 ].join('\n');
 
 const REPORT_SYSTEM =

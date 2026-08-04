@@ -2,6 +2,53 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.10.0] — 2026-08-04
+
+### Added — Colibri provider: run GLM-5.2 (744B) on your own machine
+
+[Colibri](https://github.com/JustVugg/colibri) is a dependency-free C engine that runs frontier
+Mixture-of-Experts models locally by streaming experts from disk rather than holding them in RAM.
+That puts **GLM-5.2 — 744B total parameters, ~40B active per token** — within reach without a
+datacenter GPU. Select **Colibri — GLM-5.2 (local)** from **Switch AI Provider**.
+
+Colibri exposes an OpenAI-compatible endpoint, so Evolve AI connects to it directly. You run
+Colibri yourself (`coli serve`); the extension never installs or launches it, and no API key is
+involved — nothing leaves your machine.
+
+**A hardware check runs first, and it tells you the truth.** GLM-5.2 needs **~372 GB of disk** for
+the INT4 weights, and speed varies enormously with available fast memory:
+
+| Hardware | Realistic speed | A 500-token answer takes |
+|---|---|---|
+| 25 GB RAM, CPU only | 0.05–0.1 tok/s | 1.5–3 hours |
+| Single 24 GB GPU | ~1 tok/s | ~8 minutes |
+| 128 GB desktop, warm | ~1.8 tok/s | ~5 minutes |
+| Multi-GPU residency | 5.8–6.8 tok/s | Usable interactively |
+
+Rather than let you discover that after a 372 GB download, Evolve AI measures RAM, VRAM and free
+disk up front and states plainly which tier you land in. When the verdict is poor it offers the
+faster routes in one click — an [Unsloth GGUF quant](https://unsloth.ai/docs/models/glm-5.2) via
+Ollama, or **GLM (Z.ai)** in the cloud. If disk or RAM falls below the hard minimum, setup stops
+rather than leaving the provider pointing at something that cannot work. The check reuses the
+existing hardware-detection consent — nothing is sent anywhere.
+
+Colibri also serves `kimi-k3`, `inkling`, and `olmoe`, selectable from the model picker or
+`aiForge.colibriModel`.
+
+**New settings:** `aiForge.colibriBaseUrl` (default `http://localhost:8080/v1`),
+`aiForge.colibriModel` (default `glm-5.2`).
+
+Requests to Colibri use a 30-minute idle timeout instead of the usual 5-minute local one, because
+multi-minute gaps between tokens are normal operation for a disk-streaming engine, not a stall.
+
+### Fixed — generated data-analysis scripts hit a Python f-string SyntaxError
+
+Some generated scripts failed with `SyntaxError: f-string expression part cannot include a backslash`
+(a Python < 3.12 limitation triggered by putting a Windows path or `"\n"` inside an f-string `{...}`).
+The script-generation rules now explicitly forbid backslashes inside f-string expressions — build such
+values in a separate variable first, prefer raw strings / forward slashes, and use `.format()` or
+concatenation for HTML. Also pins `matplotlib.use("Agg")` and explicit UTF-8 file encoding.
+
 ## [2.9.1] — 2026-07-22
 
 ### Fixed — "HTML report" produced a .py script with no explanation, and looked stuck

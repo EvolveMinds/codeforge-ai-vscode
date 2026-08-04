@@ -15,7 +15,7 @@ import { safeUpdateConfig, readHostSetting, warnIfRemoteHost } from './configSaf
 import type { EventBus }   from './eventBus';
 import type { IAIService } from './interfaces';
 
-export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'glm' | 'anthropic' | 'openai' | 'gemini' | 'zai' | 'huggingface' | 'offline';
+export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'glm' | 'colibri' | 'anthropic' | 'openai' | 'gemini' | 'zai' | 'huggingface' | 'offline';
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
@@ -203,6 +203,7 @@ export class AIService implements IAIService {
       if (provider === 'ollama')         { yield* this._streamOllama(req, cfg);       }
       else if (provider === 'gemma4')     { yield* this._streamGemma4(req, cfg);     }
       else if (provider === 'glm')        { yield* this._streamGlm(req, cfg);        }
+      else if (provider === 'colibri')    { yield* this._streamColibri(req, cfg);    }
       else if (provider === 'anthropic')  { yield* this._streamAnthropic(req, cfg);  }
       else if (provider === 'openai')     { yield* this._streamOpenAI(req, cfg);     }
       else if (provider === 'gemini')     { yield* this._streamGemini(req, cfg);    }
@@ -565,6 +566,47 @@ export class AIService implements IAIService {
     );
   }
 
+  /**
+   * Colibri — local frontier-MoE engine (github.com/JustVugg/colibri).
+   *
+   * Runs GLM-5.2 (744B MoE, ~40B active/token) and other large MoE models on
+   * consumer hardware by streaming experts from disk instead of resident memory.
+   * `coli serve` exposes an OpenAI-compatible endpoint, so the SSE parser here
+   * is identical to _streamOpenAI — the only differences are that no API key is
+   * involved (it's a local process) and the idle timeout is far more generous,
+   * because decode speed can legitimately be well under 1 token/second.
+   */
+  private async* _streamColibri(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
+    const base  = readHostSetting('aiForge', 'colibriBaseUrl', 'http://localhost:8080/v1');
+    warnIfRemoteHost('aiForge.colibriBaseUrl', base);
+    const model = cfg.get<string>('colibriModel', 'glm-5.2');
+
+    // Pre-check: is `coli serve` actually up? A dead endpoint is by far the most
+    // common failure here, and the generic ECONNREFUSED text talks about Ollama.
+    if (!(await this._pingUrl(base.replace(/\/v1\/?$/, '')))) {
+      yield `⚠ **Cannot reach Colibri** at ${base}\n\n`;
+      yield `Colibri runs as a separate local process. Start it with:\n\n`;
+      yield '```\ncoli serve\n```\n\n';
+      yield `Then make sure \`aiForge.colibriBaseUrl\` matches the address it prints `
+          + `(default \`http://localhost:8080/v1\`).\n\n`;
+      yield `Setup guide: https://github.com/JustVugg/colibri\n`;
+      return;
+    }
+
+    const url  = new URL(base.replace(/\/$/, '') + '/chat/completions');
+    const body = JSON.stringify({
+      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      messages: [{ role: 'system', content: req.system }, ...req.messages],
+    });
+    yield* this._httpStream(url, body,
+      c => {
+        if (!c.startsWith('data:') || c.includes('[DONE]')) return '';
+        try { return JSON.parse(c.slice(5).trim()).choices?.[0]?.delta?.content || ''; } catch { return ''; }
+      },
+      {}, req.signal, this._timeoutMs('colibri')
+    );
+  }
+
   private async* _streamHuggingFace(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const key   = await this._secrets.get(SECRET_HUGGINGFACE) ?? '';
     const model = cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
@@ -794,14 +836,20 @@ export class AIService implements IAIService {
    * request while the model loads into memory — especially on CPU — so they
    * get a much longer grace period than cloud APIs, which respond in seconds.
    *
+   * Colibri gets its own tier. It streams MoE experts from disk, so decode can
+   * legitimately run at 0.05–1.8 tok/s and time-to-first-token is dominated by
+   * disk reads. A gap of several minutes between tokens is normal operation,
+   * not a stall, so the idle allowance is 30 minutes.
+   *
    * The `aiForge.requestTimeoutMs` setting overrides everything when set to a
    * positive value; `0` (the default) means "auto" and picks the right value
    * per provider. The timeout is an *idle* timeout (re-armed on every chunk),
    * so it never cuts off a response that is still streaming.
    */
-  private _timeoutMs(kind: 'local' | 'cloud'): number {
+  private _timeoutMs(kind: 'local' | 'cloud' | 'colibri'): number {
     const override = this._cfg().get<number>('requestTimeoutMs', 0);
     if (override && override > 0) return override;
+    if (kind === 'colibri') return 1_800_000;
     return kind === 'local' ? 300_000 : 120_000;
   }
 }

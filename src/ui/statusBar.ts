@@ -48,6 +48,7 @@ export class StatusBarService {
         ? await this._svc.ai.isOllamaRunning(host) : false;
       const modelByProvider: Record<string, string> = {
         gemma4: 'gemma4Model', glm: 'glmModel', ollama: 'ollamaModel',
+        colibri: 'colibriModel',
         anthropic: 'anthropicModel', openai: 'openaiModel',
         gemini: 'geminiModel', zai: 'zaiModel', huggingface: 'huggingfaceModel',
       };
@@ -58,6 +59,7 @@ export class StatusBarService {
         ollama:       '$(server)',
         gemma4:       '$(sparkle)',
         glm:          '$(code)',
+        colibri:      '$(rocket)',
         anthropic:    '$(cloud)',
         openai:       '$(globe)',
         gemini:       '$(sparkle)',
@@ -77,6 +79,8 @@ export class StatusBarService {
         label = `${icon} Evolve AI: Gemma 4 (${variant})${pluginTag}`;
       } else if (provider === 'zai') {
         label = `${icon} Evolve AI: GLM (${model || 'z.ai'})${pluginTag}`;
+      } else if (provider === 'colibri') {
+        label = `${icon} Evolve AI: Colibri (${model || 'glm-5.2'})${pluginTag}`;
       } else {
         const modelShort = model ? model.split(':')[0] : '';
         label = `${icon} Evolve AI${modelShort ? ': ' + modelShort : ''}${pluginTag}`;

@@ -8,7 +8,7 @@
 [![Rating](https://vsmarketplacebadges.dev/rating-short/codeforge-ai.evolve-ai.svg?color=orange)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
-**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
+**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Colibri** (GLM-5.2 744B running locally), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
 
 ### Why Evolve AI?
 
@@ -103,6 +103,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 | **Ollama** (local) | Code never leaves your machine | Free, runs locally |
 | **Gemma 4** (local) | Code never leaves your machine | Free, guided setup via Ollama |
 | **GLM / CodeGeeX** (local) | Code never leaves your machine | Free, coding model via Ollama (offline) |
+| **Colibri — GLM-5.2** (local) | Code never leaves your machine | Free, no GPU required. Needs ~372 GB disk; hardware check included |
 | **Anthropic Claude** | Cloud API | API key required |
 | **OpenAI / Compatible** | Cloud API (Groq, Mistral, Together AI, LM Studio) | API key required |
 | **Google Gemini** | Cloud API | API key required |
@@ -289,6 +290,37 @@ Run a GLM / CodeGeeX coding model **fully offline** via Ollama — no API key, n
 
 > Note: the 355B+ GLM-4.5 / GLM-4.6 flagships are too large to run on a normal machine — those are cloud-only (see below).
 
+### Colibri — GLM-5.2 (744B) on your own machine
+
+[Colibri](https://github.com/JustVugg/colibri) is a dependency-free C engine that runs frontier
+Mixture-of-Experts models locally by streaming experts from disk instead of holding them in memory.
+That makes **GLM-5.2 (744B total, ~40B active per token)** runnable without a datacenter GPU.
+
+**Be aware of the trade-off before you start:** the weights are **~372 GB on disk** (a hard
+requirement), and decode speed depends heavily on how much fast memory you have:
+
+| Hardware | Realistic speed | What that feels like |
+|---|---|---|
+| 25 GB RAM, CPU only | 0.05–0.1 tok/s | ~1.5–3 hours for a 500-token answer |
+| Single 24 GB GPU | ~1 tok/s | ~8 minutes |
+| 128 GB desktop, warm | ~1.8 tok/s | ~5 minutes |
+| Multi-GPU residency | 5.8–6.8 tok/s | Usable interactively |
+
+Evolve AI runs a **hardware check** when you select Colibri and tells you honestly which tier you
+land in — offering faster alternatives when the answer is "this will crawl."
+
+1. Install and build Colibri, then download the GLM-5.2 INT4 weights ([setup guide](https://github.com/JustVugg/colibri))
+2. Start the server: `coli serve`
+3. Run **Switch AI Provider** -> select **Colibri — GLM-5.2 (local)**
+4. Confirm the endpoint (default `http://localhost:8080/v1`) and pick a model
+
+Evolve AI does **not** install or launch Colibri — it only connects to the endpoint you point it at.
+Colibri also serves `kimi-k3`, `inkling`, and `olmoe`, selectable via `aiForge.colibriModel`.
+
+> **Want GLM quality without the 372 GB?** An [Unsloth GGUF quant](https://unsloth.ai/docs/models/glm-5.2)
+> via Ollama is far smaller and much faster on the same hardware, and the **GLM (Z.ai)** cloud provider
+> below needs no local resources at all.
+
 ### GLM (Z.ai, cloud)
 
 Use Zhipu / Z.ai's flagship GLM models (`glm-4.6`, `glm-4.5`) via their OpenAI-compatible cloud API.
@@ -315,7 +347,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 
 | Setting | Default | Description |
 |---|---|---|
-| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `glm`, `anthropic`, `openai`, `gemini`, `zai`, `huggingface`, `offline` |
+| `aiForge.provider` | `auto` | AI provider: `auto`, `ollama`, `gemma4`, `glm`, `colibri`, `anthropic`, `openai`, `gemini`, `zai`, `huggingface`, `offline` |
 | `aiForge.ollamaHost` | `http://localhost:11434` | Ollama server URL (also LM Studio, llama.cpp) |
 | `aiForge.ollamaModel` | `qwen2.5-coder:7b` | Ollama model name |
 | `aiForge.gemma4Model` | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b`, `gemma4:e4b`, `gemma4:26b`, `gemma4:31b` |
@@ -327,6 +359,8 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |
 | `aiForge.geminiModel` | `gemini-2.5-flash` | Google Gemini model name |
 | `aiForge.glmModel` | `codegeex4-all-9b` | Local GLM / CodeGeeX model tag (runs offline via Ollama) |
+| `aiForge.colibriBaseUrl` | `http://localhost:8080/v1` | Colibri server URL (start it yourself with `coli serve`) |
+| `aiForge.colibriModel` | `glm-5.2` | Model served by Colibri (`glm-5.2`, `kimi-k3`, `inkling`, `olmoe`) |
 | `aiForge.zaiModel` | `glm-4.6` | GLM (Z.ai) cloud model name |
 | `aiForge.huggingfaceModel` | `Qwen/Qwen2.5-Coder-32B-Instruct` | Hugging Face model ID |
 | `aiForge.codeLensEnabled` | `true` | Show CodeLens hints above functions |

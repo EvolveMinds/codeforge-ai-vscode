@@ -265,6 +265,9 @@ export class CoreCommands {
           ? `Ready — ${glmStatus.variants.join(', ')} installed`
           : 'GLM / CodeGeeX coding model — free, local, runs offline via Ollama',
         detail: 'glm' },
+      { label: '$(rocket) Colibri — GLM-5.2 (local)',
+        description: 'Frontier 744B MoE on your own machine — needs ~372GB disk. Hardware check included',
+        detail: 'colibri' },
       { label: '$(circuit-board) Offline AI',  description: 'Built-in — instant, no setup, no LLM needed', detail: 'offline' },
       // ── separator
       { label: '── Cloud providers ──', description: '', detail: '', kind: vscode.QuickPickItemKind.Separator } as ProviderItem,
@@ -342,6 +345,8 @@ export class CoreCommands {
           'Get Ollama'
         ).then(a => { if (a === 'Get Ollama') vscode.env.openExternal(vscode.Uri.parse('https://ollama.com/download')); });
       }
+    } else if (provider === 'colibri') {
+      await this._runColibriSetup(cfg);
     } else if (provider === 'anthropic') {
       // [SEC-6] Inform user that code will be sent to cloud API
       const consent = await vscode.window.showWarningMessage(
@@ -466,6 +471,134 @@ export class CoreCommands {
   // ── Gemma 4 smart setup wizard ─────────────────────────────────────────────
   // Detects hardware → recommends a variant → runs a one-click install pipeline.
   // Falls back to a simpler manual flow if user declines hardware detection.
+  /**
+   * Colibri setup — configure the local GLM-5.2 endpoint, with an honest
+   * hardware pre-flight first.
+   *
+   * Colibri can run a 744B MoE model on modest hardware, but "runs" and "is
+   * usable" are very different things: on a 25GB machine decode is ~0.05 tok/s,
+   * which is hours per answer. Rather than let users discover that after a
+   * 372GB download, we measure the machine up front and say plainly what to
+   * expect — offering the faster alternatives when the verdict is poor.
+   *
+   * Colibri itself is a separate process the user runs (`coli serve`); we only
+   * point at its OpenAI-compatible endpoint. Nothing is installed from here.
+   */
+  private async _runColibriSetup(cfg: vscode.WorkspaceConfiguration): Promise<void> {
+    // Reuse the same one-time consent gate as the Gemma 4 wizard — same data,
+    // same privacy promise, so asking twice would be noise.
+    const consentKey  = 'aiForge.hardwareConsent';
+    const allowDetect = cfg.get<boolean>('allowHardwareDetection', true);
+    let   consented   = this._svc.vsCtx.globalState.get<boolean | undefined>(consentKey);
+
+    if (consented === undefined && allowDetect) {
+      const choice = await vscode.window.showInformationMessage(
+        'Evolve AI can check your system (RAM, GPU, disk space) to tell you whether GLM-5.2 will run at a usable speed on this machine. ' +
+        'No data leaves your machine.',
+        { modal: true },
+        'Yes, check my system', 'Skip the check'
+      );
+      consented = choice === 'Yes, check my system';
+      await this._svc.vsCtx.globalState.update(consentKey, consented);
+    }
+
+    if (consented && allowDetect) {
+      const hw = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Checking whether GLM-5.2 can run here…' },
+        () => this._svc.inspector.inspect()
+      );
+      const verdict = this._svc.inspector.assessColibri(hw);
+
+      // Anything short of "comfortable" gets an explicit off-ramp.
+      if (verdict.tier !== 'comfortable') {
+        const detail =
+          `${verdict.headline}\n\n` +
+          `Detected: ${this._svc.inspector.summary(hw)}\n` +
+          `Expected speed: ${verdict.estTokensPerSec}\n\n` +
+          verdict.reasons.map(r => `  • ${r}`).join('\n') +
+          `\n\nBetter options for this machine:\n` +
+          verdict.suggestions.map(s => `  • ${s}`).join('\n');
+
+        // 'blocked' means it genuinely cannot run — no "continue anyway".
+        const actions = verdict.tier === 'blocked'
+          ? ['Use Ollama Instead', 'Use GLM Cloud (Z.ai)']
+          : ['Continue with Colibri', 'Use Ollama Instead', 'Use GLM Cloud (Z.ai)'];
+
+        const choice = await vscode.window.showWarningMessage(detail, { modal: true }, ...actions);
+
+        if (choice === 'Use Ollama Instead') {
+          await cfg.update('provider', 'ollama', vscode.ConfigurationTarget.Global);
+          vscode.window.showInformationMessage(
+            'Switched to Ollama. For GLM-class quality locally, try an Unsloth GLM GGUF quant sized to your RAM.',
+            'Open Unsloth Guide'
+          ).then(a => {
+            if (a === 'Open Unsloth Guide') vscode.env.openExternal(vscode.Uri.parse('https://unsloth.ai/docs/models/glm-5.2'));
+          });
+          return;
+        }
+        if (choice === 'Use GLM Cloud (Z.ai)') {
+          await cfg.update('provider', 'zai', vscode.ConfigurationTarget.Global);
+          vscode.window.showInformationMessage('Switched to GLM (Z.ai). Run "Switch AI Provider" again to enter your API key.');
+          return;
+        }
+        if (choice !== 'Continue with Colibri') {
+          // Dismissed, or blocked with no path forward — don't leave the
+          // provider pointing at something that won't work.
+          await cfg.update('provider', 'auto', vscode.ConfigurationTarget.Global);
+          return;
+        }
+      }
+    }
+
+    // Endpoint — Colibri prints this when `coli serve` starts.
+    const url = await vscode.window.showInputBox({
+      prompt:      'Colibri server URL (start it with `coli serve`)',
+      value:       cfg.get<string>('colibriBaseUrl', 'http://localhost:8080/v1'),
+      placeHolder: 'http://localhost:8080/v1',
+      validateInput: v => {
+        try { const u = new URL(v); return (u.protocol === 'http:' || u.protocol === 'https:') ? null : 'Must be an http(s) URL'; }
+        catch { return 'Enter a valid URL'; }
+      },
+    });
+    if (!url) return;
+    await cfg.update('colibriBaseUrl', url, vscode.ConfigurationTarget.Global);
+
+    // Model — GLM-5.2 first, other Colibri-supported MoE models after.
+    const colibriModels = [
+      'glm-5.2',
+      'kimi-k3',
+      'inkling',
+      'olmoe',
+    ];
+    const current     = cfg.get<string>('colibriModel', 'glm-5.2');
+    const modelChoice = await vscode.window.showQuickPick(
+      [...colibriModels, '$(edit) Enter custom model tag…'],
+      { placeHolder: `Choose a Colibri model (current: ${current})` }
+    );
+    if (!modelChoice) return;
+
+    let model = modelChoice;
+    if (modelChoice.includes('custom')) {
+      const custom = await vscode.window.showInputBox({ prompt: 'Colibri model tag (e.g. glm-5.2)', value: current });
+      if (!custom) return;
+      model = custom;
+    }
+    await cfg.update('colibriModel', model, vscode.ConfigurationTarget.Global);
+
+    // Verify the endpoint is live so the user finds out now, not mid-request.
+    const reachable = await this._svc.ai.isOllamaRunning(url.replace(/\/v1\/?$/, ''));
+    if (reachable) {
+      vscode.window.showInformationMessage(`Colibri connected — ${model} at ${url}.`);
+    } else {
+      vscode.window.showWarningMessage(
+        `Saved, but nothing is listening at ${url}. Start Colibri with \`coli serve\`, then try a request.`,
+        'Open Colibri Setup Guide'
+      ).then(a => {
+        if (a === 'Open Colibri Setup Guide') vscode.env.openExternal(vscode.Uri.parse('https://github.com/JustVugg/colibri'));
+      });
+    }
+  }
+
   private async _runGemma4Wizard(cfg: vscode.WorkspaceConfiguration): Promise<void> {
     // Step 1: get one-time consent for hardware detection
     const consentKey = 'aiForge.hardwareConsent';
@@ -940,6 +1073,17 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.10.0': [
+    `## 🐦 Evolve AI 2.10.0 — Run GLM-5.2 (744B) on your own machine\n`,
+    `### New provider: Colibri\n`,
+    `[Colibri](https://github.com/JustVugg/colibri) is a dependency-free C engine that runs frontier Mixture-of-Experts models locally by **streaming experts from disk** instead of holding them in RAM. That puts **GLM-5.2 — 744B parameters, ~40B active per token** — within reach without a datacenter GPU. Pick **Colibri — GLM-5.2 (local)** from **Switch AI Provider**.\n`,
+    `You run Colibri yourself (\`coli serve\`) and Evolve AI connects to its OpenAI-compatible endpoint. No API key, no install step, nothing leaves your machine.\n`,
+    `### A hardware check that tells you the truth\n`,
+    `GLM-5.2 needs **~372 GB of disk**, and speed swings enormously with available fast memory — from **0.05 tok/s** on a 25 GB machine (about **3 hours** for a single answer) to ~6 tok/s on multi-GPU hardware.\n`,
+    `Rather than let you find that out *after* a 372 GB download, Evolve AI checks your RAM, VRAM and free disk first and states plainly which tier you're in. If the verdict is poor it offers the faster routes in one click — an Unsloth GGUF quant via Ollama, or **GLM (Z.ai)** in the cloud. If you're below the hard minimum, setup stops instead of leaving you pointed at something that can't work.\n`,
+    `### Also\n`,
+    `Colibri serves \`kimi-k3\`, \`inkling\` and \`olmoe\` too — switch from the model picker. Requests use a 30-minute idle timeout, because multi-minute gaps between tokens are normal for a disk-streaming engine, not a stall.\n`,
+  ].join('\n'),
   '2.9.1': [
     `## 📊 Evolve AI 2.9.1 — Clearer reports + live progress\n`,
     `### Fixed\n`,

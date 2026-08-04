@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into a PowerBI-style HTML report, notebook, or inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.9.1",
+  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into a PowerBI-style HTML report, notebook, or inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX, GLM-5.2 744B via Colibri) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "2.10.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -25,8 +25,13 @@
     "gemini",
     "google gemini",
     "glm",
+    "glm-5.2",
     "codegeex",
     "zhipu",
+    "colibri",
+    "local llm",
+    "moe",
+    "offline ai",
     "data analysis",
     "data reporting",
     "report generator",
@@ -1453,6 +1458,7 @@
             "ollama",
             "gemma4",
             "glm",
+            "colibri",
             "anthropic",
             "openai",
             "gemini",
@@ -1465,6 +1471,7 @@
             "Ollama — local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
             "Gemma 4 — Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
             "GLM (local) — GLM / CodeGeeX coding model, runs offline via Ollama. Free, private. Default codegeex4-all-9b (~5.5GB)",
+            "Colibri — runs frontier MoE models (GLM-5.2, 744B) locally by streaming experts from disk. Free, private, no GPU required. Needs ~372GB disk; speed depends heavily on RAM/VRAM",
             "Anthropic Claude — cloud, requires API key",
             "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
             "Google Gemini — cloud, requires API key. gemini-2.5-pro, 2.5-flash, 2.0-flash",
@@ -1512,6 +1519,18 @@
           "type": "string",
           "default": "codegeex4-all-9b",
           "description": "Local GLM / CodeGeeX model tag to run via Ollama (e.g. codegeex4-all-9b, glm4:9b, glm4). codegeex4-all-9b is a coding model built on GLM-4-9B (~5.5GB, 128K context). Runs fully offline. This is NOT the 355B+ GLM-4.5/4.6 flagship — those are cloud-only (use the GLM (Z.ai) provider)."
+        },
+        "aiForge.colibriBaseUrl": {
+          "type": "string",
+          "default": "http://localhost:8080/v1",
+          "pattern": "^https?://",
+          "patternErrorMessage": "Must be an http:// or https:// URL.",
+          "description": "Colibri server URL (OpenAI-compatible). Start Colibri separately with `coli serve` — Evolve AI does not launch or install it. See github.com/JustVugg/colibri."
+        },
+        "aiForge.colibriModel": {
+          "type": "string",
+          "default": "glm-5.2",
+          "description": "Model served by Colibri. glm-5.2 is the 744B MoE flagship (~372GB on disk as INT4). Colibri also supports kimi-k3, inkling, and olmoe. Decode speed depends heavily on RAM/VRAM — roughly 0.05 tok/s at the 25GB minimum, ~1-2 tok/s on a 128GB desktop."
         },
         "aiForge.allowHardwareDetection": {
           "type": "boolean",
