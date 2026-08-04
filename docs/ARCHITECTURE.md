@@ -452,6 +452,7 @@ provider setting = 'auto'  →  check Ollama port → running + gemma4 configure
 provider setting = 'ollama'     →  use Ollama regardless
 provider setting = 'gemma4'     →  use Gemma 4 (via Ollama /api/chat, guided setup wizard)
 provider setting = 'glm'        →  use local GLM / CodeGeeX (via Ollama)
+provider setting = 'colibri'    →  use Colibri (local GLM-5.2 744B MoE, OpenAI-compatible endpoint)
 provider setting = 'anthropic'  →  use Anthropic
 provider setting = 'openai'     →  use OpenAI-compatible
 provider setting = 'gemini'     →  use Google Gemini (OpenAI-compatible endpoint)
@@ -459,6 +460,23 @@ provider setting = 'zai'        →  use GLM (Z.ai) cloud (OpenAI-compatible end
 provider setting = 'huggingface'→  use Hugging Face Inference API
 provider setting = 'offline'    →  static fallback responses
 ```
+
+> **Colibri (v2.10.0):** Colibri runs frontier MoE models (GLM-5.2, 744B) locally by
+> streaming experts from disk. It is a **separate user-managed process** — the extension
+> connects to its OpenAI-compatible endpoint (`coli serve`) but never installs, launches,
+> or supervises it, so `_streamColibri` reuses the OpenAI SSE parser verbatim and takes no
+> API key. Two things are deliberately different from the other local providers:
+>
+> 1. **Its own timeout tier.** `_timeoutMs('colibri')` is 30 minutes, not the 5-minute
+>    `'local'` value. Disk-streamed decode can legitimately run at 0.05 tok/s, so
+>    multi-minute gaps between tokens are normal operation rather than a stalled socket.
+> 2. **A hardware pre-flight gate.** `HardwareInspector.assessColibri()` returns a
+>    `ColibriVerdict` (`comfortable` / `slow` / `crawling` / `blocked`) from RAM, VRAM and
+>    free disk. The provider-switch flow surfaces it *before* the user commits to a ~372GB
+>    download and routes them to Ollama-GGUF or Z.ai cloud when the verdict is poor. The
+>    disk floor is absolute; `diskFreeGb === 0` means detection failed and must not block.
+>    Keep `assessColibri()` a pure function — its tier boundaries are unit-tested in
+>    `test/suite/colibriVerdict.test.ts` without any VS Code API.
 
 > **Cross-plugin client reuse (v2.7.0):** the Data Analysis plugin
 > (`plugins/dataAnalysis.ts`) sources from databases and cloud by importing the

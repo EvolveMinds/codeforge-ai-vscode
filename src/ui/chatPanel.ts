@@ -378,6 +378,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     const settingByProvider: Record<string, string> = {
       gemma4:      'gemma4Model',
       glm:         'glmModel',
+      colibri:     'colibriModel',
       ollama:      'ollamaModel',
       anthropic:   'anthropicModel',
       openai:      'openaiModel',
@@ -821,6 +822,7 @@ function renderModelPopover() {
   if (!list) return;
   const provLabel = currentProvider === 'gemma4' ? 'Gemma 4'
     : currentProvider === 'glm' ? 'GLM (local)'
+    : currentProvider === 'colibri' ? 'Colibri'
     : currentProvider === 'ollama' ? 'Ollama'
     : currentProvider === 'anthropic' ? 'Anthropic'
     : currentProvider === 'openai' ? 'OpenAI / Compatible'
@@ -1130,7 +1132,7 @@ window.addEventListener('message', ({ data }) => {
         : (data.provider !== 'offline' && data.provider !== 'auto');
       d.className = 'dot ' + (isReady ? 'green' : 'yellow');
       d.title = isReady ? 'Provider connected' : 'No AI provider active';
-      const providerLabel = data.provider === 'gemma4' ? 'GEMMA 4' : data.provider === 'glm' ? 'GLM' : data.provider === 'zai' ? 'GLM (Z.AI)' : data.provider.toUpperCase();
+      const providerLabel = data.provider === 'gemma4' ? 'GEMMA 4' : data.provider === 'glm' ? 'GLM' : data.provider === 'zai' ? 'GLM (Z.AI)' : data.provider === 'colibri' ? 'COLIBRI' : data.provider.toUpperCase();
       document.getElementById('providerLabel').textContent = providerLabel;
       // Show thinking toggle only for Gemma 4
       const thinkBtn = document.getElementById('thinkBtn');
@@ -1441,6 +1443,12 @@ function resolveModelView(
       const glmInstalled = ollamaModels.filter(m => m.startsWith('glm') || m.startsWith('codegeex'));
       const known = ['codegeex4-all-9b', 'glm4:9b', 'glm4'];
       return { currentModel: current, availableModels: dedupe([current, ...glmInstalled, ...known]) };
+    }
+    case 'colibri': {
+      const current = cfg.get<string>('colibriModel', 'glm-5.2');
+      // Colibri serves one model per process; these are the tags it supports.
+      const known = ['glm-5.2', 'kimi-k3', 'inkling', 'olmoe'];
+      return { currentModel: current, availableModels: dedupe([current, ...known]) };
     }
     case 'ollama': {
       const current = cfg.get<string>('ollamaModel', '');
