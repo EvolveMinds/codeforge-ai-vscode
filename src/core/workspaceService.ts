@@ -108,11 +108,27 @@ export class WorkspaceService implements IWorkspaceService {
     const files: GeneratedFile[] = [];
     let m: RegExpExecArray | null;
 
-    // Pattern 1: ## filename.ext\n```lang\n...\n```
-    const p1 = /^#{1,3}\s+([\w./\-]+\.\w+)\s*\n+```[\w]*\n([\s\S]*?)```/gm;
+    // Pattern 1: a heading naming a file, then a fenced code block. Tolerant of
+    // the phrasings models actually emit:
+    //   ## report.html        ## filename: report.html      ## File: app.py
+    //   ### **report.html**   ## path: src/x.ts             #### `report.html`
+    // The optional label (filename/file/path) + optional **/` wrappers are
+    // stripped so the content lands in the RIGHT file, not generated.txt.
+    const p1 = /^#{1,4}\s+(?:(?:file\s*name|filename|file|path)\s*[:\-]?\s*)?[*`"']*([\w./\-]+\.\w+)[*`"']*\s*\n+```[\w]*\n([\s\S]*?)```/gim;
     while ((m = p1.exec(aiOutput)) !== null) {
       const full = path.join(baseDir, m[1].trim());
       if (isSafePath(full, baseDir)) files.push({ path: full, content: m[2].trim() });
+    }
+
+    // Pattern 1b: same heading form but the file body is NOT fenced (the model
+    // put the heading then raw content). Only used when Pattern 1 found nothing.
+    if (!files.length) {
+      const p1b = /^#{1,4}\s+(?:(?:file\s*name|filename|file|path)\s*[:\-]?\s*)?[*`"']*([\w./\-]+\.\w+)[*`"']*\s*\n+([\s\S]*?)(?=^#{1,4}\s+(?:(?:file\s*name|filename|file|path)\s*[:\-]?\s*)?[*`"']*[\w./\-]+\.\w+|\s*$)/gim;
+      while ((m = p1b.exec(aiOutput)) !== null) {
+        const body = m[2].replace(/^```[\w]*\n?|```\s*$/gm, '').trim();
+        const full = path.join(baseDir, m[1].trim());
+        if (body && isSafePath(full, baseDir)) files.push({ path: full, content: body });
+      }
     }
 
     // Pattern 2: // filename.ext  or  # filename.ext

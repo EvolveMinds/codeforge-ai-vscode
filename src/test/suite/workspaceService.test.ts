@@ -55,6 +55,22 @@ suite('WorkspaceService', () => {
       assert.ok(found!.content.includes('print("hello")'));
     });
 
+    test('tolerates "## filename: x" / "## File: x" / bold labels (regression)', () => {
+      const svc  = makeWorkspaceService();
+      const base = '/workspace/project';
+      // The exact shape a model emitted that used to fall through to generated.txt.
+      const screenshot = `## filename: report.html\n\n<!DOCTYPE html>\n<html><head><title>Report</title></head>\n<body><h1>Report</h1></body>\n</html>\n`;
+      const r1 = svc.parseMultiFileOutput(screenshot, base);
+      assert.ok(r1.some(f => f.path.endsWith('report.html')), 'expected report.html, got: ' + r1.map(f => f.path).join(','));
+      assert.ok(!r1.some(f => f.path.endsWith('generated.txt')), 'should NOT fall back to generated.txt');
+
+      const filePy = svc.parseMultiFileOutput('## File: app.py\n```python\nprint(1)\n```', base);
+      assert.ok(filePy.some(f => f.path.endsWith('app.py')), 'expected app.py');
+
+      const bold = svc.parseMultiFileOutput('### **index.js**\n```js\nconst a=1\n```', base);
+      assert.ok(bold.some(f => f.path.endsWith('index.js')), 'expected index.js');
+    });
+
     test('extracts multiple files from a single AI output', () => {
       const svc  = makeWorkspaceService();
       const base = '/workspace/project';

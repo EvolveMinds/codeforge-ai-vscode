@@ -2,6 +2,14 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.10.1] — 2026-08-04
+
+### Fixed — Create/Generate wrote content to `generated.txt` instead of the named file
+
+When a model prefixed its file heading with a label — `## filename: report.html`, `## File: app.py`, `### **index.js**`, `## path: src/x.ts` — the multi-file parser didn't recognise it as a filename and dumped the whole output into a fallback `generated.txt`. So asking Create to "build report.html" produced `generated.txt` with the HTML inside, and the file you asked for never appeared.
+
+`parseMultiFileOutput` now tolerates those common phrasings (optional `filename:` / `file:` / `path:` label, and `**bold**` / backtick / quote wrappers), for both fenced and unfenced bodies, so the content lands in the correctly-named file. Truly unstructured output still falls back to `generated.txt`. Added a regression test covering the exact case.
+
 ## [2.10.0] — 2026-08-04
 
 ### Added — Colibri provider: run GLM-5.2 (744B) on your own machine
