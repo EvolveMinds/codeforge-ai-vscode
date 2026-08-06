@@ -2,6 +2,50 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.11.0] — 2026-08-06
+
+### Added — HTML reports you can design, customise, and refine
+
+Generated reports were plain and final: the model was asked for "KPI tiles, charts and insights"
+with no design direction, and once the file was written the only way to change anything was to
+regenerate from scratch. Four changes address that.
+
+**The design is no longer the model's job.** `src/core/reportDesign.ts` owns the report stylesheet,
+the chart styling and the report runtime. The model is asked only for semantic HTML against a
+documented class contract and is explicitly told not to write CSS; the extension then stamps its
+own stylesheet into the finished document, so the look holds regardless of which model produced it.
+Every report now gets a light **and** dark theme that follows the reader's OS (with a toggle),
+sortable and filterable tables, print / Save-as-PDF styles that don't split cards across pages, a
+responsive layout, and a consistent chart palette. The same design is injected into generated
+Python as an `EVOLVE_*` preamble (`evolve_style_mpl`, `evolve_fig`, `evolve_kpi`, `evolve_table`,
+`evolve_html_shell`, …), so large-data reports built by a script look identical to directly-built
+ones.
+
+**Report formats, sections and audience.** Choosing *HTML report* now offers **Standard** or
+**Customise…** — five formats (Executive summary, Deep-dive analysis, Data quality audit, Trend &
+time-series, Segment comparison), eleven toggleable sections, an audience (executives / analysts /
+data engineers / mixed), appearance, accent colour and title. The format is not cosmetic: each one
+changes the sections, the chart budget, the tone and the framing given to the model. The same
+options appear as an inline form in the Data Analysis panel.
+
+**A refine loop.** Reports now open in a preview panel with a refine box instead of a browser tab.
+"Drop the raw table, add revenue by month, explain each chart in plain language" is applied to the
+document that already exists — everything else is preserved verbatim — and every round is
+snapshotted so **Undo** always steps back. Base64 charts and the injected stylesheet are stashed
+before the round-trip and restored after, so a 29 KB report reaches the model as roughly 0.5 KB of
+structure and a refinement costs about the same as the original request. Pure styling requests
+("use dark theme", "make the accent `#1f7a5a`") are applied locally and instantly with no AI call
+at all. A truncated or malformed response leaves the existing report untouched.
+
+**Brand it once.** New **Create Report Theme (branding)** command scaffolds
+`evolve-report-theme.json` — brand name, accent, palette, logo (as a data URI, so reports stay
+offline), footer, and default report shape. Every report picks it up, including pipeline runs,
+which can also override it per step via a `"report"` block. The file is re-read on each run, and a
+malformed one degrades to the built-in look rather than blocking the report.
+
+New commands: `aiForge.data.refineReport` (also on the Explorer right-click for `*-report.html`)
+and `aiForge.data.createReportTheme`.
+
 ## [2.10.1] — 2026-08-04
 
 ### Fixed — Create/Generate wrote content to `generated.txt` instead of the named file

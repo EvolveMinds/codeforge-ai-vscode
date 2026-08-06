@@ -28,7 +28,7 @@ evolve-ai-vscode/
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
 │   ├── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
-│   └── DATA_ANALYSIS.md        ← Data Analysis & Reporting plugin user guide (v2.7.0 — files + DB/cloud sourcing, insights-in-chat)
+│   └── DATA_ANALYSIS.md        ← Data Analysis & Reporting plugin user guide (v2.11.0 — report design system, customisation, refine loop)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -36,6 +36,8 @@ evolve-ai-vscode/
 └── src/
     ├── extension.ts             ← entry point (54 lines — thin wiring only)
     ├── core/
+    │   ├── reportDesign.ts      ← report design system: stylesheet, archetypes, ReportSpec/Theme, Python preamble
+    │   ├── jsonc.ts             ← stripJsonComments — shared by the pipeline + report-theme config files
     │   ├── interfaces.ts        ← IAIService, IContextService, IWorkspaceService
     │   ├── services.ts          ← IServices interface + ServiceContainer (DI root)
     │   ├── plugin.ts            ← IPlugin interface + PluginRegistry
@@ -53,6 +55,7 @@ evolve-ai-vscode/
     │   ├── prCreator.ts              ← createPR (GitHub + Bitbucket API + browser fallback)
     │   └── hookInstaller.ts          ← Pre-push hook install/uninstall (v2.4) — Husky-aware, conflict-safe
     ├── ui/
+    │   ├── reportPreviewPanel.ts ← live report preview + plain-language refine loop (undoable)
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
@@ -132,6 +135,8 @@ to undo.
 | Git plugin | `plugins/git.ts` | ✅ Complete |
 | CI/CD plugin | `plugins/cicd.ts` | ✅ Complete |
 | Data Analysis & Reporting plugin | `plugins/dataAnalysis.ts` | ✅ Complete — CSV/TSV/JSON/Excel/Parquet → HTML report / notebook / profiling. Size-adaptive (AI-direct for small data, generated script for large). Dependency-free sniffer. |
+| Report design system | `core/reportDesign.ts` | ✅ Complete (v2.11.0) — owns report CSS/JS/palette, archetypes, ReportSpec + theme file, Python preamble |
+| Report preview + refine loop | `ui/reportPreviewPanel.ts` | ✅ Complete (v2.11.0) |
 | Plugin loader | `plugins/index.ts` | ✅ All plugins wired |
 
 ### What is next to build
@@ -236,7 +241,7 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (52 total)
+## Commands currently registered (54 total)
 
 ### Core (18)
 | Command ID | Keybinding | Description |
@@ -293,7 +298,7 @@ are merged into the core system transparently:
 `aiForge.databricks.fixCollect` · `aiForge.databricks.replaceUdf` ·
 `aiForge.databricks.addUnityRef` · `aiForge.databricks.generateJobYaml`
 
-### Data Analysis & Reporting plugin (6)
+### Data Analysis & Reporting plugin (10)
 | Command ID | Description |
 |---|---|
 | `aiForge.data.analyze` | Pick a data file → choose deliverable (insights / report / notebook / profile). Also on the Explorer right-click for data files. |
@@ -302,8 +307,26 @@ are merged into the core system transparently:
 | `aiForge.data.notebook` | Generate a reproducible pandas/plotly notebook or `.py` script |
 | `aiForge.data.profile` | Profiling summary — types, nulls, distributions, correlations, data-quality flags |
 | `aiForge.data.analyzeSource` | Analyze from a database or cloud source: BigQuery / Databricks SQL / Cosmos / Log Analytics / DynamoDB / S3-GCS-Blob objects, or a generated `pandas.read_sql` script for any SQL DB. Reuses the connected-plugin clients + SecretStorage credentials; no new deps, no stored DB passwords. |
+| `aiForge.data.refineReport` | Reopen a generated report in the preview panel and change it in plain language. Applies the edit to the existing document rather than regenerating; every round is undoable |
+| `aiForge.data.createReportTheme` | Scaffold `evolve-report-theme.json` — brand colours, palette, logo, footer and default report shape, applied to every report |
 | `aiForge.data.createPipeline` | Scaffold a declarative `evolve-data-pipeline.json` (steps = source + analysis) with commented examples for every source type |
 | `aiForge.data.runPipeline` | Run a data pipeline JSON — each step's deliverable written to the pipeline's output folder; JSONC (`//` comments) tolerated; continues past failures and summarises |
+
+### Report design system (v2.11.0)
+
+HTML report styling is **not** delegated to the model. `core/reportDesign.ts` owns the stylesheet,
+the chart styling, and the report runtime (theme toggle, sortable/filterable tables, print styles);
+the model is asked only for semantic HTML against a documented class contract and is told not to
+write CSS. `injectReportAssets()` stamps the stylesheet + script into the finished HTML, and
+`injectPythonPreamble()` puts the same design into generated analysis scripts as `EVOLVE_*`
+constants and `evolve_*` helpers. If you change the report look, change it there — adding design
+prose to a prompt will not survive.
+
+Per-run shape lives in a `ReportSpec` (archetype, audience, sections, chart budget, mode, accent),
+layered over a workspace `ReportTheme` from `evolve-report-theme.json`. Refinement rounds go
+through `ReportPreviewPanel`; heavy parts (base64 charts, the injected stylesheet) are stashed
+before the model sees the document and restored after, and pure styling requests are handled
+locally without an AI call at all.
 
 ---
 

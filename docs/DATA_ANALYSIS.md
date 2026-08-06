@@ -22,7 +22,7 @@ Automatically, when your workspace contains any `.csv`, `.tsv`, `.json`, `.xlsx`
 
 ---
 
-## The six commands
+## The commands
 
 Three ways to start:
 
@@ -51,10 +51,117 @@ panel and go straight to the quick-pick.
 |---|---|
 | **Analyze Data & Report** | Pick a file → choose a deliverable (insights / report / notebook / profile). The one-stop entry point (also the Explorer right-click action). |
 | **Data Insights in Chat** | Streams a narrative analysis into the chat panel — patterns, trends, outliers, data-quality issues, recommendations — and you can ask follow-up questions in the same thread. Gemini-style. |
-| **Generate HTML Data Report** | A single self-contained HTML report: KPI/summary tiles, charts, tables, and a written "Key insights" section. The PowerBI-style deliverable. |
+| **Generate HTML Data Report** | A single self-contained HTML report: KPI/summary tiles, charts, tables, and a written "Key insights" section. The PowerBI-style deliverable. Since v2.11.0 it opens in a live preview you can refine in plain language — see [Report design and customisation](#report-design-and-customisation-v2110). |
 | **Generate Data Analysis Notebook/Script** | A reproducible pandas + plotly `.py` script (or `# %%` percent-format notebook) you can run and customize. |
 | **Profile Dataset** | Column types, null counts, distributions, correlations, and data-quality flags. |
 | **Analyze Data from Database or Cloud Source** | Pull a sample from a database or cloud source (see below) and run any of the above deliverables on it. |
+| **Refine HTML Data Report** *(v2.11.0)* | Reopen any generated report in the preview and change it in plain language. Also on the Explorer right-click for `*-report.html`. |
+| **Create Report Theme (branding)** *(v2.11.0)* | Scaffold `evolve-report-theme.json` so every report picks up your brand colours, logo and footer. |
+
+---
+
+## Report design and customisation *(v2.11.0)*
+
+Reports used to be whatever the model felt like emitting — no typography scale, no palette, no
+dark mode, no print styles, and no way to change anything once the file was written. Three things
+changed.
+
+### 1. The design is no longer the model's job
+
+`src/core/reportDesign.ts` owns the stylesheet, the chart styling and the report runtime. The model
+is asked only for semantic HTML against a documented class contract (`.report`, `.kpi-grid`,
+`.card`, `figure.chart`, `table.data`, `ul.insights`, `.callout`, …) and is explicitly told **not**
+to write CSS. The extension then stamps its own stylesheet into the finished document, so the look
+holds even when the model ignores instructions or you are running a small local model.
+
+Every report you generate now gets, for free:
+
+- a light **and** dark theme that follows the reader's OS, with a toggle in the corner
+- sortable columns and a filter box on any table over 12 rows
+- print / Save-as-PDF styles that avoid breaking cards across pages
+- a responsive layout that works down to phone width
+- consistent chart colours, driven by your palette, in both inline SVG and matplotlib
+
+For the large-data path, the same design is injected into the generated Python as a preamble
+(`EVOLVE_STYLE`, `evolve_style_mpl`, `evolve_fig`, `evolve_kpi`, `evolve_table`,
+`evolve_html_shell`, …), so a script-built report is indistinguishable from a directly-built one.
+
+### 2. Report formats, sections and audience
+
+Choosing **HTML report** now offers **Standard** or **Customise…**. Customising lets you pick:
+
+| Choice | Options |
+|---|---|
+| **Format** | Executive summary · Deep-dive analysis · Data quality audit · Trend & time-series · Segment comparison |
+| **Sections** | summary, KPI tiles, trends, breakdowns, distributions, relationships, data quality, data table, key insights, recommendations, methodology |
+| **Audience** | Executives · Analysts · Data engineers · Mixed |
+| **Appearance** | Follow the reader's theme · Always light · Always dark, plus an accent colour |
+| **Title** | Optional — defaults to the dataset name |
+
+The format is not cosmetic: each one changes the sections, the chart budget, the tone, and the
+framing given to the model. An *Executive summary* is told to lead with the answer and spend at
+most four charts; a *Data quality audit* is told the subject of the report is the data itself, and
+its KPI tiles become completeness and duplicate rates.
+
+The same options are available as an inline form in the Data Analysis panel.
+
+### 3. The refine loop
+
+An HTML report now opens in a **preview panel** rather than a browser tab, with a refine box
+underneath:
+
+> *"drop the raw table, add revenue by month, and explain each chart in plain language"*
+
+The change is applied to the document that already exists — the rest of the report is preserved
+verbatim, not regenerated. Every round is snapshotted, so **Undo** always steps back. From the
+same panel you can open the report in a browser, view the HTML source, or **Regenerate from
+data…** with different options.
+
+Two details that make this practical:
+
+- **Charts don't cost context.** Base64 images and the injected stylesheet are swapped for short
+  placeholders before the round-trip and restored afterwards. A 29 KB report goes to the model as
+  roughly 0.5 KB of structure, so a refinement costs about the same as the original request.
+- **Styling changes skip the model entirely.** "Use dark theme" or "make the accent `#1f7a5a`" is
+  applied locally and instantly, because the stylesheet is ours to change. Only genuine content
+  changes go to the AI.
+
+If a response comes back truncated or malformed, the existing report is left untouched.
+
+### 4. Brand it once — `evolve-report-theme.json`
+
+Run **Create Report Theme (branding)** to drop a commented template in your workspace root:
+
+```jsonc
+{
+  "brandName": "Northwind Analytics",
+  "accent": "#1f7a5a",
+  "palette": ["#1f7a5a", "#e8873a", "#4f6df5", "#d6455d"],
+  "theme": "auto",                    // auto | light | dark
+  "logo": "",                         // data: URI — reports stay offline
+  "footer": "Internal — do not distribute",
+  "defaultArchetype": "executive",    // executive | deepdive | quality | timeseries | comparison
+  "defaultAudience": "mixed",
+  "defaultSections": [],              // [] = use the format's own sections
+  "maxCharts": 6,
+  "density": "comfortable"
+}
+```
+
+Every report — interactive, panel-driven, or pipeline — picks it up, and the file is re-read on
+each run so edits take effect without reloading the window. A malformed theme file degrades to
+the built-in look rather than blocking the report.
+
+Pipeline steps can override it per step:
+
+```jsonc
+{
+  "name": "Exec deck",
+  "source": { "type": "file", "path": "sales.csv" },
+  "analysis": "report",
+  "report": { "archetype": "executive", "audience": "exec", "maxCharts": 3, "theme": "light" }
+}
+```
 
 ---
 

@@ -26,6 +26,28 @@ export interface WorkspaceDataFile {
   rel: string;
 }
 
+/** Report shape chosen in the panel's "Report options" section. */
+export interface PanelReportOptions {
+  archetype: string;
+  audience:  string;
+  sections:  string[];
+  mode:      string;
+  accent:    string;
+  title:     string;
+}
+
+/**
+ * The catalogues the options form is built from. Passed in rather than
+ * hard-coded here so `core/reportDesign.ts` stays the single source of truth
+ * for archetypes and sections.
+ */
+export interface ReportOptionsCatalog {
+  archetypes: Array<{ id: string; label: string; description: string; sections: string[] }>;
+  sections:   Array<{ id: string; label: string }>;
+  audiences:  Array<{ id: string; label: string }>;
+  defaults:   PanelReportOptions;
+}
+
 /** Messages the panel posts to its host handler. */
 export type PanelMessage =
   | { type: 'browse' }
@@ -36,6 +58,8 @@ export type PanelMessage =
   | { type: 'dropFallback' }
   | { type: 'setDeliverable'; deliverable: string }
   | { type: 'setFocus'; focus: string }
+  | { type: 'setReportOptions'; options: PanelReportOptions }
+  | { type: 'editTheme' }
   | { type: 'analyze' }
   | { type: 'cancelAnalyze' };
 
@@ -45,11 +69,13 @@ export class DataAnalysisPanel {
   /** Open (or reveal) the panel. `onMessage` handles user actions. */
   static show(
     workspaceFiles: WorkspaceDataFile[],
+    catalog: ReportOptionsCatalog,
     onMessage: (msg: PanelMessage) => void | Promise<void>,
   ): DataAnalysisPanel {
     if (!this._instance) this._instance = new DataAnalysisPanel();
     this._instance._onMessage = onMessage;
     this._instance._files = workspaceFiles;
+    this._instance._catalog = catalog;
     this._instance._reveal();
     return this._instance;
   }
@@ -57,6 +83,10 @@ export class DataAnalysisPanel {
   private readonly _panel: vscode.WebviewPanel;
   private _disposed = false;
   private _files: WorkspaceDataFile[] = [];
+  private _catalog: ReportOptionsCatalog = {
+    archetypes: [], sections: [], audiences: [],
+    defaults: { archetype: '', audience: '', sections: [], mode: 'auto', accent: '#4f6df5', title: '' },
+  };
   private _onMessage: (msg: PanelMessage) => void | Promise<void> = () => {};
 
   private constructor() {
@@ -120,6 +150,22 @@ export class DataAnalysisPanel {
         ).join('')
       : `<div class="muted">No data files found in the open workspace. Use <strong>Browse</strong> above, or drag a file onto this panel.</div>`;
 
+    const cat = this._catalog;
+    const d   = cat.defaults;
+    const archOptions = cat.archetypes
+      .map(a => `<option value="${escAttr(a.id)}"${a.id === d.archetype ? ' selected' : ''}>${escHtml(a.label)}</option>`)
+      .join('');
+    const audienceOptions = cat.audiences
+      .map(a => `<option value="${escAttr(a.id)}"${a.id === d.audience ? ' selected' : ''}>${escHtml(a.label)}</option>`)
+      .join('');
+    const sectionChips = cat.sections
+      .map(s => `<button data-s="${escAttr(s.id)}"${d.sections.includes(s.id) ? ' class="on"' : ''}>${escHtml(s.label)}</button>`)
+      .join('');
+    // The client script needs the archetype → default-sections map to reset the
+    // chips when the format changes.
+    const archData = JSON.stringify(
+      cat.archetypes.map(a => ({ id: a.id, sections: a.sections, description: a.description })));
+
     const nonce = 'a1b2c3d4e5';
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
@@ -165,6 +211,33 @@ export class DataAnalysisPanel {
         border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; flex: 0 0 auto; }
       @keyframes spin { to { transform: rotate(360deg); } }
       #status { margin-top: 10px; font-size: 12px; color: var(--vscode-descriptionForeground); min-height: 16px; }
+      /* Report options */
+      #reportopts { margin-top: 6px; }
+      .optrow { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
+      .optrow > label { flex: 0 0 92px; font-size: 12px; color: var(--vscode-descriptionForeground); }
+      .optrow select, .optrow input[type=text] {
+        flex: 1 1 200px; padding: 6px 9px; font: inherit; font-size: 12.5px; border-radius: 6px;
+        background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+        border: 1px solid var(--vscode-input-border, transparent);
+      }
+      .optrow input[type=color] {
+        width: 34px; height: 28px; padding: 0; border-radius: 6px; cursor: pointer;
+        background: transparent; border: 1px solid var(--vscode-input-border, #8884);
+      }
+      .opthint { font-size: 11px; color: var(--vscode-descriptionForeground); margin: 3px 0 0 102px; }
+      .secs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 0 102px; }
+      .secs button {
+        padding: 4px 10px; font-size: 11.5px; border-radius: 999px; cursor: pointer;
+        background: transparent; color: var(--vscode-descriptionForeground);
+        border: 1px solid var(--vscode-widget-border, #8884);
+      }
+      .secs button.on {
+        background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+        border-color: transparent;
+      }
+      .themelink { background: none; border: none; padding: 0; font-size: 11px; cursor: pointer;
+        color: var(--vscode-textLink-foreground); }
+      .themelink:hover { text-decoration: underline; }
     </style></head><body>
       <h1>📊 Data Analysis</h1>
       <p class="sub">Point Evolve AI at your data — a file anywhere on your machine, a file in this project, or a database / cloud source — then pick what to build.</p>
@@ -190,6 +263,38 @@ export class DataAnalysisPanel {
         <button data-d="profile">📋 Profiling summary</button>
       </div>
       <input id="focus" type="text" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" />
+
+      <div id="reportopts" style="display:none;">
+        <h2>3 · Report options</h2>
+        <div class="optrow">
+          <label for="arch">Format</label>
+          <select id="arch">${archOptions}</select>
+        </div>
+        <div class="opthint" id="archhint"></div>
+        <div class="optrow"><label>Sections</label></div>
+        <div class="secs" id="secs">${sectionChips}</div>
+        <div class="optrow">
+          <label for="aud">Audience</label>
+          <select id="aud">${audienceOptions}</select>
+        </div>
+        <div class="optrow">
+          <label for="mode">Appearance</label>
+          <select id="mode">
+            <option value="auto">Match the reader's system theme</option>
+            <option value="light">Always light (best for print/PDF)</option>
+            <option value="dark">Always dark</option>
+          </select>
+          <input type="color" id="accent" value="${escAttr(d.accent)}" title="Accent colour" />
+        </div>
+        <div class="opthint">
+          Accent drives links, KPI bars and the first chart series.
+          <button class="themelink" id="edittheme">Save brand defaults for every report →</button>
+        </div>
+        <div class="optrow">
+          <label for="title">Title</label>
+          <input id="title" type="text" placeholder="Leave blank to name it after the dataset" />
+        </div>
+      </div>
 
       <div id="hint" class="hint"></div>
       <button id="go" disabled>Analyse →</button>
@@ -223,8 +328,56 @@ export class DataAnalysisPanel {
           document.querySelectorAll('#deliv button').forEach(x => x.classList.remove('on'));
           b.classList.add('on');
           deliverable = b.getAttribute('data-d');
+          document.getElementById('reportopts').style.display = deliverable === 'report' ? '' : 'none';
           post({ type:'setDeliverable', deliverable });
         });
+
+        // ── Report options ────────────────────────────────────────────────
+        const ARCHES = ${archData};
+        const archSel = document.getElementById('arch');
+        const audSel  = document.getElementById('aud');
+        const modeSel = document.getElementById('mode');
+        const accentEl = document.getElementById('accent');
+        const titleEl = document.getElementById('title');
+        const archHint = document.getElementById('archhint');
+
+        function selectedSections() {
+          return Array.prototype.slice
+            .call(document.querySelectorAll('#secs button.on'))
+            .map(b => b.getAttribute('data-s'));
+        }
+        function pushOptions() {
+          post({ type:'setReportOptions', options: {
+            archetype: archSel.value,
+            audience:  audSel.value,
+            sections:  selectedSections(),
+            mode:      modeSel.value,
+            accent:    accentEl.value,
+            title:     titleEl.value.trim(),
+          }});
+        }
+        function describeArch() {
+          const a = ARCHES.filter(x => x.id === archSel.value)[0];
+          archHint.textContent = a ? a.description : '';
+        }
+        archSel.onchange = () => {
+          // A new format brings its own section list — reset the chips to it.
+          const a = ARCHES.filter(x => x.id === archSel.value)[0];
+          if (a) {
+            document.querySelectorAll('#secs button').forEach(b =>
+              b.classList.toggle('on', a.sections.indexOf(b.getAttribute('data-s')) !== -1));
+          }
+          describeArch();
+          pushOptions();
+        };
+        document.querySelectorAll('#secs button').forEach(b => b.onclick = () => {
+          b.classList.toggle('on');
+          pushOptions();
+        });
+        [audSel, modeSel, accentEl].forEach(el => el.onchange = pushOptions);
+        titleEl.addEventListener('input', pushOptions);
+        document.getElementById('edittheme').onclick = () => post({ type:'editTheme' });
+        describeArch();
 
         document.getElementById('focus').addEventListener('input', e => post({ type:'setFocus', focus: e.target.value }));
         document.getElementById('go').onclick = () => post({ type:'analyze' });

@@ -1067,6 +1067,17 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.11.0': [
+    `## 📊 Evolve AI 2.11.0 — Reports you can design, customise and refine\n`,
+    `### The design is no longer left to the model\n`,
+    `Report styling now lives in the extension, not in a prompt. Every HTML report gets a proper design system: a **light and dark theme** that follows the reader's OS with a toggle, **sortable and filterable tables**, **print / Save-as-PDF** styles that don't split cards across pages, a responsive layout, and a consistent chart palette. Reports built by a generated Python script look identical to ones built directly.\n`,
+    `### Choose the report you actually want\n`,
+    `Picking **HTML report** now offers **Standard** or **Customise…** — five formats (Executive summary · Deep-dive analysis · Data quality audit · Trend & time-series · Segment comparison), toggleable sections, an audience, appearance and accent colour. The format isn't cosmetic: it changes the sections, the chart budget and the framing the model works to.\n`,
+    `### Refine it in plain language\n`,
+    `Reports open in a **live preview** with a refine box. Say *"drop the raw table, add revenue by month, explain each chart in plain language"* and the change is applied to the report you already have — everything else preserved. Every round is undoable. Styling requests like *"use dark theme"* apply instantly without an AI call.\n`,
+    `### Brand it once\n`,
+    `**Create Report Theme (branding)** scaffolds \`evolve-report-theme.json\` — brand name, accent, palette, logo, footer and default report shape. Every report picks it up, including pipeline runs.\n`,
+  ].join('\n'),
   '2.10.0': [
     `## 🐦 Evolve AI 2.10.0 — Run GLM-5.2 (744B) on your own machine\n`,
     `### New provider: Colibri\n`,

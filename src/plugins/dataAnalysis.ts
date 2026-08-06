@@ -45,7 +45,17 @@ import { AzureClient }      from '../core/azureClient';
 import { AwsClient }        from '../core/awsClient';
 import { DatabricksClient } from '../core/databricksClient';
 import { DataAnalysisPanel } from '../ui/dataAnalysisPanel';
-import type { WorkspaceDataFile } from '../ui/dataAnalysisPanel';
+import type { WorkspaceDataFile, ReportOptionsCatalog, PanelReportOptions } from '../ui/dataAnalysisPanel';
+import { ReportPreviewPanel } from '../ui/reportPreviewPanel';
+import { stripJsonComments } from '../core/jsonc';
+import {
+  loadReportTheme, themeForSpec, defaultSpec, archetypeById,
+  REPORT_ARCHETYPES, REPORT_SECTIONS, THEME_FILENAME, THEME_TEMPLATE,
+  buildReportPromptBlock, buildScriptPromptBlock,
+  injectReportAssets, injectPythonPreamble,
+  stashHeavyParts, restoreHeavyParts, hasDanglingImagePlaceholders, buildRefinePrompt,
+} from '../core/reportDesign';
+import type { ReportSpec, ReportTheme, Audience, ThemeMode } from '../core/reportDesign';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
@@ -330,7 +340,7 @@ const SCRIPT_RULES = [
   '3. Coerce stringy-numeric columns before math: values like "50+", "1,000+", "$4.99", "10M" are common. Strip non-numeric characters and use `pd.to_numeric(series, errors="coerce")`; only aggregate columns that successfully convert.',
   '4. Wrap every risky step (a chart, a stat, a parse) in try/except so one bad column never aborts the whole report — print a short note and continue.',
   '5. Never assume a column exists — check `if col in df.columns` first.',
-  '6. For charts, embed matplotlib figures into the HTML as base64-encoded <img> tags (savefig to a BytesIO, base64) so the HTML report is fully self-contained with no external files.',
+  '6. For charts, embed matplotlib figures into the HTML as base64-encoded <img> tags (savefig to a BytesIO, base64) so the HTML report is fully self-contained with no external files. When the injected `evolve_fig(fig, caption, title)` helper is available, call it instead of hand-rolling this.',
   '7. Print a clear final line with the absolute path of any file written.',
   '8. F-STRING SAFETY (critical): a Python f-string expression `{...}` MUST NOT contain a backslash. ' +
     'Do NOT put file paths, "\\n", .replace("\\n", ...), or any backslash inside `{...}`. Build such values in a ' +
@@ -442,8 +452,21 @@ export class DataAnalysisPlugin implements IPlugin {
           placeHolder: 'e.g. "sales trends by region and month", or leave blank for an overview',
           ignoreFocusOut: true,
         });
-        await this._run(services, file, 'report', instruction || undefined);
+        if (instruction === undefined) return;
+        const spec = await this._specForRun(instruction || undefined);
+        if (spec === 'cancelled') return;
+        await this._run(services, file, 'report', instruction || undefined, undefined, spec);
       },
+    },
+    {
+      id: 'aiForge.data.refineReport',
+      title: 'Data: Refine HTML Report',
+      handler: async (services, ...args) => this._refineExisting(services, args),
+    },
+    {
+      id: 'aiForge.data.createReportTheme',
+      title: 'Data: Create Report Theme (branding)',
+      handler: async () => this._createTheme(),
     },
     {
       id: 'aiForge.data.notebook',
@@ -546,7 +569,13 @@ export class DataAnalysisPlugin implements IPlugin {
       });
     }
     if (kindPick.detail === 'insights') { await this._insightsInChat(file, instruction || undefined); return; }
-    await this._run(services, file, kindPick.detail as Deliverable, instruction || undefined);
+    let spec: ReportSpec | undefined;
+    if (kindPick.detail === 'report') {
+      const chosen = await this._specForRun(instruction || undefined);
+      if (chosen === 'cancelled') return;
+      spec = chosen;
+    }
+    await this._run(services, file, kindPick.detail as Deliverable, instruction || undefined, undefined, spec);
   }
 
   // ── The friendly entry panel ──────────────────────────────────────────────
@@ -561,12 +590,30 @@ export class DataAnalysisPlugin implements IPlugin {
       }
     }
 
-    // Per-open selection state.
+    // Per-open selection state. The report spec starts from the workspace theme
+    // so a project with evolve-report-theme.json opens on its own defaults.
+    const theme = this._theme();
     let selectedFile: string | undefined;
     let deliverable: Deliverable | 'insights' = 'insights';
     let focus = '';
+    let spec: ReportSpec = defaultSpec(theme);
 
-    const panel = DataAnalysisPanel.show(wsFiles, async (msg) => {
+    const catalog: ReportOptionsCatalog = {
+      archetypes: REPORT_ARCHETYPES.map(a => ({ id: a.id, label: a.label, description: a.description, sections: a.sections })),
+      sections:   REPORT_SECTIONS.map(s => ({ id: s.id, label: s.label })),
+      audiences:  [
+        { id: 'mixed',    label: 'Mixed business + technical' },
+        { id: 'exec',     label: 'Executives' },
+        { id: 'analyst',  label: 'Data analysts' },
+        { id: 'engineer', label: 'Data engineers' },
+      ],
+      defaults: {
+        archetype: spec.archetype, audience: spec.audience, sections: spec.sections,
+        mode: spec.mode, accent: spec.accent, title: spec.title,
+      },
+    };
+
+    const panel = DataAnalysisPanel.show(wsFiles, catalog, async (msg) => {
       switch (msg.type) {
         case 'browse':
           await this._openBrowse(panel, (f) => { selectedFile = f; });
@@ -586,11 +633,29 @@ export class DataAnalysisPlugin implements IPlugin {
           break;
         case 'setDeliverable': deliverable = (msg as { deliverable: Deliverable | 'insights' }).deliverable; break;
         case 'setFocus':       focus = (msg as { focus: string }).focus; break;
+        case 'setReportOptions': {
+          const o = (msg as { options: PanelReportOptions }).options;
+          const arch = archetypeById(o.archetype);
+          spec = {
+            ...spec,
+            archetype: arch.id,
+            tone:      arch.tone,
+            audience:  o.audience as Audience,
+            sections:  o.sections.length ? o.sections : arch.sections,
+            maxCharts: Math.min(this._theme().maxCharts, arch.maxCharts),
+            mode:      o.mode as ThemeMode,
+            accent:    o.accent,
+            title:     o.title,
+          };
+          break;
+        }
+        case 'editTheme':      await this._createTheme(); break;
         case 'connectSource':  await this._analyzeSource(services); break;
         case 'runPipeline':    await this._runPipeline(services, []); break;
         case 'analyze': {
           if (!selectedFile) { panel.setStatus('Choose a data file first.'); return; }
-          await this._runFromPanel(services, panel, selectedFile, deliverable, focus || undefined);
+          await this._runFromPanel(services, panel, selectedFile, deliverable, focus || undefined,
+            deliverable === 'report' ? { ...spec, focus } : undefined);
           break;
         }
         case 'cancelAnalyze':
@@ -613,6 +678,7 @@ export class DataAnalysisPlugin implements IPlugin {
     filePath: string,
     kind: Deliverable | 'insights',
     focus: string | undefined,
+    spec?: ReportSpec,
   ): Promise<void> {
     const name = path.basename(filePath);
 
@@ -659,7 +725,7 @@ export class DataAnalysisPlugin implements IPlugin {
       if (isCloud) {
         const ok = await vscode.window.showWarningMessage(
           `A sample of "${name}" will be sent to the ${provider} cloud API. For sensitive data, cancel and use a local provider instead.`,
-          { modal: true }, 'Send Sample', 'Cancel');
+          { modal: true }, 'Send Sample');
         if (ok !== 'Send Sample') { panel.setBusy(null); panel.setStatus('Cancelled.'); return; }
       }
     }
@@ -672,9 +738,10 @@ export class DataAnalysisPlugin implements IPlugin {
       panel.setElapsed(secs);
     }, 1000);
 
+    const runSpec = spec ?? defaultSpec(this._theme(), focus);
     let output = '';
     try {
-      const req = this._buildRequest(profile, kind as Deliverable, focus, useScript);
+      const req = this._buildRequest(profile, kind as Deliverable, focus, useScript, undefined, runSpec);
       for await (const chunk of services.ai.stream({ ...req, signal: this._panelAbort.signal })) {
         if (this._panelAbort.signal.aborted) break;
         output += chunk;
@@ -691,21 +758,20 @@ export class DataAnalysisPlugin implements IPlugin {
     const dir  = path.dirname(filePath);
     const stem = path.basename(filePath, path.extname(filePath));
     const { body, lang } = extractCodeBlock(output);
+    const finished = this._finishOutput(body, lang, kind as Deliverable, runSpec);
     let outName: string;
     if (useScript) outName = lang === 'html' ? `${stem}-report.html` : `${stem}-analysis.py`;
     else if (kind === 'report') outName = `${stem}-report.html`;
     else outName = `${stem}-profile.md`;
     const outPath = path.join(dir, outName);
-    await services.workspace.writeFile(outPath, body, /*openAfter*/ !outName.endsWith('.py'));
+    await services.workspace.writeFile(outPath, finished, /*openAfter*/ outName.endsWith('.md'));
 
     panel.setBusy(null);
     panel.setElapsed(0);
 
     if (outName.endsWith('.html')) {
-      panel.setStatus(`✓ Report written: ${outName}`);
-      const open = await vscode.window.showInformationMessage(`Evolve AI: report ready — ${outName}`, 'Open in Browser', 'Reveal');
-      if (open === 'Open in Browser') await vscode.env.openExternal(vscode.Uri.file(outPath));
-      else if (open === 'Reveal') await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outPath));
+      panel.setStatus(`✓ Report written: ${outName} — opening the preview, where you can refine it.`);
+      this._openPreview(services, outPath, filePath, kind as Deliverable, runSpec);
     } else if (outName.endsWith('.py')) {
       // The accurate-report route: offer to RUN it now so the user gets the HTML.
       panel.setStatus(`✓ Script written: ${outName}. Run it to produce the report from your full data.`);
@@ -790,7 +856,13 @@ export class DataAnalysisPlugin implements IPlugin {
       await this._insightsInChat(ws.uri.fsPath, instruction || undefined, remote);
       return;
     }
-    await this._run(services, ws.uri.fsPath, kindPick.detail as Deliverable, instruction || undefined, remote);
+    let spec: ReportSpec | undefined;
+    if (kindPick.detail === 'report') {
+      const chosen = await this._specForRun(instruction || undefined);
+      if (chosen === 'cancelled') return;
+      spec = chosen;
+    }
+    await this._run(services, ws.uri.fsPath, kindPick.detail as Deliverable, instruction || undefined, remote, spec);
   }
 
   /** Fetch a sample from the chosen cloud source, returning a RemoteResult (or null if not connected / cancelled). */
@@ -976,6 +1048,7 @@ export class DataAnalysisPlugin implements IPlugin {
     kind: Deliverable,
     instruction: string | undefined,
     remote?: RemoteResult,
+    spec?: ReportSpec,
   ): Promise<void> {
     const displayName = remote ? remote.label : path.basename(filePath);
     await vscode.window.withProgress(
@@ -1007,9 +1080,9 @@ export class DataAnalysisPlugin implements IPlugin {
             const ok = await vscode.window.showWarningMessage(
               `A sample of "${path.basename(filePath)}" will be sent to the ${provider} cloud API to build the report. ` +
               `For sensitive data, cancel and use a local provider (Ollama/Gemma 4/GLM), or generate a script instead (nothing leaves your machine).`,
-              { modal: true }, 'Send Sample', 'Generate Script Instead', 'Cancel'
+              { modal: true }, 'Send Sample', 'Generate Script Instead'
             );
-            if (ok === 'Cancel' || !ok) return;
+            if (!ok) return;
             if (ok === 'Generate Script Instead') { kind = 'notebook'; }
           }
         }
@@ -1021,7 +1094,8 @@ export class DataAnalysisPlugin implements IPlugin {
         const useScript = remote
           ? kind === 'notebook'
           : (kind === 'notebook' || !isSmallEnoughForDirect(profile));
-        const req = this._buildRequest(profile, kind, instruction, useScript, remote);
+        const runSpec = spec ?? defaultSpec(this._theme(), instruction);
+        const req = this._buildRequest(profile, kind, instruction, useScript, remote, runSpec);
 
         progress.report({ message: useScript ? 'Generating analysis script…' : 'Building report…' });
         let output = '';
@@ -1036,15 +1110,31 @@ export class DataAnalysisPlugin implements IPlugin {
         const outAnchor = remote
           ? path.join(filePath, `${remote.outStem}.data`)
           : filePath;
-        await this._writeOutput(services, outAnchor, kind, useScript, output);
+        await this._writeOutput(services, outAnchor, kind, useScript, output, runSpec);
       }
     );
   }
 
-  private _buildRequest(p: DataProfile, kind: Deliverable, instruction: string | undefined, useScript: boolean, remote?: RemoteResult): AIRequest {
+  private _buildRequest(
+    p: DataProfile,
+    kind: Deliverable,
+    instruction: string | undefined,
+    useScript: boolean,
+    remote?: RemoteResult,
+    spec?: ReportSpec,
+  ): AIRequest {
     const dataMd = profileToMarkdown(p);
     const focus  = instruction ? `\n\nUser's focus: ${instruction}` : '';
     const abspath = p.filePath.replace(/\\/g, '/');
+
+    // The design brief. `report` and `notebook` both end in an HTML report, so
+    // both get one; `profile` produces Markdown/stdout and needs no styling.
+    const wantsDesign = kind === 'report' || kind === 'notebook';
+    const base  = this._theme();
+    const rspec = spec ?? defaultSpec(base, instruction);
+    const theme = themeForSpec(base, rspec);
+    const design = !wantsDesign ? ''
+      : '\n\n' + (useScript ? buildScriptPromptBlock(rspec, theme) : buildReportPromptBlock(rspec, theme));
 
     // For a remote source, the sample below is the data — a script can't re-read
     // a query as a file. A remote notebook should reconstruct the fetch itself.
@@ -1054,14 +1144,13 @@ export class DataAnalysisPlugin implements IPlugin {
           `appropriate client library and credentials from the environment, re-runs the query/fetch, then does ` +
           `a full exploratory analysis and writes an HTML report. Do NOT hard-code credentials.\n\n${SCRIPT_RULES}\n\nOutput one fenced \`\`\`python block only.`
         : kind === 'report'
-        ? `Produce a single self-contained HTML report for this dataset (source: ${remote.label}) — KPI tiles, ` +
-          `appropriate charts, tables, and a short "Key insights" narrative. Ground every number strictly in the ` +
-          `provided rows. Output ONLY the HTML inside one fenced \`\`\`html block.`
+        ? `Produce a single self-contained HTML report for this dataset (source: ${remote.label}). Ground every ` +
+          `number strictly in the provided rows. Output ONLY the HTML inside one fenced \`\`\`html block.`
         : `Produce a concise Markdown profiling summary for this dataset (source: ${remote.label}): per-column ` +
           `type, null counts, numeric stats, distinct/top values, correlations, and data-quality issues. Base ` +
           `everything strictly on the provided rows.`;
       return {
-        messages: [{ role: 'user', content: `${notebookHint}${focus}\n\n---\nDataset (from ${remote.label}):\n${dataMd}` }],
+        messages: [{ role: 'user', content: `${notebookHint}${focus}${design}\n\n---\nDataset (from ${remote.label}):\n${dataMd}` }],
         system: REPORT_SYSTEM,
         instruction: `data ${kind} (remote)`,
         mode: 'new',
@@ -1080,38 +1169,388 @@ export class DataAnalysisPlugin implements IPlugin {
           `and any data-quality issues you can see. Base everything strictly on the provided sample.`;
     } else if (kind === 'report') {
       task = useScript
-        ? `Generate a self-contained Python script that reads the FULL dataset at "${abspath}", ` +
-          `computes the key metrics, and writes a single self-contained HTML report file next to it ` +
-          `(same folder, named "${path.basename(p.filePath, p.ext)}-report.html"). The report must include KPI ` +
-          `tiles, matplotlib charts embedded as base64 <img> tags, tables, and a short "Key insights" section.\n\n${SCRIPT_RULES}\n\n` +
+        ? `Generate a self-contained Python script that reads the FULL dataset at "${abspath}", computes the ` +
+          `metrics the report brief below calls for, and writes one self-contained HTML report file next to it ` +
+          `(same folder, named "${path.basename(p.filePath, p.ext)}-report.html").\n\n${SCRIPT_RULES}\n\n` +
           `Output the script as a fenced \`\`\`python block only.`
-        : `Produce a single self-contained HTML report document for this dataset — KPI/summary tiles, ` +
-          `appropriate charts (inline SVG for simple ones; a light JS approach only if interactivity is truly ` +
-          `needed), data tables where useful, and a short "Key insights" narrative. Ground every number strictly ` +
-          `in the provided sample. Output ONLY the HTML inside a single fenced \`\`\`html block.`;
+        : `Produce a single self-contained HTML report document for this dataset, following the report brief ` +
+          `below exactly. Ground every number strictly in the provided sample. Output ONLY the HTML inside a ` +
+          `single fenced \`\`\`html block.`;
     } else { // notebook
       task =
-        `Generate a reproducible analysis script for this dataset as a clean runnable .py file. It must: read the ` +
+        `Generate a reproducible analysis script for this dataset as a clean runnable .py file. It must read the ` +
         `real file at "${abspath}", do a full exploratory analysis (shape, dtypes, missingness, distributions, ` +
-        `correlations for numeric columns), create the most relevant charts with matplotlib, and end by writing a ` +
-        `self-contained HTML report next to the data.\n\n${SCRIPT_RULES}\n\n` +
+        `correlations for numeric columns), and end by writing the HTML report described in the brief below ` +
+        `next to the data.\n\n${SCRIPT_RULES}\n\n` +
         `Output the script as a single fenced \`\`\`python block only.`;
     }
 
     return {
-      messages: [{ role: 'user', content: `${task}${focus}\n\n---\nDataset:\n${dataMd}` }],
+      messages: [{ role: 'user', content: `${task}${focus}${design}\n\n---\nDataset:\n${dataMd}` }],
       system: REPORT_SYSTEM,
       instruction: `data ${kind}`,
       mode: 'new',
     };
   }
 
+  // ── Theme + spec ──────────────────────────────────────────────────────────
+
+  /** Workspace report theme (evolve-report-theme.json), re-read on each use so
+   *  edits to the file take effect without reloading the window. */
+  private _theme(): ReportTheme {
+    return loadReportTheme(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath);
+  }
+
+  /**
+   * Post-process a generated deliverable so the design holds regardless of what
+   * the model emitted: stamp the stylesheet + runtime into HTML, or prepend the
+   * Python helper preamble to a report-producing script.
+   */
+  private _finishOutput(body: string, lang: string, kind: Deliverable, spec: ReportSpec): string {
+    const theme = themeForSpec(this._theme(), spec);
+    if (lang === 'html' || (!lang && /^\s*<(?:!doctype|html)/i.test(body))) {
+      return injectReportAssets(body, theme);
+    }
+    if (lang === 'python' && (kind === 'report' || kind === 'notebook')) {
+      return injectPythonPreamble(body, theme);
+    }
+    return body;
+  }
+
+  // ══ Report preview + refinement loop ═══════════════════════════════════════
+  //
+  // Generating a report used to be a one-shot: the file hit disk and the only
+  // way to change anything was to start over. The preview keeps the report open
+  // beside a refine box, applies each change to the document that already
+  // exists, and snapshots every round so Undo always works.
+
+  private _preview: {
+    reportPath: string;
+    dataPath?: string;
+    kind: Deliverable;
+    spec: ReportSpec;
+    history: string[];         // previous file contents, newest last
+    abort: AbortController | null;
+  } | null = null;
+
+  private _openPreview(
+    services: IServices,
+    reportPath: string,
+    dataPath: string | undefined,
+    kind: Deliverable,
+    spec: ReportSpec,
+  ): void {
+    // Re-opening the same report keeps its undo history — closing the preview
+    // and coming back should not silently throw away the ability to step back.
+    const history = this._preview?.reportPath === reportPath ? this._preview.history : [];
+    this._preview = { reportPath, dataPath, kind, spec, history, abort: null };
+    const panel = ReportPreviewPanel.show(reportPath, async (msg) => {
+      const st = this._preview;
+      if (!st) return;
+      switch (msg.type) {
+        case 'refine':
+          await this._refine(services, panel, msg.text);
+          break;
+        case 'cancel':
+          st.abort?.abort();
+          break;
+        case 'undo': {
+          const prev = st.history.pop();
+          if (!prev) { panel.setStatus('Nothing to undo.'); return; }
+          await services.workspace.writeFile(st.reportPath, prev, /*openAfter*/ false);
+          panel.setCanUndo(st.history.length > 0);
+          panel.reload();
+          panel.setStatus('Reverted to the previous version.');
+          break;
+        }
+        case 'openExternal':
+          await vscode.env.openExternal(vscode.Uri.file(st.reportPath));
+          break;
+        case 'reveal':
+          await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(st.reportPath));
+          break;
+        case 'openSource':
+          await vscode.window.showTextDocument(
+            await vscode.workspace.openTextDocument(vscode.Uri.file(st.reportPath)), { preview: true });
+          break;
+        case 'regenerate': {
+          if (!st.dataPath) {
+            panel.setStatus('This report was opened on its own — use "Analyze Data & Report" to rebuild it from a dataset.');
+            return;
+          }
+          const next = await this._pickSpec(this._theme(), st.spec.focus, st.spec);
+          if (!next) return;
+          panel.setStatus('Regenerating from the dataset…');
+          await this._run(services, st.dataPath, st.kind, next.focus || undefined, undefined, next);
+          break;
+        }
+      }
+    });
+    panel.setCanUndo(history.length > 0);
+    panel.setStatus('Refine the report in plain language — the change is applied to this document, not regenerated from scratch.');
+  }
+
+  /** Apply one refinement round to the report currently in the preview. */
+  private async _refine(services: IServices, panel: ReportPreviewPanel, instruction: string): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+
+    let current: string;
+    try { current = fs.readFileSync(st.reportPath, 'utf8'); }
+    catch (e) { panel.setStatus(`✗ Could not read the report: ${String(e)}`); return; }
+
+    // Styling is ours, not the model's — the stylesheet is injected, so asking
+    // an LLM to "use dark theme" would only make it write CSS we then discard.
+    // Handle those directives here, instantly and exactly.
+    const style = parseStyleDirective(instruction);
+    if (style.applied) {
+      st.spec = { ...st.spec, ...style.spec };
+      st.history.push(current);
+      const restyled = injectReportAssets(current, themeForSpec(this._theme(), st.spec));
+      await services.workspace.writeFile(st.reportPath, restyled, /*openAfter*/ false);
+      panel.setCanUndo(true);
+      panel.reload();
+      panel.addHistory(instruction);
+      if (!style.remainder) {
+        panel.setStatus(`✓ ${style.summary} — applied instantly (no model call needed).`);
+        return;
+      }
+      panel.setStatus(`✓ ${style.summary}. Now applying the rest…`);
+      current = restyled;
+      instruction = style.remainder;
+    }
+
+    // Base64 charts and the injected stylesheet would dwarf the actual document,
+    // so they are swapped for placeholders and restored after the round-trip.
+    const stashed = stashHeavyParts(current);
+    if (stashed.html.length > 180_000) {
+      panel.setStatus(
+        '✗ This report is too large to refine in one pass. Use "Regenerate from data…" with different options instead.');
+      return;
+    }
+
+    st.abort = new AbortController();
+    const started = Date.now();
+    const tick = setInterval(() => panel.setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    panel.setBusy('Applying your change…');
+
+    let output = '';
+    try {
+      const theme = themeForSpec(this._theme(), st.spec);
+      for await (const chunk of services.ai.stream({
+        messages: [{ role: 'user', content: buildRefinePrompt(stashed.html, instruction, theme) }],
+        system: REPORT_SYSTEM,
+        instruction: 'refine data report',
+        mode: 'edit',
+        signal: st.abort.signal,
+      })) {
+        if (st.abort.signal.aborted) break;
+        output += chunk;
+      }
+    } catch (e) {
+      clearInterval(tick);
+      panel.setBusy(null);
+      panel.setStatus(`✗ ${e instanceof Error ? e.message : String(e)}`);
+      st.abort = null;
+      return;
+    }
+    clearInterval(tick);
+    panel.setBusy(null);
+    panel.setElapsed(0);
+
+    if (st.abort.signal.aborted) { st.abort = null; panel.setStatus('Cancelled — the report is unchanged.'); return; }
+    st.abort = null;
+
+    const { body } = extractCodeBlock(output);
+    // A truncated or off-format response must never overwrite a good report.
+    if (!body.trim() || !/<\/html>/i.test(body) || !/class=["']report["']/.test(body)) {
+      panel.setStatus('✗ The model returned an incomplete document — the report is unchanged. Try a narrower change.');
+      return;
+    }
+
+    let next = restoreHeavyParts(body, stashed);
+    if (hasDanglingImagePlaceholders(next)) {
+      // The model invented a chart placeholder it had no image for; drop those
+      // figures rather than shipping a broken <img>.
+      next = next.replace(/<figure class="chart">(?:(?!<\/figure>)[\s\S])*?EVOLVE_IMG_\d+[\s\S]*?<\/figure>/g, '');
+      next = next.replace(/EVOLVE_IMG_\d+/g, '');
+    }
+    next = injectReportAssets(next, themeForSpec(this._theme(), st.spec));
+
+    st.history.push(current);
+    st.spec = { ...st.spec, notes: [...st.spec.notes, instruction] };
+    await services.workspace.writeFile(st.reportPath, next, /*openAfter*/ false);
+    panel.setCanUndo(true);
+    panel.reload();
+    panel.addHistory(instruction);
+    panel.setStatus('✓ Applied. Keep refining, or Undo to step back.');
+  }
+
+  /** Open an existing HTML report in the preview so it can be refined. */
+  private async _refineExisting(services: IServices, args: unknown[]): Promise<void> {
+    let target = this._preview?.reportPath;
+
+    const fromArgs = args.find(a => a instanceof vscode.Uri) as vscode.Uri | undefined;
+    if (fromArgs?.fsPath.endsWith('.html')) target = fromArgs.fsPath;
+
+    const active = vscode.window.activeTextEditor?.document.uri.fsPath;
+    if (!target && active?.endsWith('.html')) target = active;
+
+    if (!target) {
+      const ws = vscode.workspace.workspaceFolders?.[0];
+      const found = ws ? findReportFiles(ws.uri.fsPath) : [];
+      if (found.length) {
+        const pick = await vscode.window.showQuickPick(
+          found.map(f => ({ label: `$(graph) ${path.relative(ws!.uri.fsPath, f)}`, detail: f })),
+          { placeHolder: 'Which report would you like to refine?' });
+        target = pick?.detail;
+      } else {
+        const picked = await vscode.window.showOpenDialog({
+          canSelectMany: false, openLabel: 'Refine', filters: { 'HTML report': ['html', 'htm'] } });
+        target = picked?.[0]?.fsPath;
+      }
+    }
+    if (!target) return;
+
+    // Reuse the live state when it is the same file, so the spec and the undo
+    // history from this session survive the round trip.
+    const live = this._preview?.reportPath === target ? this._preview : undefined;
+    this._openPreview(
+      services, target,
+      live?.dataPath ?? guessDataSibling(target),
+      live?.kind ?? 'report',
+      live?.spec ?? defaultSpec(this._theme()),
+    );
+  }
+
+  // ── Report customisation ──────────────────────────────────────────────────
+
+  /**
+   * Collect a ReportSpec through quick picks. Returns undefined if the user
+   * backs out. `previous` pre-selects the last run's choices when regenerating.
+   */
+  private async _pickSpec(theme: ReportTheme, focus?: string, previous?: ReportSpec): Promise<ReportSpec | undefined> {
+    const base = previous ?? defaultSpec(theme, focus);
+
+    const archPick = await vscode.window.showQuickPick(
+      REPORT_ARCHETYPES.map(a => ({
+        label: `${a.id === base.archetype ? '$(check)' : '$(file)'} ${a.label}`,
+        description: a.id === base.archetype ? '(current)' : '',
+        detail: a.description,
+        id: a.id,
+      })),
+      { placeHolder: 'What kind of report?', ignoreFocusOut: true },
+    );
+    if (!archPick) return undefined;
+    const arch = archetypeById(archPick.id);
+
+    const sectionPick = await vscode.window.showQuickPick(
+      REPORT_SECTIONS.map(s => ({
+        label: s.label,
+        detail: s.guidance.length > 110 ? `${s.guidance.slice(0, 110)}…` : s.guidance,
+        picked: arch.sections.includes(s.id),
+        id: s.id,
+      })),
+      { placeHolder: 'Sections to include (space to toggle, Enter to confirm)', canPickMany: true, ignoreFocusOut: true },
+    );
+    if (!sectionPick) return undefined;
+
+    const audiencePick = await vscode.window.showQuickPick(
+      [
+        { label: 'Mixed audience', detail: 'Plain-language takeaway first, precise figures after', id: 'mixed' },
+        { label: 'Executives',     detail: 'Business language only — no jargon, no column names', id: 'exec' },
+        { label: 'Analysts',       detail: 'Precise statistics, exact column names, coefficients', id: 'analyst' },
+        { label: 'Data engineers', detail: 'Schema, types, cardinality, null behaviour, pipeline risks', id: 'engineer' },
+      ],
+      { placeHolder: 'Who is this report for?', ignoreFocusOut: true },
+    );
+    if (!audiencePick) return undefined;
+
+    const lookPick = await vscode.window.showQuickPick(
+      [
+        { label: 'Match the reader\'s system theme', detail: 'Light or dark automatically, with a toggle in the report', id: 'auto' },
+        { label: 'Always light', detail: 'Best for printing and PDF export', id: 'light' },
+        { label: 'Always dark',  detail: 'Pinned dark, regardless of the reader\'s settings', id: 'dark' },
+      ],
+      { placeHolder: 'Appearance', ignoreFocusOut: true },
+    );
+    if (!lookPick) return undefined;
+
+    const accent = await vscode.window.showInputBox({
+      prompt: 'Accent colour (hex) — drives links, KPI accents and the first chart series',
+      value: base.accent,
+      ignoreFocusOut: true,
+      validateInput: v => !v || /^#[0-9a-fA-F]{3,8}$/.test(v.trim()) ? undefined : 'Enter a hex colour like #4f6df5',
+    });
+    if (accent === undefined) return undefined;
+
+    const title = await vscode.window.showInputBox({
+      prompt: 'Report title (optional)', value: base.title, ignoreFocusOut: true,
+      placeHolder: 'Leave blank to name it after the dataset',
+    });
+    if (title === undefined) return undefined;
+
+    const sections = sectionPick.map(s => s.id);
+    return {
+      archetype: arch.id,
+      audience:  audiencePick.id as Audience,
+      tone:      arch.tone,
+      sections:  sections.length ? sections : arch.sections,
+      maxCharts: Math.min(theme.maxCharts, arch.maxCharts),
+      mode:      lookPick.id as ThemeMode,
+      accent:    accent.trim() || theme.accent,
+      title:     title.trim(),
+      focus:     focus ?? base.focus,
+      notes:     [],
+    };
+  }
+
+  /** Ask whether to use defaults or customise, then build the spec. */
+  private async _specForRun(focus?: string): Promise<ReportSpec | 'cancelled'> {
+    const theme = this._theme();
+    const arch = archetypeById(theme.defaultArchetype);
+    const choice = await vscode.window.showQuickPick(
+      [
+        { label: `$(zap) Standard report`, detail: `${arch.label} — ${arch.description}`, id: 'quick' },
+        { label: '$(settings-gear) Customise…', detail: 'Choose the format, sections, audience, appearance and title', id: 'custom' },
+      ],
+      { placeHolder: 'Report options', ignoreFocusOut: true },
+    );
+    if (!choice) return 'cancelled';
+    if (choice.id === 'quick') return defaultSpec(theme, focus);
+    const spec = await this._pickSpec(theme, focus);
+    return spec ?? 'cancelled';
+  }
+
+  /** Scaffold evolve-report-theme.json so brand styling applies to every report. */
+  private async _createTheme(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) { vscode.window.showWarningMessage('Open a folder first — the theme file lives in your workspace.'); return; }
+    const outPath = path.join(ws.uri.fsPath, THEME_FILENAME);
+    if (fs.existsSync(outPath)) {
+      const over = await vscode.window.showWarningMessage(
+        `${THEME_FILENAME} already exists.`, 'Open Existing', 'Overwrite');
+      if (over !== 'Overwrite') {
+        if (over === 'Open Existing') {
+          await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(outPath)));
+        }
+        return;
+      }
+    }
+    await vscode.workspace.fs.writeFile(vscode.Uri.file(outPath), new TextEncoder().encode(THEME_TEMPLATE));
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(outPath)));
+    vscode.window.showInformationMessage(
+      `Created ${THEME_FILENAME}. Set your brand colours here and every report picks them up — no need to ask for them each time.`);
+  }
+
   /** Write the AI output to a sensibly-named file next to the source data, then open it. */
-  private async _writeOutput(services: IServices, dataPath: string, kind: Deliverable, useScript: boolean, raw: string): Promise<void> {
+  private async _writeOutput(services: IServices, dataPath: string, kind: Deliverable, useScript: boolean, raw: string, spec?: ReportSpec): Promise<void> {
     const dir  = path.dirname(dataPath);
     const stem = path.basename(dataPath, path.extname(dataPath));
 
     const { body, lang } = extractCodeBlock(raw);
+    const runSpec = spec ?? defaultSpec(this._theme());
+    const finished = this._finishOutput(body, lang, kind, runSpec);
 
     let outName: string;
     if (useScript || kind === 'notebook') {
@@ -1126,18 +1565,12 @@ export class DataAnalysisPlugin implements IPlugin {
     }
 
     const outPath = path.join(dir, outName);
-    await services.workspace.writeFile(outPath, body, /*openAfter*/ true);
+    // An HTML report opens in the preview panel, not the editor — nobody reads
+    // a report as raw markup, and the preview is where refinement happens.
+    await services.workspace.writeFile(outPath, finished, /*openAfter*/ !outName.endsWith('.html'));
 
-    // For an HTML report, offer to open it in the browser too.
     if (outName.endsWith('.html')) {
-      const open = await vscode.window.showInformationMessage(
-        `Evolve AI: report written to ${outName}`, 'Open in Browser', 'Reveal'
-      );
-      if (open === 'Open in Browser') {
-        await vscode.env.openExternal(vscode.Uri.file(outPath));
-      } else if (open === 'Reveal') {
-        await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(outPath));
-      }
+      this._openPreview(services, outPath, dataPath, kind, runSpec);
     } else if (outName.endsWith('.py')) {
       const run = await vscode.window.showInformationMessage(
         `Evolve AI: analysis script written to ${outName}. Run it to produce the report from your full dataset.`,
@@ -1308,23 +1741,46 @@ export class DataAnalysisPlugin implements IPlugin {
 
     // 3) Build the request and generate.
     const useScript = remote ? (kind === 'notebook') : (kind === 'notebook' || !isSmallEnoughForDirect(profile));
-    const req = this._buildRequest(profile, kind as Deliverable, step.focus, useScript, remote);
+    const spec = this._specFromStep(step);
+    const req = this._buildRequest(profile, kind as Deliverable, step.focus, useScript, remote, spec);
     const output = await services.ai.send(req);
     if (!output.trim()) throw new Error('empty AI response');
 
     // 4) Write the deliverable into the pipeline output folder (headless — no prompts).
-    return [await this._writeStepOutput(services, outDir, stem, kind as Deliverable, useScript, output)];
+    return [await this._writeStepOutput(services, outDir, stem, kind as Deliverable, useScript, output, spec)];
+  }
+
+  /** A pipeline step's `report` block layered over the workspace theme defaults. */
+  private _specFromStep(step: PipelineStep): ReportSpec {
+    const theme = this._theme();
+    const base = defaultSpec(theme, step.focus);
+    const r = step.report;
+    if (!r) return base;
+    const arch = r.archetype ? archetypeById(r.archetype) : archetypeById(base.archetype);
+    const sections = (r.sections ?? []).filter(s => REPORT_SECTIONS.some(x => x.id === s));
+    return {
+      ...base,
+      archetype: arch.id,
+      tone:      arch.tone,
+      audience:  r.audience ?? base.audience,
+      sections:  sections.length ? sections : arch.sections,
+      maxCharts: r.maxCharts ?? Math.min(theme.maxCharts, arch.maxCharts),
+      mode:      r.theme ?? base.mode,
+      accent:    r.accent ?? base.accent,
+      title:     r.title ?? base.title,
+    };
   }
 
   /** Headless output writer for pipeline steps — same naming as _writeOutput, no dialogs. */
-  private async _writeStepOutput(services: IServices, outDir: string, stem: string, kind: Deliverable, useScript: boolean, raw: string): Promise<string> {
+  private async _writeStepOutput(services: IServices, outDir: string, stem: string, kind: Deliverable, useScript: boolean, raw: string, spec?: ReportSpec): Promise<string> {
     const { body, lang } = extractCodeBlock(raw);
+    const finished = this._finishOutput(body, lang, kind, spec ?? defaultSpec(this._theme()));
     let outName: string;
     if (useScript || kind === 'notebook') outName = lang === 'html' ? `${stem}-report.html` : `${stem}-analysis.py`;
     else if (kind === 'report') outName = `${stem}-report.html`;
     else outName = `${stem}-profile.md`;
     const outPath = path.join(outDir, outName);
-    await services.workspace.writeFile(outPath, body, /*openAfter*/ false);
+    await services.workspace.writeFile(outPath, finished, /*openAfter*/ false);
     return outPath;
   }
 
@@ -1415,6 +1871,16 @@ interface PipelineStep {
   source: PipelineSource;
   analysis?: 'insights' | 'report' | 'notebook' | 'profile';
   focus?: string;
+  /** Optional per-step report shape; anything omitted falls back to the theme. */
+  report?: {
+    archetype?: string;
+    audience?:  Audience;
+    sections?:  string[];
+    maxCharts?: number;
+    theme?:     ThemeMode;
+    accent?:    string;
+    title?:     string;
+  };
 }
 
 interface Pipeline {
@@ -1427,29 +1893,91 @@ function slug(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'step';
 }
 
-/** Strip `//` line comments (JSONC) so the commented template parses. Quote-aware
- *  so `//` inside string values (e.g. https:// URLs) is preserved. */
-function stripJsonComments(src: string): string {
-  let out = '';
-  let inStr = false, esc = false;
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i];
-    if (inStr) {
-      out += ch;
-      if (esc) esc = false;
-      else if (ch === '\\') esc = true;
-      else if (ch === '"') inStr = false;
-      continue;
-    }
-    if (ch === '"') { inStr = true; out += ch; continue; }
-    if (ch === '/' && src[i + 1] === '/') {           // line comment → skip to EOL
-      while (i < src.length && src[i] !== '\n') i++;
-      out += '\n';
-      continue;
-    }
-    out += ch;
+/**
+ * Recognise styling instructions in a refinement request. The stylesheet is
+ * injected by the extension, not written by the model, so "use dark theme" or
+ * "make the accent green" is a deterministic local change — sending it to an
+ * AI would only produce CSS that then gets discarded.
+ *
+ * Returns the spec overrides to apply plus whatever text is left for the model.
+ */
+export function parseStyleDirective(text: string): {
+  applied: boolean;
+  spec: Partial<ReportSpec>;
+  summary: string;
+  remainder: string;
+} {
+  const spec: Partial<ReportSpec> = {};
+  const summary: string[] = [];
+  let rest = text;
+
+  const take = (re: RegExp): boolean => {
+    const m = rest.match(re);
+    if (!m) return false;
+    rest = rest.replace(re, ' ');
+    return true;
+  };
+
+  if (take(/\b(?:use|switch to|make it|in)?\s*\b(?:a\s+)?dark\s*(?:theme|mode|colou?rs?)\b/i)) {
+    spec.mode = 'dark'; summary.push('switched to dark');
+  } else if (take(/\b(?:use|switch to|make it|in)?\s*\b(?:a\s+)?light\s*(?:theme|mode|colou?rs?)\b/i)) {
+    spec.mode = 'light'; summary.push('switched to light');
+  } else if (take(/\b(?:follow|match|use)\s+(?:the\s+)?(?:reader'?s?|system|os|auto)\s*(?:theme|mode)?\b/i)) {
+    spec.mode = 'auto'; summary.push('following the system theme');
   }
-  return out;
+
+  const hex = rest.match(/#[0-9a-fA-F]{6}\b/);
+  if (hex) {
+    spec.accent = hex[0];
+    rest = rest.replace(hex[0], ' ');
+    summary.push(`accent set to ${hex[0]}`);
+  }
+
+  const applied = summary.length > 0;
+  // What's left only earns a model call if it still says something. Styling
+  // vocabulary and filler words don't count — "make the accent #1f7a5a" is
+  // fully handled here and must not trigger a pointless round-trip.
+  const significant = rest
+    .replace(/\b(?:use|make|set|change|switch|to|the|it|its|please|and|a|an|in|with|for)\b/gi, ' ')
+    .replace(/\b(?:accent|colou?rs?|theme|mode|dark|light|brand|primary|appearance|style|styling|palette)\b/gi, ' ')
+    .replace(/[^\w]+/g, ' ')
+    .trim();
+
+  return { applied, spec, summary: summary.join(' and '), remainder: significant.length >= 4 ? rest.trim() : '' };
+}
+
+/** HTML reports already generated in the workspace, for the "refine" picker. */
+function findReportFiles(wsPath: string, limit = 50): string[] {
+  const out: string[] = [];
+  const walk = (dir: string, depth: number) => {
+    if (out.length >= limit || depth > 4) return;
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (out.length >= limit) return;
+      if (e.isDirectory()) {
+        if (SKIP_DIRS.has(e.name) || e.name.startsWith('.')) continue;
+        walk(path.join(dir, e.name), depth + 1);
+      } else if (/\.html?$/i.test(e.name)) {
+        out.push(path.join(dir, e.name));
+      }
+    }
+  };
+  walk(wsPath, 0);
+  // Reports we generated are named "<stem>-report.html" — surface those first.
+  return out.sort((a, b) => Number(/-report\.html?$/i.test(b)) - Number(/-report\.html?$/i.test(a)));
+}
+
+/** For "<stem>-report.html", find the dataset it came from so Regenerate works. */
+function guessDataSibling(reportPath: string): string | undefined {
+  const m = path.basename(reportPath).match(/^(.*)-report\.html?$/i);
+  if (!m) return undefined;
+  const dir = path.dirname(reportPath);
+  for (const ext of DATA_EXTENSIONS.concat('.json')) {
+    const candidate = path.join(dir, m[1] + ext);
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return undefined;
 }
 
 const PIPELINE_TEMPLATE = `{
