@@ -442,7 +442,6 @@ export class GitConnectOrchestrator {
       `Paste the SSH public key (already on your clipboard) into ${choice.host}'s "Add SSH key" page that just opened, then click "I've added it" below.`,
       { modal: true },
       "I've added it",
-      'Cancel',
     );
     if (ack !== "I've added it") throw new Error('Cancelled before SSH key was added.');
     if (signal.aborted)          throw new Error('Cancelled.');
@@ -472,7 +471,6 @@ export class GitConnectOrchestrator {
       'Complete `gh auth login` in the terminal that just opened, then click "I\'m done" to continue.',
       { modal: true },
       "I'm done",
-      'Cancel',
     );
     if (ack !== "I'm done") throw new Error('Cancelled before gh auth login completed.');
     if (signal.aborted)     throw new Error('Cancelled.');

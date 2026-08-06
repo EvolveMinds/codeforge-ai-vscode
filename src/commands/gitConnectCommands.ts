@@ -92,7 +92,7 @@ export class GitConnectCommands {
     const summary = this._inspector.summary(profile);
     const intro = `Current status: ${summary}\n\nNext step: ${this._humanLabel(next)}.\n\nThe wizard will walk you through it.`;
     const proceed = await vscode.window.showInformationMessage(
-      intro, { modal: true }, 'Start wizard', 'Cancel',
+      intro, { modal: true }, 'Start wizard',
     );
     if (proceed !== 'Start wizard') return;
 

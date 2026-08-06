@@ -349,21 +349,13 @@ export class CoreCommands {
       await this._runColibriSetup(cfg);
     } else if (provider === 'anthropic') {
       // [SEC-6] Inform user that code will be sent to cloud API
-      const consent = await vscode.window.showWarningMessage(
-        'Evolve AI will send your code and workspace context to the Anthropic API over HTTPS for processing. Continue?',
-        { modal: true }, 'I Understand', 'Cancel'
-      );
-      if (consent !== 'I Understand') return;
+      if (!await this._confirmCloudConsent('Anthropic API')) return;
       // [FIX-4] Store in SecretStorage, not settings
       const key = await vscode.window.showInputBox({ prompt: 'Anthropic API key', password: true });
       if (key) await this._svc.ai.storeSecret(SECRET_ANTHROPIC, key);
     } else if (provider === 'openai') {
       // [SEC-6] Inform user that code will be sent to cloud API
-      const consent = await vscode.window.showWarningMessage(
-        'Evolve AI will send your code and workspace context to the OpenAI API over HTTPS for processing. Continue?',
-        { modal: true }, 'I Understand', 'Cancel'
-      );
-      if (consent !== 'I Understand') return;
+      if (!await this._confirmCloudConsent('OpenAI API')) return;
       // [FIX-4] Store in SecretStorage
       const key = await vscode.window.showInputBox({ prompt: 'OpenAI API key', password: true });
       if (key) await this._svc.ai.storeSecret(SECRET_OPENAI, key);
@@ -380,11 +372,7 @@ export class CoreCommands {
       if (model) await cfg.update('openaiModel', model, vscode.ConfigurationTarget.Global);
     } else if (provider === 'gemini') {
       // [SEC-6] Inform user that code will be sent to cloud API
-      const consent = await vscode.window.showWarningMessage(
-        'Evolve AI will send your code and workspace context to the Google Gemini API over HTTPS for processing. Continue?',
-        { modal: true }, 'I Understand', 'Cancel'
-      );
-      if (consent !== 'I Understand') return;
+      if (!await this._confirmCloudConsent('Google Gemini API')) return;
       // [FIX-4] Store in SecretStorage
       const key = await vscode.window.showInputBox({ prompt: 'Google Gemini API key (from aistudio.google.com/apikey)', password: true });
       if (key) await this._svc.ai.storeSecret(SECRET_GEMINI, key);
@@ -407,11 +395,7 @@ export class CoreCommands {
       }
     } else if (provider === 'zai') {
       // [SEC-6] Inform user that code will be sent to cloud API
-      const consent = await vscode.window.showWarningMessage(
-        'Evolve AI will send your code and workspace context to the GLM (Z.ai) API over HTTPS for processing. Continue?',
-        { modal: true }, 'I Understand', 'Cancel'
-      );
-      if (consent !== 'I Understand') return;
+      if (!await this._confirmCloudConsent('GLM (Z.ai) API')) return;
       // [FIX-4] Store in SecretStorage
       const key = await vscode.window.showInputBox({ prompt: 'GLM (Z.ai) API key (from z.ai/manage-apikey/apikey-list)', password: true });
       if (key) await this._svc.ai.storeSecret(SECRET_ZAI, key);
@@ -429,11 +413,7 @@ export class CoreCommands {
       }
     } else if (provider === 'huggingface') {
       // [SEC-6] Inform user that code will be sent to cloud API
-      const consent = await vscode.window.showWarningMessage(
-        'Evolve AI will send your code and workspace context to the Hugging Face Inference API over HTTPS for processing. Continue?',
-        { modal: true }, 'I Understand', 'Cancel'
-      );
-      if (consent !== 'I Understand') return;
+      if (!await this._confirmCloudConsent('Hugging Face Inference API')) return;
       const key = await vscode.window.showInputBox({ prompt: 'Hugging Face API token (from hf.co/settings/tokens)', password: true });
       if (key) await this._svc.ai.storeSecret(SECRET_HUGGINGFACE, key);
       // Let user pick a model
@@ -676,6 +656,20 @@ export class CoreCommands {
     await this._handleSetupResult(result, rec.variant);
   }
 
+  /**
+   * [SEC-6] Cloud-provider consent gate. Returns false when the user declines.
+   *
+   * Modal dialogs already render VS Code's own Cancel button, so the action list
+   * holds only the affirmative choice — passing 'Cancel' here would show two.
+   */
+  private async _confirmCloudConsent(apiName: string): Promise<boolean> {
+    const consent = await vscode.window.showWarningMessage(
+      `Evolve AI will send your code and workspace context to the ${apiName} over HTTPS for processing. Continue?`,
+      { modal: true }, 'I Understand'
+    );
+    return consent === 'I Understand';
+  }
+
   /** Ask explicit consent before Ollama install/upgrade unless allowAutoInstall is enabled. */
   private async _confirmInstallIfNeeded(
     plan: { steps: { id: string; label: string }[] },
@@ -689,7 +683,7 @@ export class CoreCommands {
       `This will: ${installStep.label}. Ollama is downloaded from ollama.com (~250MB). Continue?\n\n` +
       `Tip: enable \`aiForge.allowAutoInstall\` in settings to skip this prompt for future setups.`,
       { modal: true },
-      'Yes, install Ollama', 'Cancel'
+      'Yes, install Ollama'
     );
     return confirm === 'Yes, install Ollama';
   }
@@ -751,7 +745,7 @@ export class CoreCommands {
     const choice = await vscode.window.showWarningMessage(
       detail,
       { modal: true },
-      'Switch to Cloud Provider', 'Use Offline Mode', 'Cancel'
+      'Switch to Cloud Provider', 'Use Offline Mode'
     );
 
     if (choice === 'Switch to Cloud Provider') {

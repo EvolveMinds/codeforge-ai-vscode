@@ -94,7 +94,7 @@ export class CICDSetupCommands {
     let summary = this._inspector.summary(profile);
 
     const intro = `Detected stack: ${summary}\n\nThe wizard will:\n1. Ask which CI/CD platform to use\n2. Ask what kind of pipeline (test-only / + deploy)\n3. Use AI to generate a starter file tailored to your stack\n4. Write it to your repo (you review + commit)\n\nTokens are not requested. The wizard never modifies live infrastructure.`;
-    const proceed = await vscode.window.showInformationMessage(intro, { modal: true }, 'Start wizard', 'Cancel');
+    const proceed = await vscode.window.showInformationMessage(intro, { modal: true }, 'Start wizard');
     if (proceed !== 'Start wizard') return;
 
     // v2.3.0 — monorepo support: if multiple subprojects detected, ask which
@@ -245,7 +245,6 @@ export class CICDSetupCommands {
         `You're on protected branch \`${branch}\`. Stage & Commit refuses to commit straight to it. Create a feature branch \`${suggested}\` and switch to it?`,
         { modal: true },
         'Create branch',
-        'Cancel',
       );
       if (ans !== 'Create branch') return;
       const r = await runCommand('git', ['checkout', '-b', suggested], { cwd: ws, timeoutMs: 5000 });
@@ -540,7 +539,7 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
     if (subprojectSlug) {
       const warn = this._orchestrator.pipelinePathWarning(platform, subprojectSlug);
       if (warn) {
-        const proceed = await vscode.window.showWarningMessage(warn, { modal: true }, 'Continue anyway', 'Cancel');
+        const proceed = await vscode.window.showWarningMessage(warn, { modal: true }, 'Continue anyway');
         if (proceed !== 'Continue anyway') return null;
       }
     }
@@ -553,7 +552,7 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
       const ans = await vscode.window.showWarningMessage(
         `${targetPath} already exists. Overwrite it?`,
         { modal: true },
-        'Overwrite', 'Cancel',
+        'Overwrite',
       );
       if (ans !== 'Overwrite') return null;
       overwrite = true;
@@ -658,7 +657,6 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
         { modal: true },
         'Append our check',
         'Replace it',
-        'Cancel',
       );
       if (pick === 'Append our check') conflictAction = 'append';
       else if (pick === 'Replace it')  conflictAction = 'replace';
@@ -670,7 +668,6 @@ Return ONLY the commit message line. No explanation, no fences, no body.`,
         `Husky detected. Install will write the check into ${state.huskyPath} so Husky doesn't overwrite it.`,
         { modal: true },
         'Continue',
-        'Cancel',
       );
       if (proceed !== 'Continue') return;
     }

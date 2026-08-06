@@ -170,7 +170,7 @@ export class WorkspaceService implements IWorkspaceService {
       ).join('\n');
       const ans  = await vscode.window.showInformationMessage(
         `Evolve AI will create/update ${files.length} file(s):\n${list}`,
-        { modal: true }, 'Apply All', 'Cancel'
+        { modal: true }, 'Apply All'
       );
       if (ans !== 'Apply All') return;
     }
