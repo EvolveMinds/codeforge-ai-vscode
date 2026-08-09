@@ -46,6 +46,8 @@ export interface ReportOptionsCatalog {
   sections:   Array<{ id: string; label: string }>;
   audiences:  Array<{ id: string; label: string }>;
   defaults:   PanelReportOptions;
+  /** Block kinds for the outline builder's "add block" menu. */
+  blockKinds: BlockKindOption[];
 }
 
 /** Messages the panel posts to its host handler. */
@@ -59,9 +61,35 @@ export type PanelMessage =
   | { type: 'setDeliverable'; deliverable: string }
   | { type: 'setFocus'; focus: string }
   | { type: 'setReportOptions'; options: PanelReportOptions }
+  /** The authored block outline + data-prep steps, pushed on every change. */
+  | { type: 'setBuilder'; outline: unknown[]; prep: PanelPrep }
+  | { type: 'useTemplate' }
   | { type: 'editTheme' }
   | { type: 'analyze' }
   | { type: 'cancelAnalyze' };
+
+/** Data-prep steps as collected by the panel. */
+export interface PanelPrep {
+  filters: Array<{ column: string; op: string; value: string; value2?: string }>;
+  derived: Array<{ name: string; expression: string }>;
+  excludeColumns: string[];
+  dedupe: boolean;
+  limit: number;
+}
+
+/** A column offered in the builder's pickers, from the sniffed schema. */
+export interface SchemaColumn {
+  name: string;
+  /** integer | number | date | boolean | string | empty */
+  type: string;
+}
+
+/** The block kinds offered in the "add block" menu, from core/reportBlocks.ts. */
+export interface BlockKindOption {
+  type: string;
+  label: string;
+  icon: string;
+}
 
 export class DataAnalysisPanel {
   private static _instance: DataAnalysisPanel | null = null;
@@ -84,10 +112,25 @@ export class DataAnalysisPanel {
   private _disposed = false;
   private _files: WorkspaceDataFile[] = [];
   private _catalog: ReportOptionsCatalog = {
-    archetypes: [], sections: [], audiences: [],
+    archetypes: [], sections: [], audiences: [], blockKinds: [],
     defaults: { archetype: '', audience: '', sections: [], mode: 'auto', accent: '#4f6df5', title: '' },
   };
   private _onMessage: (msg: PanelMessage) => void | Promise<void> = () => {};
+
+  /**
+   * Push the sniffed schema so the builder's pickers offer real column names
+   * instead of asking the user to type them. Called whenever a file is chosen.
+   */
+  setSchema(columns: SchemaColumn[]): void {
+    if (this._disposed) return;
+    this._panel.webview.postMessage({ type: 'schema', columns });
+  }
+
+  /** Load a saved template's outline + prep into the builder controls. */
+  loadBuilder(outline: unknown[], prep: PanelPrep | unknown): void {
+    if (this._disposed) return;
+    this._panel.webview.postMessage({ type: 'loadBuilder', outline, prep });
+  }
 
   private constructor() {
     this._panel = vscode.window.createWebviewPanel(
@@ -165,6 +208,10 @@ export class DataAnalysisPanel {
     // chips when the format changes.
     const archData = JSON.stringify(
       cat.archetypes.map(a => ({ id: a.id, sections: a.sections, description: a.description })));
+    const blockKindOptions = cat.blockKinds
+      .map(k => `<option value="${escAttr(k.type)}">${escHtml(`${k.icon}  ${k.label}`)}</option>`)
+      .join('');
+    const blockIcons = Object.fromEntries(cat.blockKinds.map(k => [k.type, k.icon]));
 
     const nonce = 'a1b2c3d4e5';
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
@@ -238,6 +285,59 @@ export class DataAnalysisPanel {
       .themelink { background: none; border: none; padding: 0; font-size: 11px; cursor: pointer;
         color: var(--vscode-textLink-foreground); }
       .themelink:hover { text-decoration: underline; }
+      /* Block outline builder + data prep */
+      details { margin-top: 12px; border-top: 1px solid var(--vscode-widget-border, #8883); padding-top: 9px; }
+      details > summary {
+        cursor: pointer; font-size: 12px; font-weight: 600; color: var(--vscode-foreground);
+        list-style: none; display: flex; align-items: center; gap: 8px;
+      }
+      details > summary::-webkit-details-marker { display: none; }
+      details > summary::before { content: "▸"; color: var(--vscode-descriptionForeground); font-size: 10px; }
+      details[open] > summary::before { content: "▾"; }
+      .tag {
+        font-size: 10.5px; font-weight: 500; padding: 1px 7px; border-radius: 999px;
+        background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
+      }
+      .tag:empty { display: none; }
+      .blk {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        padding: 7px 9px; margin-top: 6px; border-radius: 7px;
+        background: var(--vscode-list-hoverBackground);
+        border: 1px solid var(--vscode-widget-border, #8883);
+      }
+      .blk .ico { font-size: 12px; opacity: .8; width: 14px; text-align: center; }
+      .blk .name { font-size: 12px; font-weight: 600; min-width: 74px; }
+      .blk select, .blk input {
+        padding: 3px 6px; font: inherit; font-size: 11.5px; border-radius: 5px; max-width: 150px;
+        background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+        border: 1px solid var(--vscode-input-border, #8884);
+      }
+      .blk input[type=number] { width: 62px; }
+      .blk .grow { flex: 1 1 auto; }
+      .blk .ops { display: flex; gap: 2px; margin-left: auto; }
+      .blk .ops button {
+        background: none; border: none; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 4px;
+        color: var(--vscode-descriptionForeground);
+      }
+      .blk .ops button:hover { background: var(--vscode-toolbar-hoverBackground, #8882); color: var(--vscode-foreground); }
+      .blk .ops button.del:hover { color: var(--vscode-errorForeground, #f14c4c); }
+      .addrow { display: flex; align-items: center; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+      .addrow .sep { flex: 1 1 auto; }
+      .mini {
+        padding: 4px 10px; font-size: 11.5px; border-radius: 6px; cursor: pointer;
+        background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
+        border: 1px solid transparent;
+      }
+      .mini:hover { filter: brightness(1.12); }
+      .addrow select, .addrow input[type=number] {
+        padding: 4px 8px; font: inherit; font-size: 11.5px; border-radius: 6px;
+        background: var(--vscode-input-background); color: var(--vscode-input-foreground);
+        border: 1px solid var(--vscode-input-border, #8884);
+      }
+      .addrow input[type=number] { width: 74px; }
+      .chk { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--vscode-descriptionForeground); }
+      .tplrow { margin-top: 12px; }
+      .coltype { opacity: .55; font-size: 10px; margin-left: 3px; }
     </style></head><body>
       <h1>📊 Data Analysis</h1>
       <p class="sub">Point Evolve AI at your data — a file anywhere on your machine, a file in this project, or a database / cloud source — then pick what to build.</p>
@@ -293,6 +393,45 @@ export class DataAnalysisPanel {
         <div class="optrow">
           <label for="title">Title</label>
           <input id="title" type="text" placeholder="Leave blank to name it after the dataset" />
+        </div>
+
+        <details id="builder">
+          <summary>Build the report block by block <span class="tag" id="blockcount"></span></summary>
+          <p class="opthint">
+            Compose the exact report you want. Anything left on <em>auto</em> is still chosen for you —
+            pin only what you care about. This replaces the section chips above.
+          </p>
+          <div id="outline"></div>
+          <div class="addrow">
+            <select id="addkind">${blockKindOptions}</select>
+            <button class="mini" id="addblock">+ Add block</button>
+            <span class="sep"></span>
+            <button class="mini" id="clearblocks">Use sections instead</button>
+          </div>
+        </details>
+
+        <details id="prepbox">
+          <summary>Prepare the data first <span class="tag" id="prepcount"></span></summary>
+          <p class="opthint">
+            Filters run for real before anything is analysed — deterministically in the generated script,
+            and on the sample for small files. The report discloses them so a filtered figure is never
+            read as a total.
+          </p>
+          <div id="filters"></div>
+          <div class="addrow">
+            <button class="mini" id="addfilter">+ Add filter</button>
+            <button class="mini" id="addderived">+ Derived column</button>
+            <span class="sep"></span>
+            <label class="chk"><input type="checkbox" id="dedupe" /> Drop duplicate rows</label>
+            <label class="chk">Row limit <input type="number" id="rowlimit" min="0" step="100" placeholder="0" /></label>
+          </div>
+          <div id="derived"></div>
+          <div class="optrow"><label>Exclude columns</label></div>
+          <div class="secs" id="excols"><span class="opthint">Choose a data file to list its columns.</span></div>
+        </details>
+
+        <div class="optrow tplrow">
+          <button class="mini" id="usetpl">↺ Start from a saved template…</button>
         </div>
       </div>
 
@@ -379,6 +518,240 @@ export class DataAnalysisPanel {
         document.getElementById('edittheme').onclick = () => post({ type:'editTheme' });
         describeArch();
 
+        // ══ Block outline builder ═══════════════════════════════════════════
+        // The panel owns the outline and prep; both travel with the run.
+        let outline = [];
+        let columns = [];                 // [{name, type}] from the sniffed schema
+        let filters = [], derived = [];
+        let nextId = 1;
+
+        const NUMERIC = ['integer', 'number'];
+        const AGGS = ['auto','sum','mean','median','count','min','max','nunique'];
+        const CHARTS = ['auto','bar','barh','line','area','scatter','pie','histogram','box'];
+        const ICONS = ${JSON.stringify(blockIcons)};
+
+        const el = (tag, cls, text) => {
+          const n = document.createElement(tag);
+          if (cls) n.className = cls;
+          if (text != null) n.textContent = text;
+          return n;
+        };
+        function select(options, value, onChange, title) {
+          const s = document.createElement('select');
+          if (title) s.title = title;
+          options.forEach(o => {
+            const opt = document.createElement('option');
+            opt.value = typeof o === 'string' ? o : o.v;
+            opt.textContent = typeof o === 'string' ? o : o.t;
+            s.appendChild(opt);
+          });
+          s.value = value;
+          s.onchange = () => { onChange(s.value); pushBuilder(); };
+          return s;
+        }
+        const colOpts = (extra) => (extra || []).concat(columns.map(c => ({ v: c.name, t: c.name })));
+        const numericColOpts = (extra) =>
+          (extra || []).concat(columns.filter(c => NUMERIC.indexOf(c.type) !== -1).map(c => ({ v: c.name, t: c.name })));
+
+        function renderOutline() {
+          const host = document.getElementById('outline');
+          host.textContent = '';
+          if (!outline.length) {
+            host.appendChild(el('p', 'opthint', 'No blocks yet — the section chips above decide the report. Add a block to take over.'));
+          }
+          outline.forEach((b, i) => {
+            const row = el('div', 'blk');
+            row.appendChild(el('span', 'ico', ICONS[b.type] || '▪'));
+            row.appendChild(el('span', 'name', b.type));
+
+            if (b.type === 'chart') {
+              row.appendChild(select(
+                [{v:'',t:'measure: auto'},{v:'count',t:'row count'}].concat(numericColOpts()),
+                b.measure, v => b.measure = v, 'What to measure'));
+              row.appendChild(select(
+                [{v:'',t:'by: auto'}].concat(colOpts()),
+                b.dimension, v => b.dimension = v, 'Split by'));
+              row.appendChild(select(AGGS.map(a => ({v:a,t:a})), b.agg, v => b.agg = v, 'Aggregation'));
+              row.appendChild(select(CHARTS.map(c => ({v:c,t:c})), b.chart, v => b.chart = v, 'Chart type'));
+              const top = document.createElement('input');
+              top.type = 'number'; top.min = '0'; top.value = b.topN; top.title = 'Top N groups (0 = all)';
+              top.oninput = () => { b.topN = parseInt(top.value || '0', 10) || 0; pushBuilder(); };
+              row.appendChild(top);
+            } else if (b.type === 'table') {
+              row.appendChild(select([{v:'',t:'sort: auto'}].concat(colOpts()), b.sortBy, v => b.sortBy = v, 'Sort by'));
+              row.appendChild(select([{v:'desc',t:'desc'},{v:'asc',t:'asc'}], b.sortDir, v => b.sortDir = v));
+              const mx = document.createElement('input');
+              mx.type = 'number'; mx.min = '1'; mx.value = b.maxRows; mx.title = 'Maximum rows';
+              mx.oninput = () => { b.maxRows = parseInt(mx.value || '100', 10) || 100; pushBuilder(); };
+              row.appendChild(mx);
+            } else if (b.type === 'text') {
+              const t = document.createElement('input');
+              t.type = 'text'; t.className = 'grow'; t.value = b.body;
+              t.placeholder = 'Your own commentary — reproduced exactly, never reworded';
+              t.oninput = () => { b.body = t.value; pushBuilder(); };
+              row.appendChild(t);
+            } else if (b.type === 'insights' || b.type === 'recommendations') {
+              const c = document.createElement('input');
+              c.type = 'number'; c.min = '0'; c.value = b.count; c.title = 'How many (0 = model decides)';
+              c.oninput = () => { b.count = parseInt(c.value || '0', 10) || 0; pushBuilder(); };
+              row.appendChild(c);
+            } else if (b.type === 'kpi') {
+              row.appendChild(el('span', 'opthint', 'headline numbers chosen for you'));
+            }
+
+            const ops = el('div', 'ops');
+            const mk = (label, title, cls, fn) => {
+              const btn = el('button', cls, label);
+              btn.title = title;
+              btn.onclick = fn;
+              return btn;
+            };
+            ops.appendChild(mk('↑', 'Move up', '', () => {
+              if (i > 0) { const t = outline[i-1]; outline[i-1] = outline[i]; outline[i] = t; renderOutline(); pushBuilder(); }
+            }));
+            ops.appendChild(mk('↓', 'Move down', '', () => {
+              if (i < outline.length-1) { const t = outline[i+1]; outline[i+1] = outline[i]; outline[i] = t; renderOutline(); pushBuilder(); }
+            }));
+            ops.appendChild(mk('✕', 'Remove', 'del', () => {
+              outline.splice(i, 1); renderOutline(); pushBuilder();
+            }));
+            row.appendChild(ops);
+            host.appendChild(row);
+          });
+          document.getElementById('blockcount').textContent = outline.length ? outline.length + ' blocks' : '';
+        }
+
+        document.getElementById('addblock').onclick = () => {
+          const type = document.getElementById('addkind').value;
+          const b = { id: 'p' + (nextId++), type };
+          if (type === 'chart') { b.chart='auto'; b.measure=''; b.dimension=''; b.agg='auto'; b.topN=10; b.sort='desc'; b.grain='auto'; }
+          else if (type === 'table') { b.columns=[]; b.sortBy=''; b.sortDir='desc'; b.maxRows=100; }
+          else if (type === 'text') { b.body=''; }
+          else if (type === 'kpi') { b.metrics=[]; }
+          else if (type === 'insights' || type === 'recommendations') { b.count=0; }
+          outline.push(b);
+          renderOutline();
+          pushBuilder();
+        };
+        document.getElementById('clearblocks').onclick = () => {
+          outline = []; renderOutline(); pushBuilder();
+        };
+
+        // ══ Data preparation ════════════════════════════════════════════════
+        const OPS = [
+          {v:'eq',t:'is'},{v:'ne',t:'is not'},{v:'gt',t:'>'},{v:'gte',t:'≥'},{v:'lt',t:'<'},{v:'lte',t:'≤'},
+          {v:'contains',t:'contains'},{v:'notContains',t:'does not contain'},
+          {v:'in',t:'is one of'},{v:'notIn',t:'is not one of'},
+          {v:'isNull',t:'is empty'},{v:'notNull',t:'is not empty'},{v:'between',t:'between'},
+        ];
+        function renderPrep() {
+          const fh = document.getElementById('filters');
+          fh.textContent = '';
+          filters.forEach((f, i) => {
+            const row = el('div', 'blk');
+            row.appendChild(el('span', 'ico', '⧩'));
+            row.appendChild(select(colOpts([{v:'',t:'column…'}]), f.column, v => f.column = v));
+            row.appendChild(select(OPS, f.op, v => { f.op = v; renderPrep(); }));
+            if (f.op !== 'isNull' && f.op !== 'notNull') {
+              const val = document.createElement('input');
+              val.type = 'text'; val.value = f.value; val.placeholder = f.op === 'in' || f.op === 'notIn' ? 'a, b, c' : 'value';
+              val.oninput = () => { f.value = val.value; pushBuilder(); };
+              row.appendChild(val);
+              if (f.op === 'between') {
+                const v2 = document.createElement('input');
+                v2.type = 'text'; v2.value = f.value2 || ''; v2.placeholder = 'and';
+                v2.oninput = () => { f.value2 = v2.value; pushBuilder(); };
+                row.appendChild(v2);
+              }
+            }
+            const ops = el('div', 'ops');
+            const del = el('button', 'del', '✕');
+            del.title = 'Remove filter';
+            del.onclick = () => { filters.splice(i,1); renderPrep(); pushBuilder(); };
+            ops.appendChild(del);
+            row.appendChild(ops);
+            fh.appendChild(row);
+          });
+
+          const dh = document.getElementById('derived');
+          dh.textContent = '';
+          derived.forEach((d, i) => {
+            const row = el('div', 'blk');
+            row.appendChild(el('span', 'ico', 'ƒ'));
+            const nm = document.createElement('input');
+            nm.type = 'text'; nm.value = d.name; nm.placeholder = 'new column';
+            nm.oninput = () => { d.name = nm.value; pushBuilder(); };
+            row.appendChild(nm);
+            row.appendChild(el('span', 'opthint', '='));
+            const ex = document.createElement('input');
+            ex.type = 'text'; ex.className = 'grow'; ex.value = d.expression;
+            ex.placeholder = 'revenue / orders';
+            ex.oninput = () => { d.expression = ex.value; pushBuilder(); };
+            row.appendChild(ex);
+            const ops = el('div', 'ops');
+            const del = el('button', 'del', '✕');
+            del.title = 'Remove derived column';
+            del.onclick = () => { derived.splice(i,1); renderPrep(); pushBuilder(); };
+            ops.appendChild(del);
+            row.appendChild(ops);
+            dh.appendChild(row);
+          });
+
+          const n = filters.length + derived.length
+            + (document.getElementById('dedupe').checked ? 1 : 0)
+            + (parseInt(document.getElementById('rowlimit').value || '0', 10) ? 1 : 0)
+            + excluded().length;
+          document.getElementById('prepcount').textContent = n ? n + ' steps' : '';
+        }
+        function excluded() {
+          return Array.prototype.slice.call(document.querySelectorAll('#excols button.on'))
+            .map(b => b.getAttribute('data-c'));
+        }
+        document.getElementById('addfilter').onclick = () => {
+          filters.push({ column: columns.length ? columns[0].name : '', op: 'eq', value: '' });
+          renderPrep(); pushBuilder();
+        };
+        document.getElementById('addderived').onclick = () => {
+          derived.push({ name: '', expression: '' });
+          renderPrep(); pushBuilder();
+        };
+        document.getElementById('dedupe').onchange = () => { renderPrep(); pushBuilder(); };
+        document.getElementById('rowlimit').oninput = () => { renderPrep(); pushBuilder(); };
+        document.getElementById('usetpl').onclick = () => post({ type:'useTemplate' });
+
+        function renderColumns() {
+          const host = document.getElementById('excols');
+          host.textContent = '';
+          if (!columns.length) {
+            host.appendChild(el('span', 'opthint', 'Choose a data file to list its columns.'));
+            return;
+          }
+          columns.forEach(c => {
+            const b = document.createElement('button');
+            b.setAttribute('data-c', c.name);
+            b.appendChild(document.createTextNode(c.name));
+            const t = el('span', 'coltype', c.type);
+            b.appendChild(t);
+            b.onclick = () => { b.classList.toggle('on'); renderPrep(); pushBuilder(); };
+            host.appendChild(b);
+          });
+        }
+
+        function pushBuilder() {
+          post({ type:'setBuilder',
+            outline: outline,
+            prep: {
+              filters: filters.filter(f => f.column),
+              derived: derived.filter(d => d.name && d.expression),
+              excludeColumns: excluded(),
+              dedupe: document.getElementById('dedupe').checked,
+              limit: parseInt(document.getElementById('rowlimit').value || '0', 10) || 0,
+            },
+          });
+        }
+        renderOutline();
+        renderPrep();
+
         document.getElementById('focus').addEventListener('input', e => post({ type:'setFocus', focus: e.target.value }));
         document.getElementById('go').onclick = () => post({ type:'analyze' });
         document.getElementById('cancel').onclick = () => post({ type:'cancelAnalyze' });
@@ -434,6 +807,25 @@ export class DataAnalysisPanel {
             document.getElementById('elapsed').textContent = elapsedSecs > 0 ? '(' + elapsedSecs + 's)' : '';
           } else if (m.type === 'hint') {
             document.getElementById('hint').textContent = m.text || '';
+          } else if (m.type === 'schema') {
+            // Real column names arrived — the builder's pickers stop being blank.
+            columns = m.columns || [];
+            renderColumns();
+            renderOutline();
+            renderPrep();
+          } else if (m.type === 'loadBuilder') {
+            // A template was chosen: adopt its outline and prep.
+            outline = m.outline || [];
+            filters = (m.prep && m.prep.filters) || [];
+            derived = (m.prep && m.prep.derived) || [];
+            document.getElementById('dedupe').checked = !!(m.prep && m.prep.dedupe);
+            document.getElementById('rowlimit').value = (m.prep && m.prep.limit) || '';
+            if (outline.length) document.getElementById('builder').open = true;
+            if (filters.length || derived.length) document.getElementById('prepbox').open = true;
+            renderColumns();
+            renderOutline();
+            renderPrep();
+            pushBuilder();
           }
         });
       </script>

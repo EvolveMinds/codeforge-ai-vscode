@@ -378,6 +378,95 @@ Full guide: [docs/CICD.md](docs/CICD.md).
 
 ---
 
+## Step 8: Convert Code to Another Language *(new in v2.12)*
+
+Port a function, a file, or a whole folder into another language — and get told what you should not
+trust about the result.
+
+### Start it
+
+Any one of these:
+
+- **Chat** → click the mode pill (bottom-left) → **Code Convertor**
+- **Right-click a file or folder** in the Explorer → *Convert … to Another Language*
+- **Select some code** → click the 💡 lightbulb → *Convert selection to another language*
+- **Command palette** → `Evolve AI: Convert Code to Another Language`
+
+### Walk through it
+
+1. **Choose your source.** The active file, your current selection, files you browse for, or a whole
+   folder. A folder is walked recursively (skipping `node_modules`, `.git`, `venv`, build output) and
+   keeps the dominant language it finds.
+2. **Choose the target.** 26 languages in a searchable grid — type to filter, Enter to take the first
+   match. Optionally name a framework: `FastAPI`, `.NET 8`, `Spring Boot`.
+3. **Choose how faithful.**
+   - **Idiomatic** *(default)* — reads like native code in the target language
+   - **Line-by-line** — same structure and names, so you can diff it against the source. Use this when
+     someone has to sign the conversion off
+   - **Idiomatic + modernise** — also upgrades dated patterns, and logs each one
+4. **Choose the dependency policy** — standard library only, well-known packages, or one-for-one with
+   whatever the source used.
+5. **Check the model line.** It shows the model this conversion will use, its real context window, and
+   whether your queued job fits. More on this below.
+6. **Convert.** Nothing is written to disk yet.
+
+### Read the review
+
+The result opens beside the original — a tab per file, plus a **Report** tab. Read the report first:
+
+- 🔴 **Needs a human** — this *will* be wrong until you act on it
+- 🟡 **Check these** — semantics that differ subtly: numeric precision, ordering, concurrency, error
+  behaviour, timezones
+- 🔵 **Decisions made** — deliberate structural choices
+- **Dependencies** — source package → target package, and whether it mapped cleanly
+
+Then:
+
+- **Refine it in plain language** — *"return errors instead of panicking, drop the third-party HTTP
+  client"*. Only the affected files change; **Undo last change** always works.
+- **Check it parses** — runs the target language's own parser if that toolchain is installed. If files
+  fail, **Fix With AI** feeds the errors back and re-checks.
+- **Save all files…** — shows exactly what will be written and where, warns about overwrites, and
+  writes `CONVERSION-REPORT.md` alongside the code.
+
+### If it says the job is too big
+
+You'll see something like *"Too big for one pass (~28k tokens needed, 8k available)"*. This is the
+check working: a context window is shared between the prompt and the response, so a job that would
+silently truncate is caught **before** the request goes out. Three ways forward:
+
+| Option | When |
+|---|---|
+| **Split into N passes** | Fine for most work. Each pass sees what the earlier ones produced |
+| **Choose a bigger model** | Better result. The picker flags which installed models handle it in one pass |
+| **Convert less at once** | A module at a time is easier to review anyway |
+
+For local models, `qwen2.5-coder:14b` (32k context) or `deepseek-coder-v2` (64k) cover most
+single-file work:
+
+```bash
+ollama pull qwen2.5-coder:14b
+```
+
+### Pick a model just for conversion
+
+Conversion is more demanding than chat — long prompt, long response, strict output format — so it gets
+its **own** model choice that doesn't disturb your global setting:
+
+**Command palette** → `Evolve AI: Choose AI Model for Code Conversion`
+
+The list shows each installed model's real context window (read from Ollama, not guessed from the
+name) and whether it can do your current job in one pass. Pick **Use my default** to go back.
+
+> **Privacy:** converting sends the full text of your source. If the model is a cloud one, a dialog
+> says so and names the provider before anything leaves your machine. Conversion works identically on
+> a local model — for code you can't share, that's the right answer. The built-in **offline** provider
+> is pattern-based, not an LLM, and cannot convert code.
+
+Full guide: [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md).
+
+---
+
 ## Keyboard Shortcuts
 
 | Action | Windows / Linux | Mac |
@@ -426,6 +515,18 @@ This means the command ran but encountered an issue. The error message will tell
 Check the status dot:
 - **Yellow dot / OFFLINE** = no AI provider. Follow Step 1 above.
 - **Green dot** = provider connected. Try typing "hello" and pressing Enter or clicking the green arrow. If no response, check the Developer Tools console (`Help > Toggle Developer Tools`) for errors.
+
+### Code conversion: "too big for one pass"
+
+Not an error — the job was sized against your model before the request went out, which is what stops a
+prompt being silently truncated. Either let it split, pick a bigger model (*Choose AI Model for Code
+Conversion* shows which ones fit), or convert fewer files at a time. See Step 8.
+
+### Code conversion: files come back truncated, or with no report
+
+Almost always the model. A general-purpose 7B chat model emits code but often drops the structured
+report — you'll see *"no conversion report was returned"*. Use a coding-tuned model
+(`ollama pull qwen2.5-coder:14b`); anything under 7B routinely truncates whole files.
 
 ### Gemma 4 setup wizard issues
 

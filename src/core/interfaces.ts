@@ -25,6 +25,12 @@ export interface IAIService {
   isOllamaRunning(host?: string): Promise<boolean>;
   /** List models installed in Ollama */
   getOllamaModels(host?: string): Promise<string[]>;
+  /**
+   * Ask Ollama what a model can handle — currently its real trained context
+   * length. Null when the server or model can't tell us. Callers building
+   * large prompts use this to size the request instead of guessing.
+   */
+  getOllamaModelInfo?(model: string, host?: string): Promise<{ contextTokens?: number } | null>;
   /** Stream a response, chunk by chunk */
   stream(request: AIRequest): AsyncGenerator<string>;
   /** Collect the full response as a string */

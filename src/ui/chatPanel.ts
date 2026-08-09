@@ -143,10 +143,12 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getStatus':      await this._postStatus();               break;
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
-          // Allowlisted command launch from the chat UI (e.g. the "Analyse" mode).
-          // Only aiForge.data.* is permitted so the webview can't run arbitrary commands.
+          // Allowlisted command launch from the chat UI (the "Analyse" and
+          // "Code Convertor" modes). Only these two prefixes are permitted so
+          // the webview can't run arbitrary commands.
           case 'runCommand':
-            if (typeof msg.command === 'string' && msg.command.startsWith('aiForge.data.')) {
+            if (typeof msg.command === 'string' &&
+                (msg.command.startsWith('aiForge.data.') || msg.command.startsWith('aiForge.convert.'))) {
               await vscode.commands.executeCommand(msg.command);
             }
             break;
@@ -669,6 +671,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
     <p><strong>Edit</strong> &mdash; describe changes to the active file</p>
     <p><strong>Create</strong> &mdash; generate new files from scratch</p>
     <p><strong>Analyse</strong> &mdash; turn a data file or database into insights &amp; reports</p>
+    <p><strong>Code Convertor</strong> &mdash; port code to another language, reviewed side by side</p>
     <p style="margin-top:8px">Right-click code for inline actions</p>
     <p><kbd>${mod}+Shift+A</kbd> to open &middot; <kbd>${mod}+Alt+E</kbd> to explain selection</p>
   </div>
@@ -715,6 +718,13 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
           <div class="pop-body">
             <div class="pop-name">Analyse</div>
             <div class="pop-desc">Analyse a data file (CSV/Excel/JSON/Parquet) or a database/cloud source &mdash; insights, HTML report, or notebook.</div>
+          </div>
+        </div>
+        <div class="pop-item" data-mode="convert" data-action="convertCode">
+          <div class="pop-icon">&#8646;</div>
+          <div class="pop-body">
+            <div class="pop-name">Code Convertor</div>
+            <div class="pop-desc">Convert code to another language &mdash; a selection, a file, or a folder. Review it beside the original with a report of what was approximated.</div>
           </div>
         </div>
       </div>
@@ -1187,6 +1197,7 @@ window.addEventListener('message', ({ data }) => {
         + '<p><strong>Edit</strong> &mdash; describe changes to the active file</p>'
         + '<p><strong>Create</strong> &mdash; generate new files from scratch</p>'
         + '<p><strong>Analyse</strong> &mdash; turn a data file or database into insights &amp; reports</p>'
+        + '<p><strong>Code Convertor</strong> &mdash; port code to another language, reviewed side by side</p>'
         + '<p style="margin-top:8px">Right-click code for inline actions</p>'
         + '<p><kbd>' + MOD + '+Shift+A</kbd> to open &middot; <kbd>' + MOD + '+Alt+E</kbd> to explain selection</p>';
       msgsEl.appendChild(w);
@@ -1337,6 +1348,13 @@ document.querySelectorAll('#modePopover .pop-item').forEach(item => {
     if (action === 'analyzeData') {
       // "Analyse" isn't an input mode — it launches the data-analysis flow.
       vscode.postMessage({ type: 'runCommand', command: 'aiForge.data.analyze' });
+      closeAllPopovers();
+      return;
+    }
+    if (action === 'convertCode') {
+      // "Code Convertor" likewise opens its own panel rather than changing
+      // what the chat box does with your next message.
+      vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' });
       closeAllPopovers();
       return;
     }

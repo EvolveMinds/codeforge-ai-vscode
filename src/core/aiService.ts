@@ -31,6 +31,29 @@ export interface AIRequest {
   mode:         string;
   /** [FIX-5] Optional: caller provides signal to cancel mid-stream */
   signal?:      AbortSignal;
+
+  // ── Per-request overrides (v2.12.0) ───────────────────────────────────────
+  // A feature can be demanding enough to warrant its own model without the
+  // user having to change their global provider and change it back. Code
+  // conversion is the first: it needs a long window and a long response, which
+  // is a different trade-off from chat.
+
+  /** Use this provider for this request only. Leaves the global setting alone. */
+  providerOverride?: ProviderName;
+  /** Use this model for this request only. Leaves the global setting alone. */
+  modelOverride?: string;
+  /**
+   * Cap on generated tokens. Defaults to the provider's usual 4096 — which is
+   * fine for chat and far too small for emitting whole converted files.
+   */
+  maxOutputTokens?: number;
+  /**
+   * Ollama only: the context window to serve this request with (`num_ctx`).
+   * Ollama otherwise uses the model's default (often 4096) and TRUNCATES THE
+   * PROMPT FROM THE FRONT without telling anyone. Callers that build large
+   * prompts must set this or risk a confident answer based on half the input.
+   */
+  contextTokens?:   number;
 }
 
 export interface RequestInterceptor {
@@ -197,7 +220,11 @@ export class AIService implements IAIService {
     this._bus.emit('ai.request.start', { instruction: req.instruction, mode: req.mode });
 
     try {
-      const provider = await this.detectProvider();
+      // A per-request override wins over the configured provider, so a feature
+      // can pick the right model for its job without mutating user settings.
+      const provider = req.providerOverride && req.providerOverride !== 'auto'
+        ? req.providerOverride
+        : await this.detectProvider();
       const cfg      = this._cfg();
 
       if (provider === 'ollama')         { yield* this._streamOllama(req, cfg);       }
@@ -233,15 +260,19 @@ export class AIService implements IAIService {
     const host  = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     warnIfRemoteHost('aiForge.ollamaHost', host);
     const resolved = await this._resolveOllamaHost(host);
-    const model = cfg.get<string>('ollamaModel', 'qwen2.5-coder:7b');
+    const model = req.modelOverride || cfg.get<string>('ollamaModel', 'qwen2.5-coder:7b');
 
     // Pre-check: verify the model exists before streaming
     const available = await this._getOllamaModels(resolved);
     if (available !== null && !available.some(m => m === model || m.startsWith(model + ':'))) {
       if (available.length > 0) {
-        // Auto-fallback: pick the first installed model and update the setting
+        // Auto-fallback: pick the first installed model. Only persist that
+        // choice when it corrects the user's actual setting — a one-off
+        // per-request override must never rewrite their configuration.
         const fallback = available[0];
-        await vscode.workspace.getConfiguration('aiForge').update('ollamaModel', fallback, vscode.ConfigurationTarget.Global);
+        if (!req.modelOverride) {
+          await vscode.workspace.getConfiguration('aiForge').update('ollamaModel', fallback, vscode.ConfigurationTarget.Global);
+        }
         yield `ℹ️ Model **${model}** not found — automatically switched to **${fallback}**.\n\n`;
         yield* this._streamOllamaWithModel(req, resolved, fallback);
         return;
@@ -281,22 +312,66 @@ export class AIService implements IAIService {
       if (m.images?.length) { entry.images = m.images; }
       return entry;
     });
-    const body  = JSON.stringify({
-      model, stream: true,
-      messages: msgs,
-      options: { temperature: 0.2, num_predict: 4096 },
-    });
+    // num_ctx is set explicitly whenever the caller knows how big the job is.
+    // Without it Ollama serves the model's default window (often 4096) and
+    // silently drops the front of an oversized prompt.
+    const options: Record<string, unknown> = {
+      temperature: 0.2,
+      num_predict: req.maxOutputTokens ?? 4096,
+    };
+    if (req.contextTokens && req.contextTokens > 0) options.num_ctx = req.contextTokens;
+
+    const body  = JSON.stringify({ model, stream: true, messages: msgs, options });
     yield* this._httpStream(url, body,
       c => { try { return JSON.parse(c).message?.content || ''; } catch { return ''; } },
       {}, req.signal, this._timeoutMs('local')
     );
   }
 
+  /**
+   * Ask Ollama what a model can actually do. `/api/show` reports the trained
+   * context length under `model_info["<arch>.context_length"]`, which beats
+   * any table we could maintain. Returns null when unavailable.
+   */
+  async getOllamaModelInfo(model: string, host?: string): Promise<{ contextTokens?: number } | null> {
+    const h = host ?? readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
+    const resolved = await this._resolveOllamaHost(h);
+    try {
+      const url = new URL(resolved + '/api/show');
+      const lib = url.protocol === 'https:' ? https : http;
+      const payload = JSON.stringify({ model });
+      return await new Promise<{ contextTokens?: number } | null>((resolve) => {
+        const r = lib.request(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+        }, res => {
+          let data = '';
+          res.on('data', d => data += d);
+          res.on('end', () => {
+            try {
+              const info = JSON.parse(data)?.model_info as Record<string, unknown> | undefined;
+              if (!info) { resolve(null); return; }
+              // The key is architecture-prefixed: llama.context_length,
+              // qwen2.context_length, gemma3.context_length, …
+              const key = Object.keys(info).find(k => k.endsWith('.context_length'));
+              const val = key ? info[key] : undefined;
+              resolve(typeof val === 'number' && val > 0 ? { contextTokens: val } : null);
+            } catch { resolve(null); }
+          });
+        });
+        r.on('error', () => resolve(null));
+        r.setTimeout(4000, () => { r.destroy(); resolve(null); });
+        r.write(payload);
+        r.end();
+      });
+    } catch { return null; }
+  }
+
   private async* _streamGemma4(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const host     = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     warnIfRemoteHost('aiForge.ollamaHost', host);
     const resolved = await this._resolveOllamaHost(host);
-    const model    = cfg.get<string>('gemma4Model', 'gemma4:e4b');
+    const model    = req.modelOverride || cfg.get<string>('gemma4Model', 'gemma4:e4b');
 
     // Pre-check: verify the Gemma 4 variant is installed
     const available = await this._getOllamaModels(resolved);
@@ -349,10 +424,16 @@ export class AIService implements IAIService {
       if (m.images?.length) { entry.images = m.images; }
       return entry;
     });
+    const gemmaOptions: Record<string, unknown> = {
+      temperature: 0.2,
+      num_predict: req.maxOutputTokens ?? 8192,
+    };
+    if (req.contextTokens && req.contextTokens > 0) gemmaOptions.num_ctx = req.contextTokens;
+
     const payload: Record<string, unknown> = {
       model, stream: true,
       messages: msgs,
-      options: { temperature: 0.2, num_predict: 8192 },
+      options: gemmaOptions,
     };
     // Only set think: true — never set think: false (Ollama bug: breaks format param)
     if (thinking) { payload.think = true; }
@@ -383,7 +464,7 @@ export class AIService implements IAIService {
     const host     = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     warnIfRemoteHost('aiForge.ollamaHost', host);
     const resolved = await this._resolveOllamaHost(host);
-    const model    = cfg.get<string>('glmModel', 'codegeex4-all-9b');
+    const model    = req.modelOverride || cfg.get<string>('glmModel', 'codegeex4-all-9b');
 
     // Pre-check: verify the GLM model is installed; offer a guided pull if not
     const available = await this._getOllamaModels(resolved);
@@ -457,7 +538,8 @@ export class AIService implements IAIService {
     }
     const url  = new URL('https://api.anthropic.com/v1/messages');
     const body = JSON.stringify({
-      model: cfg.get<string>('anthropicModel', 'claude-sonnet-4-6'), max_tokens: 4096, stream: true,
+      model: req.modelOverride || cfg.get<string>('anthropicModel', 'claude-sonnet-4-6'),
+      max_tokens: req.maxOutputTokens ?? 4096, stream: true,
       system:   req.system,
       messages: req.messages.filter(m => m.role !== 'system'),
     });
@@ -475,7 +557,7 @@ export class AIService implements IAIService {
     // [FIX-4] Read from SecretStorage only — never fall back to settings.json
     const key     = await this._secrets.get(SECRET_OPENAI) ?? '';
     const baseUrl = readHostSetting('aiForge', 'openaiBaseUrl', 'https://api.openai.com/v1');
-    const model   = cfg.get<string>('openaiModel', 'gpt-4o');
+    const model   = req.modelOverride || cfg.get<string>('openaiModel', 'gpt-4o');
     if (!key) {
       yield `⚠ **No OpenAI API key configured**\n\n`;
       yield `To use OpenAI (or compatible providers like Groq, Mistral, Together AI):\n`;
@@ -487,7 +569,7 @@ export class AIService implements IAIService {
     }
     const url  = new URL(baseUrl + '/chat/completions');
     const body = JSON.stringify({
-      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      model, stream: true, temperature: 0.2, max_tokens: req.maxOutputTokens ?? 4096,
       messages: [{ role: 'system', content: req.system }, ...req.messages],
     });
     yield* this._httpStream(url, body,
@@ -503,7 +585,7 @@ export class AIService implements IAIService {
   private async* _streamGemini(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     // [FIX-4] Read from SecretStorage only — never fall back to settings.json
     const key   = await this._secrets.get(SECRET_GEMINI) ?? '';
-    const model = cfg.get<string>('geminiModel', 'gemini-2.5-flash');
+    const model = req.modelOverride || cfg.get<string>('geminiModel', 'gemini-2.5-flash');
     // Gemini's OpenAI-compatible endpoint — same SSE shape as _streamOpenAI,
     // so the existing chunk parser is reused verbatim. The base URL is fixed
     // (no custom override) because compat lives at a single Google endpoint.
@@ -519,7 +601,7 @@ export class AIService implements IAIService {
     }
     const url  = new URL(baseUrl + '/chat/completions');
     const body = JSON.stringify({
-      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      model, stream: true, temperature: 0.2, max_tokens: req.maxOutputTokens ?? 4096,
       messages: [{ role: 'system', content: req.system }, ...req.messages],
     });
     yield* this._httpStream(url, body,
@@ -540,7 +622,7 @@ export class AIService implements IAIService {
   private async* _streamZai(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     // [FIX-4] Read from SecretStorage only — never fall back to settings.json
     const key   = await this._secrets.get(SECRET_ZAI) ?? '';
-    const model = cfg.get<string>('zaiModel', 'glm-4.6');
+    const model = req.modelOverride || cfg.get<string>('zaiModel', 'glm-4.6');
     const base  = readHostSetting('aiForge', 'zaiBaseUrl', 'https://api.z.ai/api/paas/v4');
     if (!key) {
       yield `⚠ **No GLM (Z.ai) API key configured**\n\n`;
@@ -553,7 +635,7 @@ export class AIService implements IAIService {
     }
     const url  = new URL(base + '/chat/completions');
     const body = JSON.stringify({
-      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      model, stream: true, temperature: 0.2, max_tokens: req.maxOutputTokens ?? 4096,
       messages: [{ role: 'system', content: req.system }, ...req.messages],
     });
     yield* this._httpStream(url, body,
@@ -579,7 +661,7 @@ export class AIService implements IAIService {
   private async* _streamColibri(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const base  = readHostSetting('aiForge', 'colibriBaseUrl', 'http://localhost:8080/v1');
     warnIfRemoteHost('aiForge.colibriBaseUrl', base);
-    const model = cfg.get<string>('colibriModel', 'glm-5.2');
+    const model = req.modelOverride || cfg.get<string>('colibriModel', 'glm-5.2');
 
     // Pre-check: is `coli serve` actually up? A dead endpoint is by far the most
     // common failure here, and the generic ECONNREFUSED text talks about Ollama.
@@ -595,7 +677,7 @@ export class AIService implements IAIService {
 
     const url  = new URL(base.replace(/\/$/, '') + '/chat/completions');
     const body = JSON.stringify({
-      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      model, stream: true, temperature: 0.2, max_tokens: req.maxOutputTokens ?? 4096,
       messages: [{ role: 'system', content: req.system }, ...req.messages],
     });
     yield* this._httpStream(url, body,
@@ -609,7 +691,7 @@ export class AIService implements IAIService {
 
   private async* _streamHuggingFace(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const key   = await this._secrets.get(SECRET_HUGGINGFACE) ?? '';
-    const model = cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
+    const model = req.modelOverride || cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
     const base  = readHostSetting('aiForge', 'huggingfaceBaseUrl', 'https://api-inference.huggingface.co');
     if (!key) {
       yield `⚠ **No Hugging Face token configured**\n\n`;
@@ -622,7 +704,7 @@ export class AIService implements IAIService {
     }
     const url  = new URL(`${base}/models/${model}/v1/chat/completions`);
     const body = JSON.stringify({
-      model, stream: true, temperature: 0.2, max_tokens: 4096,
+      model, stream: true, temperature: 0.2, max_tokens: req.maxOutputTokens ?? 4096,
       messages: [{ role: 'system', content: req.system }, ...req.messages],
     });
     yield* this._httpStream(url, body,

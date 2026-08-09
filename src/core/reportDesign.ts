@@ -30,6 +30,10 @@
 import * as path from 'path';
 import * as fs   from 'fs';
 import { stripJsonComments } from './jsonc';
+import {
+  reportEditorScript, reportEditorStyle, stripEditorArtifacts,
+  EDITOR_SCRIPT_ID, EDITOR_STYLE_ID,
+} from './reportEditor';
 
 // ── Theme ───────────────────────────────────────────────────────────────────
 
@@ -157,6 +161,16 @@ export interface ReportSpec {
   focus:     string;
   /** Extra rules accumulated from refinement rounds — kept for regeneration. */
   notes:     string[];
+  /**
+   * The authored outline. When non-empty this supersedes `sections`: the user
+   * has composed the report block by block, and `blocksToPrompt()` drives
+   * generation instead of the archetype's section list.
+   *
+   * Typed as unknown[] here to keep reportDesign.ts free of a dependency on
+   * reportBlocks.ts — the block module already imports this one, and the two
+   * must not form a cycle. Callers narrow it to ReportBlock[].
+   */
+  blocks:    unknown[];
 }
 
 export interface ReportSection {
@@ -288,6 +302,7 @@ export function defaultSpec(theme: ReportTheme, focus?: string): ReportSpec {
     title:     '',
     focus:     focus ?? '',
     notes:     [],
+    blocks:    [],
   };
 }
 
@@ -554,6 +569,11 @@ ol.actions li::marker { color: var(--acc); font-weight: 700; }
 .badge.good { background: rgba(75,189,133,.16); color: var(--good); }
 .muted { color: var(--text-faint); }
 
+hr.block-divider {
+  border: none; height: 1px; background: var(--border);
+  margin: calc(var(--gap) * 1.4) 0;
+}
+
 /* ── Footer + toolbar ───────────────────────────────────────────────── */
 .report-footer {
   margin-top: 34px; padding-top: 18px; border-top: 1px solid var(--border);
@@ -801,14 +821,24 @@ Numbers:
 - Never invent a comparison period, target, or benchmark that is not in the data.
 `.trim();
 
-/** The design + content brief appended to every direct-HTML report request. */
-export function buildReportPromptBlock(spec: ReportSpec, theme: ReportTheme): string {
+/**
+ * The design + content brief appended to every direct-HTML report request.
+ *
+ * `outline` is the rendered block outline from reportBlocks.ts. When the user
+ * has authored one it replaces the archetype's section list entirely — they
+ * chose the measures and dimensions, so the model must not re-decide them. It
+ * arrives as a string rather than as blocks so this module stays free of a
+ * dependency on reportBlocks.ts, which already imports this one.
+ */
+export function buildReportPromptBlock(spec: ReportSpec, theme: ReportTheme, outline?: string): string {
   const arch = archetypeById(spec.archetype);
   const sections = spec.sections
     .map(id => REPORT_SECTIONS.find(s => s.id === id))
     .filter((s): s is ReportSection => !!s);
 
-  const sectionList = sections.map((s, i) => `${i + 1}. **${s.label}** — ${s.guidance}`).join('\n');
+  const sectionList = outline && outline.trim()
+    ? outline
+    : sections.map((s, i) => `${i + 1}. **${s.label}** — ${s.guidance}`).join('\n');
 
   const parts = [
     '## Report brief',
@@ -819,9 +849,11 @@ export function buildReportPromptBlock(spec: ReportSpec, theme: ReportTheme): st
     `Chart budget: at most ${spec.maxCharts} charts in the whole report. Spend them on the highest-signal views.`,
     spec.title ? `Report title: "${spec.title}".` : '',
     '',
-    '### Sections, in this order',
+    outline && outline.trim() ? '' : '### Sections, in this order',
     sectionList,
-    'Skip any section the data genuinely cannot support (e.g. trends with no date column) and say why in one line rather than padding it.',
+    outline && outline.trim()
+      ? ''
+      : 'Skip any section the data genuinely cannot support (e.g. trends with no date column) and say why in one line rather than padding it.',
     '',
     '### Output format',
     'Output ONE complete HTML document inside a single ```html fenced block. Requirements:',
@@ -858,13 +890,16 @@ export function buildReportPromptBlock(spec: ReportSpec, theme: ReportTheme): st
 }
 
 /** The equivalent brief for the generated-Python path. */
-export function buildScriptPromptBlock(spec: ReportSpec, theme: ReportTheme): string {
+export function buildScriptPromptBlock(spec: ReportSpec, theme: ReportTheme, outline?: string): string {
   const arch = archetypeById(spec.archetype);
-  const sections = spec.sections
-    .map(id => REPORT_SECTIONS.find(s => s.id === id))
-    .filter((s): s is ReportSection => !!s)
-    .map((s, i) => `${i + 1}. **${s.label}** — ${s.guidance}`)
-    .join('\n');
+  const authored = !!(outline && outline.trim());
+  const sections = authored
+    ? outline!
+    : spec.sections
+        .map(id => REPORT_SECTIONS.find(s => s.id === id))
+        .filter((s): s is ReportSection => !!s)
+        .map((s, i) => `${i + 1}. **${s.label}** — ${s.guidance}`)
+        .join('\n');
 
   const parts = [
     '## Report brief (the script builds this report)',
@@ -874,7 +909,7 @@ export function buildScriptPromptBlock(spec: ReportSpec, theme: ReportTheme): st
     TONE_GUIDANCE[spec.tone],
     `Chart budget: at most ${spec.maxCharts} figures.`,
     '',
-    '### Sections, in this order',
+    authored ? '' : '### Sections, in this order',
     sections,
     'Guard each section so a column it needs being absent skips that section instead of crashing the script.',
     '',
@@ -1074,11 +1109,19 @@ def evolve_kpis(tiles):
     return '<div class="kpi-grid">' + "".join(tiles) + "</div>"
 
 
-def evolve_card(title, inner_html, subtitle=""):
+def evolve_card(title, inner_html, subtitle="", block_id="", block_type=""):
+    """One report section. block_id/block_type make the card individually
+    addressable in the preview editor (move, delete, refine just this card)."""
     if not inner_html:
         return ""
     sub = '<p class="card-sub">' + evolve_esc(subtitle) + "</p>" if subtitle else ""
-    return '<section class="card"><h2>' + evolve_esc(title) + "</h2>" + sub + inner_html + "</section>"
+    attrs = ""
+    if block_id:
+        attrs += ' data-block-id="' + evolve_esc(block_id) + '"'
+    if block_type:
+        attrs += ' data-block-type="' + evolve_esc(block_type) + '"'
+    return ('<section class="card"' + attrs + "><h2>" + evolve_esc(title) + "</h2>"
+            + sub + inner_html + "</section>")
 
 
 def evolve_table(df, max_rows=100, sortable=True):
@@ -1221,11 +1264,19 @@ const SCRIPT_MARK = '<!--evolve-report-script-->';
  * Idempotent: re-running replaces the previously injected block, so a refined
  * report never accumulates duplicates.
  */
-export function injectReportAssets(html: string, theme: ReportTheme): string {
-  let out = stripInjected(html);
+export function injectReportAssets(html: string, theme: ReportTheme, opts: { editable?: boolean } = {}): string {
+  let out = stripEditorArtifacts(stripInjected(html));
 
   const styleBlock  = `${STYLE_MARK}\n<style>\n${reportStylesheet(theme)}\n</style>\n${STYLE_MARK}`;
-  const scriptBlock = `${SCRIPT_MARK}\n<script>\n${reportScript(theme)}\n</script>\n${SCRIPT_MARK}`;
+  let scriptBlock   = `${SCRIPT_MARK}\n<script>\n${reportScript(theme)}\n</script>\n${SCRIPT_MARK}`;
+
+  // Edit mode is preview-only chrome: the editor script and its styling are
+  // added for the iframe and stripped again before anything reaches disk.
+  if (opts.editable) {
+    scriptBlock +=
+      `\n<style id="${EDITOR_STYLE_ID}">\n${reportEditorStyle()}\n</style>` +
+      `\n<script id="${EDITOR_SCRIPT_ID}">\n${reportEditorScript()}\n</script>`;
+  }
 
   // Normalise the pinned theme rather than only adding one: switching a report
   // back to "follow the reader's system" has to clear an earlier light/dark pin,
@@ -1285,8 +1336,10 @@ export interface StashedHtml {
 
 export function stashHeavyParts(html: string): StashedHtml {
   const images: string[] = [];
-  // Injected assets are re-added deterministically after the edit — never send them.
-  let out = stripInjected(html);
+  // Injected assets are re-added deterministically after the edit — never send
+  // them. Editor chrome must go too: it is preview-only, and a model shown
+  // toolbar markup will faithfully reproduce it into the saved report.
+  let out = stripEditorArtifacts(stripInjected(html));
   out = out.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '<!--EVOLVE_STYLE_PLACEHOLDER-->');
   out = out.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '<!--EVOLVE_SCRIPT_PLACEHOLDER-->');
   out = out.replace(/(src\s*=\s*)(["'])(data:[^"']{200,})\2/gi, (_full, pre: string, q: string, uri: string) => {

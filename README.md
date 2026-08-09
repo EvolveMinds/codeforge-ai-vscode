@@ -13,11 +13,13 @@
 ### Why Evolve AI?
 
 - **Free & private** — runs fully offline with Ollama or Gemma 4. Your code never leaves your machine.
-- **Auto-detecting stack plugins** — 17 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, Data Analysis & Reporting, and more.
+- **Auto-detecting stack plugins** — 18 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, Data Analysis & Reporting, Code Converter, and more.
 - **Any AI provider** — bring your own model or API key. Switch between local and cloud in one click.
 - **Deep context** — understands your active file, related files, diagnostics, git state, and cloud platform connections.
 - **Connect to GitHub or Bitbucket in one click** *(v2.0)* — wizard handles git install, identity, init/clone, auth (PAT / SSH / VS Code GitHub auth / `gh` CLI), and verifies the connection. → [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md)
 - **Author CI/CD pipelines with AI** *(v2.1)* — auto-detecting plugin for GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket, plus a setup wizard that generates a stack-tailored starter pipeline (pinned actions, OIDC, caching, concurrency built in). Includes a *"Fix failing run"* command — paste a CI log, AI diagnoses against your active pipeline file. → [docs/CICD.md](docs/CICD.md)
+- **Convert code between 26 languages** *(v2.12)* — a selection, a file, or a whole folder. You get the result **side by side with the original** plus a report of what was translated exactly, what was approximated, and what still needs a human. Nothing is written to disk until you approve it. → [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
+- **Build data reports instead of receiving them** *(v2.13)* — point it at a CSV, then compose the report block by block, choosing each chart's measure and dimension from **your real column names**. Move, delete or retype anything **directly in the rendered report** — no AI call, instant. Filter the data for real, brand it once, and save the whole shape as a template to re-run next month. → [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
 
 > Also works in **Cursor**, **VSCodium**, and other VS Code forks.
 
@@ -84,7 +86,8 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 | Feature | Evolve AI | GitHub Copilot | Continue.dev | Cody |
 |---------|-----------|---------------|-------------|------|
 | **Free local AI** (Ollama, Gemma 4) | Yes | No | Yes | No |
-| **Auto-detecting stack plugins** (17) | Yes | No | No | No |
+| **Auto-detecting stack plugins** (18) | Yes | No | No | No |
+| **Code conversion between languages** (26, with fidelity report) | Yes | No | No | No |
 | **Cloud platform integration** (AWS, GCP, Azure, Databricks) | Yes | No | No | No |
 | **Multimodal** (images via Gemma 4) | Yes | No | Partial | No |
 | **Multiple AI providers** | 9 | 1 | Multiple | 1 |
@@ -144,7 +147,7 @@ For existing pipelines, the **CI/CD plugin** auto-activates on detection of `.gi
 - Explain Changes, Generate PR Description, Build Framework, Run & Auto-Fix
 - Switch Provider, Setup Ollama, Gemma 4 Info & Tips, What's New
 
-### 17 Auto-Detecting Plugins
+### 18 Auto-Detecting Plugins
 
 Plugins activate automatically based on your workspace files. No configuration required.
 
@@ -166,7 +169,8 @@ Plugins activate automatically based on your workspace files. No configuration r
 | **PyTorch** | PyTorch imports | 6 commands: models, training loops, checkpoints, mixed precision |
 | **Security** | Always active | 3 commands: scan file, scan workspace, fix findings |
 | **Git** | Always active | 4 commands: blame, changelog, commit messages, PR templates |
-| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 8 commands: analyze & report, insights in chat, HTML report, notebook/script, profile, analyze from database/cloud source, create + run data pipeline — PowerBI-style, size-adaptive |
+| **Data Analysis & Reporting** | `.csv`, `.tsv`, `.json`, `.xlsx`, `.parquet` | 12 commands: analyze & report, insights in chat, HTML report, notebook/script, profile, analyze from database/cloud source, refine report, report theme, save + run report templates, create + run data pipeline — reports you author block by block, edit in place, and re-run on new data |
+| **Code Converter** | Any recognised source file | 7 commands: convert selection / file / folder, choose conversion model, reopen review, check it parses. 26 languages, side-by-side review, fidelity report |
 
 ### Data Analysis & Reporting
 
@@ -176,8 +180,40 @@ Give Evolve AI a data file and an instruction — get insights and a report, Pow
 - **Deliverables:** **Insights in chat** (Gemini-style narrative analysis inline, with follow-up questions), a self-contained **HTML report** (KPI tiles, charts, AI insights), a reproducible **pandas/plotly notebook or script**, or a **profiling summary**.
 - **Not just local files** — **Analyze Data from Database or Cloud Source** pulls a sample from **BigQuery**, **Databricks SQL**, **Cosmos DB**, **Azure Log Analytics**, **DynamoDB**, or **S3 / GCS / Azure Blob** objects, reusing your existing connected-plugin credentials. For **Postgres / MySQL / SQLite / Snowflake / SQL Server**, it generates a `pandas.read_sql` script you run with your own connection string (`DB_URL` env var — no passwords stored).
 - **Size-adaptive:** small files are analysed directly by the AI; for large files it generates a script that reads the *full* dataset locally — your data never leaves your machine. If a sample would go to a cloud provider, you're asked first.
-- **Output** lands next to your data (`sales.csv` → `sales-report.html`). Excel/PDF export is produced by the generated script.
-- **Declarative pipelines** — define a repeatable analysis once in `evolve-data-pipeline.json` (steps = source + analysis) and run them all with **Run Data Pipeline**. A versioned, backend-free "workflow" you own in your repo. Full guide: [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
+- **Output** lands next to your data (`sales.csv` → `sales-report.html`), as one self-contained file with no network dependencies.
+- **Declarative pipelines** — define a repeatable analysis once in `evolve-data-pipeline.json` (steps = source + analysis) and run them all with **Run Data Pipeline**. A versioned, backend-free "workflow" you own in your repo.
+
+### Reports you author, not reports you receive *(v2.13)*
+
+Most AI report features generate *at* you: one prompt, one document, take it or run it again. This one is a builder.
+
+- **The design isn't the model's job.** Evolve AI owns the stylesheet, the chart styling and the report runtime, and stamps them into the finished document — so every report gets **light and dark following the reader's OS**, sortable and filterable tables, a consistent chart palette, a responsive layout, and print/PDF styles that never split a card across a page. The look holds no matter which model produced it, local or cloud.
+- **Build it block by block.** A report is an ordered list of typed blocks — KPI tiles, charts, tables, your own text, insights, recommendations, data quality, relationships. A chart block carries its **measure, dimension, aggregation, chart type, top-N and sort**; the pickers list *your actual columns with their inferred types*, because the file has already been read. Anything left on **auto** is still chosen for you, so you only pin what you care about.
+- **Edit the rendered report directly.** Hover any section to move, duplicate or delete it, drag it by its grip, or **double-click any text** — heading, caption, KPI label, table cell — to fix it in place. These are direct edits: instant, no AI call, and incapable of disturbing the sections you didn't touch.
+- **Refine one block, not the document.** Select a section and describe the change; only that card is sent, so the model structurally cannot rewrite the rest. A block round-trip costs a fraction of a whole-document one.
+- **Five report formats** — executive summary, deep-dive analysis, data-quality audit, trend/time-series, segment comparison — each changing the sections, chart budget, tone and framing, not just the cosmetics.
+- **Prepare the data first.** Row filters, derived columns, excluded columns, drop-duplicates and row caps run **for real** — as generated pandas in the script path — not as a sentence in a prompt. The report discloses the active filters, so a filtered figure is never read as a total.
+- **Brand it once** — `evolve-report-theme.json` holds your colours, palette, logo, footer and default report shape, applied to every report from then on.
+- **Save it as a template** and re-run the same report shape against next month's data. The outline is read back out of the rendered HTML, so a template captures what you actually arranged on screen.
+- **Export** to PDF via the print styles built into every report.
+
+Full guide: [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
+
+### Code Conversion *(v2.12)*
+
+Port code to another language and actually be able to trust the result.
+
+Asking any AI to "convert this to Go" gives you something that *looks* right — and the dangerous part is what disappears quietly: a retry loop, a `Decimal` that became a `float64`, a library call replaced by a function that doesn't exist. The **Code Convertor** mode is built around that failure.
+
+- **26 languages, any pairing** — Python · TypeScript · JavaScript · Java · C# · Go · Rust · C++ · C · Kotlin · Swift · Scala · Ruby · PHP · Dart · Elixir · R · SQL · Bash · PowerShell · Lua · Perl · VBA · **COBOL** · MATLAB · SAS. Every one works as source *and* target, so legacy → modern is a first-class path.
+- **A fidelity report, every time** — what mapped 1:1, what was **approximated**, what **needs a human**, and how each source dependency was mapped. A conversion that comes back without a report is flagged as suspicious rather than quietly trusted.
+- **Review before anything is written** — the result opens beside the original, tabs per file, report on its own tab. Refine it in plain language (*"return errors instead of panicking, drop the third-party HTTP client"*) and only the affected files are re-emitted. Every round is undoable. A conversion you reject leaves no litter.
+- **It checks its own work** — runs the target language's own parser over the output when that toolchain is installed (`gofmt`, `javac`, `node --check`, `php -l`, and a dozen more), and failures can be fed straight back for a repair round.
+- **Choose the model for the job** — conversion gets its own model choice, separate from what chat runs on. The picker shows each installed model's **real context window**, read from Ollama itself rather than guessed from the name.
+- **Too big? It tells you before it fails** — every job is sized against the chosen model first. If it won't fit you get a straight answer (*"Too big for one pass — ~28k tokens needed, 8k available"*) plus the fix: a model you already have that's big enough, or the `ollama pull` for one that would be. Oversized files are **sliced at top-level declarations** — never mid-function — converted part by part and stitched back together, with the report naming the seams.
+- **How faithful, and how free with dependencies** — *idiomatic*, *line-by-line* (diffable against the source, for conversions someone has to sign off), or *modernise*; and *stdlib only*, *well-known packages*, or *one-for-one with the source's libraries*.
+
+Right-click a file or folder, use the lightbulb on any selection, or pick **Code Convertor** from the mode menu in chat. Full guide: [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
 
 ### Cloud Platform Integration
 
@@ -368,6 +404,29 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.maxContextFiles` | `5` | Max related files in context |
 | `aiForge.requestTimeoutMs` | `0` | Idle timeout per request (resets on each streamed chunk). `0` = auto: 5 min for local (Ollama/Gemma/HF), 2 min for cloud. Raise it if a slow local model cold-starts past the limit |
 | `aiForge.disabledPlugins` | `[]` | Plugin IDs to disable (e.g., `["databricks", "aws"]`) |
+
+### Code Conversion
+
+| Setting | Default | Description |
+|---|---|---|
+| `aiForge.convert.defaultTarget` | `""` | Language pre-selected in the converter. Blank = choose every time |
+| `aiForge.convert.fidelity` | `idiomatic` | `idiomatic`, `literal` (diffable against the source), or `modernise` |
+| `aiForge.convert.dependencies` | `popular` | `stdlib` (nothing third-party), `popular`, or `mirror` (one-for-one with the source's libraries) |
+| `aiForge.convert.includeTests` | `false` | Also generate tests in the target's usual framework |
+| `aiForge.convert.keepComments` | `true` | Carry comments across, rewritten in the target's doc style |
+| `aiForge.convert.emitManifest` | `true` | Also emit `go.mod` / `package.json` / `requirements.txt` etc. |
+| `aiForge.convert.outputFolder` | `converted` | Where multi-file conversions land, under a per-language subfolder. Single files go beside the original |
+| `aiForge.convert.maxFiles` | `20` | Cap on files queued from one folder |
+| `aiForge.convert.maxCharsPerBatch` | `60000` | Upper bound per request. The converter also derives a budget from the chosen model's real context window and uses whichever is **smaller** |
+
+The conversion **model** is not a setting — it's a per-session choice (`Evolve AI: Choose AI Model for Code Conversion`), so a model picked for one big port doesn't silently become your default for everything.
+
+| Setting | Default | Description |
+|---|---|---|
+| `aiForge.data.reportDensity` | `comfortable` | Spacing in generated HTML reports. Also adjustable live in the preview's **Design** tab |
+| `aiForge.data.directEdit` | `true` | Hover a report section to move/duplicate/delete it, and double-click text to edit in place. These edits never call the AI |
+
+Report **branding** isn't a setting either — it lives in `evolve-report-theme.json` in your workspace (colours, palette, logo, footer, default report shape), so it travels with the project and can be committed. Run `Evolve AI: Create Report Theme (branding)` to scaffold it.
 
 ---
 
@@ -605,6 +664,22 @@ This happens when a cloud plugin command is triggered but the plugin isn't activ
 2. The plugin has **activated** (connected to the cloud provider)
 
 **Fix:** Open a workspace that contains files for that cloud platform, then run the connect command.
+
+### Code conversion says it's "too big for one pass"
+
+This is the tool doing its job, not an error. A context window is shared between the prompt and the response, and a conversion's response is roughly the size of its input — so a job that would silently truncate is caught **before** the request goes out. Three ways forward:
+
+1. **Let it split** — the offered pass count works; each pass sees what the earlier ones produced. Cross-file consistency is weaker than a single pass, which is why you're offered the alternatives first.
+2. **Use a bigger model** — *Choose AI Model for Code Conversion* shows each installed model's real context window and flags which ones handle the job in one pass. `qwen2.5-coder:14b` (32k) or `deepseek-coder-v2` (64k) cover most single-file work.
+3. **Convert less at once** — a module at a time is easier to review anyway.
+
+### Converted files come back truncated or with no fidelity report
+
+Almost always the model, not the conversion. A general-purpose 7B chat model will emit code but frequently drops the structured report — you'll see the *"no conversion report was returned"* warning. Switch to a coding-tuned model (`qwen2.5-coder`, `deepseek-coder-v2`) for the conversion; models under 7B routinely truncate whole files. The **offline** provider is pattern-based, not an LLM, and cannot convert code at all — the panel says so rather than producing nonsense.
+
+### "Check it parses" says the toolchain isn't installed
+
+The check runs the *target* language's own parser, so converting to Go needs Go on your PATH. The message names exactly what's missing. It's optional — conversion works fine without it; you just don't get the parse verdict. Some languages (C#, Kotlin, Scala, Rust, SQL, COBOL…) have no sound single-file check and say so rather than inventing one.
 
 ### Slow responses
 

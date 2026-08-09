@@ -45,7 +45,9 @@ import { AzureClient }      from '../core/azureClient';
 import { AwsClient }        from '../core/awsClient';
 import { DatabricksClient } from '../core/databricksClient';
 import { DataAnalysisPanel } from '../ui/dataAnalysisPanel';
-import type { WorkspaceDataFile, ReportOptionsCatalog, PanelReportOptions } from '../ui/dataAnalysisPanel';
+import type {
+  WorkspaceDataFile, ReportOptionsCatalog, PanelReportOptions, PanelPrep,
+} from '../ui/dataAnalysisPanel';
 import { ReportPreviewPanel } from '../ui/reportPreviewPanel';
 import { stripJsonComments } from '../core/jsonc';
 import {
@@ -56,6 +58,15 @@ import {
   stashHeavyParts, restoreHeavyParts, hasDanglingImagePlaceholders, buildRefinePrompt,
 } from '../core/reportDesign';
 import type { ReportSpec, ReportTheme, Audience, ThemeMode } from '../core/reportDesign';
+import {
+  blocksFromSections, blocksToPrompt, blocksToScriptPrompt, blocksFromHtml,
+  makeBlock, describeBlocks, BLOCK_KINDS,
+  dataPrepPython, dataPrepPromptFragment, isPrepEmpty, describePrep, EMPTY_PREP,
+  saveTemplate, listTemplates, loadTemplate, TEMPLATES_DIR,
+} from '../core/reportBlocks';
+import { injectDataPrep } from '../core/reportBlocks';
+import type { ReportBlock, DataPrep, ReportTemplate, BlockType } from '../core/reportBlocks';
+import { extractBlock, buildBlockRefinePrompt } from '../core/reportEditor';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
@@ -370,6 +381,16 @@ export class DataAnalysisPlugin implements IPlugin {
 
   private _wsPath   = '';
   private _fileCount = 0;
+  /**
+   * Data preparation for the run being configured. Filters and derived columns
+   * are applied for real — deterministically in the generated script, and to
+   * the sampled rows on the direct path — rather than described to the model.
+   */
+  private _prep: DataPrep = { ...EMPTY_PREP };
+  /** Spacing, live-adjustable from the preview's Design tab. */
+  private _density: 'comfortable' | 'compact' = 'comfortable';
+  /** Extension storage, where the editable preview copy lives. */
+  private _storageDir = '';
 
   async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
     // Record how many data files we can see, so the status bar + domain-knowledge
@@ -386,7 +407,11 @@ export class DataAnalysisPlugin implements IPlugin {
     return !!ws || activeIsData;
   }
 
-  async activate(_services: IServices, _vsCtx: vscode.ExtensionContext): Promise<vscode.Disposable[]> {
+  async activate(_services: IServices, vsCtx: vscode.ExtensionContext): Promise<vscode.Disposable[]> {
+    // The editable preview copy lives here rather than beside the user's data,
+    // so edit-mode chrome never lands in their workspace.
+    this._storageDir = vsCtx.globalStorageUri.fsPath;
+    this._density = this._theme().density;
     console.log(`[Evolve AI] Data Analysis plugin activated: ${this._fileCount} data file(s) detected`);
     return [];
   }
@@ -502,6 +527,29 @@ export class DataAnalysisPlugin implements IPlugin {
       handler: async (services) => this._analyzeSource(services),
     },
     {
+      id: 'aiForge.data.runTemplate',
+      title: 'Data: Run Report Template',
+      handler: async (services) => this._runTemplate(services),
+    },
+    {
+      id: 'aiForge.data.manageTemplates',
+      title: 'Data: Manage Report Templates',
+      handler: async () => {
+        const ws = vscode.workspace.workspaceFolders?.[0];
+        const templates = listTemplates(ws?.uri.fsPath);
+        if (!templates.length) {
+          vscode.window.showInformationMessage(
+            `No report templates yet — build a report and use "Save as template" in the preview.`);
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(
+          templates.map(t => ({ label: t.tpl.name, description: t.tpl.description, file: t.file })),
+          { placeHolder: 'Open a template to edit it by hand' });
+        if (!pick) return;
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(pick.file)));
+      },
+    },
+    {
       id: 'aiForge.data.createPipeline',
       title: 'Data: Create Data Pipeline',
       handler: async (services) => this._createPipeline(services),
@@ -521,7 +569,7 @@ export class DataAnalysisPlugin implements IPlugin {
     if (remote) {
       profile = remote.profile;
     } else {
-      try { profile = sniffDataFile(filePath); }
+      try { profile = this._applyPrepToProfile(sniffDataFile(filePath)); }
       catch (e) { vscode.window.showErrorMessage(`Evolve AI: could not read ${path.basename(filePath)}: ${String(e)}`); return; }
     }
     const src = remote ? remote.label : path.basename(filePath);
@@ -607,6 +655,7 @@ export class DataAnalysisPlugin implements IPlugin {
         { id: 'analyst',  label: 'Data analysts' },
         { id: 'engineer', label: 'Data engineers' },
       ],
+      blockKinds: BLOCK_KINDS.map(k => ({ type: k.type, label: k.label, icon: k.icon })),
       defaults: {
         archetype: spec.archetype, audience: spec.audience, sections: spec.sections,
         mode: spec.mode, accent: spec.accent, title: spec.title,
@@ -621,8 +670,13 @@ export class DataAnalysisPlugin implements IPlugin {
         case 'droppedFile':
         case 'useWorkspaceFile': {
           const p = (msg as { path: string }).path;
-          if (p && isDataPath(p)) { selectedFile = p; panel.setSelected(path.basename(p)); }
-          else panel.setStatus('That file type isn\'t supported — pick a CSV, Excel, JSON, or Parquet file.');
+          if (p && isDataPath(p)) {
+            selectedFile = p;
+            panel.setSelected(path.basename(p));
+            this._pushSchema(panel, p);
+          } else {
+            panel.setStatus('That file type isn\'t supported — pick a CSV, Excel, JSON, or Parquet file.');
+          }
           break;
         }
         case 'dropFallback':
@@ -647,6 +701,30 @@ export class DataAnalysisPlugin implements IPlugin {
             accent:    o.accent,
             title:     o.title,
           };
+          break;
+        }
+        case 'setBuilder': {
+          // The authored outline supersedes the section chips; prep is applied
+          // for real before analysis, so it is kept on the plugin, not the spec.
+          const m = msg as { outline: unknown[]; prep: PanelPrep };
+          spec = { ...spec, blocks: m.outline ?? [] };
+          this._prep = {
+            filters: (m.prep?.filters ?? []) as DataPrep['filters'],
+            derived: m.prep?.derived ?? [],
+            excludeColumns: m.prep?.excludeColumns ?? [],
+            dedupe: !!m.prep?.dedupe,
+            limit: m.prep?.limit ?? 0,
+          };
+          break;
+        }
+        case 'useTemplate': {
+          const tpl = await this._pickTemplate();
+          if (!tpl) break;
+          spec = { ...tpl.spec, focus: focus || tpl.spec.focus };
+          this._prep = { ...EMPTY_PREP, ...tpl.prep };
+          if (tpl.theme?.density) this._density = tpl.theme.density;
+          panel.loadBuilder(spec.blocks ?? [], this._prep);
+          panel.setStatus(`Loaded template "${tpl.name}" — ${describeBlocks((spec.blocks ?? []) as ReportBlock[])}.`);
           break;
         }
         case 'editTheme':      await this._createTheme(); break;
@@ -692,7 +770,7 @@ export class DataAnalysisPlugin implements IPlugin {
     }
 
     let profile: DataProfile;
-    try { profile = sniffDataFile(filePath); }
+    try { profile = this._applyPrepToProfile(sniffDataFile(filePath)); }
     catch (e) { panel.setBusy(null); panel.setStatus(`✗ Could not read ${name}: ${String(e)}`); return; }
 
     const small = isSmallEnoughForDirect(profile);
@@ -789,6 +867,36 @@ export class DataAnalysisPlugin implements IPlugin {
     } else {
       panel.setStatus(`✓ Profile written: ${outName}`);
     }
+  }
+
+  /**
+   * Sniff the chosen file and push its columns to the builder, so the pickers
+   * offer real column names and types rather than asking the user to type them.
+   * A file we cannot read just leaves the pickers empty — never blocks the run.
+   */
+  private _pushSchema(panel: DataAnalysisPanel, filePath: string): void {
+    try {
+      const p = sniffDataFile(filePath);
+      panel.setSchema(p.columns.map(c => ({ name: c, type: p.inferred[c] ?? 'string' })));
+    } catch {
+      panel.setSchema([]);
+    }
+  }
+
+  /** Quick-pick over the saved templates. */
+  private async _pickTemplate(): Promise<ReportTemplate | null> {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    const templates = listTemplates(ws?.uri.fsPath);
+    if (!templates.length) {
+      vscode.window.showInformationMessage(
+        'No report templates saved yet. Build a report, arrange it, then use "Save as template" in the preview.');
+      return null;
+    }
+    const pick = await vscode.window.showQuickPick(
+      templates.map(t => ({ label: t.tpl.name, description: t.tpl.description, file: t.file })),
+      { placeHolder: 'Start from which template?' });
+    if (!pick) return null;
+    return loadTemplate(pick.file);
   }
 
   /** Native file picker shared by the panel's Browse button and drop-fallback. */
@@ -1063,7 +1171,7 @@ export class DataAnalysisPlugin implements IPlugin {
           profile = remote.profile;
         } else {
           try {
-            profile = sniffDataFile(filePath);
+            profile = this._applyPrepToProfile(sniffDataFile(filePath));
           } catch (e) {
             vscode.window.showErrorMessage(`Evolve AI: could not read ${path.basename(filePath)}: ${String(e)}`);
             return;
@@ -1133,8 +1241,23 @@ export class DataAnalysisPlugin implements IPlugin {
     const base  = this._theme();
     const rspec = spec ?? defaultSpec(base, instruction);
     const theme = themeForSpec(base, rspec);
+
+    // An authored outline supersedes the archetype's section list: the user
+    // picked the measures and dimensions, so the model must not re-decide them.
+    const blocks = (rspec.blocks ?? []) as ReportBlock[];
+    const outline = blocks.length
+      ? (useScript ? blocksToScriptPrompt(blocks) : blocksToPrompt(blocks))
+      : '';
+
     const design = !wantsDesign ? ''
-      : '\n\n' + (useScript ? buildScriptPromptBlock(rspec, theme) : buildReportPromptBlock(rspec, theme));
+      : '\n\n' + (useScript
+          ? buildScriptPromptBlock(rspec, theme, outline)
+          : buildReportPromptBlock(rspec, theme, outline));
+
+    // Filters and derived columns are applied for real (deterministically in
+    // the script, on the sample for the direct path) — the model is only told
+    // so it discloses them and doesn't describe filtered figures as totals.
+    const prepNote = isPrepEmpty(this._prep) ? '' : `\n\n${dataPrepPromptFragment(this._prep)}`;
 
     // For a remote source, the sample below is the data — a script can't re-read
     // a query as a file. A remote notebook should reconstruct the fetch itself.
@@ -1150,7 +1273,7 @@ export class DataAnalysisPlugin implements IPlugin {
           `type, null counts, numeric stats, distinct/top values, correlations, and data-quality issues. Base ` +
           `everything strictly on the provided rows.`;
       return {
-        messages: [{ role: 'user', content: `${notebookHint}${focus}${design}\n\n---\nDataset (from ${remote.label}):\n${dataMd}` }],
+        messages: [{ role: 'user', content: `${notebookHint}${focus}${design}${prepNote}\n\n---\nDataset (from ${remote.label}):\n${dataMd}` }],
         system: REPORT_SYSTEM,
         instruction: `data ${kind} (remote)`,
         mode: 'new',
@@ -1186,7 +1309,7 @@ export class DataAnalysisPlugin implements IPlugin {
     }
 
     return {
-      messages: [{ role: 'user', content: `${task}${focus}${design}\n\n---\nDataset:\n${dataMd}` }],
+      messages: [{ role: 'user', content: `${task}${focus}${design}${prepNote}\n\n---\nDataset:\n${dataMd}` }],
       system: REPORT_SYSTEM,
       instruction: `data ${kind}`,
       mode: 'new',
@@ -1206,13 +1329,74 @@ export class DataAnalysisPlugin implements IPlugin {
    * the model emitted: stamp the stylesheet + runtime into HTML, or prepend the
    * Python helper preamble to a report-producing script.
    */
+  /**
+   * Apply the configured filters to a sniffed sample, so the direct (small-data)
+   * path honours the same preparation the script path does. Without this a
+   * filter set in the panel would silently do nothing for small files.
+   */
+  private _applyPrepToProfile(p: DataProfile): DataProfile {
+    if (isPrepEmpty(this._prep) || p.binary || !p.columns.length) return p;
+    const idx = new Map(p.columns.map((c, i) => [c, i]));
+    let rows = p.sampleRows;
+
+    for (const f of this._prep.filters) {
+      const i = idx.get(f.column);
+      if (i === undefined) continue;
+      const num = (s: string): number => parseFloat(String(s).replace(/[^0-9eE+.-]/g, ''));
+      const target = f.value.trim().toLowerCase();
+      const list = f.value.split(',').map(s => s.trim().toLowerCase());
+      rows = rows.filter(r => {
+        const raw = (r[i] ?? '').trim();
+        const v = raw.toLowerCase();
+        switch (f.op) {
+          case 'eq':  return v === target;
+          case 'ne':  return v !== target;
+          case 'gt':  return num(raw) >  num(f.value);
+          case 'gte': return num(raw) >= num(f.value);
+          case 'lt':  return num(raw) <  num(f.value);
+          case 'lte': return num(raw) <= num(f.value);
+          case 'contains':    return v.includes(target);
+          case 'notContains': return !v.includes(target);
+          case 'in':    return list.includes(v);
+          case 'notIn': return !list.includes(v);
+          case 'isNull':  return raw === '';
+          case 'notNull': return raw !== '';
+          case 'between': return num(raw) >= num(f.value) && num(raw) <= num(f.value2 ?? f.value);
+          default: return true;
+        }
+      });
+    }
+
+    let columns = p.columns;
+    let inferred = p.inferred;
+    if (this._prep.excludeColumns.length) {
+      const drop = new Set(this._prep.excludeColumns);
+      const keep = p.columns.map((c, i) => ({ c, i })).filter(({ c }) => !drop.has(c));
+      columns = keep.map(k => k.c);
+      rows = rows.map(r => keep.map(k => r[k.i] ?? ''));
+      inferred = Object.fromEntries(columns.map(c => [c, p.inferred[c] ?? 'string']));
+    }
+    if (this._prep.dedupe) {
+      const seen = new Set<string>();
+      rows = rows.filter(r => { const k = r.join(''); if (seen.has(k)) return false; seen.add(k); return true; });
+    }
+    if (this._prep.limit > 0) rows = rows.slice(0, this._prep.limit);
+
+    // approxRows was estimated from the whole file; after filtering the sample
+    // it is no longer meaningful, so scale it by the survival rate rather than
+    // reporting a total the filtered report does not describe.
+    const ratio = p.sampleRows.length ? rows.length / p.sampleRows.length : 1;
+    const approxRows = p.approxRows != null ? Math.round(p.approxRows * ratio) : null;
+    return { ...p, columns, inferred, sampleRows: rows, approxRows };
+  }
+
   private _finishOutput(body: string, lang: string, kind: Deliverable, spec: ReportSpec): string {
     const theme = themeForSpec(this._theme(), spec);
     if (lang === 'html' || (!lang && /^\s*<(?:!doctype|html)/i.test(body))) {
       return injectReportAssets(body, theme);
     }
     if (lang === 'python' && (kind === 'report' || kind === 'notebook')) {
-      return injectPythonPreamble(body, theme);
+      return injectDataPrep(injectPythonPreamble(body, theme), this._prep);
     }
     return body;
   }
@@ -1244,12 +1428,32 @@ export class DataAnalysisPlugin implements IPlugin {
     // and coming back should not silently throw away the ability to step back.
     const history = this._preview?.reportPath === reportPath ? this._preview.history : [];
     this._preview = { reportPath, dataPath, kind, spec, history, abort: null };
-    const panel = ReportPreviewPanel.show(reportPath, async (msg) => {
+
+    const previewPath = this._writePreviewCopy(reportPath);
+    const panel = ReportPreviewPanel.show(reportPath, previewPath, async (msg) => {
       const st = this._preview;
       if (!st) return;
       switch (msg.type) {
         case 'refine':
           await this._refine(services, panel, msg.text);
+          break;
+        case 'saveHtml':
+          await this._saveEditedHtml(services, panel, msg.html);
+          break;
+        case 'refineBlock':
+          await this._refineBlock(services, panel, msg.blockId, msg.blockType, msg.text);
+          break;
+        case 'design':
+          await this._applyDesign(services, panel, msg.key, msg.value);
+          break;
+        case 'addBlock':
+          await this._addBlockAfter(services, panel, msg.afterId);
+          break;
+        case 'exportPdf':
+          await this._exportPdf(panel);
+          break;
+        case 'saveTemplate':
+          await this._saveTemplateFromReport(panel);
           break;
         case 'cancel':
           st.abort?.abort();
@@ -1287,7 +1491,223 @@ export class DataAnalysisPlugin implements IPlugin {
       }
     });
     panel.setCanUndo(history.length > 0);
-    panel.setStatus('Refine the report in plain language — the change is applied to this document, not regenerated from scratch.');
+    panel.setDesign({
+      accent: spec.accent || this._theme().accent,
+      mode: spec.mode,
+      density: this._theme().density,
+    });
+    panel.setStatus('Hover a section to move, duplicate or delete it · double-click any text to edit it · or describe a change below.');
+  }
+
+  /**
+   * Write the editable copy the iframe actually loads. Edit-mode chrome (hover
+   * toolbars, contenteditable) must never reach the report on disk, so the
+   * preview is a separate file in extension storage rather than the real one.
+   */
+  private _writePreviewCopy(reportPath: string): string {
+    const dir = path.join(this._storageDir, 'preview');
+    try { fs.mkdirSync(dir, { recursive: true }); } catch { /* falls back below */ }
+    const out = path.join(dir, `preview-${slug(path.basename(reportPath, '.html'))}.html`);
+    try {
+      const html = fs.readFileSync(reportPath, 'utf8');
+      const spec = this._preview?.spec ?? defaultSpec(this._theme());
+      fs.writeFileSync(out, injectReportAssets(html, themeForSpec(this._theme(), spec), { editable: true }), 'utf8');
+      return out;
+    } catch {
+      // Storage unavailable — fall back to previewing the real file read-only.
+      return reportPath;
+    }
+  }
+
+  /** Refresh the preview copy from disk and reload the iframe. */
+  private _refreshPreview(panel: ReportPreviewPanel): void {
+    const st = this._preview;
+    if (!st) return;
+    this._writePreviewCopy(st.reportPath);
+    panel.reload();
+  }
+
+  /**
+   * The user moved, deleted, duplicated or retyped something in the preview.
+   * The edited DOM is the truth now, so it is written straight through — no
+   * model call — and the outline is recovered from the stamped block ids.
+   */
+  private async _saveEditedHtml(services: IServices, panel: ReportPreviewPanel, html: string): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+    if (!html || !/<\/html>/i.test(html)) { panel.setStatus('✗ Ignored an incomplete edit.'); return; }
+
+    let current = '';
+    try { current = fs.readFileSync(st.reportPath, 'utf8'); } catch { /* first write */ }
+
+    const clean = injectReportAssets(html, themeForSpec(this._theme(), st.spec));
+    if (clean === current) { panel.setStatus(''); return; }
+
+    st.history.push(current);
+    st.spec = { ...st.spec, blocks: blocksFromHtml(clean, (st.spec.blocks ?? []) as ReportBlock[]) };
+    await services.workspace.writeFile(st.reportPath, clean, /*openAfter*/ false);
+    // The iframe already shows the change — rewriting its copy would reset
+    // scroll position and cancel an in-progress inline edit.
+    this._writePreviewCopy(st.reportPath);
+    panel.setCanUndo(true);
+    panel.setStatus('✓ Saved.');
+  }
+
+  /** Re-inject the stylesheet with new design values. No AI call. */
+  private async _applyDesign(services: IServices, panel: ReportPreviewPanel, key: string, value: string): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+    let current: string;
+    try { current = fs.readFileSync(st.reportPath, 'utf8'); }
+    catch (e) { panel.setStatus(`✗ Could not read the report: ${String(e)}`); return; }
+
+    if (key === 'accent' && /^#[0-9a-fA-F]{3,8}$/.test(value)) st.spec = { ...st.spec, accent: value };
+    else if (key === 'mode' && ['auto', 'light', 'dark'].includes(value)) st.spec = { ...st.spec, mode: value as ThemeMode };
+    else if (key === 'density' && ['comfortable', 'compact'].includes(value)) this._density = value as 'comfortable' | 'compact';
+    else return;
+
+    st.history.push(current);
+    const theme = { ...themeForSpec(this._theme(), st.spec), density: this._density };
+    await services.workspace.writeFile(st.reportPath, injectReportAssets(current, theme), /*openAfter*/ false);
+    this._refreshPreview(panel);
+    panel.setCanUndo(true);
+    panel.setStatus(`✓ ${key} → ${value} — applied instantly, no model call.`);
+  }
+
+  /**
+   * Refine ONE card. Sending a single block instead of the document is cheaper,
+   * faster, and structurally prevents the model from rewriting sections the
+   * user did not ask about.
+   */
+  private async _refineBlock(
+    services: IServices, panel: ReportPreviewPanel,
+    blockId: string, blockType: string, instruction: string,
+  ): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+
+    let current: string;
+    try { current = fs.readFileSync(st.reportPath, 'utf8'); }
+    catch (e) { panel.setStatus(`✗ Could not read the report: ${String(e)}`); return; }
+
+    const found = extractBlock(current, blockId);
+    if (!found) {
+      panel.setStatus('✗ Could not locate that block — refining the whole report instead.');
+      await this._refine(services, panel, instruction);
+      return;
+    }
+
+    // The block may hold a base64 chart; stash it exactly as the whole-document
+    // path does so one card never costs megabytes of context.
+    const stashed = stashHeavyParts(found.block);
+
+    st.abort = new AbortController();
+    const started = Date.now();
+    const tick = setInterval(() => panel.setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
+    panel.setBusy(`Refining the ${blockType || 'selected'} block…`);
+
+    let output = '';
+    try {
+      for await (const chunk of services.ai.stream({
+        messages: [{ role: 'user', content: buildBlockRefinePrompt(stashed.html, instruction, blockType) }],
+        system: REPORT_SYSTEM,
+        instruction: 'refine report block',
+        mode: 'edit',
+        signal: st.abort.signal,
+      })) {
+        if (st.abort.signal.aborted) break;
+        output += chunk;
+      }
+    } catch (e) {
+      clearInterval(tick); panel.setBusy(null); st.abort = null;
+      panel.setStatus(`✗ ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    clearInterval(tick);
+    panel.setBusy(null);
+    panel.setElapsed(0);
+
+    if (st.abort.signal.aborted) { st.abort = null; panel.setStatus('Cancelled — the block is unchanged.'); return; }
+    st.abort = null;
+
+    const { body } = extractCodeBlock(output);
+    // Must still be one element carrying the id, or splicing it back would
+    // corrupt the document.
+    if (!body.trim() || !body.includes(`data-block-id="${blockId}"`)) {
+      panel.setStatus('✗ The model did not return a usable block — nothing changed.');
+      return;
+    }
+
+    let replacement = restoreHeavyParts(body, stashed);
+    if (hasDanglingImagePlaceholders(replacement)) {
+      replacement = replacement
+        .replace(/<figure class="chart">(?:(?!<\/figure>)[\s\S])*?EVOLVE_IMG_\d+[\s\S]*?<\/figure>/g, '')
+        .replace(/EVOLVE_IMG_\d+/g, '');
+    }
+
+    const next = injectReportAssets(found.replace(replacement), themeForSpec(this._theme(), st.spec));
+    st.history.push(current);
+    await services.workspace.writeFile(st.reportPath, next, /*openAfter*/ false);
+    this._refreshPreview(panel);
+    panel.setCanUndo(true);
+    panel.addHistory(`[${blockType || 'block'}] ${instruction}`);
+    panel.setStatus('✓ Block updated. The rest of the report is untouched.');
+  }
+
+  /** Insert a new block after the given one, then generate just that block. */
+  private async _addBlockAfter(services: IServices, panel: ReportPreviewPanel, afterId: string): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+
+    const pick = await vscode.window.showQuickPick(
+      BLOCK_KINDS.map(k => ({ label: `${k.icon}  ${k.label}`, detail: k.description, id: k.type })),
+      { placeHolder: 'What kind of block should go here?' },
+    );
+    if (!pick) return;
+
+    let instruction = '';
+    if (pick.id !== 'divider') {
+      const asked = await vscode.window.showInputBox({
+        prompt: `What should this ${pick.label.replace(/^\S+\s+/, '')} block show?`,
+        placeHolder: pick.id === 'chart' ? 'e.g. "revenue by month as a line chart"'
+          : pick.id === 'text' ? 'The exact text to insert'
+          : 'Leave blank to let the model decide',
+        ignoreFocusOut: true,
+      });
+      if (asked === undefined) return;
+      instruction = asked;
+    }
+
+    const block = makeBlock(pick.id as BlockType);
+    if (block.type === 'text') block.body = instruction;
+    else if (instruction) block.note = instruction;
+
+    // Give the model an empty, correctly-stamped card and let the block-refine
+    // path fill it — one code path for "create" and "change" instead of two.
+    let current: string;
+    try { current = fs.readFileSync(st.reportPath, 'utf8'); }
+    catch (e) { panel.setStatus(`✗ Could not read the report: ${String(e)}`); return; }
+
+    const anchor = extractBlock(current, afterId);
+    if (!anchor) { panel.setStatus('✗ Could not find where to insert the block.'); return; }
+
+    const placeholder =
+      `<section class="card" data-block-id="${block.id}" data-block-type="${block.type}">` +
+      `<h2>${escapeHtml(pick.label.replace(/^\S+\s+/, ''))}</h2></section>`;
+    const withPlaceholder = anchor.replace(`${anchor.block}\n${placeholder}`);
+    await services.workspace.writeFile(
+      st.reportPath, injectReportAssets(withPlaceholder, themeForSpec(this._theme(), st.spec)), false);
+    st.spec = { ...st.spec, blocks: [...((st.spec.blocks ?? []) as ReportBlock[]), block] };
+
+    if (block.type === 'divider') {
+      this._refreshPreview(panel);
+      panel.setStatus('✓ Divider added.');
+      return;
+    }
+    await this._refineBlock(
+      services, panel, block.id, block.type,
+      instruction || `Fill in this empty ${block.type} block using the data already shown in this report.`,
+    );
   }
 
   /** Apply one refinement round to the report currently in the preview. */
@@ -1384,6 +1804,111 @@ export class DataAnalysisPlugin implements IPlugin {
     panel.reload();
     panel.addHistory(instruction);
     panel.setStatus('✓ Applied. Keep refining, or Undo to step back.');
+  }
+
+  /**
+   * Export to PDF. The stylesheet already carries print rules that keep cards
+   * off page breaks, so the browser's own print-to-PDF produces the right
+   * result — bundling a headless browser to do the same job would add ~150MB
+   * to the extension for no gain in fidelity.
+   */
+  private async _exportPdf(panel: ReportPreviewPanel): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+    const choice = await vscode.window.showInformationMessage(
+      'Evolve AI opens the report in your browser — use its Print dialog and choose "Save as PDF". ' +
+      'The report has print styles built in: toolbars are hidden and cards never split across pages.',
+      { modal: true }, 'Open & Print', 'Cancel',
+    );
+    if (choice !== 'Open & Print') return;
+    await vscode.env.openExternal(vscode.Uri.file(st.reportPath));
+    panel.setStatus('Opened in your browser — press Ctrl+P and choose "Save as PDF".');
+  }
+
+  /** Capture the report's current shape as a reusable template. */
+  private async _saveTemplateFromReport(panel: ReportPreviewPanel): Promise<void> {
+    const st = this._preview;
+    if (!st) return;
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    if (!ws) { panel.setStatus('✗ Open a folder first — templates are saved into the workspace.'); return; }
+
+    const name = await vscode.window.showInputBox({
+      prompt: 'Name this report template',
+      placeHolder: 'e.g. "Monthly sales review"',
+      value: st.spec.title || path.basename(st.reportPath, '.html').replace(/-report$/, ''),
+      ignoreFocusOut: true,
+      validateInput: v => v.trim() ? undefined : 'Give the template a name',
+    });
+    if (!name) return;
+
+    // Read the outline back out of the HTML: after manual reordering and
+    // deletion, the document is the truth, not the in-memory spec.
+    let blocks = (st.spec.blocks ?? []) as ReportBlock[];
+    try {
+      blocks = blocksFromHtml(fs.readFileSync(st.reportPath, 'utf8'), blocks);
+    } catch { /* keep the in-memory outline */ }
+
+    const tpl: ReportTemplate = {
+      version: 1,
+      name: name.trim(),
+      description: `${describeBlocks(blocks)} · ${st.spec.audience} audience`,
+      spec: { ...st.spec, blocks, title: st.spec.title },
+      prep: this._prep,
+      theme: { accent: st.spec.accent, mode: st.spec.mode, density: this._density },
+      createdFrom: path.basename(st.reportPath),
+      createdAt: new Date().toISOString().slice(0, 10),
+    };
+
+    try {
+      const file = saveTemplate(ws.uri.fsPath, tpl);
+      panel.setStatus(`✓ Saved as ${path.relative(ws.uri.fsPath, file)}`);
+      const open = await vscode.window.showInformationMessage(
+        `Template "${tpl.name}" saved (${describeBlocks(blocks)}). Run it against any dataset with "Data: Run Report Template".`,
+        'Run It Now', 'Open Template');
+      if (open === 'Run It Now') await vscode.commands.executeCommand('aiForge.data.runTemplate');
+      else if (open === 'Open Template') {
+        await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(file)));
+      }
+    } catch (e) {
+      panel.setStatus(`✗ Could not save the template: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
+  /** Pick a saved template and a dataset, then rebuild that exact report shape. */
+  private async _runTemplate(services: IServices): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0];
+    const templates = listTemplates(ws?.uri.fsPath);
+    if (!templates.length) {
+      const go = await vscode.window.showInformationMessage(
+        `No report templates yet. Build a report, arrange it how you want, then use "Save as template" in the preview — ` +
+        `it writes to ${TEMPLATES_DIR}/ and can be re-run against any dataset.`,
+        'Build a Report');
+      if (go === 'Build a Report') await vscode.commands.executeCommand('aiForge.data.report');
+      return;
+    }
+
+    const pick = await vscode.window.showQuickPick(
+      templates.map(t => ({
+        label: `$(file-symlink-file) ${t.tpl.name}`,
+        description: t.tpl.description,
+        detail: t.tpl.createdFrom ? `from ${t.tpl.createdFrom}${t.tpl.createdAt ? ` · ${t.tpl.createdAt}` : ''}` : undefined,
+        file: t.file,
+      })),
+      { placeHolder: 'Which report template?' },
+    );
+    if (!pick) return;
+
+    const tpl = loadTemplate(pick.file);
+    if (!tpl) { vscode.window.showErrorMessage(`Evolve AI: could not read ${path.basename(pick.file)}.`); return; }
+
+    const file = await this._pickDataFile(services);
+    if (!file) return;
+
+    // A template carries its own prep; adopt it for this run so the same
+    // filters apply to the new data.
+    this._prep = { ...EMPTY_PREP, ...tpl.prep };
+    if (tpl.theme?.density) this._density = tpl.theme.density;
+    await this._run(services, file, 'report', tpl.spec.focus || undefined, undefined, tpl.spec);
   }
 
   /** Open an existing HTML report in the preview so it can be refined. */
@@ -1502,6 +2027,9 @@ export class DataAnalysisPlugin implements IPlugin {
       title:     title.trim(),
       focus:     focus ?? base.focus,
       notes:     [],
+      // The quick-pick path chooses sections, not a hand-built outline. Blocks
+      // are derived from those sections so both paths generate the same way.
+      blocks:    blocksFromSections(sections.length ? sections : arch.sections),
     };
   }
 
@@ -1725,7 +2253,7 @@ export class DataAnalysisPlugin implements IPlugin {
       if (!source.path) throw new Error('file source requires "path"');
       const filePath = path.resolve(baseDir, source.path);
       if (!fs.existsSync(filePath)) throw new Error(`file not found: ${source.path}`);
-      profile = sniffDataFile(filePath);
+      profile = this._applyPrepToProfile(sniffDataFile(filePath));
       stem = path.basename(filePath, path.extname(filePath));
     } else {
       remote = await this._fetchRemoteHeadless(services, source);
@@ -1886,6 +2414,11 @@ interface PipelineStep {
 interface Pipeline {
   output?: string;        // folder (relative to the pipeline file) for deliverables
   steps: PipelineStep[];
+}
+
+/** Escape a label before it goes into generated HTML. */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
 }
 
 /** Filesystem-safe slug for output filenames. */

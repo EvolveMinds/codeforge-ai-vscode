@@ -28,7 +28,8 @@ evolve-ai-vscode/
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
 │   ├── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
-│   └── DATA_ANALYSIS.md        ← Data Analysis & Reporting plugin user guide (v2.11.0 — report design system, customisation, refine loop)
+│   ├── DATA_ANALYSIS.md        ← Data Analysis & Reporting plugin user guide (v2.11.0 — report design system, customisation, refine loop)
+│   └── CODE_CONVERSION.md      ← Code Converter user guide (v2.12.0 — languages, fidelity, review, verification)
 ├── package.json                 ← VS Code manifest: commands, config, keybindings, menus
 ├── tsconfig.json
 ├── media/
@@ -37,6 +38,10 @@ evolve-ai-vscode/
     ├── extension.ts             ← entry point (54 lines — thin wiring only)
     ├── core/
     │   ├── reportDesign.ts      ← report design system: stylesheet, archetypes, ReportSpec/Theme, Python preamble
+│   ├── reportBlocks.ts      ← report as an authored outline: typed blocks, block→prompt, data prep (real pandas), templates
+│   ├── reportEditor.ts      ← in-iframe direct manipulation (move/delete/duplicate/inline edit) + block extraction/splicing
+    │   ├── codeConvert.ts       ← conversion engine: language catalogue (idioms/pitfalls/checkers), output contract, prompts, result parser, fidelity report, file slicing
+    │   ├── modelCapability.ts   ← model context windows / output caps / coding tier + fit assessment (used to size any large-prompt job)
     │   ├── jsonc.ts             ← stripJsonComments — shared by the pipeline + report-theme config files
     │   ├── interfaces.ts        ← IAIService, IContextService, IWorkspaceService
     │   ├── services.ts          ← IServices interface + ServiceContainer (DI root)
@@ -56,6 +61,8 @@ evolve-ai-vscode/
     │   └── hookInstaller.ts          ← Pre-push hook install/uninstall (v2.4) — Husky-aware, conflict-safe
     ├── ui/
     │   ├── reportPreviewPanel.ts ← live report preview + plain-language refine loop (undoable)
+    │   ├── codeConvertPanel.ts   ← Code Converter entry panel (source · target · fidelity · dependencies)
+    │   ├── conversionReviewPanel.ts ← side-by-side original/converted review + fidelity report + refine loop
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
@@ -72,6 +79,7 @@ evolve-ai-vscode/
     │       └── contextService.test.ts ← Context budget + prompt tests
     └── plugins/
         ├── index.ts             ← ONLY file to edit when adding a plugin
+        ├── codeConvert.ts       ← Code Converter orchestration (pick sources, batch, review, verify, save)
         └── databricks.ts        ← reference plugin implementation (860 lines)
 ```
 
@@ -135,8 +143,15 @@ to undo.
 | Git plugin | `plugins/git.ts` | ✅ Complete |
 | CI/CD plugin | `plugins/cicd.ts` | ✅ Complete |
 | Data Analysis & Reporting plugin | `plugins/dataAnalysis.ts` | ✅ Complete — CSV/TSV/JSON/Excel/Parquet → HTML report / notebook / profiling. Size-adaptive (AI-direct for small data, generated script for large). Dependency-free sniffer. |
+| Code Converter plugin | `plugins/codeConvert.ts` | ✅ Complete — convert code between 26 languages. Nothing written until reviewed. |
 | Report design system | `core/reportDesign.ts` | ✅ Complete (v2.11.0) — owns report CSS/JS/palette, archetypes, ReportSpec + theme file, Python preamble |
-| Report preview + refine loop | `ui/reportPreviewPanel.ts` | ✅ Complete (v2.11.0) |
+| Report preview + refine loop | `ui/reportPreviewPanel.ts` | ✅ Complete (v2.13.0) — direct-manipulation host, Design tab, block-scoped refine, export |
+| Report block model | `core/reportBlocks.ts` | ✅ Complete (v2.13.0) — typed blocks with real column bindings, deterministic data prep, reusable templates |
+| In-report editor | `core/reportEditor.ts` | ✅ Complete (v2.13.0) — runs inside the preview iframe; edits never reach disk as chrome |
+| Code Converter plugin | `plugins/codeConvert.ts` | ✅ Complete (v2.12.0) — selection/file/folder → another language. Batched so cross-file refs survive, reviewed before anything is written |
+| Conversion engine | `core/codeConvert.ts` | ✅ Complete (v2.12.0) — 26-language catalogue (idioms, pitfalls, naming, manifests, syntax checkers), output contract, prompt + repair + refine builders, tolerant result parser, fidelity report |
+| Converter entry panel | `ui/codeConvertPanel.ts` | ✅ Complete (v2.12.0) |
+| Conversion review panel | `ui/conversionReviewPanel.ts` | ✅ Complete (v2.12.0) |
 | Plugin loader | `plugins/index.ts` | ✅ All plugins wired |
 
 ### What is next to build
@@ -241,7 +256,7 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (54 total)
+## Commands currently registered (60 total)
 
 ### Core (18)
 | Command ID | Keybinding | Description |
@@ -312,6 +327,66 @@ are merged into the core system transparently:
 | `aiForge.data.createPipeline` | Scaffold a declarative `evolve-data-pipeline.json` (steps = source + analysis) with commented examples for every source type |
 | `aiForge.data.runPipeline` | Run a data pipeline JSON — each step's deliverable written to the pipeline's output folder; JSONC (`//` comments) tolerated; continues past failures and summarises |
 
+### Code Converter (7)
+| Command ID | Description |
+|---|---|
+| `aiForge.convert.start` | Open the Code Converter panel — pick source (active file / selection / files / folder), target language, fidelity and dependency policy. This is what the chat's **Code Convertor** mode launches. |
+| `aiForge.convert.file` | Convert the active file (or an Explorer-selected file) — target and fidelity via quick pick |
+| `aiForge.convert.selection` | Convert the current selection. Also on the lightbulb (⚡) menu whenever text is selected |
+| `aiForge.convert.folder` | Convert a folder / small project. Files go in one request so cross-file references stay consistent; chunked only when the char budget forces it. Explorer right-click on a folder |
+| `aiForge.convert.model` | Choose the AI model used **for conversion only** — leaves the global provider/model alone. Lists installed Ollama models with their real context window (from `/api/show`) and coding tier |
+| `aiForge.convert.review` | Reopen the review for the conversion in progress |
+| `aiForge.convert.verify` | Run the target language's own parser over the converted files, when its toolchain is on PATH. Failures can be fed straight back for a repair round |
+
+### Conversion engine (v2.12.0)
+
+Conversion knowledge is **not** delegated to the model. `core/codeConvert.ts` owns the language
+catalogue (per language: extension, naming convention, manifest, test framework, single-file syntax
+checker, and the idioms + pitfalls that separate native code from transliterated code), the output
+contract, every prompt (convert / repair / refine), and the parser that turns a model response into
+files + a fidelity report. If conversion quality needs to change, change it there — extra prose in a
+prompt won't survive.
+
+The flow the plugin enforces is the product:
+
+1. **Nothing is written until the review is accepted.** Converted files live in memory beside the
+   original; a rejected conversion leaves no litter.
+2. **Batches convert together**, so shared types and cross-file calls stay consistent
+   (`convert.maxCharsPerBatch` chunks only when the context budget demands it).
+3. **It checks its own work** where the target toolchain exists, and feeds failures back as a repair
+   round. `SyntaxCheck.verifies` distinguishes `'syntax'` (a failure is always real) from
+   `'compile'` (a failure may just be a missing local dependency) so the message doesn't mislead.
+   Tools that fail on *unformatted but valid* code are deliberately excluded — see the Rust entry.
+4. **Refinement is incremental and undoable** — only the affected files are re-emitted.
+5. **The job is sized against the model before it runs.** `core/modelCapability.ts` resolves the real
+   context window (queried from Ollama, table lookup otherwise), estimates prompt + response tokens,
+   and returns a verdict: comfortable / tight / split(n) / impossible. Reserving room for the
+   *response* is the crux — a prompt that fits alone still produces a reply that stops mid-file.
+6. **Oversized work is split, not truncated.** Many files → batches; one file too big for any pass →
+   sliced at top-level declarations, each part told what earlier parts declared, then stitched back
+   into one file with a report warning naming the rejoined files.
+
+### Per-request model overrides (v2.12.0)
+
+`AIRequest` gained `providerOverride`, `modelOverride`, `maxOutputTokens` and `contextTokens`, honoured
+by every provider path in `aiService.ts`. Three reasons they exist, all of which bit the converter:
+
+- **`modelOverride`** — conversion wants a bigger model than chat. Overrides never write to user
+  settings (the Ollama auto-fallback deliberately skips its `update()` when an override is in play).
+- **`maxOutputTokens`** — every provider was hard-coded to 4096, fine for chat and far too small for
+  emitting whole files. Callers now size it to the job.
+- **`contextTokens`** — sets Ollama's `num_ctx`. Without it Ollama serves the model's default window
+  (often 4096) and **truncates the prompt from the front silently**. Any feature building large
+  prompts must set this.
+
+`IAIService.getOllamaModelInfo()` reads the model's real trained context length from `/api/show`.
+Prefer it over the capability table — detection beats guessing, and the table only fills the gap.
+
+Every conversion produces a `ConversionReport`: what mapped 1:1, what was approximated, what needs a
+human, the dependency mapping, and the setup commands. It is rendered into the review panel and
+written as `CONVERSION-REPORT.md` next to the saved code. A conversion you cannot audit is not one
+you can ship — so a missing report is itself reported as a warning rather than silently filled in.
+
 ### Report design system (v2.11.0)
 
 HTML report styling is **not** delegated to the model. `core/reportDesign.ts` owns the stylesheet,
@@ -327,6 +402,38 @@ layered over a workspace `ReportTheme` from `evolve-report-theme.json`. Refineme
 through `ReportPreviewPanel`; heavy parts (base64 charts, the injected stylesheet) are stashed
 before the model sees the document and restored after, and pure styling requests are handled
 locally without an AI call at all.
+
+### Report authoring (v2.13.0)
+
+`ReportSpec.blocks` supersedes `sections` when non-empty: the user has composed the report block by
+block, so `blocksToPrompt()` drives generation instead of the archetype's section list. Blocks are
+typed and data-bound (`ChartBlock` carries measure/dimension/agg/chart/topN/sort), and the builder
+populates its pickers from the sniffed `DataProfile` — that is the whole reason column pickers are
+possible without a schema service.
+
+**After generation, the rendered HTML is the source of truth.** `core/reportEditor.ts` is injected
+into the preview iframe (never the file on disk — the preview is a separate copy in
+`globalStorageUri`), handles move/delete/duplicate/inline-edit in a real DOM, and posts the
+serialised document back. `blocksFromHtml()` then recovers the outline from the stamped
+`data-block-id` attributes rather than maintaining a parallel model that would drift. Keep it that
+way: any feature that needs to know the outline should read the HTML, not trust `spec.blocks`.
+
+Three cost tiers, and they must stay distinct — collapsing them back into "everything is a prompt"
+is what this release exists to undo:
+
+| Change | Mechanism | Cost |
+|---|---|---|
+| move / delete / duplicate / retype | DOM op in the iframe | free, instant |
+| accent / appearance / density | re-inject the stylesheet | free, instant |
+| refine one block | `extractBlock` → single card to the model → splice back | one small call |
+| refine the document | whole-document round-trip | one large call |
+
+Data preparation (`DataPrep`) is **executed, not described**: `dataPrepPython()` emits real pandas
+spliced in after the load by `injectDataPrep()`, and `_applyPrepToProfile()` mirrors it on the
+sampled rows for the direct path. Two constraints are load-bearing — prep runs *before* the script
+coerces stringy-numeric columns (so every numeric comparison cleans its own value), and derived
+expressions are gated by `isSafeExpression()` because templates are shareable files and
+`df.eval` on untrusted input is arbitrary code execution.
 
 ---
 
@@ -367,6 +474,19 @@ locally without an AI call at all.
 | `gitConnect.statusHint` | boolean | `true` | Show `· not connected` in status bar + first-run nudge toast |
 | `cicd.openPRAfterCommit` | boolean | `true` | After Stage & Commit, offer to push the branch and open a PR. v2.2.0+. |
 | `cicd.hookMode` | string | `block` | Pre-push hook mode: `block` (refuse push on hard issues), `warn` (surface but allow), `off` (skip checks). v2.4.0+. |
+| `convert.defaultTarget` | string | `""` | Language pre-selected in the Code Converter. Blank = choose every time. v2.12.0+. |
+| `convert.fidelity` | string | `idiomatic` | `idiomatic` / `literal` (diffable against the source) / `modernise` |
+| `convert.dependencies` | string | `popular` | `stdlib` (nothing third-party) / `popular` / `mirror` (one-for-one with the source's libraries) |
+| `convert.includeTests` | boolean | `false` | Also generate tests in the target's usual framework |
+| `convert.keepComments` | boolean | `true` | Carry comments across, rewritten in the target's doc style |
+| `convert.emitManifest` | boolean | `true` | Also emit `go.mod` / `package.json` / `requirements.txt` etc. |
+| `convert.outputFolder` | string | `converted` | Workspace-relative root for multi-file conversions, under a per-language subfolder (`converted/go`). Single files and selections are written beside the original instead. |
+| `convert.maxFiles` | number | `20` | Most files one folder conversion will queue |
+| `convert.maxCharsPerBatch` | number | `60000` | Upper bound on characters per request. The converter also derives a budget from the chosen model's real context window and uses whichever is **smaller** — a setting can only shrink requests, never exceed what the model can take. |
+
+The conversion model itself is deliberately **not** a setting — it is a per-session choice
+(`aiForge.convert.model` or the panel), so a model picked for one big port doesn't quietly become
+the default for everything afterwards.
 
 ### SecretStorage keys (never in settings.json)
 

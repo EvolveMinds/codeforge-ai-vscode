@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers and DevOps — dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + first-time setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into a PowerBI-style HTML report, notebook, or inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX, GLM-5.2 744B via Colibri) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.11.0",
+  "description": "AI coding assistant for data engineers and DevOps. Convert code between 26 languages (Python, Java, Go, Rust, C#, TypeScript, COBOL, VBA, SAS...) with a side-by-side review and a fidelity report of what was approximated. dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into an HTML report you author block by block: pick each chart's measure and dimension from your real columns, edit the rendered report in place, filter the data for real, brand it, and save it as a template to re-run next month. Light/dark, sortable tables, print-ready. Also notebooks and inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX, GLM-5.2 744B via Colibri) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "version": "2.13.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -14,7 +14,9 @@
     "Machine Learning",
     "Data Science",
     "Testing",
-    "Linters"
+    "Linters",
+    "AI",
+    "Formatters"
   ],
   "keywords": [
     "ai",
@@ -60,7 +62,6 @@
     "dag",
     "airflow lint",
     "etl",
-    "data pipeline",
     "data lineage",
     "snowflake",
     "delta lake",
@@ -85,7 +86,56 @@
     "devops",
     "pipeline",
     "oidc",
-    "workflow"
+    "workflow",
+    "code converter",
+    "code conversion",
+    "convert code",
+    "code translation",
+    "language converter",
+    "transpiler",
+    "transpile",
+    "port code",
+    "code migration",
+    "legacy modernization",
+    "legacy migration",
+    "modernize legacy code",
+    "python to java",
+    "python to go",
+    "java to python",
+    "javascript to typescript",
+    "cobol to java",
+    "vba to python",
+    "sas to python",
+    "matlab to python",
+    "perl to python",
+    "c# to java",
+    "php to python",
+    "r to python",
+    "cobol",
+    "vba",
+    "sas",
+    "matlab",
+    "legacy code",
+    "golang",
+    "rust",
+    "kotlin",
+    "swift",
+    "scala",
+    "html report",
+    "report builder",
+    "report template",
+    "dashboard",
+    "data visualization",
+    "dataviz",
+    "charts",
+    "business intelligence",
+    "data prep",
+    "data cleaning",
+    "matplotlib",
+    "notebook",
+    "jupyter",
+    "pdf report",
+    "modernization"
   ],
   "repository": {
     "type": "git",
@@ -305,6 +355,15 @@
         "icon": "$(database)"
       },
       {
+        "command": "aiForge.data.manageTemplates",
+        "title": "Evolve AI: Manage Report Templates"
+      },
+      {
+        "command": "aiForge.data.runTemplate",
+        "title": "Evolve AI: Run Report Template",
+        "icon": "$(file-symlink-file)"
+      },
+      {
         "command": "aiForge.data.createPipeline",
         "title": "Evolve AI: Create Data Pipeline",
         "icon": "$(list-tree)"
@@ -313,6 +372,36 @@
         "command": "aiForge.data.runPipeline",
         "title": "Evolve AI: Run Data Pipeline",
         "icon": "$(run-all)"
+      },
+      {
+        "command": "aiForge.convert.start",
+        "title": "Evolve AI: Convert Code to Another Language",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "aiForge.convert.file",
+        "title": "Evolve AI: Convert This File to Another Language"
+      },
+      {
+        "command": "aiForge.convert.selection",
+        "title": "Evolve AI: Convert Selection to Another Language"
+      },
+      {
+        "command": "aiForge.convert.folder",
+        "title": "Evolve AI: Convert Folder / Project to Another Language"
+      },
+      {
+        "command": "aiForge.convert.model",
+        "title": "Evolve AI: Choose AI Model for Code Conversion",
+        "icon": "$(server-process)"
+      },
+      {
+        "command": "aiForge.convert.review",
+        "title": "Evolve AI: Reopen Conversion Review"
+      },
+      {
+        "command": "aiForge.convert.verify",
+        "title": "Evolve AI: Check Converted Code Parses"
       },
       {
         "command": "aiForge.cicd.setup.start",
@@ -1418,6 +1507,15 @@
           "group": "3_generate@2"
         },
         {
+          "command": "aiForge.convert.selection",
+          "when": "editorHasSelection",
+          "group": "3_generate@3"
+        },
+        {
+          "command": "aiForge.convert.file",
+          "group": "3_generate@4"
+        },
+        {
           "command": "aiForge.gitCommitMessage",
           "group": "4_git@1"
         },
@@ -1452,6 +1550,16 @@
         {
           "command": "aiForge.data.refineReport",
           "when": "resourceFilename =~ /-report\\.html?$/",
+          "group": "aiforge"
+        },
+        {
+          "command": "aiForge.convert.folder",
+          "when": "explorerResourceIsFolder",
+          "group": "aiforge"
+        },
+        {
+          "command": "aiForge.convert.file",
+          "when": "!explorerResourceIsFolder",
           "group": "aiforge"
         }
       ]
@@ -1663,8 +1771,14 @@
         },
         "aiForge.lineage.providerOrder": {
           "type": "array",
-          "items": { "type": "string" },
-          "default": ["dbtManifest", "schemaYml", "unityCatalog"],
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "dbtManifest",
+            "schemaYml",
+            "unityCatalog"
+          ],
           "description": "Preferred order for resolving upstream schemas. The first provider to return a match wins."
         },
         "aiForge.queryAnalysis.enabled": {
@@ -1709,7 +1823,11 @@
         },
         "aiForge.airflow.simulator.severity": {
           "type": "string",
-          "enum": ["error", "warning", "info"],
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ],
           "default": "warning",
           "description": "Minimum severity to surface as a diagnostic. Lower values show more issues."
         },
@@ -1720,7 +1838,12 @@
         },
         "aiForge.codeAnalysis.trigger": {
           "type": "string",
-          "enum": ["onOpen", "onSave", "onFocus", "manual"],
+          "enum": [
+            "onOpen",
+            "onSave",
+            "onFocus",
+            "manual"
+          ],
           "default": "onSave",
           "description": "When to automatically run code analysis. 'manual' disables automatic runs; use the status bar or the 'Analyze & Clean' command."
         },
@@ -1736,7 +1859,9 @@
         },
         "aiForge.codeAnalysis.scope.exclude": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "default": [
             "**/node_modules/**",
             "**/dist/**",
@@ -1750,7 +1875,11 @@
         },
         "aiForge.codeAnalysis.ui.surface": {
           "type": "string",
-          "enum": ["statusBar", "popup", "both"],
+          "enum": [
+            "statusBar",
+            "popup",
+            "both"
+          ],
           "default": "statusBar",
           "description": "Where to surface analysis results. 'statusBar' is least intrusive; 'popup' prompts above the threshold; 'both' always prompts."
         },
@@ -1800,7 +1929,11 @@
         },
         "aiForge.cicd.hookMode": {
           "type": "string",
-          "enum": ["block", "warn", "off"],
+          "enum": [
+            "block",
+            "warn",
+            "off"
+          ],
           "default": "block",
           "enumDescriptions": [
             "Hard issues (unpinned actions, long-lived cloud secrets) refuse the push. Bypass with `git push --no-verify`.",
@@ -1808,6 +1941,103 @@
             "Skip all checks. Pre-push hook is effectively disabled without uninstalling it."
           ],
           "description": "Severity mode for the CI/CD pre-push hook installed via `Evolve AI: Install CI/CD Pre-Push Hook`. Applies to all repos using this extension's hook."
+        },
+        "aiForge.convert.defaultTarget": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "python",
+            "typescript",
+            "javascript",
+            "java",
+            "csharp",
+            "go",
+            "rust",
+            "cpp",
+            "c",
+            "kotlin",
+            "swift",
+            "scala",
+            "ruby",
+            "php",
+            "dart",
+            "elixir",
+            "r",
+            "sql",
+            "bash",
+            "powershell",
+            "lua",
+            "perl",
+            "vba",
+            "cobol",
+            "matlab",
+            "sas"
+          ],
+          "description": "Language pre-selected in the Code Converter. Leave blank to choose every time."
+        },
+        "aiForge.convert.fidelity": {
+          "type": "string",
+          "enum": [
+            "idiomatic",
+            "literal",
+            "modernise"
+          ],
+          "default": "idiomatic",
+          "enumDescriptions": [
+            "Rewrite so it reads like native code in the target language. Same behaviour, target-language structure.",
+            "Keep the original structure and names so the result can be diffed against the source. Easiest to audit.",
+            "Idiomatic, plus upgrade dated patterns — async where it belongs, real types, current stdlib APIs."
+          ],
+          "description": "How literally the Code Converter follows the source."
+        },
+        "aiForge.convert.dependencies": {
+          "type": "string",
+          "enum": [
+            "stdlib",
+            "popular",
+            "mirror"
+          ],
+          "default": "popular",
+          "enumDescriptions": [
+            "Standard library only — no third-party packages introduced.",
+            "Use the packages an experienced developer in that ecosystem would reach for. Each one is listed in the report.",
+            "Map each source dependency to its closest counterpart, one for one."
+          ],
+          "description": "How free the Code Converter is with third-party packages."
+        },
+        "aiForge.convert.includeTests": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also generate tests for converted code, using the target language's usual test framework."
+        },
+        "aiForge.convert.keepComments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Carry comments and doc-comments across, rewritten in the target language's documentation style."
+        },
+        "aiForge.convert.emitManifest": {
+          "type": "boolean",
+          "default": true,
+          "description": "Also emit the dependency manifest (go.mod, package.json, requirements.txt, …) for the converted code."
+        },
+        "aiForge.convert.outputFolder": {
+          "type": "string",
+          "default": "converted",
+          "description": "Workspace-relative folder that multi-file conversions are written into, under a per-language subfolder (e.g. converted/go). Single files and selections are written beside the original instead."
+        },
+        "aiForge.convert.maxFiles": {
+          "type": "number",
+          "default": 20,
+          "minimum": 1,
+          "maximum": 200,
+          "description": "Most files a single folder conversion will queue. Larger trees should be converted in batches so each one can be reviewed properly."
+        },
+        "aiForge.convert.maxCharsPerBatch": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 8000,
+          "description": "Upper bound on the characters sent per conversion request. The converter also derives a budget from the chosen model's real context window and uses whichever is smaller — so this can only make requests smaller, never larger than the model can take."
         },
         "aiForge.codeAnalysis.consent.autoApply": {
           "type": "object",
@@ -1820,6 +2050,20 @@
             "anyTypes": false
           },
           "description": "Which fix categories are considered 'safe' and may be auto-applied (when consent allows)."
+        },
+        "aiForge.data.reportDensity": {
+          "type": "string",
+          "enum": [
+            "comfortable",
+            "compact"
+          ],
+          "default": "comfortable",
+          "description": "Default spacing for generated HTML reports. Adjustable live in the report preview's Design tab."
+        },
+        "aiForge.data.directEdit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable direct manipulation in the report preview — hover a section to move, duplicate or delete it, and double-click text to edit it in place. These edits never call the AI."
         }
       }
     }
@@ -1831,14 +2075,14 @@
     "postinstall": "node scripts/download-binaries.js",
     "download-bins": "node scripts/download-binaries.js",
     "download-bins:all": "node scripts/download-binaries.js --all",
-    "clean:bin":          "node -e \"require('fs').rmSync('bin', { recursive: true, force: true })\"",
+    "clean:bin": "node -e \"require('fs').rmSync('bin', { recursive: true, force: true })\"",
     "package": "vsce package",
-    "package:win-x64":    "npm run clean:bin && node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
-    "package:win-arm64":  "npm run clean:bin && node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
-    "package:mac-x64":    "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
-    "package:mac-arm64":  "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
-    "package:linux-x64":  "npm run clean:bin && node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
-    "package:linux-arm64":"npm run clean:bin && node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
+    "package:win-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
+    "package:win-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
+    "package:mac-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
+    "package:mac-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
+    "package:linux-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
+    "package:linux-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {

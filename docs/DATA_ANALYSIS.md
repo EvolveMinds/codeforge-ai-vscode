@@ -57,6 +57,9 @@ panel and go straight to the quick-pick.
 | **Analyze Data from Database or Cloud Source** | Pull a sample from a database or cloud source (see below) and run any of the above deliverables on it. |
 | **Refine HTML Data Report** *(v2.11.0)* | Reopen any generated report in the preview and change it in plain language. Also on the Explorer right-click for `*-report.html`. |
 | **Create Report Theme (branding)** *(v2.11.0)* | Scaffold `evolve-report-theme.json` so every report picks up your brand colours, logo and footer. |
+| **Run Report Template** *(v2.13.0)* | Pick a saved template and a dataset — rebuilds that exact report shape (blocks, filters, branding) on the new data. |
+| **Manage Report Templates** *(v2.13.0)* | Open a saved template to edit it by hand. Templates live in `evolve-report-templates/`. |
+| **Create Data Pipeline** / **Run Data Pipeline** | Define a repeatable multi-step analysis in `evolve-data-pipeline.json` and run every step in one go — see [Declarative data pipelines](#declarative-data-pipelines-v280). |
 
 ---
 
@@ -165,6 +168,82 @@ Pipeline steps can override it per step:
 
 ---
 
+
+## Authoring a report (v2.13.0)
+
+Up to 2.12 you configured a report and received it. Now you build it.
+
+### The outline
+
+Open **Data: Analyze & Report**, choose *HTML report*, and expand **Build the report block by
+block**. A report is an ordered list of typed blocks:
+
+| Block | What you can pin |
+|---|---|
+| KPI tiles | the exact metrics, or leave it to choose |
+| Chart | measure · dimension · aggregation · chart type · top-N · sort |
+| Table | columns · sort column and direction · row cap |
+| My own text | prose reproduced verbatim, never reworded |
+| Key insights / Recommendations | how many bullets |
+| Data quality · Relationships · Summary · Methodology · Divider | — |
+
+The pickers list **your actual columns** with their inferred types, because the file has already
+been sniffed. Anything left on *auto* is still chosen for you, so you only pin what you care about.
+Adding a block takes over from the section chips above it.
+
+### Direct manipulation
+
+The preview is editable:
+
+- **Hover a section** → move up/down, duplicate, delete, change chart type, or refine just that block
+- **Drag the grip** (⠿) to reorder
+- **Double-click any text** — heading, paragraph, caption, KPI label, table cell — to edit in place
+
+These are DOM edits. They apply instantly, cost nothing, and cannot disturb sections you didn't
+touch. Everything is undoable.
+
+### Three ways to change a report
+
+| | Cost | Scope |
+|---|---|---|
+| Direct manipulation | free, instant | exactly what you clicked |
+| **Design** tab (accent, appearance, density) | free, instant | styling only |
+| **Refine** | one AI call | one block, or the whole document |
+
+Selecting a block and refining it sends only that card — on a real report, 287 characters versus
+4.3 KB for the whole document — so the model structurally cannot rewrite anything else.
+
+### Preparing the data first
+
+Under **Prepare the data first**: row filters, derived columns, column exclusions, drop-duplicates
+and a row cap. These run for real — as generated pandas in the script path, and on the sample for
+small files — not as a sentence in a prompt. The report discloses the active filters so a filtered
+figure is never read as a total.
+
+Filters run before the script coerces its stringy-numeric columns, so each numeric comparison cleans
+the value itself: `revenue >= 100000` matches `"$1,284,900"` correctly. If preparation removes every
+row, the script stops with a message naming the filters rather than producing an empty report.
+
+Derived-column expressions are restricted to arithmetic over column names (`revenue / orders`).
+Attribute access, function calls and dunders are refused — templates are shareable files, so an
+expression is treated as untrusted input.
+
+### Templates
+
+**Save as template** in the preview captures the outline, the data prep and the brand into
+`evolve-report-templates/<name>.json`. Run it against any dataset with **Data: Run Report Template**,
+or start a new report from it via *Start from a saved template…*.
+
+The outline is read back out of the rendered HTML, so a template captures what you actually arranged
+on screen — including reordering and deletions you made by hand — not what was originally generated.
+
+### Export
+
+**Export PDF** opens the report in your browser for its print dialog. The stylesheet already carries
+print rules: toolbars hidden, cards never split across pages.
+
+---
+
 ## Size-adaptive execution (your data, your choice)
 
 The plugin adapts to how big your data is so that large or sensitive datasets never get
@@ -225,11 +304,14 @@ connection happens only when you run the script, with credentials from your envi
 
 ---
 
-## Exporting (Excel / PDF)
+## Exporting (PDF / Excel)
 
-Excel and PDF output are produced by the **generated script** (`df.to_excel(...)`,
-HTML→PDF), not by the extension itself. Ask for it in your instruction, e.g. *"also write an
-Excel workbook with a sheet per region"*.
+**PDF** — use **Export PDF** in the report preview, or simply print the report from any browser.
+Every report carries print styles: toolbars are hidden, cards never split across a page break, and
+the light palette is forced regardless of the reader's theme.
+
+**Excel** is produced by the **generated script** (`df.to_excel(...)`), not by the extension. Ask
+for it in your instruction, e.g. *"also write an Excel workbook with a sheet per region"*.
 
 ---
 
@@ -288,6 +370,8 @@ interactive **Analyze from Database or Cloud Source** command.
 ## Not yet included
 
 - **Emailing reports** is intentionally deferred to a future release.
+- **Live-connected dashboards** — a report is a self-contained snapshot, by design. Re-run a saved
+  template (or a pipeline) when you want fresh numbers.
 - **Scheduling** pipelines to run unattended — a VS Code extension can't run when the editor
   is closed, so this needs infrastructure a local extension doesn't provide.
 

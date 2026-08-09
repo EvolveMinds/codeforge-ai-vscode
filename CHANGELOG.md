@@ -2,6 +2,146 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.13.0] — 2026-08-09
+
+### Added — reports you author, not reports you receive
+
+2.11.0 gave the report a design and a refine box. It still generated *for* you: you picked an
+archetype and toggled sections, and the model decided which measure, which dimension, which chart.
+Every change was a whole-document AI round-trip, and nothing in the output was addressable. This
+release makes the report something you build.
+
+**A block outline instead of section toggles.** `src/core/reportBlocks.ts` models a report as an
+ordered list of typed blocks — `kpi`, `chart`, `table`, `text`, `insights`, `recommendations`,
+`quality`, `correlations`, `summary`, `methodology`, `divider`. A chart block carries its measure,
+dimension, aggregation, chart type, top-N and sort; a table block its columns and ordering; a KPI
+block its exact tiles. Because the extension already sniffs the schema, the builder offers **real
+column names and types** in its pickers rather than asking you to describe them in prose. Anything
+left on *auto* is still the model's call, so authoring and generation are not either/or.
+
+**Direct manipulation of the rendered report.** Every card is stamped with `data-block-id`, and the
+preview injects an editor (`src/core/reportEditor.ts`) into the iframe: hover a section to move,
+duplicate or delete it, drag it by its grip, or double-click any heading, paragraph, caption or
+table cell to edit it in place. These are DOM operations — instant, free, and incapable of
+disturbing the sections you didn't touch. The edited document is serialised back and written to
+disk; editor chrome never reaches the file.
+
+**Block-scoped refine.** Refining one card sends that card, not the document. Measured on a real
+report, a block round-trip costs 287 characters of context against 4.3 KB for the whole thing — and
+the model structurally cannot rewrite anything else.
+
+**A Design tab with no AI in it.** Accent, appearance and density re-inject the stylesheet directly.
+
+**Data preparation that actually runs.** Filters, derived columns, column exclusions, dedupe and row
+limits are applied deterministically — generated as real pandas in the script path, and to the
+sampled rows on the direct path — instead of being described to a model that may ignore them. The
+report is told to disclose the active filters so a filtered figure is never read as a total. Because
+prep runs immediately after the load, before the script coerces its stringy-numeric columns, every
+numeric comparison cleans the value itself; a `revenue >= 100000` filter works against
+`"$1,284,900"`. If preparation empties the frame the script stops with a clear message naming the
+filters rather than crashing deep in the analysis.
+
+**Templates.** Any report can be saved as a reusable template (`evolve-report-templates/*.json`)
+capturing the outline, prep and brand. Re-run it against next month's data and get the same report.
+The outline is recovered from the rendered HTML, so a template captures what you actually arranged
+on screen, not what was originally generated.
+
+**PDF export** via the print styles already built into every report.
+
+New commands: `aiForge.data.runTemplate`, `aiForge.data.manageTemplates`.
+New settings: `aiForge.data.reportDensity`, `aiForge.data.directEdit`.
+
+### Security
+
+Derived-column expressions become `df.eval(...)` in a script the user runs, and templates are JSON
+files that get committed and shared — so an expression is untrusted input. Expressions are now
+restricted to arithmetic over column names: attribute access, calls, dunders and line breaks are
+refused, and a refused expression is never emitted as code. Disclosure lines are escaped with
+`JSON.stringify` so a trailing backslash cannot break out of the string literal. Verified against
+seven injection attempts, each confirmed to leave the emitted script valid and inert.
+
+### Fixed
+
+- `blocksFromHtml` minted fresh block ids instead of keeping the ones in the document, leaving the
+  recovered outline describing blocks that no longer matched the HTML it came from.
+- Derived columns silently failed on pandas 3, where text columns get a dedicated `str` dtype and an
+  `== object` check skips every one of them.
+
+## [2.12.0] — 2026-08-09
+
+> Never published on its own. Everything below shipped as part of **2.13.0**.
+
+### Added — Code Convertor
+
+A new mode beside Chat, Edit, Create and Analyse: convert a selection, a file, or a whole folder into
+another language. The conversion is not the interesting part — anything can emit plausible code. What
+makes it usable is everything built around the fact that plausible code is exactly the failure mode.
+
+**26 languages, any pairing.** Python · TypeScript · JavaScript · Java · C# · Go · Rust · C++ · C ·
+Kotlin · Swift · Scala · Ruby · PHP · Dart · Elixir · R · SQL · Bash · PowerShell · Lua · Perl · VBA ·
+COBOL · MATLAB · SAS. Each carries its own idioms and known conversion traps into the prompt — Go's
+"errors are values, translating try/except into panic/recover is wrong", Rust's "don't reach for
+`unwrap()` to make it compile" — which is what separates idiomatic output from transliteration.
+
+**A fidelity report with every conversion.** What mapped 1:1, what was approximated, what needs a
+human, how each source dependency was mapped, and the commands to build and run the result. Written
+alongside the code as `CONVERSION-REPORT.md`. A conversion that comes back *without* a report is
+flagged as low-confidence rather than quietly trusted.
+
+**Nothing is written until you approve it.** The result opens side by side with the original — tabs
+per file, the report on its own tab. Refine in plain language and only the affected files are
+re-emitted; every round is undoable. A rejected conversion leaves no litter in the workspace.
+
+**It checks its own work.** Where the target toolchain is on PATH, converted files are parsed locally
+(`gofmt`, `javac`, `node --check`, `php -l`, `ruby -c`, and ten more) and failures can be fed back for
+a repair round. Checks that resolve imports are labelled as such, so a missing local package isn't
+mistaken for a bad conversion. Tools that fail on valid-but-unformatted code are deliberately excluded.
+
+**Its own model choice.** Conversion is a different shape of job from chat — long prompt, long
+response, strict output format — so it gets its own model selection, separate from the global
+provider. The picker reads each local model's **real context window from Ollama** (`/api/show`) rather
+than guessing from the name, and labels every figure `detected`, `known` or `assumed`.
+
+**It sizes the job before running it.** A context window is shared between prompt and response, and a
+conversion's response is roughly the size of its input — so fitting the prompt alone is not enough.
+That is how you get a reply that stops mid-file. Every job is assessed up front and reports
+comfortable / tight / split(n) / impossible, with concrete alternatives: a model you already have
+that's big enough, or the `ollama pull` for one that would be.
+
+**Oversized work is split, not truncated.** Many files become batches, each told what earlier ones
+produced. One file too large for any single pass is **sliced at top-level declarations** — never
+mid-function — with part 1 owning the file preamble, later parts receiving the declarations already
+generated, and the pieces stitched back into one file. The report names every rejoined file so the
+seams get reviewed.
+
+New commands: `aiForge.convert.start`, `.file`, `.selection`, `.folder`, `.model`, `.review`, `.verify`.
+New settings: `aiForge.convert.defaultTarget`, `.fidelity`, `.dependencies`, `.includeTests`,
+`.keepComments`, `.emitManifest`, `.outputFolder`, `.maxFiles`, `.maxCharsPerBatch`.
+Full guide: [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
+
+### Changed — per-request model and token overrides
+
+`AIRequest` gained `providerOverride`, `modelOverride`, `maxOutputTokens` and `contextTokens`,
+honoured by every provider path. This fixes two limits that affected more than conversion:
+
+- **Output was hard-capped at 4096 tokens on every provider** — ample for a chat reply, far too small
+  for emitting whole files. Callers now size it to the job.
+- **Ollama's context window was never set.** Ollama serves the model's default (often 4096) and
+  **truncates an oversized prompt from the front without reporting it** — producing a confident answer
+  based on part of the input. `contextTokens` now sets `num_ctx` explicitly for any large-prompt request.
+
+A per-request override never writes to user settings: the Ollama model auto-fallback deliberately
+skips persisting when an override is in play, so a one-off choice cannot rewrite your configuration.
+
+`IAIService.getOllamaModelInfo()` reads a model's real trained context length from `/api/show`.
+
+### Security
+
+Output paths in a model's response are untrusted input — a `path=../../.ssh/authorized_keys` would
+otherwise be joined onto the output root and written there. Paths are now flattened to a relative path
+that cannot climb out (drive letters, leading slashes and `..` segments removed, illegal characters
+replaced), and every write is re-checked against the output root before it happens.
+
 ## [2.11.0] — 2026-08-06
 
 ### Added — HTML reports you can design, customise, and refine
