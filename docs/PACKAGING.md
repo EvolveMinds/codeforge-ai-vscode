@@ -320,3 +320,75 @@ again under the new number.
 **Do not commit `.vsix` files.** `.gitignore` covers `*.vsix`, but the repo root has
 accumulated many from past builds. They are build artifacts; the Marketplace is the
 distribution channel.
+
+---
+
+## 8. Quick Reference (Copy-Pasteable Directly in Terminal)
+
+### Option A: Cross-Platform NPM Scripts (Recommended)
+
+```bash
+# 1. Compile, secret scan, and build all 6 platform packages sequentially:
+npm run package:all
+
+# 2. Publish all 6 platform packages to the VS Code Marketplace:
+npm run publish:all -- --pat=<YOUR_AZURE_DEVOPS_PAT>
+
+# 3. Tag and merge release back to main:
+# (Replace version with current version e.g. v2.14.0)
+git tag v2.14.0 && git push origin v2.14.0
+git checkout main && git merge release/2.14.0 && git push origin main
+```
+
+---
+
+### Option B: PowerShell on Windows (Version Auto-Resolved)
+
+```powershell
+# 1. Clean build & verify
+npm install; npm run compile; npm test
+
+# 2. Build all six platform packages sequentially
+npm run package:all
+
+# 3. Inspect generated packages and binary contents
+$v = (Get-Content package.json | ConvertFrom-Json).version
+Get-ChildItem "evolve-ai-*-$v.vsix" | Select-Object Name, @{Name="Size (MB)"; Expression={[math]::round($_.Length / 1MB, 2)}}
+
+# 4. Publish all six packages (replace YOUR_PAT with your Azure DevOps PAT)
+$pat = "YOUR_AZURE_DEVOPS_PAT"
+Get-ChildItem "evolve-ai-*-$v.vsix" | ForEach-Object {
+    Write-Host "Publishing $($_.Name)..." -ForegroundColor Cyan
+    npx vsce publish --packagePath $_.FullName -p $pat
+}
+
+# 5. Tag and merge back
+git tag "v$v"; git push origin "v$v"
+git checkout main; git merge "release/$v"; git push origin main
+```
+
+---
+
+### Option C: Bash / Linux / macOS (Version Auto-Resolved)
+
+```bash
+# 1. Clean build & verify
+npm install && npm run compile && npm test
+
+# 2. Build all six platform packages sequentially
+npm run package:all
+
+# 3. Verify packages and binary contents
+V=$(node -p "require('./package.json').version")
+ls -la evolve-ai-*-$V.vsix
+for f in evolve-ai-*-$V.vsix; do echo "=== $f ==="; unzip -l "$f" | grep -E "biome|ruff"; done
+
+# 4. Publish all six packages (replace YOUR_PAT with your Azure DevOps PAT)
+PAT="YOUR_AZURE_DEVOPS_PAT"
+for f in evolve-ai-*-$V.vsix; do npx vsce publish --packagePath "$f" -p "$PAT"; done
+
+# 5. Tag and merge back
+git tag "v$V" && git push origin "v$V"
+git checkout main && git merge "release/$V" && git push origin main
+```
+

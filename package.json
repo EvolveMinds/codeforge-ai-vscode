@@ -2077,12 +2077,14 @@
     "download-bins:all": "node scripts/download-binaries.js --all",
     "clean:bin": "node -e \"require('fs').rmSync('bin', { recursive: true, force: true })\"",
     "package": "vsce package",
+    "package:all": "node scripts/package-all.js",
     "package:win-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
     "package:win-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
     "package:mac-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
     "package:mac-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
     "package:linux-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
     "package:linux-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
+    "publish:all": "node scripts/publish-all.js",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {

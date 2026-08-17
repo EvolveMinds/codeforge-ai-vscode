@@ -527,21 +527,48 @@ All events are in `core/eventBus.ts`. Subscribe with `services.events.on(event, 
 ## Build & run
 
 ```bash
-# Install dependencies
+# Install dependencies & fetch host platform binaries
 npm install
 
-# Compile TypeScript
+# Compile TypeScript (zero errors required)
 npm run compile
 
 # Watch mode (recompile on save)
 npm run watch
 
-# Open in VS Code and press F5 to launch Extension Development Host
-# Or: vsce package  to build a .vsix installer
+# Run tests
+npm test
 ```
 
-TypeScript target is ES2020, module is CommonJS (VS Code extension requirement).
-`tsconfig.json` has `strict: true` — no implicit any, no unchecked array access.
+---
+
+## Packaging & Marketplace Release Protocol
+
+> **CRITICAL MEMORY / SINGLE SOURCE OF TRUTH**: Full details in `docs/PACKAGING.md`.
+
+1. **Native Binaries Bundled**: Evolve AI bundles platform-specific binaries for **Biome (1.9.4)** and **Ruff (0.7.4)**.
+2. **Never Publish Universal `.vsix`**: Never publish the output of bare `vsce package`. We publish **six platform-targeted `.vsix` packages** for every release:
+   - `win32-x64`
+   - `win32-arm64`
+   - `darwin-x64`
+   - `darwin-arm64`
+   - `linux-x64`
+   - `linux-arm64`
+3. **Sequential Build**: Packages must be built sequentially so `clean:bin` prevents binary contamination:
+   ```bash
+   # Build all 6 targets sequentially in one command:
+   npm run package:all
+   ```
+4. **Package Verification**: Each `.vsix` must be **~20–21 MB** and contain only its target binaries.
+5. **Publishing**:
+   ```bash
+   # Publish all 6 targets with Azure DevOps PAT:
+   npm run publish:all -- --pat=<YOUR_AZURE_DEVOPS_PAT>
+   ```
+6. **Git Release Hygiene**:
+   - Always merge release branches back into `main`.
+   - Always tag releases (`git tag v<version> && git push origin v<version>`).
+   - Never release from an unverified branch.
 
 ---
 
