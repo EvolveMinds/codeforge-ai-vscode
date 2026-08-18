@@ -1232,21 +1232,139 @@ def evolve_html_shell(title, subtitle, body_html, meta=None, footer=""):
 }
 
 /**
+ * Automatically sanitize Python f-strings that contain backslashes in their
+ * expression parts `{...}`. In Python < 3.12, backslashes inside f-string
+ * expressions raise `SyntaxError: f-string expression part cannot include a backslash`.
+ * This sanitizer extracts those expressions into dedicated helper variables on the
+ * preceding line at the same indentation level.
+ */
+export function sanitizePythonFStrings(script: string): string {
+  let varCounter = 1;
+  const lines = script.split('\n');
+  const outLines: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // Fast check: does this line have an f-string and a backslash?
+    if (!/[fF][rR]?["']/.test(line) || !line.includes('\\')) {
+      outLines.push(line);
+      continue;
+    }
+
+    const indentMatch = line.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1] : '';
+    const prepends: string[] = [];
+    let newLine = '';
+    let idx = 0;
+
+    while (idx < line.length) {
+      // Look for start of f-string
+      const fMatch = line.slice(idx).match(/^[fF]([rR]?)(["']{1,3})/);
+      if (!fMatch) {
+        newLine += line[idx];
+        idx++;
+        continue;
+      }
+
+      const quote = fMatch[2];
+      newLine += fMatch[0];
+      idx += fMatch[0].length;
+
+      // Scan through the f-string content
+      while (idx < line.length) {
+        if (line.slice(idx).startsWith(quote)) {
+          newLine += quote;
+          idx += quote.length;
+          break;
+        }
+
+        if (line[idx] === '{') {
+          if (line[idx + 1] === '{') {
+            newLine += '{{';
+            idx += 2;
+            continue;
+          }
+
+          // Found start of expression: scan to matching '}'
+          const exprStart = idx + 1;
+          let depth = 1;
+          let inStr: string | null = null;
+          let cur = exprStart;
+
+          while (cur < line.length && depth > 0) {
+            const ch = line[cur];
+            if (inStr) {
+              if (ch === '\\') {
+                cur += 2;
+                continue;
+              }
+              if (line.slice(cur).startsWith(inStr)) {
+                cur += inStr.length;
+                inStr = null;
+                continue;
+              }
+              cur++;
+              continue;
+            }
+
+            if (ch === '"' || ch === '\'') {
+              inStr = ch;
+              cur++;
+              continue;
+            }
+
+            if (ch === '{' || ch === '(' || ch === '[') {
+              depth++;
+            } else if (ch === '}' || ch === ')' || ch === ']') {
+              depth--;
+              if (depth === 0) break;
+            }
+            cur++;
+          }
+
+          const rawExpr = line.slice(exprStart, cur);
+          idx = cur + 1; // move past '}'
+
+          if (rawExpr.includes('\\')) {
+            const varName = `_evolve_calc_${varCounter++}`;
+            prepends.push(`${indent}${varName} = ${rawExpr.trim()}`);
+            newLine += `{${varName}}`;
+          } else {
+            newLine += `{${rawExpr}}`;
+          }
+        } else {
+          newLine += line[idx];
+          idx++;
+        }
+      }
+    }
+
+    if (prepends.length > 0) {
+      outLines.push(...prepends);
+    }
+    outLines.push(newLine);
+  }
+
+  return outLines.join('\n');
+}
+
+/**
  * Prepend the preamble to a generated script. If the model defined any of the
  * injected names itself (against instructions), the injected definitions win by
  * being re-appended after the model's — the last definition is the live one.
  */
 export function injectPythonPreamble(script: string, theme: ReportTheme): string {
+  const sanitized = sanitizePythonFStrings(script);
   const preamble = pythonPreamble(theme);
-  if (script.includes('# ── Evolve AI report design system (injected')) return script;
+  if (sanitized.includes('# ── Evolve AI report design system (injected')) return sanitized;
 
-  const redefines = /^(EVOLVE_STYLE|EVOLVE_SCRIPT|EVOLVE_PALETTE)\s*=/m.test(script)
-    || /^def evolve_html_shell\(/m.test(script);
+  const redefines = /^(EVOLVE_STYLE|EVOLVE_SCRIPT|EVOLVE_PALETTE)\s*=/m.test(sanitized)
+    || /^def evolve_html_shell\(/m.test(sanitized);
 
   // Keep a shebang / encoding cookie at the very top if the script has one.
-  const m = script.match(/^((?:#![^\n]*\n)?(?:#[^\n]*coding[^\n]*\n)?)/);
+  const m = sanitized.match(/^((?:#![^\n]*\n)?(?:#[^\n]*coding[^\n]*\n)?)/);
   const head = m ? m[1] : '';
-  const rest = script.slice(head.length);
+  const rest = sanitized.slice(head.length);
 
   const body = `${head}${preamble}\n${rest}`;
   // The model redefined our helpers — re-append ours so they take effect, and
