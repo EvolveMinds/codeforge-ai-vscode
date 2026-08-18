@@ -2,6 +2,13 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.14.0] — 2026-08-18
+
+### Packaging & Release Automation
+* Added automated cross-platform multi-target packaging (`npm run package:all`) and publishing (`npm run publish:all`).
+* Streamlined sequential binary bundling for all 6 target platforms (Windows x64/arm64, macOS x64/arm64, Linux x64/arm64) with automatic artifact cleanup and size validation.
+* Added single source of truth release documentation in `docs/PACKAGING.md` and updated extension memory in `CLAUDE.md`.
+
 ## [2.13.0] — 2026-08-09
 
 ### Added — reports you author, not reports you receive
