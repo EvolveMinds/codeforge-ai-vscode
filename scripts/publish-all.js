@@ -26,9 +26,9 @@ const TARGETS = [
 let pat = null;
 for (const arg of process.argv.slice(2)) {
   if (arg.startsWith('--pat=')) {
-    pat = arg.split('=')[1];
+    pat = arg.slice('--pat='.length);
   } else if (arg.startsWith('-p=')) {
-    pat = arg.split('=')[1];
+    pat = arg.slice('-p='.length);
   } else if (arg === '-p' || arg === '--pat') {
     pat = process.argv[process.argv.indexOf(arg) + 1];
   }
