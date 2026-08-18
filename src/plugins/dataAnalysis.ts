@@ -209,6 +209,7 @@ function sniffText(
   };
   const lines = head.split(/\r?\n/).filter(l => l.length > 0);
   if (lines.length === 0) return base;
+  if (opts.truncated && lines.length > 2) lines.pop();
 
   if (ext === '.json') {
     try {
