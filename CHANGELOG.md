@@ -2,6 +2,20 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.15.0] — 2026-08-19
+
+### Model Auto-Detection & Best Practice Guidance for Data Analysis
+* **Automated Model Fitness Assessment**: Added `assessModelForDataAnalysis` to evaluate active AI models and providers specifically for Python/Pandas data science, multi-series chart generation, and narrative reporting.
+* **Intelligent Local Model Recommendations**: Automatically detects system RAM and recommends specialized local coder models (`qwen2.5-coder:7b` or `qwen2.5-coder:14b` with 16GB+ RAM) or high-capacity cloud models (Claude, OpenAI, Gemini, Z.ai).
+* **Underpowered Model Warnings**: Actively alerts users if a lightweight model (< 7B parameters or non-coding 1B/3B models) is selected, preventing Pandas syntax errors and hallucinated column names before execution.
+* **Integrated Model Guidance Card**: The Data Analysis panel now displays a real-time AI Engine card with status badges (`✓ Optimal for Data Analysis`, `✓ Recommended Local Coder`, `⚠️ Underpowered for Data Science`) and a one-click **Switch Model / Provider** shortcut.
+
+### Bug Fixes & Code Generation Safeguards
+* **Python < 3.12 f-String Compatibility**: Built an automated AST-level sanitizer (`sanitizePythonFStrings`) that intercepts any model-generated f-strings containing backslashes (`\d`, `\n`, regex, escaped quotes, or file paths) within expression braces `{...}` and lifts them into standalone pre-computed variables, permanently eliminating `SyntaxError: f-string expression part cannot include a backslash`.
+* **Matplotlib Figure Resource Management**: Ensured all generated Python figures in `evolve_fig` are closed within `try ... finally: _plt.close(fig)` blocks to prevent memory leaks during multi-chart reporting sessions.
+* **Data File Sniffing & Partial Line Protection**: Safeguarded `sniffText` against partial lines when reading 256KB buffer slices of large datasets, ensuring 100% accurate column sampling and schema inference.
+* **Azure DevOps PAT Parsing**: Fixed argument parsing in `scripts/publish-all.js` so tokens containing base64 padding (`=`) are preserved completely during automated multi-platform marketplace publishing.
+
 ## [2.14.0] — 2026-08-18
 
 ### Packaging & Release Automation

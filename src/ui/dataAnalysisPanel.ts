@@ -18,6 +18,7 @@
  */
 
 import * as vscode from 'vscode';
+import { DataAnalysisModelVerdict, providerLabel } from '../core/modelCapability';
 
 export interface WorkspaceDataFile {
   /** Absolute path */
@@ -65,6 +66,7 @@ export type PanelMessage =
   | { type: 'setBuilder'; outline: unknown[]; prep: PanelPrep }
   | { type: 'useTemplate' }
   | { type: 'editTheme' }
+  | { type: 'switchModel' }
   | { type: 'analyze' }
   | { type: 'cancelAnalyze' };
 
@@ -98,12 +100,14 @@ export class DataAnalysisPanel {
   static show(
     workspaceFiles: WorkspaceDataFile[],
     catalog: ReportOptionsCatalog,
+    modelVerdict: DataAnalysisModelVerdict | null,
     onMessage: (msg: PanelMessage) => void | Promise<void>,
   ): DataAnalysisPanel {
     if (!this._instance) this._instance = new DataAnalysisPanel();
     this._instance._onMessage = onMessage;
     this._instance._files = workspaceFiles;
     this._instance._catalog = catalog;
+    this._instance._verdict = modelVerdict;
     this._instance._reveal();
     return this._instance;
   }
@@ -111,6 +115,7 @@ export class DataAnalysisPanel {
   private readonly _panel: vscode.WebviewPanel;
   private _disposed = false;
   private _files: WorkspaceDataFile[] = [];
+  private _verdict: DataAnalysisModelVerdict | null = null;
   private _catalog: ReportOptionsCatalog = {
     archetypes: [], sections: [], audiences: [], blockKinds: [],
     defaults: { archetype: '', audience: '', sections: [], mode: 'auto', accent: '#4f6df5', title: '' },
@@ -144,6 +149,13 @@ export class DataAnalysisPanel {
       this._disposed = true;
       DataAnalysisPanel._instance = null;
     });
+  }
+
+  /** Update the active AI Model verdict & recommendation displayed in the panel. */
+  setModelVerdict(verdict: DataAnalysisModelVerdict | null): void {
+    if (this._disposed) return;
+    this._verdict = verdict;
+    this._panel.webview.postMessage({ type: 'verdict', verdict });
   }
 
   /** Update the selected-source line shown in the panel after a file is chosen. */
@@ -220,7 +232,23 @@ export class DataAnalysisPanel {
       :root { color-scheme: light dark; }
       body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 20px 24px; max-width: 720px; }
       h1 { font-size: 18px; margin: 0 0 2px; }
-      .sub { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 0 0 18px; }
+      .sub { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 0 0 14px; }
+      .model-banner {
+        margin: 0 0 16px; padding: 10px 13px; border-radius: 8px;
+        border: 1px solid var(--vscode-widget-border, #8883);
+        background: var(--vscode-list-hoverBackground);
+      }
+      .model-banner.suboptimal {
+        border-color: var(--vscode-editorWarning-foreground, #cca700);
+        background: var(--vscode-inputValidation-warningBackground, rgba(255, 204, 0, 0.1));
+      }
+      .model-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+      .model-pill { font-weight: 600; font-size: 12px; font-family: var(--vscode-editor-font-family); }
+      .badge { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; font-weight: 500; }
+      .badge-ok { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
+      .badge-warn { background: var(--vscode-editorWarning-foreground, #cca700); color: #000; font-weight: 600; }
+      .model-summary { font-size: 11.5px; color: var(--vscode-descriptionForeground); margin-bottom: 3px; line-height: 1.4; }
+      .model-rec { font-size: 11.5px; font-weight: 500; color: var(--vscode-foreground); margin-top: 3px; }
       h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--vscode-descriptionForeground); margin: 20px 0 8px; }
       .row { display: flex; gap: 10px; flex-wrap: wrap; }
       .card { flex: 1 1 200px; text-align: left; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
@@ -341,6 +369,16 @@ export class DataAnalysisPanel {
     </style></head><body>
       <h1>📊 Data Analysis</h1>
       <p class="sub">Point Evolve AI at your data — a file anywhere on your machine, a file in this project, or a database / cloud source — then pick what to build.</p>
+
+      <div id="modelbox" class="model-banner ${this._verdict?.isOptimal === false ? 'suboptimal' : ''}">
+        <div class="model-info">
+          <span class="model-pill" id="modelpill">${escHtml(this._verdict ? `${providerLabel(this._verdict.provider)} · ${this._verdict.modelId}` : 'AI Engine: Auto')}</span>
+          <span class="badge ${this._verdict?.isOptimal === false ? 'badge-warn' : 'badge-ok'}" id="modelbadge">${escHtml(this._verdict?.badge ?? 'Auto')}</span>
+          <button class="themelink" id="switchmodel" style="margin-left:auto;">⚡ Switch Model / Provider</button>
+        </div>
+        <div class="model-summary" id="modelsummary">${escHtml(this._verdict?.summary ?? 'Select an AI provider & model to power your data analysis.')}</div>
+        <div class="model-rec" id="modelrec" style="${this._verdict?.recommendation ? '' : 'display:none;'}">${escHtml(this._verdict?.recommendation ?? '')}</div>
+      </div>
 
       <h2>1 · Choose your data</h2>
       <div class="row">
@@ -753,6 +791,7 @@ export class DataAnalysisPanel {
         renderPrep();
 
         document.getElementById('focus').addEventListener('input', e => post({ type:'setFocus', focus: e.target.value }));
+        document.getElementById('switchmodel').onclick = () => post({ type:'switchModel' });
         document.getElementById('go').onclick = () => post({ type:'analyze' });
         document.getElementById('cancel').onclick = () => post({ type:'cancelAnalyze' });
 
@@ -780,7 +819,24 @@ export class DataAnalysisPanel {
         // Host → panel updates
         window.addEventListener('message', e => {
           const m = e.data;
-          if (m.type === 'selected') {
+          if (m.type === 'verdict') {
+            const v = m.verdict;
+            if (!v) return;
+            const box = document.getElementById('modelbox');
+            box.className = 'model-banner ' + (v.isOptimal === false ? 'suboptimal' : '');
+            document.getElementById('modelpill').textContent = (v.provider || '') + ' · ' + (v.modelId || '');
+            const badge = document.getElementById('modelbadge');
+            badge.className = 'badge ' + (v.isOptimal === false ? 'badge-warn' : 'badge-ok');
+            badge.textContent = v.badge;
+            document.getElementById('modelsummary').textContent = v.summary;
+            const rec = document.getElementById('modelrec');
+            if (v.recommendation) {
+              rec.textContent = v.recommendation;
+              rec.style.display = '';
+            } else {
+              rec.style.display = 'none';
+            }
+          } else if (m.type === 'selected') {
             const el = document.getElementById('selected');
             el.textContent = '';
             if (m.label) {

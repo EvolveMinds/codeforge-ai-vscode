@@ -15,10 +15,11 @@
  *     model will struggle with a job a coder model would manage
  *   - a fit verdict with plain-English advice, in three flavours: it fits,
  *     it needs splitting, or it cannot be done by this model at all
- *
  * Detection beats the table: `source: 'detected'` values come from the running
  * server and are always preferred. The table only fills the gaps.
  */
+
+import * as vscode from 'vscode';
 
 export type ModelTier = 'strong' | 'good' | 'basic' | 'weak';
 
@@ -291,4 +292,150 @@ function rankTier(t: ModelTier): number {
 /** Short label for a tier, for the UI. */
 export function tierLabel(t: ModelTier): string {
   return { strong: 'Strong at code', good: 'Good at code', basic: 'Basic', weak: 'Weak — expect problems' }[t];
+}
+
+export interface DataAnalysisModelVerdict {
+  modelId: string;
+  provider: string;
+  isOptimal: boolean;
+  tier: ModelTier;
+  badge: string;
+  verdict: 'optimal' | 'good' | 'suboptimal' | 'weak';
+  summary: string;
+  recommendation?: string;
+  suggestedLocalModel?: string;
+}
+
+/**
+ * Assess how well a given model and provider are suited for Data Analysis & Reporting tasks
+ * (Python/Pandas data cleaning, aggregations, chart generation, and narrative reporting).
+ */
+export function assessModelForDataAnalysis(
+  provider: string,
+  modelId: string,
+  ramGB?: number,
+): DataAnalysisModelVerdict {
+  const p = (provider || '').toLowerCase();
+  const m = (modelId || '').toLowerCase();
+
+  // 1. Cloud Providers
+  if (['anthropic', 'openai', 'gemini', 'zai', 'huggingface'].includes(p)) {
+    if (m.includes('haiku') || m.includes('flash') || m.includes('gpt-3.5') || m.includes('glm-4-flash')) {
+      return {
+        modelId,
+        provider,
+        isOptimal: true,
+        tier: 'good',
+        badge: '⚡ Fast Cloud Model',
+        verdict: 'good',
+        summary: 'Fast and responsive cloud model. Handles standard data analysis, Pandas scripts, and chart generation well.',
+      };
+    }
+    return {
+      modelId,
+      provider,
+      isOptimal: true,
+      tier: 'strong',
+      badge: '☁️ Optimal Cloud Model',
+      verdict: 'optimal',
+      summary: 'High-capability cloud model. Excellent at complex multi-column aggregations, math, and accurate insights.',
+    };
+  }
+
+  // 2. Local Models via Ollama / Gemma4 / GLM / Colibri
+  // Specialized Strong Coders (14B/32B/72B)
+  if (/qwen.*coder.*(14|32|72)b|deepseek.*coder.*(16|33|236)b/i.test(m)) {
+    return {
+      modelId,
+      provider,
+      isOptimal: true,
+      tier: 'strong',
+      badge: '✓ Optimal Local Coder',
+      verdict: 'optimal',
+      summary: 'Strong local code model. Generates robust, bug-free Pandas scripts and high-quality charts.',
+    };
+  }
+
+  // Good Coder models (7B)
+  if (/qwen.*coder|deepseek.*coder|codegeex|codestral|codellama/i.test(m)) {
+    return {
+      modelId,
+      provider,
+      isOptimal: true,
+      tier: 'good',
+      badge: '✓ Recommended Local Coder',
+      verdict: 'good',
+      summary: 'Good local code model. Reliable for single-dataset exploratory analysis and standard chart generation.',
+      recommendation: ramGB && ramGB >= 16 ? 'For large or complex multi-table datasets, consider upgrading to qwen2.5-coder:14b.' : undefined,
+    };
+  }
+
+  // General 7B+ Models (Gemma2, Llama 3.1 8B, etc.)
+  if (/gemma-?2?:(9|27)b|llama-?3\.[123]?:(8|70)b|mistral-small/i.test(m) || /(7|8|9|14|27|70)b/i.test(m)) {
+    return {
+      modelId,
+      provider,
+      isOptimal: true,
+      tier: 'good',
+      badge: '⚡ Good General Model',
+      verdict: 'good',
+      summary: 'Good for narrative summaries. For specialized Pandas code and complex charts, qwen2.5-coder is recommended.',
+      recommendation: 'Best Practice: qwen2.5-coder:7b or qwen2.5-coder:14b produces the cleanest Python data science code.',
+      suggestedLocalModel: 'qwen2.5-coder:7b',
+    };
+  }
+
+  // Underpowered / Small Models (< 7B or non-coding 1B/3B)
+  if (/0\.5b|1b|1\.5b|2b|3b|mini|tiny|phi-?3/i.test(m) || /llama-?3\.2:[13]b/i.test(m)) {
+    const suggested = ramGB && ramGB >= 16 ? 'qwen2.5-coder:14b' : 'qwen2.5-coder:7b';
+    return {
+      modelId,
+      provider,
+      isOptimal: false,
+      tier: 'weak',
+      badge: '⚠️ Underpowered for Data Science',
+      verdict: 'suboptimal',
+      summary: `Active model "${modelId}" is a lightweight model. Small models frequently hallucinate column names or produce syntax errors in Pandas scripts.`,
+      recommendation: `Recommended Best Practice: Switch to ${suggested} (via Ollama) or a cloud provider for accurate Python scripts and reports.`,
+      suggestedLocalModel: suggested,
+    };
+  }
+
+  // Fallback
+  return {
+    modelId,
+    provider,
+    isOptimal: true,
+    tier: 'basic',
+    badge: 'ℹ️ Local Model',
+    verdict: 'good',
+    summary: `Active model: ${modelId}.`,
+    recommendation: 'Recommended: For data science & reporting tasks, qwen2.5-coder (7b or 14b) is the best-performing local model.',
+    suggestedLocalModel: 'qwen2.5-coder:7b',
+  };
+}
+
+/** The model a provider uses by default, from settings. */
+export function defaultModelFor(p: string, cfg: vscode.WorkspaceConfiguration): string {
+  switch (p) {
+    case 'ollama':      return cfg.get<string>('ollamaModel', 'qwen2.5-coder:7b');
+    case 'gemma4':      return cfg.get<string>('gemma4Model', 'gemma4:e4b');
+    case 'glm':         return cfg.get<string>('glmModel', 'codegeex4-all-9b');
+    case 'colibri':     return cfg.get<string>('colibriModel', 'glm-5.2');
+    case 'anthropic':   return cfg.get<string>('anthropicModel', 'claude-sonnet-4-6');
+    case 'openai':      return cfg.get<string>('openaiModel', 'gpt-4o');
+    case 'gemini':      return cfg.get<string>('geminiModel', 'gemini-2.5-flash');
+    case 'zai':         return cfg.get<string>('zaiModel', 'glm-4.6');
+    case 'huggingface': return cfg.get<string>('huggingfaceModel', 'Qwen/Qwen2.5-Coder-32B-Instruct');
+    default:            return 'offline';
+  }
+}
+
+export function providerLabel(p: string): string {
+  return ({
+    ollama: 'Ollama (local)', gemma4: 'Gemma 4 (local)', glm: 'GLM (local)',
+    colibri: 'Colibri (local)', anthropic: 'Anthropic Claude', openai: 'OpenAI',
+    gemini: 'Google Gemini', zai: 'GLM (Z.ai)', huggingface: 'Hugging Face',
+    offline: 'Offline (no LLM)', auto: 'Auto',
+  } as Record<string, string>)[p] ?? p;
 }

@@ -67,6 +67,7 @@ import {
 import { injectDataPrep } from '../core/reportBlocks';
 import type { ReportBlock, DataPrep, ReportTemplate, BlockType } from '../core/reportBlocks';
 import { extractBlock, buildBlockRefinePrompt } from '../core/reportEditor';
+import { assessModelForDataAnalysis, defaultModelFor } from '../core/modelCapability';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
@@ -661,7 +662,17 @@ export class DataAnalysisPlugin implements IPlugin {
       },
     };
 
-    const panel = DataAnalysisPanel.show(wsFiles, catalog, async (msg) => {
+    const provider = await services.ai.detectProvider();
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    const model = defaultModelFor(provider, cfg);
+    let ramGB: number | undefined;
+    try {
+      const hw = await services.inspector.inspect();
+      ramGB = hw.ramGb;
+    } catch { /* ignore */ }
+    const modelVerdict = assessModelForDataAnalysis(provider, model, ramGB);
+
+    const panel = DataAnalysisPanel.show(wsFiles, catalog, modelVerdict, async (msg) => {
       switch (msg.type) {
         case 'browse':
           await this._openBrowse(panel, (f) => { selectedFile = f; });
@@ -727,6 +738,15 @@ export class DataAnalysisPlugin implements IPlugin {
           break;
         }
         case 'editTheme':      await this._createTheme(); break;
+        case 'switchModel': {
+          await vscode.commands.executeCommand('aiForge.switchProvider');
+          const newProvider = await services.ai.detectProvider();
+          const newCfg = vscode.workspace.getConfiguration('aiForge');
+          const newModel = defaultModelFor(newProvider, newCfg);
+          const newVerdict = assessModelForDataAnalysis(newProvider, newModel, ramGB);
+          panel.setModelVerdict(newVerdict);
+          break;
+        }
         case 'connectSource':  await this._analyzeSource(services); break;
         case 'runPipeline':    await this._runPipeline(services, []); break;
         case 'analyze': {

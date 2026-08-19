@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "AI coding assistant for data engineers and DevOps. Convert code between 26 languages (Python, Java, Go, Rust, C#, TypeScript, COBOL, VBA, SAS...) with a side-by-side review and a fidelity report of what was approximated. dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into an HTML report you author block by block: pick each chart's measure and dimension from your real columns, edit the rendered report in place, filter the data for real, brand it, and save it as a template to re-run next month. Light/dark, sortable tables, print-ready. Also notebooks and inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX, GLM-5.2 744B via Colibri) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
-  "version": "2.14.0",
+  "version": "2.15.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
