@@ -133,26 +133,42 @@ export class CodeConvertPlugin implements IPlugin {
   /** Model override for conversion. Persists for the session; empty = global default. */
   private _choice: ModelChoice = { provider: null, model: null };
 
+  private _lastActiveEditor: vscode.TextEditor | null = null;
+  private _lastSelection: { editor: vscode.TextEditor; text: string } | null = null;
+
   async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
     // Conversion is always a deliberate action, never an ambient one — so the
     // plugin stays available whenever there is anything at all to convert,
     // rather than guessing from file types and dead-ending on the
     // "plugin not active" popup.
-    return !!ws || !!vscode.window.activeTextEditor;
+    return !!ws || !!vscode.window.activeTextEditor || !!this._lastActiveEditor;
   }
 
   async activate(_services: IServices, _vsCtx: vscode.ExtensionContext): Promise<vscode.Disposable[]> {
-    // The shared code-action provider (ui/inlineActions.ts) is registered only
-    // for the languages in FUNCTION_PATTERNS — which excludes COBOL, Perl, VBA,
-    // MATLAB, SAS and the rest of the legacy set. Those are precisely the files
-    // people most want to convert, so this registers for every language rather
-    // than going through the `codeActions` contribution point.
+    this._lastActiveEditor = vscode.window.activeTextEditor ?? null;
     return [
       vscode.languages.registerCodeActionsProvider(
         { scheme: 'file' },
         new ConvertCodeActionProvider(),
         { providedCodeActionKinds: [vscode.CodeActionKind.Refactor] },
       ),
+      vscode.window.onDidChangeActiveTextEditor((ed) => {
+        if (ed && !ed.document.isUntitled && ed.document.uri.scheme === 'file') {
+          this._lastActiveEditor = ed;
+          if (!ed.selection.isEmpty) {
+            this._lastSelection = { editor: ed, text: ed.document.getText(ed.selection) };
+          }
+        }
+      }),
+      vscode.window.onDidChangeTextEditorSelection((e) => {
+        if (e.textEditor && e.selections.length > 0 && !e.selections[0].isEmpty && e.textEditor.document.uri.scheme === 'file') {
+          this._lastActiveEditor = e.textEditor;
+          this._lastSelection = {
+            editor: e.textEditor,
+            text: e.textEditor.document.getText(e.selections[0]),
+          };
+        }
+      }),
     ];
   }
 
@@ -242,8 +258,12 @@ export class CodeConvertPlugin implements IPlugin {
     let sources: SourceFile[] = [];
 
     // Pre-load whatever the user is looking at, so the common case is one click.
-    const ed = vscode.window.activeTextEditor;
-    if (ed && !ed.document.isUntitled) {
+    let ed = vscode.window.activeTextEditor ?? this._lastActiveEditor ?? null;
+    if (!ed || ed.document.isClosed) {
+      ed = vscode.window.visibleTextEditors.find(e => !e.document.isUntitled && !e.document.isClosed && e.document.uri.scheme === 'file') ?? null;
+    }
+    if (ed && !ed.document.isUntitled && ed.document.uri.scheme === 'file') {
+      this._lastActiveEditor = ed;
       const s = this._sourceFromDocument(ed.document);
       if (s.langId) sources = [s];
     }
@@ -267,19 +287,112 @@ export class CodeConvertPlugin implements IPlugin {
     const panel = CodeConvertPanel.show(catalog, async (msg) => {
       switch (msg.type) {
         case 'useActiveFile': {
-          const doc = vscode.window.activeTextEditor?.document;
-          if (!doc) { panel.setStatus('No file is open in the editor.'); return; }
+          let activeEd = vscode.window.activeTextEditor ?? this._lastActiveEditor ?? null;
+          if (!activeEd || activeEd.document.isClosed) {
+            activeEd = vscode.window.visibleTextEditors.find(e => !e.document.isUntitled && !e.document.isClosed && e.document.uri.scheme === 'file') ?? null;
+          }
+          let doc = activeEd?.document;
+
+          // If no doc directly in editor, check open workspace tabs/documents
+          if (!doc || doc.isClosed) {
+            const openDocs = vscode.workspace.textDocuments.filter(d => !d.isUntitled && !d.isClosed && d.uri.scheme === 'file' && !d.fileName.includes('extension-output'));
+            if (openDocs.length === 1) {
+              doc = openDocs[0];
+            } else if (openDocs.length > 1) {
+              const pick = await vscode.window.showQuickPick(
+                openDocs.map(d => ({
+                  label: path.basename(d.fileName),
+                  description: vscode.workspace.asRelativePath(d.fileName),
+                  doc: d,
+                })),
+                { placeHolder: 'Select an open file to convert' }
+              );
+              if (pick) doc = pick.doc;
+              else return;
+            } else {
+              // Fallback to open dialog
+              const picked = await vscode.window.showOpenDialog({ canSelectMany: false, openLabel: 'Select file to convert' });
+              if (picked?.[0]) {
+                doc = await vscode.workspace.openTextDocument(picked[0]);
+              } else {
+                panel.setStatus('No file is open in the editor. Use "Choose files…" to select one.');
+                return;
+              }
+            }
+          }
+
           const s = this._sourceFromDocument(doc);
-          if (!s.langId) { panel.setStatus(`Evolve AI does not recognise ${path.extname(s.relPath) || 'that file type'} as source code it can convert.`); return; }
+          if (!s.langId) {
+            panel.setStatus(`Evolve AI does not recognise ${path.extname(s.relPath) || 'that file type'} as source code it can convert.`);
+            return;
+          }
           sources = [s]; isSelection = false;
+          panel.setStatus(`Queued active file: ${path.basename(doc.fileName)} (${languageLabel(s.langId)}, ${s.content.split('\n').length} lines)`);
           push();
           break;
         }
         case 'useSelection': {
-          const ed2 = vscode.window.activeTextEditor;
-          if (!ed2 || ed2.selection.isEmpty) { panel.setStatus('Select some code in the editor first, then click again.'); return; }
-          sources = [this._sourceFromSelection(ed2)];
+          let activeEd = vscode.window.activeTextEditor ?? this._lastActiveEditor ?? null;
+          if (!activeEd || activeEd.document.isClosed) {
+            activeEd = vscode.window.visibleTextEditors.find(e => !e.document.isUntitled && !e.document.isClosed && e.document.uri.scheme === 'file') ?? null;
+          }
+
+          let selText = (activeEd && !activeEd.selection.isEmpty)
+            ? activeEd.document.getText(activeEd.selection)
+            : (this._lastSelection?.text || '');
+          let doc = activeEd?.document ?? this._lastSelection?.editor?.document;
+
+          if (!selText.trim()) {
+            if (doc && !doc.isClosed) {
+              const choice = await vscode.window.showQuickPick(
+                [
+                  { label: `Convert entire file: ${path.basename(doc.fileName)}`, action: 'entire' },
+                  { label: 'Paste a code snippet to convert...', action: 'paste' },
+                ],
+                { placeHolder: 'No text is currently highlighted in the editor' }
+              );
+              if (!choice) return;
+              if (choice.action === 'entire') {
+                const s = this._sourceFromDocument(doc);
+                if (!s.langId) {
+                  panel.setStatus(`Evolve AI does not recognise ${path.extname(s.relPath) || 'that file type'} as source code.`);
+                  return;
+                }
+                sources = [s]; isSelection = false;
+                panel.setStatus(`Queued file: ${path.basename(doc.fileName)} (${languageLabel(s.langId)})`);
+                push();
+                return;
+              } else if (choice.action === 'paste') {
+                const pasted = await vscode.window.showInputBox({
+                  prompt: 'Paste the code snippet you want to convert',
+                  placeHolder: 'e.g. def calculate_total(items): ...',
+                });
+                if (!pasted?.trim()) return;
+                selText = pasted;
+              }
+            } else {
+              const pasted = await vscode.window.showInputBox({
+                prompt: 'Paste the code snippet you want to convert',
+                placeHolder: 'e.g. def calculate_total(items): ...',
+              });
+              if (!pasted?.trim()) {
+                panel.setStatus('Highlight code in an editor or paste a snippet to convert.');
+                return;
+              }
+              selText = pasted;
+            }
+          }
+
+          const langId = doc ? detectSourceLanguage(doc.fileName, doc.languageId) : (spec.source || 'python');
+          const relPath = doc ? this._rel(doc.fileName) : 'snippet';
+          sources = [{
+            absPath: doc?.uri.fsPath || '',
+            relPath,
+            content: selText,
+            langId: langId || 'python',
+          }];
           isSelection = true;
+          panel.setStatus(`Queued code selection (${selText.split('\n').length} lines)`);
           push();
           break;
         }
