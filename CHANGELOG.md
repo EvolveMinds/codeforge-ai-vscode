@@ -2,6 +2,17 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.15.1] — 2026-08-20
+
+### Data Engineering, dbt Lineage & Airflow Simulator
+* **dbt Lineage & Manifest Resolution**: Fixed model ID resolution to prioritize full manifest model paths and added basename fallback for robust cross-platform path matching.
+* **dbt Impact & Refactoring Context**: Added downstream transitive model, test, and exposure graph context directly to AI prompts when refactoring dbt models.
+* **dbt Source/Model YAML Generation**: Added QuickFix CodeAction to scaffold `schema.yml` test and documentation definitions directly from SQL model editors.
+* **Airflow DAG Static Analyzer**: Rewrote cron validator to support named days (`MON-FRI`), named months, step/range expressions, and Quartz `?` wildcards.
+* **Sensor & Dynamic Task Mapping**: Added support for `mode='reschedule'` sensor starvation checking and dynamic task mapping (`.expand()`, `.partial()`, `.override()`).
+* **Delta Lake 3.x & Liquid Clustering Intelligence**: Added Liquid Clustering (`CLUSTER BY`), Deletion Vectors, and automated table maintenance knowledge to the Databricks Lakehouse system prompt.
+* **Multi-Dialect SQL Lineage**: Added support for backtick-quoted tables and hyphenated GCP project IDs in table lineage extraction.
+
 ## [2.15.0] — 2026-08-19
 
 ### Model Auto-Detection & Best Practice Guidance for Data Analysis

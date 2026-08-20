@@ -1067,6 +1067,28 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.15.1': [
+    `## ⚡ Evolve AI 2.15.1 — Enhanced Data Engineering, dbt Lineage & Airflow Simulator\n`,
+    `### dbt Lineage & Downstream Impact\n`,
+    `• Manifest model ID resolution is now 100% resilient across Windows and nested dbt directories.\n`,
+    `• When refactoring a dbt model, downstream transitive models, tests, and exposures are injected into the AI context to ensure breaking changes are never introduced.\n`,
+    `• Added QuickFix lightbulb actions to automatically scaffold schema.yml definitions from your SQL models.\n`,
+    `### Airflow DAG Simulator & Static Analysis\n`,
+    `• Fixed cron expression parser to support named days (e.g. MON-FRI), named months, ranges, and Quartz wildcards without false-positive squiggles.\n`,
+    `• Upgraded sensor starvation check to recognize mode='reschedule' and added support for Airflow dynamic task mapping (.partial, .expand).\n`,
+    `### Modern Lakehouse & Multi-Engine Intelligence\n`,
+    `• Delta Lake 3.x intelligence: Liquid Clustering (CLUSTER BY), Deletion Vectors, and automated table maintenance.\n`,
+    `• Full support for backtick-quoted table identifiers and hyphenated GCP project IDs in lineage parsing.\n`,
+  ].join('\n'),
+  '2.15.0': [
+    `## 📊 Evolve AI 2.15.0 — AI Model Auto-Detection & Data Science Safeguards\n`,
+    `### Model Auto-Detection for Data Analysis\n`,
+    `• Automatically evaluates active AI models and system RAM to recommend optimal local coder models (e.g. Qwen 2.5 Coder) or high-capacity cloud models.\n`,
+    `• In-IDE AI Engine status badge with one-click model switcher.\n`,
+    `### Code Generation Safeguards\n`,
+    `• AST-level sanitizer for Python < 3.12 f-strings to prevent backslash syntax errors.\n`,
+    `• Matplotlib figure resource cleanup and safe data sampling.\n`,
+  ].join('\n'),
   '2.13.0': [
     `## 📐 Evolve AI 2.13.0 — Reports you author, not reports you receive\n`,
     `### Build the report block by block\n`,
