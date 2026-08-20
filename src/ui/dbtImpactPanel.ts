@@ -261,17 +261,9 @@ export class DbtImpactPanel {
  */
 function absoluteFilePath(node: ManifestNode, anchorPath: string): string {
   if (!node.original_file_path) return '';
-  // Walk from anchor (the active model's path) up until we find the
-  // dbt_project.yml — that's the project root.
-  const fs = require('fs');
-  let dir = path.dirname(anchorPath);
-  for (let i = 0; i < 15; i++) {
-    if (fs.existsSync(path.join(dir, 'dbt_project.yml'))) break;
-    const parent = path.dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-  return path.join(dir, node.original_file_path);
+  const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? path.dirname(anchorPath);
+  const root = findDbtProjectRoot(path.dirname(anchorPath), ws) ?? path.dirname(anchorPath);
+  return path.join(root, node.original_file_path);
 }
 
 function escapeHtml(s: string): string {

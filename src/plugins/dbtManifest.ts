@@ -202,7 +202,11 @@ export function getModelByFile(projectRoot: string, filePath: string): { id: str
   const cached = loadManifest(projectRoot);
   if (!cached) return undefined;
   const rel = path.relative(projectRoot, filePath);
-  const id = cached.modelIdByFile.get(normaliseFilePath(rel));
+  let id = cached.modelIdByFile.get(normaliseFilePath(rel));
+  if (!id && filePath.toLowerCase().endsWith('.sql')) {
+    const baseName = path.basename(filePath, '.sql').toLowerCase();
+    id = cached.modelIdByName.get(baseName);
+  }
   if (!id) return undefined;
   const node = cached.parsed.nodes?.[id];
   if (!node) return undefined;

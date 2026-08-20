@@ -202,7 +202,7 @@ class DatabricksClient {
         headers: {
           'Authorization': `Bearer ${this.token}`,
           'Content-Type':  'application/json',
-          'User-Agent':    'AI-Forge-VSCode/1.0',
+          'User-Agent':    'Evolve-AI-VSCode/2.0',
         },
       };
 

@@ -9,7 +9,7 @@ import Mocha from 'mocha';
 import { glob } from 'glob';
 
 export function run(): Promise<void> {
-  const mocha = new Mocha({ ui: 'bdd', color: true, timeout: 10_000 });
+  const mocha = new Mocha({ ui: 'tdd', color: true, timeout: 10_000 });
   const testsRoot = path.resolve(__dirname);
 
   return new Promise((resolve, reject) => {

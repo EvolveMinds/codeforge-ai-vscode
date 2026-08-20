@@ -102,8 +102,8 @@ const RE_SCHEDULE = /\b(?:schedule|schedule_interval)\s*=\s*([^,)\n]+?)(?=[,)\n]
 const RE_START_DATE = /\bstart_date\s*=\s*([^,)\n]+?)(?=[,)\n]|$)/;
 const RE_CATCHUP = /\bcatchup\s*=\s*(True|False)\b/;
 const RE_DEFAULT_ARGS = /\bdefault_args\s*=\s*(\{[\s\S]*?\})/m;
-// Operator instantiation: `name = OperatorClass(...)`
-const RE_OPERATOR_ASSIGN = /^\s*([A-Za-z_][\w]*)\s*=\s*([A-Z][\w]*)\s*\(/;
+// Operator instantiation: `name = OperatorClass(...)` or `name = OperatorClass.partial(...).expand(...)`
+const RE_OPERATOR_ASSIGN = /^\s*([A-Za-z_][\w]*)\s*=\s*([A-Z][\w]*)(?:\.(?:partial|expand))?\s*\(/;
 // `task_id='name'` inside the operator call
 const RE_TASK_ID = /task_id\s*=\s*['"]([^'"]+)['"]/;
 // TaskFlow @task or @task.python decorator (followed by a def on next line)
@@ -263,10 +263,10 @@ function expandTaskList(token: string, knownTasks: Set<string>): string[] {
   for (const part of cleaned.split(',')) {
     const name = part.trim();
     if (!name) continue;
-    // Accept either an operator var name OR a TaskFlow function call (`name()`).
-    const callMatch = name.match(/^(\w+)\s*\(/);
-    const id = callMatch ? callMatch[1] : name;
-    // Filter to identifier-shaped tokens; drop method calls, attribute access
+    // Accept either an operator var name OR a TaskFlow function call (`name()`) OR `.expand()` / `.partial()` / `.override()`.
+    const callMatch = name.match(/^(\w+)(?:\.(?:partial|expand|override))?\s*\(/);
+    const id = callMatch ? callMatch[1] : name.replace(/\.(?:partial|expand|override).*$/, '');
+    // Filter to identifier-shaped tokens; drop complex expressions
     if (!/^[A-Za-z_]\w*$/.test(id)) continue;
     out.push(id);
   }
@@ -469,26 +469,29 @@ function detectSensorPokeStarvation(tasks: DagTask[]): DagIssue[] {
     if (!/Sensor$/.test(t.operator)) continue;
     const mode = t.kwargs.mode?.replace(/^['"]|['"]$/g, '');
     const timeoutRaw = t.kwargs.timeout;
-    if (!timeoutRaw) {
+    const isPoke = !mode || mode === 'poke';
+
+    if (!timeoutRaw && isPoke) {
       issues.push({
         code: 'sensor-no-timeout',
         severity: 'warning',
         line: t.line,
-        message: `Sensor '${t.id}' has no timeout. It can hang indefinitely.`,
-        hint: 'Add timeout=60*60*N to bound the wait.',
+        message: `Sensor '${t.id}' uses mode='poke' with no timeout. It can hold a worker slot indefinitely.`,
+        hint: "Add timeout=60*60*N or switch to mode='reschedule'.",
       });
       continue;
     }
-    const timeout = parseInt(timeoutRaw.replace(/[^\d]/g, ''), 10);
-    const isPoke = !mode || mode === 'poke';
-    if (isPoke && Number.isFinite(timeout) && timeout > 60 * 60) {
-      issues.push({
-        code: 'sensor-poke-starvation',
-        severity: 'warning',
-        line: t.line,
-        message: `Sensor '${t.id}' uses mode='poke' with a >1h timeout. This holds a worker slot for the entire wait.`,
-        hint: "Switch to mode='reschedule' to free the worker between checks.",
-      });
+    if (timeoutRaw) {
+      const timeout = parseInt(timeoutRaw.replace(/[^\d]/g, ''), 10);
+      if (isPoke && Number.isFinite(timeout) && timeout > 60 * 60) {
+        issues.push({
+          code: 'sensor-poke-starvation',
+          severity: 'warning',
+          line: t.line,
+          message: `Sensor '${t.id}' uses mode='poke' with a >1h timeout. This holds a worker slot for the entire wait.`,
+          hint: "Switch to mode='reschedule' to free the worker between checks.",
+        });
+      }
     }
   }
   return issues;
@@ -512,13 +515,16 @@ function detectMissingCatchupFalse(dag: DagModel): DagIssue[] {
   }];
 }
 
-function detectInvalidCron(dag: DagModel): DagIssue[] {
-  if (!dag.schedule) return [];
-  const raw = dag.schedule.replace(/^['"]|['"]$/g, '').trim();
-  if (raw.startsWith('@') || raw === 'None' || raw.endsWith(')')) return [];
-  // Basic 5-field cron validation
-  const parts = raw.split(/\s+/);
-  if (parts.length !== 5) return [];
+const CRON_MONTHS: Record<string, number> = {
+  JAN: 1, FEB: 2, MAR: 3, APR: 4, MAY: 5, JUN: 6,
+  JUL: 7, AUG: 8, SEP: 9, OCT: 10, NOV: 11, DEC: 12,
+};
+const CRON_DAYS: Record<string, number> = {
+  SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6,
+};
+
+function parseCronSingle(val: string, fieldIdx: number): boolean {
+  const upper = val.trim().toUpperCase();
   const ranges = [
     [0, 59],   // minute
     [0, 23],   // hour
@@ -526,26 +532,64 @@ function detectInvalidCron(dag: DagModel): DagIssue[] {
     [1, 12],   // month
     [0, 7],    // day of week (0/7 = Sunday)
   ];
+  if (fieldIdx === 3 && CRON_MONTHS[upper] !== undefined) return true;
+  if (fieldIdx === 4 && CRON_DAYS[upper] !== undefined) return true;
+  const num = parseInt(upper, 10);
+  if (Number.isNaN(num)) return false;
+  return num >= ranges[fieldIdx][0] && num <= ranges[fieldIdx][1];
+}
+
+function parseCronToken(token: string, fieldIdx: number): boolean {
+  if (token === '*' || token === '?') return true;
+  if (token.includes('/')) {
+    const [range, stepStr] = token.split('/');
+    const step = parseInt(stepStr, 10);
+    if (Number.isNaN(step) || step <= 0) return false;
+    if (range === '*' || range === '') return true;
+    return parseCronToken(range, fieldIdx);
+  }
+  if (token.includes('-')) {
+    const [startStr, endStr] = token.split('-');
+    return parseCronSingle(startStr, fieldIdx) && parseCronSingle(endStr, fieldIdx);
+  }
+  return parseCronSingle(token, fieldIdx);
+}
+
+function detectInvalidCron(dag: DagModel): DagIssue[] {
+  if (!dag.schedule) return [];
+  const raw = dag.schedule.replace(/^['"]|['"]$/g, '').trim();
+  if (raw.startsWith('@') || raw === 'None' || raw.endsWith(')')) return [];
+  // Basic 5-field cron validation
+  const parts = raw.split(/\s+/);
+  if (parts.length !== 5) return [];
   for (let i = 0; i < 5; i++) {
     const field = parts[i];
-    if (field === '*') continue;
-    if (/^\*\/\d+$/.test(field)) continue;  // step
-    const matched = field.split(',').every(piece => {
-      const num = parseInt(piece.split(/[-/]/)[0], 10);
-      if (Number.isNaN(num)) return false;
-      return num >= ranges[i][0] && num <= ranges[i][1];
-    });
+    const pieces = field.split(',');
+    const matched = pieces.every(piece => parseCronToken(piece, i));
     if (!matched) {
       return [{
         code: 'invalid-cron',
         severity: 'error',
         line: 1,
-        message: `Schedule '${raw}' has an invalid value in field ${i + 1} ('${field}'). Allowed: ${ranges[i][0]}-${ranges[i][1]}.`,
-        hint: 'Check the cron expression. Use crontab.guru to validate.',
+        message: `Schedule '${raw}' has an invalid value in field ${i + 1} ('${field}').`,
+        hint: 'Check the cron expression. Use standard cron syntax (e.g. "0 0 * * MON-FRI" or "@daily").',
       }];
     }
   }
   return [];
+}
+
+function detectDeprecatedScheduleInterval(content: string): DagIssue[] {
+  const m = content.match(/\bschedule_interval\s*=/);
+  if (!m) return [];
+  const line = content.slice(0, m.index).split('\n').length;
+  return [{
+    code: 'deprecated-schedule-interval',
+    severity: 'info',
+    line,
+    message: '`schedule_interval` is deprecated since Airflow 2.4. Use `schedule` parameter instead.',
+    hint: 'Rename `schedule_interval=` to `schedule=`.',
+  }];
 }
 
 function detectTaskFlowMissingParens(content: string, tasks: DagTask[]): DagIssue[] {
@@ -635,6 +679,7 @@ export function analyzeDag(content: string): DagAnalysis {
     ...detectSensorPokeStarvation(dag.tasks),
     ...detectMissingCatchupFalse(dag),
     ...detectInvalidCron(dag),
+    ...detectDeprecatedScheduleInterval(content),
     ...detectTaskFlowMissingParens(content, dag.tasks),
   ];
   // Stable sort — by line then severity

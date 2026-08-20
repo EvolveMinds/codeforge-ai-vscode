@@ -233,6 +233,20 @@ suite('DbtPlugin', () => {
     });
   });
 
+  suite('Code Actions', () => {
+    test('has 5 codeActions defined', () => {
+      const plugin = new DbtPlugin();
+      assert.ok(plugin.codeActions, 'codeActions should be defined');
+      assert.strictEqual(plugin.codeActions!.length, 5);
+    });
+
+    test('includes generate source/model YAML action', () => {
+      const plugin = new DbtPlugin();
+      const ids = plugin.codeActions!.map(a => a.command);
+      assert.ok(ids.includes('aiForge.dbt.addSourceYaml'), 'missing aiForge.dbt.addSourceYaml action');
+    });
+  });
+
   suite('Status Item', () => {
     test('has statusItem defined', () => {
       const plugin = new DbtPlugin();

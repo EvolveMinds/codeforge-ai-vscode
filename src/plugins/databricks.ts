@@ -253,14 +253,15 @@ You are an expert in Databricks, Apache Spark, Delta Lake, and the broader Datab
 - Broadcast small tables in joins: spark.sql("SELECT /*+ BROADCAST(small) */ ...") or broadcast(small_df)
 - Avoid df.count() in loops — it triggers a full Spark job each call; batch metrics with aggregations
 
-### Delta Lake
+### Delta Lake 3.x & Lakehouse Engine
 - Always use Delta format for new tables: .format("delta")
-- Use MERGE INTO for CDC/upserts — never overwrite the whole table for incremental loads
-- Enable change data feed for downstream consumers: TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true')
-- Use OPTIMIZE with ZORDER for frequently filtered columns
-- VACUUM regularly; default retention is 7 days
-- Prefer schema evolution (mergeSchema=True) over recreating tables
-- Use Delta time travel for auditing: df.read.format("delta").option("versionAsOf", n)
+- **Liquid Clustering**: Prefer \`CLUSTER BY (col1, col2)\` over legacy Hive partitioning and static \`OPTIMIZE ... ZORDER BY\`. Liquid clustering adapts to query patterns without data rewriting.
+- **Deletion Vectors**: Enable \`TBLPROPERTIES ('delta.enableDeletionVectors' = 'true')\` to accelerate \`MERGE INTO\`, \`UPDATE\`, and \`DELETE\` operations without rewriting entire Parquet data files.
+- Use MERGE INTO for CDC/upserts — never overwrite the whole table for incremental loads.
+- Enable change data feed for downstream consumers: \`TBLPROPERTIES ('delta.enableChangeDataFeed' = 'true')\`.
+- Schedule \`OPTIMIZE\` and \`VACUUM\` (default 7-day retention) maintenance jobs.
+- Prefer schema evolution (\`mergeSchema=True\` or \`spark.databricks.delta.schema.autoMerge.enabled=true\`) over dropping and recreating tables.
+- Use Delta time travel for auditing and rollback: \`df.read.format("delta").option("versionAsOf", n)\`.
 
 ### Unity Catalog
 - Always use 3-part names: catalog.schema.table — never 2-part in Unity Catalog workspaces

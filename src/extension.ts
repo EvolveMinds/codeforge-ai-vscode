@@ -225,20 +225,47 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
     // Refactor with impact context — pulls downstream impact into a chat prompt
     vscode.commands.registerCommand('aiForge.dbt.refactorWithImpact', async (modelId?: string) => {
       const active = vscode.window.activeTextEditor;
-      if (!active) { vscode.window.showWarningMessage('Open a dbt model file first.'); return; }
-      const ws = vscode.workspace.getWorkspaceFolder(active.document.uri);
-      if (!ws) return;
-      const projectRoot = findDbtRoot(nodePath.dirname(active.document.uri.fsPath), ws.uri.fsPath);
+      const ws = active ? vscode.workspace.getWorkspaceFolder(active.document.uri) : vscode.workspace.workspaceFolders?.[0];
+      if (!ws) { vscode.window.showWarningMessage('Open a workspace first.'); return; }
+      const start = active ? nodePath.dirname(active.document.uri.fsPath) : ws.uri.fsPath;
+      const projectRoot = findDbtRoot(start, ws.uri.fsPath);
       if (!projectRoot) { vscode.window.showWarningMessage('No dbt project found.'); return; }
-      const match = getDbtModelByFile(projectRoot, active.document.uri.fsPath);
-      if (!match) { vscode.window.showWarningMessage('Active file is not a model in target/manifest.json.'); return; }
-      void modelId;
+
+      const manifest = loadDbtManifest(projectRoot);
+      let targetNodeName = '';
+      let sql = '';
+      if (modelId && manifest?.parsed.nodes?.[modelId]) {
+        const node = manifest.parsed.nodes[modelId];
+        targetNodeName = node.name;
+        if (node.original_file_path) {
+          const absPath = nodePath.join(projectRoot, node.original_file_path);
+          try {
+            const fs = await import('fs');
+            if (fs.existsSync(absPath)) sql = fs.readFileSync(absPath, 'utf8');
+          } catch { /* skip */ }
+        }
+      }
+      if (!targetNodeName && active) {
+        const match = getDbtModelByFile(projectRoot, active.document.uri.fsPath);
+        if (match) {
+          targetNodeName = match.node.name;
+          sql = active.document.getText();
+        }
+      }
+      if (!targetNodeName) {
+        vscode.window.showWarningMessage('Model not found in target/manifest.json.');
+        return;
+      }
+      if (!sql && active) {
+        sql = active.document.getText();
+      }
+
       const cfg = vscode.workspace.getConfiguration('aiForge');
-      const ds = getDbtDownstream(projectRoot, match.node.name, cfg.get<number>('dbt.impactDepth', 5));
+      const ds = getDbtDownstream(projectRoot, targetNodeName, cfg.get<number>('dbt.impactDepth', 5));
       if (!ds) return;
 
       const lines: string[] = [];
-      lines.push(`## Downstream impact of \`${match.node.name}\``);
+      lines.push(`## Downstream impact of \`${targetNodeName}\``);
       lines.push(`- Direct downstream models: ${ds.directModels.length}`);
       lines.push(`- Transitive downstream models: ${ds.transitiveModels.length}`);
       lines.push(`- Exposures consuming: ${ds.exposures.length}`);
@@ -257,7 +284,6 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
         }
       }
 
-      const sql = active.document.getText();
       const instruction = `Refactor this dbt model below. Consider the downstream impact context above — your refactor must not break the downstream models or exposures listed.\n\nSQL:\n\`\`\`sql\n${sql}\n\`\`\``;
       const prefix = lines.join('\n');
       await vscode.commands.executeCommand('aiForge._sendToChat', `${prefix}\n\n${instruction}`, 'edit');

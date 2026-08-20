@@ -480,7 +480,7 @@ You are an expert in Apache Airflow 2.x. Apply this domain knowledge in every re
     },
     {
       title:             '$(play-circle) Airflow: Add task documentation (doc_md)',
-      command:           'aiForge.airflow.addSensor',
+      command:           'aiForge.airflow.addTaskDocs',
       kind:              'refactor',
       requiresSelection: true,
       languages:         ['python'],
@@ -780,6 +780,29 @@ Workspace: ${wsPath}`,
 
 \`\`\`python
 ${editor.document.getText()}
+\`\`\``,
+          'edit'
+        );
+      },
+    },
+
+    {
+      id:    'aiForge.airflow.addTaskDocs',
+      title: 'Evolve AI: Add Task Documentation',
+      async handler(_services): Promise<void> {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) { vscode.window.showWarningMessage('Open an Airflow DAG file first'); return; }
+        const code = editor.document.getText(editor.selection) || editor.document.getText();
+        await vscode.commands.executeCommand(
+          'aiForge._sendToChat',
+          `Add rich Markdown documentation (doc_md) to these Airflow tasks or DAG:
+- Add doc_md with task business purpose, input/output data locations, SLA expectations, and troubleshooting steps
+- For @task functions, add standard Google/Sphinx style docstrings that Airflow renders in the UI
+- For classic Operators, set doc_md attribute or doc_md parameter
+- Return the updated code.
+
+\`\`\`python
+${code}
 \`\`\``,
           'edit'
         );

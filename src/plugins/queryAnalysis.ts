@@ -26,7 +26,7 @@ export interface SqlStatement {
   origin: 'sql_file' | 'spark_sql' | 'notebook_sql_cell';
 }
 
-const SQL_LEAD = /^\s*(?:WITH\b|SELECT\b|INSERT\b|UPDATE\b|DELETE\b|MERGE\b|CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\b|CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\b|REPLACE\s+TABLE\b)/i;
+const SQL_LEAD = /^\s*(?:WITH\b|SELECT\b|INSERT\b|UPDATE\b|DELETE\b|MERGE\b|CREATE\s+(?:OR\s+REPLACE\s+)?TABLE\b|CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\b|REPLACE\s+TABLE\b|OPTIMIZE\b|VACUUM\b|COPY\s+INTO\b|TRUNCATE\s+TABLE\b|TRUNCATE\b|ALTER\s+TABLE\b)/i;
 
 /**
  * Lightweight SQL splitter. Splits on `;` at the top level (ignoring `;` inside
@@ -44,14 +44,16 @@ export function splitSqlFile(content: string): SqlStatement[] {
     const sql = cur.join('\n').trim();
     cur = [];
     if (!sql) { curStart = endLine + 1; return; }
-    // Strip leading line / block comments so a statement preceded by `--` or
-    // `/* ... */` is still detected as SQL.
+    // Strip leading line / block / Jinja comments so a statement preceded by `--`,
+    // `/* ... */`, or `{# ... #}` is still detected as SQL.
     let probe = sql;
     let prev: string;
     do {
       prev = probe;
       probe = probe.replace(/^\s*--[^\n]*\n?/, '');
       probe = probe.replace(/^\s*\/\*[\s\S]*?\*\//, '');
+      probe = probe.replace(/^\s*\{#[\s\S]*?#\}/, '');
+      probe = probe.replace(/^\s*\{\{\s*config\s*\([\s\S]*?\)\s*\}\}/, '');
     } while (probe !== prev);
     if (!SQL_LEAD.test(probe.trimStart())) { curStart = endLine + 1; return; }
     out.push({ sql, startLine: curStart, endLine, origin: 'sql_file' });

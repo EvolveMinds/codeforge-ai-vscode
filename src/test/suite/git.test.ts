@@ -143,16 +143,20 @@ suite('GitPlugin', () => {
   // ── Context hooks ─────────────────────────────────────────────────────────
 
   suite('contextHooks', () => {
-    test('has exactly 2 context hooks', () => {
-      assert.strictEqual(plugin.contextHooks?.length, 2);
+    test('has exactly 3 context hooks', () => {
+      assert.strictEqual(plugin.contextHooks?.length, 3);
     });
 
     test('first hook key is "git.status"', () => {
       assert.strictEqual(plugin.contextHooks?.[0]?.key, 'git.status');
     });
 
-    test('second hook key is "git.recentCommits"', () => {
-      assert.strictEqual(plugin.contextHooks?.[1]?.key, 'git.recentCommits');
+    test('second hook key is "git.connection"', () => {
+      assert.strictEqual(plugin.contextHooks?.[1]?.key, 'git.connection');
+    });
+
+    test('third hook key is "git.recentCommits"', () => {
+      assert.strictEqual(plugin.contextHooks?.[2]?.key, 'git.recentCommits');
     });
 
     test('git.status format returns branch info', () => {
@@ -170,7 +174,7 @@ suite('GitPlugin', () => {
     });
 
     test('git.recentCommits format returns commit list', () => {
-      const hook = plugin.contextHooks?.[1];
+      const hook = plugin.contextHooks?.[2];
       if (!hook) { assert.fail('hook is undefined'); }
       const formatted = hook.format({
         commits: ['abc1234 feat: add login', 'def5678 fix: resolve null pointer'],

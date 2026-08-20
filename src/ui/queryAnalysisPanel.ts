@@ -121,6 +121,7 @@ export class QueryAnalysisPanel {
       <div class="err">${escapeHtml(a.error ?? '')}</div>
       <div class="actions">
         <button onclick="vscodeApi.postMessage({type:'refresh'})">Retry</button>
+        <button onclick="vscodeApi.postMessage({type:'optimise'})">Fix / Optimise with AI</button>
       </div>`;
   }
 

@@ -136,9 +136,50 @@ df = spark.table("real.data.table")`,
       assert.strictEqual(refs[0].fqn, 'real.data.table');
     });
 
+    test('handles backtick-quoted and hyphenated table names in spark.sql()', () => {
+      const file = mkFile(
+        'etl.py',
+        'spark.sql("SELECT * FROM `my-gcp-project.analytics.fct_orders` JOIN `cat`.`schema`.`tbl` ON 1=1")',
+        'python',
+      );
+      const refs = extractSparkRefs(file);
+      const fqns = refs.map(r => r.fqn).sort();
+      assert.deepStrictEqual(fqns, ['cat.schema.tbl', 'my-gcp-project.analytics.fct_orders']);
+    });
+
     test('returns [] for dbt-flavoured SQL (handled by dbt hook)', () => {
       const file = mkFile('models/a.sql', `SELECT * FROM {{ ref('b') }}`);
       assert.deepStrictEqual(extractSparkRefs(file), []);
+    });
+  });
+
+  suite('splitSqlFile parser', () => {
+    test('detects OPTIMIZE, VACUUM, and ALTER TABLE statements', () => {
+      const { splitSqlFile } = require('../../plugins/queryAnalysis');
+      const sql = `
+-- Vacuum delta table
+VACUUM \`events.delta_table\` RETAIN 168 HOURS;
+
+/* Optimize */
+OPTIMIZE \`events.delta_table\` ZORDER BY (user_id);
+
+ALTER TABLE \`events.delta_table\` SET TBLPROPERTIES ('delta.autoOptimize.optimizeWrite' = 'true');
+`;
+      const stmts = splitSqlFile(sql);
+      assert.strictEqual(stmts.length, 3);
+    });
+
+    test('handles Jinja block comments and config headers', () => {
+      const { splitSqlFile } = require('../../plugins/queryAnalysis');
+      const sql = `
+{# This is a Jinja comment describing the model #}
+{{ config(materialized='table') }}
+
+SELECT id, name FROM {{ source('raw', 'users') }};
+`;
+      const stmts = splitSqlFile(sql);
+      assert.strictEqual(stmts.length, 1);
+      assert.ok(stmts[0].sql.includes('SELECT id, name'));
     });
   });
 

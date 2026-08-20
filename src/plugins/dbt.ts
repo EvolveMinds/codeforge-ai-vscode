@@ -452,10 +452,41 @@ models:
 - \`dbt_expectations\`: Great Expectations-style test macros
 - Install packages via packages.yml and \`dbt deps\`
 
-### Hooks and Operations
-- \`on-run-start\` / \`on-run-end\`: SQL to run before/after all models
-- \`pre-hook\` / \`post-hook\`: Model-level hooks for grants, clustering, etc.
-- Use hooks for GRANT statements to maintain permissions after table creation
+### Model Contracts & Constraints (dbt Core 1.5+)
+- Enforce schema contracts on public models:
+\`\`\`yaml
+models:
+  - name: dim_customers
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        data_type: string
+        constraints:
+          - type: primary_key
+          - type: not_null
+\`\`\`
+
+### Warehouse-Specific Optimization Strategies
+- **Databricks / Delta Lake**:
+  - Prefer Liquid Clustering: \`{{ config(materialized='table', cluster_by=['customer_id', 'order_date']) }}\` over legacy Z-Order
+  - Optimize writes: \`tblproperties={'delta.autoOptimize.optimizeWrite': 'true', 'delta.autoOptimize.autoCompact': 'true'}\`
+- **Google BigQuery**:
+  - Partitioning: \`{{ config(materialized='table', partition_by={'field': 'created_at', 'data_type': 'timestamp', 'granularity': 'day'}, cluster_by=['region', 'status']) }}\`
+  - Guard queries: \`require_partition_filter=true\` on large marts
+- **Snowflake**:
+  - Clustering: \`{{ config(materialized='table', cluster_by=['DATE_TRUNC(\'month\', created_at)']) }}\`
+  - Transient tables: \`{{ config(transient=true) }}\` for staging/intermediate to save Fail-safe storage costs
+
+### Python Models in dbt
+\`\`\`python
+def model(dbt, session):
+    dbt.config(materialized="table", packages=["pandas", "scipy"])
+    df = dbt.ref("stg_orders").to_pandas()
+    # Perform complex ML / statistical calculation
+    return df
+\`\`\`
 
 ### Commands Reference
 - \`dbt run\` — materialize all models
@@ -524,6 +555,13 @@ models:
       kind:              'refactor',
       requiresSelection: true,
       languages:         ['sql', 'jinja-sql'],
+    },
+    {
+      title:             '$(database) dbt: Generate source/model YAML definition',
+      command:           'aiForge.dbt.addSourceYaml',
+      kind:              'quickfix',
+      requiresSelection: false,
+      languages:         ['sql', 'jinja-sql', 'yaml'],
     },
   ];
 

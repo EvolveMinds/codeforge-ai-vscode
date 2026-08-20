@@ -45,7 +45,11 @@ export interface DatabricksLineageClient {
 
 const RE_SPARK_TABLE = /\bspark\s*\.\s*(?:read\s*\.\s*)?table\s*\(\s*(?:f?['"])([\w.${}]+)['"]\s*\)/g;
 const RE_DELTA_FORNAME = /DeltaTable\s*\.\s*forName\s*\(\s*[\w.]+\s*,\s*(?:f?['"])([\w.${}]+)['"]\s*\)/g;
-const RE_FROM_TABLE  = /\b(?:FROM|JOIN)\s+([a-zA-Z_][\w]*(?:\.[a-zA-Z_][\w]*){1,2})\b/gi;
+const RE_FROM_TABLE  = /\b(?:FROM|JOIN)\s+((?:`[^`]+`|\[[^\]]+\]|[a-zA-Z0-9_\-]+)(?:\.(?:`[^`]+`|\[[^\]]+\]|[a-zA-Z0-9_\-]+)){0,2})/gi;
+
+function cleanTableFqn(raw: string): string {
+  return raw.replace(/[`\[\]]/g, '').trim();
+}
 const RE_SPARK_SQL   = /spark\s*\.\s*sql\s*\(\s*(?:f?['"]([^'"\\]+)['"]|f?"""([\s\S]*?)"""|f?'''([\s\S]*?)''')\s*\)/g;
 
 // Widget declaration: dbutils.widgets.text("name", "default_value")
@@ -63,8 +67,9 @@ export function extractSparkRefs(file: FileContext): LineageRef[] {
   }
 
   const resolveFqn = (raw: string): string | null => {
+    const cleaned = cleanTableFqn(raw);
     // Expand ${widget} or {widget} placeholders
-    return raw.replace(/\$?\{([^}]+)\}/g, (_, name) => {
+    return cleaned.replace(/\$?\{([^}]+)\}/g, (_, name) => {
       const v = widgets.get(name.trim());
       return v ?? `__${name.trim()}__`; // mark unresolved for later filtering
     });
@@ -117,8 +122,10 @@ export function extractSparkRefs(file: FileContext): LineageRef[] {
     while ((fm = fromRe.exec(file.content)) !== null) {
       const raw = fm[1];
       if (!raw.includes('.')) continue;
+      const fqn = resolveFqn(raw);
+      if (!fqn || fqn.includes('__')) continue;
       const lineIdx = file.content.slice(0, fm.index).split('\n').length;
-      refs.push({ fqn: raw, kind: 'sql_table', origin: { line: lineIdx, col: 1 } });
+      refs.push({ fqn, kind: 'sql_table', origin: { line: lineIdx, col: 1 } });
     }
   }
 

@@ -98,10 +98,10 @@ suite('AirflowPlugin', () => {
   });
 
   suite('Commands', () => {
-    test('has exactly 6 commands', () => {
+    test('has exactly 7 commands', () => {
       const plugin = new AirflowPlugin();
       assert.ok(plugin.commands, 'commands array should be defined');
-      assert.strictEqual(plugin.commands!.length, 6);
+      assert.strictEqual(plugin.commands!.length, 7);
     });
 
     test('all commands start with aiForge.airflow.', () => {
@@ -148,6 +148,12 @@ suite('AirflowPlugin', () => {
       const plugin = new AirflowPlugin();
       const ids = plugin.commands!.map(c => c.id);
       assert.ok(ids.includes('aiForge.airflow.addMonitoring'), 'missing aiForge.airflow.addMonitoring');
+    });
+
+    test('contains addTaskDocs command', () => {
+      const plugin = new AirflowPlugin();
+      const ids = plugin.commands!.map(c => c.id);
+      assert.ok(ids.includes('aiForge.airflow.addTaskDocs'), 'missing aiForge.airflow.addTaskDocs');
     });
 
     test('all commands have handlers', () => {
@@ -278,6 +284,75 @@ suite('AirflowPlugin', () => {
       const plugin = new AirflowPlugin();
       const text = await plugin.statusItem!.text();
       assert.ok(text.includes('$(play-circle)'), 'statusItem should include the play-circle icon');
+    });
+  });
+
+  suite('DAG Analyzer (airflowDagAnalyzer)', () => {
+    test('validates cron expressions with day names without error', () => {
+      const { analyzeDag } = require('../../plugins/airflowDagAnalyzer');
+      const dagCode = `
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime, timedelta
+
+default_args = {'retries': 2}
+with DAG(dag_id='test_cron', schedule='0 0 * * MON-FRI', start_date=datetime(2025, 1, 1), catchup=False, default_args=default_args) as dag:
+    t1 = BashOperator(task_id='t1', bash_command='echo 1')
+`;
+      const result = analyzeDag(dagCode);
+      const cronIssues = result.issues.filter((i: { code: string }) => i.code === 'invalid-cron');
+      assert.strictEqual(cronIssues.length, 0, 'Should not report invalid-cron for MON-FRI');
+    });
+
+    test('validates sensors with mode=reschedule without poke-starvation warning', () => {
+      const { analyzeDag } = require('../../plugins/airflowDagAnalyzer');
+      const dagCode = `
+from airflow import DAG
+from airflow.sensors.filesystem import FileSensor
+from datetime import datetime
+
+default_args = {'retries': 1}
+with DAG(dag_id='test_sensor', schedule='@daily', start_date=datetime(2025, 1, 1), catchup=False, default_args=default_args) as dag:
+    s1 = FileSensor(task_id='wait_file', filepath='/tmp/x', mode='reschedule')
+`;
+      const result = analyzeDag(dagCode);
+      const starvationIssues = result.issues.filter((i: { code: string }) => i.code === 'sensor-poke-starvation');
+      assert.strictEqual(starvationIssues.length, 0, 'Reschedule sensor should not trigger poke starvation');
+    });
+
+    test('detects cycles in task dependencies', () => {
+      const { analyzeDag } = require('../../plugins/airflowDagAnalyzer');
+      const dagCode = `
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+default_args = {'retries': 1}
+with DAG(dag_id='test_cycle', schedule='@daily', start_date=datetime(2025, 1, 1), catchup=False, default_args=default_args) as dag:
+    t1 = BashOperator(task_id='t1', bash_command='echo 1')
+    t2 = BashOperator(task_id='t2', bash_command='echo 2')
+    t1 >> t2
+    t2 >> t1
+`;
+      const result = analyzeDag(dagCode);
+      const cycleIssues = result.issues.filter((i: { code: string }) => i.code === 'cycle');
+      assert.ok(cycleIssues.length > 0, 'Should detect cycle between t1 and t2');
+    });
+
+    test('parses dynamic task mapping with .partial() and .expand()', () => {
+      const { parseDag } = require('../../plugins/airflowDagAnalyzer');
+      const dagCode = `
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from datetime import datetime
+
+with DAG(dag_id='test_dynamic', schedule='@daily', start_date=datetime(2025, 1, 1)) as dag:
+    t1 = BashOperator.partial(task_id='dynamic_bash').expand(bash_command=['echo 1', 'echo 2'])
+`;
+      const model = parseDag(dagCode);
+      assert.strictEqual(model.tasks.length, 1, 'Should recognize dynamic mapped operator');
+      assert.strictEqual(model.tasks[0].id, 'dynamic_bash');
+      assert.strictEqual(model.tasks[0].operator, 'BashOperator');
     });
   });
 });

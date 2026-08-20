@@ -15,6 +15,7 @@ import { WorkspaceService, EXT_LANG } from '../../core/workspaceService';
 import { MockAIService, MockContextService, MockEventBus } from '../mocks';
 import { PluginRegistry } from '../../core/plugin';
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 // ── Test subclass to expose pure methods without needing full VS Code context ──
 
@@ -134,7 +135,10 @@ suite('WorkspaceService', () => {
 
       const found = files.find(f => f.path.includes('helper.ts'));
       assert.ok(found !== undefined, 'safe nested path should be allowed');
-      assert.ok(found!.path.startsWith(base), 'path should remain inside base directory');
+      assert.ok(
+        path.normalize(found!.path).startsWith(path.normalize(base)),
+        'path should remain inside base directory'
+      );
     });
   });
 

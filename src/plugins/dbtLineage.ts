@@ -244,8 +244,8 @@ export class DbtLineageHook implements PluginLineageHook {
         if (ref.kind === 'dbt_ref') {
           const node = manifest.modelsByName.get(ref.fqn.toLowerCase());
           if (node) {
-            // Find tests that reference this model
-            const modelId = `model.${findProjectName(projectRoot)}.${node.name}`;
+            // Find tests that reference this model using exact cached model ID
+            const modelId = manifest.modelIdByName.get(ref.fqn.toLowerCase()) ?? `model.${findProjectName(projectRoot)}.${node.name}`;
             const tests = manifest.testsByModel.get(modelId);
             schemas.push(nodeToSchema(node, 'dbt_manifest', staleHours, tests));
             continue;
