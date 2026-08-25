@@ -2,7 +2,7 @@
 
 All notable changes to Evolve AI are documented here.
 
-## [2.16.0] — 2026-08-25
+## [2.17.0] — 2026-08-25
 
 ### Forward Deployed Engineer (FDE Beta) & Delivery Studio
 * **Chat Sidebar Mode Integration**: Added `🚀 FDE (Beta)` directly into the primary Mode selector dropdown.
@@ -13,6 +13,8 @@ All notable changes to Evolve AI are documented here.
 * **Firebase & Full-Stack Deployment Scaffolder**: Generates multi-target `firebase.json` (SPA rewrites, immutable caching headers, security headers), `.firebaserc`, cross-platform deployment scripts (`deploy.sh` and `deploy.ps1`), and GitHub Actions CI/CD workflows.
 * **Client Handoff & Runbook Factory**: Auto-generates `docs/ARCHITECTURE.md` (with interactive Mermaid system & sequence diagrams), `docs/DEPLOYMENT_RUNBOOK.md` (disaster recovery and rollback runbook), and `docs/DATA_DICTIONARY.md`.
 * **14-Day Delivery Roadmap & Playbook**: Embedded visual roadmap in the Studio header and comprehensive documentation in `docs/FDE_PLAYBOOK.md`.
+
+## [2.16.0] — 2026-08-25
 
 ### Zero-AI Offline Developer & Data Engineering Suite
 * **Multi-Dialect SQL Formatter**: Rule-based offline SQL formatter supporting Databricks, Snowflake, BigQuery, PostgreSQL, MySQL, T-SQL, DuckDB, and SQLite with clause indentation, CTE formatting, CASE alignment, and Jinja preservation.
