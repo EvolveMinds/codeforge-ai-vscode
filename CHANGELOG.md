@@ -2,6 +2,17 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.16.0] — 2026-08-25
+
+### Zero-AI Offline Developer & Data Engineering Suite
+* **Multi-Dialect SQL Formatter**: Rule-based offline SQL formatter supporting Databricks, Snowflake, BigQuery, PostgreSQL, MySQL, T-SQL, DuckDB, and SQLite with clause indentation, CTE formatting, CASE alignment, and Jinja preservation.
+* **Offline Data Profiler & Quality Auditor**: Visual Webview panel for profiling CSV, TSV, and JSON datasets locally without sending any data over the network. Inferred types, missingness, cardinality, numeric bounds, anomalies, and one-click export to dbt tests YAML, Great Expectations, or Markdown.
+* **dbt Model & YAML Synchronizer**: Scans `.sql` models and automatically generates or syncs column documentation and test templates in `schema.yml`.
+* **Interactive Cron & Regex Workbench**: Visual tool for inspecting Cron execution schedules with natural English explanations and live Regular Expression testing with capture group inspection.
+* **Offline Infrastructure Security Linters**: Static analysis rules for Terraform/OpenTofu (`0.0.0.0/0`, unencrypted S3 buckets, unpinned modules) and Dockerfile (`latest` tag, root user execution, `.dockerignore` verification, layer optimization).
+* **AST-Based Deterministic Code Modernizer**: Automated codemods for Python (PEP 604/585 type hints, `os.path` -> `pathlib.Path`, f-strings) and JavaScript/TypeScript (CommonJS -> ESM `import`/`export`).
+* **Strict Air-Gapped Compliance Mode**: Added `evolve.strictOffline` toggle with status bar badge to guarantee zero outbound network calls for high-security environments.
+
 ## [2.15.1] — 2026-08-20
 
 ### Data Engineering, dbt Lineage & Airflow Simulator

@@ -41,6 +41,7 @@ import {
   listExposures as listDbtExposures,
   invalidateManifestCache as invalidateDbtManifestCache,
 } from './plugins/dbtManifest';
+import { registerOfflineSuite } from './offline/index';
 import * as nodePath from 'path';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
@@ -50,6 +51,9 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
 
   // 2. Register stack plugins (edit plugins/index.ts to add new ones)
   registerPlugins(svc.plugins);
+
+  // 2b. Register Zero-AI Offline Suite (SQL Formatter, Data Profiler, dbt Sync, Workbench, Linters, Modernizer)
+  registerOfflineSuite(vsCtx, svc);
 
   // 3. UI
   const chatProvider = new ChatPanelProvider(svc);

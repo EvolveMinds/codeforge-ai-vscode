@@ -1067,6 +1067,29 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.16.0': [
+    `## 🚀 Evolve AI 2.16.0 — Zero-AI Offline Developer & Data Engineering Suite\n`,
+    `### Multi-Dialect SQL Formatter (Offline & Rule-Based)\n`,
+    `• Instant local SQL formatting across Databricks, Snowflake, BigQuery, PostgreSQL, MySQL, T-SQL, DuckDB, and SQLite.\n`,
+    `• Automatic clause alignment, CTE formatting, CASE expression indentation, leading/trailing comma styles, and Jinja preservation.\n`,
+    `### Offline Data Profiler & Quality Auditor\n`,
+    `• Instant statistical profiling of CSV, TSV, and JSON datasets in a dedicated visual webview with zero network calls.\n`,
+    `• Inferred data types, null rates, cardinality, numeric bounds (min/max/mean/median), date ranges, anomaly detection (PK candidates, high missingness, constant columns).\n`,
+    `• One-click exporter to dbt schema test YAML, Great Expectations JSON suites, and Markdown reports.\n`,
+    `### Deterministic dbt Model & YAML Synchronizer\n`,
+    `• Scans dbt SQL models for projected columns and automatically synchronizes or scaffolds schema.yml documentation and tests.\n`,
+    `### Interactive Cron & Regex Workbench\n`,
+    `• Visual Cron schedule calculator explaining expressions in natural English with next 10 and past 10 execution timestamps.\n`,
+    `• Live regular expression tester with capture group breakdown and syntax error diagnosis.\n`,
+    `### Offline Infrastructure & Security Linters\n`,
+    `• Static security checks for Terraform/OpenTofu (0.0.0.0/0 ingress, unencrypted S3 buckets, unpinned modules).\n`,
+    `• Dockerfile inspection (unpinned base images, root user execution, missing .dockerignore, layer optimization).\n`,
+    `### AST-Based Deterministic Code Modernizer\n`,
+    `• Python modernizer for PEP 604/585 type hints (Union/Optional/List -> |/None/list), os.path -> pathlib.Path, and f-strings.\n`,
+    `• JavaScript/TypeScript modernizer for CommonJS require/exports -> ESM import/export.\n`,
+    `### Strict Air-Gapped Mode\n`,
+    `• Status-bar air-gap toggle ('evolve.strictOffline') that strictly blocks all outbound network requests for high-security enterprise environments.\n`,
+  ].join('\n'),
   '2.15.1': [
     `## ⚡ Evolve AI 2.15.1 — Enhanced Data Engineering, dbt Lineage & Airflow Simulator\n`,
     `### dbt Lineage & Downstream Impact\n`,
