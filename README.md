@@ -21,6 +21,7 @@
 - **Convert code between 26 languages** *(v2.12)* — a selection, a file, or a whole folder. You get the result **side by side with the original** plus a report of what was translated exactly, what was approximated, and what still needs a human. Nothing is written to disk until you approve it. → [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
 - **Build data reports instead of receiving them** *(v2.13)* — point it at a CSV, then compose the report block by block, choosing each chart's measure and dimension from **your real column names**. Move, delete or retype anything **directly in the rendered report** — no AI call, instant. Filter the data for real, brand it once, and save the whole shape as a template to re-run next month. → [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
 - **Zero-AI Offline Suite & Air-Gapped Mode** *(v2.16)* — 100% offline developer & data engineering tools: multi-dialect SQL formatter (Databricks, Snowflake, BigQuery, Postgres, DuckDB), dataset profiler & dbt test generator, dbt `schema.yml` auto-synchronizer, Cron & Regex workbench, Terraform/Docker security linters, AST codemods, and a strict air-gap network blocker. → [docs/OFFLINE_SUITE.md](docs/OFFLINE_SUITE.md)
+- **Forward Deployed Engineer (FDE Beta) & Delivery Studio** *(v2.16)* — end-to-end frontline delivery toolkit: semantic schema mapping (client dirty data &rarr; dbt/Spark staging models), resilient client API & webhook connectors, multi-target pilot deployment (Firebase Hosting + Cloud Run / Docker), deterministic pre-flight health auditing, and 1-click client IT handoff runbooks with interactive Mermaid diagrams. → [docs/FDE_PLAYBOOK.md](docs/FDE_PLAYBOOK.md)
 
 > Also works in **Cursor**, **VSCodium**, and other VS Code forks.
 
@@ -36,6 +37,18 @@ If you live in **dbt + Airflow + Databricks/BigQuery** files, Evolve AI is purpo
 - **Airflow DAG simulator** *(v1.9)* — `Ctrl+Alt+D` does static analysis on DAG files: cycles, broken `>>` edges, duplicate `task_id`s, sensor poke-starvation, missing `catchup=False`, invalid cron, TaskFlow `()` mistakes — inline diagnostics + a *Fix all with AI* button. No Python interpreter, no Airflow install required. → [docs/AIRFLOW_SIMULATOR.md](docs/AIRFLOW_SIMULATOR.md)
 
 All four work on cloud LLMs (Anthropic / OpenAI / Gemini / HF) **and** on local providers (Ollama / Gemma 4) — your data stays where you decide.
+
+---
+
+## Built for Forward Deployed Engineers (FDE)
+
+If you are a **Forward Deployed Engineer (FDE)** or solutions architect delivering pilots, custom client data integrations, and frontline production deployments, Evolve AI provides an integrated 4-phase delivery system:
+
+- **1. Ingest & Semantic Schema Mapper** — Ingest dirty client CSVs, Oracle dumps, or SQL tables and automatically map foreign columns to your standard platform data model. Generates production **dbt staging models**, **PySpark transformation pipelines**, and SQL views with inferred casting rules.
+- **2. Resilient Client API Studio** — Ingest client OpenAPI, Swagger, or cURL specs and scaffold fault-tolerant **TypeScript** or **Python** client SDKs equipped with exponential backoff, jitter, `Retry-After` header parsing, and rate-limiting circuit breakers.
+- **3. Pre-Flight Health Auditor & Pilot Deployment** — 100% deterministic local audit detecting dangling backup files (`*.bak`, `*.tmp`), secret leakage, and `.env` parity. Scaffolds multi-target **Firebase Hosting** (SPA rewrites, immutable caching rules, security headers), **Google Cloud Run / Docker** backend configs, and cross-platform deployment scripts (`deploy.sh` / `deploy.ps1`).
+- **4. Client IT Handoff & Runbook Factory** — Auto-generates client-ready documentation in `docs/`: `ARCHITECTURE.md` with rendered **Mermaid system & sequence diagrams**, `DEPLOYMENT_RUNBOOK.md` with rollback/disaster-recovery instructions, and `DATA_DICTIONARY.md`.
+- **14-Day Delivery Roadmap & Playbook** — Built-in visual guide and step-by-step operational playbook for running client pilots. → [docs/FDE_PLAYBOOK.md](docs/FDE_PLAYBOOK.md)
 
 ---
 

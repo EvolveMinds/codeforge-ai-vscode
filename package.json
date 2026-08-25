@@ -1,7 +1,7 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "AI coding assistant for data engineers and DevOps. Convert code between 26 languages (Python, Java, Go, Rust, C#, TypeScript, COBOL, VBA, SAS...) with a side-by-side review and a fidelity report of what was approximated. dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline plugin (GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket) + setup wizard. One-click Git/Bitbucket Connect Wizard (PAT, SSH, GitHub built-in auth, gh CLI). Data analysis & reporting — turn CSV/Excel/JSON/Parquet or a BigQuery/Databricks/Cosmos/DynamoDB/SQL query into an HTML report you author block by block: pick each chart's measure and dimension from your real columns, edit the rendered report in place, filter the data for real, brand it, and save it as a template to re-run next month. Light/dark, sortable tables, print-ready. Also notebooks and inline chat insights. Auto-detecting plugins for Databricks, dbt, Airflow, Terraform, K8s, FastAPI & more. Local (Ollama, Gemma 4, GLM/CodeGeeX, GLM-5.2 744B via Colibri) or cloud (Claude, OpenAI, Gemini, GLM/Z.ai, HF). Includes deterministic code cleanup (Biome, Ruff, ESLint, Prettier).",
+  "description": "The AI coding, data engineering & Forward Deployed Engineer (FDE) studio. Built for forward deployed engineers, data engineers & DevOps. 4-phase FDE Delivery Studio (foreign schema mapping to dbt/Spark, resilient client API SDKs, Firebase Hosting & Cloud Run pilot deployment, 100% deterministic pre-flight health auditor, and client handoff runbooks with Mermaid diagrams). Zero-AI Offline & Air-Gapped Suite (multi-dialect SQL formatter, dataset profiler, Cron/Regex workbench). Code Convertor across 26 languages with side-by-side review & fidelity reports. Block-by-block data reports from CSV/Excel/Parquet/SQL. dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline wizard, and one-click Git Connect.",
   "version": "2.16.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
@@ -16,9 +16,28 @@
     "Testing",
     "Linters",
     "AI",
-    "Formatters"
+    "Formatters",
+    "Other"
   ],
   "keywords": [
+    "fde",
+    "forward deployed engineer",
+    "forward-deployed engineer",
+    "forward deployed engineering",
+    "forward deployed",
+    "client deployment",
+    "pilot deployment",
+    "firebase deployment",
+    "firebase hosting",
+    "cloud run",
+    "preflight audit",
+    "pre-flight",
+    "schema mapper",
+    "runbook generator",
+    "data dictionary",
+    "air gapped",
+    "air-gapped",
+    "offline ai",
     "ai",
     "copilot alternative",
     "ollama",
@@ -1453,6 +1472,26 @@
       {
         "command": "aiForge.offline.toggleStrictAirGap",
         "title": "Toggle Strict Air-Gapped Mode",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.openCockpit",
+        "title": "FDE: Open Delivery Studio (Beta)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.preflightAudit",
+        "title": "FDE: Run Pre-Flight Health Audit",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.scaffoldDeploy",
+        "title": "FDE: Scaffold Firebase & Full-Stack Deployment",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.generateRunbook",
+        "title": "FDE: Generate Client Handoff Runbook & Docs",
         "category": "Evolve AI"
       }
     ],

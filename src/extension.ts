@@ -42,6 +42,7 @@ import {
   invalidateManifestCache as invalidateDbtManifestCache,
 } from './plugins/dbtManifest';
 import { registerOfflineSuite } from './offline/index';
+import { registerFdeSuite } from './fde/index';
 import * as nodePath from 'path';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
@@ -54,6 +55,9 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
 
   // 2b. Register Zero-AI Offline Suite (SQL Formatter, Data Profiler, dbt Sync, Workbench, Linters, Modernizer)
   registerOfflineSuite(vsCtx, svc);
+
+  // 2c. Register Forward Deployed Engineer (FDE) & Delivery Suite
+  registerFdeSuite(vsCtx, svc);
 
   // 3. UI
   const chatProvider = new ChatPanelProvider(svc);

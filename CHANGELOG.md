@@ -4,6 +4,16 @@ All notable changes to Evolve AI are documented here.
 
 ## [2.16.0] — 2026-08-25
 
+### Forward Deployed Engineer (FDE Beta) & Delivery Studio
+* **Chat Sidebar Mode Integration**: Added `🚀 FDE (Beta)` directly into the primary Mode selector dropdown.
+* **4-Phase Delivery Cockpit**: Visual Webview panel organizing client engagements across 4 structured phases: *Data & Schema Ingest*, *Client API Integrations*, *Validate & Pilot Deploy*, and *Client IT Handoff*.
+* **Semantic Schema Mapper**: Ingests dirty foreign CSVs, Oracle dumps, or SQL schemas and auto-maps columns to platform data models with inferred casting rules. Emits production dbt staging models (`stg_client_data.sql`), PySpark transformations, or SQL views.
+* **Resilient Client API Studio**: Scaffolds typed TypeScript and Python client SDKs equipped with exponential backoff with jitter, `Retry-After` header parsing, token refreshing, and rate-limiting circuit breakers.
+* **Deterministic Pre-Flight Health Auditor**: Zero-AI local scan detecting dangling backup files (`*.bak`, `*.tmp`, `*_OLD.*`), secret leakage in build artifacts, and `.env` parity gaps between staging and production. Includes a 1-click cleanup utility.
+* **Firebase & Full-Stack Deployment Scaffolder**: Generates multi-target `firebase.json` (SPA rewrites, immutable caching headers, security headers), `.firebaserc`, cross-platform deployment scripts (`deploy.sh` and `deploy.ps1`), and GitHub Actions CI/CD workflows.
+* **Client Handoff & Runbook Factory**: Auto-generates `docs/ARCHITECTURE.md` (with interactive Mermaid system & sequence diagrams), `docs/DEPLOYMENT_RUNBOOK.md` (disaster recovery and rollback runbook), and `docs/DATA_DICTIONARY.md`.
+* **14-Day Delivery Roadmap & Playbook**: Embedded visual roadmap in the Studio header and comprehensive documentation in `docs/FDE_PLAYBOOK.md`.
+
 ### Zero-AI Offline Developer & Data Engineering Suite
 * **Multi-Dialect SQL Formatter**: Rule-based offline SQL formatter supporting Databricks, Snowflake, BigQuery, PostgreSQL, MySQL, T-SQL, DuckDB, and SQLite with clause indentation, CTE formatting, CASE alignment, and Jinja preservation.
 * **Offline Data Profiler & Quality Auditor**: Visual Webview panel for profiling CSV, TSV, and JSON datasets locally without sending any data over the network. Inferred types, missingness, cardinality, numeric bounds, anomalies, and one-click export to dbt tests YAML, Great Expectations, or Markdown.

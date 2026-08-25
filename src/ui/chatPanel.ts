@@ -727,6 +727,13 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
             <div class="pop-desc">Convert code to another language &mdash; a selection, a file, or a folder. Review it beside the original with a report of what was approximated.</div>
           </div>
         </div>
+        <div class="pop-item" data-mode="fde" data-action="fdeHub">
+          <div class="pop-icon">&#128640;</div>
+          <div class="pop-body">
+            <div class="pop-name">FDE (Beta)</div>
+            <div class="pop-desc">Forward Deployed Engineer studio &mdash; foreign schema mapping, custom client APIs, Firebase/Cloud Run pilot deployment, pre-flight audits, and handoff runbooks.</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1355,6 +1362,12 @@ document.querySelectorAll('#modePopover .pop-item').forEach(item => {
       // "Code Convertor" likewise opens its own panel rather than changing
       // what the chat box does with your next message.
       vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' });
+      closeAllPopovers();
+      return;
+    }
+    if (action === 'fdeHub') {
+      // "FDE (Beta)" opens the full Forward Deployed Engineer Delivery Studio.
+      vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' });
       closeAllPopovers();
       return;
     }
