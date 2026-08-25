@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "The AI coding, data engineering & Forward Deployed Engineer (FDE) studio. Built for forward deployed engineers, data engineers & DevOps. 4-phase FDE Delivery Studio (foreign schema mapping to dbt/Spark, resilient client API SDKs, Firebase Hosting & Cloud Run pilot deployment, 100% deterministic pre-flight health auditor, and client handoff runbooks with Mermaid diagrams). Zero-AI Offline & Air-Gapped Suite (multi-dialect SQL formatter, dataset profiler, Cron/Regex workbench). Code Convertor across 26 languages with side-by-side review & fidelity reports. Block-by-block data reports from CSV/Excel/Parquet/SQL. dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline wizard, and one-click Git Connect.",
-  "version": "2.17.0",
+  "version": "2.17.1",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {

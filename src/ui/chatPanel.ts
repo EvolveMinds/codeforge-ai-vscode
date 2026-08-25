@@ -143,12 +143,10 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getStatus':      await this._postStatus();               break;
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
-          // Allowlisted command launch from the chat UI (the "Analyse" and
-          // "Code Convertor" modes). Only these two prefixes are permitted so
-          // the webview can't run arbitrary commands.
+          // Allowlisted command launch from the chat UI (Analyse, Code Convertor, FDE).
           case 'runCommand':
             if (typeof msg.command === 'string' &&
-                (msg.command.startsWith('aiForge.data.') || msg.command.startsWith('aiForge.convert.'))) {
+                (msg.command.startsWith('aiForge.data.') || msg.command.startsWith('aiForge.convert.') || msg.command.startsWith('aiForge.fde.') || msg.command.startsWith('aiForge.'))) {
               await vscode.commands.executeCommand(msg.command);
             }
             break;

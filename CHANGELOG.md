@@ -2,6 +2,12 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.17.1] — 2026-08-26
+
+### Fixes & Stability
+* **FDE Mode Popover Trigger**: Fixed allowlisted command dispatch in the sidebar chat webview so clicking `🚀 FDE (Beta)` in the Mode dropdown immediately opens the FDE Delivery Studio Cockpit.
+* **Panel Lifecycle**: Ensured graceful Webview disposal and panel focus restoration.
+
 ## [2.17.0] — 2026-08-25
 
 ### Forward Deployed Engineer (FDE Beta) & Delivery Studio

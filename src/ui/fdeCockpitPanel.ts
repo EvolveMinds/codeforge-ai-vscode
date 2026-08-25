@@ -60,7 +60,13 @@ export class FdeCockpitPanel {
 
     this._update();
 
-    this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
+    this._panel.onDidDispose(() => {
+      FdeCockpitPanel.currentPanel = undefined;
+      while (this._disposables.length) {
+        const x = this._disposables.pop();
+        if (x) x.dispose();
+      }
+    }, null, this._disposables);
 
     this._panel.webview.onDidReceiveMessage(
       async (message) => {
