@@ -41,4 +41,27 @@ suite('FDE Suite — SchemaMapperEngine', () => {
     assert.ok(result.pysparkCode.includes(`def transform_stg_orders(raw_df):`));
     assert.ok(result.sqlView.includes(`CREATE OR REPLACE VIEW v_stg_orders AS`));
   });
+
+  test('generates dbt dimensional data mart model with joins and metrics', () => {
+    const mart = SchemaMapperEngine.generateDataMartModel(
+      'fct_customer_orders',
+      'stg_orders',
+      [{ joinType: 'LEFT', targetModel: 'stg_users', onCondition: 'orders.customer_id = users.user_id' }],
+      ['orders.customer_id', 'orders.created_at', 'users.email'],
+      [
+        { name: 'total_orders', expression: 'count(distinct orders.order_id)' },
+        { name: 'total_revenue', expression: 'sum(orders.transaction_amount)' },
+      ],
+      'dbt'
+    );
+
+    assert.ok(mart.dbtSql.includes(`-- dbt Data Mart Model: fct_customer_orders`));
+    assert.ok(mart.dbtSql.includes(`{{ ref('stg_orders') }}`));
+    assert.ok(mart.dbtSql.includes(`{{ ref('stg_users') }}`));
+    assert.ok(mart.dbtSql.includes(`LEFT JOIN users ON orders.customer_id = users.user_id`) || mart.dbtSql.includes(`LEFT JOIN stg_users ON orders.customer_id = users.user_id`));
+    assert.ok(mart.dbtSql.includes(`count(distinct orders.order_id) AS total_orders`));
+    assert.ok(mart.dbtSql.includes(`sum(orders.transaction_amount) AS total_revenue`));
+    assert.ok(mart.pysparkCode.includes(`def build_mart_fct_customer_orders`));
+    assert.ok(mart.sqlView.includes(`CREATE OR REPLACE VIEW v_fct_customer_orders AS`));
+  });
 });

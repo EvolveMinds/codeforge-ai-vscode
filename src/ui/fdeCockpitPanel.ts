@@ -15,11 +15,14 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { FdeContextManager, FdeEngagementState } from '../fde/fdeContext';
 import { SchemaMapperEngine, ColumnDefinition } from '../fde/schemaMapper';
+import { DbIntrospector, DbConnectionOptions } from '../fde/dbIntrospector';
 import { ApiConnectorGenerator, ApiEndpointSpec } from '../fde/apiConnectorGen';
 import { PreflightAuditor, PreflightReport } from '../deployment/preflightAuditor';
 import { FirebaseConfigGenerator } from '../deployment/firebaseConfigGen';
 import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
+import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
+import { runCommand, runForStdout } from '../core/processUtil';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -84,6 +87,28 @@ export class FdeCockpitPanel {
       const x = this._disposables.pop();
       if (x) x.dispose();
     }
+  }
+
+  private getOrCreateGitTerminal(): vscode.Terminal {
+    const termName = '🚀 FDE: Git Hub';
+    const existing = vscode.window.terminals.find(t => t.name === termName);
+    if (existing) return existing;
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    return vscode.window.createTerminal({
+      name: termName,
+      cwd: ws,
+    });
+  }
+
+  private getOrCreateCloudTerminal(): vscode.Terminal {
+    const termName = '🚀 FDE: Cloud Auth';
+    const existing = vscode.window.terminals.find(t => t.name === termName);
+    if (existing) return existing;
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    return vscode.window.createTerminal({
+      name: termName,
+      cwd: ws,
+    });
   }
 
   private async _handleMessage(msg: any): Promise<void> {
@@ -392,6 +417,75 @@ export class FdeCockpitPanel {
         break;
       }
 
+      case 'introspectDatabase': {
+        const options: DbConnectionOptions = msg.options || { dialect: 'postgres' };
+        
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Connecting to ${options.dialect.toUpperCase()} database and introspecting tables...`,
+          cancellable: false,
+        }, async () => {
+          try {
+            const result = await DbIntrospector.introspect(options, ws);
+
+            if (msg.saveSecret && options.password) {
+              const state = this._contextManager.getState();
+              await this._vsCtx.secrets.store(`fde_db_pwd_${state.id}`, options.password);
+            }
+
+            if (result.success) {
+              await this._contextManager.recordDbConnection({
+                dialect: options.dialect,
+                host: options.host,
+                database: result.database || options.database,
+                schema: result.schema || options.schema,
+              });
+              vscode.window.showInformationMessage(`✓ ${result.message || `Discovered ${result.tables.length} tables`}`);
+            } else {
+              vscode.window.showWarningMessage(`Database inspection: ${result.error || result.message || 'No tables returned'}`);
+            }
+
+            this._panel.webview.postMessage({
+              type: 'dbIntrospectResult',
+              result,
+            });
+          } catch (e: any) {
+            vscode.window.showErrorMessage(`Database connection failed: ${e?.message || e}`);
+            this._panel.webview.postMessage({
+              type: 'dbIntrospectResult',
+              result: { success: false, dialect: options.dialect, tables: [], error: e?.message || String(e) },
+            });
+          }
+        });
+        break;
+      }
+
+      case 'detectWorkspaceDbConfig': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace first.');
+          return;
+        }
+        const detected = DbIntrospector.detectWorkspaceConfig(ws);
+        this._panel.webview.postMessage({
+          type: 'dbConfigDetected',
+          detected,
+        });
+        if (detected.found) {
+          vscode.window.showInformationMessage(`✓ Found ${detected.dialect?.toUpperCase()} configuration in ${detected.sourceFile}`);
+        } else {
+          vscode.window.showInformationMessage('No database connection settings found in .env or dbt_project.yml.');
+        }
+        break;
+      }
+
+      case 'wipeDbSecrets': {
+        const state = this._contextManager.getState();
+        await this._vsCtx.secrets.delete(`fde_db_pwd_${state.id}`);
+        vscode.window.showInformationMessage('✓ Stored database credentials wiped from secure OS vault.');
+        this._panel.webview.postMessage({ type: 'dbSecretsWiped' });
+        break;
+      }
+
       case 'generateApiConnector': {
         const endpoints: ApiEndpointSpec[] = (msg.endpoints || []).map((e: any) => ({
           name: e.name,
@@ -439,6 +533,520 @@ export class FdeCockpitPanel {
 
         this._panel.webview.postMessage({ type: 'apiConnectorResult', tsCode, pyCode, writtenFile });
         this._update();
+        break;
+      }
+
+      case 'parseCurl': {
+        const parsed = ApiConnectorGenerator.parseCurlCommand(msg.curlStr || '');
+        this._panel.webview.postMessage({ type: 'curlParsed', parsed });
+        vscode.window.showInformationMessage(`✓ Parsed cURL command into connector: ${parsed.connectorName || 'ClientApi'}`);
+        break;
+      }
+
+      case 'parseOpenApi': {
+        const parsed = ApiConnectorGenerator.parseOpenApiSpec(msg.specStr || '');
+        this._panel.webview.postMessage({ type: 'openApiParsed', parsed });
+        vscode.window.showInformationMessage(`✓ Parsed OpenAPI spec: ${parsed.endpoints?.length || 0} endpoints discovered.`);
+        break;
+      }
+
+      case 'generateDataMart': {
+        const martName = (msg.martName || 'fct_customer_orders').trim();
+        const baseModel = (msg.baseModel || 'stg_orders').trim();
+        const joins = msg.joins || [];
+        const dimensions = (msg.dimensions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+        const metrics = (msg.metrics || '').split(',').map((s: string) => s.trim()).filter(Boolean).map((m: string) => {
+          const parts = m.split(':');
+          return { name: parts[0].trim(), expr: parts[1] ? parts[1].trim() : parts[0].trim() };
+        });
+        const dialect = msg.dialect || 'dbt';
+
+        const result = SchemaMapperEngine.generateDataMartModel(martName, baseModel, joins, dimensions, metrics, dialect);
+
+        await this._contextManager.recordDataMart({
+          martName,
+          baseModel,
+          joins,
+          dimensions,
+          metrics,
+          dialect,
+          generatedSql: result.dbtSql,
+          createdAt: Date.now(),
+        });
+
+        let writtenFile = '';
+        if (ws && msg.writeToFile) {
+          const martsDir = path.join(ws, 'models', 'marts');
+          if (!fs.existsSync(martsDir)) fs.mkdirSync(martsDir, { recursive: true });
+          const outPath = path.join(martsDir, `${martName}.sql`);
+          fs.writeFileSync(outPath, result.dbtSql, 'utf8');
+          writtenFile = `models/marts/${martName}.sql`;
+          vscode.window.showInformationMessage(`✓ Created dbt dimensional mart: ${writtenFile}`);
+        }
+
+        this._panel.webview.postMessage({
+          type: 'dataMartResult',
+          result,
+          writtenFile,
+          martName
+        });
+        this._update();
+        break;
+      }
+
+      case 'requestDeleteDataMart': {
+        if (msg.martName) {
+          const choice = await vscode.window.showWarningMessage(
+            `Remove dimensional data mart "${msg.martName}"?`,
+            { modal: true },
+            'Remove Mart'
+          );
+          if (choice === 'Remove Mart') {
+            await this._contextManager.deleteDataMart(msg.martName);
+            vscode.window.showInformationMessage(`Removed data mart: ${msg.martName}`);
+            this._update();
+          }
+        }
+        break;
+      }
+
+      case 'deleteDataMart': {
+        if (msg.martName) {
+          await this._contextManager.deleteDataMart(msg.martName);
+          vscode.window.showInformationMessage(`Removed data mart: ${msg.martName}`);
+          this._update();
+        }
+        break;
+      }
+
+      case 'discoverCloudResources': {
+        const state = this._contextManager.getState();
+        const prov = msg.provider || state.targetVpc || 'gcp-firebase';
+        const proj = msg.projectId || undefined;
+        const reg = msg.region || undefined;
+
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Discovering ${prov.toUpperCase()} cloud resources...`,
+          cancellable: false
+        }, async () => {
+          try {
+            const disc = await CloudResourceDiscovery.discover({
+              provider: prov,
+              projectId: proj,
+              region: reg,
+              cwd: ws || undefined
+            });
+
+            await this._contextManager.recordDeploymentSettings({
+              discoveredCloudResources: disc,
+            });
+
+            this._panel.webview.postMessage({
+              type: 'cloudResourcesDiscovered',
+              resources: disc,
+            });
+
+            if (disc.authenticated) {
+              vscode.window.showInformationMessage(`✓ Discovered ${disc.vpcs.length} VPCs and ${disc.subnets.length} subnets in ${disc.activeProject || disc.provider}.`);
+            } else if (disc.authHelpPrompt) {
+              vscode.window.showWarningMessage(`Cloud CLI not authenticated: ${disc.authHelpPrompt}`);
+            }
+          } catch (e: any) {
+            vscode.window.showErrorMessage(`Cloud discovery error: ${e?.message || e}`);
+          }
+        });
+        break;
+      }
+
+      case 'saveDeploymentMatrix': {
+        await this._contextManager.recordDeploymentSettings({
+          cpu: msg.cpu,
+          memory: msg.memory,
+          gpu: msg.gpu,
+          ingress: msg.ingress,
+          minInstances: parseInt(msg.minInstances || '0', 10),
+          maxInstances: parseInt(msg.maxInstances || '10', 10),
+          secretsProvider: msg.secretsProvider,
+          vpcId: msg.vpcId,
+          subnetId: msg.subnetId,
+          securityGroups: msg.securityGroups,
+        });
+        break;
+      }
+
+      case 'generateTerraformIaC': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace first.');
+          return;
+        }
+        const state = this._contextManager.getState();
+        await this._contextManager.recordDeploymentSettings({
+          cpu: msg.cpu,
+          memory: msg.memory,
+          gpu: msg.gpu,
+          ingress: msg.ingress,
+          minInstances: parseInt(msg.minInstances || '0', 10),
+          maxInstances: parseInt(msg.maxInstances || '10', 10),
+          secretsProvider: msg.secretsProvider,
+          vpcId: msg.vpcId,
+          subnetId: msg.subnetId,
+          securityGroups: msg.securityGroups,
+        });
+
+        const tfCode = DeployScriptScaffolder.generateTerraform({
+          projectName: state.clientName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          projectId: msg.projectId || 'client-pilot-project',
+          region: msg.region || 'australia-southeast1',
+          cpu: msg.cpu || '1',
+          memory: msg.memory || '1Gi',
+          gpu: msg.gpu || 'none',
+          minInstances: parseInt(msg.minInstances || '0', 10),
+          maxInstances: parseInt(msg.maxInstances || '10', 10),
+          ingress: msg.ingress || 'all',
+          secretsProvider: msg.secretsProvider || 'gcp-secret-manager',
+          vpcId: msg.vpcId || undefined,
+          subnetId: msg.subnetId || undefined,
+          securityGroups: msg.securityGroups || undefined,
+          targetVpc: state.targetVpc,
+        });
+        const tfDir = path.join(ws, 'terraform');
+        if (!fs.existsSync(tfDir)) fs.mkdirSync(tfDir, { recursive: true });
+        const tfPath = path.join(tfDir, 'main.tf');
+        fs.writeFileSync(tfPath, tfCode, 'utf8');
+        vscode.window.showInformationMessage('✓ Generated Terraform: terraform/main.tf');
+        this._panel.webview.postMessage({ type: 'iacGenerated', file: 'terraform/main.tf', code: tfCode });
+        break;
+      }
+
+      case 'generateKubernetesIaC': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace first.');
+          return;
+        }
+        const state = this._contextManager.getState();
+        await this._contextManager.recordDeploymentSettings({
+          cpu: msg.cpu,
+          memory: msg.memory,
+          gpu: msg.gpu,
+          minInstances: parseInt(msg.minInstances || '2', 10),
+          subnetId: msg.subnetId,
+        });
+
+        const k8sCode = DeployScriptScaffolder.generateKubernetesManifest({
+          projectName: state.clientName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          projectId: msg.projectId || 'client-pilot-project',
+          cpu: msg.cpu || '1',
+          memory: msg.memory || '1Gi',
+          gpu: msg.gpu || 'none',
+          minInstances: parseInt(msg.minInstances || '2', 10),
+          subnetId: msg.subnetId || undefined,
+        });
+        const k8sDir = path.join(ws, 'k8s');
+        if (!fs.existsSync(k8sDir)) fs.mkdirSync(k8sDir, { recursive: true });
+        const k8sPath = path.join(k8sDir, 'deployment.yaml');
+        fs.writeFileSync(k8sPath, k8sCode, 'utf8');
+        vscode.window.showInformationMessage('✓ Generated Kubernetes manifest: k8s/deployment.yaml');
+        this._panel.webview.postMessage({ type: 'iacGenerated', file: 'k8s/deployment.yaml', code: k8sCode });
+        break;
+      }
+
+      case 'generateDockerComposeIaC': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace first.');
+          return;
+        }
+        const state = this._contextManager.getState();
+        await this._contextManager.recordDeploymentSettings({
+          cpu: msg.cpu,
+          memory: msg.memory,
+          gpu: msg.gpu,
+          vpcId: msg.vpcId,
+        });
+
+        const dcCode = DeployScriptScaffolder.generateDockerCompose({
+          projectName: state.clientName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          projectId: msg.projectId || 'client-pilot-project',
+          cpu: msg.cpu || '1',
+          memory: msg.memory || '1Gi',
+          gpu: msg.gpu || 'none',
+          vpcId: msg.vpcId || undefined,
+        });
+        fs.writeFileSync(path.join(ws, 'docker-compose.yml'), dcCode, 'utf8');
+        vscode.window.showInformationMessage('✓ Generated Docker Compose: docker-compose.yml');
+        this._panel.webview.postMessage({ type: 'iacGenerated', file: 'docker-compose.yml', code: dcCode });
+        break;
+      }
+
+      case 'getGitAndCloudStatus': {
+        let gitBranch = 'main';
+        let gitRemote = '';
+        let isDirty = false;
+        let uncommittedCount = 0;
+        let gcpStatus = false;
+        let awsStatus = false;
+        let dockerStatus = false;
+
+        if (ws) {
+          try {
+            const branchOut = await runForStdout('git', ['branch', '--show-current'], { cwd: ws, timeoutMs: 3000 });
+            if (branchOut && branchOut.trim()) gitBranch = branchOut.trim();
+
+            const remoteOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws, timeoutMs: 3000 });
+            if (remoteOut && remoteOut.trim() && !remoteOut.includes('fatal:')) {
+              gitRemote = remoteOut.trim();
+            } else {
+              gitRemote = 'No remote origin configured';
+            }
+
+            const statusOut = await runForStdout('git', ['status', '--porcelain'], { cwd: ws, timeoutMs: 3000 });
+            if (statusOut) {
+              const lines = statusOut.trim().split('\n').filter(Boolean);
+              uncommittedCount = lines.length;
+              isDirty = uncommittedCount > 0;
+            }
+          } catch {
+            gitRemote = 'No Git repository detected';
+          }
+
+          try {
+            const gcpOut = await runForStdout('gcloud', ['--version'], { cwd: ws, timeoutMs: 3000 });
+            gcpStatus = !!gcpOut;
+          } catch {}
+
+          try {
+            const awsOut = await runForStdout('aws', ['--version'], { cwd: ws, timeoutMs: 3000 });
+            awsStatus = !!awsOut;
+          } catch {}
+
+          try {
+            const dockerOut = await runForStdout('docker', ['--version'], { cwd: ws, timeoutMs: 3000 });
+            dockerStatus = !!dockerOut;
+          } catch {}
+        }
+
+        this._panel.webview.postMessage({
+          type: 'gitAndCloudStatus',
+          gitBranch,
+          gitRemote,
+          isDirty,
+          uncommittedCount,
+          gcpStatus,
+          awsStatus,
+          dockerStatus,
+        });
+        break;
+      }
+
+      case 'gitFetch': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace folder first.');
+          return;
+        }
+        if (msg.runInTerminal) {
+          const terminal = this.getOrCreateGitTerminal();
+          terminal.show();
+          terminal.sendText('git fetch --all --prune --verbose');
+          vscode.window.showInformationMessage('🔄 Running "git fetch" in integrated terminal...');
+        } else {
+          vscode.window.showInformationMessage('🔄 Git: Fetching latest branches and commits...');
+          const res = await runCommand('git', ['fetch', '--all'], { cwd: ws, timeoutMs: 20000 });
+          if (res && res.code === 0) {
+            vscode.window.showInformationMessage('✓ Git: Fetched latest changes from remote.');
+          } else {
+            vscode.window.showWarningMessage(`Git fetch completed (${res?.stderr || 'Check remote origin'}).`);
+          }
+          this._panel.webview.postMessage({ type: 'gitResult', success: res?.code === 0, message: res?.stderr || 'Fetch completed' });
+        }
+        break;
+      }
+
+      case 'gitCommitAndPush': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace folder first.');
+          return;
+        }
+        const commitMsg = msg.commitMessage || `feat(fde): client pilot deliverables (${new Date().toISOString().slice(0, 10)})`;
+        if (msg.runInTerminal) {
+          const terminal = this.getOrCreateGitTerminal();
+          terminal.show();
+          terminal.sendText(`git add -A && git commit -m "${commitMsg}" && git push origin HEAD`);
+          vscode.window.showInformationMessage('📦 Running 1-Click Commit & Push in terminal...');
+        } else {
+          vscode.window.showInformationMessage(`📦 Git: Staging, committing & pushing...`);
+          await runCommand('git', ['add', '-A'], { cwd: ws, timeoutMs: 15000 });
+          await runCommand('git', ['commit', '-m', commitMsg], { cwd: ws, timeoutMs: 15000 });
+          const pushRes = await runCommand('git', ['push', 'origin', 'HEAD'], { cwd: ws, timeoutMs: 30000 });
+          if (pushRes && pushRes.code === 0) {
+            vscode.window.showInformationMessage(`✓ Git: Pushed deliverables to origin!`);
+          } else {
+            vscode.window.showInformationMessage(`✓ Git: Committed locally. (Push: ${pushRes?.stderr || 'Check remote credentials'})`);
+          }
+          this._panel.webview.postMessage({ type: 'gitResult', success: true, message: 'Commit & Push completed' });
+        }
+        break;
+      }
+
+      case 'setGitRemote': {
+        if (!ws) return;
+        const remoteUrl = (msg.remoteUrl || '').trim();
+        if (!remoteUrl) {
+          vscode.window.showWarningMessage('Please provide a valid remote URL.');
+          return;
+        }
+        try {
+          const checkOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws });
+          if (checkOut && !checkOut.includes('fatal:')) {
+            await runCommand('git', ['remote', 'set-url', 'origin', remoteUrl], { cwd: ws });
+          } else {
+            await runCommand('git', ['remote', 'add', 'origin', remoteUrl], { cwd: ws });
+          }
+          vscode.window.showInformationMessage(`✓ Git remote origin configured: ${remoteUrl}`);
+          this._panel.webview.postMessage({ type: 'gitRemoteUpdated', remoteUrl });
+        } catch (e: any) {
+          vscode.window.showErrorMessage(`Failed to set git remote: ${e?.message || e}`);
+        }
+        break;
+      }
+
+      case 'diagnoseGitConnection': {
+        if (!ws) return;
+        const target = msg.target || 'bitbucket';
+        const host = target === 'bitbucket' ? 'git@bitbucket.org' : 'git@github.com';
+        
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Diagnosing SSH connectivity to ${target.toUpperCase()} (${host})...`,
+          cancellable: false
+        }, async () => {
+          const out = await runForStdout('ssh', ['-T', '-o', 'StrictHostKeyChecking=accept-new', host], { cwd: ws, timeoutMs: 8000 });
+          const isSuccess = out && (out.includes('authenticated') || out.includes('logged in') || out.includes('successful'));
+          
+          this._panel.webview.postMessage({
+            type: 'gitDiagnosticResult',
+            target,
+            success: isSuccess,
+            rawOutput: out || 'No response or timed out. Check SSH key permissions (~/.ssh/id_rsa or id_ed25519).',
+          });
+
+          if (isSuccess) {
+            vscode.window.showInformationMessage(`✓ ${target.toUpperCase()} SSH connection authenticated!`);
+          } else {
+            vscode.window.showWarningMessage(`SSH test response: ${out || 'Could not reach server. Verify SSH keys.'}`);
+          }
+        });
+        break;
+      }
+
+      case 'openGitTerminal': {
+        const terminal = this.getOrCreateGitTerminal();
+        terminal.show();
+        terminal.sendText('git status');
+        break;
+      }
+
+      case 'createPullRequest': {
+        if (!ws) return;
+        const remoteOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws, timeoutMs: 3000 });
+        if (remoteOut && /github\.com|gitlab\.com|bitbucket\.org/i.test(remoteOut)) {
+          let url = remoteOut.trim().replace(/^git@([^:]+):/, 'https://$1/').replace(/\.git$/, '');
+          if (url.includes('github.com')) url += '/pull/new';
+          else if (url.includes('gitlab.com')) url += '/-/merge_requests/new';
+          else if (url.includes('bitbucket.org')) url += '/pull-requests/new';
+          vscode.env.openExternal(vscode.Uri.parse(url));
+          vscode.window.showInformationMessage(`🚀 Opening Pull Request in browser: ${url}`);
+        } else {
+          vscode.window.showInformationMessage('Open a Git repository with an origin remote to create Pull Requests.');
+        }
+        break;
+      }
+
+      case 'testCloudConnection': {
+        if (!ws) return;
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: 'Checking cloud provider CLI connections (GCP, AWS, Azure, Docker)...',
+          cancellable: false
+        }, async () => {
+          let gcpOk = false, gcpAccount = '', gcpProject = '';
+          let awsOk = false, awsAccount = '';
+          let azureOk = false, azureAccount = '';
+          let dockerOk = false, dockerVersion = '';
+
+          try {
+            const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd: ws, timeoutMs: 5000 });
+            if (g && !g.includes('ERROR')) {
+              const parsed = JSON.parse(g);
+              const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
+              if (active) {
+                gcpOk = true;
+                gcpAccount = active.account || '';
+              }
+            }
+            const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd: ws, timeoutMs: 3000 });
+            if (gProj) gcpProject = gProj.trim();
+          } catch {}
+
+          try {
+            const a = await runForStdout('aws', ['sts', 'get-caller-identity', '--output', 'json'], { cwd: ws, timeoutMs: 5000 });
+            if (a && !a.includes('error')) {
+              const parsed = JSON.parse(a);
+              if (parsed.Arn) {
+                awsOk = true;
+                awsAccount = parsed.Arn.split('/').pop() || parsed.Account || 'Active';
+              }
+            }
+          } catch {}
+
+          try {
+            const az = await runForStdout('az', ['account', 'show', '--output', 'json'], { cwd: ws, timeoutMs: 5000 });
+            if (az && !az.includes('error')) {
+              const parsed = JSON.parse(az);
+              if (parsed.name || parsed.id) {
+                azureOk = true;
+                azureAccount = parsed.user?.name || parsed.name || 'Active';
+              }
+            }
+          } catch {}
+
+          try {
+            const d = await runForStdout('docker', ['version', '--format', '{{.Server.Version}}'], { cwd: ws, timeoutMs: 4000 });
+            if (d && !d.includes('error') && !d.includes('Cannot connect')) {
+              dockerOk = true;
+              dockerVersion = `v${d.trim()}`;
+            }
+          } catch {}
+
+          this._panel.webview.postMessage({
+            type: 'cloudDetailedStatus',
+            gcp: { ok: gcpOk, account: gcpAccount, project: gcpProject },
+            aws: { ok: awsOk, account: awsAccount },
+            azure: { ok: azureOk, account: azureAccount },
+            docker: { ok: dockerOk, version: dockerVersion },
+          });
+
+          vscode.window.showInformationMessage(`Cloud Status — GCP: ${gcpOk ? '✓ Active' : '○ Offline'} | AWS: ${awsOk ? '✓ Active' : '○ Offline'} | Azure: ${azureOk ? '✓ Active' : '○ Offline'} | Docker: ${dockerOk ? '✓ Active' : '○ Offline'}`);
+        });
+        break;
+      }
+
+      case 'connectCloudAccount': {
+        const provider = msg.provider || 'gcp';
+        const terminal = this.getOrCreateCloudTerminal();
+        terminal.show();
+
+        if (provider === 'gcp') {
+          terminal.sendText('gcloud auth login && gcloud auth application-default login');
+          vscode.window.showInformationMessage('🔑 Initiated Google Cloud authentication in terminal...');
+        } else if (provider === 'aws') {
+          terminal.sendText('aws configure');
+          vscode.window.showInformationMessage('🔑 Initiated AWS configuration in terminal...');
+        } else if (provider === 'azure') {
+          terminal.sendText('az login');
+          vscode.window.showInformationMessage('🔑 Initiated Azure login in terminal...');
+        } else if (provider === 'docker') {
+          terminal.sendText('docker info');
+        }
         break;
       }
 
@@ -557,13 +1165,15 @@ export class FdeCockpitPanel {
     const initialEnvDoc = envExists ? fs.readFileSync(envPath, 'utf8') : RunbookGenerator.generateEnvironmentCatalog(state);
     const initialCompleteDoc = completeExists ? fs.readFileSync(completePath, 'utf8') : RunbookGenerator.generateCompleteHandoffPackage(state);
 
+    const safeJson = (val: any) => JSON.stringify(val || '').replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
+
     const progressPercent = Math.round((state.completedPhases.length / 4) * 100);
 
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>FDE Delivery Studio (Beta)</title>
+  <title>Forward-Deployed Engineers Delivery Studio (Beta)</title>
   <style>
     :root {
       --bg: var(--vscode-editor-background, #1e1e1e);
@@ -896,10 +1506,15 @@ export class FdeCockpitPanel {
 <body>
   <!-- Header -->
   <div class="header">
-    <div class="header-title">
-      <span>🚀</span> FDE Delivery Studio <span class="beta-pill">Beta</span>
+    <div>
+      <div class="header-title">
+        <span>🚀</span> Forward-Deployed Engineers Delivery Studio <span class="beta-pill">Beta</span>
+      </div>
+      <div style="font-size: 11px; margin-top: 3px; opacity: 0.85;">
+        Built by <a href="https://www.evolveminds.com.au/" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 700;">Evolve Mind Solutions Pty Ltd</a> • Enterprise Client Delivery System
+      </div>
     </div>
-    <div style="display: flex; gap: 10px; align-items: center;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
@@ -909,7 +1524,7 @@ export class FdeCockpitPanel {
   </div>
 
   <!-- Multi-Project Switcher & Toolbar -->
-  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
       <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--accent);">Engagement:</span>
       <select id="projectSelector" onchange="switchProject(this.value)" style="padding: 5px 10px; font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--fg); font-weight: 600; width: auto; margin-bottom: 0; min-width: 240px;">
@@ -922,7 +1537,116 @@ export class FdeCockpitPanel {
     <div style="font-size: 11px; opacity: 0.85;">
       <span><strong>Target VPC:</strong> <code>${state.targetVpc}</code></span>
       <span style="margin: 0 8px;">•</span>
-      <span><strong>Artifacts:</strong> ${state.schemaMappings.length} models, ${state.apiConnectors.length} APIs</span>
+      <span><strong>Artifacts:</strong> ${state.schemaMappings.length} models, ${(state.dataMarts || []).length} marts, ${state.apiConnectors.length} APIs</span>
+    </div>
+  </div>
+
+  <!-- Git & Bitbucket / GitHub Remote & Cloud Hub -->
+  <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px;">
+    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+      <span style="font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 4px;">🌿 <span id="gitBranchBadge">main</span></span>
+      <span style="opacity: 0.75;">|</span>
+      <span style="font-family: monospace; font-size: 11px; opacity: 0.9; cursor: pointer; border-bottom: 1px dashed var(--accent);" id="gitRemoteBadge" onclick="toggleGitSetupDrawer()" title="Click to configure Git / Bitbucket remote">checking git remote...</span>
+      <span style="opacity: 0.75;">|</span>
+      <span id="gitDirtyBadge" style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: var(--card-bg);">checking...</span>
+    </div>
+    <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+      <button class="btn-quick" id="btnGitSetup" style="margin-bottom: 0;" onclick="toggleGitSetupDrawer()">⚙️ Git Setup</button>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="gitFetch()">🔄 Sync &amp; Fetch</button>
+      <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success);" onclick="gitCommitAndPush()">📦 1-Click Commit &amp; Push</button>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="createPullRequest()">🚀 Create PR</button>
+      <button class="btn-quick" id="btnCloudHub" style="margin-bottom: 0;" onclick="toggleCloudHubDrawer()">☁️ Cloud Hub &amp; Connect</button>
+    </div>
+  </div>
+
+  <!-- Git & Bitbucket Setup & Diagnostic Drawer -->
+  <div id="gitSetupDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <div style="font-weight: 700; color: var(--accent); font-size: 13px;">
+        🔗 Git &amp; Bitbucket / GitHub Remote Configuration &amp; Terminal Stream
+      </div>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleGitSetupDrawer()">✕ Close</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px; margin-bottom: 10px;">
+      <div>
+        <label style="font-size: 11px; font-weight: bold;">Remote Origin URL (Bitbucket / GitHub / GitLab)</label>
+        <input type="text" id="customGitRemoteUrl" placeholder="e.g. git@bitbucket.org:org/repo.git or https://github.com/org/repo.git" style="font-family: monospace;">
+      </div>
+      <div style="display: flex; align-items: flex-end;">
+        <button class="btn" style="width: 100%; margin-bottom: 0;" onclick="saveGitRemote()">🔗 Set Remote</button>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border);">
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <span style="font-size: 11px; font-weight: bold;">Connectivity Tests:</span>
+        <button class="btn-quick" style="margin-bottom: 0;" onclick="diagnoseGit('bitbucket')">🔍 Test Bitbucket SSH</button>
+        <button class="btn-quick" style="margin-bottom: 0;" onclick="diagnoseGit('github')">🔍 Test GitHub SSH</button>
+        <button class="btn-quick" style="margin-bottom: 0;" onclick="openGitTerminal()">💻 Open Live Terminal</button>
+      </div>
+      <div>
+        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="chkRunInTerminal" checked style="width: auto; margin: 0;">
+          <span>Run Fetch &amp; Push in visible VS Code Terminal</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="gitDiagnosticBanner" style="display: none; margin-top: 10px; background: var(--bg); padding: 10px; border-radius: 4px; border: 1px solid var(--border); font-family: monospace; font-size: 11px; white-space: pre-wrap;"></div>
+  </div>
+
+  <!-- Multi-Cloud Connection & Auth Hub Drawer -->
+  <div id="cloudHubDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div style="font-weight: 700; color: var(--accent); font-size: 13px;">
+        ☁️ Multi-Cloud Connection &amp; Authentication Hub
+      </div>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleCloudHubDrawer()">✕ Close</button>
+    </div>
+
+    <!-- 4 Cloud Provider Status Cards -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+          <span>Google Cloud (GCP)</span>
+          <span id="cloudGcpBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudGcpAccount">Account: detecting...</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('gcp')">🔑 Connect GCP</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+          <span>Amazon AWS</span>
+          <span id="cloudAwsBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudAwsAccount">Account: detecting...</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('aws')">🔑 Connect AWS</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+          <span>Microsoft Azure</span>
+          <span id="cloudAzureBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudAzureAccount">Account: detecting...</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('azure')">🔑 Connect Azure</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+          <span>Docker Engine</span>
+          <span id="cloudDockerBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudDockerAccount">Daemon: detecting...</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('docker')">🐳 Check Docker</button>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid var(--border);">
+      <span style="font-size: 11px; opacity: 0.8;">💡 Connecting runs official CLI login with browser SSO OAuth in your VS Code terminal.</span>
+      <button class="btn" style="margin-bottom: 0;" onclick="testCloudConnection()">🔄 Refresh Cloud Status</button>
     </div>
   </div>
 
@@ -946,7 +1670,7 @@ export class FdeCockpitPanel {
           • Ingest dirty CSV / Oracle / SQL<br>
           • Semantic field alignment<br>
           • Generate dbt / PySpark staging<br>
-          • Data quality anomaly audit
+          • Cross-model dimensional joins &amp; marts
         </div>
       </div>
 
@@ -965,9 +1689,9 @@ export class FdeCockpitPanel {
         <div style="font-size: 11px; font-weight: bold; color: var(--accent);">PHASE 3 (DAYS 8–11)</div>
         <div style="font-size: 13px; font-weight: 600; margin: 4px 0;">Validate &amp; Pilot Deploy</div>
         <div style="font-size: 11px; opacity: 0.85; line-height: 1.4;">
+          • Multi-cloud parameter matrix<br>
           • Deterministic Pre-Flight Audit<br>
-          • Clean .bak &amp; temp files<br>
-          • Scaffold Firebase &amp; Cloud Run<br>
+          • Scaffold Terraform / K8s / Docker<br>
           • Execute deploy.sh / deploy.ps1
         </div>
       </div>
@@ -1013,38 +1737,108 @@ export class FdeCockpitPanel {
   <!-- Main Grid -->
   <div class="main-grid">
     <div class="sidebar-nav">
-      <button class="nav-btn ${state.activePhase === 1 ? 'active' : ''}" onclick="setPhase(1)">📊 1. Schema Mapper</button>
+      <button class="nav-btn ${state.activePhase === 1 ? 'active' : ''}" onclick="setPhase(1)">📊 1. Schema &amp; Marts</button>
       <button class="nav-btn ${state.activePhase === 2 ? 'active' : ''}" onclick="setPhase(2)">🔌 2. Client API Studio</button>
       <button class="nav-btn ${state.activePhase === 3 ? 'active' : ''}" onclick="setPhase(3)">⚡ 3. Pilot Deployment</button>
       <button class="nav-btn ${state.activePhase === 4 ? 'active' : ''}" onclick="setPhase(4)">📑 4. Runbook Factory</button>
     </div>
 
     <div>
-      <!-- PHASE 1: SCHEMA MAPPER -->
+      <!-- PHASE 1: SCHEMA MAPPER & MARTS BUILDER -->
       <div class="content-card" id="phase1" style="display: ${state.activePhase === 1 ? 'block' : 'none'};">
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
           <div>
-            <h3>📊 Semantic Schema Mapper &amp; Staging Generator</h3>
-            <p class="desc">Align foreign client CSVs, JSON feeds, or SQL tables with your standard platform target models using fuzzy semantic matching.</p>
+            <h3>📊 Semantic Schema Mapper &amp; Dimensional Mart Builder</h3>
+            <p class="desc">Ingest foreign client datasets into clean staging models, or connect directly to live databases (PostgreSQL, Snowflake, BigQuery) to introspect table schemas.</p>
           </div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button class="btn-quick" onclick="pickSchemaFile()">📁 Browse CSV / Schema File</button>
-            <button class="btn-quick" onclick="loadSampleSchema('orders')">⚡ Sample Orders</button>
-            <button class="btn-quick" onclick="loadSampleSchema('users')">⚡ Sample Users</button>
+            <button class="btn-quick" style="background: var(--accent); color: #fff;" onclick="toggleDbConnectModal()">🔌 Connect Live DB / Warehouse</button>
+            <button class="btn-quick" onclick="pickSchemaFile()">📁 Browse CSV / Schema</button>
+            <button class="btn-quick" onclick="loadSampleSchema('orders')">⚡ Orders</button>
+            <button class="btn-quick" onclick="loadSampleSchema('users')">⚡ Users</button>
+            <button class="btn-quick" onclick="loadSampleSchema('payments')">⚡ Payments</button>
           </div>
         </div>
 
-        <!-- Mapped Schemas in Current Engagement -->
-        ${state.schemaMappings.length > 0 ? `
+        <!-- Inline Live Database Connector Drawer -->
+        <div id="dbConnectBox" style="display: none; background: var(--card-alt); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-weight: 700; color: var(--accent); font-size: 13px;">
+              🔌 Connect Live Database / Warehouse <span style="font-size: 11px; opacity: 0.8; font-weight: normal; color: var(--fg);">(Credentials Encrypted at Rest via OS Vault)</span>
+            </div>
+            <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleDbConnectModal()">✕ Close</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Database Engine / Dialect</label>
+              <select id="dbDialect" onchange="handleDialectChange()">
+                <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                <option value="snowflake">Snowflake Data Cloud</option>
+                <option value="bigquery">Google BigQuery</option>
+                <option value="mysql">MySQL / MariaDB / Aurora</option>
+                <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
+                <option value="sqlite">SQLite (Local .db File)</option>
+              </select>
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 11px; font-weight: bold;">Connection URI / Host String (Masked)</label>
+                <a href="#" style="font-size: 10px; color: var(--accent); text-decoration: none;" onclick="toggleUriVisibility(event)">👁️ Show/Hide</a>
+              </div>
+              <input type="password" id="dbConnUri" placeholder="postgresql://username:password@localhost:5432/pilot_db" style="font-family: monospace;">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Database / Project ID</label>
+              <input type="text" id="dbDatabaseName" placeholder="pilot_db or gcp-project-id" value="${state.activeDbConnection?.database || ''}">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Schema / Dataset ID</label>
+              <input type="text" id="dbSchemaName" placeholder="public, raw, or dataset_name" value="${state.activeDbConnection?.schema || 'public'}">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Credential Vault Policy</label>
+              <select id="dbSavePolicy">
+                <option value="session" selected>Session Only (In-Memory)</option>
+                <option value="vault">Save to OS Vault (vscode.SecretStorage)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn" onclick="introspectDatabase()">🔍 Connect &amp; Fetch Tables</button>
+            <button class="btn btn-secondary" onclick="detectWorkspaceDb()">⚡ Auto-Detect from .env / dbt</button>
+            <button class="btn-quick" style="margin-bottom: 0; color: var(--error); border-color: var(--error);" onclick="wipeDbSecrets()">🗑️ Wipe Stored Credentials</button>
+          </div>
+
+          <!-- Discovered Tables Selector -->
+          <div id="dbTablesContainer" style="display: none; margin-top: 14px; background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+            <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--success);" id="dbConnectionStatusBadge">
+              ✓ Database Connected: Select a Table to Load
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="dbTableSelect" style="flex: 1; margin-bottom: 0;" onchange="applySelectedDbTable()">
+                <option value="">-- Choose an introspected table --</option>
+              </select>
+              <button class="btn" style="white-space: nowrap; margin-bottom: 0;" onclick="applySelectedDbTable()">📥 Load Schema into Mapper</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mapped Schemas & Marts in Current Engagement -->
+        ${state.schemaMappings.length > 0 || (state.dataMarts || []).length > 0 ? `
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px;">
           <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--success);">
-            Mapped Models in Active Engagement (${state.schemaMappings.length}):
+            Active Staging Models (${state.schemaMappings.length}) &amp; Marts (${(state.dataMarts || []).length}):
           </div>
           <div style="display: flex; flex-direction: column; gap: 6px;">
             ${state.schemaMappings.map(m => `
               <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px;">
                 <div>
-                  <strong>${m.targetModelName}</strong> <span style="opacity: 0.75;">(from <code>${m.sourceName}</code> • ${m.columns.length} cols • ${m.dialect})</span>
+                  <span style="color: var(--accent); font-weight: 700;">[Staging]</span> <strong>${m.targetModelName}</strong> <span style="opacity: 0.75;">(from <code>${m.sourceName}</code> • ${m.columns.length} cols • ${m.dialect})</span>
                 </div>
                 <div style="display: flex; gap: 6px;">
                   <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('models/staging/${m.targetModelName}.sql')">📄 Open</button>
@@ -1052,92 +1846,195 @@ export class FdeCockpitPanel {
                 </div>
               </div>
             `).join('')}
+            ${(state.dataMarts || []).map(dm => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px;">
+                <div>
+                  <span style="color: var(--success); font-weight: 700;">[Mart / Fact]</span> <strong>${dm.martName}</strong> <span style="opacity: 0.75;">(base: <code>${dm.baseModel}</code> • ${dm.joins.length} joins • ${dm.dimensions.length} dims)</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('models/marts/${dm.martName}.sql')">📄 Open</button>
+                  <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; color: var(--error); border-color: var(--error);" onclick="deleteDataMart('${dm.martName}')">🗑️ Remove</button>
+                </div>
+              </div>
+            `).join('')}
           </div>
         </div>
         ` : ''}
 
-        <!-- Guided Step Helper Banner -->
-        <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-          <div>
-            <span style="font-weight: 700; color: var(--accent);">📌 Quick Start:</span>
-            <span> Browse a local CSV/SQL file, click a sample, or paste columns in <code>COLUMN:type</code> format.</span>
-          </div>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            <span style="font-size: 11px; opacity: 0.8;">Target Presets:</span>
-            <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('orders')">📦 Orders</button>
-            <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('users')">👥 Users</button>
-            <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('payments')">💳 Payments</button>
-          </div>
+        <!-- Section Mode Tabs -->
+        <div class="code-tabs" style="margin-bottom: 16px;">
+          <div class="code-tab active" id="tabPhase1Staging" onclick="switchPhase1Mode('staging')">1. Staging Schema Mapper</div>
+          <div class="code-tab" id="tabPhase1Mart" onclick="switchPhase1Mode('mart')">2. 🔀 Cross-Model / Mart Join Builder</div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label style="font-size: 11px; font-weight: bold;">Source Columns (Raw Client Schema)</label>
-              <span id="srcFileBadge" style="font-size: 10px; opacity: 0.85; font-family: monospace; color: var(--success);"></span>
-            </div>
-            <textarea id="srcCols" style="height: 140px;" placeholder="Paste raw columns here or click 'Browse CSV / Schema File'...&#10;e.g.&#10;CUST_NBR_ID:string&#10;TXN_AMT:float&#10;CREATED_TS:timestamp&#10;IS_ACTIVE_FLG:string"></textarea>
-          </div>
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label style="font-size: 11px; font-weight: bold;">Target Model Columns (Platform Standard)</label>
-              <span style="font-size: 10px; opacity: 0.8;">Standardized schema</span>
-            </div>
-            <textarea id="tgtCols" style="height: 140px;" placeholder="Target columns or pick a preset above...&#10;e.g.&#10;customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean"></textarea>
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
-          <div>
-            <label style="font-size: 11px; font-weight: bold;">Source Table / Dataset Name</label>
-            <input type="text" id="srcNameInput" value="client_orders_raw" placeholder="e.g. client_orders_raw">
-          </div>
-          <div>
-            <label style="font-size: 11px; font-weight: bold;">Target Model Name (dbt / View)</label>
-            <input type="text" id="modelNameInput" value="stg_orders" placeholder="e.g. stg_orders">
-          </div>
-        </div>
-
-        <div id="schemaErrorAlert" style="display: none; background: var(--error-bg); border: 1px solid var(--error); color: var(--error); padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 14px;"></div>
-
-        <div style="display: flex; gap: 10px; align-items: center;">
-          <button class="btn" onclick="generateSchemaMapping()">🚀 Generate dbt Staging Model</button>
-          <span style="font-size: 11px; opacity: 0.75;">Automatically creates <code>models/staging/&lt;model_name&gt;.sql</code></span>
-        </div>
-
-        <!-- Generated Model Result Card -->
-        <div id="schemaResultBox" style="margin-top: 20px; display: none;">
-          <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+        <!-- SUB-PANEL A: STAGING MAPPER -->
+        <div id="subpanelStaging">
+          <!-- Guided Step Helper Banner -->
+          <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
             <div>
-              <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Staging Model Successfully Generated</div>
-              <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="schemaSavedBadge">Location: <code>models/staging/stg_orders.sql</code></div>
+              <span style="font-weight: 700; color: var(--accent);">📌 Step A:</span>
+              <span> Map raw columns into standard staging schemas.</span>
             </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn-quick" style="margin-bottom: 0;" onclick="openGeneratedModel()">📄 Open Model in Editor</button>
-              <button class="btn-quick" style="margin-bottom: 0;" onclick="copyModelCode()">📋 Copy Code</button>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span style="font-size: 11px; opacity: 0.8;">Target Presets:</span>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('orders')">📦 Orders</button>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('users')">👥 Users</button>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('payments')">💳 Payments</button>
             </div>
           </div>
 
-          <div class="code-tabs">
-            <div class="code-tab active" id="tabDbt" onclick="switchSchemaTab('dbt')">🧱 dbt SQL Model</div>
-            <div class="code-tab" id="tabPySpark" onclick="switchSchemaTab('pyspark')">⚡ PySpark Script</div>
-            <div class="code-tab" id="tabSqlView" onclick="switchSchemaTab('sqlView')">🗄️ Standard SQL View</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label style="font-size: 11px; font-weight: bold;">Source Columns (Raw Client Schema)</label>
+                <span id="srcFileBadge" style="font-size: 10px; opacity: 0.85; font-family: monospace; color: var(--success);"></span>
+              </div>
+              <textarea id="srcCols" style="height: 120px;" placeholder="Paste raw columns here or click 'Browse CSV / Schema File'...&#10;e.g.&#10;CUST_NBR_ID:string&#10;TXN_AMT:float&#10;CREATED_TS:timestamp&#10;IS_ACTIVE_FLG:string"></textarea>
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label style="font-size: 11px; font-weight: bold;">Target Model Columns (Platform Standard)</label>
+                <span style="font-size: 10px; opacity: 0.8;">Standardized schema</span>
+              </div>
+              <textarea id="tgtCols" style="height: 120px;" placeholder="Target columns or pick a preset above...&#10;e.g.&#10;customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean"></textarea>
+            </div>
           </div>
-          <pre id="schemaCodePreview" class="code-preview" style="max-height: 260px;"></pre>
-          
-          <h4 style="margin: 18px 0 10px 0;">Column Semantic Mapping Breakdown</h4>
-          <div id="schemaTableContainer"></div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Source Table / Dataset Name</label>
+              <input type="text" id="srcNameInput" value="client_orders_raw" placeholder="e.g. client_orders_raw">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Model Name (dbt / View)</label>
+              <input type="text" id="modelNameInput" value="stg_orders" placeholder="e.g. stg_orders">
+            </div>
+          </div>
+
+          <div id="schemaErrorAlert" style="display: none; background: var(--error-bg); border: 1px solid var(--error); color: var(--error); padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 14px;"></div>
+
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn" onclick="generateSchemaMapping()">🚀 Generate dbt Staging Model</button>
+            <span style="font-size: 11px; opacity: 0.75;">Automatically creates <code>models/staging/&lt;model_name&gt;.sql</code></span>
+          </div>
+
+          <!-- Generated Model Result Card -->
+          <div id="schemaResultBox" style="margin-top: 20px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Staging Model Successfully Generated</div>
+                <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="schemaSavedBadge">Location: <code>models/staging/stg_orders.sql</code></div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-quick" style="margin-bottom: 0;" onclick="openGeneratedModel()">📄 Open Model in Editor</button>
+                <button class="btn-quick" style="margin-bottom: 0;" onclick="copyModelCode()">📋 Copy Code</button>
+              </div>
+            </div>
+
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabDbt" onclick="switchSchemaTab('dbt')">🧱 dbt SQL Model</div>
+              <div class="code-tab" id="tabPySpark" onclick="switchSchemaTab('pyspark')">⚡ PySpark Script</div>
+              <div class="code-tab" id="tabSqlView" onclick="switchSchemaTab('sqlView')">🗄️ Standard SQL View</div>
+            </div>
+            <pre id="schemaCodePreview" class="code-preview" style="max-height: 240px;"></pre>
+            
+            <h4 style="margin: 18px 0 10px 0;">Column Semantic Mapping Breakdown</h4>
+            <div id="schemaTableContainer"></div>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL B: CROSS-MODEL / MART JOIN BUILDER -->
+        <div id="subpanelMart" style="display: none;">
+          <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
+            <span style="font-weight: 700; color: var(--accent);">🔀 Step B: Cross-Model Mart Builder:</span>
+            <span> Combine multiple mapped staging models (e.g. <code>stg_orders</code> + <code>stg_users</code>) into unified downstream Fact / Dimension data marts with join keys, CTEs, and aggregated business metrics.</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Base Staging Model</label>
+              <select id="martBaseModel">
+                ${state.schemaMappings.length > 0 
+                  ? state.schemaMappings.map(m => `<option value="${m.targetModelName}">${m.targetModelName}</option>`).join('')
+                  : '<option value="stg_orders">stg_orders (default)</option><option value="stg_users">stg_users</option>'
+                }
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Join Staging Model</label>
+              <select id="martJoinModel">
+                ${state.schemaMappings.length > 0 
+                  ? state.schemaMappings.map(m => `<option value="${m.targetModelName}">${m.targetModelName}</option>`).join('')
+                  : '<option value="stg_users">stg_users</option><option value="stg_payments">stg_payments</option>'
+                }
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 160px 1fr; gap: 14px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Join Type</label>
+              <select id="martJoinType">
+                <option value="LEFT">LEFT JOIN</option>
+                <option value="INNER">INNER JOIN</option>
+                <option value="FULL">FULL OUTER JOIN</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Join Condition (ON clause)</label>
+              <input type="text" id="martOnCondition" value="orders.customer_id = users.user_id" placeholder="e.g. orders.customer_id = users.user_id">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Dimension Columns (comma separated)</label>
+              <textarea id="martDimensions" style="height: 70px;" placeholder="e.g. orders.customer_id, orders.created_at, users.email">orders.customer_id, orders.created_at, users.email</textarea>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Metrics &amp; Aggregations (name:expression)</label>
+              <textarea id="martMetrics" style="height: 70px;" placeholder="e.g. total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)">total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)</textarea>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <label style="font-size: 11px; font-weight: bold;">Target Mart Name (models/marts/&lt;name&gt;.sql)</label>
+            <input type="text" id="martNameInput" value="fct_customer_orders" placeholder="e.g. fct_customer_orders">
+          </div>
+
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn" onclick="generateDataMart()">🚀 Generate dbt Mart Model</button>
+            <span style="font-size: 11px; opacity: 0.75;">Creates <code>models/marts/&lt;mart_name&gt;.sql</code></span>
+          </div>
+
+          <div id="martResultBox" style="margin-top: 20px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Dimensional Mart Successfully Generated</div>
+                <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="martSavedBadge">Location: <code>models/marts/fct_customer_orders.sql</code></div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-quick" style="margin-bottom: 0;" onclick="openDoc(currentWrittenMartPath || 'models/marts/fct_customer_orders.sql')">📄 Open Mart</button>
+                <button class="btn-quick" style="margin-bottom: 0;" onclick="copyMartCode()">📋 Copy SQL</button>
+              </div>
+            </div>
+            <pre id="martCodePreview" class="code-preview" style="max-height: 240px;"></pre>
+          </div>
         </div>
       </div>
 
-      <!-- PHASE 2: API CONNECTORS -->
+      <!-- PHASE 2: API CONNECTORS & CURL/OPENAPI STUDIO -->
       <div class="content-card" id="phase2" style="display: ${state.activePhase === 2 ? 'block' : 'none'};">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
           <div>
             <h3>🔌 Resilient Client API &amp; Webhook Studio</h3>
-            <p class="desc">Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and auth handling.</p>
+            <p class="desc">Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and auth handling. Import directly from cURL or OpenAPI.</p>
           </div>
-          <button class="btn-quick" onclick="loadSampleApi()">⚡ Load Sample Billing API</button>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn-quick" onclick="loadSampleApi()">⚡ Load Sample Billing API</button>
+            <button class="btn-quick" onclick="toggleCurlModal()">🪄 Import from cURL</button>
+            <button class="btn-quick" onclick="toggleOpenApiModal()">📋 Import OpenAPI / Swagger</button>
+          </div>
         </div>
 
         <!-- Configured APIs in Current Engagement -->
@@ -1150,7 +2047,7 @@ export class FdeCockpitPanel {
             ${state.apiConnectors.map(c => `
               <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px;">
                 <div>
-                  <strong>${c.connectorName}</strong> <span style="opacity: 0.75;">(<code>${c.baseUrl}</code> • Auth: ${c.authType} • ${c.targetLanguage})</span>
+                  <strong>${c.connectorName}</strong> <span style="opacity: 0.75;">(<code>${c.baseUrl}</code> • Auth: ${c.authType} • ${c.targetLanguage} • ${c.endpoints.length} endpoints)</span>
                 </div>
                 <div style="display: flex; gap: 6px;">
                   <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('src/connectors/${c.connectorName.toLowerCase()}.${c.targetLanguage === 'python' ? 'py' : 'ts'}')">📄 Open</button>
@@ -1161,6 +2058,26 @@ export class FdeCockpitPanel {
           </div>
         </div>
         ` : ''}
+
+        <!-- Inline cURL Importer Box -->
+        <div id="curlImportBox" style="display: none; background: var(--card-alt); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: var(--accent); font-size: 12px;">🪄 Paste cURL Command:</strong>
+            <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleCurlModal()">✕ Close</button>
+          </div>
+          <textarea id="curlInput" style="height: 80px;" placeholder="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'"></textarea>
+          <button class="btn" style="padding: 4px 12px; font-size: 12px;" onclick="parseAndApplyCurl()">Parse &amp; Apply</button>
+        </div>
+
+        <!-- Inline OpenAPI Importer Box -->
+        <div id="openApiImportBox" style="display: none; background: var(--card-alt); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <strong style="color: var(--accent); font-size: 12px;">📋 Paste OpenAPI / Swagger JSON:</strong>
+            <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleOpenApiModal()">✕ Close</button>
+          </div>
+          <textarea id="openApiInput" style="height: 100px;" placeholder="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}"></textarea>
+          <button class="btn" style="padding: 4px 12px; font-size: 12px;" onclick="parseAndApplyOpenApi()">Parse &amp; Apply</button>
+        </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
           <div>
@@ -1178,6 +2095,7 @@ export class FdeCockpitPanel {
           <option value="bearer">Bearer Token (Authorization: Bearer ...)</option>
           <option value="apiKey">API Key (x-api-key header)</option>
           <option value="oauth2">OAuth2 Client Credentials</option>
+          <option value="basic">HTTP Basic Authentication</option>
           <option value="none">None / Public</option>
         </select>
 
@@ -1206,10 +2124,30 @@ export class FdeCockpitPanel {
         </div>
       </div>
 
-      <!-- PHASE 3: PILOT DEPLOYMENT & PRE-FLIGHT -->
+      <!-- PHASE 3: PILOT DEPLOYMENT & MULTI-CLOUD MATRIX -->
       <div class="content-card" id="phase3" style="display: ${state.activePhase === 3 ? 'block' : 'none'};">
-        <h3>⚡ Pilot Deployment &amp; Pre-Flight Delivery</h3>
-        <p class="desc">Audit workspace health, configure Firebase Hosting + Cloud Run, and generate deploy automation.</p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+          <div>
+            <h3>⚡ Pilot Deployment &amp; Pre-Flight Delivery</h3>
+            <p class="desc">Audit workspace health, discover active cloud VPCs/subnets via API, customize multi-cloud compute &amp; secrets parameters, and scaffold Terraform, Kubernetes, or Docker IaC.</p>
+          </div>
+          <button class="btn" style="background: var(--accent); white-space: nowrap;" onclick="discoverCloud()">⚡ Discover &amp; Auto-Fill from Cloud API</button>
+        </div>
+
+        <!-- Discovered Cloud Feedback Banner -->
+        <div id="cloudDiscoveryBanner" style="display: ${state.deployment?.discoveredCloudResources?.authenticated ? 'block' : 'none'}; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong style="color: var(--success);">✓ Connected to Cloud:</strong>
+              <span id="cloudAccountText">${state.deployment?.discoveredCloudResources?.activeAccount || state.deployment?.discoveredCloudResources?.provider || 'Active Cloud Session'}</span>
+              ${state.deployment?.discoveredCloudResources?.activeProject ? ` (<code>${state.deployment.discoveredCloudResources.activeProject}</code>)` : ''}
+            </div>
+            <span class="tag" style="background: var(--accent); color: #fff; font-size: 10px;">${(state.deployment?.discoveredCloudResources?.provider || state.targetVpc).toUpperCase()}</span>
+          </div>
+          <div style="margin-top: 6px; font-size: 11px; opacity: 0.85;" id="cloudDiscoverySummary">
+            Discovered ${state.deployment?.discoveredCloudResources?.vpcs?.length || 0} VPCs, ${state.deployment?.discoveredCloudResources?.subnets?.length || 0} Subnets, and ${state.deployment?.discoveredCloudResources?.clusters?.length || 0} Clusters.
+          </div>
+        </div>
 
         <!-- Pre-Flight Audit Card -->
         <div style="background: var(--bg); padding: 18px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
@@ -1230,12 +2168,103 @@ export class FdeCockpitPanel {
           </div>
         </div>
 
-        <!-- 1-Click Scaffolder -->
-        <h4>📦 1-Click Deployment Scaffolding (Firebase + Cloud Run)</h4>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+        <!-- Multi-Cloud Deployment Parameters Matrix -->
+        <h4>⚙️ Multi-Cloud Deployment Parameter Matrix</h4>
+        <div style="background: var(--card-alt); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 18px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">CPU Allocation (Presets or Custom)</label>
+              <input type="text" id="deployCpu" list="cpuList" value="${state.deployment?.cpu || '1'}" placeholder="e.g. 1, 2, 4, 8.0, 16.0">
+              <datalist id="cpuList">
+                <option value="0.5">0.5 vCPU</option>
+                <option value="1">1.0 vCPU (Standard)</option>
+                <option value="2">2.0 vCPU (High Compute)</option>
+                <option value="4">4.0 vCPU (Heavy Batch)</option>
+                <option value="8">8.0 vCPU (Extreme)</option>
+                <option value="16">16.0 vCPU (Max Compute)</option>
+              </datalist>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Memory Allocation (Presets or Custom)</label>
+              <input type="text" id="deployMemory" list="memList" value="${state.deployment?.memory || '1Gi'}" placeholder="e.g. 1Gi, 2Gi, 4Gi, 16Gi, 32Gi">
+              <datalist id="memList">
+                <option value="512Mi">512 MiB</option>
+                <option value="1Gi">1 GiB (Standard)</option>
+                <option value="2Gi">2 GiB</option>
+                <option value="4Gi">4 GiB</option>
+                <option value="8Gi">8 GiB (High Memory)</option>
+                <option value="16Gi">16 GiB</option>
+                <option value="32Gi">32 GiB</option>
+              </datalist>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Hardware Accelerator / GPU</label>
+              <select id="deployGpu">
+                <option value="none" ${!state.deployment?.gpu || state.deployment.gpu === 'none' ? 'selected' : ''}>None (Standard CPU)</option>
+                <option value="nvidia-tesla-t4" ${state.deployment?.gpu === 'nvidia-tesla-t4' ? 'selected' : ''}>NVIDIA T4 (Inference)</option>
+                <option value="nvidia-l4" ${state.deployment?.gpu === 'nvidia-l4' ? 'selected' : ''}>NVIDIA L4 (Modern AI)</option>
+                <option value="nvidia-a100-80gb" ${state.deployment?.gpu === 'nvidia-a100-80gb' ? 'selected' : ''}>NVIDIA A100 80GB (Training / LLM)</option>
+                <option value="tpu-v5e" ${state.deployment?.gpu === 'tpu-v5e' ? 'selected' : ''}>Google Cloud TPU v5e</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Network & VPC Customization -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Client VPC / Network ID</label>
+              <input type="text" id="deployVpcId" list="vpcDatalist" value="${state.deployment?.vpcId || ''}" placeholder="e.g. client-vpc or vpc-0a1b2c">
+              <datalist id="vpcDatalist">
+                ${(state.deployment?.discoveredCloudResources?.vpcs || []).map(v => `<option value="${v}">${v}</option>`).join('')}
+              </datalist>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Subnet ID / Name</label>
+              <input type="text" id="deploySubnetId" list="subnetDatalist" value="${state.deployment?.subnetId || ''}" placeholder="e.g. pilot-subnet or subnet-0a1b2c">
+              <datalist id="subnetDatalist">
+                ${(state.deployment?.discoveredCloudResources?.subnets || []).map(s => `<option value="${s}">${s}</option>`).join('')}
+              </datalist>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Security Groups / Firewall Tags</label>
+              <input type="text" id="deploySecurityGroups" value="${state.deployment?.securityGroups || ''}" placeholder="e.g. allow-internal-pilot, sg-0123456789">
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Network Ingress Security</label>
+              <select id="deployIngress">
+                <option value="all" ${state.deployment?.ingress === 'all' ? 'selected' : ''}>Public HTTPS (Direct)</option>
+                <option value="internal" ${!state.deployment?.ingress || state.deployment?.ingress === 'internal' ? 'selected' : ''}>Internal VPC Only (Air-Gapped)</option>
+                <option value="internal-load-balanced" ${state.deployment?.ingress === 'internal-load-balanced' ? 'selected' : ''}>VPC + Cloud Load Balancer</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Autoscaling Bounds (Min - Max)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="deployMinInst" value="${state.deployment?.minInstances ?? 0}" placeholder="Min (0)" style="margin-bottom: 0;">
+                <input type="text" id="deployMaxInst" value="${state.deployment?.maxInstances ?? 10}" placeholder="Max (10)" style="margin-bottom: 0;">
+              </div>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Secrets &amp; Env Provider</label>
+              <select id="deploySecrets">
+                <option value="gcp-secret-manager" ${!state.deployment?.secretsProvider || state.deployment?.secretsProvider === 'gcp-secret-manager' ? 'selected' : ''}>Google Cloud Secret Manager</option>
+                <option value="aws-secrets-manager" ${state.deployment?.secretsProvider === 'aws-secrets-manager' ? 'selected' : ''}>AWS Secrets Manager</option>
+                <option value="azure-key-vault" ${state.deployment?.secretsProvider === 'azure-key-vault' ? 'selected' : ''}>Azure Key Vault</option>
+                <option value="env-file" ${state.deployment?.secretsProvider === 'env-file' ? 'selected' : ''}>.env.production File</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 1-Click Multi-Cloud Scaffolder Buttons -->
+        <h4>📦 1-Click Infrastructure Scaffolding (Terraform / K8s / Docker / Firebase)</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
           <div>
-            <label style="font-size: 11px; font-weight: bold;">GCP / Firebase Project ID</label>
-            <input type="text" id="gcpProjId" value="acme-pilot-2026">
+            <label style="font-size: 11px; font-weight: bold;">Target Cloud Project ID / Identifier</label>
+            <input type="text" id="gcpProjId" value="${state.deployment?.discoveredCloudResources?.activeProject || 'acme-pilot-2026'}">
           </div>
           <div>
             <label style="font-size: 11px; font-weight: bold;">Frontend Public Build Directory</label>
@@ -1243,17 +2272,31 @@ export class FdeCockpitPanel {
           </div>
         </div>
 
-        <button class="btn" onclick="scaffoldDeployment()">Scaffold Firebase, Cloud Run &amp; Deploy Scripts</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+          <button class="btn" onclick="scaffoldDeployment()">🚀 Scaffold Firebase &amp; Deploy Scripts</button>
+          <button class="btn btn-secondary" onclick="generateTerraformIaC()">📄 Generate Terraform (main.tf)</button>
+          <button class="btn btn-secondary" onclick="generateKubernetesIaC()">📄 Generate Kubernetes (k8s.yaml)</button>
+          <button class="btn btn-secondary" onclick="generateDockerComposeIaC()">📄 Generate Docker Compose</button>
+        </div>
         
         <div id="scaffoldResultBox" style="margin-top: 16px; display: none;">
           <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px; border-radius: 6px; font-size: 12px;">
-            <strong>✓ Successfully Scaffolded:</strong>
+            <strong>✓ Successfully Scaffolded Infrastructure &amp; Deployment:</strong>
             <ul style="margin: 6px 0 0 0; padding-left: 18px;">
-              <li><code>firebase.json</code> (SPA rewrites, immutable caching rules, security headers)</li>
-              <li><code>.firebaserc</code> (multi-target mapping: dev, test, pilot, prod)</li>
+              <li><code>firebase.json</code> &amp; <code>.firebaserc</code></li>
               <li><code>scripts/deploy.sh</code> &amp; <code>scripts/deploy.ps1</code></li>
               <li><code>.github/workflows/deploy.yml</code></li>
             </ul>
+          </div>
+        </div>
+
+        <div id="iacResultBox" style="margin-top: 16px; display: none;">
+          <div style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="color: var(--accent); font-size: 12px;" id="iacFileNameLabel">📄 Generated IaC File</strong>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="openActiveIacFile()">Open in Editor</button>
+            </div>
+            <pre id="iacCodePreview" class="code-preview" style="max-height: 240px;"></pre>
           </div>
         </div>
       </div>
@@ -1397,12 +2440,15 @@ export class FdeCockpitPanel {
     let currentPySparkSql = '';
     let currentSqlView = '';
     let currentWrittenModelPath = '';
+    let currentMartSql = '';
+    let currentWrittenMartPath = '';
+    let currentWrittenIacFile = '';
     let activeSchemaTab = 'dbt';
-    let currentArchDoc = ${JSON.stringify(initialArchDoc)};
-    let currentDeployDoc = ${JSON.stringify(initialDeployDoc)};
-    let currentDataDictDoc = ${JSON.stringify(initialDataDictDoc)};
-    let currentEnvDoc = ${JSON.stringify(initialEnvDoc)};
-    let currentCompleteDoc = ${JSON.stringify(initialCompleteDoc)};
+    let currentArchDoc = ${safeJson(initialArchDoc)};
+    let currentDeployDoc = ${safeJson(initialDeployDoc)};
+    let currentDataDictDoc = ${safeJson(initialDataDictDoc)};
+    let currentEnvDoc = ${safeJson(initialEnvDoc)};
+    let currentCompleteDoc = ${safeJson(initialCompleteDoc)};
     let activeDocTab = 'arch';
 
     function showToast(msg) {
@@ -1468,6 +2514,10 @@ export class FdeCockpitPanel {
       vscode.postMessage({ command: 'requestDeleteSchemaMapping', sourceName: srcName });
     }
 
+    function deleteDataMart(martName) {
+      vscode.postMessage({ command: 'requestDeleteDataMart', martName: martName });
+    }
+
     function deleteApiConnector(connName) {
       vscode.postMessage({ command: 'requestDeleteApiConnector', connectorName: connName });
     }
@@ -1478,7 +2528,206 @@ export class FdeCockpitPanel {
     }
 
     function setPhase(p) {
+      for (let i = 1; i <= 4; i++) {
+        const el = document.getElementById('phase' + i);
+        if (el) el.style.display = i === p ? 'block' : 'none';
+      }
+      const navBtns = document.querySelectorAll('.nav-btn');
+      navBtns.forEach((btn, idx) => {
+        if (btn) {
+          if (idx + 1 === p) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
+      const stepCards = document.querySelectorAll('.step-card');
+      stepCards.forEach((card, idx) => {
+        if (card) {
+          if (idx + 1 === p) card.classList.add('active');
+          else card.classList.remove('active');
+        }
+      });
       vscode.postMessage({ command: 'setActivePhase', phase: p });
+    }
+
+    function switchPhase1Mode(mode) {
+      const subStaging = document.getElementById('subpanelStaging');
+      const subMart = document.getElementById('subpanelMart');
+      const tabStaging = document.getElementById('tabPhase1Staging');
+      const tabMart = document.getElementById('tabPhase1Mart');
+
+      if (mode === 'mart') {
+        if (subStaging) subStaging.style.display = 'none';
+        if (subMart) subMart.style.display = 'block';
+        if (tabStaging) tabStaging.className = 'code-tab';
+        if (tabMart) tabMart.className = 'code-tab active';
+      } else {
+        if (subStaging) subStaging.style.display = 'block';
+        if (subMart) subMart.style.display = 'none';
+        if (tabStaging) tabStaging.className = 'code-tab active';
+        if (tabMart) tabMart.className = 'code-tab';
+      }
+    }
+
+    window.setPhase = setPhase;
+    window.switchPhase1Mode = switchPhase1Mode;
+
+    function generateDataMart() {
+      const base = document.getElementById('martBaseModel').value;
+      const join = document.getElementById('martJoinModel').value;
+      const joinType = document.getElementById('martJoinType').value;
+      const onCond = document.getElementById('martOnCondition').value.trim();
+      const dimsStr = document.getElementById('martDimensions').value.trim();
+      const metricsStr = document.getElementById('martMetrics').value.trim();
+      const martName = document.getElementById('martNameInput').value.trim() || 'fct_customer_orders';
+
+      if (!base || !join || !onCond) {
+        showToast('⚠️ Please specify Base Model, Join Model, and Join Condition!');
+        return;
+      }
+
+      const dimensions = dimsStr ? dimsStr.split(',').map(d => d.trim()).filter(Boolean) : [];
+      const metrics = [];
+      if (metricsStr) {
+        metricsStr.split(',').forEach(m => {
+          const parts = m.split(':');
+          if (parts.length >= 2) {
+            metrics.push({ name: parts[0].trim(), expression: parts.slice(1).join(':').trim() });
+          }
+        });
+      }
+
+      vscode.postMessage({
+        command: 'generateDataMart',
+        martName: martName,
+        baseModel: base,
+        joins: [{ joinType: joinType, targetModel: join, onCondition: onCond }],
+        dimensions: dimensions,
+        metrics: metrics,
+        dialect: 'snowflake',
+        writeToFile: true
+      });
+    }
+
+    function copyMartCode() {
+      if (currentMartSql) {
+        navigator.clipboard.writeText(currentMartSql);
+        showToast('✓ Mart SQL copied to clipboard!');
+      }
+    }
+
+    function toggleCurlModal() {
+      const box = document.getElementById('curlImportBox');
+      if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function parseAndApplyCurl() {
+      const curl = document.getElementById('curlInput').value.trim();
+      if (!curl) {
+        showToast('⚠️ Please paste a cURL command!');
+        return;
+      }
+      vscode.postMessage({ command: 'parseCurl', curlString: curl });
+    }
+
+    function toggleOpenApiModal() {
+      const box = document.getElementById('openApiImportBox');
+      if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function parseAndApplyOpenApi() {
+      const spec = document.getElementById('openApiInput').value.trim();
+      if (!spec) {
+        showToast('⚠️ Please paste an OpenAPI JSON specification!');
+        return;
+      }
+      vscode.postMessage({ command: 'parseOpenApi', openApiString: spec });
+    }
+
+    function toggleGitSetupDrawer() {
+      const drawer = document.getElementById('gitSetupDrawer');
+      if (drawer) {
+        const isHidden = drawer.style.display === 'none' || drawer.style.display === '' || window.getComputedStyle(drawer).display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+          drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    }
+
+    function saveGitRemote() {
+      const url = document.getElementById('customGitRemoteUrl').value.trim();
+      if (!url) {
+        showToast('⚠️ Please enter a remote repository URL!');
+        return;
+      }
+      vscode.postMessage({ command: 'setGitRemote', remoteUrl: url });
+      showToast('🔗 Updating Git remote...');
+    }
+
+    function diagnoseGit(target) {
+      vscode.postMessage({ command: 'diagnoseGitConnection', target: target });
+      showToast('🔍 Testing ' + target.toUpperCase() + ' SSH connection...');
+    }
+
+    function openGitTerminal() {
+      vscode.postMessage({ command: 'openGitTerminal' });
+    }
+
+    function gitFetch() {
+      const runInTerm = document.getElementById('chkRunInTerminal') ? document.getElementById('chkRunInTerminal').checked : true;
+      showToast('🔄 Fetching from remote...');
+      vscode.postMessage({ command: 'gitFetch', runInTerminal: runInTerm });
+    }
+
+    function gitCommitAndPush() {
+      const runInTerm = document.getElementById('chkRunInTerminal') ? document.getElementById('chkRunInTerminal').checked : true;
+      showToast('📦 Committing & pushing to remote...');
+      vscode.postMessage({ command: 'gitCommitAndPush', runInTerminal: runInTerm });
+    }
+
+    function createPullRequest() {
+      vscode.postMessage({ command: 'createPullRequest' });
+    }
+
+    function testCloudConnection() {
+      showToast('☁️ Testing Cloud VPC Connection...');
+      vscode.postMessage({ command: 'testCloudConnection' });
+    }
+
+    function toggleCloudHubDrawer() {
+      const drawer = document.getElementById('cloudHubDrawer');
+      if (drawer) {
+        const isHidden = drawer.style.display === 'none' || drawer.style.display === '' || window.getComputedStyle(drawer).display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+          drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          testCloudConnection();
+        }
+      }
+    }
+
+    function connectCloud(provider) {
+      vscode.postMessage({ command: 'connectCloudAccount', provider: provider });
+      showToast('🚀 Opening ' + provider.toUpperCase() + ' authentication terminal...');
+    }
+
+    window.toggleGitSetupDrawer = toggleGitSetupDrawer;
+    window.toggleCloudHubDrawer = toggleCloudHubDrawer;
+    window.connectCloud = connectCloud;
+    window.saveGitRemote = saveGitRemote;
+    window.diagnoseGit = diagnoseGit;
+    window.openGitTerminal = openGitTerminal;
+    window.gitFetch = gitFetch;
+    window.gitCommitAndPush = gitCommitAndPush;
+    window.createPullRequest = createPullRequest;
+    window.testCloudConnection = testCloudConnection;
+    window.toggleDbConnectModal = toggleDbConnectModal;
+    window.toggleRoadmap = toggleRoadmap;
+
+    function openActiveIacFile() {
+      if (currentWrittenIacFile) {
+        openDoc(currentWrittenIacFile);
+      }
     }
 
     function openDoc(relPath) {
@@ -1534,6 +2783,89 @@ export class FdeCockpitPanel {
       }
     }
 
+    let currentIntrospectedTables = [];
+
+    function toggleDbConnectModal() {
+      const box = document.getElementById('dbConnectBox');
+      if (box) {
+        const isHidden = box.style.display === 'none' || box.style.display === '' || window.getComputedStyle(box).display === 'none';
+        box.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+          box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    }
+
+    function toggleUriVisibility(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('dbConnUri');
+      if (input) {
+        input.type = input.type === 'password' ? 'text' : 'password';
+      }
+    }
+
+    function handleDialectChange() {
+      const dialect = document.getElementById('dbDialect').value;
+      const uriInput = document.getElementById('dbConnUri');
+      if (dialect === 'postgres') {
+        uriInput.placeholder = 'postgresql://username:password@localhost:5432/pilot_db';
+      } else if (dialect === 'snowflake') {
+        uriInput.placeholder = 'https://xy12345.snowflakecomputing.com (or SNOWSQL account)';
+      } else if (dialect === 'bigquery') {
+        uriInput.placeholder = 'BigQuery GCP Project / ADC Active Credentials';
+      } else if (dialect === 'mysql') {
+        uriInput.placeholder = 'mysql://user:pass@localhost:3306/pilot_db';
+      } else if (dialect === 'sqlite') {
+        uriInput.placeholder = '/path/to/local/app.db';
+      }
+    }
+
+    function introspectDatabase() {
+      const dialect = document.getElementById('dbDialect').value;
+      const uri = document.getElementById('dbConnUri').value.trim();
+      const db = document.getElementById('dbDatabaseName').value.trim();
+      const schema = document.getElementById('dbSchemaName').value.trim();
+      const savePolicy = document.getElementById('dbSavePolicy').value;
+
+      vscode.postMessage({
+        command: 'introspectDatabase',
+        saveSecret: savePolicy === 'vault',
+        options: {
+          dialect: dialect,
+          connectionUri: uri || undefined,
+          database: db || undefined,
+          schema: schema || undefined,
+        }
+      });
+      showToast('⚡ Connecting to database and introspecting schemas...');
+    }
+
+    function detectWorkspaceDb() {
+      vscode.postMessage({ command: 'detectWorkspaceDbConfig' });
+      showToast('🔍 Scanning workspace for .env and dbt database credentials...');
+    }
+
+    function wipeDbSecrets() {
+      vscode.postMessage({ command: 'wipeDbSecrets' });
+    }
+
+    function applySelectedDbTable() {
+      const select = document.getElementById('dbTableSelect');
+      const tblName = select.value;
+      if (!tblName) return;
+
+      const tbl = currentIntrospectedTables.find(t => t.tableName === tblName);
+      if (tbl) {
+        document.getElementById('srcCols').value = tbl.columnsFormatted;
+        document.getElementById('srcNameInput').value = tbl.tableName;
+        const cleanName = tbl.tableName.replace(/^client_|_raw$/g, '');
+        document.getElementById('modelNameInput').value = 'stg_' + cleanName;
+        const badge = document.getElementById('srcFileBadge');
+        if (badge) badge.innerText = '🔌 [Live DB] ' + tbl.tableName;
+        showToast('✓ Introspected ' + tbl.columns.length + ' columns from ' + tbl.tableName);
+      }
+    }
+
     function pickSchemaFile() {
       vscode.postMessage({ command: 'pickSchemaFile' });
     }
@@ -1544,6 +2876,11 @@ export class FdeCockpitPanel {
         document.getElementById('tgtCols').value = "user_id:string\\nemail:string\\nregistered_at:timestamp\\nrole:string\\nis_active:boolean";
         document.getElementById('srcNameInput').value = "client_users_raw";
         document.getElementById('modelNameInput').value = "stg_users";
+      } else if (kind === 'payments') {
+        document.getElementById('srcCols').value = "PMT_ID:string\\nORD_REF:string\\nPMT_AMT:float\\nCURR_CD:string\\nSTAT_VAL:string\\nTXN_TS:timestamp";
+        document.getElementById('tgtCols').value = "payment_id:string\\norder_id:string\\namount:numeric\\ncurrency:string\\nstatus:string\\ncreated_at:timestamp";
+        document.getElementById('srcNameInput').value = "client_payments_raw";
+        document.getElementById('modelNameInput').value = "stg_payments";
       } else {
         document.getElementById('srcCols').value = "CUST_NBR_ID:string\\nTXN_AMT:float\\nCREATED_TS:timestamp\\nIS_ACTIVE_FLG:string\\nRAW_GEO_CODE:string";
         document.getElementById('tgtCols').value = "customer_id:string\\ntransaction_amount:numeric\\ncreated_at:timestamp\\nis_active:boolean";
@@ -1672,6 +3009,80 @@ export class FdeCockpitPanel {
       showToast('✓ SDK code copied to clipboard!');
     }
 
+    function discoverCloud() {
+      const projId = document.getElementById('gcpProjId') ? document.getElementById('gcpProjId').value : '';
+      vscode.postMessage({
+        command: 'discoverCloudResources',
+        projectId: projId
+      });
+      showToast('⚡ Querying cloud API for VPCs and subnets...');
+    }
+
+    function generateTerraformIaC() {
+      const projId = document.getElementById('gcpProjId').value;
+      const cpu = document.getElementById('deployCpu').value;
+      const mem = document.getElementById('deployMemory').value;
+      const gpu = document.getElementById('deployGpu').value;
+      const vpc = document.getElementById('deployVpcId').value;
+      const sub = document.getElementById('deploySubnetId').value;
+      const sg = document.getElementById('deploySecurityGroups').value;
+      const ingress = document.getElementById('deployIngress').value;
+      const minInst = document.getElementById('deployMinInst').value;
+      const maxInst = document.getElementById('deployMaxInst').value;
+      const secrets = document.getElementById('deploySecrets').value;
+
+      vscode.postMessage({
+        command: 'generateTerraformIaC',
+        projectId: projId,
+        cpu: cpu,
+        memory: mem,
+        gpu: gpu,
+        vpcId: vpc,
+        subnetId: sub,
+        securityGroups: sg,
+        ingress: ingress,
+        minInstances: minInst,
+        maxInstances: maxInst,
+        secretsProvider: secrets
+      });
+    }
+
+    function generateKubernetesIaC() {
+      const projId = document.getElementById('gcpProjId').value;
+      const cpu = document.getElementById('deployCpu').value;
+      const mem = document.getElementById('deployMemory').value;
+      const gpu = document.getElementById('deployGpu').value;
+      const sub = document.getElementById('deploySubnetId').value;
+      const minInst = document.getElementById('deployMinInst').value;
+
+      vscode.postMessage({
+        command: 'generateKubernetesIaC',
+        projectId: projId,
+        cpu: cpu,
+        memory: mem,
+        gpu: gpu,
+        subnetId: sub,
+        minInstances: minInst
+      });
+    }
+
+    function generateDockerComposeIaC() {
+      const projId = document.getElementById('gcpProjId').value;
+      const cpu = document.getElementById('deployCpu').value;
+      const mem = document.getElementById('deployMemory').value;
+      const gpu = document.getElementById('deployGpu').value;
+      const vpc = document.getElementById('deployVpcId').value;
+
+      vscode.postMessage({
+        command: 'generateDockerComposeIaC',
+        projectId: projId,
+        cpu: cpu,
+        memory: mem,
+        gpu: gpu,
+        vpcId: vpc
+      });
+    }
+
     function runAudit() {
       vscode.postMessage({ command: 'runPreflightAudit' });
     }
@@ -1694,12 +3105,213 @@ export class FdeCockpitPanel {
       vscode.postMessage({ command: 'generateRunbooks' });
     }
 
-    // Initialize document preview on load
+    // Initialize document preview and Git/Cloud status on load
     switchDocTab('arch');
+    vscode.postMessage({ command: 'getGitAndCloudStatus' });
 
     window.addEventListener('message', event => {
       const msg = event.data;
-      if (msg.type === 'schemaFileLoaded') {
+      if (msg.type === 'gitAndCloudStatus') {
+        const branchEl = document.getElementById('gitBranchBadge');
+        if (branchEl) branchEl.innerText = msg.gitBranch || msg.branch || 'main';
+        
+        const remoteEl = document.getElementById('gitRemoteBadge');
+        if (remoteEl) {
+          const rem = msg.gitRemote || msg.remote || 'No remote origin';
+          remoteEl.innerText = rem.length > 35 ? rem.slice(0, 32) + '...' : rem;
+          remoteEl.title = rem;
+        }
+
+        const remInput = document.getElementById('customGitRemoteUrl');
+        if (remInput && msg.gitRemote && !msg.gitRemote.startsWith('No ')) {
+          remInput.value = msg.gitRemote;
+        }
+        
+        const dirtyEl = document.getElementById('gitDirtyBadge');
+        if (dirtyEl) {
+          dirtyEl.innerText = msg.isDirty ? '● Modified (' + (msg.uncommittedCount || 1) + ' files)' : '✓ Clean';
+          dirtyEl.style.color = msg.isDirty ? 'var(--warn)' : 'var(--success)';
+        }
+      } else if (msg.type === 'gitDiagnosticResult') {
+        const banner = document.getElementById('gitDiagnosticBanner');
+        if (banner) {
+          banner.style.display = 'block';
+          banner.innerHTML = '<span style="color:' + (msg.success ? 'var(--success)' : 'var(--warn)') + '; font-weight:bold;">[' + msg.target.toUpperCase() + ' SSH TEST ' + (msg.success ? '✓ SUCCESS' : '⚠️ RESPONSE') + ']</span><br><br>' + msg.rawOutput;
+        }
+        showToast(msg.success ? '✓ ' + msg.target.toUpperCase() + ' SSH Connected!' : '⚠️ ' + msg.target.toUpperCase() + ' check completed.');
+      } else if (msg.type === 'gitRemoteUpdated') {
+        vscode.postMessage({ command: 'getGitAndCloudStatus' });
+        showToast('✓ Remote Origin set to ' + msg.remoteUrl);
+      } else if (msg.type === 'gitResult') {
+        if (msg.success) {
+          showToast(msg.message || '✓ Git operation completed successfully!');
+          vscode.postMessage({ command: 'getGitAndCloudStatus' });
+        } else {
+          showToast('⚠️ ' + (msg.error || 'Git operation encountered an issue'));
+        }
+      } else if (msg.type === 'cloudDetailedStatus') {
+        const gcp = msg.gcp;
+        const gcpBadge = document.getElementById('cloudGcpBadge');
+        if (gcpBadge && gcp) {
+          gcpBadge.innerText = gcp.ok ? '✓ Connected' : '○ Offline';
+          gcpBadge.style.color = gcp.ok ? 'var(--success)' : 'var(--warn)';
+        }
+        const gcpAcc = document.getElementById('cloudGcpAccount');
+        if (gcpAcc && gcp) {
+          gcpAcc.innerText = gcp.ok ? (gcp.account || 'Active') + (gcp.project ? ' (' + gcp.project + ')' : '') : 'Not logged in (Click Connect)';
+        }
+
+        const aws = msg.aws;
+        const awsBadge = document.getElementById('cloudAwsBadge');
+        if (awsBadge && aws) {
+          awsBadge.innerText = aws.ok ? '✓ Connected' : '○ Offline';
+          awsBadge.style.color = aws.ok ? 'var(--success)' : 'var(--warn)';
+        }
+        const awsAcc = document.getElementById('cloudAwsAccount');
+        if (awsAcc && aws) {
+          awsAcc.innerText = aws.ok ? (aws.account || 'Active') : 'Not configured (Click Connect)';
+        }
+
+        const az = msg.azure;
+        const azBadge = document.getElementById('cloudAzureBadge');
+        if (azBadge && az) {
+          azBadge.innerText = az.ok ? '✓ Connected' : '○ Offline';
+          azBadge.style.color = az.ok ? 'var(--success)' : 'var(--warn)';
+        }
+        const azAcc = document.getElementById('cloudAzureAccount');
+        if (azAcc && az) {
+          azAcc.innerText = az.ok ? (az.account || 'Active') : 'Not logged in (Click Connect)';
+        }
+
+        const doc = msg.docker;
+        const docBadge = document.getElementById('cloudDockerBadge');
+        if (docBadge && doc) {
+          docBadge.innerText = doc.ok ? '✓ Running' : '○ Offline';
+          docBadge.style.color = doc.ok ? 'var(--success)' : 'var(--warn)';
+        }
+        const docAcc = document.getElementById('cloudDockerAccount');
+        if (docAcc && doc) {
+          docAcc.innerText = doc.ok ? ('Daemon ' + (doc.version || 'Active')) : 'Docker daemon not running';
+        }
+        showToast('✓ Cloud provider status updated!');
+      } else if (msg.type === 'cloudStatusResult') {
+        if (msg.connected) {
+          showToast('✓ Cloud Connection Verified: ' + msg.provider);
+        } else {
+          showToast('ℹ️ ' + msg.message);
+        }
+      } else if (msg.type === 'cloudResourcesDiscovered') {
+        const disc = msg.resources;
+        const banner = document.getElementById('cloudDiscoveryBanner');
+        if (banner) banner.style.display = 'block';
+
+        const accText = document.getElementById('cloudAccountText');
+        if (accText) accText.innerText = (disc.activeAccount || disc.provider || 'Active Cloud') + (disc.activeProject ? ' (' + disc.activeProject + ')' : '');
+
+        const sumText = document.getElementById('cloudDiscoverySummary');
+        if (sumText) {
+          sumText.innerText = disc.rawMessage || ('Discovered ' + (disc.vpcs ? disc.vpcs.length : 0) + ' VPCs, ' + (disc.subnets ? disc.subnets.length : 0) + ' Subnets.');
+        }
+
+        if (disc.vpcs && disc.vpcs.length > 0) {
+          const vpcData = document.getElementById('vpcDatalist');
+          if (vpcData) {
+            vpcData.innerHTML = disc.vpcs.map(v => '<option value="' + v + '">' + v + '</option>').join('');
+          }
+          const vpcInput = document.getElementById('deployVpcId');
+          if (vpcInput && !vpcInput.value) {
+            vpcInput.value = disc.vpcs[0];
+          }
+        }
+
+        if (disc.subnets && disc.subnets.length > 0) {
+          const subData = document.getElementById('subnetDatalist');
+          if (subData) {
+            subData.innerHTML = disc.subnets.map(s => '<option value="' + s + '">' + s + '</option>').join('');
+          }
+          const subInput = document.getElementById('deploySubnetId');
+          if (subInput && !subInput.value) {
+            subInput.value = disc.subnets[0];
+          }
+        }
+
+        if (disc.activeProject) {
+          const projInput = document.getElementById('gcpProjId');
+          if (projInput) projInput.value = disc.activeProject;
+        }
+
+        showToast(disc.authenticated ? '✓ Discovered cloud resources successfully!' : '⚠️ ' + (disc.authHelpPrompt || 'Could not authenticate cloud CLI'));
+      } else if (msg.type === 'dbIntrospectResult') {
+        const res = msg.result;
+        if (res.success && res.tables && res.tables.length > 0) {
+          currentIntrospectedTables = res.tables;
+          const container = document.getElementById('dbTablesContainer');
+          if (container) container.style.display = 'block';
+
+          const select = document.getElementById('dbTableSelect');
+          if (select) {
+            select.innerHTML = '<option value="">-- Choose an introspected table (' + res.tables.length + ' found) --</option>' +
+              res.tables.map(t => '<option value="' + t.tableName + '">' + (t.schema ? t.schema + '.' : '') + t.tableName + ' (' + t.columns.length + ' columns)</option>').join('');
+          }
+
+          const badge = document.getElementById('dbConnectionStatusBadge');
+          if (badge) {
+            badge.innerText = '✓ Connected to ' + res.dialect.toUpperCase() + ': ' + res.tables.length + ' tables discovered';
+          }
+          showToast('✓ Discovered ' + res.tables.length + ' tables from database!');
+        } else {
+          showToast('⚠️ ' + (res.error || res.message || 'No tables discovered from database.'));
+        }
+      } else if (msg.type === 'dbConfigDetected') {
+        const d = msg.detected;
+        if (d.found) {
+          if (d.dialect) {
+            document.getElementById('dbDialect').value = d.dialect;
+            handleDialectChange();
+          }
+          if (d.connectionUri) document.getElementById('dbConnUri').value = d.connectionUri;
+          if (d.database) document.getElementById('dbDatabaseName').value = d.database;
+          showToast('✓ Auto-populated connection from ' + d.sourceFile);
+        }
+      } else if (msg.type === 'dbSecretsWiped') {
+        document.getElementById('dbConnUri').value = '';
+        showToast('✓ Stored credentials purged from OS vault.');
+      } else if (msg.type === 'curlParsed') {
+        const p = msg.parsed;
+        if (p.baseUrl) document.getElementById('connBaseUrl').value = p.baseUrl;
+        if (p.authType) document.getElementById('connAuthType').value = p.authType;
+        if (p.name) document.getElementById('connName').value = p.name;
+        toggleCurlModal();
+        showToast('✓ cURL command parsed and loaded into Studio!');
+      } else if (msg.type === 'openApiParsed') {
+        const p = msg.parsed;
+        if (p.baseUrl) document.getElementById('connBaseUrl').value = p.baseUrl;
+        if (p.authType) document.getElementById('connAuthType').value = p.authType;
+        if (p.name) document.getElementById('connName').value = p.name;
+        toggleOpenApiModal();
+        showToast('✓ OpenAPI spec parsed (' + (p.endpoints ? p.endpoints.length : 0) + ' endpoints loaded)!');
+      } else if (msg.type === 'dataMartResult') {
+        const box = document.getElementById('martResultBox');
+        if (box) box.style.display = 'block';
+        currentMartSql = msg.sql;
+        currentWrittenMartPath = msg.writtenFile;
+        const prevEl = document.getElementById('martCodePreview');
+        if (prevEl) prevEl.innerText = currentMartSql;
+        const badgeEl = document.getElementById('martSavedBadge');
+        if (badgeEl && msg.writtenFile) {
+          badgeEl.innerHTML = 'Location: <code>' + msg.writtenFile + '</code>';
+        }
+        showToast('✓ Dimensional Mart Model Generated!');
+      } else if (msg.type === 'iacGenerated') {
+        const box = document.getElementById('iacResultBox');
+        if (box) box.style.display = 'block';
+        currentWrittenIacFile = msg.writtenFile;
+        const lbl = document.getElementById('iacFileNameLabel');
+        if (lbl) lbl.innerText = '📄 Generated: ' + msg.writtenFile;
+        const prev = document.getElementById('iacCodePreview');
+        if (prev) prev.innerText = msg.code;
+        showToast('✓ Infrastructure IaC Scaffolded: ' + msg.writtenFile);
+      } else if (msg.type === 'schemaFileLoaded') {
         document.getElementById('srcCols').value = msg.colsString;
         document.getElementById('srcNameInput').value = msg.sourceName;
         document.getElementById('modelNameInput').value = msg.modelName;

@@ -8,46 +8,41 @@
 [![Rating](https://vsmarketplacebadges.dev/rating-short/codeforge-ai.evolve-ai.svg?color=orange)](https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai&ssr=false#review-details)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](LICENSE)
 
-**Evolve AI** brings powerful AI code assistance directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Colibri** (GLM-5.2 744B running locally), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
+**Evolve AI** is built by **[Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)** to bring enterprise AI code assistance, autonomous data engineering, and a comprehensive **Forward-Deployed Engineers Delivery Studio** directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Colibri** (GLM-5.2 744B running locally), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
 
 ### Why Evolve AI?
 
+- **Enterprise & Frontline Delivery by Evolve Mind Solutions** — designed for forward-deployed engineers, enterprise data architects, and solutions engineers delivering mission-critical client infrastructure. Visit [evolveminds.com.au](https://www.evolveminds.com.au/).
+- **Forward-Deployed Engineers Delivery Studio (Beta)** *(v2.18)* — end-to-end frontline delivery toolkit:
+  - **1-Click Live Database Introspector**: non-destructive `INFORMATION_SCHEMA` metadata extraction for PostgreSQL, Supabase, Snowflake, BigQuery, MySQL, SQL Server, and SQLite with auto-detected `.env` connection strings.
+  - **Enterprise Hardware Encryption (`vscode.SecretStorage`)**: DPAPI/Keychain vault security for zero plaintext credentials in code.
+  - **Cross-Model Dimensional Mart Join Builder**: visual SQL join builder emitting production dbt data mart models.
+  - **Dedicated Git & Bitbucket / GitHub Remote & Terminal Hub**: interactive live streaming terminal (`🚀 FDE: Git Hub`), SSH diagnostics, and remote branch management.
+  - **Multi-Cloud Connection & Auth Hub (`☁️ Cloud Hub & Connect`)**: live status cards and 1-click terminal browser SSO authentication for Google Cloud, AWS, Azure, and Docker.
+  - **Client API Studio & Handoff Factory**: typed TypeScript/Python SDKs, deterministic pre-flight health auditor, and 5-artifact client handoff package with Mermaid architecture diagrams. → [docs/FDE_PLAYBOOK.md](docs/FDE_PLAYBOOK.md)
 - **Free & private** — runs fully offline with Ollama or Gemma 4. Your code never leaves your machine.
 - **Auto-detecting stack plugins** — 18 plugins that activate automatically based on your project: Databricks, Terraform, Docker, Kubernetes, Django, FastAPI, dbt, Airflow, PyTorch, Data Analysis & Reporting, Code Converter, and more.
 - **Any AI provider** — bring your own model or API key. Switch between local and cloud in one click.
 - **Deep context** — understands your active file, related files, diagnostics, git state, and cloud platform connections.
 - **Connect to GitHub or Bitbucket in one click** *(v2.0)* — wizard handles git install, identity, init/clone, auth (PAT / SSH / VS Code GitHub auth / `gh` CLI), and verifies the connection. → [docs/GIT_CONNECT.md](docs/GIT_CONNECT.md)
-- **Author CI/CD pipelines with AI** *(v2.1)* — auto-detecting plugin for GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket, plus a setup wizard that generates a stack-tailored starter pipeline (pinned actions, OIDC, caching, concurrency built in). Includes a *"Fix failing run"* command — paste a CI log, AI diagnoses against your active pipeline file. → [docs/CICD.md](docs/CICD.md)
-- **Convert code between 26 languages** *(v2.12)* — a selection, a file, or a whole folder. You get the result **side by side with the original** plus a report of what was translated exactly, what was approximated, and what still needs a human. Nothing is written to disk until you approve it. → [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
-- **Build data reports instead of receiving them** *(v2.13)* — point it at a CSV, then compose the report block by block, choosing each chart's measure and dimension from **your real column names**. Move, delete or retype anything **directly in the rendered report** — no AI call, instant. Filter the data for real, brand it once, and save the whole shape as a template to re-run next month. → [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
-- **Zero-AI Offline Suite & Air-Gapped Mode** *(v2.16)* — 100% offline developer & data engineering tools: multi-dialect SQL formatter (Databricks, Snowflake, BigQuery, Postgres, DuckDB), dataset profiler & dbt test generator, dbt `schema.yml` auto-synchronizer, Cron & Regex workbench, Terraform/Docker security linters, AST codemods, and a strict air-gap network blocker. → [docs/OFFLINE_SUITE.md](docs/OFFLINE_SUITE.md)
-- **Forward Deployed Engineer (FDE Beta) & Delivery Studio** *(v2.17)* — end-to-end frontline delivery toolkit: semantic schema mapping (client dirty data &rarr; dbt/Spark staging models), resilient client API & webhook connectors, multi-target pilot deployment (Firebase Hosting + Cloud Run / Docker), deterministic pre-flight health auditing, and 1-click client IT handoff runbooks with interactive Mermaid diagrams. → [docs/FDE_PLAYBOOK.md](docs/FDE_PLAYBOOK.md)
+- **Author CI/CD pipelines with AI** *(v2.1)* — auto-detecting plugin for GitHub Actions / GitLab CI / Jenkins / CircleCI / Azure / Bitbucket, plus a setup wizard that generates a stack-tailored starter pipeline. → [docs/CICD.md](docs/CICD.md)
+- **Convert code between 26 languages** *(v2.12)* — side by side with the original plus a translation fidelity report. → [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
+- **Build data reports instead of receiving them** *(v2.13)* — compose block-by-block charts directly from real CSV/Excel/Parquet data. → [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
+- **Zero-AI Offline Suite & Air-Gapped Mode** *(v2.16)* — 100% offline developer & data engineering tools: multi-dialect SQL formatter (Databricks, Snowflake, BigQuery, Postgres, DuckDB), dataset profiler & dbt test generator, Cron & Regex workbench, Terraform/Docker security linters, AST codemods, and a strict air-gap network blocker. → [docs/OFFLINE_SUITE.md](docs/OFFLINE_SUITE.md)
 
 > Also works in **Cursor**, **VSCodium**, and other VS Code forks.
 
 ---
 
-## Built for Data Engineers
+## Built for Forward-Deployed Engineers (FDE)
 
-If you live in **dbt + Airflow + Databricks/BigQuery** files, Evolve AI is purpose-built for your day:
+If you are a **Forward-Deployed Engineer (FDE)** or solutions architect delivering pilots, custom client data integrations, and frontline production deployments, Evolve AI provides an integrated 4-phase delivery system:
 
-- **Lineage-aware AI prompts** *(v1.5)* — open a dbt model or PySpark notebook and the AI's suggestions use your **real column names**. Walks `{{ ref() }}` / `{{ source() }}` / `spark.table(...)` and pulls schemas from `target/manifest.json`, `schema.yml`, or Unity Catalog. No more hallucinated columns. → [docs/LINEAGE.md](docs/LINEAGE.md)
-- **Query cost preview** *(v1.7)* — `Ctrl+Alt+Q` shows bytes scanned, estimated USD cost, warnings (`SELECT *`, missing partition filter, cross join, large-scan) before you run. Databricks `EXPLAIN COST` and BigQuery dry-run. Free on BigQuery's side. → [docs/QUERY_ANALYSIS.md](docs/QUERY_ANALYSIS.md)
-- **dbt impact analysis** *(v1.8)* — `Ctrl+Alt+I` opens an Impact panel showing every model + exposure that depends on the one you're editing. *Refactor with AI (impact-aware)* button injects the blast radius into the prompt. → [docs/DBT_MANIFEST.md](docs/DBT_MANIFEST.md)
-- **Airflow DAG simulator** *(v1.9)* — `Ctrl+Alt+D` does static analysis on DAG files: cycles, broken `>>` edges, duplicate `task_id`s, sensor poke-starvation, missing `catchup=False`, invalid cron, TaskFlow `()` mistakes — inline diagnostics + a *Fix all with AI* button. No Python interpreter, no Airflow install required. → [docs/AIRFLOW_SIMULATOR.md](docs/AIRFLOW_SIMULATOR.md)
-
-All four work on cloud LLMs (Anthropic / OpenAI / Gemini / HF) **and** on local providers (Ollama / Gemma 4) — your data stays where you decide.
-
----
-
-## Built for Forward Deployed Engineers (FDE)
-
-If you are a **Forward Deployed Engineer (FDE)** or solutions architect delivering pilots, custom client data integrations, and frontline production deployments, Evolve AI provides an integrated 4-phase delivery system:
-
-- **1. Ingest & Semantic Schema Mapper** — Ingest dirty client CSVs, Oracle dumps, or SQL tables and automatically map foreign columns to your standard platform data model. Generates production **dbt staging models**, **PySpark transformation pipelines**, and SQL views with inferred casting rules.
+- **1. Ingest, Live Introspect & Mart Join Builder** — Connect directly to live databases (Postgres, Snowflake, BigQuery, MySQL, SQL Server, SQLite) or ingest dirty CSVs/dumps. Auto-maps foreign columns with semantic casting rules to generate production **dbt staging models**, **PySpark transformation pipelines**, and **dimensional data marts**.
 - **2. Resilient Client API Studio** — Ingest client OpenAPI, Swagger, or cURL specs and scaffold fault-tolerant **TypeScript** or **Python** client SDKs equipped with exponential backoff, jitter, `Retry-After` header parsing, and rate-limiting circuit breakers.
-- **3. Pre-Flight Health Auditor & Pilot Deployment** — 100% deterministic local audit detecting dangling backup files (`*.bak`, `*.tmp`), secret leakage, and `.env` parity. Scaffolds multi-target **Firebase Hosting** (SPA rewrites, immutable caching rules, security headers), **Google Cloud Run / Docker** backend configs, and cross-platform deployment scripts (`deploy.sh` / `deploy.ps1`).
-- **4. Client IT Handoff & Runbook Factory** — Auto-generates client-ready documentation in `docs/`: `ARCHITECTURE.md` with rendered **Mermaid system & sequence diagrams**, `DEPLOYMENT_RUNBOOK.md` with rollback/disaster-recovery instructions, and `DATA_DICTIONARY.md`.
+- **3. Pre-Flight Health Auditor & Pilot Deployment** — 100% deterministic local audit detecting dangling backup files (`*.bak`, `*.tmp`), secret leakage, and `.env` parity. Scaffolds multi-target **Firebase Hosting**, **Google Cloud Run / Docker / Kubernetes / Terraform** configs, and cross-platform deployment scripts (`deploy.sh` / `deploy.ps1`).
+- **4. Client IT Handoff & Runbook Factory** — Auto-generates client-ready documentation in `docs/`: `ARCHITECTURE.md` with rendered **Mermaid system & sequence diagrams**, `DEPLOYMENT_RUNBOOK.md` with rollback/disaster-recovery instructions, `DATA_DICTIONARY.md`, `ENVIRONMENT_CATALOG.md`, and `CLIENT_HANDOFF_COMPLETE.md`.
+- **Git Hub & Multi-Cloud Connection** — Integrated interactive terminal streaming for Bitbucket & GitHub, and live status / SSO authentication for Google Cloud, AWS, Azure, and Docker.
 - **14-Day Delivery Roadmap & Playbook** — Built-in visual guide and step-by-step operational playbook for running client pilots. → [docs/FDE_PLAYBOOK.md](docs/FDE_PLAYBOOK.md)
 
 ---

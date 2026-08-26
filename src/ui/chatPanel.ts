@@ -729,7 +729,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
           <div class="pop-icon">&#128640;</div>
           <div class="pop-body">
             <div class="pop-name">FDE (Beta)</div>
-            <div class="pop-desc">Forward Deployed Engineer studio &mdash; foreign schema mapping, custom client APIs, Firebase/Cloud Run pilot deployment, pre-flight audits, and handoff runbooks.</div>
+            <div class="pop-desc">Forward-Deployed Engineers Delivery Studio &mdash; live database introspection, foreign schema mapping, custom client APIs, Multi-Cloud Hub, pilot deployment, pre-flight audits, and handoff runbooks by Evolve Mind Solutions.</div>
           </div>
         </div>
       </div>

@@ -212,4 +212,141 @@ export class ApiConnectorGenerator {
     lines.push(``);
     return lines.join('\n');
   }
+
+  /**
+   * Parses a raw cURL command into an ApiConnectorOptions and endpoint spec.
+   */
+  static parseCurlCommand(curlStr: string): Partial<ApiConnectorOptions> {
+    const clean = curlStr.replace(/\\\r?\n/g, ' ').trim();
+
+    // Extract method: -X POST or --request POST
+    let method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' = 'GET';
+    const methodMatch = clean.match(/(?:-X|--request)\s+([A-Z]+)/i);
+    if (methodMatch) {
+      method = methodMatch[1].toUpperCase() as any;
+    } else if (/--data|-d|--json/i.test(clean)) {
+      method = 'POST';
+    }
+
+    // Extract URL
+    let url = '';
+    const urlMatch = clean.match(/https?:\/\/[^\s'"]+/i);
+    if (urlMatch) {
+      url = urlMatch[0];
+    }
+
+    let baseUrl = 'https://api.client-vpc.internal';
+    let path = '/v1/resource';
+    try {
+      if (url) {
+        const u = new URL(url);
+        baseUrl = `${u.protocol}//${u.host}`;
+        path = u.pathname || '/';
+      }
+    } catch {
+      // fallback
+    }
+
+    // Extract Auth
+    let authType: 'bearer' | 'apiKey' | 'oauth2' | 'basic' | 'none' = 'none';
+    if (/bearer\s+/i.test(clean)) {
+      authType = 'bearer';
+    } else if (/-u\s+|--user\s+/i.test(clean) || /basic\s+/i.test(clean)) {
+      authType = 'basic';
+    } else if (/x-api-key|apikey/i.test(clean)) {
+      authType = 'apiKey';
+    }
+
+    // Extract Headers
+    const headers: Record<string, string> = {};
+    const headerRegex = /(?:-H|--header)\s+["']([^:]+):\s*([^"']+)["']/gi;
+    let hm: RegExpExecArray | null;
+    while ((hm = headerRegex.exec(clean)) !== null) {
+      headers[hm[1].trim()] = hm[2].trim();
+    }
+
+    let connectorName = 'ClientCustomApi';
+    try {
+      if (url) {
+        const host = new URL(url).hostname.replace(/\./g, '_');
+        connectorName = host.replace(/[^a-zA-Z0-9_]/g, '') + 'Client';
+      }
+    } catch {
+      // fallback
+    }
+
+    const cleanPath = path.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_/, '');
+    const endpointName = `${method.toLowerCase()}_${cleanPath || 'resource'}`;
+
+    return {
+      connectorName,
+      baseUrl,
+      authType,
+      targetLanguage: 'typescript',
+      endpoints: [
+        {
+          name: endpointName,
+          method,
+          path,
+          description: `Generated from cURL: ${method} ${path}`,
+          headers,
+        }
+      ]
+    };
+  }
+
+  /**
+   * Parses an OpenAPI 3.0 / Swagger JSON or YAML string into ApiConnectorOptions.
+   */
+  static parseOpenApiSpec(specStr: string): Partial<ApiConnectorOptions> {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(specStr);
+    } catch {
+      return {};
+    }
+
+    const title = parsed?.info?.title || 'ClientService';
+    const connectorName = title.replace(/[^a-zA-Z0-9]/g, '') + 'Api';
+    const baseUrl = parsed?.servers?.[0]?.url || parsed?.basePath || 'https://api.client-vpc.internal/v1';
+
+    const endpoints: ApiEndpointSpec[] = [];
+    const paths = parsed?.paths || {};
+
+    for (const [p, methods] of Object.entries<any>(paths)) {
+      for (const [m, op] of Object.entries<any>(methods)) {
+        const methodUpper = m.toUpperCase();
+        if (['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].includes(methodUpper)) {
+          const cleanP = p.replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_/, '');
+          const name = op?.operationId || `${m}_${cleanP}`;
+          endpoints.push({
+            name,
+            method: methodUpper as any,
+            path: p,
+            description: op?.summary || op?.description || `${methodUpper} ${p}`,
+            queryParams: (op?.parameters || []).filter((param: any) => param.in === 'query').map((param: any) => param.name),
+          });
+        }
+      }
+    }
+
+    let authType: 'bearer' | 'apiKey' | 'oauth2' | 'basic' | 'none' = 'bearer';
+    if (parsed?.components?.securitySchemes) {
+      const schemes = Object.values<any>(parsed.components.securitySchemes);
+      if (schemes.some(s => s.type === 'http' && s.scheme === 'bearer')) authType = 'bearer';
+      else if (schemes.some(s => s.type === 'apiKey')) authType = 'apiKey';
+      else if (schemes.some(s => s.type === 'oauth2')) authType = 'oauth2';
+      else if (schemes.some(s => s.type === 'http' && s.scheme === 'basic')) authType = 'basic';
+    }
+
+    return {
+      connectorName,
+      baseUrl,
+      authType,
+      targetLanguage: 'typescript',
+      endpoints: endpoints.length > 0 ? endpoints.slice(0, 20) : [
+        { name: 'getStatus', method: 'GET', path: '/health', description: 'Health check endpoint' }
+      ],
+    };
+  }
 }

@@ -596,20 +596,21 @@ report — you'll see *"no conversion report was returned"*. Use a coding-tuned 
 **The CI/CD plugin doesn't activate for my pipeline file**
 - Confirm the file is at one of the recognised paths: `.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile` (case-sensitive), `.circleci/config.yml`, `azure-pipelines.yml`, `bitbucket-pipelines.yml`. Custom paths (e.g. `ci/build.yml`) aren't auto-detected.
 
-### Forward Deployed Engineer (FDE) Delivery Studio
+### Forward-Deployed Engineers Delivery Studio (Beta)
 
-**How do I open the FDE Delivery Studio?**
+**How do I open the Delivery Studio?**
 - Open the Chat Sidebar (`Ctrl+Shift+A`), click the **MODE** pill and select **`🚀 FDE (Beta)`**.
 - Or press `Ctrl+Shift+P` and run **Evolve AI: FDE: Open Delivery Studio (Beta)**.
 
-**What are the 4 phases of an FDE engagement in Evolve AI?**
-1. **Phase 1: Ingest & Schema Mapper** — Ingest dirty client datasets (CSV, JSON, SQL DDL) and auto-map foreign column names to standard data models. Generates production dbt staging models (`models/staging/stg_model.sql`) and PySpark transformations.
+**What are the key capabilities of the Delivery Studio?**
+1. **Phase 1: Ingest, Live Introspect & Mart Join Builder** — Connect directly to live databases (PostgreSQL, Supabase, Snowflake, BigQuery, MySQL, SQL Server, SQLite) with hardware-encrypted credentials (`vscode.SecretStorage`) or ingest dirty CSVs/dumps. Auto-maps foreign columns with semantic casting rules to generate production dbt staging models, PySpark transformations, and dimensional data marts.
 2. **Phase 2: Client API Studio** — Ingest client OpenAPI/cURL specs and scaffold resilient TypeScript or Python SDK connectors with exponential backoff, jitter, and rate-limiting.
-3. **Phase 3: Validate & Pilot Deploy** — Run deterministic, 100% offline Pre-Flight Health Audits (temp file cleanup, secret leak prevention, `.env` parity) and scaffold multi-target Firebase Hosting, Cloud Run / Docker configs, and deploy scripts (`scripts/deploy.sh` and `scripts/deploy.ps1`).
-4. **Phase 4: Handoff & Runbooks** — Auto-generate `docs/ARCHITECTURE.md` (with live Mermaid diagrams), `docs/DEPLOYMENT_RUNBOOK.md` (operations and rollback procedures), and `docs/DATA_DICTIONARY.md`.
+3. **Phase 3: Validate & Pilot Deploy** — Run deterministic, 100% offline Pre-Flight Health Audits (temp file cleanup, secret leak prevention, `.env` parity) and scaffold multi-target Firebase Hosting, Cloud Run / Docker / K8s / Terraform configs, and deploy scripts (`scripts/deploy.sh` and `scripts/deploy.ps1`).
+4. **Phase 4: Handoff & Runbooks** — Auto-generate `docs/ARCHITECTURE.md` (with live Mermaid diagrams), `docs/DEPLOYMENT_RUNBOOK.md` (operations and rollback procedures), `docs/DATA_DICTIONARY.md`, `docs/ENVIRONMENT_CATALOG.md`, and `docs/CLIENT_HANDOFF_COMPLETE.md`.
+5. **Git & Multi-Cloud Auth Hub** — Dedicated interactive terminals for Git & Bitbucket streaming and 1-click browser SSO login for Google Cloud, AWS, Azure, and Docker.
 
 **Where can I find the diagrammatic Roadmap & Playbook?**
-- Click the **`🗺️ Roadmap & Playbook`** button inside the FDE Studio header, or read [`docs/FDE_PLAYBOOK.md`](docs/FDE_PLAYBOOK.md).
+- Click the **`🗺️ Roadmap & Playbook`** button inside the Studio header, or read [`docs/FDE_PLAYBOOK.md`](docs/FDE_PLAYBOOK.md).
 
 ---
 

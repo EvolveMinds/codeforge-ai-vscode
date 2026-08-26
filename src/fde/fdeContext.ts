@@ -53,9 +53,52 @@ export interface DeploymentSession {
   targetVpc: 'gcp-firebase' | 'aws' | 'docker' | 'azure';
   frontendTarget?: string;
   backendService?: string;
+  cpu?: string;
+  memory?: string;
+  gpu?: string;
+  ingress?: string;
+  minInstances?: number;
+  maxInstances?: number;
+  secretsProvider?: string;
+  vpcId?: string;
+  subnetId?: string;
+  securityGroups?: string;
+  discoveredCloudResources?: {
+    provider?: string;
+    vpcs?: string[];
+    subnets?: string[];
+    clusters?: string[];
+    regions?: string[];
+    authenticated?: boolean;
+    activeAccount?: string;
+    activeProject?: string;
+  };
   lastPreflightScore?: number;
   lastPreflightIssuesCount?: number;
   deployedAt?: number;
+}
+
+export interface DataMartJoin {
+  joinType: 'LEFT' | 'INNER' | 'FULL';
+  joinModel: string;
+  onCondition: string;
+}
+
+export interface DataMartMetric {
+  name: string;
+  expr: string;
+  description?: string;
+}
+
+export interface DataMartSession {
+  martName: string;
+  baseModel: string;
+  joins: DataMartJoin[];
+  dimensions: string[];
+  metrics: DataMartMetric[];
+  dialect: 'dbt' | 'pyspark' | 'sql_view';
+  generatedSql?: string;
+  createdAt: number;
 }
 
 export interface FdeEngagementState {
@@ -66,8 +109,16 @@ export interface FdeEngagementState {
   activePhase: 1 | 2 | 3 | 4;
   completedPhases: number[];
   schemaMappings: SchemaMappingSession[];
+  dataMarts?: DataMartSession[];
   apiConnectors: ApiConnectorSession[];
   deployment?: DeploymentSession;
+  activeDbConnection?: {
+    dialect: string;
+    host?: string;
+    database?: string;
+    schema?: string;
+    lastConnectedTable?: string;
+  };
   discoveredEnvVars: string[];
   createdAt?: number;
   updatedAt?: number;
@@ -93,6 +144,7 @@ export class FdeContextManager {
       activePhase: 1,
       completedPhases: [],
       schemaMappings: [],
+      dataMarts: [],
       apiConnectors: [],
       discoveredEnvVars: [],
       createdAt: Date.now(),
@@ -219,6 +271,7 @@ export class FdeContextManager {
       activePhase: 1,
       completedPhases: [],
       schemaMappings: [],
+      dataMarts: [],
       apiConnectors: [],
       deployment: undefined,
       discoveredEnvVars: [],
@@ -231,6 +284,20 @@ export class FdeContextManager {
       const filtered = s.schemaMappings.filter(m => m.sourceName !== sourceName);
       const completed = filtered.length === 0 ? s.completedPhases.filter(p => p !== 1) : s.completedPhases;
       return { ...s, schemaMappings: filtered, completedPhases: completed };
+    });
+  }
+
+  async deleteDataMart(martName: string): Promise<void> {
+    await this.updateState(s => {
+      const filtered = (s.dataMarts || []).filter(m => m.martName !== martName);
+      return { ...s, dataMarts: filtered };
+    });
+  }
+
+  async recordDataMart(mart: DataMartSession): Promise<void> {
+    await this.updateState(s => {
+      const existing = (s.dataMarts || []).filter(m => m.martName !== mart.martName);
+      return { ...s, dataMarts: [...existing, mart] };
     });
   }
 
@@ -265,10 +332,33 @@ export class FdeContextManager {
     });
   }
 
+  async recordDeploymentSettings(settings: Partial<DeploymentSession>): Promise<void> {
+    await this.updateState(s => {
+      const existing: DeploymentSession = s.deployment || {
+        clientName: s.clientName,
+        environment: 'pilot',
+        targetVpc: s.targetVpc,
+      };
+      return {
+        ...s,
+        deployment: {
+          ...existing,
+          ...settings,
+        }
+      };
+    });
+  }
+
   async recordRunbooksGenerated(): Promise<void> {
     await this.updateState(s => {
       const completed = Array.from(new Set([...s.completedPhases, 4]));
       return { ...s, completedPhases: completed, activePhase: 4 };
+    });
+  }
+
+  async recordDbConnection(conn: { dialect: string; host?: string; database?: string; schema?: string; lastConnectedTable?: string }): Promise<void> {
+    await this.updateState(s => {
+      return { ...s, activeDbConnection: conn };
     });
   }
 

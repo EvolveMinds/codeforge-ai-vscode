@@ -2,6 +2,35 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.18.0] — 2026-08-26
+
+### Forward-Deployed Engineers Delivery Studio 2.0 & Multi-Cloud Hub
+* **Branding & Enterprise Identity**: Renamed to **Forward-Deployed Engineers Delivery Studio (Beta)** by **Evolve Mind Solutions Pty Ltd** ([https://www.evolveminds.com.au/](https://www.evolveminds.com.au/)), establishing an enterprise-grade frontline delivery workbench for high-velocity client deployments.
+* **1-Click Live Database & Warehouse Direct Introspection**: Connect directly to live databases and cloud data warehouses to pull schemas in real-time:
+  * **Supported Dialects**: PostgreSQL, Supabase, Redshift, Snowflake, Google BigQuery, MySQL, MariaDB, Microsoft SQL Server, and SQLite (local `.db` file introspection).
+  * **Auto-Discovery**: Automatically inspects `.env` and `dbt_project.yml` profiles in the workspace (`DATABASE_URL`, `POSTGRES_URL`, `SNOWFLAKE_ACCOUNT`, `BIGQUERY_PROJECT_ID`, etc.).
+  * **Non-Destructive Metadata Queries**: Uses read-only `INFORMATION_SCHEMA.COLUMNS` or `PRAGMA table_info` to instantly extract and format field types directly into the Semantic Schema Mapper.
+* **Enterprise Hardware-Encrypted Secret Storage (`vscode.SecretStorage`)**:
+  * Securely stores database passwords and connection strings using VS Code's OS-level hardware encryption vault (Windows DPAPI, macOS Keychain, Linux libsecret).
+  * Zero plaintext credentials written to git, workspace files, or logs.
+  * Interactive masked inputs with show/hide eye toggles and a 1-click **Wipe Vault Secrets** purge utility.
+* **Cross-Model Dimensional Mart Join Builder**:
+  * Step 1 sub-panel allowing engineers to join multiple dbt staging models into dimensional marts and fact tables.
+  * Configurable join types (`LEFT JOIN`, `INNER JOIN`, `RIGHT JOIN`, `FULL OUTER JOIN`, `CROSS JOIN`), custom ON predicates, dimensions, and aggregate metrics (`SUM`, `COUNT(DISTINCT)`, `AVG`).
+  * Emits production dbt SQL (`models/marts/dim_client_mart.sql`) with automatic project registry.
+* **Dedicated Git & Bitbucket / GitHub Remote & Terminal Hub**:
+  * Dedicated interactive terminal (`🚀 FDE: Git Hub`) for full streaming visibility on `Sync & Fetch` and `1-Click Commit & Push`.
+  * **`[ ⚙️ Git Setup ]`** drawer with remote origin configuration (`git remote add/set-url`).
+  * Instant SSH connectivity diagnostics for both **Bitbucket (`git@bitbucket.org`)** and **GitHub (`git@github.com`)** with live terminal output.
+* **Multi-Cloud Connection & Auth Hub (`☁️ Cloud Hub & Connect`)**:
+  * Visual status cards for **Google Cloud (GCP)**, **Amazon AWS**, **Microsoft Azure**, and **Docker Engine**.
+  * Displays active account email, current cloud project ID / IAM Role ARN, and real-time connectivity status.
+  * 1-Click interactive browser SSO login triggers (`gcloud auth login`, `aws configure`, `az login`) executed directly in the dedicated `🚀 FDE: Cloud Auth` terminal.
+* **Zero-Lag Client Navigation & Headless DOM Verification**:
+  * Instant client-side DOM switching for tabs and phases with 0ms UI delay.
+  * Automated VM syntax parser to guarantee zero HTML template collision or script parsing errors.
+  * Comprehensive 31-test FDE unit test suite passing with 100% success.
+
 ## [2.17.2] — 2026-08-26
 
 ### Multi-Engagement Studio, Reset & Redo, and Enhanced Runbook Factory

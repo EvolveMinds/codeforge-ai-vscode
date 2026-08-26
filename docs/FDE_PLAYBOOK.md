@@ -1,8 +1,9 @@
-# Forward Deployed Engineer (FDE) — Engagement Roadmap & Playbook
+# Forward-Deployed Engineers (FDE) — Engagement Roadmap & Playbook
 
 > **The Frontline Operating Guide for Client Pilots, Integrations & Production Deployments**
+> *Published by [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)*
 
-This guide provides a diagrammatic, step-by-step roadmap for Forward Deployed Engineers (FDEs) using Evolve AI during client engagements.
+This guide provides a diagrammatic, step-by-step roadmap for Forward-Deployed Engineers (FDEs) using Evolve AI during client engagements.
 
 ---
 

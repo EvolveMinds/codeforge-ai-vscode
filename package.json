@@ -1,8 +1,8 @@
 {
   "name": "evolve-ai",
   "displayName": "Evolve AI",
-  "description": "The AI coding, data engineering & Forward Deployed Engineer (FDE) studio. Built for forward deployed engineers, data engineers & DevOps. 4-phase FDE Delivery Studio (foreign schema mapping to dbt/Spark, resilient client API SDKs, Firebase Hosting & Cloud Run pilot deployment, 100% deterministic pre-flight health auditor, and client handoff runbooks with Mermaid diagrams). Zero-AI Offline & Air-Gapped Suite (multi-dialect SQL formatter, dataset profiler, Cron/Regex workbench). Code Convertor across 26 languages with side-by-side review & fidelity reports. Block-by-block data reports from CSV/Excel/Parquet/SQL. dbt lineage + impact analysis, BigQuery/Databricks query cost preview, Airflow DAG simulator, CI/CD pipeline wizard, and one-click Git Connect.",
-  "version": "2.17.2",
+  "description": "Forward-Deployed Engineers Delivery Studio & AI Data Engineering Platform by Evolve Mind Solutions Pty Ltd. End-to-end frontline delivery system: Live Database Introspector, foreign schema mapping to dbt/PySpark, dimensional mart join builder, resilient client API SDKs (TypeScript/Python), Multi-Cloud Connection & Auth Hub (GCP, AWS, Azure, Docker), pilot deployment scaffolder, 100% deterministic pre-flight health auditor, and client handoff runbooks with Mermaid architecture diagrams.",
+  "version": "2.18.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
@@ -1476,7 +1476,7 @@
       },
       {
         "command": "aiForge.fde.openCockpit",
-        "title": "FDE: Open Delivery Studio (Beta)",
+        "title": "FDE: Open Forward-Deployed Engineers Delivery Studio (Beta)",
         "category": "Evolve AI"
       },
       {
