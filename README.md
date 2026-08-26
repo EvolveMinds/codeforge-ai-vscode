@@ -45,6 +45,34 @@ If you are a **Forward-Deployed Engineer (FDE)** or solutions architect deliveri
 - **Git Hub & Multi-Cloud Connection** — Integrated interactive terminal streaming for Bitbucket & GitHub, and live status / SSO authentication for Google Cloud, AWS, Azure, and Docker.
 - **14-Day Delivery Roadmap & Playbook** — Built-in visual guide and step-by-step operational playbook for running client pilots. → [docs/FDE_PLAYBOOK.md](docs/FDE_PLAYBOOK.md)
 
+### 100% Out-of-the-Box Built-in Deterministic Engines (Zero AI Required!)
+
+Every single generator, mapper, and scaffolder in the **Forward-Deployed Engineers Delivery Studio** is powered by **built-in deterministic engines**. 
+
+**You do NOT need any external AI API keys, internet connection, or token subscriptions to execute all Studio activities:**
+
+| Studio Activity | How It Works Under the Hood | Needs External AI? |
+| :--- | :--- | :---: |
+| **Phase 1: Live DB Introspect & Schema Mapper** | Native `INFORMATION_SCHEMA` queries + heuristic Levenshtein/synonym field matcher + dbt/PySpark AST compiler. | ❌ **No (100% Built-in)** |
+| **Phase 1: Dimensional Mart Join Builder** | Deterministic SQL compiler generating CTEs, join predicates, and dimensional aggregate metrics. | ❌ **No (100% Built-in)** |
+| **Phase 2: Client API Studio** | Deterministic OpenAPI & cURL parser + typed TypeScript/Python resilient SDK template engine. | ❌ **No (100% Built-in)** |
+| **Phase 3: Pre-Flight Health Auditor** | 100% offline static analyzer (scans for secret leaks, dangling `.bak`/`.tmp` files, `.env` parity). | ❌ **No (100% Built-in)** |
+| **Phase 3: Multi-Cloud Scaffolder** | Deterministic generator producing Terraform HCL, Kubernetes manifests, Docker Compose, & Firebase configs. | ❌ **No (100% Built-in)** |
+| **Phase 4: Runbook & Diagram Factory** | Deterministic Markdown compiler with dynamic Mermaid.js system architecture and sequence diagrams. | ❌ **No (100% Built-in)** |
+| **Git & Multi-Cloud Auth Hub** | Direct OS-level terminal execution via official `git`, `ssh`, `gcloud`, `aws`, `az`, `docker` CLIs. | ❌ **No (100% Built-in)** |
+
+> [!TIP]
+> **Why this matters for Enterprise FDEs:**  
+> When working inside client banking, healthcare, or defense VPCs where sending customer data to external LLMs is strictly prohibited, the studio runs in **100% Air-Gapped Mode** with zero external network leakage.
+
+---
+
+### Optional AI Augmentation (Inbuilt Local AI or Cloud LLMs)
+
+When you need AI for natural language prompts, custom business logic, or automated refactoring in the sidebar chat, Evolve AI provides full flexibility:
+* **Local Inbuilt AI (100% Free & Private)**: Google Gemma 4 (multimodal via Ollama), Qwen 2.5 Coder, DeepSeek, or Colibri/GLM-5.2 running on your laptop.
+* **Enterprise Cloud LLMs (Bring-Your-Own-Key)**: Anthropic Claude (Claude 3.7 Sonnet), Google Gemini (Gemini 2.0 / 1.5 Pro), OpenAI (GPT-4o), Groq, and custom endpoints.
+
 ---
 
 ## Get Started in 60 Seconds
