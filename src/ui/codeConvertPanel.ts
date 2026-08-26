@@ -211,131 +211,202 @@ export class CodeConvertPanel {
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 20px 24px 40px; max-width: 760px; }
-  h1 { font-size: 18px; margin: 0 0 2px; }
-  .sub { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 0 0 20px; line-height: 1.5; }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--vscode-descriptionForeground);
-       margin: 22px 0 8px; display: flex; align-items: baseline; gap: 8px; }
+  :root {
+    color-scheme: light dark;
+    --bg: var(--vscode-editor-background, #1e1e1e);
+    --fg: var(--vscode-editor-foreground, #d4d4d4);
+    --card-bg: var(--vscode-editorWidget-background, #252526);
+    --card-alt: var(--vscode-sideBar-background, #2a2d2e);
+    --border: var(--vscode-widget-border, #3c3c3c);
+    --accent: var(--vscode-textLink-foreground, #4ec9b0);
+    --accent-hover: #3ca08c;
+    --success: #4ec9b0;
+    --warn: #cca700;
+    --error: #f14c4c;
+  }
+  body {
+    font-family: var(--vscode-font-family);
+    color: var(--fg);
+    background: var(--bg);
+    padding: 20px 28px 48px;
+    max-width: 820px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  h1 { font-size: 19px; margin: 0; font-weight: 700; }
+  .sub { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 0 0 20px; line-height: 1.55; }
+  h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent);
+       margin: 22px 0 10px; display: flex; align-items: baseline; gap: 8px; }
   h2 .note { text-transform: none; letter-spacing: 0; font-size: 11px; opacity: .85; }
   .row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .card { flex: 1 1 210px; text-align: left; background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground); border: 1px solid var(--vscode-widget-border, transparent);
-    border-radius: 8px; padding: 11px 13px; cursor: pointer; font: inherit; }
-  .card:hover { background: var(--vscode-list-hoverBackground); }
-  .card .t { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
-  .card .d { font-size: 11px; color: var(--vscode-descriptionForeground); }
+  .card {
+    flex: 1 1 210px; text-align: left; background: var(--card-bg);
+    color: var(--fg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; cursor: pointer; font: inherit;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .card:hover {
+    border-color: var(--accent);
+    background: var(--card-alt);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  }
+  .card .t { font-weight: 700; font-size: 12.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px; }
+  .card .d { font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
 
-  #srcbox { margin-top: 12px; border: 1px solid var(--vscode-widget-border, #8883); border-radius: 8px;
-    padding: 4px; min-height: 40px; max-height: 210px; overflow: auto; }
-  .srow { display: flex; align-items: center; gap: 8px; padding: 5px 8px; font-size: 12px; border-radius: 5px; }
-  .srow:hover { background: var(--vscode-list-hoverBackground); }
-  .srow .p { font-family: var(--vscode-editor-font-family); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #srcbox {
+    margin-top: 12px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--card-bg); padding: 6px; min-height: 44px; max-height: 210px; overflow: auto;
+  }
+  .srow { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12px; border-radius: 6px; }
+  .srow:hover { background: var(--card-alt); }
+  .srow .p { font-family: var(--vscode-editor-font-family); flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
   .srow .m { color: var(--vscode-descriptionForeground); font-size: 11px; flex: 0 0 auto; }
   .srow .x { background: none; border: none; color: var(--vscode-descriptionForeground); cursor: pointer;
-    font-size: 14px; line-height: 1; padding: 0 4px; flex: 0 0 auto; }
-  .srow .x:hover { color: var(--vscode-errorForeground); }
-  .empty { color: var(--vscode-descriptionForeground); font-size: 12px; padding: 10px 9px; }
-  #srcmeta { display: flex; align-items: center; gap: 10px; margin-top: 7px; font-size: 11.5px;
+    font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: 4px; flex: 0 0 auto; }
+  .srow .x:hover { color: var(--error); background: rgba(241,76,76,0.15); }
+  .empty { color: var(--vscode-descriptionForeground); font-size: 12px; padding: 12px 10px; }
+  #srcmeta { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 11.5px;
     color: var(--vscode-descriptionForeground); min-height: 18px; }
   .link { background: none; border: none; padding: 0; font-size: 11.5px; cursor: pointer;
-    color: var(--vscode-textLink-foreground); }
-  .link:hover { text-decoration: underline; }
+    color: var(--accent); text-decoration: underline; }
+  .link:hover { opacity: 0.85; }
 
-  #search { width: 100%; box-sizing: border-box; margin: 2px 0 10px; padding: 7px 10px; font: inherit; font-size: 12.5px;
-    border-radius: 6px; background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, transparent); }
-  .glabel { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em;
-    color: var(--vscode-descriptionForeground); margin: 10px 0 5px; opacity: .8; }
+  #search {
+    width: 100%; box-sizing: border-box; margin: 2px 0 10px; padding: 8px 12px; font: inherit; font-size: 12.5px;
+    border-radius: 6px; background: var(--card-bg); color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  #search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .glabel { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--vscode-descriptionForeground); margin: 12px 0 6px; opacity: .85; }
   .tgrid { display: flex; gap: 6px; flex-wrap: wrap; }
-  .lang { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 11px; font: inherit; font-size: 12.5px;
-    border-radius: 6px; cursor: pointer; background: transparent; color: var(--vscode-foreground);
-    border: 1px solid var(--vscode-widget-border, #8884); }
-  .lang:hover { border-color: var(--vscode-focusBorder); }
-  .lang.on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border-color: transparent; font-weight: 600; }
-  .lang .lext { font-size: 10.5px; opacity: .65; font-family: var(--vscode-editor-font-family); }
-  .lang.on .lext { opacity: .8; }
+  .lang {
+    display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; font: inherit; font-size: 12px;
+    border-radius: 6px; cursor: pointer; background: var(--card-bg); color: var(--fg);
+    border: 1px solid var(--border); transition: all 0.15s ease;
+  }
+  .lang:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .lang.on {
+    background: var(--accent); color: #1e1e1e; border-color: var(--accent); font-weight: 700;
+    box-shadow: 0 2px 8px rgba(78, 201, 176, 0.3);
+  }
+  .lang .lext { font-size: 10px; opacity: .7; font-family: var(--vscode-editor-font-family); }
+  .lang.on .lext { opacity: .85; }
   .tgroup.hide, .lang.hide { display: none; }
 
   .ocards { display: flex; gap: 8px; flex-wrap: wrap; }
-  .ocard { flex: 1 1 210px; display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 12px;
-    font: inherit; border-radius: 7px; cursor: pointer; background: transparent; color: var(--vscode-foreground);
-    border: 1px solid var(--vscode-widget-border, #8884); }
-  .ocard:hover { border-color: var(--vscode-focusBorder); }
-  .ocard.on { border-color: var(--vscode-focusBorder); background: var(--vscode-list-activeSelectionBackground);
-    color: var(--vscode-list-activeSelectionForeground); }
-  .ocard .ot { font-size: 12.5px; font-weight: 600; }
+  .ocard {
+    flex: 1 1 210px; display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 11px 13px;
+    font: inherit; border-radius: 7px; cursor: pointer; background: var(--card-bg); color: var(--fg);
+    border: 1px solid var(--border); transition: all 0.15s ease;
+  }
+  .ocard:hover { border-color: var(--accent); }
+  .ocard.on {
+    border-color: var(--accent); background: rgba(78, 201, 176, 0.12);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .ocard .ot { font-size: 12.5px; font-weight: 700; color: var(--fg); }
   .ocard .od { font-size: 11px; opacity: .8; line-height: 1.45; }
 
   /* Model + fit */
-  #modelbox { border: 1px solid var(--vscode-widget-border, #8883); border-radius: 8px; padding: 11px 13px; }
+  #modelbox {
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
+    background: var(--card-alt); margin-top: 10px;
+  }
   .mrow { display: flex; align-items: center; gap: 12px; }
   .mtext { flex: 1 1 auto; min-width: 0; }
-  .mname { font-size: 13px; font-weight: 600; font-family: var(--vscode-editor-font-family); }
+  .mname { font-size: 13px; font-weight: 700; font-family: var(--vscode-editor-font-family); color: var(--fg); }
   .mdetail { font-size: 11.5px; color: var(--vscode-descriptionForeground); margin-top: 2px; }
-  .mbtn { flex: 0 0 auto; font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 6px; cursor: pointer;
-    border: 1px solid transparent; background: var(--vscode-button-secondaryBackground);
-    color: var(--vscode-button-secondaryForeground); }
-  .mbtn:hover { filter: brightness(1.13); }
-  .fit { margin-top: 10px; font-size: 12px; display: none; padding: 6px 10px; border-radius: 5px; }
-  .fit.comfortable { display: block; background: rgba(60,160,90,.13); color: #3ca05a; }
-  .fit.tight       { display: block; background: rgba(210,150,40,.14); color: #d2963c; }
-  .fit.split       { display: block; background: rgba(210,150,40,.14); color: #d2963c; }
-  .fit.impossible  { display: block; background: rgba(200,70,70,.14); color: #c84646; }
+  .mbtn {
+    flex: 0 0 auto; font: inherit; font-size: 11.5px; font-weight: 600; padding: 6px 14px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card-bg); color: var(--fg); transition: all 0.15s ease;
+  }
+  .mbtn:hover { border-color: var(--accent); filter: brightness(1.1); }
+  .fit { margin-top: 10px; font-size: 12px; display: none; padding: 7px 12px; border-radius: 6px; font-weight: 500; }
+  .fit.comfortable { display: block; background: rgba(78,201,176,.15); color: #4ec9b0; border: 1px solid rgba(78,201,176,.3); }
+  .fit.tight       { display: block; background: rgba(210,150,40,.15); color: #d2963c; border: 1px solid rgba(210,150,40,.3); }
+  .fit.split       { display: block; background: rgba(210,150,40,.15); color: #d2963c; border: 1px solid rgba(210,150,40,.3); }
+  .fit.impossible  { display: block; background: rgba(241,76,76,.15); color: #f14c4c; border: 1px solid rgba(241,76,76,.3); }
   .fitadvice { margin-top: 6px; font-size: 11.5px; color: var(--vscode-descriptionForeground); line-height: 1.5; }
   .fitsuggest { margin: 6px 0 0; padding-left: 18px; font-size: 11.5px;
     color: var(--vscode-descriptionForeground); line-height: 1.7; }
   .fitsuggest li { font-family: var(--vscode-editor-font-family); }
 
-  .toggles { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12.5px; }
-  .toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-  .txt { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px; font: inherit; font-size: 12.5px;
-    border-radius: 6px; background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, transparent); }
+  .toggles { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; }
+  .toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; }
+  .txt {
+    width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 12px; font: inherit; font-size: 12px;
+    border-radius: 6px; background: var(--card-bg); color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  .txt:focus { outline: none; border-color: var(--accent); }
   textarea.txt { min-height: 58px; resize: vertical; font-family: var(--vscode-font-family); }
 
-  #actions { margin-top: 22px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  #go { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none;
-    padding: 9px 22px; font: inherit; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }
+  #actions { margin-top: 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  #go {
+    background: var(--accent); color: #1e1e1e; border: none;
+    padding: 10px 26px; font: inherit; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  #go:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(78, 201, 176, 0.35); }
   #go:disabled { opacity: .45; cursor: default; }
-  #cancel { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
-    border: none; padding: 9px 18px; font: inherit; font-size: 13px; border-radius: 6px; cursor: pointer; }
+  #cancel {
+    background: var(--card-bg); color: var(--error); border: 1px solid var(--error);
+    padding: 9px 18px; font: inherit; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer;
+  }
   #busy { display: none; align-items: center; gap: 8px; font-size: 12.5px; }
-  .spin { width: 12px; height: 12px; border: 2px solid var(--vscode-descriptionForeground); border-top-color: transparent;
+  .spin { width: 12px; height: 12px; border: 2px solid var(--accent); border-top-color: transparent;
     border-radius: 50%; display: inline-block; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   #hint { margin-top: 12px; font-size: 11.5px; color: var(--vscode-descriptionForeground); line-height: 1.5; }
   #status { margin-top: 8px; font-size: 12px; color: var(--vscode-descriptionForeground); min-height: 17px; }
-  .safety { margin-top: 14px; font-size: 11.5px; color: var(--vscode-descriptionForeground);
-    border-left: 2px solid var(--vscode-widget-border, #8884); padding: 2px 0 2px 10px; line-height: 1.55; }
+  .safety {
+    margin-top: 16px; font-size: 11.5px; color: var(--vscode-descriptionForeground);
+    border-left: 2px solid var(--accent); padding: 4px 0 4px 12px; line-height: 1.55;
+    background: rgba(78, 201, 176, 0.05); border-radius: 0 6px 6px 0;
+  }
 </style></head><body>
-  <h1>&#8646; Code Converter</h1>
+  <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: var(--fg); display: flex; align-items: center; gap: 8px;">
+          🔀 Code Converter
+        </h1>
+        <span style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">STUDIO</span>
+      </div>
+      <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
+        Built by <a href="https://www.evolveminds.com.au/" style="color: var(--accent); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a> • <span style="opacity: 0.9;">26-Language Cross-Stack Multi-Target Code Translation Engine</span>
+      </div>
+    </div>
+  </div>
+
   <p class="sub">Convert code into another language &mdash; a selection, a file, or a whole folder. You get the converted
   code side by side with the original, plus a report of what was translated exactly, what was approximated, and what
   still needs a human.</p>
 
   <h2>1 &middot; What to convert</h2>
   <div class="row">
-    <button class="card" id="useActive"><div class="t">&#128196; The active file</div><div class="d">Whatever is open in the editor right now</div></button>
-    <button class="card" id="useSel"><div class="t">&#9998; The selected code</div><div class="d">Just the lines you have highlighted</div></button>
-    <button class="card" id="browseFiles"><div class="t">&#128193; Choose files&hellip;</div><div class="d">One or many &mdash; converted together, so cross-file references survive</div></button>
-    <button class="card" id="browseFolder"><div class="t">&#128194; Choose a folder&hellip;</div><div class="d">Port a module or a whole small project, structure preserved</div></button>
+    <button class="card" id="useActive"><div class="t">📄 The active file</div><div class="d">Whatever is open in the editor right now</div></button>
+    <button class="card" id="useSel"><div class="t">✏️ The selected code</div><div class="d">Just the lines you have highlighted</div></button>
+    <button class="card" id="browseFiles"><div class="t">📁 Choose files&hellip;</div><div class="d">One or many &mdash; converted together, so cross-file references survive</div></button>
+    <button class="card" id="browseFolder"><div class="t">📂 Choose a folder&hellip;</div><div class="d">Port a module or a whole small project, structure preserved</div></button>
   </div>
   <div id="srcbox"><div class="empty">Nothing queued yet &mdash; pick a source above.</div></div>
   <div id="srcmeta"><span id="detected"></span><button class="link" id="clearSrc" style="display:none;">Clear all</button></div>
 
-  <h2>2 &middot; Convert to <span class="note" id="targetNote"></span></h2>
+  <h2>2 &middot; Convert to target <span class="note" id="targetNote"></span></h2>
   <input id="search" type="text" placeholder="Filter languages&hellip;" />
   <div id="targets">${targetHtml}</div>
   <input id="framework" class="txt" type="text" placeholder="Optional &mdash; target framework or runtime, e.g. &quot;FastAPI&quot;, &quot;.NET 8&quot;, &quot;Spring Boot&quot;, &quot;React&quot;" />
 
-  <h2>3 &middot; How faithful</h2>
+  <h2>3 &middot; Translation fidelity</h2>
   <div class="ocards" id="fidelity">${radioCards('fidelity', c.fidelity, d.fidelity)}</div>
 
-  <h2>4 &middot; Dependencies</h2>
+  <h2>4 &middot; Dependencies &amp; tests</h2>
   <div class="ocards" id="dependencies">${radioCards('dependencies', c.dependencies, d.dependencies)}</div>
 
-  <h2>5 &middot; AI model</h2>
+  <h2>5 &middot; AI engine &amp; model fit</h2>
   <div id="modelbox">
     <div class="mrow">
       <div class="mtext">
@@ -350,21 +421,20 @@ export class CodeConvertPanel {
   </div>
 
   <div class="toggles">
-    <label><input type="checkbox" id="tests"${d.includeTests ? ' checked' : ''}/> Also generate tests</label>
+    <label><input type="checkbox" id="tests"${d.includeTests ? ' checked' : ''}/> Also generate unit tests</label>
     <label><input type="checkbox" id="comments"${d.keepComments ? ' checked' : ''}/> Carry comments across</label>
     <label><input type="checkbox" id="manifest"${d.emitManifest ? ' checked' : ''}/> Emit dependency manifest</label>
   </div>
   <textarea id="notes" class="txt" placeholder="Anything else the conversion must respect &mdash; e.g. &quot;keep the CLI flags identical&quot;, &quot;must run on Java 11&quot;, &quot;no external HTTP client&quot;"></textarea>
 
   <div id="actions">
-    <button id="go" disabled>Convert &rarr;</button>
+    <button id="go" disabled>⚡ Convert Code &rarr;</button>
     <button id="cancel" style="display:none;">&#9632; Stop</button>
     <div id="busy"><span class="spin"></span><span id="busymsg"></span><span id="elapsed"></span></div>
   </div>
   <div id="status"></div>
   <div id="hint"></div>
-  <div class="safety">Nothing is written to disk here. The conversion opens in a review where you see it beside the
-  original, refine it in plain language, and choose what to save.</div>
+  <div class="safety"><strong>🔒 Safe &amp; Non-Destructive:</strong> Nothing is written to disk here. The conversion opens in a side-by-side review where you inspect the diff, refine in plain language, and choose what to save.</div>
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();

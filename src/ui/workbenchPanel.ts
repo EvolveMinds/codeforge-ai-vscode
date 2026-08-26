@@ -145,6 +145,16 @@ export class WorkbenchPanel {
 </style>
 </head>
 <body>
+  <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--vscode-widget-border, #333); padding-bottom:10px; margin-bottom:14px;">
+    <div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <h2 style="margin:0; font-size:18px; font-weight:700;">🛠️ Offline Dev Workbench</h2>
+        <span style="background:rgba(78,201,176,0.15); color:#4ec9b0; border:1px solid rgba(78,201,176,0.4); padding:2px 8px; border-radius:12px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;">STUDIO</span>
+      </div>
+      <div style="font-size:11.5px; opacity:0.8; margin-top:3px;">Built by <a href="https://www.evolveminds.com.au/" style="color:var(--vscode-textLink-foreground, #4ec9b0); text-decoration:underline; font-weight:600;">Evolve Mind Solutions Pty Ltd</a> &bull; 100% Air-Gapped Cron Parser &amp; Regex Engine</div>
+    </div>
+  </div>
+
   <div class="tabs">
     <div class="tab ${this._activeTab === 'cron' ? 'active' : ''}" onclick="setTab('cron')">⏱️ Cron Schedule Visualizer</div>
     <div class="tab ${this._activeTab === 'regex' ? 'active' : ''}" onclick="setTab('regex')">🔍 Regex Tester</div>

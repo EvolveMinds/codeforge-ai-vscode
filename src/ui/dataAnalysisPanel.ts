@@ -229,60 +229,103 @@ export class DataAnalysisPanel {
     return `<!DOCTYPE html><html><head><meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
     <style>
-      :root { color-scheme: light dark; }
-      body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); padding: 20px 24px; max-width: 720px; }
-      h1 { font-size: 18px; margin: 0 0 2px; }
-      .sub { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 0 0 14px; }
+      :root {
+        color-scheme: light dark;
+        --bg: var(--vscode-editor-background, #1e1e1e);
+        --fg: var(--vscode-editor-foreground, #d4d4d4);
+        --card-bg: var(--vscode-editorWidget-background, #252526);
+        --card-alt: var(--vscode-sideBar-background, #2a2d2e);
+        --border: var(--vscode-widget-border, #3c3c3c);
+        --accent: var(--vscode-textLink-foreground, #4ec9b0);
+        --accent-hover: #3ca08c;
+        --success: #4ec9b0;
+        --warn: #cca700;
+        --error: #f14c4c;
+      }
+      body {
+        font-family: var(--vscode-font-family);
+        color: var(--fg);
+        background: var(--bg);
+        padding: 20px 28px 48px;
+        max-width: 820px;
+        margin: 0 auto;
+        line-height: 1.5;
+      }
+      h1 { font-size: 19px; margin: 0; font-weight: 700; }
+      .sub { color: var(--vscode-descriptionForeground); font-size: 12px; margin: 0 0 16px; line-height: 1.55; }
       .model-banner {
-        margin: 0 0 16px; padding: 10px 13px; border-radius: 8px;
-        border: 1px solid var(--vscode-widget-border, #8883);
-        background: var(--vscode-list-hoverBackground);
+        margin: 0 0 18px; padding: 12px 16px; border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card-alt);
       }
       .model-banner.suboptimal {
-        border-color: var(--vscode-editorWarning-foreground, #cca700);
-        background: var(--vscode-inputValidation-warningBackground, rgba(255, 204, 0, 0.1));
+        border-color: var(--warn);
+        background: rgba(204, 167, 0, 0.1);
       }
-      .model-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
-      .model-pill { font-weight: 600; font-size: 12px; font-family: var(--vscode-editor-font-family); }
-      .badge { font-size: 10.5px; padding: 1px 7px; border-radius: 999px; font-weight: 500; }
-      .badge-ok { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); }
-      .badge-warn { background: var(--vscode-editorWarning-foreground, #cca700); color: #000; font-weight: 600; }
-      .model-summary { font-size: 11.5px; color: var(--vscode-descriptionForeground); margin-bottom: 3px; line-height: 1.4; }
-      .model-rec { font-size: 11.5px; font-weight: 500; color: var(--vscode-foreground); margin-top: 3px; }
-      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--vscode-descriptionForeground); margin: 20px 0 8px; }
+      .model-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+      .model-pill { font-weight: 700; font-size: 12.5px; font-family: var(--vscode-editor-font-family); color: var(--fg); }
+      .badge { font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
+      .badge-ok { background: rgba(78, 201, 176, 0.18); color: var(--success); border: 1px solid rgba(78, 201, 176, 0.4); }
+      .badge-warn { background: rgba(204, 167, 0, 0.2); color: var(--warn); border: 1px solid rgba(204, 167, 0, 0.4); }
+      .model-summary { font-size: 11.5px; color: var(--vscode-descriptionForeground); margin-bottom: 4px; line-height: 1.4; }
+      .model-rec { font-size: 11.5px; font-weight: 600; color: var(--fg); margin-top: 3px; }
+      h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px; }
       .row { display: flex; gap: 10px; flex-wrap: wrap; }
-      .card { flex: 1 1 200px; text-align: left; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
-        border: 1px solid var(--vscode-widget-border, transparent); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
-      .card:hover { background: var(--vscode-list-hoverBackground); }
-      .card .t { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
-      .card .d { font-size: 11px; color: var(--vscode-descriptionForeground); }
-      #drop { border: 1.5px dashed var(--vscode-widget-border, #8888); border-radius: 8px; padding: 22px; text-align: center;
-        color: var(--vscode-descriptionForeground); font-size: 13px; margin-top: 10px; }
-      #drop.over { border-color: var(--vscode-focusBorder); background: var(--vscode-list-hoverBackground); color: var(--vscode-foreground); }
-      .wsfiles { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; }
-      .wsfile { display: flex; align-items: center; gap: 8px; text-align: left; background: transparent; color: var(--vscode-foreground);
-        border: none; border-radius: 4px; padding: 6px 8px; cursor: pointer; font-size: 12px; }
-      .wsfile:hover { background: var(--vscode-list-hoverBackground); }
-      .wsfile.sel { background: var(--vscode-list-activeSelectionBackground); color: var(--vscode-list-activeSelectionForeground); }
+      .card {
+        flex: 1 1 200px; text-align: left; background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border); border-radius: 8px; padding: 13px 15px; cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .card:hover {
+        border-color: var(--accent);
+        background: var(--card-alt);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+      }
+      .card .t { font-weight: 700; font-size: 12.5px; margin-bottom: 3px; }
+      .card .d { font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.4; }
+      #drop {
+        border: 1.5px dashed var(--border); border-radius: 8px; padding: 22px; text-align: center;
+        color: var(--vscode-descriptionForeground); font-size: 12.5px; margin-top: 10px;
+        background: rgba(78, 201, 176, 0.03); transition: all 0.2s ease;
+      }
+      #drop.over { border-color: var(--accent); background: rgba(78, 201, 176, 0.12); color: var(--fg); }
+      .wsfiles { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow: auto; margin-top: 6px; }
+      .wsfile { display: flex; align-items: center; gap: 8px; text-align: left; background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; cursor: pointer; font-size: 12px; transition: all 0.15s ease; }
+      .wsfile:hover { border-color: var(--accent); background: var(--card-alt); }
+      .wsfile.sel { border-color: var(--accent); background: rgba(78, 201, 176, 0.15); font-weight: 600; }
       .wsfile .rel { font-family: var(--vscode-editor-font-family); }
       .muted { color: var(--vscode-descriptionForeground); font-size: 12px; padding: 8px 2px; }
       #selected { margin: 14px 0 4px; font-size: 13px; }
-      #selected .pill { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); padding: 2px 8px; border-radius: 10px; font-family: var(--vscode-editor-font-family); }
-      .deliv { display: flex; gap: 8px; flex-wrap: wrap; }
-      .deliv button { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
-        border: 1px solid transparent; border-radius: 999px; padding: 6px 14px; font-size: 12px; cursor: pointer; }
-      .deliv button.on { background: var(--vscode-button-background); color: var(--vscode-button-foreground); }
-      #focus { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 10px; font-size: 13px; border-radius: 6px;
-        background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border, transparent); }
-      #go { margin-top: 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none;
-        padding: 9px 20px; font-size: 13px; font-weight: 600; border-radius: 6px; cursor: pointer; }
-      #go:disabled { opacity: .5; cursor: default; }
-      #cancel { margin-top: 16px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
-        border: none; padding: 9px 20px; font-size: 13px; border-radius: 6px; cursor: pointer; }
+      #selected .pill { background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.4); padding: 3px 10px; border-radius: 12px; font-family: var(--vscode-editor-font-family); font-weight: 600; }
+      .deliv { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+      .deliv button {
+        background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border); border-radius: 999px; padding: 7px 16px; font-size: 12px; font-weight: 600; cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .deliv button:hover { border-color: var(--accent); transform: translateY(-1px); }
+      .deliv button.on {
+        background: var(--accent); color: #1e1e1e; border-color: var(--accent); font-weight: 700;
+        box-shadow: 0 2px 8px rgba(78, 201, 176, 0.3);
+      }
+      #focus { width: 100%; box-sizing: border-box; margin-top: 10px; padding: 9px 12px; font-size: 12.5px; border-radius: 6px;
+        background: var(--card-bg); color: var(--fg); border: 1px solid var(--border); }
+      #focus:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+      #go {
+        margin-top: 18px; background: var(--accent); color: #1e1e1e; border: none;
+        padding: 10px 26px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      #go:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(78, 201, 176, 0.35); }
+      #go:disabled { opacity: .45; cursor: default; }
+      #cancel { margin-top: 18px; background: var(--card-bg); color: var(--error); border: 1px solid var(--error);
+        padding: 9px 18px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer; }
       .hint { margin-top: 12px; font-size: 11px; color: var(--vscode-descriptionForeground); line-height: 1.5; min-height: 0; }
       #busy { margin-top: 14px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-      #busy #busymsg { color: var(--vscode-foreground); }
-      .spin { width: 12px; height: 12px; border: 2px solid var(--vscode-descriptionForeground); border-top-color: transparent;
+      #busy #busymsg { color: var(--fg); font-weight: 500; }
+      .spin { width: 12px; height: 12px; border: 2px solid var(--accent); border-top-color: transparent;
         border-radius: 50%; display: inline-block; animation: spin 0.8s linear infinite; flex: 0 0 auto; }
       @keyframes spin { to { transform: rotate(360deg); } }
       #status { margin-top: 10px; font-size: 12px; color: var(--vscode-descriptionForeground); min-height: 16px; }
@@ -291,84 +334,98 @@ export class DataAnalysisPanel {
       .optrow { display: flex; align-items: center; gap: 10px; margin-top: 9px; flex-wrap: wrap; }
       .optrow > label { flex: 0 0 92px; font-size: 12px; color: var(--vscode-descriptionForeground); }
       .optrow select, .optrow input[type=text] {
-        flex: 1 1 200px; padding: 6px 9px; font: inherit; font-size: 12.5px; border-radius: 6px;
-        background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-        border: 1px solid var(--vscode-input-border, transparent);
+        flex: 1 1 200px; padding: 7px 10px; font: inherit; font-size: 12px; border-radius: 6px;
+        background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border);
       }
       .optrow input[type=color] {
-        width: 34px; height: 28px; padding: 0; border-radius: 6px; cursor: pointer;
-        background: transparent; border: 1px solid var(--vscode-input-border, #8884);
+        width: 36px; height: 30px; padding: 0; border-radius: 6px; cursor: pointer;
+        background: transparent; border: 1px solid var(--border);
       }
       .opthint { font-size: 11px; color: var(--vscode-descriptionForeground); margin: 3px 0 0 102px; }
       .secs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 0 102px; }
       .secs button {
-        padding: 4px 10px; font-size: 11.5px; border-radius: 999px; cursor: pointer;
-        background: transparent; color: var(--vscode-descriptionForeground);
-        border: 1px solid var(--vscode-widget-border, #8884);
+        padding: 5px 12px; font-size: 11.5px; border-radius: 999px; cursor: pointer; font-weight: 500;
+        background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border); transition: all 0.15s ease;
       }
+      .secs button:hover { border-color: var(--accent); }
       .secs button.on {
-        background: var(--vscode-button-background); color: var(--vscode-button-foreground);
-        border-color: transparent;
+        background: var(--accent); color: #1e1e1e; font-weight: 700;
+        border-color: var(--accent); box-shadow: 0 2px 8px rgba(78, 201, 176, 0.3);
       }
-      .themelink { background: none; border: none; padding: 0; font-size: 11px; cursor: pointer;
-        color: var(--vscode-textLink-foreground); }
-      .themelink:hover { text-decoration: underline; }
+      .themelink { background: none; border: none; padding: 0; font-size: 11.5px; cursor: pointer;
+        color: var(--accent); text-decoration: underline; font-weight: 600; }
+      .themelink:hover { opacity: 0.85; }
       /* Block outline builder + data prep */
-      details { margin-top: 12px; border-top: 1px solid var(--vscode-widget-border, #8883); padding-top: 9px; }
+      details { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
       details > summary {
-        cursor: pointer; font-size: 12px; font-weight: 600; color: var(--vscode-foreground);
+        cursor: pointer; font-size: 12px; font-weight: 700; color: var(--fg);
         list-style: none; display: flex; align-items: center; gap: 8px;
       }
       details > summary::-webkit-details-marker { display: none; }
-      details > summary::before { content: "▸"; color: var(--vscode-descriptionForeground); font-size: 10px; }
+      details > summary::before { content: "▸"; color: var(--accent); font-size: 11px; font-weight: bold; }
       details[open] > summary::before { content: "▾"; }
       .tag {
-        font-size: 10.5px; font-weight: 500; padding: 1px 7px; border-radius: 999px;
-        background: var(--vscode-badge-background); color: var(--vscode-badge-foreground);
+        font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+        background: rgba(78, 201, 176, 0.18); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3);
       }
       .tag:empty { display: none; }
       .blk {
         display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        padding: 7px 9px; margin-top: 6px; border-radius: 7px;
-        background: var(--vscode-list-hoverBackground);
-        border: 1px solid var(--vscode-widget-border, #8883);
+        padding: 8px 10px; margin-top: 6px; border-radius: 7px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
       }
       .blk .ico { font-size: 12px; opacity: .8; width: 14px; text-align: center; }
-      .blk .name { font-size: 12px; font-weight: 600; min-width: 74px; }
+      .blk .name { font-size: 12px; font-weight: 700; min-width: 74px; }
       .blk select, .blk input {
-        padding: 3px 6px; font: inherit; font-size: 11.5px; border-radius: 5px; max-width: 150px;
-        background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-        border: 1px solid var(--vscode-input-border, #8884);
+        padding: 4px 8px; font: inherit; font-size: 11.5px; border-radius: 5px; max-width: 150px;
+        background: var(--card-alt); color: var(--fg);
+        border: 1px solid var(--border);
       }
       .blk input[type=number] { width: 62px; }
       .blk .grow { flex: 1 1 auto; }
       .blk .ops { display: flex; gap: 2px; margin-left: auto; }
       .blk .ops button {
-        background: none; border: none; cursor: pointer; font-size: 12px; padding: 2px 5px; border-radius: 4px;
+        background: none; border: none; cursor: pointer; font-size: 12px; padding: 2px 6px; border-radius: 4px;
         color: var(--vscode-descriptionForeground);
       }
-      .blk .ops button:hover { background: var(--vscode-toolbar-hoverBackground, #8882); color: var(--vscode-foreground); }
-      .blk .ops button.del:hover { color: var(--vscode-errorForeground, #f14c4c); }
-      .addrow { display: flex; align-items: center; gap: 7px; margin-top: 9px; flex-wrap: wrap; }
+      .blk .ops button:hover { background: var(--card-alt); color: var(--fg); }
+      .blk .ops button.del:hover { color: var(--error); }
+      .addrow { display: flex; align-items: center; gap: 7px; margin-top: 10px; flex-wrap: wrap; }
       .addrow .sep { flex: 1 1 auto; }
       .mini {
-        padding: 4px 10px; font-size: 11.5px; border-radius: 6px; cursor: pointer;
-        background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);
-        border: 1px solid transparent;
+        padding: 5px 12px; font-size: 11.5px; font-weight: 600; border-radius: 6px; cursor: pointer;
+        background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border); transition: all 0.15s ease;
       }
-      .mini:hover { filter: brightness(1.12); }
+      .mini:hover { border-color: var(--accent); filter: brightness(1.1); }
       .addrow select, .addrow input[type=number] {
-        padding: 4px 8px; font: inherit; font-size: 11.5px; border-radius: 6px;
-        background: var(--vscode-input-background); color: var(--vscode-input-foreground);
-        border: 1px solid var(--vscode-input-border, #8884);
+        padding: 5px 8px; font: inherit; font-size: 11.5px; border-radius: 6px;
+        background: var(--card-bg); color: var(--fg);
+        border: 1px solid var(--border);
       }
       .addrow input[type=number] { width: 74px; }
       .chk { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--vscode-descriptionForeground); }
       .tplrow { margin-top: 12px; }
-      .coltype { opacity: .55; font-size: 10px; margin-left: 3px; }
+      .coltype { opacity: .65; font-size: 10px; margin-left: 3px; font-family: var(--vscode-editor-font-family); }
     </style></head><body>
-      <h1>📊 Data Analysis</h1>
-      <p class="sub">Point Evolve AI at your data — a file anywhere on your machine, a file in this project, or a database / cloud source — then pick what to build.</p>
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: var(--fg); display: flex; align-items: center; gap: 8px;">
+              📊 Data Analysis &amp; Reporting Studio
+            </h1>
+            <span style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">STUDIO</span>
+          </div>
+          <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
+            Built by <a href="https://www.evolveminds.com.au/" style="color: var(--accent); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a> • <span style="opacity: 0.9;">Autonomous Multi-Engine Data Intelligence &amp; Visual Reporting</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="sub">Point Evolve AI at your data &mdash; a file anywhere on your machine, a file in this project, or a live database / cloud warehouse &mdash; to generate interactive visual reports, Jupyter notebooks, or deep conversational insights.</p>
 
       <div id="modelbox" class="model-banner ${this._verdict?.isOptimal === false ? 'suboptimal' : ''}">
         <div class="model-info">
@@ -380,20 +437,20 @@ export class DataAnalysisPanel {
         <div class="model-rec" id="modelrec" style="${this._verdict?.recommendation ? '' : 'display:none;'}">${escHtml(this._verdict?.recommendation ?? '')}</div>
       </div>
 
-      <h2>1 · Choose your data</h2>
+      <h2>1 · Choose your data source</h2>
       <div class="row">
         <button class="card" id="browse"><div class="t">📁 Browse for a file…</div><div class="d">CSV, Excel, JSON, Parquet — from anywhere on your computer</div></button>
         <button class="card" id="connect"><div class="t">🗄️ Database or cloud source</div><div class="d">BigQuery, Databricks, Cosmos, DynamoDB, S3/GCS/Blob, SQL</div></button>
         <button class="card" id="pipeline"><div class="t">▶️ Run a data pipeline</div><div class="d">A saved multi-step analysis (evolve-data-pipeline.json)</div></button>
       </div>
-      <div id="drop">…or drag &amp; drop a data file here</div>
+      <div id="drop">📁 …or drag &amp; drop a data file directly here</div>
 
       <h2>Or use a file from this workspace</h2>
       <div class="wsfiles" id="wsfiles">${fileRows}</div>
 
       <div id="selected"></div>
 
-      <h2>2 · What to build</h2>
+      <h2>2 · What deliverable to build</h2>
       <div class="deliv" id="deliv">
         <button data-d="insights" class="on">💬 Insights in chat</button>
         <button data-d="report">📈 HTML report</button>
@@ -403,7 +460,7 @@ export class DataAnalysisPanel {
       <input id="focus" type="text" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" />
 
       <div id="reportopts" style="display:none;">
-        <h2>3 · Report options</h2>
+        <h2>3 · Report options &amp; layout</h2>
         <div class="optrow">
           <label for="arch">Format</label>
           <select id="arch">${archOptions}</select>

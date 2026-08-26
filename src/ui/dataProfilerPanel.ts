@@ -255,8 +255,11 @@ export class DataProfilerPanel {
 <body>
   <div class="header">
     <div class="title-group">
-      <h2>📊 ${this._esc(p.fileName)}</h2>
-      <div class="meta">100% Offline Profile &bull; Generated at ${this._esc(new Date(p.generatedAt).toLocaleTimeString())}</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 style="margin: 0; font-size: 19px; font-weight: 700;">📊 ${this._esc(p.fileName)}</h2>
+        <span style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">PROFILER</span>
+      </div>
+      <div class="meta" style="margin-top: 4px;">Built by <a href="https://www.evolveminds.com.au/" style="color: var(--vscode-textLink-foreground, #4ec9b0); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a> &bull; 100% Offline Profile generated at ${this._esc(new Date(p.generatedAt).toLocaleTimeString())}</div>
     </div>
     <div class="btn-group">
       <button onclick="post('exportDbt')">Export dbt Tests</button>
