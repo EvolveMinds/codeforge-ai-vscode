@@ -968,84 +968,161 @@ export class FdeCockpitPanel {
           title: 'Checking cloud provider CLI connections (GCP, AWS, Azure, Docker)...',
           cancellable: false
         }, async () => {
-          let gcpOk = false, gcpAccount = '', gcpProject = '';
-          let awsOk = false, awsAccount = '';
-          let azureOk = false, azureAccount = '';
-          let dockerOk = false, dockerVersion = '';
+          let gcpInstalled = false, gcpOk = false, gcpAccount = '', gcpProject = '';
+          let awsInstalled = false, awsOk = false, awsAccount = '';
+          let azureInstalled = false, azureOk = false, azureAccount = '';
+          let dockerInstalled = false, dockerRunning = false, dockerVersion = '';
 
+          // 1. GCP Check
           try {
-            const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd: ws, timeoutMs: 5000 });
-            if (g && !g.includes('ERROR')) {
-              const parsed = JSON.parse(g);
-              const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
-              if (active) {
-                gcpOk = true;
-                gcpAccount = active.account || '';
+            const gVer = await runForStdout('gcloud', ['--version'], { cwd: ws, timeoutMs: 4000 });
+            gcpInstalled = !!gVer && !gVer.includes('not recognized');
+          } catch {}
+
+          if (gcpInstalled) {
+            try {
+              const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd: ws, timeoutMs: 5000 });
+              if (g && !g.includes('ERROR')) {
+                const parsed = JSON.parse(g);
+                const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
+                if (active) {
+                  gcpOk = true;
+                  gcpAccount = active.account || '';
+                }
               }
-            }
-            const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd: ws, timeoutMs: 3000 });
-            if (gProj) gcpProject = gProj.trim();
+              const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd: ws, timeoutMs: 3000 });
+              if (gProj && !gProj.includes('unset') && !gProj.includes('ERROR')) gcpProject = gProj.trim();
+            } catch {}
+          }
+
+          // 2. AWS Check
+          try {
+            const aVer = await runForStdout('aws', ['--version'], { cwd: ws, timeoutMs: 4000 });
+            awsInstalled = !!aVer && !aVer.includes('not recognized');
           } catch {}
 
-          try {
-            const a = await runForStdout('aws', ['sts', 'get-caller-identity', '--output', 'json'], { cwd: ws, timeoutMs: 5000 });
-            if (a && !a.includes('error')) {
-              const parsed = JSON.parse(a);
-              if (parsed.Arn) {
-                awsOk = true;
-                awsAccount = parsed.Arn.split('/').pop() || parsed.Account || 'Active';
+          if (awsInstalled) {
+            try {
+              const a = await runForStdout('aws', ['sts', 'get-caller-identity', '--output', 'json'], { cwd: ws, timeoutMs: 5000 });
+              if (a && !a.includes('error')) {
+                const parsed = JSON.parse(a);
+                if (parsed.Arn) {
+                  awsOk = true;
+                  awsAccount = parsed.Arn.split('/').pop() || parsed.Account || 'Active';
+                }
               }
-            }
+            } catch {}
+          }
+
+          // 3. Azure Check
+          try {
+            const azVer = await runForStdout('az', ['version'], { cwd: ws, timeoutMs: 4000 });
+            azureInstalled = !!azVer && !azVer.includes('not recognized');
           } catch {}
 
-          try {
-            const az = await runForStdout('az', ['account', 'show', '--output', 'json'], { cwd: ws, timeoutMs: 5000 });
-            if (az && !az.includes('error')) {
-              const parsed = JSON.parse(az);
-              if (parsed.name || parsed.id) {
-                azureOk = true;
-                azureAccount = parsed.user?.name || parsed.name || 'Active';
+          if (azureInstalled) {
+            try {
+              const az = await runForStdout('az', ['account', 'show', '--output', 'json'], { cwd: ws, timeoutMs: 5000 });
+              if (az && !az.includes('error')) {
+                const parsed = JSON.parse(az);
+                if (parsed.name || parsed.id) {
+                  azureOk = true;
+                  azureAccount = parsed.user?.name || parsed.name || 'Active';
+                }
               }
-            }
+            } catch {}
+          }
+
+          // 4. Docker Check
+          try {
+            const dVer = await runForStdout('docker', ['--version'], { cwd: ws, timeoutMs: 4000 });
+            dockerInstalled = !!dVer && !dVer.includes('not recognized');
           } catch {}
 
-          try {
-            const d = await runForStdout('docker', ['version', '--format', '{{.Server.Version}}'], { cwd: ws, timeoutMs: 4000 });
-            if (d && !d.includes('error') && !d.includes('Cannot connect')) {
-              dockerOk = true;
-              dockerVersion = `v${d.trim()}`;
-            }
-          } catch {}
+          if (dockerInstalled) {
+            try {
+              const d = await runForStdout('docker', ['info', '--format', '{{.ServerVersion}}'], { cwd: ws, timeoutMs: 4000 });
+              if (d && !d.includes('error') && !d.includes('Cannot connect') && !d.includes('failed to connect')) {
+                dockerRunning = true;
+                dockerVersion = `v${d.trim()}`;
+              }
+            } catch {}
+          }
 
           this._panel.webview.postMessage({
             type: 'cloudDetailedStatus',
-            gcp: { ok: gcpOk, account: gcpAccount, project: gcpProject },
-            aws: { ok: awsOk, account: awsAccount },
-            azure: { ok: azureOk, account: azureAccount },
-            docker: { ok: dockerOk, version: dockerVersion },
+            gcp: { installed: gcpInstalled, ok: gcpOk, account: gcpAccount, project: gcpProject },
+            aws: { installed: awsInstalled, ok: awsOk, account: awsAccount },
+            azure: { installed: azureInstalled, ok: azureOk, account: azureAccount },
+            docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion },
           });
 
-          vscode.window.showInformationMessage(`Cloud Status — GCP: ${gcpOk ? '✓ Active' : '○ Offline'} | AWS: ${awsOk ? '✓ Active' : '○ Offline'} | Azure: ${azureOk ? '✓ Active' : '○ Offline'} | Docker: ${dockerOk ? '✓ Active' : '○ Offline'}`);
+          const summary = [
+            `GCP: ${gcpOk ? '✓ Active' : (gcpInstalled ? '○ Not Logged In' : '⚠️ CLI Missing')}`,
+            `AWS: ${awsOk ? '✓ Active' : (awsInstalled ? '○ Not Configured' : '⚠️ CLI Missing')}`,
+            `Azure: ${azureOk ? '✓ Active' : (azureInstalled ? '○ Not Logged In' : '⚠️ CLI Missing')}`,
+            `Docker: ${dockerRunning ? '✓ Active' : (dockerInstalled ? '⚠️ Daemon Stopped' : '⚠️ Missing')}`,
+          ].join(' | ');
+
+          vscode.window.showInformationMessage(`Cloud Health — ${summary}`);
         });
         break;
       }
 
       case 'connectCloudAccount': {
         const provider = msg.provider || 'gcp';
+        const action = msg.action || 'login';
         const terminal = this.getOrCreateCloudTerminal();
         terminal.show();
 
+        const isWin = process.platform === 'win32';
+        const isMac = process.platform === 'darwin';
+
         if (provider === 'gcp') {
-          terminal.sendText('gcloud auth login && gcloud auth application-default login');
-          vscode.window.showInformationMessage('🔑 Initiated Google Cloud authentication in terminal...');
+          if (action === 'install') {
+            const cmd = isWin ? 'winget install -e --id Google.CloudSDK' : (isMac ? 'brew install --cask google-cloud-sdk' : 'curl https://sdk.cloud.google.com | bash');
+            terminal.sendText(cmd);
+            vscode.window.showInformationMessage('⬇️ Installing Google Cloud SDK in terminal...');
+          } else {
+            terminal.sendText('gcloud auth login');
+            vscode.window.showInformationMessage('🔑 Initiated Google Cloud authentication in terminal. Follow the browser prompt to log in.');
+          }
         } else if (provider === 'aws') {
-          terminal.sendText('aws configure');
-          vscode.window.showInformationMessage('🔑 Initiated AWS configuration in terminal...');
+          if (action === 'install') {
+            const cmd = isWin ? 'winget install -e --id Amazon.AWSCLI' : (isMac ? 'brew install awscli' : 'sudo apt-get install awscli');
+            terminal.sendText(cmd);
+            vscode.window.showInformationMessage('⬇️ Installing AWS CLI in terminal...');
+          } else {
+            terminal.sendText('aws configure');
+            vscode.window.showInformationMessage('🔑 Enter your AWS Access Key ID and Secret Access Key in the terminal.');
+          }
         } else if (provider === 'azure') {
-          terminal.sendText('az login');
-          vscode.window.showInformationMessage('🔑 Initiated Azure login in terminal...');
+          if (action === 'install') {
+            const cmd = isWin ? 'winget install -e --id Microsoft.AzureCLI' : (isMac ? 'brew install azure-cli' : 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash');
+            terminal.sendText(cmd);
+            vscode.window.showInformationMessage('⬇️ Installing Azure CLI via winget in terminal...');
+          } else {
+            terminal.sendText('az login');
+            vscode.window.showInformationMessage('🔑 Initiated Azure login in terminal. Follow the browser prompt to log in.');
+          }
         } else if (provider === 'docker') {
-          terminal.sendText('docker info');
+          if (action === 'startDocker') {
+            if (isWin) {
+              terminal.sendText('Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" -ErrorAction SilentlyContinue');
+              vscode.window.showInformationMessage('🐳 Launching Docker Desktop application on Windows...');
+            } else if (isMac) {
+              terminal.sendText('open /Applications/Docker.app');
+              vscode.window.showInformationMessage('🐳 Launching Docker Desktop application...');
+            } else {
+              terminal.sendText('sudo systemctl start docker');
+            }
+          } else if (action === 'install') {
+            const cmd = isWin ? 'winget install -e --id Docker.DockerDesktop' : (isMac ? 'brew install --cask docker' : 'curl -fsSL https://get.docker.com | sh');
+            terminal.sendText(cmd);
+            vscode.window.showInformationMessage('⬇️ Installing Docker Desktop in terminal...');
+          } else {
+            terminal.sendText('docker info');
+          }
         }
         break;
       }
@@ -1613,7 +1690,7 @@ export class FdeCockpitPanel {
           <span id="cloudGcpBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
         </div>
         <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudGcpAccount">Account: detecting...</div>
-        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('gcp')">🔑 Connect GCP</button>
+        <button class="btn-quick" id="btnConnectGcp" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('gcp', 'login')">🔑 Connect GCP</button>
       </div>
 
       <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
@@ -1622,7 +1699,7 @@ export class FdeCockpitPanel {
           <span id="cloudAwsBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
         </div>
         <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudAwsAccount">Account: detecting...</div>
-        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('aws')">🔑 Connect AWS</button>
+        <button class="btn-quick" id="btnConnectAws" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('aws', 'login')">🔑 Connect AWS</button>
       </div>
 
       <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
@@ -1631,7 +1708,7 @@ export class FdeCockpitPanel {
           <span id="cloudAzureBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
         </div>
         <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudAzureAccount">Account: detecting...</div>
-        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('azure')">🔑 Connect Azure</button>
+        <button class="btn-quick" id="btnConnectAzure" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('azure', 'login')">🔑 Connect Azure</button>
       </div>
 
       <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
@@ -1640,7 +1717,7 @@ export class FdeCockpitPanel {
           <span id="cloudDockerBadge" style="color: var(--warn); font-size: 10px;">checking...</span>
         </div>
         <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudDockerAccount">Daemon: detecting...</div>
-        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('docker')">🐳 Check Docker</button>
+        <button class="btn-quick" id="btnConnectDocker" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="connectCloud('docker', 'login')">🐳 Check Docker</button>
       </div>
     </div>
 
@@ -2706,9 +2783,9 @@ export class FdeCockpitPanel {
       }
     }
 
-    function connectCloud(provider) {
-      vscode.postMessage({ command: 'connectCloudAccount', provider: provider });
-      showToast('🚀 Opening ' + provider.toUpperCase() + ' authentication terminal...');
+    function connectCloud(provider, action) {
+      vscode.postMessage({ command: 'connectCloudAccount', provider: provider, action: action || 'login' });
+      showToast('🚀 Initiating ' + provider.toUpperCase() + ' ' + (action || 'login') + ' in terminal...');
     }
 
     window.toggleGitSetupDrawer = toggleGitSetupDrawer;
@@ -3150,50 +3227,90 @@ export class FdeCockpitPanel {
           showToast('⚠️ ' + (msg.error || 'Git operation encountered an issue'));
         }
       } else if (msg.type === 'cloudDetailedStatus') {
+        // 1. GCP
         const gcp = msg.gcp;
         const gcpBadge = document.getElementById('cloudGcpBadge');
-        if (gcpBadge && gcp) {
-          gcpBadge.innerText = gcp.ok ? '✓ Connected' : '○ Offline';
-          gcpBadge.style.color = gcp.ok ? 'var(--success)' : 'var(--warn)';
-        }
         const gcpAcc = document.getElementById('cloudGcpAccount');
-        if (gcpAcc && gcp) {
-          gcpAcc.innerText = gcp.ok ? (gcp.account || 'Active') + (gcp.project ? ' (' + gcp.project + ')' : '') : 'Not logged in (Click Connect)';
+        const gcpBtn = document.getElementById('btnConnectGcp');
+        if (gcp) {
+          if (gcp.ok) {
+            if (gcpBadge) { gcpBadge.innerText = '✓ Connected'; gcpBadge.style.color = 'var(--success)'; }
+            if (gcpAcc) gcpAcc.innerText = (gcp.account || 'Active') + (gcp.project ? ' (' + gcp.project + ')' : '');
+            if (gcpBtn) { gcpBtn.innerText = '🔄 Switch / Re-login'; gcpBtn.setAttribute('onclick', "connectCloud('gcp', 'login')"); }
+          } else if (gcp.installed) {
+            if (gcpBadge) { gcpBadge.innerText = '○ Not Logged In'; gcpBadge.style.color = 'var(--warn)'; }
+            if (gcpAcc) gcpAcc.innerText = 'gcloud installed (Click Connect to login)';
+            if (gcpBtn) { gcpBtn.innerText = '🔑 Connect GCP'; gcpBtn.setAttribute('onclick', "connectCloud('gcp', 'login')"); }
+          } else {
+            if (gcpBadge) { gcpBadge.innerText = '⚠️ CLI Missing'; gcpBadge.style.color = 'var(--error)'; }
+            if (gcpAcc) gcpAcc.innerText = 'gcloud CLI not found on system';
+            if (gcpBtn) { gcpBtn.innerText = '⬇️ Install gcloud (winget)'; gcpBtn.setAttribute('onclick', "connectCloud('gcp', 'install')"); }
+          }
         }
 
+        // 2. AWS
         const aws = msg.aws;
         const awsBadge = document.getElementById('cloudAwsBadge');
-        if (awsBadge && aws) {
-          awsBadge.innerText = aws.ok ? '✓ Connected' : '○ Offline';
-          awsBadge.style.color = aws.ok ? 'var(--success)' : 'var(--warn)';
-        }
         const awsAcc = document.getElementById('cloudAwsAccount');
-        if (awsAcc && aws) {
-          awsAcc.innerText = aws.ok ? (aws.account || 'Active') : 'Not configured (Click Connect)';
+        const awsBtn = document.getElementById('btnConnectAws');
+        if (aws) {
+          if (aws.ok) {
+            if (awsBadge) { awsBadge.innerText = '✓ Connected'; awsBadge.style.color = 'var(--success)'; }
+            if (awsAcc) awsAcc.innerText = (aws.account || 'Active');
+            if (awsBtn) { awsBtn.innerText = '🔄 Re-configure AWS'; awsBtn.setAttribute('onclick', "connectCloud('aws', 'login')"); }
+          } else if (aws.installed) {
+            if (awsBadge) { awsBadge.innerText = '○ Not Configured'; awsBadge.style.color = 'var(--warn)'; }
+            if (awsAcc) awsAcc.innerText = 'AWS CLI installed (Click to configure)';
+            if (awsBtn) { awsBtn.innerText = '🔑 Configure AWS'; awsBtn.setAttribute('onclick', "connectCloud('aws', 'login')"); }
+          } else {
+            if (awsBadge) { awsBadge.innerText = '⚠️ CLI Missing'; awsBadge.style.color = 'var(--error)'; }
+            if (awsAcc) awsAcc.innerText = 'AWS CLI not found on system';
+            if (awsBtn) { awsBtn.innerText = '⬇️ Install AWS CLI (winget)'; awsBtn.setAttribute('onclick', "connectCloud('aws', 'install')"); }
+          }
         }
 
+        // 3. Azure
         const az = msg.azure;
         const azBadge = document.getElementById('cloudAzureBadge');
-        if (azBadge && az) {
-          azBadge.innerText = az.ok ? '✓ Connected' : '○ Offline';
-          azBadge.style.color = az.ok ? 'var(--success)' : 'var(--warn)';
-        }
         const azAcc = document.getElementById('cloudAzureAccount');
-        if (azAcc && az) {
-          azAcc.innerText = az.ok ? (az.account || 'Active') : 'Not logged in (Click Connect)';
+        const azBtn = document.getElementById('btnConnectAzure');
+        if (az) {
+          if (az.ok) {
+            if (azBadge) { azBadge.innerText = '✓ Connected'; azBadge.style.color = 'var(--success)'; }
+            if (azAcc) azAcc.innerText = (az.account || 'Active');
+            if (azBtn) { azBtn.innerText = '🔄 Switch Azure Account'; azBtn.setAttribute('onclick', "connectCloud('azure', 'login')"); }
+          } else if (az.installed) {
+            if (azBadge) { azBadge.innerText = '○ Not Logged In'; azBadge.style.color = 'var(--warn)'; }
+            if (azAcc) azAcc.innerText = 'Azure CLI installed (Click to login)';
+            if (azBtn) { azBtn.innerText = '🔑 Connect Azure (az login)'; azBtn.setAttribute('onclick', "connectCloud('azure', 'login')"); }
+          } else {
+            if (azBadge) { azBadge.innerText = '⚠️ CLI Missing'; azBadge.style.color = 'var(--error)'; }
+            if (azAcc) azAcc.innerText = 'Azure CLI (az) not found on system';
+            if (azBtn) { azBtn.innerText = '⬇️ 1-Click Install Azure CLI'; azBtn.setAttribute('onclick', "connectCloud('azure', 'install')"); }
+          }
         }
 
+        // 4. Docker
         const doc = msg.docker;
         const docBadge = document.getElementById('cloudDockerBadge');
-        if (docBadge && doc) {
-          docBadge.innerText = doc.ok ? '✓ Running' : '○ Offline';
-          docBadge.style.color = doc.ok ? 'var(--success)' : 'var(--warn)';
-        }
         const docAcc = document.getElementById('cloudDockerAccount');
-        if (docAcc && doc) {
-          docAcc.innerText = doc.ok ? ('Daemon ' + (doc.version || 'Active')) : 'Docker daemon not running';
+        const docBtn = document.getElementById('btnConnectDocker');
+        if (doc) {
+          if (doc.ok) {
+            if (docBadge) { docBadge.innerText = '✓ Running'; docBadge.style.color = 'var(--success)'; }
+            if (docAcc) docAcc.innerText = 'Engine ' + (doc.version || 'Active') + ' running';
+            if (docBtn) { docBtn.innerText = '🐳 Check Docker Status'; docBtn.setAttribute('onclick', "connectCloud('docker', 'login')"); }
+          } else if (doc.installed) {
+            if (docBadge) { docBadge.innerText = '⚠️ Daemon Stopped'; docBadge.style.color = 'var(--warn)'; }
+            if (docAcc) docAcc.innerText = 'Docker CLI present, app is closed';
+            if (docBtn) { docBtn.innerText = '🐳 Launch Docker Desktop'; docBtn.setAttribute('onclick', "connectCloud('docker', 'startDocker')"); }
+          } else {
+            if (docBadge) { docBadge.innerText = '⚠️ Not Installed'; docBadge.style.color = 'var(--error)'; }
+            if (docAcc) docAcc.innerText = 'Docker Desktop not installed';
+            if (docBtn) { docBtn.innerText = '⬇️ Install Docker Desktop'; docBtn.setAttribute('onclick', "connectCloud('docker', 'install')"); }
+          }
         }
-        showToast('✓ Cloud provider status updated!');
+        showToast('✓ Cloud provider diagnostics updated!');
       } else if (msg.type === 'cloudStatusResult') {
         if (msg.connected) {
           showToast('✓ Cloud Connection Verified: ' + msg.provider);
