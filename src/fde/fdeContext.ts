@@ -59,6 +59,7 @@ export interface DeploymentSession {
 }
 
 export interface FdeEngagementState {
+  id: string;
   clientName: string;
   engagementGoal: string;
   targetVpc: 'gcp-firebase' | 'aws' | 'docker' | 'azure';
@@ -68,16 +69,25 @@ export interface FdeEngagementState {
   apiConnectors: ApiConnectorSession[];
   deployment?: DeploymentSession;
   discoveredEnvVars: string[];
+  createdAt?: number;
+  updatedAt?: number;
 }
 
-const FDE_STATE_KEY = 'evolve.fde.engagementState';
+export interface FdeWorkspaceStore {
+  activeProjectId: string;
+  projects: FdeEngagementState[];
+}
+
+const FDE_STORE_KEY = 'evolve.fde.workspaceStore';
+const FDE_LEGACY_KEY = 'evolve.fde.engagementState';
 
 export class FdeContextManager {
   constructor(private readonly _vsCtx: vscode.ExtensionContext) {}
 
-  getState(): FdeEngagementState {
-    const defaultState: FdeEngagementState = {
-      clientName: 'Client Pilot Engagement',
+  private _createDefaultProject(id = 'proj-default', name = 'Client Pilot Engagement'): FdeEngagementState {
+    return {
+      id,
+      clientName: name,
       engagementGoal: 'Deploy standard platform integration & data pipeline on client infrastructure',
       targetVpc: 'gcp-firebase',
       activePhase: 1,
@@ -85,16 +95,151 @@ export class FdeContextManager {
       schemaMappings: [],
       apiConnectors: [],
       discoveredEnvVars: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
+  }
 
-    return this._vsCtx.workspaceState.get<FdeEngagementState>(FDE_STATE_KEY, defaultState);
+  getStore(): FdeWorkspaceStore {
+    const rawStore = this._vsCtx.workspaceState.get<FdeWorkspaceStore>(FDE_STORE_KEY);
+    if (rawStore && rawStore.projects && rawStore.projects.length > 0) {
+      // Ensure active project exists
+      const activeExists = rawStore.projects.some(p => p.id === rawStore.activeProjectId);
+      if (!activeExists) {
+        rawStore.activeProjectId = rawStore.projects[0].id;
+      }
+      return rawStore;
+    }
+
+    // Migrate from legacy single-state if present
+    const legacy = this._vsCtx.workspaceState.get<FdeEngagementState>(FDE_LEGACY_KEY);
+    if (legacy && legacy.clientName) {
+      const proj: FdeEngagementState = {
+        ...legacy,
+        id: legacy.id || 'proj-1',
+        createdAt: legacy.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      };
+      const store: FdeWorkspaceStore = {
+        activeProjectId: proj.id,
+        projects: [proj],
+      };
+      this._vsCtx.workspaceState.update(FDE_STORE_KEY, store);
+      return store;
+    }
+
+    const defaultProj = this._createDefaultProject();
+    return {
+      activeProjectId: defaultProj.id,
+      projects: [defaultProj],
+    };
+  }
+
+  async saveStore(store: FdeWorkspaceStore): Promise<void> {
+    await this._vsCtx.workspaceState.update(FDE_STORE_KEY, store);
+  }
+
+  getAllProjects(): FdeEngagementState[] {
+    return this.getStore().projects;
+  }
+
+  getState(): FdeEngagementState {
+    const store = this.getStore();
+    return store.projects.find(p => p.id === store.activeProjectId) || store.projects[0];
   }
 
   async updateState(updater: (prev: FdeEngagementState) => FdeEngagementState): Promise<FdeEngagementState> {
-    const current = this.getState();
-    const next = updater(current);
-    await this._vsCtx.workspaceState.update(FDE_STATE_KEY, next);
+    const store = this.getStore();
+    const activeIdx = store.projects.findIndex(p => p.id === store.activeProjectId);
+    const current = activeIdx >= 0 ? store.projects[activeIdx] : store.projects[0];
+    const next = { ...updater(current), updatedAt: Date.now() };
+
+    if (activeIdx >= 0) {
+      store.projects[activeIdx] = next;
+    } else {
+      store.projects.push(next);
+      store.activeProjectId = next.id;
+    }
+
+    await this.saveStore(store);
     return next;
+  }
+
+  async createProject(name: string, targetVpc: 'gcp-firebase' | 'aws' | 'docker' | 'azure' = 'gcp-firebase', goal?: string): Promise<FdeEngagementState> {
+    const store = this.getStore();
+    const newId = `proj-${Date.now().toString(36)}`;
+    const newProj: FdeEngagementState = {
+      id: newId,
+      clientName: name.trim() || 'New Client Engagement',
+      engagementGoal: goal?.trim() || 'Deploy platform integration and pipeline',
+      targetVpc,
+      activePhase: 1,
+      completedPhases: [],
+      schemaMappings: [],
+      apiConnectors: [],
+      discoveredEnvVars: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    store.projects.push(newProj);
+    store.activeProjectId = newId;
+    await this.saveStore(store);
+    return newProj;
+  }
+
+  async switchProject(projectId: string): Promise<FdeEngagementState> {
+    const store = this.getStore();
+    const target = store.projects.find(p => p.id === projectId);
+    if (target) {
+      store.activeProjectId = projectId;
+      await this.saveStore(store);
+      return target;
+    }
+    return this.getState();
+  }
+
+  async deleteProject(projectId: string): Promise<FdeWorkspaceStore> {
+    const store = this.getStore();
+    store.projects = store.projects.filter(p => p.id !== projectId);
+    if (store.projects.length === 0) {
+      const def = this._createDefaultProject();
+      store.projects = [def];
+      store.activeProjectId = def.id;
+    } else if (store.activeProjectId === projectId) {
+      store.activeProjectId = store.projects[0].id;
+    }
+    await this.saveStore(store);
+    return store;
+  }
+
+  async resetCurrentProject(): Promise<FdeEngagementState> {
+    return this.updateState(s => ({
+      ...s,
+      activePhase: 1,
+      completedPhases: [],
+      schemaMappings: [],
+      apiConnectors: [],
+      deployment: undefined,
+      discoveredEnvVars: [],
+      updatedAt: Date.now(),
+    }));
+  }
+
+  async deleteSchemaMapping(sourceName: string): Promise<void> {
+    await this.updateState(s => {
+      const filtered = s.schemaMappings.filter(m => m.sourceName !== sourceName);
+      const completed = filtered.length === 0 ? s.completedPhases.filter(p => p !== 1) : s.completedPhases;
+      return { ...s, schemaMappings: filtered, completedPhases: completed };
+    });
+  }
+
+  async deleteApiConnector(connectorName: string): Promise<void> {
+    await this.updateState(s => {
+      const filtered = s.apiConnectors.filter(c => c.connectorName !== connectorName);
+      const completed = filtered.length === 0 ? s.completedPhases.filter(p => p !== 2) : s.completedPhases;
+      return { ...s, apiConnectors: filtered, completedPhases: completed };
+    });
   }
 
   async recordSchemaMapping(mapping: SchemaMappingSession): Promise<void> {
@@ -120,6 +265,13 @@ export class FdeContextManager {
     });
   }
 
+  async recordRunbooksGenerated(): Promise<void> {
+    await this.updateState(s => {
+      const completed = Array.from(new Set([...s.completedPhases, 4]));
+      return { ...s, completedPhases: completed, activePhase: 4 };
+    });
+  }
+
   async addDiscoveredEnvVars(vars: string[]): Promise<void> {
     await this.updateState(s => {
       const merged = Array.from(new Set([...s.discoveredEnvVars, ...vars]));
@@ -127,3 +279,4 @@ export class FdeContextManager {
     });
   }
 }
+

@@ -4,6 +4,7 @@ import { FdeEngagementState } from '../../../fde/fdeContext';
 
 suite('FDE Suite — RunbookGenerator', () => {
   const dummyState: FdeEngagementState = {
+    id: 'proj-test',
     clientName: 'Acme Health',
     engagementGoal: 'Deploy clinical pipeline',
     targetVpc: 'gcp-firebase',
@@ -58,5 +59,23 @@ suite('FDE Suite — RunbookGenerator', () => {
 
     assert.ok(doc.includes('## Target Model: `stg_patients`'));
     assert.ok(doc.includes('| `patient_id` | `PT_ID` | `string` |'));
+  });
+
+  test('generates environment catalog with secret flags', () => {
+    const doc = RunbookGenerator.generateEnvironmentCatalog(dummyState);
+
+    assert.ok(doc.includes('# Acme Health — Environment Variables & Secrets Reference'));
+    assert.ok(doc.includes('| `API_KEY` | **Yes** | 🔒 Secret |'));
+    assert.ok(doc.includes('| `DATABASE_URL` | **Yes** | Public |'));
+  });
+
+  test('generates complete consolidated handoff package', () => {
+    const doc = RunbookGenerator.generateCompleteHandoffPackage(dummyState);
+
+    assert.ok(doc.includes('# 📦 Acme Health — Complete Engagement Handoff Bundle'));
+    assert.ok(doc.includes('System Architecture & Integration Blueprint'));
+    assert.ok(doc.includes('Operations & Deployment Runbook'));
+    assert.ok(doc.includes('Data Dictionary & Field Mapping Reference'));
+    assert.ok(doc.includes('Environment Variables & Secrets Reference'));
   });
 });

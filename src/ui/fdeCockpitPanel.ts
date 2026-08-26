@@ -90,6 +90,120 @@ export class FdeCockpitPanel {
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     switch (msg.command) {
+      case 'createProject': {
+        const name = msg.projectName || 'New Client Engagement';
+        const vpc = msg.targetVpc || 'gcp-firebase';
+        const goal = msg.engagementGoal || 'Deploy standard platform integration & data pipeline on client infrastructure';
+        await this._contextManager.createProject(name, vpc, goal);
+        vscode.window.showInformationMessage(`✓ Created engagement project: "${name}"`);
+        this._update();
+        break;
+      }
+
+      case 'switchProject': {
+        if (msg.projectId) {
+          await this._contextManager.switchProject(msg.projectId);
+          this._update();
+        }
+        break;
+      }
+
+      case 'requestResetProject': {
+        const state = this._contextManager.getState();
+        const choice = await vscode.window.showWarningMessage(
+          `Are you sure you want to reset engagement "${state.clientName}"? This will clear all mapped schemas, APIs, deployments, and progress so you can redo cleanly.`,
+          { modal: true },
+          'Reset Engagement'
+        );
+        if (choice === 'Reset Engagement') {
+          await this._contextManager.resetCurrentProject();
+          vscode.window.showInformationMessage(`✓ Engagement "${state.clientName}" reset cleanly.`);
+          this._update();
+        }
+        break;
+      }
+
+      case 'resetProject': {
+        await this._contextManager.resetCurrentProject();
+        vscode.window.showInformationMessage('✓ Active engagement project reset cleanly. All steps cleared.');
+        this._update();
+        break;
+      }
+
+      case 'requestDeleteProject': {
+        const state = this._contextManager.getState();
+        const choice = await vscode.window.showWarningMessage(
+          `Are you sure you want to delete engagement project "${state.clientName}"?`,
+          { modal: true },
+          'Delete Engagement'
+        );
+        if (choice === 'Delete Engagement') {
+          await this._contextManager.deleteProject(msg.projectId || state.id);
+          vscode.window.showInformationMessage(`Engagement "${state.clientName}" deleted.`);
+          this._update();
+        }
+        break;
+      }
+
+      case 'deleteProject': {
+        if (msg.projectId) {
+          await this._contextManager.deleteProject(msg.projectId);
+          vscode.window.showInformationMessage('Engagement project deleted.');
+          this._update();
+        }
+        break;
+      }
+
+      case 'requestDeleteSchemaMapping': {
+        if (msg.sourceName) {
+          const choice = await vscode.window.showWarningMessage(
+            `Remove mapped staging model for "${msg.sourceName}"?`,
+            { modal: true },
+            'Remove Model'
+          );
+          if (choice === 'Remove Model') {
+            await this._contextManager.deleteSchemaMapping(msg.sourceName);
+            vscode.window.showInformationMessage(`Removed mapped schema: ${msg.sourceName}`);
+            this._update();
+          }
+        }
+        break;
+      }
+
+      case 'deleteSchemaMapping': {
+        if (msg.sourceName) {
+          await this._contextManager.deleteSchemaMapping(msg.sourceName);
+          vscode.window.showInformationMessage(`Removed mapped schema: ${msg.sourceName}`);
+          this._update();
+        }
+        break;
+      }
+
+      case 'requestDeleteApiConnector': {
+        if (msg.connectorName) {
+          const choice = await vscode.window.showWarningMessage(
+            `Remove client API connector "${msg.connectorName}"?`,
+            { modal: true },
+            'Remove Connector'
+          );
+          if (choice === 'Remove Connector') {
+            await this._contextManager.deleteApiConnector(msg.connectorName);
+            vscode.window.showInformationMessage(`Removed API connector: ${msg.connectorName}`);
+            this._update();
+          }
+        }
+        break;
+      }
+
+      case 'deleteApiConnector': {
+        if (msg.connectorName) {
+          await this._contextManager.deleteApiConnector(msg.connectorName);
+          vscode.window.showInformationMessage(`Removed API connector: ${msg.connectorName}`);
+          this._update();
+        }
+        break;
+      }
+
       case 'updateClientName':
         await this._contextManager.updateState(s => ({ ...s, clientName: msg.clientName }));
         this._update();
@@ -105,7 +219,22 @@ export class FdeCockpitPanel {
           const fullPath = path.join(ws, msg.relativePath);
           if (fs.existsSync(fullPath)) {
             const doc = await vscode.workspace.openTextDocument(fullPath);
-            await vscode.window.showTextDocument(doc);
+            await vscode.window.showTextDocument(doc, { preview: false });
+          } else {
+            vscode.window.showWarningMessage(`File not found: ${msg.relativePath}. Click "Generate All Client Handoff Docs" first.`);
+          }
+        }
+        break;
+      }
+
+      case 'previewMarkdown': {
+        if (ws && msg.relativePath) {
+          const fullPath = path.join(ws, msg.relativePath);
+          if (fs.existsSync(fullPath)) {
+            const uri = vscode.Uri.file(fullPath);
+            await vscode.commands.executeCommand('markdown.showPreviewToSide', uri);
+          } else {
+            vscode.window.showWarningMessage(`File not found: ${msg.relativePath}. Click "Generate All Client Handoff Docs" first.`);
           }
         }
         break;
@@ -133,21 +262,108 @@ export class FdeCockpitPanel {
         break;
       }
 
+      case 'pickSchemaFile': {
+        const fileUris = await vscode.window.showOpenDialog({
+          canSelectMany: false,
+          openLabel: 'Select Data or Schema File',
+          filters: {
+            'Data & Schema Files': ['csv', 'tsv', 'json', 'sql'],
+            'All Files': ['*']
+          }
+        });
+        if (fileUris && fileUris.length > 0) {
+          const filePath = fileUris[0].fsPath;
+          const ext = path.extname(filePath).toLowerCase();
+          const content = fs.readFileSync(filePath, 'utf8');
+          let extractedCols: Array<{ name: string; type: string }> = [];
+
+          if (ext === '.csv' || ext === '.tsv') {
+            const delimiter = ext === '.tsv' ? '\t' : ',';
+            const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+            if (lines.length > 0) {
+              const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, '')).filter(Boolean);
+              const sampleVals = lines.length > 1 ? lines[1].split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, '')) : [];
+              extractedCols = headers.map((h, i) => {
+                const val = sampleVals[i] || '';
+                let type = 'string';
+                if (/^-?\d+$/.test(val)) type = 'integer';
+                else if (/^-?\d*\.\d+$/.test(val)) type = 'float';
+                else if (/^\d{4}-\d{2}-\d{2}/.test(val)) type = 'timestamp';
+                else if (/^(true|false)$/i.test(val)) type = 'boolean';
+                return { name: h, type };
+              });
+            }
+          } else if (ext === '.json') {
+            try {
+              const parsed = JSON.parse(content);
+              const sampleObj = Array.isArray(parsed) ? parsed[0] : parsed;
+              if (sampleObj && typeof sampleObj === 'object') {
+                extractedCols = Object.keys(sampleObj).map(k => {
+                  const val = sampleObj[k];
+                  let type: string = typeof val;
+                  if (val === null) type = 'string';
+                  else if (typeof val === 'number') type = Number.isInteger(val) ? 'integer' : 'float';
+                  else if (typeof val === 'boolean') type = 'boolean';
+                  else if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) type = 'timestamp';
+                  return { name: k, type };
+                });
+              }
+            } catch (e) {
+              vscode.window.showErrorMessage('Failed to parse JSON schema file.');
+            }
+          } else if (ext === '.sql') {
+            const colRegex = /([a-zA-Z0-9_]+)\s+(VARCHAR|TEXT|INT|INTEGER|FLOAT|DOUBLE|NUMERIC|DECIMAL|TIMESTAMP|DATE|BOOLEAN|BIGINT)/gi;
+            let match;
+            while ((match = colRegex.exec(content)) !== null) {
+              extractedCols.push({ name: match[1], type: match[2].toLowerCase() });
+            }
+          }
+
+          if (extractedCols.length > 0) {
+            const colsString = extractedCols.map(c => `${c.name}:${c.type}`).join('\n');
+            const baseName = path.basename(filePath, ext).replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase();
+            this._panel.webview.postMessage({
+              type: 'schemaFileLoaded',
+              fileName: path.basename(filePath),
+              sourceName: `client_${baseName}_raw`,
+              modelName: `stg_${baseName}`,
+              colsString
+            });
+            vscode.window.showInformationMessage(`✓ Loaded ${extractedCols.length} columns from ${path.basename(filePath)}`);
+          } else {
+            vscode.window.showWarningMessage('No columns could be automatically detected from the selected file. Please enter them manually.');
+          }
+        }
+        break;
+      }
+
       case 'generateSchemaMapping': {
-        const srcCols: ColumnDefinition[] = (msg.sourceCols || '').split('\n').filter(Boolean).map((line: string) => {
+        const srcCols: ColumnDefinition[] = (msg.sourceCols || '').split('\n').map((l: string) => l.trim()).filter(Boolean).map((line: string) => {
           const [name, type] = line.split(':').map((s: string) => s.trim());
           return { name, type: type || 'string' };
         });
-        const tgtCols: ColumnDefinition[] = (msg.targetCols || '').split('\n').filter(Boolean).map((line: string) => {
+        const tgtCols: ColumnDefinition[] = (msg.targetCols || '').split('\n').map((l: string) => l.trim()).filter(Boolean).map((line: string) => {
           const [name, type] = line.split(':').map((s: string) => s.trim());
           return { name, type: type || 'string' };
         });
 
-        const result = SchemaMapperEngine.mapSchemas(srcCols, tgtCols, msg.sourceName || 'raw_source', msg.modelName || 'stg_client_model');
+        if (srcCols.length === 0 || tgtCols.length === 0) {
+          vscode.window.showWarningMessage('⚠️ Please provide both Source Columns and Target Model Columns before generating.');
+          this._panel.webview.postMessage({
+            type: 'schemaMappingError',
+            error: 'Please load a CSV / schema file, pick a preset, or enter source and target columns.'
+          });
+          return;
+        }
+
+        const sourceName = (msg.sourceName || 'client_orders_raw').trim();
+        const modelName = (msg.modelName || 'stg_orders').trim();
+
+        const result = SchemaMapperEngine.mapSchemas(srcCols, tgtCols, sourceName, modelName);
 
         await this._contextManager.recordSchemaMapping({
-          sourceName: msg.sourceName || 'raw_source',
-          targetModelName: msg.modelName || 'stg_client_model',
+          sourceName,
+          targetModelName: modelName,
           dialect: 'dbt',
           columns: result.mappings,
           unmappedSource: result.unmappedSource,
@@ -159,13 +375,19 @@ export class FdeCockpitPanel {
         if (ws && msg.writeToFile) {
           const dbtDir = path.join(ws, 'models', 'staging');
           if (!fs.existsSync(dbtDir)) fs.mkdirSync(dbtDir, { recursive: true });
-          const outPath = path.join(dbtDir, `${msg.modelName || 'stg_client_model'}.sql`);
+          const outPath = path.join(dbtDir, `${modelName}.sql`);
           fs.writeFileSync(outPath, result.dbtSql, 'utf8');
-          writtenFile = `models/staging/${msg.modelName || 'stg_client_model'}.sql`;
-          vscode.window.showInformationMessage(`Created dbt model: ${writtenFile}`);
+          writtenFile = `models/staging/${modelName}.sql`;
+          vscode.window.showInformationMessage(`✓ Created dbt staging model: ${writtenFile}`);
         }
 
-        this._panel.webview.postMessage({ type: 'schemaMappingResult', result, writtenFile });
+        this._panel.webview.postMessage({
+          type: 'schemaMappingResult',
+          result,
+          writtenFile,
+          modelName,
+          sourceName
+        });
         this._update();
         break;
       }
@@ -267,7 +489,10 @@ export class FdeCockpitPanel {
       }
 
       case 'generateRunbooks': {
-        if (!ws) return;
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace folder first to generate handoff documents.');
+          return;
+        }
         const state = this._contextManager.getState();
         const docsDir = path.join(ws, 'docs');
         if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
@@ -275,13 +500,29 @@ export class FdeCockpitPanel {
         const archDoc = RunbookGenerator.generateArchitectureDoc(state);
         const deployRunbook = RunbookGenerator.generateDeploymentRunbook(state);
         const dataDict = RunbookGenerator.generateDataDictionary(state);
+        const envCatalog = RunbookGenerator.generateEnvironmentCatalog(state);
+        const completeHandoff = RunbookGenerator.generateCompleteHandoffPackage(state);
 
         fs.writeFileSync(path.join(docsDir, 'ARCHITECTURE.md'), archDoc, 'utf8');
         fs.writeFileSync(path.join(docsDir, 'DEPLOYMENT_RUNBOOK.md'), deployRunbook, 'utf8');
         fs.writeFileSync(path.join(docsDir, 'DATA_DICTIONARY.md'), dataDict, 'utf8');
+        fs.writeFileSync(path.join(docsDir, 'ENVIRONMENT_CATALOG.md'), envCatalog, 'utf8');
+        fs.writeFileSync(path.join(docsDir, 'CLIENT_HANDOFF_COMPLETE.md'), completeHandoff, 'utf8');
 
-        vscode.window.showInformationMessage('✓ Generated ARCHITECTURE.md, DEPLOYMENT_RUNBOOK.md, and DATA_DICTIONARY.md in docs/');
-        this._panel.webview.postMessage({ type: 'runbooksDone', files: ['docs/ARCHITECTURE.md', 'docs/DEPLOYMENT_RUNBOOK.md', 'docs/DATA_DICTIONARY.md'] });
+        await this._contextManager.recordRunbooksGenerated();
+
+        vscode.window.showInformationMessage('✓ Generated 5 complete client handoff docs in docs/');
+        this._panel.webview.postMessage({
+          type: 'runbooksDone',
+          files: ['docs/ARCHITECTURE.md', 'docs/DEPLOYMENT_RUNBOOK.md', 'docs/DATA_DICTIONARY.md', 'docs/ENVIRONMENT_CATALOG.md', 'docs/CLIENT_HANDOFF_COMPLETE.md'],
+          archDoc,
+          deployRunbook,
+          dataDict,
+          envCatalog,
+          completeHandoff,
+          docsPath: docsDir
+        });
+        this._update();
         break;
       }
     }
@@ -293,6 +534,29 @@ export class FdeCockpitPanel {
   }
 
   private _getHtmlForWebview(state: FdeEngagementState): string {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const store = this._contextManager.getStore();
+    const allProjects = store.projects;
+    const activeProjectId = store.activeProjectId;
+
+    const archPath = ws ? path.join(ws, 'docs', 'ARCHITECTURE.md') : '';
+    const deployPath = ws ? path.join(ws, 'docs', 'DEPLOYMENT_RUNBOOK.md') : '';
+    const dataDictPath = ws ? path.join(ws, 'docs', 'DATA_DICTIONARY.md') : '';
+    const envPath = ws ? path.join(ws, 'docs', 'ENVIRONMENT_CATALOG.md') : '';
+    const completePath = ws ? path.join(ws, 'docs', 'CLIENT_HANDOFF_COMPLETE.md') : '';
+    const archExists = archPath ? fs.existsSync(archPath) : false;
+    const deployExists = deployPath ? fs.existsSync(deployPath) : false;
+    const dataDictExists = dataDictPath ? fs.existsSync(dataDictPath) : false;
+    const envExists = envPath ? fs.existsSync(envPath) : false;
+    const completeExists = completePath ? fs.existsSync(completePath) : false;
+    const anyDocExists = archExists || deployExists || dataDictExists || envExists || completeExists;
+
+    const initialArchDoc = archExists ? fs.readFileSync(archPath, 'utf8') : RunbookGenerator.generateArchitectureDoc(state);
+    const initialDeployDoc = deployExists ? fs.readFileSync(deployPath, 'utf8') : RunbookGenerator.generateDeploymentRunbook(state);
+    const initialDataDictDoc = dataDictExists ? fs.readFileSync(dataDictPath, 'utf8') : RunbookGenerator.generateDataDictionary(state);
+    const initialEnvDoc = envExists ? fs.readFileSync(envPath, 'utf8') : RunbookGenerator.generateEnvironmentCatalog(state);
+    const initialCompleteDoc = completeExists ? fs.readFileSync(completePath, 'utf8') : RunbookGenerator.generateCompleteHandoffPackage(state);
+
     const progressPercent = Math.round((state.completedPhases.length / 4) * 100);
 
     return `<!DOCTYPE html>
@@ -333,16 +597,14 @@ export class FdeCockpitPanel {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .header-title {
       font-size: 20px;
       font-weight: 700;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
     .beta-pill {
       font-size: 11px;
@@ -350,16 +612,19 @@ export class FdeCockpitPanel {
       color: var(--accent-fg);
       padding: 2px 8px;
       border-radius: 12px;
+      text-transform: uppercase;
       font-weight: 600;
     }
 
-    /* Overall Engagement Progress Bar */
+    /* Overall Progress Bar */
     .progress-bar-container {
-      background: var(--border);
+      width: 100%;
       height: 6px;
+      background: var(--card-bg);
       border-radius: 3px;
-      overflow: hidden;
       margin-bottom: 20px;
+      overflow: hidden;
+      border: 1px solid var(--border);
     }
     .progress-bar-fill {
       height: 100%;
@@ -459,43 +724,53 @@ export class FdeCockpitPanel {
       padding: 24px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
     }
-    h3 { margin-top: 0; margin-bottom: 6px; font-size: 17px; }
-    h4 { margin-top: 20px; margin-bottom: 10px; font-size: 14px; }
-    p.desc { font-size: 13px; opacity: 0.85; line-height: 1.5; margin-top: 0; margin-bottom: 16px; }
-    
-    /* Inputs */
-    textarea, input, select {
+    .content-card h3 {
+      margin-top: 0;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+    .content-card p.desc {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-bottom: 18px;
+    }
+
+    /* Inputs & Form Controls */
+    input[type="text"], select, textarea {
       width: 100%;
-      background: var(--bg);
-      color: var(--fg);
-      border: 1px solid var(--border);
       padding: 8px 12px;
-      border-radius: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      border-radius: 4px;
       font-family: inherit;
       font-size: 13px;
-      margin-bottom: 12px;
-      transition: border-color 0.15s ease;
+      margin-bottom: 14px;
     }
-    textarea:focus, input:focus, select:focus {
-      outline: none;
+    textarea {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus {
+      outline: 1px solid var(--accent);
       border-color: var(--accent);
     }
-    textarea { font-family: 'Consolas', 'Courier New', monospace; min-height: 110px; resize: vertical; }
-
+    
     /* Buttons */
     .btn {
       background: var(--accent);
       color: var(--accent-fg);
       border: none;
-      padding: 9px 18px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 13px;
+      padding: 8px 16px;
+      border-radius: 4px;
       cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      transition: all 0.15s ease;
+      transition: background 0.15s ease;
     }
     .btn:hover { background: var(--accent-hover); }
     .btn-secondary {
@@ -505,11 +780,11 @@ export class FdeCockpitPanel {
     }
     .btn-secondary:hover {
       background: var(--card-alt);
-      border-color: var(--accent);
+      border-color: var(--fg);
     }
     .btn-quick {
-      padding: 4px 10px;
       font-size: 11px;
+      padding: 3px 8px;
       background: var(--card-alt);
       border: 1px solid var(--border);
       color: var(--fg);
@@ -624,9 +899,30 @@ export class FdeCockpitPanel {
     <div class="header-title">
       <span>🚀</span> FDE Delivery Studio <span class="beta-pill">Beta</span>
     </div>
-    <div style="display: flex; gap: 8px; align-items: center;">
+    <div style="display: flex; gap: 10px; align-items: center;">
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
-      <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 210px; margin-bottom: 0;" onchange="updateClientName(this.value)">
+      <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
+        <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
+        <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Project Switcher & Toolbar -->
+  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--accent);">Engagement:</span>
+      <select id="projectSelector" onchange="switchProject(this.value)" style="padding: 5px 10px; font-size: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--fg); font-weight: 600; width: auto; margin-bottom: 0; min-width: 240px;">
+        ${allProjects.map(p => `<option value="${p.id}" ${p.id === activeProjectId ? 'selected' : ''}>🏢 ${p.clientName} (${p.targetVpc})</option>`).join('')}
+      </select>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="promptNewProject()">➕ New Project</button>
+      <button class="btn-quick" style="margin-bottom: 0; color: var(--warn); border-color: var(--warn);" onclick="confirmResetProject()">🧹 Reset / Redo</button>
+      ${allProjects.length > 1 ? `<button class="btn-quick" style="margin-bottom: 0; color: var(--error); border-color: var(--error);" onclick="confirmDeleteProject('${state.id}')">🗑️ Delete</button>` : ''}
+    </div>
+    <div style="font-size: 11px; opacity: 0.85;">
+      <span><strong>Target VPC:</strong> <code>${state.targetVpc}</code></span>
+      <span style="margin: 0 8px;">•</span>
+      <span><strong>Artifacts:</strong> ${state.schemaMappings.length} models, ${state.apiConnectors.length} APIs</span>
     </div>
   </div>
 
@@ -726,37 +1022,110 @@ export class FdeCockpitPanel {
     <div>
       <!-- PHASE 1: SCHEMA MAPPER -->
       <div class="content-card" id="phase1" style="display: ${state.activePhase === 1 ? 'block' : 'none'};">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
           <div>
             <h3>📊 Semantic Schema Mapper &amp; Staging Generator</h3>
-            <p class="desc">Align dirty client tables, CSVs, or legacy dumps with your standard platform data model.</p>
+            <p class="desc">Align foreign client CSVs, JSON feeds, or SQL tables with your standard platform target models using fuzzy semantic matching.</p>
           </div>
-          <button class="btn-quick" onclick="loadSampleSchema()">⚡ Load Sample Orders CSV</button>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-          <div>
-            <label style="font-size: 11px; font-weight: bold;">Source Columns (e.g. CUST_NBR_ID:string)</label>
-            <textarea id="srcCols" placeholder="CUST_NBR_ID:string&#10;TXN_AMT:float&#10;CREATED_TS:timestamp&#10;IS_ACTIVE_FLG:string"></textarea>
-          </div>
-          <div>
-            <label style="font-size: 11px; font-weight: bold;">Target Model Columns (e.g. customer_id:string)</label>
-            <textarea id="tgtCols" placeholder="customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean"></textarea>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn-quick" onclick="pickSchemaFile()">📁 Browse CSV / Schema File</button>
+            <button class="btn-quick" onclick="loadSampleSchema('orders')">⚡ Sample Orders</button>
+            <button class="btn-quick" onclick="loadSampleSchema('users')">⚡ Sample Users</button>
           </div>
         </div>
 
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <button class="btn" onclick="generateSchemaMapping()">Generate dbt Staging Model</button>
+        <!-- Mapped Schemas in Current Engagement -->
+        ${state.schemaMappings.length > 0 ? `
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--success);">
+            Mapped Models in Active Engagement (${state.schemaMappings.length}):
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${state.schemaMappings.map(m => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px;">
+                <div>
+                  <strong>${m.targetModelName}</strong> <span style="opacity: 0.75;">(from <code>${m.sourceName}</code> • ${m.columns.length} cols • ${m.dialect})</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('models/staging/${m.targetModelName}.sql')">📄 Open</button>
+                  <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; color: var(--error); border-color: var(--error);" onclick="deleteSchemaMapping('${m.sourceName}')">🗑️ Remove</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Guided Step Helper Banner -->
+        <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <span style="font-weight: 700; color: var(--accent);">📌 Quick Start:</span>
+            <span> Browse a local CSV/SQL file, click a sample, or paste columns in <code>COLUMN:type</code> format.</span>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <span style="font-size: 11px; opacity: 0.8;">Target Presets:</span>
+            <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('orders')">📦 Orders</button>
+            <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('users')">👥 Users</button>
+            <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('payments')">💳 Payments</button>
+          </div>
         </div>
 
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 11px; font-weight: bold;">Source Columns (Raw Client Schema)</label>
+              <span id="srcFileBadge" style="font-size: 10px; opacity: 0.85; font-family: monospace; color: var(--success);"></span>
+            </div>
+            <textarea id="srcCols" style="height: 140px;" placeholder="Paste raw columns here or click 'Browse CSV / Schema File'...&#10;e.g.&#10;CUST_NBR_ID:string&#10;TXN_AMT:float&#10;CREATED_TS:timestamp&#10;IS_ACTIVE_FLG:string"></textarea>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 11px; font-weight: bold;">Target Model Columns (Platform Standard)</label>
+              <span style="font-size: 10px; opacity: 0.8;">Standardized schema</span>
+            </div>
+            <textarea id="tgtCols" style="height: 140px;" placeholder="Target columns or pick a preset above...&#10;e.g.&#10;customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean"></textarea>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+          <div>
+            <label style="font-size: 11px; font-weight: bold;">Source Table / Dataset Name</label>
+            <input type="text" id="srcNameInput" value="client_orders_raw" placeholder="e.g. client_orders_raw">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: bold;">Target Model Name (dbt / View)</label>
+            <input type="text" id="modelNameInput" value="stg_orders" placeholder="e.g. stg_orders">
+          </div>
+        </div>
+
+        <div id="schemaErrorAlert" style="display: none; background: var(--error-bg); border: 1px solid var(--error); color: var(--error); padding: 10px 14px; border-radius: 6px; font-size: 12px; margin-bottom: 14px;"></div>
+
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn" onclick="generateSchemaMapping()">🚀 Generate dbt Staging Model</button>
+          <span style="font-size: 11px; opacity: 0.75;">Automatically creates <code>models/staging/&lt;model_name&gt;.sql</code></span>
+        </div>
+
+        <!-- Generated Model Result Card -->
         <div id="schemaResultBox" style="margin-top: 20px; display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <h4 style="margin: 0;">Generated Staging Code</h4>
-            <div id="schemaSavedBadge" style="font-size: 11px; color: var(--success); font-weight: 600;"></div>
+          <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Staging Model Successfully Generated</div>
+              <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="schemaSavedBadge">Location: <code>models/staging/stg_orders.sql</code></div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="openGeneratedModel()">📄 Open Model in Editor</button>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="copyModelCode()">📋 Copy Code</button>
+            </div>
           </div>
-          <div class="code-preview" id="schemaCodePreview"></div>
+
+          <div class="code-tabs">
+            <div class="code-tab active" id="tabDbt" onclick="switchSchemaTab('dbt')">🧱 dbt SQL Model</div>
+            <div class="code-tab" id="tabPySpark" onclick="switchSchemaTab('pyspark')">⚡ PySpark Script</div>
+            <div class="code-tab" id="tabSqlView" onclick="switchSchemaTab('sqlView')">🗄️ Standard SQL View</div>
+          </div>
+          <pre id="schemaCodePreview" class="code-preview" style="max-height: 260px;"></pre>
           
-          <h4 style="margin-top: 16px;">Column Mapping Breakdown</h4>
+          <h4 style="margin: 18px 0 10px 0;">Column Semantic Mapping Breakdown</h4>
           <div id="schemaTableContainer"></div>
         </div>
       </div>
@@ -770,6 +1139,28 @@ export class FdeCockpitPanel {
           </div>
           <button class="btn-quick" onclick="loadSampleApi()">⚡ Load Sample Billing API</button>
         </div>
+
+        <!-- Configured APIs in Current Engagement -->
+        ${state.apiConnectors.length > 0 ? `
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--success);">
+            Connected APIs in Active Engagement (${state.apiConnectors.length}):
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${state.apiConnectors.map(c => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); font-size: 12px;">
+                <div>
+                  <strong>${c.connectorName}</strong> <span style="opacity: 0.75;">(<code>${c.baseUrl}</code> • Auth: ${c.authType} • ${c.targetLanguage})</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('src/connectors/${c.connectorName.toLowerCase()}.${c.targetLanguage === 'python' ? 'py' : 'ts'}')">📄 Open</button>
+                  <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; color: var(--error); border-color: var(--error);" onclick="deleteApiConnector('${c.connectorName}')">🗑️ Remove</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
           <div>
@@ -796,14 +1187,22 @@ export class FdeCockpitPanel {
         </div>
 
         <div id="apiResultBox" style="margin-top: 20px; display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div class="code-tabs">
-              <button class="code-tab active" id="tabTs" onclick="switchApiTab('ts')">TypeScript</button>
-              <button class="code-tab" id="tabPy" onclick="switchApiTab('py')">Python</button>
+          <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Client API Connector Scaffolded</div>
+              <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="apiSavedBadge">Location: <code>src/connectors/ClientBillingApi.ts</code></div>
             </div>
-            <div id="apiSavedBadge" style="font-size: 11px; color: var(--success); font-weight: 600;"></div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="openGeneratedApiSdk()">📄 Open SDK in Editor</button>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="copyApiSdkCode()">📋 Copy SDK</button>
+            </div>
           </div>
-          <div class="code-preview" id="apiCodePreview"></div>
+
+          <div class="code-tabs">
+            <div class="code-tab active" id="tabTs" onclick="switchApiTab('ts')">TypeScript SDK</div>
+            <div class="code-tab" id="tabPy" onclick="switchApiTab('py')">Python SDK</div>
+          </div>
+          <pre class="code-preview" id="apiCodePreview"></pre>
         </div>
       </div>
 
@@ -862,30 +1261,126 @@ export class FdeCockpitPanel {
       <!-- PHASE 4: RUNBOOK FACTORY -->
       <div class="content-card" id="phase4" style="display: ${state.activePhase === 4 ? 'block' : 'none'};">
         <h3>📑 Client Engagement Handoff &amp; Runbook Factory</h3>
-        <p class="desc">Auto-generate comprehensive architecture blueprints, operations runbooks, and data dictionaries connecting everything built in Steps 1–3.</p>
+        <p class="desc">Auto-generate comprehensive architecture blueprints with dynamic lineage, operations runbooks, data dictionaries, and executive handoff bundles connecting everything built in Steps 1–3.</p>
 
         <div style="background: var(--bg); padding: 18px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px;">
-          <div style="font-weight: 700; margin-bottom: 10px; font-size: 13px;">Generated Documentation Artifacts:</div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+          <div style="font-weight: 700; margin-bottom: 12px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Generated Documentation Artifacts:</span>
+            <span style="font-size: 11px; opacity: 0.85; font-family: monospace;" id="docsPathBadge">📁 ${ws ? path.join(ws, 'docs') : 'docs/'}</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-              <div style="font-weight: 600; font-size: 13px;">ARCHITECTURE.md</div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 8px 0;">Mermaid system diagrams &amp; topology</div>
-              <button class="btn-quick" onclick="openDoc('docs/ARCHITECTURE.md')">Open File</button>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 600; font-size: 12px;">🏛️ ARCHITECTURE.md</div>
+                <span id="badgeArch" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${archExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${archExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${archExists ? '✓ Ready' : 'Not generated'}</span>
+              </div>
+              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Mermaid data lineage &amp; topology</div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" onclick="openDoc('docs/ARCHITECTURE.md')">📄 Open</button>
+                <button class="btn-quick" onclick="previewDoc('docs/ARCHITECTURE.md')">👁️ Preview</button>
+              </div>
             </div>
+
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-              <div style="font-weight: 600; font-size: 13px;">DEPLOYMENT_RUNBOOK.md</div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 8px 0;">Operations, rollback &amp; troubleshooting</div>
-              <button class="btn-quick" onclick="openDoc('docs/DEPLOYMENT_RUNBOOK.md')">Open File</button>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 600; font-size: 12px;">🚀 DEPLOYMENT_RUNBOOK.md</div>
+                <span id="badgeDeploy" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${deployExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${deployExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${deployExists ? '✓ Ready' : 'Not generated'}</span>
+              </div>
+              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Operations, rollback &amp; diagnostics</div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" onclick="openDoc('docs/DEPLOYMENT_RUNBOOK.md')">📄 Open</button>
+                <button class="btn-quick" onclick="previewDoc('docs/DEPLOYMENT_RUNBOOK.md')">👁️ Preview</button>
+              </div>
             </div>
+
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-              <div style="font-weight: 600; font-size: 13px;">DATA_DICTIONARY.md</div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 8px 0;">Column transformation mappings</div>
-              <button class="btn-quick" onclick="openDoc('docs/DATA_DICTIONARY.md')">Open File</button>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 600; font-size: 12px;">📖 DATA_DICTIONARY.md</div>
+                <span id="badgeDataDict" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${dataDictExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${dataDictExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${dataDictExists ? '✓ Ready' : 'Not generated'}</span>
+              </div>
+              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Column transformation mappings</div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" onclick="openDoc('docs/DATA_DICTIONARY.md')">📄 Open</button>
+                <button class="btn-quick" onclick="previewDoc('docs/DATA_DICTIONARY.md')">👁️ Preview</button>
+              </div>
+            </div>
+
+            <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 600; font-size: 12px;">🔐 ENVIRONMENT_CATALOG.md</div>
+                <span id="badgeEnv" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${envExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${envExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${envExists ? '✓ Ready' : 'Not generated'}</span>
+              </div>
+              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Required env vars &amp; secret reference</div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" onclick="openDoc('docs/ENVIRONMENT_CATALOG.md')">📄 Open</button>
+                <button class="btn-quick" onclick="previewDoc('docs/ENVIRONMENT_CATALOG.md')">👁️ Preview</button>
+              </div>
+            </div>
+
+            <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-weight: 600; font-size: 12px;">📦 CLIENT_HANDOFF_COMPLETE.md</div>
+                <span id="badgeComplete" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${completeExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${completeExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${completeExists ? '✓ Ready' : 'Not generated'}</span>
+              </div>
+              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">All-in-one consolidated delivery bundle</div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" onclick="openDoc('docs/CLIENT_HANDOFF_COMPLETE.md')">📄 Open</button>
+                <button class="btn-quick" onclick="previewDoc('docs/CLIENT_HANDOFF_COMPLETE.md')">👁️ Preview</button>
+              </div>
             </div>
           </div>
         </div>
 
-        <button class="btn" onclick="generateRunbooks()">Generate All Client Handoff Docs</button>
+        <button class="btn" onclick="generateRunbooks()">🚀 Generate All Client Handoff Docs</button>
+
+        <!-- Live Document Viewer Container -->
+        <div id="runbookResultBox" style="margin-top: 20px; display: ${anyDocExists ? 'block' : 'none'};">
+          <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Client Handoff Documents Ready on Disk</div>
+              <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="docsPathLabel">Location: <code>${ws ? path.join(ws, 'docs') : 'docs/'}</code></div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="openActiveDoc()">📄 Open in Editor</button>
+              <button class="btn-quick" style="margin-bottom: 0;" onclick="previewActiveDoc()">👁️ Rendered Preview</button>
+            </div>
+          </div>
+
+          <div class="code-tabs">
+            <div class="code-tab active" id="tabArch" onclick="switchDocTab('arch')">🏛️ ARCHITECTURE.md</div>
+            <div class="code-tab" id="tabDeploy" onclick="switchDocTab('deploy')">🚀 DEPLOYMENT_RUNBOOK.md</div>
+            <div class="code-tab" id="tabDataDict" onclick="switchDocTab('dataDict')">📖 DATA_DICTIONARY.md</div>
+            <div class="code-tab" id="tabEnv" onclick="switchDocTab('env')">🔐 ENVIRONMENT_CATALOG.md</div>
+            <div class="code-tab" id="tabComplete" onclick="switchDocTab('complete')">📦 CLIENT_HANDOFF_COMPLETE.md</div>
+          </div>
+          <pre id="docCodePreview" class="code-preview" style="max-height: 380px;"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Creating New Engagement Project -->
+  <div id="newProjectModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 2000; align-items: center; justify-content: center;">
+    <div style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 24px; width: 440px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
+      <h3 style="margin: 0 0 14px 0; font-size: 16px; color: var(--accent);">➕ Create New Client Engagement Project</h3>
+      
+      <label style="font-size: 11px; font-weight: bold;">Client / Project Name</label>
+      <input type="text" id="newProjName" placeholder="e.g. Acme Health Pilot" style="margin-bottom: 12px;">
+      
+      <label style="font-size: 11px; font-weight: bold;">Target Infrastructure / VPC</label>
+      <select id="newProjVpc" style="margin-bottom: 12px;">
+        <option value="gcp-firebase">Google Cloud (Firebase + Cloud Run + BigQuery)</option>
+        <option value="aws">AWS (ECS + Fargate + S3 + Glue)</option>
+        <option value="docker">On-Premise / Air-Gapped Docker</option>
+        <option value="azure">Azure (Container Apps + Blob)</option>
+      </select>
+
+      <label style="font-size: 11px; font-weight: bold;">Engagement Objective / Goal</label>
+      <input type="text" id="newProjGoal" placeholder="e.g. Ingest EHR patient records and deploy staging models" style="margin-bottom: 18px;">
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
+        <button class="btn" onclick="submitNewProject()">Create Project</button>
       </div>
     </div>
   </div>
@@ -897,6 +1392,18 @@ export class FdeCockpitPanel {
     const vscode = acquireVsCodeApi();
     let currentTsCode = '';
     let currentPyCode = '';
+    let currentWrittenApiSdk = '';
+    let currentDbtSql = '';
+    let currentPySparkSql = '';
+    let currentSqlView = '';
+    let currentWrittenModelPath = '';
+    let activeSchemaTab = 'dbt';
+    let currentArchDoc = ${JSON.stringify(initialArchDoc)};
+    let currentDeployDoc = ${JSON.stringify(initialDeployDoc)};
+    let currentDataDictDoc = ${JSON.stringify(initialDataDictDoc)};
+    let currentEnvDoc = ${JSON.stringify(initialEnvDoc)};
+    let currentCompleteDoc = ${JSON.stringify(initialCompleteDoc)};
+    let activeDocTab = 'arch';
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -914,6 +1421,57 @@ export class FdeCockpitPanel {
       }
     }
 
+    function switchProject(id) {
+      vscode.postMessage({ command: 'switchProject', projectId: id });
+    }
+
+    function promptNewProject() {
+      const modal = document.getElementById('newProjectModal');
+      if (modal) {
+        modal.style.display = 'flex';
+        const nameInput = document.getElementById('newProjName');
+        if (nameInput) nameInput.focus();
+      }
+    }
+
+    function closeNewProjectModal() {
+      const modal = document.getElementById('newProjectModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function submitNewProject() {
+      const name = document.getElementById('newProjName').value.trim();
+      const vpc = document.getElementById('newProjVpc').value;
+      const goal = document.getElementById('newProjGoal').value.trim();
+      if (!name) {
+        showToast('⚠️ Please enter a project name!');
+        return;
+      }
+      vscode.postMessage({
+        command: 'createProject',
+        projectName: name,
+        targetVpc: vpc,
+        engagementGoal: goal
+      });
+      closeNewProjectModal();
+    }
+
+    function confirmResetProject() {
+      vscode.postMessage({ command: 'requestResetProject' });
+    }
+
+    function confirmDeleteProject(id) {
+      vscode.postMessage({ command: 'requestDeleteProject', projectId: id });
+    }
+
+    function deleteSchemaMapping(srcName) {
+      vscode.postMessage({ command: 'requestDeleteSchemaMapping', sourceName: srcName });
+    }
+
+    function deleteApiConnector(connName) {
+      vscode.postMessage({ command: 'requestDeleteApiConnector', connectorName: connName });
+    }
+
     function updateClientName(val) {
       vscode.postMessage({ command: 'updateClientName', clientName: val });
       showToast('Client Name updated');
@@ -927,10 +1485,145 @@ export class FdeCockpitPanel {
       vscode.postMessage({ command: 'openFileInEditor', relativePath: relPath });
     }
 
-    function loadSampleSchema() {
-      document.getElementById('srcCols').value = "CUST_NBR_ID:string\\nTXN_AMT:float\\nCREATED_TS:timestamp\\nIS_ACTIVE_FLG:string\\nRAW_GEO_CODE:string";
-      document.getElementById('tgtCols').value = "customer_id:string\\ntransaction_amount:numeric\\ncreated_at:timestamp\\nis_active:boolean";
-      showToast('Sample dataset loaded');
+    function previewDoc(relPath) {
+      vscode.postMessage({ command: 'previewMarkdown', relativePath: relPath });
+    }
+
+    function openActiveDoc() {
+      const map = {
+        arch: 'docs/ARCHITECTURE.md',
+        deploy: 'docs/DEPLOYMENT_RUNBOOK.md',
+        dataDict: 'docs/DATA_DICTIONARY.md',
+        env: 'docs/ENVIRONMENT_CATALOG.md',
+        complete: 'docs/CLIENT_HANDOFF_COMPLETE.md'
+      };
+      openDoc(map[activeDocTab] || 'docs/ARCHITECTURE.md');
+    }
+
+    function previewActiveDoc() {
+      const map = {
+        arch: 'docs/ARCHITECTURE.md',
+        deploy: 'docs/DEPLOYMENT_RUNBOOK.md',
+        dataDict: 'docs/DATA_DICTIONARY.md',
+        env: 'docs/ENVIRONMENT_CATALOG.md',
+        complete: 'docs/CLIENT_HANDOFF_COMPLETE.md'
+      };
+      previewDoc(map[activeDocTab] || 'docs/ARCHITECTURE.md');
+    }
+
+    function switchDocTab(docId) {
+      activeDocTab = docId;
+      const tabA = document.getElementById('tabArch');
+      const tabD = document.getElementById('tabDeploy');
+      const tabDD = document.getElementById('tabDataDict');
+      const tabE = document.getElementById('tabEnv');
+      const tabC = document.getElementById('tabComplete');
+      if (tabA) tabA.className = 'code-tab ' + (docId === 'arch' ? 'active' : '');
+      if (tabD) tabD.className = 'code-tab ' + (docId === 'deploy' ? 'active' : '');
+      if (tabDD) tabDD.className = 'code-tab ' + (docId === 'dataDict' ? 'active' : '');
+      if (tabE) tabE.className = 'code-tab ' + (docId === 'env' ? 'active' : '');
+      if (tabC) tabC.className = 'code-tab ' + (docId === 'complete' ? 'active' : '');
+      
+      const prevEl = document.getElementById('docCodePreview');
+      if (prevEl) {
+        if (docId === 'arch') prevEl.innerText = currentArchDoc;
+        else if (docId === 'deploy') prevEl.innerText = currentDeployDoc;
+        else if (docId === 'dataDict') prevEl.innerText = currentDataDictDoc;
+        else if (docId === 'env') prevEl.innerText = currentEnvDoc;
+        else if (docId === 'complete') prevEl.innerText = currentCompleteDoc;
+      }
+    }
+
+    function pickSchemaFile() {
+      vscode.postMessage({ command: 'pickSchemaFile' });
+    }
+
+    function loadSampleSchema(kind) {
+      if (kind === 'users') {
+        document.getElementById('srcCols').value = "USR_UID:string\\nEMAIL_ADDR:string\\nREG_DT:date\\nROLE_CD:string\\nIS_ACTIVE_FLG:string";
+        document.getElementById('tgtCols').value = "user_id:string\\nemail:string\\nregistered_at:timestamp\\nrole:string\\nis_active:boolean";
+        document.getElementById('srcNameInput').value = "client_users_raw";
+        document.getElementById('modelNameInput').value = "stg_users";
+      } else {
+        document.getElementById('srcCols').value = "CUST_NBR_ID:string\\nTXN_AMT:float\\nCREATED_TS:timestamp\\nIS_ACTIVE_FLG:string\\nRAW_GEO_CODE:string";
+        document.getElementById('tgtCols').value = "customer_id:string\\ntransaction_amount:numeric\\ncreated_at:timestamp\\nis_active:boolean";
+        document.getElementById('srcNameInput').value = "client_orders_raw";
+        document.getElementById('modelNameInput').value = "stg_orders";
+      }
+      const errEl = document.getElementById('schemaErrorAlert');
+      if (errEl) errEl.style.display = 'none';
+      showToast('Sample schema loaded');
+    }
+
+    function loadTargetPreset(preset) {
+      if (preset === 'orders') {
+        document.getElementById('tgtCols').value = "customer_id:string\\ntransaction_amount:numeric\\ncreated_at:timestamp\\nis_active:boolean";
+        document.getElementById('modelNameInput').value = "stg_orders";
+      } else if (preset === 'users') {
+        document.getElementById('tgtCols').value = "user_id:string\\nemail:string\\nregistered_at:timestamp\\nrole:string\\nis_active:boolean";
+        document.getElementById('modelNameInput').value = "stg_users";
+      } else if (preset === 'payments') {
+        document.getElementById('tgtCols').value = "payment_id:string\\namount:numeric\\ncurrency:string\\nstatus:string\\ncreated_at:timestamp";
+        document.getElementById('modelNameInput').value = "stg_payments";
+      }
+      showToast('Target preset loaded');
+    }
+
+    function generateSchemaMapping() {
+      const src = document.getElementById('srcCols').value.trim();
+      const tgt = document.getElementById('tgtCols').value.trim();
+      const errEl = document.getElementById('schemaErrorAlert');
+
+      if (!src || !tgt) {
+        if (errEl) {
+          errEl.innerHTML = '<strong>⚠️ Missing Input:</strong> Please load a CSV/schema file, click a sample button, or enter both Source and Target columns before generating.';
+          errEl.style.display = 'block';
+        }
+        showToast('⚠️ Please provide source and target columns first!');
+        return;
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      const srcName = document.getElementById('srcNameInput').value.trim() || 'client_orders_raw';
+      const modelName = document.getElementById('modelNameInput').value.trim() || 'stg_orders';
+
+      vscode.postMessage({
+        command: 'generateSchemaMapping',
+        sourceCols: src,
+        targetCols: tgt,
+        sourceName: srcName,
+        modelName: modelName,
+        writeToFile: true
+      });
+    }
+
+    function switchSchemaTab(tab) {
+      activeSchemaTab = tab;
+      const tabDbt = document.getElementById('tabDbt');
+      const tabPy = document.getElementById('tabPySpark');
+      const tabView = document.getElementById('tabSqlView');
+      if (tabDbt) tabDbt.className = 'code-tab ' + (tab === 'dbt' ? 'active' : '');
+      if (tabPy) tabPy.className = 'code-tab ' + (tab === 'pyspark' ? 'active' : '');
+      if (tabView) tabView.className = 'code-tab ' + (tab === 'sqlView' ? 'active' : '');
+
+      const previewEl = document.getElementById('schemaCodePreview');
+      if (previewEl) {
+        if (tab === 'dbt') previewEl.innerText = currentDbtSql;
+        else if (tab === 'pyspark') previewEl.innerText = currentPySparkSql;
+        else if (tab === 'sqlView') previewEl.innerText = currentSqlView;
+      }
+    }
+
+    function openGeneratedModel() {
+      if (currentWrittenModelPath) {
+        openDoc(currentWrittenModelPath);
+      }
+    }
+
+    function copyModelCode() {
+      const text = activeSchemaTab === 'dbt' ? currentDbtSql : (activeSchemaTab === 'pyspark' ? currentPySparkSql : currentSqlView);
+      navigator.clipboard.writeText(text);
+      showToast('✓ Code copied to clipboard!');
     }
 
     function loadSampleApi() {
@@ -940,23 +1633,14 @@ export class FdeCockpitPanel {
       showToast('Sample API spec loaded');
     }
 
-    function generateSchemaMapping() {
-      const src = document.getElementById('srcCols').value;
-      const tgt = document.getElementById('tgtCols').value;
-      vscode.postMessage({
-        command: 'generateSchemaMapping',
-        sourceCols: src,
-        targetCols: tgt,
-        sourceName: 'client_orders_raw',
-        modelName: 'stg_orders',
-        writeToFile: true
-      });
-    }
-
     function generateApiConnector(lang) {
-      const name = document.getElementById('connName').value;
-      const url = document.getElementById('connBaseUrl').value;
+      const name = document.getElementById('connName').value.trim();
+      const url = document.getElementById('connBaseUrl').value.trim();
       const auth = document.getElementById('connAuthType').value;
+      if (!name || !url) {
+        showToast('⚠️ Please provide Connector Name and Base URL!');
+        return;
+      }
       vscode.postMessage({
         command: 'generateApiConnector',
         connectorName: name,
@@ -975,6 +1659,17 @@ export class FdeCockpitPanel {
       document.getElementById('tabTs').className = 'code-tab ' + (lang === 'ts' ? 'active' : '');
       document.getElementById('tabPy').className = 'code-tab ' + (lang === 'py' ? 'active' : '');
       document.getElementById('apiCodePreview').innerText = lang === 'ts' ? currentTsCode : currentPyCode;
+    }
+
+    function openGeneratedApiSdk() {
+      if (currentWrittenApiSdk) {
+        openDoc(currentWrittenApiSdk);
+      }
+    }
+
+    function copyApiSdkCode() {
+      navigator.clipboard.writeText(currentTsCode || currentPyCode);
+      showToast('✓ SDK code copied to clipboard!');
     }
 
     function runAudit() {
@@ -999,9 +1694,27 @@ export class FdeCockpitPanel {
       vscode.postMessage({ command: 'generateRunbooks' });
     }
 
+    // Initialize document preview on load
+    switchDocTab('arch');
+
     window.addEventListener('message', event => {
       const msg = event.data;
-      if (msg.type === 'auditResult') {
+      if (msg.type === 'schemaFileLoaded') {
+        document.getElementById('srcCols').value = msg.colsString;
+        document.getElementById('srcNameInput').value = msg.sourceName;
+        document.getElementById('modelNameInput').value = msg.modelName;
+        const badge = document.getElementById('srcFileBadge');
+        if (badge) badge.innerText = '📁 ' + msg.fileName;
+        const errEl = document.getElementById('schemaErrorAlert');
+        if (errEl) errEl.style.display = 'none';
+        showToast('✓ Loaded ' + msg.fileName);
+      } else if (msg.type === 'schemaMappingError') {
+        const errEl = document.getElementById('schemaErrorAlert');
+        if (errEl) {
+          errEl.innerHTML = '<strong>⚠️ Error:</strong> ' + msg.error;
+          errEl.style.display = 'block';
+        }
+      } else if (msg.type === 'auditResult') {
         const r = msg.report;
         document.getElementById('auditBox').style.display = 'block';
         const scoreEl = document.getElementById('auditScoreVal');
@@ -1018,9 +1731,15 @@ export class FdeCockpitPanel {
         if (msg.toast) showToast(msg.toast);
       } else if (msg.type === 'schemaMappingResult') {
         document.getElementById('schemaResultBox').style.display = 'block';
-        document.getElementById('schemaCodePreview').innerText = msg.result.dbtSql;
+        currentDbtSql = msg.result.dbtSql;
+        currentPySparkSql = msg.result.pysparkCode;
+        currentSqlView = msg.result.sqlView;
+        currentWrittenModelPath = msg.writtenFile;
+
+        switchSchemaTab('dbt');
+
         if (msg.writtenFile) {
-          document.getElementById('schemaSavedBadge').innerText = '✓ Saved to ' + msg.writtenFile;
+          document.getElementById('schemaSavedBadge').innerHTML = 'Location: <code>' + msg.writtenFile + '</code>';
         }
 
         let tableHtml = '<table class="mapping-table"><thead><tr><th>Target Column</th><th>Source Column</th><th>Target Type</th><th>Transformation Rule</th><th>Confidence</th></tr></thead><tbody>';
@@ -1029,22 +1748,58 @@ export class FdeCockpitPanel {
           tableHtml += '<tr><td><strong>' + m.targetColumn + '</strong></td><td>' + m.sourceColumn + '</td><td>' + m.targetType + '</td><td><code>' + (m.transformation || 'direct') + '</code></td><td><span class="conf-pill ' + confClass + '">' + Math.round(m.confidence * 100) + '%</span></td></tr>';
         });
         tableHtml += '</tbody></table>';
+
+        if (msg.result.unmappedSource.length > 0 || msg.result.unmappedTarget.length > 0) {
+          tableHtml += '<div style="margin-top: 10px; font-size: 11px; opacity: 0.85;">';
+          if (msg.result.unmappedSource.length > 0) {
+            tableHtml += '<div><strong>Unmapped Source Fields:</strong> ' + msg.result.unmappedSource.map(u => '<code>' + u + '</code>').join(', ') + '</div>';
+          }
+          if (msg.result.unmappedTarget.length > 0) {
+            tableHtml += '<div><strong>Unmapped Target Fields:</strong> ' + msg.result.unmappedTarget.map(u => '<code>' + u + '</code>').join(', ') + '</div>';
+          }
+          tableHtml += '</div>';
+        }
+
         document.getElementById('schemaTableContainer').innerHTML = tableHtml;
         showToast('✓ dbt Staging Model Generated!');
       } else if (msg.type === 'apiConnectorResult') {
         document.getElementById('apiResultBox').style.display = 'block';
         currentTsCode = msg.tsCode;
         currentPyCode = msg.pyCode;
+        currentWrittenApiSdk = msg.writtenFile;
         document.getElementById('apiCodePreview').innerText = currentTsCode;
         if (msg.writtenFile) {
-          document.getElementById('apiSavedBadge').innerText = '✓ Saved to ' + msg.writtenFile;
+          document.getElementById('apiSavedBadge').innerHTML = 'Location: <code>' + msg.writtenFile + '</code>';
         }
         showToast('✓ Client API SDK Scaffolded!');
       } else if (msg.type === 'scaffoldDone') {
         document.getElementById('scaffoldResultBox').style.display = 'block';
         showToast('✓ Full-Stack Deployment Scaffolded!');
       } else if (msg.type === 'runbooksDone') {
-        showToast('✓ All Client Handoff Docs Generated in docs/!');
+        const box = document.getElementById('runbookResultBox');
+        if (box) box.style.display = 'block';
+        currentArchDoc = msg.archDoc || currentArchDoc;
+        currentDeployDoc = msg.deployRunbook || currentDeployDoc;
+        currentDataDictDoc = msg.dataDict || currentDataDictDoc;
+        currentEnvDoc = msg.envCatalog || currentEnvDoc;
+        currentCompleteDoc = msg.completeHandoff || currentCompleteDoc;
+        
+        const pathEl = document.getElementById('docsPathLabel');
+        if (pathEl && msg.docsPath) {
+          pathEl.innerHTML = 'Location: <code>' + msg.docsPath + '</code>';
+        }
+        
+        ['badgeArch', 'badgeDeploy', 'badgeDataDict', 'badgeEnv', 'badgeComplete'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.innerText = '✓ Ready';
+            el.style.background = 'var(--success-bg)';
+            el.style.color = 'var(--success)';
+          }
+        });
+
+        switchDocTab(activeDocTab);
+        showToast('✓ Generated 5 Complete Client Handoff Documents in docs/!');
       }
     });
   </script>

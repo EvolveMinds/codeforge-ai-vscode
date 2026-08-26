@@ -2,6 +2,17 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.17.2] — 2026-08-26
+
+### Multi-Engagement Studio, Reset & Redo, and Enhanced Runbook Factory
+* **Multi-Project Engagement Manager**: Support for creating, switching, and managing multiple isolated client engagements (`Acme Health Pilot`, `FinTech Global PoC`, `Retail Data Pipeline`), each storing its own schemas, API connectors, deployments, and handoff documentation.
+* **1-Click Engagement Reset & Redo**: Added clean state reset utility allowing engineers to wipe mapped schemas, APIs, and progress for the active engagement to restart with fresh inputs without losing other customer projects.
+* **Native VS Code Modal Dialogs**: Integrated native VS Code modal confirmations for reset, project deletion, and individual schema/API removals to guarantee 100% reliable execution inside VS Code's webview sandbox.
+* **Item-Level Schema & API Management**: Direct removal and editor navigation for individual mapped dbt staging models and scaffolded API connectors.
+* **Expanded 5-Artifact Client Handoff Factory**: Auto-generates `docs/ARCHITECTURE.md` (with dynamic Mermaid data lineage connecting real ingested tables and APIs), `docs/DEPLOYMENT_RUNBOOK.md` (disaster recovery and rollback runbook), `docs/DATA_DICTIONARY.md` (column transformation matrix), `docs/ENVIRONMENT_CATALOG.md` (secrets and runtime reference), and `docs/CLIENT_HANDOFF_COMPLETE.md` (consolidated executive delivery package).
+* **In-Cockpit Live Document Viewer**: 5-tab previewer with side-by-side rendered markdown preview and direct editor launch for generated handoff documentation.
+* **Deterministic Pre-Flight Health Auditor**: Offline security scanner with 1-click temporary/backup file cleanup, secret leak prevention, and `.env` parity validation.
+
 ## [2.17.1] — 2026-08-26
 
 ### Fixes & Stability
