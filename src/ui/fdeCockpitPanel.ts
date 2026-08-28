@@ -25,6 +25,7 @@ import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout } from '../core/processUtil';
+import { LicenseValidator, LicenseGenerator, LoadTestGenerator } from '../enterprise';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -1282,6 +1283,127 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'getEnterpriseLicenseState': {
+        const licenseState = this._svc?.license?.getState() || {
+          isLicensed: false,
+          plan: 'community',
+          organization: 'Community User',
+          licenseId: '',
+          expiresAt: '',
+          daysRemaining: 0,
+          features: [],
+        };
+        this._panel.webview.postMessage({
+          type: 'enterpriseLicenseState',
+          state: licenseState,
+        });
+        break;
+      }
+
+      case 'activateEnterpriseLicense': {
+        if (!this._svc?.license) return;
+        const key = (msg.key || '').trim();
+        const result = await this._svc.license.activateLicense(key);
+        if (result.valid) {
+          vscode.window.showInformationMessage(`✓ Enterprise License Activated for ${result.payload?.organization}!`);
+        } else {
+          vscode.window.showWarningMessage(`⚠️ ${result.error || 'Failed to validate license key.'}`);
+        }
+        this._panel.webview.postMessage({
+          type: 'enterpriseLicenseResult',
+          success: result.valid,
+          message: result.valid
+            ? `✓ Enterprise License Activated for ${result.payload?.organization} (${result.daysRemaining} days remaining)`
+            : `⚠️ ${result.error || 'Failed to activate license'}`,
+          state: this._svc.license.getState(),
+        });
+        break;
+      }
+
+      case 'deactivateEnterpriseLicense': {
+        if (!this._svc?.license) return;
+        await this._svc.license.deactivateLicense();
+        vscode.window.showInformationMessage('Enterprise license deactivated. Reverted to Community Edition.');
+        this._panel.webview.postMessage({
+          type: 'enterpriseLicenseResult',
+          success: true,
+          message: 'License deactivated. Reverted to Community Edition.',
+          state: this._svc.license.getState(),
+        });
+        break;
+      }
+
+      case 'generateDemoEnterpriseKey': {
+        if (!this._svc?.license) return;
+        const trialKey = LicenseGenerator.generateTrialKey(msg.orgName || 'Demo Enterprise Partner', 30);
+        const result = await this._svc.license.activateLicense(trialKey);
+        vscode.window.showInformationMessage(`✓ 30-Day Enterprise Platinum Trial Activated for ${result.payload?.organization}!`);
+        this._panel.webview.postMessage({
+          type: 'enterpriseLicenseResult',
+          success: true,
+          message: '✓ 30-Day Enterprise Platinum Trial Activated!',
+          state: this._svc.license.getState(),
+        });
+        break;
+      }
+
+      case 'generateLoadTestSuite': {
+        if (!ws) return;
+        const isUnlocked = this._svc?.license?.isFeatureUnlocked('load_testing') ?? true; // Allow trial generation
+        const suite = LoadTestGenerator.generateSuite({
+          serviceName: msg.serviceName || 'ClientService',
+          targetUrl: msg.targetUrl || 'http://localhost:8080/api/v1/invoices',
+          method: msg.method || 'GET',
+          authType: msg.authType || 'none',
+          rampPreset: msg.rampPreset || 'standard',
+          sla: {
+            p95LatencyMs: parseInt(msg.p95LatencyMs) || 150,
+            p99LatencyMs: parseInt(msg.p99LatencyMs) || 300,
+            maxErrorRatePercent: parseFloat(msg.maxErrorRatePercent) || 1.0,
+          },
+          requestBody: msg.requestBody || undefined,
+        });
+
+        if (msg.writeToFile) {
+          const k6Full = path.join(ws, suite.k6FilePath);
+          const locustFull = path.join(ws, suite.locustFilePath);
+          const shFull = path.join(ws, 'tests', 'load', 'run_load_test.sh');
+          const psFull = path.join(ws, 'tests', 'load', 'run_load_test.ps1');
+
+          fs.mkdirSync(path.dirname(k6Full), { recursive: true });
+          fs.writeFileSync(k6Full, suite.k6Script, 'utf8');
+          fs.writeFileSync(locustFull, suite.locustScript, 'utf8');
+          fs.writeFileSync(shFull, suite.shellRunner, 'utf8');
+          fs.writeFileSync(psFull, suite.psRunner, 'utf8');
+
+          vscode.window.showInformationMessage(`✓ Generated k6 & Locust Load Test Suite in tests/load/`);
+          try {
+            const doc = await vscode.workspace.openTextDocument(k6Full);
+            vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+          } catch {}
+        }
+
+        this._panel.webview.postMessage({
+          type: 'loadTestSuiteGenerated',
+          suite: suite,
+          isLicensed: isUnlocked,
+        });
+        break;
+      }
+
+      case 'runLoadTestInTerminal': {
+        if (!ws) return;
+        const terminal = vscode.window.terminals.find(t => t.name === '🚀 FDE: Load Test')
+          || vscode.window.createTerminal('🚀 FDE: Load Test');
+        terminal.show();
+        if (process.platform === 'win32') {
+          terminal.sendText(`powershell -ExecutionPolicy Bypass -File .\\tests\\load\\run_load_test.ps1`);
+        } else {
+          terminal.sendText(`bash ./tests/load/run_load_test.sh`);
+        }
+        break;
+      }
+
       case 'diagnoseGitConnection': {
         if (!ws) return;
         const target = msg.target || 'bitbucket';
@@ -1965,11 +2087,72 @@ Output ONLY the message without markdown code fences.`;
       </div>
     </div>
     <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <button class="btn-quick" id="btnLicenseStatus" onclick="toggleEnterpriseLicenseDrawer()" style="padding: 5px 12px; font-size: 12px; margin-bottom: 0; font-weight: 700; color: #4ec9b0; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.1);" title="Click to view license status or activate enterprise key">
+        💎 License: <span id="headerLicenseTier">Community (Free)</span>
+      </button>
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
         <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
       </div>
+    </div>
+  </div>
+
+  <!-- Enterprise License Management Drawer -->
+  <div id="enterpriseLicenseDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.45);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 18px;">💎</span>
+        <div>
+          <div style="font-weight: 700; color: var(--accent); font-size: 14px;">Evolve AI Enterprise License Hub</div>
+          <div style="font-size: 11px; opacity: 0.8;">100% Offline Cryptographic Verification &amp; Air-Gapped Compatibility</div>
+        </div>
+      </div>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleEnterpriseLicenseDrawer()">✕ Close</button>
+    </div>
+
+    <!-- Active License Status Card -->
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">ACTIVE PLAN:</span>
+          <span id="drawerLicensePlanBadge" style="font-size: 11px; font-weight: 700; background: rgba(78,201,176,0.15); color: var(--accent); border: 1px solid rgba(78,201,176,0.4); padding: 2px 8px; border-radius: 12px;">🟢 Community Edition (Free)</span>
+        </div>
+        <div style="font-size: 12px;">
+          <strong>Organization:</strong> <span id="drawerLicenseOrg">Community User</span>
+          <span style="margin: 0 8px; opacity: 0.4;">|</span>
+          <strong>Status:</strong> <span id="drawerLicenseStatus" style="color: var(--success); font-weight: 600;">Active</span>
+          <span style="margin: 0 8px; opacity: 0.4;">|</span>
+          <strong>Days Remaining:</strong> <span id="drawerLicenseDays">Unlimited (Free Core)</span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="btn-quick" style="margin-bottom: 0; color: var(--warn); border-color: var(--warn);" onclick="deactivateEnterpriseLicense()">🗑️ Deactivate Key</button>
+        <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 700;" onclick="generateTrialLicense()">⚡ 30-Day Trial</button>
+      </div>
+    </div>
+
+    <!-- Key Activation Input Form -->
+    <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 14px;">
+      <label style="font-size: 11px; font-weight: 700; margin-bottom: 6px; display: block; color: var(--fg);">Activate Enterprise Key (format: <code>EM-ENT-V1.&lt;payload&gt;.&lt;signature&gt;</code>):</label>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <input type="text" id="enterpriseLicenseInput" placeholder="Paste your Evolve Mind Solutions Enterprise Key here..." style="flex: 1; margin-bottom: 0; padding: 7px 10px; font-family: monospace; font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--fg);">
+        <button class="btn" style="margin-bottom: 0; padding: 7px 16px; font-size: 12px; font-weight: 700;" onclick="activateEnterpriseLicense()">🚀 Activate</button>
+      </div>
+    </div>
+
+    <!-- Enterprise Features & Procurement Banner -->
+    <div style="background: rgba(78, 201, 176, 0.06); border: 1px dashed rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 3px;">💎 Enterprise Capabilities Unlocked with Paid License:</div>
+        <div style="font-size: 11px; opacity: 0.85; line-height: 1.5;">
+          • Automated k6 &amp; Locust Load Testing &amp; SLA Latency Benchmarker<br>
+          • Enterprise Air-Gapped RAG, Document Chunker &amp; pgvector/Qdrant Scaffolder<br>
+          • Automated dbt Data Quality Anomaly Gates &amp; Great Expectations Scaffolder<br>
+          • SOC2 / HIPAA Structured Audit Event Logger &amp; SIEM Forwarders
+        </div>
+      </div>
+      <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700; padding: 8px 16px; font-size: 12px; margin-bottom: 0;" onclick="openExternalUrl('https://www.evolveminds.com.au/contact')">🌐 Request Enterprise License ↗</button>
     </div>
   </div>
 
@@ -2702,6 +2885,71 @@ Output ONLY the message without markdown code fences.`;
           </div>
           <pre class="code-preview" id="apiCodePreview"></pre>
         </div>
+
+        <!-- ENTERPRISE EXPANSION: Automated Performance & SLA Load Testing -->
+        <div style="background: var(--bg); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 8px; padding: 16px 18px; margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">⚡</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Automated Performance &amp; SLA Load Testing</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Generate high-concurrency k6 &amp; Locust performance suites with strict SLA latency pass/fail gates.</div>
+              </div>
+            </div>
+            <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 10px; font-weight: 700;">💎 ENTERPRISE</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Endpoint URL</label>
+              <input type="text" id="loadTestUrl" value="http://localhost:8080/api/v1/invoices" placeholder="https://api.client.internal/v1/resource">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Load Profile (Virtual Users)</label>
+              <select id="loadTestProfile">
+                <option value="smoke">Smoke Test (10 VUs · 1 min)</option>
+                <option value="standard" selected>Standard Pilot (250 VUs · 3 min)</option>
+                <option value="stress">Stress Test (2,500 VUs · 7 min)</option>
+                <option value="spike">Spike Test (5,000 VUs burst)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">SLA Gate (p95 / p99 Latency)</label>
+              <select id="loadTestSla">
+                <option value="strict" selected>Strict (p95 &lt; 120ms, p99 &lt; 250ms, 0% err)</option>
+                <option value="standard">Standard (p95 &lt; 200ms, p99 &lt; 400ms, &lt;1% err)</option>
+                <option value="relaxed">Relaxed (p95 &lt; 500ms, p99 &lt; 1000ms, &lt;3% err)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="generateLoadTest('k6')">⚡ Generate k6 Load Test</button>
+            <button class="btn btn-secondary" onclick="generateLoadTest('locust')">⚡ Generate Locust Test</button>
+            <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runLoadTestTerminal()">▶️ Run in Terminal</button>
+          </div>
+
+          <!-- Generated Load Test Result Box -->
+          <div id="loadTestResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Load Test Suite Generated in tests/load/</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="loadTestPathBadge">Location: <code>tests/load/k6_clientbillingapi.js</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenLoadTestPath || 'tests/load/k6_clientbillingapi.js')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyLoadTestCode()">📋 Copy</button>
+              </div>
+            </div>
+
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabK6" onclick="switchLoadTestTab('k6')">⚡ k6 (JavaScript)</div>
+              <div class="code-tab" id="tabLocust" onclick="switchLoadTestTab('locust')">🐍 Locust (Python)</div>
+              <div class="code-tab" id="tabRunnerSh" onclick="switchLoadTestTab('sh')">📜 Shell Runner</div>
+            </div>
+            <pre class="code-preview" id="loadTestCodePreview" style="max-height: 220px;"></pre>
+          </div>
+        </div>
       </div>
 
       <!-- PHASE 3: PILOT DEPLOYMENT & MULTI-CLOUD MATRIX -->
@@ -3237,6 +3485,42 @@ Output ONLY the message without markdown code fences.`;
       }
     }
 
+    function toggleEnterpriseLicenseDrawer() {
+      const drawer = document.getElementById('enterpriseLicenseDrawer');
+      const gitDrawer = document.getElementById('gitSetupDrawer');
+      const commitDrawer = document.getElementById('gitCommitDrawer');
+      if (gitDrawer) gitDrawer.style.display = 'none';
+      if (commitDrawer) commitDrawer.style.display = 'none';
+      if (drawer) {
+        const isHidden = drawer.style.display === 'none' || drawer.style.display === '' || window.getComputedStyle(drawer).display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+          drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          vscode.postMessage({ command: 'getEnterpriseLicenseState' });
+        }
+      }
+    }
+
+    function activateEnterpriseLicense() {
+      const keyInput = document.getElementById('enterpriseLicenseInput');
+      const key = (keyInput ? keyInput.value : '').trim();
+      if (!key) {
+        showToast('⚠️ Please enter an Enterprise License Key!');
+        return;
+      }
+      showToast('🔏 Validating cryptographic license token...');
+      vscode.postMessage({ command: 'activateEnterpriseLicense', key: key });
+    }
+
+    function deactivateEnterpriseLicense() {
+      vscode.postMessage({ command: 'deactivateEnterpriseLicense' });
+    }
+
+    function generateTrialLicense() {
+      showToast('⚡ Generating 30-Day Enterprise Platinum Key...');
+      vscode.postMessage({ command: 'generateDemoEnterpriseKey' });
+    }
+
     function toggleGitSetupDrawer() {
       const drawer = document.getElementById('gitSetupDrawer');
       const commitDrawer = document.getElementById('gitCommitDrawer');
@@ -3688,6 +3972,77 @@ Output ONLY the message without markdown code fences.`;
       showToast('✓ SDK code copied to clipboard!');
     }
 
+    let currentK6LoadTest = '';
+    let currentLocustLoadTest = '';
+    let currentRunnerSh = '';
+    let currentWrittenLoadTestPath = '';
+    let activeLoadTestTab = 'k6';
+
+    function generateLoadTest(framework) {
+      const url = (document.getElementById('loadTestUrl') ? document.getElementById('loadTestUrl').value : '').trim() || 'http://localhost:8080/api/v1/invoices';
+      const profile = document.getElementById('loadTestProfile') ? document.getElementById('loadTestProfile').value : 'standard';
+      const slaChoice = document.getElementById('loadTestSla') ? document.getElementById('loadTestSla').value : 'strict';
+      const connName = (document.getElementById('connName') ? document.getElementById('connName').value : 'ClientBillingApi').trim() || 'ClientBillingApi';
+
+      let p95 = 120;
+      let p99 = 250;
+      let errRate = 0.5;
+      if (slaChoice === 'standard') {
+        p95 = 200; p99 = 400; errRate = 1.0;
+      } else if (slaChoice === 'relaxed') {
+        p95 = 500; p99 = 1000; errRate = 3.0;
+      }
+
+      showToast('⚡ Generating ' + framework.toUpperCase() + ' load test suite...');
+      vscode.postMessage({
+        command: 'generateLoadTestSuite',
+        serviceName: connName,
+        targetUrl: url,
+        rampPreset: profile,
+        p95LatencyMs: p95,
+        p99LatencyMs: p99,
+        maxErrorRatePercent: errRate,
+        writeToFile: true
+      });
+    }
+
+    function switchLoadTestTab(tab) {
+      activeLoadTestTab = tab;
+      const tabK6 = document.getElementById('tabK6');
+      const tabLocust = document.getElementById('tabLocust');
+      const tabRunnerSh = document.getElementById('tabRunnerSh');
+      if (tabK6) tabK6.className = 'code-tab ' + (tab === 'k6' ? 'active' : '');
+      if (tabLocust) tabLocust.className = 'code-tab ' + (tab === 'locust' ? 'active' : '');
+      if (tabRunnerSh) tabRunnerSh.className = 'code-tab ' + (tab === 'sh' ? 'active' : '');
+
+      const previewEl = document.getElementById('loadTestCodePreview');
+      if (previewEl) {
+        if (tab === 'k6') previewEl.innerText = currentK6LoadTest;
+        else if (tab === 'locust') previewEl.innerText = currentLocustLoadTest;
+        else if (tab === 'sh') previewEl.innerText = currentRunnerSh;
+      }
+    }
+
+    function copyLoadTestCode() {
+      const text = activeLoadTestTab === 'k6' ? currentK6LoadTest : (activeLoadTestTab === 'locust' ? currentLocustLoadTest : currentRunnerSh);
+      navigator.clipboard.writeText(text);
+      showToast('✓ Load test code copied to clipboard!');
+    }
+
+    function runLoadTestTerminal() {
+      showToast('🚀 Running load test in dedicated terminal...');
+      vscode.postMessage({ command: 'runLoadTestInTerminal' });
+    }
+
+    window.generateLoadTest = generateLoadTest;
+    window.switchLoadTestTab = switchLoadTestTab;
+    window.copyLoadTestCode = copyLoadTestCode;
+    window.runLoadTestTerminal = runLoadTestTerminal;
+    window.toggleEnterpriseLicenseDrawer = toggleEnterpriseLicenseDrawer;
+    window.activateEnterpriseLicense = activateEnterpriseLicense;
+    window.deactivateEnterpriseLicense = deactivateEnterpriseLicense;
+    window.generateTrialLicense = generateTrialLicense;
+
     function discoverCloud() {
       const projId = document.getElementById('gcpProjId') ? document.getElementById('gcpProjId').value : '';
       vscode.postMessage({
@@ -3784,9 +4139,10 @@ Output ONLY the message without markdown code fences.`;
       vscode.postMessage({ command: 'generateRunbooks' });
     }
 
-    // Initialize document preview and Git/Cloud status on load
+    // Initialize document preview, Git/Cloud status, and Enterprise License on load
     switchDocTab('arch');
     vscode.postMessage({ command: 'getGitAndCloudStatus' });
+    vscode.postMessage({ command: 'getEnterpriseLicenseState' });
 
     window.addEventListener('message', event => {
       const msg = event.data;
@@ -4180,6 +4536,58 @@ Output ONLY the message without markdown code fences.`;
 
         switchDocTab(activeDocTab);
         showToast('✓ Generated 5 Complete Client Handoff Documents in docs/!');
+      } else if (msg.type === 'enterpriseLicenseState' || msg.type === 'enterpriseLicenseResult') {
+        const state = msg.state;
+        if (state) {
+          const headerTier = document.getElementById('headerLicenseTier');
+          const planBadge = document.getElementById('drawerLicensePlanBadge');
+          const orgEl = document.getElementById('drawerLicenseOrg');
+          const statusEl = document.getElementById('drawerLicenseStatus');
+          const daysEl = document.getElementById('drawerLicenseDays');
+
+          if (state.isLicensed) {
+            const planTitle = state.plan === 'enterprise_platinum' ? '💎 Enterprise Platinum' : (state.plan === 'enterprise_standard' ? '💎 Enterprise Standard' : '💎 Pro');
+            if (headerTier) {
+              headerTier.innerText = planTitle + ' (' + (state.organization || 'Licensed') + ')';
+            }
+            if (planBadge) {
+              planBadge.innerText = planTitle;
+              planBadge.style.background = 'rgba(78, 201, 176, 0.2)';
+            }
+            if (orgEl) orgEl.innerText = state.organization || 'Licensed Partner';
+            if (statusEl) { statusEl.innerText = '✓ Active'; statusEl.style.color = 'var(--success)'; }
+            if (daysEl) daysEl.innerText = (state.daysRemaining || 30) + ' days remaining';
+          } else {
+            if (headerTier) headerTier.innerText = 'Community (Free)';
+            if (planBadge) {
+              planBadge.innerText = '🟢 Community Edition (Free)';
+              planBadge.style.background = 'rgba(78, 201, 176, 0.15)';
+            }
+            if (orgEl) orgEl.innerText = 'Community User';
+            if (statusEl) { statusEl.innerText = 'Free Core'; statusEl.style.color = 'var(--fg)'; }
+            if (daysEl) daysEl.innerText = 'Unlimited (Free Core)';
+          }
+        }
+        if (msg.message) showToast(msg.message);
+      } else if (msg.type === 'loadTestSuiteGenerated') {
+        const suite = msg.suite;
+        if (suite) {
+          currentK6LoadTest = suite.k6Script;
+          currentLocustLoadTest = suite.locustScript;
+          currentRunnerSh = suite.shellRunner;
+          currentWrittenLoadTestPath = suite.k6FilePath;
+
+          const resultBox = document.getElementById('loadTestResultBox');
+          if (resultBox) resultBox.style.display = 'block';
+          const pathBadge = document.getElementById('loadTestPathBadge');
+          if (pathBadge) pathBadge.innerHTML = 'Location: <code>' + suite.k6FilePath + '</code>';
+
+          switchLoadTestTab(activeLoadTestTab);
+          showToast('✓ Generated k6 & Locust Load Test Suite!');
+        }
+      } else if (msg.type === 'enterpriseGatingNotice') {
+        toggleEnterpriseLicenseDrawer();
+        showToast('💎 ' + msg.title + ' is an Enterprise capability. Click Activate or Start 30-Day Trial!');
       }
     });
   </script>

@@ -21,6 +21,7 @@ import { GitConnectInspector }    from './gitConnectInspector';
 import { GitConnectOrchestrator } from './gitConnectOrchestrator';
 import { AnalysisService }  from '../analysis/analysisService';
 import { ConsentStore }     from '../analysis/consentStore';
+import { LicenseManager }    from '../enterprise/license/licenseManager';
 import type { IAIService }        from './interfaces';
 import type { IContextService }   from './interfaces';
 import type { IWorkspaceService } from './interfaces';
@@ -35,6 +36,7 @@ export interface IServices {
   readonly events:    EventBus;
   readonly inspector: HardwareInspector;
   readonly setup:     SetupOrchestrator;
+  readonly license?:  LicenseManager;
   /** Git Connect wizard. Present in production; tests may omit. */
   readonly gitConnectInspector?:    GitConnectInspector;
   /** Git Connect wizard. Present in production; tests may omit. */
@@ -57,6 +59,7 @@ export class ServiceContainer implements IServices {
   readonly workspace: IWorkspaceService;
   readonly inspector: HardwareInspector;
   readonly setup:     SetupOrchestrator;
+  readonly license:   LicenseManager;
   readonly gitConnectInspector:    GitConnectInspector;
   readonly gitConnectOrchestrator: GitConnectOrchestrator;
   readonly analysis:  AnalysisService;
@@ -70,6 +73,8 @@ export class ServiceContainer implements IServices {
     this.workspace = new WorkspaceService(this.plugins, this.ai, this.context, vsCtx, this.events);
     this.inspector = new HardwareInspector();
     this.setup     = new SetupOrchestrator();
+    this.license   = new LicenseManager(vsCtx.secrets, this.events);
+    this.license.initialize();
     this.gitConnectInspector    = new GitConnectInspector(vsCtx.secrets);
     this.gitConnectOrchestrator = new GitConnectOrchestrator(this.gitConnectInspector, vsCtx.secrets);
     this.analysis  = new AnalysisService({ extensionPath: vsCtx.extensionPath, ctx: vsCtx });
