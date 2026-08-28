@@ -664,7 +664,13 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 
 <div id="msgs">
   <div class="welcome">
-    <h3>Evolve AI</h3>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
+      <h3 style="margin: 0; font-size: 17px; font-weight: 700;">Evolve AI</h3>
+      <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 1px 6px; border-radius: 10px; font-weight: 700;">STUDIO</span>
+    </div>
+    <p style="font-size: 11px; opacity: 0.8; margin-bottom: 10px;">Built by <a href="https://www.evolveminds.com.au/" style="color: var(--vscode-textLink-foreground, #4ec9b0); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a></p>
+    
+    <p><strong>🚀 Forward-Deployed Engineers Delivery Studio (Beta)</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs &amp; handoff runbooks</p>
     <p><strong>Chat</strong> &mdash; ask questions about your code</p>
     <p><strong>Edit</strong> &mdash; describe changes to the active file</p>
     <p><strong>Create</strong> &mdash; generate new files from scratch</p>
@@ -686,7 +692,14 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
         <span class="caret">&#9662;</span>
       </button>
       <div class="popover" id="modePopover" hidden>
-        <div class="pop-title">Mode</div>
+        <div class="pop-title">Mode &amp; Studios</div>
+        <div class="pop-item" data-mode="fde" data-action="fdeHub" style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; background: rgba(78, 201, 176, 0.08);">
+          <div class="pop-icon">&#128640;</div>
+          <div class="pop-body">
+            <div class="pop-name" style="color: var(--vscode-charts-teal, #4ec9b0); font-weight: 700;">FDE Delivery Studio (Beta) <span style="font-size: 9px; background: rgba(78,201,176,0.2); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">STUDIO</span></div>
+            <div class="pop-desc">Forward-Deployed Engineers Delivery Studio &mdash; live DB introspection, foreign schema mapping, custom client APIs, Multi-Cloud Hub, pilot deployment, pre-flight audits, and handoff runbooks.</div>
+          </div>
+        </div>
         <div class="pop-item" data-mode="chat">
           <div class="pop-icon">&#128172;</div>
           <div class="pop-body">
@@ -723,13 +736,6 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
           <div class="pop-body">
             <div class="pop-name">Code Convertor</div>
             <div class="pop-desc">Convert code to another language &mdash; a selection, a file, or a folder. Review it beside the original with a report of what was approximated.</div>
-          </div>
-        </div>
-        <div class="pop-item" data-mode="fde" data-action="fdeHub">
-          <div class="pop-icon">&#128640;</div>
-          <div class="pop-body">
-            <div class="pop-name">FDE (Beta)</div>
-            <div class="pop-desc">Forward-Deployed Engineers Delivery Studio &mdash; live database introspection, foreign schema mapping, custom client APIs, Multi-Cloud Hub, pilot deployment, pre-flight audits, and handoff runbooks by Evolve Mind Solutions.</div>
           </div>
         </div>
       </div>
@@ -1159,8 +1165,20 @@ window.addEventListener('message', ({ data }) => {
       updateModelPill(currentModel);
       renderModelPopover();
       const pb = document.getElementById('pluginBadges');
+      function cleanPluginIcon(ic) {
+        if (!ic) return '⚡';
+        if (ic.indexOf('shield') !== -1) return '🛡️';
+        if (ic.indexOf('git-branch') !== -1) return '🌿';
+        if (ic.indexOf('cloud') !== -1) return '☁️';
+        if (ic.indexOf('zap') !== -1) return '⚡';
+        if (ic.indexOf('database') !== -1) return '🗄️';
+        if (ic.indexOf('rocket') !== -1) return '🚀';
+        if (ic.indexOf('graph') !== -1) return '📊';
+        if (ic.indexOf('$(') !== -1) return '⚡';
+        return ic;
+      }
       pb.innerHTML = (data.activePlugins || []).map(p =>
-        '<span class="badge" title="' + esc(p.name) + '">' + esc(p.icon) + '</span>'
+        '<span class="badge" title="' + esc(p.name) + '">' + cleanPluginIcon(p.icon) + '</span>'
       ).join('');
 
       // Show onboarding guide when offline or Ollama not running
@@ -1197,7 +1215,9 @@ window.addEventListener('message', ({ data }) => {
       // Restore welcome message
       const w = document.createElement('div');
       w.className = 'welcome';
-      w.innerHTML = '<h3>Evolve AI</h3>'
+      w.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;"><h3 style="margin:0; font-size:17px; font-weight:700;">Evolve AI</h3><span style="font-size:10px; background:rgba(78,201,176,0.15); color:#4ec9b0; border:1px solid rgba(78,201,176,0.4); padding:1px 6px; border-radius:10px; font-weight:700;">STUDIO</span></div>'
+        + '<p style="font-size:11px; opacity:0.8; margin-bottom:10px;">Built by <a href="https://www.evolveminds.com.au/" style="color:var(--vscode-textLink-foreground, #4ec9b0); text-decoration:underline; font-weight:600;">Evolve Mind Solutions Pty Ltd</a></p>'
+        + '<p><strong>🚀 Forward-Deployed Engineers Delivery Studio (Beta)</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs &amp; handoff runbooks</p>'
         + '<p><strong>Chat</strong> &mdash; ask questions about your code</p>'
         + '<p><strong>Edit</strong> &mdash; describe changes to the active file</p>'
         + '<p><strong>Create</strong> &mdash; generate new files from scratch</p>'
