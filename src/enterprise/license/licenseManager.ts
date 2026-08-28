@@ -123,4 +123,9 @@ export class LicenseManager {
     if (!this._state.isLicensed) return false;
     return this._state.features.includes(feature) || this._state.plan === 'enterprise_platinum';
   }
+
+  public hasFeature(feature: EnterpriseFeature): boolean {
+    return this.isFeatureUnlocked(feature);
+  }
 }
+

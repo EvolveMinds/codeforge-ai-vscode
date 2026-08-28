@@ -25,7 +25,7 @@ import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout } from '../core/processUtil';
-import { LicenseValidator, LicenseGenerator, LoadTestGenerator } from '../enterprise';
+import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions } from '../enterprise';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -1404,6 +1404,64 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'scaffoldRagPipeline': {
+        if (!ws) return;
+        const licenseMgr = this._svc?.licenseManager;
+        const isUnlocked = licenseMgr ? licenseMgr.hasFeature('rag_scaffolder') : false;
+
+        const options: RagPipelineOptions = {
+          serviceName: msg.serviceName || 'ClientIntelApi',
+          language: msg.language || 'python',
+          vectorStore: msg.vectorStore || 'pgvector',
+          embeddingProvider: msg.embeddingProvider || 'ollama_local',
+          embeddingModel: msg.embeddingModel || 'nomic-embed-text',
+          embeddingDimensions: msg.embeddingDimensions || 768,
+          chunkSize: msg.chunkSize || 512,
+          chunkOverlap: msg.chunkOverlap || 64,
+          chunkingStrategy: msg.chunkingStrategy || 'recursive_character',
+          distanceMetric: msg.distanceMetric || 'cosine',
+          topK: msg.topK || 5,
+          similarityThreshold: msg.similarityThreshold || 0.75,
+          enableHybridSearch: msg.enableHybridSearch ?? true,
+          enableGuardrails: msg.enableGuardrails ?? true,
+          collectionName: msg.collectionName,
+          databaseUri: msg.databaseUri
+        };
+
+        const scaffolded = RagPipelineScaffolder.scaffold(options);
+
+        if (msg.writeToFile) {
+          RagPipelineScaffolder.writeToDisk(ws, scaffolded);
+          const ext = options.language === 'python' ? 'py' : 'ts';
+          const pipelineFile = path.join(ws, `src/rag/rag_pipeline.${ext}`);
+          try {
+            const doc = await vscode.workspace.openTextDocument(pipelineFile);
+            vscode.window.showTextDocument(doc, { preview: true, viewColumn: vscode.ViewColumn.Beside });
+          } catch {}
+        }
+
+        this._panel.webview.postMessage({
+          type: 'ragPipelineScaffolded',
+          files: scaffolded,
+          isLicensed: isUnlocked
+        });
+        break;
+      }
+
+      case 'runRagTestsInTerminal': {
+        if (!ws) return;
+        const isPy = (msg.language || 'python') === 'python';
+        const terminal = vscode.window.terminals.find(t => t.name === '🧠 FDE: RAG Pipeline')
+          || vscode.window.createTerminal('🧠 FDE: RAG Pipeline');
+        terminal.show();
+        if (isPy) {
+          terminal.sendText(`python -m unittest tests/test_rag_pipeline.py`);
+        } else {
+          terminal.sendText(`npm test tests/ragPipeline.test.ts`);
+        }
+        break;
+      }
+
       case 'diagnoseGitConnection': {
         if (!ws) return;
         const target = msg.target || 'bitbucket';
@@ -2159,10 +2217,10 @@ Output ONLY the message without markdown code fences.`;
 
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--accent);">🧠 Enterprise Air-Gapped RAG &amp; Vector Pipeline</div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--success);">🧠 Enterprise Air-Gapped RAG &amp; Vector Pipeline</div>
             <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Document chunker, hybrid search, and pgvector/Qdrant scaffolder.</div>
           </div>
-          <span style="font-size: 10px; background: var(--card-alt); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; opacity: 0.8;">Phase 2</span>
+          <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--accent); border-color: var(--accent);" onclick="launchEnterpriseFeature('ragScaffolder')">🚀 Launch</button>
         </div>
 
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -2976,6 +3034,89 @@ Output ONLY the message without markdown code fences.`;
               <div class="code-tab" id="tabRunnerSh" onclick="switchLoadTestTab('sh')">📜 Shell Runner</div>
             </div>
             <pre class="code-preview" id="loadTestCodePreview" style="max-height: 220px;"></pre>
+          </div>
+        </div>
+
+        <!-- ENTERPRISE EXPANSION: Air-Gapped RAG & Vector Pipeline Studio -->
+        <div id="ragStudioCard" style="background: var(--bg); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 8px; padding: 16px 18px; margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: align-items: center; gap: 8px; display: flex;">
+              <span style="font-size: 16px;">🧠</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Enterprise Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Scaffold 100% offline, private RAG stacks with chunking, pgvector / Qdrant indexing, and prompt guardrails.</div>
+              </div>
+            </div>
+            <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 10px; font-weight: 700;">💎 ENTERPRISE</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Vector Database Engine</label>
+              <select id="ragVectorDb">
+                <option value="pgvector" selected>PostgreSQL + pgvector (HNSW Index)</option>
+                <option value="qdrant">Qdrant Vector Engine</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Local Embedding Model</label>
+              <select id="ragEmbedModel">
+                <option value="nomic-embed-text:768" selected>Ollama: nomic-embed-text (768d)</option>
+                <option value="bge-large-en-v1.5:1024">Ollama: bge-large-en-v1.5 (1024d)</option>
+                <option value="all-minilm:384">Ollama: all-minilm-l6-v2 (384d)</option>
+                <option value="tei-bge:1024">HuggingFace TEI: bge-large (1024d)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Language</label>
+              <select id="ragLanguage">
+                <option value="python" selected>Python (Production FastAPI / LangChain)</option>
+                <option value="typescript">TypeScript (Node.js / Express)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Chunk Size (Characters)</label>
+              <input type="number" id="ragChunkSize" value="512" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Chunk Overlap</label>
+              <input type="number" id="ragChunkOverlap" value="64" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Similarity Threshold</label>
+              <input type="text" id="ragThreshold" value="0.75" placeholder="0.75" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="scaffoldRagPipeline()">🧠 Scaffold Air-Gapped RAG Stack</button>
+            <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runRagTestsTerminal()">▶️ Run RAG Tests in Terminal</button>
+          </div>
+
+          <!-- Generated RAG Pipeline Result Box -->
+          <div id="ragResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="ragPathBadge">Location: <code>src/rag/rag_pipeline.py</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenRagPipelinePath || 'src/rag/rag_pipeline.py')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyRagCode()">📋 Copy</button>
+              </div>
+            </div>
+
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabRagPipeline" onclick="switchRagTab('pipeline')">🚀 RAG Pipeline</div>
+              <div class="code-tab" id="tabRagChunker" onclick="switchRagTab('chunker')">✂️ Chunker</div>
+              <div class="code-tab" id="tabRagStore" onclick="switchRagTab('store')">🗄️ Vector Store</div>
+              <div class="code-tab" id="tabRagEmbed" onclick="switchRagTab('embed')">🔢 Embeddings</div>
+              <div class="code-tab" id="tabRagDocker" onclick="switchRagTab('docker')">🐳 Docker Compose</div>
+            </div>
+            <pre class="code-preview" id="ragCodePreview" style="max-height: 240px;"></pre>
           </div>
         </div>
       </div>
@@ -4062,11 +4203,92 @@ Output ONLY the message without markdown code fences.`;
       vscode.postMessage({ command: 'runLoadTestInTerminal' });
     }
 
+    let currentRagPipeline = '';
+    let currentRagChunker = '';
+    let currentRagStore = '';
+    let currentRagEmbeddings = '';
+    let currentRagDocker = '';
+    let currentWrittenRagPipelinePath = '';
+    let activeRagTab = 'pipeline';
+
+    function scaffoldRagPipeline() {
+      const db = document.getElementById('ragVectorDb').value;
+      const embedModelRaw = document.getElementById('ragEmbedModel').value.split(':');
+      const embedModel = embedModelRaw[0];
+      const embedDims = parseInt(embedModelRaw[1], 10) || 768;
+      const lang = document.getElementById('ragLanguage').value;
+      const chunkSize = parseInt(document.getElementById('ragChunkSize').value, 10) || 512;
+      const overlap = parseInt(document.getElementById('ragChunkOverlap').value, 10) || 64;
+      const threshold = parseFloat(document.getElementById('ragThreshold').value) || 0.75;
+      const connName = (document.getElementById('connName') ? document.getElementById('connName').value : 'ClientIntelApi').trim() || 'ClientIntelApi';
+
+      showToast('🧠 Scaffolding 100% Air-Gapped RAG & Vector Pipeline (' + db.toUpperCase() + ')...');
+      vscode.postMessage({
+        command: 'scaffoldRagPipeline',
+        serviceName: connName,
+        language: lang,
+        vectorStore: db,
+        embeddingProvider: embedModel.includes('tei') ? 'tei_huggingface' : 'ollama_local',
+        embeddingModel: embedModel.replace('tei-', ''),
+        embeddingDimensions: embedDims,
+        chunkSize: chunkSize,
+        chunkOverlap: overlap,
+        similarityThreshold: threshold,
+        writeToFile: true
+      });
+    }
+
+    function switchRagTab(tab) {
+      activeRagTab = tab;
+      const tabPipe = document.getElementById('tabRagPipeline');
+      const tabChunk = document.getElementById('tabRagChunker');
+      const tabStore = document.getElementById('tabRagStore');
+      const tabEmbed = document.getElementById('tabRagEmbed');
+      const tabDock = document.getElementById('tabRagDocker');
+
+      if (tabPipe) tabPipe.className = 'code-tab ' + (tab === 'pipeline' ? 'active' : '');
+      if (tabChunk) tabChunk.className = 'code-tab ' + (tab === 'chunker' ? 'active' : '');
+      if (tabStore) tabStore.className = 'code-tab ' + (tab === 'store' ? 'active' : '');
+      if (tabEmbed) tabEmbed.className = 'code-tab ' + (tab === 'embed' ? 'active' : '');
+      if (tabDock) tabDock.className = 'code-tab ' + (tab === 'docker' ? 'active' : '');
+
+      const previewEl = document.getElementById('ragCodePreview');
+      if (previewEl) {
+        if (tab === 'pipeline') previewEl.innerText = currentRagPipeline;
+        else if (tab === 'chunker') previewEl.innerText = currentRagChunker;
+        else if (tab === 'store') previewEl.innerText = currentRagStore;
+        else if (tab === 'embed') previewEl.innerText = currentRagEmbeddings;
+        else if (tab === 'docker') previewEl.innerText = currentRagDocker;
+      }
+    }
+
+    function copyRagCode() {
+      let text = currentRagPipeline;
+      if (activeRagTab === 'chunker') text = currentRagChunker;
+      else if (activeRagTab === 'store') text = currentRagStore;
+      else if (activeRagTab === 'embed') text = currentRagEmbeddings;
+      else if (activeRagTab === 'docker') text = currentRagDocker;
+      navigator.clipboard.writeText(text);
+      showToast('✓ RAG code copied to clipboard!');
+    }
+
+    function runRagTestsTerminal() {
+      const lang = document.getElementById('ragLanguage') ? document.getElementById('ragLanguage').value : 'python';
+      showToast('🚀 Running RAG pipeline unit tests in terminal...');
+      vscode.postMessage({ command: 'runRagTestsInTerminal', language: lang });
+    }
+
     function launchEnterpriseFeature(feat) {
       if (feat === 'loadTesting') {
         setPhase(2);
         setTimeout(function() {
           const el = document.getElementById('loadTestUrl');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+      } else if (feat === 'ragScaffolder') {
+        setPhase(2);
+        setTimeout(function() {
+          const el = document.getElementById('ragStudioCard');
           if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 150);
       }
@@ -4077,6 +4299,10 @@ Output ONLY the message without markdown code fences.`;
     window.switchLoadTestTab = switchLoadTestTab;
     window.copyLoadTestCode = copyLoadTestCode;
     window.runLoadTestTerminal = runLoadTestTerminal;
+    window.scaffoldRagPipeline = scaffoldRagPipeline;
+    window.switchRagTab = switchRagTab;
+    window.copyRagCode = copyRagCode;
+    window.runRagTestsTerminal = runRagTestsTerminal;
     window.toggleEnterpriseLicenseDrawer = toggleEnterpriseLicenseDrawer;
     window.activateEnterpriseLicense = activateEnterpriseLicense;
     window.deactivateEnterpriseLicense = deactivateEnterpriseLicense;
@@ -4623,6 +4849,24 @@ Output ONLY the message without markdown code fences.`;
 
           switchLoadTestTab(activeLoadTestTab);
           showToast('✓ Generated k6 & Locust Load Test Suite!');
+        }
+      } else if (msg.type === 'ragPipelineScaffolded') {
+        const files = msg.files;
+        if (files) {
+          currentRagPipeline = files.retrieverPipelineCode;
+          currentRagChunker = files.chunkerCode;
+          currentRagStore = files.vectorStoreCode;
+          currentRagEmbeddings = files.embeddingsCode;
+          currentRagDocker = files.dockerComposeYaml;
+          currentWrittenRagPipelinePath = files.retrieverPipelinePath;
+
+          const resultBox = document.getElementById('ragResultBox');
+          if (resultBox) resultBox.style.display = 'block';
+          const pathBadge = document.getElementById('ragPathBadge');
+          if (pathBadge) pathBadge.innerHTML = 'Location: <code>' + files.retrieverPipelinePath + '</code>';
+
+          switchRagTab(activeRagTab);
+          showToast('✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/!');
         }
       } else if (msg.type === 'enterpriseGatingNotice') {
         toggleEnterpriseLicenseDrawer();

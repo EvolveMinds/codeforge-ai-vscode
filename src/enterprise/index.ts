@@ -11,3 +11,5 @@ export * from './license/licenseGenerator';
 export * from './license/licenseManager';
 export * from './loadTesting/loadTestTypes';
 export * from './loadTesting/loadTestGenerator';
+export * from './rag';
+

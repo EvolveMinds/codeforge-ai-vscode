@@ -37,6 +37,7 @@ export interface IServices {
   readonly inspector: HardwareInspector;
   readonly setup:     SetupOrchestrator;
   readonly license?:  LicenseManager;
+  readonly licenseManager?: LicenseManager;
   /** Git Connect wizard. Present in production; tests may omit. */
   readonly gitConnectInspector?:    GitConnectInspector;
   /** Git Connect wizard. Present in production; tests may omit. */
@@ -60,6 +61,7 @@ export class ServiceContainer implements IServices {
   readonly inspector: HardwareInspector;
   readonly setup:     SetupOrchestrator;
   readonly license:   LicenseManager;
+  readonly licenseManager: LicenseManager;
   readonly gitConnectInspector:    GitConnectInspector;
   readonly gitConnectOrchestrator: GitConnectOrchestrator;
   readonly analysis:  AnalysisService;
@@ -74,6 +76,7 @@ export class ServiceContainer implements IServices {
     this.inspector = new HardwareInspector();
     this.setup     = new SetupOrchestrator();
     this.license   = new LicenseManager(vsCtx.secrets, this.events);
+    this.licenseManager = this.license;
     this.license.initialize();
     this.gitConnectInspector    = new GitConnectInspector(vsCtx.secrets);
     this.gitConnectOrchestrator = new GitConnectOrchestrator(this.gitConnectInspector, vsCtx.secrets);
