@@ -511,17 +511,15 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: var(--fsz); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 
 /* Header */
-#header { padding: 6px 10px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 11px; }
+#header { padding: 6px 10px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: 11px; flex-wrap: wrap; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; transition: background 0.3s; }
 .dot.green { background: var(--green); }
 .dot.yellow { background: var(--yellow); }
 #providerLabel { font-weight: 600; }
-#pluginBadges { display: flex; gap: 4px; margin-left: 4px; align-items: center; }
-.badge { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 4px; padding: 2px 6px; font-size: 11px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; user-select: none; }
-.badge:hover { filter: brightness(1.25); border-color: var(--accent); transform: scale(1.08); }
-.hbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 7px; border-radius: 3px; cursor: pointer; font-size: 10px; transition: color 0.15s; }
-.hbtn:hover { color: var(--text); }
-#rightBtns { margin-left: auto; display: flex; gap: 4px; }
+#modelLabel { color: var(--muted); }
+.hbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 7px; border-radius: 3px; cursor: pointer; font-size: 10px; transition: color 0.15s, background 0.15s, border-color 0.15s; white-space: nowrap; }
+.hbtn:hover { color: var(--text); border-color: var(--accent); }
+#rightBtns { margin-left: auto; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 
 /* Tabs */
 #tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -648,9 +646,24 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   <div class="dot" id="dot"></div>
   <span id="providerLabel">...</span>
   <span id="modelLabel"></span>
-  <div id="pluginBadges"></div>
+
+  <div style="position:relative; display:inline-block;">
+    <button class="hbtn" id="pluginsBtn" title="View detected workspace environments and active plugins" style="display:none; align-items:center; gap:4px; font-size:10px; padding:2px 6px;">
+      <span>🔌</span> <span id="pluginsCountLabel">0 active</span> <span style="font-size:8px; opacity:0.7;">▾</span>
+    </button>
+    <div class="popover" id="pluginsPopover" hidden style="top:100%; bottom:auto; left:0; margin-top:6px; min-width:280px; max-width:340px;">
+      <div class="pop-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Active Plugins &amp; Integrations</span>
+        <span id="pluginsPopoverTotal" style="font-size:9px; background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:10px;">0 active</span>
+      </div>
+      <div id="pluginsList"></div>
+    </div>
+  </div>
+
   <div id="rightBtns">
-    <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 Studio</button>
+    <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio (FDE Cockpit)" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 Studio</button>
+    <button class="hbtn" id="dataBtn" title="Launch Data Analysis &amp; Reporting Studio" style="color: #3794ff; font-weight: 600; border-color: rgba(55,148,255,0.4); background: rgba(55,148,255,0.1);">📊 Data</button>
+    <button class="hbtn" id="convertBtn" title="Launch Side-by-Side Code Converter" style="color: #dcdcaa; font-weight: 600; border-color: rgba(220,220,170,0.4); background: rgba(220,220,170,0.1);">⚡ Convert</button>
     <button class="hbtn" id="thinkBtn" title="Toggle Gemma 4 thinking mode — shows chain-of-thought reasoning" style="display:none;">Think</button>
     <button class="hbtn" id="switchBtn" title="Switch AI provider">Switch</button>
     <button class="hbtn" id="clearBtn" title="Clear conversation history">Clear</button>
@@ -1165,7 +1178,23 @@ window.addEventListener('message', ({ data }) => {
       availableModels = Array.isArray(data.availableModels) ? data.availableModels : [];
       updateModelPill(currentModel);
       renderModelPopover();
-      const pb = document.getElementById('pluginBadges');
+      
+      const pluginsList = document.getElementById('pluginsList');
+      const pluginsBtn = document.getElementById('pluginsBtn');
+      const pluginsCountLabel = document.getElementById('pluginsCountLabel');
+      const pluginsPopoverTotal = document.getElementById('pluginsPopoverTotal');
+      
+      const activePlugins = data.activePlugins || [];
+      if (pluginsBtn && pluginsCountLabel) {
+        if (activePlugins.length > 0) {
+          pluginsBtn.style.display = 'inline-flex';
+          pluginsCountLabel.textContent = activePlugins.length + ' active';
+          if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = activePlugins.length + ' active';
+        } else {
+          pluginsBtn.style.display = 'none';
+        }
+      }
+
       function cleanPluginIcon(ic) {
         if (!ic) return '⚡';
         if (ic.indexOf('shield') !== -1) return '🛡️';
@@ -1178,9 +1207,35 @@ window.addEventListener('message', ({ data }) => {
         if (ic.indexOf('$(') !== -1) return '⚡';
         return ic;
       }
-      pb.innerHTML = (data.activePlugins || []).map(p =>
-        '<button class="badge plugin-badge-btn" data-plugin-id="' + esc(p.id) + '" data-plugin-name="' + esc(p.name) + '" title="Launch ' + esc(p.name) + ' (' + esc(p.id) + ')">' + cleanPluginIcon(p.icon) + '</button>'
-      ).join('');
+
+      if (pluginsList) {
+        pluginsList.innerHTML = activePlugins.map(p => {
+          let desc = 'Workspace context & environment signal active.';
+          const id = (p.id || '').toLowerCase();
+          const nm = (p.name || '').toLowerCase();
+          if (id.includes('aws-live') || nm.includes('aws connected')) desc = 'AWS Cloud live credentials & active resource context.';
+          else if (id.includes('aws') || nm.includes('aws')) desc = 'AWS infrastructure & CloudFormation descriptors.';
+          else if (id.includes('azure-live') || nm.includes('azure connected')) desc = 'Azure live cloud credentials & subscription context.';
+          else if (id.includes('azure') || nm.includes('azure')) desc = 'Azure infrastructure & ARM/Bicep context.';
+          else if (id.includes('gcp-live') || nm.includes('gcp connected')) desc = 'GCP live cloud credentials & project context.';
+          else if (id.includes('gcp') || nm.includes('gcp')) desc = 'Google Cloud resource & IAM context.';
+          else if (id.includes('git') || nm.includes('git')) desc = 'Git repository, branch state, and diff context.';
+          else if (id.includes('security') || nm.includes('security')) desc = 'Security vulnerability & secret leak prevention rules.';
+          else if (id.includes('dbt') || nm.includes('dbt')) desc = 'dbt models, lineage DAG, and SQL compilation.';
+          else if (id.includes('airflow') || nm.includes('airflow')) desc = 'Apache Airflow DAG parsing & schedule context.';
+          else if (id.includes('pytest') || nm.includes('pytest')) desc = 'Python pytest suite & test runner integration.';
+          else if (id.includes('data') || nm.includes('data')) desc = 'Data analytics, schema profiling & visualization engine.';
+          else if (id.includes('convert') || nm.includes('convert')) desc = 'Multi-language code conversion engine.';
+          
+          return '<div class="pop-item" style="cursor:default; padding:6px 8px;">' +
+            '<div class="pop-icon" style="font-size:12px; line-height:1.2;">' + cleanPluginIcon(p.icon) + '</div>' +
+            '<div class="pop-body">' +
+              '<div class="pop-name" style="font-size:11px; font-weight:600;">' + esc(p.name) + '</div>' +
+              '<div class="pop-desc" style="font-size:10px; opacity:0.8;">' + desc + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
 
       // Show onboarding guide when offline or Ollama not running
       if (!isReady) {
@@ -1349,34 +1404,11 @@ function copy() {
 // [FIX-26] Null-safe event binding to prevent silent webview crashes
 function on(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); else console.warn('[Evolve AI] Missing element:', id); }
 
-function handlePluginBadgeClick(id, name) {
-  if (id.indexOf('fde') !== -1 || name.indexOf('Delivery') !== -1 || name.indexOf('FDE') !== -1) {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' });
-  } else if (id.indexOf('analysis') !== -1 || name.indexOf('Data') !== -1) {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.data.analyze' });
-  } else if (id.indexOf('convert') !== -1 || name.indexOf('Convert') !== -1) {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' });
-  } else if (id.indexOf('git') !== -1 || name.indexOf('Git') !== -1) {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.gitConnect.wizard' });
-  } else if (id.indexOf('preflight') !== -1 || name.indexOf('Audit') !== -1) {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.preflightAudit' });
-  } else if (id.indexOf('cloud') !== -1 || name.indexOf('Cloud') !== -1 || name.indexOf('Firebase') !== -1) {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.scaffoldDeploy' });
-  } else {
-    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' });
-  }
-}
-window.handlePluginBadgeClick = handlePluginBadgeClick;
 
 on('studioBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' }));
-on('pluginBadges', 'click', (e) => {
-  const target = e.target && e.target.closest ? e.target.closest('.plugin-badge-btn') : null;
-  if (target) {
-    const id = target.getAttribute('data-plugin-id') || '';
-    const name = target.getAttribute('data-plugin-name') || '';
-    handlePluginBadgeClick(id, name);
-  }
-});
+on('dataBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.data.analyze' }));
+on('convertBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' }));
+on('pluginsBtn', 'click', (e) => { e.stopPropagation(); togglePopover('pluginsPopover'); });
 on('switchBtn', 'click', () => vscode.postMessage({type:'switchProvider'}));
 on('clearBtn',  'click', () => clearHistory());
 on('thinkBtn',  'click', () => {
