@@ -2142,17 +2142,45 @@ Output ONLY the message without markdown code fences.`;
     </div>
 
     <!-- Enterprise Features & Procurement Banner -->
-    <div style="background: rgba(78, 201, 176, 0.06); border: 1px dashed rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-      <div>
-        <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 3px;">💎 Enterprise Capabilities Unlocked with Paid License:</div>
-        <div style="font-size: 11px; opacity: 0.85; line-height: 1.5;">
-          • Automated k6 &amp; Locust Load Testing &amp; SLA Latency Benchmarker<br>
-          • Enterprise Air-Gapped RAG, Document Chunker &amp; pgvector/Qdrant Scaffolder<br>
-          • Automated dbt Data Quality Anomaly Gates &amp; Great Expectations Scaffolder<br>
-          • SOC2 / HIPAA Structured Audit Event Logger &amp; SIEM Forwarders
+    <div style="background: rgba(78, 201, 176, 0.06); border: 1px dashed rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 14px 18px; margin-bottom: 6px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--accent);">💎 Enterprise Capabilities Unlocked with Active License:</div>
+        <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700; padding: 6px 14px; font-size: 11px; margin-bottom: 0;" onclick="openExternalUrl('https://www.evolveminds.com.au/contact')">🌐 Request Custom Enterprise License ↗</button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--success);">⚡ Automated Performance &amp; SLA Load Testing</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">k6 &amp; Locust stress tests with SLA p95/p99 latency gates.</div>
+          </div>
+          <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--accent); border-color: var(--accent);" onclick="launchEnterpriseFeature('loadTesting')">🚀 Launch</button>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--accent);">🧠 Enterprise Air-Gapped RAG &amp; Vector Pipeline</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Document chunker, hybrid search, and pgvector/Qdrant scaffolder.</div>
+          </div>
+          <span style="font-size: 10px; background: var(--card-alt); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; opacity: 0.8;">Phase 2</span>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--accent);">📊 dbt Data Quality &amp; Schema Drift Gates</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Great Expectations assertions &amp; anomaly detection.</div>
+          </div>
+          <span style="font-size: 10px; background: var(--card-alt); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; opacity: 0.8;">Phase 3</span>
+        </div>
+
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--accent);">🛡️ SOC2 / HIPAA Audit Logger &amp; SIEM Forwarders</div>
+            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Structured JSON audit logs for Splunk, Datadog &amp; Sentinel.</div>
+          </div>
+          <span style="font-size: 10px; background: var(--card-alt); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; opacity: 0.8;">Phase 4</span>
         </div>
       </div>
-      <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700; padding: 8px 16px; font-size: 12px; margin-bottom: 0;" onclick="openExternalUrl('https://www.evolveminds.com.au/contact')">🌐 Request Enterprise License ↗</button>
     </div>
   </div>
 
@@ -4034,6 +4062,17 @@ Output ONLY the message without markdown code fences.`;
       vscode.postMessage({ command: 'runLoadTestInTerminal' });
     }
 
+    function launchEnterpriseFeature(feat) {
+      if (feat === 'loadTesting') {
+        setPhase(2);
+        setTimeout(function() {
+          const el = document.getElementById('loadTestUrl');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+      }
+    }
+
+    window.launchEnterpriseFeature = launchEnterpriseFeature;
     window.generateLoadTest = generateLoadTest;
     window.switchLoadTestTab = switchLoadTestTab;
     window.copyLoadTestCode = copyLoadTestCode;
