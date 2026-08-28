@@ -516,9 +516,9 @@ body { background: var(--bg); color: var(--text); font-family: var(--font); font
 .dot.green { background: var(--green); }
 .dot.yellow { background: var(--yellow); }
 #providerLabel { font-weight: 600; }
-#modelLabel { color: var(--muted); }
-#pluginBadges { display: flex; gap: 4px; margin-left: 4px; }
-.badge { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 3px; padding: 1px 5px; font-size: 10px; }
+#pluginBadges { display: flex; gap: 4px; margin-left: 4px; align-items: center; }
+.badge { background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 4px; padding: 2px 6px; font-size: 11px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.15s ease; user-select: none; }
+.badge:hover { filter: brightness(1.25); border-color: var(--accent); transform: scale(1.08); }
 .hbtn { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 7px; border-radius: 3px; cursor: pointer; font-size: 10px; transition: color 0.15s; }
 .hbtn:hover { color: var(--text); }
 #rightBtns { margin-left: auto; display: flex; gap: 4px; }
@@ -650,6 +650,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   <span id="modelLabel"></span>
   <div id="pluginBadges"></div>
   <div id="rightBtns">
+    <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 Studio</button>
     <button class="hbtn" id="thinkBtn" title="Toggle Gemma 4 thinking mode — shows chain-of-thought reasoning" style="display:none;">Think</button>
     <button class="hbtn" id="switchBtn" title="Switch AI provider">Switch</button>
     <button class="hbtn" id="clearBtn" title="Clear conversation history">Clear</button>
@@ -1178,7 +1179,7 @@ window.addEventListener('message', ({ data }) => {
         return ic;
       }
       pb.innerHTML = (data.activePlugins || []).map(p =>
-        '<span class="badge" title="' + esc(p.name) + '">' + cleanPluginIcon(p.icon) + '</span>'
+        '<button class="badge plugin-badge-btn" data-plugin-id="' + esc(p.id) + '" data-plugin-name="' + esc(p.name) + '" title="Launch ' + esc(p.name) + ' (' + esc(p.id) + ')">' + cleanPluginIcon(p.icon) + '</button>'
       ).join('');
 
       // Show onboarding guide when offline or Ollama not running
@@ -1347,6 +1348,35 @@ function copy() {
 // Wire up all event listeners (CSP blocks inline onclick handlers)
 // [FIX-26] Null-safe event binding to prevent silent webview crashes
 function on(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); else console.warn('[Evolve AI] Missing element:', id); }
+
+function handlePluginBadgeClick(id, name) {
+  if (id.indexOf('fde') !== -1 || name.indexOf('Delivery') !== -1 || name.indexOf('FDE') !== -1) {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' });
+  } else if (id.indexOf('analysis') !== -1 || name.indexOf('Data') !== -1) {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.data.analyze' });
+  } else if (id.indexOf('convert') !== -1 || name.indexOf('Convert') !== -1) {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' });
+  } else if (id.indexOf('git') !== -1 || name.indexOf('Git') !== -1) {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.gitConnect.wizard' });
+  } else if (id.indexOf('preflight') !== -1 || name.indexOf('Audit') !== -1) {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.preflightAudit' });
+  } else if (id.indexOf('cloud') !== -1 || name.indexOf('Cloud') !== -1 || name.indexOf('Firebase') !== -1) {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.scaffoldDeploy' });
+  } else {
+    vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' });
+  }
+}
+window.handlePluginBadgeClick = handlePluginBadgeClick;
+
+on('studioBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' }));
+on('pluginBadges', 'click', (e) => {
+  const target = e.target && e.target.closest ? e.target.closest('.plugin-badge-btn') : null;
+  if (target) {
+    const id = target.getAttribute('data-plugin-id') || '';
+    const name = target.getAttribute('data-plugin-name') || '';
+    handlePluginBadgeClick(id, name);
+  }
+});
 on('switchBtn', 'click', () => vscode.postMessage({type:'switchProvider'}));
 on('clearBtn',  'click', () => clearHistory());
 on('thinkBtn',  'click', () => {
