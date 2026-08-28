@@ -2,6 +2,27 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.18.1] — 2026-08-28
+
+### Git & Bitbucket Setup Portals, Live Multi-Branch Selector & Smart AI Commit Drafter
+* **FDE Delivery Studio (Beta) Promoted to Top**: Forward-Deployed Engineers Delivery Studio (Beta) is now prominently featured as the top capability in the AI Chat greeting screen and the Mode & Studios launcher popover.
+* **1-Click Cloud Git Settings & Token Portals**:
+  * Direct 1-click access to **Atlassian Bitbucket App Passwords** and **SSH Keys**, **GitHub Personal Access Tokens** (pre-configured with `repo` scopes) and **SSH Keys**, and **GitLab Access Tokens**.
+  * **Guided HTTPS Auth Mode**: Configure authenticated HTTPS remote URLs (`https://user:token@domain/repo.git`) with instant automated verification (`git ls-remote`).
+  * **SSH Key Auth Mode**: 1-click Public Key Copy (`~/.ssh/id_ed25519.pub`), automatic ed25519 key generation, and live SSH connectivity testing.
+  * **1-Click Repo Initialization**: Initialize new Git repositories (`git init -b main`) directly from the studio.
+* **Live Multi-Branch Selector & Branch Creator**:
+  * Interactive branch dropdown showing all local and remote branches (`main`, `develop`, `feat/...`, `origin/...`).
+  * 1-Click checkout and tracking of remote branches with live status updates.
+  * `➕ New Branch` button to create and switch branches instantly.
+* **Smart AI & Conventional Commit Drafter (`📦 1-Click Commit & Push`)**:
+  * **Live Modified Files Preview**: Real-time list of modified (`M`), added (`A`), and deleted (`D`) deliverables.
+  * **AI Commit Drafter**: Analyzes live `git diff` to generate clean Conventional Commit titles and structured bullet summaries.
+  * **Deterministic Heuristic Drafter**: Instant offline commit summarizer based on changed file paths.
+  * **1-Click Execution**: Stage all files, commit with formatted message, and push to remote origin with visible terminal output.
+* **Unified Enterprise UI & Design System**:
+  * Upgraded Code Converter, Data Analysis, Profiler, and Offline Dev Workbench panels to match the FDE Delivery Studio design system and official branding for **Evolve Mind Solutions Pty Ltd** ([https://www.evolveminds.com.au/](https://www.evolveminds.com.au/)).
+
 ## [2.18.0] — 2026-08-26
 
 ### Forward-Deployed Engineers Delivery Studio 2.0 & Multi-Cloud Hub

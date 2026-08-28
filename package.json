@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Forward-Deployed Engineers Delivery Studio & AI Data Engineering Platform by Evolve Mind Solutions Pty Ltd. End-to-end frontline delivery system: Live Database Introspector, foreign schema mapping to dbt/PySpark, dimensional mart join builder, resilient client API SDKs (TypeScript/Python), Multi-Cloud Connection & Auth Hub (GCP, AWS, Azure, Docker), pilot deployment scaffolder, 100% deterministic pre-flight health auditor, and client handoff runbooks with Mermaid architecture diagrams.",
-  "version": "2.18.0",
+  "version": "2.18.1",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {
