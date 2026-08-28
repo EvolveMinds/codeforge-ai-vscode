@@ -37,7 +37,7 @@ export class FdeCommands {
   }
 
   openCockpit(): void {
-    FdeCockpitPanel.createOrShow(this._svc.vsCtx);
+    FdeCockpitPanel.createOrShow(this._svc.vsCtx, this._svc);
   }
 
   async runPreflightAudit(): Promise<void> {

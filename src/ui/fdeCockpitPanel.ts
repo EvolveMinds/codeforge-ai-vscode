@@ -13,6 +13,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
+import type { IServices } from '../core/services';
 import { FdeContextManager, FdeEngagementState } from '../fde/fdeContext';
 import { SchemaMapperEngine, ColumnDefinition } from '../fde/schemaMapper';
 import { DbIntrospector, DbConnectionOptions } from '../fde/dbIntrospector';
@@ -28,11 +30,12 @@ export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
   private readonly _panel: vscode.WebviewPanel;
   private readonly _vsCtx: vscode.ExtensionContext;
+  private readonly _svc?: IServices;
   private readonly _contextManager: FdeContextManager;
   private _disposables: vscode.Disposable[] = [];
   private _lastAuditReport?: PreflightReport;
 
-  public static createOrShow(vsCtx: vscode.ExtensionContext): FdeCockpitPanel {
+  public static createOrShow(vsCtx: vscode.ExtensionContext, svc?: IServices): FdeCockpitPanel {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
@@ -44,7 +47,7 @@ export class FdeCockpitPanel {
 
     const panel = vscode.window.createWebviewPanel(
       'aiForge.fdeCockpit',
-      'FDE Delivery Studio (Beta)',
+      'Forward-Deployed Engineers Delivery Studio (Beta)',
       column || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -52,13 +55,14 @@ export class FdeCockpitPanel {
       }
     );
 
-    FdeCockpitPanel.currentPanel = new FdeCockpitPanel(panel, vsCtx);
+    FdeCockpitPanel.currentPanel = new FdeCockpitPanel(panel, vsCtx, svc);
     return FdeCockpitPanel.currentPanel;
   }
 
-  private constructor(panel: vscode.WebviewPanel, vsCtx: vscode.ExtensionContext) {
+  private constructor(panel: vscode.WebviewPanel, vsCtx: vscode.ExtensionContext, svc?: IServices) {
     this._panel = panel;
     this._vsCtx = vsCtx;
+    this._svc = svc;
     this._contextManager = new FdeContextManager(vsCtx);
 
     this._update();
@@ -109,6 +113,144 @@ export class FdeCockpitPanel {
       name: termName,
       cwd: ws,
     });
+  }
+
+  private async _getGitBranches(ws: string): Promise<{ current: string; all: string[] }> {
+    let current = 'main';
+    const all: string[] = [];
+
+    try {
+      const cur = await runForStdout('git', ['branch', '--show-current'], { cwd: ws, timeoutMs: 3000 });
+      if (cur && cur.trim()) current = cur.trim();
+    } catch {}
+
+    try {
+      const raw = await runForStdout('git', ['branch', '-a', '--format=%(refname:short)'], { cwd: ws, timeoutMs: 3000 });
+      if (raw) {
+        const list = raw.trim().split('\n').map(b => b.trim()).filter(Boolean);
+        for (const b of list) {
+          if (!all.includes(b) && !b.includes('HEAD')) {
+            all.push(b);
+          }
+        }
+      }
+    } catch {}
+
+    if (!all.includes(current)) all.unshift(current);
+    if (all.length === 0) all.push('main');
+    return { current, all };
+  }
+
+  private async _getSshPublicKey(): Promise<{ exists: boolean; publicKey: string; keyPath: string }> {
+    try {
+      const homeDir = os.homedir();
+      const edPath = path.join(homeDir, '.ssh', 'id_ed25519.pub');
+      const rsaPath = path.join(homeDir, '.ssh', 'id_rsa.pub');
+
+      if (fs.existsSync(edPath)) {
+        return { exists: true, publicKey: fs.readFileSync(edPath, 'utf8').trim(), keyPath: '~/.ssh/id_ed25519.pub' };
+      }
+      if (fs.existsSync(rsaPath)) {
+        return { exists: true, publicKey: fs.readFileSync(rsaPath, 'utf8').trim(), keyPath: '~/.ssh/id_rsa.pub' };
+      }
+    } catch {}
+    return { exists: false, publicKey: '', keyPath: '' };
+  }
+
+  private async _generateCommitDraft(ws: string): Promise<{ title: string; description: string; changedFiles: Array<{ status: string; path: string }> }> {
+    const statusOut = await runForStdout('git', ['status', '--porcelain'], { cwd: ws, timeoutMs: 4000 });
+    const changedFiles: Array<{ status: string; path: string }> = [];
+    if (statusOut) {
+      const lines = statusOut.trim().split('\n').filter(Boolean);
+      for (const l of lines) {
+        const status = l.slice(0, 2).trim();
+        const filePath = l.slice(3).trim();
+        changedFiles.push({ status: status || 'M', path: filePath });
+      }
+    }
+
+    const diffStat = (await runForStdout('git', ['diff', '--stat', 'HEAD'], { cwd: ws, timeoutMs: 4000 })) 
+      || (await runForStdout('git', ['diff', '--stat'], { cwd: ws, timeoutMs: 4000 })) || '';
+
+    let title = '';
+    let description = '';
+
+    // If AI service is available, draft an AI commit message
+    if (this._svc?.ai && changedFiles.length > 0) {
+      try {
+        const diffSummary = (await runForStdout('git', ['diff', '-U1', 'HEAD'], { cwd: ws, timeoutMs: 5000 }))
+          || (await runForStdout('git', ['diff', '-U1'], { cwd: ws, timeoutMs: 5000 })) || '';
+        const sampleDiff = diffSummary.slice(0, 2500);
+
+        const prompt = `You are an expert engineer writing a clear, professional Conventional Commit message.
+Files changed:
+${changedFiles.map(f => `${f.status} ${f.path}`).slice(0, 15).join('\n')}
+
+Diff summary:
+${diffStat.slice(0, 1000)}
+
+Sample diff:
+${sampleDiff}
+
+Generate:
+1. Conventional Commit title on line 1 (e.g. feat(fde): implement dimensional mart builder and live db introspector). Max 72 chars.
+2. A blank line.
+3. 2-4 concise bullet points summarizing what was created or changed.
+Output ONLY the message without markdown code fences.`;
+
+        const aiResponse = await this._svc.ai.send({
+          system: 'You generate only clean conventional commit messages with bullet points.',
+          instruction: prompt,
+          mode: 'agent',
+          messages: [{ role: 'user', content: prompt }],
+        });
+
+        if (aiResponse && aiResponse.trim()) {
+          const cleaned = aiResponse.replace(/```[a-z]*\n?/g, '').trim();
+          const parts = cleaned.split('\n\n');
+          title = parts[0].trim().replace(/^commit:\s*/i, '');
+          description = parts.slice(1).join('\n\n').trim();
+        }
+      } catch (e) {
+        console.warn('AI commit generation fallback to heuristic:', e);
+      }
+    }
+
+    // Heuristic Fallback
+    if (!title && changedFiles.length > 0) {
+      const paths = changedFiles.map(f => f.path);
+      let type = 'feat';
+      let scope = 'fde';
+
+      if (paths.some(p => p.includes('test/'))) {
+        type = 'test'; scope = 'suite';
+      } else if (paths.every(p => p.endsWith('.md') || p.startsWith('docs/'))) {
+        type = 'docs'; scope = 'runbooks';
+      } else if (paths.some(p => p.includes('model') || p.includes('mart') || p.endsWith('.sql'))) {
+        type = 'feat'; scope = 'marts';
+      } else if (paths.some(p => p.includes('ui/') || p.includes('Panel'))) {
+        type = 'feat'; scope = 'ui';
+      } else if (paths.some(p => p.includes('deploy') || p.includes('terraform') || p.includes('k8s') || p.includes('firebase'))) {
+        type = 'feat'; scope = 'deploy';
+      }
+
+      const firstFew = paths.slice(0, 3).map(p => path.basename(p)).join(', ');
+      title = `${type}(${scope}): update ${firstFew}${paths.length > 3 ? ` and ${paths.length - 3} more files` : ''}`;
+
+      const bullets = changedFiles.slice(0, 6).map(f => {
+        const action = f.status === 'A' || f.status === '??' ? 'Add' : (f.status === 'D' ? 'Remove' : 'Update');
+        return `- ${action} ${f.path}`;
+      });
+      if (changedFiles.length > 6) {
+        bullets.push(`- Plus ${changedFiles.length - 6} additional modified files`);
+      }
+      description = bullets.join('\n');
+    } else if (!title) {
+      title = `chore(fde): client pilot deliverables update (${new Date().toISOString().slice(0, 10)})`;
+      description = '- Staged and committed client project deliverables';
+    }
+
+    return { title, description, changedFiles };
   }
 
   private async _handleMessage(msg: any): Promise<void> {
@@ -780,17 +922,21 @@ export class FdeCockpitPanel {
 
       case 'getGitAndCloudStatus': {
         let gitBranch = 'main';
+        let gitBranches: string[] = ['main'];
         let gitRemote = '';
         let isDirty = false;
         let uncommittedCount = 0;
+        let changedFiles: Array<{ status: string; path: string }> = [];
+        let sshKeyInfo = { exists: false, publicKey: '', keyPath: '' };
         let gcpStatus = false;
         let awsStatus = false;
         let dockerStatus = false;
 
         if (ws) {
           try {
-            const branchOut = await runForStdout('git', ['branch', '--show-current'], { cwd: ws, timeoutMs: 3000 });
-            if (branchOut && branchOut.trim()) gitBranch = branchOut.trim();
+            const branchInfo = await this._getGitBranches(ws);
+            gitBranch = branchInfo.current;
+            gitBranches = branchInfo.all;
 
             const remoteOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws, timeoutMs: 3000 });
             if (remoteOut && remoteOut.trim() && !remoteOut.includes('fatal:')) {
@@ -804,7 +950,14 @@ export class FdeCockpitPanel {
               const lines = statusOut.trim().split('\n').filter(Boolean);
               uncommittedCount = lines.length;
               isDirty = uncommittedCount > 0;
+              for (const l of lines) {
+                const status = l.slice(0, 2).trim();
+                const filePath = l.slice(3).trim();
+                changedFiles.push({ status: status || 'M', path: filePath });
+              }
             }
+
+            sshKeyInfo = await this._getSshPublicKey();
           } catch {
             gitRemote = 'No Git repository detected';
           }
@@ -828,12 +981,194 @@ export class FdeCockpitPanel {
         this._panel.webview.postMessage({
           type: 'gitAndCloudStatus',
           gitBranch,
+          gitBranches,
           gitRemote,
           isDirty,
           uncommittedCount,
+          changedFiles,
+          sshKeyInfo,
           gcpStatus,
           awsStatus,
           dockerStatus,
+        });
+        break;
+      }
+
+      case 'switchGitBranch': {
+        if (!ws) return;
+        const targetBranch = (msg.branch || '').trim();
+        if (!targetBranch) return;
+
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Checking out branch "${targetBranch}"...`,
+          cancellable: false
+        }, async () => {
+          let res: any;
+          if (targetBranch.startsWith('origin/')) {
+            const localName = targetBranch.replace(/^origin\//, '');
+            res = await runCommand('git', ['checkout', '-b', localName, '--track', targetBranch], { cwd: ws, timeoutMs: 15000 });
+            if (res && res.code !== 0) {
+              res = await runCommand('git', ['checkout', localName], { cwd: ws, timeoutMs: 15000 });
+            }
+          } else {
+            res = await runCommand('git', ['checkout', targetBranch], { cwd: ws, timeoutMs: 15000 });
+          }
+
+          if (res && res.code === 0) {
+            vscode.window.showInformationMessage(`✓ Switched to branch "${targetBranch}"`);
+            this._panel.webview.postMessage({ type: 'gitResult', success: true, message: `Switched to branch "${targetBranch}"` });
+          } else {
+            vscode.window.showWarningMessage(`Could not switch branch: ${res?.stderr || 'Check uncommitted changes'}`);
+            this._panel.webview.postMessage({ type: 'gitResult', success: false, error: res?.stderr || 'Branch checkout failed' });
+          }
+        });
+        break;
+      }
+
+      case 'createGitBranch': {
+        if (!ws) return;
+        const branchName = (msg.branchName || '').trim();
+        if (!branchName) {
+          vscode.window.showWarningMessage('Please enter a branch name.');
+          return;
+        }
+
+        const res = await runCommand('git', ['checkout', '-b', branchName], { cwd: ws, timeoutMs: 15000 });
+        if (res && res.code === 0) {
+          vscode.window.showInformationMessage(`✓ Created and checked out new branch "${branchName}"`);
+          this._panel.webview.postMessage({ type: 'gitResult', success: true, message: `Created branch "${branchName}"` });
+        } else {
+          vscode.window.showErrorMessage(`Failed to create branch: ${res?.stderr || 'Invalid branch name'}`);
+          this._panel.webview.postMessage({ type: 'gitResult', success: false, error: res?.stderr || 'Branch creation failed' });
+        }
+        break;
+      }
+
+      case 'copySshPublicKey': {
+        const sshInfo = await this._getSshPublicKey();
+        if (sshInfo.exists && sshInfo.publicKey) {
+          await vscode.env.clipboard.writeText(sshInfo.publicKey);
+          vscode.window.showInformationMessage(`📋 Public SSH key (${sshInfo.keyPath}) copied to clipboard! Paste it into Bitbucket/GitHub SSH keys.`);
+          this._panel.webview.postMessage({ type: 'toast', message: '📋 SSH Public Key copied to clipboard!' });
+        } else {
+          const gen = await vscode.window.showWarningMessage(
+            'No SSH public key found (~/.ssh/id_ed25519.pub or id_rsa.pub). Would you like to generate one now?',
+            'Generate SSH Key', 'Cancel'
+          );
+          if (gen === 'Generate SSH Key') {
+            const homeDir = os.homedir();
+            const sshDir = path.join(homeDir, '.ssh');
+            if (!fs.existsSync(sshDir)) fs.mkdirSync(sshDir, { recursive: true });
+            const keyPath = path.join(sshDir, 'id_ed25519');
+            const genRes = await runCommand('ssh-keygen', ['-t', 'ed25519', '-C', 'evolve-ai-fde', '-N', '', '-f', keyPath], { cwd: homeDir, timeoutMs: 10000 });
+            if (genRes && genRes.code === 0 && fs.existsSync(keyPath + '.pub')) {
+              const pubKey = fs.readFileSync(keyPath + '.pub', 'utf8').trim();
+              await vscode.env.clipboard.writeText(pubKey);
+              vscode.window.showInformationMessage(`✓ Generated new ed25519 SSH key and copied public key to clipboard!`);
+              this._panel.webview.postMessage({ type: 'gitResult', success: true, message: 'Generated & copied SSH Key' });
+            } else {
+              vscode.window.showErrorMessage(`Failed to generate SSH key: ${genRes?.stderr || 'Run ssh-keygen manually'}`);
+            }
+          }
+        }
+        break;
+      }
+
+      case 'configureHttpsAuth': {
+        if (!ws) return;
+        const repoUrl = (msg.repoUrl || '').trim();
+        const username = (msg.username || '').trim();
+        const token = (msg.token || '').trim();
+
+        if (!repoUrl) {
+          vscode.window.showWarningMessage('Please enter a remote repository URL.');
+          return;
+        }
+
+        let authenticatedUrl = repoUrl;
+        if (username && token) {
+          try {
+            let clean = repoUrl.replace(/^git@([^:]+):/, 'https://$1/');
+            if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+              clean = 'https://' + clean;
+            }
+            const u = new URL(clean);
+            u.username = encodeURIComponent(username);
+            u.password = encodeURIComponent(token);
+            authenticatedUrl = u.toString();
+          } catch {
+            authenticatedUrl = repoUrl;
+          }
+        }
+
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: 'Configuring Git remote origin and testing authentication...',
+          cancellable: false
+        }, async () => {
+          try {
+            const checkOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws });
+            if (checkOut && !checkOut.includes('fatal:')) {
+              await runCommand('git', ['remote', 'set-url', 'origin', authenticatedUrl], { cwd: ws });
+            } else {
+              await runCommand('git', ['remote', 'add', 'origin', authenticatedUrl], { cwd: ws });
+            }
+
+            // Test remote
+            const testOut = await runForStdout('git', ['ls-remote', '--heads', 'origin'], { cwd: ws, timeoutMs: 10000 });
+            const isOk = testOut && !testOut.includes('fatal:') && !testOut.includes('Authentication failed');
+
+            if (isOk) {
+              vscode.window.showInformationMessage(`✓ Git Remote Origin configured and authenticated successfully!`);
+              this._panel.webview.postMessage({
+                type: 'gitAuthResult',
+                success: true,
+                remoteUrl: repoUrl,
+                message: '✓ Remote authenticated & ready!'
+              });
+            } else {
+              vscode.window.showWarningMessage(`Remote configured, but verification reported: ${testOut || 'Check credentials / token permissions'}`);
+              this._panel.webview.postMessage({
+                type: 'gitAuthResult',
+                success: false,
+                remoteUrl: repoUrl,
+                message: `⚠️ Remote set, verification: ${testOut || 'Check token permissions'}`
+              });
+            }
+          } catch (e: any) {
+            vscode.window.showErrorMessage(`Failed to configure git remote: ${e?.message || e}`);
+          }
+        });
+        break;
+      }
+
+      case 'initializeGitRepo': {
+        if (!ws) return;
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: 'Initializing Git repository...',
+          cancellable: false
+        }, async () => {
+          const initRes = await runCommand('git', ['init', '-b', 'main'], { cwd: ws });
+          if (initRes && initRes.code === 0) {
+            vscode.window.showInformationMessage(`✓ Initialized Git repository on branch "main"`);
+            this._panel.webview.postMessage({ type: 'gitResult', success: true, message: 'Git repository initialized' });
+          } else {
+            vscode.window.showErrorMessage(`Git init failed: ${initRes?.stderr || 'Check permissions'}`);
+          }
+        });
+        break;
+      }
+
+      case 'requestCommitDraft': {
+        if (!ws) return;
+        const draft = await this._generateCommitDraft(ws);
+        this._panel.webview.postMessage({
+          type: 'commitDraftResult',
+          title: draft.title,
+          description: draft.description,
+          changedFiles: draft.changedFiles,
         });
         break;
       }
@@ -866,23 +1201,54 @@ export class FdeCockpitPanel {
           vscode.window.showWarningMessage('Open a workspace folder first.');
           return;
         }
-        const commitMsg = msg.commitMessage || `feat(fde): client pilot deliverables (${new Date().toISOString().slice(0, 10)})`;
-        if (msg.runInTerminal) {
+
+        const title = (msg.title || msg.commitMessage || `feat(fde): client pilot deliverables (${new Date().toISOString().slice(0, 10)})`).trim();
+        const desc = (msg.description || '').trim();
+        const fullMessage = desc ? `${title}\n\n${desc}` : title;
+        const pushToRemote = msg.pushToRemote !== false;
+        const runInTerminal = msg.runInTerminal !== false;
+
+        if (runInTerminal) {
           const terminal = this.getOrCreateGitTerminal();
           terminal.show();
-          terminal.sendText(`git add -A && git commit -m "${commitMsg}" && git push origin HEAD`);
-          vscode.window.showInformationMessage('📦 Running 1-Click Commit & Push in terminal...');
-        } else {
-          vscode.window.showInformationMessage(`📦 Git: Staging, committing & pushing...`);
-          await runCommand('git', ['add', '-A'], { cwd: ws, timeoutMs: 15000 });
-          await runCommand('git', ['commit', '-m', commitMsg], { cwd: ws, timeoutMs: 15000 });
-          const pushRes = await runCommand('git', ['push', 'origin', 'HEAD'], { cwd: ws, timeoutMs: 30000 });
-          if (pushRes && pushRes.code === 0) {
-            vscode.window.showInformationMessage(`✓ Git: Pushed deliverables to origin!`);
+          const isWin = process.platform === 'win32';
+          const safeMsg = fullMessage.replace(/"/g, '\"');
+          
+          if (pushToRemote) {
+            const cmd = isWin
+              ? `git add -A; git commit -m "${safeMsg}"; git push origin HEAD`
+              : `git add -A && git commit -m "${safeMsg}" && git push origin HEAD`;
+            terminal.sendText(cmd);
           } else {
-            vscode.window.showInformationMessage(`✓ Git: Committed locally. (Push: ${pushRes?.stderr || 'Check remote credentials'})`);
+            const cmd = isWin
+              ? `git add -A; git commit -m "${safeMsg}"`
+              : `git add -A && git commit -m "${safeMsg}"`;
+            terminal.sendText(cmd);
           }
-          this._panel.webview.postMessage({ type: 'gitResult', success: true, message: 'Commit & Push completed' });
+          vscode.window.showInformationMessage('📦 Running Commit & Push in terminal...');
+        } else {
+          vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: 'Staging, committing and pushing to remote...',
+            cancellable: false
+          }, async () => {
+            await runCommand('git', ['add', '-A'], { cwd: ws, timeoutMs: 15000 });
+            const commitRes = await runCommand('git', ['commit', '-m', fullMessage], { cwd: ws, timeoutMs: 15000 });
+            
+            if (pushToRemote) {
+              const pushRes = await runCommand('git', ['push', 'origin', 'HEAD'], { cwd: ws, timeoutMs: 30000 });
+              if (pushRes && pushRes.code === 0) {
+                vscode.window.showInformationMessage(`✓ Git: Committed & pushed deliverables to remote origin!`);
+                this._panel.webview.postMessage({ type: 'gitResult', success: true, message: 'Committed & Pushed successfully!' });
+              } else {
+                vscode.window.showWarningMessage(`✓ Git: Committed locally. (Push: ${pushRes?.stderr || 'Check remote credentials'})`);
+                this._panel.webview.postMessage({ type: 'gitResult', success: false, error: pushRes?.stderr || 'Push failed' });
+              }
+            } else {
+              vscode.window.showInformationMessage(`✓ Git: Committed locally.`);
+              this._panel.webview.postMessage({ type: 'gitResult', success: true, message: 'Committed locally' });
+            }
+          });
         }
         break;
       }
@@ -905,6 +1271,13 @@ export class FdeCockpitPanel {
           this._panel.webview.postMessage({ type: 'gitRemoteUpdated', remoteUrl });
         } catch (e: any) {
           vscode.window.showErrorMessage(`Failed to set git remote: ${e?.message || e}`);
+        }
+        break;
+      }
+
+      case 'openExternalUrl': {
+        if (msg.url) {
+          vscode.env.openExternal(vscode.Uri.parse(msg.url));
         }
         break;
       }
@@ -1620,52 +1993,182 @@ export class FdeCockpitPanel {
 
   <!-- Git & Bitbucket / GitHub Remote & Cloud Hub -->
   <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 12px;">
-    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-      <span style="font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 4px;">🌿 <span id="gitBranchBadge">main</span></span>
-      <span style="opacity: 0.75;">|</span>
-      <span style="font-family: monospace; font-size: 11px; opacity: 0.9; cursor: pointer; border-bottom: 1px dashed var(--accent);" id="gitRemoteBadge" onclick="toggleGitSetupDrawer()" title="Click to configure Git / Bitbucket remote">checking git remote...</span>
-      <span style="opacity: 0.75;">|</span>
-      <span id="gitDirtyBadge" style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; background: var(--card-bg);">checking...</span>
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <span style="font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 4px;">🌿</span>
+      <select id="gitBranchSelect" onchange="switchGitBranch(this.value)" style="padding: 4px 8px; font-size: 11px; font-weight: 700; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--fg); min-width: 120px; cursor: pointer;" title="Active Git Branch (Click to switch)">
+        <option value="main">main</option>
+      </select>
+      <button class="btn-quick" style="margin-bottom: 0; padding: 3px 8px; font-size: 10px;" onclick="promptNewBranch()" title="Create new branch">➕ New Branch</button>
+      <span style="opacity: 0.6;">|</span>
+      <span style="font-family: monospace; font-size: 11px; opacity: 0.9; cursor: pointer; border-bottom: 1px dashed var(--accent);" id="gitRemoteBadge" onclick="toggleGitSetupDrawer()" title="Click to configure Git / Bitbucket / GitHub remote">checking git remote...</span>
+      <span style="opacity: 0.6;">|</span>
+      <span id="gitDirtyBadge" style="padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; background: var(--card-bg); cursor: pointer;" onclick="toggleCommitDrawer()" title="Click to open Smart Commit & Push Studio">checking...</span>
     </div>
     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
       <button class="btn-quick" id="btnGitSetup" style="margin-bottom: 0;" onclick="toggleGitSetupDrawer()">⚙️ Git Setup</button>
       <button class="btn-quick" style="margin-bottom: 0;" onclick="gitFetch()">🔄 Sync &amp; Fetch</button>
-      <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success);" onclick="gitCommitAndPush()">📦 1-Click Commit &amp; Push</button>
+      <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="toggleCommitDrawer()">📦 1-Click Commit &amp; Push</button>
       <button class="btn-quick" style="margin-bottom: 0;" onclick="createPullRequest()">🚀 Create PR</button>
       <button class="btn-quick" id="btnCloudHub" style="margin-bottom: 0;" onclick="toggleCloudHubDrawer()">☁️ Cloud Hub &amp; Connect</button>
     </div>
   </div>
 
-  <!-- Git & Bitbucket Setup & Diagnostic Drawer -->
-  <div id="gitSetupDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+  <!-- Smart AI Commit & Push Studio Drawer -->
+  <div id="gitCommitDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--success); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: 700; color: var(--success); font-size: 13px;">📦 1-Click Smart Commit &amp; Push Studio</span>
+        <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 10px; font-weight: 700;">CONVENTIONAL COMMITS</span>
+      </div>
+      <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleCommitDrawer()">✕ Close</button>
+    </div>
+
+    <!-- Changed Files Summary Banner -->
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Staged &amp; Modified Deliverables:</span>
+        <span id="commitFilesCountBadge" style="font-size: 10px; font-weight: 700; color: var(--accent);">0 files</span>
+      </div>
+      <div id="commitChangedFilesList" style="max-height: 80px; overflow-y: auto; font-family: monospace; font-size: 11px; display: flex; flex-direction: column; gap: 3px;">
+        <span style="opacity: 0.6;">No changes detected</span>
+      </div>
+    </div>
+
+    <!-- Commit Title Input -->
+    <div style="margin-bottom: 10px;">
+      <label style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 4px;">Commit Title (Conventional format: &lt;type&gt;(&lt;scope&gt;): &lt;summary&gt;)</label>
+      <input type="text" id="commitTitleInput" placeholder="e.g. feat(fde): add dimensional mart builder and live introspector" style="font-family: monospace; font-size: 12px; font-weight: 600; width: 100%; margin-bottom: 0;">
+    </div>
+
+    <!-- Commit Description Input -->
+    <div style="margin-bottom: 10px;">
+      <label style="font-size: 11px; font-weight: 700; display: block; margin-bottom: 4px;">Detailed Summary / Description (Bullet points)</label>
+      <textarea id="commitDescInput" rows="3" placeholder="- Staged and committed client pilot deliverables&#10;- Configured API connectors and staging transformations" style="width: 100%; margin-bottom: 0;"></textarea>
+    </div>
+
+    <!-- AI & Auto-Draft Controls -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; padding: 6px 0; border-top: 1px dashed var(--border); border-bottom: 1px dashed var(--border);">
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button class="btn-quick" onclick="draftWithAi()" style="color: var(--accent); border-color: var(--accent); font-weight: 700; margin-bottom: 0;">🤖 Draft with AI</button>
+        <button class="btn-quick" onclick="draftHeuristic()" style="margin-bottom: 0;">⚡ Quick Auto-Draft</button>
+        <span style="font-size: 11px; opacity: 0.75;">Target Branch: <strong id="commitTargetBranchBadge" style="color: var(--accent);">main</strong></span>
+      </div>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="chkCommitPushRemote" checked style="width: auto; margin: 0;">
+          <span>Push to origin/<span id="commitTargetBranchBadge2">main</span></span>
+        </label>
+        <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="chkCommitInTerminal" checked style="width: auto; margin: 0;">
+          <span>Run in terminal</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Execution Bar -->
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button class="btn" style="background: var(--success); color: #fff; font-weight: 700;" onclick="executeCommitAndPush()">🚀 Commit &amp; Push Deliverables</button>
+      <button class="btn-secondary btn" onclick="toggleCommitDrawer()">✕ Cancel</button>
+    </div>
+  </div>
+
+  <!-- Git & Bitbucket / GitHub Setup & Auth Hub Drawer -->
+  <div id="gitSetupDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
       <div style="font-weight: 700; color: var(--accent); font-size: 13px;">
-        🔗 Git &amp; Bitbucket / GitHub Remote Configuration &amp; Terminal Stream
+        🔗 Git &amp; Bitbucket / GitHub / GitLab Remote &amp; Auth Hub
       </div>
       <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleGitSetupDrawer()">✕ Close</button>
     </div>
 
-    <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 10px; margin-bottom: 10px;">
-      <div>
-        <label style="font-size: 11px; font-weight: bold;">Remote Origin URL (Bitbucket / GitHub / GitLab)</label>
-        <input type="text" id="customGitRemoteUrl" placeholder="e.g. git@bitbucket.org:org/repo.git or https://github.com/org/repo.git" style="font-family: monospace;">
-      </div>
-      <div style="display: flex; align-items: flex-end;">
-        <button class="btn" style="width: 100%; margin-bottom: 0;" onclick="saveGitRemote()">🔗 Set Remote</button>
+    <!-- Direct Settings Links Portals -->
+    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 14px;">
+      <div style="font-size: 11px; font-weight: 700; opacity: 0.85; margin-bottom: 6px;">1-Click Direct Access to Cloud Git Settings &amp; Token Portals:</div>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+        <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px;">Atlassian Bitbucket</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <button class="btn-quick" style="margin-bottom: 0; text-align: left;" onclick="openExternalUrl('https://bitbucket.org/account/settings/app-passwords/new')">🔑 Get App Password ↗</button>
+            <button class="btn-quick" style="margin-bottom: 0; text-align: left;" onclick="openExternalUrl('https://bitbucket.org/account/settings/ssh-keys/')">🗝️ Add SSH Key ↗</button>
+          </div>
+        </div>
+
+        <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px;">GitHub</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <button class="btn-quick" style="margin-bottom: 0; text-align: left;" onclick="openExternalUrl('https://github.com/settings/tokens/new?scopes=repo,workflow&description=Evolve+AI+(VS+Code)')">🔑 Get GitHub PAT (repo scope) ↗</button>
+            <button class="btn-quick" style="margin-bottom: 0; text-align: left;" onclick="openExternalUrl('https://github.com/settings/keys')">🗝️ Add SSH Key ↗</button>
+          </div>
+        </div>
+
+        <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+          <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px;">GitLab</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <button class="btn-quick" style="margin-bottom: 0; text-align: left;" onclick="openExternalUrl('https://gitlab.com/-/user_settings/personal_access_tokens')">🔑 Get Access Token ↗</button>
+            <button class="btn-quick" style="margin-bottom: 0; text-align: left;" onclick="openExternalUrl('https://gitlab.com/-/user_settings/ssh_keys')">🗝️ Add SSH Key ↗</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border);">
+    <!-- 2 Auth Modes: HTTPS + PAT vs SSH Key -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+      <!-- Mode 1: HTTPS + PAT -->
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px;">🔑 Method 1: HTTPS with Token / App Password</div>
+        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 8px;">Fastest setup for Bitbucket or GitHub. No SSH configuration needed.</div>
+        
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; font-weight: 700;">Remote Repository HTTPS URL</label>
+          <input type="text" id="httpsRepoUrl" placeholder="https://bitbucket.org/workspace/repo.git or https://github.com/org/repo.git" style="font-family: monospace; font-size: 11px;">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: 700;">Username / Account</label>
+            <input type="text" id="httpsUsername" placeholder="e.g. john_doe" style="font-size: 11px;">
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: 700;">Token / App Password</label>
+            <input type="password" id="httpsToken" placeholder="••••••••••••" style="font-size: 11px;">
+          </div>
+        </div>
+        <button class="btn" style="width: 100%; font-size: 11px; margin-bottom: 0;" onclick="saveHttpsGitRemote()">🔗 Configure HTTPS Remote &amp; Verify</button>
+      </div>
+
+      <!-- Mode 2: SSH Key Auth -->
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px;">🗝️ Method 2: SSH Key Authentication</div>
+        <div style="font-size: 11px; opacity: 0.8; margin-bottom: 8px;">Enterprise air-gapped authentication via cryptographic SSH keys.</div>
+
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; font-weight: 700;">Remote Repository SSH URL</label>
+          <input type="text" id="sshRepoUrl" placeholder="git@bitbucket.org:workspace/repo.git or git@github.com:org/repo.git" style="font-family: monospace; font-size: 11px;">
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px;">
+          <span>SSH Key Status:</span>
+          <span id="sshKeyStatusBadge" style="font-weight: 700; color: var(--accent);">detecting...</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+          <button class="btn-quick" style="margin-bottom: 0;" onclick="copySshKey()">📋 Copy Public Key</button>
+          <button class="btn-quick" style="margin-bottom: 0;" onclick="generateSshKey()">⚡ Generate ed25519</button>
+        </div>
+        <button class="btn" style="width: 100%; font-size: 11px; margin-bottom: 0;" onclick="saveSshGitRemote()">🔗 Set SSH Remote &amp; Test</button>
+      </div>
+    </div>
+
+    <!-- Diagnostics & Terminal Stream -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <span style="font-size: 11px; font-weight: bold;">Connectivity Tests:</span>
+        <span style="font-size: 11px; font-weight: bold;">Quick Diagnostics:</span>
         <button class="btn-quick" style="margin-bottom: 0;" onclick="diagnoseGit('bitbucket')">🔍 Test Bitbucket SSH</button>
         <button class="btn-quick" style="margin-bottom: 0;" onclick="diagnoseGit('github')">🔍 Test GitHub SSH</button>
         <button class="btn-quick" style="margin-bottom: 0;" onclick="openGitTerminal()">💻 Open Live Terminal</button>
+        <button class="btn-quick" style="margin-bottom: 0;" onclick="initGitRepo()">🚀 Initialize Git (git init)</button>
       </div>
       <div>
         <label style="font-size: 11px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
           <input type="checkbox" id="chkRunInTerminal" checked style="width: auto; margin: 0;">
-          <span>Run Fetch &amp; Push in visible VS Code Terminal</span>
+          <span>Run operations in visible VS Code Terminal</span>
         </label>
       </div>
     </div>
@@ -2720,25 +3223,119 @@ export class FdeCockpitPanel {
       vscode.postMessage({ command: 'parseOpenApi', openApiString: spec });
     }
 
+    function switchGitBranch(branch) {
+      if (!branch) return;
+      showToast('🔄 Switching to branch ' + branch + '...');
+      vscode.postMessage({ command: 'switchGitBranch', branch: branch });
+    }
+
+    function promptNewBranch() {
+      const name = prompt('Enter new branch name (e.g. feat/client-ingest):');
+      if (name && name.trim()) {
+        showToast('🌿 Creating branch ' + name.trim() + '...');
+        vscode.postMessage({ command: 'createGitBranch', branchName: name.trim() });
+      }
+    }
+
     function toggleGitSetupDrawer() {
       const drawer = document.getElementById('gitSetupDrawer');
+      const commitDrawer = document.getElementById('gitCommitDrawer');
+      if (commitDrawer) commitDrawer.style.display = 'none';
       if (drawer) {
         const isHidden = drawer.style.display === 'none' || drawer.style.display === '' || window.getComputedStyle(drawer).display === 'none';
         drawer.style.display = isHidden ? 'block' : 'none';
         if (isHidden) {
           drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          vscode.postMessage({ command: 'getGitAndCloudStatus' });
         }
       }
     }
 
-    function saveGitRemote() {
-      const url = document.getElementById('customGitRemoteUrl').value.trim();
-      if (!url) {
-        showToast('⚠️ Please enter a remote repository URL!');
+    function toggleCommitDrawer() {
+      const drawer = document.getElementById('gitCommitDrawer');
+      const setupDrawer = document.getElementById('gitSetupDrawer');
+      if (setupDrawer) setupDrawer.style.display = 'none';
+      if (drawer) {
+        const isHidden = drawer.style.display === 'none' || drawer.style.display === '' || window.getComputedStyle(drawer).display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+          drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          vscode.postMessage({ command: 'getGitAndCloudStatus' });
+          vscode.postMessage({ command: 'requestCommitDraft' });
+        }
+      }
+    }
+
+    function saveHttpsGitRemote() {
+      const repoUrl = (document.getElementById('httpsRepoUrl').value || '').trim();
+      const username = (document.getElementById('httpsUsername').value || '').trim();
+      const token = (document.getElementById('httpsToken').value || '').trim();
+      if (!repoUrl) {
+        showToast('⚠️ Please enter a remote repository HTTPS URL!');
         return;
       }
-      vscode.postMessage({ command: 'setGitRemote', remoteUrl: url });
-      showToast('🔗 Updating Git remote...');
+      showToast('🔗 Configuring HTTPS remote & testing authentication...');
+      vscode.postMessage({ command: 'configureHttpsAuth', repoUrl: repoUrl, username: username, token: token });
+    }
+
+    function saveSshGitRemote() {
+      const repoUrl = (document.getElementById('sshRepoUrl').value || '').trim();
+      if (!repoUrl) {
+        showToast('⚠️ Please enter a remote repository SSH URL!');
+        return;
+      }
+      showToast('🔗 Configuring SSH remote origin...');
+      vscode.postMessage({ command: 'setGitRemote', remoteUrl: repoUrl });
+    }
+
+    function copySshKey() {
+      vscode.postMessage({ command: 'copySshPublicKey' });
+      showToast('📋 Copying Public SSH Key to clipboard...');
+    }
+
+    function generateSshKey() {
+      vscode.postMessage({ command: 'copySshPublicKey' });
+    }
+
+    function initGitRepo() {
+      showToast('🚀 Initializing Git repository...');
+      vscode.postMessage({ command: 'initializeGitRepo' });
+    }
+
+    function draftWithAi() {
+      showToast('🤖 Drafting Conventional Commit with AI...');
+      vscode.postMessage({ command: 'requestCommitDraft' });
+    }
+
+    function draftHeuristic() {
+      showToast('⚡ Generating instant auto-draft...');
+      vscode.postMessage({ command: 'requestCommitDraft' });
+    }
+
+    function executeCommitAndPush() {
+      const title = (document.getElementById('commitTitleInput').value || '').trim();
+      const desc = (document.getElementById('commitDescInput').value || '').trim();
+      const pushRemote = document.getElementById('chkCommitPushRemote') ? document.getElementById('chkCommitPushRemote').checked : true;
+      const runInTerm = document.getElementById('chkCommitInTerminal') ? document.getElementById('chkCommitInTerminal').checked : true;
+
+      if (!title) {
+        showToast('⚠️ Please enter a commit title!');
+        return;
+      }
+
+      showToast('📦 Committing ' + (pushRemote ? '& pushing' : '') + ' deliverables...');
+      vscode.postMessage({
+        command: 'gitCommitAndPush',
+        title: title,
+        description: desc,
+        pushToRemote: pushRemote,
+        runInTerminal: runInTerm
+      });
+      toggleCommitDrawer();
+    }
+
+    function openExternalUrl(url) {
+      if (url) vscode.postMessage({ command: 'openExternalUrl', url: url });
     }
 
     function diagnoseGit(target) {
@@ -2754,12 +3351,6 @@ export class FdeCockpitPanel {
       const runInTerm = document.getElementById('chkRunInTerminal') ? document.getElementById('chkRunInTerminal').checked : true;
       showToast('🔄 Fetching from remote...');
       vscode.postMessage({ command: 'gitFetch', runInTerminal: runInTerm });
-    }
-
-    function gitCommitAndPush() {
-      const runInTerm = document.getElementById('chkRunInTerminal') ? document.getElementById('chkRunInTerminal').checked : true;
-      showToast('📦 Committing & pushing to remote...');
-      vscode.postMessage({ command: 'gitCommitAndPush', runInTerminal: runInTerm });
     }
 
     function createPullRequest() {
@@ -2788,15 +3379,26 @@ export class FdeCockpitPanel {
       showToast('🚀 Initiating ' + provider.toUpperCase() + ' ' + (action || 'login') + ' in terminal...');
     }
 
+    window.switchGitBranch = switchGitBranch;
+    window.promptNewBranch = promptNewBranch;
     window.toggleGitSetupDrawer = toggleGitSetupDrawer;
+    window.toggleCommitDrawer = toggleCommitDrawer;
+    window.saveHttpsGitRemote = saveHttpsGitRemote;
+    window.saveSshGitRemote = saveSshGitRemote;
+    window.copySshKey = copySshKey;
+    window.generateSshKey = generateSshKey;
+    window.initGitRepo = initGitRepo;
+    window.draftWithAi = draftWithAi;
+    window.draftHeuristic = draftHeuristic;
+    window.executeCommitAndPush = executeCommitAndPush;
+    window.openExternalUrl = openExternalUrl;
     window.toggleCloudHubDrawer = toggleCloudHubDrawer;
     window.connectCloud = connectCloud;
-    window.saveGitRemote = saveGitRemote;
     window.diagnoseGit = diagnoseGit;
     window.openGitTerminal = openGitTerminal;
     window.gitFetch = gitFetch;
-    window.gitCommitAndPush = gitCommitAndPush;
     window.createPullRequest = createPullRequest;
+    window.testCloudConnection = testCloudConnection;
     window.testCloudConnection = testCloudConnection;
     window.toggleDbConnectModal = toggleDbConnectModal;
     window.toggleRoadmap = toggleRoadmap;
@@ -3189,8 +3791,18 @@ export class FdeCockpitPanel {
     window.addEventListener('message', event => {
       const msg = event.data;
       if (msg.type === 'gitAndCloudStatus') {
-        const branchEl = document.getElementById('gitBranchBadge');
-        if (branchEl) branchEl.innerText = msg.gitBranch || msg.branch || 'main';
+        const branchSelect = document.getElementById('gitBranchSelect');
+        if (branchSelect && msg.gitBranches && msg.gitBranches.length) {
+          const current = msg.gitBranch || 'main';
+          branchSelect.innerHTML = msg.gitBranches.map(function(b) {
+            return '<option value="' + b + '" ' + (b === current ? 'selected' : '') + '>' + b + '</option>';
+          }).join('');
+        }
+
+        const targetB1 = document.getElementById('commitTargetBranchBadge');
+        if (targetB1) targetB1.innerText = msg.gitBranch || 'main';
+        const targetB2 = document.getElementById('commitTargetBranchBadge2');
+        if (targetB2) targetB2.innerText = msg.gitBranch || 'main';
         
         const remoteEl = document.getElementById('gitRemoteBadge');
         if (remoteEl) {
@@ -3199,9 +3811,24 @@ export class FdeCockpitPanel {
           remoteEl.title = rem;
         }
 
-        const remInput = document.getElementById('customGitRemoteUrl');
-        if (remInput && msg.gitRemote && !msg.gitRemote.startsWith('No ')) {
-          remInput.value = msg.gitRemote;
+        const httpsInput = document.getElementById('httpsRepoUrl');
+        if (httpsInput && msg.gitRemote && !msg.gitRemote.startsWith('No ')) {
+          if (!httpsInput.value) httpsInput.value = msg.gitRemote;
+        }
+        const sshInput = document.getElementById('sshRepoUrl');
+        if (sshInput && msg.gitRemote && !msg.gitRemote.startsWith('No ')) {
+          if (!sshInput.value) sshInput.value = msg.gitRemote;
+        }
+
+        const sshBadge = document.getElementById('sshKeyStatusBadge');
+        if (sshBadge && msg.sshKeyInfo) {
+          if (msg.sshKeyInfo.exists) {
+            sshBadge.innerText = '✓ Key Found (' + msg.sshKeyInfo.keyPath + ')';
+            sshBadge.style.color = 'var(--success)';
+          } else {
+            sshBadge.innerText = '○ No Key Found';
+            sshBadge.style.color = 'var(--warn)';
+          }
         }
         
         const dirtyEl = document.getElementById('gitDirtyBadge');
@@ -3209,6 +3836,30 @@ export class FdeCockpitPanel {
           dirtyEl.innerText = msg.isDirty ? '● Modified (' + (msg.uncommittedCount || 1) + ' files)' : '✓ Clean';
           dirtyEl.style.color = msg.isDirty ? 'var(--warn)' : 'var(--success)';
         }
+
+        const filesCount = document.getElementById('commitFilesCountBadge');
+        if (filesCount) filesCount.innerText = (msg.uncommittedCount || 0) + ' files';
+
+        const filesList = document.getElementById('commitChangedFilesList');
+        if (filesList && msg.changedFiles) {
+          if (msg.changedFiles.length > 0) {
+            filesList.innerHTML = msg.changedFiles.map(function(f) {
+              const color = f.status === 'A' || f.status === '??' ? 'var(--success)' : (f.status === 'D' ? 'var(--error)' : 'var(--warn)');
+              return '<div style="display:flex; gap:6px; align-items:center;"><span style="font-weight:bold; color:' + color + '; width:16px;">' + f.status + '</span><span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + f.path + '</span></div>';
+            }).join('');
+          } else {
+            filesList.innerHTML = '<span style="opacity:0.6;">✓ No uncommitted changes (working tree clean)</span>';
+          }
+        }
+      } else if (msg.type === 'commitDraftResult') {
+        const titleInput = document.getElementById('commitTitleInput');
+        if (titleInput && msg.title) titleInput.value = msg.title;
+        const descInput = document.getElementById('commitDescInput');
+        if (descInput && msg.description) descInput.value = msg.description;
+        showToast('✓ Commit message & description drafted!');
+      } else if (msg.type === 'gitAuthResult') {
+        showToast(msg.message || (msg.success ? '✓ Git Remote authenticated!' : '⚠️ Remote verification notice'));
+        vscode.postMessage({ command: 'getGitAndCloudStatus' });
       } else if (msg.type === 'gitDiagnosticResult') {
         const banner = document.getElementById('gitDiagnosticBanner');
         if (banner) {
