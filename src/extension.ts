@@ -43,6 +43,7 @@ import {
 } from './plugins/dbtManifest';
 import { registerOfflineSuite } from './offline/index';
 import { registerFdeSuite } from './fde/index';
+import { runDatabricksConnectWizard } from './plugins/databricks';
 import * as nodePath from 'path';
 
 export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
@@ -333,6 +334,8 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
       const instruction = `Fix the issues in this Airflow DAG. The static analyzer found:\n\n${summary}\n\nReturn ONLY the complete updated file. Preserve the existing logic; just fix the issues.\n\nDAG file:\n\`\`\`python\n${code}\n\`\`\``;
       await vscode.commands.executeCommand('aiForge._sendToChat', instruction, 'edit');
     }),
+
+    vscode.commands.registerCommand('aiForge.databricks.connect', () => runDatabricksConnectWizard(svc)),
   );
 
   // 4a. Code analysis (lint/format) — triggers + commands + status bar
