@@ -357,15 +357,14 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     this._post({ type: 'notice', text: `✓ Created/updated ${files.length} file(s)` });
   }
 
-  // ── Status ────────────────────────────────────────────────────────────────────
-
   // [FIX-18] Debounced status update — avoids redundant network calls
   private _scheduleStatus(): void {
+    this._statusCache = null;
     if (this._statusTimer) clearTimeout(this._statusTimer);
     this._statusTimer = setTimeout(() => {
       this._statusTimer = null;
       this._postStatus();
-    }, 300);
+    }, 100);
   }
 
   // Persist the picked model to the config setting that backs the active
@@ -648,7 +647,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   <span id="modelLabel"></span>
 
   <div style="position:relative; display:inline-block;">
-    <button class="hbtn" id="pluginsBtn" title="View detected workspace environments and active plugins" style="display:none; align-items:center; gap:4px; font-size:10px; padding:2px 6px;">
+    <button class="hbtn" id="pluginsBtn" title="View detected workspace environments and active plugins" style="display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 6px;">
       <span>🔌</span> <span id="pluginsCountLabel">0 active</span> <span style="font-size:8px; opacity:0.7;">▾</span>
     </button>
     <div class="popover" id="pluginsPopover" hidden style="top:100%; bottom:auto; left:0; margin-top:6px; min-width:280px; max-width:340px;">
@@ -1292,17 +1291,13 @@ window.addEventListener('message', ({ data }) => {
       const unifiedList = Array.from(unifiedMap.values());
 
       if (pluginsBtn && pluginsCountLabel) {
-        if (unifiedList.length > 0) {
-          pluginsBtn.style.display = 'inline-flex';
-          pluginsCountLabel.textContent = unifiedList.length + ' active';
-          if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = unifiedList.length + ' active';
-        } else {
-          pluginsBtn.style.display = 'none';
-        }
+        pluginsBtn.style.display = 'inline-flex';
+        pluginsCountLabel.textContent = (unifiedList.length > 0 ? unifiedList.length : 0) + ' active';
+        if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = (unifiedList.length > 0 ? unifiedList.length : 0) + ' active';
       }
 
       if (pluginsList) {
-        const itemsHtml = unifiedList.map(p => {
+        const itemsHtml = unifiedList.length > 0 ? unifiedList.map(p => {
           const btnHtml = p.actionCmd ? 
             '<button class="plugin-act-btn" data-cmd="' + esc(p.actionCmd) + '" style="background: rgba(78,201,176,0.12); border: 1px solid rgba(78,201,176,0.4); color: #4ec9b0; border-radius: 4px; font-size: 10px; padding: 2px 7px; cursor: pointer; white-space: nowrap; font-weight: 600; transition: all 0.15s;">' + esc(p.actionLabel) + '</button>' : '';
           
@@ -1316,7 +1311,7 @@ window.addEventListener('message', ({ data }) => {
             '</div>' +
             btnHtml +
           '</div>';
-        }).join('');
+        }).join('') : '<div style="padding: 14px 10px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.4;">No plugins detected yet.<br>Open a workspace with Python, SQL, Databricks, dbt, or cloud manifests to activate plugins automatically.</div>';
 
         const footerHtml = '<div style="padding: 8px 10px; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 4px; background: rgba(255,255,255,0.02); line-height: 1.4;">' +
           '💡 <strong>How it works:</strong> Active plugins inject syntax, cloud rules &amp; live context into AI Chat automatically. Click any button above to open dedicated tools.' +
