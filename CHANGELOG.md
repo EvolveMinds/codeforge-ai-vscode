@@ -2,6 +2,45 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.19.0] — 2026-08-29
+
+### Interactive Databricks Setup Wizard, Dedicated Lakehouse Hub, Multi-Cloud Deployment & Permanent Studio Access
+* **Interactive Databricks Connection Setup Wizard (`🔌 Databricks Workspace Connection Settings`)**:
+  * Globally registered 1-click connection wizard (`aiForge.databricks.connect`) accessible anytime without pre-existing configuration or workspace reload.
+  * Guided input prompts for **Databricks Workspace URL** (`https://adb-xxx.azuredatabricks.net`, AWS, or GCP) and **Personal Access Token (PAT)** (`dapi...`).
+  * Live connectivity testing with real-time progress notification and hardware-encrypted credential storage in `vscode.SecretStorage`.
+* **Dedicated Databricks Lakehouse & Delta Studio Hub (`aiForge.databricks.openHub`)**:
+  * Dedicated Lakehouse QuickPick launcher (**`[ ⚡ Lakehouse Hub ]`**) providing direct access to specialized Lakehouse engineering tools:
+    * 🚀 **PySpark & Photon Query Optimizer**: AST-grounded broadcast joins, skewed key salting, Adaptive Query Execution (AQE), and cache optimization.
+    * ⚡ **Delta Lake & Liquid Clustering Optimizer**: Delta format upgrades, OPTIMIZE compaction, VACUUM retention, and Z-ORDER / Liquid clustering.
+    * 🗄️ **Unity Catalog 3-Part Name Explorer & Refactor**: Convert legacy Hive metastore table references to `catalog.schema.table` with lineage metadata.
+    * 📊 **Delta Live Tables (DLT) Pipeline Manager**: Streaming live table decorators (`@dlt.table`, `@dlt.view`) with `@dlt.expect_or_drop` data quality rules.
+    * 📝 **Databricks Asset Bundles (DAB) & Job Generator**: Production `databricks.yml` asset bundle definitions and multi-task pipeline workflows.
+    * 🧪 **MLflow Tracking & Unity Catalog Model Registry**: Run wrappers (`mlflow.start_run()`), autologging, and model governance registration.
+    * 🔍 **Interactive SQL Warehouse Query Runner**: Direct query execution against SQL warehouse endpoints with `EXPLAIN COST` plans.
+* **Permanent, Always-On 6 Core Studios & Connectors**:
+  * The **`[ 🔌 6 active ▾ ]`** dropdown in the AI Chat header now permanently displays and executes all 6 primary engineering connectors:
+    1. ⚡ **Databricks Lakehouse** (`[ ⚡ Lakehouse Hub ]`)
+    2. 🛡️ **Security Scanner** (`[ 🛡️ Run Audit ]`)
+    3. 🌿 **Git Intelligence** (`[ 🌿 Connect ]`)
+    4. ☁️ **Multi-Cloud & Pilot Deployment** (`[ 🚀 Cloud Hub ]`)
+    5. 📊 **Data Analysis & Reporting** (`[ 📊 Open Studio ]`)
+    6. ⚡ **Code Converter** (`[ ⚡ Convert ]`)
+  * Dynamically scales to show additional active frameworks (`dbt`, `Airflow`, `pytest`, `FastAPI`, `Django`, `Kubernetes`, `Docker`, `Terraform`) as they are detected.
+* **Interactive Multi-Cloud & Infrastructure QuickPick (`[ 🚀 Cloud Hub ]`)**:
+  * Replaced single-cloud prompts with a unified multi-cloud quickpick supporting:
+    * 🚀 **Interactive Multi-Cloud Studio Cockpit** (GCP, AWS, Azure, Docker live connection cards).
+    * ☁️ **Amazon Web Services (AWS)** (CDK, SAM, CloudFormation & live cloud API access).
+    * ☁️ **Google Cloud Platform (GCP)** (Cloud Run, Cloud Build, BigQuery & GCS pipelines).
+    * ☁️ **Microsoft Azure** (Azure Container Apps, Bicep, ARM & AKS deployments).
+    * 🔥 **Firebase (Classic / App Hosting)** (Next.js/Angular SSR & multi-target hosting).
+    * 🐳 **Kubernetes & Air-Gapped Docker** (Deployment manifests, services, ingress & container pilots).
+* **Direct Studio Execution & Elimination of Inactive Stubs**:
+  * Removed all blocking popup dialogues (*"plugin not active"* / *"reload window"*) when launching studios or tools.
+  * Direct dependency injection into `PluginRegistry` immediately upon extension startup for 0ms execution latency.
+* **Git Connect Command Mapping Fix**:
+  * Registered `aiForge.gitConnect.wizard` alias mapping directly to the Git Remote & Branch Setup Orchestrator.
+
 ## [2.18.1] — 2026-08-28
 
 ### Git & Bitbucket Setup Portals, Live Multi-Branch Selector & Smart AI Commit Drafter
