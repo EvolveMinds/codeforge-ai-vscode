@@ -227,26 +227,8 @@ export class AwsPlugin implements IPlugin {
 
   // ── detect ────────────────────────────────────────────────────────────────
 
-  async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
-    if (!ws) return false;
-    const wsPath = ws.uri.fsPath;
-
-    // Fast: check marker files first
-    if (findMarkerFile(wsPath)) return true;
-    if (hasCfnTemplate(wsPath)) return true;
-    if (hasAwsCredentials(wsPath)) return true;
-    if (hasAwsImportsInDeps(wsPath)) return true;
-
-    // Slower: scan source files for AWS imports
-    const srcFiles = globFiles(wsPath, [/\.py$/, /\.ts$/, /\.js$/], 50);
-    for (const f of srcFiles) {
-      try {
-        const sample = fs.readFileSync(f, 'utf8').slice(0, 2000);
-        if (AWS_IMPORT_PATTERN.test(sample)) return true;
-      } catch { /* skip */ }
-    }
-
-    return false;
+  async detect(_ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
+    return true;
   }
 
   // ── activate ──────────────────────────────────────────────────────────────

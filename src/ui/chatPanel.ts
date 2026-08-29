@@ -1198,8 +1198,61 @@ window.addEventListener('message', ({ data }) => {
         return ic;
       }
 
-      // Deduplicate and unify plugins into distinct, actionable technologies
+      // Pre-seed the 6 primary core studio connectors & integrations
+      const baseIntegrations = [
+        {
+          id: 'databricks',
+          name: 'Databricks Lakehouse',
+          icon: 'database',
+          desc: 'Delta Lake, Unity Catalog & PySpark optimization.',
+          actionLabel: '⚡ Lakehouse Hub',
+          actionCmd: 'aiForge.databricks.openHub'
+        },
+        {
+          id: 'security',
+          name: 'Security Scanner',
+          icon: 'shield',
+          desc: 'Secret leak detection & dependency vulnerability rules.',
+          actionLabel: '🛡️ Run Audit',
+          actionCmd: 'aiForge.fde.preflightAudit'
+        },
+        {
+          id: 'git',
+          name: 'Git Intelligence',
+          icon: 'git-branch',
+          desc: 'Branch state, uncommitted diffs & commit history.',
+          actionLabel: '🌿 Connect',
+          actionCmd: 'aiForge.gitConnect.start'
+        },
+        {
+          id: 'multicloud',
+          name: 'Amazon Web Services (AWS)',
+          icon: 'cloud',
+          desc: 'CDK, SAM, CloudFormation & live cloud API access.',
+          actionLabel: '🚀 Cloud Hub',
+          actionCmd: 'aiForge.fde.scaffoldDeploy'
+        },
+        {
+          id: 'data',
+          name: 'Data Analysis & Reporting',
+          icon: 'graph',
+          desc: 'Data profiling, schema metrics & visual reporting.',
+          actionLabel: '📊 Open Studio',
+          actionCmd: 'aiForge.data.analyze'
+        },
+        {
+          id: 'convert',
+          name: 'Code Converter',
+          icon: 'zap',
+          desc: 'Side-by-side multi-language code translation.',
+          actionLabel: '⚡ Convert',
+          actionCmd: 'aiForge.convert.start'
+        }
+      ];
+
       const unifiedMap = new Map();
+      baseIntegrations.forEach(b => unifiedMap.set(b.id, b));
+
       rawPlugins.forEach(p => {
         const id = (p.id || '').toLowerCase();
         const nm = (p.name || '').toLowerCase();
@@ -1213,9 +1266,9 @@ window.addEventListener('message', ({ data }) => {
 
         if (id.includes('aws') || nm.includes('aws') || id.includes('gcp') || nm.includes('gcp') || id.includes('azure') || nm.includes('azure') || id.includes('docker') || id.includes('kubernetes') || id.includes('terraform') || id.includes('cloud')) {
           key = 'multicloud';
-          unifiedName = 'Multi-Cloud & Pilot Deployment';
+          unifiedName = 'Amazon Web Services (AWS)';
           unifiedIcon = 'cloud';
-          unifiedDesc = 'AWS, GCP, Azure, Kubernetes & Terraform IaC scaffolding.';
+          unifiedDesc = 'CDK, SAM, CloudFormation & live cloud API access.';
           actionLabel = '🚀 Cloud Hub';
           actionCmd = 'aiForge.fde.scaffoldDeploy';
         } else if (id.includes('databricks') || nm.includes('databricks')) {
