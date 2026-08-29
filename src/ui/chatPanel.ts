@@ -1260,7 +1260,7 @@ window.addEventListener('message', ({ data }) => {
           unifiedIcon = 'git-branch';
           unifiedDesc = 'Branch state, uncommitted diffs & commit history.';
           actionLabel = '🌿 Connect';
-          actionCmd = 'aiForge.gitConnect.wizard';
+          actionCmd = 'aiForge.gitConnect.start';
         } else if (id.includes('security') || nm.includes('security')) {
           key = 'security';
           unifiedName = 'Security Scanner';
