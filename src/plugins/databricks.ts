@@ -917,18 +917,28 @@ ${code ? `\`\`\`python\n${code}\n\`\`\`` : '(No file open — generate a templat
 
         if (!pick || !pick.cmd) return;
 
+        if (pick.cmd === 'aiForge.databricks.connect') {
+          await runDatabricksConnectWizard(services);
+          return;
+        }
+
         try {
           await vscode.commands.executeCommand(pick.cmd);
         } catch (e) {
-          if (pick.cmd === 'aiForge.databricks.connect') {
-            await vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.databricks');
-          } else if (pick.cmd === 'aiForge.databricks.runSQL') {
+          if (pick.cmd === 'aiForge.databricks.runSQL') {
             vscode.window.showInformationMessage('Connect Databricks credentials first to execute queries against a live SQL warehouse.');
           } else {
             const msg = e instanceof Error ? e.message : String(e);
             vscode.window.showErrorMessage(`Databricks: ${msg}`);
           }
         }
+      },
+    },
+    {
+      id:    'aiForge.databricks.connect',
+      title: 'Databricks: Connect to Workspace',
+      async handler(services): Promise<void> {
+        await runDatabricksConnectWizard(services);
       },
     },
   ];
@@ -938,4 +948,59 @@ ${code ? `\`\`\`python\n${code}\n\`\`\`` : '(No file open — generate a templat
   readonly statusItem: PluginStatusItem = {
     text: async () => `⚡ ${this._envType}`,
   };
+}
+
+export async function runDatabricksConnectWizard(services: IServices): Promise<void> {
+  const host = await vscode.window.showInputBox({
+    prompt:      'Enter Databricks Workspace URL',
+    placeHolder: 'e.g. https://adb-1234567890.12.azuredatabricks.net or https://dbc-xxxx.cloud.databricks.com',
+    ignoreFocusOut: true,
+    validateInput: (v) => {
+      if (!v.trim()) return 'Workspace URL is required';
+      if (!/^https?:\/\//.test(v) && !v.includes('.')) return 'Enter a valid URL or hostname';
+      return null;
+    },
+  });
+  if (!host) return;
+
+  const token = await vscode.window.showInputBox({
+    prompt:      'Enter Databricks Personal Access Token (PAT)',
+    placeHolder: 'dapi1234567890abcdef...',
+    password:    true,
+    ignoreFocusOut: true,
+    validateInput: (v) => v.trim() ? null : 'Token is required',
+  });
+  if (!token) return;
+
+  await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Evolve AI: Testing Databricks Workspace Connection…' },
+    async () => {
+      try {
+        let cleanHost = host.trim().replace(/\/+$/, '');
+        if (!cleanHost.startsWith('https://') && !cleanHost.startsWith('http://')) {
+          cleanHost = `https://${cleanHost}`;
+        }
+        
+        await services.ai.storeSecret('databricks-host', cleanHost);
+        await services.ai.storeSecret('databricks-token', token.trim());
+
+        const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        if (ws) {
+          const cfgPath = path.join(ws, '.databrickscfg');
+          if (!fs.existsSync(cfgPath)) {
+            const cfgContent = `[DEFAULT]\nhost = ${cleanHost}\ntoken = ${token.trim()}\n`;
+            fs.writeFileSync(cfgPath, cfgContent, 'utf8');
+          }
+        }
+
+        vscode.window.showInformationMessage(
+          `✓ Successfully connected to Databricks workspace: ${cleanHost}!`
+        );
+        services.events.emit('ui.status.update', {});
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        vscode.window.showErrorMessage(`Databricks Connection Failed: ${msg}`);
+      }
+    }
+  );
 }
