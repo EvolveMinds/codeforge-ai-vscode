@@ -1211,26 +1211,61 @@ window.addEventListener('message', ({ data }) => {
       if (pluginsList) {
         pluginsList.innerHTML = activePlugins.map(p => {
           let desc = 'Workspace context & environment signal active.';
+          let name = p.name || p.id;
           const id = (p.id || '').toLowerCase();
           const nm = (p.name || '').toLowerCase();
-          if (id.includes('aws-live') || nm.includes('aws connected')) desc = 'AWS Cloud live credentials & active resource context.';
-          else if (id.includes('aws') || nm.includes('aws')) desc = 'AWS infrastructure & CloudFormation descriptors.';
-          else if (id.includes('azure-live') || nm.includes('azure connected')) desc = 'Azure live cloud credentials & subscription context.';
-          else if (id.includes('azure') || nm.includes('azure')) desc = 'Azure infrastructure & ARM/Bicep context.';
-          else if (id.includes('gcp-live') || nm.includes('gcp connected')) desc = 'GCP live cloud credentials & project context.';
-          else if (id.includes('gcp') || nm.includes('gcp')) desc = 'Google Cloud resource & IAM context.';
-          else if (id.includes('git') || nm.includes('git')) desc = 'Git repository, branch state, and diff context.';
-          else if (id.includes('security') || nm.includes('security')) desc = 'Security vulnerability & secret leak prevention rules.';
-          else if (id.includes('dbt') || nm.includes('dbt')) desc = 'dbt models, lineage DAG, and SQL compilation.';
-          else if (id.includes('airflow') || nm.includes('airflow')) desc = 'Apache Airflow DAG parsing & schedule context.';
-          else if (id.includes('pytest') || nm.includes('pytest')) desc = 'Python pytest suite & test runner integration.';
-          else if (id.includes('data') || nm.includes('data')) desc = 'Data analytics, schema profiling & visualization engine.';
-          else if (id.includes('convert') || nm.includes('convert')) desc = 'Multi-language code conversion engine.';
+
+          if (id.includes('databricks-live') || nm.includes('databricks connected')) {
+            name = 'Databricks (Live Workspace)';
+            desc = 'Live cluster execution, SQL endpoints & workspace status.';
+          } else if (id.includes('databricks') || nm.includes('databricks')) {
+            name = 'Databricks (Lakehouse & Unity Catalog)';
+            desc = 'Delta Lake tables, Unity Catalog & PySpark notebook context.';
+          } else if (id.includes('aws-live') || nm.includes('aws connected')) {
+            name = 'AWS (Live Cloud API)';
+            desc = 'Connected account access for live Lambda, S3 & Glue jobs.';
+          } else if (id.includes('aws') || nm.includes('aws')) {
+            name = 'AWS (Infrastructure & CDK)';
+            desc = 'Local CDK, SAM, CloudFormation & serverless templates.';
+          } else if (id.includes('azure-live') || nm.includes('azure connected')) {
+            name = 'Azure (Live Cloud API)';
+            desc = 'Connected Azure subscription & live resource context.';
+          } else if (id.includes('azure') || nm.includes('azure')) {
+            name = 'Azure (Infrastructure & ARM)';
+            desc = 'ARM templates, Bicep files & cloud deployment configs.';
+          } else if (id.includes('gcp-live') || nm.includes('gcp connected')) {
+            name = 'GCP (Live Cloud API)';
+            desc = 'Connected Google Cloud project & BigQuery resources.';
+          } else if (id.includes('gcp') || nm.includes('gcp')) {
+            name = 'GCP (Infrastructure & IAM)';
+            desc = 'Google Cloud deployment manifests & IAM policy rules.';
+          } else if (id.includes('git') || nm.includes('git')) {
+            name = 'Git (Repository Intelligence)';
+            desc = 'Branch state, uncommitted diffs & commit history context.';
+          } else if (id.includes('security') || nm.includes('security')) {
+            name = 'Security Scanner';
+            desc = 'Secret leak detection & dependency vulnerability rules.';
+          } else if (id.includes('dbt') || nm.includes('dbt')) {
+            name = 'dbt (Data Models & Lineage)';
+            desc = 'dbt models, manifest DAG lineage & SQL refactoring.';
+          } else if (id.includes('airflow') || nm.includes('airflow')) {
+            name = 'Apache Airflow (DAG Engine)';
+            desc = 'DAG parsing, task dependencies & schedule simulation.';
+          } else if (id.includes('pytest') || nm.includes('pytest')) {
+            name = 'pytest (Test Runner)';
+            desc = 'Python test discovery, assertions & test generation.';
+          } else if (id.includes('data-analysis') || nm.includes('data analysis') || id === 'data') {
+            name = 'Data Analysis & Reporting';
+            desc = 'Data analysis, statistics, schema profiling & visualization.';
+          } else if (id.includes('code-convert') || nm.includes('code convert') || id === 'convert') {
+            name = 'Code Converter';
+            desc = 'Side-by-side multi-language code translation.';
+          }
           
           return '<div class="pop-item" style="cursor:default; padding:6px 8px;">' +
             '<div class="pop-icon" style="font-size:12px; line-height:1.2;">' + cleanPluginIcon(p.icon) + '</div>' +
             '<div class="pop-body">' +
-              '<div class="pop-name" style="font-size:11px; font-weight:600;">' + esc(p.name) + '</div>' +
+              '<div class="pop-name" style="font-size:11px; font-weight:600;">' + esc(name) + '</div>' +
               '<div class="pop-desc" style="font-size:10px; opacity:0.8;">' + desc + '</div>' +
             '</div>' +
           '</div>';
