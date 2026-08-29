@@ -66,6 +66,7 @@ export class GitConnectCommands {
       }));
 
     r('aiForge.gitConnect.start',          () => this.start());
+    r('aiForge.gitConnect.wizard',         () => this.start());
     r('aiForge.gitConnect.status',         () => this.status());
     r('aiForge.gitConnect.disconnect',     () => this.disconnect());
     r('aiForge.gitConnect.testConnection', () => this.testConnection());
