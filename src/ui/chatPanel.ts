@@ -1212,25 +1212,11 @@ window.addEventListener('message', ({ data }) => {
         let actionLabel = '';
         let actionCmd = '';
 
-        if (id.includes('aws') || nm.includes('aws')) {
-          key = 'aws';
-          unifiedName = 'Amazon Web Services (AWS)';
+        if (id.includes('aws') || nm.includes('aws') || id.includes('gcp') || nm.includes('gcp') || id.includes('azure') || nm.includes('azure') || id.includes('docker') || id.includes('kubernetes') || id.includes('terraform') || id.includes('cloud')) {
+          key = 'multicloud';
+          unifiedName = 'Multi-Cloud & Pilot Deployment';
           unifiedIcon = 'cloud';
-          unifiedDesc = 'CDK, SAM, CloudFormation & live cloud API access.';
-          actionLabel = '🚀 Cloud Hub';
-          actionCmd = 'aiForge.fde.scaffoldDeploy';
-        } else if (id.includes('gcp') || nm.includes('gcp')) {
-          key = 'gcp';
-          unifiedName = 'Google Cloud Platform (GCP)';
-          unifiedIcon = 'cloud';
-          unifiedDesc = 'BigQuery, Cloud Run, IAM & GCP deployment manifests.';
-          actionLabel = '🚀 Cloud Hub';
-          actionCmd = 'aiForge.fde.scaffoldDeploy';
-        } else if (id.includes('azure') || nm.includes('azure')) {
-          key = 'azure';
-          unifiedName = 'Microsoft Azure';
-          unifiedIcon = 'cloud';
-          unifiedDesc = 'ARM templates, Bicep & Azure Container Apps.';
+          unifiedDesc = 'AWS, GCP, Azure, Kubernetes & Terraform IaC scaffolding.';
           actionLabel = '🚀 Cloud Hub';
           actionCmd = 'aiForge.fde.scaffoldDeploy';
         } else if (id.includes('databricks') || nm.includes('databricks')) {
@@ -1289,13 +1275,6 @@ window.addEventListener('message', ({ data }) => {
           unifiedDesc = 'Side-by-side multi-language code translation.';
           actionLabel = '⚡ Convert';
           actionCmd = 'aiForge.convert.start';
-        } else if (id.includes('docker') || id.includes('kubernetes') || id.includes('terraform')) {
-          key = id;
-          unifiedName = (p.name || id).toUpperCase();
-          unifiedIcon = 'cloud';
-          unifiedDesc = 'Containerization & infrastructure-as-code manifests.';
-          actionLabel = '🚀 Cloud Hub';
-          actionCmd = 'aiForge.fde.scaffoldDeploy';
         }
 
         if (!unifiedMap.has(key)) {
