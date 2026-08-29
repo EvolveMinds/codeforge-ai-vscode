@@ -603,6 +603,44 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'testDbConnection': {
+        const options: DbConnectionOptions = {
+          dialect: msg.dialect || 'postgres',
+          connectionUri: msg.connectionUri,
+          database: msg.database,
+          schema: msg.schema,
+          host: msg.host,
+          port: msg.port,
+          username: msg.username,
+          password: msg.password,
+        };
+
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Testing connection to ${options.dialect.toUpperCase()} database...`,
+        }, async () => {
+          try {
+            const result = await DbIntrospector.testConnection(options, ws);
+            if (result.success) {
+              vscode.window.showInformationMessage(result.message);
+            } else {
+              vscode.window.showErrorMessage(result.message);
+            }
+            this._panel.webview.postMessage({
+              type: 'dbTestResult',
+              result,
+            });
+          } catch (e: any) {
+            vscode.window.showErrorMessage(`Connection test failed: ${e?.message || e}`);
+            this._panel.webview.postMessage({
+              type: 'dbTestResult',
+              result: { success: false, latencyMs: 0, message: e?.message || String(e) },
+            });
+          }
+        });
+        break;
+      }
+
       case 'detectWorkspaceDbConfig': {
         if (!ws) {
           vscode.window.showWarningMessage('Open a workspace first.');
@@ -2659,6 +2697,7 @@ Output ONLY the message without markdown code fences.`;
 
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn" onclick="introspectDatabase()">🔍 Connect &amp; Fetch Tables</button>
+            <button class="btn btn-secondary" onclick="testDbConnection()">🔌 Test Connection</button>
             <button class="btn btn-secondary" onclick="detectWorkspaceDb()">⚡ Auto-Detect from .env / dbt</button>
             <button class="btn-quick" style="margin-bottom: 0; color: var(--error); border-color: var(--error);" onclick="wipeDbSecrets()">🗑️ Wipe Stored Credentials</button>
           </div>
@@ -3972,6 +4011,22 @@ Output ONLY the message without markdown code fences.`;
       showToast('⚡ Connecting to database and introspecting schemas...');
     }
 
+    function testDbConnection() {
+      const dialect = document.getElementById('dbDialect').value;
+      const uri = document.getElementById('dbConnUri').value.trim();
+      const db = document.getElementById('dbDatabaseName').value.trim();
+      const schema = document.getElementById('dbSchemaName').value.trim();
+
+      vscode.postMessage({
+        command: 'testDbConnection',
+        dialect: dialect,
+        connectionUri: uri || undefined,
+        database: db || undefined,
+        schema: schema || undefined,
+      });
+      showToast('⏳ Testing database handshake and network reachability...');
+    }
+
     function detectWorkspaceDb() {
       vscode.postMessage({ command: 'detectWorkspaceDbConfig' });
       showToast('🔍 Scanning workspace for .env and dbt database credentials...');
@@ -4664,6 +4719,13 @@ Output ONLY the message without markdown code fences.`;
           showToast('✓ Auto-populated ' + (d.dialect ? d.dialect.toUpperCase() : 'DB') + ' connection from ' + d.sourceFile);
         } else {
           showToast('⚠️ No database connection settings found in workspace .env or config files.');
+        }
+      } else if (msg.type === 'dbTestResult') {
+        const res = msg.result;
+        if (res.success) {
+          showToast('✓ ' + res.message);
+        } else {
+          showToast('⚠️ ' + (res.error || res.message || 'Database connection test failed.'));
         }
       } else if (msg.type === 'dbSecretsWiped') {
         document.getElementById('dbConnUri').value = '';
