@@ -143,6 +143,8 @@ export class PostgresWireClient {
       let fields: string[] = [];
       const rows: Array<Record<string, string>> = [];
       let serverVersion = '';
+      let clientNonce = '';
+      let clientFirstBare = '';
 
       try {
         socket = net.connect({ host: cfg.host, port: cfg.port }, () => {
@@ -221,7 +223,7 @@ export class PostgresWireClient {
             // Authentication message
             const authType = payload.readInt32BE(0);
             if (authType === 0) {
-              // Auth OK
+              // AuthenticationOk
               authenticated = true;
             } else if (authType === 3) {
               // Cleartext password
@@ -232,13 +234,62 @@ export class PostgresWireClient {
               const md5Pass = this.computeMd5Password(cfg.user, cfg.password || '', salt);
               this.sendPassword(socket, md5Pass);
             } else if (authType === 10) {
-              // SASL SCRAM auth requested
-              clearTimeout(timeout);
-              return finish({
-                success: false,
-                rows: [],
-                error: 'Server requires SCRAM-SHA-256. For Supabase, use the Transaction Pooler URI or PostgREST API.',
-              });
+              // SASL Initial Request (SCRAM-SHA-256)
+              clientNonce = crypto.randomBytes(18).toString('base64');
+              clientFirstBare = 'n=' + cfg.user + ',r=' + clientNonce;
+              const clientFirstMessage = 'n,,' + clientFirstBare;
+
+              const mech = 'SCRAM-SHA-256\0';
+              const mechBuf = Buffer.from(mech, 'utf8');
+              const msgBuf = Buffer.from(clientFirstMessage, 'utf8');
+              const len = 4 + mechBuf.length + 4 + msgBuf.length;
+              const p = Buffer.alloc(1 + 4 + mechBuf.length + 4 + msgBuf.length);
+              p.write('p', 0);
+              p.writeInt32BE(len, 1);
+              mechBuf.copy(p, 5);
+              p.writeInt32BE(msgBuf.length, 5 + mechBuf.length);
+              msgBuf.copy(p, 5 + mechBuf.length + 4);
+              socket.write(p);
+            } else if (authType === 11) {
+              // SASL Continue (SCRAM-SHA-256)
+              const serverFirstMessage = payload.toString('utf8', 4);
+              const parts = serverFirstMessage.split(',');
+              let serverNonce = '';
+              let saltBase64 = '';
+              let iterations = 4096;
+
+              for (const part of parts) {
+                if (part.startsWith('r=')) serverNonce = part.slice(2);
+                else if (part.startsWith('s=')) saltBase64 = part.slice(2);
+                else if (part.startsWith('i=')) iterations = parseInt(part.slice(2), 10);
+              }
+
+              if (!serverNonce.startsWith(clientNonce)) {
+                clearTimeout(timeout);
+                return finish({ success: false, rows: [], error: 'SASL SCRAM nonce mismatch from server' });
+              }
+
+              const clientFinalWithoutProof = 'c=biws,r=' + serverNonce;
+              const authMessage = clientFirstBare + ',' + serverFirstMessage + ',' + clientFinalWithoutProof;
+              const salt = Buffer.from(saltBase64, 'base64');
+              const saltedPassword = crypto.pbkdf2Sync(cfg.password || '', salt, iterations, 32, 'sha256');
+              const clientKey = crypto.createHmac('sha256', saltedPassword).update('Client Key').digest();
+              const storedKey = crypto.createHash('sha256').update(clientKey).digest();
+              const clientSignature = crypto.createHmac('sha256', storedKey).update(authMessage).digest();
+              const clientProof = Buffer.alloc(32);
+              for (let j = 0; j < 32; j++) {
+                clientProof[j] = clientKey[j] ^ clientSignature[j];
+              }
+
+              const clientFinalMessage = clientFinalWithoutProof + ',p=' + clientProof.toString('base64');
+              const finalBuf = Buffer.from(clientFinalMessage, 'utf8');
+              const p = Buffer.alloc(1 + 4 + finalBuf.length);
+              p.write('p', 0);
+              p.writeInt32BE(4 + finalBuf.length, 1);
+              finalBuf.copy(p, 5);
+              socket.write(p);
+            } else if (authType === 12) {
+              // SASL Final (Authentication complete)
             }
           } else if (msgType === 'E') {
             // ErrorResponse
