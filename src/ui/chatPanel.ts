@@ -1184,17 +1184,8 @@ window.addEventListener('message', ({ data }) => {
       const pluginsCountLabel = document.getElementById('pluginsCountLabel');
       const pluginsPopoverTotal = document.getElementById('pluginsPopoverTotal');
       
-      const activePlugins = data.activePlugins || [];
-      if (pluginsBtn && pluginsCountLabel) {
-        if (activePlugins.length > 0) {
-          pluginsBtn.style.display = 'inline-flex';
-          pluginsCountLabel.textContent = activePlugins.length + ' active';
-          if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = activePlugins.length + ' active';
-        } else {
-          pluginsBtn.style.display = 'none';
-        }
-      }
-
+      const rawPlugins = data.activePlugins || [];
+      
       function cleanPluginIcon(ic) {
         if (!ic) return '⚡';
         if (ic.indexOf('shield') !== -1) return '🛡️';
@@ -1208,68 +1199,151 @@ window.addEventListener('message', ({ data }) => {
         return ic;
       }
 
-      if (pluginsList) {
-        pluginsList.innerHTML = activePlugins.map(p => {
-          let desc = 'Workspace context & environment signal active.';
-          let name = p.name || p.id;
-          const id = (p.id || '').toLowerCase();
-          const nm = (p.name || '').toLowerCase();
+      // Deduplicate and unify plugins into distinct, actionable technologies
+      const unifiedMap = new Map();
+      rawPlugins.forEach(p => {
+        const id = (p.id || '').toLowerCase();
+        const nm = (p.name || '').toLowerCase();
+        
+        let key = id;
+        let unifiedName = p.name || p.id;
+        let unifiedIcon = p.icon;
+        let unifiedDesc = 'Workspace context & domain rules active in AI prompts.';
+        let actionLabel = '';
+        let actionCmd = '';
 
-          if (id.includes('databricks-live') || nm.includes('databricks connected')) {
-            name = 'Databricks (Live Workspace)';
-            desc = 'Live cluster execution, SQL endpoints & workspace status.';
-          } else if (id.includes('databricks') || nm.includes('databricks')) {
-            name = 'Databricks (Lakehouse & Unity Catalog)';
-            desc = 'Delta Lake tables, Unity Catalog & PySpark notebook context.';
-          } else if (id.includes('aws-live') || nm.includes('aws connected')) {
-            name = 'AWS (Live Cloud API)';
-            desc = 'Connected account access for live Lambda, S3 & Glue jobs.';
-          } else if (id.includes('aws') || nm.includes('aws')) {
-            name = 'AWS (Infrastructure & CDK)';
-            desc = 'Local CDK, SAM, CloudFormation & serverless templates.';
-          } else if (id.includes('azure-live') || nm.includes('azure connected')) {
-            name = 'Azure (Live Cloud API)';
-            desc = 'Connected Azure subscription & live resource context.';
-          } else if (id.includes('azure') || nm.includes('azure')) {
-            name = 'Azure (Infrastructure & ARM)';
-            desc = 'ARM templates, Bicep files & cloud deployment configs.';
-          } else if (id.includes('gcp-live') || nm.includes('gcp connected')) {
-            name = 'GCP (Live Cloud API)';
-            desc = 'Connected Google Cloud project & BigQuery resources.';
-          } else if (id.includes('gcp') || nm.includes('gcp')) {
-            name = 'GCP (Infrastructure & IAM)';
-            desc = 'Google Cloud deployment manifests & IAM policy rules.';
-          } else if (id.includes('git') || nm.includes('git')) {
-            name = 'Git (Repository Intelligence)';
-            desc = 'Branch state, uncommitted diffs & commit history context.';
-          } else if (id.includes('security') || nm.includes('security')) {
-            name = 'Security Scanner';
-            desc = 'Secret leak detection & dependency vulnerability rules.';
-          } else if (id.includes('dbt') || nm.includes('dbt')) {
-            name = 'dbt (Data Models & Lineage)';
-            desc = 'dbt models, manifest DAG lineage & SQL refactoring.';
-          } else if (id.includes('airflow') || nm.includes('airflow')) {
-            name = 'Apache Airflow (DAG Engine)';
-            desc = 'DAG parsing, task dependencies & schedule simulation.';
-          } else if (id.includes('pytest') || nm.includes('pytest')) {
-            name = 'pytest (Test Runner)';
-            desc = 'Python test discovery, assertions & test generation.';
-          } else if (id.includes('data-analysis') || nm.includes('data analysis') || id === 'data') {
-            name = 'Data Analysis & Reporting';
-            desc = 'Data analysis, statistics, schema profiling & visualization.';
-          } else if (id.includes('code-convert') || nm.includes('code convert') || id === 'convert') {
-            name = 'Code Converter';
-            desc = 'Side-by-side multi-language code translation.';
-          }
+        if (id.includes('aws') || nm.includes('aws')) {
+          key = 'aws';
+          unifiedName = 'Amazon Web Services (AWS)';
+          unifiedIcon = 'cloud';
+          unifiedDesc = 'CDK, SAM, CloudFormation & live cloud API access.';
+          actionLabel = '🚀 Cloud Hub';
+          actionCmd = 'aiForge.fde.scaffoldDeploy';
+        } else if (id.includes('gcp') || nm.includes('gcp')) {
+          key = 'gcp';
+          unifiedName = 'Google Cloud Platform (GCP)';
+          unifiedIcon = 'cloud';
+          unifiedDesc = 'BigQuery, Cloud Run, IAM & GCP deployment manifests.';
+          actionLabel = '🚀 Cloud Hub';
+          actionCmd = 'aiForge.fde.scaffoldDeploy';
+        } else if (id.includes('azure') || nm.includes('azure')) {
+          key = 'azure';
+          unifiedName = 'Microsoft Azure';
+          unifiedIcon = 'cloud';
+          unifiedDesc = 'ARM templates, Bicep & Azure Container Apps.';
+          actionLabel = '🚀 Cloud Hub';
+          actionCmd = 'aiForge.fde.scaffoldDeploy';
+        } else if (id.includes('databricks') || nm.includes('databricks')) {
+          key = 'databricks';
+          unifiedName = 'Databricks Lakehouse';
+          unifiedIcon = 'database';
+          unifiedDesc = 'Delta Lake, Unity Catalog & PySpark optimization.';
+          actionLabel = '📊 Data Studio';
+          actionCmd = 'aiForge.data.analyze';
+        } else if (id.includes('dbt') || nm.includes('dbt')) {
+          key = 'dbt';
+          unifiedName = 'dbt (Models & Lineage)';
+          unifiedIcon = 'graph';
+          unifiedDesc = 'dbt models, manifest DAG lineage & SQL compilation.';
+          actionLabel = '🗺️ Lineage';
+          actionCmd = 'aiForge.lineage.showPanel';
+        } else if (id.includes('airflow') || nm.includes('airflow')) {
+          key = 'airflow';
+          unifiedName = 'Apache Airflow';
+          unifiedIcon = 'graph';
+          unifiedDesc = 'DAG parsing, task dependencies & schedule simulation.';
+          actionLabel = '⏱️ Simulate';
+          actionCmd = 'aiForge.airflow.simulate';
+        } else if (id.includes('git') || nm.includes('git')) {
+          key = 'git';
+          unifiedName = 'Git Intelligence';
+          unifiedIcon = 'git-branch';
+          unifiedDesc = 'Branch state, uncommitted diffs & commit history.';
+          actionLabel = '🌿 Connect';
+          actionCmd = 'aiForge.gitConnect.wizard';
+        } else if (id.includes('security') || nm.includes('security')) {
+          key = 'security';
+          unifiedName = 'Security Scanner';
+          unifiedIcon = 'shield';
+          unifiedDesc = 'Secret leak detection & dependency vulnerability rules.';
+          actionLabel = '🛡️ Run Audit';
+          actionCmd = 'aiForge.fde.preflightAudit';
+        } else if (id.includes('pytest') || nm.includes('pytest')) {
+          key = 'pytest';
+          unifiedName = 'pytest Test Suite';
+          unifiedIcon = 'zap';
+          unifiedDesc = 'Python test discovery, assertions & test generation.';
+          actionLabel = '🧪 Tests';
+          actionCmd = 'aiForge.addTests';
+        } else if (id.includes('data') || nm.includes('data')) {
+          key = 'data';
+          unifiedName = 'Data Analysis & Reporting';
+          unifiedIcon = 'graph';
+          unifiedDesc = 'Data profiling, schema metrics & visual reporting.';
+          actionLabel = '📊 Open Studio';
+          actionCmd = 'aiForge.data.analyze';
+        } else if (id.includes('convert') || nm.includes('convert')) {
+          key = 'convert';
+          unifiedName = 'Code Converter';
+          unifiedIcon = 'zap';
+          unifiedDesc = 'Side-by-side multi-language code translation.';
+          actionLabel = '⚡ Convert';
+          actionCmd = 'aiForge.convert.start';
+        } else if (id.includes('docker') || id.includes('kubernetes') || id.includes('terraform')) {
+          key = id;
+          unifiedName = (p.name || id).toUpperCase();
+          unifiedIcon = 'cloud';
+          unifiedDesc = 'Containerization & infrastructure-as-code manifests.';
+          actionLabel = '🚀 Cloud Hub';
+          actionCmd = 'aiForge.fde.scaffoldDeploy';
+        }
+
+        if (!unifiedMap.has(key)) {
+          unifiedMap.set(key, {
+            id: key,
+            name: unifiedName,
+            icon: unifiedIcon,
+            desc: unifiedDesc,
+            actionLabel,
+            actionCmd
+          });
+        }
+      });
+
+      const unifiedList = Array.from(unifiedMap.values());
+
+      if (pluginsBtn && pluginsCountLabel) {
+        if (unifiedList.length > 0) {
+          pluginsBtn.style.display = 'inline-flex';
+          pluginsCountLabel.textContent = unifiedList.length + ' active';
+          if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = unifiedList.length + ' active';
+        } else {
+          pluginsBtn.style.display = 'none';
+        }
+      }
+
+      if (pluginsList) {
+        const itemsHtml = unifiedList.map(p => {
+          const btnHtml = p.actionCmd ? 
+            '<button class="plugin-act-btn" data-cmd="' + esc(p.actionCmd) + '" style="background: rgba(78,201,176,0.12); border: 1px solid rgba(78,201,176,0.4); color: #4ec9b0; border-radius: 4px; font-size: 10px; padding: 2px 7px; cursor: pointer; white-space: nowrap; font-weight: 600; transition: all 0.15s;">' + esc(p.actionLabel) + '</button>' : '';
           
-          return '<div class="pop-item" style="cursor:default; padding:6px 8px;">' +
-            '<div class="pop-icon" style="font-size:12px; line-height:1.2;">' + cleanPluginIcon(p.icon) + '</div>' +
-            '<div class="pop-body">' +
-              '<div class="pop-name" style="font-size:11px; font-weight:600;">' + esc(name) + '</div>' +
-              '<div class="pop-desc" style="font-size:10px; opacity:0.8;">' + desc + '</div>' +
+          return '<div class="pop-item" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">' +
+            '<div style="display: flex; align-items: flex-start; gap: 8px; flex: 1; min-width: 0;">' +
+              '<div class="pop-icon" style="font-size: 13px; line-height: 1.2;">' + cleanPluginIcon(p.icon) + '</div>' +
+              '<div class="pop-body">' +
+                '<div class="pop-name" style="font-size: 11px; font-weight: 600;">' + esc(p.name) + '</div>' +
+                '<div class="pop-desc" style="font-size: 10px; opacity: 0.8; line-height: 1.3;">' + esc(p.desc) + '</div>' +
+              '</div>' +
             '</div>' +
+            btnHtml +
           '</div>';
         }).join('');
+
+        const footerHtml = '<div style="padding: 8px 10px; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 4px; background: rgba(255,255,255,0.02); line-height: 1.4;">' +
+          '💡 <strong>How it works:</strong> Active plugins inject syntax, cloud rules &amp; live context into AI Chat automatically. Click any button above to open dedicated tools.' +
+        '</div>';
+
+        pluginsList.innerHTML = itemsHtml + footerHtml;
       }
 
       // Show onboarding guide when offline or Ollama not running
@@ -1444,6 +1518,16 @@ on('studioBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command:
 on('dataBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.data.analyze' }));
 on('convertBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' }));
 on('pluginsBtn', 'click', (e) => { e.stopPropagation(); togglePopover('pluginsPopover'); });
+on('pluginsList', 'click', (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest('.plugin-act-btn') : null;
+  if (btn) {
+    const cmd = btn.getAttribute('data-cmd');
+    if (cmd) {
+      vscode.postMessage({ type: 'runCommand', command: cmd });
+      closeAllPopovers();
+    }
+  }
+});
 on('switchBtn', 'click', () => vscode.postMessage({type:'switchProvider'}));
 on('clearBtn',  'click', () => clearHistory());
 on('thinkBtn',  'click', () => {
