@@ -1226,9 +1226,9 @@ window.addEventListener('message', ({ data }) => {
         },
         {
           id: 'multicloud',
-          name: 'Amazon Web Services (AWS)',
+          name: 'Multi-Cloud & Pilot Deployment',
           icon: 'cloud',
-          desc: 'CDK, SAM, CloudFormation & live cloud API access.',
+          desc: 'AWS, GCP, Azure, Kubernetes & Terraform IaC scaffolding.',
           actionLabel: '🚀 Cloud Hub',
           actionCmd: 'aiForge.fde.scaffoldDeploy'
         },
@@ -1266,9 +1266,9 @@ window.addEventListener('message', ({ data }) => {
 
         if (id.includes('aws') || nm.includes('aws') || id.includes('gcp') || nm.includes('gcp') || id.includes('azure') || nm.includes('azure') || id.includes('docker') || id.includes('kubernetes') || id.includes('terraform') || id.includes('cloud')) {
           key = 'multicloud';
-          unifiedName = 'Amazon Web Services (AWS)';
+          unifiedName = 'Multi-Cloud & Pilot Deployment';
           unifiedIcon = 'cloud';
-          unifiedDesc = 'CDK, SAM, CloudFormation & live cloud API access.';
+          unifiedDesc = 'AWS, GCP, Azure, Kubernetes & Terraform IaC scaffolding.';
           actionLabel = '🚀 Cloud Hub';
           actionCmd = 'aiForge.fde.scaffoldDeploy';
         } else if (id.includes('databricks') || nm.includes('databricks')) {
