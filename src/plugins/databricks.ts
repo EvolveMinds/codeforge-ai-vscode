@@ -851,6 +851,86 @@ ${code ? `\`\`\`python\n${code}\n\`\`\`` : '(No file open — generate a templat
         );
       },
     },
+    {
+      id:    'aiForge.databricks.openHub',
+      title: 'Databricks: Lakehouse & Delta Studio Hub',
+      async handler(services): Promise<void> {
+        interface LakehouseActionItem extends vscode.QuickPickItem {
+          cmd?: string;
+        }
+
+        const items: LakehouseActionItem[] = [
+          {
+            label: '$(sparkle) 🚀 PySpark & Photon Query Optimizer',
+            description: 'Explain Spark execution plan, fix .collect() OOM & vectorize UDFs',
+            detail: 'Analyze open file or selection to remove bottlenecks, reduce shuffle partitions, and apply Photon optimizations.',
+            cmd: 'aiForge.databricks.optimiseQuery'
+          },
+          {
+            label: '$(database) ⚡ Delta Lake Table & Liquid Clustering Optimizer',
+            description: 'Generate OPTIMIZE, Z-ORDER, Vacuum & Liquid Clustering DDL',
+            detail: 'Convert raw Parquet/ORC to Delta, configure Change Data Feed (CDF), and generate partitioning strategy.',
+            cmd: 'aiForge.databricks.convertToDelta'
+          },
+          {
+            label: '$(layers) 🗄️ Unity Catalog 3-Part Name Converter & Explorer',
+            description: 'Convert queries to catalog.schema.table & explore metadata',
+            detail: 'Enforce Unity Catalog 3-part namespace standards and inspect schemas.',
+            cmd: 'aiForge.databricks.addUnityRef'
+          },
+          {
+            label: '$(play-circle) 📊 Delta Live Tables (DLT) Streaming Pipeline Manager',
+            description: 'Scaffold @dlt.table streaming decorators & manage pipelines',
+            detail: 'Add expectations, streaming tables, and materialized views for Lakehouse medallion architecture.',
+            cmd: 'aiForge.databricks.addDltDecorator'
+          },
+          {
+            label: '$(file-code) 📝 Databricks Asset Bundles & Job YAML Generator',
+            description: 'Scaffold bundle.yml / databricks.yml multi-task workflows',
+            detail: 'Generate production job definitions with cluster policies, task dependencies, and alerting.',
+            cmd: 'aiForge.databricks.generateJobYaml'
+          },
+          {
+            label: '$(beaker) 🧪 MLflow Experiment & Model Registry Tracking',
+            description: 'Wrap training runs with mlflow.start_run() & log models',
+            detail: 'Add hyperparameter logging, model evaluation metrics, and Unity Catalog model registration.',
+            cmd: 'aiForge.databricks.addMlflowTracking'
+          },
+          {
+            label: '$(terminal) 🔍 Execute SQL on Databricks SQL Warehouse',
+            description: 'Run interactive query with EXPLAIN COST and schema inspection',
+            detail: 'Execute SQL directly on connected Databricks SQL warehouse endpoint.',
+            cmd: 'aiForge.databricks.runSQL'
+          },
+          {
+            label: '$(plug) 🔌 Databricks Workspace Connection Settings',
+            description: 'Configure workspace host URL & Personal Access Token (PAT)',
+            detail: 'Connect live Databricks workspace to enable real-time cluster and Unity Catalog introspection.',
+            cmd: 'aiForge.databricks.connect'
+          }
+        ];
+
+        const pick = await vscode.window.showQuickPick(items, {
+          placeHolder: 'Select a Databricks Lakehouse, Delta Lake, or PySpark capability...',
+          title: '⚡ Evolve AI — Databricks Lakehouse & Delta Studio Hub'
+        });
+
+        if (!pick || !pick.cmd) return;
+
+        try {
+          await vscode.commands.executeCommand(pick.cmd);
+        } catch (e) {
+          if (pick.cmd === 'aiForge.databricks.connect') {
+            await vscode.commands.executeCommand('workbench.action.openSettings', 'aiForge.databricks');
+          } else if (pick.cmd === 'aiForge.databricks.runSQL') {
+            vscode.window.showInformationMessage('Connect Databricks credentials first to execute queries against a live SQL warehouse.');
+          } else {
+            const msg = e instanceof Error ? e.message : String(e);
+            vscode.window.showErrorMessage(`Databricks: ${msg}`);
+          }
+        }
+      },
+    },
   ];
 
   // ── statusItem ────────────────────────────────────────────────────────────
