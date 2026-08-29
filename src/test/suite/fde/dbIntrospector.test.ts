@@ -100,4 +100,42 @@ suite('FDE Suite — DbIntrospector', () => {
     assert.strictEqual(tables[0].columns[1].name, 'amount');
     assert.strictEqual(tables[0].columns[1].type, 'numeric');
   });
+
+  test('extracts database settings from component variables in .env (DB_HOST, DB_USER, etc.)', () => {
+    const envSample = `
+      DB_HOST=aws-rds.client.internal
+      DB_PORT=5432
+      DB_NAME=taxiq_prod
+      DB_USER=app_service
+      DB_PASSWORD=SecurePass!2026
+      DB_SCHEMA=analytics
+    `;
+
+    const detected = DbIntrospector.parseEnvForDb(envSample);
+    assert.strictEqual(detected.found, true);
+    assert.strictEqual(detected.dialect, 'postgres');
+    assert.strictEqual(detected.database, 'taxiq_prod');
+    assert.strictEqual(detected.host, 'aws-rds.client.internal');
+    assert.strictEqual(detected.port, 5432);
+    assert.strictEqual(detected.username, 'app_service');
+    assert.strictEqual(detected.password, 'SecurePass!2026');
+    assert.strictEqual(detected.schema, 'analytics');
+    assert.ok(detected.connectionUri?.includes('aws-rds.client.internal:5432/taxiq_prod'));
+  });
+
+  test('extracts Supabase / Prisma DIRECT_URL with schema search parameter', () => {
+    const envSample = `
+      NEXT_PUBLIC_SUPABASE_URL=https://abcxyz123.supabase.co
+      DIRECT_URL="postgresql://postgres:secret_supa_pass@db.abcxyz123.supabase.co:5432/postgres?sslmode=require&schema=custom_tenant"
+    `;
+
+    const detected = DbIntrospector.parseEnvForDb(envSample);
+    assert.strictEqual(detected.found, true);
+    assert.strictEqual(detected.dialect, 'postgres');
+    assert.strictEqual(detected.database, 'postgres');
+    assert.strictEqual(detected.host, 'db.abcxyz123.supabase.co');
+    assert.strictEqual(detected.username, 'postgres');
+    assert.strictEqual(detected.password, 'secret_supa_pass');
+    assert.strictEqual(detected.schema, 'custom_tenant');
+  });
 });

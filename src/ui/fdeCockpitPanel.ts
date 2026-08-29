@@ -616,7 +616,7 @@ Output ONLY the message without markdown code fences.`;
         if (detected.found) {
           vscode.window.showInformationMessage(`✓ Found ${detected.dialect?.toUpperCase()} configuration in ${detected.sourceFile}`);
         } else {
-          vscode.window.showInformationMessage('No database connection settings found in .env or dbt_project.yml.');
+          vscode.window.showInformationMessage('No database connection settings found in workspace .env, prisma, or config files.');
         }
         break;
       }
@@ -4660,7 +4660,10 @@ Output ONLY the message without markdown code fences.`;
           }
           if (d.connectionUri) document.getElementById('dbConnUri').value = d.connectionUri;
           if (d.database) document.getElementById('dbDatabaseName').value = d.database;
-          showToast('✓ Auto-populated connection from ' + d.sourceFile);
+          if (d.schema) document.getElementById('dbSchemaName').value = d.schema;
+          showToast('✓ Auto-populated ' + (d.dialect ? d.dialect.toUpperCase() : 'DB') + ' connection from ' + d.sourceFile);
+        } else {
+          showToast('⚠️ No database connection settings found in workspace .env or config files.');
         }
       } else if (msg.type === 'dbSecretsWiped') {
         document.getElementById('dbConnUri').value = '';
