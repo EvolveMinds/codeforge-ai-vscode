@@ -337,6 +337,11 @@
         "title": "Evolve AI: Test Git Remote Connection"
       },
       {
+        "command": "aiForge.databricks.openHub",
+        "title": "Evolve AI: Databricks Lakehouse & Delta Studio Hub",
+        "icon": "$(database)"
+      },
+      {
         "command": "aiForge.data.analyze",
         "title": "Evolve AI: Analyze Data & Report",
         "icon": "$(graph)"

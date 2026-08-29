@@ -1224,8 +1224,8 @@ window.addEventListener('message', ({ data }) => {
           unifiedName = 'Databricks Lakehouse';
           unifiedIcon = 'database';
           unifiedDesc = 'Delta Lake, Unity Catalog & PySpark optimization.';
-          actionLabel = '📊 Data Studio';
-          actionCmd = 'aiForge.data.analyze';
+          actionLabel = '⚡ Lakehouse Hub';
+          actionCmd = 'aiForge.databricks.openHub';
         } else if (id.includes('dbt') || nm.includes('dbt')) {
           key = 'dbt';
           unifiedName = 'dbt (Models & Lineage)';
