@@ -404,7 +404,7 @@ export class DataAnalysisPlugin implements IPlugin {
     // should always be reachable — never dead-end on the "plugin not active"
     // popup just because no CSV happens to sit in the workspace root. The
     // status bar and prompt-injection remain conditional on _fileCount below.
-    return !!ws || activeIsData;
+    return true;
   }
 
   async activate(_services: IServices, vsCtx: vscode.ExtensionContext): Promise<vscode.Disposable[]> {

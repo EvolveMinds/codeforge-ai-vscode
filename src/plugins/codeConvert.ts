@@ -136,12 +136,8 @@ export class CodeConvertPlugin implements IPlugin {
   private _lastActiveEditor: vscode.TextEditor | null = null;
   private _lastSelection: { editor: vscode.TextEditor; text: string } | null = null;
 
-  async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
-    // Conversion is always a deliberate action, never an ambient one — so the
-    // plugin stays available whenever there is anything at all to convert,
-    // rather than guessing from file types and dead-ending on the
-    // "plugin not active" popup.
-    return !!ws || !!vscode.window.activeTextEditor || !!this._lastActiveEditor;
+  async detect(_ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
+    return true;
   }
 
   async activate(_services: IServices, _vsCtx: vscode.ExtensionContext): Promise<vscode.Disposable[]> {
