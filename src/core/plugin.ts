@@ -217,6 +217,9 @@ export class PluginRegistry {
   /** [FIX-1] Receives EventBus so it can emit lifecycle events */
   constructor(private readonly _bus: EventBus) {}
 
+  private _lastServices?: IServices;
+  private _lastVsCtx?: vscode.ExtensionContext;
+
   register(plugin: IPlugin): void {
     // [FIX-24] Prevent silent overwrites from duplicate plugin IDs
     if (this._registered.has(plugin.id)) {
@@ -226,18 +229,26 @@ export class PluginRegistry {
     this._registered.set(plugin.id, plugin);
 
     // [FIX-25] Register stub commands eagerly so they never throw "command not found".
-    // Real handlers replace these stubs when the plugin activates.
+    // When invoked, if services are available, execute the handler directly.
     if (plugin.commands) {
       for (const cmd of plugin.commands) {
         if (this._eagerCmds.has(cmd.id)) continue;
-        const d = vscode.commands.registerCommand(cmd.id, async () => {
+        const d = vscode.commands.registerCommand(cmd.id, async (...args: unknown[]) => {
+          if (this._lastServices) {
+            try {
+              await cmd.handler(this._lastServices, ...args);
+              return;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              vscode.window.showErrorMessage(`Evolve AI: ${msg}`);
+              return;
+            }
+          }
           const action = await vscode.window.showInformationMessage(
-            `The ${plugin.displayName} plugin is not active. It activates automatically when it detects matching project files in your workspace.`,
-            'Reload Window', 'Open Folder'
+            `The ${plugin.displayName} plugin activates automatically when matching project files are in your workspace.`,
+            'Open Folder'
           );
-          if (action === 'Reload Window') {
-            vscode.commands.executeCommand('workbench.action.reloadWindow');
-          } else if (action === 'Open Folder') {
+          if (action === 'Open Folder') {
             vscode.commands.executeCommand('workbench.action.openFolder');
           }
         });
@@ -251,6 +262,8 @@ export class PluginRegistry {
     services: IServices,
     vsCtx: vscode.ExtensionContext
   ): Promise<void> {
+    this._lastServices = services;
+    this._lastVsCtx = vsCtx;
     const cfg = vscode.workspace.getConfiguration('aiForge');
     const disabled: string[] = cfg.get('disabledPlugins', []); // [FIX-13]
 
@@ -338,18 +351,26 @@ export class PluginRegistry {
     this._active.delete(id);
     this._disposables.delete(id);
 
-    // [FIX-25] Re-register stubs so commands show friendly message instead of error
+    // [FIX-25] Re-register stubs so commands execute directly when triggered
     if (plugin.commands) {
       for (const cmd of plugin.commands) {
         if (this._eagerCmds.has(cmd.id)) continue;
-        const d = vscode.commands.registerCommand(cmd.id, async () => {
+        const d = vscode.commands.registerCommand(cmd.id, async (...args: unknown[]) => {
+          if (this._lastServices) {
+            try {
+              await cmd.handler(this._lastServices, ...args);
+              return;
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              vscode.window.showErrorMessage(`Evolve AI: ${msg}`);
+              return;
+            }
+          }
           const action = await vscode.window.showInformationMessage(
-            `The ${plugin.displayName} plugin is not active. It activates automatically when it detects matching project files in your workspace.`,
-            'Reload Window', 'Open Folder'
+            `The ${plugin.displayName} plugin activates automatically when matching project files are in your workspace.`,
+            'Open Folder'
           );
-          if (action === 'Reload Window') {
-            vscode.commands.executeCommand('workbench.action.reloadWindow');
-          } else if (action === 'Open Folder') {
+          if (action === 'Open Folder') {
             vscode.commands.executeCommand('workbench.action.openFolder');
           }
         });
