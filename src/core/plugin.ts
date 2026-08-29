@@ -220,6 +220,11 @@ export class PluginRegistry {
   private _lastServices?: IServices;
   private _lastVsCtx?: vscode.ExtensionContext;
 
+  setServices(services: IServices, vsCtx: vscode.ExtensionContext): void {
+    this._lastServices = services;
+    this._lastVsCtx = vsCtx;
+  }
+
   register(plugin: IPlugin): void {
     // [FIX-24] Prevent silent overwrites from duplicate plugin IDs
     if (this._registered.has(plugin.id)) {
@@ -243,13 +248,6 @@ export class PluginRegistry {
               vscode.window.showErrorMessage(`Evolve AI: ${msg}`);
               return;
             }
-          }
-          const action = await vscode.window.showInformationMessage(
-            `The ${plugin.displayName} plugin activates automatically when matching project files are in your workspace.`,
-            'Open Folder'
-          );
-          if (action === 'Open Folder') {
-            vscode.commands.executeCommand('workbench.action.openFolder');
           }
         });
         this._eagerCmds.set(cmd.id, d);
@@ -365,13 +363,6 @@ export class PluginRegistry {
               vscode.window.showErrorMessage(`Evolve AI: ${msg}`);
               return;
             }
-          }
-          const action = await vscode.window.showInformationMessage(
-            `The ${plugin.displayName} plugin activates automatically when matching project files are in your workspace.`,
-            'Open Folder'
-          );
-          if (action === 'Open Folder') {
-            vscode.commands.executeCommand('workbench.action.openFolder');
           }
         });
         this._eagerCmds.set(cmd.id, d);

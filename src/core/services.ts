@@ -82,6 +82,7 @@ export class ServiceContainer implements IServices {
     this.gitConnectOrchestrator = new GitConnectOrchestrator(this.gitConnectInspector, vsCtx.secrets);
     this.analysis  = new AnalysisService({ extensionPath: vsCtx.extensionPath, ctx: vsCtx });
     this.consent   = new ConsentStore(vsCtx);
+    this.plugins.setServices(this, vsCtx);
   }
 
   dispose(): void {
