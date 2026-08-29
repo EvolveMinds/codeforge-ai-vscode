@@ -125,27 +125,8 @@ export class DatabricksPlugin implements IPlugin {
 
   // ── detect ────────────────────────────────────────────────────────────────
 
-  async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
-    const home = process.env.HOME || process.env.USERPROFILE || '';
-    const hasHomeCfg = !!(home && fs.existsSync(path.join(home, '.databrickscfg')));
-
-    if (!ws) return hasHomeCfg;
-    const wsPath = ws.uri.fsPath;
-
-    if (findMarker(wsPath)) return true;
-    if (hasPySparkInRequirements(wsPath)) return true;
-    if (hasHomeCfg) return true;
-
-    // Scan up to 50 Python files for PySpark imports (fast string check, no AST)
-    const pyFiles = globFiles(wsPath, [/\.py$/], 50);
-    for (const f of pyFiles) {
-      try {
-        const sample = fs.readFileSync(f, 'utf8').slice(0, 2000);
-        if (PYSPARK_IMPORT.test(sample)) return true;
-      } catch { /* skip */ }
-    }
-
-    return false;
+  async detect(_ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
+    return true;
   }
 
   // ── activate ──────────────────────────────────────────────────────────────
