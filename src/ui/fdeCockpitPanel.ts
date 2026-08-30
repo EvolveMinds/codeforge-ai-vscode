@@ -1812,8 +1812,14 @@ Output ONLY the message without markdown code fences.`;
   private _getHtmlForWebview(state: FdeEngagementState): string {
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     const store = this._contextManager.getStore();
-    const allProjects = store.projects;
-    const activeProjectId = store.activeProjectId;
+    const allProjects = store.projects || [];
+    const activeProjectId = store.activeProjectId || '';
+
+    state.completedPhases = state.completedPhases || [];
+    state.schemaMappings = state.schemaMappings || [];
+    state.dataMarts = state.dataMarts || [];
+    state.apiConnectors = state.apiConnectors || [];
+    state.discoveredEnvVars = state.discoveredEnvVars || [];
 
     const archPath = ws ? path.join(ws, 'docs', 'ARCHITECTURE.md') : '';
     const deployPath = ws ? path.join(ws, 'docs', 'DEPLOYMENT_RUNBOOK.md') : '';
@@ -1835,7 +1841,7 @@ Output ONLY the message without markdown code fences.`;
 
     const safeJson = (val: any) => JSON.stringify(val || '').replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 
-    const progressPercent = Math.round((state.completedPhases.length / 4) * 100);
+    const progressPercent = Math.round(((state.completedPhases || []).length / 4) * 100);
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -3181,7 +3187,7 @@ Output ONLY the message without markdown code fences.`;
               <span id="cloudAccountText">${state.deployment?.discoveredCloudResources?.activeAccount || state.deployment?.discoveredCloudResources?.provider || 'Active Cloud Session'}</span>
               ${state.deployment?.discoveredCloudResources?.activeProject ? ` (<code>${state.deployment.discoveredCloudResources.activeProject}</code>)` : ''}
             </div>
-            <span class="tag" style="background: var(--accent); color: #fff; font-size: 10px;">${(state.deployment?.discoveredCloudResources?.provider || state.targetVpc).toUpperCase()}</span>
+            <span class="tag" style="background: var(--accent); color: #fff; font-size: 10px;">${(state.deployment?.discoveredCloudResources?.provider || state.targetVpc || 'gcp').toUpperCase()}</span>
           </div>
           <div style="margin-top: 6px; font-size: 11px; opacity: 0.85;" id="cloudDiscoverySummary">
             Discovered ${state.deployment?.discoveredCloudResources?.vpcs?.length || 0} VPCs, ${state.deployment?.discoveredCloudResources?.subnets?.length || 0} Subnets, and ${state.deployment?.discoveredCloudResources?.clusters?.length || 0} Clusters.
@@ -4088,7 +4094,7 @@ Output ONLY the message without markdown code fences.`;
         if (badge) badge.innerText = '🔌 [Live DB] ' + (tbl.schema ? tbl.schema + '.' : '') + tbl.tableName;
 
         if (tgtColsEl && (!tgtColsEl.value.trim() || tgtColsEl.value.includes('customer_id:string'))) {
-          tgtColsEl.value = tbl.columns.map(function(c) { return c.name.toLowerCase() + ':' + c.type; }).join('\n');
+          tgtColsEl.value = tbl.columns.map(function(c) { return c.name.toLowerCase() + ':' + c.type; }).join('\\n');
         }
 
         showToast('✓ Loaded ' + tbl.columns.length + ' columns from ' + tbl.tableName + ' into Schema Mapper!');

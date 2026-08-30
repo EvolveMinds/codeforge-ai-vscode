@@ -190,7 +190,7 @@ gcloud run services update-traffic ${state.deployment?.backendService || 'api-se
 
   static generateEnvironmentCatalog(state: FdeEngagementState): string {
     const client = state.clientName || 'Client';
-    const envVars = state.discoveredEnvVars.length > 0 ? state.discoveredEnvVars : [
+    const envVars = (state.discoveredEnvVars && state.discoveredEnvVars.length > 0) ? state.discoveredEnvVars : [
       'GCP_PROJECT_ID',
       'FIREBASE_TOKEN',
       'DATABASE_URL',
