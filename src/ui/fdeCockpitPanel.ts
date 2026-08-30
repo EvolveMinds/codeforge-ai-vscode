@@ -26,7 +26,7 @@ import { DeployScriptScaffolder, DeployScriptOptions } from '../deployment/deplo
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout } from '../core/processUtil';
-import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient } from '../enterprise';
+import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient, SqlTranspiler, PiiSanitizer, ReverseEtlGenerator, RlsPolicyGenerator, SyntheticDataGenerator, MockServerGenerator } from '../enterprise';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -1843,6 +1843,178 @@ Output ONLY the message without markdown code fences.`;
         this._panel.webview.postMessage({
           type: 'privateServingProbeResult',
           health: health
+        });
+        break;
+      }
+
+      case 'transpileSql': {
+        const srcDialect = msg.sourceDialect || 'oracle';
+        const tgtDialect = msg.targetDialect || 'bigquery';
+        const srcSql = msg.sql || 'SELECT NVL(id, 0), SYSDATE FROM orders';
+        const modelName = msg.modelName || 'migrated_model';
+
+        const result = SqlTranspiler.transpile({
+          sourceDialect: srcDialect,
+          targetDialect: tgtDialect,
+          sourceSql: srcSql,
+          modelName: modelName,
+          addDbtConfig: true
+        });
+
+        if (ws && result.dbtModelPath) {
+          const fullPath = path.join(ws, result.dbtModelPath);
+          const dir = path.dirname(fullPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(fullPath, result.transpiledSql, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Transpiled SQL from ${srcDialect.toUpperCase()} to ${tgtDialect.toUpperCase()} (Readiness: ${result.readinessScore}%)`);
+        this._panel.webview.postMessage({
+          type: 'sqlTranspileResult',
+          result: result
+        });
+        break;
+      }
+
+      case 'generatePiiMasking': {
+        const modelName = msg.modelName || 'stg_sensitive_patients';
+        const sourceTable = msg.sourceTable || 'raw_patients';
+        const rules = msg.rules || [
+          { columnName: 'ssn', piiType: 'ssn', strategy: 'redact_partial' },
+          { columnName: 'email', piiType: 'email', strategy: 'hash_sha256' },
+          { columnName: 'patient_name', piiType: 'name', strategy: 'redact_full' }
+        ];
+
+        const result = PiiSanitizer.generatePiiMaskingSuite({
+          modelName: modelName,
+          sourceTable: sourceTable,
+          rules: rules
+        });
+
+        if (ws) {
+          const macroDir = path.join(ws, 'macros');
+          if (!fs.existsSync(macroDir)) fs.mkdirSync(macroDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.dbtMacroPath), result.dbtMacroSql, 'utf8');
+
+          const stgDir = path.join(ws, 'models', 'staging');
+          if (!fs.existsSync(stgDir)) fs.mkdirSync(stgDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.stagingModelPath), result.stagingModelSql, 'utf8');
+
+          const secDir = path.join(ws, 'src', 'security');
+          if (!fs.existsSync(secDir)) fs.mkdirSync(secDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.pythonPath), result.pythonSanitizerCode, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Scaffolded HIPAA/GDPR PII Masking Suite in macros/ & models/staging/`);
+        this._panel.webview.postMessage({
+          type: 'piiMaskingResult',
+          result: result
+        });
+        break;
+      }
+
+      case 'generateReverseEtl': {
+        const syncName = msg.syncName || 'sync_orders_to_salesforce';
+        const sourceModel = msg.sourceModel || 'fct_orders_mart';
+        const sink = msg.sink || 'salesforce';
+
+        const result = ReverseEtlGenerator.generateReverseEtlSync({
+          syncName: syncName,
+          sourceModel: sourceModel,
+          sink: sink,
+          targetEndpoint: msg.targetEndpoint,
+          rateLimitPerSec: msg.rateLimit || 50
+        });
+
+        if (ws) {
+          const syncDir = path.join(ws, 'src', 'sync');
+          if (!fs.existsSync(syncDir)) fs.mkdirSync(syncDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.pythonWorkerPath), result.pythonWorker, 'utf8');
+          fs.writeFileSync(path.join(ws, result.writtenFiles.typeScriptWorkerPath), result.typeScriptWorker, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Generated Reverse ETL Sync Worker (${sink.toUpperCase()}) in src/sync/`);
+        this._panel.webview.postMessage({
+          type: 'reverseEtlResult',
+          result: result
+        });
+        break;
+      }
+
+      case 'generateRlsPolicies': {
+        const table = msg.tableName || 'fct_client_invoices';
+        const tenantCol = msg.tenantColumn || 'tenant_id';
+        const engine = msg.engine || 'postgres';
+
+        const result = RlsPolicyGenerator.generateRlsPolicies({
+          tableName: table,
+          tenantColumn: tenantCol,
+          engine: engine
+        });
+
+        if (ws) {
+          const secDir = path.join(ws, 'security');
+          if (!fs.existsSync(secDir)) fs.mkdirSync(secDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenPath), result.policySql, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Generated Zero-Trust RLS Policies for ${table} in security/`);
+        this._panel.webview.postMessage({
+          type: 'rlsPolicyResult',
+          result: result
+        });
+        break;
+      }
+
+      case 'generateSyntheticData': {
+        const rowCount = msg.rowCount || 500;
+        const datasetName = msg.datasetName || 'mock_golden';
+
+        const result = SyntheticDataGenerator.generateDataset({
+          datasetName: datasetName,
+          rowCount: rowCount
+        });
+
+        if (ws) {
+          const seedsDir = path.join(ws, 'seeds');
+          if (!fs.existsSync(seedsDir)) fs.mkdirSync(seedsDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.customersCsvPath), result.customersCsv, 'utf8');
+          fs.writeFileSync(path.join(ws, result.writtenFiles.invoicesCsvPath), result.invoicesCsv, 'utf8');
+
+          const dataDir = path.join(ws, 'data');
+          if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.seedSqlPath), result.seedSql, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Generated Synthetic Golden Mock Dataset (${rowCount} rows) in seeds/`);
+        this._panel.webview.postMessage({
+          type: 'syntheticDataResult',
+          result: result
+        });
+        break;
+      }
+
+      case 'generateMockServer': {
+        const port = msg.port || 9090;
+        const latency = msg.latency || 80;
+
+        const result = MockServerGenerator.generateMockServer({
+          port: port,
+          latencyMs: latency
+        });
+
+        if (ws) {
+          const scriptsDir = path.join(ws, 'scripts');
+          if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
+          fs.writeFileSync(path.join(ws, result.writtenFiles.nodeServerPath), result.nodeServerJs, 'utf8');
+          fs.writeFileSync(path.join(ws, result.writtenFiles.pythonServerPath), result.pythonServerPy, 'utf8');
+          fs.writeFileSync(path.join(ws, result.writtenFiles.runnerPath), result.shellRunner, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Scaffolded Contract Mock API Server in scripts/ (Port ${port})`);
+        this._panel.webview.postMessage({
+          type: 'mockServerResult',
+          result: result
         });
         break;
       }
@@ -4088,6 +4260,315 @@ Output ONLY the message without markdown code fences.`;
           </div>
         </div>
 
+
+        <!-- 7. Cross-Dialect SQL & Stored Procedure Transpiler -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🔄</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Cross-Dialect SQL &amp; Stored Procedure Transpiler</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Transpile legacy Oracle PL/SQL, SQL Server (T-SQL), Teradata, and Redshift into modern BigQuery, Snowflake, and dbt models.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Source Legacy Dialect</label>
+              <select id="sqlSourceDialect">
+                <option value="oracle" selected>Oracle PL/SQL (NVL, SYSDATE, VARCHAR2, NUMBER)</option>
+                <option value="tsql">Microsoft SQL Server (T-SQL, ISNULL, GETDATE)</option>
+                <option value="teradata">Teradata SQL</option>
+                <option value="redshift">AWS Redshift</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Modern Dialect</label>
+              <select id="sqlTargetDialect">
+                <option value="bigquery" selected>Google BigQuery (Standard SQL)</option>
+                <option value="snowflake">Snowflake Data Cloud</option>
+                <option value="postgres">PostgreSQL / Supabase</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target dbt Model Name</label>
+              <input type="text" id="sqlModelName" value="migrated_orders_mart" placeholder="migrated_orders_mart" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 11px; font-weight: bold;">Legacy SQL Source Query / Stored Procedure</label>
+            <textarea id="sqlSourceInput" style="width: 100%; height: 80px; font-family: monospace; font-size: 11px; background: var(--card-bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 8px; box-sizing: border-box;" placeholder="SELECT NVL(order_id, 0), SYSDATE, order_total FROM legacy_orders WHERE ROWNUM <= 100">SELECT NVL(order_id, 0) AS order_id, SYSDATE AS loaded_at, customer_id, order_total FROM legacy_orders</textarea>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="runSqlTranspile()">🔄 Transpile &amp; Scaffold dbt Model</button>
+          </div>
+
+          <div id="sqlTranspileResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ SQL Transpiled Successfully (<span id="sqlReadinessBadge">95% Readiness</span>)</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="sqlTranspilePathBadge">Location: <code>models/marts/migrated_orders_mart.sql</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenSqlModelPath || 'models/marts/migrated_orders_mart.sql')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyTranspiledSql()">📋 Copy</button>
+              </div>
+            </div>
+            <pre class="code-preview" id="sqlTranspilePreview" style="max-height: 200px;"></pre>
+          </div>
+        </div>
+
+        <!-- 8. HIPAA / GDPR PII & PHI Masking Studio -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🛡️</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">HIPAA / GDPR PII &amp; PHI Masking &amp; Tokenization Studio</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Deterministic HMAC-SHA256 tokenization (relational joinability preserved), Fernet encryption, and partial redactions for compliance safe-harbor.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Staging Model Name</label>
+              <input type="text" id="piiModelName" value="stg_sensitive_patients" placeholder="stg_sensitive_patients" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Raw Source Table</label>
+              <input type="text" id="piiSourceTable" value="raw_ehr_patients" placeholder="raw_ehr_patients" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="runPiiMaskingGen()">🛡️ Scaffold PII Masking Suite</button>
+          </div>
+
+          <div id="piiResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ HIPAA/GDPR PII Masking Suite Generated</div>
+                <div style="font-size: 11px; opacity: 0.9;">dbt macros, staging models &amp; Python sanitizer ready in workspace</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('models/staging/' + (document.getElementById('piiModelName').value || 'stg_sensitive_patients') + '.sql')">📄 Open</button>
+              </div>
+            </div>
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabPiiMacro" onclick="switchPiiTab('macro')">📜 dbt Macro</div>
+              <div class="code-tab" id="tabPiiModel" onclick="switchPiiTab('model')">🗄️ Staging Model</div>
+              <div class="code-tab" id="tabPiiPy" onclick="switchPiiTab('py')">🐍 Python Sanitizer</div>
+              <div class="code-tab" id="tabPiiAudit" onclick="switchPiiTab('audit')">📋 Audit Markdown</div>
+            </div>
+            <pre class="code-preview" id="piiCodePreview" style="max-height: 200px;"></pre>
+          </div>
+        </div>
+
+        <!-- 9. Operational Reverse ETL & Real-Time Sync Studio -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">⚡</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Operational Reverse ETL &amp; Real-Time Sync Studio</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Push analytical dimensional marts directly to operational systems (Salesforce, HubSpot, Stripe, Webhooks, Kafka) with idempotency keys and rate limiting.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Sync Worker Name</label>
+              <input type="text" id="revEtlName" value="sync_orders_to_salesforce" placeholder="sync_orders_to_salesforce" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Source Mart Model</label>
+              <input type="text" id="revEtlSource" value="fct_orders_mart" placeholder="fct_orders_mart" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Operational Sink</label>
+              <select id="revEtlSink">
+                <option value="salesforce" selected>Salesforce REST API</option>
+                <option value="hubspot">HubSpot CRM Deals API</option>
+                <option value="stripe">Stripe Billing API</option>
+                <option value="webhook">Signed Webhook Endpoint</option>
+                <option value="kafka">Apache Kafka Topic</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Rate Limit (req/sec)</label>
+              <input type="number" id="revEtlRateLimit" value="50" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="runReverseEtlGen()">⚡ Generate Reverse ETL Worker</button>
+          </div>
+
+          <div id="revEtlResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Reverse ETL Sync Worker Scaffolded in src/sync/</div>
+                <div style="font-size: 11px; opacity: 0.9;">Resilient cursor-based sync with idempotency hashing &amp; DLQ retries</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('src/sync/' + (document.getElementById('revEtlName').value || 'sync_orders_to_salesforce') + '_worker.py')">📄 Open</button>
+              </div>
+            </div>
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabRevPy" onclick="switchRevTab('py')">🐍 Python Worker</div>
+              <div class="code-tab" id="tabRevTs" onclick="switchRevTab('ts')">🔷 TypeScript Worker</div>
+              <div class="code-tab" id="tabRevDocker" onclick="switchRevTab('docker')">🐳 Docker Compose</div>
+            </div>
+            <pre class="code-preview" id="revEtlCodePreview" style="max-height: 200px;"></pre>
+          </div>
+        </div>
+
+        <!-- 10. Zero-Trust Row-Level Security (RLS) & Multi-Tenant Studio -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🔒</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Zero-Trust Row-Level Security (RLS) &amp; Multi-Tenant Studio</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Generate strict Row-Level Security policies, Snowflake Row Access policies, and BigQuery session-user row filters.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Table Name</label>
+              <input type="text" id="rlsTableName" value="fct_client_invoices" placeholder="fct_client_invoices" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Tenant Isolation Column</label>
+              <input type="text" id="rlsTenantCol" value="tenant_id" placeholder="tenant_id" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Database Engine</label>
+              <select id="rlsEngine">
+                <option value="postgres" selected>PostgreSQL / Supabase (CREATE POLICY)</option>
+                <option value="snowflake">Snowflake (Row Access Policy)</option>
+                <option value="bigquery">Google BigQuery (Row Access Filter)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="runRlsGen()">🔒 Generate Zero-Trust RLS Policies</button>
+          </div>
+
+          <div id="rlsResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Zero-Trust RLS Policies Generated in security/</div>
+                <div style="font-size: 11px; opacity: 0.9;">Includes isolation verification test queries</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('security/rls_' + (document.getElementById('rlsTableName').value || 'fct_client_invoices') + '.sql')">📄 Open</button>
+              </div>
+            </div>
+            <pre class="code-preview" id="rlsCodePreview" style="max-height: 200px;"></pre>
+          </div>
+        </div>
+
+        <!-- 11. Air-Gapped Golden Dataset & Mock Factory -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🎲</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Air-Gapped Golden Dataset &amp; Mock Factory</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Generate referentially intact mock CSV seeds for dbt seed, JSON events, and SQL DDL for zero-risk offline pilot testing.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Dataset Name</label>
+              <input type="text" id="synthDatasetName" value="pilot_golden_dataset" placeholder="pilot_golden_dataset" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Row Count</label>
+              <input type="number" id="synthRowCount" value="500" placeholder="500" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="runSyntheticGen()">🎲 Generate Golden Mock Seeds</button>
+          </div>
+
+          <div id="synthResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Golden Mock Dataset Generated in seeds/ &amp; data/</div>
+                <div style="font-size: 11px; opacity: 0.9;">Customers CSV, Invoices CSV, and DDL seeds ready</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('seeds/mock_customers.csv')">📄 Open</button>
+              </div>
+            </div>
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabSynthCust" onclick="switchSynthTab('cust')">👥 Customers CSV</div>
+              <div class="code-tab" id="tabSynthInv" onclick="switchSynthTab('inv')">💳 Invoices CSV</div>
+              <div class="code-tab" id="tabSynthSql" onclick="switchSynthTab('sql')">📜 DDL SQL</div>
+            </div>
+            <pre class="code-preview" id="synthCodePreview" style="max-height: 200px;"></pre>
+          </div>
+        </div>
+
+        <!-- 12. Contract-Driven API Mock Server Sandbox -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🌐</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Contract-Driven API Mock Server &amp; Synthetic Webhook Sandbox</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Scaffold zero-dependency local Node.js and Python mock API servers with simulated network latency and test webhook triggers.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Server Port</label>
+              <input type="number" id="mockServerPort" value="9090" placeholder="9090" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Simulated Latency (ms)</label>
+              <input type="number" id="mockServerLatency" value="80" placeholder="80" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="runMockServerGen()">🌐 Scaffold Local Mock Server</button>
+          </div>
+
+          <div id="mockServerResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Local Mock Server Ready in scripts/</div>
+                <div style="font-size: 11px; opacity: 0.9;">Run: <code>node scripts/mock_api_server.js</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('scripts/mock_api_server.js')">📄 Open</button>
+              </div>
+            </div>
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabMockNode" onclick="switchMockTab('node')">⚡ Node.js Server</div>
+              <div class="code-tab" id="tabMockPy" onclick="switchMockTab('py')">🐍 Python Server</div>
+              <div class="code-tab" id="tabMockSh" onclick="switchMockTab('sh')">📜 Runner Script</div>
+            </div>
+            <pre class="code-preview" id="mockServerCodePreview" style="max-height: 200px;"></pre>
+          </div>
+        </div>
+
         <!-- 6. Private Air-Gapped Model Serving Client -->
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -5705,6 +6186,166 @@ Output ONLY the message without markdown code fences.`;
       });
     }
 
+
+    // Enterprise Extended JS Handlers
+    let currentTranspiledSql = '';
+    let currentWrittenSqlModelPath = '';
+    function runSqlTranspile() {
+      const srcDialect = document.getElementById('sqlSourceDialect').value;
+      const tgtDialect = document.getElementById('sqlTargetDialect').value;
+      const modelName = document.getElementById('sqlModelName').value.trim() || 'migrated_orders_mart';
+      const sql = document.getElementById('sqlSourceInput').value;
+
+      showToast('🔄 Transpiling SQL from ' + srcDialect.toUpperCase() + ' to ' + tgtDialect.toUpperCase() + '...');
+      vscode.postMessage({
+        command: 'transpileSql',
+        sourceDialect: srcDialect,
+        targetDialect: tgtDialect,
+        modelName: modelName,
+        sql: sql
+      });
+    }
+    function copyTranspiledSql() {
+      navigator.clipboard.writeText(currentTranspiledSql);
+      showToast('✓ Transpiled SQL copied to clipboard!');
+    }
+
+    let currentPiiMacro = '';
+    let currentPiiModel = '';
+    let currentPiiPy = '';
+    let currentPiiAudit = '';
+    let activePiiTab = 'macro';
+    function runPiiMaskingGen() {
+      const modelName = document.getElementById('piiModelName').value.trim() || 'stg_sensitive_patients';
+      const sourceTable = document.getElementById('piiSourceTable').value.trim() || 'raw_ehr_patients';
+      showToast('🛡️ Scaffolding HIPAA/GDPR PII Masking Suite...');
+      vscode.postMessage({
+        command: 'generatePiiMasking',
+        modelName: modelName,
+        sourceTable: sourceTable
+      });
+    }
+    function switchPiiTab(tab) {
+      activePiiTab = tab;
+      ['tabPiiMacro', 'tabPiiModel', 'tabPiiPy', 'tabPiiAudit'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'code-tab ' + (id.toLowerCase().includes(tab) ? 'active' : '');
+      });
+      const prev = document.getElementById('piiCodePreview');
+      if (prev) {
+        if (tab === 'macro') prev.innerText = currentPiiMacro;
+        else if (tab === 'model') prev.innerText = currentPiiModel;
+        else if (tab === 'py') prev.innerText = currentPiiPy;
+        else prev.innerText = currentPiiAudit;
+      }
+    }
+
+    let currentRevPy = '';
+    let currentRevTs = '';
+    let currentRevDocker = '';
+    let activeRevTab = 'py';
+    function runReverseEtlGen() {
+      const name = document.getElementById('revEtlName').value.trim() || 'sync_orders_to_salesforce';
+      const source = document.getElementById('revEtlSource').value.trim() || 'fct_orders_mart';
+      const sink = document.getElementById('revEtlSink').value;
+      const rate = parseInt(document.getElementById('revEtlRateLimit').value, 10) || 50;
+
+      showToast('⚡ Generating Reverse ETL Sync Worker (' + sink.toUpperCase() + ')...');
+      vscode.postMessage({
+        command: 'generateReverseEtl',
+        syncName: name,
+        sourceModel: source,
+        sink: sink,
+        rateLimit: rate
+      });
+    }
+    function switchRevTab(tab) {
+      activeRevTab = tab;
+      ['tabRevPy', 'tabRevTs', 'tabRevDocker'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'code-tab ' + (id.toLowerCase().includes(tab) ? 'active' : '');
+      });
+      const prev = document.getElementById('revEtlCodePreview');
+      if (prev) {
+        if (tab === 'py') prev.innerText = currentRevPy;
+        else if (tab === 'ts') prev.innerText = currentRevTs;
+        else prev.innerText = currentRevDocker;
+      }
+    }
+
+    let currentRlsSql = '';
+    function runRlsGen() {
+      const table = document.getElementById('rlsTableName').value.trim() || 'fct_client_invoices';
+      const col = document.getElementById('rlsTenantCol').value.trim() || 'tenant_id';
+      const engine = document.getElementById('rlsEngine').value;
+
+      showToast('🔒 Generating Zero-Trust RLS Policies for ' + table + '...');
+      vscode.postMessage({
+        command: 'generateRlsPolicies',
+        tableName: table,
+        tenantColumn: col,
+        engine: engine
+      });
+    }
+
+    let currentSynthCust = '';
+    let currentSynthInv = '';
+    let currentSynthSql = '';
+    let activeSynthTab = 'cust';
+    function runSyntheticGen() {
+      const name = document.getElementById('synthDatasetName').value.trim() || 'pilot_golden_dataset';
+      const count = parseInt(document.getElementById('synthRowCount').value, 10) || 500;
+
+      showToast('🎲 Generating Synthetic Golden Dataset (' + count + ' rows)...');
+      vscode.postMessage({
+        command: 'generateSyntheticData',
+        datasetName: name,
+        rowCount: count
+      });
+    }
+    function switchSynthTab(tab) {
+      activeSynthTab = tab;
+      ['tabSynthCust', 'tabSynthInv', 'tabSynthSql'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'code-tab ' + (id.toLowerCase().includes(tab) ? 'active' : '');
+      });
+      const prev = document.getElementById('synthCodePreview');
+      if (prev) {
+        if (tab === 'cust') prev.innerText = currentSynthCust;
+        else if (tab === 'inv') prev.innerText = currentSynthInv;
+        else prev.innerText = currentSynthSql;
+      }
+    }
+
+    let currentMockNode = '';
+    let currentMockPy = '';
+    let currentMockSh = '';
+    let activeMockTab = 'node';
+    function runMockServerGen() {
+      const port = parseInt(document.getElementById('mockServerPort').value, 10) || 9090;
+      const latency = parseInt(document.getElementById('mockServerLatency').value, 10) || 80;
+
+      showToast('🌐 Scaffolding Contract Mock Server on port ' + port + '...');
+      vscode.postMessage({
+        command: 'generateMockServer',
+        port: port,
+        latency: latency
+      });
+    }
+    function switchMockTab(tab) {
+      activeMockTab = tab;
+      ['tabMockNode', 'tabMockPy', 'tabMockSh'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.className = 'code-tab ' + (id.toLowerCase().includes(tab) ? 'active' : '');
+      });
+      const prev = document.getElementById('mockServerCodePreview');
+      if (prev) {
+        if (tab === 'node') prev.innerText = currentMockNode;
+        else if (tab === 'py') prev.innerText = currentMockPy;
+        else prev.innerText = currentMockSh;
+      }
+    }
+
     function testPrivateServingProbe() {
       const engine = document.getElementById('privServingEngine').value;
       const ep = document.getElementById('privServingEndpoint').value;
@@ -6563,6 +7204,63 @@ Output ONLY the message without markdown code fences.`;
         const prev = document.getElementById('siemCodePreview');
         if (prev) prev.innerText = msg.formatted;
         showToast('✓ Formatted & Dispatched Sample SIEM Audit Event (' + msg.destination.toUpperCase() + ')');
+
+      } else if (msg.type === 'sqlTranspileResult') {
+        const res = msg.result;
+        currentTranspiledSql = res.transpiledSql;
+        currentWrittenSqlModelPath = res.dbtModelPath;
+        const box = document.getElementById('sqlTranspileResultBox');
+        if (box) box.style.display = 'block';
+        const prev = document.getElementById('sqlTranspilePreview');
+        if (prev) prev.innerText = currentTranspiledSql;
+        const badge = document.getElementById('sqlReadinessBadge');
+        if (badge) badge.innerText = res.readinessScore + '% Readiness';
+        showToast('✓ Transpiled SQL from ' + res.sourceDialect.toUpperCase() + ' to ' + res.targetDialect.toUpperCase());
+      } else if (msg.type === 'piiMaskingResult') {
+        const res = msg.result;
+        currentPiiMacro = res.dbtMacroSql;
+        currentPiiModel = res.stagingModelSql;
+        currentPiiPy = res.pythonSanitizerCode;
+        currentPiiAudit = res.auditMarkdown;
+        const box = document.getElementById('piiResultBox');
+        if (box) box.style.display = 'block';
+        switchPiiTab(activePiiTab);
+        showToast('✓ Scaffolded HIPAA/GDPR PII Masking Suite in workspace!');
+      } else if (msg.type === 'reverseEtlResult') {
+        const res = msg.result;
+        currentRevPy = res.pythonWorker;
+        currentRevTs = res.typeScriptWorker;
+        currentRevDocker = res.dockerCompose;
+        const box = document.getElementById('revEtlResultBox');
+        if (box) box.style.display = 'block';
+        switchRevTab(activeRevTab);
+        showToast('✓ Scaffolded Reverse ETL Sync Worker in src/sync/!');
+      } else if (msg.type === 'rlsPolicyResult') {
+        const res = msg.result;
+        currentRlsSql = res.policySql + '\n\n' + res.testVerificationSql;
+        const box = document.getElementById('rlsResultBox');
+        if (box) box.style.display = 'block';
+        const prev = document.getElementById('rlsCodePreview');
+        if (prev) prev.innerText = currentRlsSql;
+        showToast('✓ Generated Zero-Trust RLS Policies in security/!');
+      } else if (msg.type === 'syntheticDataResult') {
+        const res = msg.result;
+        currentSynthCust = res.customersCsv;
+        currentSynthInv = res.invoicesCsv;
+        currentSynthSql = res.seedSql;
+        const box = document.getElementById('synthResultBox');
+        if (box) box.style.display = 'block';
+        switchSynthTab(activeSynthTab);
+        showToast('✓ Generated Golden Mock Seeds in seeds/ & data/!');
+      } else if (msg.type === 'mockServerResult') {
+        const res = msg.result;
+        currentMockNode = res.nodeServerJs;
+        currentMockPy = res.pythonServerPy;
+        currentMockSh = res.shellRunner;
+        const box = document.getElementById('mockServerResultBox');
+        if (box) box.style.display = 'block';
+        switchMockTab(activeMockTab);
+        showToast('✓ Scaffolded Local Mock API Server in scripts/!');
       } else if (msg.type === 'privateServingProbeResult') {
         const h = msg.health;
         const statusEl = document.getElementById('privProbeStatus');
