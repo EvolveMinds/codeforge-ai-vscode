@@ -13,6 +13,7 @@ export function registerFdeSuite(vsCtx: vscode.ExtensionContext, services: IServ
 
 export * from './fdeContext';
 export * from './schemaMapper';
+export * from './aiEngine';
 export * from './apiConnectorGen';
 export * from './runbookGenerator';
 export * from '../deployment/preflightAuditor';

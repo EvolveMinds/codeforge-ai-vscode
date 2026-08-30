@@ -17,6 +17,7 @@ import * as os from 'os';
 import type { IServices } from '../core/services';
 import { FdeContextManager, FdeEngagementState } from '../fde/fdeContext';
 import { SchemaMapperEngine, ColumnDefinition } from '../fde/schemaMapper';
+import { FdeAiEngine } from '../fde/aiEngine';
 import { DbIntrospector, DbConnectionOptions } from '../fde/dbIntrospector';
 import { ApiConnectorGenerator, ApiEndpointSpec } from '../fde/apiConnectorGen';
 import { PreflightAuditor, PreflightReport } from '../deployment/preflightAuditor';
@@ -566,6 +567,56 @@ Output ONLY the message without markdown code fences.`;
           sourceName
         });
         this._update();
+        break;
+      }
+
+      case 'aiAnalyzeStagingSchema': {
+        const rawCols = msg.rawCols || '';
+        const tableName = msg.tableName || 'data';
+        const enablePiiMasking = !!msg.enablePiiMasking;
+        const customInstruction = msg.customInstruction || '';
+        const result = FdeAiEngine.analyzeAndCleanStagingSchema(rawCols, tableName, {
+          enablePiiMasking,
+          customInstruction,
+        });
+        vscode.window.showInformationMessage(result.summary);
+        this._panel.webview.postMessage({
+          type: 'aiStagingAnalysisResult',
+          result,
+        });
+        break;
+      }
+
+      case 'aiDiscoverMartRecipes': {
+        const baseModel = msg.baseModel || '';
+        const allTables = this._contextManager.getLastIntrospectedTables();
+        const recipes = FdeAiEngine.discoverMartRecipes(baseModel, allTables);
+        this._panel.webview.postMessage({
+          type: 'aiMartRecipesResult',
+          recipes,
+          baseModel,
+        });
+        if (recipes.length > 0) {
+          vscode.window.showInformationMessage(`✨ AI discovered ${recipes.length} dimensional Mart recipes for ${baseModel || 'workspace'}`);
+        } else {
+          vscode.window.showInformationMessage(`AI: Select a Base Model or connect database to discover mart relationships.`);
+        }
+        break;
+      }
+
+      case 'aiGenerateMartFromPrompt': {
+        const prompt = msg.prompt || '';
+        const allTables = this._contextManager.getLastIntrospectedTables();
+        const recipe = FdeAiEngine.generateMartFromNaturalLanguage(prompt, allTables);
+        if (recipe) {
+          vscode.window.showInformationMessage(`✨ AI generated mart configuration for: "${prompt}"`);
+          this._panel.webview.postMessage({
+            type: 'aiMartFromResult',
+            recipe,
+          });
+        } else {
+          vscode.window.showWarningMessage(`Could not generate a Mart configuration for "${prompt}". Please connect to database tables first.`);
+        }
         break;
       }
 
@@ -2891,17 +2942,25 @@ Output ONLY the message without markdown code fences.`;
 
         <!-- SUB-PANEL A: STAGING MAPPER -->
         <div id="subpanelStaging">
-          <!-- Guided Step Helper Banner -->
-          <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
-            <div>
-              <span style="font-weight: 700; color: var(--accent);">📌 Step A:</span>
-              <span> Map raw columns into standard staging schemas.</span>
+          <!-- AI Staging Schema Copilot Bar -->
+          <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: linear-gradient(135deg, #6366f1, #a855f7); color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">✨ AI Copilot</span>
+                <span>Auto-clean schemas, normalize data types, and detect sensitive PII for any loaded table.</span>
+              </div>
+              <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                <button class="btn-primary" style="margin-bottom: 0; padding: 4px 12px; font-size: 11px; background: linear-gradient(135deg, #6366f1, #8b5cf6);" onclick="triggerAiStagingClean(false)">✨ AI Auto-Clean &amp; Standardize</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px;" onclick="triggerAiStagingClean(true)">🔒 AI PII Masking</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px;" onclick="toggleAiPromptBox('staging')">🪄 Custom Prompt</button>
+              </div>
             </div>
-            <div style="display: flex; gap: 6px; align-items: center;">
-              <span style="font-size: 11px; opacity: 0.8;">Target Presets:</span>
-              <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('orders')">📦 Orders</button>
-              <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('users')">👥 Users</button>
-              <button class="btn-quick" style="margin-bottom: 0;" onclick="loadTargetPreset('payments')">💳 Payments</button>
+            <!-- Collapsible AI Prompt Drawer -->
+            <div id="aiStagingPromptBox" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(99, 102, 241, 0.25);">
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="aiStagingCustomPrompt" style="flex: 1; font-size: 12px;" placeholder="e.g. 'Prefix timestamp columns with event_, convert revenue to AUD cents, and mask email addresses'..." />
+                <button class="btn-primary" style="padding: 4px 12px; font-size: 11px; margin-bottom: 0;" onclick="triggerAiStagingCleanWithPrompt()">Apply AI Instruction</button>
+              </div>
             </div>
           </div>
 
@@ -2918,7 +2977,7 @@ Output ONLY the message without markdown code fences.`;
                 <label style="font-size: 11px; font-weight: bold;">Target Model Columns (Platform Standard)</label>
                 <span style="font-size: 10px; opacity: 0.8;">Standardized schema</span>
               </div>
-              <textarea id="tgtCols" style="height: 120px;" placeholder="Target columns or pick a preset above...&#10;e.g.&#10;customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean"></textarea>
+              <textarea id="tgtCols" style="height: 120px;" placeholder="Target columns will be auto-generated by AI or editable directly...&#10;e.g.&#10;customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean"></textarea>
             </div>
           </div>
 
@@ -2971,17 +3030,30 @@ Output ONLY the message without markdown code fences.`;
 
         <!-- SUB-PANEL B: CROSS-MODEL / MART JOIN BUILDER -->
         <div id="subpanelMart" style="display: none;">
-          <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-              <div>
-                <span style="font-weight: 700; color: var(--accent);">🔀 Step B: Cross-Model Mart Builder:</span>
-                <span> Combine mapped staging models or live database tables into unified downstream Fact / Dimension marts.</span>
+          <!-- AI Mart Copilot & Recipe Discovery Bar -->
+          <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="background: linear-gradient(135deg, #10b981, #6366f1); color: white; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px;">✨ AI Mart Copilot</span>
+                <span>Discover foreign key joins, dimensional metrics, and smart recipes tailored to your tables.</span>
               </div>
               <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="applyMartPreset('customer_revenue')">📊 Customer Revenue Mart</button>
-                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="applyMartPreset('daily_orders')">📈 Daily Orders Fact</button>
-                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="applyMartPreset('user_retention')">👥 User Retention Dim</button>
-                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="refreshMartModelOptions()">🔄 Refresh Tables</button>
+                <button class="btn-primary" style="margin-bottom: 0; padding: 4px 12px; font-size: 11px; background: linear-gradient(135deg, #10b981, #059669);" onclick="triggerAiDiscoverMartRecipes()">✨ AI Discover Mart Recipes</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px;" onclick="toggleAiPromptBox('mart')">💬 AI Prompt Generator</button>
+                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px; padding: 4px 10px;" onclick="refreshMartModelOptions()">🔄 Refresh Tables</button>
+              </div>
+            </div>
+
+            <!-- AI Discovered Dynamic Recipes Tray -->
+            <div id="aiMartRecipesContainer" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <!-- Dynamic chips will be inserted here when AI runs -->
+            </div>
+
+            <!-- Collapsible Natural Language Prompt Box -->
+            <div id="aiMartPromptBox" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(16, 185, 129, 0.3);">
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="aiMartCustomPrompt" style="flex: 1; font-size: 12px;" placeholder="e.g. 'Build a daily retention fact mart tracking deletions and active users by country' or 'Calculate revenue by customer'..." />
+                <button class="btn-primary" style="padding: 4px 12px; font-size: 11px; background: #10b981; margin-bottom: 0;" onclick="triggerAiGenerateMartFromPrompt()">Generate Mart with AI</button>
               </div>
             </div>
           </div>
@@ -4107,6 +4179,152 @@ Output ONLY the message without markdown code fences.`;
       }
     }
 
+    let currentAiMartRecipes = [];
+
+    function triggerAiStagingClean(enablePii) {
+      const srcEl = document.getElementById('srcCols');
+      const nameEl = document.getElementById('srcNameInput');
+      const src = srcEl ? srcEl.value.trim() : '';
+      const name = nameEl ? nameEl.value.trim() : 'data';
+
+      if (!src) {
+        showToast('⚠️ Please load or paste source columns first!');
+        return;
+      }
+
+      showToast('✨ AI is analyzing schema and normalizing data types...');
+      vscode.postMessage({
+        command: 'aiAnalyzeStagingSchema',
+        rawCols: src,
+        tableName: name,
+        enablePiiMasking: !!enablePii
+      });
+    }
+
+    function toggleAiPromptBox(kind) {
+      const el = document.getElementById(kind === 'staging' ? 'aiStagingPromptBox' : 'aiMartPromptBox');
+      if (el) {
+        el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+        if (el.style.display === 'block') {
+          const input = el.querySelector('input');
+          if (input) input.focus();
+        }
+      }
+    }
+
+    function triggerAiStagingCleanWithPrompt() {
+      const srcEl = document.getElementById('srcCols');
+      const nameEl = document.getElementById('srcNameInput');
+      const promptEl = document.getElementById('aiStagingCustomPrompt');
+      const src = srcEl ? srcEl.value.trim() : '';
+      const name = nameEl ? nameEl.value.trim() : 'data';
+      const prompt = promptEl ? promptEl.value.trim() : '';
+
+      if (!src) {
+        showToast('⚠️ Please load source columns first!');
+        return;
+      }
+
+      showToast('✨ AI is applying custom schema transformation prompt...');
+      vscode.postMessage({
+        command: 'aiAnalyzeStagingSchema',
+        rawCols: src,
+        tableName: name,
+        customInstruction: prompt
+      });
+    }
+
+    function triggerAiDiscoverMartRecipes() {
+      const baseEl = document.getElementById('martBaseModel');
+      let base = baseEl ? baseEl.value : '';
+
+      if (!base) {
+        const available = getAvailableMartModels();
+        if (available.length > 0) {
+          base = available[0].id;
+          if (baseEl) baseEl.value = base;
+        }
+      }
+
+      if (!base) {
+        showToast('⚠️ Please connect to database and load tables first.');
+        return;
+      }
+
+      showToast('✨ AI inspecting table relationships and discovering recipes for ' + base + '...');
+      vscode.postMessage({
+        command: 'aiDiscoverMartRecipes',
+        baseModel: base
+      });
+    }
+
+    function triggerAiGenerateMartFromPrompt() {
+      const promptEl = document.getElementById('aiMartCustomPrompt');
+      const prompt = promptEl ? promptEl.value.trim() : '';
+      if (!prompt) {
+        showToast('⚠️ Please enter a prompt for the AI Mart Generator!');
+        return;
+      }
+
+      showToast('✨ AI designing dimensional model from prompt...');
+      vscode.postMessage({
+        command: 'aiGenerateMartFromPrompt',
+        prompt: prompt
+      });
+    }
+
+    function renderAiMartRecipes(recipes) {
+      const container = document.getElementById('aiMartRecipesContainer');
+      if (!container) return;
+      if (!recipes || recipes.length === 0) {
+        container.innerHTML = '<div style="font-size: 11px; opacity: 0.75; font-style: italic;">No AI recipes discovered. Select a Base Model and click Discover.</div>';
+        return;
+      }
+      container.innerHTML = '<div style="font-size: 11px; font-weight: 700; color: var(--success); margin-bottom: 4px;">✨ Suggested AI Data Marts (1-Click Apply):</div>' +
+        recipes.map(function(r) {
+          return '<div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border);">' +
+            '<div>' +
+              '<div style="font-weight: 700; font-size: 12px; color: var(--accent);">' + r.title + ' <span style="font-size: 10px; background: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 1px 6px; border-radius: 4px;">' + r.badge + '</span></div>' +
+              '<div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">' + r.description + '</div>' +
+              '<div style="font-size: 10px; opacity: 0.7; font-family: monospace; margin-top: 2px;">Join: ' + r.joinCondition + ' | Dims: ' + r.dimensions.join(', ') + '</div>' +
+            '</div>' +
+            '<div>' +
+              '<button class="btn-primary" style="margin-bottom: 0; padding: 3px 10px; font-size: 11px;" onclick="applyAiMartRecipe(\\\'' + r.id + '\\\')">⚡ Apply Recipe</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+    }
+
+    function applyAiMartRecipe(recipeId) {
+      const r = currentAiMartRecipes.find(function(item) { return item.id === recipeId; });
+      if (r) applyAiMartRecipeDirect(r);
+    }
+
+    function applyAiMartRecipeDirect(r) {
+      const baseEl = document.getElementById('martBaseModel');
+      const joinEl = document.getElementById('martJoinModel');
+      const joinTypeEl = document.getElementById('martJoinType');
+      const onEl = document.getElementById('martOnCondition');
+      const dimsEl = document.getElementById('martDimensions');
+      const metricsEl = document.getElementById('martMetrics');
+      const nameEl = document.getElementById('martNameInput');
+      const pathEl = document.getElementById('martOutputPathInput');
+
+      if (baseEl && r.baseModel) baseEl.value = r.baseModel;
+      if (joinEl && r.joinModel) joinEl.value = r.joinModel;
+      if (joinTypeEl && r.joinType) joinTypeEl.value = r.joinType;
+      if (onEl && r.joinCondition) onEl.value = r.joinCondition;
+      if (dimsEl && r.dimensions) dimsEl.value = r.dimensions.join(', ');
+      if (metricsEl && r.metrics) metricsEl.value = r.metrics.map(function(m) { return m.name + ':' + m.expression; }).join(', ');
+      if (nameEl && r.martName) {
+        nameEl.value = r.martName;
+        handleMartNameInput(r.martName);
+      }
+      if (pathEl && r.outputPath) pathEl.value = r.outputPath;
+
+      showToast('✓ Applied AI Mart Recipe: ' + r.title);
+    }
+
     function applyMartPreset(kind) {
       if (kind === 'customer_revenue') {
         document.getElementById('martDimensions').value = 'orders.customer_id, users.email, orders.order_status';
@@ -4143,6 +4361,12 @@ Output ONLY the message without markdown code fences.`;
     window.switchPhase1Mode = switchPhase1Mode;
     window.handleModelNameInput = handleModelNameInput;
     window.handleMartNameInput = handleMartNameInput;
+    window.triggerAiStagingClean = triggerAiStagingClean;
+    window.toggleAiPromptBox = toggleAiPromptBox;
+    window.triggerAiStagingCleanWithPrompt = triggerAiStagingCleanWithPrompt;
+    window.triggerAiDiscoverMartRecipes = triggerAiDiscoverMartRecipes;
+    window.triggerAiGenerateMartFromPrompt = triggerAiGenerateMartFromPrompt;
+    window.applyAiMartRecipe = applyAiMartRecipe;
 
     function generateDataMart() {
       const base = document.getElementById('martBaseModel').value;
@@ -5395,11 +5619,23 @@ Output ONLY the message without markdown code fences.`;
         const errEl = document.getElementById('schemaErrorAlert');
         if (errEl) errEl.style.display = 'none';
         showToast('✓ Loaded ' + msg.fileName);
-      } else if (msg.type === 'schemaMappingError') {
-        const errEl = document.getElementById('schemaErrorAlert');
-        if (errEl) {
-          errEl.innerHTML = '<strong>⚠️ Error:</strong> ' + msg.error;
-          errEl.style.display = 'block';
+      } else if (msg.type === 'aiStagingAnalysisResult') {
+        const res = msg.result;
+        if (res) {
+          const tgtEl = document.getElementById('tgtCols');
+          const nameEl = document.getElementById('modelNameInput');
+          const pathEl = document.getElementById('modelOutputPathInput');
+          if (tgtEl) tgtEl.value = res.targetColumnsText;
+          if (nameEl) nameEl.value = res.targetModelName;
+          if (pathEl) pathEl.value = res.targetOutputPath;
+          showToast(res.summary);
+        }
+      } else if (msg.type === 'aiMartRecipesResult') {
+        currentAiMartRecipes = msg.recipes || [];
+        renderAiMartRecipes(currentAiMartRecipes);
+      } else if (msg.type === 'aiMartFromResult') {
+        if (msg.recipe) {
+          applyAiMartRecipeDirect(msg.recipe);
         }
       } else if (msg.type === 'auditResult') {
         const r = msg.report;
