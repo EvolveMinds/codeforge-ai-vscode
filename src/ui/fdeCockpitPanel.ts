@@ -7243,7 +7243,7 @@ Output ONLY the message without markdown code fences.`;
         showToast('✓ Scaffolded Reverse ETL Sync Worker in src/sync/!');
       } else if (msg.type === 'rlsPolicyResult') {
         const res = msg.result;
-        currentRlsSql = res.policySql + '\n\n' + res.testVerificationSql;
+        currentRlsSql = (res.policySql || '') + String.fromCharCode(10, 10) + (res.testVerificationSql || '');
         const box = document.getElementById('rlsResultBox');
         if (box) box.style.display = 'block';
         const prev = document.getElementById('rlsCodePreview');
