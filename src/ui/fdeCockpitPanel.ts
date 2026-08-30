@@ -5238,7 +5238,7 @@ Output ONLY the message without markdown code fences.`;
       const name = (document.getElementById('connName') ? document.getElementById('connName').value : 'ClientBillingApi').trim() || 'ClientBillingApi';
       const cleanName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
       
-      const defaultCols = "id: varchar\ncustomer_id: varchar\ninvoice_number: varchar\namount: numeric\ncurrency: varchar\nstatus: varchar\ncreated_at: timestamp";
+      const defaultCols = ['id: varchar', 'customer_id: varchar', 'invoice_number: varchar', 'amount: numeric', 'currency: varchar', 'status: varchar', 'created_at: timestamp'].join('\\n');
       
       const srcEl = document.getElementById('srcCols');
       const srcNameEl = document.getElementById('srcNameInput');
