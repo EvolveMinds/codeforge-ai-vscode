@@ -3309,6 +3309,7 @@ Output ONLY the message without markdown code fences.`;
           <button class="btn" onclick="generateApiConnector('typescript')">Scaffold TypeScript SDK</button>
           <button class="btn btn-secondary" onclick="generateApiConnector('python')">Scaffold Python SDK</button>
           <button class="btn btn-secondary" onclick="testApiEndpoint()">🔌 Test API Ping</button>
+          <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 700;" onclick="sendApiSchemaToMapper()">📤 Map API Schema in Step 1 (Schema &amp; Marts)</button>
         </div>
 
         <div id="apiResultBox" style="margin-top: 20px; display: none;">
@@ -5232,6 +5233,29 @@ Output ONLY the message without markdown code fences.`;
         writeToFile: true
       });
     }
+
+    function sendApiSchemaToMapper() {
+      const name = (document.getElementById('connName') ? document.getElementById('connName').value : 'ClientBillingApi').trim() || 'ClientBillingApi';
+      const cleanName = name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      
+      const defaultCols = "id: varchar\ncustomer_id: varchar\ninvoice_number: varchar\namount: numeric\ncurrency: varchar\nstatus: varchar\ncreated_at: timestamp";
+      
+      const srcEl = document.getElementById('srcCols');
+      const srcNameEl = document.getElementById('srcNameInput');
+      const modelNameEl = document.getElementById('modelNameInput');
+      const modelPathEl = document.getElementById('modelOutputPathInput');
+      
+      if (srcEl) srcEl.value = defaultCols;
+      if (srcNameEl) srcNameEl.value = 'raw_api_' + cleanName;
+      if (modelNameEl) modelNameEl.value = 'stg_' + cleanName + '_invoices';
+      if (modelPathEl) modelPathEl.value = 'models/staging/stg_' + cleanName + '_invoices.sql';
+      
+      setPhase(1);
+      switchPhase1Mode('staging');
+      showToast('✓ Loaded API payload schema into Step 1 Schema Mapper! Ready to generate dbt staging model.');
+    }
+
+    window.sendApiSchemaToMapper = sendApiSchemaToMapper;
 
     function switchApiTab(lang) {
       document.getElementById('tabTs').className = 'code-tab ' + (lang === 'ts' ? 'active' : '');
