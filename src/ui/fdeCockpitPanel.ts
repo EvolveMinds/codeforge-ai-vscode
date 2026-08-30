@@ -731,14 +731,81 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'testApiEndpoint': {
+        const url = msg.url || '';
+        if (!url) {
+          vscode.window.showWarningMessage('Please enter a valid Base URL first.');
+          return;
+        }
+        vscode.window.withProgress({
+          location: vscode.ProgressLocation.Notification,
+          title: `Testing HTTP reachability for ${url}...`,
+        }, async () => {
+          try {
+            const start = Date.now();
+            const https = url.startsWith('https') ? require('https') : require('http');
+            const parsedUrl = new URL(url);
+            const req = https.request({
+              hostname: parsedUrl.hostname,
+              port: parsedUrl.port || (url.startsWith('https') ? 443 : 80),
+              path: parsedUrl.pathname || '/',
+              method: 'GET',
+              timeout: 6000,
+              headers: { 'User-Agent': 'EvolveAI-FDE-Connector-Test/2.19.0' },
+              rejectUnauthorized: false
+            }, (res: any) => {
+              const latency = Date.now() - start;
+              const status = res.statusCode || 200;
+              vscode.window.showInformationMessage(`✓ API Endpoint responded: HTTP ${status} in ${latency}ms`);
+              this._panel.webview.postMessage({
+                type: 'apiTestResult',
+                success: true,
+                status,
+                latencyMs: latency,
+                url
+              });
+            });
+            req.on('error', (err: any) => {
+              const latency = Date.now() - start;
+              vscode.window.showWarningMessage(`API endpoint test: ${err.message} (${latency}ms)`);
+              this._panel.webview.postMessage({
+                type: 'apiTestResult',
+                success: false,
+                error: err.message,
+                latencyMs: latency,
+                url
+              });
+            });
+            req.setTimeout(6000, () => {
+              req.destroy();
+              vscode.window.showErrorMessage(`API test timed out after 6000ms`);
+              this._panel.webview.postMessage({
+                type: 'apiTestResult',
+                success: false,
+                error: 'Connection timed out',
+                latencyMs: 6000,
+                url
+              });
+            });
+            req.end();
+          } catch (e: any) {
+            vscode.window.showErrorMessage(`Failed to test endpoint: ${e.message}`);
+          }
+        });
+        break;
+      }
+
       case 'generateDataMart': {
         const martName = (msg.martName || 'fct_customer_orders').trim();
         const baseModel = (msg.baseModel || 'stg_orders').trim();
         const joins = msg.joins || [];
-        const dimensions = (msg.dimensions || '').split(',').map((s: string) => s.trim()).filter(Boolean);
-        const metrics = (msg.metrics || '').split(',').map((s: string) => s.trim()).filter(Boolean).map((m: string) => {
-          const parts = m.split(':');
-          return { name: parts[0].trim(), expr: parts[1] ? parts[1].trim() : parts[0].trim() };
+        const dimensions = (msg.dimensions || []).map((s: string) => s.trim()).filter(Boolean);
+        const metrics = (msg.metrics || []).map((m: any) => {
+          if (typeof m === 'string') {
+            const parts = m.split(':');
+            return { name: parts[0].trim(), expr: parts[1] ? parts[1].trim() : parts[0].trim() };
+          }
+          return { name: m.name, expr: m.expression || m.expr || 'count(*)' };
         });
         const dialect = msg.dialect || 'dbt';
 
@@ -761,8 +828,13 @@ Output ONLY the message without markdown code fences.`;
           if (!fs.existsSync(martsDir)) fs.mkdirSync(martsDir, { recursive: true });
           const outPath = path.join(martsDir, `${martName}.sql`);
           fs.writeFileSync(outPath, result.dbtSql, 'utf8');
+
+          const schemaYamlPath = path.join(martsDir, 'schema.yml');
+          const schemaYamlContent = SchemaMapperEngine.generateDbtSchemaYaml(martName, dimensions, metrics);
+          fs.writeFileSync(schemaYamlPath, schemaYamlContent, 'utf8');
+
           writtenFile = `models/marts/${martName}.sql`;
-          vscode.window.showInformationMessage(`✓ Created dbt dimensional mart: ${writtenFile}`);
+          vscode.window.showInformationMessage(`✓ Created dbt dimensional mart: ${writtenFile} & schema.yml`);
         }
 
         this._panel.webview.postMessage({
@@ -2175,6 +2247,37 @@ Output ONLY the message without markdown code fences.`;
       font-size: 13px;
       font-weight: 500;
     }
+
+    /* Mart Builder & Columns */
+    .mart-col-tray {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 6px;
+      max-height: 110px;
+      overflow-y: auto;
+      background: var(--bg);
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+    }
+    .mart-chip {
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 3px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s;
+    }
+    .mart-chip:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -2843,31 +2946,46 @@ Output ONLY the message without markdown code fences.`;
         <!-- SUB-PANEL B: CROSS-MODEL / MART JOIN BUILDER -->
         <div id="subpanelMart" style="display: none;">
           <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
-            <span style="font-weight: 700; color: var(--accent);">🔀 Step B: Cross-Model Mart Builder:</span>
-            <span> Combine multiple mapped staging models (e.g. <code>stg_orders</code> + <code>stg_users</code>) into unified downstream Fact / Dimension data marts with join keys, CTEs, and aggregated business metrics.</span>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Base Staging Model</label>
-              <select id="martBaseModel">
-                ${state.schemaMappings.length > 0 
-                  ? state.schemaMappings.map(m => `<option value="${m.targetModelName}">${m.targetModelName}</option>`).join('')
-                  : '<option value="stg_orders">stg_orders (default)</option><option value="stg_users">stg_users</option>'
-                }
-              </select>
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Join Staging Model</label>
-              <select id="martJoinModel">
-                ${state.schemaMappings.length > 0 
-                  ? state.schemaMappings.map(m => `<option value="${m.targetModelName}">${m.targetModelName}</option>`).join('')
-                  : '<option value="stg_users">stg_users</option><option value="stg_payments">stg_payments</option>'
-                }
-              </select>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <span style="font-weight: 700; color: var(--accent);">🔀 Step B: Cross-Model Mart Builder:</span>
+                <span> Combine mapped staging models or live database tables into unified downstream Fact / Dimension marts.</span>
+              </div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="applyMartPreset('customer_revenue')">📊 Customer Revenue Mart</button>
+                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="applyMartPreset('daily_orders')">📈 Daily Orders Fact</button>
+                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="applyMartPreset('user_retention')">👥 User Retention Dim</button>
+                <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="refreshMartModelOptions()">🔄 Refresh Tables</button>
+              </div>
             </div>
           </div>
 
+          <!-- Models & Column Inspector Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+            <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Primary / Base Model</label>
+              <select id="martBaseModel" onchange="handleMartModelChange()">
+                <option value="">-- Choose Base Model --</option>
+              </select>
+              <div style="font-size: 10px; opacity: 0.8; margin-top: 4px;">Available Columns (Click to add as Dimension / Metric):</div>
+              <div id="martBaseColsTray" class="mart-col-tray">
+                <span style="font-size: 10px; opacity: 0.6;">Select a model above to inspect columns</span>
+              </div>
+            </div>
+
+            <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Joined Model</label>
+              <select id="martJoinModel" onchange="handleMartModelChange()">
+                <option value="">-- Choose Joined Model --</option>
+              </select>
+              <div style="font-size: 10px; opacity: 0.8; margin-top: 4px;">Available Columns (Click to add as Dimension / Metric):</div>
+              <div id="martJoinColsTray" class="mart-col-tray">
+                <span style="font-size: 10px; opacity: 0.6;">Select a model above to inspect columns</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Primary Join Condition Matrix -->
           <div style="display: grid; grid-template-columns: 160px 1fr; gap: 14px; margin-bottom: 12px;">
             <div>
               <label style="font-size: 11px; font-weight: bold;">Join Type</label>
@@ -2875,22 +2993,66 @@ Output ONLY the message without markdown code fences.`;
                 <option value="LEFT">LEFT JOIN</option>
                 <option value="INNER">INNER JOIN</option>
                 <option value="FULL">FULL OUTER JOIN</option>
+                <option value="RIGHT">RIGHT JOIN</option>
+                <option value="CROSS">CROSS JOIN</option>
               </select>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Join Condition (ON clause)</label>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 11px; font-weight: bold;">Join Condition (ON clause)</label>
+                <span id="martJoinSuggestionText" style="font-size: 11px; color: var(--success); font-weight: 600;"></span>
+              </div>
               <input type="text" id="martOnCondition" value="orders.customer_id = users.user_id" placeholder="e.g. orders.customer_id = users.user_id">
             </div>
           </div>
 
+          <!-- Secondary Join Expandable Container -->
+          <div id="secondaryJoinRow" style="display: none; background: var(--bg); padding: 10px 14px; border-radius: 6px; border: 1px dashed var(--border); margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <strong style="font-size: 11px; color: var(--accent);">Secondary Join Table (Optional 3rd Model):</strong>
+              <button class="btn-quick" style="margin-bottom: 0; padding: 2px 6px; font-size: 10px;" onclick="toggleSecondaryJoin()">✕ Remove Secondary Join</button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 140px 1.5fr; gap: 10px;">
+              <div>
+                <label style="font-size: 10px; font-weight: bold;">Secondary Join Model</label>
+                <select id="martJoin2Model" style="margin-bottom: 0;" onchange="handleSecondaryJoinChange()">
+                  <option value="">-- Choose 3rd Model --</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 10px; font-weight: bold;">Join Type</label>
+                <select id="martJoin2Type" style="margin-bottom: 0;">
+                  <option value="LEFT">LEFT JOIN</option>
+                  <option value="INNER">INNER JOIN</option>
+                  <option value="FULL">FULL OUTER JOIN</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 10px; font-weight: bold;">Join Condition</label>
+                <input type="text" id="martJoin2On" placeholder="e.g. payments.order_id = orders.order_id" style="margin-bottom: 0;">
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <button class="btn-quick" id="btnToggleSecondaryJoin" style="margin-bottom: 0; font-size: 11px;" onclick="toggleSecondaryJoin()">➕ Add Secondary Join Table (e.g. Payments, Items)</button>
+          </div>
+
+          <!-- Dimensions & Metrics Inputs -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Dimension Columns (comma separated)</label>
-              <textarea id="martDimensions" style="height: 70px;" placeholder="e.g. orders.customer_id, orders.created_at, users.email">orders.customer_id, orders.created_at, users.email</textarea>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 11px; font-weight: bold;">Dimension Columns (Group By)</label>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 1px 6px; font-size: 10px;" onclick="clearDimensions()">Clear</button>
+              </div>
+              <textarea id="martDimensions" style="height: 75px;" placeholder="e.g. orders.customer_id, orders.created_at, users.email">orders.customer_id, orders.created_at, users.email</textarea>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Metrics &amp; Aggregations (name:expression)</label>
-              <textarea id="martMetrics" style="height: 70px;" placeholder="e.g. total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)">total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)</textarea>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 11px; font-weight: bold;">Metrics &amp; Aggregations (name:expression)</label>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 1px 6px; font-size: 10px;" onclick="clearMetrics()">Clear</button>
+              </div>
+              <textarea id="martMetrics" style="height: 75px;" placeholder="e.g. total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)">total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)</textarea>
             </div>
           </div>
 
@@ -2900,14 +3062,14 @@ Output ONLY the message without markdown code fences.`;
           </div>
 
           <div style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn" onclick="generateDataMart()">🚀 Generate dbt Mart Model</button>
-            <span style="font-size: 11px; opacity: 0.75;">Creates <code>models/marts/&lt;mart_name&gt;.sql</code></span>
+            <button class="btn" onclick="generateDataMart()">🚀 Generate dbt Mart &amp; schema.yml</button>
+            <span style="font-size: 11px; opacity: 0.75;">Scaffolds <code>models/marts/&lt;mart_name&gt;.sql</code> &amp; test definitions</span>
           </div>
 
           <div id="martResultBox" style="margin-top: 20px; display: none;">
             <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Dimensional Mart Successfully Generated</div>
+                <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Dimensional Mart &amp; schema.yml Generated</div>
                 <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="martSavedBadge">Location: <code>models/marts/fct_customer_orders.sql</code></div>
               </div>
               <div style="display: flex; gap: 8px;">
@@ -2996,9 +3158,10 @@ Output ONLY the message without markdown code fences.`;
           <option value="none">None / Public</option>
         </select>
 
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
           <button class="btn" onclick="generateApiConnector('typescript')">Scaffold TypeScript SDK</button>
           <button class="btn btn-secondary" onclick="generateApiConnector('python')">Scaffold Python SDK</button>
+          <button class="btn btn-secondary" onclick="testApiEndpoint()">🔌 Test API Ping</button>
         </div>
 
         <div id="apiResultBox" style="margin-top: 20px; display: none;">
@@ -3605,12 +3768,322 @@ Output ONLY the message without markdown code fences.`;
         if (subMart) subMart.style.display = 'block';
         if (tabStaging) tabStaging.className = 'code-tab';
         if (tabMart) tabMart.className = 'code-tab active';
+        refreshMartModelOptions();
       } else {
         if (subStaging) subStaging.style.display = 'block';
         if (subMart) subMart.style.display = 'none';
         if (tabStaging) tabStaging.className = 'code-tab active';
         if (tabMart) tabMart.className = 'code-tab';
       }
+    }
+
+    function getAvailableMartModels() {
+      const models = [];
+      const seen = new Set();
+
+      // 1. Mapped staging models from state
+      if (initialState && initialState.schemaMappings) {
+        initialState.schemaMappings.forEach(m => {
+          if (!seen.has(m.targetModelName)) {
+            seen.add(m.targetModelName);
+            models.push({
+              id: m.targetModelName,
+              name: '[Staging] ' + m.targetModelName,
+              alias: m.targetModelName.replace(/^stg_/, ''),
+              columns: m.columns.map(c => ({ name: c.targetColumn, type: c.targetType }))
+            });
+          }
+        });
+      }
+
+      // 2. Introspected tables from live database
+      if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+        currentIntrospectedTables.forEach(t => {
+          const modelId = t.tableName;
+          if (!seen.has(modelId)) {
+            seen.add(modelId);
+            const alias = t.tableName.replace(/^client_|_raw$/g, '');
+            models.push({
+              id: modelId,
+              name: (t.schema ? '[' + t.schema + '] ' : '[Live DB] ') + t.tableName,
+              alias: alias,
+              columns: t.columns || []
+            });
+          }
+        });
+      }
+
+      // 3. Fallback defaults if workspace has no tables yet
+      if (models.length === 0) {
+        models.push({
+          id: 'stg_orders',
+          name: 'stg_orders (Sample Orders)',
+          alias: 'orders',
+          columns: [
+            { name: 'order_id', type: 'string' },
+            { name: 'customer_id', type: 'string' },
+            { name: 'transaction_amount', type: 'numeric' },
+            { name: 'order_status', type: 'string' },
+            { name: 'created_at', type: 'timestamp' }
+          ]
+        });
+        models.push({
+          id: 'stg_users',
+          name: 'stg_users (Sample Users)',
+          alias: 'users',
+          columns: [
+            { name: 'user_id', type: 'string' },
+            { name: 'email', type: 'string' },
+            { name: 'country_code', type: 'string' },
+            { name: 'registered_at', type: 'timestamp' }
+          ]
+        });
+        models.push({
+          id: 'stg_payments',
+          name: 'stg_payments (Sample Payments)',
+          alias: 'payments',
+          columns: [
+            { name: 'payment_id', type: 'string' },
+            { name: 'order_id', type: 'string' },
+            { name: 'amount', type: 'numeric' },
+            { name: 'currency', type: 'string' }
+          ]
+        });
+      }
+
+      return models;
+    }
+
+    function refreshMartModelOptions() {
+      const models = getAvailableMartModels();
+      const baseSel = document.getElementById('martBaseModel');
+      const joinSel = document.getElementById('martJoinModel');
+      const join2Sel = document.getElementById('martJoin2Model');
+
+      if (!baseSel || !joinSel) return;
+
+      const currentBase = baseSel.value;
+      const currentJoin = joinSel.value;
+      const currentJoin2 = join2Sel ? join2Sel.value : '';
+
+      const baseOpts = models.map(m => '<option value="' + m.id + '">' + m.name + ' (' + m.columns.length + ' cols)</option>').join('');
+      baseSel.innerHTML = baseOpts;
+      joinSel.innerHTML = baseOpts;
+      if (join2Sel) {
+        join2Sel.innerHTML = '<option value="">-- Choose 3rd Model --</option>' + baseOpts;
+      }
+
+      if (currentBase && models.some(m => m.id === currentBase)) {
+        baseSel.value = currentBase;
+      } else if (models.length > 0) {
+        baseSel.value = models[0].id;
+      }
+
+      if (currentJoin && models.some(m => m.id === currentJoin)) {
+        joinSel.value = currentJoin;
+      } else if (models.length > 1) {
+        joinSel.value = models[1].id;
+      } else if (models.length > 0) {
+        joinSel.value = models[0].id;
+      }
+
+      if (currentJoin2 && models.some(m => m.id === currentJoin2) && join2Sel) {
+        join2Sel.value = currentJoin2;
+      }
+
+      handleMartModelChange();
+    }
+
+    function handleMartModelChange() {
+      const models = getAvailableMartModels();
+      const baseId = document.getElementById('martBaseModel').value;
+      const joinId = document.getElementById('martJoinModel').value;
+
+      const baseModel = models.find(m => m.id === baseId);
+      const joinModel = models.find(m => m.id === joinId);
+
+      const baseTray = document.getElementById('martBaseColsTray');
+      const joinTray = document.getElementById('martJoinColsTray');
+      const suggestionEl = document.getElementById('martJoinSuggestionText');
+
+      if (baseModel && baseTray) {
+        baseTray.innerHTML = baseModel.columns.map(c => {
+          const isNum = /int|float|numeric|double|decimal|number|amount|price|cost|qty/i.test(c.type || '') || /amount|amt|price|cost|qty|total|balance/i.test(c.name);
+          return '<span class="mart-chip" title="Click to add ' + baseModel.alias + '.' + c.name + '">' +
+            '<span>' + c.name + '</span>' +
+            '<button class="btn-quick" style="margin:0; padding:0 3px; font-size:9px;" onclick="addMartDimension(\\\'' + baseModel.alias + '.' + c.name + '\\\')">+Dim</button>' +
+            (isNum ? '<button class="btn-quick" style="margin:0; padding:0 3px; font-size:9px; color:var(--success);" onclick="addMartMetric(\\\'sum\\\', \\\'' + baseModel.alias + '.' + c.name + '\\\')">+Sum</button>' : '') +
+            '<button class="btn-quick" style="margin:0; padding:0 3px; font-size:9px; color:var(--accent);" onclick="addMartMetric(\\\'count\\\', \\\'' + baseModel.alias + '.' + c.name + '\\\')">+Cnt</button>' +
+          '</span>';
+        }).join('');
+      }
+
+      if (joinModel && joinTray) {
+        joinTray.innerHTML = joinModel.columns.map(c => {
+          const isNum = /int|float|numeric|double|decimal|number|amount|price|cost|qty/i.test(c.type || '') || /amount|amt|price|cost|qty|total|balance/i.test(c.name);
+          return '<span class="mart-chip" title="Click to add ' + joinModel.alias + '.' + c.name + '">' +
+            '<span>' + c.name + '</span>' +
+            '<button class="btn-quick" style="margin:0; padding:0 3px; font-size:9px;" onclick="addMartDimension(\\\'' + joinModel.alias + '.' + c.name + '\\\')">+Dim</button>' +
+            (isNum ? '<button class="btn-quick" style="margin:0; padding:0 3px; font-size:9px; color:var(--success);" onclick="addMartMetric(\\\'sum\\\', \\\'' + joinModel.alias + '.' + c.name + '\\\')">+Sum</button>' : '') +
+            '<button class="btn-quick" style="margin:0; padding:0 3px; font-size:9px; color:var(--accent);" onclick="addMartMetric(\\\'count\\\', \\\'' + joinModel.alias + '.' + c.name + '\\\')">+Cnt</button>' +
+          '</span>';
+        }).join('');
+      }
+
+      // Auto-suggest join keys
+      if (baseModel && joinModel && baseModel.id !== joinModel.id) {
+        const baseColNames = baseModel.columns.map(c => c.name);
+        const joinColNames = joinModel.columns.map(c => c.name);
+        
+        let suggestedKey = '';
+        // Exact column name match (e.g. user_id in both)
+        for (const b of baseColNames) {
+          if (b.toLowerCase().endsWith('_id') || b.toLowerCase().endsWith('_key')) {
+            for (const j of joinColNames) {
+              if (b.toLowerCase() === j.toLowerCase()) {
+                suggestedKey = baseModel.alias + '.' + b + ' = ' + joinModel.alias + '.' + j;
+                break;
+              }
+            }
+          }
+          if (suggestedKey) break;
+        }
+
+        // Prefix match (orders.customer_id = users.id)
+        if (!suggestedKey) {
+          const singularJoin = joinModel.alias.replace(/s$/, '');
+          for (const b of baseColNames) {
+            if (b.toLowerCase() === singularJoin + '_id' || b.toLowerCase() === joinModel.alias + '_id') {
+              const jMatch = joinColNames.find(j => j.toLowerCase() === 'id' || j.toLowerCase() === singularJoin + '_id');
+              if (jMatch) {
+                suggestedKey = baseModel.alias + '.' + b + ' = ' + joinModel.alias + '.' + jMatch;
+                break;
+              }
+            }
+          }
+        }
+
+        if (suggestedKey) {
+          const onInput = document.getElementById('martOnCondition');
+          if (onInput) onInput.value = suggestedKey;
+          if (suggestionEl) suggestionEl.innerText = '✓ Auto-matched: ' + suggestedKey;
+        } else {
+          if (suggestionEl) suggestionEl.innerText = '';
+        }
+      }
+    }
+
+    function addMartDimension(dim) {
+      const el = document.getElementById('martDimensions');
+      if (!el) return;
+      const current = el.value.trim();
+      const dims = current ? current.split(',').map(d => d.trim()).filter(Boolean) : [];
+      if (!dims.includes(dim)) {
+        dims.push(dim);
+        el.value = dims.join(', ');
+        showToast('✓ Added dimension: ' + dim);
+      }
+    }
+
+    function addMartMetric(agg, col) {
+      const el = document.getElementById('martMetrics');
+      if (!el) return;
+      const colClean = col.split('.').pop() || col;
+      let metricName = agg + '_' + colClean;
+      let expr = '';
+      if (agg === 'sum') {
+        metricName = 'total_' + colClean;
+        expr = 'sum(' + col + ')';
+      } else if (agg === 'count') {
+        metricName = colClean + '_count';
+        expr = 'count(distinct ' + col + ')';
+      } else if (agg === 'avg') {
+        metricName = 'avg_' + colClean;
+        expr = 'avg(' + col + ')';
+      }
+
+      const current = el.value.trim();
+      const metrics = current ? current.split(',').map(m => m.trim()).filter(Boolean) : [];
+      metrics.push(metricName + ':' + expr);
+      el.value = metrics.join(', ');
+      showToast('✓ Added metric: ' + metricName);
+    }
+
+    function clearDimensions() {
+      const el = document.getElementById('martDimensions');
+      if (el) el.value = '';
+    }
+
+    function clearMetrics() {
+      const el = document.getElementById('martMetrics');
+      if (el) el.value = '';
+    }
+
+    function toggleSecondaryJoin() {
+      const row = document.getElementById('secondaryJoinRow');
+      const btn = document.getElementById('btnToggleSecondaryJoin');
+      if (!row) return;
+      const isHidden = row.style.display === 'none' || row.style.display === '';
+      row.style.display = isHidden ? 'block' : 'none';
+      if (btn) btn.style.display = isHidden ? 'none' : 'inline-block';
+    }
+
+    function handleSecondaryJoinChange() {
+      const models = getAvailableMartModels();
+      const baseId = document.getElementById('martBaseModel').value;
+      const join2Id = document.getElementById('martJoin2Model').value;
+      const baseModel = models.find(m => m.id === baseId);
+      const join2Model = models.find(m => m.id === join2Id);
+      if (!baseModel || !join2Model) return;
+
+      const baseColNames = baseModel.columns.map(c => c.name);
+      const join2ColNames = join2Model.columns.map(c => c.name);
+      const singularJoin2 = join2Model.alias.replace(/s$/, '');
+
+      let keyMatch = '';
+      for (const b of baseColNames) {
+        if (b.toLowerCase() === singularJoin2 + '_id' || b.toLowerCase() === join2Model.alias + '_id') {
+          const jMatch = join2ColNames.find(j => j.toLowerCase() === 'id' || j.toLowerCase() === singularJoin2 + '_id');
+          if (jMatch) {
+            keyMatch = join2Model.alias + '.' + jMatch + ' = ' + baseModel.alias + '.' + b;
+            break;
+          }
+        }
+      }
+      if (!keyMatch) {
+        keyMatch = join2Model.alias + '.id = ' + baseModel.alias + '.id';
+      }
+      const onEl = document.getElementById('martJoin2On');
+      if (onEl) onEl.value = keyMatch;
+    }
+
+    function applyMartPreset(kind) {
+      if (kind === 'customer_revenue') {
+        document.getElementById('martDimensions').value = 'orders.customer_id, users.email, orders.order_status';
+        document.getElementById('martMetrics').value = 'total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount), avg_order_value:avg(orders.transaction_amount)';
+        document.getElementById('martNameInput').value = 'fct_customer_orders';
+        showToast('✓ Loaded Customer Revenue Mart Template');
+      } else if (kind === 'daily_orders') {
+        document.getElementById('martDimensions').value = 'orders.created_at, users.country_code';
+        document.getElementById('martMetrics').value = 'daily_orders:count(distinct orders.order_id), daily_revenue:sum(orders.transaction_amount)';
+        document.getElementById('martNameInput').value = 'fct_daily_orders';
+        showToast('✓ Loaded Daily Orders Fact Template');
+      } else if (kind === 'user_retention') {
+        document.getElementById('martDimensions').value = 'users.user_id, users.email, users.registered_at';
+        document.getElementById('martMetrics').value = 'lifetime_spend:sum(orders.transaction_amount), last_order_date:max(orders.created_at)';
+        document.getElementById('martNameInput').value = 'dim_user_retention';
+        showToast('✓ Loaded User Retention Dim Template');
+      }
+    }
+
+    function testApiEndpoint() {
+      const url = document.getElementById('connBaseUrl').value.trim();
+      if (!url) {
+        showToast('⚠️ Please enter a Base URL first!');
+        return;
+      }
+      showToast('⏳ Sending ping request to ' + url + '...');
+      vscode.postMessage({ command: 'testApiEndpoint', url: url });
     }
 
     window.setPhase = setPhase;
@@ -3630,6 +4103,20 @@ Output ONLY the message without markdown code fences.`;
         return;
       }
 
+      const joins = [
+        { joinType: joinType, joinModel: join, onCondition: onCond }
+      ];
+
+      const join2Row = document.getElementById('secondaryJoinRow');
+      if (join2Row && join2Row.style.display !== 'none') {
+        const join2Model = document.getElementById('martJoin2Model').value;
+        const join2Type = document.getElementById('martJoin2Type').value;
+        const join2On = document.getElementById('martJoin2On').value.trim();
+        if (join2Model && join2On) {
+          joins.push({ joinType: join2Type, joinModel: join2Model, onCondition: join2On });
+        }
+      }
+
       const dimensions = dimsStr ? dimsStr.split(',').map(d => d.trim()).filter(Boolean) : [];
       const metrics = [];
       if (metricsStr) {
@@ -3637,6 +4124,8 @@ Output ONLY the message without markdown code fences.`;
           const parts = m.split(':');
           if (parts.length >= 2) {
             metrics.push({ name: parts[0].trim(), expression: parts.slice(1).join(':').trim() });
+          } else if (parts[0]) {
+            metrics.push({ name: parts[0].trim(), expression: 'count(*)' });
           }
         });
       }
@@ -3645,12 +4134,13 @@ Output ONLY the message without markdown code fences.`;
         command: 'generateDataMart',
         martName: martName,
         baseModel: base,
-        joins: [{ joinType: joinType, targetModel: join, onCondition: onCond }],
+        joins: joins,
         dimensions: dimensions,
         metrics: metrics,
-        dialect: 'snowflake',
+        dialect: 'dbt',
         writeToFile: true
       });
+      showToast('🚀 Compiling dimensional mart & schema.yml...');
     }
 
     function copyMartCode() {
@@ -4804,15 +5294,21 @@ Output ONLY the message without markdown code fences.`;
       } else if (msg.type === 'dataMartResult') {
         const box = document.getElementById('martResultBox');
         if (box) box.style.display = 'block';
-        currentMartSql = msg.sql;
-        currentWrittenMartPath = msg.writtenFile;
+        currentMartSql = msg.sql || (msg.result ? msg.result.dbtSql : '');
+        currentWrittenMartPath = msg.writtenFile || ('models/marts/' + (msg.martName || 'mart') + '.sql');
         const prevEl = document.getElementById('martCodePreview');
         if (prevEl) prevEl.innerText = currentMartSql;
         const badgeEl = document.getElementById('martSavedBadge');
-        if (badgeEl && msg.writtenFile) {
-          badgeEl.innerHTML = 'Location: <code>' + msg.writtenFile + '</code>';
+        if (badgeEl && currentWrittenMartPath) {
+          badgeEl.innerHTML = 'Location: <code>' + currentWrittenMartPath + '</code>';
         }
-        showToast('✓ Dimensional Mart Model Generated!');
+        showToast('✓ Generated ' + (msg.martName || 'dimensional mart') + ' & schema.yml!');
+      } else if (msg.type === 'apiTestResult') {
+        if (msg.success) {
+          showToast('✓ Endpoint ' + msg.url + ' reachable: HTTP ' + msg.status + ' (' + msg.latencyMs + 'ms)');
+        } else {
+          showToast('⚠️ Endpoint test: ' + (msg.error || 'Connection failed') + ' (' + msg.latencyMs + 'ms)');
+        }
       } else if (msg.type === 'iacGenerated') {
         const box = document.getElementById('iacResultBox');
         if (box) box.style.display = 'block';

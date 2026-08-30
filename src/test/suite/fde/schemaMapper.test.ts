@@ -64,4 +64,36 @@ suite('FDE Suite — SchemaMapperEngine', () => {
     assert.ok(mart.pysparkCode.includes(`def build_mart_fct_customer_orders`));
     assert.ok(mart.sqlView.includes(`CREATE OR REPLACE VIEW v_fct_customer_orders AS`));
   });
+
+  test('suggests foreign key join conditions automatically with high confidence', () => {
+    const baseCols = ['order_id', 'customer_id', 'amount', 'created_at'];
+    const joinCols = ['id', 'email', 'country_code', 'registered_at'];
+
+    const match1 = SchemaMapperEngine.suggestJoinKeys(baseCols, joinCols, 'stg_orders', 'stg_customers');
+    assert.strictEqual(match1.condition, 'orders.customer_id = customers.id');
+    assert.ok(match1.confidence >= 0.9);
+
+    const tripCols = ['trip_id', 'driver_id', 'passenger_id', 'fare'];
+    const driverCols = ['id', 'driver_name', 'vehicle_model'];
+    const match2 = SchemaMapperEngine.suggestJoinKeys(tripCols, driverCols, 'trips', 'drivers');
+    assert.strictEqual(match2.condition, 'trips.driver_id = drivers.id');
+    assert.ok(match2.confidence >= 0.9);
+  });
+
+  test('generates dbt schema YAML test definitions for dimensional marts', () => {
+    const yaml = SchemaMapperEngine.generateDbtSchemaYaml(
+      'fct_customer_orders',
+      ['orders.customer_id', 'users.email'],
+      [
+        { name: 'total_orders', expr: 'count(distinct orders.order_id)' },
+        { name: 'total_revenue', expr: 'sum(orders.transaction_amount)' },
+      ]
+    );
+
+    assert.ok(yaml.includes(`name: fct_customer_orders`));
+    assert.ok(yaml.includes(`- name: customer_id`));
+    assert.ok(yaml.includes(`- not_null`));
+    assert.ok(yaml.includes(`- name: total_revenue`));
+    assert.ok(yaml.includes(`Aggregated metric formula: sum(orders.transaction_amount)`));
+  });
 });

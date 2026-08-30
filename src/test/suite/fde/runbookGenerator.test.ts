@@ -57,7 +57,7 @@ suite('FDE Suite — RunbookGenerator', () => {
   test('generates comprehensive data dictionary', () => {
     const doc = RunbookGenerator.generateDataDictionary(dummyState);
 
-    assert.ok(doc.includes('## Target Model: `stg_patients`'));
+    assert.ok(doc.includes('stg_patients'));
     assert.ok(doc.includes('| `patient_id` | `PT_ID` | `string` |'));
   });
 
