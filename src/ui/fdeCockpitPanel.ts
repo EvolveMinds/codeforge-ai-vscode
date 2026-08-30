@@ -2704,8 +2704,11 @@ Output ONLY the message without markdown code fences.`;
 
           <!-- Discovered Tables Selector -->
           <div id="dbTablesContainer" style="display: none; margin-top: 14px; background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-            <div style="font-size: 12px; font-weight: 700; margin-bottom: 8px; color: var(--success);" id="dbConnectionStatusBadge">
-              ✓ Database Connected: Select a Table to Load
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--success);" id="dbConnectionStatusBadge">
+                ✓ Database Connected: Select a Table to Load
+              </div>
+              <input type="text" id="dbTableFilterInput" placeholder="🔍 Filter tables..." oninput="filterDiscoveredTables()" style="width: 180px; margin-bottom: 0; font-size: 11px; padding: 4px 8px;">
             </div>
             <div style="display: flex; gap: 10px; align-items: center;">
               <select id="dbTableSelect" style="flex: 1; margin-bottom: 0;" onchange="applySelectedDbTable()">
@@ -4036,20 +4039,65 @@ Output ONLY the message without markdown code fences.`;
       vscode.postMessage({ command: 'wipeDbSecrets' });
     }
 
+    function filterDiscoveredTables() {
+      const filterInput = document.getElementById('dbTableFilterInput');
+      const filter = (filterInput ? filterInput.value : '').toLowerCase().trim();
+      const select = document.getElementById('dbTableSelect');
+      if (!select || !currentIntrospectedTables) return;
+
+      const filtered = currentIntrospectedTables.filter(t => 
+        t.tableName.toLowerCase().includes(filter) || (t.schema && t.schema.toLowerCase().includes(filter))
+      );
+
+      select.innerHTML = '<option value="">-- Choose an introspected table (' + filtered.length + ' match' + (filtered.length === 1 ? '' : 'es') + ') --</option>' +
+        filtered.map(t => '<option value="' + t.tableName + '">' + (t.schema ? t.schema + '.' : '') + t.tableName + ' (' + t.columns.length + ' cols)</option>').join('');
+
+      if (filtered.length === 1) {
+        select.value = filtered[0].tableName;
+      }
+    }
+
     function applySelectedDbTable() {
       const select = document.getElementById('dbTableSelect');
-      const tblName = select.value;
-      if (!tblName) return;
+      let tblName = select ? select.value : '';
 
-      const tbl = currentIntrospectedTables.find(t => t.tableName === tblName);
+      // If user clicks button before picking, default to the first available table
+      if (!tblName) {
+        if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+          tblName = currentIntrospectedTables[0].tableName;
+          if (select) select.value = tblName;
+        } else {
+          showToast('⚠️ Please connect to database and fetch tables first.');
+          return;
+        }
+      }
+
+      const tbl = currentIntrospectedTables.find(t => t.tableName === tblName || (t.schema ? t.schema + '.' + t.tableName : '') === tblName);
       if (tbl) {
-        document.getElementById('srcCols').value = tbl.columnsFormatted;
-        document.getElementById('srcNameInput').value = tbl.tableName;
+        const srcColsEl = document.getElementById('srcCols');
+        const srcNameEl = document.getElementById('srcNameInput');
+        const modelNameEl = document.getElementById('modelNameInput');
+        const tgtColsEl = document.getElementById('tgtCols');
+
+        if (srcColsEl) srcColsEl.value = tbl.columnsFormatted;
+        if (srcNameEl) srcNameEl.value = tbl.tableName;
         const cleanName = tbl.tableName.replace(/^client_|_raw$/g, '');
-        document.getElementById('modelNameInput').value = 'stg_' + cleanName;
+        if (modelNameEl) modelNameEl.value = 'stg_' + cleanName;
+
         const badge = document.getElementById('srcFileBadge');
-        if (badge) badge.innerText = '🔌 [Live DB] ' + tbl.tableName;
-        showToast('✓ Introspected ' + tbl.columns.length + ' columns from ' + tbl.tableName);
+        if (badge) badge.innerText = '🔌 [Live DB] ' + (tbl.schema ? tbl.schema + '.' : '') + tbl.tableName;
+
+        if (tgtColsEl && (!tgtColsEl.value.trim() || tgtColsEl.value.includes('customer_id:string'))) {
+          tgtColsEl.value = tbl.columns.map(function(c) { return c.name.toLowerCase() + ':' + c.type; }).join('\n');
+        }
+
+        showToast('✓ Loaded ' + tbl.columns.length + ' columns from ' + tbl.tableName + ' into Schema Mapper!');
+
+        if (srcColsEl) {
+          srcColsEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      } else {
+        showToast('⚠️ Could not find table schema: ' + tblName);
       }
     }
 
@@ -4696,6 +4744,9 @@ Output ONLY the message without markdown code fences.`;
           if (select) {
             select.innerHTML = '<option value="">-- Choose an introspected table (' + res.tables.length + ' found) --</option>' +
               res.tables.map(t => '<option value="' + t.tableName + '">' + (t.schema ? t.schema + '.' : '') + t.tableName + ' (' + t.columns.length + ' columns)</option>').join('');
+            if (res.tables.length > 0) {
+              select.value = res.tables[0].tableName;
+            }
           }
 
           const badge = document.getElementById('dbConnectionStatusBadge');
