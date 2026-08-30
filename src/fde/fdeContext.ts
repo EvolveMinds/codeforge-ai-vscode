@@ -106,7 +106,7 @@ export interface FdeEngagementState {
   clientName: string;
   engagementGoal: string;
   targetVpc: 'gcp-firebase' | 'aws' | 'docker' | 'azure';
-  activePhase: 1 | 2 | 3 | 4;
+  activePhase: 1 | 2 | 3 | 4 | 5;
   completedPhases: number[];
   schemaMappings: SchemaMappingSession[];
   dataMarts?: DataMartSession[];

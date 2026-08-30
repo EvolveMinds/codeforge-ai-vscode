@@ -26,7 +26,7 @@ import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout } from '../core/processUtil';
-import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions } from '../enterprise';
+import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient } from '../enterprise';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -1645,6 +1645,137 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'generateDataQualityPackage': {
+        if (!ws) return;
+        const modelName = (msg.modelName || 'fct_orders_mart').trim();
+        const state = await this._contextManager.getState();
+        
+        // Find columns from existing schema mappings or data marts, or create defaults
+        let cols = [
+          { columnName: 'id', dataType: 'varchar', isNullable: false, isUnique: true },
+          { columnName: 'created_at', dataType: 'timestamptz', isNullable: false },
+          { columnName: 'status', dataType: 'varchar', isNullable: false, allowedValues: ['pending', 'completed', 'failed'] },
+          { columnName: 'total_amount', dataType: 'numeric', isNullable: false, minValue: 0 }
+        ];
+
+        const matchedMapping = state.schemaMappings.find((m: any) => m.targetModelName === modelName);
+        if (matchedMapping && matchedMapping.columns.length > 0) {
+          cols = matchedMapping.columns.map((c: any) => ({
+            columnName: c.targetName || c.sourceName,
+            dataType: c.targetType || 'varchar',
+            isNullable: !c.isPrimaryKey,
+            isUnique: c.isPrimaryKey
+          }));
+        }
+
+        const pkg = DataQualityGenerator.generateQualityPackage({
+          tableName: modelName,
+          modelName: modelName,
+          columns: cols,
+          enforceOrdering: msg.enforceOrdering ?? true,
+          enforceNoExtraColumns: true,
+          freshnessTimestampColumn: 'created_at',
+          freshnessThresholdHours: parseInt(msg.freshnessHours) || 24,
+          criticalityTier: msg.criticalityTier || 'P0_CRITICAL'
+        });
+
+        if (msg.writeToFile) {
+          const geFull = path.join(ws, pkg.greatExpectations.filePath);
+          const sodaFull = path.join(ws, pkg.sodaCore.filePath);
+          const dbtFull = path.join(ws, pkg.dbtSchemaTests.filePath);
+          const ciShFull = path.join(ws, 'tests', 'data_quality', 'verify_quality.sh');
+          const ciPsFull = path.join(ws, 'tests', 'data_quality', 'verify_quality.ps1');
+
+          fs.mkdirSync(path.dirname(geFull), { recursive: true });
+          fs.mkdirSync(path.dirname(sodaFull), { recursive: true });
+          fs.mkdirSync(path.dirname(dbtFull), { recursive: true });
+          fs.mkdirSync(path.dirname(ciShFull), { recursive: true });
+
+          fs.writeFileSync(geFull, pkg.greatExpectations.jsonContent, 'utf8');
+          fs.writeFileSync(sodaFull, pkg.sodaCore.yamlContent, 'utf8');
+          fs.writeFileSync(dbtFull, pkg.dbtSchemaTests.yamlContent, 'utf8');
+          fs.writeFileSync(ciShFull, pkg.ciGateScriptSh, 'utf8');
+          fs.writeFileSync(ciPsFull, pkg.ciGateScriptPs1, 'utf8');
+
+          vscode.window.showInformationMessage(`✓ Generated Data Quality & Schema Drift Gates for ${modelName}`);
+        }
+
+        this._panel.webview.postMessage({
+          type: 'dataQualityPackageGenerated',
+          pkg: pkg
+        });
+        break;
+      }
+
+      case 'testSiemDispatch': {
+        const dest = msg.destination || 'splunk';
+        const forwarder = SiemAuditForwarder.getInstance({
+          enabled: true,
+          destination: dest,
+          maskSensitiveAttributes: true,
+          splunk: {
+            endpoint: msg.endpoint || 'https://splunk.corp.internal:8088/services/collector/raw',
+            token: 'splunk-hec-token-secret-12345'
+          }
+        });
+
+        const event = forwarder.createEvent('DB_INTROSPECTION_EXECUTED', 'INFO', {
+          clientEngagement: 'Enterprise Pilot Engagement',
+          organizationId: 'Enterprise-Partner',
+          resource: {
+            type: 'DATABASE_TABLE',
+            name: 'customers_secure_vault',
+            databaseDialect: 'postgres'
+          },
+          metadata: {
+            introspectedRows: 145000,
+            dbUri: 'postgres://fde_user:superSecretPassword@db.vpc.internal:5432/corp_data',
+            auditPolicy: 'SOC2_TYPE_II'
+          },
+          complianceTags: ['SOC2', 'HIPAA', 'SAIF']
+        });
+
+        let formattedPreview = '';
+        if (dest === 'splunk') formattedPreview = forwarder.formatForSplunk([event]);
+        else if (dest === 'datadog') formattedPreview = JSON.stringify(forwarder.formatForDatadog([event]), null, 2);
+        else if (dest === 'sentinel') formattedPreview = forwarder.formatForSentinel([event]);
+        else formattedPreview = forwarder.formatForLocalJsonl([event]);
+
+        vscode.window.showInformationMessage(`✓ Formatted & Dispatched Sample SIEM Audit Event (${dest.toUpperCase()})`);
+        this._panel.webview.postMessage({
+          type: 'siemDispatchResult',
+          destination: dest,
+          formatted: formattedPreview
+        });
+        break;
+      }
+
+      case 'testPrivateServingProbe': {
+        const endpoint = msg.endpoint || 'http://127.0.0.1:11434';
+        const engine = msg.engine || 'vllm';
+        const model = msg.model || 'gemma4:latest';
+
+        const client = new PrivateModelClient({
+          endpoint: endpoint,
+          servingEngine: engine,
+          defaultModel: model,
+          timeoutMs: 4000
+        });
+
+        const health = await client.checkHealth();
+        if (health.ok) {
+          vscode.window.showInformationMessage(`✓ Cluster reachable: ${health.statusText} (${health.latencyMs}ms)`);
+        } else {
+          vscode.window.showWarningMessage(`⚠️ Cluster probe: ${health.statusText} (${health.latencyMs}ms)`);
+        }
+
+        this._panel.webview.postMessage({
+          type: 'privateServingProbeResult',
+          health: health
+        });
+        break;
+      }
+
       case 'diagnoseGitConnection': {
         if (!ws) return;
         const target = msg.target || 'bitbucket';
@@ -2711,6 +2842,10 @@ Output ONLY the message without markdown code fences.`;
       <div class="step-num"><span>Step 4</span> ${state.completedPhases.includes(4) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">Handoff &amp; Docs</div>
     </div>
+    <div class="step-card ${state.activePhase === 5 ? 'active' : ''} ${state.completedPhases.includes(5) ? 'completed' : ''}" onclick="setPhase(5)">
+      <div class="step-num"><span>Step 5</span> ${state.completedPhases.includes(5) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
+      <div class="step-name">💎 Enterprise Suite</div>
+    </div>
   </div>
 
   <!-- Main Grid -->
@@ -2720,6 +2855,7 @@ Output ONLY the message without markdown code fences.`;
       <button class="nav-btn ${state.activePhase === 2 ? 'active' : ''}" onclick="setPhase(2)">🔌 2. Client API Studio</button>
       <button class="nav-btn ${state.activePhase === 3 ? 'active' : ''}" onclick="setPhase(3)">⚡ 3. Pilot Deployment</button>
       <button class="nav-btn ${state.activePhase === 4 ? 'active' : ''}" onclick="setPhase(4)">📑 4. Runbook Factory</button>
+      <button class="nav-btn ${state.activePhase === 5 ? 'active' : ''}" onclick="setPhase(5)">💎 5. Enterprise Suite</button>
     </div>
 
     <div>
@@ -3194,151 +3330,6 @@ Output ONLY the message without markdown code fences.`;
           <pre class="code-preview" id="apiCodePreview"></pre>
         </div>
 
-        <!-- ENTERPRISE EXPANSION: Automated Performance & SLA Load Testing -->
-        <div style="background: var(--bg); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 8px; padding: 16px 18px; margin-top: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="font-size: 16px;">⚡</span>
-              <div>
-                <strong style="font-size: 13px; color: var(--accent);">Automated Performance &amp; SLA Load Testing</strong>
-                <div style="font-size: 11px; opacity: 0.85;">Generate high-concurrency k6 &amp; Locust performance suites with strict SLA latency pass/fail gates.</div>
-              </div>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Target Endpoint URL</label>
-              <input type="text" id="loadTestUrl" value="http://localhost:8080/api/v1/invoices" placeholder="https://api.client.internal/v1/resource">
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Load Profile (Virtual Users)</label>
-              <select id="loadTestProfile">
-                <option value="smoke">Smoke Test (10 VUs · 1 min)</option>
-                <option value="standard" selected>Standard Pilot (250 VUs · 3 min)</option>
-                <option value="stress">Stress Test (2,500 VUs · 7 min)</option>
-                <option value="spike">Spike Test (5,000 VUs burst)</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">SLA Gate (p95 / p99 Latency)</label>
-              <select id="loadTestSla">
-                <option value="strict" selected>Strict (p95 &lt; 120ms, p99 &lt; 250ms, 0% err)</option>
-                <option value="standard">Standard (p95 &lt; 200ms, p99 &lt; 400ms, &lt;1% err)</option>
-                <option value="relaxed">Relaxed (p95 &lt; 500ms, p99 &lt; 1000ms, &lt;3% err)</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="generateLoadTest('k6')">⚡ Generate k6 Load Test</button>
-            <button class="btn btn-secondary" onclick="generateLoadTest('locust')">⚡ Generate Locust Test</button>
-            <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runLoadTestTerminal()">▶️ Run in Terminal</button>
-          </div>
-
-          <!-- Generated Load Test Result Box -->
-          <div id="loadTestResultBox" style="margin-top: 14px; display: none;">
-            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Load Test Suite Generated in tests/load/</div>
-                <div style="font-size: 11px; opacity: 0.9;" id="loadTestPathBadge">Location: <code>tests/load/k6_clientbillingapi.js</code></div>
-              </div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenLoadTestPath || 'tests/load/k6_clientbillingapi.js')">📄 Open</button>
-                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyLoadTestCode()">📋 Copy</button>
-              </div>
-            </div>
-
-            <div class="code-tabs">
-              <div class="code-tab active" id="tabK6" onclick="switchLoadTestTab('k6')">⚡ k6 (JavaScript)</div>
-              <div class="code-tab" id="tabLocust" onclick="switchLoadTestTab('locust')">🐍 Locust (Python)</div>
-              <div class="code-tab" id="tabRunnerSh" onclick="switchLoadTestTab('sh')">📜 Shell Runner</div>
-            </div>
-            <pre class="code-preview" id="loadTestCodePreview" style="max-height: 220px;"></pre>
-          </div>
-        </div>
-
-        <!-- ENTERPRISE EXPANSION: Air-Gapped RAG & Vector Pipeline Studio -->
-        <div id="ragStudioCard" style="background: var(--bg); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 8px; padding: 16px 18px; margin-top: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div style="display: align-items: center; gap: 8px; display: flex;">
-              <span style="font-size: 16px;">🧠</span>
-              <div>
-                <strong style="font-size: 13px; color: var(--accent);">Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
-                <div style="font-size: 11px; opacity: 0.85;">Scaffold 100% offline, private RAG stacks with chunking, pgvector / Qdrant indexing, and prompt guardrails.</div>
-              </div>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Vector Database Engine</label>
-              <select id="ragVectorDb">
-                <option value="pgvector" selected>PostgreSQL + pgvector (HNSW Index)</option>
-                <option value="qdrant">Qdrant Vector Engine</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Local Embedding Model</label>
-              <select id="ragEmbedModel">
-                <option value="nomic-embed-text:768" selected>Ollama: nomic-embed-text (768d)</option>
-                <option value="bge-large-en-v1.5:1024">Ollama: bge-large-en-v1.5 (1024d)</option>
-                <option value="all-minilm:384">Ollama: all-minilm-l6-v2 (384d)</option>
-                <option value="tei-bge:1024">HuggingFace TEI: bge-large (1024d)</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Target Language</label>
-              <select id="ragLanguage">
-                <option value="python" selected>Python (Production FastAPI / LangChain)</option>
-                <option value="typescript">TypeScript (Node.js / Express)</option>
-              </select>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Chunk Size (Characters)</label>
-              <input type="number" id="ragChunkSize" value="512" style="margin-bottom: 0;">
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Chunk Overlap</label>
-              <input type="number" id="ragChunkOverlap" value="64" style="margin-bottom: 0;">
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Similarity Threshold</label>
-              <input type="text" id="ragThreshold" value="0.75" placeholder="0.75" style="margin-bottom: 0;">
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="scaffoldRagPipeline()">🧠 Scaffold Air-Gapped RAG Stack</button>
-            <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runRagTestsTerminal()">▶️ Run RAG Tests in Terminal</button>
-          </div>
-
-          <!-- Generated RAG Pipeline Result Box -->
-          <div id="ragResultBox" style="margin-top: 14px; display: none;">
-            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/</div>
-                <div style="font-size: 11px; opacity: 0.9;" id="ragPathBadge">Location: <code>src/rag/rag_pipeline.py</code></div>
-              </div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenRagPipelinePath || 'src/rag/rag_pipeline.py')">📄 Open</button>
-                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyRagCode()">📋 Copy</button>
-              </div>
-            </div>
-
-            <div class="code-tabs">
-              <div class="code-tab active" id="tabRagPipeline" onclick="switchRagTab('pipeline')">🚀 RAG Pipeline</div>
-              <div class="code-tab" id="tabRagChunker" onclick="switchRagTab('chunker')">✂️ Chunker</div>
-              <div class="code-tab" id="tabRagStore" onclick="switchRagTab('store')">🗄️ Vector Store</div>
-              <div class="code-tab" id="tabRagEmbed" onclick="switchRagTab('embed')">🔢 Embeddings</div>
-              <div class="code-tab" id="tabRagDocker" onclick="switchRagTab('docker')">🐳 Docker Compose</div>
-            </div>
-            <pre class="code-preview" id="ragCodePreview" style="max-height: 240px;"></pre>
-          </div>
-        </div>
       </div>
 
       <!-- PHASE 3: PILOT DEPLOYMENT & MULTI-CLOUD MATRIX -->
@@ -3616,6 +3607,329 @@ Output ONLY the message without markdown code fences.`;
           <pre id="docCodePreview" class="code-preview" style="max-height: 380px;"></pre>
         </div>
       </div>
+
+      <!-- PHASE 5: ENTERPRISE COMMERCIAL SUITE -->
+      <div class="content-card" id="phase5" style="display: ${state.activePhase === 5 ? 'block' : 'none'};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="margin: 0;">💎 Enterprise Commercial Suite</h3>
+              <span class="tag" style="background: var(--accent); color: #fff; font-size: 10px; font-weight: 700;">PROPRIETARY &amp; AIR-GAPPED</span>
+            </div>
+            <p class="desc" style="margin-top: 6px;">Commercial high-security modules for Forward-Deployed Engineers: Cryptographic License Manager, Air-Gapped RAG Pipelines, Distributed SLA Load Testing, dbt Data Quality &amp; Schema Drift Gates, SOC2/HIPAA SIEM Forwarder, and Private vLLM/Triton Serving.</p>
+          </div>
+        </div>
+
+        <!-- 1. Cryptographic License & Organization Manager -->
+        <div style="background: var(--bg); border: 1px solid var(--accent); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🔑</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Enterprise License &amp; Organization Manager</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Offline Ed25519 cryptographic license verification &amp; commercial feature entitlement.</div>
+              </div>
+            </div>
+            <span id="entLicenseBadge" class="tag" style="background: var(--card-alt); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 11px;">
+              Checking license...
+            </span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Enterprise License Key</label>
+              <input type="text" id="entLicenseKeyInput" placeholder="EM-ENT-V1.eyJvcmdhbml6YXRpb24iOiJBY21l... (paste signed key here)">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Quick Actions</label>
+              <div style="display: flex; gap: 6px; margin-top: 2px;">
+                <button class="btn" style="padding: 6px 12px; font-size: 11px;" onclick="activateEnterpriseKey()">🚀 Activate Key</button>
+                <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 11px;" onclick="generateTrialKey()">⚡ 30-Day Trial</button>
+                <button class="btn-quick" style="padding: 6px 8px; font-size: 11px; margin-bottom: 0;" onclick="deactivateEnterpriseKey()">✕ Deactivate</button>
+              </div>
+            </div>
+          </div>
+          <div id="licenseFeedbackText" style="font-size: 11px; opacity: 0.9; color: var(--accent);"></div>
+        </div>
+
+        <!-- 2. Air-Gapped RAG & Vector Pipeline Studio -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🧠</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Scaffold 100% offline, private RAG stacks with chunking, pgvector / Qdrant indexing, and prompt guardrails.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Vector Database Engine</label>
+              <select id="ragVectorDb">
+                <option value="pgvector" selected>PostgreSQL + pgvector (HNSW Index)</option>
+                <option value="qdrant">Qdrant Vector Engine</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Local Embedding Model</label>
+              <select id="ragEmbedModel">
+                <option value="nomic-embed-text:768" selected>Ollama: nomic-embed-text (768d)</option>
+                <option value="bge-large-en-v1.5:1024">Ollama: bge-large-en-v1.5 (1024d)</option>
+                <option value="all-minilm:384">Ollama: all-minilm-l6-v2 (384d)</option>
+                <option value="tei-bge:1024">HuggingFace TEI: bge-large (1024d)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Language</label>
+              <select id="ragLanguage">
+                <option value="python" selected>Python (Production FastAPI / LangChain)</option>
+                <option value="typescript">TypeScript (Node.js / Express)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Chunk Size (Characters)</label>
+              <input type="number" id="ragChunkSize" value="512" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Chunk Overlap</label>
+              <input type="number" id="ragChunkOverlap" value="64" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Similarity Threshold</label>
+              <input type="text" id="ragThreshold" value="0.75" placeholder="0.75" style="margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="scaffoldRagPipeline()">🧠 Scaffold Air-Gapped RAG Stack</button>
+            <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runRagTestsTerminal()">▶️ Run RAG Tests in Terminal</button>
+          </div>
+
+          <!-- Generated RAG Pipeline Result Box -->
+          <div id="ragResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="ragPathBadge">Location: <code>src/rag/rag_pipeline.py</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenRagPipelinePath || 'src/rag/rag_pipeline.py')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyRagCode()">📋 Copy</button>
+              </div>
+            </div>
+
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabRagPipeline" onclick="switchRagTab('pipeline')">🚀 RAG Pipeline</div>
+              <div class="code-tab" id="tabRagChunker" onclick="switchRagTab('chunker')">✂️ Chunker</div>
+              <div class="code-tab" id="tabRagStore" onclick="switchRagTab('store')">🗄️ Vector Store</div>
+              <div class="code-tab" id="tabRagEmbed" onclick="switchRagTab('embed')">🔢 Embeddings</div>
+              <div class="code-tab" id="tabRagDocker" onclick="switchRagTab('docker')">🐳 Docker Compose</div>
+            </div>
+            <pre class="code-preview" id="ragCodePreview" style="max-height: 240px;"></pre>
+          </div>
+        </div>
+
+        <!-- 3. Automated Performance & SLA Load Testing -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">⚡</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Automated Performance &amp; SLA Load Testing</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Generate high-concurrency k6 &amp; Locust performance suites with strict SLA latency pass/fail gates.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Endpoint URL</label>
+              <input type="text" id="loadTestUrl" value="http://localhost:8080/api/v1/invoices" placeholder="https://api.client.internal/v1/resource">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Load Profile (Virtual Users)</label>
+              <select id="loadTestProfile">
+                <option value="smoke">Smoke Test (10 VUs · 1 min)</option>
+                <option value="standard" selected>Standard Pilot (250 VUs · 3 min)</option>
+                <option value="stress">Stress Test (2,500 VUs · 7 min)</option>
+                <option value="spike">Spike Test (5,000 VUs burst)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">SLA Gate (p95 / p99 Latency)</label>
+              <select id="loadTestSla">
+                <option value="strict" selected>Strict (p95 &lt; 120ms, p99 &lt; 250ms, 0% err)</option>
+                <option value="standard">Standard (p95 &lt; 200ms, p99 &lt; 400ms, &lt;1% err)</option>
+                <option value="relaxed">Relaxed (p95 &lt; 500ms, p99 &lt; 1000ms, &lt;3% err)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="generateLoadTest('k6')">⚡ Generate k6 Load Test</button>
+            <button class="btn btn-secondary" onclick="generateLoadTest('locust')">⚡ Generate Locust Test</button>
+            <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runLoadTestTerminal()">▶️ Run in Terminal</button>
+          </div>
+
+          <!-- Generated Load Test Result Box -->
+          <div id="loadTestResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Load Test Suite Generated in tests/load/</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="loadTestPathBadge">Location: <code>tests/load/k6_clientbillingapi.js</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentWrittenLoadTestPath || 'tests/load/k6_clientbillingapi.js')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyLoadTestCode()">📋 Copy</button>
+              </div>
+            </div>
+
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabK6" onclick="switchLoadTestTab('k6')">⚡ k6 (JavaScript)</div>
+              <div class="code-tab" id="tabLocust" onclick="switchLoadTestTab('locust')">🐍 Locust (Python)</div>
+              <div class="code-tab" id="tabRunnerSh" onclick="switchLoadTestTab('sh')">📜 Shell Runner</div>
+            </div>
+            <pre class="code-preview" id="loadTestCodePreview" style="max-height: 220px;"></pre>
+          </div>
+        </div>
+
+        <!-- 4. dbt Data Quality & Schema Drift Gates -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">📊</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">dbt Data Quality &amp; Schema Drift Gates</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Generate Great Expectations JSON suites, Soda Core checks, and automated CI/CD schema drift assertions.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Model</label>
+              <input type="text" id="dqModelName" value="fct_orders_mart" placeholder="e.g. fct_orders_mart">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Freshness SLA (Hours)</label>
+              <input type="number" id="dqFreshnessHours" value="24" placeholder="24">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Criticality Tier</label>
+              <select id="dqCriticality">
+                <option value="P0_CRITICAL" selected>P0 — Mission Critical (Block CI on drift)</option>
+                <option value="P1_CORE">P1 — Core Analytical Model</option>
+                <option value="P2_ANALYTICS">P2 — Standard Mart</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="generateDataQualityGates()">📊 Scaffold Data Quality &amp; Drift Gates</button>
+          </div>
+
+          <!-- Generated Data Quality Result Box -->
+          <div id="dqResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ Quality Gates Generated in tests/great_expectations/ &amp; tests/soda/</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="dqPathBadge">Ready for CI/CD pipeline execution</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('tests/great_expectations/expectations/' + (currentDqModel || 'fct_orders_mart') + '_quality_suite.json')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyDqCode()">📋 Copy</button>
+              </div>
+            </div>
+
+            <div class="code-tabs">
+              <div class="code-tab active" id="tabGe" onclick="switchDqTab('ge')">✨ Great Expectations</div>
+              <div class="code-tab" id="tabSoda" onclick="switchDqTab('soda')">🥤 Soda Core</div>
+              <div class="code-tab" id="tabDbtTests" onclick="switchDqTab('dbt')">📜 dbt Schema Tests</div>
+              <div class="code-tab" id="tabCiSh" onclick="switchDqTab('sh')">🚀 CI Runner Script</div>
+            </div>
+            <pre class="code-preview" id="dqCodePreview" style="max-height: 220px;"></pre>
+          </div>
+        </div>
+
+        <!-- 5. SOC2 & HIPAA SIEM Compliance Audit Forwarder -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🛡️</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">SOC2 / HIPAA SIEM Compliance Audit Forwarder</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Stream structured compliance audit events directly to Splunk HEC, Datadog Logs, or Azure Sentinel.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">SIEM Destination</label>
+              <select id="siemDestination">
+                <option value="splunk" selected>Splunk HEC (HTTP Event Collector)</option>
+                <option value="datadog">Datadog Logs API (v2)</option>
+                <option value="sentinel">Microsoft Sentinel (Log Analytics)</option>
+                <option value="local_file">Air-Gapped Local JSONL File</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Endpoint / Collector URL</label>
+              <input type="text" id="siemEndpoint" value="https://splunk.corp.internal:8088/services/collector/raw" placeholder="https://splunk.internal:8088/services/collector/raw">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="testSiemDispatch()">🛡️ Dispatch Sample Audit Event</button>
+          </div>
+          <div id="siemResultBox" style="margin-top: 10px; display: none;">
+            <pre class="code-preview" id="siemCodePreview" style="max-height: 160px;"></pre>
+          </div>
+        </div>
+
+        <!-- 6. Private Air-Gapped Model Serving Client -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🚀</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Private Air-Gapped Model Serving Client</strong>
+                <div style="font-size: 11px; opacity: 0.85;">High-throughput parallel inference client for internal vLLM, TensorRT-LLM, and Triton clusters behind VPCs.</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Serving Engine</label>
+              <select id="privServingEngine">
+                <option value="vllm" selected>vLLM (OpenAI-Compatible)</option>
+                <option value="tensorrt_llm">TensorRT-LLM</option>
+                <option value="triton">Triton Inference Server</option>
+                <option value="ollama_cluster">Ollama Cluster</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Cluster Endpoint URL</label>
+              <input type="text" id="privServingEndpoint" value="http://127.0.0.1:11434" placeholder="http://vllm.ai.internal:8000/v1">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Default Model</label>
+              <input type="text" id="privServingModel" value="gemma4:latest" placeholder="Qwen/Qwen2.5-Coder-32B-Instruct">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="testPrivateServingProbe()">🔍 Probe Cluster Health</button>
+            <span id="privProbeStatus" style="font-size: 11px; opacity: 0.9;"></span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3747,7 +4061,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function setPhase(p) {
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         const el = document.getElementById('phase' + i);
         if (el) el.style.display = i === p ? 'block' : 'none';
       }
@@ -5089,7 +5403,115 @@ Output ONLY the message without markdown code fences.`;
       }
     }
 
-    window.launchEnterpriseFeature = launchEnterpriseFeature;
+    function activateEnterpriseKey() {
+      const key = (document.getElementById('entLicenseKeyInput').value || '').trim();
+      if (!key) {
+        showToast('⚠️ Please paste a valid enterprise license key');
+        return;
+      }
+      showToast('🔑 Validating & Activating Enterprise Key...');
+      vscode.postMessage({ command: 'activateEnterpriseLicense', key: key });
+    }
+
+    function generateTrialKey() {
+      showToast('⚡ Generating 30-Day Platinum Trial Key...');
+      vscode.postMessage({ command: 'generateDemoEnterpriseKey', orgName: 'Enterprise Partner' });
+    }
+
+    function deactivateEnterpriseKey() {
+      vscode.postMessage({ command: 'deactivateEnterpriseLicense' });
+    }
+
+    let currentGeSuite = '';
+    let currentSodaChecks = '';
+    let currentDbtTests = '';
+    let currentCiSh = '';
+    let currentDqModel = 'fct_orders_mart';
+    let activeDqTab = 'ge';
+
+    function generateDataQualityGates() {
+      const model = (document.getElementById('dqModelName').value || 'fct_orders_mart').trim();
+      const freshHours = parseInt(document.getElementById('dqFreshnessHours').value, 10) || 24;
+      const criticality = document.getElementById('dqCriticality').value;
+      currentDqModel = model;
+
+      showToast('📊 Generating Great Expectations & Soda Core Drift Gates for ' + model + '...');
+      vscode.postMessage({
+        command: 'generateDataQualityPackage',
+        modelName: model,
+        freshnessHours: freshHours,
+        criticalityTier: criticality,
+        writeToFile: true
+      });
+    }
+
+    function switchDqTab(tab) {
+      activeDqTab = tab;
+      const tabGe = document.getElementById('tabGe');
+      const tabSoda = document.getElementById('tabSoda');
+      const tabDbt = document.getElementById('tabDbtTests');
+      const tabSh = document.getElementById('tabCiSh');
+
+      if (tabGe) tabGe.className = 'code-tab ' + (tab === 'ge' ? 'active' : '');
+      if (tabSoda) tabSoda.className = 'code-tab ' + (tab === 'soda' ? 'active' : '');
+      if (tabDbt) tabDbt.className = 'code-tab ' + (tab === 'dbt' ? 'active' : '');
+      if (tabSh) tabSh.className = 'code-tab ' + (tab === 'sh' ? 'active' : '');
+
+      const prev = document.getElementById('dqCodePreview');
+      if (prev) {
+        if (tab === 'ge') prev.innerText = currentGeSuite;
+        else if (tab === 'soda') prev.innerText = currentSodaChecks;
+        else if (tab === 'dbt') prev.innerText = currentDbtTests;
+        else if (tab === 'sh') prev.innerText = currentCiSh;
+      }
+    }
+
+    function copyDqCode() {
+      let text = currentGeSuite;
+      if (activeDqTab === 'soda') text = currentSodaChecks;
+      else if (activeDqTab === 'dbt') text = currentDbtTests;
+      else if (activeDqTab === 'sh') text = currentCiSh;
+      navigator.clipboard.writeText(text);
+      showToast('✓ Quality gate code copied to clipboard!');
+    }
+
+    function testSiemDispatch() {
+      const dest = document.getElementById('siemDestination').value;
+      const ep = document.getElementById('siemEndpoint').value;
+      showToast('🛡️ Testing SIEM audit dispatch to ' + dest.toUpperCase() + '...');
+      vscode.postMessage({
+        command: 'testSiemDispatch',
+        destination: dest,
+        endpoint: ep
+      });
+    }
+
+    function testPrivateServingProbe() {
+      const engine = document.getElementById('privServingEngine').value;
+      const ep = document.getElementById('privServingEndpoint').value;
+      const model = document.getElementById('privServingModel').value;
+      const statusEl = document.getElementById('privProbeStatus');
+      if (statusEl) {
+        statusEl.innerText = '⏳ Probing cluster...';
+        statusEl.style.color = 'var(--accent)';
+      }
+      showToast('🔍 Probing private cluster endpoint: ' + ep);
+      vscode.postMessage({
+        command: 'testPrivateServingProbe',
+        engine: engine,
+        endpoint: ep,
+        model: model
+      });
+    }
+
+    window.activateEnterpriseKey = activateEnterpriseKey;
+    window.generateTrialKey = generateTrialKey;
+    window.deactivateEnterpriseKey = deactivateEnterpriseKey;
+    window.generateDataQualityGates = generateDataQualityGates;
+    window.switchDqTab = switchDqTab;
+    window.copyDqCode = copyDqCode;
+    window.testSiemDispatch = testSiemDispatch;
+    window.testPrivateServingProbe = testPrivateServingProbe;
     window.generateLoadTest = generateLoadTest;
     window.switchLoadTestTab = switchLoadTestTab;
     window.copyLoadTestCode = copyLoadTestCode;
@@ -5098,10 +5520,6 @@ Output ONLY the message without markdown code fences.`;
     window.switchRagTab = switchRagTab;
     window.copyRagCode = copyRagCode;
     window.runRagTestsTerminal = runRagTestsTerminal;
-    window.toggleEnterpriseLicenseDrawer = toggleEnterpriseLicenseDrawer;
-    window.activateEnterpriseLicense = activateEnterpriseLicense;
-    window.deactivateEnterpriseLicense = deactivateEnterpriseLicense;
-    window.generateTrialLicense = generateTrialLicense;
 
     function discoverCloud() {
       const projId = document.getElementById('gcpProjId') ? document.getElementById('gcpProjId').value : '';
@@ -5661,12 +6079,83 @@ Output ONLY the message without markdown code fences.`;
           switchRagTab(activeRagTab);
           showToast('✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/!');
         }
+      } else if (msg.type === 'enterpriseLicenseState') {
+        const lic = msg.state;
+        const badge = document.getElementById('entLicenseBadge');
+        if (badge) {
+          if (lic.isLicensed) {
+            badge.innerText = '🟢 ' + (lic.plan === 'enterprise_platinum' ? 'Enterprise Platinum' : 'Enterprise') + ' (' + (lic.daysRemaining || 0) + 'd left)';
+            badge.style.color = 'var(--success)';
+            badge.style.borderColor = 'var(--success)';
+          } else {
+            badge.innerText = '⚪ Community (Free)';
+            badge.style.color = 'var(--accent)';
+            badge.style.borderColor = 'var(--accent)';
+          }
+        }
+        const feedback = document.getElementById('licenseFeedbackText');
+        if (feedback && lic.isLicensed) {
+          feedback.innerHTML = 'Licensed to <strong>' + lic.organization + '</strong> · ' + lic.features.length + ' Enterprise modules unlocked';
+        }
+      } else if (msg.type === 'enterpriseLicenseResult') {
+        const feedback = document.getElementById('licenseFeedbackText');
+        if (feedback) {
+          feedback.innerText = msg.message;
+          feedback.style.color = msg.success ? 'var(--success)' : 'var(--warn)';
+        }
+        if (msg.state) {
+          const badge = document.getElementById('entLicenseBadge');
+          if (badge) {
+            if (msg.state.isLicensed) {
+              badge.innerText = '🟢 ' + (msg.state.plan === 'enterprise_platinum' ? 'Enterprise Platinum' : 'Enterprise') + ' (' + (msg.state.daysRemaining || 0) + 'd left)';
+              badge.style.color = 'var(--success)';
+              badge.style.borderColor = 'var(--success)';
+            } else {
+              badge.innerText = '⚪ Community (Free)';
+              badge.style.color = 'var(--accent)';
+              badge.style.borderColor = 'var(--accent)';
+            }
+          }
+        }
+        showToast(msg.message);
+      } else if (msg.type === 'dataQualityPackageGenerated') {
+        const pkg = msg.pkg;
+        if (pkg) {
+          currentGeSuite = pkg.greatExpectations.jsonContent;
+          currentSodaChecks = pkg.sodaCore.yamlContent;
+          currentDbtTests = pkg.dbtSchemaTests.yamlContent;
+          currentCiSh = pkg.ciGateScriptSh;
+
+          const box = document.getElementById('dqResultBox');
+          if (box) box.style.display = 'block';
+          switchDqTab(activeDqTab);
+          showToast('✓ Generated Data Quality & Schema Drift Gates for ' + pkg.modelName);
+        }
+      } else if (msg.type === 'siemDispatchResult') {
+        const box = document.getElementById('siemResultBox');
+        if (box) box.style.display = 'block';
+        const prev = document.getElementById('siemCodePreview');
+        if (prev) prev.innerText = msg.formatted;
+        showToast('✓ Formatted & Dispatched Sample SIEM Audit Event (' + msg.destination.toUpperCase() + ')');
+      } else if (msg.type === 'privateServingProbeResult') {
+        const h = msg.health;
+        const statusEl = document.getElementById('privProbeStatus');
+        if (statusEl) {
+          if (h.ok) {
+            statusEl.innerText = '✓ Healthy (' + h.latencyMs + 'ms) — ' + h.statusText;
+            statusEl.style.color = 'var(--success)';
+          } else {
+            statusEl.innerText = '⚠️ Unreachable (' + h.latencyMs + 'ms) — ' + h.statusText;
+            statusEl.style.color = 'var(--warn)';
+          }
+        }
       }
     });
 
-    // Initialize Mart model options on load
+    // Initialize Mart model options and license state on load
     try {
       refreshMartModelOptions();
+      vscode.postMessage({ command: 'getEnterpriseLicenseState' });
     } catch (e) {
       console.warn('Initial refreshMartModelOptions defer:', e);
     }
