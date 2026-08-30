@@ -2770,7 +2770,6 @@ Output ONLY the message without markdown code fences.`;
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
         <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
       </div>
-    </div>
   </div>
 
   <!-- Multi-Project Switcher & Toolbar -->
@@ -4641,6 +4640,13 @@ Output ONLY the message without markdown code fences.`;
 
   <script>
     const vscode = acquireVsCodeApi();
+    window.onerror = function(msg, url, line, col, error) {
+      console.error('Webview runtime error:', msg, 'at line', line, col, error);
+      return false;
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error('Unhandled Promise Rejection:', event.reason);
+    });
     let currentTsCode = '';
     let currentPyCode = '';
     let currentWrittenApiSdk = '';
@@ -7276,6 +7282,146 @@ Output ONLY the message without markdown code fences.`;
       }
     });
 
+
+    // Explicit global window bindings for robust onclick resolution
+    try { window.showToast = showToast; } catch(e) {}
+    try { window.toggleRoadmap = toggleRoadmap; } catch(e) {}
+    try { window.switchProject = switchProject; } catch(e) {}
+    try { window.promptNewProject = promptNewProject; } catch(e) {}
+    try { window.closeNewProjectModal = closeNewProjectModal; } catch(e) {}
+    try { window.submitNewProject = submitNewProject; } catch(e) {}
+    try { window.confirmResetProject = confirmResetProject; } catch(e) {}
+    try { window.confirmDeleteProject = confirmDeleteProject; } catch(e) {}
+    try { window.deleteSchemaMapping = deleteSchemaMapping; } catch(e) {}
+    try { window.deleteDataMart = deleteDataMart; } catch(e) {}
+    try { window.deleteApiConnector = deleteApiConnector; } catch(e) {}
+    try { window.updateClientName = updateClientName; } catch(e) {}
+    try { window.setPhase = setPhase; } catch(e) {}
+    try { window.switchPhase1Mode = switchPhase1Mode; } catch(e) {}
+    try { window.getAvailableMartModels = getAvailableMartModels; } catch(e) {}
+    try { window.refreshMartModelOptions = refreshMartModelOptions; } catch(e) {}
+    try { window.handleMartModelChange = handleMartModelChange; } catch(e) {}
+    try { window.addMartDimension = addMartDimension; } catch(e) {}
+    try { window.addMartMetric = addMartMetric; } catch(e) {}
+    try { window.clearDimensions = clearDimensions; } catch(e) {}
+    try { window.clearMetrics = clearMetrics; } catch(e) {}
+    try { window.toggleSecondaryJoin = toggleSecondaryJoin; } catch(e) {}
+    try { window.handleSecondaryJoinChange = handleSecondaryJoinChange; } catch(e) {}
+    try { window.handleModelNameInput = handleModelNameInput; } catch(e) {}
+    try { window.handleMartNameInput = handleMartNameInput; } catch(e) {}
+    try { window.triggerAiStagingClean = triggerAiStagingClean; } catch(e) {}
+    try { window.toggleAiPromptBox = toggleAiPromptBox; } catch(e) {}
+    try { window.triggerAiStagingCleanWithPrompt = triggerAiStagingCleanWithPrompt; } catch(e) {}
+    try { window.triggerAiDiscoverMartRecipes = triggerAiDiscoverMartRecipes; } catch(e) {}
+    try { window.triggerAiGenerateMartFromPrompt = triggerAiGenerateMartFromPrompt; } catch(e) {}
+    try { window.renderAiMartRecipes = renderAiMartRecipes; } catch(e) {}
+    try { window.applyAiMartRecipe = applyAiMartRecipe; } catch(e) {}
+    try { window.applyAiMartRecipeDirect = applyAiMartRecipeDirect; } catch(e) {}
+    try { window.applyMartPreset = applyMartPreset; } catch(e) {}
+    try { window.testApiEndpoint = testApiEndpoint; } catch(e) {}
+    try { window.generateDataMart = generateDataMart; } catch(e) {}
+    try { window.copyMartCode = copyMartCode; } catch(e) {}
+    try { window.toggleCurlModal = toggleCurlModal; } catch(e) {}
+    try { window.parseAndApplyCurl = parseAndApplyCurl; } catch(e) {}
+    try { window.toggleOpenApiModal = toggleOpenApiModal; } catch(e) {}
+    try { window.parseAndApplyOpenApi = parseAndApplyOpenApi; } catch(e) {}
+    try { window.switchGitBranch = switchGitBranch; } catch(e) {}
+    try { window.promptNewBranch = promptNewBranch; } catch(e) {}
+    try { window.toggleEnterpriseLicenseDrawer = toggleEnterpriseLicenseDrawer; } catch(e) {}
+    try { window.activateEnterpriseLicense = activateEnterpriseLicense; } catch(e) {}
+    try { window.deactivateEnterpriseLicense = deactivateEnterpriseLicense; } catch(e) {}
+    try { window.generateTrialLicense = generateTrialLicense; } catch(e) {}
+    try { window.toggleGitSetupDrawer = toggleGitSetupDrawer; } catch(e) {}
+    try { window.toggleCommitDrawer = toggleCommitDrawer; } catch(e) {}
+    try { window.saveHttpsGitRemote = saveHttpsGitRemote; } catch(e) {}
+    try { window.saveSshGitRemote = saveSshGitRemote; } catch(e) {}
+    try { window.copySshKey = copySshKey; } catch(e) {}
+    try { window.generateSshKey = generateSshKey; } catch(e) {}
+    try { window.initGitRepo = initGitRepo; } catch(e) {}
+    try { window.draftWithAi = draftWithAi; } catch(e) {}
+    try { window.draftHeuristic = draftHeuristic; } catch(e) {}
+    try { window.executeCommitAndPush = executeCommitAndPush; } catch(e) {}
+    try { window.openExternalUrl = openExternalUrl; } catch(e) {}
+    try { window.diagnoseGit = diagnoseGit; } catch(e) {}
+    try { window.openGitTerminal = openGitTerminal; } catch(e) {}
+    try { window.gitFetch = gitFetch; } catch(e) {}
+    try { window.createPullRequest = createPullRequest; } catch(e) {}
+    try { window.testCloudConnection = testCloudConnection; } catch(e) {}
+    try { window.toggleCloudHubDrawer = toggleCloudHubDrawer; } catch(e) {}
+    try { window.connectCloud = connectCloud; } catch(e) {}
+    try { window.openActiveIacFile = openActiveIacFile; } catch(e) {}
+    try { window.openDoc = openDoc; } catch(e) {}
+    try { window.previewDoc = previewDoc; } catch(e) {}
+    try { window.openActiveDoc = openActiveDoc; } catch(e) {}
+    try { window.previewActiveDoc = previewActiveDoc; } catch(e) {}
+    try { window.switchDocTab = switchDocTab; } catch(e) {}
+    try { window.toggleDbConnectModal = toggleDbConnectModal; } catch(e) {}
+    try { window.toggleUriVisibility = toggleUriVisibility; } catch(e) {}
+    try { window.handleDialectChange = handleDialectChange; } catch(e) {}
+    try { window.introspectDatabase = introspectDatabase; } catch(e) {}
+    try { window.testDbConnection = testDbConnection; } catch(e) {}
+    try { window.detectWorkspaceDb = detectWorkspaceDb; } catch(e) {}
+    try { window.wipeDbSecrets = wipeDbSecrets; } catch(e) {}
+    try { window.filterDiscoveredTables = filterDiscoveredTables; } catch(e) {}
+    try { window.applySelectedDbTable = applySelectedDbTable; } catch(e) {}
+    try { window.pickSchemaFile = pickSchemaFile; } catch(e) {}
+    try { window.loadSampleSchema = loadSampleSchema; } catch(e) {}
+    try { window.loadTargetPreset = loadTargetPreset; } catch(e) {}
+    try { window.generateSchemaMapping = generateSchemaMapping; } catch(e) {}
+    try { window.switchSchemaTab = switchSchemaTab; } catch(e) {}
+    try { window.openGeneratedModel = openGeneratedModel; } catch(e) {}
+    try { window.copyModelCode = copyModelCode; } catch(e) {}
+    try { window.loadSampleApi = loadSampleApi; } catch(e) {}
+    try { window.generateApiConnector = generateApiConnector; } catch(e) {}
+    try { window.sendApiSchemaToMapper = sendApiSchemaToMapper; } catch(e) {}
+    try { window.switchApiTab = switchApiTab; } catch(e) {}
+    try { window.openGeneratedApiSdk = openGeneratedApiSdk; } catch(e) {}
+    try { window.copyApiSdkCode = copyApiSdkCode; } catch(e) {}
+    try { window.generateLoadTest = generateLoadTest; } catch(e) {}
+    try { window.switchLoadTestTab = switchLoadTestTab; } catch(e) {}
+    try { window.copyLoadTestCode = copyLoadTestCode; } catch(e) {}
+    try { window.runLoadTestTerminal = runLoadTestTerminal; } catch(e) {}
+    try { window.scaffoldRagPipeline = scaffoldRagPipeline; } catch(e) {}
+    try { window.switchRagTab = switchRagTab; } catch(e) {}
+    try { window.copyRagCode = copyRagCode; } catch(e) {}
+    try { window.runRagTestsTerminal = runRagTestsTerminal; } catch(e) {}
+    try { window.launchEnterpriseFeature = launchEnterpriseFeature; } catch(e) {}
+    try { window.activateEnterpriseKey = activateEnterpriseKey; } catch(e) {}
+    try { window.generateTrialKey = generateTrialKey; } catch(e) {}
+    try { window.deactivateEnterpriseKey = deactivateEnterpriseKey; } catch(e) {}
+    try { window.generateDataQualityGates = generateDataQualityGates; } catch(e) {}
+    try { window.switchDqTab = switchDqTab; } catch(e) {}
+    try { window.copyDqCode = copyDqCode; } catch(e) {}
+    try { window.testSiemDispatch = testSiemDispatch; } catch(e) {}
+    try { window.runSqlTranspile = runSqlTranspile; } catch(e) {}
+    try { window.copyTranspiledSql = copyTranspiledSql; } catch(e) {}
+    try { window.runPiiMaskingGen = runPiiMaskingGen; } catch(e) {}
+    try { window.switchPiiTab = switchPiiTab; } catch(e) {}
+    try { window.runReverseEtlGen = runReverseEtlGen; } catch(e) {}
+    try { window.switchRevTab = switchRevTab; } catch(e) {}
+    try { window.runRlsGen = runRlsGen; } catch(e) {}
+    try { window.runSyntheticGen = runSyntheticGen; } catch(e) {}
+    try { window.switchSynthTab = switchSynthTab; } catch(e) {}
+    try { window.runMockServerGen = runMockServerGen; } catch(e) {}
+    try { window.switchMockTab = switchMockTab; } catch(e) {}
+    try { window.testPrivateServingProbe = testPrivateServingProbe; } catch(e) {}
+    try { window.discoverCloud = discoverCloud; } catch(e) {}
+    try { window.switchDeployProvider = switchDeployProvider; } catch(e) {}
+    try { window.generateTerraformIaC = generateTerraformIaC; } catch(e) {}
+    try { window.generateKubernetesIaC = generateKubernetesIaC; } catch(e) {}
+    try { window.generateDockerComposeIaC = generateDockerComposeIaC; } catch(e) {}
+    try { window.scaffoldCicdPipeline = scaffoldCicdPipeline; } catch(e) {}
+    try { window.runLocalDeployScript = runLocalDeployScript; } catch(e) {}
+    try { window.pushInfraToGit = pushInfraToGit; } catch(e) {}
+    try { window.copyCicdCode = copyCicdCode; } catch(e) {}
+    try { window.runAudit = runAudit; } catch(e) {}
+    try { window.cleanTempFiles = cleanTempFiles; } catch(e) {}
+    try { window.scaffoldDeployment = scaffoldDeployment; } catch(e) {}
+    try { window.generateRunbooks = generateRunbooks; } catch(e) {}
+    try { window.generateSingleDoc = generateSingleDoc; } catch(e) {}
+    try { window.generateSelectedRunbooks = generateSelectedRunbooks; } catch(e) {}
+    try { window.toggleSelectAllDocs = toggleSelectAllDocs; } catch(e) {}
+    try { window.getDocFilename = getDocFilename; } catch(e) {}
     // Initialize Mart model options and license state on load
     try {
       refreshMartModelOptions();
