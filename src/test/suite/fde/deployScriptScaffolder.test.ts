@@ -83,4 +83,46 @@ suite('FDE Suite — DeployScriptScaffolder', () => {
     assert.ok(k8s.includes('cpu: "8"'));
     assert.ok(k8s.includes('memory: "32Gi"'));
   });
+
+  test('generates Azure Container Apps Terraform configuration with VNet subnet', () => {
+    const tf = DeployScriptScaffolder.generateTerraform({
+      projectId: 'acme-azure-pilot',
+      targetVpc: 'azure',
+      region: 'eastus',
+      cpu: '2.0',
+      memory: '4.0Gi',
+      ingress: 'internal',
+      subnetId: '/subscriptions/123/resourceGroups/rg-net/providers/Microsoft.Network/virtualNetworks/vnet-pilot/subnets/snet-app',
+    });
+
+    assert.ok(tf.includes('azurerm_container_app'));
+    assert.ok(tf.includes('azurerm_container_app_environment'));
+    assert.ok(tf.includes('infrastructure_subnet_id'));
+    assert.ok(tf.includes('internal_load_balancer_enabled = true'));
+    assert.ok(tf.includes('cpu    = 2'));
+    assert.ok(tf.includes('memory = "4.0Gi"'));
+  });
+
+  test('generates GitHub, GitLab, Bitbucket, and Azure DevOps CI/CD pipeline workflows', () => {
+    const opts = { projectId: 'acme-pilot-2026', targetVpc: 'gcp-firebase' as const };
+    
+    const github = DeployScriptScaffolder.generateGitHubActionsDeployWorkflow(opts);
+    assert.ok(github.includes('name: "🚀 FDE Pilot Deployment Pipeline"'));
+    assert.ok(github.includes('actions/checkout@v4'));
+    assert.ok(github.includes('scripts/prepare-deployment.js'));
+
+    const gitlab = DeployScriptScaffolder.generateGitLabCi(opts);
+    assert.ok(gitlab.includes('stages:'));
+    assert.ok(gitlab.includes('preflight_audit:'));
+    assert.ok(gitlab.includes('terraform apply'));
+
+    const bitbucket = DeployScriptScaffolder.generateBitbucketPipelines(opts);
+    assert.ok(bitbucket.includes('pipelines:'));
+    assert.ok(bitbucket.includes('./scripts/deploy.sh prod all'));
+
+    const azDevOps = DeployScriptScaffolder.generateAzureDevOpsPipeline(opts);
+    assert.ok(azDevOps.includes('trigger:'));
+    assert.ok(azDevOps.includes('vmImage: \'ubuntu-latest\''));
+    assert.ok(azDevOps.includes('./scripts/deploy.sh pilot all'));
+  });
 });

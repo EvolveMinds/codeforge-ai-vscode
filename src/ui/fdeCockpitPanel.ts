@@ -22,7 +22,7 @@ import { DbIntrospector, DbConnectionOptions } from '../fde/dbIntrospector';
 import { ApiConnectorGenerator, ApiEndpointSpec } from '../fde/apiConnectorGen';
 import { PreflightAuditor, PreflightReport } from '../deployment/preflightAuditor';
 import { FirebaseConfigGenerator } from '../deployment/firebaseConfigGen';
-import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
+import { DeployScriptScaffolder, DeployScriptOptions } from '../deployment/deployScriptScaffolder';
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout } from '../core/processUtil';
@@ -1034,7 +1034,7 @@ Output ONLY the message without markdown code fences.`;
           vpcId: msg.vpcId || undefined,
           subnetId: msg.subnetId || undefined,
           securityGroups: msg.securityGroups || undefined,
-          targetVpc: state.targetVpc,
+          targetVpc: msg.targetProvider || state.targetVpc,
         });
         const tfDir = path.join(ws, 'terraform');
         if (!fs.existsSync(tfDir)) fs.mkdirSync(tfDir, { recursive: true });
@@ -1101,6 +1101,77 @@ Output ONLY the message without markdown code fences.`;
         fs.writeFileSync(path.join(ws, 'docker-compose.yml'), dcCode, 'utf8');
         vscode.window.showInformationMessage('✓ Generated Docker Compose: docker-compose.yml');
         this._panel.webview.postMessage({ type: 'iacGenerated', file: 'docker-compose.yml', code: dcCode });
+        break;
+      }
+
+      case 'scaffoldCicdPipeline': {
+        if (!ws) {
+          vscode.window.showWarningMessage('Open a workspace folder first.');
+          return;
+        }
+        const state = this._contextManager.getState();
+        const platform = msg.platform || 'github';
+        const targetVpc = msg.targetProvider || state.targetVpc || 'gcp-firebase';
+
+        const deployOpts: DeployScriptOptions = {
+          projectName: state.clientName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+          projectId: msg.projectId || 'client-pilot-project',
+          targetVpc: targetVpc,
+          region: msg.region || (targetVpc === 'aws' ? 'us-east-1' : targetVpc === 'azure' ? 'eastus' : 'australia-southeast1'),
+          backendServiceName: `${state.clientName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-api`,
+          includeCloudRunBackend: true,
+          cpu: msg.cpu || '1',
+          memory: msg.memory || '1Gi',
+          minInstances: parseInt(msg.minInstances || '0', 10),
+          maxInstances: parseInt(msg.maxInstances || '10', 10),
+          ingress: msg.ingress || 'internal',
+          vpcId: msg.vpcId,
+          subnetId: msg.subnetId
+        };
+
+        let filePath = '';
+        let fileContent = '';
+
+        if (platform === 'github') {
+          const wfDir = path.join(ws, '.github', 'workflows');
+          if (!fs.existsSync(wfDir)) fs.mkdirSync(wfDir, { recursive: true });
+          filePath = '.github/workflows/deploy.yml';
+          fileContent = DeployScriptScaffolder.generateGitHubActionsDeployWorkflow(deployOpts);
+          fs.writeFileSync(path.join(ws, filePath), fileContent, 'utf8');
+        } else if (platform === 'gitlab') {
+          filePath = '.gitlab-ci.yml';
+          fileContent = DeployScriptScaffolder.generateGitLabCi(deployOpts);
+          fs.writeFileSync(path.join(ws, filePath), fileContent, 'utf8');
+        } else if (platform === 'bitbucket') {
+          filePath = 'bitbucket-pipelines.yml';
+          fileContent = DeployScriptScaffolder.generateBitbucketPipelines(deployOpts);
+          fs.writeFileSync(path.join(ws, filePath), fileContent, 'utf8');
+        } else if (platform === 'azure_devops') {
+          filePath = 'azure-pipelines.yml';
+          fileContent = DeployScriptScaffolder.generateAzureDevOpsPipeline(deployOpts);
+          fs.writeFileSync(path.join(ws, filePath), fileContent, 'utf8');
+        }
+
+        vscode.window.showInformationMessage(`✓ Scaffolded ${platform.toUpperCase()} pipeline: ${filePath}`);
+        this._panel.webview.postMessage({
+          type: 'cicdPipelineScaffolded',
+          platform: platform,
+          filePath: filePath,
+          content: fileContent
+        });
+        break;
+      }
+
+      case 'runDeployScriptTerminal': {
+        if (!ws) return;
+        const terminal = vscode.window.terminals.find(t => t.name === '🚀 FDE: Deploy Runner')
+          || vscode.window.createTerminal('🚀 FDE: Deploy Runner');
+        terminal.show();
+        if (process.platform === 'win32') {
+          terminal.sendText('powershell -ExecutionPolicy Bypass -File .\\scripts\\deploy.ps1 -Environment pilot -Component all');
+        } else {
+          terminal.sendText('chmod +x ./scripts/deploy.sh && ./scripts/deploy.sh pilot all');
+        }
         break;
       }
 
@@ -3404,12 +3475,24 @@ Output ONLY the message without markdown code fences.`;
           </div>
         </div>
 
+        <!-- Provider Selection Tabs -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+          <div class="code-tabs" style="margin-bottom: 0;">
+            <div class="code-tab active" id="tabProvGcp" onclick="switchDeployProvider('gcp-firebase')">🌐 Google Cloud (GCP/Firebase)</div>
+            <div class="code-tab" id="tabProvAws" onclick="switchDeployProvider('aws')">🟧 Amazon Web Services (AWS)</div>
+            <div class="code-tab" id="tabProvAzure" onclick="switchDeployProvider('azure')">🔷 Microsoft Azure</div>
+            <div class="code-tab" id="tabProvDocker" onclick="switchDeployProvider('docker')">🐳 On-Prem / Air-Gapped Docker</div>
+          </div>
+          <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="discoverCloud()">⚡ Discover &amp; Auto-Fill (<span id="lblCloudProviderName">GCP</span> API)</button>
+        </div>
+
         <!-- Multi-Cloud Deployment Parameters Matrix -->
-        <h4>⚙️ Multi-Cloud Deployment Parameter Matrix</h4>
         <div style="background: var(--card-alt); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 18px;">
+          <h4 id="lblMatrixTitle" style="margin: 0 0 12px 0;">⚙️ Google Cloud Deployment Parameter Matrix</h4>
+          
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 12px;">
             <div>
-              <label style="font-size: 11px; font-weight: bold;">CPU Allocation (Presets or Custom)</label>
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeployCpu">CPU Allocation (Cloud Run / GKE)</label>
               <input type="text" id="deployCpu" list="cpuList" value="${state.deployment?.cpu || '1'}" placeholder="e.g. 1, 2, 4, 8.0, 16.0">
               <datalist id="cpuList">
                 <option value="0.5">0.5 vCPU</option>
@@ -3421,7 +3504,7 @@ Output ONLY the message without markdown code fences.`;
               </datalist>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Memory Allocation (Presets or Custom)</label>
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeployMemory">Memory Allocation (RAM)</label>
               <input type="text" id="deployMemory" list="memList" value="${state.deployment?.memory || '1Gi'}" placeholder="e.g. 1Gi, 2Gi, 4Gi, 16Gi, 32Gi">
               <datalist id="memList">
                 <option value="512Mi">512 MiB</option>
@@ -3434,7 +3517,7 @@ Output ONLY the message without markdown code fences.`;
               </datalist>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Hardware Accelerator / GPU</label>
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeployGpu">Hardware Accelerator / GPU</label>
               <select id="deployGpu">
                 <option value="none" ${!state.deployment?.gpu || state.deployment.gpu === 'none' ? 'selected' : ''}>None (Standard CPU)</option>
                 <option value="nvidia-tesla-t4" ${state.deployment?.gpu === 'nvidia-tesla-t4' ? 'selected' : ''}>NVIDIA T4 (Inference)</option>
@@ -3448,28 +3531,28 @@ Output ONLY the message without markdown code fences.`;
           <!-- Network & VPC Customization -->
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 12px;">
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Client VPC / Network ID</label>
-              <input type="text" id="deployVpcId" list="vpcDatalist" value="${state.deployment?.vpcId || ''}" placeholder="e.g. client-vpc or vpc-0a1b2c">
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeployVpc">Client VPC / Network ID</label>
+              <input type="text" id="deployVpcId" list="vpcDatalist" value="${state.deployment?.vpcId || ''}" placeholder="e.g. default or custom-vpc">
               <datalist id="vpcDatalist">
                 ${(state.deployment?.discoveredCloudResources?.vpcs || []).map(v => `<option value="${v}">${v}</option>`).join('')}
               </datalist>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Subnet ID / Name</label>
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeploySubnet">Subnet ID / Subnetwork</label>
               <input type="text" id="deploySubnetId" list="subnetDatalist" value="${state.deployment?.subnetId || ''}" placeholder="e.g. pilot-subnet or subnet-0a1b2c">
               <datalist id="subnetDatalist">
                 ${(state.deployment?.discoveredCloudResources?.subnets || []).map(s => `<option value="${s}">${s}</option>`).join('')}
               </datalist>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Security Groups / Firewall Tags</label>
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeploySg">Security Groups / Firewall Tags</label>
               <input type="text" id="deploySecurityGroups" value="${state.deployment?.securityGroups || ''}" placeholder="e.g. allow-internal-pilot, sg-0123456789">
             </div>
           </div>
 
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;">
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Network Ingress Security</label>
+              <label style="font-size: 11px; font-weight: bold;" id="lblDeployIngress">Network Ingress Security</label>
               <select id="deployIngress">
                 <option value="all" ${state.deployment?.ingress === 'all' ? 'selected' : ''}>Public HTTPS (Direct)</option>
                 <option value="internal" ${!state.deployment?.ingress || state.deployment?.ingress === 'internal' ? 'selected' : ''}>Internal VPC Only (Air-Gapped)</option>
@@ -3499,12 +3582,12 @@ Output ONLY the message without markdown code fences.`;
         <h4>📦 1-Click Infrastructure Scaffolding (Terraform / K8s / Docker / Firebase)</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
           <div>
-            <label style="font-size: 11px; font-weight: bold;">Target Cloud Project ID / Identifier</label>
+            <label style="font-size: 11px; font-weight: bold;" id="lblTargetProjId">Target Cloud Project ID / Account</label>
             <input type="text" id="gcpProjId" value="${state.deployment?.discoveredCloudResources?.activeProject || 'acme-pilot-2026'}">
           </div>
           <div>
-            <label style="font-size: 11px; font-weight: bold;">Frontend Public Build Directory</label>
-            <input type="text" id="pubBuildDir" value="dist">
+            <label style="font-size: 11px; font-weight: bold;">Deployment Region / Location</label>
+            <input type="text" id="deployRegion" value="australia-southeast1" placeholder="e.g. us-central1, us-east-1, eastus">
           </div>
         </div>
 
@@ -3533,6 +3616,67 @@ Output ONLY the message without markdown code fences.`;
               <button class="btn-quick" style="margin-bottom: 0;" onclick="openActiveIacFile()">Open in Editor</button>
             </div>
             <pre id="iacCodePreview" class="code-preview" style="max-height: 240px;"></pre>
+          </div>
+        </div>
+
+        <!-- Automated CI/CD Infra Deployment Pipeline & Git Dispatcher -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">🚀</span>
+              <div>
+                <strong style="font-size: 13px; color: var(--accent);">Automated CI/CD Infra Pipeline &amp; Git Push Hub</strong>
+                <div style="font-size: 11px; opacity: 0.85;">Generate ready-to-run CI/CD pipelines (GitHub Actions, GitLab CI, Bitbucket, Azure DevOps) and push to repository with 1-click execution.</div>
+              </div>
+            </div>
+            <span id="cicdBadge" class="tag" style="background: var(--card-alt); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 11px;">
+              Ready to Scaffold
+            </span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">CI/CD Platform</label>
+              <select id="cicdPlatform">
+                <option value="github" selected>GitHub Actions (.github/workflows/deploy.yml)</option>
+                <option value="gitlab">GitLab CI/CD (.gitlab-ci.yml)</option>
+                <option value="bitbucket">Bitbucket Pipelines (bitbucket-pipelines.yml)</option>
+                <option value="azure_devops">Azure DevOps Pipelines (azure-pipelines.yml)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Deployment Target Branch</label>
+              <input type="text" id="cicdBranch" value="main" placeholder="main or pilot">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Deployment Tier</label>
+              <select id="cicdTargetTier">
+                <option value="pilot" selected>Pilot / Pre-Production</option>
+                <option value="prod">Production</option>
+                <option value="dev">Development / Staging</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="scaffoldCicdPipeline()">⚡ Scaffold CI/CD Pipeline File</button>
+            <button class="btn btn-secondary" onclick="runLocalDeployScript()">💻 Run Deploy Script (Terminal)</button>
+            <button class="btn" style="background: var(--success); color: #fff; font-weight: 700;" onclick="pushInfraToGit()">📦 1-Click Commit &amp; Push to Git</button>
+          </div>
+
+          <!-- Result box for CI/CD Preview -->
+          <div id="cicdResultBox" style="margin-top: 14px; display: none;">
+            <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ CI/CD Pipeline Scaffolded Successfully</div>
+                <div style="font-size: 11px; opacity: 0.9;" id="cicdPathBadge">Location: <code>.github/workflows/deploy.yml</code></div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc(currentCicdPath || '.github/workflows/deploy.yml')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="copyCicdCode()">📋 Copy</button>
+              </div>
+            </div>
+            <pre class="code-preview" id="cicdCodePreview" style="max-height: 220px;"></pre>
           </div>
         </div>
       </div>
@@ -5605,6 +5749,81 @@ Output ONLY the message without markdown code fences.`;
       showToast('⚡ Querying cloud API for VPCs and subnets...');
     }
 
+    let activeDeployProvider = 'gcp-firebase';
+    let currentCicdPipelineCode = '';
+    let currentCicdPath = '';
+
+    function switchDeployProvider(prov) {
+      activeDeployProvider = prov;
+      const tabGcp = document.getElementById('tabProvGcp');
+      const tabAws = document.getElementById('tabProvAws');
+      const tabAzure = document.getElementById('tabProvAzure');
+      const tabDocker = document.getElementById('tabProvDocker');
+
+      if (tabGcp) tabGcp.className = 'code-tab ' + (prov === 'gcp-firebase' ? 'active' : '');
+      if (tabAws) tabAws.className = 'code-tab ' + (prov === 'aws' ? 'active' : '');
+      if (tabAzure) tabAzure.className = 'code-tab ' + (prov === 'azure' ? 'active' : '');
+      if (tabDocker) tabDocker.className = 'code-tab ' + (prov === 'docker' ? 'active' : '');
+
+      const titleEl = document.getElementById('lblMatrixTitle');
+      const apiProvEl = document.getElementById('lblCloudProviderName');
+      const targetProjEl = document.getElementById('lblTargetProjId');
+      const cpuLabel = document.getElementById('lblDeployCpu');
+      const memLabel = document.getElementById('lblDeployMemory');
+      const vpcLabel = document.getElementById('lblDeployVpc');
+      const subnetLabel = document.getElementById('lblDeploySubnet');
+      const sgLabel = document.getElementById('lblDeploySg');
+      const secretsSel = document.getElementById('deploySecrets');
+      const regionInput = document.getElementById('deployRegion');
+
+      if (prov === 'gcp-firebase') {
+        if (titleEl) titleEl.innerText = '⚙️ Google Cloud (GCP) Deployment Parameter Matrix';
+        if (apiProvEl) apiProvEl.innerText = 'GCP';
+        if (targetProjEl) targetProjEl.innerText = 'Target GCP Project ID';
+        if (cpuLabel) cpuLabel.innerText = 'CPU Allocation (Cloud Run / GKE)';
+        if (memLabel) memLabel.innerText = 'Memory Allocation (RAM)';
+        if (vpcLabel) vpcLabel.innerText = 'GCP VPC Network (e.g. default)';
+        if (subnetLabel) subnetLabel.innerText = 'Subnetwork / Connector Name';
+        if (sgLabel) sgLabel.innerText = 'Firewall Network Tags';
+        if (secretsSel) secretsSel.value = 'gcp-secret-manager';
+        if (regionInput && !regionInput.value) regionInput.value = 'australia-southeast1';
+      } else if (prov === 'aws') {
+        if (titleEl) titleEl.innerText = '⚙️ AWS Fargate & ECS Deployment Parameter Matrix';
+        if (apiProvEl) apiProvEl.innerText = 'AWS';
+        if (targetProjEl) targetProjEl.innerText = 'AWS Account ID / Project Tag';
+        if (cpuLabel) cpuLabel.innerText = 'ECS Task CPU (e.g. 1024, 2048)';
+        if (memLabel) memLabel.innerText = 'ECS Task Memory (e.g. 2048, 4096)';
+        if (vpcLabel) vpcLabel.innerText = 'AWS VPC ID (vpc-0a1b2c3d)';
+        if (subnetLabel) subnetLabel.innerText = 'Subnet IDs (subnet-012, subnet-345)';
+        if (sgLabel) sgLabel.innerText = 'Security Group IDs (sg-0123456789)';
+        if (secretsSel) secretsSel.value = 'aws-secrets-manager';
+        if (regionInput && regionInput.value === 'australia-southeast1') regionInput.value = 'us-east-1';
+      } else if (prov === 'azure') {
+        if (titleEl) titleEl.innerText = '⚙️ Azure Container Apps Deployment Parameter Matrix';
+        if (apiProvEl) apiProvEl.innerText = 'Azure';
+        if (targetProjEl) targetProjEl.innerText = 'Azure Resource Group (rg-pilot)';
+        if (cpuLabel) cpuLabel.innerText = 'Container Apps CPU (e.g. 1.0, 2.0)';
+        if (memLabel) memLabel.innerText = 'Container Apps Memory (e.g. 2.0Gi)';
+        if (vpcLabel) vpcLabel.innerText = 'Azure VNet Name';
+        if (subnetLabel) subnetLabel.innerText = 'Delegated Subnet ID';
+        if (sgLabel) sgLabel.innerText = 'Network Security Group (NSG)';
+        if (secretsSel) secretsSel.value = 'azure-key-vault';
+        if (regionInput && (regionInput.value === 'australia-southeast1' || regionInput.value === 'us-east-1')) regionInput.value = 'eastus';
+      } else if (prov === 'docker') {
+        if (titleEl) titleEl.innerText = '⚙️ Air-Gapped Docker & On-Prem Parameter Matrix';
+        if (apiProvEl) apiProvEl.innerText = 'Docker';
+        if (targetProjEl) targetProjEl.innerText = 'Container Name / Stack Tag';
+        if (cpuLabel) cpuLabel.innerText = 'Docker CPUs Limit (e.g. 2.0, 4.0)';
+        if (memLabel) memLabel.innerText = 'Docker Memory Limit (e.g. 2Gi, 4Gi)';
+        if (vpcLabel) vpcLabel.innerText = 'Docker Network Mode (bridge/host)';
+        if (subnetLabel) subnetLabel.innerText = 'Port Forwarding (e.g. 8080:8080)';
+        if (sgLabel) sgLabel.innerText = 'Host Exposed Ports';
+        if (secretsSel) secretsSel.value = 'env-file';
+      }
+
+      showToast('Switched to ' + prov.toUpperCase() + ' deployment parameters');
+    }
+
     function generateTerraformIaC() {
       const projId = document.getElementById('gcpProjId').value;
       const cpu = document.getElementById('deployCpu').value;
@@ -5617,10 +5836,13 @@ Output ONLY the message without markdown code fences.`;
       const minInst = document.getElementById('deployMinInst').value;
       const maxInst = document.getElementById('deployMaxInst').value;
       const secrets = document.getElementById('deploySecrets').value;
+      const region = document.getElementById('deployRegion') ? document.getElementById('deployRegion').value : 'australia-southeast1';
 
       vscode.postMessage({
         command: 'generateTerraformIaC',
+        targetProvider: activeDeployProvider,
         projectId: projId,
+        region: region,
         cpu: cpu,
         memory: mem,
         gpu: gpu,
@@ -5669,6 +5891,59 @@ Output ONLY the message without markdown code fences.`;
         vpcId: vpc
       });
     }
+
+    function scaffoldCicdPipeline() {
+      const platform = document.getElementById('cicdPlatform').value;
+      const branch = document.getElementById('cicdBranch').value || 'main';
+      const tier = document.getElementById('cicdTargetTier').value;
+      const projId = document.getElementById('gcpProjId').value;
+      const region = document.getElementById('deployRegion') ? document.getElementById('deployRegion').value : 'australia-southeast1';
+      const cpu = document.getElementById('deployCpu').value;
+      const mem = document.getElementById('deployMemory').value;
+      const vpc = document.getElementById('deployVpcId').value;
+      const sub = document.getElementById('deploySubnetId').value;
+
+      showToast('⚡ Scaffolding ' + platform.toUpperCase() + ' automated deployment pipeline...');
+      vscode.postMessage({
+        command: 'scaffoldCicdPipeline',
+        platform: platform,
+        branch: branch,
+        tier: tier,
+        targetProvider: activeDeployProvider,
+        projectId: projId,
+        region: region,
+        cpu: cpu,
+        memory: mem,
+        vpcId: vpc,
+        subnetId: sub
+      });
+    }
+
+    function runLocalDeployScript() {
+      showToast('🚀 Launching deployment runner in terminal...');
+      vscode.postMessage({ command: 'runDeployScriptTerminal' });
+    }
+
+    function pushInfraToGit() {
+      const commitInput = document.getElementById('commitMsgInput');
+      if (commitInput) {
+        commitInput.value = 'feat(infra): scaffold automated ' + activeDeployProvider.toUpperCase() + ' deployment pipeline and IaC';
+      }
+      toggleCommitDrawer();
+      showToast('📦 Ready to review and push infrastructure code to Git!');
+    }
+
+    function copyCicdCode() {
+      if (!currentCicdPipelineCode) return;
+      navigator.clipboard.writeText(currentCicdPipelineCode);
+      showToast('✓ CI/CD Pipeline code copied to clipboard!');
+    }
+
+    window.switchDeployProvider = switchDeployProvider;
+    window.scaffoldCicdPipeline = scaffoldCicdPipeline;
+    window.runLocalDeployScript = runLocalDeployScript;
+    window.pushInfraToGit = pushInfraToGit;
+    window.copyCicdCode = copyCicdCode;
 
     function runAudit() {
       vscode.postMessage({ command: 'runPreflightAudit' });
@@ -6045,12 +6320,28 @@ Output ONLY the message without markdown code fences.`;
       } else if (msg.type === 'iacGenerated') {
         const box = document.getElementById('iacResultBox');
         if (box) box.style.display = 'block';
-        currentWrittenIacFile = msg.writtenFile;
+        currentWrittenIacFile = msg.writtenFile || msg.file;
         const lbl = document.getElementById('iacFileNameLabel');
-        if (lbl) lbl.innerText = '📄 Generated: ' + msg.writtenFile;
+        if (lbl) lbl.innerText = '📄 Generated: ' + (msg.writtenFile || msg.file);
         const prev = document.getElementById('iacCodePreview');
         if (prev) prev.innerText = msg.code;
-        showToast('✓ Infrastructure IaC Scaffolded: ' + msg.writtenFile);
+        showToast('✓ Infrastructure IaC Scaffolded: ' + (msg.writtenFile || msg.file));
+      } else if (msg.type === 'cicdPipelineScaffolded') {
+        currentCicdPipelineCode = msg.content;
+        currentCicdPath = msg.filePath;
+        const box = document.getElementById('cicdResultBox');
+        if (box) box.style.display = 'block';
+        const badge = document.getElementById('cicdPathBadge');
+        if (badge) badge.innerHTML = 'Location: <code>' + msg.filePath + '</code>';
+        const prev = document.getElementById('cicdCodePreview');
+        if (prev) prev.innerText = msg.content;
+        const topBadge = document.getElementById('cicdBadge');
+        if (topBadge) {
+          topBadge.innerText = '✓ ' + msg.platform.toUpperCase() + ' Active';
+          topBadge.style.background = 'var(--success-bg)';
+          topBadge.style.color = 'var(--success)';
+        }
+        showToast('✓ Scaffolded ' + msg.platform.toUpperCase() + ' CI/CD Pipeline in ' + msg.filePath);
       } else if (msg.type === 'schemaFileLoaded') {
         document.getElementById('srcCols').value = msg.colsString;
         document.getElementById('srcNameInput').value = msg.sourceName;

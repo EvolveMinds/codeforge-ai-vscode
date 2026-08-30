@@ -366,9 +366,11 @@ resource "aws_ecs_service" "app_service" {
 `;
     }
 
-    // Default to GCP Terraform
+    if (opts.targetVpc === 'azure') {
+      return this.generateAzureTerraform(opts);
+    }
+
     return `# ===================================================================
-# ${projName} — Google Cloud Run & Secret Manager (Terraform)
 # Scaffolding: Evolve AI (Forward Deployed Engineer Suite)
 # ===================================================================
 
@@ -539,6 +541,206 @@ services:
               count: 1
               capabilities: [gpu]` : ''}
     restart: unless-stopped
+`;
+  }
+
+  static generateAzureTerraform(opts: DeployScriptOptions): string {
+    const projName = opts.projectName || opts.projectId || 'pilot-app';
+    const region = opts.region || 'eastus';
+    const cpu = opts.cpu || '1.0';
+    const memory = opts.memory || '2.0Gi';
+    const minInstances = opts.minInstances ?? 0;
+    const maxInstances = opts.maxInstances ?? 10;
+    const ingress = opts.ingress || 'internal';
+
+    return `# ===================================================================
+# ${projName} — Azure Container Apps & Key Vault Infrastructure (Terraform)
+# Scaffolding: Evolve AI (Forward Deployed Engineer Suite)
+# ===================================================================
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+}
+
+resource "azurerm_resource_group" "pilot_rg" {
+  name     = "rg-${projName}"
+  location = "${region}"
+}
+
+resource "azurerm_log_analytics_workspace" "pilot_logs" {
+  name                = "log-${projName}"
+  location            = azurerm_resource_group.pilot_rg.location
+  resource_group_name = azurerm_resource_group.pilot_rg.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
+
+resource "azurerm_container_app_environment" "pilot_env" {
+  name                           = "cae-${projName}"
+  location                       = azurerm_resource_group.pilot_rg.location
+  resource_group_name            = azurerm_resource_group.pilot_rg.name
+  log_analytics_workspace_id     = azurerm_log_analytics_workspace.pilot_logs.id
+  ${opts.subnetId ? `infrastructure_subnet_id   = "${opts.subnetId}"` : ''}
+  internal_load_balancer_enabled = ${ingress === 'internal' ? 'true' : 'false'}
+}
+
+resource "azurerm_container_app" "app" {
+  name                         = "${projName}-backend"
+  container_app_environment_id = azurerm_container_app_environment.pilot_env.id
+  resource_group_name          = azurerm_resource_group.pilot_rg.name
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = ${minInstances}
+    max_replicas = ${maxInstances}
+
+    container {
+      name   = "${projName}-container"
+      image  = "mcr.microsoft.com/azuredocs/aci-helloworld:latest"
+      cpu    = ${parseFloat(cpu) || 1.0}
+      memory = "${memory.includes('Gi') ? memory : memory + 'Gi'}"
+
+      env {
+        name  = "NODE_ENV"
+        value = "production"
+      }
+    }
+  }
+
+  ingress {
+    allow_insecure_connections = false
+    external_enabled           = ${ingress === 'all' ? 'true' : 'false'}
+    target_port                = 8080
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+}
+
+output "container_app_fqdn" {
+  value       = azurerm_container_app.app.latest_revision_fqdn
+  description = "Fully qualified domain name of the deployed Azure Container App"
+}
+`;
+  }
+
+  static generateGitLabCi(opts: DeployScriptOptions): string {
+    const projName = opts.projectName || opts.projectId || 'pilot-app';
+    const provider = opts.targetVpc || 'gcp-firebase';
+
+    return `# ===================================================================
+# ${projName} — GitLab CI/CD Deployment Pipeline (${provider.toUpperCase()})
+# Scaffolding: Evolve AI (Forward Deployed Engineer Suite)
+# ===================================================================
+
+image: node:20-alpine
+
+stages:
+  - validate
+  - build
+  - deploy
+
+variables:
+  PROJECT_ID: "${opts.projectId}"
+  DOCKER_DRIVER: overlay2
+
+preflight_audit:
+  stage: validate
+  script:
+    - node scripts/prepare-deployment.js --clean
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "pilot"'
+
+deploy_infra:
+  stage: deploy
+  image: hashicorp/terraform:latest
+  script:
+    - terraform init
+    - terraform plan -out=tfplan
+    - terraform apply -auto-approve tfplan
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual
+`;
+  }
+
+  static generateBitbucketPipelines(opts: DeployScriptOptions): string {
+    const projName = opts.projectName || opts.projectId || 'pilot-app';
+    const provider = opts.targetVpc || 'gcp-firebase';
+
+    return `# ===================================================================
+# ${projName} — Bitbucket Pipelines (${provider.toUpperCase()})
+# Scaffolding: Evolve AI (Forward Deployed Engineer Suite)
+# ===================================================================
+
+image: node:20
+
+pipelines:
+  branches:
+    main:
+      - step:
+          name: 1. Pre-Flight Health Audit
+          script:
+            - node scripts/prepare-deployment.js --clean
+      - step:
+          name: 2. Deploy Infrastructure & Application
+          script:
+            - npm ci
+            - npm run build
+            - ./scripts/deploy.sh prod all
+`;
+  }
+
+  static generateAzureDevOpsPipeline(opts: DeployScriptOptions): string {
+    const projName = opts.projectName || opts.projectId || 'pilot-app';
+
+    return `# ===================================================================
+# ${projName} — Azure DevOps YAML Pipeline
+# Scaffolding: Evolve AI (Forward Deployed Engineer Suite)
+# ===================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - pilot
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  PROJECT_ID: '${opts.projectId}'
+
+steps:
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: 'Install Node.js'
+
+- script: |
+    node scripts/prepare-deployment.js --clean
+  displayName: '1. Pre-Flight Deterministic Audit'
+
+- script: |
+    npm ci
+    npm run build
+  displayName: '2. Compile & Build Packages'
+
+- script: |
+    chmod +x scripts/deploy.sh
+    ./scripts/deploy.sh pilot all
+  displayName: '3. Execute Pilot Deployment'
 `;
   }
 }
