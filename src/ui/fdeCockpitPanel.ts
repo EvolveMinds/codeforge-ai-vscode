@@ -2364,100 +2364,10 @@ Output ONLY the message without markdown code fences.`;
         Built by <a href="https://www.evolveminds.com.au/" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 700;">Evolve Mind Solutions Pty Ltd</a> • Enterprise Client Delivery System
       </div>
     </div>
-    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-      <button class="btn-quick" id="btnLicenseStatus" onclick="toggleEnterpriseLicenseDrawer()" style="padding: 5px 12px; font-size: 12px; margin-bottom: 0; font-weight: 700; color: #4ec9b0; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.1);" title="Click to view license status or activate enterprise key">
-        💎 License: <span id="headerLicenseTier">Community (Free)</span>
-      </button>
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
         <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
-      </div>
-    </div>
-  </div>
-
-  <!-- Enterprise License Management Drawer -->
-  <div id="enterpriseLicenseDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.45);">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span style="font-size: 18px;">💎</span>
-        <div>
-          <div style="font-weight: 700; color: var(--accent); font-size: 14px;">Evolve AI Enterprise License Hub</div>
-          <div style="font-size: 11px; opacity: 0.8;">100% Offline Cryptographic Verification &amp; Air-Gapped Compatibility</div>
-        </div>
-      </div>
-      <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleEnterpriseLicenseDrawer()">✕ Close</button>
-    </div>
-
-    <!-- Active License Status Card -->
-    <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-      <div>
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-          <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">ACTIVE PLAN:</span>
-          <span id="drawerLicensePlanBadge" style="font-size: 11px; font-weight: 700; background: rgba(78,201,176,0.15); color: var(--accent); border: 1px solid rgba(78,201,176,0.4); padding: 2px 8px; border-radius: 12px;">🟢 Community Edition (Free)</span>
-        </div>
-        <div style="font-size: 12px;">
-          <strong>Organization:</strong> <span id="drawerLicenseOrg">Community User</span>
-          <span style="margin: 0 8px; opacity: 0.4;">|</span>
-          <strong>Status:</strong> <span id="drawerLicenseStatus" style="color: var(--success); font-weight: 600;">Active</span>
-          <span style="margin: 0 8px; opacity: 0.4;">|</span>
-          <strong>Days Remaining:</strong> <span id="drawerLicenseDays">Unlimited (Free Core)</span>
-        </div>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button class="btn-quick" style="margin-bottom: 0; color: var(--warn); border-color: var(--warn);" onclick="deactivateEnterpriseLicense()">🗑️ Deactivate Key</button>
-        <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 700;" onclick="generateTrialLicense()">⚡ 30-Day Trial</button>
-      </div>
-    </div>
-
-    <!-- Key Activation Input Form -->
-    <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 14px;">
-      <label style="font-size: 11px; font-weight: 700; margin-bottom: 6px; display: block; color: var(--fg);">Activate Enterprise Key (format: <code>EM-ENT-V1.&lt;payload&gt;.&lt;signature&gt;</code>):</label>
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <input type="text" id="enterpriseLicenseInput" placeholder="Paste your Evolve Mind Solutions Enterprise Key here..." style="flex: 1; margin-bottom: 0; padding: 7px 10px; font-family: monospace; font-size: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--fg);">
-        <button class="btn" style="margin-bottom: 0; padding: 7px 16px; font-size: 12px; font-weight: 700;" onclick="activateEnterpriseLicense()">🚀 Activate</button>
-      </div>
-    </div>
-
-    <!-- Enterprise Features & Procurement Banner -->
-    <div style="background: rgba(78, 201, 176, 0.06); border: 1px dashed rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 14px 18px; margin-bottom: 6px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
-        <div style="font-size: 13px; font-weight: 700; color: var(--accent);">💎 Enterprise Capabilities Unlocked with Active License:</div>
-        <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700; padding: 6px 14px; font-size: 11px; margin-bottom: 0;" onclick="openExternalUrl('https://www.evolveminds.com.au/contact')">🌐 Request Custom Enterprise License ↗</button>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--success);">⚡ Automated Performance &amp; SLA Load Testing</div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">k6 &amp; Locust stress tests with SLA p95/p99 latency gates.</div>
-          </div>
-          <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--accent); border-color: var(--accent);" onclick="launchEnterpriseFeature('loadTesting')">🚀 Launch</button>
-        </div>
-
-        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--success);">🧠 Enterprise Air-Gapped RAG &amp; Vector Pipeline</div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Document chunker, hybrid search, and pgvector/Qdrant scaffolder.</div>
-          </div>
-          <button class="btn-quick" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px; font-weight: 700; color: var(--accent); border-color: var(--accent);" onclick="launchEnterpriseFeature('ragScaffolder')">🚀 Launch</button>
-        </div>
-
-        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--accent);">📊 dbt Data Quality &amp; Schema Drift Gates</div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Great Expectations assertions &amp; anomaly detection.</div>
-          </div>
-          <span style="font-size: 10px; background: var(--card-alt); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; opacity: 0.8;">Phase 3</span>
-        </div>
-
-        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <div style="font-size: 12px; font-weight: 700; color: var(--accent);">🛡️ SOC2 / HIPAA Audit Logger &amp; SIEM Forwarders</div>
-            <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">Structured JSON audit logs for Splunk, Datadog &amp; Sentinel.</div>
-          </div>
-          <span style="font-size: 10px; background: var(--card-alt); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; opacity: 0.8;">Phase 4</span>
-        </div>
       </div>
     </div>
   </div>
@@ -3294,7 +3204,6 @@ Output ONLY the message without markdown code fences.`;
                 <div style="font-size: 11px; opacity: 0.85;">Generate high-concurrency k6 &amp; Locust performance suites with strict SLA latency pass/fail gates.</div>
               </div>
             </div>
-            <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 10px; font-weight: 700;">💎 ENTERPRISE</span>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -3355,11 +3264,10 @@ Output ONLY the message without markdown code fences.`;
             <div style="display: align-items: center; gap: 8px; display: flex;">
               <span style="font-size: 16px;">🧠</span>
               <div>
-                <strong style="font-size: 13px; color: var(--accent);">Enterprise Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
+                <strong style="font-size: 13px; color: var(--accent);">Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
                 <div style="font-size: 11px; opacity: 0.85;">Scaffold 100% offline, private RAG stacks with chunking, pgvector / Qdrant indexing, and prompt guardrails.</div>
               </div>
             </div>
-            <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 10px; font-weight: 700;">💎 ENTERPRISE</span>
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -5291,10 +5199,9 @@ Output ONLY the message without markdown code fences.`;
       vscode.postMessage({ command: 'generateRunbooks' });
     }
 
-    // Initialize document preview, Git/Cloud status, and Enterprise License on load
+    // Initialize document preview and Git/Cloud status on load
     switchDocTab('arch');
     vscode.postMessage({ command: 'getGitAndCloudStatus' });
-    vscode.postMessage({ command: 'getEnterpriseLicenseState' });
 
     window.addEventListener('message', event => {
       const msg = event.data;
@@ -5720,39 +5627,6 @@ Output ONLY the message without markdown code fences.`;
 
         switchDocTab(activeDocTab);
         showToast('✓ Generated 5 Complete Client Handoff Documents in docs/!');
-      } else if (msg.type === 'enterpriseLicenseState' || msg.type === 'enterpriseLicenseResult') {
-        const state = msg.state;
-        if (state) {
-          const headerTier = document.getElementById('headerLicenseTier');
-          const planBadge = document.getElementById('drawerLicensePlanBadge');
-          const orgEl = document.getElementById('drawerLicenseOrg');
-          const statusEl = document.getElementById('drawerLicenseStatus');
-          const daysEl = document.getElementById('drawerLicenseDays');
-
-          if (state.isLicensed) {
-            const planTitle = state.plan === 'enterprise_platinum' ? '💎 Enterprise Platinum' : (state.plan === 'enterprise_standard' ? '💎 Enterprise Standard' : '💎 Pro');
-            if (headerTier) {
-              headerTier.innerText = planTitle + ' (' + (state.organization || 'Licensed') + ')';
-            }
-            if (planBadge) {
-              planBadge.innerText = planTitle;
-              planBadge.style.background = 'rgba(78, 201, 176, 0.2)';
-            }
-            if (orgEl) orgEl.innerText = state.organization || 'Licensed Partner';
-            if (statusEl) { statusEl.innerText = '✓ Active'; statusEl.style.color = 'var(--success)'; }
-            if (daysEl) daysEl.innerText = (state.daysRemaining || 30) + ' days remaining';
-          } else {
-            if (headerTier) headerTier.innerText = 'Community (Free)';
-            if (planBadge) {
-              planBadge.innerText = '🟢 Community Edition (Free)';
-              planBadge.style.background = 'rgba(78, 201, 176, 0.15)';
-            }
-            if (orgEl) orgEl.innerText = 'Community User';
-            if (statusEl) { statusEl.innerText = 'Free Core'; statusEl.style.color = 'var(--fg)'; }
-            if (daysEl) daysEl.innerText = 'Unlimited (Free Core)';
-          }
-        }
-        if (msg.message) showToast(msg.message);
       } else if (msg.type === 'loadTestSuiteGenerated') {
         const suite = msg.suite;
         if (suite) {
@@ -5787,9 +5661,6 @@ Output ONLY the message without markdown code fences.`;
           switchRagTab(activeRagTab);
           showToast('✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/!');
         }
-      } else if (msg.type === 'enterpriseGatingNotice') {
-        toggleEnterpriseLicenseDrawer();
-        showToast('💎 ' + msg.title + ' is an Enterprise capability. Click Activate or Start 30-Day Trial!');
       }
     });
 
