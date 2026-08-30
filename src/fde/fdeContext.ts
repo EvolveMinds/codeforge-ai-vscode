@@ -362,6 +362,19 @@ export class FdeContextManager {
     });
   }
 
+  private static _cachedTables: any[] = [];
+
+  getLastIntrospectedTables(): any[] {
+    const fromState = this._vsCtx.workspaceState.get<any[]>('evolve.fde.cachedTables');
+    if (fromState && fromState.length > 0) return fromState;
+    return FdeContextManager._cachedTables || [];
+  }
+
+  async recordIntrospectedTables(tables: any[]): Promise<void> {
+    FdeContextManager._cachedTables = tables || [];
+    await this._vsCtx.workspaceState.update('evolve.fde.cachedTables', tables || []);
+  }
+
   async addDiscoveredEnvVars(vars: string[]): Promise<void> {
     await this.updateState(s => {
       const merged = Array.from(new Set([...s.discoveredEnvVars, ...vars]));

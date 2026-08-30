@@ -541,11 +541,20 @@ Output ONLY the message without markdown code fences.`;
 
         let writtenFile = '';
         if (ws && msg.writeToFile) {
-          const dbtDir = path.join(ws, 'models', 'staging');
-          if (!fs.existsSync(dbtDir)) fs.mkdirSync(dbtDir, { recursive: true });
-          const outPath = path.join(dbtDir, `${modelName}.sql`);
+          const userPath = (msg.outputPath || '').trim();
+          let outPath = '';
+          if (userPath) {
+            outPath = path.isAbsolute(userPath) ? userPath : path.join(ws, userPath);
+            const parentDir = path.dirname(outPath);
+            if (!fs.existsSync(parentDir)) fs.mkdirSync(parentDir, { recursive: true });
+            writtenFile = path.relative(ws, outPath).replace(/\\/g, '/');
+          } else {
+            const dbtDir = path.join(ws, 'models', 'staging');
+            if (!fs.existsSync(dbtDir)) fs.mkdirSync(dbtDir, { recursive: true });
+            outPath = path.join(dbtDir, `${modelName}.sql`);
+            writtenFile = `models/staging/${modelName}.sql`;
+          }
           fs.writeFileSync(outPath, result.dbtSql, 'utf8');
-          writtenFile = `models/staging/${modelName}.sql`;
           vscode.window.showInformationMessage(`✓ Created dbt staging model: ${writtenFile}`);
         }
 
@@ -583,6 +592,9 @@ Output ONLY the message without markdown code fences.`;
                 database: result.database || options.database,
                 schema: result.schema || options.schema,
               });
+              if (result.tables && result.tables.length > 0) {
+                await this._contextManager.recordIntrospectedTables(result.tables);
+              }
               vscode.window.showInformationMessage(`✓ ${result.message || `Discovered ${result.tables.length} tables`}`);
             } else {
               vscode.window.showWarningMessage(`Database inspection: ${result.error || result.message || 'No tables returned'}`);
@@ -824,16 +836,26 @@ Output ONLY the message without markdown code fences.`;
 
         let writtenFile = '';
         if (ws && msg.writeToFile) {
-          const martsDir = path.join(ws, 'models', 'marts');
-          if (!fs.existsSync(martsDir)) fs.mkdirSync(martsDir, { recursive: true });
-          const outPath = path.join(martsDir, `${martName}.sql`);
+          const userPath = (msg.outputPath || '').trim();
+          let outPath = '';
+          let martsDir = '';
+          if (userPath) {
+            outPath = path.isAbsolute(userPath) ? userPath : path.join(ws, userPath);
+            martsDir = path.dirname(outPath);
+            if (!fs.existsSync(martsDir)) fs.mkdirSync(martsDir, { recursive: true });
+            writtenFile = path.relative(ws, outPath).replace(/\\/g, '/');
+          } else {
+            martsDir = path.join(ws, 'models', 'marts');
+            if (!fs.existsSync(martsDir)) fs.mkdirSync(martsDir, { recursive: true });
+            outPath = path.join(martsDir, `${martName}.sql`);
+            writtenFile = `models/marts/${martName}.sql`;
+          }
           fs.writeFileSync(outPath, result.dbtSql, 'utf8');
 
           const schemaYamlPath = path.join(martsDir, 'schema.yml');
           const schemaYamlContent = SchemaMapperEngine.generateDbtSchemaYaml(martName, dimensions, metrics);
           fs.writeFileSync(schemaYamlPath, schemaYamlContent, 'utf8');
 
-          writtenFile = `models/marts/${martName}.sql`;
           vscode.window.showInformationMessage(`✓ Created dbt dimensional mart: ${writtenFile} & schema.yml`);
         }
 
@@ -2900,14 +2922,18 @@ Output ONLY the message without markdown code fences.`;
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 14px; margin-bottom: 16px;">
             <div>
               <label style="font-size: 11px; font-weight: bold;">Source Table / Dataset Name</label>
               <input type="text" id="srcNameInput" value="client_orders_raw" placeholder="e.g. client_orders_raw">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold;">Target Model Name (dbt / View)</label>
-              <input type="text" id="modelNameInput" value="stg_orders" placeholder="e.g. stg_orders">
+              <input type="text" id="modelNameInput" value="stg_orders" oninput="handleModelNameInput(this.value)" placeholder="e.g. stg_orders">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target File Output Path (Customizable)</label>
+              <input type="text" id="modelOutputPathInput" value="models/staging/stg_orders.sql" placeholder="e.g. models/staging/stg_orders.sql">
             </div>
           </div>
 
@@ -2915,7 +2941,7 @@ Output ONLY the message without markdown code fences.`;
 
           <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn" onclick="generateSchemaMapping()">🚀 Generate dbt Staging Model</button>
-            <span style="font-size: 11px; opacity: 0.75;">Automatically creates <code>models/staging/&lt;model_name&gt;.sql</code></span>
+            <span style="font-size: 11px; opacity: 0.75;">Scaffolds custom staging model SQL into configured output path</span>
           </div>
 
           <!-- Generated Model Result Card -->
@@ -3056,14 +3082,20 @@ Output ONLY the message without markdown code fences.`;
             </div>
           </div>
 
-          <div style="margin-bottom: 16px;">
-            <label style="font-size: 11px; font-weight: bold;">Target Mart Name (models/marts/&lt;name&gt;.sql)</label>
-            <input type="text" id="martNameInput" value="fct_customer_orders" placeholder="e.g. fct_customer_orders">
+          <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 14px; margin-bottom: 16px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Mart Name (Fact / Dim Model)</label>
+              <input type="text" id="martNameInput" value="fct_customer_orders" oninput="handleMartNameInput(this.value)" placeholder="e.g. fct_customer_orders">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target File Output Path (Customizable)</label>
+              <input type="text" id="martOutputPathInput" value="models/marts/fct_customer_orders.sql" placeholder="e.g. models/marts/fct_customer_orders.sql">
+            </div>
           </div>
 
           <div style="display: flex; gap: 10px; align-items: center;">
             <button class="btn" onclick="generateDataMart()">🚀 Generate dbt Mart &amp; schema.yml</button>
-            <span style="font-size: 11px; opacity: 0.75;">Scaffolds <code>models/marts/&lt;mart_name&gt;.sql</code> &amp; test definitions</span>
+            <span style="font-size: 11px; opacity: 0.75;">Scaffolds custom mart SQL &amp; schema.yml into configured path</span>
           </div>
 
           <div id="martResultBox" style="margin-top: 20px; display: none;">
@@ -3658,6 +3690,8 @@ Output ONLY the message without markdown code fences.`;
     let currentEnvDoc = ${safeJson(initialEnvDoc)};
     let currentCompleteDoc = ${safeJson(initialCompleteDoc)};
     let activeDocTab = 'arch';
+    let initialState = ${safeJson(state)};
+    let currentIntrospectedTables = ${safeJson(this._contextManager.getLastIntrospectedTables ? this._contextManager.getLastIntrospectedTables() : [])};
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -4057,22 +4091,41 @@ Output ONLY the message without markdown code fences.`;
       if (onEl) onEl.value = keyMatch;
     }
 
+    function handleModelNameInput(val) {
+      const pathInput = document.getElementById('modelOutputPathInput');
+      if (pathInput) {
+        const clean = (val || 'stg_model').trim();
+        pathInput.value = 'models/staging/' + clean + '.sql';
+      }
+    }
+
+    function handleMartNameInput(val) {
+      const pathInput = document.getElementById('martOutputPathInput');
+      if (pathInput) {
+        const clean = (val || 'fct_mart').trim();
+        pathInput.value = 'models/marts/' + clean + '.sql';
+      }
+    }
+
     function applyMartPreset(kind) {
       if (kind === 'customer_revenue') {
         document.getElementById('martDimensions').value = 'orders.customer_id, users.email, orders.order_status';
         document.getElementById('martMetrics').value = 'total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount), avg_order_value:avg(orders.transaction_amount)';
         document.getElementById('martNameInput').value = 'fct_customer_orders';
-        showToast('✓ Loaded Customer Revenue Mart Template');
+        handleMartNameInput('fct_customer_orders');
+        showToast('✓ Loaded Customer Revenue Mart Template (Fact Table for Customer Revenue KPIs)');
       } else if (kind === 'daily_orders') {
         document.getElementById('martDimensions').value = 'orders.created_at, users.country_code';
         document.getElementById('martMetrics').value = 'daily_orders:count(distinct orders.order_id), daily_revenue:sum(orders.transaction_amount)';
         document.getElementById('martNameInput').value = 'fct_daily_orders';
-        showToast('✓ Loaded Daily Orders Fact Template');
+        handleMartNameInput('fct_daily_orders');
+        showToast('✓ Loaded Daily Orders Fact Template (Periodic Snapshot of Daily Performance)');
       } else if (kind === 'user_retention') {
         document.getElementById('martDimensions').value = 'users.user_id, users.email, users.registered_at';
         document.getElementById('martMetrics').value = 'lifetime_spend:sum(orders.transaction_amount), last_order_date:max(orders.created_at)';
         document.getElementById('martNameInput').value = 'dim_user_retention';
-        showToast('✓ Loaded User Retention Dim Template');
+        handleMartNameInput('dim_user_retention');
+        showToast('✓ Loaded User Retention Dim Template (Dimensional Model for User Cohorts)');
       }
     }
 
@@ -4088,6 +4141,8 @@ Output ONLY the message without markdown code fences.`;
 
     window.setPhase = setPhase;
     window.switchPhase1Mode = switchPhase1Mode;
+    window.handleModelNameInput = handleModelNameInput;
+    window.handleMartNameInput = handleMartNameInput;
 
     function generateDataMart() {
       const base = document.getElementById('martBaseModel').value;
@@ -4097,6 +4152,7 @@ Output ONLY the message without markdown code fences.`;
       const dimsStr = document.getElementById('martDimensions').value.trim();
       const metricsStr = document.getElementById('martMetrics').value.trim();
       const martName = document.getElementById('martNameInput').value.trim() || 'fct_customer_orders';
+      const outputPath = document.getElementById('martOutputPathInput') ? document.getElementById('martOutputPathInput').value.trim() : ('models/marts/' + martName + '.sql');
 
       if (!base || !join || !onCond) {
         showToast('⚠️ Please specify Base Model, Join Model, and Join Condition!');
@@ -4138,9 +4194,10 @@ Output ONLY the message without markdown code fences.`;
         dimensions: dimensions,
         metrics: metrics,
         dialect: 'dbt',
+        outputPath: outputPath,
         writeToFile: true
       });
-      showToast('🚀 Compiling dimensional mart & schema.yml...');
+      showToast('🚀 Compiling dimensional mart & schema.yml to ' + outputPath + '...');
     }
 
     function copyMartCode() {
@@ -4453,8 +4510,6 @@ Output ONLY the message without markdown code fences.`;
       }
     }
 
-    let currentIntrospectedTables = [];
-
     function toggleDbConnectModal() {
       const box = document.getElementById('dbConnectBox');
       if (box) {
@@ -4578,7 +4633,10 @@ Output ONLY the message without markdown code fences.`;
         if (srcColsEl) srcColsEl.value = tbl.columnsFormatted;
         if (srcNameEl) srcNameEl.value = tbl.tableName;
         const cleanName = tbl.tableName.replace(/^client_|_raw$/g, '');
-        if (modelNameEl) modelNameEl.value = 'stg_' + cleanName;
+        if (modelNameEl) {
+          modelNameEl.value = 'stg_' + cleanName;
+          handleModelNameInput('stg_' + cleanName);
+        }
 
         const badge = document.getElementById('srcFileBadge');
         if (badge) badge.innerText = '🔌 [Live DB] ' + (tbl.schema ? tbl.schema + '.' : '') + tbl.tableName;
@@ -4607,16 +4665,19 @@ Output ONLY the message without markdown code fences.`;
         document.getElementById('tgtCols').value = "user_id:string\\nemail:string\\nregistered_at:timestamp\\nrole:string\\nis_active:boolean";
         document.getElementById('srcNameInput').value = "client_users_raw";
         document.getElementById('modelNameInput').value = "stg_users";
+        handleModelNameInput('stg_users');
       } else if (kind === 'payments') {
         document.getElementById('srcCols').value = "PMT_ID:string\\nORD_REF:string\\nPMT_AMT:float\\nCURR_CD:string\\nSTAT_VAL:string\\nTXN_TS:timestamp";
         document.getElementById('tgtCols').value = "payment_id:string\\norder_id:string\\namount:numeric\\ncurrency:string\\nstatus:string\\ncreated_at:timestamp";
         document.getElementById('srcNameInput').value = "client_payments_raw";
         document.getElementById('modelNameInput').value = "stg_payments";
+        handleModelNameInput('stg_payments');
       } else {
         document.getElementById('srcCols').value = "CUST_NBR_ID:string\\nTXN_AMT:float\\nCREATED_TS:timestamp\\nIS_ACTIVE_FLG:string\\nRAW_GEO_CODE:string";
         document.getElementById('tgtCols').value = "customer_id:string\\ntransaction_amount:numeric\\ncreated_at:timestamp\\nis_active:boolean";
         document.getElementById('srcNameInput').value = "client_orders_raw";
         document.getElementById('modelNameInput').value = "stg_orders";
+        handleModelNameInput('stg_orders');
       }
       const errEl = document.getElementById('schemaErrorAlert');
       if (errEl) errEl.style.display = 'none';
@@ -4627,12 +4688,15 @@ Output ONLY the message without markdown code fences.`;
       if (preset === 'orders') {
         document.getElementById('tgtCols').value = "customer_id:string\\ntransaction_amount:numeric\\ncreated_at:timestamp\\nis_active:boolean";
         document.getElementById('modelNameInput').value = "stg_orders";
+        handleModelNameInput('stg_orders');
       } else if (preset === 'users') {
         document.getElementById('tgtCols').value = "user_id:string\\nemail:string\\nregistered_at:timestamp\\nrole:string\\nis_active:boolean";
         document.getElementById('modelNameInput').value = "stg_users";
+        handleModelNameInput('stg_users');
       } else if (preset === 'payments') {
         document.getElementById('tgtCols').value = "payment_id:string\\namount:numeric\\ncurrency:string\\nstatus:string\\ncreated_at:timestamp";
         document.getElementById('modelNameInput').value = "stg_payments";
+        handleModelNameInput('stg_payments');
       }
       showToast('Target preset loaded');
     }
@@ -4654,6 +4718,7 @@ Output ONLY the message without markdown code fences.`;
 
       const srcName = document.getElementById('srcNameInput').value.trim() || 'client_orders_raw';
       const modelName = document.getElementById('modelNameInput').value.trim() || 'stg_orders';
+      const outputPath = document.getElementById('modelOutputPathInput') ? document.getElementById('modelOutputPathInput').value.trim() : ('models/staging/' + modelName + '.sql');
 
       vscode.postMessage({
         command: 'generateSchemaMapping',
@@ -4661,8 +4726,10 @@ Output ONLY the message without markdown code fences.`;
         targetCols: tgt,
         sourceName: srcName,
         modelName: modelName,
+        outputPath: outputPath,
         writeToFile: true
       });
+      showToast('🚀 Compiling staging model to ' + outputPath + '...');
     }
 
     function switchSchemaTab(tab) {
@@ -5249,6 +5316,7 @@ Output ONLY the message without markdown code fences.`;
           if (badge) {
             badge.innerText = '✓ Connected to ' + res.dialect.toUpperCase() + ': ' + res.tables.length + ' tables discovered';
           }
+          refreshMartModelOptions();
           showToast('✓ Discovered ' + res.tables.length + ' tables from database!');
         } else {
           showToast('⚠️ ' + (res.error || res.message || 'No tables discovered from database.'));
@@ -5491,6 +5559,13 @@ Output ONLY the message without markdown code fences.`;
         showToast('💎 ' + msg.title + ' is an Enterprise capability. Click Activate or Start 30-Day Trial!');
       }
     });
+
+    // Initialize Mart model options on load
+    try {
+      refreshMartModelOptions();
+    } catch (e) {
+      console.warn('Initial refreshMartModelOptions defer:', e);
+    }
   </script>
 </body>
 </html>`;
