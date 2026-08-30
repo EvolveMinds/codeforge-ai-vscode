@@ -12,4 +12,10 @@ export * from './license/licenseManager';
 export * from './loadTesting/loadTestTypes';
 export * from './loadTesting/loadTestGenerator';
 export * from './rag';
+export * from './security/siemTypes';
+export * from './security/siemForwarder';
+export * from './dataQuality/dataQualityTypes';
+export * from './dataQuality/dataQualityGenerator';
+export * from './serving/privateModelClient';
+
 

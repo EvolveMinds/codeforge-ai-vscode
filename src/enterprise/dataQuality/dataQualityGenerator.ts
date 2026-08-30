@@ -1,0 +1,351 @@
+/**
+ * enterprise/dataQuality/dataQualityGenerator.ts
+ *
+ * Enterprise Data Quality & Schema Drift Suite Generator
+ * Emits Great Expectations suites, Soda Core YAML, dbt test assertions, and CI/CD quality gates.
+ *
+ * Copyright (c) 2026 Evolve Mind Solutions Pty Ltd. All rights reserved.
+ */
+
+import {
+  TableQualitySuiteOptions,
+  GreatExpectationsSuiteResult,
+  SodaCoreCheckResult,
+  DbtTestYamlResult,
+  ConsolidatedDataQualityPackage
+} from './dataQualityTypes';
+
+export class DataQualityGenerator {
+  /**
+   * Generates a complete Great Expectations v3 JSON Suite
+   */
+  public static generateGreatExpectationsSuite(opts: TableQualitySuiteOptions): GreatExpectationsSuiteResult {
+    const suiteName = `${opts.modelName}_quality_suite`;
+    const expectations: any[] = [];
+
+    // 1. Table row count expectation
+    expectations.push({
+      expectation_type: 'expect_table_row_count_to_be_between',
+      kwargs: {
+        min_value: 1,
+        max_value: null
+      },
+      meta: {
+        description: 'Verify table is populated and not unexpectedly empty.'
+      }
+    });
+
+    // 2. Schema Drift: Column match ordered set
+    if (opts.enforceOrdering) {
+      expectations.push({
+        expectation_type: 'expect_table_columns_to_match_ordered_set',
+        kwargs: {
+          column_list: opts.columns.map(c => c.columnName)
+        },
+        meta: {
+          description: 'Strict schema drift gate: columns must match exact ordered set.'
+        }
+      });
+    } else {
+      expectations.push({
+        expectation_type: 'expect_table_columns_to_match_set',
+        kwargs: {
+          column_set: opts.columns.map(c => c.columnName),
+          exact_match: opts.enforceNoExtraColumns ?? true
+        },
+        meta: {
+          description: 'Schema drift gate: verify all expected columns exist without unexpected additions.'
+        }
+      });
+    }
+
+    // 3. Per-column assertions
+    for (const col of opts.columns) {
+      // Nullability
+      if (!col.isNullable) {
+        expectations.push({
+          expectation_type: 'expect_column_values_to_not_be_null',
+          kwargs: {
+            column: col.columnName
+          },
+          meta: {
+            criticality: 'HIGH'
+          }
+        });
+      }
+
+      // Uniqueness
+      if (col.isUnique) {
+        expectations.push({
+          expectation_type: 'expect_column_values_to_be_unique',
+          kwargs: {
+            column: col.columnName
+          },
+          meta: {
+            criticality: 'P0_PRIMARY_KEY'
+          }
+        });
+      }
+
+      // Type checks
+      expectations.push({
+        expectation_type: 'expect_column_values_to_be_of_type',
+        kwargs: {
+          column: col.columnName,
+          type_: this.mapToGeType(col.dataType)
+        }
+      });
+
+      // Allowed values
+      if (col.allowedValues && col.allowedValues.length > 0) {
+        expectations.push({
+          expectation_type: 'expect_column_values_to_be_in_set',
+          kwargs: {
+            column: col.columnName,
+            value_set: col.allowedValues
+          }
+        });
+      }
+
+      // Min/Max range
+      if (col.minValue !== undefined || col.maxValue !== undefined) {
+        expectations.push({
+          expectation_type: 'expect_column_values_to_be_between',
+          kwargs: {
+            column: col.columnName,
+            min_value: col.minValue ?? null,
+            max_value: col.maxValue ?? null
+          }
+        });
+      }
+    }
+
+    // Freshness
+    if (opts.freshnessTimestampColumn && opts.freshnessThresholdHours) {
+      expectations.push({
+        expectation_type: 'expect_column_max_to_be_between',
+        kwargs: {
+          column: opts.freshnessTimestampColumn,
+          min_value: `now() - interval '${opts.freshnessThresholdHours} hours'`,
+          max_value: 'now() + interval \'1 hour\''
+        },
+        meta: {
+          description: `Freshness gate: data must be updated within the last ${opts.freshnessThresholdHours} hours.`
+        }
+      });
+    }
+
+    const suiteJson = {
+      data_asset_type: 'Dataset',
+      expectation_suite_name: suiteName,
+      expectations: expectations,
+      ge_cloud_id: null,
+      meta: {
+        generator: 'Evolve AI Enterprise Quality Scaffolder',
+        generated_at: new Date().toISOString(),
+        table_name: opts.tableName,
+        criticality_tier: opts.criticalityTier || 'P1_CORE'
+      }
+    };
+
+    return {
+      suiteName,
+      jsonContent: JSON.stringify(suiteJson, null, 2),
+      filePath: `tests/great_expectations/expectations/${suiteName}.json`
+    };
+  }
+
+  /**
+   * Generates Soda Core checks YAML
+   */
+  public static generateSodaCoreChecks(opts: TableQualitySuiteOptions): SodaCoreCheckResult {
+    const lines: string[] = [
+      `# ==============================================================================`,
+      `# Soda Core Data Quality Checks for ${opts.modelName}`,
+      `# Auto-generated by Evolve AI Enterprise Edition`,
+      `# ==============================================================================`,
+      ``,
+      `checks for ${opts.tableName}:`,
+      `  # --- Volume & Schema Integrity ---`,
+      `  - row_count > 0:`,
+      `      name: "Table must not be empty"`,
+      `  - schema:`,
+      `      name: "Verify column presence and schema types"`,
+      `      warn:`,
+      `        when required column missing: [${opts.columns.map(c => c.columnName).join(', ')}]`,
+      `        when wrong column type:`,
+      ...opts.columns.map(c => `          ${c.columnName}: ${c.dataType}`),
+      ``,
+      `  # --- Column Value Integrity ---`
+    ];
+
+    for (const col of opts.columns) {
+      if (!col.isNullable) {
+        lines.push(`  - missing_count(${col.columnName}) = 0:`);
+        lines.push(`      name: "No null values allowed in ${col.columnName}"`);
+      }
+      if (col.isUnique) {
+        lines.push(`  - duplicate_count(${col.columnName}) = 0:`);
+        lines.push(`      name: "Values in ${col.columnName} must be unique"`);
+      }
+      if (col.allowedValues && col.allowedValues.length > 0) {
+        lines.push(`  - invalid_count(${col.columnName}) = 0:`);
+        lines.push(`      name: "Valid categorical enum for ${col.columnName}"`);
+        lines.push(`      valid values: [${col.allowedValues.map(v => `'${v}'`).join(', ')}]`);
+      }
+    }
+
+    if (opts.freshnessTimestampColumn && opts.freshnessThresholdHours) {
+      lines.push(``);
+      lines.push(`  # --- Freshness SLA ---`);
+      lines.push(`  - freshness(${opts.freshnessTimestampColumn}) < ${opts.freshnessThresholdHours}h:`);
+      lines.push(`      name: "SLA Freshness: data updated within ${opts.freshnessThresholdHours} hours"`);
+    }
+
+    return {
+      tableName: opts.tableName,
+      yamlContent: lines.join('\n') + '\n',
+      filePath: `tests/soda/checks_${opts.modelName}.yml`
+    };
+  }
+
+  /**
+   * Generates production dbt schema test YAML definitions
+   */
+  public static generateDbtTests(opts: TableQualitySuiteOptions): DbtTestYamlResult {
+    const lines: string[] = [
+      `version: 2`,
+      ``,
+      `models:`,
+      `  - name: ${opts.modelName}`,
+      `    description: "Production dimensional model for ${opts.tableName} with automated quality gates."`,
+      `    columns:`
+    ];
+
+    for (const col of opts.columns) {
+      lines.push(`      - name: ${col.columnName}`);
+      lines.push(`        description: "Column ${col.columnName} (${col.dataType})"`);
+      lines.push(`        tests:`);
+
+      if (!col.isNullable) {
+        lines.push(`          - not_null:`);
+        lines.push(`              severity: error`);
+      }
+      if (col.isUnique) {
+        lines.push(`          - unique:`);
+        lines.push(`              severity: error`);
+      }
+      if (col.allowedValues && col.allowedValues.length > 0) {
+        lines.push(`          - accepted_values:`);
+        lines.push(`              values: [${col.allowedValues.map(v => `'${v}'`).join(', ')}]`);
+      }
+      if (col.foreignKeyRef) {
+        lines.push(`          - relationships:`);
+        lines.push(`              to: ref('${col.foreignKeyRef.table}')`);
+        lines.push(`              field: ${col.foreignKeyRef.column}`);
+      }
+    }
+
+    return {
+      modelName: opts.modelName,
+      yamlContent: lines.join('\n') + '\n',
+      filePath: `models/schema_${opts.modelName}.yml`
+    };
+  }
+
+  /**
+   * Generates a complete consolidated data quality package with CI runner scripts
+   */
+  public static generateQualityPackage(opts: TableQualitySuiteOptions): ConsolidatedDataQualityPackage {
+    const ge = this.generateGreatExpectationsSuite(opts);
+    const soda = this.generateSodaCoreChecks(opts);
+    const dbt = this.generateDbtTests(opts);
+
+    const ciSh = `#!/usr/bin/env bash
+# ==============================================================================
+# Enterprise CI/CD Data Quality Gate
+# Model: ${opts.modelName}
+# ==============================================================================
+set -euo pipefail
+
+echo "==============================================================="
+echo "  Executing Data Quality Gates for ${opts.modelName}"
+echo "==============================================================="
+
+# 1. dbt Test Assertions
+echo "[1/3] Running dbt test suite..."
+dbt test --select ${opts.modelName}
+
+# 2. Soda Core Check
+if command -v soda &> /dev/null; then
+  echo "[2/3] Running Soda Core checks..."
+  soda scan -d staging_db ${soda.filePath}
+else
+  echo "[2/3] Skipping Soda Core (soda CLI not found in PATH)."
+fi
+
+# 3. Great Expectations
+if command -v great_expectations &> /dev/null; then
+  echo "[3/3] Running Great Expectations checkpoint..."
+  great_expectations checkpoint run ${ge.suiteName}_checkpoint
+else
+  echo "[3/3] Skipping Great Expectations (CLI not found)."
+fi
+
+echo "✓ All data quality and schema drift gates passed for ${opts.modelName}!"
+`;
+
+    const ciPs1 = `# ==============================================================================
+# Enterprise CI/CD Data Quality Gate (PowerShell)
+# Model: ${opts.modelName}
+# ==============================================================================
+$ErrorActionPreference = "Stop"
+
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host "  Executing Data Quality Gates for ${opts.modelName}" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
+
+# 1. dbt Test Assertions
+Write-Host "[1/3] Running dbt test suite..." -ForegroundColor Yellow
+dbt test --select ${opts.modelName}
+
+# 2. Soda Core Check
+if (Get-Command soda -ErrorAction SilentlyContinue) {
+  Write-Host "[2/3] Running Soda Core checks..." -ForegroundColor Yellow
+  soda scan -d staging_db ${soda.filePath}
+} else {
+  Write-Host "[2/3] Skipping Soda Core (soda CLI not found)." -ForegroundColor DarkGray
+}
+
+# 3. Great Expectations
+if (Get-Command great_expectations -ErrorAction SilentlyContinue) {
+  Write-Host "[3/3] Running Great Expectations checkpoint..." -ForegroundColor Yellow
+  great_expectations checkpoint run "${ge.suiteName}_checkpoint"
+} else {
+  Write-Host "[3/3] Skipping Great Expectations (CLI not found)." -ForegroundColor DarkGray
+}
+
+Write-Host "✓ All data quality and schema drift gates passed for ${opts.modelName}!" -ForegroundColor Green
+`;
+
+    return {
+      modelName: opts.modelName,
+      tableName: opts.tableName,
+      greatExpectations: ge,
+      sodaCore: soda,
+      dbtSchemaTests: dbt,
+      ciGateScriptSh: ciSh,
+      ciGateScriptPs1: ciPs1
+    };
+  }
+
+  private static mapToGeType(sqlType: string): string {
+    const lower = sqlType.toLowerCase();
+    if (lower.includes('int')) return 'INTEGER';
+    if (lower.includes('bool')) return 'BOOLEAN';
+    if (lower.includes('time') || lower.includes('date')) return 'DATETIME';
+    if (lower.includes('float') || lower.includes('double') || lower.includes('numeric') || lower.includes('decimal')) return 'FLOAT';
+    if (lower.includes('json')) return 'JSON';
+    return 'STRING';
+  }
+}

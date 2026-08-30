@@ -2214,6 +2214,8 @@
     "package:linux-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
     "package:linux-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
     "publish:all": "node scripts/publish-all.js",
+    "package:enterprise": "node scripts/package-enterprise.js",
+    "package:enterprise:win": "node scripts/package-enterprise.js --platform=win32-x64",
     "license:generate": "node scripts/generate-license.js",
     "test": "node ./out/test/runTest.js"
   },
