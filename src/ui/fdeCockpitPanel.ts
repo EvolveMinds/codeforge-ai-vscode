@@ -2823,9 +2823,6 @@ Output ONLY the message without markdown code fences.`;
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn-quick" style="background: var(--accent); color: #fff;" onclick="toggleDbConnectModal()">🔌 Connect Live DB / Warehouse</button>
             <button class="btn-quick" onclick="pickSchemaFile()">📁 Browse CSV / Schema</button>
-            <button class="btn-quick" onclick="loadSampleSchema('orders')">⚡ Orders</button>
-            <button class="btn-quick" onclick="loadSampleSchema('users')">⚡ Users</button>
-            <button class="btn-quick" onclick="loadSampleSchema('payments')">⚡ Payments</button>
           </div>
         </div>
 
