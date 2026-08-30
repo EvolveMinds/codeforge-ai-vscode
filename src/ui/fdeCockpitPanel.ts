@@ -2049,24 +2049,51 @@ Output ONLY the message without markdown code fences.`;
         const docsDir = path.join(ws, 'docs');
         if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
 
-        const archDoc = RunbookGenerator.generateArchitectureDoc(state);
-        const deployRunbook = RunbookGenerator.generateDeploymentRunbook(state);
-        const dataDict = RunbookGenerator.generateDataDictionary(state);
-        const envCatalog = RunbookGenerator.generateEnvironmentCatalog(state);
-        const completeHandoff = RunbookGenerator.generateCompleteHandoffPackage(state);
+        const requestedTypes: string[] = Array.isArray(msg.docTypes) && msg.docTypes.length > 0
+          ? msg.docTypes
+          : ['arch', 'deploy', 'dataDict', 'env', 'complete'];
 
-        fs.writeFileSync(path.join(docsDir, 'ARCHITECTURE.md'), archDoc, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'DEPLOYMENT_RUNBOOK.md'), deployRunbook, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'DATA_DICTIONARY.md'), dataDict, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'ENVIRONMENT_CATALOG.md'), envCatalog, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'CLIENT_HANDOFF_COMPLETE.md'), completeHandoff, 'utf8');
+        let archDoc: string | undefined;
+        let deployRunbook: string | undefined;
+        let dataDict: string | undefined;
+        let envCatalog: string | undefined;
+        let completeHandoff: string | undefined;
+        const generatedFiles: string[] = [];
+
+        if (requestedTypes.includes('arch')) {
+          archDoc = RunbookGenerator.generateArchitectureDoc(state);
+          fs.writeFileSync(path.join(docsDir, 'ARCHITECTURE.md'), archDoc, 'utf8');
+          generatedFiles.push('docs/ARCHITECTURE.md');
+        }
+        if (requestedTypes.includes('deploy')) {
+          deployRunbook = RunbookGenerator.generateDeploymentRunbook(state);
+          fs.writeFileSync(path.join(docsDir, 'DEPLOYMENT_RUNBOOK.md'), deployRunbook, 'utf8');
+          generatedFiles.push('docs/DEPLOYMENT_RUNBOOK.md');
+        }
+        if (requestedTypes.includes('dataDict')) {
+          dataDict = RunbookGenerator.generateDataDictionary(state);
+          fs.writeFileSync(path.join(docsDir, 'DATA_DICTIONARY.md'), dataDict, 'utf8');
+          generatedFiles.push('docs/DATA_DICTIONARY.md');
+        }
+        if (requestedTypes.includes('env')) {
+          envCatalog = RunbookGenerator.generateEnvironmentCatalog(state);
+          fs.writeFileSync(path.join(docsDir, 'ENVIRONMENT_CATALOG.md'), envCatalog, 'utf8');
+          generatedFiles.push('docs/ENVIRONMENT_CATALOG.md');
+        }
+        if (requestedTypes.includes('complete')) {
+          completeHandoff = RunbookGenerator.generateCompleteHandoffPackage(state);
+          fs.writeFileSync(path.join(docsDir, 'CLIENT_HANDOFF_COMPLETE.md'), completeHandoff, 'utf8');
+          generatedFiles.push('docs/CLIENT_HANDOFF_COMPLETE.md');
+        }
 
         await this._contextManager.recordRunbooksGenerated();
 
-        vscode.window.showInformationMessage('✓ Generated 5 complete client handoff docs in docs/');
+        const countText = requestedTypes.length === 5 ? 'all 5' : `${generatedFiles.length}`;
+        vscode.window.showInformationMessage(`✓ Generated ${countText} client handoff doc(s) in docs/`);
         this._panel.webview.postMessage({
           type: 'runbooksDone',
-          files: ['docs/ARCHITECTURE.md', 'docs/DEPLOYMENT_RUNBOOK.md', 'docs/DATA_DICTIONARY.md', 'docs/ENVIRONMENT_CATALOG.md', 'docs/CLIENT_HANDOFF_COMPLETE.md'],
+          files: generatedFiles,
+          generatedTypes: requestedTypes,
           archDoc,
           deployRunbook,
           dataDict,
@@ -3523,67 +3550,91 @@ Output ONLY the message without markdown code fences.`;
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 600; font-size: 12px;">🏛️ ARCHITECTURE.md</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkDocArch" checked style="margin: 0; cursor: pointer;">
+                  <div style="font-weight: 600; font-size: 12px;">🏛️ ARCHITECTURE.md</div>
+                </div>
                 <span id="badgeArch" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${archExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${archExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${archExists ? '✓ Ready' : 'Not generated'}</span>
               </div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Mermaid data lineage &amp; topology</div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" onclick="openDoc('docs/ARCHITECTURE.md')">📄 Open</button>
-                <button class="btn-quick" onclick="previewDoc('docs/ARCHITECTURE.md')">👁️ Preview</button>
+              <div style="font-size: 11px; opacity: 0.8; margin: 6px 0 10px 0;">Mermaid data lineage &amp; topology</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 600; padding: 2px 8px; font-size: 11px;" onclick="generateSingleDoc('arch')">⚡ Generate</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('docs/ARCHITECTURE.md')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="previewDoc('docs/ARCHITECTURE.md')">👁️ Preview</button>
               </div>
             </div>
 
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 600; font-size: 12px;">🚀 DEPLOYMENT_RUNBOOK.md</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkDocDeploy" checked style="margin: 0; cursor: pointer;">
+                  <div style="font-weight: 600; font-size: 12px;">🚀 DEPLOYMENT_RUNBOOK.md</div>
+                </div>
                 <span id="badgeDeploy" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${deployExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${deployExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${deployExists ? '✓ Ready' : 'Not generated'}</span>
               </div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Operations, rollback &amp; diagnostics</div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" onclick="openDoc('docs/DEPLOYMENT_RUNBOOK.md')">📄 Open</button>
-                <button class="btn-quick" onclick="previewDoc('docs/DEPLOYMENT_RUNBOOK.md')">👁️ Preview</button>
+              <div style="font-size: 11px; opacity: 0.8; margin: 6px 0 10px 0;">Operations, rollback &amp; diagnostics</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 600; padding: 2px 8px; font-size: 11px;" onclick="generateSingleDoc('deploy')">⚡ Generate</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('docs/DEPLOYMENT_RUNBOOK.md')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="previewDoc('docs/DEPLOYMENT_RUNBOOK.md')">👁️ Preview</button>
               </div>
             </div>
 
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 600; font-size: 12px;">📖 DATA_DICTIONARY.md</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkDocDataDict" checked style="margin: 0; cursor: pointer;">
+                  <div style="font-weight: 600; font-size: 12px;">📖 DATA_DICTIONARY.md</div>
+                </div>
                 <span id="badgeDataDict" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${dataDictExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${dataDictExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${dataDictExists ? '✓ Ready' : 'Not generated'}</span>
               </div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Column transformation mappings</div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" onclick="openDoc('docs/DATA_DICTIONARY.md')">📄 Open</button>
-                <button class="btn-quick" onclick="previewDoc('docs/DATA_DICTIONARY.md')">👁️ Preview</button>
+              <div style="font-size: 11px; opacity: 0.8; margin: 6px 0 10px 0;">Column transformation mappings</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 600; padding: 2px 8px; font-size: 11px;" onclick="generateSingleDoc('dataDict')">⚡ Generate</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('docs/DATA_DICTIONARY.md')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="previewDoc('docs/DATA_DICTIONARY.md')">👁️ Preview</button>
               </div>
             </div>
 
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 600; font-size: 12px;">🔐 ENVIRONMENT_CATALOG.md</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkDocEnv" checked style="margin: 0; cursor: pointer;">
+                  <div style="font-weight: 600; font-size: 12px;">🔐 ENVIRONMENT_CATALOG.md</div>
+                </div>
                 <span id="badgeEnv" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${envExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${envExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${envExists ? '✓ Ready' : 'Not generated'}</span>
               </div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">Required env vars &amp; secret reference</div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" onclick="openDoc('docs/ENVIRONMENT_CATALOG.md')">📄 Open</button>
-                <button class="btn-quick" onclick="previewDoc('docs/ENVIRONMENT_CATALOG.md')">👁️ Preview</button>
+              <div style="font-size: 11px; opacity: 0.8; margin: 6px 0 10px 0;">Required env vars &amp; secret reference</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 600; padding: 2px 8px; font-size: 11px;" onclick="generateSingleDoc('env')">⚡ Generate</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('docs/ENVIRONMENT_CATALOG.md')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="previewDoc('docs/ENVIRONMENT_CATALOG.md')">👁️ Preview</button>
               </div>
             </div>
 
             <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
               <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-weight: 600; font-size: 12px;">📦 CLIENT_HANDOFF_COMPLETE.md</div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkDocComplete" checked style="margin: 0; cursor: pointer;">
+                  <div style="font-weight: 600; font-size: 12px;">📦 CLIENT_HANDOFF_COMPLETE.md</div>
+                </div>
                 <span id="badgeComplete" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: ${completeExists ? 'var(--success-bg)' : 'var(--badge-bg)'}; color: ${completeExists ? 'var(--success)' : 'inherit'}; font-weight: 600;">${completeExists ? '✓ Ready' : 'Not generated'}</span>
               </div>
-              <div style="font-size: 11px; opacity: 0.8; margin: 4px 0 10px 0;">All-in-one consolidated delivery bundle</div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn-quick" onclick="openDoc('docs/CLIENT_HANDOFF_COMPLETE.md')">📄 Open</button>
-                <button class="btn-quick" onclick="previewDoc('docs/CLIENT_HANDOFF_COMPLETE.md')">👁️ Preview</button>
+              <div style="font-size: 11px; opacity: 0.8; margin: 6px 0 10px 0;">All-in-one consolidated delivery bundle</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" style="margin-bottom: 0; color: var(--accent); border-color: var(--accent); font-weight: 600; padding: 2px 8px; font-size: 11px;" onclick="generateSingleDoc('complete')">⚡ Generate</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="openDoc('docs/CLIENT_HANDOFF_COMPLETE.md')">📄 Open</button>
+                <button class="btn-quick" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px;" onclick="previewDoc('docs/CLIENT_HANDOFF_COMPLETE.md')">👁️ Preview</button>
               </div>
             </div>
           </div>
         </div>
 
-        <button class="btn" onclick="generateRunbooks()">🚀 Generate All Client Handoff Docs</button>
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
+          <button class="btn" style="background: var(--success); color: #fff; font-weight: 700;" onclick="generateRunbooks()">🚀 Generate All Client Handoff Docs</button>
+          <button class="btn btn-secondary" onclick="generateSelectedRunbooks()">✨ Generate Selected Docs</button>
+          <button class="btn-quick" style="margin-bottom: 0; font-size: 11px;" onclick="toggleSelectAllDocs()">☑️ Toggle Select All</button>
+        </div>
 
         <!-- Live Document Viewer Container -->
         <div id="runbookResultBox" style="margin-top: 20px; display: ${anyDocExists ? 'block' : 'none'};">
@@ -5638,8 +5689,52 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function generateRunbooks() {
-      vscode.postMessage({ command: 'generateRunbooks' });
+      showToast('🚀 Generating all 5 client handoff documents in docs/...');
+      vscode.postMessage({ command: 'generateRunbooks', docTypes: ['arch', 'deploy', 'dataDict', 'env', 'complete'] });
     }
+
+    function generateSingleDoc(docType) {
+      showToast('⚡ Generating ' + getDocFilename(docType) + ' in docs/...');
+      vscode.postMessage({ command: 'generateRunbooks', docTypes: [docType] });
+    }
+
+    function generateSelectedRunbooks() {
+      const selected = [];
+      if (document.getElementById('chkDocArch') && document.getElementById('chkDocArch').checked) selected.push('arch');
+      if (document.getElementById('chkDocDeploy') && document.getElementById('chkDocDeploy').checked) selected.push('deploy');
+      if (document.getElementById('chkDocDataDict') && document.getElementById('chkDocDataDict').checked) selected.push('dataDict');
+      if (document.getElementById('chkDocEnv') && document.getElementById('chkDocEnv').checked) selected.push('env');
+      if (document.getElementById('chkDocComplete') && document.getElementById('chkDocComplete').checked) selected.push('complete');
+
+      if (selected.length === 0) {
+        showToast('⚠️ Please select at least one document to generate');
+        return;
+      }
+      showToast('🚀 Generating ' + selected.length + ' selected document(s)...');
+      vscode.postMessage({ command: 'generateRunbooks', docTypes: selected });
+    }
+
+    let allDocsSelected = true;
+    function toggleSelectAllDocs() {
+      allDocsSelected = !allDocsSelected;
+      ['chkDocArch', 'chkDocDeploy', 'chkDocDataDict', 'chkDocEnv', 'chkDocComplete'].forEach(function(id) {
+        const el = document.getElementById(id);
+        if (el) el.checked = allDocsSelected;
+      });
+      showToast(allDocsSelected ? '✓ All documents selected' : '○ All documents deselected');
+    }
+
+    function getDocFilename(docType) {
+      if (docType === 'arch') return 'ARCHITECTURE.md';
+      if (docType === 'deploy') return 'DEPLOYMENT_RUNBOOK.md';
+      if (docType === 'dataDict') return 'DATA_DICTIONARY.md';
+      if (docType === 'env') return 'ENVIRONMENT_CATALOG.md';
+      return 'CLIENT_HANDOFF_COMPLETE.md';
+    }
+
+    window.generateSingleDoc = generateSingleDoc;
+    window.generateSelectedRunbooks = generateSelectedRunbooks;
+    window.toggleSelectAllDocs = toggleSelectAllDocs;
 
     // Initialize document preview and Git/Cloud status on load
     switchDocTab('arch');
@@ -6058,17 +6153,33 @@ Output ONLY the message without markdown code fences.`;
           pathEl.innerHTML = 'Location: <code>' + msg.docsPath + '</code>';
         }
         
-        ['badgeArch', 'badgeDeploy', 'badgeDataDict', 'badgeEnv', 'badgeComplete'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            el.innerText = '✓ Ready';
-            el.style.background = 'var(--success-bg)';
-            el.style.color = 'var(--success)';
+        const typeBadgeMap = {
+          'arch': 'badgeArch',
+          'deploy': 'badgeDeploy',
+          'dataDict': 'badgeDataDict',
+          'env': 'badgeEnv',
+          'complete': 'badgeComplete'
+        };
+
+        const genTypes = msg.generatedTypes || ['arch', 'deploy', 'dataDict', 'env', 'complete'];
+        genTypes.forEach(function(t) {
+          const badgeId = typeBadgeMap[t];
+          if (badgeId) {
+            const el = document.getElementById(badgeId);
+            if (el) {
+              el.innerText = '✓ Ready';
+              el.style.background = 'var(--success-bg)';
+              el.style.color = 'var(--success)';
+            }
           }
         });
 
-        switchDocTab(activeDocTab);
-        showToast('✓ Generated 5 Complete Client Handoff Documents in docs/!');
+        if (genTypes.length === 1) {
+          switchDocTab(genTypes[0]);
+        } else {
+          switchDocTab(activeDocTab);
+        }
+        showToast('✓ Generated ' + (genTypes.length === 5 ? 'All 5' : genTypes.length) + ' Client Handoff Document(s) in docs/!');
       } else if (msg.type === 'loadTestSuiteGenerated') {
         const suite = msg.suite;
         if (suite) {
