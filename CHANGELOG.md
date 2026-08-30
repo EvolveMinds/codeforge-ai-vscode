@@ -2,6 +2,27 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.19.1] — 2026-08-30
+
+### AI Schema Copilot, Automated Mart Recipe Discovery, Customizable Paths & Header Polish
+* **Dynamic AI Staging Schema Copilot (`✨ AI Auto-Clean & Standardize`)**:
+  * Added domain-agnostic AI schema analysis that standardizes raw tables, converts naming into `snake_case`, and normalizes SQL data types across PostgreSQL, Snowflake, BigQuery, MySQL, and SQLite.
+  * **🔒 AI PII Masking & Privacy Rules**: Automatic classification of sensitive attributes (emails, phone numbers, tax IDs, credit cards) with cryptographic hashing (`SHA256`) and privacy-preserving masking.
+  * **🪄 Custom AI Schema Prompting**: Interactive instruction drawer for custom business rules (e.g. currency conversion, timestamp prefixing).
+* **AI-Powered Mart Recipe Discovery (`✨ AI Discover Mart Recipes`)**:
+  * Foreign-key graph traversal across all discovered database tables to dynamically generate context-aware Fact & Dimension mart recipes tailored to the loaded schema.
+  * **💬 Natural Language Mart Generator**: Type plain-English prompts (e.g. *"Build a daily retention fact mart tracking deletions and active users by country"*) to automatically configure base models, joins, group-by dimensions, and aggregate metrics.
+* **Customizable Target Output Paths**:
+  * Dedicated Target File Output Path inputs for both Staging models (`models/staging/<name>.sql`) and Dimensional Marts (`models/marts/<name>.sql`), supporting arbitrary custom project directories.
+* **Direct PostgreSQL & Supabase Wire Protocol Introspection**:
+  * Pure TypeScript TCP/SSL wire protocol client for PostgreSQL/Supabase that extracts schemas directly without requiring `psql` in system `PATH`.
+* **Persistent Introspected Tables Cache**:
+  * Workspace state caching of introspected database tables so models and foreign keys immediately populate dropdowns across editor reloads.
+* **Streamlined UI & Production Header**:
+  * Removed legacy mock buttons (`Orders`, `Users`, `Payments`) from the Phase 1 header to provide a clean, focused production delivery interface.
+* **Marketplace Optimization & Metadata Refinement**:
+  * Optimized marketplace description for crisp, non-truncated preview display and updated documentation tags.
+
 ## [2.19.0] — 2026-08-29
 
 ### Interactive Databricks Setup Wizard, Dedicated Lakehouse Hub, Multi-Cloud Deployment & Permanent Studio Access

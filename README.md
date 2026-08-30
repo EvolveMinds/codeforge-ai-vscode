@@ -13,6 +13,7 @@
 ### Why Evolve AI?
 
 - **Enterprise & Frontline Delivery by Evolve Mind Solutions** — designed for forward-deployed engineers, enterprise data architects, and solutions engineers delivering mission-critical client infrastructure. Visit [evolveminds.com.au](https://www.evolveminds.com.au/).
+- **AI Schema Copilot & Dimensional Mart Discovery** *(v2.19.1)* — domain-agnostic AI schema standardizer with automated PII masking, multi-table foreign-key graph traversal, and natural-language prompt-to-mart modeling.
 - **Databricks Lakehouse & Delta Studio Hub** *(v2.19)* — interactive setup wizard (`aiForge.databricks.connect`), live connection testing with hardware-encrypted secret storage, and dedicated PySpark, Delta Lake, Unity Catalog, and Delta Live Tables (DLT) tools.
 - **Multi-Cloud & Pilot Deployment Hub** *(v2.19)* — unified multi-cloud scaffolding for AWS, GCP, Azure, Firebase, and Kubernetes/Docker.
 - **Forward-Deployed Engineers Delivery Studio (Beta)** *(v2.18)* — end-to-end frontline delivery toolkit:
