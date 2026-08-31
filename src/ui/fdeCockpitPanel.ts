@@ -1291,6 +1291,31 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'requestNewBranchDialog':
+      case 'promptNewBranch': {
+        if (!ws) return;
+        const branchName = await vscode.window.showInputBox({
+          prompt: 'Enter new branch name (e.g. feat/client-ingest, dev-staging)',
+          placeHolder: 'feat/client-ingest',
+          validateInput: (val) => {
+            if (!val || !val.trim()) return 'Branch name cannot be empty';
+            if (/\s/.test(val)) return 'Branch names cannot contain spaces';
+            return null;
+          }
+        });
+        if (branchName && branchName.trim()) {
+          const res = await runCommand('git', ['checkout', '-b', branchName.trim()], { cwd: ws, timeoutMs: 15000 });
+          if (res && res.code === 0) {
+            vscode.window.showInformationMessage(`✓ Created and checked out new branch "${branchName.trim()}"`);
+            this._panel.webview.postMessage({ type: 'gitResult', success: true, message: `Created branch "${branchName.trim()}"` });
+          } else {
+            vscode.window.showErrorMessage(`Failed to create branch: ${res?.stderr || 'Invalid branch name'}`);
+            this._panel.webview.postMessage({ type: 'gitResult', success: false, error: res?.stderr || 'Branch creation failed' });
+          }
+        }
+        break;
+      }
+
       case 'createGitBranch': {
         if (!ws) return;
         const branchName = (msg.branchName || '').trim();
@@ -5383,11 +5408,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function promptNewBranch() {
-      const name = prompt('Enter new branch name (e.g. feat/client-ingest):');
-      if (name && name.trim()) {
-        showToast('🌿 Creating branch ' + name.trim() + '...');
-        vscode.postMessage({ command: 'createGitBranch', branchName: name.trim() });
-      }
+      vscode.postMessage({ command: 'requestNewBranchDialog' });
     }
 
     function toggleEnterpriseLicenseDrawer() {

@@ -922,7 +922,16 @@ export async function executeTask() {
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.INTROSPECT_DB, async (_: any, dialect: any, connUri: string) => {
-      return await DbIntrospector.introspect(dialect, connUri);
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const targetDir = ws ? ws.path : process.cwd();
+      const opts = typeof dialect === 'object' ? dialect : { dialect, connectionUri: connUri };
+      return await DbIntrospector.introspect(opts, targetDir);
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.DETECT_DB, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const targetDir = ws ? ws.path : process.cwd();
+      return DbIntrospector.detectWorkspaceConfig(targetDir);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.MAP_SCHEMA, async (_: any, rawColumnsText: string, srcName: string) => {

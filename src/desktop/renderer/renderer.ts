@@ -32,6 +32,7 @@ let runbookDocs: {
   complete: ''
 };
 let activeRunbookTab = 'arch';
+let currentIntrospectedTables: any[] = [];
 
 // Engagement project catalog
 interface EngagementProject {
@@ -609,11 +610,24 @@ function setupDeliveryStudio(api: any): void {
   const btnDeliveryGitSetup = document.getElementById('btnDeliveryGitSetup');
   const gitSetupDrawer = document.getElementById('gitSetupDrawer');
   const btnCloseGitSetupDrawer = document.getElementById('btnCloseGitSetupDrawer');
+  const btnDeliveryNewBranch = document.getElementById('btnDeliveryNewBranch');
+  const modalNewBranch = document.getElementById('modalNewBranch');
+  const txtNewBranchModalInput = document.getElementById('txtNewBranchModalInput') as HTMLInputElement;
   const btnDeliveryCreatePr = document.getElementById('btnDeliveryCreatePr');
   const modalCreatePr = document.getElementById('modalCreatePr');
   const btnClosePrModal = document.getElementById('btnClosePrModal');
   const btnCancelPr = document.getElementById('btnCancelPr');
   const btnConfirmCreatePr = document.getElementById('btnConfirmCreatePr');
+
+  btnDeliveryNewBranch?.addEventListener('click', () => {
+    if (modalNewBranch) {
+      modalNewBranch.style.display = 'flex';
+      if (txtNewBranchModalInput) {
+        txtNewBranchModalInput.value = '';
+        setTimeout(() => txtNewBranchModalInput.focus(), 60);
+      }
+    }
+  });
 
   btnDeliveryGitSetup?.addEventListener('click', () => {
     if (gitSetupDrawer) {
@@ -882,27 +896,140 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // --- LIVE DB INTROSPECTION, FILTERING & SCHEMA LOADING ---
+  const dbTablesContainer = document.getElementById('dbTablesContainer');
+  const dbConnectionStatusBadge = document.getElementById('dbConnectionStatusBadge');
+  const dbTableFilterInput = document.getElementById('dbTableFilterInput') as HTMLInputElement;
+  const dbTableSelect = document.getElementById('dbTableSelect') as HTMLSelectElement;
+  const btnLoadSchemaIntoMapper = document.getElementById('btnLoadSchemaIntoMapper');
+  const btnAutoDetectDb = document.getElementById('btnAutoDetectDb');
+
+  const populateDiscoveredTables = (tables: any[], dialectName: string) => {
+    currentIntrospectedTables = tables;
+    if (dbTablesContainer) dbTablesContainer.style.display = 'block';
+
+    if (dbConnectionStatusBadge) {
+      dbConnectionStatusBadge.innerText = `✓ Connected to ${dialectName.toUpperCase()}: ${tables.length} tables discovered`;
+    }
+
+    if (dbTableSelect) {
+      dbTableSelect.innerHTML = `<option value="">-- Choose an introspected table (${tables.length} found) --</option>` +
+        tables.map(t => {
+          const schemaPrefix = t.schema ? `${t.schema}.` : '';
+          const name = t.tableName || t.name;
+          const colCount = t.columns ? t.columns.length : 0;
+          return `<option value="${name}">${schemaPrefix}${name} (${colCount} columns)</option>`;
+        }).join('');
+      if (tables.length > 0) {
+        dbTableSelect.value = tables[0].tableName || tables[0].name;
+      }
+    }
+  };
+
+  const applySelectedTableToMapper = (tableName?: string) => {
+    let tblName = tableName || (dbTableSelect ? dbTableSelect.value : '');
+    if (!tblName) {
+      if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+        tblName = currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name;
+        if (dbTableSelect) dbTableSelect.value = tblName;
+      } else {
+        showToast('⚠️ Please connect to database and fetch tables first.');
+        return;
+      }
+    }
+
+    const tbl = currentIntrospectedTables.find(t => 
+      (t.tableName === tblName) || 
+      (t.name === tblName) || 
+      ((t.schema ? `${t.schema}.${t.tableName || t.name}` : '') === tblName)
+    );
+
+    if (tbl) {
+      const rawCols = tbl.columnsFormatted || (tbl.columns ? tbl.columns.map((c: any) => `${c.name}:${c.type}`).join('\n') : '');
+      txtSourceColumns.value = rawCols;
+      
+      const realName = tbl.tableName || tbl.name || 'client_table';
+      txtSourceTableName.value = realName;
+      
+      const cleanName = realName.replace(/^client_|_raw$/g, '');
+      txtTargetModelName.value = 'stg_' + cleanName;
+      txtTargetOutputPath.value = `models/staging/stg_${cleanName}.sql`;
+
+      // Trigger AI Auto-Clean on the freshly loaded schema
+      btnAiAutoClean?.click();
+      showToast(`✓ Loaded schema for ${realName} into Semantic Mapper!`);
+    }
+  };
+
   document.getElementById('btnExecuteIntrospect')?.addEventListener('click', async () => {
     const dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement).value;
     const uri = (document.getElementById('dbUriInput') as HTMLInputElement).value;
+    const schema = (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value || 'public';
+    const database = (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value || 'postgres';
+
     if (!uri) {
       showToast('⚠️ Please enter database connection URI.');
       return;
     }
-    showToast('🔌 Introspecting schema wire protocol...');
+    showToast(`🔌 Introspecting ${dialect.toUpperCase()} database schema...`);
     if (api?.engines) {
-      const res = await api.engines.introspectDb(dialect, uri);
-      const resBox = document.getElementById('dbIntrospectResultBox');
-      if (resBox) {
-        resBox.style.display = 'block';
-        resBox.innerText = JSON.stringify(res, null, 2);
+      const res = await api.engines.introspectDb({ dialect, connectionUri: uri, schema, database });
+      if (res && res.tables && res.tables.length > 0) {
+        populateDiscoveredTables(res.tables, dialect);
+        applySelectedTableToMapper(res.tables[0].tableName || res.tables[0].name);
+        showToast(`✓ Discovered ${res.tables.length} tables from ${dialect.toUpperCase()}!`);
+      } else {
+        showToast(`⚠️ ${res?.error || res?.message || 'No tables discovered.'}`);
       }
-      if (res?.tables && res.tables.length > 0) {
-        txtSourceColumns.value = res.tables[0].columns.map((c: any) => `${c.name}:${c.type}`).join('\n');
-        txtSourceTableName.value = res.tables[0].name;
-        txtTargetModelName.value = 'stg_' + res.tables[0].name;
-        txtTargetOutputPath.value = `models/staging/stg_${res.tables[0].name}.sql`;
-        showToast(`✓ Introspected table: ${res.tables[0].name}`);
+    }
+  });
+
+  dbTableFilterInput?.addEventListener('input', () => {
+    const filter = dbTableFilterInput.value.toLowerCase().trim();
+    if (!dbTableSelect || !currentIntrospectedTables) return;
+
+    const filtered = currentIntrospectedTables.filter(t => {
+      const name = (t.tableName || t.name || '').toLowerCase();
+      const s = (t.schema || '').toLowerCase();
+      return name.includes(filter) || s.includes(filter);
+    });
+
+    dbTableSelect.innerHTML = `<option value="">-- Choose an introspected table (${filtered.length} match${filtered.length === 1 ? '' : 'es'}) --</option>` +
+      filtered.map(t => {
+        const schemaPrefix = t.schema ? `${t.schema}.` : '';
+        const name = t.tableName || t.name;
+        const colCount = t.columns ? t.columns.length : 0;
+        return `<option value="${name}">${schemaPrefix}${name} (${colCount} columns)</option>`;
+      }).join('');
+
+    if (filtered.length === 1) {
+      dbTableSelect.value = filtered[0].tableName || filtered[0].name;
+    }
+  });
+
+  dbTableSelect?.addEventListener('change', () => applySelectedTableToMapper(dbTableSelect.value));
+  btnLoadSchemaIntoMapper?.addEventListener('click', () => applySelectedTableToMapper(dbTableSelect.value));
+
+  btnAutoDetectDb?.addEventListener('click', async () => {
+    showToast('⚡ Scanning workspace for .env, dbt, prisma & supabase configs...');
+    if (api?.engines?.detectDb) {
+      const detected = await api.engines.detectDb();
+      if (detected && detected.found) {
+        if (detected.dialect) {
+          (document.getElementById('dbDialectSelect') as HTMLSelectElement).value = detected.dialect;
+        }
+        if (detected.connectionUri) {
+          (document.getElementById('dbUriInput') as HTMLInputElement).value = detected.connectionUri;
+        }
+        if (detected.database) {
+          (document.getElementById('dbProjectIdInput') as HTMLInputElement).value = detected.database;
+        }
+        if (detected.schema) {
+          (document.getElementById('dbSchemaIdInput') as HTMLInputElement).value = detected.schema;
+        }
+        showToast(`✓ Auto-detected ${detected.dialect?.toUpperCase() || 'DB'} connection from ${detected.sourceFile || '.env'}!`);
+      } else {
+        showToast('⚠️ No database connection parameters detected in project files.');
       }
     }
   });
@@ -2038,12 +2165,15 @@ function setupGitStudio(api: any): void {
     }
   });
 
-  btnCreate?.addEventListener('click', async () => {
-    const name = (document.getElementById('txtNewBranchName') as HTMLInputElement).value.trim();
-    if (name && api?.git) {
-      await api.git.createBranch(name);
-      showToast(`✓ Created & checked out branch: ${name}`);
-      refreshGitStatus(api);
+  btnCreate?.addEventListener('click', () => {
+    const modalNewBranch = document.getElementById('modalNewBranch');
+    const txtNewBranchModalInput = document.getElementById('txtNewBranchModalInput') as HTMLInputElement;
+    if (modalNewBranch) {
+      modalNewBranch.style.display = 'flex';
+      if (txtNewBranchModalInput) {
+        txtNewBranchModalInput.value = '';
+        setTimeout(() => txtNewBranchModalInput.focus(), 60);
+      }
     }
   });
 }
@@ -2089,6 +2219,39 @@ function setupModals(api: any): void {
   const btnHeaderPlugins = document.getElementById('btnHeaderPlugins');
   const modalPluginsDrawer = document.getElementById('modalPluginsDrawer');
   const btnClosePlugins = document.getElementById('btnClosePluginsModal');
+
+  const modalNewBranch = document.getElementById('modalNewBranch');
+  const txtNewBranchModalInput = document.getElementById('txtNewBranchModalInput') as HTMLInputElement;
+  const btnCloseNewBranchModal = document.getElementById('btnCloseNewBranchModal');
+  const btnCancelNewBranch = document.getElementById('btnCancelNewBranch');
+  const btnConfirmCreateBranchModal = document.getElementById('btnConfirmCreateBranchModal');
+
+  const closeNewBranchModal = () => {
+    if (modalNewBranch) modalNewBranch.style.display = 'none';
+  };
+
+  btnCloseNewBranchModal?.addEventListener('click', closeNewBranchModal);
+  btnCancelNewBranch?.addEventListener('click', closeNewBranchModal);
+
+  btnConfirmCreateBranchModal?.addEventListener('click', async () => {
+    const branchName = (txtNewBranchModalInput ? txtNewBranchModalInput.value : '').trim();
+    if (!branchName) {
+      showToast('⚠️ Please enter a branch name.');
+      return;
+    }
+    if (/\s/.test(branchName)) {
+      showToast('⚠️ Branch names cannot contain spaces.');
+      return;
+    }
+
+    showToast(`🌿 Creating and checking out branch: ${branchName}...`);
+    if (api?.git) {
+      await api.git.createBranch(branchName);
+      await refreshGitStatus(api);
+      closeNewBranchModal();
+      showToast(`✓ Created & checked out branch: ${branchName}`);
+    }
+  });
 
   btnHeaderPlugins?.addEventListener('click', () => {
     if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'flex';

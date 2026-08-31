@@ -499,15 +499,21 @@
                     </div>
                   </div>
 
-                  <!-- Action Buttons Row (Exact match with Image 1) -->
-                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn" id="btnExecuteIntrospect" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 14px; font-size: 11.5px;">🔍 Connect &amp; Fetch Tables</button>
-                    <button class="btn btn-secondary" id="btnTestDbPing" style="padding: 6px 14px; font-size: 11.5px;">🔌 Test Connection</button>
-                    <button class="btn btn-secondary" id="btnAutoDetectDb" style="padding: 6px 14px; font-size: 11.5px;">⚡ Auto-Detect from .env / dbt</button>
-                    <button class="btn-quick" id="btnWipeDbCreds" style="color: var(--error); border-color: var(--error); padding: 6px 12px; font-size: 11px;">🗑️ Wipe Stored Credentials</button>
+                  <!-- Discovered Tables Selector (100% Match with Screenshot 2) -->
+                  <div id="dbTablesContainer" style="display: none; margin-top: 14px; background: var(--card-bg); padding: 12px 14px; border-radius: 6px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="font-size: 12px; font-weight: 700; color: var(--success);" id="dbConnectionStatusBadge">
+                        ✓ Connected to POSTGRES: 265 tables discovered
+                      </div>
+                      <input type="text" id="dbTableFilterInput" placeholder="🔍 Filter tables..." style="width: 180px; margin-bottom: 0; font-size: 11px; padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                      <select id="dbTableSelect" style="flex: 1; margin-bottom: 0; padding: 7px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                        <option value="">-- Choose an introspected table --</option>
+                      </select>
+                      <button class="btn" id="btnLoadSchemaIntoMapper" style="white-space: nowrap; margin-bottom: 0; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px;">📥 Load Schema into Mapper</button>
+                    </div>
                   </div>
-
-                  <div id="dbIntrospectResultBox" style="display: none; margin-top: 12px; background: #181818; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 160px; overflow-y: auto;"></div>
                 </div>
 
                 <!-- Submode Tabs -->
@@ -1597,9 +1603,26 @@
       <div class="modal-item"><div style="font-weight: 700; color: #fff;">🗄️ Databricks Lakehouse (Unity Catalog)</div></div>
       <div class="modal-item"><div style="font-weight: 700; color: #fff;">⚡ dbt Core &amp; Data Quality Engine</div></div>
       <div class="modal-item"><div style="font-weight: 700; color: #fff;">🛡️ SIEM Audit Forwarder (SOC2/HIPAA)</div></div>
-      <div class="modal-item"><div style="font-weight: 700; color: #fff;">🧠 pgvector / Qdrant RAG Studio</div></div>
-      <div class="modal-item"><div style="font-weight: 700; color: #fff;">📊 k6 Distributed SLA Load Tester</div></div>
-      <div class="modal-item"><div style="font-weight: 700; color: #fff;">☁️ Multi-Cloud CLI Matrix (GCP, AWS, Azure)</div></div>
+  <!-- MODAL: NEW BRANCH -->
+  <div id="modalNewBranch" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="width: 440px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <h3 style="margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 6px;">
+          <span>🌿</span> Create &amp; Checkout New Git Branch
+        </h3>
+        <button class="btn-quick" id="btnCloseNewBranchModal">✕</button>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 11.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 6px;">Branch Name</label>
+        <input type="text" id="txtNewBranchModalInput" placeholder="feat/client-ingest or dev-staging" style="width: 100%; box-sizing: border-box; padding: 9px 12px; font-size: 12.5px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px;">
+        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">
+          Creates and immediately checks out the new branch from your active working copy.
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn-quick" id="btnCancelNewBranch">Cancel</button>
+        <button class="btn" id="btnConfirmCreateBranchModal" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 18px;">🌿 Create Branch</button>
+      </div>
     </div>
   </div>
 
