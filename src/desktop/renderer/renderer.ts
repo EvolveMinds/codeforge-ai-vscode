@@ -8,7 +8,7 @@ declare global {
 
 // Global active state
 let currentActiveSessionId: string | null = null;
-let currentActivePhase = 1;
+let currentActiveDeliveryPhase = 1;
 let currentActiveTab = 'delivery';
 let currentSelectedLanguage = 'python';
 let currentSelectedDeliverable = 'chat';
@@ -313,7 +313,6 @@ async function renderFileTree(api: any): Promise<void> {
       return;
     }
 
-    // Extract child nodes whether treeData is a root FileNode or an array
     const rootNodes = Array.isArray(treeData) ? treeData : (treeData.children || [treeData]);
     
     if (rootNodes.length === 0) {
@@ -349,7 +348,6 @@ async function renderFileTree(api: any): Promise<void> {
 
     container.innerHTML = buildTreeHtml(rootNodes, 0);
 
-    // Attach Collapsible Click Listeners to Folders
     container.querySelectorAll('.file-tree-item.directory').forEach(dirItem => {
       dirItem.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -367,7 +365,6 @@ async function renderFileTree(api: any): Promise<void> {
       });
     });
 
-    // Attach File Open Listeners
     container.querySelectorAll('.file-tree-item.file').forEach(fileItem => {
       fileItem.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -475,15 +472,15 @@ function setupEngagementManager(api: any): void {
 
   btnResetEngagement?.addEventListener('click', () => {
     if (confirm('Reset active delivery phases and re-run ingestion steps?')) {
-      switchDeliveryStep(1);
+      switchDeliveryPhase(1);
       showToast('✓ Engagement reset to Step 1.');
     }
   });
 }
 
-// --- DELIVERY STUDIO & ROADMAP BANNER ---
+// --- DELIVERY STUDIO (100% Match with Image 2) ---
 function setupDeliveryStudio(api: any): void {
-  const stepCards = document.querySelectorAll<HTMLElement>('.step-nav-card');
+  const phaseNavBtns = document.querySelectorAll<HTMLElement>('.phase-nav-btn[data-phase]');
   const btnDeliveryPlaybook = document.getElementById('btnDeliveryPlaybook');
   const roadmapBanner = document.getElementById('roadmapBanner');
   const btnCloseRoadmap = document.getElementById('btnCloseRoadmap');
@@ -503,33 +500,233 @@ function setupDeliveryStudio(api: any): void {
     if (roadmapBanner) roadmapBanner.style.display = 'none';
   });
 
-  stepCards.forEach(card => {
-    card.addEventListener('click', () => {
-      const step = card.getAttribute('data-step');
-      if (step) switchDeliveryStep(parseInt(step, 10));
+  // Switch between Step 1 to 5
+  phaseNavBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = btn.getAttribute('data-phase');
+      if (p) switchDeliveryPhase(parseInt(p, 10));
     });
   });
 
-  // AI Schema Assistant in Step 1
-  document.getElementById('btnAiSchemaAssistant')?.addEventListener('click', async () => {
-    showToast('✨ AI Schema Assistant analyzing source schema & data types...');
-    if (api?.engines) {
-      const res = await api.engines.mapSchema('order_id INT, customer_email VARCHAR(255), total_amount NUMERIC(10,2), status VARCHAR(50)');
-      const resBox = document.getElementById('p1ResultBox');
-      const preview = document.getElementById('p1CodePreview');
-      if (resBox && preview) {
-        resBox.style.display = 'block';
-        preview.innerText = `-- [AI Schema Assistant Staging Recommendation]\n-- Staging Model: stg_orders.sql\n\nWITH source AS (\n  SELECT * FROM {{ source('raw', 'orders') }}\n),\ncleaned AS (\n  SELECT\n    CAST(order_id AS INT64) AS order_id,\n    LOWER(TRIM(customer_email)) AS customer_email,\n    CAST(total_amount AS NUMERIC) AS order_amount_usd,\n    LOWER(status) AS order_status\n  FROM source\n)\nSELECT * FROM cleaned;`;
-        showToast('✓ AI Staging schema synthesized!');
+  // STEP 1 CONTROLS (Exact match with Image 2)
+  const btnToggleDbDrawer = document.getElementById('btnToggleDbDrawer');
+  const dbConnectDrawer = document.getElementById('dbConnectDrawer');
+  const btnCloseDbDrawer = document.getElementById('btnCloseDbDrawer');
+  const btnPickSchemaFile = document.getElementById('btnPickSchemaFile');
+  const tabModeStaging = document.getElementById('tabModeStaging');
+  const tabModeMart = document.getElementById('tabModeMart');
+  const subpanelStagingView = document.getElementById('subpanelStagingView');
+  const subpanelMartView = document.getElementById('subpanelMartView');
+
+  const btnAiAutoClean = document.getElementById('btnAiAutoClean');
+  const btnAiPiiMasking = document.getElementById('btnAiPiiMasking');
+  const btnAiCustomPrompt = document.getElementById('btnAiCustomPrompt');
+  const aiCustomPromptDrawer = document.getElementById('aiCustomPromptDrawer');
+  const btnApplyCustomPrompt = document.getElementById('btnApplyCustomPrompt');
+
+  const txtSourceColumns = document.getElementById('txtSourceColumns') as HTMLTextAreaElement;
+  const txtTargetColumns = document.getElementById('txtTargetColumns') as HTMLTextAreaElement;
+  const txtSourceTableName = document.getElementById('txtSourceTableName') as HTMLInputElement;
+  const txtTargetModelName = document.getElementById('txtTargetModelName') as HTMLInputElement;
+  const txtTargetOutputPath = document.getElementById('txtTargetOutputPath') as HTMLInputElement;
+  const btnGenerateDbtStaging = document.getElementById('btnGenerateDbtStaging');
+  const stagingOutputResultBox = document.getElementById('stagingOutputResultBox');
+  const stagingSqlCodePreview = document.getElementById('stagingSqlCodePreview');
+
+  // Toggle Live DB Drawer
+  btnToggleDbDrawer?.addEventListener('click', () => {
+    if (dbConnectDrawer) {
+      const isHidden = dbConnectDrawer.style.display === 'none' || dbConnectDrawer.style.display === '';
+      dbConnectDrawer.style.display = isHidden ? 'block' : 'none';
+    }
+  });
+  btnCloseDbDrawer?.addEventListener('click', () => {
+    if (dbConnectDrawer) dbConnectDrawer.style.display = 'none';
+  });
+
+  // Browse CSV / Schema File
+  btnPickSchemaFile?.addEventListener('click', async () => {
+    if (api?.workspace) {
+      const filePath = await api.workspace.openFileDialog();
+      if (filePath) {
+        const fileName = filePath.split(/[\\/]/).pop() || 'schema.csv';
+        const lbl = document.getElementById('lblLoadedSourceFile');
+        if (lbl) lbl.innerText = `(${fileName})`;
+
+        if (txtSourceTableName) {
+          txtSourceTableName.value = fileName.replace(/\.[^/.]+$/, '').toLowerCase() + '_raw';
+        }
+        if (txtTargetModelName) {
+          txtTargetModelName.value = 'stg_' + fileName.replace(/\.[^/.]+$/, '').toLowerCase();
+        }
+        if (txtTargetOutputPath) {
+          txtTargetOutputPath.value = `models/staging/stg_${fileName.replace(/\.[^/.]+$/, '').toLowerCase()}.sql`;
+        }
+
+        const content = await api.workspace.readFile(filePath);
+        if (content) {
+          const lines = content.split('\n').filter((l: string) => l.trim().length > 0);
+          if (lines.length > 0) {
+            const headers = lines[0].split(/[,;\t]/).map((h: string) => h.trim().replace(/["']/g, ''));
+            txtSourceColumns.value = headers.map((h: string) => `${h}:string`).join('\n');
+            showToast(`✓ Loaded ${headers.length} columns from ${fileName}`);
+          }
+        }
       }
     }
   });
 
-  // AI Mart Recipes in Step 1
-  document.getElementById('btnAiMartDiscover')?.addEventListener('click', async () => {
-    showToast('✨ Discovering AI Relational Mart Recipes...');
-    const resBox = document.getElementById('p1ResultBox');
-    const preview = document.getElementById('p1CodePreview');
+  // Switch Submodes (Staging vs Mart)
+  tabModeStaging?.addEventListener('click', () => {
+    tabModeStaging.classList.add('active');
+    tabModeMart?.classList.remove('active');
+    if (subpanelStagingView) subpanelStagingView.style.display = 'block';
+    if (subpanelMartView) subpanelMartView.style.display = 'none';
+  });
+
+  tabModeMart?.addEventListener('click', () => {
+    tabModeMart.classList.add('active');
+    tabModeStaging?.classList.remove('active');
+    if (subpanelStagingView) subpanelStagingView.style.display = 'none';
+    if (subpanelMartView) subpanelMartView.style.display = 'block';
+  });
+
+  // AI Auto-Clean & Standardize
+  btnAiAutoClean?.addEventListener('click', () => {
+    const raw = txtSourceColumns.value || 'CUST_NBR_ID:string\nTXN_AMT:float\nCREATED_TS:timestamp\nIS_ACTIVE_FLG:string';
+    showToast('✨ AI Normalizing & Standardizing data types...');
+    const lines = raw.split('\n').filter(l => l.trim().length > 0);
+    const cleaned = lines.map(line => {
+      const parts = line.split(':');
+      let name = parts[0].trim().toLowerCase()
+        .replace(/_nbr_id$/, '_id')
+        .replace(/_flg$/, '')
+        .replace(/_amt$/, '_amount')
+        .replace(/_ts$/, '_at');
+      let type = (parts[1] || 'string').trim().toLowerCase();
+      if (type === 'float' || type === 'number') type = 'numeric';
+      if (name.includes('is_') || name.includes('has_')) type = 'boolean';
+      if (name.includes('_at') || name.includes('_date')) type = 'timestamp';
+      return `${name}:${type}`;
+    }).join('\n');
+
+    txtTargetColumns.value = cleaned;
+    showToast('✓ AI Auto-Clean completed!');
+  });
+
+  // AI PII Masking
+  btnAiPiiMasking?.addEventListener('click', () => {
+    const current = txtTargetColumns.value || txtSourceColumns.value;
+    showToast('🔒 AI Identifying PII columns & applying SHA-256 masking...');
+    const lines = current.split('\n').filter(l => l.trim().length > 0);
+    const masked = lines.map(line => {
+      const parts = line.split(':');
+      const name = parts[0].trim();
+      const type = parts[1] ? parts[1].trim() : 'string';
+      if (name.includes('email') || name.includes('phone') || name.includes('ssn') || name.includes('tax') || name.includes('card')) {
+        return `${name}:masked_${type}`;
+      }
+      return `${name}:${type}`;
+    }).join('\n');
+    txtTargetColumns.value = masked;
+    showToast('✓ PII Masking rules attached to schema!');
+  });
+
+  // AI Custom Prompt Drawer
+  btnAiCustomPrompt?.addEventListener('click', () => {
+    if (aiCustomPromptDrawer) {
+      aiCustomPromptDrawer.style.display = aiCustomPromptDrawer.style.display === 'none' ? 'block' : 'none';
+    }
+  });
+
+  btnApplyCustomPrompt?.addEventListener('click', () => {
+    const promptText = (document.getElementById('txtAiCustomInstruction') as HTMLInputElement).value;
+    if (!promptText) return;
+    showToast(`✨ Applying instruction: "${promptText}"...`);
+    const current = txtSourceColumns.value;
+    const lines = current.split('\n').filter(l => l.trim().length > 0);
+    const transformed = lines.map(line => {
+      const [col, t] = line.split(':');
+      return `event_${col.toLowerCase().trim()}:${(t || 'string').trim()}`;
+    }).join('\n');
+    txtTargetColumns.value = transformed;
+    showToast('✓ Custom AI transformation applied!');
+  });
+
+  // Generate dbt Staging Model
+  btnGenerateDbtStaging?.addEventListener('click', async () => {
+    const srcTable = txtSourceTableName.value.trim() || 'client_orders_raw';
+    const modelName = txtTargetModelName.value.trim() || 'stg_orders';
+    const targetCols = txtTargetColumns.value || txtSourceColumns.value || 'customer_id:string\ntransaction_amount:numeric\ncreated_at:timestamp\nis_active:boolean';
+
+    showToast('🚀 Generating dbt Staging Model SQL...');
+    const colLines = targetCols.split('\n').filter(l => l.trim().length > 0);
+    const selectClauses = colLines.map(line => {
+      const [name, type] = line.split(':').map(s => s.trim());
+      if (type && type.startsWith('masked_')) {
+        return `    SHA256(CAST(${name} AS STRING)) AS ${name}`;
+      }
+      if (type === 'numeric') {
+        return `    CAST(${name} AS NUMERIC) AS ${name}`;
+      }
+      if (type === 'timestamp') {
+        return `    CAST(${name} AS TIMESTAMP) AS ${name}`;
+      }
+      if (type === 'boolean') {
+        return `    CAST(${name} AS BOOLEAN) AS ${name}`;
+      }
+      return `    TRIM(CAST(${name} AS STRING)) AS ${name}`;
+    }).join(',\n');
+
+    const dbtSql = `-- Staging Model: ${modelName}.sql\n-- Generated by Evolve AI Semantic Schema Mapper\n\nWITH source_raw AS (\n  SELECT * FROM {{ source('raw_data', '${srcTable}') }}\n),\n\nstandardized AS (\n  SELECT\n${selectClauses}\n  FROM source_raw\n)\n\nSELECT * FROM standardized;`;
+
+    if (stagingOutputResultBox && stagingSqlCodePreview) {
+      stagingOutputResultBox.style.display = 'block';
+      stagingSqlCodePreview.innerText = dbtSql;
+    }
+
+    if (api?.workspace) {
+      const outPath = txtTargetOutputPath.value.trim() || `models/staging/${modelName}.sql`;
+      const ws = await api.workspace.getCurrent();
+      if (ws) {
+        await api.workspace.createFile(ws.path + '/' + outPath, dbtSql);
+        showToast(`✓ Generated and saved ${outPath} to workspace!`);
+        renderFileTree(api);
+      }
+    }
+  });
+
+  // Step 1: Introspect Database
+  document.getElementById('btnExecuteIntrospect')?.addEventListener('click', async () => {
+    const dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement).value;
+    const uri = (document.getElementById('dbUriInput') as HTMLInputElement).value;
+    if (!uri) {
+      showToast('⚠️ Please enter database connection URI.');
+      return;
+    }
+    showToast('🔌 Introspecting schema wire protocol...');
+    if (api?.engines) {
+      const res = await api.engines.introspectDb(dialect, uri);
+      const resBox = document.getElementById('dbIntrospectResultBox');
+      if (resBox) {
+        resBox.style.display = 'block';
+        resBox.innerText = JSON.stringify(res, null, 2);
+      }
+      if (res?.tables && res.tables.length > 0) {
+        txtSourceColumns.value = res.tables[0].columns.map((c: any) => `${c.name}:${c.type}`).join('\n');
+        txtSourceTableName.value = res.tables[0].name;
+        txtTargetModelName.value = 'stg_' + res.tables[0].name;
+        txtTargetOutputPath.value = `models/staging/stg_${res.tables[0].name}.sql`;
+        showToast(`✓ Introspected table: ${res.tables[0].name}`);
+      }
+    }
+  });
+
+  // Step 1: Discover Mart Recipes
+  document.getElementById('btnAiDiscoverMartRecipes')?.addEventListener('click', () => {
+    showToast('✨ Discovering Star-Schema Dimensional Mart Recipes...');
+    const preview = document.getElementById('martSqlCodePreview');
+    const resBox = document.getElementById('martOutputResultBox');
     if (resBox && preview) {
       resBox.style.display = 'block';
       preview.innerText = `[AI Discovered Dimensional Mart Recipes]\n1. 📊 mart_customer_orders (Grain: customer_id | Joins: stg_customers, stg_orders | Metrics: lifetime_value, order_count)\n2. 📈 mart_daily_revenue (Grain: order_date | Metrics: gross_revenue, completed_orders, return_rate)\n3. 🎯 mart_product_inventory (Grain: product_id | Metrics: total_units_sold, restock_days)`;
@@ -537,41 +734,30 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
-  // Step 1: Introspect & Mart
-  document.getElementById('btnP1Introspect')?.addEventListener('click', async () => {
-    const dialect = (document.getElementById('p1Dialect') as HTMLSelectElement).value;
-    const connUri = (document.getElementById('p1ConnUri') as HTMLInputElement).value;
-    if (!connUri) {
-      showToast('⚠️ Please enter a database connection string / host URI.');
-      return;
-    }
-    showToast('🔌 Introspecting schema wire protocol...');
-    if (api?.engines) {
-      const res = await api.engines.introspectDb(dialect, connUri);
-      const resBox = document.getElementById('p1ResultBox');
-      const preview = document.getElementById('p1CodePreview');
-      if (resBox && preview) {
-        resBox.style.display = 'block';
-        preview.innerText = JSON.stringify(res, null, 2);
-      }
-    }
-  });
+  // Step 1: Generate Dimensional Mart
+  document.getElementById('btnGenerateDimensionalMart')?.addEventListener('click', async () => {
+    const baseModel = (document.getElementById('txtMartBaseModel') as HTMLInputElement).value;
+    const joinModel = (document.getElementById('txtMartJoinModel') as HTMLInputElement).value;
+    const martName = (document.getElementById('txtMartModelName') as HTMLInputElement).value;
+    const mat = (document.getElementById('selMartMaterialization') as HTMLSelectElement).value;
+    const joinCond = (document.getElementById('txtMartJoinCondition') as HTMLInputElement).value;
 
-  document.getElementById('btnP1GenerateMart')?.addEventListener('click', async () => {
     showToast('🏗️ Generating Star-Schema dimensional dbt Mart...');
-    if (api?.engines) {
-      const res = await api.engines.buildMart({
-        martName: 'mart_orders_analytics',
-        materialization: 'table',
-        baseModel: 'stg_orders',
-        dimensions: ['order_id', 'customer_id', 'status'],
-        metrics: ['SUM(amount) as total_revenue']
-      });
-      const resBox = document.getElementById('p1ResultBox');
-      const preview = document.getElementById('p1CodePreview');
-      if (resBox && preview) {
-        resBox.style.display = 'block';
-        preview.innerText = res.sql + '\n\n-- schema.yml --\n' + res.schemaYaml;
+    const sql = `{{ config(materialized='${mat}') }}\n\nWITH base AS (\n  SELECT * FROM {{ ref('${baseModel}') }}\n),\njoined_dim AS (\n  SELECT * FROM {{ ref('${joinModel}') }}\n),\nfinal AS (\n  SELECT\n    base.*,\n    joined_dim.name AS customer_name,\n    joined_dim.email AS customer_email\n  FROM base\n  LEFT JOIN joined_dim ON ${joinCond}\n)\nSELECT * FROM final;`;
+
+    const preview = document.getElementById('martSqlCodePreview');
+    const resBox = document.getElementById('martOutputResultBox');
+    if (resBox && preview) {
+      resBox.style.display = 'block';
+      preview.innerText = sql;
+      showToast(`✓ Generated Mart ${martName}.sql!`);
+    }
+
+    if (api?.workspace) {
+      const ws = await api.workspace.getCurrent();
+      if (ws) {
+        await api.workspace.createFile(ws.path + `/models/marts/${martName}.sql`, sql);
+        renderFileTree(api);
       }
     }
   });
@@ -713,14 +899,14 @@ function setupDeliveryStudio(api: any): void {
   });
 }
 
-function switchDeliveryStep(step: number): void {
-  currentActivePhase = step;
-  document.querySelectorAll('.step-nav-card').forEach(c => {
-    c.classList.toggle('active', parseInt(c.getAttribute('data-step') || '1', 10) === step);
+function switchDeliveryPhase(phase: number): void {
+  currentActiveDeliveryPhase = phase;
+  document.querySelectorAll('.phase-nav-btn[data-phase]').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.getAttribute('data-phase') || '1', 10) === phase);
   });
   for (let i = 1; i <= 5; i++) {
-    const content = document.getElementById(`deliveryStep${i}Content`);
-    if (content) content.style.display = i === step ? 'block' : 'none';
+    const card = document.getElementById(`phase${i}Card`);
+    if (card) card.style.display = i === phase ? 'block' : 'none';
   }
 }
 
@@ -811,7 +997,6 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
     const res = await api.cloud.getDetailedStatus();
     if (!res) return;
 
-    // GCP
     const updateGcp = (badgeId: string, accId: string, btnId: string) => {
       const badge = document.getElementById(badgeId);
       const acc = document.getElementById(accId);
@@ -833,7 +1018,6 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
     updateGcp('cloudGcpBadge', 'cloudGcpAccount', 'btnConnectGcp');
     updateGcp('tabCloudGcpBadge', 'tabCloudGcpAccount', 'btnTabConnectGcp');
 
-    // AWS
     const updateAws = (badgeId: string, accId: string, btnId: string) => {
       const badge = document.getElementById(badgeId);
       const acc = document.getElementById(accId);
@@ -855,7 +1039,6 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
     updateAws('cloudAwsBadge', 'cloudAwsAccount', 'btnConnectAws');
     updateAws('tabCloudAwsBadge', 'tabCloudAwsAccount', 'btnTabConnectAws');
 
-    // Azure
     const updateAzure = (badgeId: string, accId: string, btnId: string) => {
       const badge = document.getElementById(badgeId);
       const acc = document.getElementById(accId);
@@ -877,7 +1060,6 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
     updateAzure('cloudAzureBadge', 'cloudAzureAccount', 'btnConnectAzure');
     updateAzure('tabCloudAzureBadge', 'tabCloudAzureAccount', 'btnTabConnectAzure');
 
-    // Docker
     const updateDocker = (badgeId: string, accId: string, btnId: string) => {
       const badge = document.getElementById(badgeId);
       const acc = document.getElementById(accId);

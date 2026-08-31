@@ -6,6 +6,84 @@
   <link rel="stylesheet" href="styles/theme.css">
   <link rel="stylesheet" href="styles/layout.css">
   <link rel="stylesheet" href="styles/terminal.css">
+  <style>
+    .phase-sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 200px;
+      flex-shrink: 0;
+    }
+    .phase-nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+    .phase-nav-btn:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent);
+    }
+    .phase-nav-btn.active {
+      background: #1e3a29;
+      color: #89d185;
+      border: 1px solid #89d185;
+    }
+    .phase-content-area {
+      flex: 1;
+      min-width: 0;
+    }
+    .ai-copilot-banner {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+    .ai-copilot-banner.green {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .ai-pill {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    .ai-pill.green {
+      background: linear-gradient(135deg, #10b981, #6366f1);
+    }
+    .code-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+    .code-tab {
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-secondary);
+      border-bottom: 2px solid transparent;
+    }
+    .code-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+  </style>
 </head>
 <body>
   <!-- Top App Header -->
@@ -88,7 +166,7 @@
       <div class="studio-scroll-area">
 
         <!-- =================================================================== -->
-        <!-- MODE 1: FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO -->
+        <!-- MODE 1: FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO (100% Match with Image 2) -->
         <!-- =================================================================== -->
         <section id="pane-delivery" class="phase-pane" style="display: block;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
@@ -109,7 +187,7 @@
             </div>
           </div>
 
-          <!-- DIAGRAMMATIC ROADMAP & PLAYBOOK BANNER (Collapsible) -->
+          <!-- DIAGRAMMATIC ROADMAP & PLAYBOOK BANNER -->
           <div id="roadmapBanner" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 18px 22px; margin-bottom: 18px; box-shadow: 0 6px 20px rgba(0,0,0,0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
               <h4 style="margin: 0; font-size: 15px; color: var(--accent); font-weight: 700;">🗺️ 14-Day Forward Deployed Delivery Roadmap &amp; Playbook</h4>
@@ -257,200 +335,342 @@
             </div>
           </div>
 
-          <!-- Top 5 Main Step Navigation Cards -->
-          <div class="step-nav-grid">
-            <div class="step-nav-card active" data-step="1">
-              <div class="st-num">STEP 1</div>
-              <div class="st-title">📊 Ingest &amp; Map</div>
+          <!-- 2-COLUMN DELIVERY STUDIO LAYOUT (Exact Match with Image 2) -->
+          <div style="display: flex; gap: 16px; align-items: flex-start; margin-top: 14px;">
+            <!-- Left 5-Step Navigation Sidebar (Exact Match with Image 2) -->
+            <div class="phase-sidebar-nav">
+              <button class="phase-nav-btn active" data-phase="1">📗 1. Schema &amp; Marts</button>
+              <button class="phase-nav-btn" data-phase="2">🔌 2. Client API Studio</button>
+              <button class="phase-nav-btn" data-phase="3">⚡ 3. Pilot Deployment</button>
+              <button class="phase-nav-btn" data-phase="4">📑 4. Runbook Factory</button>
+              <button class="phase-nav-btn" data-phase="5">💎 5. Enterprise Suite</button>
             </div>
-            <div class="step-nav-card" data-step="2">
-              <div class="st-num">STEP 2</div>
-              <div class="st-title">🔌 Client APIs</div>
-            </div>
-            <div class="step-nav-card" data-step="3">
-              <div class="st-num">STEP 3</div>
-              <div class="st-title">⚡ Validate &amp; Deploy</div>
-            </div>
-            <div class="step-nav-card" data-step="4">
-              <div class="st-num">STEP 4</div>
-              <div class="st-title">📑 Handoff &amp; Docs</div>
-            </div>
-            <div class="step-nav-card" data-step="5">
-              <div class="st-num">STEP 5</div>
-              <div class="st-title">💎 Enterprise Suite</div>
-            </div>
-          </div>
 
-          <!-- Step 1 Content: Ingest & Map -->
-          <div id="deliveryStep1Content" class="delivery-step-view" style="display: block;">
-            <div class="content-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <h3 style="margin: 0;">📊 Database Wire Introspection &amp; Dimensional Star-Schema Marts</h3>
-                <div style="display: flex; gap: 6px;">
-                  <button class="btn-quick" id="btnAiSchemaAssistant" style="color: var(--accent); border-color: var(--accent);">✨ AI Schema Assistant</button>
-                  <button class="btn-quick" id="btnAiMartDiscover" style="color: var(--success); border-color: var(--success);">✨ AI Mart Recipes</button>
+            <!-- Right Step Content Canvas (Exact Match with Image 2) -->
+            <div class="phase-content-area">
+              
+              <!-- ============================================================= -->
+              <!-- STEP 1: SEMANTIC SCHEMA MAPPER & DIMENSIONAL MART BUILDER -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase1Card" style="display: block;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">📊 Semantic Schema Mapper &amp; Dimensional Mart Builder</h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Ingest foreign client datasets into clean staging models, or connect directly to live databases (PostgreSQL, Snowflake, BigQuery) to introspect table schemas.</p>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn-quick" id="btnToggleDbDrawer" style="background: var(--success); color: #1e1e1e; font-weight: 700; border-color: var(--success);">🔌 Connect Live DB / Warehouse</button>
+                    <button class="btn-quick" id="btnPickSchemaFile">📁 Browse CSV / Schema</button>
+                  </div>
+                </div>
+
+                <!-- Inline Live DB Connector Drawer -->
+                <div id="dbConnectDrawer" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-weight: 700; color: var(--accent); font-size: 12px;">🔌 Connect Live Database / Warehouse (Encrypted at rest via OS Vault)</div>
+                    <button class="btn-quick" id="btnCloseDbDrawer">✕ Close</button>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Dialect</label>
+                      <select id="dbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                        <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                        <option value="snowflake">Snowflake Data Cloud</option>
+                        <option value="bigquery">Google BigQuery</option>
+                        <option value="mysql">MySQL / Aurora</option>
+                        <option value="sqlite">SQLite Local .db</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Connection URI / Host String</label>
+                      <input type="password" id="dbUriInput" placeholder="postgresql://user:password@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace;">
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn" id="btnExecuteIntrospect">🔍 Connect &amp; Fetch Tables</button>
+                    <button class="btn btn-secondary" id="btnAutoDetectDb">⚡ Auto-Detect from .env / dbt</button>
+                  </div>
+                  <div id="dbIntrospectResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 160px; overflow-y: auto;"></div>
+                </div>
+
+                <!-- Submode Tabs (1. Staging Schema Mapper vs 2. Cross-Model / Mart Join Builder) -->
+                <div class="code-tabs">
+                  <div class="code-tab active" id="tabModeStaging">1. Staging Schema Mapper</div>
+                  <div class="code-tab" id="tabModeMart">2. 🗄️ Cross-Model / Mart Join Builder</div>
+                </div>
+
+                <!-- SUBPANEL A: STAGING SCHEMA MAPPER (Exact Match with Image 2) -->
+                <div id="subpanelStagingView" style="display: block;">
+                  <!-- AI Copilot Banner (Exact Match with Image 2) -->
+                  <div class="ai-copilot-banner">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="ai-pill">✨ AI Copilot</span>
+                        <span>Auto-clean schemas, normalize data types, and detect sensitive PII for any loaded table.</span>
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn-quick" id="btnAiAutoClean" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; font-weight: 700; border: none; padding: 4px 10px; font-size: 11px;">✨ AI Auto-Clean &amp; Standardize</button>
+                        <button class="btn-quick" id="btnAiPiiMasking" style="background: rgba(220, 220, 170, 0.15); color: #dcdcaa; border-color: #dcdcaa; padding: 4px 10px; font-size: 11px;">🔒 AI PII Masking</button>
+                        <button class="btn-quick" id="btnAiCustomPrompt" style="padding: 4px 10px; font-size: 11px;">🪄 Custom Prompt</button>
+                      </div>
+                    </div>
+                    <!-- Custom Prompt Box -->
+                    <div id="aiCustomPromptDrawer" style="display: none; margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(99, 102, 241, 0.3);">
+                      <div style="display: flex; gap: 8px;">
+                        <input type="text" id="txtAiCustomInstruction" placeholder="e.g. 'Prefix timestamp columns with event_, convert revenue to AUD cents, and mask email addresses'..." style="flex: 1; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <button class="btn" id="btnApplyCustomPrompt" style="padding: 6px 12px; font-size: 11px;">Apply AI Instruction</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Two Side-by-Side Schema Editors (Exact Match with Image 2) -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label style="font-size: 11px; font-weight: bold;">Source Columns (Raw Client Schema)</label>
+                        <span id="lblLoadedSourceFile" style="font-size: 10px; color: var(--success); font-family: monospace;"></span>
+                      </div>
+                      <textarea id="txtSourceColumns" rows="8" placeholder="Paste raw columns here or click 'Browse CSV / Schema file'...&#10;e.g.:&#10;CUST_NBR_ID:string&#10;TXN_AMT:float&#10;CREATED_TS:timestamp&#10;IS_ACTIVE_FLG:string" style="width: 100%; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label style="font-size: 11px; font-weight: bold;">Target Model Columns (Platform Standard)</label>
+                        <span style="font-size: 10px; color: var(--text-secondary);">Standardized schema</span>
+                      </div>
+                      <textarea id="txtTargetColumns" rows="8" placeholder="Target columns will be auto-generated by AI or editable directly...&#10;e.g.:&#10;customer_id:string&#10;transaction_amount:numeric&#10;created_at:timestamp&#10;is_active:boolean" style="width: 100%; padding: 8px; background: var(--bg-primary); color: #4ec9b0; border: 1px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                  </div>
+
+                  <!-- Bottom Metadata Inputs (Exact Match with Image 2) -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 12px; margin-bottom: 16px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Source Table / Dataset Name</label>
+                      <input type="text" id="txtSourceTableName" value="client_orders_raw" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Target Model Name (dbt / View)</label>
+                      <input type="text" id="txtTargetModelName" value="stg_orders" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Target File Output Path (Customizable)</label>
+                      <input type="text" id="txtTargetOutputPath" value="models/staging/stg_orders.sql" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                  </div>
+
+                  <!-- Execution Button (Exact Match with Image 2) -->
+                  <div style="display: flex; gap: 12px; align-items: center;">
+                    <button class="btn" id="btnGenerateDbtStaging" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 8px 18px;">🚀 Generate dbt Staging Model</button>
+                    <span style="font-size: 11px; color: var(--text-secondary);">Scaffolds custom staging model SQL into configured output path</span>
+                  </div>
+
+                  <!-- Generated Model Output Preview -->
+                  <div id="stagingOutputResultBox" style="display: none; margin-top: 16px;">
+                    <div style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 240px; overflow-y: auto;" id="stagingSqlCodePreview"></div>
+                  </div>
+                </div>
+
+                <!-- SUBPANEL B: MART JOIN BUILDER -->
+                <div id="subpanelMartView" style="display: none;">
+                  <div class="ai-copilot-banner green">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="ai-pill green">✨ AI Mart Copilot</span>
+                        <span>Discover foreign key joins, dimensional metrics, and smart recipes tailored to your tables.</span>
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn-quick" id="btnAiDiscoverMartRecipes" style="background: #10b981; color: #1e1e1e; font-weight: 700; border: none; padding: 4px 10px; font-size: 11px;">✨ AI Discover Mart Recipes</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Base / Fact Model</label>
+                      <input type="text" id="txtMartBaseModel" value="stg_orders" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Joined Dimension Model</label>
+                      <input type="text" id="txtMartJoinModel" value="stg_customers" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Mart Model Name</label>
+                      <input type="text" id="txtMartModelName" value="mart_orders_analytics" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Materialization</label>
+                      <select id="selMartMaterialization" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                        <option value="table" selected>Table (Physical Persistent Data Mart)</option>
+                        <option value="view">View (Virtual SQL Query)</option>
+                        <option value="incremental">Incremental (High-Performance Delta)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="margin-bottom: 14px;">
+                    <label style="font-size: 11px; font-weight: bold;">Join ON Condition</label>
+                    <input type="text" id="txtMartJoinCondition" value="stg_orders.customer_id = stg_customers.id" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                  </div>
+
+                  <button class="btn" id="btnGenerateDimensionalMart" style="background: var(--success); color: #1e1e1e; font-weight: 700;">🏗️ Generate Star-Schema Dimensional Mart &amp; schema.yml</button>
+
+                  <div id="martOutputResultBox" style="display: none; margin-top: 16px;">
+                    <div style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 240px; overflow-y: auto;" id="martSqlCodePreview"></div>
+                  </div>
                 </div>
               </div>
-              <p class="desc">Introspect live client databases (Postgres, Snowflake, BigQuery, MySQL, SQLite) via TCP wire protocol and generate dimensional star-schema dbt marts.</p>
-              <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-bottom: 12px;">
-                <div>
-                  <label style="font-size: 11px; font-weight: bold;">Database Dialect</label>
-                  <select id="p1Dialect" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                    <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
-                    <option value="snowflake">Snowflake Data Cloud</option>
-                    <option value="bigquery">Google BigQuery</option>
-                    <option value="mysql">MySQL / Aurora</option>
-                    <option value="sqlite">SQLite Local .db</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="font-size: 11px; font-weight: bold;">Connection String / Host</label>
-                  <input type="password" id="p1ConnUri" placeholder="postgresql://user:pass@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                </div>
-              </div>
-              <div style="display: flex; gap: 10px;">
-                <button class="btn" id="btnP1Introspect">🔌 Introspect Live Schema</button>
-                <button class="btn btn-secondary" id="btnP1GenerateMart">🏗️ Generate Dimensional dbt Mart</button>
-              </div>
-              <div id="p1ResultBox" style="display: none; margin-top: 12px;">
-                <div class="code-preview" id="p1CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Step 2 Content: Client APIs -->
-          <div id="deliveryStep2Content" class="delivery-step-view" style="display: none;">
-            <div class="content-card">
-              <h3>🔌 Client API Connector &amp; Reverse-Engineered SDK Studio</h3>
-              <p class="desc">Paste cURL snippets, OpenAPI JSON, or raw HTTP payloads to generate resilient TypeScript &amp; Python client SDKs with exponential backoff retries.</p>
-              <textarea id="p2ApiInput" rows="4" placeholder="curl -X GET https://api.client.com/v1/customers -H 'Authorization: Bearer secret'" style="width: 100%; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px;"></textarea>
-              <button class="btn" id="btnP2GenerateSdk">⚡ Generate Resilient Client SDK (TS + Python)</button>
-              <div id="p2ResultBox" style="display: none; margin-top: 12px;">
-                <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 3 Content: Validate & Deploy -->
-          <div id="deliveryStep3Content" class="delivery-step-view" style="display: none;">
-            <div class="content-card">
-              <h3>⚡ Multi-Cloud Pilot Deployment Matrix &amp; Pre-Flight Auditor</h3>
-              <p class="desc">Scaffold production Terraform, Kubernetes manifests, and Docker Compose configs with zero dangling temp files.</p>
-              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                <div>
-                  <label style="font-size: 11px; font-weight: bold;">Cloud Provider</label>
-                  <select id="p3Provider" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                    <option value="gcp-firebase" selected>GCP Cloud Run + Firebase</option>
-                    <option value="aws-ecs">AWS ECS / Fargate</option>
-                    <option value="azure-container">Azure Container Apps</option>
-                    <option value="air-gapped-k8s">Air-Gapped Sovereign Kubernetes</option>
-                  </select>
+              <!-- ============================================================= -->
+              <!-- STEP 2: CLIENT APIS -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase2Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">🔌 Client API Connector &amp; Reverse-Engineered SDK Studio</h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Paste cURL snippets, OpenAPI JSON, or raw HTTP payloads to generate resilient TypeScript &amp; Python client SDKs with exponential backoff retries.</p>
+                  </div>
                 </div>
-                <div>
-                  <label style="font-size: 11px; font-weight: bold;">Project / Account ID</label>
-                  <input type="text" id="p3ProjectId" value="acme-pilot-prod" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                <textarea id="p2ApiInput" rows="5" placeholder="curl -X GET https://api.client.com/v1/customers -H 'Authorization: Bearer secret'" style="width: 100%; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-family: monospace; font-size: 12px;"></textarea>
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn" id="btnP2GenerateSdk">⚡ Generate Resilient Client SDK (TS + Python)</button>
                 </div>
-                <div>
-                  <label style="font-size: 11px; font-weight: bold;">Region</label>
-                  <input type="text" id="p3Region" value="australia-southeast1" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                <div id="p2ResultBox" style="display: none; margin-top: 14px;">
+                  <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
                 </div>
               </div>
-              <div style="display: flex; gap: 10px;">
-                <button class="btn" id="btnP3Scaffold">🚀 Scaffold Infrastructure &amp; CI/CD</button>
-                <button class="btn btn-secondary" id="btnP3Audit">🧹 Run Pre-Flight Health Audit</button>
-              </div>
-              <div id="p3ResultBox" style="display: none; margin-top: 12px;">
-                <div class="code-preview" id="p3CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
-              </div>
-            </div>
-          </div>
 
-          <!-- Step 4 Content: Handoff & Docs -->
-          <div id="deliveryStep4Content" class="delivery-step-view" style="display: none;">
-            <div class="content-card">
-              <h3>📑 Client Handoff Runbook &amp; Architecture Factory</h3>
-              <p class="desc">Automatically synthesize interactive Mermaid sequence diagrams, operational runbooks, data dictionaries, and environment variable references.</p>
-              <button class="btn" id="btnP4GenerateAll">📦 Generate Complete Client Handoff Bundle</button>
-              <div id="p4ResultBox" style="display: none; margin-top: 12px;">
-                <div class="code-preview" id="p4CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 5 Content: Enterprise Commercial Suite -->
-          <div id="deliveryStep5Content" class="delivery-step-view" style="display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-              <div>
-                <h3 style="margin: 0; font-size: 16px; color: var(--accent); display: flex; align-items: center; gap: 8px;">
-                  💎 Enterprise Commercial Suite <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">PROPRIETARY &amp; AIR-GAPPED</span>
-                </h3>
-                <p class="desc" style="margin: 4px 0 0 0;">Commercial high-security modules for Forward-Deployed Engineers: Cryptographic License Manager, Air-Gapped RAG Pipelines, Distributed SLA Load Testing, dbt Data Quality &amp; Schema Drift Gates, SOC2/HIPAA SIEM Forwarder, and Private vLLM/Triton Serving.</p>
-              </div>
-            </div>
-
-            <!-- Enterprise License Manager Box -->
-            <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                  <span>🔑</span> Enterprise License &amp; Organization Manager
+              <!-- ============================================================= -->
+              <!-- STEP 3: PILOT DEPLOYMENT -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase3Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">⚡ Multi-Cloud Pilot Deployment Matrix &amp; Pre-Flight Auditor</h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Scaffold production Terraform, Kubernetes manifests, and Docker Compose configs with zero dangling temp files.</p>
+                  </div>
                 </div>
-                <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">🟢 Enterprise Platinum (28d left)</span>
-              </div>
-              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">Offline Ed25519 cryptographic license verification &amp; commercial feature entitlement.</div>
-
-              <div style="margin-bottom: 10px;">
-                <label style="font-size: 11px; font-weight: bold;">Enterprise License Key</label>
-                <textarea id="txtEntLicenseKeyBox" rows="2" placeholder="EM_ENT_V1.eyJvcmciOiB... (paste signed key here)" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;"></textarea>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="font-size: 11px; color: var(--text-secondary);">Quick Actions:</div>
-                <div style="display: flex; gap: 6px;">
-                  <button class="btn-quick" id="btnEntActivateKey" style="color: var(--success); font-weight: 700;">🚀 Activate Key</button>
-                  <button class="btn-quick" id="btnEnt30DayTrial">✨ 30-Day Trial</button>
-                  <button class="btn-quick" id="btnEntDeactivate" style="color: var(--error);">✕ Deactivate</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                  <div>
+                    <label style="font-size: 11px; font-weight: bold;">Cloud Provider</label>
+                    <select id="p3Provider" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                      <option value="gcp-firebase" selected>GCP Cloud Run + Firebase</option>
+                      <option value="aws-ecs">AWS ECS / Fargate</option>
+                      <option value="azure-container">Azure Container Apps</option>
+                      <option value="air-gapped-k8s">Air-Gapped Sovereign Kubernetes</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: bold;">Project / Account ID</label>
+                    <input type="text" id="p3ProjectId" value="acme-pilot-prod" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: bold;">Region</label>
+                    <input type="text" id="p3Region" value="australia-southeast1" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                  </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                  <button class="btn" id="btnP3Scaffold">🚀 Scaffold Infrastructure &amp; CI/CD</button>
+                  <button class="btn btn-secondary" id="btnP3Audit">🧹 Run Pre-Flight Health Audit</button>
+                </div>
+                <div id="p3ResultBox" style="display: none; margin-top: 14px;">
+                  <div class="code-preview" id="p3CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
                 </div>
               </div>
-            </div>
 
-            <!-- 6 Commercial Engines Grid -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <div class="content-card">
-                <h3>🔄 SQL Transpiler (Oracle/T-SQL -> BQ/Snowflake)</h3>
-                <textarea id="sqlTranspileInput" rows="2" placeholder="SELECT NVL(cust_id, 0), SYSDATE FROM orders;" style="width: 100%; margin-bottom: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); padding: 6px; border-radius: 4px;"></textarea>
-                <button class="btn-quick" id="btnRunSqlTranspile">⚡ Transpile SQL</button>
-                <div id="sqlTranspileResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="sqlTranspileCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+              <!-- ============================================================= -->
+              <!-- STEP 4: RUNBOOK FACTORY -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase4Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">📑 Client Handoff Runbook &amp; Architecture Factory</h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Automatically synthesize interactive Mermaid sequence diagrams, operational runbooks, data dictionaries, and environment variable references.</p>
+                  </div>
+                </div>
+                <button class="btn" id="btnP4GenerateAll">📦 Generate Complete Client Handoff Bundle</button>
+                <div id="p4ResultBox" style="display: none; margin-top: 14px;">
+                  <div class="code-preview" id="p4CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
+                </div>
               </div>
 
-              <div class="content-card">
-                <h3>🛡️ HIPAA &amp; GDPR PII Masking Engine</h3>
-                <button class="btn-quick" id="btnRunPiiMasking">🔒 Generate Masking Suite</button>
-                <div id="piiResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="piiCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+              <!-- ============================================================= -->
+              <!-- STEP 5: ENTERPRISE SUITE -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase5Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: var(--accent); display: flex; align-items: center; gap: 8px;">
+                      💎 Enterprise Commercial Suite <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">PROPRIETARY &amp; AIR-GAPPED</span>
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Commercial high-security modules for Forward-Deployed Engineers: Cryptographic License Manager, Air-Gapped RAG Pipelines, Distributed SLA Load Testing, dbt Data Quality &amp; Schema Drift Gates, SOC2/HIPAA SIEM Forwarder, and Private vLLM/Triton Serving.</p>
+                  </div>
+                </div>
+
+                <!-- License Key Manager Box -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>🔑</span> Enterprise License &amp; Organization Manager
+                    </div>
+                    <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">🟢 Enterprise Platinum (28d left)</span>
+                  </div>
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 11px; font-weight: bold;">Enterprise License Key</label>
+                    <textarea id="txtEntLicenseKeyBox" rows="2" placeholder="EM_ENT_V1.eyJvcmciOiB... (paste signed key here)" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;"></textarea>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">Quick Actions:</div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn-quick" id="btnEntActivateKey" style="color: var(--success); font-weight: 700;">🚀 Activate Key</button>
+                      <button class="btn-quick" id="btnEnt30DayTrial">✨ 30-Day Trial</button>
+                      <button class="btn-quick" id="btnEntDeactivate" style="color: var(--error);">✕ Deactivate</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 6 Commercial Engines Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <div class="content-card">
+                    <h3>🔄 SQL Transpiler (Oracle/T-SQL -> BQ/Snowflake)</h3>
+                    <textarea id="sqlTranspileInput" rows="2" placeholder="SELECT NVL(cust_id, 0), SYSDATE FROM orders;" style="width: 100%; margin-bottom: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); padding: 6px; border-radius: 4px;"></textarea>
+                    <button class="btn-quick" id="btnRunSqlTranspile">⚡ Transpile SQL</button>
+                    <div id="sqlTranspileResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="sqlTranspileCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3>🛡️ HIPAA &amp; GDPR PII Masking Engine</h3>
+                    <button class="btn-quick" id="btnRunPiiMasking">🔒 Generate Masking Suite</button>
+                    <div id="piiResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="piiCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3>⚡ Operational Reverse ETL Sync Worker</h3>
+                    <button class="btn-quick" id="btnRunReverseEtl">🔄 Generate Sync Worker</button>
+                    <div id="reverseEtlResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="reverseEtlCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3>🔐 Zero-Trust Row-Level Security (RLS)</h3>
+                    <button class="btn-quick" id="btnRunRls">🛡️ Generate RLS Policies</button>
+                    <div id="rlsResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="rlsCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3>🧪 Air-Gapped Golden Dataset Factory</h3>
+                    <button class="btn-quick" id="btnRunSynthetic">🌱 Generate Golden Dataset</button>
+                    <div id="syntheticResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="syntheticCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  </div>
+
+                  <div class="content-card">
+                    <h3>🎭 Contract-Driven Mock API Server</h3>
+                    <button class="btn-quick" id="btnRunMockServer">🚀 Generate Mock Server</button>
+                    <div id="mockServerResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="mockServerCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  </div>
+                </div>
               </div>
 
-              <div class="content-card">
-                <h3>⚡ Operational Reverse ETL Sync Worker</h3>
-                <button class="btn-quick" id="btnRunReverseEtl">🔄 Generate Sync Worker</button>
-                <div id="reverseEtlResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="reverseEtlCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-              </div>
-
-              <div class="content-card">
-                <h3>🔐 Zero-Trust Row-Level Security (RLS)</h3>
-                <button class="btn-quick" id="btnRunRls">🛡️ Generate RLS Policies</button>
-                <div id="rlsResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="rlsCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-              </div>
-
-              <div class="content-card">
-                <h3>🧪 Air-Gapped Golden Dataset Factory</h3>
-                <button class="btn-quick" id="btnRunSynthetic">🌱 Generate Golden Dataset</button>
-                <div id="syntheticResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="syntheticCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-              </div>
-
-              <div class="content-card">
-                <h3>🎭 Contract-Driven Mock API Server</h3>
-                <button class="btn-quick" id="btnRunMockServer">🚀 Generate Mock Server</button>
-                <div id="mockServerResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="mockServerCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-              </div>
             </div>
           </div>
         </section>
@@ -1020,7 +1240,6 @@
 
       <input type="text" id="txtSearchAiProvider" placeholder="Search provider or model..." style="width: 100%; padding: 8px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 14px; font-size: 12px;">
 
-      <!-- LOCAL PROVIDERS -->
       <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px;">LOCAL PROVIDERS</div>
 
       <div class="modal-item active" data-provider="ollama" data-model="qwen2.5-coder:7b">
@@ -1051,7 +1270,6 @@
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Built-in &mdash; instant, no setup, no LLM needed</div>
       </div>
 
-      <!-- CLOUD PROVIDERS -->
       <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 14px 0 8px 0;">CLOUD PROVIDERS (REQUIRES API KEY)</div>
 
       <div class="modal-item" data-provider="anthropic" data-model="claude-3-7-sonnet">
