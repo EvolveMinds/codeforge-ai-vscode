@@ -3874,6 +3874,29 @@ function setupModals(api: any): void {
     if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'none';
   });
 
+  // Wire Active Plugin Items to jump to relevant studios or settings
+  modalPluginsDrawer?.querySelectorAll('.plugin-card-item, .btn-plugin-launch, .btn-plugin-settings').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const targetTab = el.getAttribute('data-targettab');
+      const targetSettings = el.getAttribute('data-targetsettings');
+
+      if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'none';
+
+      if (targetTab) {
+        switchActivityTab(targetTab);
+        showToast(`🚀 Navigated to ${targetTab.toUpperCase()} Studio`);
+      } else if (targetSettings) {
+        const btnOpenSettings = document.getElementById('btnOpenSettings');
+        if (btnOpenSettings) btnOpenSettings.click();
+        setTimeout(() => {
+          const tabBtn = document.querySelector(`.settings-tab[data-tab="${targetSettings}"]`) as HTMLElement;
+          if (tabBtn) tabBtn.click();
+        }, 80);
+      }
+    });
+  });
+
   const openModelPicker = async () => {
     if (!modalAiProvider) return;
     modalAiProvider.style.display = 'flex';
