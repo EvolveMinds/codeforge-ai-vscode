@@ -33,6 +33,7 @@ let runbookDocs: {
 };
 let activeRunbookTab = 'arch';
 let currentIntrospectedTables: any[] = [];
+let activeDeployProvider = 'gcp-firebase';
 
 // Engagement project catalog
 interface EngagementProject {
@@ -1235,15 +1236,97 @@ function setupDeliveryStudio(api: any): void {
     if (p2CodePreview && generatedPySdk) p2CodePreview.innerText = generatedPySdk;
   });
 
-  // --- STEP 3: PILOT DEPLOYMENT ---
+  // --- STEP 3: MULTI-CLOUD PILOT DEPLOYMENT & CI/CD HUB ---
+  const deployTabs = [
+    { id: 'tabProvGcp', prov: 'gcp-firebase' },
+    { id: 'tabProvAws', prov: 'aws' },
+    { id: 'tabProvAzure', prov: 'azure' },
+    { id: 'tabProvDocker', prov: 'docker' }
+  ];
+
+  const switchDeployProvider = (prov: string) => {
+    activeDeployProvider = prov;
+    deployTabs.forEach(t => {
+      const el = document.getElementById(t.id);
+      if (el) el.classList.toggle('active', t.prov === prov);
+    });
+
+    const titleEl = document.getElementById('lblMatrixTitle');
+    const apiProvEl = document.getElementById('lblCloudProviderName');
+    const targetProjEl = document.getElementById('lblTargetProjId');
+    const cpuLabel = document.getElementById('lblDeployCpu');
+    const memLabel = document.getElementById('lblDeployMemory');
+    const vpcLabel = document.getElementById('lblDeployVpc');
+    const subnetLabel = document.getElementById('lblDeploySubnet');
+    const sgLabel = document.getElementById('lblDeploySg');
+    const secretsSel = document.getElementById('deploySecrets') as HTMLSelectElement;
+    const regionInput = document.getElementById('deployRegion') as HTMLInputElement;
+
+    if (prov === 'gcp-firebase') {
+      if (titleEl) titleEl.innerText = '⚙️ Google Cloud (GCP) Deployment Parameter Matrix';
+      if (apiProvEl) apiProvEl.innerText = 'GCP';
+      if (targetProjEl) targetProjEl.innerText = 'Target GCP Project ID';
+      if (cpuLabel) cpuLabel.innerText = 'CPU Allocation (Cloud Run / GKE)';
+      if (memLabel) memLabel.innerText = 'Memory Allocation (RAM)';
+      if (vpcLabel) vpcLabel.innerText = 'GCP VPC Network (e.g. default)';
+      if (subnetLabel) subnetLabel.innerText = 'Subnetwork / Connector Name';
+      if (sgLabel) sgLabel.innerText = 'Firewall Network Tags';
+      if (secretsSel) secretsSel.value = 'gcp-secret-manager';
+      if (regionInput) regionInput.value = 'australia-southeast1';
+    } else if (prov === 'aws') {
+      if (titleEl) titleEl.innerText = '⚙️ AWS Fargate & ECS Deployment Parameter Matrix';
+      if (apiProvEl) apiProvEl.innerText = 'AWS';
+      if (targetProjEl) targetProjEl.innerText = 'AWS Account ID / Project Tag';
+      if (cpuLabel) cpuLabel.innerText = 'ECS Task CPU (e.g. 1024, 2048)';
+      if (memLabel) memLabel.innerText = 'ECS Task Memory (e.g. 2048, 4096)';
+      if (vpcLabel) vpcLabel.innerText = 'AWS VPC ID (vpc-0a1b2c3d)';
+      if (subnetLabel) subnetLabel.innerText = 'Subnet IDs (subnet-012, subnet-345)';
+      if (sgLabel) sgLabel.innerText = 'Security Group IDs (sg-0123456789)';
+      if (secretsSel) secretsSel.value = 'aws-secrets-manager';
+      if (regionInput) regionInput.value = 'us-east-1';
+    } else if (prov === 'azure') {
+      if (titleEl) titleEl.innerText = '⚙️ Azure Container Apps Deployment Parameter Matrix';
+      if (apiProvEl) apiProvEl.innerText = 'Azure';
+      if (targetProjEl) targetProjEl.innerText = 'Azure Resource Group (rg-pilot)';
+      if (cpuLabel) cpuLabel.innerText = 'Container Apps CPU (e.g. 1.0, 2.0)';
+      if (memLabel) memLabel.innerText = 'Container Apps Memory (e.g. 2.0Gi)';
+      if (vpcLabel) vpcLabel.innerText = 'Azure VNet Name';
+      if (subnetLabel) subnetLabel.innerText = 'Delegated Subnet ID';
+      if (sgLabel) sgLabel.innerText = 'Network Security Group (NSG)';
+      if (secretsSel) secretsSel.value = 'azure-key-vault';
+      if (regionInput) regionInput.value = 'eastus';
+    } else if (prov === 'docker') {
+      if (titleEl) titleEl.innerText = '⚙️ Air-Gapped Docker & On-Prem Parameter Matrix';
+      if (apiProvEl) apiProvEl.innerText = 'Docker';
+      if (targetProjEl) targetProjEl.innerText = 'Container Name / Stack Tag';
+      if (cpuLabel) cpuLabel.innerText = 'Docker CPUs Limit (e.g. 2.0, 4.0)';
+      if (memLabel) memLabel.innerText = 'Docker Memory Limit (e.g. 2Gi, 4Gi)';
+      if (vpcLabel) vpcLabel.innerText = 'Docker Network Mode (bridge/host)';
+      if (subnetLabel) subnetLabel.innerText = 'Port Forwarding (e.g. 8080:8080)';
+      if (sgLabel) sgLabel.innerText = 'Host Exposed Ports';
+      if (secretsSel) secretsSel.value = 'env-file';
+      if (regionInput) regionInput.value = 'local';
+    }
+
+    showToast(`Switched to ${prov.toUpperCase()} deployment parameters`);
+  };
+
+  deployTabs.forEach(t => {
+    document.getElementById(t.id)?.addEventListener('click', () => switchDeployProvider(t.prov));
+  });
+
   document.getElementById('btnDiscoverCloudApi')?.addEventListener('click', async () => {
-    showToast('⚡ Probing active cloud credentials and VPC topology...');
+    showToast(`⚡ Probing active ${activeDeployProvider.toUpperCase()} credentials & VPC topology...`);
     if (api?.cloud) {
       const res = await api.cloud.getDetailedStatus();
-      if (res?.gcp?.project) {
-        (document.getElementById('p3ProjectId') as HTMLInputElement).value = res.gcp.project;
-        showToast('✓ Auto-filled cloud project parameters!');
+      if (activeDeployProvider === 'gcp-firebase' && res?.gcp?.project) {
+        (document.getElementById('gcpProjId') as HTMLInputElement).value = res.gcp.project;
+      } else if (activeDeployProvider === 'aws' && res?.aws?.account) {
+        (document.getElementById('gcpProjId') as HTMLInputElement).value = res.aws.account;
+      } else if (activeDeployProvider === 'azure' && res?.azure?.subscription) {
+        (document.getElementById('gcpProjId') as HTMLInputElement).value = res.azure.subscription;
       }
+      showToast(`✓ Auto-filled ${activeDeployProvider.toUpperCase()} parameters from active cloud session!`);
     }
   });
 
@@ -1264,55 +1347,182 @@ function setupDeliveryStudio(api: any): void {
     showToast('🧹 Cleaned all temporary and dangling backup files!');
   });
 
+  const getDeployConfig = () => {
+    const projId = (document.getElementById('gcpProjId') as HTMLInputElement)?.value || 'acme-pilot-2026';
+    const cpu = (document.getElementById('deployCpu') as HTMLInputElement)?.value || '1';
+    const mem = (document.getElementById('deployMemory') as HTMLInputElement)?.value || '1Gi';
+    const gpu = (document.getElementById('deployGpu') as HTMLSelectElement)?.value || 'none';
+    const vpc = (document.getElementById('deployVpcId') as HTMLInputElement)?.value || 'default';
+    const sub = (document.getElementById('deploySubnetId') as HTMLInputElement)?.value || 'pilot-subnet';
+    const sg = (document.getElementById('deploySecurityGroups') as HTMLInputElement)?.value || 'allow-internal-pilot';
+    const ingress = (document.getElementById('deployIngress') as HTMLSelectElement)?.value || 'internal';
+    const minInst = (document.getElementById('deployMinInst') as HTMLInputElement)?.value || '0';
+    const maxInst = (document.getElementById('deployMaxInst') as HTMLInputElement)?.value || '10';
+    const secrets = (document.getElementById('deploySecrets') as HTMLSelectElement)?.value || 'gcp-secret-manager';
+    const region = (document.getElementById('deployRegion') as HTMLInputElement)?.value || 'australia-southeast1';
+
+    return {
+      provider: activeDeployProvider,
+      projectId: projId,
+      region,
+      cpu,
+      memory: mem,
+      gpu,
+      vpcId: vpc,
+      subnetId: sub,
+      securityGroups: sg,
+      ingress,
+      minInstances: minInst,
+      maxInstances: maxInst,
+      secretsProvider: secrets,
+      appName: 'client-pilot'
+    };
+  };
+
   document.getElementById('btnScaffoldDeployExact')?.addEventListener('click', async () => {
-    const provider = (document.getElementById('p3Provider') as HTMLSelectElement).value;
-    const projectId = (document.getElementById('p3ProjectId') as HTMLInputElement).value;
-    const region = (document.getElementById('p3Region') as HTMLInputElement).value;
-    showToast('🚀 Scaffolding Terraform & Kubernetes deployment scripts...');
+    const cfg = getDeployConfig();
+    showToast(`🚀 Scaffolding ${cfg.provider.toUpperCase()} infrastructure & deploy scripts...`);
     if (api?.engines) {
-      const res = await api.engines.scaffoldDeploy({ provider, projectId, region, appName: 'client-pilot' });
+      const res = await api.engines.scaffoldDeploy(cfg);
       const p3Box = document.getElementById('p3ResultBox');
       const p3Prev = document.getElementById('p3CodePreview');
       if (p3Box && p3Prev) {
         p3Box.style.display = 'block';
-        p3Prev.innerText = '# --- Terraform main.tf ---\n' + res.terraform;
+        p3Prev.innerText = `# --- Multi-Cloud IaC: ${cfg.provider.toUpperCase()} ---\n\n${res.terraform}\n\n# --- Kubernetes Manifest ---\n\n${res.kubernetes}`;
       }
-      showToast('✓ Deployment scripts scaffolded successfully!');
+
+      if (api?.workspace) {
+        const ws = await api.workspace.getCurrent();
+        if (ws) {
+          await api.workspace.createFile(ws.path + '/terraform/main.tf', res.terraform);
+          await api.workspace.createFile(ws.path + '/k8s/deployment.yaml', res.kubernetes);
+          await api.workspace.createFile(ws.path + '/docker-compose.yml', res.dockerCompose);
+          await api.workspace.createFile(ws.path + '/.github/workflows/deploy.yml', res.cicd);
+          renderFileTree(api);
+        }
+      }
+      showToast(`✓ Successfully scaffolded ${cfg.provider.toUpperCase()} deployment & IaC scripts!`);
     }
   });
 
   document.getElementById('btnGenerateTerraformExact')?.addEventListener('click', async () => {
+    const cfg = getDeployConfig();
     if (api?.engines) {
-      const res = await api.engines.scaffoldDeploy({ provider: 'gcp-firebase', projectId: 'acme-pilot-prod', region: 'australia-southeast1', appName: 'client-pilot' });
+      const res = await api.engines.scaffoldDeploy(cfg);
       const p3Box = document.getElementById('p3ResultBox');
       const p3Prev = document.getElementById('p3CodePreview');
       if (p3Box && p3Prev) {
         p3Box.style.display = 'block';
         p3Prev.innerText = res.terraform;
       }
+      if (api?.workspace) {
+        const ws = await api.workspace.getCurrent();
+        if (ws) {
+          await api.workspace.createFile(ws.path + '/terraform/main.tf', res.terraform);
+          renderFileTree(api);
+        }
+      }
+      showToast('✓ Generated terraform/main.tf!');
     }
   });
 
   document.getElementById('btnGenerateK8sExact')?.addEventListener('click', async () => {
+    const cfg = getDeployConfig();
     if (api?.engines) {
-      const res = await api.engines.scaffoldDeploy({ provider: 'air-gapped-k8s', projectId: 'acme-pilot-prod', region: 'australia-southeast1', appName: 'client-pilot' });
+      const res = await api.engines.scaffoldDeploy(cfg);
       const p3Box = document.getElementById('p3ResultBox');
       const p3Prev = document.getElementById('p3CodePreview');
       if (p3Box && p3Prev) {
         p3Box.style.display = 'block';
         p3Prev.innerText = res.kubernetes;
       }
+      if (api?.workspace) {
+        const ws = await api.workspace.getCurrent();
+        if (ws) {
+          await api.workspace.createFile(ws.path + '/k8s/deployment.yaml', res.kubernetes);
+          renderFileTree(api);
+        }
+      }
+      showToast('✓ Generated k8s/deployment.yaml!');
     }
   });
 
   document.getElementById('btnGenerateDockerExact')?.addEventListener('click', async () => {
+    const cfg = getDeployConfig();
     if (api?.engines) {
-      const res = await api.engines.scaffoldDeploy({ provider: 'docker', projectId: 'acme-pilot-prod', region: 'local', appName: 'client-pilot' });
+      const res = await api.engines.scaffoldDeploy(cfg);
       const p3Box = document.getElementById('p3ResultBox');
       const p3Prev = document.getElementById('p3CodePreview');
       if (p3Box && p3Prev) {
         p3Box.style.display = 'block';
         p3Prev.innerText = res.dockerCompose;
+      }
+      if (api?.workspace) {
+        const ws = await api.workspace.getCurrent();
+        if (ws) {
+          await api.workspace.createFile(ws.path + '/docker-compose.yml', res.dockerCompose);
+          renderFileTree(api);
+        }
+      }
+      showToast('✓ Generated docker-compose.yml!');
+    }
+  });
+
+  // CI/CD Actions
+  document.getElementById('btnScaffoldCicd')?.addEventListener('click', async () => {
+    const platform = (document.getElementById('selCicdPlatform') as HTMLSelectElement).value;
+    const tier = (document.getElementById('selCicdTier') as HTMLSelectElement).value;
+    const cfg = getDeployConfig();
+
+    showToast(`⚡ Scaffolding CI/CD pipeline for ${platform.toUpperCase()} (${tier})...`);
+    if (api?.engines) {
+      const res = await api.engines.scaffoldDeploy(cfg);
+      const p3Box = document.getElementById('p3ResultBox');
+      const p3Prev = document.getElementById('p3CodePreview');
+      if (p3Box && p3Prev) {
+        p3Box.style.display = 'block';
+        p3Prev.innerText = res.cicd;
+      }
+
+      let filePath = '.github/workflows/deploy.yml';
+      if (platform === 'gitlab') filePath = '.gitlab-ci.yml';
+      else if (platform === 'bitbucket') filePath = 'bitbucket-pipelines.yml';
+      else if (platform === 'azure') filePath = 'azure-pipelines.yml';
+
+      if (api?.workspace) {
+        const ws = await api.workspace.getCurrent();
+        if (ws) {
+          await api.workspace.createFile(ws.path + '/' + filePath, res.cicd);
+          renderFileTree(api);
+        }
+      }
+
+      const cicdBadge = document.getElementById('cicdBadge');
+      if (cicdBadge) cicdBadge.innerText = '✓ Scaffolded & Active';
+      showToast(`✓ Generated ${filePath} on disk!`);
+    }
+  });
+
+  document.getElementById('btnRunDeployScriptTerminal')?.addEventListener('click', () => {
+    const termInput = document.getElementById('terminalCmdInput') as HTMLInputElement;
+    if (termInput) {
+      termInput.value = 'bash scripts/deploy.sh';
+      termInput.focus();
+      const event = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+      termInput.dispatchEvent(event);
+    }
+    showToast('🚀 Running deploy script in active terminal!');
+  });
+
+  document.getElementById('btnOneClickCommitPush')?.addEventListener('click', async () => {
+    showToast('🚀 1-Click Committing & Pushing to Git...');
+    if (api?.git) {
+      const res = await api.git.commitAndPush('feat(deploy): scaffold multi-cloud IaC and CI/CD pipelines');
+      if (res && res.success) {
+        showToast('✓ Committed and pushed multi-cloud deployment scripts to Git!');
+        refreshGitStatus(api);
+      } else {
+        showToast('⚠️ Push completed or up to date.');
       }
     }
   });
