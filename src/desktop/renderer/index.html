@@ -41,8 +41,10 @@
     <!-- Left Activity Navigation Bar -->
     <nav class="activity-bar">
       <button class="activity-btn active" data-tab="delivery" title="Forward-Deployed Engineers Delivery Studio (Phases 1-5)">🚀</button>
-      <button class="activity-btn" data-tab="converter" title="Code Converter STUDIO (26 Languages)">🔀</button>
       <button class="activity-btn" data-tab="data" title="Data Analysis &amp; Reporting Studio">📊</button>
+      <button class="activity-btn" data-tab="converter" title="Code Converter STUDIO (26 Languages)">🔀</button>
+      <button class="activity-btn" data-tab="lakehouse" title="Databricks Lakehouse &amp; Unity Catalog Hub">🗄️</button>
+      <button class="activity-btn" data-tab="security" title="Security Scanner &amp; Pre-Flight Health Auditor">🛡️</button>
       <button class="activity-btn" data-tab="chat" title="AI Copilot &amp; Multi-Engine Chat">💬</button>
       <button class="activity-btn" data-tab="hardware" title="Local AI Hardware Auto-Detection &amp; Model Sizer">🤖</button>
       <button class="activity-btn" data-tab="git" title="Git &amp; Remote Repository Hub">🌿</button>
@@ -292,7 +294,6 @@
 
             <!-- 11 Commercial Engines Grid -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-              <!-- 1. SQL Transpiler -->
               <div class="content-card">
                 <h3>🔄 SQL Transpiler (Oracle/T-SQL -> BQ/Snowflake)</h3>
                 <textarea id="sqlTranspileInput" rows="2" placeholder="SELECT NVL(cust_id, 0), SYSDATE FROM orders;" style="width: 100%; margin-bottom: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); padding: 6px; border-radius: 4px;"></textarea>
@@ -300,35 +301,30 @@
                 <div id="sqlTranspileResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="sqlTranspileCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
               </div>
 
-              <!-- 2. PII Masking -->
               <div class="content-card">
                 <h3>🛡️ HIPAA &amp; GDPR PII Masking Engine</h3>
                 <button class="btn-quick" id="btnRunPiiMasking">🔒 Generate Masking Suite</button>
                 <div id="piiResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="piiCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
               </div>
 
-              <!-- 3. Reverse ETL -->
               <div class="content-card">
                 <h3>⚡ Operational Reverse ETL Sync Worker</h3>
                 <button class="btn-quick" id="btnRunReverseEtl">🔄 Generate Sync Worker</button>
                 <div id="reverseEtlResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="reverseEtlCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
               </div>
 
-              <!-- 4. Zero-Trust RLS -->
               <div class="content-card">
                 <h3>🔐 Zero-Trust Row-Level Security (RLS)</h3>
                 <button class="btn-quick" id="btnRunRls">🛡️ Generate RLS Policies</button>
                 <div id="rlsResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="rlsCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
               </div>
 
-              <!-- 5. Synthetic Golden Data -->
               <div class="content-card">
                 <h3>🧪 Air-Gapped Golden Dataset Factory</h3>
                 <button class="btn-quick" id="btnRunSynthetic">🌱 Generate Golden Dataset</button>
                 <div id="syntheticResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="syntheticCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
               </div>
 
-              <!-- 6. Contract-Driven Mock API Server -->
               <div class="content-card">
                 <h3>🎭 Contract-Driven Mock API Server</h3>
                 <button class="btn-quick" id="btnRunMockServer">🚀 Generate Mock Server</button>
@@ -339,7 +335,97 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 2: CODE CONVERTER STUDIO (Screenshot 5) -->
+        <!-- MODE 2: DATA ANALYSIS & REPORTING STUDIO (100% Match with Screenshot 1) -->
+        <!-- =================================================================== -->
+        <section id="pane-data" class="phase-pane" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  📊 Data Analysis &amp; Reporting Studio <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">STUDIO</span>
+                </h1>
+              </div>
+              <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
+                Built by <strong style="color: var(--accent);">Evolve Mind Solutions Pty Ltd</strong> • Autonomous Multi-Engine Data Intelligence &amp; Visual Reporting
+              </div>
+            </div>
+          </div>
+
+          <p class="desc">Point Evolve AI at your data &mdash; a file anywhere on your machine, a file in this project, or a live database / cloud warehouse &mdash; to generate interactive visual reports, Jupyter notebooks, or deep conversational insights.</p>
+
+          <!-- Model Fit Box (Exact Match with Screenshot 1) -->
+          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #fff;">
+                ollama (local) &middot; qwen2.5-coder:7b <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ RECOMMENDED LOCAL CODER</span>
+              </div>
+              <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+                Good local code model. Reliable for single-dataset exploratory analysis and standard chart generation.
+              </div>
+              <div style="font-size: 11px; font-weight: bold; color: var(--accent); margin-top: 2px;">
+                For large or complex multi-table datasets, consider upgrading to qwen2.5-coder:14b.
+              </div>
+            </div>
+            <button class="btn-quick" id="btnDataSwitchModel" style="color: var(--accent); border-color: var(--accent);">⚡ Switch Model / Provider</button>
+          </div>
+
+          <!-- 1 · CHOOSE YOUR DATA SOURCE (Exact Match with Screenshot 1) -->
+          <h2 style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 10px 0;">1 &middot; CHOOSE YOUR DATA SOURCE</h2>
+          <div class="card-grid">
+            <div class="sel-card" id="cardBrowseDataFile">
+              <div class="t">📁 Browse for a file...</div>
+              <div class="d">CSV, Excel, JSON, Parquet &mdash; from anywhere on your computer</div>
+            </div>
+            <div class="sel-card" id="cardConnectDbSource">
+              <div class="t">🗄️ Database or cloud source</div>
+              <div class="d">BigQuery, Databricks, Cosmos, DynamoDB, S3/GCS/Blob, SQL</div>
+            </div>
+            <div class="sel-card" id="cardRunDataPipeline">
+              <div class="t">▶️ Run a data pipeline</div>
+              <div class="d">A saved multi-step analysis (evolve-data-pipeline.json)</div>
+            </div>
+          </div>
+
+          <!-- Drag and drop zone -->
+          <div id="dataDropZone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 20px; text-align: center; color: var(--text-secondary); font-size: 12px; margin-bottom: 14px; background: var(--bg-primary);">
+            📁 ...or drag &amp; drop a data file directly here
+          </div>
+
+          <!-- OR USE A FILE FROM THIS WORKSPACE -->
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px;">OR USE A FILE FROM THIS WORKSPACE</div>
+          <div id="wsDataFilesContainer" style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 18px; font-size: 11.5px; color: var(--text-secondary);">
+            No data files found in the open workspace. Use <strong>Browse</strong> above, or drag a file onto this panel.
+          </div>
+
+          <!-- 2 · WHAT DELIVERABLE TO BUILD (Exact Match with Screenshot 1) -->
+          <h2 style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 10px 0;">2 &middot; WHAT DELIVERABLE TO BUILD</h2>
+          <div class="deliverable-pills">
+            <div class="deliverable-pill active" data-deliv="chat">💬 Insights in chat</div>
+            <div class="deliverable-pill" data-deliv="report">📈 HTML report</div>
+            <div class="deliverable-pill" data-deliv="notebook">📓 Notebook / script</div>
+            <div class="deliverable-pill" data-deliv="profile">📋 Profiling summary</div>
+          </div>
+
+          <div style="margin-bottom: 16px;">
+            <input type="text" id="txtDataFocus" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" style="width: 100%; padding: 8px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
+          </div>
+
+          <div style="margin-top: 14px; display: flex; gap: 12px; align-items: center;">
+            <button class="btn" id="btnExecuteDataAnalysis" style="padding: 10px 24px; font-size: 13px;">Analyse &rarr;</button>
+          </div>
+
+          <!-- Interactive Results Display Area -->
+          <div id="dataAnalysisResultsBox" style="display: none; margin-top: 18px; border: 1px solid var(--accent); border-radius: 8px; padding: 16px; background: var(--card-bg);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h3 style="margin: 0; color: var(--accent); font-size: 14px;">📈 Analysis Result &amp; Statistical Summary</h3>
+              <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success);">READY</span>
+            </div>
+            <div id="dataAnalysisOutputPreview" style="font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: monospace; max-height: 280px; overflow-y: auto;"></div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODE 3: CODE CONVERTER STUDIO (Screenshot 5) -->
         <!-- =================================================================== -->
         <section id="pane-converter" class="phase-pane" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
@@ -413,6 +499,15 @@
               <span class="lang-chip" data-lang="c">C <span class="ext">.c</span></span>
               <span class="lang-chip" data-lang="swift">Swift <span class="ext">.swift</span></span>
             </div>
+
+            <!-- DATA & SCIENCE -->
+            <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 12px 0 4px 0;">DATA &amp; SCIENCE</div>
+            <div>
+              <span class="lang-chip" data-lang="sql">Modern SQL <span class="ext">.sql</span></span>
+              <span class="lang-chip" data-lang="pyspark">PySpark <span class="ext">.py</span></span>
+              <span class="lang-chip" data-lang="r">R <span class="ext">.r</span></span>
+              <span class="lang-chip" data-lang="julia">Julia <span class="ext">.jl</span></span>
+            </div>
           </div>
 
           <!-- Source & Converted Side-by-Side Review -->
@@ -433,60 +528,80 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 3: DATA ANALYSIS & REPORTING STUDIO (Screenshot 2 Right) -->
+        <!-- MODE 4: DATABRICKS LAKEHOUSE & UNITY CATALOG STUDIO -->
         <!-- =================================================================== -->
-        <section id="pane-data" class="phase-pane" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
-            <div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                  📊 Data Analysis &amp; Reporting Studio <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">STUDIO</span>
-                </h1>
+        <section id="pane-lakehouse" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin: 0;">🗄️ Databricks Lakehouse &amp; Unity Catalog Studio</h3>
+                <p class="desc" style="margin: 4px 0 0 0;">Delta Lake tables introspection, Unity Catalog 3-tier namespace management, and PySpark Z-Order performance optimization.</p>
               </div>
-              <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
-                Built by <strong style="color: var(--accent);">Evolve Mind Solutions Pty Ltd</strong> • Autonomous Multi-Engine Data Intelligence &amp; Visual Reporting
+              <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0;">DELTA LAKE &amp; UNITY CATALOG</span>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Databricks Workspace Host</label>
+                <input type="text" id="txtDatabricksHost" value="https://adb-123456789.12.azuredatabricks.net" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Unity Catalog &amp; Schema</label>
+                <input type="text" id="txtDatabricksCatalog" value="main.bronze_analytics" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Personal Access Token / OIDC</label>
+                <input type="password" id="txtDatabricksToken" value="dapi_live_token_secret" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
               </div>
             </div>
-          </div>
 
-          <p class="desc">Point Evolve AI at your data &mdash; a file anywhere on your machine, a file in this project, or a live database / cloud warehouse &mdash; to generate interactive visual reports, Jupyter notebooks, or deep conversational insights.</p>
-
-          <!-- Model Fit Box -->
-          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <div style="font-size: 13px; font-weight: 700; color: #fff;">ollama (local) &middot; qwen2.5-coder:7b <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ RECOMMENDED LOCAL CODER</span></div>
-              <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Good local code model. Reliable for single-dataset exploratory analysis and standard chart generation.</div>
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+              <button class="btn" id="btnDatabricksConnect">🔌 Connect &amp; Introspect Delta Catalog</button>
+              <button class="btn btn-secondary" id="btnDatabricksOptimize">⚡ Generate Z-Order &amp; Vacuum Optimization</button>
             </div>
-            <button class="btn-quick" id="btnDataSwitchModel">✨ Switch Model / Provider</button>
-          </div>
 
-          <!-- 1 · CHOOSE YOUR DATA SOURCE -->
-          <h2 style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 10px 0;">1 &middot; CHOOSE YOUR DATA SOURCE</h2>
-          <div class="card-grid">
-            <div class="sel-card" id="cardBrowseDataFile">
-              <div class="t">📄 Browse for a file...</div>
-              <div class="d">CSV, Excel, JSON, Parquet &mdash; from anywhere on your computer</div>
-            </div>
-            <div class="sel-card" id="cardConnectDbSource">
-              <div class="t">🗄️ Database or cloud source</div>
-              <div class="d">BigQuery, Databricks, Cosmos, DynamoDB, S3/GCS/Blob, SQL</div>
-            </div>
-            <div class="sel-card" id="cardRunDataPipeline">
-              <div class="t">⚡ Run a data pipeline</div>
-              <div class="d">A saved multi-step analysis (evolve-data-pipeline.json)</div>
-            </div>
+            <div id="databricksResultBox" style="display: none; background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 240px; overflow-y: auto;"></div>
           </div>
-
-          <!-- Drag and drop zone -->
-          <div id="dataDropZone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 24px; text-align: center; color: var(--text-secondary); font-size: 12px; margin-bottom: 16px; background: var(--bg-primary);">
-            📁 ...or drag &amp; drop a data file directly here
-          </div>
-
-          <button class="btn" id="btnExecuteDataAnalysis">🚀 Run Data Analysis &amp; Generate Deliverable</button>
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 4: AI COPILOT CHAT (Screenshot 2 Left) -->
+        <!-- MODE 5: SECURITY SCANNER & PRE-FLIGHT HEALTH AUDITOR -->
+        <!-- =================================================================== -->
+        <section id="pane-security" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin: 0;">🛡️ Security Scanner &amp; Pre-Flight Health Auditor</h3>
+                <p class="desc" style="margin: 4px 0 0 0;">Inspects workspace for uncommitted credential leaks, missing .env secrets, and dangling backup files.</p>
+              </div>
+              <button class="btn" id="btnRunSecurityScan">🔍 Run Full Security Scan</button>
+            </div>
+
+            <!-- Health Score Card -->
+            <div style="background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary);">WORKSPACE HEALTH SCORE</div>
+                <div id="secScoreVal" style="font-size: 24px; font-weight: 700; color: var(--success); margin-top: 2px;">100 / 100</div>
+                <div id="secScoreMsg" style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Clean Workspace: No credential leaks or dangling artifacts found.</div>
+              </div>
+              <button class="btn-quick" id="btnCleanDanglingFiles" style="color: var(--warning); border-color: var(--warning);">🧹 Clean Dangling Temp Files</button>
+            </div>
+
+            <div id="secDetailsContainer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; font-weight: bold; margin-bottom: 6px;">📁 Dangling / Backup Files Status</div>
+                <div id="secDanglingList" style="font-size: 11px; color: var(--success);">✓ Zero dangling backup files detected (.bak, .tmp, .swp)</div>
+              </div>
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; font-weight: bold; margin-bottom: 6px;">🔐 Environment &amp; Secret Variables</div>
+                <div id="secEnvList" style="font-size: 11px; color: var(--success);">✓ All .env variables aligned with .env.example</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODE 6: AI COPILOT CHAT (Screenshot 2 Left) -->
         <!-- =================================================================== -->
         <section id="pane-chat" class="phase-pane" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;">
@@ -513,7 +628,7 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 5: LOCAL AI HARDWARE SIZER (Screenshot 3 / Sizer) -->
+        <!-- MODE 7: LOCAL AI HARDWARE SIZER (Screenshot 3 / Sizer) -->
         <!-- =================================================================== -->
         <section id="pane-hardware" class="phase-pane" style="display: none;">
           <div class="content-card">
@@ -563,7 +678,7 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 6: GIT & REMOTE REPOSITORY STUDIO -->
+        <!-- MODE 8: GIT & REMOTE REPOSITORY STUDIO -->
         <!-- =================================================================== -->
         <section id="pane-git" class="phase-pane" style="display: none;">
           <div class="content-card">
@@ -616,15 +731,56 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 7: MULTI-CLOUD CONNECT -->
+        <!-- MODE 9: MULTI-CLOUD CONNECT MATRIX -->
         <!-- =================================================================== -->
         <section id="pane-cloud" class="phase-pane" style="display: none;">
           <div class="content-card">
             <h3>☁️ Multi-Cloud Connect Matrix &amp; Pre-Flight Auditor</h3>
-            <p class="desc">Test authentication and latency across Google Cloud (BigQuery/Cloud Run), AWS, Azure, Databricks, and Snowflake.</p>
-            <div style="display: flex; gap: 10px; margin-top: 14px;">
-              <button class="btn" id="btnCloudTestPing">📡 Test Cloud Auth &amp; Ping</button>
+            <p class="desc">Test authentication, principal authorization, and latency across Google Cloud, AWS, Azure, Databricks, and Snowflake.</p>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; margin-bottom: 16px;">
+              <!-- GCP Card -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+                  <span>Google Cloud (GCP)</span>
+                  <span id="gcpPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">BigQuery, Cloud Run, Secret Manager</div>
+                <button class="btn-quick" id="btnPingGcp" style="width: 100%;">📡 Test Connection</button>
+              </div>
+
+              <!-- AWS Card -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+                  <span>Amazon Web Services</span>
+                  <span id="awsPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">ECS Fargate, S3, IAM Roles</div>
+                <button class="btn-quick" id="btnPingAws" style="width: 100%;">📡 Test Connection</button>
+              </div>
+
+              <!-- Azure Card -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+                  <span>Microsoft Azure</span>
+                  <span id="azurePingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Container Apps, Key Vault, Synapse</div>
+                <button class="btn-quick" id="btnPingAzure" style="width: 100%;">📡 Test Connection</button>
+              </div>
+
+              <!-- Snowflake Card -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+                  <span>Snowflake Cloud</span>
+                  <span id="snowPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Data Cloud Warehouses &amp; Cortex</div>
+                <button class="btn-quick" id="btnPingSnow" style="width: 100%;">📡 Test Connection</button>
+              </div>
             </div>
+
+            <div id="cloudPingOutputBox" style="display: none; background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 180px; overflow-y: auto;"></div>
           </div>
         </section>
 
@@ -681,7 +837,6 @@
       <!-- LOCAL PROVIDERS -->
       <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px;">LOCAL PROVIDERS</div>
 
-      <!-- 1. Ollama -->
       <div class="modal-item active" data-provider="ollama" data-model="qwen2.5-coder:7b">
         <div style="font-weight: 700; font-size: 13px; color: #fff; display: flex; align-items: center; justify-content: space-between;">
           <span>🗄️ Ollama ✓ 1 model(s) installed &mdash; fully local, free</span>
@@ -690,25 +845,21 @@
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">ollama (qwen2.5-coder:7b, mistral, llama3.1)</div>
       </div>
 
-      <!-- 2. Gemma 4 -->
       <div class="modal-item" data-provider="gemma4" data-model="gemma4:e4b">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">✨ Gemma 4</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Google's latest open model &mdash; free, local, multimodal. Guided setup</div>
       </div>
 
-      <!-- 3. GLM Local -->
       <div class="modal-item" data-provider="glm-local" data-model="glm-4-9b-chat">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">⌨️ GLM (local)</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">GLM / CodeGeeX coding model &mdash; free, local, runs offline via Ollama</div>
       </div>
 
-      <!-- 4. Colibri MoE -->
       <div class="modal-item" data-provider="colibri" data-model="glm-5.2-moe">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">🚀 Colibri &mdash; GLM-5.2 (local)</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Frontier 744B MoE on your own machine &mdash; needs ~372GB disk. Hardware check...</div>
       </div>
 
-      <!-- 5. Offline AI -->
       <div class="modal-item" data-provider="offline" data-model="pattern-engine">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">💾 Offline AI</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Built-in &mdash; instant, no setup, no LLM needed</div>
@@ -717,25 +868,21 @@
       <!-- CLOUD PROVIDERS -->
       <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 14px 0 8px 0;">CLOUD PROVIDERS (REQUIRES API KEY)</div>
 
-      <!-- 6. Anthropic Claude -->
       <div class="modal-item" data-provider="anthropic" data-model="claude-3-7-sonnet">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">☁️ Anthropic Claude</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Requires API key &mdash; claude-sonnet-4-6, opus, haiku</div>
       </div>
 
-      <!-- 7. OpenAI -->
       <div class="modal-item" data-provider="openai" data-model="gpt-4o">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">🌐 OpenAI / Compatible</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Also works with Groq, Mistral, Together AI, LiteLLM</div>
       </div>
 
-      <!-- 8. Google Gemini -->
       <div class="modal-item" data-provider="gemini" data-model="gemini-2.5-pro">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">✨ Google Gemini</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Requires API key &mdash; gemini-2.5-pro, 2.5-flash, 2.0-flash</div>
       </div>
 
-      <!-- 9. GLM Cloud -->
       <div class="modal-item" data-provider="glm-cloud" data-model="glm-4.6">
         <div style="font-weight: 700; font-size: 13px; color: #fff;">☁️ GLM (Z.ai)</div>
         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Requires API key &mdash; glm-4.6, glm-4.5 flagship cloud models</div>
