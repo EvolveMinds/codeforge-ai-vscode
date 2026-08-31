@@ -5,6 +5,7 @@
 export const DESKTOP_CHANNELS = {
   WORKSPACE: {
     OPEN_FOLDER_DIALOG: 'evolve:workspace:open-folder-dialog',
+    SELECT_FOLDER_DIALOG: 'evolve:workspace:select-folder-dialog',
     OPEN_FILE_DIALOG: 'evolve:workspace:open-file-dialog',
     GET_CURRENT: 'evolve:workspace:get-current',
     GET_RECENT: 'evolve:workspace:get-recent',

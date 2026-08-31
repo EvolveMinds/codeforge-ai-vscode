@@ -8,6 +8,7 @@ try {
 } catch {}
 const ipcMain = electronModule?.ipcMain;
 const dialog = electronModule?.dialog;
+const shell = electronModule?.shell;
 
 import * as http from 'http';
 import * as https from 'https';
@@ -101,6 +102,19 @@ export class DesktopIpcHandlers {
           const targetPath = res.filePaths[0];
           workspaceMgr.setCurrentWorkspace(targetPath);
           return workspaceMgr.getCurrentWorkspace();
+        }
+      }
+      return null;
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.SELECT_FOLDER_DIALOG, async () => {
+      if (dialog && typeof (dialog as any).showOpenDialog === 'function') {
+        const res = await (dialog as any).showOpenDialog({
+          properties: ['openDirectory', 'createDirectory'],
+          title: 'Select Destination Folder for Converted Code'
+        });
+        if (!res.canceled && res.filePaths.length > 0) {
+          return res.filePaths[0];
         }
       }
       return null;
@@ -203,8 +217,24 @@ export class DesktopIpcHandlers {
       return true;
     });
 
-    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, async (_: any, _filePath: string) => {
-      return true;
+    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, async (_: any, targetPath: string) => {
+      if (shell && targetPath) {
+        const ws = workspaceMgr.getCurrentWorkspace();
+        const fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(ws?.path || process.cwd(), targetPath);
+        if (fs.existsSync(fullPath)) {
+          if (fs.statSync(fullPath).isDirectory()) {
+            if (typeof shell.openPath === 'function') {
+              shell.openPath(fullPath);
+            }
+          } else {
+            if (typeof shell.showItemInFolder === 'function') {
+              shell.showItemInFolder(fullPath);
+            }
+          }
+          return true;
+        }
+      }
+      return false;
     });
 
     // --- TERMINAL CHANNELS ---

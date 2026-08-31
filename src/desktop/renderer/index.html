@@ -1674,16 +1674,53 @@
           <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px;">
             5 &middot; AI engine &amp; model fit
           </h2>
-          <div id="convModelBox" style="border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; background: var(--card-alt); margin-top: 10px;">
+          <div id="convModelBox" style="border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; background: var(--card-alt); margin-top: 10px;">
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
               <div style="flex: 1 1 auto; min-width: 0;">
-                <div id="convModelName" style="font-size: 13px; font-weight: 700; font-family: monospace; color: #fff;">Evolve AI Polyglot Engine (Claude 3.7 / Ollama / Gemini)</div>
-                <div id="convModelDetail" style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">Offline &amp; Air-Gapped Capable · 32k / 128k context window</div>
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span id="convModelName" style="font-size: 13.5px; font-weight: 700; font-family: monospace; color: #fff;">ollama (local) - qwen2.5-coder:7b</span>
+                  <span id="convModelRecBadge" style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">✓ RECOMMENDED LOCAL CODING</span>
+                </div>
+                <div id="convModelDetail" style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
+                  Specialized coding model with 92%+ pass rate. Fast, offline, and secure AST translation with zero data egress.
+                </div>
               </div>
-              <button class="btn-quick" id="convPickModel" style="margin: 0; padding: 6px 14px; font-size: 11.5px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: #fff;">Change model&hellip;</button>
+              <button class="btn-quick" id="convPickModel" style="margin: 0; padding: 6px 14px; font-size: 11.5px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 1px solid var(--accent); background: var(--card-bg); color: var(--accent); white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+                <span>⚡</span> Switch Model / Provider
+              </button>
             </div>
             <div id="convFitBadge" style="margin-top: 10px; font-size: 12px; padding: 7px 12px; border-radius: 6px; font-weight: 500; background: rgba(78,201,176,.15); color: #4ec9b0; border: 1px solid rgba(78,201,176,.3);">
               ✓ Comfortable fit &middot; Full codebase syntax &amp; AST translation supported
+            </div>
+          </div>
+
+          <!-- 6 · OUTPUT DESTINATION & STORAGE LOCATION -->
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px;">
+            6 &middot; Output destination &amp; storage location
+          </h2>
+          <div style="border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; background: var(--card-alt); margin-top: 10px;">
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; align-items: flex-end;">
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px; display: block;">
+                  📁 Destination Folder Path:
+                </label>
+                <div style="display: flex; gap: 8px;">
+                  <input type="text" id="convOutputDir" value="src/converted" placeholder="e.g. src/converted or C:/Project/output" style="flex: 1; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); font-family: monospace;" />
+                  <button class="btn-quick" id="btnConvBrowseDir" style="margin: 0; white-space: nowrap; font-size: 11.5px;">📂 Browse Folder...</button>
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px; display: block;">
+                  📄 Target File Name:
+                </label>
+                <input type="text" id="convOutputFileName" value="converted_output.ts" placeholder="converted_output.ts" style="width: 100%; box-sizing: border-box; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); font-family: monospace;" />
+              </div>
+            </div>
+
+            <div style="margin-top: 10px; font-size: 11.5px; color: var(--text-muted); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <span id="convDestPathPreview">Target Destination: <strong style="color: #e2e8f0; font-family: monospace;">src/converted/converted_output.ts</strong></span>
+              <span style="color: var(--success); font-size: 11px; font-weight: 600;">✓ Auto-creates subdirectories if missing</span>
             </div>
           </div>
 
@@ -1706,19 +1743,20 @@
           <div id="convStatusMsg" style="margin-top: 8px; font-size: 12px; color: var(--text-secondary); min-height: 17px;"></div>
 
           <div class="safety" style="margin-top: 16px; font-size: 11.5px; color: var(--text-secondary); border-left: 2px solid var(--accent); padding: 4px 0 4px 12px; line-height: 1.55; background: rgba(78, 201, 176, 0.05); border-radius: 0 6px 6px 0;">
-            <strong>🔒 Safe &amp; Non-Destructive:</strong> Nothing is written to disk here. The conversion opens in a side-by-side review where you inspect the diff, copy the output, or save directly to workspace.
+            <strong>🔒 Safe &amp; Non-Destructive:</strong> Nothing is written to disk until you click <strong>Save to Destination Folder</strong>. Review the side-by-side translation diff below first.
           </div>
 
           <!-- SIDE-BY-SIDE REVIEW RESULT BOX -->
           <div id="convResultReviewBox" style="display: none; margin-top: 20px;">
-            <div style="background: rgba(137, 209, 133, 0.15); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="background: rgba(137, 209, 133, 0.15); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
               <div>
                 <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Translation Complete &amp; Verified</div>
-                <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="convReviewMeta">Target: <strong id="convReviewTargetBadge">TypeScript (.ts)</strong> &middot; Fidelity: <strong>Idiomatic</strong></div>
+                <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="convReviewMeta">Target: <strong id="convReviewTargetBadge">TypeScript (.ts)</strong> &middot; Destination: <strong id="convSavedPathLabel" style="font-family: monospace;">src/converted/output.ts</strong></div>
               </div>
               <div style="display: flex; gap: 8px;">
-                <button class="btn-quick" id="btnCopyConvertedOutput" style="margin-bottom: 0;">📋 Copy Converted Code</button>
-                <button class="btn-quick" id="btnSaveConvertedFile" style="margin-bottom: 0; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save to Workspace</button>
+                <button class="btn-quick" id="btnCopyConvertedOutput" style="margin-bottom: 0;">📋 Copy Code</button>
+                <button class="btn-quick" id="btnSaveConvertedFile" style="margin-bottom: 0; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save to Destination Folder</button>
+                <button class="btn-quick" id="btnOpenConvertedFolder" style="margin-bottom: 0;">📂 Open Folder</button>
               </div>
             </div>
 

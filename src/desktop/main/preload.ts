@@ -9,6 +9,7 @@ const desktopApi = {
   // --- WORKSPACE APIS ---
   workspace: {
     openFolderDialog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.OPEN_FOLDER_DIALOG),
+    selectFolderDialog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.SELECT_FOLDER_DIALOG),
     openFileDialog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.OPEN_FILE_DIALOG),
     getCurrent: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.GET_CURRENT),
     getRecent: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.GET_RECENT),

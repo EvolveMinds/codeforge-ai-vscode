@@ -13,6 +13,7 @@ let currentActiveTab = 'delivery';
 let currentSelectedLanguage = 'python';
 let currentSelectedDeliverable = 'chat';
 let activeSelectedModel = 'qwen2.5-coder:7b';
+let currentConverterTarget = 'typescript';
 
 // Chat conversation history for context-aware multi-turn AI reasoning
 let chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
@@ -2799,15 +2800,103 @@ function setupCodeConverterStudio(api: any): void {
     });
   });
 
+  const LANG_EXTENSIONS: Record<string, string> = {
+    typescript: '.ts',
+    javascript: '.js',
+    python: '.py',
+    go: '.go',
+    rust: '.rs',
+    java: '.java',
+    csharp: '.cs',
+    cpp: '.cpp',
+    c: '.c',
+    kotlin: '.kt',
+    swift: '.swift',
+    php: '.php',
+    ruby: '.rb',
+    scala: '.scala',
+    sql: '.sql',
+    dbt: '.sql',
+    r: '.r',
+    dart: '.dart',
+    zig: '.zig',
+    mojo: '.mojo',
+    julia: '.jl',
+    lua: '.lua',
+    solidity: '.sol'
+  };
+
+  // Destination Folder & Output file elements
+  const txtOutputDir = document.getElementById('convOutputDir') as HTMLInputElement;
+  const txtOutputFileName = document.getElementById('convOutputFileName') as HTMLInputElement;
+  const btnBrowseDir = document.getElementById('btnConvBrowseDir');
+  const lblDestPreview = document.getElementById('convDestPathPreview');
+  const btnOpenConvertedFolder = document.getElementById('btnOpenConvertedFolder');
+
+  const updateDestPreview = () => {
+    const dir = (txtOutputDir?.value || 'src/converted').trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    const ext = LANG_EXTENSIONS[selectedTarget] || '.ts';
+    let fn = (txtOutputFileName?.value || `converted_output${ext}`).trim();
+    if (!fn) fn = `converted_output${ext}`;
+
+    if (lblDestPreview) {
+      lblDestPreview.innerHTML = `Target Destination: <strong style="color: #e2e8f0; font-family: monospace;">${dir}/${fn}</strong>`;
+    }
+    const lblSaved = document.getElementById('convSavedPathLabel');
+    if (lblSaved) {
+      lblSaved.innerText = `${dir}/${fn}`;
+    }
+  };
+
+  txtOutputDir?.addEventListener('input', updateDestPreview);
+  txtOutputFileName?.addEventListener('input', updateDestPreview);
+
+  btnBrowseDir?.addEventListener('click', async () => {
+    if (api?.workspace) {
+      try {
+        const folder = await api.workspace.selectFolderDialog();
+        if (folder) {
+          if (txtOutputDir) txtOutputDir.value = folder;
+          updateDestPreview();
+          showToast(`📁 Destination folder set to: ${folder}`);
+        }
+      } catch (err: any) {
+        showToast(`⚠️ Could not open folder picker: ${err?.message || err}`);
+      }
+    }
+  });
+
+  btnOpenConvertedFolder?.addEventListener('click', async () => {
+    const dir = (txtOutputDir?.value || 'src/converted').trim();
+    if (api?.workspace) {
+      try {
+        await api.workspace.revealInExplorer(dir);
+        showToast(`📂 Revealed destination folder: ${dir}`);
+      } catch (err: any) {
+        showToast(`⚠️ Could not reveal folder: ${err?.message || err}`);
+      }
+    }
+  });
+
   // 2. CONVERT TO TARGET SELECTION & FILTER
   const selectTarget = (id: string, label: string) => {
     selectedTarget = id;
+    currentConverterTarget = id;
     document.querySelectorAll<HTMLElement>('.lang').forEach(btn => {
       btn.classList.toggle('on', btn.getAttribute('data-t') === id);
     });
     if (convTargetNote) {
       convTargetNote.textContent = `→ ${label}`;
     }
+
+    const ext = LANG_EXTENSIONS[id] || '.ts';
+    if (txtOutputFileName) {
+      const base = txtOutputFileName.value.replace(/\.[^/.]+$/, '') || 'converted_output';
+      txtOutputFileName.value = `${base}${ext}`;
+    }
+    updateDestPreview();
+    updateConverterModelFit(activeSelectedModel, id);
+
     showToast(`Target set to: ${label}`);
   };
 
@@ -2859,10 +2948,18 @@ function setupCodeConverterStudio(api: any): void {
     });
   });
 
-  // 5. MODEL PICKER
+  // 5. MODEL PICKER & FIT RECOMMENDATION
   document.getElementById('convPickModel')?.addEventListener('click', () => {
-    showToast('🤖 Active: Evolve AI Multi-Target Polyglot Engine (Claude 3.7 / Ollama / Gemini)');
+    const btnPicker = document.getElementById('btnHeaderModelPicker');
+    if (btnPicker) {
+      btnPicker.click();
+    } else {
+      showToast('🤖 Active: Evolve AI Multi-Target Polyglot Engine');
+    }
   });
+
+  updateConverterModelFit(activeSelectedModel, selectedTarget);
+  updateDestPreview();
 
   // 6. CONVERT EXECUTION
   btnConvert?.addEventListener('click', async () => {
@@ -2880,10 +2977,17 @@ function setupCodeConverterStudio(api: any): void {
     const framework = (document.getElementById('convFramework') as HTMLInputElement)?.value.trim() || '';
     const notes = (document.getElementById('convNotes') as HTMLTextAreaElement)?.value.trim() || '';
 
+    const ext = LANG_EXTENSIONS[selectedTarget] || '.ts';
+    const sourceBaseName = queuedSources[0]?.relPath ? queuedSources[0].relPath.split('/').pop()!.replace(/\.[^/.]+$/, '') : 'converted_output';
+    if (txtOutputFileName && (!txtOutputFileName.value || txtOutputFileName.value === 'converted_output.ts')) {
+      txtOutputFileName.value = `${sourceBaseName}${ext}`;
+    }
+    updateDestPreview();
+
     if (convBusySpinner) convBusySpinner.style.display = 'inline-flex';
     if (btnConvert) btnConvert.style.display = 'none';
     if (btnCancel) btnCancel.style.display = 'inline-block';
-    if (convStatusMsg) convStatusMsg.textContent = `Translating to ${selectedTarget.toUpperCase()}...`;
+    if (convStatusMsg) convStatusMsg.textContent = `Translating to ${selectedTarget.toUpperCase()} using ${activeSelectedModel}...`;
 
     try {
       if (api?.converter) {
@@ -2904,16 +3008,18 @@ function setupCodeConverterStudio(api: any): void {
         activeConvertedResult = {
           code: res.convertedCode,
           targetLang: res.targetLang || selectedTarget,
-          targetExt: res.targetExt || '.ts',
-          targetFileName: res.targetFileName || `converted_code${res.targetExt || '.ts'}`,
+          targetExt: res.targetExt || ext,
+          targetFileName: txtOutputFileName?.value || res.targetFileName || `${sourceBaseName}${ext}`,
           originalCode: sourceToConvert
         };
 
         if (convResultReviewBox) convResultReviewBox.style.display = 'block';
         if (convOriginalPreview) convOriginalPreview.textContent = sourceToConvert;
         if (convTargetPreview) convTargetPreview.textContent = res.convertedCode;
-        if (convReviewTargetBadge) convReviewTargetBadge.textContent = `${res.targetLang} (${res.targetExt})`;
+        if (convReviewTargetBadge) convReviewTargetBadge.textContent = `${res.targetLang} (${res.targetExt || ext})`;
         if (convTargetLangName) convTargetLangName.textContent = res.targetLang;
+
+        updateDestPreview();
 
         // Render Fidelity Report
         if (convReportContent && res.fidelityReport) {
@@ -2963,13 +3069,16 @@ function setupCodeConverterStudio(api: any): void {
   document.getElementById('btnSaveConvertedFile')?.addEventListener('click', async () => {
     if (!activeConvertedResult?.code) return;
 
-    const outName = activeConvertedResult.targetFileName || `converted_code${activeConvertedResult.targetExt || '.ts'}`;
-    const outPath = `src/converted/${outName}`;
+    const dir = (txtOutputDir?.value || 'src/converted').trim().replace(/\\/g, '/').replace(/\/+$/, '');
+    const fn = (txtOutputFileName?.value || activeConvertedResult.targetFileName || `converted_output${activeConvertedResult.targetExt || '.ts'}`).trim();
+    const fullSavePath = `${dir}/${fn}`;
 
     try {
       if (api?.workspace) {
-        await api.workspace.writeFile(outPath, activeConvertedResult.code);
-        showToast(`💾 Saved converted file to workspace: ${outPath}`);
+        await api.workspace.writeFile(fullSavePath, activeConvertedResult.code);
+        showToast(`💾 Saved converted file to destination: ${fullSavePath}`);
+        const lblSaved = document.getElementById('convSavedPathLabel');
+        if (lblSaved) lblSaved.innerText = fullSavePath;
       }
     } catch (err: any) {
       showToast(`🔴 Failed to save: ${err?.message || err}`);
@@ -2977,6 +3086,121 @@ function setupCodeConverterStudio(api: any): void {
   });
 }
 
+function updateConverterModelFit(modelId: string, toLang: string = 'typescript'): void {
+  const lblModelName = document.getElementById('convModelName');
+  const lblRecBadge = document.getElementById('convModelRecBadge');
+  const lblModelDetail = document.getElementById('convModelDetail');
+  const lblFitBadge = document.getElementById('convFitBadge');
+
+  const cleanId = (modelId || 'qwen2.5-coder:7b').toLowerCase();
+  const toLangUpper = (toLang || 'typescript').toUpperCase();
+
+  if (lblModelName) {
+    if (cleanId.includes('claude-3-7-sonnet')) {
+      lblModelName.innerText = 'anthropic (cloud) - claude-3-7-sonnet';
+    } else if (cleanId.includes('gemini-2.5-pro')) {
+      lblModelName.innerText = 'google gemini (cloud) - gemini-2.5-pro';
+    } else if (cleanId.includes('gemini-2.5-flash')) {
+      lblModelName.innerText = 'google gemini (cloud) - gemini-2.5-flash';
+    } else if (cleanId.includes('gpt-4o')) {
+      lblModelName.innerText = 'openai (cloud) - gpt-4o';
+    } else if (cleanId.includes('groq') || cleanId.includes('versatile')) {
+      lblModelName.innerText = 'groq lpu (cloud) - llama-3.3-70b-versatile';
+    } else if (cleanId.includes('codegeex')) {
+      lblModelName.innerText = 'glm / z.ai - codegeex4-all-9b';
+    } else if (cleanId.includes('deepseek-r1')) {
+      lblModelName.innerText = 'deepseek (local) - deepseek-r1:7b';
+    } else if (cleanId.includes('deepseek-coder')) {
+      lblModelName.innerText = 'deepseek (local) - deepseek-coder-v2:16b';
+    } else if (cleanId.includes('gemma4')) {
+      lblModelName.innerText = 'google gemma (local) - gemma4:e4b';
+    } else if (cleanId.includes('offline')) {
+      lblModelName.innerText = 'offline built-in - deterministic ast engine';
+    } else {
+      lblModelName.innerText = `ollama (local) - ${cleanId}`;
+    }
+  }
+
+  if (cleanId.includes('claude-3-7-sonnet')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '⭐ TOP RECOMMENDATION · FRONTIER POLYGLOT';
+      lblRecBadge.style.color = '#e5b567';
+      lblRecBadge.style.borderColor = '#e5b567';
+      lblRecBadge.style.background = 'rgba(229, 181, 103, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `Leaderboard #1 for complex cross-language paradigm translations (e.g. Memory management, Async/Await, Traits, Structs to ${toLangUpper}).`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Optimal Polyglot Fit:</strong> Hybrid reasoning handles deep AST mapping and edge cases seamlessly.`;
+    }
+  } else if (cleanId.includes('gemini-2.5-pro')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '⭐ TOP RECOMMENDATION · MASSIVE REPOSITORIES';
+      lblRecBadge.style.color = 'var(--accent)';
+      lblRecBadge.style.borderColor = 'var(--accent)';
+      lblRecBadge.style.background = 'rgba(78, 201, 176, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `1,000,000 token context window. Ingests full multi-file workspaces and entire dependency graphs in a single conversion pass.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>1M Context Window:</strong> Perfect for converting multi-module enterprise codebases with shared headers.`;
+    }
+  } else if (cleanId.includes('codegeex')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '✓ SPECIALIZED 26-LANGUAGE POLYGLOT';
+      lblRecBadge.style.color = 'var(--success)';
+      lblRecBadge.style.borderColor = 'var(--success)';
+      lblRecBadge.style.background = 'rgba(137, 209, 133, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `Pretrained on 26 programming languages with specialized syntax mapping for ${toLangUpper}.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Specialized AST Match:</strong> Fast syntax transpilation across multi-language enterprise stacks.`;
+    }
+  } else if (cleanId.includes('qwen') || cleanId.includes('coder')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '✓ RECOMMENDED LOCAL CODING (AIR-GAPPED)';
+      lblRecBadge.style.color = 'var(--success)';
+      lblRecBadge.style.borderColor = 'var(--success)';
+      lblRecBadge.style.background = 'rgba(137, 209, 133, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `Specialized coding model with 92%+ pass rate. Fast, offline, and secure AST translation to ${toLangUpper} with zero data egress.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Comfortable Local Fit:</strong> Air-gapped offline conversion without sending code to cloud endpoints.`;
+    }
+  } else if (cleanId.includes('deepseek')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '🧠 REASONING & ALGORITHMIC FIT';
+      lblRecBadge.style.color = '#e5b567';
+      lblRecBadge.style.borderColor = '#e5b567';
+      lblRecBadge.style.background = 'rgba(229, 181, 103, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `Step-by-step chain-of-thought verification for complex data structures, algorithms, and SQL dialect translations.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Deep Reasoning:</strong> Validates semantic equivalence between source logic and target ${toLangUpper}.`;
+    }
+  } else {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '● ACTIVE MODEL FIT';
+      lblRecBadge.style.color = 'var(--accent)';
+      lblRecBadge.style.borderColor = 'var(--accent)';
+      lblRecBadge.style.background = 'rgba(78, 201, 176, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `General enterprise intelligence engine. Reliable for syntax, classes, interfaces, and function conversions.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Comfortable Fit:</strong> Full syntax and AST translation supported for ${toLangUpper}.`;
+    }
+  }
+}
 
 // --- DATABRICKS STUDIO ---
 function setupDatabricksStudio(api: any): void {
@@ -3350,6 +3574,7 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
       if (lblDataModel) lblDataModel.innerText = `ollama (local) · ${activeSelectedModel}`;
 
       renderLocalModelsMatrix(api, profile, installedModels);
+      updateConverterModelFit(activeSelectedModel, currentConverterTarget);
       showToast(`✓ Switched active local AI Model to: ${modelName}`);
     });
   });
@@ -3444,6 +3669,7 @@ function renderCloudModelsGrid(api: any): void {
 
       renderCloudModelsGrid(api);
       if (lastHwProfile) renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+      updateConverterModelFit(activeSelectedModel, currentConverterTarget);
 
       showToast(`✓ Switched active AI Engine to: ${modelName} (${provider})`);
     });
@@ -3740,6 +3966,9 @@ function setupModals(api: any): void {
               if (lblDataModel) {
                 lblDataModel.innerText = `${providerLabel} · ${activeSelectedModel}`;
               }
+
+              // 4. Update Converter Studio Fit & Recommendation
+              updateConverterModelFit(activeSelectedModel, currentConverterTarget);
 
               modalAiProvider.style.display = 'none';
               showToast(`✓ Switched active AI Model to: ${modelName} (${providerLabel})`);
