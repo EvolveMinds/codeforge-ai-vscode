@@ -1457,20 +1457,22 @@
         <div class="terminal-header">
           <div class="terminal-tabs" id="terminalTabsContainer">
             <div class="terminal-tab active" id="tabTerm1">⚡ Terminal 1 (PowerShell)</div>
-            <button class="btn-quick" id="btnNewTerminalTab" style="padding: 2px 6px;">➕</button>
+            <button class="btn-quick" id="btnNewTerminalTab" style="padding: 2px 6px;" title="New Terminal Session">➕</button>
           </div>
           <div class="terminal-actions">
-            <button class="btn-quick" id="btnTermDbt">dbt compile</button>
             <button class="btn-quick" id="btnTermGit">git status</button>
+            <button class="btn-quick" id="btnTermDbt">dbt compile</button>
+            <button class="btn-quick" id="btnTermLs">dir / ls</button>
+            <button class="btn-quick" id="btnTermPython">python --version</button>
             <button class="btn-quick" id="btnClearTerm">Clear</button>
             <button class="btn-quick" id="btnToggleTermDrawer">✕</button>
           </div>
         </div>
-        <div class="terminal-viewport" id="terminalViewport"></div>
+        <div class="terminal-viewport" id="terminalViewport" title="Click anywhere here to focus and type shell commands"></div>
         <div class="terminal-command-bar">
-          <span style="color: var(--accent); font-weight: bold;">❯</span>
-          <input type="text" class="terminal-input" id="terminalCmdInput" placeholder="Enter shell command...">
-          <button class="btn-quick" id="btnSendCmd" style="color: var(--success); font-weight: 700;">Run</button>
+          <span style="color: var(--accent); font-weight: bold; font-size: 14px;">❯</span>
+          <input type="text" class="terminal-input" id="terminalCmdInput" placeholder="Type shell command here (e.g. dir, git status, python script.py, dbt run)..." autofocus>
+          <button class="btn-quick" id="btnSendCmd" style="color: var(--success); font-weight: 700; padding: 3px 12px;">Run ↵</button>
         </div>
       </div>
     </main>

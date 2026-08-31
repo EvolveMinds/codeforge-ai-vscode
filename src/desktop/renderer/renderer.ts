@@ -147,6 +147,9 @@ function setupTerminal(api: any): void {
   const btnTermGit = document.getElementById('btnTermGit');
   const btnNewTerminalTab = document.getElementById('btnNewTerminalTab');
 
+  let commandHistory: string[] = [];
+  let historyIndex = -1;
+
   if (api?.terminal) {
     api.terminal.spawn({ name: 'Terminal 1' }).then((session: any) => {
       if (session) {
@@ -161,12 +164,42 @@ function setupTerminal(api: any): void {
     });
   }
 
+  // Click-to-focus: clicking anywhere in viewport or drawer immediately focuses input
+  terminalViewport?.addEventListener('click', () => {
+    terminalCmdInput?.focus();
+  });
+
+  terminalDrawer?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).tagName !== 'BUTTON') {
+      terminalCmdInput?.focus();
+    }
+  });
+
+  terminalCmdInput?.addEventListener('focus', () => {
+    terminalDrawer?.classList.add('focused');
+  });
+
+  terminalCmdInput?.addEventListener('blur', () => {
+    terminalDrawer?.classList.remove('focused');
+  });
+
+  // Auto-redirect keystrokes to terminal if drawer is visible and no other input is active
+  window.addEventListener('keydown', (e) => {
+    const activeEl = document.activeElement;
+    const isInputActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.getAttribute('contenteditable') === 'true');
+    if (!isInputActive && terminalDrawer && terminalDrawer.style.display !== 'none') {
+      if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        terminalCmdInput?.focus();
+      }
+    }
+  });
+
   const toggleTerminal = () => {
     if (terminalDrawer) {
       const isClosed = terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '';
       terminalDrawer.style.display = isClosed ? 'flex' : 'none';
       if (isClosed && terminalCmdInput) {
-        setTimeout(() => terminalCmdInput.focus(), 50);
+        setTimeout(() => terminalCmdInput.focus(), 60);
       }
     }
   };
@@ -176,6 +209,7 @@ function setupTerminal(api: any): void {
 
   btnClearTerm?.addEventListener('click', () => {
     if (terminalViewport) terminalViewport.innerHTML = '';
+    terminalCmdInput?.focus();
   });
 
   const sendCommand = async (cmdText?: string) => {
@@ -187,6 +221,8 @@ function setupTerminal(api: any): void {
     }
 
     if (terminalCmdInput && !cmdText) terminalCmdInput.value = '';
+    commandHistory.push(cmd);
+    historyIndex = -1;
 
     if (api?.terminal) {
       if (!currentActiveSessionId) {
@@ -195,6 +231,7 @@ function setupTerminal(api: any): void {
       }
       await api.terminal.executeCommand(currentActiveSessionId, cmd);
     }
+    terminalCmdInput?.focus();
   };
 
   btnSendCmd?.addEventListener('click', () => sendCommand());
@@ -202,11 +239,34 @@ function setupTerminal(api: any): void {
     if (e.key === 'Enter') {
       e.preventDefault();
       sendCommand();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (commandHistory.length > 0) {
+        if (historyIndex === -1) historyIndex = commandHistory.length - 1;
+        else if (historyIndex > 0) historyIndex--;
+        terminalCmdInput.value = commandHistory[historyIndex] || '';
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (commandHistory.length > 0 && historyIndex !== -1) {
+        if (historyIndex < commandHistory.length - 1) {
+          historyIndex++;
+          terminalCmdInput.value = commandHistory[historyIndex] || '';
+        } else {
+          historyIndex = -1;
+          terminalCmdInput.value = '';
+        }
+      }
     }
   });
 
+  const btnTermLs = document.getElementById('btnTermLs');
+  const btnTermPython = document.getElementById('btnTermPython');
+
   btnTermDbt?.addEventListener('click', () => sendCommand('dbt compile'));
   btnTermGit?.addEventListener('click', () => sendCommand('git status'));
+  btnTermLs?.addEventListener('click', () => sendCommand('dir'));
+  btnTermPython?.addEventListener('click', () => sendCommand('python --version'));
 
   btnNewTerminalTab?.addEventListener('click', async () => {
     if (api?.terminal) {
@@ -224,7 +284,13 @@ function setupTerminal(api: any): void {
         }
       }
     }
+    terminalCmdInput?.focus();
   });
+
+  // Initial focus on startup
+  setTimeout(() => {
+    terminalCmdInput?.focus();
+  }, 200);
 }
 
 function appendTerminalOutput(viewport: HTMLElement, text: string): void {
