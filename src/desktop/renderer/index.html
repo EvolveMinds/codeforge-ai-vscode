@@ -11,7 +11,7 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
-      width: 200px;
+      width: 210px;
       flex-shrink: 0;
     }
     .phase-nav-btn {
@@ -166,7 +166,7 @@
       <div class="studio-scroll-area">
 
         <!-- =================================================================== -->
-        <!-- MODE 1: FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO (100% Match with Image 2) -->
+        <!-- MODE 1: FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO -->
         <!-- =================================================================== -->
         <section id="pane-delivery" class="phase-pane" style="display: block;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
@@ -259,7 +259,7 @@
             </div>
           </div>
 
-          <!-- Git Toolbar Bar -->
+          <!-- Git Toolbar Bar (Exact Match with Image 1) -->
           <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span>🌿</span>
@@ -273,7 +273,7 @@
               <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ Clean</span>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button class="btn-quick" id="btnDeliveryGitSetup">⚙️ Git Setup</button>
+              <button class="btn-quick" id="btnDeliveryGitSetup" style="background: rgba(78, 201, 176, 0.1); border-color: var(--accent); color: var(--accent); font-weight: bold;">⚙️ Git Setup</button>
               <button class="btn-quick" id="btnDeliverySyncFetch">🔄 Sync &amp; Fetch</button>
               <button class="btn-quick" id="btnDelivery1ClickCommit" style="color: var(--success); font-weight: 700; border-color: var(--success);">🚀 1-Click Commit &amp; Push</button>
               <button class="btn-quick" id="btnDeliveryCreatePr">✨ Create PR</button>
@@ -281,8 +281,83 @@
             </div>
           </div>
 
+          <!-- GIT SETUP & BITBUCKET/GITHUB/GITLAB AUTH HUB DRAWER -->
+          <div id="gitSetupDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-weight: 700; color: var(--accent); font-size: 13px;">
+                🔗 Git &amp; Bitbucket / GitHub / GitLab Remote &amp; Auth Hub
+              </div>
+              <button class="btn-quick" id="btnCloseGitSetupDrawer">✕ Close</button>
+            </div>
+
+            <!-- Direct Settings Links Portals -->
+            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 14px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">1-Click Direct Access to Cloud Git Settings &amp; Token Portals:</div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+                  <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px;">Atlassian Bitbucket</div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <a href="https://bitbucket.org/account/settings/app-passwords/new" target="_blank" class="btn-quick" style="text-align: left; text-decoration: none; display: block; font-size: 10.5px;">🔑 Get App Password ↗</a>
+                    <a href="https://bitbucket.org/account/settings/ssh-keys/" target="_blank" class="btn-quick" style="text-align: left; text-decoration: none; display: block; font-size: 10.5px;">🗝️ Add SSH Key ↗</a>
+                  </div>
+                </div>
+
+                <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+                  <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px;">GitHub</div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <a href="https://github.com/settings/tokens/new?scopes=repo,workflow&description=Evolve+AI" target="_blank" class="btn-quick" style="text-align: left; text-decoration: none; display: block; font-size: 10.5px;">🔑 Get GitHub PAT ↗</a>
+                    <a href="https://github.com/settings/keys" target="_blank" class="btn-quick" style="text-align: left; text-decoration: none; display: block; font-size: 10.5px;">🗝️ Add SSH Key ↗</a>
+                  </div>
+                </div>
+
+                <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+                  <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px;">GitLab</div>
+                  <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <a href="https://gitlab.com/-/user_settings/personal_access_tokens" target="_blank" class="btn-quick" style="text-align: left; text-decoration: none; display: block; font-size: 10.5px;">🔑 Get Access Token ↗</a>
+                    <a href="https://gitlab.com/-/user_settings/ssh_keys" target="_blank" class="btn-quick" style="text-align: left; text-decoration: none; display: block; font-size: 10.5px;">🗝️ Add SSH Key ↗</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2 Auth Modes: HTTPS + PAT vs SSH Key -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px;">🔑 Method 1: HTTPS with Token / App Password</div>
+                <div style="margin-bottom: 8px;">
+                  <label style="font-size: 10.5px; font-weight: 700;">Remote Repository HTTPS URL</label>
+                  <input type="text" id="httpsRepoUrl" placeholder="https://bitbucket.org/workspace/repo.git or https://github.com/org/repo.git" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: 700;">Username / Account</label>
+                    <input type="text" id="httpsUsername" placeholder="e.g. john_doe" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: 700;">Token / App Password</label>
+                    <input type="password" id="httpsToken" placeholder="••••••••••••" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                </div>
+                <button class="btn" id="btnSaveHttpsRemote" style="width: 100%; font-size: 11px;">🔗 Configure HTTPS Remote &amp; Verify</button>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px;">🗝️ Method 2: SSH Key Authentication</div>
+                <div style="margin-bottom: 8px;">
+                  <label style="font-size: 10.5px; font-weight: 700;">Remote Repository SSH URL</label>
+                  <input type="text" id="sshRepoUrl" placeholder="git@bitbucket.org:workspace/repo.git or git@github.com:org/repo.git" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;">
+                </div>
+                <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                  <button class="btn-quick" id="btnCopySshKey" style="flex: 1; font-size: 11px;">📋 Copy Public Key</button>
+                  <button class="btn-quick" id="btnGenSshKey" style="flex: 1; font-size: 11px;">⚡ Generate ed25519</button>
+                </div>
+                <button class="btn" id="btnSaveSshRemote" style="width: 100%; font-size: 11px;">🔗 Set SSH Remote &amp; Test</button>
+              </div>
+            </div>
+          </div>
+
           <!-- MULTI-CLOUD CONNECTION & AUTHENTICATION HUB DRAWER -->
-          <div id="cloudHubDrawer" style="display: block; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.25);">
+          <div id="cloudHubDrawer" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.25);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
               <div style="font-weight: 700; color: var(--accent); font-size: 13px; display: flex; align-items: center; gap: 6px;">
                 <span>☁️</span> Multi-Cloud Connection &amp; Authentication Hub
@@ -523,64 +598,177 @@
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 2: CLIENT APIS -->
+              <!-- STEP 2: RESILIENT CLIENT API & WEBHOOK STUDIO (Exact Match with Image 2) -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase2Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
                   <div>
-                    <h3 style="margin: 0; font-size: 16px; color: #fff;">🔌 Client API Connector &amp; Reverse-Engineered SDK Studio</h3>
-                    <p class="desc" style="margin: 4px 0 0 0;">Paste cURL snippets, OpenAPI JSON, or raw HTTP payloads to generate resilient TypeScript &amp; Python client SDKs with exponential backoff retries.</p>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">🔌 Resilient Client API &amp; Webhook Studio</h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and auth handling. Import directly from cURL or OpenAPI.</p>
+                  </div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
+                    <button class="btn-quick" id="btnToggleCurlModal">🪄 Import from cURL</button>
+                    <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI / Swagger</button>
                   </div>
                 </div>
-                <textarea id="p2ApiInput" rows="5" placeholder="curl -X GET https://api.client.com/v1/customers -H 'Authorization: Bearer secret'" style="width: 100%; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-family: monospace; font-size: 12px;"></textarea>
-                <div style="display: flex; gap: 10px;">
-                  <button class="btn" id="btnP2GenerateSdk">⚡ Generate Resilient Client SDK (TS + Python)</button>
+
+                <!-- Inline cURL Importer Box -->
+                <div id="curlImportBox" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: var(--accent); font-size: 12px;">🪄 Paste cURL Command:</strong>
+                    <button class="btn-quick" id="btnCloseCurlBox">✕ Close</button>
+                  </div>
+                  <textarea id="curlInput" rows="3" placeholder="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'" style="width: 100%; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;"></textarea>
+                  <button class="btn" id="btnParseCurl" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Parse &amp; Apply</button>
                 </div>
-                <div id="p2ResultBox" style="display: none; margin-top: 14px;">
-                  <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
+
+                <!-- Inline OpenAPI Importer Box -->
+                <div id="openApiImportBox" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <strong style="color: var(--accent); font-size: 12px;">📋 Paste OpenAPI / Swagger JSON:</strong>
+                    <button class="btn-quick" id="btnCloseOpenApiBox">✕ Close</button>
+                  </div>
+                  <textarea id="openApiInput" rows="4" placeholder="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}" style="width: 100%; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;"></textarea>
+                  <button class="btn" id="btnParseOpenApi" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Parse &amp; Apply</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                  <div>
+                    <label style="font-size: 11px; font-weight: bold;">Connector Name</label>
+                    <input type="text" id="connName" value="ClientBillingApi" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 11px; font-weight: bold;">Base URL</label>
+                    <input type="text" id="connBaseUrl" value="https://api.client-vpc.internal/v1" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: monospace;">
+                  </div>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                  <label style="font-size: 11px; font-weight: bold;">Authentication Strategy</label>
+                  <select id="connAuthType" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    <option value="bearer" selected>Bearer Token (Authorization: Bearer ...)</option>
+                    <option value="apiKey">API Key (x-api-key header)</option>
+                    <option value="oauth2">OAuth2 Client Credentials</option>
+                    <option value="basic">HTTP Basic Authentication</option>
+                    <option value="none">None / Public</option>
+                  </select>
+                </div>
+
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button class="btn" id="btnScaffoldTsSdk" style="background: var(--success); color: #1e1e1e; font-weight: 700;">Scaffold TypeScript SDK</button>
+                  <button class="btn btn-secondary" id="btnScaffoldPySdk">Scaffold Python SDK</button>
+                  <button class="btn btn-secondary" id="btnTestApiPing">🔌 Test API Ping</button>
+                  <button class="btn-quick" id="btnMapApiSchema" style="color: var(--accent); border-color: var(--accent); font-weight: 700;">📤 Map API Schema in Step 1 (Schema &amp; Marts)</button>
+                </div>
+
+                <div id="p2ResultBox" style="display: none; margin-top: 16px;">
+                  <div class="code-tabs">
+                    <div class="code-tab active" id="tabApiTs">TypeScript SDK</div>
+                    <div class="code-tab" id="tabApiPy">Python SDK</div>
+                  </div>
+                  <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 260px; overflow-y: auto;"></div>
                 </div>
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 3: PILOT DEPLOYMENT -->
+              <!-- STEP 3: PILOT DEPLOYMENT & PRE-FLIGHT DELIVERY (Exact Match with Image 3) -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase3Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
                   <div>
-                    <h3 style="margin: 0; font-size: 16px; color: #fff;">⚡ Multi-Cloud Pilot Deployment Matrix &amp; Pre-Flight Auditor</h3>
-                    <p class="desc" style="margin: 4px 0 0 0;">Scaffold production Terraform, Kubernetes manifests, and Docker Compose configs with zero dangling temp files.</p>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff;">⚡ Pilot Deployment &amp; Pre-Flight Delivery</h3>
+                    <p class="desc" style="margin: 4px 0 0 0;">Audit workspace health, discover active cloud VPCs/subnets via API, customize multi-cloud compute &amp; secrets parameters, and scaffold Terraform, Kubernetes, or Docker IaC.</p>
+                  </div>
+                  <button class="btn" id="btnDiscoverCloudApi" style="background: var(--accent); color: #1e1e1e; font-weight: 700; white-space: nowrap;">⚡ Discover &amp; Auto-Fill from Cloud API</button>
+                </div>
+
+                <!-- Pre-Flight Health Auditor Card -->
+                <div style="background: var(--bg-primary); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 18px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <div style="font-weight: 700; font-size: 13.5px; color: #fff;">🛡️ Pre-Flight Health Auditor (100% Deterministic)</div>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Scans for dangling backup files, secret leaks, and .env parity with 0 network calls.</div>
+                    </div>
+                    <button class="btn" id="btnRunAuditExact">Run Pre-Flight Audit</button>
+                  </div>
+                  
+                  <div id="auditResultExactBox" style="margin-top: 12px; display: none;">
+                    <div style="font-size: 20px; font-weight: 700; color: var(--success);" id="auditScoreExactVal">98 / 100 ✓ Ready</div>
+                    <div id="auditFindingsExactList" style="margin-top: 6px; font-size: 11px; color: var(--text-secondary);">✓ All pre-flight checks passed. Workspace ready for cloud deployment.</div>
+                    <button class="btn btn-secondary" id="btnCleanTempFilesExact" style="margin-top: 8px; font-size: 11px;">🧹 Clean All Temporary Files</button>
                   </div>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold;">Cloud Provider</label>
-                    <select id="p3Provider" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                      <option value="gcp-firebase" selected>GCP Cloud Run + Firebase</option>
-                      <option value="aws-ecs">AWS ECS / Fargate</option>
-                      <option value="azure-container">Azure Container Apps</option>
-                      <option value="air-gapped-k8s">Air-Gapped Sovereign Kubernetes</option>
-                    </select>
+
+                <!-- Multi-Cloud Deployment Parameter Matrix -->
+                <div style="background: var(--card-bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 18px;">
+                  <h4 style="margin: 0 0 12px 0; font-size: 13px; color: var(--accent);">⚙️ Google Cloud Deployment Parameter Matrix</h4>
+                  
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">CPU Allocation (Cloud Run / GKE)</label>
+                      <select id="p3Cpu" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="1" selected>1.0 vCPU (Standard)</option>
+                        <option value="2">2.0 vCPU (High Compute)</option>
+                        <option value="4">4.0 vCPU (Heavy Batch)</option>
+                        <option value="8">8.0 vCPU (Max Compute)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Memory Allocation (RAM)</label>
+                      <select id="p3Memory" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="1Gi" selected>1 GiB (Standard)</option>
+                        <option value="2Gi">2 GiB</option>
+                        <option value="4Gi">4 GiB (High Memory)</option>
+                        <option value="8Gi">8 GiB</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Hardware Accelerator / GPU</label>
+                      <select id="p3Gpu" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="none" selected>None (Standard CPU)</option>
+                        <option value="nvidia-tesla-t4">NVIDIA T4 (Inference)</option>
+                        <option value="nvidia-l4">NVIDIA L4 (Modern AI)</option>
+                        <option value="nvidia-a100-80gb">NVIDIA A100 80GB (Training / LLM)</option>
+                      </select>
+                    </div>
                   </div>
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold;">Project / Account ID</label>
-                    <input type="text" id="p3ProjectId" value="acme-pilot-prod" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Cloud Provider</label>
+                      <select id="p3Provider" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="gcp-firebase" selected>GCP Cloud Run + Firebase</option>
+                        <option value="aws-ecs">AWS ECS / Fargate</option>
+                        <option value="azure-container">Azure Container Apps</option>
+                        <option value="air-gapped-k8s">Air-Gapped Sovereign Kubernetes</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Project / Account ID</label>
+                      <input type="text" id="p3ProjectId" value="acme-pilot-prod" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Region</label>
+                      <input type="text" id="p3Region" value="australia-southeast1" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
                   </div>
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold;">Region</label>
-                    <input type="text" id="p3Region" value="australia-southeast1" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn" id="btnScaffoldDeployExact" style="background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Scaffold Firebase &amp; Deploy Scripts</button>
+                    <button class="btn btn-secondary" id="btnGenerateTerraformExact">📄 Generate Terraform (main.tf)</button>
+                    <button class="btn btn-secondary" id="btnGenerateK8sExact">📄 Generate Kubernetes (k8s.yaml)</button>
+                    <button class="btn btn-secondary" id="btnGenerateDockerExact">📄 Generate Docker Compose</button>
                   </div>
                 </div>
-                <div style="display: flex; gap: 10px;">
-                  <button class="btn" id="btnP3Scaffold">🚀 Scaffold Infrastructure &amp; CI/CD</button>
-                  <button class="btn btn-secondary" id="btnP3Audit">🧹 Run Pre-Flight Health Audit</button>
-                </div>
+
                 <div id="p3ResultBox" style="display: none; margin-top: 14px;">
                   <div class="code-preview" id="p3CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
                 </div>
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 4: RUNBOOK FACTORY -->
+              <!-- STEP 4: RUNBOOK FACTORY (Exact Match with Image 4) -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase4Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
@@ -589,14 +777,39 @@
                     <p class="desc" style="margin: 4px 0 0 0;">Automatically synthesize interactive Mermaid sequence diagrams, operational runbooks, data dictionaries, and environment variable references.</p>
                   </div>
                 </div>
-                <button class="btn" id="btnP4GenerateAll">📦 Generate Complete Client Handoff Bundle</button>
+
+                <!-- 5 Documentation Cards Grid -->
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
+                    <div style="font-weight: 700; font-size: 12px; color: #fff;">🏛️ ARCHITECTURE.md</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Mermaid data lineage &amp; topology</div>
+                    <button class="btn-quick" id="btnGenArchDoc" style="font-size: 10.5px; color: var(--accent); border-color: var(--accent);">⚡ Generate</button>
+                  </div>
+
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
+                    <div style="font-weight: 700; font-size: 12px; color: #fff;">🚀 DEPLOYMENT_RUNBOOK.md</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Operations, rollback &amp; diagnostics</div>
+                    <button class="btn-quick" id="btnGenDeployDoc" style="font-size: 10.5px; color: var(--accent); border-color: var(--accent);">⚡ Generate</button>
+                  </div>
+
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
+                    <div style="font-weight: 700; font-size: 12px; color: #fff;">📖 DATA_DICTIONARY.md</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Column transformation mappings</div>
+                    <button class="btn-quick" id="btnGenDataDictDoc" style="font-size: 10.5px; color: var(--accent); border-color: var(--accent);">⚡ Generate</button>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+                  <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700;">📦 Generate Complete Client Handoff Bundle</button>
+                </div>
+
                 <div id="p4ResultBox" style="display: none; margin-top: 14px;">
                   <div class="code-preview" id="p4CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
                 </div>
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 5: ENTERPRISE SUITE -->
+              <!-- STEP 5: ENTERPRISE SUITE (Exact Match with Image 2) -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase5Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
@@ -769,15 +982,6 @@
                 </select>
               </div>
             </div>
-
-            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">Include Sections:</div>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Summary</span>
-              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ KPI Tiles</span>
-              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Trends</span>
-              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Breakdowns</span>
-              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Quality Gates</span>
-            </div>
           </div>
 
           <div style="margin-bottom: 16px;">
@@ -788,7 +992,6 @@
             <button class="btn" id="btnExecuteDataAnalysis" style="padding: 10px 24px; font-size: 13px;">Analyse &rarr;</button>
           </div>
 
-          <!-- Interactive Results Display Area -->
           <div id="dataAnalysisResultsBox" style="display: none; margin-top: 18px; border: 1px solid var(--accent); border-radius: 8px; padding: 16px; background: var(--card-bg);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <h3 style="margin: 0; color: var(--accent); font-size: 14px;">📈 Analysis Result &amp; Statistical Deliverable</h3>
