@@ -945,20 +945,28 @@ export async function executeTask() {
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.BUILD_MART, async (_: any, config: any) => {
-      const sql = SchemaMapperEngine.generateDataMartModel(
+      const res = SchemaMapperEngine.generateDataMartModel(
         config.martName,
-        config.materialization || 'table',
         config.baseModel,
         config.joins || [],
         config.dimensions || [],
-        config.metrics || []
+        config.metrics || [],
+        config.dialect || 'dbt'
       );
       const schemaYaml = SchemaMapperEngine.generateDbtSchemaYaml(
         config.martName,
         config.dimensions || [],
         config.metrics || []
       );
-      return { sql, schemaYaml };
+      return { sql: res.dbtSql, dbtSql: res.dbtSql, pysparkCode: res.pysparkCode, sqlView: res.sqlView, schemaYaml };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.DISCOVER_MART_RECIPES, async (_: any, baseModel: string, allTables: any[]) => {
+      return FdeAiEngine.discoverMartRecipes(baseModel, allTables || []);
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.GENERATE_MART_PROMPT, async (_: any, prompt: string, allTables: any[]) => {
+      return FdeAiEngine.generateMartFromNaturalLanguage(prompt, allTables || []);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.GENERATE_API_SDK, async (_: any, config: any) => {

@@ -794,6 +794,7 @@ function setupDeliveryStudio(api: any): void {
     tabModeStaging?.classList.remove('active');
     if (subpanelStagingView) subpanelStagingView.style.display = 'none';
     if (subpanelMartView) subpanelMartView.style.display = 'block';
+    refreshMartModelOptions();
   });
 
   btnAiAutoClean?.addEventListener('click', () => {
@@ -925,6 +926,7 @@ function setupDeliveryStudio(api: any): void {
         dbTableSelect.value = tables[0].tableName || tables[0].name;
       }
     }
+    refreshMartModelOptions();
   };
 
   const applySelectedTableToMapper = (tableName?: string) => {
@@ -1062,40 +1064,518 @@ function setupDeliveryStudio(api: any): void {
     showToast('🗑️ Cleared database connection credentials from memory.');
   });
 
-  document.getElementById('btnAiDiscoverMartRecipes')?.addEventListener('click', () => {
-    showToast('✨ Discovering Star-Schema Dimensional Mart Recipes...');
-    const preview = document.getElementById('martSqlCodePreview');
-    const resBox = document.getElementById('martOutputResultBox');
-    if (resBox && preview) {
-      resBox.style.display = 'block';
-      preview.innerText = `[AI Discovered Dimensional Mart Recipes]\n1. 📊 mart_customer_orders (Grain: customer_id | Joins: stg_customers, stg_orders | Metrics: lifetime_value, order_count)\n2. 📈 mart_daily_revenue (Grain: order_date | Metrics: gross_revenue, completed_orders, return_rate)\n3. 🎯 mart_product_inventory (Grain: product_id | Metrics: total_units_sold, restock_days)`;
-      showToast('✓ Discovered 3 Star-Schema Dimensional Mart Recipes!');
+  // --- SUBPANEL B: CROSS-MODEL / MART JOIN BUILDER ---
+  const martBaseModel = document.getElementById('martBaseModel') as HTMLSelectElement;
+  const martJoinModel = document.getElementById('martJoinModel') as HTMLSelectElement;
+  const martJoin2Model = document.getElementById('martJoin2Model') as HTMLSelectElement;
+  const martBaseColsTray = document.getElementById('martBaseColsTray');
+  const martJoinColsTray = document.getElementById('martJoinColsTray');
+  const martJoinType = document.getElementById('martJoinType') as HTMLSelectElement;
+  const martOnCondition = document.getElementById('martOnCondition') as HTMLInputElement;
+  const martJoinSuggestionText = document.getElementById('martJoinSuggestionText');
+  const martDimensions = document.getElementById('martDimensions') as HTMLTextAreaElement;
+  const martMetrics = document.getElementById('martMetrics') as HTMLTextAreaElement;
+  const martNameInput = document.getElementById('martNameInput') as HTMLInputElement;
+  const martOutputPathInput = document.getElementById('martOutputPathInput') as HTMLInputElement;
+  const aiMartRecipesContainer = document.getElementById('aiMartRecipesContainer');
+  let currentAiMartRecipes: any[] = [];
+
+  const getAvailableMartModels = () => {
+    const models: Array<{ id: string; name: string; alias: string; columns: Array<{ name: string; type: string }> }> = [];
+    const seen = new Set<string>();
+
+    // 1. Tables introspected from live database
+    if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+      currentIntrospectedTables.forEach(t => {
+        const tblName = t.tableName || t.name;
+        if (tblName && !seen.has(tblName)) {
+          seen.add(tblName);
+          const alias = tblName.replace(/^client_|_raw$/g, '');
+          const cols: Array<{ name: string; type: string }> = t.columns || [];
+          models.push({
+            id: tblName,
+            name: (t.schema ? `[${t.schema}] ` : '[Live DB] ') + tblName,
+            alias: alias,
+            columns: cols
+          });
+        }
+      });
+    }
+
+    // 2. Fallback sample models if no tables introspected yet
+    if (models.length === 0) {
+      models.push({
+        id: 'stg_orders',
+        name: 'stg_orders (Sample Orders)',
+        alias: 'orders',
+        columns: [
+          { name: 'order_id', type: 'string' },
+          { name: 'customer_id', type: 'string' },
+          { name: 'transaction_amount', type: 'numeric' },
+          { name: 'order_status', type: 'string' },
+          { name: 'created_at', type: 'timestamp' }
+        ]
+      });
+      models.push({
+        id: 'stg_users',
+        name: 'stg_users (Sample Users)',
+        alias: 'users',
+        columns: [
+          { name: 'user_id', type: 'string' },
+          { name: 'email', type: 'string' },
+          { name: 'country_code', type: 'string' },
+          { name: 'registered_at', type: 'timestamp' }
+        ]
+      });
+      models.push({
+        id: 'stg_payments',
+        name: 'stg_payments (Sample Payments)',
+        alias: 'payments',
+        columns: [
+          { name: 'payment_id', type: 'string' },
+          { name: 'order_id', type: 'string' },
+          { name: 'amount', type: 'numeric' },
+          { name: 'currency', type: 'string' }
+        ]
+      });
+    }
+
+    return models;
+  };
+
+  const addMartDimension = (dim: string) => {
+    if (!martDimensions) return;
+    const current = martDimensions.value.trim();
+    const dims = current ? current.split(',').map(d => d.trim()).filter(Boolean) : [];
+    if (!dims.includes(dim)) {
+      dims.push(dim);
+      martDimensions.value = dims.join(', ');
+      showToast(`✓ Added dimension: ${dim}`);
+    }
+  };
+
+  const addMartMetric = (agg: string, col: string) => {
+    if (!martMetrics) return;
+    const colClean = col.split('.').pop() || col;
+    let metricName = `${agg}_${colClean}`;
+    let expr = '';
+    if (agg === 'sum') {
+      metricName = `total_${colClean}`;
+      expr = `sum(${col})`;
+    } else if (agg === 'count') {
+      metricName = `${colClean}_count`;
+      expr = `count(distinct ${col})`;
+    } else if (agg === 'avg') {
+      metricName = `avg_${colClean}`;
+      expr = `avg(${col})`;
+    }
+
+    const current = martMetrics.value.trim();
+    const metrics = current ? current.split(',').map(m => m.trim()).filter(Boolean) : [];
+    metrics.push(`${metricName}:${expr}`);
+    martMetrics.value = metrics.join(', ');
+    showToast(`✓ Added metric: ${metricName}`);
+  };
+
+  const renderColChips = (container: HTMLElement, model: { alias: string; columns: Array<{ name: string; type: string }> }) => {
+    container.innerHTML = '';
+    if (!model || !model.columns || model.columns.length === 0) {
+      container.innerHTML = '<span style="font-size: 10px; opacity: 0.6;">No columns found for this model</span>';
+      return;
+    }
+
+    model.columns.forEach(c => {
+      const isNum = /int|float|numeric|double|decimal|number|amount|price|cost|qty/i.test(c.type || '') || /amount|amt|price|cost|qty|total|balance/i.test(c.name);
+      const chip = document.createElement('span');
+      chip.className = 'mart-chip';
+      chip.title = `Click to add ${model.alias}.${c.name}`;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.innerText = c.name;
+      chip.appendChild(nameSpan);
+
+      const btnDim = document.createElement('button');
+      btnDim.className = 'btn-quick';
+      btnDim.style.cssText = 'margin:0; padding:0 3px; font-size:9px;';
+      btnDim.innerText = '+Dim';
+      btnDim.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addMartDimension(`${model.alias}.${c.name}`);
+      });
+      chip.appendChild(btnDim);
+
+      if (isNum) {
+        const btnSum = document.createElement('button');
+        btnSum.className = 'btn-quick';
+        btnSum.style.cssText = 'margin:0; padding:0 3px; font-size:9px; color:var(--success);';
+        btnSum.innerText = '+Sum';
+        btnSum.addEventListener('click', (e) => {
+          e.stopPropagation();
+          addMartMetric('sum', `${model.alias}.${c.name}`);
+        });
+        chip.appendChild(btnSum);
+      }
+
+      const btnCnt = document.createElement('button');
+      btnCnt.className = 'btn-quick';
+      btnCnt.style.cssText = 'margin:0; padding:0 3px; font-size:9px; color:var(--accent);';
+      btnCnt.innerText = '+Cnt';
+      btnCnt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        addMartMetric('count', `${model.alias}.${c.name}`);
+      });
+      chip.appendChild(btnCnt);
+
+      container.appendChild(chip);
+    });
+  };
+
+  const handleMartModelChange = () => {
+    const models = getAvailableMartModels();
+    const baseId = martBaseModel?.value;
+    const joinId = martJoinModel?.value;
+
+    const baseModel = models.find(m => m.id === baseId);
+    const joinModel = models.find(m => m.id === joinId);
+
+    if (baseModel && martBaseColsTray) {
+      renderColChips(martBaseColsTray, baseModel);
+    }
+    if (joinModel && martJoinColsTray) {
+      renderColChips(martJoinColsTray, joinModel);
+    }
+
+    // Auto-suggest join keys
+    if (baseModel && joinModel && baseModel.id !== joinModel.id) {
+      const baseColNames = baseModel.columns.map(c => c.name);
+      const joinColNames = joinModel.columns.map(c => c.name);
+
+      let suggestedKey = '';
+      for (const b of baseColNames) {
+        if (b.toLowerCase().endsWith('_id') || b.toLowerCase().endsWith('_key')) {
+          for (const j of joinColNames) {
+            if (b.toLowerCase() === j.toLowerCase()) {
+              suggestedKey = `${baseModel.alias}.${b} = ${joinModel.alias}.${j}`;
+              break;
+            }
+          }
+        }
+        if (suggestedKey) break;
+      }
+
+      if (!suggestedKey) {
+        const singularJoin = joinModel.alias.replace(/s$/, '');
+        for (const b of baseColNames) {
+          if (b.toLowerCase() === `${singularJoin}_id` || b.toLowerCase() === `${joinModel.alias}_id`) {
+            const jMatch = joinColNames.find(j => j.toLowerCase() === 'id' || j.toLowerCase() === `${singularJoin}_id`);
+            if (jMatch) {
+              suggestedKey = `${baseModel.alias}.${b} = ${joinModel.alias}.${jMatch}`;
+              break;
+            }
+          }
+        }
+      }
+
+      if (suggestedKey) {
+        if (martOnCondition) martOnCondition.value = suggestedKey;
+        if (martJoinSuggestionText) martJoinSuggestionText.innerText = `✓ Auto-matched: ${suggestedKey}`;
+      } else {
+        if (martJoinSuggestionText) martJoinSuggestionText.innerText = '';
+      }
+    }
+  };
+
+  const refreshMartModelOptions = () => {
+    const models = getAvailableMartModels();
+    if (!martBaseModel || !martJoinModel) return;
+
+    const currentBase = martBaseModel.value;
+    const currentJoin = martJoinModel.value;
+    const currentJoin2 = martJoin2Model ? martJoin2Model.value : '';
+
+    const optsHtml = models.map(m => `<option value="${m.id}">${m.name} (${m.columns.length} cols)</option>`).join('');
+    martBaseModel.innerHTML = optsHtml;
+    martJoinModel.innerHTML = optsHtml;
+    if (martJoin2Model) {
+      martJoin2Model.innerHTML = '<option value="">-- Choose 3rd Model --</option>' + optsHtml;
+    }
+
+    if (currentBase && models.some(m => m.id === currentBase)) {
+      martBaseModel.value = currentBase;
+    } else if (models.length > 0) {
+      martBaseModel.value = models[0].id;
+    }
+
+    if (currentJoin && models.some(m => m.id === currentJoin)) {
+      martJoinModel.value = currentJoin;
+    } else if (models.length > 1) {
+      martJoinModel.value = models[1].id;
+    } else if (models.length > 0) {
+      martJoinModel.value = models[0].id;
+    }
+
+    if (currentJoin2 && models.some(m => m.id === currentJoin2) && martJoin2Model) {
+      martJoin2Model.value = currentJoin2;
+    }
+
+    handleMartModelChange();
+  };
+
+  martBaseModel?.addEventListener('change', handleMartModelChange);
+  martJoinModel?.addEventListener('change', handleMartModelChange);
+
+  martJoin2Model?.addEventListener('change', () => {
+    const models = getAvailableMartModels();
+    const baseId = martBaseModel?.value;
+    const join2Id = martJoin2Model?.value;
+    const baseModel = models.find(m => m.id === baseId);
+    const join2Model = models.find(m => m.id === join2Id);
+    if (!baseModel || !join2Model) return;
+
+    const baseColNames = baseModel.columns.map(c => c.name);
+    const join2ColNames = join2Model.columns.map(c => c.name);
+    const singularJoin2 = join2Model.alias.replace(/s$/, '');
+
+    let keyMatch = '';
+    for (const b of baseColNames) {
+      if (b.toLowerCase() === `${singularJoin2}_id` || b.toLowerCase() === `${join2Model.alias}_id`) {
+        const jMatch = join2ColNames.find(j => j.toLowerCase() === 'id' || j.toLowerCase() === `${singularJoin2}_id`);
+        if (jMatch) {
+          keyMatch = `${join2Model.alias}.${jMatch} = ${baseModel.alias}.${b}`;
+          break;
+        }
+      }
+    }
+    if (!keyMatch) {
+      keyMatch = `${join2Model.alias}.id = ${baseModel.alias}.id`;
+    }
+    const onEl = document.getElementById('martJoin2On') as HTMLInputElement;
+    if (onEl) onEl.value = keyMatch;
+  });
+
+  refreshMartModelOptions();
+
+  document.getElementById('btnClearDimensions')?.addEventListener('click', () => {
+    if (martDimensions) martDimensions.value = '';
+    showToast('Cleared dimensions');
+  });
+
+  document.getElementById('btnClearMetrics')?.addEventListener('click', () => {
+    if (martMetrics) martMetrics.value = '';
+    showToast('Cleared metrics');
+  });
+
+  document.getElementById('btnToggleSecondaryJoin')?.addEventListener('click', () => {
+    const secRow = document.getElementById('secondaryJoinRow');
+    const btn = document.getElementById('btnToggleSecondaryJoin');
+    if (secRow) {
+      secRow.style.display = 'block';
+      if (btn) btn.style.display = 'none';
     }
   });
 
-  document.getElementById('btnGenerateDimensionalMart')?.addEventListener('click', async () => {
-    const baseModel = (document.getElementById('txtMartBaseModel') as HTMLInputElement).value;
-    const joinModel = (document.getElementById('txtMartJoinModel') as HTMLInputElement).value;
-    const martName = (document.getElementById('txtMartModelName') as HTMLInputElement).value;
-    const mat = (document.getElementById('selMartMaterialization') as HTMLSelectElement).value;
-    const joinCond = (document.getElementById('txtMartJoinCondition') as HTMLInputElement).value;
+  document.getElementById('btnRemoveSecondaryJoin')?.addEventListener('click', () => {
+    const secRow = document.getElementById('secondaryJoinRow');
+    const btn = document.getElementById('btnToggleSecondaryJoin');
+    if (secRow) {
+      secRow.style.display = 'none';
+      if (btn) btn.style.display = 'inline-block';
+    }
+  });
 
-    showToast('🏗️ Generating Star-Schema dimensional dbt Mart...');
-    const sql = `{{ config(materialized='${mat}') }}\n\nWITH base AS (\n  SELECT * FROM {{ ref('${baseModel}') }}\n),\njoined_dim AS (\n  SELECT * FROM {{ ref('${joinModel}') }}\n),\nfinal AS (\n  SELECT\n    base.*,\n    joined_dim.name AS customer_name,\n    joined_dim.email AS customer_email\n  FROM base\n  LEFT JOIN joined_dim ON ${joinCond}\n)\nSELECT * FROM final;`;
+  martNameInput?.addEventListener('input', () => {
+    const val = martNameInput.value.trim() || 'fct_mart';
+    if (martOutputPathInput) {
+      martOutputPathInput.value = `models/marts/${val}.sql`;
+    }
+  });
 
-    const preview = document.getElementById('martSqlCodePreview');
-    const resBox = document.getElementById('martOutputResultBox');
-    if (resBox && preview) {
-      resBox.style.display = 'block';
-      preview.innerText = sql;
-      showToast(`✓ Generated Mart ${martName}.sql!`);
+  document.getElementById('btnRefreshMartTables')?.addEventListener('click', () => {
+    refreshMartModelOptions();
+    showToast('🔄 Refreshed available models in Mart Join Builder!');
+  });
+
+  document.getElementById('btnToggleAiMartPrompt')?.addEventListener('click', () => {
+    const box = document.getElementById('aiMartPromptBox');
+    if (box) {
+      box.style.display = box.style.display === 'none' || !box.style.display ? 'block' : 'none';
+      if (box.style.display === 'block') {
+        (document.getElementById('aiMartCustomPrompt') as HTMLInputElement)?.focus();
+      }
+    }
+  });
+
+  const applyAiMartRecipeDirect = (r: any) => {
+    if (martBaseModel && r.baseModel) martBaseModel.value = r.baseModel;
+    if (martJoinModel && r.joinModel) martJoinModel.value = r.joinModel;
+    if (martJoinType && r.joinType) martJoinType.value = r.joinType;
+    if (martOnCondition && r.joinCondition) martOnCondition.value = r.joinCondition;
+    if (martDimensions && r.dimensions) martDimensions.value = r.dimensions.join(', ');
+    if (martMetrics && r.metrics) martMetrics.value = r.metrics.map((m: any) => `${m.name}:${m.expression || m.expr || 'count(*)'}`).join(', ');
+    if (martNameInput && r.martName) {
+      martNameInput.value = r.martName;
+      if (martOutputPathInput) martOutputPathInput.value = r.outputPath || `models/marts/${r.martName}.sql`;
+    }
+    handleMartModelChange();
+    showToast(`✓ Applied AI Mart Recipe: ${r.title}`);
+  };
+
+  document.getElementById('btnAiDiscoverMartRecipes')?.addEventListener('click', async () => {
+    const base = martBaseModel?.value || (getAvailableMartModels()[0]?.id);
+    if (!base) {
+      showToast('⚠️ Please load or connect tables first.');
+      return;
+    }
+    showToast(`✨ AI discovering relational mart recipes for ${base}...`);
+    if (api?.engines) {
+      const allTables = currentIntrospectedTables && currentIntrospectedTables.length > 0 ? currentIntrospectedTables : getAvailableMartModels();
+      const recipes = await api.engines.discoverMartRecipes(base, allTables);
+      currentAiMartRecipes = recipes || [];
+      if (aiMartRecipesContainer) {
+        if (!recipes || recipes.length === 0) {
+          aiMartRecipesContainer.innerHTML = '<div style="font-size: 11px; opacity: 0.75; font-style: italic;">No AI recipes discovered. Select a Base Model and click Discover.</div>';
+        } else {
+          aiMartRecipesContainer.innerHTML = `<div style="font-size: 11px; font-weight: 700; color: var(--success); margin-bottom: 4px;">✨ Suggested AI Data Marts (${recipes.length} discovered):</div>` +
+            recipes.map((r: any) => `
+              <div style="display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 4px;">
+                <div>
+                  <div style="font-weight: 700; font-size: 12px; color: var(--accent);">${r.title} <span style="font-size: 10px; background: rgba(99, 102, 241, 0.15); color: var(--accent); padding: 1px 6px; border-radius: 4px;">${r.badge || 'Fact Mart'}</span></div>
+                  <div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">${r.description || ''}</div>
+                  <div style="font-size: 10px; opacity: 0.7; font-family: monospace; margin-top: 2px;">Join: ${r.joinCondition} | Dims: ${(r.dimensions || []).join(', ')}</div>
+                </div>
+                <div>
+                  <button class="btn-primary btn-apply-recipe" data-recipe-id="${r.id}" style="margin-bottom: 0; padding: 3px 10px; font-size: 11px; background: #10b981; border: none; cursor: pointer;">⚡ Apply Recipe</button>
+                </div>
+              </div>
+            `).join('');
+
+          aiMartRecipesContainer.querySelectorAll('.btn-apply-recipe').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+              const rId = (e.currentTarget as HTMLElement).getAttribute('data-recipe-id');
+              const rec = currentAiMartRecipes.find(item => item.id === rId);
+              if (rec) applyAiMartRecipeDirect(rec);
+            });
+          });
+        }
+      }
+      showToast(`✓ Discovered ${recipes?.length || 0} smart recipes for ${base}!`);
+    }
+  });
+
+  document.getElementById('btnGenerateMartFromPrompt')?.addEventListener('click', async () => {
+    const prompt = (document.getElementById('aiMartCustomPrompt') as HTMLInputElement)?.value.trim();
+    if (!prompt) {
+      showToast('⚠️ Please enter an AI prompt!');
+      return;
+    }
+    showToast(`✨ AI designing dimensional mart for prompt: "${prompt}"...`);
+    if (api?.engines) {
+      const allTables = currentIntrospectedTables && currentIntrospectedTables.length > 0 ? currentIntrospectedTables : getAvailableMartModels();
+      const rec = await api.engines.generateMartFromPrompt(prompt, allTables);
+      if (rec) {
+        applyAiMartRecipeDirect(rec);
+        showToast('✓ AI generated custom dimensional mart model!');
+      } else {
+        showToast('⚠️ Could not generate mart from prompt.');
+      }
+    }
+  });
+
+  document.getElementById('btnGenerateMartFull')?.addEventListener('click', async () => {
+    const base = martBaseModel?.value;
+    const join = martJoinModel?.value;
+    const joinType = martJoinType?.value || 'LEFT';
+    const onCond = martOnCondition?.value.trim();
+    const dimsStr = martDimensions?.value.trim() || '';
+    const metricsStr = martMetrics?.value.trim() || '';
+    const martName = martNameInput?.value.trim() || 'fct_customer_orders';
+    const outputPath = martOutputPathInput?.value.trim() || `models/marts/${martName}.sql`;
+
+    if (!base || !join || !onCond) {
+      showToast('⚠️ Please specify Base Model, Join Model, and Join Condition!');
+      return;
     }
 
+    const joins: Array<{ joinType: any; joinModel: string; onCondition: string }> = [
+      { joinType, joinModel: join, onCondition: onCond }
+    ];
+
+    const secRow = document.getElementById('secondaryJoinRow');
+    if (secRow && secRow.style.display !== 'none') {
+      const join2Model = (document.getElementById('martJoin2Model') as HTMLSelectElement)?.value;
+      const join2Type = (document.getElementById('martJoin2Type') as HTMLSelectElement)?.value || 'LEFT';
+      const join2On = (document.getElementById('martJoin2On') as HTMLInputElement)?.value.trim();
+      if (join2Model && join2On) {
+        joins.push({ joinType: join2Type, joinModel: join2Model, onCondition: join2On });
+      }
+    }
+
+    const dimensions = dimsStr ? dimsStr.split(',').map(d => d.trim()).filter(Boolean) : [];
+    const metrics: Array<{ name: string; expression: string }> = [];
+    if (metricsStr) {
+      metricsStr.split(',').forEach(m => {
+        const parts = m.split(':');
+        if (parts.length >= 2) {
+          metrics.push({ name: parts[0].trim(), expression: parts.slice(1).join(':').trim() });
+        } else if (parts[0]) {
+          metrics.push({ name: parts[0].trim(), expression: 'count(*)' });
+        }
+      });
+    }
+
+    showToast(`🚀 Generating dbt Mart SQL & schema.yml for ${martName}...`);
+    if (api?.engines) {
+      const res = await api.engines.buildMart({
+        martName,
+        baseModel: base,
+        joins,
+        dimensions,
+        metrics,
+        dialect: 'dbt'
+      });
+
+      const outBox = document.getElementById('martOutputResultBox');
+      const preview = document.getElementById('martSqlCodePreview');
+      const savedBadge = document.getElementById('martSavedBadge');
+      if (outBox && preview) {
+        outBox.style.display = 'block';
+        preview.innerText = res.sql + '\n\n# --- models/marts/schema.yml ---\n' + res.schemaYaml;
+      }
+      if (savedBadge) {
+        savedBadge.innerHTML = `Location: <code>${outputPath}</code>`;
+      }
+
+      if (api?.workspace) {
+        const ws = await api.workspace.getCurrent();
+        if (ws) {
+          await api.workspace.createFile(ws.path + '/' + outputPath, res.sql);
+          await api.workspace.createFile(ws.path + '/models/marts/schema.yml', res.schemaYaml);
+          renderFileTree(api);
+        }
+      }
+
+      showToast(`✓ Generated ${outputPath} & schema.yml on disk!`);
+    }
+  });
+
+  document.getElementById('btnCopyGeneratedMart')?.addEventListener('click', () => {
+    const preview = document.getElementById('martSqlCodePreview');
+    if (preview) {
+      navigator.clipboard.writeText(preview.innerText);
+      showToast('✓ Copied Mart SQL & schema.yml to clipboard!');
+    }
+  });
+
+  document.getElementById('btnOpenGeneratedMart')?.addEventListener('click', async () => {
+    const martName = martNameInput?.value.trim() || 'fct_customer_orders';
+    const outputPath = martOutputPathInput?.value.trim() || `models/marts/${martName}.sql`;
     if (api?.workspace) {
       const ws = await api.workspace.getCurrent();
       if (ws) {
-        await api.workspace.createFile(ws.path + `/models/marts/${martName}.sql`, sql);
-        renderFileTree(api);
+        const content = await api.workspace.readFile(ws.path + '/' + outputPath);
+        if (content) {
+          showToast(`Opened ${outputPath}`);
+        }
       }
     }
   });

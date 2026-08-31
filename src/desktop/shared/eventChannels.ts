@@ -107,6 +107,8 @@ export const DESKTOP_CHANNELS = {
     DETECT_DB: 'evolve:engines:detect-db',
     MAP_SCHEMA: 'evolve:engines:map-schema',
     BUILD_MART: 'evolve:engines:build-mart',
+    DISCOVER_MART_RECIPES: 'evolve:engines:discover-mart-recipes',
+    GENERATE_MART_PROMPT: 'evolve:engines:generate-mart-prompt',
     GENERATE_API_SDK: 'evolve:engines:generate-api-sdk',
     PARSE_CURL: 'evolve:engines:parse-curl',
     PARSE_OPENAPI: 'evolve:engines:parse-openapi',

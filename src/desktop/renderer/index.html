@@ -608,48 +608,150 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <span class="ai-pill green">✨ AI Mart Copilot</span>
-                        <span>Discover foreign key joins, dimensional metrics, and smart recipes tailored to your tables.</span>
+                        <span style="font-size: 11.5px;">Discover foreign key joins, dimensional metrics, and smart recipes tailored to your tables.</span>
                       </div>
-                      <div style="display: flex; gap: 6px;">
+                      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                         <button class="btn-quick" id="btnAiDiscoverMartRecipes" style="background: #10b981; color: #1e1e1e; font-weight: 700; border: none; padding: 4px 10px; font-size: 11px;">✨ AI Discover Mart Recipes</button>
+                        <button class="btn-quick" id="btnToggleAiMartPrompt" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px;">💬 AI Prompt Generator</button>
+                        <button class="btn-quick" id="btnRefreshMartTables" style="margin-bottom: 0; font-size: 11px; padding: 4px 10px;">🔄 Refresh Tables</button>
+                      </div>
+                    </div>
+
+                    <!-- AI Discovered Dynamic Recipes Tray -->
+                    <div id="aiMartRecipesContainer" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;"></div>
+
+                    <!-- Collapsible Natural Language Prompt Box -->
+                    <div id="aiMartPromptBox" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(16, 185, 129, 0.3);">
+                      <div style="display: flex; gap: 8px;">
+                        <input type="text" id="aiMartCustomPrompt" style="flex: 1; font-size: 12px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;" placeholder="e.g. 'Build a daily retention fact mart tracking deletions and active users by country' or 'Calculate revenue by customer'..." />
+                        <button class="btn-primary" id="btnGenerateMartFromPrompt" style="padding: 4px 12px; font-size: 11px; background: #10b981; margin-bottom: 0;">Generate Mart with AI</button>
                       </div>
                     </div>
                   </div>
 
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Base / Fact Model</label>
-                      <input type="text" id="txtMartBaseModel" value="stg_orders" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <!-- Models & Column Inspector Grid -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                    <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                      <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Primary / Base Model</label>
+                      <select id="martBaseModel" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                        <option value="">-- Choose Base Model --</option>
+                      </select>
+                      <div style="font-size: 10px; opacity: 0.8; margin-top: 6px;">Available Columns (Click to add as Dimension / Metric):</div>
+                      <div id="martBaseColsTray" class="mart-col-tray">
+                        <span style="font-size: 10px; opacity: 0.6;">Select a model above to inspect columns</span>
+                      </div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Joined Dimension Model</label>
-                      <input type="text" id="txtMartJoinModel" value="stg_customers" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+
+                    <div style="background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                      <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Joined Model</label>
+                      <select id="martJoinModel" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                        <option value="">-- Choose Joined Model --</option>
+                      </select>
+                      <div style="font-size: 10px; opacity: 0.8; margin-top: 6px;">Available Columns (Click to add as Dimension / Metric):</div>
+                      <div id="martJoinColsTray" class="mart-col-tray">
+                        <span style="font-size: 10px; opacity: 0.6;">Select a model above to inspect columns</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                  <!-- Primary Join Condition Matrix -->
+                  <div style="display: grid; grid-template-columns: 160px 1fr; gap: 14px; margin-bottom: 12px;">
                     <div>
-                      <label style="font-size: 11px; font-weight: bold;">Mart Model Name</label>
-                      <input type="text" id="txtMartModelName" value="mart_orders_analytics" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Materialization</label>
-                      <select id="selMartMaterialization" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                        <option value="table" selected>Table (Physical Persistent Data Mart)</option>
-                        <option value="view">View (Virtual SQL Query)</option>
-                        <option value="incremental">Incremental (High-Performance Delta)</option>
+                      <label style="font-size: 11px; font-weight: bold;">Join Type</label>
+                      <select id="martJoinType" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                        <option value="LEFT" selected>LEFT JOIN</option>
+                        <option value="INNER">INNER JOIN</option>
+                        <option value="FULL">FULL OUTER JOIN</option>
+                        <option value="RIGHT">RIGHT JOIN</option>
+                        <option value="CROSS">CROSS JOIN</option>
                       </select>
                     </div>
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="font-size: 11px; font-weight: bold;">Join Condition (ON clause)</label>
+                        <span id="martJoinSuggestionText" style="font-size: 11px; color: var(--success); font-weight: 600;"></span>
+                      </div>
+                      <input type="text" id="martOnCondition" value="orders.customer_id = users.user_id" placeholder="e.g. orders.customer_id = users.user_id" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                    </div>
                   </div>
 
-                  <div style="margin-bottom: 14px;">
-                    <label style="font-size: 11px; font-weight: bold;">Join ON Condition</label>
-                    <input type="text" id="txtMartJoinCondition" value="stg_orders.customer_id = stg_customers.id" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                  <!-- Secondary Join Expandable Container -->
+                  <div id="secondaryJoinRow" style="display: none; background: var(--card-bg); padding: 10px 14px; border-radius: 6px; border: 1px dashed var(--border); margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <strong style="font-size: 11px; color: var(--accent);">Secondary Join Table (Optional 3rd Model):</strong>
+                      <button class="btn-quick" id="btnRemoveSecondaryJoin" style="margin-bottom: 0; padding: 2px 6px; font-size: 10px;">✕ Remove Secondary Join</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 140px 1.5fr; gap: 10px;">
+                      <div>
+                        <label style="font-size: 10px; font-weight: bold;">Secondary Join Model</label>
+                        <select id="martJoin2Model" style="width: 100%; margin-top: 4px; padding: 5px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          <option value="">-- Choose 3rd Model --</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: bold;">Join Type</label>
+                        <select id="martJoin2Type" style="width: 100%; margin-top: 4px; padding: 5px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          <option value="LEFT">LEFT JOIN</option>
+                          <option value="INNER">INNER JOIN</option>
+                          <option value="FULL">FULL OUTER JOIN</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: bold;">Join Condition</label>
+                        <input type="text" id="martJoin2On" placeholder="e.g. payments.order_id = orders.order_id" style="width: 100%; margin-top: 4px; padding: 5px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;">
+                      </div>
+                    </div>
                   </div>
 
-                  <button class="btn" id="btnGenerateDimensionalMart" style="background: var(--success); color: #1e1e1e; font-weight: 700;">🏗️ Generate Star-Schema Dimensional Mart &amp; schema.yml</button>
+                  <div style="margin-bottom: 12px;">
+                    <button class="btn-quick" id="btnToggleSecondaryJoin" style="margin-bottom: 0; font-size: 11px;">➕ Add Secondary Join Table (e.g. Payments, Items)</button>
+                  </div>
+
+                  <!-- Dimensions & Metrics Inputs -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="font-size: 11px; font-weight: bold;">Dimension Columns (Group By)</label>
+                        <button class="btn-quick" id="btnClearDimensions" style="margin-bottom: 0; padding: 1px 6px; font-size: 10px;">Clear</button>
+                      </div>
+                      <textarea id="martDimensions" style="width: 100%; height: 75px; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" placeholder="e.g. orders.customer_id, orders.created_at, users.email">orders.customer_id, orders.created_at, users.email</textarea>
+                    </div>
+                    <div>
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label style="font-size: 11px; font-weight: bold;">Metrics &amp; Aggregations (name:expression)</label>
+                        <button class="btn-quick" id="btnClearMetrics" style="margin-bottom: 0; padding: 1px 6px; font-size: 10px;">Clear</button>
+                      </div>
+                      <textarea id="martMetrics" style="width: 100%; height: 75px; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" placeholder="e.g. total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)">total_orders:count(distinct orders.order_id), total_revenue:sum(orders.transaction_amount)</textarea>
+                    </div>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 14px; margin-bottom: 16px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Target Mart Name (Fact / Dim Model)</label>
+                      <input type="text" id="martNameInput" value="fct_customer_orders" placeholder="e.g. fct_customer_orders" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Target File Output Path (Customizable)</label>
+                      <input type="text" id="martOutputPathInput" value="models/marts/fct_customer_orders.sql" placeholder="e.g. models/marts/fct_customer_orders.sql" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: monospace;">
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn" id="btnGenerateMartFull" style="background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Generate dbt Mart &amp; schema.yml</button>
+                    <span style="font-size: 11px; opacity: 0.75;">Scaffolds custom mart SQL &amp; schema.yml into configured path</span>
+                  </div>
 
                   <div id="martOutputResultBox" style="display: none; margin-top: 16px;">
+                    <div style="background: rgba(137, 209, 133, 0.15); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Dimensional Mart &amp; schema.yml Generated</div>
+                        <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="martSavedBadge">Location: <code>models/marts/fct_customer_orders.sql</code></div>
+                      </div>
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn-quick" id="btnOpenGeneratedMart" style="margin-bottom: 0;">📄 Open Mart</button>
+                        <button class="btn-quick" id="btnCopyGeneratedMart" style="margin-bottom: 0;">📋 Copy SQL</button>
+                      </div>
+                    </div>
                     <div style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 240px; overflow-y: auto;" id="martSqlCodePreview"></div>
                   </div>
                 </div>
