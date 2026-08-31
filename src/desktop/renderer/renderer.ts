@@ -13,13 +13,28 @@ let currentActiveTab = 'delivery';
 let currentSelectedLanguage = 'python';
 let currentSelectedDeliverable = 'chat';
 
-document.addEventListener('DOMContentLoaded', async () => {
-  const api = window.evolveApi;
+// Engagement project catalog
+interface EngagementProject {
+  id: string;
+  name: string;
+  targetVpc: string;
+  goal: string;
+}
 
-  // Initialize UI components
+let activeProjects: EngagementProject[] = [
+  { id: 'pilot-gcp', name: 'Client Pilot Engagement', targetVpc: 'gcp-firebase', goal: 'Deploy standard platform integration & data pipeline' },
+  { id: 'fin-aws', name: 'Financial Core Migration', targetVpc: 'aws-ecs', goal: 'Migrate Oracle core transactions to AWS Aurora & Snowflake' },
+  { id: 'health-azure', name: 'Healthcare Data Lakehouse', targetVpc: 'azure-container', goal: 'HIPAA compliant Delta Lakehouse with automated PII masking' }
+];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  const api = (window as any).evolveApi;
+
+  // Initialize UI subsystems
   setupNavigation(api);
   setupTerminal(api);
   setupWorkspace(api);
+  setupEngagementManager(api);
   setupDeliveryStudio(api);
   setupDataAnalysisStudio(api);
   setupCodeConverterStudio(api);
@@ -37,11 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ws = await api.workspace.getCurrent();
       if (ws) {
         updateWorkspaceUI(ws);
+        renderFileTree(api);
         refreshWorkspaceDataFiles(api);
       }
     } catch {}
 
-    // Auto-check cloud status for Cloud Hub
     try {
       refreshCloudHubStatus(api);
     } catch {}
@@ -91,7 +106,7 @@ function switchActivityTab(tabName: string, api?: any): void {
   }
 }
 
-// --- TERMINAL DRAWER (100% Functional with Live ANSI Rendering) ---
+// --- TERMINAL DRAWER ---
 function setupTerminal(api: any): void {
   const terminalDrawer = document.getElementById('terminalDrawer');
   const btnOpenTerminal = document.getElementById('btnOpenTerminal');
@@ -104,7 +119,6 @@ function setupTerminal(api: any): void {
   const btnTermGit = document.getElementById('btnTermGit');
   const btnNewTerminalTab = document.getElementById('btnNewTerminalTab');
 
-  // Spawn initial terminal session on launch
   if (api?.terminal) {
     api.terminal.spawn({ name: 'Terminal 1' }).then((session: any) => {
       if (session) {
@@ -112,7 +126,6 @@ function setupTerminal(api: any): void {
       }
     }).catch(() => {});
 
-    // Listen to live data stream
     api.terminal.onData((id: string, data: string) => {
       if (terminalViewport) {
         appendTerminalOutput(terminalViewport, data);
@@ -202,10 +215,13 @@ function appendTerminalOutput(viewport: HTMLElement, text: string): void {
   viewport.scrollTop = viewport.scrollHeight;
 }
 
-// --- WORKSPACE & FILE EXPLORER ---
+// --- WORKSPACE & COLLAPSIBLE FILE EXPLORER ---
 function setupWorkspace(api: any): void {
   const btnOpenFolder = document.getElementById('btnOpenFolder');
   const btnRefreshTree = document.getElementById('btnRefreshTree');
+  const btnCollapseAll = document.getElementById('btnCollapseAllTree');
+  const btnTreeNewFile = document.getElementById('btnTreeNewFile');
+  const btnTreeNewFolder = document.getElementById('btnTreeNewFolder');
 
   const openFolderHandler = async () => {
     if (api?.workspace) {
@@ -220,6 +236,47 @@ function setupWorkspace(api: any): void {
 
   btnOpenFolder?.addEventListener('click', openFolderHandler);
   btnRefreshTree?.addEventListener('click', () => renderFileTree(api));
+
+  btnCollapseAll?.addEventListener('click', () => {
+    const container = document.getElementById('fileTreeContainer');
+    if (container) {
+      container.querySelectorAll('.tree-children').forEach(c => {
+        (c as HTMLElement).style.display = 'none';
+      });
+      container.querySelectorAll('.tree-arrow').forEach(a => {
+        (a as HTMLElement).innerText = '▶';
+      });
+      container.querySelectorAll('.tree-icon-folder').forEach(i => {
+        (i as HTMLElement).innerText = '📁';
+      });
+    }
+  });
+
+  btnTreeNewFile?.addEventListener('click', async () => {
+    const name = prompt('Enter new file name (e.g. models/stg_orders.sql):');
+    if (name && api?.workspace) {
+      const ws = await api.workspace.getCurrent();
+      if (ws) {
+        const fullPath = ws.path + '/' + name;
+        await api.workspace.createFile(fullPath, '');
+        showToast(`✓ Created file: ${name}`);
+        renderFileTree(api);
+      }
+    }
+  });
+
+  btnTreeNewFolder?.addEventListener('click', async () => {
+    const name = prompt('Enter new folder name (e.g. models/marts):');
+    if (name && api?.workspace) {
+      const ws = await api.workspace.getCurrent();
+      if (ws) {
+        const fullPath = ws.path + '/' + name;
+        await api.workspace.createDir(fullPath);
+        showToast(`✓ Created folder: ${name}`);
+        renderFileTree(api);
+      }
+    }
+  });
 }
 
 function updateWorkspaceUI(ws: { name: string; path: string }): void {
@@ -227,37 +284,97 @@ function updateWorkspaceUI(ws: { name: string; path: string }): void {
   if (lblPath) lblPath.innerText = `${ws.name} (${ws.path})`;
 }
 
+function getFileIcon(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
+    case 'py': return '🐍';
+    case 'ts': return '📘';
+    case 'js': return '📜';
+    case 'sql': return '🗄️';
+    case 'json': return '🔧';
+    case 'md': return '📑';
+    case 'csv': case 'tsv': case 'xlsx': case 'parquet': return '📊';
+    case 'yml': case 'yaml': return '⚙️';
+    case 'sh': case 'ps1': return '⚡';
+    case 'html': return '🌐';
+    case 'css': return '🎨';
+    default: return '📄';
+  }
+}
+
 async function renderFileTree(api: any): Promise<void> {
   const container = document.getElementById('fileTreeContainer');
   if (!container || !api?.workspace) return;
 
   try {
-    const tree = await api.workspace.getFileTree();
-    if (!tree || tree.length === 0) {
-      container.innerHTML = '<div style="padding:14px; color:var(--text-muted); font-size:11px; text-align:center;">Workspace is empty.</div>';
+    const treeData = await api.workspace.getFileTree();
+    if (!treeData) {
+      container.innerHTML = '<div style="padding:14px; color:var(--text-secondary); font-size:11px; text-align:center;">Workspace is empty.</div>';
       return;
     }
 
-    let html = '';
-    const renderNode = (nodes: any[], depth: number) => {
+    // Extract child nodes whether treeData is a root FileNode or an array
+    const rootNodes = Array.isArray(treeData) ? treeData : (treeData.children || [treeData]);
+    
+    if (rootNodes.length === 0) {
+      container.innerHTML = '<div style="padding:14px; color:var(--text-secondary); font-size:11px; text-align:center;">No files found in workspace folder.</div>';
+      return;
+    }
+
+    const buildTreeHtml = (nodes: any[], depth: number): string => {
+      let html = '';
       nodes.forEach(node => {
         const pad = depth * 14 + 10;
-        const icon = node.type === 'directory' ? '📁' : '📄';
-        html += `<div class="file-tree-node ${node.type}" style="padding-left: ${pad}px;" data-path="${node.path}">
-          <span>${icon}</span> <span>${node.name}</span>
-        </div>`;
-        if (node.children && node.children.length > 0) {
-          renderNode(node.children, depth + 1);
+        if (node.isDirectory) {
+          html += `<div class="tree-folder-wrapper">
+            <div class="file-tree-item directory" style="padding-left: ${pad}px; display: flex; align-items: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; cursor: pointer; user-select: none; border-radius: 4px;" data-path="${node.path}">
+              <span class="tree-arrow" style="font-size: 9px; width: 10px; color: var(--text-secondary);">▶</span>
+              <span class="tree-icon-folder" style="font-size: 13px;">📁</span>
+              <span class="tree-label" style="font-weight: 600; color: #e2e8f0;">${node.name}</span>
+            </div>
+            <div class="tree-children" style="display: none;">
+              ${node.children && node.children.length > 0 ? buildTreeHtml(node.children, depth + 1) : '<div style="padding-left:' + (pad + 18) + 'px; font-size:10.5px; color:var(--text-muted); padding-top:2px; padding-bottom:2px;">(empty folder)</div>'}
+            </div>
+          </div>`;
+        } else {
+          const icon = getFileIcon(node.name);
+          html += `<div class="file-tree-item file" style="padding-left: ${pad + 16}px; display: flex; align-items: center; gap: 6px; padding-top: 3px; padding-bottom: 3px; cursor: pointer; user-select: none; border-radius: 4px;" data-path="${node.path}">
+            <span style="font-size: 12px;">${icon}</span>
+            <span class="tree-label" style="color: #cbd5e1;">${node.name}</span>
+          </div>`;
         }
       });
+      return html;
     };
 
-    renderNode(tree, 0);
-    container.innerHTML = html;
+    container.innerHTML = buildTreeHtml(rootNodes, 0);
 
-    container.querySelectorAll('.file-tree-node.file').forEach(el => {
-      el.addEventListener('click', async () => {
-        const filePath = el.getAttribute('data-path');
+    // Attach Collapsible Click Listeners to Folders
+    container.querySelectorAll('.file-tree-item.directory').forEach(dirItem => {
+      dirItem.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wrapper = dirItem.closest('.tree-folder-wrapper');
+        const childrenDiv = wrapper?.querySelector('.tree-children') as HTMLElement;
+        const arrow = dirItem.querySelector('.tree-arrow') as HTMLElement;
+        const folderIcon = dirItem.querySelector('.tree-icon-folder') as HTMLElement;
+
+        if (childrenDiv) {
+          const isCollapsed = childrenDiv.style.display === 'none' || childrenDiv.style.display === '';
+          childrenDiv.style.display = isCollapsed ? 'block' : 'none';
+          if (arrow) arrow.innerText = isCollapsed ? '▼' : '▶';
+          if (folderIcon) folderIcon.innerText = isCollapsed ? '📂' : '📁';
+        }
+      });
+    });
+
+    // Attach File Open Listeners
+    container.querySelectorAll('.file-tree-item.file').forEach(fileItem => {
+      fileItem.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        container.querySelectorAll('.file-tree-item').forEach(i => (i as HTMLElement).style.background = 'transparent');
+        (fileItem as HTMLElement).style.background = 'rgba(78, 201, 176, 0.15)';
+
+        const filePath = fileItem.getAttribute('data-path');
         if (filePath && api?.workspace) {
           const content = await api.workspace.readFile(filePath);
           openFileEditor(filePath, content, api);
@@ -291,220 +408,133 @@ function openFileEditor(filePath: string, content: string, api: any): void {
   }
 }
 
-// --- MULTI-CLOUD CONNECTION & AUTHENTICATION HUB (100% Synchronized with Screenshots 1 & 2) ---
-function setupCloudHub(api: any): void {
-  const btnDeliveryCloudHub = document.getElementById('btnDeliveryCloudHub');
-  const cloudHubDrawer = document.getElementById('cloudHubDrawer');
-  const btnCloseCloudHub = document.getElementById('btnCloseCloudHub');
-  const btnRefreshCloudStatus = document.getElementById('btnRefreshCloudStatus');
-  const btnTabRefreshCloud = document.getElementById('btnTabRefreshCloud');
+// --- ENGAGEMENT & PROJECT MANAGEMENT ---
+function setupEngagementManager(api: any): void {
+  const selEngagement = document.getElementById('selEngagement') as HTMLSelectElement;
+  const btnNewEngagement = document.getElementById('btnNewEngagement');
+  const btnResetEngagement = document.getElementById('btnResetEngagement');
+  const modalNewProject = document.getElementById('modalNewProject');
+  const btnCloseModal = document.getElementById('btnCloseNewProjectModal');
+  const btnCancelModal = document.getElementById('btnCancelNewProject');
+  const btnConfirmCreate = document.getElementById('btnConfirmCreateProject');
 
-  const btnConnectGcp = document.getElementById('btnConnectGcp');
-  const btnConnectAws = document.getElementById('btnConnectAws');
-  const btnConnectAzure = document.getElementById('btnConnectAzure');
-  const btnConnectDocker = document.getElementById('btnConnectDocker');
+  const lblClientName = document.getElementById('lblDeliveryClientName');
+  const lblTargetVpc = document.getElementById('lblTargetVpc');
 
-  const btnTabConnectGcp = document.getElementById('btnTabConnectGcp');
-  const btnTabConnectAws = document.getElementById('btnTabConnectAws');
-  const btnTabConnectAzure = document.getElementById('btnTabConnectAzure');
-  const btnTabConnectDocker = document.getElementById('btnTabConnectDocker');
-
-  const toggleCloudDrawer = () => {
-    if (cloudHubDrawer) {
-      const isHidden = cloudHubDrawer.style.display === 'none' || cloudHubDrawer.style.display === '';
-      cloudHubDrawer.style.display = isHidden ? 'block' : 'none';
-      if (isHidden) {
-        cloudHubDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        refreshCloudHubStatus(api);
-      }
-    }
+  const renderEngagementOptions = () => {
+    if (!selEngagement) return;
+    selEngagement.innerHTML = activeProjects.map(p => 
+      `<option value="${p.id}">🏢 ${p.name} (${p.targetVpc})</option>`
+    ).join('');
   };
 
-  btnDeliveryCloudHub?.addEventListener('click', toggleCloudDrawer);
-  btnCloseCloudHub?.addEventListener('click', () => {
-    if (cloudHubDrawer) cloudHubDrawer.style.display = 'none';
+  renderEngagementOptions();
+
+  selEngagement?.addEventListener('change', () => {
+    const selected = activeProjects.find(p => p.id === selEngagement.value);
+    if (selected) {
+      if (lblClientName) lblClientName.innerText = selected.name;
+      if (lblTargetVpc) lblTargetVpc.innerText = selected.targetVpc;
+      showToast(`✓ Switched engagement to: ${selected.name}`);
+    }
   });
 
-  btnRefreshCloudStatus?.addEventListener('click', () => refreshCloudHubStatus(api));
-  btnTabRefreshCloud?.addEventListener('click', () => refreshCloudHubStatus(api));
+  btnNewEngagement?.addEventListener('click', () => {
+    if (modalNewProject) modalNewProject.style.display = 'flex';
+  });
 
-  const handleCloudAction = async (provider: string, action: string) => {
-    if (!api?.cloud) return;
-    showToast(`🚀 Initiating ${provider.toUpperCase()} ${action} in terminal...`);
-    
-    // Open terminal
-    const terminalDrawer = document.getElementById('terminalDrawer');
-    if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
-      terminalDrawer.style.display = 'flex';
-    }
-
-    if (!currentActiveSessionId) {
-      const session = await api.terminal.spawn({ name: 'Terminal 1' });
-      currentActiveSessionId = session.id;
-    }
-
-    await api.cloud.connectAccount(provider, action, currentActiveSessionId);
+  const closeModal = () => {
+    if (modalNewProject) modalNewProject.style.display = 'none';
   };
+  btnCloseModal?.addEventListener('click', closeModal);
+  btnCancelModal?.addEventListener('click', closeModal);
 
-  btnConnectGcp?.addEventListener('click', () => {
-    const action = btnConnectGcp.getAttribute('data-action') || 'login';
-    handleCloudAction('gcp', action);
-  });
-  btnTabConnectGcp?.addEventListener('click', () => {
-    const action = btnTabConnectGcp.getAttribute('data-action') || 'login';
-    handleCloudAction('gcp', action);
+  btnConfirmCreate?.addEventListener('click', () => {
+    const name = (document.getElementById('txtNewProjName') as HTMLInputElement).value.trim();
+    const vpc = (document.getElementById('selNewProjVpc') as HTMLSelectElement).value;
+    const goal = (document.getElementById('txtNewProjGoal') as HTMLTextAreaElement).value.trim();
+
+    if (!name) {
+      showToast('⚠️ Please enter a project or engagement name.');
+      return;
+    }
+
+    const newId = 'proj-' + Math.random().toString(36).substring(2, 8);
+    const newProject: EngagementProject = { id: newId, name, targetVpc: vpc, goal };
+    activeProjects.unshift(newProject);
+
+    renderEngagementOptions();
+    selEngagement.value = newId;
+
+    if (lblClientName) lblClientName.innerText = name;
+    if (lblTargetVpc) lblTargetVpc.innerText = vpc;
+
+    closeModal();
+    showToast(`✓ Created new engagement: ${name}`);
   });
 
-  btnConnectAws?.addEventListener('click', () => {
-    const action = btnConnectAws.getAttribute('data-action') || 'login';
-    handleCloudAction('aws', action);
-  });
-  btnTabConnectAws?.addEventListener('click', () => {
-    const action = btnTabConnectAws.getAttribute('data-action') || 'login';
-    handleCloudAction('aws', action);
-  });
-
-  btnConnectAzure?.addEventListener('click', () => {
-    const action = btnConnectAzure.getAttribute('data-action') || 'login';
-    handleCloudAction('azure', action);
-  });
-  btnTabConnectAzure?.addEventListener('click', () => {
-    const action = btnTabConnectAzure.getAttribute('data-action') || 'login';
-    handleCloudAction('azure', action);
-  });
-
-  btnConnectDocker?.addEventListener('click', () => {
-    const action = btnConnectDocker.getAttribute('data-action') || 'login';
-    handleCloudAction('docker', action);
-  });
-  btnTabConnectDocker?.addEventListener('click', () => {
-    const action = btnTabConnectDocker.getAttribute('data-action') || 'login';
-    handleCloudAction('docker', action);
+  btnResetEngagement?.addEventListener('click', () => {
+    if (confirm('Reset active delivery phases and re-run ingestion steps?')) {
+      switchDeliveryStep(1);
+      showToast('✓ Engagement reset to Step 1.');
+    }
   });
 }
 
-async function refreshCloudHubStatus(api: any): Promise<void> {
-  if (!api?.cloud) return;
-
-  const setBadges = (status: string) => {
-    ['cloudGcpBadge', 'cloudAwsBadge', 'cloudAzureBadge', 'cloudDockerBadge',
-     'tabCloudGcpBadge', 'tabCloudAwsBadge', 'tabCloudAzureBadge', 'tabCloudDockerBadge'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.innerText = status;
-        el.style.color = 'var(--warning)';
-      }
-    });
-  };
-
-  setBadges('checking...');
-
-  try {
-    const res = await api.cloud.getDetailedStatus();
-    if (!res) return;
-
-    // 1. Google Cloud (GCP)
-    const updateGcp = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.gcp.ok) {
-        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Account: ${res.gcp.account || 'Active'}${res.gcp.project ? ' (' + res.gcp.project + ')' : ''}`;
-        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.gcp.installed) {
-        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'gcloud CLI installed (Click to login)';
-        if (btn) { btn.innerText = '🔑 Connect GCP'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'gcloud CLI not found on system';
-        if (btn) { btn.innerText = '⬇️ Install gcloud (winget)'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateGcp('cloudGcpBadge', 'cloudGcpAccount', 'btnConnectGcp');
-    updateGcp('tabCloudGcpBadge', 'tabCloudGcpAccount', 'btnTabConnectGcp');
-
-    // 2. Amazon AWS
-    const updateAws = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.aws.ok) {
-        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Account: ${res.aws.account || 'Active'}`;
-        if (btn) { btn.innerText = '🔑 Re-Configure'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.aws.installed) {
-        if (badge) { badge.innerText = '⭕ Not Configured'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'AWS CLI installed (Click to configure)';
-        if (btn) { btn.innerText = '🔑 Configure AWS'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'AWS CLI not found on system';
-        if (btn) { btn.innerText = '⬇️ Install AWS CLI (winget)'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateAws('cloudAwsBadge', 'cloudAwsAccount', 'btnConnectAws');
-    updateAws('tabCloudAwsBadge', 'tabCloudAwsAccount', 'btnTabConnectAws');
-
-    // 3. Microsoft Azure
-    const updateAzure = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.azure.ok) {
-        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Account: ${res.azure.account || 'Active'}`;
-        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.azure.installed) {
-        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'Azure CLI installed (Click to login)';
-        if (btn) { btn.innerText = '🔑 Connect Azure'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'Azure CLI (az) not found on system';
-        if (btn) { btn.innerText = '⬇️ 1-Click Install Azure CLI'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateAzure('cloudAzureBadge', 'cloudAzureAccount', 'btnConnectAzure');
-    updateAzure('tabCloudAzureBadge', 'tabCloudAzureAccount', 'btnTabConnectAzure');
-
-    // 4. Docker Engine
-    const updateDocker = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.docker.ok) {
-        if (badge) { badge.innerText = '✓ Active'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Daemon: ${res.docker.version || 'Active'}`;
-        if (btn) { btn.innerText = '🐳 Check Docker'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.docker.installed) {
-        if (badge) { badge.innerText = '⚠️ Daemon Stopped'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'Docker CLI present, app is closed';
-        if (btn) { btn.innerText = '🐳 Launch Docker Desktop'; btn.setAttribute('data-action', 'startDocker'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'Docker not found on system';
-        if (btn) { btn.innerText = '⬇️ Install Docker Desktop'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateDocker('cloudDockerBadge', 'cloudDockerAccount', 'btnConnectDocker');
-    updateDocker('tabCloudDockerBadge', 'tabCloudDockerAccount', 'btnTabConnectDocker');
-
-    showToast('✓ Cloud provider diagnostics updated!');
-  } catch (err: any) {
-    setBadges('error');
-  }
-}
-
-// --- DELIVERY STUDIO PHASES (1-5) ---
+// --- DELIVERY STUDIO & ROADMAP BANNER ---
 function setupDeliveryStudio(api: any): void {
   const stepCards = document.querySelectorAll<HTMLElement>('.step-nav-card');
+  const btnDeliveryPlaybook = document.getElementById('btnDeliveryPlaybook');
+  const roadmapBanner = document.getElementById('roadmapBanner');
+  const btnCloseRoadmap = document.getElementById('btnCloseRoadmap');
+
+  // Toggle Roadmap Banner
+  btnDeliveryPlaybook?.addEventListener('click', () => {
+    if (roadmapBanner) {
+      const isHidden = roadmapBanner.style.display === 'none' || roadmapBanner.style.display === '';
+      roadmapBanner.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) {
+        roadmapBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+  });
+
+  btnCloseRoadmap?.addEventListener('click', () => {
+    if (roadmapBanner) roadmapBanner.style.display = 'none';
+  });
+
   stepCards.forEach(card => {
     card.addEventListener('click', () => {
       const step = card.getAttribute('data-step');
       if (step) switchDeliveryStep(parseInt(step, 10));
     });
+  });
+
+  // AI Schema Assistant in Step 1
+  document.getElementById('btnAiSchemaAssistant')?.addEventListener('click', async () => {
+    showToast('✨ AI Schema Assistant analyzing source schema & data types...');
+    if (api?.engines) {
+      const res = await api.engines.mapSchema('order_id INT, customer_email VARCHAR(255), total_amount NUMERIC(10,2), status VARCHAR(50)');
+      const resBox = document.getElementById('p1ResultBox');
+      const preview = document.getElementById('p1CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = `-- [AI Schema Assistant Staging Recommendation]\n-- Staging Model: stg_orders.sql\n\nWITH source AS (\n  SELECT * FROM {{ source('raw', 'orders') }}\n),\ncleaned AS (\n  SELECT\n    CAST(order_id AS INT64) AS order_id,\n    LOWER(TRIM(customer_email)) AS customer_email,\n    CAST(total_amount AS NUMERIC) AS order_amount_usd,\n    LOWER(status) AS order_status\n  FROM source\n)\nSELECT * FROM cleaned;`;
+        showToast('✓ AI Staging schema synthesized!');
+      }
+    }
+  });
+
+  // AI Mart Recipes in Step 1
+  document.getElementById('btnAiMartDiscover')?.addEventListener('click', async () => {
+    showToast('✨ Discovering AI Relational Mart Recipes...');
+    const resBox = document.getElementById('p1ResultBox');
+    const preview = document.getElementById('p1CodePreview');
+    if (resBox && preview) {
+      resBox.style.display = 'block';
+      preview.innerText = `[AI Discovered Dimensional Mart Recipes]\n1. 📊 mart_customer_orders (Grain: customer_id | Joins: stg_customers, stg_orders | Metrics: lifetime_value, order_count)\n2. 📈 mart_daily_revenue (Grain: order_date | Metrics: gross_revenue, completed_orders, return_rate)\n3. 🎯 mart_product_inventory (Grain: product_id | Metrics: total_units_sold, restock_days)`;
+      showToast('✓ Discovered 3 Star-Schema Dimensional Mart Recipes!');
+    }
   });
 
   // Step 1: Introspect & Mart
@@ -548,7 +578,6 @@ function setupDeliveryStudio(api: any): void {
 
   // Step 2: Client APIs
   document.getElementById('btnP2GenerateSdk')?.addEventListener('click', async () => {
-    const input = (document.getElementById('p2ApiInput') as HTMLTextAreaElement).value;
     showToast('⚡ Generating TypeScript & Python SDK...');
     if (api?.engines) {
       const res = await api.engines.generateApiSdk({
@@ -695,7 +724,188 @@ function switchDeliveryStep(step: number): void {
   }
 }
 
-// --- DATA ANALYSIS & REPORTING STUDIO ---
+// --- MULTI-CLOUD HUB ---
+function setupCloudHub(api: any): void {
+  const btnDeliveryCloudHub = document.getElementById('btnDeliveryCloudHub');
+  const cloudHubDrawer = document.getElementById('cloudHubDrawer');
+  const btnCloseCloudHub = document.getElementById('btnCloseCloudHub');
+  const btnRefreshCloudStatus = document.getElementById('btnRefreshCloudStatus');
+  const btnTabRefreshCloud = document.getElementById('btnTabRefreshCloud');
+
+  const btnConnectGcp = document.getElementById('btnConnectGcp');
+  const btnConnectAws = document.getElementById('btnConnectAws');
+  const btnConnectAzure = document.getElementById('btnConnectAzure');
+  const btnConnectDocker = document.getElementById('btnConnectDocker');
+
+  const btnTabConnectGcp = document.getElementById('btnTabConnectGcp');
+  const btnTabConnectAws = document.getElementById('btnTabConnectAws');
+  const btnTabConnectAzure = document.getElementById('btnTabConnectAzure');
+  const btnTabConnectDocker = document.getElementById('btnTabConnectDocker');
+
+  const toggleCloudDrawer = () => {
+    if (cloudHubDrawer) {
+      const isHidden = cloudHubDrawer.style.display === 'none' || cloudHubDrawer.style.display === '';
+      cloudHubDrawer.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) {
+        cloudHubDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        refreshCloudHubStatus(api);
+      }
+    }
+  };
+
+  btnDeliveryCloudHub?.addEventListener('click', toggleCloudDrawer);
+  btnCloseCloudHub?.addEventListener('click', () => {
+    if (cloudHubDrawer) cloudHubDrawer.style.display = 'none';
+  });
+
+  btnRefreshCloudStatus?.addEventListener('click', () => refreshCloudHubStatus(api));
+  btnTabRefreshCloud?.addEventListener('click', () => refreshCloudHubStatus(api));
+
+  const handleCloudAction = async (provider: string, action: string) => {
+    if (!api?.cloud) return;
+    showToast(`🚀 Initiating ${provider.toUpperCase()} ${action} in terminal...`);
+    
+    const terminalDrawer = document.getElementById('terminalDrawer');
+    if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
+      terminalDrawer.style.display = 'flex';
+    }
+
+    if (!currentActiveSessionId) {
+      const session = await api.terminal.spawn({ name: 'Terminal 1' });
+      currentActiveSessionId = session.id;
+    }
+
+    await api.cloud.connectAccount(provider, action, currentActiveSessionId);
+  };
+
+  btnConnectGcp?.addEventListener('click', () => handleCloudAction('gcp', btnConnectGcp.getAttribute('data-action') || 'login'));
+  btnTabConnectGcp?.addEventListener('click', () => handleCloudAction('gcp', btnTabConnectGcp.getAttribute('data-action') || 'login'));
+
+  btnConnectAws?.addEventListener('click', () => handleCloudAction('aws', btnConnectAws.getAttribute('data-action') || 'login'));
+  btnTabConnectAws?.addEventListener('click', () => handleCloudAction('aws', btnTabConnectAws.getAttribute('data-action') || 'login'));
+
+  btnConnectAzure?.addEventListener('click', () => handleCloudAction('azure', btnConnectAzure.getAttribute('data-action') || 'login'));
+  btnTabConnectAzure?.addEventListener('click', () => handleCloudAction('azure', btnTabConnectAzure.getAttribute('data-action') || 'login'));
+
+  btnConnectDocker?.addEventListener('click', () => handleCloudAction('docker', btnConnectDocker.getAttribute('data-action') || 'login'));
+  btnTabConnectDocker?.addEventListener('click', () => handleCloudAction('docker', btnTabConnectDocker.getAttribute('data-action') || 'login'));
+}
+
+async function refreshCloudHubStatus(api: any): Promise<void> {
+  if (!api?.cloud) return;
+
+  const setBadges = (status: string) => {
+    ['cloudGcpBadge', 'cloudAwsBadge', 'cloudAzureBadge', 'cloudDockerBadge',
+     'tabCloudGcpBadge', 'tabCloudAwsBadge', 'tabCloudAzureBadge', 'tabCloudDockerBadge'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.innerText = status;
+        el.style.color = 'var(--warning)';
+      }
+    });
+  };
+
+  setBadges('checking...');
+
+  try {
+    const res = await api.cloud.getDetailedStatus();
+    if (!res) return;
+
+    // GCP
+    const updateGcp = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.gcp.ok) {
+        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Account: ${res.gcp.account || 'Active'}${res.gcp.project ? ' (' + res.gcp.project + ')' : ''}`;
+        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.gcp.installed) {
+        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'gcloud CLI installed (Click to login)';
+        if (btn) { btn.innerText = '🔑 Connect GCP'; btn.setAttribute('data-action', 'login'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'gcloud CLI not found on system';
+        if (btn) { btn.innerText = '⬇️ Install gcloud (winget)'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateGcp('cloudGcpBadge', 'cloudGcpAccount', 'btnConnectGcp');
+    updateGcp('tabCloudGcpBadge', 'tabCloudGcpAccount', 'btnTabConnectGcp');
+
+    // AWS
+    const updateAws = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.aws.ok) {
+        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Account: ${res.aws.account || 'Active'}`;
+        if (btn) { btn.innerText = '🔑 Re-Configure'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.aws.installed) {
+        if (badge) { badge.innerText = '⭕ Not Configured'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'AWS CLI installed (Click to configure)';
+        if (btn) { btn.innerText = '🔑 Configure AWS'; btn.setAttribute('data-action', 'login'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'AWS CLI not found on system';
+        if (btn) { btn.innerText = '⬇️ Install AWS CLI (winget)'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateAws('cloudAwsBadge', 'cloudAwsAccount', 'btnConnectAws');
+    updateAws('tabCloudAwsBadge', 'tabCloudAwsAccount', 'btnTabConnectAws');
+
+    // Azure
+    const updateAzure = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.azure.ok) {
+        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Account: ${res.azure.account || 'Active'}`;
+        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.azure.installed) {
+        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'Azure CLI installed (Click to login)';
+        if (btn) { btn.innerText = '🔑 Connect Azure'; btn.setAttribute('data-action', 'login'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'Azure CLI (az) not found on system';
+        if (btn) { btn.innerText = '⬇️ 1-Click Install Azure CLI'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateAzure('cloudAzureBadge', 'cloudAzureAccount', 'btnConnectAzure');
+    updateAzure('tabCloudAzureBadge', 'tabCloudAzureAccount', 'btnTabConnectAzure');
+
+    // Docker
+    const updateDocker = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.docker.ok) {
+        if (badge) { badge.innerText = '✓ Active'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Daemon: ${res.docker.version || 'Active'}`;
+        if (btn) { btn.innerText = '🐳 Check Docker'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.docker.installed) {
+        if (badge) { badge.innerText = '⚠️ Daemon Stopped'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'Docker CLI present, app is closed';
+        if (btn) { btn.innerText = '🐳 Launch Docker Desktop'; btn.setAttribute('data-action', 'startDocker'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'Docker not found on system';
+        if (btn) { btn.innerText = '⬇️ Install Docker Desktop'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateDocker('cloudDockerBadge', 'cloudDockerAccount', 'btnConnectDocker');
+    updateDocker('tabCloudDockerBadge', 'tabCloudDockerAccount', 'btnTabConnectDocker');
+
+    showToast('✓ Cloud provider diagnostics updated!');
+  } catch (err: any) {
+    setBadges('error');
+  }
+}
+
+// --- DATA ANALYSIS STUDIO ---
 function setupDataAnalysisStudio(api: any): void {
   const cardBrowse = document.getElementById('cardBrowseDataFile');
   const deliverablePills = document.querySelectorAll<HTMLElement>('.deliverable-pill');
@@ -890,7 +1100,6 @@ function setupAiChatStudio(api: any): void {
     const text = txtInput?.value.trim();
     if (!text || !messagesStream) return;
 
-    // Append user message
     const userDiv = document.createElement('div');
     userDiv.style.cssText = 'background: var(--bg-tertiary); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--accent); align-self: flex-end; max-width: 80%;';
     userDiv.innerHTML = `<strong>You:</strong> <div style="margin-top: 4px; color: #fff;">${text}</div>`;
@@ -899,7 +1108,6 @@ function setupAiChatStudio(api: any): void {
     txtInput.value = '';
     messagesStream.scrollTop = messagesStream.scrollHeight;
 
-    // Simulate AI response
     setTimeout(() => {
       const aiDiv = document.createElement('div');
       aiDiv.style.cssText = 'background: var(--card-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); max-width: 85%;';
@@ -1049,7 +1257,6 @@ function setupModals(api: any): void {
     if (modalPlugins) modalPlugins.style.display = 'none';
   });
 
-  // Select provider item
   document.querySelectorAll<HTMLElement>('.modal-item[data-provider]').forEach(item => {
     item.addEventListener('click', () => {
       const p = item.getAttribute('data-provider');
@@ -1063,7 +1270,6 @@ function setupModals(api: any): void {
     });
   });
 
-  // Modal navigation shortcuts
   document.getElementById('btnOpenLakehouseHub')?.addEventListener('click', () => {
     if (modalPlugins) modalPlugins.style.display = 'none';
     switchActivityTab('lakehouse', api);

@@ -106,20 +106,6 @@ function createWindow(): void {
     }
   });
 
-  // Custom folder picker IPC handler using Electron dialog
-  ipcMain.handle(DESKTOP_CHANNELS.WORKSPACE.OPEN_FOLDER_DIALOG, async () => {
-    if (!mainWindow) return null;
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory', 'createDirectory'],
-      title: 'Select Project or Engagement Workspace'
-    });
-
-    if (!result.canceled && result.filePaths.length > 0) {
-      return workspaceMgr.setCurrentWorkspace(result.filePaths[0]);
-    }
-    return null;
-  });
-
   buildAppMenu();
 }
 
