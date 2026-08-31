@@ -3351,33 +3351,133 @@ function setupModals(api: any): void {
     if (api?.ai && aiModelListContainer) {
       try {
         const res = await api.ai.getModels();
-        const models = res.models || ['qwen2.5-coder:7b'];
-        aiModelListContainer.innerHTML = models.map((m: string) => `
-          <div class="modal-item ${m.includes(activeSelectedModel) ? 'active' : ''}" data-model="${m}" style="padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">
-            <div style="font-weight: 700; font-size: 12.5px; color: #fff;">🗄️ Ollama: ${m}</div>
-            <div style="font-size: 11px; color: var(--text-secondary);">Click to activate for all Copilot and Data Studio inferences</div>
-          </div>
-        `).join('');
+        const catalogue: any[] = res.catalogue || [
+          { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'Recommended', context: '32k', mode: 'Local Offline', description: 'Fast, high-precision coding model optimized for code transformations and migrations.', isInstalled: true }
+        ];
 
-        aiModelListContainer.querySelectorAll('.modal-item[data-model]').forEach(item => {
-          item.addEventListener('click', () => {
-            const chosen = item.getAttribute('data-model') || 'qwen2.5-coder:7b';
-            activeSelectedModel = chosen.replace(/ \(offline\)/, '');
+        const cntBadge = document.getElementById('cntAllModels');
+        if (cntBadge) cntBadge.innerText = `${catalogue.length}`;
 
-            const lblHeader = document.getElementById('lblHeaderModel');
-            if (lblHeader) lblHeader.innerText = `OLLAMA · ${activeSelectedModel}`;
+        let currentCat = 'all';
+        let searchQuery = '';
 
-            const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
-            if (lblChatBadge) lblChatBadge.innerText = `OLLAMA: ${activeSelectedModel.toUpperCase()}`;
+        const renderModels = () => {
+          const filtered = catalogue.filter((m: any) => {
+            const matchesCat = currentCat === 'all'
+              || (currentCat === 'local' && m.category === 'local')
+              || (currentCat === 'cloud' && m.category === 'cloud')
+              || (currentCat === 'coding' && m.isCoding);
 
-            const lblDataModel = document.getElementById('lblDataModelName');
-            if (lblDataModel) lblDataModel.innerText = `ollama (local) · ${activeSelectedModel}`;
+            const q = searchQuery.toLowerCase();
+            const matchesSearch = !q
+              || m.name.toLowerCase().includes(q)
+              || m.id.toLowerCase().includes(q)
+              || m.providerLabel.toLowerCase().includes(q)
+              || m.description.toLowerCase().includes(q);
 
-            modalAiProvider.style.display = 'none';
-            showToast(`✓ Switched active AI Model to: ${activeSelectedModel}`);
+            return matchesCat && matchesSearch;
+          });
+
+          if (filtered.length === 0) {
+            aiModelListContainer.innerHTML = `
+              <div style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 12px;">
+                No matching models found for "<strong>${escapeHtml(searchQuery)}</strong>" in this category.
+              </div>
+            `;
+            return;
+          }
+
+          aiModelListContainer.innerHTML = filtered.map((m: any) => {
+            const isSelected = m.id === activeSelectedModel || activeSelectedModel.includes(m.id) || m.id.includes(activeSelectedModel);
+            return `
+              <div class="modal-item ${isSelected ? 'active' : ''}" data-model="${m.id}" data-name="${m.name}" data-provider="${m.providerLabel}" style="padding: 10px 14px; background: var(--bg-primary); border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <div style="font-weight: 700; font-size: 13px; color: ${isSelected ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 8px;">
+                    <span>${m.icon}</span> ${m.name}
+                    ${isSelected ? '<span style="font-size: 11px; background: var(--accent); color: #1e1e1e; padding: 1px 6px; border-radius: 10px; font-weight: 800;">ACTIVE</span>' : ''}
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <span style="background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 1px 7px; border-radius: 4px; font-size: 10px; font-weight: 600;">${m.badge}</span>
+                    ${m.isInstalled ? '<span style="color: var(--success); font-size: 10.5px; font-weight: bold;">● Ready</span>' : '<span style="color: var(--text-muted); font-size: 10.5px;">Cloud / Remote</span>'}
+                  </div>
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 5px;">${m.description}</div>
+                <div style="font-size: 10.5px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap;">
+                  <span>Provider: <strong style="color: #e2e8f0;">${m.providerLabel}</strong></span>
+                  <span>Context: <strong style="color: #e2e8f0;">${m.context}</strong></span>
+                  <span>Execution: <strong style="color: #e2e8f0;">${m.mode}</strong></span>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          aiModelListContainer.querySelectorAll('.modal-item[data-model]').forEach(item => {
+            item.addEventListener('click', () => {
+              const chosen = item.getAttribute('data-model') || 'qwen2.5-coder:7b';
+              const modelName = item.getAttribute('data-name') || chosen;
+              const providerLabel = item.getAttribute('data-provider') || 'AI Model';
+
+              activeSelectedModel = chosen.replace(/ \(offline\)/, '');
+
+              // 1. Update Global Header Bar
+              const lblHeader = document.getElementById('lblHeaderModel');
+              if (lblHeader) {
+                lblHeader.innerText = `${providerLabel.split(' ')[0].toUpperCase()} · ${activeSelectedModel}`;
+              }
+
+              // 2. Update Chat Badge
+              const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
+              if (lblChatBadge) {
+                lblChatBadge.innerText = `${providerLabel.toUpperCase()}: ${activeSelectedModel.toUpperCase()}`;
+              }
+
+              // 3. Update Data Studio Badge
+              const lblDataModel = document.getElementById('lblDataModelName');
+              if (lblDataModel) {
+                lblDataModel.innerText = `${providerLabel} · ${activeSelectedModel}`;
+              }
+
+              modalAiProvider.style.display = 'none';
+              showToast(`✓ Switched active AI Model to: ${modelName} (${providerLabel})`);
+            });
+          });
+        };
+
+        // Tab switching
+        const catTabs = modalAiProvider.querySelectorAll('.model-cat-tab');
+        catTabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            catTabs.forEach(t => {
+              t.classList.remove('active');
+              (t as HTMLElement).style.color = '';
+              (t as HTMLElement).style.borderColor = '';
+              (t as HTMLElement).style.fontWeight = '';
+            });
+            tab.classList.add('active');
+            (tab as HTMLElement).style.color = 'var(--accent)';
+            (tab as HTMLElement).style.borderColor = 'var(--accent)';
+            (tab as HTMLElement).style.fontWeight = '700';
+
+            currentCat = tab.getAttribute('data-cat') || 'all';
+            renderModels();
           });
         });
-      } catch {}
+
+        // Search input
+        const searchInput = document.getElementById('txtSearchAiModels') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.value = '';
+          searchInput.oninput = () => {
+            searchQuery = searchInput.value.trim();
+            renderModels();
+          };
+          setTimeout(() => searchInput.focus(), 50);
+        }
+
+        renderModels();
+      } catch (err: any) {
+        aiModelListContainer.innerHTML = `<div style="color: var(--error); padding: 14px;">Error loading models: ${err.message}</div>`;
+      }
     }
   };
 

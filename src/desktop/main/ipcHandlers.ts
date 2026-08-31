@@ -964,28 +964,103 @@ export class DesktopIpcHandlers {
 
     // --- REAL LOCAL AI & LLM INFERENCE CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.AI.GET_MODELS, async () => {
-      return new Promise<{ models: string[]; server: string; active: boolean }>((resolve) => {
-        const req = http.get({ host: '127.0.0.1', port: 11434, path: '/api/tags', timeout: 2000 }, (res) => {
+      // 1. Probe Ollama tags
+      const ollamaModels: string[] = await new Promise((resolve) => {
+        const req = http.get({ host: '127.0.0.1', port: 11434, path: '/api/tags', timeout: 1500 }, (res) => {
           let data = '';
           res.on('data', chunk => data += chunk);
           res.on('end', () => {
             try {
               const parsed = JSON.parse(data);
-              const models = (parsed.models || []).map((m: any) => m.name || m.model);
-              resolve({ models, server: 'Ollama', active: true });
-            } catch {
-              resolve({ models: ['qwen2.5-coder:7b'], server: 'Ollama', active: true });
-            }
+              resolve((parsed.models || []).map((m: any) => m.name || m.model));
+            } catch { resolve([]); }
           });
         });
-        req.on('error', () => {
-          resolve({ models: ['qwen2.5-coder:7b (offline)'], server: 'Ollama (Offline)', active: false });
-        });
-        req.on('timeout', () => {
-          req.destroy();
-          resolve({ models: ['qwen2.5-coder:7b (offline)'], server: 'Ollama (Offline)', active: false });
-        });
+        req.on('error', () => resolve([]));
+        req.on('timeout', () => { req.destroy(); resolve([]); });
       });
+
+      // 2. Probe LM Studio
+      const isLmStudioRunning = await new Promise<boolean>((resolve) => {
+        const req = http.get({ host: '127.0.0.1', port: 1234, path: '/v1/models', timeout: 1500 }, (res) => {
+          resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+      });
+
+      // 3. Probe vLLM
+      const isVllmRunning = await new Promise<boolean>((resolve) => {
+        const req = http.get({ host: '127.0.0.1', port: 8000, path: '/v1/models', timeout: 1500 }, (res) => {
+          resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.on('timeout', () => { req.destroy(); resolve(false); });
+      });
+
+      const isOllamaRunning = ollamaModels.length > 0;
+
+      // Full model catalogue matching VS Code
+      const catalogue = [
+        // --- LOCAL OLLAMA / ON-PREMISE MODELS ---
+        { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'Recommended', context: '32k', mode: 'Local Offline', description: 'Fast, high-precision coding model optimized for code transformations and migrations.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:7b') || m.includes('qwen2.5-coder')) },
+        { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'High Accuracy', context: '32k', mode: 'Local Offline', description: 'Mid-sized coding model with superior reasoning and SQL/dbt schema generation.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:14b')) },
+        { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'Frontier Coding', context: '32k', mode: 'Local Offline', description: 'Frontier-grade coding performance requiring ~20GB VRAM / RAM.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:32b')) },
+        { id: 'gemma4:e4b', name: 'Gemma 4 e4b', provider: 'gemma4', providerLabel: 'Google Gemma 4', category: 'local', isCoding: true, icon: '🤖', badge: 'Multimodal', context: '32k', mode: 'Local Edge', description: 'Google\'s newest open multimodal coding and reasoning engine.', isInstalled: ollamaModels.some(m => m.startsWith('gemma4') || m.startsWith('gemma:')) },
+        { id: 'gemma4:27b', name: 'Gemma 4 27B', provider: 'gemma4', providerLabel: 'Google Gemma 4', category: 'local', isCoding: false, icon: '🤖', badge: 'Heavyweight', context: '32k', mode: 'Local Edge', description: 'Heavyweight multimodal architecture for complex system design and reasoning.', isInstalled: ollamaModels.some(m => m.startsWith('gemma4:27b')) },
+        { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', provider: 'glm', providerLabel: 'GLM / CodeGeeX', category: 'local', isCoding: true, icon: '💻', badge: 'Polyglot', context: '128k', mode: 'Local Offline', description: 'Specialized polyglot code conversion and architectural mapping model.', isInstalled: ollamaModels.some(m => m.startsWith('codegeex4')) },
+        { id: 'glm4:9b', name: 'GLM-4 9B', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: false, icon: '💻', badge: 'Reasoning', context: '128k', mode: 'Local Offline', description: 'General multilingual reasoning and enterprise documentation generator.', isInstalled: ollamaModels.some(m => m.startsWith('glm4')) },
+        { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', provider: 'colibri', providerLabel: 'Colibri Local', category: 'local', isCoding: true, icon: '🚀', badge: 'Frontier MoE', context: '128k', mode: 'On-Premise Server', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise compute.', isInstalled: false },
+        { id: 'llama3.3:70b', name: 'Llama 3.3 70B', provider: 'ollama', providerLabel: 'Meta LLaMA', category: 'local', isCoding: false, icon: '🦙', badge: 'Meta Flagship', context: '128k', mode: 'Local Offline', description: 'Meta\'s premier open-source reasoning model for enterprise workflows.', isInstalled: ollamaModels.some(m => m.startsWith('llama3.3')) },
+        { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B', provider: 'ollama', providerLabel: 'DeepSeek', category: 'local', isCoding: true, icon: '🧠', badge: 'Reasoning MoE', context: '64k', mode: 'Local Offline', description: 'Chain-of-thought mathematical and algorithmic coding reasoner.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1')) },
+        { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B', provider: 'ollama', providerLabel: 'DeepSeek', category: 'local', isCoding: true, icon: '🧠', badge: 'Coding Specialist', context: '64k', mode: 'Local Offline', description: 'Advanced polyglot code completion and transpilation model.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-coder-v2')) },
+        { id: 'lmstudio-local', name: 'LM Studio Local Server', provider: 'lmstudio', providerLabel: 'LM Studio (Port 1234)', category: 'local', isCoding: false, icon: '🖥️', badge: isLmStudioRunning ? 'Active' : 'Offline', context: 'Variable', mode: 'Local Server', description: 'Connects to any model currently loaded in LM Studio via OpenAI-compatible endpoint.', isInstalled: isLmStudioRunning },
+        { id: 'vllm-local', name: 'vLLM / Triton Server', provider: 'vllm', providerLabel: 'vLLM (Port 8000)', category: 'local', isCoding: false, icon: '⚡', badge: isVllmRunning ? 'Active' : 'Offline', context: 'Variable', mode: 'Air-Gapped Cluster', description: 'Air-gapped high-throughput inference engine for private enterprise deployments.', isInstalled: isVllmRunning },
+        { id: 'offline-engine', name: 'Offline Deterministic Engine', provider: 'offline', providerLabel: 'Evolve Built-in', category: 'local', isCoding: true, icon: '⚙️', badge: 'Instant AST', context: 'Unlimited', mode: 'Zero-Latency', description: 'Built-in AST, transpilers, and heuristic algorithms. Zero setup, 100% offline.', isInstalled: true },
+
+        // --- CLOUD FLAGSHIPS ---
+        { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'State-of-the-Art', context: '200k', mode: 'Cloud API', description: 'Anthropic\'s most advanced hybrid reasoning and code generation model.', isInstalled: true },
+        { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Leaderboard #1', context: '200k', mode: 'Cloud API', description: 'Benchmark-leading coding, architectural planning, and data pipeline assistant.', isInstalled: true },
+        { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Ultra Fast', context: '200k', mode: 'Cloud API', description: 'High speed and low latency for quick code edits and lightweight queries.', isInstalled: true },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Deep reasoning across massive codebases and enterprise data catalogs.', isInstalled: true },
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Fast & Smart', context: '1M', mode: 'Cloud API', description: 'High throughput, low-latency reasoning and schema generation.', isInstalled: true },
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: false, icon: '✨', badge: 'Multimodal', context: '1M', mode: 'Cloud API', description: 'Next-generation multimodal model for code and structured documentation.', isInstalled: true },
+        { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Omni Flagship', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s flagship multimodal intelligence engine with strong coding capabilities.', isInstalled: true },
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Lightweight', context: '128k', mode: 'Cloud API', description: 'Cost-efficient and fast model for day-to-day coding and refactoring tasks.', isInstalled: true },
+        { id: 'o3-mini', name: 'o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Reasoning', context: '128k', mode: 'Cloud API', description: 'High-speed reasoning model tailored for science, math, and complex algorithms.', isInstalled: true },
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq Fast)', provider: 'openai', providerLabel: 'Groq / LPU Cloud', category: 'cloud', isCoding: true, icon: '⚡', badge: '500 tok/s', context: '128k', mode: 'Groq LPU', description: 'Ultra-high-speed inference powered by Groq LPUs for instant answers.', isInstalled: true },
+        { id: 'glm-4.6', name: 'GLM-4.6 (Z.ai)', provider: 'zai', providerLabel: 'Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Flagship Cloud', context: '128k', mode: 'Cloud API', description: 'Flagship multilingual coding model with deep enterprise knowledge.', isInstalled: true },
+        { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'huggingface', providerLabel: 'Hugging Face Hub', category: 'cloud', isCoding: true, icon: '🤗', badge: 'HF Hosted', context: '32k', mode: 'Inference API', description: 'Hosted inference via Hugging Face Serverless Inference API.', isInstalled: true }
+      ];
+
+      // Add any additional models pulled in Ollama that are not in the catalogue
+      for (const oModel of ollamaModels) {
+        if (!catalogue.some(c => c.id === oModel)) {
+          catalogue.unshift({
+            id: oModel,
+            name: oModel,
+            provider: 'ollama',
+            providerLabel: 'Ollama (Local)',
+            category: 'local',
+            isCoding: oModel.includes('coder') || oModel.includes('code'),
+            icon: '🦙',
+            badge: 'Installed',
+            context: '32k',
+            mode: 'Local Offline',
+            description: `Locally installed model discovered on your active Ollama server.`,
+            isInstalled: true
+          });
+        }
+      }
+
+      return {
+        models: catalogue.map(c => c.id),
+        catalogue,
+        isOllamaRunning,
+        isLmStudioRunning,
+        isVllmRunning,
+        server: isOllamaRunning ? 'Ollama (Active)' : 'Offline Built-in'
+      };
     });
 
     ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string }) => {
