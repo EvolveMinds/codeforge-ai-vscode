@@ -111,6 +111,14 @@ const desktopApi = {
     applyOfflinePatch: (patchPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.APPLY_OFFLINE_PATCH, patchPath)
   },
 
+  // --- LOCAL AI & LLM INFERENCE APIS ---
+  ai: {
+    chat: (req: { prompt: string; history?: any[]; model?: string; system?: string }) => 
+      ipcRenderer.invoke(DESKTOP_CHANNELS.AI.CHAT, req),
+    getModels: () => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.GET_MODELS),
+    pullModel: (modelName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.PULL_MODEL, modelName)
+  },
+
   // --- ENTERPRISE & FDE CORE ENGINES ---
   engines: {
     transpileSql: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL, req),

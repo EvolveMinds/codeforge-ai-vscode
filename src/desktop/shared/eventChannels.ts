@@ -84,6 +84,12 @@ export const DESKTOP_CHANNELS = {
     APPLY_OFFLINE_PATCH: 'evolve:updater:apply-offline-patch'
   },
 
+  AI: {
+    CHAT: 'evolve:ai:chat',
+    GET_MODELS: 'evolve:ai:get-models',
+    PULL_MODEL: 'evolve:ai:pull-model'
+  },
+
   ENGINES: {
     TRANSPILE_SQL: 'evolve:engines:transpile-sql',
     PII_MASKING: 'evolve:engines:pii-masking',

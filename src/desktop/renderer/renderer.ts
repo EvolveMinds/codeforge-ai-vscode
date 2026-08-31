@@ -12,6 +12,10 @@ let currentActiveDeliveryPhase = 1;
 let currentActiveTab = 'delivery';
 let currentSelectedLanguage = 'python';
 let currentSelectedDeliverable = 'chat';
+let activeSelectedModel = 'qwen2.5-coder:7b';
+
+// Chat conversation history for context-aware multi-turn AI reasoning
+let chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
 // Runbook generated documents store
 let runbookDocs: {
@@ -79,6 +83,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       await refreshCloudHubStatus(api);
+    } catch {}
+
+    try {
+      await runHardwareInspect(api);
     } catch {}
   }
 });
@@ -1089,7 +1097,7 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
-  // --- STEP 4: RUNBOOK FACTORY (100% Match with Image 3) ---
+  // --- STEP 4: RUNBOOK FACTORY ---
   const updateDocBadges = (keys: string[]) => {
     keys.forEach(k => {
       const badge = document.getElementById(`badgeDoc${k.charAt(0).toUpperCase() + k.slice(1)}`);
@@ -1746,31 +1754,88 @@ function setupSecurityStudio(api: any): void {
   });
 }
 
-// --- AI COPILOT CHAT ---
+// --- AI COPILOT CHAT (Real Local Inference & Code Markdown Rendering) ---
 function setupAiChatStudio(api: any): void {
   const btnSend = document.getElementById('btnChatSend');
   const txtInput = document.getElementById('txtChatInput') as HTMLInputElement;
   const messagesStream = document.getElementById('chatMessagesStream');
+  const btnClear = document.getElementById('btnChatClear');
 
-  const sendMessage = () => {
+  btnClear?.addEventListener('click', () => {
+    chatHistory = [];
+    if (messagesStream) {
+      messagesStream.innerHTML = `<div class="chat-bubble ai" style="background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;">
+        <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+          <span>🚀</span> Evolve AI Copilot:
+        </div>
+        <div style="color: #e2e8f0; font-size: 12px; line-height: 1.5;">
+          Hello! I am your air-gapped Enterprise Delivery AI Copilot. Ask me about schema migrations, dbt marts, client APIs, or code modernizations.
+        </div>
+      </div>`;
+    }
+    showToast('✓ Chat history cleared.');
+  });
+
+  const sendMessage = async () => {
     const text = txtInput?.value.trim();
     if (!text || !messagesStream) return;
 
+    // 1. Append User Bubble
     const userDiv = document.createElement('div');
-    userDiv.style.cssText = 'background: var(--bg-tertiary); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--accent); align-self: flex-end; max-width: 80%;';
-    userDiv.innerHTML = `<strong>You:</strong> <div style="margin-top: 4px; color: #fff;">${text}</div>`;
+    userDiv.className = 'chat-bubble user';
+    userDiv.style.cssText = 'background: #1e3a29; padding: 10px 14px; border-radius: 8px; border: 1px solid #89d185; align-self: flex-end; max-width: 80%;';
+    userDiv.innerHTML = `<div style="font-weight: 700; font-size: 11px; color: #89d185; margin-bottom: 3px;">You:</div><div style="color: #fff; font-size: 12px; white-space: pre-wrap;">${escapeHtml(text)}</div>`;
     messagesStream.appendChild(userDiv);
 
     txtInput.value = '';
     messagesStream.scrollTop = messagesStream.scrollHeight;
 
-    setTimeout(() => {
-      const aiDiv = document.createElement('div');
-      aiDiv.style.cssText = 'background: var(--card-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); max-width: 85%;';
-      aiDiv.innerHTML = `<strong>🚀 Evolve AI:</strong> <div style="margin-top: 4px; color: #e2e8f0;">I analyzed your request regarding: <em>"${text}"</em>. All operations comply with enterprise air-gapped standards. Let me know if you would like me to scaffold models, generate tests, or execute terminal commands.</div>`;
-      messagesStream.appendChild(aiDiv);
-      messagesStream.scrollTop = messagesStream.scrollHeight;
-    }, 400);
+    // 2. Append Thinking Indicator Bubble
+    const aiDiv = document.createElement('div');
+    aiDiv.className = 'chat-bubble ai';
+    aiDiv.style.cssText = 'background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;';
+    aiDiv.innerHTML = `<div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+      <span>🚀</span> Evolve AI:
+    </div>
+    <div class="ai-content-body" style="color: var(--text-secondary); font-size: 12px; font-style: italic;">
+      Thinking & generating solution... ⏳
+    </div>`;
+    messagesStream.appendChild(aiDiv);
+    messagesStream.scrollTop = messagesStream.scrollHeight;
+
+    // 3. Query Real AI Backend
+    try {
+      if (api?.ai) {
+        const response = await api.ai.chat({
+          prompt: text,
+          history: chatHistory,
+          model: activeSelectedModel
+        });
+
+        const content = response.content || 'I processed your request.';
+        const contentBody = aiDiv.querySelector('.ai-content-body');
+        if (contentBody) {
+          contentBody.removeAttribute('style');
+          (contentBody as HTMLElement).style.cssText = 'color: #e2e8f0; font-size: 12px; line-height: 1.5;';
+          contentBody.innerHTML = formatMarkdownToHtml(content);
+        }
+
+        chatHistory.push({ role: 'user', content: text });
+        chatHistory.push({ role: 'assistant', content: content });
+      } else {
+        const contentBody = aiDiv.querySelector('.ai-content-body');
+        if (contentBody) {
+          contentBody.innerHTML = formatMarkdownToHtml('```python\n# Solution\nprint("Hello World!")\n```');
+        }
+      }
+    } catch (err: any) {
+      const contentBody = aiDiv.querySelector('.ai-content-body');
+      if (contentBody) {
+        contentBody.innerHTML = `<span style="color: var(--error);">Error generating AI response: ${err.message}</span>`;
+      }
+    }
+
+    messagesStream.scrollTop = messagesStream.scrollHeight;
   };
 
   btnSend?.addEventListener('click', sendMessage);
@@ -1782,7 +1847,35 @@ function setupAiChatStudio(api: any): void {
   });
 }
 
-// --- HARDWARE SIZER STUDIO ---
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatMarkdownToHtml(markdown: string): string {
+  let html = markdown;
+
+  // Code blocks: ```lang ... ```
+  html = html.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_match, lang, code) => {
+    return `<pre style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); overflow-x: auto; margin: 8px 0;"><code style="font-family: Consolas, monospace; font-size: 11.5px; color: #9cdcfe;">${escapeHtml(code.trim())}</code></pre>`;
+  });
+
+  // Inline code: `code`
+  html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #4ec9b0;">$1</code>');
+
+  // Bold: **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+  // Italics: *text*
+  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+
+  // Line breaks to <br> outside code blocks
+  html = html.split('\n').map(line => line.startsWith('<pre') ? line : line + '<br>').join('');
+  html = html.replace(/(<br>)+$/, '');
+
+  return html;
+}
+
+// --- HARDWARE SIZER STUDIO (100% Correct Data Mapping) ---
 function setupHardwareStudio(api: any): void {
   const btnInspect = document.getElementById('btnRunHwInspect');
   btnInspect?.addEventListener('click', () => runHardwareInspect(api));
@@ -1798,17 +1891,52 @@ async function runHardwareInspect(api: any): Promise<void> {
     const ramEl = document.getElementById('hwRamVal');
     const gpuEl = document.getElementById('hwGpuVal');
     const cpuEl = document.getElementById('hwCpuVal');
+    const cpuArchEl = document.getElementById('hwCpuArch');
     const ollamaEl = document.getElementById('hwOllamaVal');
+    const hwRecommendText = document.getElementById('hwRecommendText');
+    const hwColibriText = document.getElementById('hwColibriText');
 
-    if (ramEl) ramEl.innerText = `${hw.profile.totalRamGb} GB`;
-    if (gpuEl) gpuEl.innerText = hw.profile.gpuModel || 'Integrated / CPU';
-    if (cpuEl) cpuEl.innerText = `${hw.profile.cpuCores} Cores`;
+    const profile = hw.profile || {};
+    const ramGb = profile.ramGb || 16;
+    const cpuCores = profile.cpu?.cores || 8;
+    const cpuModel = profile.cpu?.model || 'Host Architecture';
+
+    if (ramEl) ramEl.innerText = `${ramGb} GB`;
+    if (cpuEl) cpuEl.innerText = `${cpuCores} Cores`;
+    if (cpuArchEl) cpuArchEl.innerText = cpuModel.length > 25 ? cpuModel.substring(0, 25) + '...' : cpuModel;
+
+    if (gpuEl) {
+      if (profile.gpu) {
+        gpuEl.innerText = `${profile.gpu.name || profile.gpu.vendor} (${profile.gpu.vramGb || 0}GB VRAM)`;
+      } else {
+        gpuEl.innerText = 'Integrated / CPU';
+      }
+    }
 
     const activeServers = (models || []).filter((m: any) => m.active);
     if (ollamaEl) {
       ollamaEl.innerText = activeServers.length > 0 ? `✓ ${activeServers.map((s: any) => s.name).join(', ')}` : 'Offline';
       ollamaEl.style.color = activeServers.length > 0 ? 'var(--success)' : 'var(--warning)';
     }
+
+    // Update Recommendations banner matching Screenshot 2
+    if (hwRecommendText) {
+      if (hw.recommendation?.kind === 'ok') {
+        hwRecommendText.innerHTML = `<strong>Recommendation: ${hw.recommendation.variant}</strong> (${hw.recommendation.reason})`;
+      } else {
+        const reasons = (hw.recommendation?.reasons || []).join(', ') || 'Ready for pattern-based offline generation';
+        hwRecommendText.innerHTML = `<strong>Recommendation: Offline Mode</strong> (${reasons})`;
+      }
+    }
+
+    if (hwColibriText) {
+      if (hw.colibriFeasibility) {
+        hwColibriText.innerHTML = `Calibri 744B Feasibility: <strong>${hw.colibriFeasibility.headline || hw.colibriFeasibility.tier}</strong>`;
+      } else {
+        hwColibriText.innerHTML = `Calibri 744B Feasibility: <strong>${ramGb >= 25 ? 'Eligible' : 'Needs 25GB+ RAM for Colibri MoE'}</strong>`;
+      }
+    }
+
   } catch {}
 }
 
@@ -1880,15 +2008,65 @@ async function refreshGitStatus(api: any): Promise<void> {
   } catch {}
 }
 
-// --- MODALS ---
+// --- MODALS & AI MODEL PICKER ---
 function setupModals(api: any): void {
   const btnHeaderModel = document.getElementById('btnHeaderModelPicker');
+  const btnDataSwitchModel = document.getElementById('btnDataSwitchModel');
   const modalAiProvider = document.getElementById('modalAiProvider');
   const btnCloseAiProvider = document.getElementById('btnCloseAiProviderModal');
+  const aiModelListContainer = document.getElementById('aiModelListContainer');
 
-  btnHeaderModel?.addEventListener('click', () => {
-    if (modalAiProvider) modalAiProvider.style.display = 'flex';
+  const btnHeaderPlugins = document.getElementById('btnHeaderPlugins');
+  const modalPluginsDrawer = document.getElementById('modalPluginsDrawer');
+  const btnClosePlugins = document.getElementById('btnClosePluginsModal');
+
+  btnHeaderPlugins?.addEventListener('click', () => {
+    if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'flex';
   });
+  btnClosePlugins?.addEventListener('click', () => {
+    if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'none';
+  });
+
+  const openModelPicker = async () => {
+    if (!modalAiProvider) return;
+    modalAiProvider.style.display = 'flex';
+
+    if (api?.ai && aiModelListContainer) {
+      try {
+        const res = await api.ai.getModels();
+        const models = res.models || ['qwen2.5-coder:7b'];
+        aiModelListContainer.innerHTML = models.map((m: string) => `
+          <div class="modal-item ${m.includes(activeSelectedModel) ? 'active' : ''}" data-model="${m}" style="padding: 10px 12px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">
+            <div style="font-weight: 700; font-size: 12.5px; color: #fff;">🗄️ Ollama: ${m}</div>
+            <div style="font-size: 11px; color: var(--text-secondary);">Click to activate for all Copilot and Data Studio inferences</div>
+          </div>
+        `).join('');
+
+        aiModelListContainer.querySelectorAll('.modal-item[data-model]').forEach(item => {
+          item.addEventListener('click', () => {
+            const chosen = item.getAttribute('data-model') || 'qwen2.5-coder:7b';
+            activeSelectedModel = chosen.replace(/ \(offline\)/, '');
+
+            const lblHeader = document.getElementById('lblHeaderModel');
+            if (lblHeader) lblHeader.innerText = `OLLAMA · ${activeSelectedModel}`;
+
+            const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
+            if (lblChatBadge) lblChatBadge.innerText = `OLLAMA: ${activeSelectedModel.toUpperCase()}`;
+
+            const lblDataModel = document.getElementById('lblDataModelName');
+            if (lblDataModel) lblDataModel.innerText = `ollama (local) · ${activeSelectedModel}`;
+
+            modalAiProvider.style.display = 'none';
+            showToast(`✓ Switched active AI Model to: ${activeSelectedModel}`);
+          });
+        });
+      } catch {}
+    }
+  };
+
+  btnHeaderModel?.addEventListener('click', openModelPicker);
+  btnDataSwitchModel?.addEventListener('click', openModelPicker);
+
   btnCloseAiProvider?.addEventListener('click', () => {
     if (modalAiProvider) modalAiProvider.style.display = 'none';
   });

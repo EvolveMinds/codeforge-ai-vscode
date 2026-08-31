@@ -84,6 +84,18 @@
       color: var(--accent);
       border-bottom-color: var(--accent);
     }
+    pre code {
+      display: block;
+      padding: 10px;
+      background: #111;
+      border-radius: 5px;
+      overflow-x: auto;
+      color: #9cdcfe;
+      font-family: Consolas, monospace;
+      font-size: 11.5px;
+      margin: 8px 0;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
   </style>
 </head>
 <body>
@@ -101,12 +113,12 @@
     
     <div style="display: flex; align-items: center; gap: 8px;">
       <!-- AI Model Provider Pill -->
-      <div class="header-pill success" id="btnHeaderModelPicker" title="Click to Switch AI Model / Provider">
+      <div class="header-pill success" id="btnHeaderModelPicker" title="Click to Switch AI Model / Provider" style="cursor: pointer;">
         <span>🟢</span> <span id="lblHeaderModel">OLLAMA · qwen2.5-coder:7b</span>
       </div>
 
       <!-- Active Plugins & Integrations Pill -->
-      <div class="header-pill" id="btnHeaderPlugins" title="Active Plugins & Integrations">
+      <div class="header-pill" id="btnHeaderPlugins" title="Active Plugins & Integrations" style="cursor: pointer;">
         <span>🔌</span> <span>6 active</span>
       </div>
 
@@ -790,7 +802,7 @@
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 4: CLIENT ENGAGEMENT HANDOFF & RUNBOOK FACTORY (Exact match with Image 3) -->
+              <!-- STEP 4: CLIENT ENGAGEMENT HANDOFF & RUNBOOK FACTORY -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase4Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
@@ -801,7 +813,7 @@
                   <span style="font-size: 11px; opacity: 0.85; font-family: monospace; color: var(--accent);" id="lblDocsWorkspacePath">📁 docs/</span>
                 </div>
 
-                <!-- 5 Documentation Cards Grid (100% Match with Image 3) -->
+                <!-- 5 Documentation Cards Grid -->
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
                   <!-- Card 1: ARCHITECTURE.md -->
                   <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
@@ -889,7 +901,7 @@
                   </div>
                 </div>
 
-                <!-- Bottom Batch Generation Bar (100% Match with Image 3) -->
+                <!-- Bottom Batch Generation Bar -->
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
                   <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 8px 18px;">🚀 Generate All Client Handoff Docs</button>
                   <button class="btn btn-secondary" id="btnP4GenerateSelected" style="padding: 8px 16px;">✨ Generate Selected Docs</button>
@@ -1189,7 +1201,7 @@
           <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center;">
             <div>
               <div style="font-size: 13px; font-weight: 700; color: #fff;">
-                ollama (local) &middot; qwen2.5-coder:7b <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ RECOMMENDED LOCAL CODER</span>
+                <span id="lblDataModelName">ollama (local) &middot; qwen2.5-coder:7b</span> <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ RECOMMENDED LOCAL CODER</span>
               </div>
               <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
                 Good local code model. Reliable for single-dataset exploratory analysis and standard chart generation.
@@ -1317,40 +1329,86 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 6: AI COPILOT CHAT -->
+        <!-- MODE 6: AI COPILOT CHAT (100% Match with Screenshot 1) -->
         <!-- =================================================================== -->
         <section id="pane-chat" class="phase-pane" style="display: none;">
-          <div id="chatMessagesStream" style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; height: 380px; overflow-y: auto; padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px;">
-            <div style="background: var(--card-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); max-width: 85%;">
-              <strong>🚀 Evolve AI Copilot:</strong>
-              <div style="margin-top: 4px; color: #e2e8f0;">Hello! I am your air-gapped Enterprise Delivery AI Copilot. Ask me anything.</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 15px; font-weight: 700; color: #fff;">💬 Evolve AI: Copilot Chat</span>
+              <span class="brand-pill" id="lblChatActiveModelBadge" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: bold; text-transform: uppercase;">OLLAMA: QWEN2.5-CODER:7B</span>
+            </div>
+            <button class="btn-quick" id="btnChatClear" style="font-size: 11px;">Clear</button>
+          </div>
+
+          <div id="chatMessagesStream" style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; height: calc(100vh - 270px); min-height: 380px; overflow-y: auto; padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px;">
+            <div class="chat-bubble ai" style="background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;">
+              <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <span>🚀</span> Evolve AI Copilot:
+              </div>
+              <div style="color: #e2e8f0; font-size: 12px; line-height: 1.5;">
+                Hello! I am your air-gapped Enterprise Delivery AI Copilot. Ask me about schema migrations, dbt marts, client APIs, or code modernizations.
+              </div>
             </div>
           </div>
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="txtChatInput" placeholder="Ask about your code, data, or architecture..." style="flex: 1; padding: 10px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
-            <button class="btn" id="btnChatSend">Send &rarr;</button>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="txtChatInput" placeholder="Ask about your code, data, or architecture... (Shift+Enter for newline)" style="flex: 1; padding: 10px 14px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
+            <button class="btn" id="btnChatSend" style="padding: 10px 20px; font-size: 12.5px; font-weight: 700; background: var(--accent); color: #1e1e1e;">Send &rarr;</button>
           </div>
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 7: LOCAL AI HARDWARE SIZER -->
+        <!-- MODE 7: LOCAL AI HARDWARE SIZER (100% Match with Screenshot 2) -->
         <!-- =================================================================== -->
         <section id="pane-hardware" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <h3>🤖 Local AI Hardware Sizer &amp; Model Engine Prober</h3>
-            <button class="btn" id="btnRunHwInspect" style="margin-top: 10px;">🔍 Re-Scan System Hardware</button>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px;">
-              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-                <div>RAM</div><div id="hwRamVal" style="font-size: 20px; font-weight: bold; color: var(--accent);">-- GB</div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+              <div>
+                <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  <span>🤖</span> Local AI Hardware Sizer &amp; Model Engine Prober
+                </h3>
+                <p class="desc" style="margin: 4px 0 0 0;">Inspects host RAM, GPU VRAM, CPU cores, and probes active Ollama (11434), LM Studio (1234), and vLLM (8000) servers.</p>
               </div>
-              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-                <div>GPU</div><div id="hwGpuVal" style="font-size: 20px; font-weight: bold; color: var(--success);">--</div>
+              <button class="btn" id="btnRunHwInspect" style="background: var(--accent); color: #1e1e1e; font-weight: 700; white-space: nowrap;">🔍 Re-Scan System Hardware</button>
+            </div>
+
+            <!-- 4 Hardware Cards (Exact 1:1 Match with Screenshot 2) -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase;">SYSTEM MEMORY (RAM)</div>
+                <div id="hwRamVal" style="font-size: 22px; font-weight: bold; color: var(--accent); margin: 6px 0 2px 0;">-- GB</div>
+                <div style="font-size: 10px; color: var(--text-muted);">Host physical memory</div>
               </div>
-              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-                <div>CPU</div><div id="hwCpuVal" style="font-size: 20px; font-weight: bold; color: #fff;">-- Cores</div>
+
+              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase;">DEDICATED GPU / VRAM</div>
+                <div id="hwGpuVal" style="font-size: 18px; font-weight: bold; color: var(--success); margin: 6px 0 2px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Integrated / CPU</div>
+                <div style="font-size: 10px; color: var(--text-muted);">VRAM Acceleration</div>
               </div>
-              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-                <div>AI Server</div><div id="hwOllamaVal" style="font-size: 20px; font-weight: bold; color: var(--accent);">Probing...</div>
+
+              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase;">CPU COMPUTE</div>
+                <div id="hwCpuVal" style="font-size: 22px; font-weight: bold; color: #fff; margin: 6px 0 2px 0;">-- Cores</div>
+                <div style="font-size: 10px; color: var(--text-muted);" id="hwCpuArch">Host Architecture</div>
+              </div>
+
+              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border: 1px solid var(--border);">
+                <div style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); text-transform: uppercase;">LOCAL AI SERVER</div>
+                <div id="hwOllamaVal" style="font-size: 18px; font-weight: bold; color: var(--accent); margin: 6px 0 2px 0;">✓ Ollama</div>
+                <div style="font-size: 10px; color: var(--text-muted);" id="hwOllamaPort">Port 11434 / 1234 / 8000</div>
+              </div>
+            </div>
+
+            <!-- Recommended Offline Local Models Banner (Screenshot 2) -->
+            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 6px; padding: 14px 18px;">
+              <div style="font-size: 12px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+                <span>🚀</span> Recommended Offline Local Models for This Machine
+              </div>
+              <div style="font-size: 11.5px; color: #e2e8f0; line-height: 1.5;" id="hwRecommendText">
+                Recommendation: detecting hardware...
+              </div>
+              <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;" id="hwColibriText">
+                Calibri 744B Feasibility: Eligible
               </div>
             </div>
           </div>
@@ -1501,7 +1559,7 @@
 
       <div style="margin-bottom: 16px;">
         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Engagement Delivery Goal</label>
-        <textarea id="txtNewProjGoal" rows="2" placeholder="Deploy standard platform integration & data pipeline on client infrastructure" style="width: 100%; margin-top: 4px; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;"></textarea>
+        <textarea id="txtNewProjGoal" rows="2" placeholder="Deploy standard platform integration & data pipeline on client infrastructure" style="width: 100%; margin-top: 4px; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px subterranean;"></textarea>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
@@ -1513,13 +1571,16 @@
 
   <!-- MODAL: AI PROVIDER -->
   <div id="modalAiProvider" class="modal-overlay">
-    <div class="modal-window">
+    <div class="modal-window" style="width: 460px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-        <h3 style="margin: 0; font-size: 16px; color: #fff;">Select AI provider</h3>
+        <h3 style="margin: 0; font-size: 16px; color: #fff;">Select AI Provider / Model</h3>
         <button class="btn-quick" id="btnCloseAiProviderModal">✕</button>
       </div>
-      <div class="modal-item active" data-provider="ollama" data-model="qwen2.5-coder:7b">
-        <div style="font-weight: 700; font-size: 13px; color: #fff;">🗄️ Ollama (qwen2.5-coder:7b)</div>
+      <div id="aiModelListContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+        <div class="modal-item active" data-model="qwen2.5-coder:7b">
+          <div style="font-weight: 700; font-size: 12.5px; color: #fff;">🗄️ Ollama: qwen2.5-coder:7b</div>
+          <div style="font-size: 11px; color: var(--text-secondary);">Recommended local coding model</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1531,7 +1592,12 @@
         <h3 style="margin: 0; font-size: 15px; color: #fff;">Active Plugins &amp; Integrations</h3>
         <button class="btn-quick" id="btnClosePluginsModal">✕</button>
       </div>
-      <div class="modal-item"><div style="font-weight: 700; color: #fff;">🗄️ Databricks Lakehouse</div></div>
+      <div class="modal-item"><div style="font-weight: 700; color: #fff;">🗄️ Databricks Lakehouse (Unity Catalog)</div></div>
+      <div class="modal-item"><div style="font-weight: 700; color: #fff;">⚡ dbt Core &amp; Data Quality Engine</div></div>
+      <div class="modal-item"><div style="font-weight: 700; color: #fff;">🛡️ SIEM Audit Forwarder (SOC2/HIPAA)</div></div>
+      <div class="modal-item"><div style="font-weight: 700; color: #fff;">🧠 pgvector / Qdrant RAG Studio</div></div>
+      <div class="modal-item"><div style="font-weight: 700; color: #fff;">📊 k6 Distributed SLA Load Tester</div></div>
+      <div class="modal-item"><div style="font-weight: 700; color: #fff;">☁️ Multi-Cloud CLI Matrix (GCP, AWS, Azure)</div></div>
     </div>
   </div>
 
