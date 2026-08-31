@@ -103,6 +103,7 @@ export const DESKTOP_CHANNELS = {
     SIEM_AUDIT: 'evolve:engines:siem-audit',
     PRIVATE_SERVING: 'evolve:engines:private-serving',
     INTROSPECT_DB: 'evolve:engines:introspect-db',
+    TEST_DB: 'evolve:engines:test-db',
     DETECT_DB: 'evolve:engines:detect-db',
     MAP_SCHEMA: 'evolve:engines:map-schema',
     BUILD_MART: 'evolve:engines:build-mart',

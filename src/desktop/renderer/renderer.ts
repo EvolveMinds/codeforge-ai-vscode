@@ -1034,6 +1034,33 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  document.getElementById('btnTestDbPing')?.addEventListener('click', async () => {
+    const dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement).value;
+    const uri = (document.getElementById('dbUriInput') as HTMLInputElement).value;
+    const schema = (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value || 'public';
+    const database = (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value || 'postgres';
+
+    if (!uri) {
+      showToast('⚠️ Please enter database connection URI.');
+      return;
+    }
+    showToast(`🔌 Testing connection to ${dialect.toUpperCase()} database...`);
+    if (api?.engines?.testDb) {
+      const res = await api.engines.testDb({ dialect, connectionUri: uri, schema, database });
+      if (res && res.success) {
+        showToast(`✓ ${res.message || 'Connection successful!'}`);
+      } else {
+        showToast(`⚠️ ${res?.message || res?.error || 'Connection check completed.'}`);
+      }
+    }
+  });
+
+  document.getElementById('btnWipeDbCreds')?.addEventListener('click', () => {
+    const uriInput = document.getElementById('dbUriInput') as HTMLInputElement;
+    if (uriInput) uriInput.value = '';
+    showToast('🗑️ Cleared database connection credentials from memory.');
+  });
+
   document.getElementById('btnAiDiscoverMartRecipes')?.addEventListener('click', () => {
     showToast('✨ Discovering Star-Schema Dimensional Mart Recipes...');
     const preview = document.getElementById('martSqlCodePreview');

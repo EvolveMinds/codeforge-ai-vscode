@@ -133,6 +133,7 @@ const desktopApi = {
     siemAudit: (event: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.SIEM_AUDIT, event),
     privateServing: (config: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.PRIVATE_SERVING, config),
     introspectDb: (dialect: any, connUri?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.INTROSPECT_DB, dialect, connUri),
+    testDb: (opts: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TEST_DB, opts),
     detectDb: () => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DETECT_DB),
     mapSchema: (rawColumns: any[]) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.MAP_SCHEMA, rawColumns),
     buildMart: (config: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.BUILD_MART, config),

@@ -499,6 +499,22 @@
                     </div>
                   </div>
 
+                  <!-- Action Buttons Row (100% 1:1 Parity with VS Code Cockpit) -->
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
+                    <button class="btn" id="btnExecuteIntrospect" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <span>🔍</span> Connect &amp; Fetch Tables
+                    </button>
+                    <button class="btn btn-secondary" id="btnTestDbPing" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <span>🔌</span> Test Connection
+                    </button>
+                    <button class="btn btn-secondary" id="btnAutoDetectDb" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <span>⚡</span> Auto-Detect from .env / dbt
+                    </button>
+                    <button class="btn-quick" id="btnWipeDbCreds" style="color: var(--error); border-color: var(--error); padding: 6px 12px; font-size: 11px; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+                      <span>🗑️</span> Wipe Stored Credentials
+                    </button>
+                  </div>
+
                   <!-- Discovered Tables Selector (100% Match with Screenshot 2) -->
                   <div id="dbTablesContainer" style="display: none; margin-top: 14px; background: var(--card-bg); padding: 12px 14px; border-radius: 6px; border: 1px solid var(--border);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">

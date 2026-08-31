@@ -928,6 +928,12 @@ export async function executeTask() {
       return await DbIntrospector.introspect(opts, targetDir);
     });
 
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TEST_DB, async (_: any, opts: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const targetDir = ws ? ws.path : process.cwd();
+      return await DbIntrospector.testConnection(opts, targetDir);
+    });
+
     ipc.handle(DESKTOP_CHANNELS.ENGINES.DETECT_DB, async () => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const targetDir = ws ? ws.path : process.cwd();
