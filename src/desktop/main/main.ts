@@ -33,6 +33,24 @@ function getStorageDirectory(): string {
   return path.join(os.homedir(), '.evolve');
 }
 
+function resolveRendererPath(): string {
+  const candidates = [
+    path.join(__dirname, '..', 'renderer', 'index.html'),
+    path.join(__dirname, '..', '..', '..', 'src', 'desktop', 'renderer', 'index.html'),
+    path.join(__dirname, '..', '..', 'src', 'desktop', 'renderer', 'index.html'),
+    path.join(process.cwd(), 'src', 'desktop', 'renderer', 'index.html'),
+    path.join(process.cwd(), 'out', 'desktop', 'renderer', 'index.html')
+  ];
+
+  for (const cand of candidates) {
+    if (fs.existsSync(cand)) {
+      return cand;
+    }
+  }
+
+  return path.join(__dirname, '..', 'renderer', 'index.html');
+}
+
 const storageDir = getStorageDirectory();
 const workspaceMgr = new DesktopWorkspaceManager(storageDir);
 const terminalMgr = new DesktopTerminalManager();
@@ -65,7 +83,7 @@ function createWindow(): void {
   });
 
   // Load renderer
-  const rendererPath = path.join(__dirname, '..', 'renderer', 'index.html');
+  const rendererPath = resolveRendererPath();
   mainWindow.loadFile(rendererPath);
 
   // Wire terminal stream events to renderer
@@ -93,64 +111,66 @@ function createWindow(): void {
     if (!mainWindow) return null;
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory', 'createDirectory'],
-      title: 'Select Project or Engagement Directory'
+      title: 'Select Project or Engagement Workspace'
     });
 
     if (!result.canceled && result.filePaths.length > 0) {
-      const selectedPath = result.filePaths[0];
-      return workspaceMgr.setCurrentWorkspace(selectedPath);
+      return workspaceMgr.setCurrentWorkspace(result.filePaths[0]);
     }
     return null;
   });
 
-  // Reveal file in native OS file explorer
-  ipcMain.handle(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, async (_: any, filePath: string) => {
-    const ws = workspaceMgr.getCurrentWorkspace();
-    const fullPath = path.isAbsolute(filePath)
-      ? filePath
-      : (ws ? path.join(ws.path, filePath) : path.resolve(filePath));
-    shell.showItemInFolder(fullPath);
-    return true;
-  });
-
   buildAppMenu();
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
 }
 
 function buildAppMenu(): void {
   const template: any[] = [
     {
-      label: '&File',
+      label: 'File',
       submenu: [
         {
           label: 'Open Workspace Folder...',
           accelerator: 'CmdOrCtrl+O',
           click: async () => {
             if (mainWindow) {
-              const result = await dialog.showOpenDialog(mainWindow, {
-                properties: ['openDirectory'],
-                title: 'Open Project Folder'
+              const res = await dialog.showOpenDialog(mainWindow, {
+                properties: ['openDirectory', 'createDirectory'],
+                title: 'Open Workspace Folder'
               });
-              if (!result.canceled && result.filePaths.length > 0) {
-                workspaceMgr.setCurrentWorkspace(result.filePaths[0]);
-                mainWindow.webContents.send(DESKTOP_CHANNELS.WORKSPACE.WATCH_EVENT, 'open', result.filePaths[0]);
+              if (!res.canceled && res.filePaths.length > 0) {
+                workspaceMgr.setCurrentWorkspace(res.filePaths[0]);
               }
             }
           }
         },
         { type: 'separator' },
         {
-          label: 'Exit',
-          accelerator: 'Alt+F4',
-          click: () => { app.quit(); }
-        }
+          label: 'Save Active File',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.send('evolve:shortcut:save');
+            }
+          }
+        },
+        { type: 'separator' },
+        { role: 'quit' }
       ]
     },
     {
-      label: '&View',
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' }
+      ]
+    },
+    {
+      label: 'View',
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
@@ -164,27 +184,37 @@ function buildAppMenu(): void {
       ]
     },
     {
-      label: '&Terminal',
+      label: 'Terminal',
       submenu: [
         {
-          label: 'New Terminal Session',
+          label: 'New Terminal Tab',
           accelerator: 'CmdOrCtrl+Shift+`',
           click: () => {
-            terminalMgr.spawnSession();
+            terminalMgr.spawnSession({ name: 'Terminal' });
           }
         }
       ]
     },
     {
-      label: '&Help',
+      label: 'Help',
       submenu: [
         {
-          label: 'Documentation & Playbook',
-          click: () => { shell.openExternal('https://github.com/EvolveMinds/codeforge-ai-vscode#readme'); }
+          label: 'Enterprise Documentation & Playbook',
+          click: () => shell.openExternal('https://www.evolveminds.com.au/')
         },
         {
-          label: 'Evolve Mind Solutions Portal',
-          click: () => { shell.openExternal('https://www.evolveminds.com.au/'); }
+          label: 'Check for Updates...',
+          click: async () => {
+            const res = await updater.checkForUpdates();
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'Evolve AI Updates',
+              message: res.updateAvailable
+                ? `Update available: v${res.latestVersion} (Current: v${res.currentVersion})`
+                : `You are up to date! (v${res.currentVersion})`,
+              detail: res.releaseNotes || 'Your rule templates and engines are running the latest signature.'
+            });
+          }
         },
         { type: 'separator' },
         {
@@ -212,6 +242,18 @@ ipcHandlers.registerAll(ipcMain);
 
 // App Lifecycle
 app.whenReady().then(() => {
+  // Check for CLI folder argument
+  for (const arg of process.argv) {
+    if (arg && !arg.startsWith('-') && !arg.endsWith('.js') && !arg.includes('electron') && fs.existsSync(arg)) {
+      try {
+        if (fs.statSync(arg).isDirectory()) {
+          workspaceMgr.setCurrentWorkspace(arg);
+          break;
+        }
+      } catch {}
+    }
+  }
+
   createWindow();
 
   app.on('activate', () => {

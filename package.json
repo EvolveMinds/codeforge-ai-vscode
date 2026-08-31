@@ -2209,7 +2209,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && node scripts/copy-desktop-assets.js",
     "watch": "tsc -watch -p ./",
     "postinstall": "node scripts/download-binaries.js",
     "download-bins": "node scripts/download-binaries.js",
