@@ -14,14 +14,14 @@
       <div class="brand-title">
         <span>🚀</span> Evolve AI Enterprise Studio <span class="brand-pill">Desktop</span>
       </div>
-      <button class="btn-quick" id="btnOpenFolder" style="margin-left: 10px;">📂 Open Workspace Folder</button>
-      <div class="workspace-badge" id="currentWorkspaceBadge" title="Current Workspace Path">
+      <button class="btn-quick" id="btnOpenFolder" style="margin-left: 10px; cursor: pointer;">📂 Open Workspace Folder</button>
+      <div class="workspace-badge" id="currentWorkspaceBadge" title="Click to Open Workspace" style="cursor: pointer;">
         <span>📁</span> <span id="lblWorkspacePath">No workspace open (Click Open Workspace)</span>
       </div>
     </div>
     <div style="display: flex; align-items: center; gap: 10px;">
-      <button class="btn-quick" id="btnOpenTerminal" title="Toggle Integrated Terminal Drawer">⚡ Terminal</button>
-      <button class="btn-quick" id="btnLicenseModal" style="color: var(--success); border-color: var(--success); font-weight: 700;">💎 Enterprise Active</button>
+      <button class="btn-quick" id="btnOpenTerminal" title="Toggle Integrated Terminal Drawer" style="cursor: pointer;">⚡ Terminal</button>
+      <button class="btn-quick" id="btnLicenseModal" style="color: var(--success); border-color: var(--success); font-weight: 700; cursor: pointer;">💎 Enterprise Active</button>
       <span style="font-size: 11px; color: var(--text-secondary);">v2.19.1</span>
     </div>
   </header>
@@ -37,7 +37,7 @@
       <button class="activity-btn" data-phase="5" title="Phase 5: Enterprise Suite (11 Commercial Modules)">💎</button>
       <div style="flex: 1;"></div>
       <button class="activity-btn" id="btnToggleFileTree" title="Toggle File Tree Explorer">📁</button>
-      <button class="activity-btn" id="btnOpenSettings" title="Settings & Updates">⚙️</button>
+      <button class="activity-btn" id="btnOpenSettings" title="Settings & License Identity">⚙️</button>
     </nav>
 
     <!-- Sidebar: Interactive File Tree Explorer -->
@@ -52,7 +52,7 @@
         </div>
       </div>
       <!-- Quick File Preview/Editor Area -->
-      <div id="fileEditorContainer" style="display: none; height: 260px; border-top: 1px solid var(--border-color); background: var(--bg-input); display: flex; flex-direction: column;">
+      <div id="fileEditorContainer" style="display: none; height: 260px; border-top: 1px solid var(--border-color); background: var(--bg-input); flex-direction: column;">
         <div style="padding: 6px 10px; font-size: 11px; font-weight: 700; background: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center;">
           <span id="activeFileTitle" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">file.sql</span>
           <button class="btn-quick" id="btnSaveFile" style="padding: 2px 6px; font-size: 10px; color: var(--success);">💾 Save</button>
@@ -66,7 +66,7 @@
       <div class="studio-scroll-area">
         
         <!-- PHASE 1: INGEST, SCHEMA MAPPER & MARTS -->
-        <section id="phase1Pane" class="phase-pane">
+        <section id="phase1Pane" class="phase-pane" style="display: block;">
           <div class="content-card">
             <h3>📊 Semantic Schema Mapper &amp; Dimensional Mart Builder</h3>
             <p class="desc">Introspect live client databases (Postgres, Snowflake, BigQuery, MySQL, SQLite) via TCP wire protocol, standardize column naming, and build dimensional star-schema dbt marts.</p>
@@ -100,101 +100,105 @@
           </div>
         </section>
 
-        <!-- PHASE 2: CLIENT API STUDIO -->
+        <!-- PHASE 2: CLIENT API CONNECTOR STUDIO -->
         <section id="phase2Pane" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <h3>🔌 Client API Connector &amp; Resilient SDK Studio</h3>
-            <p class="desc">Parse raw cURL commands or OpenAPI/Swagger JSON specifications to generate production-ready TypeScript and Python API client SDKs with exponential backoff and rate limiting.</p>
+            <h3>🔌 Client API Connector &amp; Reverse-Engineered SDK Studio</h3>
+            <p class="desc">Paste cURL snippets, OpenAPI JSON, or raw HTTP payloads to generate resilient TypeScript &amp; Python client SDKs with exponential backoff retries and rate limit handling.</p>
             
             <div style="margin-bottom: 12px;">
-              <label style="font-size: 11px; font-weight: bold;">Raw cURL Command / OpenAPI JSON</label>
-              <textarea id="p2ApiInput" rows="4" placeholder="curl -X POST https://api.client.com/v1/orders -H 'Authorization: Bearer token123' -d '{&quot;id&quot;: &quot;1&quot;}'"></textarea>
+              <label style="font-size: 11px; font-weight: bold;">API Definition / cURL / OpenAPI JSON</label>
+              <textarea id="p2ApiInput" rows="4" placeholder="curl -X GET https://api.client.com/v1/customers -H 'Authorization: Bearer secret'"></textarea>
             </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
-              <button class="btn" id="btnP2GenerateSdk">⚡ Generate Typed SDKs (TS + Python)</button>
-            </div>
+            <button class="btn" id="btnP2GenerateSdk">⚡ Generate Resilient Client SDK (TS + Python)</button>
 
-            <div id="p2ResultBox" style="display: none;">
+            <div id="p2ResultBox" style="display: none; margin-top: 14px;">
               <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Generated TypeScript Client SDK</label>
               <div class="code-preview" id="p2CodePreview"></div>
             </div>
           </div>
         </section>
 
-        <!-- PHASE 3: MULTI-CLOUD PILOT DEPLOYMENT -->
+        <!-- PHASE 3: MULTI-CLOUD DEPLOYMENT MATRIX -->
         <section id="phase3Pane" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <h3>⚡ Multi-Cloud Pilot Deployment Parameter Matrix</h3>
-            <p class="desc">Scaffold production Terraform, Kubernetes manifests, Docker Compose, and CI/CD pipelines configured specifically for GCP Cloud Run, AWS ECS/Fargate, Azure Container Apps, or Docker.</p>
+            <h3>⚡ Multi-Cloud Pilot Deployment Matrix &amp; Pre-Flight Auditor</h3>
+            <p class="desc">Scaffold production Terraform, Kubernetes manifests, and Docker Compose configs with zero dangling temp files.</p>
             
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
               <div>
                 <label style="font-size: 11px; font-weight: bold;">Cloud Provider</label>
                 <select id="p3Provider">
-                  <option value="gcp-firebase" selected>Google Cloud (Cloud Run / GKE)</option>
-                  <option value="aws">AWS (ECS / Fargate / EKS)</option>
-                  <option value="azure">Azure (Container Apps / AKS)</option>
-                  <option value="docker">Docker Compose (Air-Gapped)</option>
+                  <option value="gcp-firebase" selected>GCP Cloud Run + Firebase</option>
+                  <option value="aws-ecs">AWS ECS / Fargate</option>
+                  <option value="azure-container">Azure Container Apps</option>
+                  <option value="air-gapped-k8s">Air-Gapped Sovereign Kubernetes</option>
                 </select>
               </div>
               <div>
-                <label style="font-size: 11px; font-weight: bold;">Target Project / Account ID</label>
+                <label style="font-size: 11px; font-weight: bold;">Project / Account ID</label>
                 <input type="text" id="p3ProjectId" value="acme-pilot-prod">
               </div>
               <div>
-                <label style="font-size: 11px; font-weight: bold;">Region / VPC Network</label>
+                <label style="font-size: 11px; font-weight: bold;">Region</label>
                 <input type="text" id="p3Region" value="australia-southeast1">
               </div>
             </div>
 
             <div style="display: flex; gap: 10px; margin-bottom: 14px;">
               <button class="btn" id="btnP3Scaffold">🚀 Scaffold Infrastructure &amp; CI/CD</button>
-              <button class="btn btn-secondary" id="btnP3Audit">🔍 Run Preflight Audit</button>
+              <button class="btn btn-secondary" id="btnP3Audit">🧹 Run Pre-Flight Health Audit</button>
             </div>
 
             <div id="p3ResultBox" style="display: none;">
-              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Generated Terraform Configuration</label>
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Scaffolded Terraform Configuration</label>
               <div class="code-preview" id="p3CodePreview"></div>
             </div>
           </div>
         </section>
 
-        <!-- PHASE 4: RUNBOOK & HANDOFF FACTORY -->
+        <!-- PHASE 4: RUNBOOK & ARCHITECTURE FACTORY -->
         <section id="phase4Pane" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <h3>📑 Runbook &amp; Operational Handoff Factory</h3>
-            <p class="desc">Generate comprehensive, audit-ready client documentation including Mermaid system architecture diagrams, deployment runbooks, data dictionaries, and environment catalogs.</p>
+            <h3>📑 Client Handoff Runbook &amp; Architecture Factory</h3>
+            <p class="desc">Automatically synthesize interactive Mermaid sequence diagrams, operational runbooks, data dictionaries, and environment variable references.</p>
             
-            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
-              <button class="btn" id="btnP4GenerateAll">📦 Generate All 5 Handoff Documents</button>
-            </div>
+            <button class="btn" id="btnP4GenerateAll">📦 Generate Complete Client Handoff Bundle</button>
 
-            <div id="p4ResultBox" style="display: none;">
-              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Architecture Document (ARCHITECTURE.md)</label>
+            <div id="p4ResultBox" style="display: none; margin-top: 14px;">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Synthesized Architecture &amp; Runbook Markdown</label>
               <div class="code-preview" id="p4CodePreview"></div>
             </div>
           </div>
         </section>
 
-        <!-- PHASE 5: ENTERPRISE SUITE (11 MODULES) -->
+        <!-- PHASE 5: ENTERPRISE SUITE (11 COMMERCIAL MODULES) -->
         <section id="phase5Pane" class="phase-pane" style="display: none;">
+          <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h2 style="margin: 0; font-size: 18px; color: var(--accent);">💎 Enterprise Commercial Suite</h2>
+              <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-secondary);">11 Heavyweight Commercial Engines for Enterprise Forward-Deployed Engineers</p>
+            </div>
+            <span class="brand-pill" style="background: var(--success); color: #000; font-weight: 700;">11 OF 11 ENGINES ACTIVE</span>
+          </div>
+
           <!-- 1. SQL Transpiler -->
           <div class="content-card">
-            <h3>🔄 Cross-Dialect SQL Transpiler</h3>
-            <p class="desc">Automated conversion of legacy Oracle PL/SQL, SQL Server T-SQL, Teradata, and Redshift to BigQuery, Snowflake, and PostgreSQL with dbt headers.</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+            <h3>🔄 Legacy SQL Transpiler (Oracle/T-SQL/Snowflake -> BigQuery)</h3>
+            <p class="desc">Transpile proprietary procedural SQL, NVL, DECODE, SYSDATE, and outer joins into standard dbt models.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
               <div>
                 <label style="font-size: 11px; font-weight: bold;">Source Dialect</label>
                 <select id="sqlSourceDialect">
                   <option value="oracle" selected>Oracle PL/SQL</option>
-                  <option value="tsql">SQL Server T-SQL</option>
-                  <option value="teradata">Teradata</option>
-                  <option value="redshift">AWS Redshift</option>
+                  <option value="tsql">Microsoft T-SQL / SQL Server</option>
+                  <option value="snowflake">Snowflake SQL</option>
+                  <option value="postgres">PostgreSQL</option>
                 </select>
               </div>
               <div>
-                <label style="font-size: 11px; font-weight: bold;">Target Warehouse Dialect</label>
+                <label style="font-size: 11px; font-weight: bold;">Target Dialect</label>
                 <select id="sqlTargetDialect">
                   <option value="bigquery" selected>Google BigQuery</option>
                   <option value="snowflake">Snowflake</option>
@@ -256,6 +260,56 @@
             <button class="btn" id="btnRunMockServer">🚀 Generate Mock Server</button>
             <div id="mockServerResultBox" style="display: none; margin-top: 10px;">
               <div class="code-preview" id="mockServerCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 7. Data Quality Drift Gates -->
+          <div class="content-card">
+            <h3>🔍 Great Expectations &amp; Soda Core Data Quality Gates</h3>
+            <p class="desc">Production schema drift detection suites and CI/CD automated test gates.</p>
+            <button class="btn" id="btnRunDataQuality">📊 Generate Quality Package</button>
+            <div id="dataQualityResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="dataQualityCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 8. k6 / Locust Load Testing -->
+          <div class="content-card">
+            <h3>⚡ High-Concurrency k6 &amp; Locust Load Testing</h3>
+            <p class="desc">Automated SLA threshold benchmark scripts for client pilot stress testing.</p>
+            <button class="btn" id="btnRunLoadTest">📈 Generate Load Test Suite</button>
+            <div id="loadTestResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="loadTestCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 9. Air-Gapped RAG Scaffolder -->
+          <div class="content-card">
+            <h3>🧠 Sovereign Air-Gapped RAG &amp; Vector Pipeline</h3>
+            <p class="desc">Full-stack Python pgvector and TypeScript Qdrant vector retrieval scaffolding.</p>
+            <button class="btn" id="btnRunRagScaffold">🧬 Scaffold RAG Pipeline</button>
+            <div id="ragResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="ragCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 10. SIEM & Compliance Audit -->
+          <div class="content-card">
+            <h3>🛡️ SOC2 &amp; HIPAA SIEM Audit Forwarder</h3>
+            <p class="desc">Deterministic credential masking and audit event dispatch to Splunk, Datadog &amp; Sentinel.</p>
+            <button class="btn" id="btnRunSiemAudit">📜 Dispatch Compliance Audit</button>
+            <div id="siemResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="siemCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 11. Private Air-Gapped Model Serving -->
+          <div class="content-card">
+            <h3>🤖 Private vLLM / TensorRT-LLM Serving Client</h3>
+            <p class="desc">mTLS-authenticated private cluster connectivity with health verification.</p>
+            <button class="btn" id="btnRunModelServing">🔌 Check Cluster Health</button>
+            <div id="modelServingResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="modelServingCodePreview"></div>
             </div>
           </div>
         </section>
@@ -325,6 +379,11 @@
     </div>
   </div>
 
+  <script>
+    if (typeof exports === 'undefined') {
+      var exports = {};
+    }
+  </script>
   <script src="renderer.js"></script>
 </body>
 </html>
