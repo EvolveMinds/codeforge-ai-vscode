@@ -34,6 +34,66 @@ export class FdeCommands {
     r('aiForge.fde.preflightAudit', () => this.runPreflightAudit());
     r('aiForge.fde.scaffoldDeploy', () => this.scaffoldDeployment());
     r('aiForge.fde.generateRunbook', () => this.generateRunbooks());
+    r('aiForge.fde.launchDesktop', () => this.launchDesktop());
+    r('aiForge.fde.downloadDesktop', () => this.downloadDesktop());
+  }
+
+  async launchDesktop(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '';
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const standardInstalledExe = path.join(localAppData, 'Programs', 'EvolveAI-Enterprise', 'Evolve AI Enterprise Studio.exe');
+    
+    if (fs.existsSync(standardInstalledExe)) {
+      const child_process = require('child_process');
+      child_process.spawn(standardInstalledExe, ws ? [ws] : [], { detached: true, stdio: 'ignore' });
+      vscode.window.showInformationMessage(`🚀 Launched Evolve AI Enterprise Desktop Edition!`);
+      return;
+    }
+
+    const devMain = path.join(this._svc.vsCtx.extensionPath, 'out', 'desktop', 'main', 'main.js');
+    if (fs.existsSync(devMain)) {
+      const term = vscode.window.createTerminal({ name: '🚀 Evolve AI: Desktop Launcher' });
+      term.show();
+      term.sendText(`npx electron "${devMain}" "${ws}"`);
+      vscode.window.showInformationMessage(`🚀 Launching Evolve AI Enterprise Desktop Edition...`);
+      return;
+    }
+
+    await this.downloadDesktop();
+  }
+
+  async downloadDesktop(): Promise<void> {
+    const items: vscode.QuickPickItem[] = [
+      {
+        label: '📦 Windows Portable Edition (.zip / Zero-Install)',
+        description: 'No admin rights required • Runs on USB & air-gapped bastions',
+        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
+      },
+      {
+        label: '🖥️ Windows Setup Installer (.exe)',
+        description: 'Standard NSIS installer with Desktop & Start Menu shortcuts',
+        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
+      },
+      {
+        label: '🍎 macOS Universal Package (.dmg)',
+        description: 'Intel & Apple Silicon M1/M2/M3/M4',
+        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
+      },
+      {
+        label: '🐧 Linux Standalone AppImage (.AppImage)',
+        description: 'Single-file executable for Ubuntu/Debian/RHEL/Arch',
+        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
+      }
+    ];
+
+    const pick = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select Evolve AI Enterprise Desktop Edition distribution to download:'
+    });
+
+    if (pick && pick.detail) {
+      vscode.env.openExternal(vscode.Uri.parse(pick.detail));
+      vscode.window.showInformationMessage(`🌐 Opening Enterprise Release Download Portal for ${pick.label}...`);
+    }
   }
 
   openCockpit(): void {

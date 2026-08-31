@@ -1498,6 +1498,16 @@
         "command": "aiForge.fde.generateRunbook",
         "title": "FDE: Generate Client Handoff Runbook & Docs",
         "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.launchDesktop",
+        "title": "Enterprise: Launch Standalone Desktop Studio",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.downloadDesktop",
+        "title": "Enterprise: Download Desktop Edition (Installer & Portable)",
+        "category": "Evolve AI"
       }
     ],
     "keybindings": [
@@ -2217,6 +2227,10 @@
     "package:enterprise": "node scripts/package-enterprise.js",
     "package:enterprise:win": "node scripts/package-enterprise.js --platform=win32-x64",
     "license:generate": "node scripts/generate-license.js",
+    "desktop:start": "electron out/desktop/main/main.js",
+    "desktop:build:win": "electron-builder --win",
+    "desktop:build:portable": "electron-builder --win portable",
+    "desktop:build:all": "electron-builder --win --mac --linux",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {

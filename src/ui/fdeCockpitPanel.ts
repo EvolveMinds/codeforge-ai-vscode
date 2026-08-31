@@ -259,6 +259,16 @@ Output ONLY the message without markdown code fences.`;
     const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     switch (msg.command) {
+      case 'launchDesktopStudio': {
+        vscode.commands.executeCommand('aiForge.fde.launchDesktop');
+        break;
+      }
+
+      case 'downloadDesktopStudio': {
+        vscode.commands.executeCommand('aiForge.fde.downloadDesktop');
+        break;
+      }
+
       case 'createProject': {
         const name = msg.projectName || 'New Client Engagement';
         const vpc = msg.targetVpc || 'gcp-firebase';
@@ -2766,6 +2776,7 @@ Output ONLY the message without markdown code fences.`;
       </div>
     </div>
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
+      <button class="btn btn-primary" onclick="launchDesktopStudio()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Open Evolve AI Enterprise Standalone Desktop Studio (Outside VS Code)">🖥️ Desktop App</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
         <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
@@ -4681,6 +4692,10 @@ Output ONLY the message without markdown code fences.`;
       if (banner) {
         banner.style.display = (banner.style.display === 'none' || !banner.style.display) ? 'block' : 'none';
       }
+    }
+
+    function launchDesktopStudio() {
+      vscode.postMessage({ command: 'launchDesktopStudio' });
     }
 
     function switchProject(id) {
