@@ -1235,19 +1235,19 @@
             No data files found in the open workspace.
           </div>
 
-          <h2 style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 10px 0;">2 &middot; WHAT DELIVERABLE TO BUILD</h2>
-          <div class="deliverable-pills">
-            <div class="deliverable-pill active" data-deliv="chat">💬 Insights in chat</div>
-            <div class="deliverable-pill" data-deliv="report">📈 HTML report</div>
-            <div class="deliverable-pill" data-deliv="notebook">📓 Notebook / script</div>
-            <div class="deliverable-pill" data-deliv="profile">📋 Profiling summary</div>
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px;">2 &middot; What deliverable to build</h2>
+          <div class="deliv" id="deliv">
+            <button data-d="insights" class="deliverable-pill active on">💬 Insights in chat</button>
+            <button data-d="report" class="deliverable-pill">📈 HTML report</button>
+            <button data-d="notebook" class="deliverable-pill">📓 Notebook / script</button>
+            <button data-d="profile" class="deliverable-pill">📋 Profiling summary</button>
           </div>
 
-          <div style="margin: 14px 0 16px 0;">
-            <input type="text" id="txtDataFocus" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" style="width: 100%; padding: 8px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
+          <div style="margin: 10px 0 16px 0;">
+            <input type="text" id="txtDataFocus" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" style="width: 100%; box-sizing: border-box; padding: 10px 14px; font-size: 12.5px; border-radius: 6px; background: var(--card-bg); color: var(--fg); border: 1px solid var(--border);">
           </div>
 
-          <button class="btn" id="btnExecuteDataAnalysis" style="padding: 10px 24px; font-size: 13px;">Analyse &rarr;</button>
+          <button class="btn-analyse" id="btnExecuteDataAnalysis">Analyse &rarr;</button>
 
           <div id="dataAnalysisResultsBox" style="display: none; margin-top: 18px; border: 1px solid var(--accent); border-radius: 8px; padding: 16px; background: var(--card-bg);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">

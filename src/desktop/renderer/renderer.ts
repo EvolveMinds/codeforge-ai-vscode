@@ -1677,9 +1677,13 @@ function setupDataAnalysisStudio(api: any): void {
 
   deliverablePills.forEach(pill => {
     pill.addEventListener('click', () => {
-      deliverablePills.forEach(p => p.classList.remove('active'));
+      deliverablePills.forEach(p => {
+        p.classList.remove('active');
+        p.classList.remove('on');
+      });
       pill.classList.add('active');
-      currentSelectedDeliverable = pill.getAttribute('data-deliv') || 'chat';
+      pill.classList.add('on');
+      currentSelectedDeliverable = pill.getAttribute('data-d') || pill.getAttribute('data-deliv') || 'insights';
     });
   });
 
