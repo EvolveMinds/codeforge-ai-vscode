@@ -39,7 +39,9 @@ export const DESKTOP_CHANNELS = {
 
   CONVERTER: {
     CONVERT: 'evolve:converter:convert',
-    GET_LANGUAGES: 'evolve:converter:get-languages'
+    GET_LANGUAGES: 'evolve:converter:get-languages',
+    DETECT_LANGUAGE: 'evolve:converter:detect-language',
+    BROWSE_SOURCES: 'evolve:converter:browse-sources'
   },
 
   GIT: {

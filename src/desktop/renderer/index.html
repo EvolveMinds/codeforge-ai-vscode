@@ -1484,29 +1484,260 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 3: CODE CONVERTER STUDIO -->
+        <!-- MODE 3: CODE CONVERTER STUDIO (100% Match with VS Code Build) -->
         <!-- =================================================================== -->
         <section id="pane-converter" class="phase-pane" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px;">
             <div>
-              <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: #fff;">🔀 Code Converter STUDIO</h1>
-              <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">26-Language Cross-Stack Translation Engine</div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  🔀 Code Converter
+                </h1>
+                <span style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">STUDIO</span>
+              </div>
+              <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
+                Built by <a href="https://www.evolveminds.com.au/" target="_blank" style="color: var(--accent); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a> • <span style="opacity: 0.9;">26-Language Cross-Stack Multi-Target Code Translation Engine</span>
+              </div>
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Original Source Code</label>
-              <textarea id="convSourceInput" rows="10" placeholder="def calculate_metrics(data):&#10;    result = []&#10;    for item in data:&#10;        result.append(item['value'] * 2)&#10;    return result" style="width: 100%; margin-top: 4px; padding: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 12px;"></textarea>
+          <p class="sub" style="color: var(--text-secondary); font-size: 12px; margin: 0 0 20px; line-height: 1.55;">
+            Convert code into another language &mdash; a selection, a file, or a whole folder. You get the converted
+            code side by side with the original, plus a report of what was translated exactly, what was approximated, and what
+            still needs a human.
+          </p>
+
+          <!-- 1 · WHAT TO CONVERT -->
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px; display: flex; align-items: baseline; gap: 8px;">
+            1 &middot; What to convert
+          </h2>
+          <div class="row" style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="card" id="convUseActive" style="flex: 1 1 210px; text-align: left; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer;">
+              <div style="font-weight: 700; font-size: 12.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;">📄 The active file</div>
+              <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">Whatever is open in the editor right now</div>
+            </button>
+            <button class="card" id="convUseSel" style="flex: 1 1 210px; text-align: left; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer;">
+              <div style="font-weight: 700; font-size: 12.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;">✏️ The selected code</div>
+              <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">Just the lines you have highlighted</div>
+            </button>
+            <button class="card" id="convBrowseFiles" style="flex: 1 1 210px; text-align: left; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer;">
+              <div style="font-weight: 700; font-size: 12.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;">📁 Choose files&hellip;</div>
+              <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">One or many &mdash; converted together, so cross-file references survive</div>
+            </button>
+            <button class="card" id="convBrowseFolder" style="flex: 1 1 210px; text-align: left; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer;">
+              <div style="font-weight: 700; font-size: 12.5px; margin-bottom: 3px; display: flex; align-items: center; gap: 6px;">📂 Choose a folder&hellip;</div>
+              <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">Port a module or a whole small project, structure preserved</div>
+            </button>
+          </div>
+
+          <div id="convSrcBox" style="margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); padding: 8px; min-height: 44px; max-height: 210px; overflow-y: auto;">
+            <div class="empty" id="convEmptyMsg" style="color: var(--text-secondary); font-size: 12px; padding: 8px;">Nothing queued yet &mdash; pick a source above or paste directly below.</div>
+            <div id="convQueueList"></div>
+          </div>
+          <div id="convSrcMeta" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 11.5px; color: var(--text-secondary);">
+            <span id="convDetectedLang" style="color: var(--accent); font-weight: 600;"></span>
+            <button class="link" id="convClearSrc" style="display:none; background: none; border: none; padding: 0; font-size: 11.5px; cursor: pointer; color: var(--error); text-decoration: underline;">Clear all</button>
+          </div>
+
+          <div style="margin-top: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 11px; font-weight: bold; color: #fff;">Direct Source Code Editor / Snippet Input:</label>
+              <button class="btn-quick" id="btnLoadConverterSample" style="margin: 0; padding: 2px 8px; font-size: 10.5px;">⚡ Load Sample Code</button>
             </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Converted Output</label>
-              <textarea id="convTargetOutput" rows="10" readonly placeholder="Converted code will appear here..." style="width: 100%; margin-top: 4px; padding: 8px; background: #181818; color: #4ec9b0; border: 1px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 12px;"></textarea>
+            <textarea id="convSourceInput" rows="6" placeholder="def calculate_metrics(data):&#10;    result = []&#10;    for item in data:&#10;        result.append(item['value'] * 2)&#10;    return result" style="width: 100%; padding: 8px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 12px; line-height: 1.45;"></textarea>
+          </div>
+
+          <!-- 2 · CONVERT TO TARGET -->
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px; display: flex; align-items: baseline; gap: 8px;">
+            2 &middot; Convert to target <span class="note" id="convTargetNote" style="text-transform: none; letter-spacing: 0; font-size: 11px; opacity: .85; color: var(--success); font-weight: 700;">&rarr; TypeScript</span>
+          </h2>
+          <input id="convSearchLang" type="text" placeholder="Filter languages&hellip;" style="width: 100%; box-sizing: border-box; margin: 2px 0 10px; padding: 8px 12px; font-size: 12.5px; border-radius: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border);" />
+          
+          <div id="convTargetsContainer">
+            <!-- POPULAR -->
+            <div class="tgroup" data-group="Popular">
+              <div class="glabel">POPULAR</div>
+              <div class="tgrid">
+                <button class="lang" data-t="python" data-search="python py"><span class="lname">Python</span> <span class="lext">.py</span></button>
+                <button class="lang on" data-t="typescript" data-search="typescript ts"><span class="lname">TypeScript</span> <span class="lext">.ts</span></button>
+                <button class="lang" data-t="javascript" data-search="javascript js"><span class="lname">JavaScript</span> <span class="lext">.js</span></button>
+              </div>
+            </div>
+
+            <!-- JVM -->
+            <div class="tgroup" data-group="JVM">
+              <div class="glabel">JVM</div>
+              <div class="tgrid">
+                <button class="lang" data-t="java" data-search="java java"><span class="lname">Java</span> <span class="lext">.java</span></button>
+                <button class="lang" data-t="csharp" data-search="c# csharp cs"><span class="lname">C#</span> <span class="lext">.cs</span></button>
+                <button class="lang" data-t="kotlin" data-search="kotlin kt"><span class="lname">Kotlin</span> <span class="lext">.kt</span></button>
+                <button class="lang" data-t="scala" data-search="scala scala"><span class="lname">Scala</span> <span class="lext">.scala</span></button>
+              </div>
+            </div>
+
+            <!-- SYSTEMS -->
+            <div class="tgroup" data-group="Systems">
+              <div class="glabel">SYSTEMS</div>
+              <div class="tgrid">
+                <button class="lang" data-t="go" data-search="go golang go"><span class="lname">Go</span> <span class="lext">.go</span></button>
+                <button class="lang" data-t="rust" data-search="rust rs"><span class="lname">Rust</span> <span class="lext">.rs</span></button>
+                <button class="lang" data-t="cpp" data-search="c++ cpp"><span class="lname">C++</span> <span class="lext">.cpp</span></button>
+                <button class="lang" data-t="c" data-search="c c"><span class="lname">C</span> <span class="lext">.c</span></button>
+                <button class="lang" data-t="swift" data-search="swift swift"><span class="lname">Swift</span> <span class="lext">.swift</span></button>
+              </div>
+            </div>
+
+            <!-- WEB -->
+            <div class="tgroup" data-group="Web">
+              <div class="glabel">WEB</div>
+              <div class="tgrid">
+                <button class="lang" data-t="php" data-search="php php"><span class="lname">PHP</span> <span class="lext">.php</span></button>
+                <button class="lang" data-t="dart" data-search="dart flutter dart"><span class="lname">Dart</span> <span class="lext">.dart</span></button>
+              </div>
+            </div>
+
+            <!-- SCRIPTING -->
+            <div class="tgroup" data-group="Scripting">
+              <div class="glabel">SCRIPTING &amp; SHELL</div>
+              <div class="tgrid">
+                <button class="lang" data-t="ruby" data-search="ruby rb"><span class="lname">Ruby</span> <span class="lext">.rb</span></button>
+                <button class="lang" data-t="elixir" data-search="elixir ex"><span class="lname">Elixir</span> <span class="lext">.ex</span></button>
+                <button class="lang" data-t="bash" data-search="bash sh shell"><span class="lname">Bash</span> <span class="lext">.sh</span></button>
+                <button class="lang" data-t="powershell" data-search="powershell ps1"><span class="lname">PowerShell</span> <span class="lext">.ps1</span></button>
+                <button class="lang" data-t="lua" data-search="lua lua"><span class="lname">Lua</span> <span class="lext">.lua</span></button>
+              </div>
+            </div>
+
+            <!-- DATA & SCIENCE -->
+            <div class="tgroup" data-group="Data & Science">
+              <div class="glabel">DATA &amp; SCIENTIFIC</div>
+              <div class="tgrid">
+                <button class="lang" data-t="r" data-search="r r"><span class="lname">R</span> <span class="lext">.r</span></button>
+                <button class="lang" data-t="sql" data-search="sql bigquery snowflake postgres"><span class="lname">SQL</span> <span class="lext">.sql</span></button>
+                <button class="lang" data-t="matlab" data-search="matlab m"><span class="lname">MATLAB</span> <span class="lext">.m</span></button>
+              </div>
+            </div>
+
+            <!-- LEGACY -->
+            <div class="tgroup" data-group="Legacy">
+              <div class="glabel">LEGACY &amp; ENTERPRISE</div>
+              <div class="tgrid">
+                <button class="lang" data-t="perl" data-search="perl pl"><span class="lname">Perl</span> <span class="lext">.pl</span></button>
+                <button class="lang" data-t="vba" data-search="vba vb vba"><span class="lname">VBA</span> <span class="lext">.vba</span></button>
+                <button class="lang" data-t="cobol" data-search="cobol cbl"><span class="lname">COBOL</span> <span class="lext">.cbl</span></button>
+                <button class="lang" data-t="sas" data-search="sas sas"><span class="lname">SAS</span> <span class="lext">.sas</span></button>
+              </div>
             </div>
           </div>
 
-          <div style="margin-top: 16px;">
-            <button class="btn" id="btnRunFullConversion">⚡ Convert &amp; Modernise Code &rarr;</button>
+          <input id="convFramework" class="txt" type="text" placeholder="Optional &mdash; target framework or runtime, e.g. &quot;FastAPI&quot;, &quot;.NET 8&quot;, &quot;Spring Boot&quot;, &quot;React&quot;" style="width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border);" />
+
+          <!-- 3 · TRANSLATION FIDELITY -->
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px;">
+            3 &middot; Translation fidelity
+          </h2>
+          <div class="ocards" id="convFidelityCards">
+            <button class="ocard on" data-r="fidelity" data-v="idiomatic">
+              <span class="ot">Idiomatic (Recommended)</span>
+              <span class="od">Target-language idioms, standard library conventions, clean modern code</span>
+            </button>
+            <button class="ocard" data-r="fidelity" data-v="literal">
+              <span class="ot">Literal</span>
+              <span class="od">Line-by-line mechanical translation preserving original architecture and variable names</span>
+            </button>
+            <button class="ocard" data-r="fidelity" data-v="optimized">
+              <span class="ot">Optimized</span>
+              <span class="od">Refactored for performance, modern concurrency, and vectorized operations where available</span>
+            </button>
+          </div>
+
+          <!-- 4 · DEPENDENCIES & TESTS -->
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px;">
+            4 &middot; Dependencies &amp; tests
+          </h2>
+          <div class="ocards" id="convDependencyCards">
+            <button class="ocard on" data-r="dependencies" data-v="ecosystem">
+              <span class="ot">Popular Ecosystem Packages</span>
+              <span class="od">Uses standard idiomatic packages (e.g. axios/requests, serde, pydantic)</span>
+            </button>
+            <button class="ocard" data-r="dependencies" data-v="stdlib">
+              <span class="ot">Standard Library Only</span>
+              <span class="od">Zero external packages &mdash; uses strictly built-in runtime modules</span>
+            </button>
+            <button class="ocard" data-r="dependencies" data-v="direct">
+              <span class="ot">Preserve Equivalent Libraries</span>
+              <span class="od">Maps 1:1 to direct package equivalents (e.g. lodash &rarr; ramda)</span>
+            </button>
+          </div>
+
+          <!-- 5 · AI ENGINE & MODEL FIT -->
+          <h2 style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin: 22px 0 10px;">
+            5 &middot; AI engine &amp; model fit
+          </h2>
+          <div id="convModelBox" style="border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; background: var(--card-alt); margin-top: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+              <div style="flex: 1 1 auto; min-width: 0;">
+                <div id="convModelName" style="font-size: 13px; font-weight: 700; font-family: monospace; color: #fff;">Evolve AI Polyglot Engine (Claude 3.7 / Ollama / Gemini)</div>
+                <div id="convModelDetail" style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">Offline &amp; Air-Gapped Capable · 32k / 128k context window</div>
+              </div>
+              <button class="btn-quick" id="convPickModel" style="margin: 0; padding: 6px 14px; font-size: 11.5px; font-weight: 600; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); background: var(--card-bg); color: #fff;">Change model&hellip;</button>
+            </div>
+            <div id="convFitBadge" style="margin-top: 10px; font-size: 12px; padding: 7px 12px; border-radius: 6px; font-weight: 500; background: rgba(78,201,176,.15); color: #4ec9b0; border: 1px solid rgba(78,201,176,.3);">
+              ✓ Comfortable fit &middot; Full codebase syntax &amp; AST translation supported
+            </div>
+          </div>
+
+          <div class="toggles" style="display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: 12px;">
+            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500;"><input type="checkbox" id="convChkTests" /> Also generate unit tests</label>
+            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500;"><input type="checkbox" id="convChkComments" checked /> Carry comments across</label>
+            <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500;"><input type="checkbox" id="convChkManifest" checked /> Emit dependency manifest</label>
+          </div>
+          <textarea id="convNotes" style="width: 100%; box-sizing: border-box; margin-top: 10px; padding: 8px 12px; font-size: 12px; border-radius: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); min-height: 58px;" placeholder="Anything else the conversion must respect &mdash; e.g. &quot;keep the CLI flags identical&quot;, &quot;must run on Java 11&quot;, &quot;no external HTTP client&quot;"></textarea>
+
+          <div id="convActions" style="margin-top: 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <button id="btnRunFullConversion" style="background: var(--accent); color: #1e1e1e; border: none; padding: 10px 26px; font-size: 13px; font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;">⚡ Convert Code &rarr;</button>
+            <button id="btnCancelConversion" style="display:none; background: var(--card-bg); color: var(--error); border: 1px solid var(--error); padding: 9px 18px; font-size: 12.5px; font-weight: 600; border-radius: 6px; cursor: pointer;">■ Stop</button>
+            <div id="convBusySpinner" style="display: none; align-items: center; gap: 8px; font-size: 12.5px;">
+              <span class="spin" style="width: 12px; height: 12px; border: 2px solid var(--accent); border-top-color: transparent; border-radius: 50%; display: inline-block; animation: spin .8s linear infinite;"></span>
+              <span id="convBusyMsg">Translating AST and idiomatic syntax...</span>
+            </div>
+          </div>
+
+          <div id="convStatusMsg" style="margin-top: 8px; font-size: 12px; color: var(--text-secondary); min-height: 17px;"></div>
+
+          <div class="safety" style="margin-top: 16px; font-size: 11.5px; color: var(--text-secondary); border-left: 2px solid var(--accent); padding: 4px 0 4px 12px; line-height: 1.55; background: rgba(78, 201, 176, 0.05); border-radius: 0 6px 6px 0;">
+            <strong>🔒 Safe &amp; Non-Destructive:</strong> Nothing is written to disk here. The conversion opens in a side-by-side review where you inspect the diff, copy the output, or save directly to workspace.
+          </div>
+
+          <!-- SIDE-BY-SIDE REVIEW RESULT BOX -->
+          <div id="convResultReviewBox" style="display: none; margin-top: 20px;">
+            <div style="background: rgba(137, 209, 133, 0.15); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Translation Complete &amp; Verified</div>
+                <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="convReviewMeta">Target: <strong id="convReviewTargetBadge">TypeScript (.ts)</strong> &middot; Fidelity: <strong>Idiomatic</strong></div>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-quick" id="btnCopyConvertedOutput" style="margin-bottom: 0;">📋 Copy Converted Code</button>
+                <button class="btn-quick" id="btnSaveConvertedFile" style="margin-bottom: 0; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save to Workspace</button>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div>
+                <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--text-secondary);">Original Source Code:</div>
+                <pre id="convOriginalPreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 320px; overflow-y: auto; white-space: pre-wrap; color: #d4d4d4;"></pre>
+              </div>
+              <div>
+                <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--accent);">Converted Code (<span id="convTargetLangName">TypeScript</span>):</div>
+                <pre id="convTargetPreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 320px; overflow-y: auto; white-space: pre-wrap; color: #4ec9b0;"></pre>
+              </div>
+            </div>
+
+            <!-- Fidelity and Mapping Summary Report -->
+            <div id="convReportBox" style="margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+              <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px;">📊 Translation Quality &amp; Fidelity Report:</div>
+              <div id="convReportContent" style="font-size: 11.5px; color: #fff; line-height: 1.5;"></div>
+            </div>
           </div>
         </section>
 

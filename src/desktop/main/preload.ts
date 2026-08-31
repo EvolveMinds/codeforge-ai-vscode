@@ -58,8 +58,9 @@ const desktopApi = {
   // --- POLYGLOT CONVERTER APIS ---
   converter: {
     getLanguages: () => ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.GET_LANGUAGES),
-    convert: (req: { sourceCode: string; fromLang: string; toLang: string; fidelity?: string }) => 
-      ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.CONVERT, req)
+    convert: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.CONVERT, req),
+    detectLanguage: (payload: { code: string; fileName?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.DETECT_LANGUAGE, payload),
+    browseSources: (mode: 'files' | 'folder') => ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.BROWSE_SOURCES, mode)
   },
 
   // --- GIT & BRANCH STUDIO APIS ---
