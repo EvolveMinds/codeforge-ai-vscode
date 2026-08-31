@@ -813,15 +813,19 @@ export class DesktopIpcHandlers {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
 
-      let gcpInstalled = false, gcpOk = false, gcpAccount = '', gcpProject = '';
-      let awsInstalled = false, awsOk = false, awsAccount = '';
-      let azureInstalled = false, azureOk = false, azureAccount = '';
-      let dockerInstalled = false, dockerRunning = false, dockerVersion = '';
+      let gcpInstalled = false, gcpOk = false, gcpAccount = '', gcpProject = '', gcpVersion = '', gcpRegion = '';
+      let awsInstalled = false, awsOk = false, awsAccount = '', awsRegion = '', awsVersion = '', awsArn = '';
+      let azureInstalled = false, azureOk = false, azureAccount = '', azureSubId = '', azureTenantId = '', azureVersion = '';
+      let dockerInstalled = false, dockerRunning = false, dockerVersion = '', dockerContainers = '';
 
       // 1. GCP Check
       try {
         const gVer = await runForStdout('gcloud', ['--version'], { cwd, timeoutMs: 4000 });
-        gcpInstalled = !!gVer && !gVer.includes('not recognized');
+        if (gVer && !gVer.includes('not recognized')) {
+          gcpInstalled = true;
+          const firstLine = gVer.split('\n')[0] || '';
+          gcpVersion = firstLine.trim();
+        }
       } catch {}
 
       if (gcpInstalled) {
@@ -837,13 +841,19 @@ export class DesktopIpcHandlers {
           }
           const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd, timeoutMs: 3000 });
           if (gProj && !gProj.includes('unset') && !gProj.includes('ERROR')) gcpProject = gProj.trim();
+
+          const gReg = await runForStdout('gcloud', ['config', 'get-value', 'compute/region'], { cwd, timeoutMs: 3000 });
+          if (gReg && !gReg.includes('unset') && !gReg.includes('ERROR')) gcpRegion = gReg.trim();
         } catch {}
       }
 
       // 2. AWS Check
       try {
         const aVer = await runForStdout('aws', ['--version'], { cwd, timeoutMs: 4000 });
-        awsInstalled = !!aVer && !aVer.includes('not recognized');
+        if (aVer && !aVer.includes('not recognized')) {
+          awsInstalled = true;
+          awsVersion = aVer.trim().split('\n')[0] || '';
+        }
       } catch {}
 
       if (awsInstalled) {
@@ -853,16 +863,27 @@ export class DesktopIpcHandlers {
             const parsed = JSON.parse(a);
             if (parsed.Arn) {
               awsOk = true;
+              awsArn = parsed.Arn;
               awsAccount = parsed.Arn.split('/').pop() || parsed.Account || 'Active';
             }
           }
+          const aReg = await runForStdout('aws', ['configure', 'get', 'region'], { cwd, timeoutMs: 3000 });
+          if (aReg && !aReg.includes('error')) awsRegion = aReg.trim();
         } catch {}
       }
 
       // 3. Azure Check
       try {
         const azVer = await runForStdout('az', ['version'], { cwd, timeoutMs: 4000 });
-        azureInstalled = !!azVer && !azVer.includes('not recognized');
+        if (azVer && !azVer.includes('not recognized')) {
+          azureInstalled = true;
+          try {
+            const parsedAz = JSON.parse(azVer);
+            azureVersion = parsedAz['azure-cli'] ? `Azure CLI ${parsedAz['azure-cli']}` : 'Azure CLI';
+          } catch {
+            azureVersion = 'Azure CLI';
+          }
+        }
       } catch {}
 
       if (azureInstalled) {
@@ -873,6 +894,8 @@ export class DesktopIpcHandlers {
             if (parsed.name || parsed.id) {
               azureOk = true;
               azureAccount = parsed.user?.name || parsed.name || 'Active';
+              azureSubId = parsed.id || '';
+              azureTenantId = parsed.tenantId || '';
             }
           }
         } catch {}
@@ -881,7 +904,10 @@ export class DesktopIpcHandlers {
       // 4. Docker Check
       try {
         const dVer = await runForStdout('docker', ['--version'], { cwd, timeoutMs: 4000 });
-        dockerInstalled = !!dVer && !dVer.includes('not recognized');
+        if (dVer && !dVer.includes('not recognized')) {
+          dockerInstalled = true;
+          dockerVersion = dVer.trim().split('\n')[0] || '';
+        }
       } catch {}
 
       if (dockerInstalled) {
@@ -890,15 +916,18 @@ export class DesktopIpcHandlers {
           if (d && !d.includes('error') && !d.includes('Cannot connect') && !d.includes('failed to connect')) {
             dockerRunning = true;
             dockerVersion = `v${d.trim()}`;
+
+            const dCont = await runForStdout('docker', ['info', '--format', '{{.ContainersRunning}} running / {{.Containers}} total'], { cwd, timeoutMs: 3000 });
+            if (dCont && !dCont.includes('error')) dockerContainers = dCont.trim();
           }
         } catch {}
       }
 
       return {
-        gcp: { installed: gcpInstalled, ok: gcpOk, account: gcpAccount, project: gcpProject },
-        aws: { installed: awsInstalled, ok: awsOk, account: awsAccount },
-        azure: { installed: azureInstalled, ok: azureOk, account: azureAccount },
-        docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion }
+        gcp: { installed: gcpInstalled, ok: gcpOk, account: gcpAccount, project: gcpProject, region: gcpRegion, version: gcpVersion },
+        aws: { installed: awsInstalled, ok: awsOk, account: awsAccount, region: awsRegion, arn: awsArn, version: awsVersion },
+        azure: { installed: azureInstalled, ok: azureOk, account: azureAccount, subscriptionId: azureSubId, tenantId: azureTenantId, version: azureVersion },
+        docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion, containers: dockerContainers }
       };
     });
 
@@ -909,22 +938,52 @@ export class DesktopIpcHandlers {
       let cmd = '';
 
       if (provider === 'gcp') {
-        cmd = action === 'install'
-          ? (isWin ? 'winget install -e --id Google.CloudSDK' : (isMac ? 'brew install --cask google-cloud-sdk' : 'curl https://sdk.cloud.google.com | bash'))
-          : 'gcloud auth login';
+        if (action === 'install') {
+          cmd = isWin ? 'winget install -e --id Google.CloudSDK' : (isMac ? 'brew install --cask google-cloud-sdk' : 'curl https://sdk.cloud.google.com | bash');
+        } else if (action === 'adc') {
+          cmd = 'gcloud auth application-default login';
+        } else if (action === 'setProject') {
+          cmd = 'gcloud config set project ';
+        } else if (action === 'authList') {
+          cmd = 'gcloud auth list';
+        } else if (action === 'projectsList') {
+          cmd = 'gcloud projects list';
+        } else {
+          cmd = 'gcloud auth login';
+        }
       } else if (provider === 'aws') {
-        cmd = action === 'install'
-          ? (isWin ? 'winget install -e --id Amazon.AWSCLI' : (isMac ? 'brew install awscli' : 'sudo apt-get install awscli'))
-          : 'aws configure';
+        if (action === 'install') {
+          cmd = isWin ? 'winget install -e --id Amazon.AWSCLI' : (isMac ? 'brew install awscli' : 'sudo apt-get install awscli');
+        } else if (action === 'sso') {
+          cmd = 'aws sso login';
+        } else if (action === 'whoami') {
+          cmd = 'aws sts get-caller-identity';
+        } else if (action === 's3ls') {
+          cmd = 'aws s3 ls';
+        } else {
+          cmd = 'aws configure';
+        }
       } else if (provider === 'azure') {
-        cmd = action === 'install'
-          ? (isWin ? 'winget install -e --id Microsoft.AzureCLI' : (isMac ? 'brew install azure-cli' : 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash'))
-          : 'az login';
+        if (action === 'install') {
+          cmd = isWin ? 'winget install -e --id Microsoft.AzureCLI' : (isMac ? 'brew install azure-cli' : 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash');
+        } else if (action === 'setSub') {
+          cmd = 'az account set --subscription ';
+        } else if (action === 'whoami') {
+          cmd = 'az account show';
+        } else if (action === 'groupsList') {
+          cmd = 'az group list -o table';
+        } else {
+          cmd = 'az login';
+        }
       } else if (provider === 'docker') {
         if (action === 'startDocker') {
           cmd = isWin ? 'Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" -ErrorAction SilentlyContinue' : (isMac ? 'open /Applications/Docker.app' : 'sudo systemctl start docker');
         } else if (action === 'install') {
           cmd = isWin ? 'winget install -e --id Docker.DockerDesktop' : (isMac ? 'brew install --cask docker' : 'curl -fsSL https://get.docker.com | sh');
+        } else if (action === 'ps') {
+          cmd = 'docker ps -a';
+        } else if (action === 'build') {
+          cmd = 'docker build -t evolve-ai-pilot:latest .';
         } else {
           cmd = 'docker info';
         }

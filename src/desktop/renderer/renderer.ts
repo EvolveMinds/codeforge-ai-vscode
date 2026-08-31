@@ -2396,6 +2396,9 @@ function setupCloudHub(api: any): void {
   const btnCloseCloudHub = document.getElementById('btnCloseCloudHub');
   const btnRefreshCloudStatus = document.getElementById('btnRefreshCloudStatus');
   const btnTabRefreshCloud = document.getElementById('btnTabRefreshCloud');
+  const btnPaneCloudRefresh = document.getElementById('btnPaneCloudRefresh');
+  const btnPaneCloudOpenTerm = document.getElementById('btnPaneCloudOpenTerm');
+  const btnPaneCloudGoPhase3 = document.getElementById('btnPaneCloudGoPhase3');
 
   const btnConnectGcp = document.getElementById('btnConnectGcp');
   const btnConnectAws = document.getElementById('btnConnectAws');
@@ -2418,12 +2421,34 @@ function setupCloudHub(api: any): void {
     if (cloudHubDrawer) cloudHubDrawer.style.display = 'none';
   });
 
-  btnRefreshCloudStatus?.addEventListener('click', () => refreshCloudHubStatus(api));
-  btnTabRefreshCloud?.addEventListener('click', () => refreshCloudHubStatus(api));
+  const triggerRefresh = async () => {
+    showToast('🔍 Probing cloud CLI installations and auth tokens...');
+    await refreshCloudHubStatus(api);
+    showToast('✓ Multi-Cloud connection status updated');
+  };
+
+  btnRefreshCloudStatus?.addEventListener('click', triggerRefresh);
+  btnTabRefreshCloud?.addEventListener('click', triggerRefresh);
+  btnPaneCloudRefresh?.addEventListener('click', triggerRefresh);
+
+  btnPaneCloudOpenTerm?.addEventListener('click', () => {
+    const terminalDrawer = document.getElementById('terminalDrawer');
+    if (terminalDrawer) {
+      const isHidden = terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '';
+      terminalDrawer.style.display = isHidden ? 'flex' : 'none';
+    }
+  });
+
+  btnPaneCloudGoPhase3?.addEventListener('click', () => {
+    switchActivityTab('delivery');
+    const phase3Btn = document.querySelector('.phase-nav-btn[data-phase="3"]') as HTMLElement;
+    if (phase3Btn) phase3Btn.click();
+    showToast('🚀 Switched to Pilot Deployment Studio (Phase 3)');
+  });
 
   const handleCloudAction = async (provider: string, action: string) => {
     if (!api?.cloud) return;
-    showToast(`🚀 Initiating ${provider.toUpperCase()} ${action} in terminal...`);
+    showToast(`🚀 Initiating ${provider.toUpperCase()} [${action}] in terminal...`);
     
     const terminalDrawer = document.getElementById('terminalDrawer');
     if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
@@ -2438,10 +2463,61 @@ function setupCloudHub(api: any): void {
     await api.cloud.connectAccount(provider, action, currentActiveSessionId);
   };
 
+  // Phase 3 Drawer Connect Buttons
   btnConnectGcp?.addEventListener('click', () => handleCloudAction('gcp', btnConnectGcp.getAttribute('data-action') || 'login'));
   btnConnectAws?.addEventListener('click', () => handleCloudAction('aws', btnConnectAws.getAttribute('data-action') || 'login'));
   btnConnectAzure?.addEventListener('click', () => handleCloudAction('azure', btnConnectAzure.getAttribute('data-action') || 'login'));
   btnConnectDocker?.addEventListener('click', () => handleCloudAction('docker', btnConnectDocker.getAttribute('data-action') || 'login'));
+
+  // Studio Pane GCP Actions
+  document.getElementById('btnPaneGcpLogin')?.addEventListener('click', () => handleCloudAction('gcp', 'login'));
+  document.getElementById('btnPaneGcpAdc')?.addEventListener('click', () => handleCloudAction('gcp', 'adc'));
+  document.getElementById('btnPaneGcpAuthList')?.addEventListener('click', () => handleCloudAction('gcp', 'authList'));
+  document.getElementById('btnPaneGcpProjectsList')?.addEventListener('click', () => handleCloudAction('gcp', 'projectsList'));
+  document.getElementById('btnPaneGcpInstall')?.addEventListener('click', () => handleCloudAction('gcp', 'install'));
+
+  // Studio Pane AWS Actions
+  document.getElementById('btnPaneAwsLogin')?.addEventListener('click', () => handleCloudAction('aws', 'login'));
+  document.getElementById('btnPaneAwsSso')?.addEventListener('click', () => handleCloudAction('aws', 'sso'));
+  document.getElementById('btnPaneAwsWhoami')?.addEventListener('click', () => handleCloudAction('aws', 'whoami'));
+  document.getElementById('btnPaneAwsS3')?.addEventListener('click', () => handleCloudAction('aws', 's3ls'));
+  document.getElementById('btnPaneAwsInstall')?.addEventListener('click', () => handleCloudAction('aws', 'install'));
+
+  // Studio Pane Azure Actions
+  document.getElementById('btnPaneAzureLogin')?.addEventListener('click', () => handleCloudAction('azure', 'login'));
+  document.getElementById('btnPaneAzureWhoami')?.addEventListener('click', () => handleCloudAction('azure', 'whoami'));
+  document.getElementById('btnPaneAzureGroups')?.addEventListener('click', () => handleCloudAction('azure', 'groupsList'));
+  document.getElementById('btnPaneAzureInstall')?.addEventListener('click', () => handleCloudAction('azure', 'install'));
+
+  // Studio Pane Docker Actions
+  document.getElementById('btnPaneDockerStart')?.addEventListener('click', () => handleCloudAction('docker', 'startDocker'));
+  document.getElementById('btnPaneDockerInfo')?.addEventListener('click', () => handleCloudAction('docker', 'info'));
+  document.getElementById('btnPaneDockerPs')?.addEventListener('click', () => handleCloudAction('docker', 'ps'));
+  document.getElementById('btnPaneDockerBuild')?.addEventListener('click', () => handleCloudAction('docker', 'build'));
+  document.getElementById('btnPaneDockerInstall')?.addEventListener('click', () => handleCloudAction('docker', 'install'));
+
+  // Wire Multi-Cloud Terminal Quick Command Bar
+  document.querySelectorAll<HTMLElement>('.btn-cloud-quick-cmd').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cmd = btn.getAttribute('data-cmd');
+      if (!cmd) return;
+
+      const terminalDrawer = document.getElementById('terminalDrawer');
+      if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
+        terminalDrawer.style.display = 'flex';
+      }
+
+      if (!currentActiveSessionId && api?.terminal) {
+        const session = await api.terminal.spawn({ name: 'Terminal 1' });
+        currentActiveSessionId = session.id;
+      }
+
+      if (currentActiveSessionId && api?.terminal) {
+        await api.terminal.executeCommand(currentActiveSessionId, cmd);
+        showToast(`⚡ Executed: ${cmd}`);
+      }
+    });
+  });
 }
 
 async function refreshCloudHubStatus(api: any): Promise<void> {
@@ -2450,81 +2526,197 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
     const res = await api.cloud.getDetailedStatus();
     if (!res) return;
 
-    const updateGcp = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.gcp.ok) {
-        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Account: ${res.gcp.account || 'Active'}${res.gcp.project ? ' (' + res.gcp.project + ')' : ''}`;
-        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.gcp.installed) {
-        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'gcloud CLI installed (Click to login)';
-        if (btn) { btn.innerText = '🔑 Connect GCP'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'gcloud CLI not found on system';
-        if (btn) { btn.innerText = '⬇️ Install gcloud'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateGcp('cloudGcpBadge', 'cloudGcpAccount', 'btnConnectGcp');
+    // 1. Update GCP
+    const gcpBadge = document.getElementById('cloudGcpBadge');
+    const gcpAcc = document.getElementById('cloudGcpAccount');
+    const gcpBtn = document.getElementById('btnConnectGcp');
 
-    const updateAws = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.aws.ok) {
-        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Account: ${res.aws.account || 'Active'}`;
-        if (btn) { btn.innerText = '🔑 Re-Configure'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.aws.installed) {
-        if (badge) { badge.innerText = '⭕ Not Configured'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'AWS CLI installed (Click to configure)';
-        if (btn) { btn.innerText = '🔑 Configure AWS'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'AWS CLI not found on system';
-        if (btn) { btn.innerText = '⬇️ Install AWS CLI'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateAws('cloudAwsBadge', 'cloudAwsAccount', 'btnConnectAws');
+    const paneGcpTop = document.getElementById('paneGcpTopStatus');
+    const paneGcpB = document.getElementById('paneGcpBadge');
+    const paneGcpCli = document.getElementById('paneGcpCli');
+    const paneGcpProj = document.getElementById('paneGcpProject');
+    const paneGcpAcc = document.getElementById('paneGcpAccount');
+    const paneGcpReg = document.getElementById('paneGcpRegion');
+    const btnPaneGcpInst = document.getElementById('btnPaneGcpInstall');
 
-    const updateAzure = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.azure.ok) {
-        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Account: ${res.azure.account || 'Active'}`;
-        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
-      } else if (res.azure.installed) {
-        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
-        if (acc) acc.innerText = 'Azure CLI installed (Click to login)';
-        if (btn) { btn.innerText = '🔑 Connect Azure'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'Azure CLI not found on system';
-        if (btn) { btn.innerText = '⬇️ Install Azure CLI'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateAzure('cloudAzureBadge', 'cloudAzureAccount', 'btnConnectAzure');
+    if (res.gcp?.ok) {
+      if (gcpBadge) { gcpBadge.innerText = '✓ Connected'; gcpBadge.style.color = 'var(--success)'; }
+      if (gcpAcc) gcpAcc.innerText = `Account: ${res.gcp.account || 'Active'}${res.gcp.project ? ' (' + res.gcp.project + ')' : ''}`;
+      if (gcpBtn) { gcpBtn.innerText = '🔑 Re-Authenticate'; gcpBtn.setAttribute('data-action', 'login'); }
 
-    const updateDocker = (badgeId: string, accId: string, btnId: string) => {
-      const badge = document.getElementById(badgeId);
-      const acc = document.getElementById(accId);
-      const btn = document.getElementById(btnId);
-      if (res.docker.ok) {
-        if (badge) { badge.innerText = '✓ Active'; badge.style.color = 'var(--success)'; }
-        if (acc) acc.innerText = `Daemon: ${res.docker.version || 'Active'}`;
-        if (btn) { btn.innerText = '🐳 Check Docker'; btn.setAttribute('data-action', 'login'); }
-      } else {
-        if (badge) { badge.innerText = '⚠️ Missing'; badge.style.color = 'var(--error)'; }
-        if (acc) acc.innerText = 'Docker not found on system';
-        if (btn) { btn.innerText = '⬇️ Install Docker'; btn.setAttribute('data-action', 'install'); }
-      }
-    };
-    updateDocker('cloudDockerBadge', 'cloudDockerAccount', 'btnConnectDocker');
+      if (paneGcpTop) { paneGcpTop.innerText = `● Connected (${res.gcp.project || res.gcp.account || 'Active'})`; paneGcpTop.style.color = 'var(--success)'; }
+      if (paneGcpB) { paneGcpB.innerText = '✓ Authenticated'; paneGcpB.style.color = 'var(--success)'; paneGcpB.style.borderColor = 'var(--success)'; paneGcpB.style.background = 'rgba(137, 209, 133, 0.15)'; }
+      if (paneGcpCli) paneGcpCli.innerText = res.gcp.version || 'Google Cloud SDK (Detected)';
+      if (paneGcpProj) paneGcpProj.innerText = res.gcp.project || '(default)';
+      if (paneGcpAcc) paneGcpAcc.innerText = res.gcp.account || 'Active OAuth Account';
+      if (paneGcpReg) paneGcpReg.innerText = res.gcp.region || 'us-central1';
+      if (btnPaneGcpInst) btnPaneGcpInst.style.display = 'none';
+    } else if (res.gcp?.installed) {
+      if (gcpBadge) { gcpBadge.innerText = '⭕ Not Logged In'; gcpBadge.style.color = 'var(--warning)'; }
+      if (gcpAcc) gcpAcc.innerText = 'gcloud CLI installed (Click to login)';
+      if (gcpBtn) { gcpBtn.innerText = '🔑 Connect GCP'; gcpBtn.setAttribute('data-action', 'login'); }
+
+      if (paneGcpTop) { paneGcpTop.innerText = '⭕ CLI Installed (Not Logged In)'; paneGcpTop.style.color = 'var(--warning)'; }
+      if (paneGcpB) { paneGcpB.innerText = '⭕ Not Logged In'; paneGcpB.style.color = 'var(--warning)'; paneGcpB.style.borderColor = 'var(--warning)'; paneGcpB.style.background = 'rgba(229, 181, 103, 0.15)'; }
+      if (paneGcpCli) paneGcpCli.innerText = res.gcp.version || 'Google Cloud SDK (Detected)';
+      if (paneGcpProj) paneGcpProj.innerText = res.gcp.project || '(unset)';
+      if (paneGcpAcc) paneGcpAcc.innerText = 'Run: gcloud auth login';
+      if (paneGcpReg) paneGcpReg.innerText = 'us-central1';
+      if (btnPaneGcpInst) btnPaneGcpInst.style.display = 'none';
+    } else {
+      if (gcpBadge) { gcpBadge.innerText = '⚠️ CLI Missing'; gcpBadge.style.color = 'var(--error)'; }
+      if (gcpAcc) gcpAcc.innerText = 'gcloud CLI not found on system';
+      if (gcpBtn) { gcpBtn.innerText = '⬇️ Install gcloud'; gcpBtn.setAttribute('data-action', 'install'); }
+
+      if (paneGcpTop) { paneGcpTop.innerText = '⚠️ CLI Missing'; paneGcpTop.style.color = 'var(--error)'; }
+      if (paneGcpB) { paneGcpB.innerText = '⚠️ CLI Missing'; paneGcpB.style.color = 'var(--error)'; paneGcpB.style.borderColor = 'var(--error)'; paneGcpB.style.background = 'rgba(244, 71, 71, 0.15)'; }
+      if (paneGcpCli) paneGcpCli.innerText = 'gcloud not found on system PATH';
+      if (paneGcpProj) paneGcpProj.innerText = 'N/A';
+      if (paneGcpAcc) paneGcpAcc.innerText = 'CLI Missing — click Install below';
+      if (paneGcpReg) paneGcpReg.innerText = 'N/A';
+      if (btnPaneGcpInst) btnPaneGcpInst.style.display = 'block';
+    }
+
+    // 2. Update AWS
+    const awsBadge = document.getElementById('cloudAwsBadge');
+    const awsAcc = document.getElementById('cloudAwsAccount');
+    const awsBtn = document.getElementById('btnConnectAws');
+
+    const paneAwsTop = document.getElementById('paneAwsTopStatus');
+    const paneAwsB = document.getElementById('paneAwsBadge');
+    const paneAwsCli = document.getElementById('paneAwsCli');
+    const paneAwsReg = document.getElementById('paneAwsRegion');
+    const paneAwsAcc = document.getElementById('paneAwsAccount');
+    const btnPaneAwsInst = document.getElementById('btnPaneAwsInstall');
+
+    if (res.aws?.ok) {
+      if (awsBadge) { awsBadge.innerText = '✓ Connected'; awsBadge.style.color = 'var(--success)'; }
+      if (awsAcc) awsAcc.innerText = `Account: ${res.aws.account || 'Active'}`;
+      if (awsBtn) { awsBtn.innerText = '🔑 Re-Configure'; awsBtn.setAttribute('data-action', 'login'); }
+
+      if (paneAwsTop) { paneAwsTop.innerText = `● Configured (${res.aws.account || 'default'})`; paneAwsTop.style.color = 'var(--success)'; }
+      if (paneAwsB) { paneAwsB.innerText = '✓ Configured'; paneAwsB.style.color = 'var(--success)'; paneAwsB.style.borderColor = 'var(--success)'; paneAwsB.style.background = 'rgba(137, 209, 133, 0.15)'; }
+      if (paneAwsCli) paneAwsCli.innerText = res.aws.version || 'AWS CLI v2 (Detected)';
+      if (paneAwsReg) paneAwsReg.innerText = res.aws.region || 'us-east-1 (default)';
+      if (paneAwsAcc) paneAwsAcc.innerText = res.aws.arn || res.aws.account || 'Active IAM Identity';
+      if (btnPaneAwsInst) btnPaneAwsInst.style.display = 'none';
+    } else if (res.aws?.installed) {
+      if (awsBadge) { awsBadge.innerText = '⭕ Not Configured'; awsBadge.style.color = 'var(--warning)'; }
+      if (awsAcc) awsAcc.innerText = 'AWS CLI installed (Click to configure)';
+      if (awsBtn) { awsBtn.innerText = '🔑 Configure AWS'; awsBtn.setAttribute('data-action', 'login'); }
+
+      if (paneAwsTop) { paneAwsTop.innerText = '⭕ CLI Installed (Unconfigured)'; paneAwsTop.style.color = 'var(--warning)'; }
+      if (paneAwsB) { paneAwsB.innerText = '⭕ Unconfigured'; paneAwsB.style.color = 'var(--warning)'; paneAwsB.style.borderColor = 'var(--warning)'; paneAwsB.style.background = 'rgba(229, 181, 103, 0.15)'; }
+      if (paneAwsCli) paneAwsCli.innerText = res.aws.version || 'AWS CLI v2 (Detected)';
+      if (paneAwsReg) paneAwsReg.innerText = 'us-east-1';
+      if (paneAwsAcc) paneAwsAcc.innerText = 'Run: aws configure';
+      if (btnPaneAwsInst) btnPaneAwsInst.style.display = 'none';
+    } else {
+      if (awsBadge) { awsBadge.innerText = '⚠️ CLI Missing'; awsBadge.style.color = 'var(--error)'; }
+      if (awsAcc) awsAcc.innerText = 'AWS CLI not found on system';
+      if (awsBtn) { awsBtn.innerText = '⬇️ Install AWS CLI'; awsBtn.setAttribute('data-action', 'install'); }
+
+      if (paneAwsTop) { paneAwsTop.innerText = '⚠️ CLI Missing'; paneAwsTop.style.color = 'var(--error)'; }
+      if (paneAwsB) { paneAwsB.innerText = '⚠️ CLI Missing'; paneAwsB.style.color = 'var(--error)'; paneAwsB.style.borderColor = 'var(--error)'; paneAwsB.style.background = 'rgba(244, 71, 71, 0.15)'; }
+      if (paneAwsCli) paneAwsCli.innerText = 'aws CLI not found on PATH';
+      if (paneAwsReg) paneAwsReg.innerText = 'N/A';
+      if (paneAwsAcc) paneAwsAcc.innerText = 'CLI Missing — click Install below';
+      if (btnPaneAwsInst) btnPaneAwsInst.style.display = 'block';
+    }
+
+    // 3. Update Azure
+    const azBadge = document.getElementById('cloudAzureBadge');
+    const azAcc = document.getElementById('cloudAzureAccount');
+    const azBtn = document.getElementById('btnConnectAzure');
+
+    const paneAzTop = document.getElementById('paneAzureTopStatus');
+    const paneAzB = document.getElementById('paneAzureBadge');
+    const paneAzCli = document.getElementById('paneAzureCli');
+    const paneAzSub = document.getElementById('paneAzureSub');
+    const paneAzAcc = document.getElementById('paneAzureAccount');
+    const btnPaneAzInst = document.getElementById('btnPaneAzureInstall');
+
+    if (res.azure?.ok) {
+      if (azBadge) { azBadge.innerText = '✓ Connected'; azBadge.style.color = 'var(--success)'; }
+      if (azAcc) azAcc.innerText = `Account: ${res.azure.account || 'Active'}`;
+      if (azBtn) { azBtn.innerText = '🔑 Re-Authenticate'; azBtn.setAttribute('data-action', 'login'); }
+
+      if (paneAzTop) { paneAzTop.innerText = `● Logged In (${res.azure.account || 'Active'})`; paneAzTop.style.color = 'var(--success)'; }
+      if (paneAzB) { paneAzB.innerText = '✓ Logged In'; paneAzB.style.color = 'var(--success)'; paneAzB.style.borderColor = 'var(--success)'; paneAzB.style.background = 'rgba(137, 209, 133, 0.15)'; }
+      if (paneAzCli) paneAzCli.innerText = res.azure.version || 'Azure CLI (Detected)';
+      if (paneAzSub) paneAzSub.innerText = res.azure.subscriptionId || '(default)';
+      if (paneAzAcc) paneAzAcc.innerText = res.azure.account || 'Active Entra ID Account';
+      if (btnPaneAzInst) btnPaneAzInst.style.display = 'none';
+    } else if (res.azure?.installed) {
+      if (azBadge) { azBadge.innerText = '⭕ Not Logged In'; azBadge.style.color = 'var(--warning)'; }
+      if (azAcc) azAcc.innerText = 'Azure CLI installed (Click to login)';
+      if (azBtn) { azBtn.innerText = '🔑 Connect Azure'; azBtn.setAttribute('data-action', 'login'); }
+
+      if (paneAzTop) { paneAzTop.innerText = '⭕ CLI Installed (Not Logged In)'; paneAzTop.style.color = 'var(--warning)'; }
+      if (paneAzB) { paneAzB.innerText = '⭕ Logged Out'; paneAzB.style.color = 'var(--warning)'; paneAzB.style.borderColor = 'var(--warning)'; paneAzB.style.background = 'rgba(229, 181, 103, 0.15)'; }
+      if (paneAzCli) paneAzCli.innerText = res.azure.version || 'Azure CLI (Detected)';
+      if (paneAzSub) paneAzSub.innerText = '(unset)';
+      if (paneAzAcc) paneAzAcc.innerText = 'Run: az login';
+      if (btnPaneAzInst) btnPaneAzInst.style.display = 'none';
+    } else {
+      if (azBadge) { azBadge.innerText = '⚠️ CLI Missing'; azBadge.style.color = 'var(--error)'; }
+      if (azAcc) azAcc.innerText = 'Azure CLI not found on system';
+      if (azBtn) { azBtn.innerText = '⬇️ Install Azure CLI'; azBtn.setAttribute('data-action', 'install'); }
+
+      if (paneAzTop) { paneAzTop.innerText = '⚠️ CLI Missing'; paneAzTop.style.color = 'var(--error)'; }
+      if (paneAzB) { paneAzB.innerText = '⚠️ CLI Missing'; paneAzB.style.color = 'var(--error)'; paneAzB.style.borderColor = 'var(--error)'; paneAzB.style.background = 'rgba(244, 71, 71, 0.15)'; }
+      if (paneAzCli) paneAzCli.innerText = 'az CLI not found on PATH';
+      if (paneAzSub) paneAzSub.innerText = 'N/A';
+      if (paneAzAcc) paneAzAcc.innerText = 'CLI Missing — click Install below';
+      if (btnPaneAzInst) btnPaneAzInst.style.display = 'block';
+    }
+
+    // 4. Update Docker
+    const docBadge = document.getElementById('cloudDockerBadge');
+    const docAcc = document.getElementById('cloudDockerAccount');
+    const docBtn = document.getElementById('btnConnectDocker');
+
+    const paneDocTop = document.getElementById('paneDockerTopStatus');
+    const paneDocB = document.getElementById('paneDockerBadge');
+    const paneDocCli = document.getElementById('paneDockerCli');
+    const paneDocCont = document.getElementById('paneDockerContainers');
+    const paneDocAcc = document.getElementById('paneDockerAccount');
+    const btnPaneDocInst = document.getElementById('btnPaneDockerInstall');
+
+    if (res.docker?.ok) {
+      if (docBadge) { docBadge.innerText = '✓ Active'; docBadge.style.color = 'var(--success)'; }
+      if (docAcc) docAcc.innerText = `Daemon: ${res.docker.version || 'Active'}`;
+      if (docBtn) { docBtn.innerText = '🐳 Check Docker'; docBtn.setAttribute('data-action', 'login'); }
+
+      if (paneDocTop) { paneDocTop.innerText = `● Daemon Active (${res.docker.version || 'v27.x'})`; paneDocTop.style.color = 'var(--success)'; }
+      if (paneDocB) { paneDocB.innerText = '✓ Daemon Active'; paneDocB.style.color = 'var(--success)'; paneDocB.style.borderColor = 'var(--success)'; paneDocB.style.background = 'rgba(137, 209, 133, 0.15)'; }
+      if (paneDocCli) paneDocCli.innerText = res.docker.version ? `Docker Engine ${res.docker.version}` : 'Docker Engine (Running)';
+      if (paneDocCont) paneDocCont.innerText = res.docker.containers || 'Ready for containers';
+      if (paneDocAcc) paneDocAcc.innerText = `Daemon Active (${res.docker.version || 'Running'})`;
+      if (btnPaneDocInst) btnPaneDocInst.style.display = 'none';
+    } else if (res.docker?.installed) {
+      if (docBadge) { docBadge.innerText = '⭕ Daemon Stopped'; docBadge.style.color = 'var(--warning)'; }
+      if (docAcc) docAcc.innerText = 'Docker installed (Daemon not running)';
+      if (docBtn) { docBtn.innerText = '🚀 Start Docker'; docBtn.setAttribute('data-action', 'startDocker'); }
+
+      if (paneDocTop) { paneDocTop.innerText = '⭕ Daemon Stopped'; paneDocTop.style.color = 'var(--warning)'; }
+      if (paneDocB) { paneDocB.innerText = '⭕ Daemon Stopped'; paneDocB.style.color = 'var(--warning)'; paneDocB.style.borderColor = 'var(--warning)'; paneDocB.style.background = 'rgba(229, 181, 103, 0.15)'; }
+      if (paneDocCli) paneDocCli.innerText = 'Docker CLI Detected';
+      if (paneDocCont) paneDocCont.innerText = 'Daemon offline';
+      if (paneDocAcc) paneDocAcc.innerText = 'Click Start Docker Desktop below';
+      if (btnPaneDocInst) btnPaneDocInst.style.display = 'none';
+    } else {
+      if (docBadge) { docBadge.innerText = '⚠️ Missing'; docBadge.style.color = 'var(--error)'; }
+      if (docAcc) docAcc.innerText = 'Docker not found on system';
+      if (docBtn) { docBtn.innerText = '⬇️ Install Docker'; docBtn.setAttribute('data-action', 'install'); }
+
+      if (paneDocTop) { paneDocTop.innerText = '⚠️ Missing'; paneDocTop.style.color = 'var(--error)'; }
+      if (paneDocB) { paneDocB.innerText = '⚠️ Missing'; paneDocB.style.color = 'var(--error)'; paneDocB.style.borderColor = 'var(--error)'; paneDocB.style.background = 'rgba(244, 71, 71, 0.15)'; }
+      if (paneDocCli) paneDocCli.innerText = 'Docker not found on system PATH';
+      if (paneDocCont) paneDocCont.innerText = 'N/A';
+      if (paneDocAcc) paneDocAcc.innerText = 'Docker Desktop Missing';
+      if (btnPaneDocInst) btnPaneDocInst.style.display = 'block';
+    }
 
   } catch {}
 }

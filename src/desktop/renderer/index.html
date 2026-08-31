@@ -1979,12 +1979,278 @@
         </section>
 
         <!-- =================================================================== -->
-        <!-- MODE 9: MULTI-CLOUD MATRIX -->
+        <!-- MODE 9: MULTI-CLOUD MATRIX STUDIO -->
         <!-- =================================================================== -->
         <section id="pane-cloud" class="phase-pane" style="display: none;">
-          <div class="content-card">
-            <h3>☁️ Multi-Cloud Connection &amp; Authentication Hub</h3>
-            <button class="btn" id="btnTabRefreshCloud" style="margin-top: 10px;">🔄 Refresh Cloud Status</button>
+          <div class="content-card" style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+              <div>
+                <h3 style="margin: 0; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>☁️</span> Multi-Cloud Connection &amp; Authentication Hub
+                  <span style="font-size: 10.5px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px;">Enterprise Multi-Target</span>
+                </h3>
+                <p class="desc" style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4;">
+                  Inspect local CLI runtimes, authenticate enterprise cloud accounts with browser OAuth/SSO, manage active subscriptions &amp; projects, and verify container engine health.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn" id="btnPaneCloudRefresh" style="padding: 6px 14px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                  <span>🔄</span> Re-Scan Providers
+                </button>
+                <button class="btn-quick" id="btnPaneCloudOpenTerm" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);">
+                  ⚡ Terminal Drawer
+                </button>
+                <button class="btn-quick" id="btnPaneCloudGoPhase3" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);">
+                  🚀 Pilot Deployment Studio ↗
+                </button>
+              </div>
+            </div>
+
+            <!-- Quick Status Metrics Banner -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🟢</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Google Cloud (GCP)</div>
+                  <div id="paneGcpTopStatus" style="font-size: 12px; font-weight: 700; color: var(--warning); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🟠</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Amazon AWS</div>
+                  <div id="paneAwsTopStatus" style="font-size: 12px; font-weight: 700; color: var(--warning); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🔵</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Microsoft Azure</div>
+                  <div id="paneAzureTopStatus" style="font-size: 12px; font-weight: 700; color: var(--warning); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🐳</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Docker Runtime</div>
+                  <div id="paneDockerTopStatus" style="font-size: 12px; font-weight: 700; color: var(--warning); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4 Cloud Provider Comprehensive Management Grid -->
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px;">
+
+              <!-- 1. GOOGLE CLOUD (GCP) CARD -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🟢</span> Google Cloud Platform (GCP)
+                    </div>
+                    <span id="paneGcpBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(229, 181, 103, 0.15); color: var(--warning); border: 1px solid var(--warning); padding: 2px 8px; border-radius: 4px;">Checking...</span>
+                  </div>
+
+                  <!-- Details Grid -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 11.5px;">
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">CLI Runtime</div>
+                      <div id="paneGcpCli" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Active Project</div>
+                      <div id="paneGcpProject" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(unset)</div>
+                    </div>
+                    <div style="grid-column: span 2;">
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Active Authenticated Account</div>
+                      <div id="paneGcpAccount" style="font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not Authenticated</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Compute Region</div>
+                      <div id="paneGcpRegion" style="font-weight: 600; color: #fff;">us-central1 (default)</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Target Runtime</div>
+                      <div style="font-weight: 600; color: var(--success);">Cloud Run &amp; GKE</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+                    <button class="btn" id="btnPaneGcpLogin" style="flex: 1 1 45%; padding: 6px 10px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">🔑 gcloud Browser Login</button>
+                    <button class="btn-quick" id="btnPaneGcpAdc" style="flex: 1 1 45%; font-size: 11px;">🔐 Login ADC</button>
+                    <button class="btn-quick" id="btnPaneGcpAuthList" style="flex: 1 1 30%; font-size: 11px;">📋 auth list</button>
+                    <button class="btn-quick" id="btnPaneGcpProjectsList" style="flex: 1 1 30%; font-size: 11px;">📂 projects list</button>
+                    <button class="btn-quick" id="btnPaneGcpInstall" style="flex: 1 1 30%; font-size: 11px; display: none; color: var(--error); border-color: var(--error);">⬇️ Install gcloud</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2. AMAZON AWS CARD -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🟠</span> Amazon Web Services (AWS)
+                    </div>
+                    <span id="paneAwsBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(229, 181, 103, 0.15); color: var(--warning); border: 1px solid var(--warning); padding: 2px 8px; border-radius: 4px;">Checking...</span>
+                  </div>
+
+                  <!-- Details Grid -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 11.5px;">
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">CLI Runtime</div>
+                      <div id="paneAwsCli" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Default Region</div>
+                      <div id="paneAwsRegion" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">us-east-1</div>
+                    </div>
+                    <div style="grid-column: span 2;">
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Active Profile / IAM Identity</div>
+                      <div id="paneAwsAccount" style="font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not Configured</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Auth Scheme</div>
+                      <div style="font-weight: 600; color: #fff;">IAM Key / SSO</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Target Runtime</div>
+                      <div style="font-weight: 600; color: var(--success);">ECS Fargate &amp; EKS</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+                    <button class="btn" id="btnPaneAwsLogin" style="flex: 1 1 45%; padding: 6px 10px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">🔑 aws configure</button>
+                    <button class="btn-quick" id="btnPaneAwsSso" style="flex: 1 1 45%; font-size: 11px;">🔐 AWS SSO Login</button>
+                    <button class="btn-quick" id="btnPaneAwsWhoami" style="flex: 1 1 45%; font-size: 11px;">📋 sts get-caller-identity</button>
+                    <button class="btn-quick" id="btnPaneAwsS3" style="flex: 1 1 45%; font-size: 11px;">🪣 aws s3 ls</button>
+                    <button class="btn-quick" id="btnPaneAwsInstall" style="flex: 1 1 100%; font-size: 11px; display: none; color: var(--error); border-color: var(--error);">⬇️ Install AWS CLI v2</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. MICROSOFT AZURE CARD -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🔵</span> Microsoft Azure
+                    </div>
+                    <span id="paneAzureBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(229, 181, 103, 0.15); color: var(--warning); border: 1px solid var(--warning); padding: 2px 8px; border-radius: 4px;">Checking...</span>
+                  </div>
+
+                  <!-- Details Grid -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 11.5px;">
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">CLI Runtime</div>
+                      <div id="paneAzureCli" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Subscription ID</div>
+                      <div id="paneAzureSub" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(unset)</div>
+                    </div>
+                    <div style="grid-column: span 2;">
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Active Account / Tenant</div>
+                      <div id="paneAzureAccount" style="font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not Authenticated</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Auth Scheme</div>
+                      <div style="font-weight: 600; color: #fff;">Entra ID / Browser</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Target Runtime</div>
+                      <div style="font-weight: 600; color: var(--success);">Container Apps &amp; AKS</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+                    <button class="btn" id="btnPaneAzureLogin" style="flex: 1 1 45%; padding: 6px 10px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">🔑 az login (Browser SSO)</button>
+                    <button class="btn-quick" id="btnPaneAzureWhoami" style="flex: 1 1 45%; font-size: 11px;">📋 az account show</button>
+                    <button class="btn-quick" id="btnPaneAzureGroups" style="flex: 1 1 45%; font-size: 11px;">📁 az group list</button>
+                    <button class="btn-quick" id="btnPaneAzureInstall" style="flex: 1 1 45%; font-size: 11px; display: none; color: var(--error); border-color: var(--error);">⬇️ Install Azure CLI</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. DOCKER ENGINE CARD -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🐳</span> Docker Engine &amp; Container Runtime
+                    </div>
+                    <span id="paneDockerBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(229, 181, 103, 0.15); color: var(--warning); border: 1px solid var(--warning); padding: 2px 8px; border-radius: 4px;">Checking...</span>
+                  </div>
+
+                  <!-- Details Grid -->
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 11.5px;">
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Engine Runtime</div>
+                      <div id="paneDockerCli" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Active Containers</div>
+                      <div id="paneDockerContainers" style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">(querying)</div>
+                    </div>
+                    <div style="grid-column: span 2;">
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Daemon Status</div>
+                      <div id="paneDockerAccount" style="font-weight: 600; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Checking daemon...</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Compose Support</div>
+                      <div style="font-weight: 600; color: #fff;">v2.x Supported</div>
+                    </div>
+                    <div>
+                      <div style="color: var(--text-secondary); font-size: 10.5px;">Build Engine</div>
+                      <div style="font-weight: 600; color: var(--success);">Buildx Multi-Arch</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div>
+                  <div style="display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+                    <button class="btn" id="btnPaneDockerStart" style="flex: 1 1 45%; padding: 6px 10px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">🚀 Start Docker Desktop</button>
+                    <button class="btn-quick" id="btnPaneDockerInfo" style="flex: 1 1 45%; font-size: 11px;">🐳 docker info</button>
+                    <button class="btn-quick" id="btnPaneDockerPs" style="flex: 1 1 45%; font-size: 11px;">📋 docker ps -a</button>
+                    <button class="btn-quick" id="btnPaneDockerBuild" style="flex: 1 1 45%; font-size: 11px;">📦 Build Pilot Image</button>
+                    <button class="btn-quick" id="btnPaneDockerInstall" style="flex: 1 1 100%; font-size: 11px; display: none; color: var(--error); border-color: var(--error);">⬇️ Install Docker Desktop</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Cloud Fast-Command Terminal Runner Bar -->
+            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;">
+              <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>⚡</span> Multi-Cloud Terminal Quick Command Bar
+                <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: normal;">(Clicking any command executes it live in your active terminal drawer below)</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="gcloud auth list" style="font-size: 11px;">gcloud auth list</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="gcloud projects list" style="font-size: 11px;">gcloud projects list</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="gcloud compute networks list" style="font-size: 11px;">gcloud compute networks list</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="aws sts get-caller-identity" style="font-size: 11px;">aws sts get-caller-identity</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="aws s3 ls" style="font-size: 11px;">aws s3 ls</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="az account show" style="font-size: 11px;">az account show</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="az group list -o table" style="font-size: 11px;">az group list</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="docker ps" style="font-size: 11px;">docker ps</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="terraform version" style="font-size: 11px;">terraform version</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="kubectl version --client" style="font-size: 11px;">kubectl version</button>
+              </div>
+            </div>
           </div>
         </section>
 
