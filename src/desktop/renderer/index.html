@@ -83,7 +83,6 @@
         <!-- MODE 1: FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO (Screenshots 2 & 4) -->
         <!-- =================================================================== -->
         <section id="pane-delivery" class="phase-pane" style="display: block;">
-          <!-- Top Title Bar -->
           <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
@@ -406,6 +405,39 @@
             <div class="deliverable-pill" data-deliv="profile">📋 Profiling summary</div>
           </div>
 
+          <!-- Report Options Dynamic Sub-Form (Shown when HTML report selected) -->
+          <div id="dynamicReportOptionsBox" style="display: none; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+            <div style="font-size: 11px; font-weight: bold; color: var(--accent); margin-bottom: 8px;">📊 REPORT SHAPE &amp; AUDIENCE</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; color: var(--text-secondary);">Report Format</label>
+                <select id="selReportArchetype" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <option value="executive" selected>Executive Summary (Headline KPIs &amp; Strategy)</option>
+                  <option value="deepdive">Deep Dive &amp; Diagnostics (Full Distributions &amp; Correlations)</option>
+                  <option value="kpis">KPI Scorecard (Metrics &amp; Period Delta)</option>
+                  <option value="quality">Data Quality &amp; Schema Audit</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11px; color: var(--text-secondary);">Target Audience</label>
+                <select id="selReportAudience" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <option value="exec" selected>Executive &amp; Leadership</option>
+                  <option value="analyst">Technical &amp; Data Team</option>
+                  <option value="mixed">Broad / General Audience</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">Include Sections:</div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Summary</span>
+              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ KPI Tiles</span>
+              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Trends</span>
+              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Breakdowns</span>
+              <span class="brand-pill" style="cursor: pointer; background: var(--accent); color: #1e1e1e;">✓ Quality Gates</span>
+            </div>
+          </div>
+
           <div style="margin-bottom: 16px;">
             <input type="text" id="txtDataFocus" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" style="width: 100%; padding: 8px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;">
           </div>
@@ -417,10 +449,10 @@
           <!-- Interactive Results Display Area -->
           <div id="dataAnalysisResultsBox" style="display: none; margin-top: 18px; border: 1px solid var(--accent); border-radius: 8px; padding: 16px; background: var(--card-bg);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h3 style="margin: 0; color: var(--accent); font-size: 14px;">📈 Analysis Result &amp; Statistical Summary</h3>
+              <h3 style="margin: 0; color: var(--accent); font-size: 14px;">📈 Analysis Result &amp; Statistical Deliverable</h3>
               <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success);">READY</span>
             </div>
-            <div id="dataAnalysisOutputPreview" style="font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: monospace; max-height: 280px; overflow-y: auto;"></div>
+            <div id="dataAnalysisOutputPreview" style="font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: monospace; max-height: 320px; overflow-y: auto;"></div>
           </div>
         </section>
 
@@ -473,7 +505,6 @@
           <input id="txtFilterLangs" type="text" placeholder="Filter languages&hellip;" style="width: 100%; padding: 8px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; font-size: 12.5px;">
 
           <div id="targetLanguagesGrid">
-            <!-- POPULAR -->
             <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 8px 0 4px 0;">POPULAR</div>
             <div>
               <span class="lang-chip active" data-lang="python">Python <span class="ext">.py</span></span>
@@ -481,7 +512,6 @@
               <span class="lang-chip" data-lang="javascript">JavaScript <span class="ext">.js</span></span>
             </div>
 
-            <!-- JVM -->
             <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 12px 0 4px 0;">JVM</div>
             <div>
               <span class="lang-chip" data-lang="java">Java <span class="ext">.java</span></span>
@@ -490,7 +520,6 @@
               <span class="lang-chip" data-lang="scala">Scala <span class="ext">.scala</span></span>
             </div>
 
-            <!-- SYSTEMS -->
             <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 12px 0 4px 0;">SYSTEMS</div>
             <div>
               <span class="lang-chip" data-lang="go">Go <span class="ext">.go</span></span>
@@ -500,7 +529,6 @@
               <span class="lang-chip" data-lang="swift">Swift <span class="ext">.swift</span></span>
             </div>
 
-            <!-- DATA & SCIENCE -->
             <div style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin: 12px 0 4px 0;">DATA &amp; SCIENCE</div>
             <div>
               <span class="lang-chip" data-lang="sql">Modern SQL <span class="ext">.sql</span></span>
@@ -543,15 +571,15 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px;">
               <div>
                 <label style="font-size: 11px; font-weight: bold;">Databricks Workspace Host</label>
-                <input type="text" id="txtDatabricksHost" value="https://adb-123456789.12.azuredatabricks.net" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                <input type="text" id="txtDatabricksHost" placeholder="https://adb-123456789.12.azuredatabricks.net" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
               </div>
               <div>
                 <label style="font-size: 11px; font-weight: bold;">Unity Catalog &amp; Schema</label>
-                <input type="text" id="txtDatabricksCatalog" value="main.bronze_analytics" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                <input type="text" id="txtDatabricksCatalog" placeholder="main.bronze_analytics" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
               </div>
               <div>
                 <label style="font-size: 11px; font-weight: bold;">Personal Access Token / OIDC</label>
-                <input type="password" id="txtDatabricksToken" value="dapi_live_token_secret" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                <input type="password" id="txtDatabricksToken" placeholder="dapi_live_token_secret" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
               </div>
             </div>
 
@@ -607,7 +635,7 @@
           <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <h2 style="margin: 0; font-size: 16px; color: #fff;">💬 Evolve AI: Copilot Chat</h2>
-              <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success);">OLLAMA qwen2.5-coder:7b</span>
+              <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success);">OLLAMA qwen2.5-coder:7b</span>
             </div>
             <div style="display: flex; gap: 6px;">
               <button class="btn-quick" id="btnChatClear">Clear</button>
@@ -739,41 +767,37 @@
             <p class="desc">Test authentication, principal authorization, and latency across Google Cloud, AWS, Azure, Databricks, and Snowflake.</p>
 
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; margin-bottom: 16px;">
-              <!-- GCP Card -->
               <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
                 <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
                   <span>Google Cloud (GCP)</span>
-                  <span id="gcpPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                  <span id="gcpPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
                 </div>
                 <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">BigQuery, Cloud Run, Secret Manager</div>
                 <button class="btn-quick" id="btnPingGcp" style="width: 100%;">📡 Test Connection</button>
               </div>
 
-              <!-- AWS Card -->
               <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
                 <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
                   <span>Amazon Web Services</span>
-                  <span id="awsPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                  <span id="awsPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
                 </div>
                 <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">ECS Fargate, S3, IAM Roles</div>
                 <button class="btn-quick" id="btnPingAws" style="width: 100%;">📡 Test Connection</button>
               </div>
 
-              <!-- Azure Card -->
               <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
                 <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
                   <span>Microsoft Azure</span>
-                  <span id="azurePingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                  <span id="azurePingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
                 </div>
                 <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Container Apps, Key Vault, Synapse</div>
                 <button class="btn-quick" id="btnPingAzure" style="width: 100%;">📡 Test Connection</button>
               </div>
 
-              <!-- Snowflake Card -->
               <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
                 <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
                   <span>Snowflake Cloud</span>
-                  <span id="snowPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">READY</span>
+                  <span id="snowPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
                 </div>
                 <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Data Cloud Warehouses &amp; Cortex</div>
                 <button class="btn-quick" id="btnPingSnow" style="width: 100%;">📡 Test Connection</button>

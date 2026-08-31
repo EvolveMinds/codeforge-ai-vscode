@@ -9,10 +9,12 @@ const desktopApi = {
   // --- WORKSPACE APIS ---
   workspace: {
     openFolderDialog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.OPEN_FOLDER_DIALOG),
+    openFileDialog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.OPEN_FILE_DIALOG),
     getCurrent: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.GET_CURRENT),
     getRecent: () => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.GET_RECENT),
     setCurrent: (folderPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.SET_CURRENT, folderPath),
     getFileTree: (dirPath?: string, maxDepth?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.GET_FILE_TREE, dirPath, maxDepth),
+    scanDataFiles: (dirPath?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.SCAN_DATA_FILES, dirPath),
     readFile: (filePath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.READ_FILE, filePath),
     writeFile: (filePath: string, content: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.WRITE_FILE, filePath, content),
     createFile: (filePath: string, content: string = '') => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.CREATE_FILE, filePath, content),
@@ -74,6 +76,12 @@ const desktopApi = {
     testConnection: (provider: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION, provider)
   },
 
+  // --- DATABRICKS STUDIO APIS ---
+  databricks: {
+    connect: (config: { host: string; token: string; catalog?: string }) => 
+      ipcRenderer.invoke(DESKTOP_CHANNELS.DATABRICKS.CONNECT, config)
+  },
+
   // --- LICENSE & IDENTITY APIS ---
   license: {
     getState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_STATE),
@@ -120,7 +128,8 @@ const desktopApi = {
     parseOpenApi: (openApiStr: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.PARSE_OPENAPI, openApiStr),
     scaffoldDeploy: (config: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.SCAFFOLD_DEPLOY, config),
     runPreflightAudit: (dirPath?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RUN_PREFLIGHT_AUDIT, dirPath),
-    generateRunbooks: (state: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, state)
+    generateRunbooks: (state: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, state),
+    analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req)
   }
 };
 

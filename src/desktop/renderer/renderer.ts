@@ -237,12 +237,16 @@ function setupDeliveryStudio(): void {
   if (btnP1Introspect) {
     btnP1Introspect.addEventListener('click', async () => {
       const dialect = (document.getElementById('p1Dialect') as HTMLSelectElement).value;
-      const uri = (document.getElementById('p1ConnUri') as HTMLInputElement).value || 'postgresql://user:pass@host:5432/pilot_db';
+      const uri = (document.getElementById('p1ConnUri') as HTMLInputElement).value;
+      if (!uri) {
+        alert('Please enter a valid database connection string (e.g. postgresql://user:pass@host:5432/pilot_db)');
+        return;
+      }
       try {
         const res = await api.engines.introspectDb(dialect, uri);
         alert('✓ Introspected ' + (res?.tables ? res.tables.length : 0) + ' tables successfully!');
       } catch (e: any) {
-        alert('Introspect Notice: ' + e.message);
+        alert('Database Introspection Notice: ' + e.message);
       }
     });
   }
@@ -267,7 +271,6 @@ function setupDeliveryStudio(): void {
   const btnP2Sdk = document.getElementById('btnP2GenerateSdk');
   if (btnP2Sdk) {
     btnP2Sdk.addEventListener('click', async () => {
-      const input = (document.getElementById('p2ApiInput') as HTMLTextAreaElement).value;
       const res = await api.engines.generateApiSdk({
         serviceName: 'ClientApi',
         baseUrl: 'https://api.client.com',
@@ -442,9 +445,15 @@ function setupDataAnalysisStudio(): void {
   const cardBrowse = document.getElementById('cardBrowseDataFile');
   if (cardBrowse) {
     cardBrowse.addEventListener('click', async () => {
-      if (api?.workspace?.openFolderDialog) {
-        await api.workspace.openFolderDialog();
-        await refreshWorkspace();
+      if (api?.workspace?.openFileDialog) {
+        const filePath = await api.workspace.openFileDialog();
+        if (filePath) {
+          selectedWorkspaceDataFile = filePath;
+          const container = document.getElementById('wsDataFilesContainer');
+          if (container) {
+            container.innerHTML = `<span class="brand-pill" style="cursor: pointer; margin: 3px; background: var(--accent); color: #1e1e1e; padding: 4px 10px; font-size: 11px;">📄 ${filePath}</span>`;
+          }
+        }
       }
     });
   }
@@ -465,11 +474,18 @@ function setupDataAnalysisStudio(): void {
 
   // Deliverable selection pills (Screenshot 1)
   const delivPills = document.querySelectorAll('.deliverable-pill[data-deliv]');
+  const reportOptsBox = document.getElementById('dynamicReportOptionsBox');
+
   delivPills.forEach(pill => {
     pill.addEventListener('click', () => {
       delivPills.forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       currentSelectedDeliverable = pill.getAttribute('data-deliv') || 'chat';
+
+      // Dynamically reveal report options when HTML report is selected
+      if (reportOptsBox) {
+        reportOptsBox.style.display = currentSelectedDeliverable === 'report' ? 'block' : 'none';
+      }
     });
   });
 
@@ -481,21 +497,21 @@ function setupDataAnalysisStudio(): void {
       const resultsBox = document.getElementById('dataAnalysisResultsBox');
       const preview = document.getElementById('dataAnalysisOutputPreview');
 
-      if (resultsBox && preview) {
-        resultsBox.style.display = 'block';
-        preview.innerHTML = `[Evolve Data Intelligence Engine]
-─────────────────────────────────────────────────────────────
-Target Source: ${selectedWorkspaceDataFile || 'Active Dataset'}
-Deliverable:   ${currentSelectedDeliverable.toUpperCase()}
-Focus:         ${focusText}
-AI Model:      ${currentAiProvider.toUpperCase()} · ${currentAiModel}
-Status:        ✓ Data Profiling & Statistical Computations Complete
+      if (api?.engines?.analyzeDataset) {
+        const res = await api.engines.analyzeDataset({
+          filePath: selectedWorkspaceDataFile,
+          deliverable: currentSelectedDeliverable,
+          focus: focusText
+        });
 
-[Key Statistical Findings]
-• Row Count: 14,820 rows | Column Count: 18 features
-• Completeness Score: 99.4% (Zero critical null anomalies detected)
-• High-Correlation Drivers: revenue ~ customer_engagement (r = 0.84)
-• Deliverable Generated: ${currentSelectedDeliverable === 'report' ? 'evolve_report_dashboard.html' : currentSelectedDeliverable === 'notebook' ? 'eda_analysis.ipynb' : 'Insights Summary'}`;
+        if (resultsBox && preview && res) {
+          resultsBox.style.display = 'block';
+          if (currentSelectedDeliverable === 'report') {
+            preview.innerText = res.summary;
+          } else {
+            preview.innerText = res.summary;
+          }
+        }
       }
     });
   }
@@ -570,7 +586,7 @@ function setupCodeConverterStudio(): void {
   }
 }
 
-// --- 6. DATABRICKS LAKEHOUSE & UNITY CATALOG STUDIO ---
+// --- 6. REAL DATABRICKS LAKEHOUSE & UNITY CATALOG STUDIO ---
 function setupDatabricksLakehouseStudio(): void {
   const btnConnect = document.getElementById('btnDatabricksConnect');
   const btnOpt = document.getElementById('btnDatabricksOptimize');
@@ -580,27 +596,47 @@ function setupDatabricksLakehouseStudio(): void {
     btnConnect.addEventListener('click', async () => {
       const host = (document.getElementById('txtDatabricksHost') as HTMLInputElement).value;
       const catalog = (document.getElementById('txtDatabricksCatalog') as HTMLInputElement).value;
+      const token = (document.getElementById('txtDatabricksToken') as HTMLInputElement).value;
+
+      if (!host || !token) {
+        if (resBox) {
+          resBox.style.display = 'block';
+          resBox.innerHTML = '<span style="color: var(--error);">🔴 Error: Databricks Workspace Host and Personal Access Token are required to connect.</span>';
+        }
+        return;
+      }
+
       if (resBox) {
         resBox.style.display = 'block';
-        resBox.innerHTML = `[Databricks Unity Catalog Connection]
-Host:    ${host}
-Catalog: ${catalog}
-Status:  🟢 CONNECTED & AUTHENTICATED
+        resBox.innerHTML = '<span style="color: var(--accent);">Probing Databricks Workspace host & authenticating token...</span>';
+      }
 
-Tables Discovered:
-• ${catalog}.bronze_orders (Delta Lake / Snappy Parquet)
-• ${catalog}.bronze_customers (Delta Lake / Snappy Parquet)
-• ${catalog}.silver_clean_orders (Delta Lake / Z-Ordered by order_date)`;
+      if (api?.databricks) {
+        const res = await api.databricks.connect({ host, token, catalog });
+        if (resBox) {
+          resBox.style.display = 'block';
+          if (res.success) {
+            resBox.innerHTML = `<span style="color: var(--success);">🟢 Databricks Connection Succeeded</span>
+Host:    ${res.host}
+Catalog: ${res.catalog}
+Status:  ${res.status}
+Clusters Discovered: ${(res.clusters || []).length} active clusters`;
+          } else {
+            resBox.innerHTML = `<span style="color: var(--error);">🔴 Databricks Connection Failed</span>
+Host:    ${host}
+Error:   ${res.error}`;
+          }
+        }
       }
     });
   }
 
   if (btnOpt) {
     btnOpt.addEventListener('click', () => {
-      const catalog = (document.getElementById('txtDatabricksCatalog') as HTMLInputElement).value;
+      const catalog = (document.getElementById('txtDatabricksCatalog') as HTMLInputElement).value || 'main';
       if (resBox) {
         resBox.style.display = 'block';
-        resBox.innerHTML = `-- Generated PySpark & Delta Lake Optimization Script
+        resBox.innerText = `-- PySpark & Delta Lake Optimization Script
 OPTIMIZE ${catalog}.silver_clean_orders
 ZORDER BY (customer_id, order_date);
 
@@ -618,7 +654,7 @@ function setupSecurityScannerStudio(): void {
   if (btnScan) btnScan.addEventListener('click', executeSecurityAudit);
   if (btnClean) {
     btnClean.addEventListener('click', async () => {
-      alert('✓ Dangling temporary & backup files cleaned successfully from workspace!');
+      alert('✓ Cleaned dangling temporary & backup files from workspace.');
       await executeSecurityAudit();
     });
   }
@@ -650,10 +686,10 @@ async function executeSecurityAudit(): Promise<void> {
 // --- 8. MULTI-CLOUD CONNECT CONTROLS ---
 function setupMultiCloudConnectControls(): void {
   const providers = [
-    { id: 'btnPingGcp', key: 'gcp', label: 'Google Cloud Platform (GCP)' },
-    { id: 'btnPingAws', key: 'aws', label: 'Amazon Web Services (AWS)' },
-    { id: 'btnPingAzure', key: 'azure', label: 'Microsoft Azure' },
-    { id: 'btnPingSnow', key: 'snowflake', label: 'Snowflake Data Cloud' }
+    { id: 'btnPingGcp', key: 'gcp', label: 'Google Cloud Platform (GCP)', statusId: 'gcpPingStatus' },
+    { id: 'btnPingAws', key: 'aws', label: 'Amazon Web Services (AWS)', statusId: 'awsPingStatus' },
+    { id: 'btnPingAzure', key: 'azure', label: 'Microsoft Azure', statusId: 'azurePingStatus' },
+    { id: 'btnPingSnow', key: 'snowflake', label: 'Snowflake Data Cloud', statusId: 'snowPingStatus' }
   ];
 
   providers.forEach(p => {
@@ -661,15 +697,23 @@ function setupMultiCloudConnectControls(): void {
     if (btn) {
       btn.addEventListener('click', async () => {
         const outBox = document.getElementById('cloudPingOutputBox');
+        const badge = document.getElementById(p.statusId);
+
         if (api?.cloud) {
           const res = await api.cloud.testConnection(p.key);
+          if (badge) {
+            badge.innerText = res.status;
+            badge.style.color = res.configured ? 'var(--success)' : 'var(--warning)';
+          }
+
           if (outBox) {
             outBox.style.display = 'block';
-            outBox.innerHTML = `[Multi-Cloud Ping: ${p.label}]
-Status:    🟢 ${res.status}
-Latency:   ${res.latencyMs} ms
-Principal: ${res.authenticatedPrincipal}
-Timestamp: ${res.timestamp}`;
+            outBox.innerHTML = `[Multi-Cloud Verification: ${p.label}]
+Status:         ${res.configured ? '🟢 CONFIGURED & VERIFIED' : '⚠️ CREDENTIALS_REQUIRED'}
+Detected Vars:  ${res.detectedVars && res.detectedVars.length > 0 ? res.detectedVars.join(', ') : 'None'}
+Missing Vars:   ${res.missingVars && res.missingVars.length > 0 ? res.missingVars.join(', ') : 'None'}
+Latency:        ${res.latencyMs} ms
+Timestamp:      ${res.timestamp}`;
           }
         }
       });
@@ -778,7 +822,6 @@ async function refreshGitStatus(): Promise<void> {
   const branchLbl = document.getElementById('gitActiveBranch');
   const remoteLbl = document.getElementById('gitRemoteUrl');
   const filesList = document.getElementById('gitFilesList');
-  const delBranch = document.getElementById('selDeliveryGitBranch') as HTMLSelectElement;
   const delRemote = document.getElementById('lblDeliveryRemoteUrl');
 
   try {
@@ -825,34 +868,16 @@ async function scanWorkspaceDataFiles(wsPath: string): Promise<void> {
   if (!container || !api?.workspace) return;
 
   try {
-    const root = await api.workspace.getFileTree(wsPath, 3);
-    const dataFiles: string[] = [];
+    const dataFiles = await api.workspace.scanDataFiles(wsPath);
 
-    function findDataFiles(nodes: any[]) {
-      for (const n of nodes) {
-        if (!n.isDirectory) {
-          const ext = n.name.toLowerCase();
-          if (ext.endsWith('.csv') || ext.endsWith('.json') || ext.endsWith('.parquet') || ext.endsWith('.xlsx') || ext.endsWith('.sql') || ext.endsWith('.db')) {
-            dataFiles.push(n.name);
-          }
-        } else if (n.children) {
-          findDataFiles(n.children);
-        }
-      }
-    }
-
-    if (root && root.children) {
-      findDataFiles(root.children);
-    }
-
-    if (dataFiles.length > 0) {
-      container.innerHTML = dataFiles.slice(0, 8).map(f => `<span class="brand-pill" style="cursor: pointer; margin: 3px; background: var(--card-alt); border: 1px solid var(--border); color: #fff; padding: 4px 10px; font-size: 11px;">📄 ${f}</span>`).join('');
+    if (dataFiles && dataFiles.length > 0) {
+      container.innerHTML = dataFiles.map((f: any) => `<span class="brand-pill" data-filepath="${f.path}" style="cursor: pointer; margin: 3px; background: var(--card-alt); border: 1px solid var(--border); color: #fff; padding: 4px 10px; font-size: 11px;">📄 ${f.name}</span>`).join('');
       // Bind click
       container.querySelectorAll('.brand-pill').forEach(pill => {
         pill.addEventListener('click', () => {
           container.querySelectorAll('.brand-pill').forEach(p => (p as HTMLElement).style.borderColor = 'var(--border)');
           (pill as HTMLElement).style.borderColor = 'var(--accent)';
-          selectedWorkspaceDataFile = pill.textContent?.replace('📄', '').trim() || null;
+          selectedWorkspaceDataFile = pill.getAttribute('data-filepath') || null;
         });
       });
     } else {
@@ -889,11 +914,49 @@ function setupTerminal(): void {
   const btn = document.getElementById('btnOpenTerminal');
   const drawer = document.getElementById('terminalDrawer');
   const btnClose = document.getElementById('btnToggleTermDrawer');
+  const btnSend = document.getElementById('btnSendCmd');
+  const txtCmd = document.getElementById('terminalCmdInput') as HTMLInputElement;
+  const viewport = document.getElementById('terminalViewport');
+
   if (btn && drawer) {
     btn.addEventListener('click', () => { drawer.style.display = drawer.style.display === 'none' ? 'flex' : 'none'; });
   }
   if (btnClose && drawer) {
     btnClose.addEventListener('click', () => { drawer.style.display = 'none'; });
+  }
+
+  const runCmd = async () => {
+    if (!txtCmd || !viewport) return;
+    const cmd = txtCmd.value.trim();
+    if (!cmd) return;
+
+    viewport.innerHTML += '<div style="color: var(--accent); margin-top: 4px;">❯ ' + cmd + '</div>';
+    txtCmd.value = '';
+
+    if (!currentActiveSessionId && api?.terminal) {
+      const sess = await api.terminal.spawn();
+      if (sess && sess.id) currentActiveSessionId = sess.id;
+    }
+
+    if (currentActiveSessionId && api?.terminal) {
+      await api.terminal.input(currentActiveSessionId, cmd + '\r\n');
+    }
+  };
+
+  if (btnSend) btnSend.addEventListener('click', runCmd);
+  if (txtCmd) {
+    txtCmd.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runCmd();
+    });
+  }
+
+  if (api?.terminal?.onData) {
+    api.terminal.onData((_: string, data: string) => {
+      if (viewport) {
+        viewport.innerHTML += '<div style="color: #d4d4d4; white-space: pre-wrap;">' + data + '</div>';
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    });
   }
 }
 

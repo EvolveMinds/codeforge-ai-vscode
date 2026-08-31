@@ -5,10 +5,12 @@
 export const DESKTOP_CHANNELS = {
   WORKSPACE: {
     OPEN_FOLDER_DIALOG: 'evolve:workspace:open-folder-dialog',
+    OPEN_FILE_DIALOG: 'evolve:workspace:open-file-dialog',
     GET_CURRENT: 'evolve:workspace:get-current',
     GET_RECENT: 'evolve:workspace:get-recent',
     SET_CURRENT: 'evolve:workspace:set-current',
     GET_FILE_TREE: 'evolve:workspace:get-file-tree',
+    SCAN_DATA_FILES: 'evolve:workspace:scan-data-files',
     READ_FILE: 'evolve:workspace:read-file',
     WRITE_FILE: 'evolve:workspace:write-file',
     CREATE_FILE: 'evolve:workspace:create-file',
@@ -50,6 +52,11 @@ export const DESKTOP_CHANNELS = {
 
   CLOUD: {
     TEST_CONNECTION: 'evolve:cloud:test-connection'
+  },
+
+  DATABRICKS: {
+    CONNECT: 'evolve:databricks:connect',
+    OPTIMIZE: 'evolve:databricks:optimize'
   },
 
   LICENSE: {
@@ -94,6 +101,7 @@ export const DESKTOP_CHANNELS = {
     PARSE_OPENAPI: 'evolve:engines:parse-openapi',
     SCAFFOLD_DEPLOY: 'evolve:engines:scaffold-deploy',
     RUN_PREFLIGHT_AUDIT: 'evolve:engines:run-preflight-audit',
-    GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks'
+    GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks',
+    ANALYZE_DATASET: 'evolve:engines:analyze-dataset'
   }
 } as const;
