@@ -1,0 +1,99 @@
+/* Terminal Pane Styling for Evolve AI Enterprise Desktop Edition */
+
+.terminal-drawer {
+  height: 240px;
+  min-height: 120px;
+  max-height: 500px;
+  background: #121212;
+  border-top: 2px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.terminal-header {
+  height: 34px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 12px;
+  user-select: none;
+}
+
+.terminal-tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.terminal-tab {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.terminal-tab.active {
+  background: var(--bg-primary);
+  color: var(--accent-hover);
+  border-color: var(--accent);
+}
+
+.terminal-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.terminal-viewport {
+  flex: 1;
+  background: #0d0d0d;
+  color: #cccccc;
+  font-family: 'Consolas', 'Cascadia Code', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 10px 14px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-command-bar {
+  display: flex;
+  align-items: center;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  padding: 4px 8px;
+  gap: 8px;
+}
+
+.terminal-prompt-icon {
+  color: var(--success);
+  font-weight: 700;
+  font-family: monospace;
+  font-size: 14px;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 12px;
+  margin-bottom: 0 !important;
+  padding: 4px 0 !important;
+}
+
+.terminal-input:focus {
+  outline: none;
+}

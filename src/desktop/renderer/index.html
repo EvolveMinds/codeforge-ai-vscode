@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Evolve AI Enterprise Delivery Studio</title>
+  <link rel="stylesheet" href="styles/theme.css">
+  <link rel="stylesheet" href="styles/layout.css">
+  <link rel="stylesheet" href="styles/terminal.css">
+</head>
+<body>
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-title">
+        <span>🚀</span> Evolve AI Enterprise Studio <span class="brand-pill">Desktop</span>
+      </div>
+      <button class="btn-quick" id="btnOpenFolder" style="margin-left: 10px;">📂 Open Workspace Folder</button>
+      <div class="workspace-badge" id="currentWorkspaceBadge" title="Current Workspace Path">
+        <span>📁</span> <span id="lblWorkspacePath">No workspace open (Click Open Workspace)</span>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <button class="btn-quick" id="btnOpenTerminal" title="Toggle Integrated Terminal Drawer">⚡ Terminal</button>
+      <button class="btn-quick" id="btnLicenseModal" style="color: var(--success); border-color: var(--success); font-weight: 700;">💎 Enterprise Active</button>
+      <span style="font-size: 11px; color: var(--text-secondary);">v2.19.1</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-container">
+    <!-- Left Activity Navigation Bar -->
+    <nav class="activity-bar">
+      <button class="activity-btn active" data-phase="1" title="Phase 1: Ingest, Schema Mapper & Marts">📊</button>
+      <button class="activity-btn" data-phase="2" title="Phase 2: Client API Connector Studio">🔌</button>
+      <button class="activity-btn" data-phase="3" title="Phase 3: Multi-Cloud Pilot Deployment Matrix">⚡</button>
+      <button class="activity-btn" data-phase="4" title="Phase 4: Runbook & Architecture Factory">📑</button>
+      <button class="activity-btn" data-phase="5" title="Phase 5: Enterprise Suite (11 Commercial Modules)">💎</button>
+      <div style="flex: 1;"></div>
+      <button class="activity-btn" id="btnToggleFileTree" title="Toggle File Tree Explorer">📁</button>
+      <button class="activity-btn" id="btnOpenSettings" title="Settings & Updates">⚙️</button>
+    </nav>
+
+    <!-- Sidebar: Interactive File Tree Explorer -->
+    <aside class="sidebar-pane" id="sidebarPane">
+      <div class="sidebar-header">
+        <span>📁 Workspace Explorer</span>
+        <button class="btn-quick" id="btnRefreshTree" style="padding: 2px 6px;">🔄</button>
+      </div>
+      <div class="file-tree-container" id="fileTreeContainer">
+        <div style="padding: 14px; color: var(--text-muted); font-size: 11px; text-align: center;">
+          Open a project folder to browse and edit files.
+        </div>
+      </div>
+      <!-- Quick File Preview/Editor Area -->
+      <div id="fileEditorContainer" style="display: none; height: 260px; border-top: 1px solid var(--border-color); background: var(--bg-input); display: flex; flex-direction: column;">
+        <div style="padding: 6px 10px; font-size: 11px; font-weight: 700; background: var(--bg-tertiary); display: flex; justify-content: space-between; align-items: center;">
+          <span id="activeFileTitle" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">file.sql</span>
+          <button class="btn-quick" id="btnSaveFile" style="padding: 2px 6px; font-size: 10px; color: var(--success);">💾 Save</button>
+        </div>
+        <textarea id="fileEditorTextarea" style="flex: 1; border: none; margin: 0; padding: 8px; resize: none; background: transparent; color: #fff;"></textarea>
+      </div>
+    </aside>
+
+    <!-- Central Main Studio Canvas -->
+    <main class="main-workspace">
+      <div class="studio-scroll-area">
+        
+        <!-- PHASE 1: INGEST, SCHEMA MAPPER & MARTS -->
+        <section id="phase1Pane" class="phase-pane">
+          <div class="content-card">
+            <h3>📊 Semantic Schema Mapper &amp; Dimensional Mart Builder</h3>
+            <p class="desc">Introspect live client databases (Postgres, Snowflake, BigQuery, MySQL, SQLite) via TCP wire protocol, standardize column naming, and build dimensional star-schema dbt marts.</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 14px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Database Dialect</label>
+                <select id="p1Dialect">
+                  <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                  <option value="snowflake">Snowflake Data Cloud</option>
+                  <option value="bigquery">Google BigQuery</option>
+                  <option value="mysql">MySQL / Aurora</option>
+                  <option value="sqlite">SQLite Local .db</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Connection URI / Host String</label>
+                <input type="password" id="p1ConnUri" placeholder="postgresql://user:pass@host:5432/pilot_db">
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+              <button class="btn" id="btnP1Introspect">🔌 Introspect Live Schema</button>
+              <button class="btn btn-secondary" id="btnP1GenerateMart">🏗️ Generate Dimensional dbt Mart</button>
+            </div>
+
+            <div id="p1ResultBox" style="display: none;">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Generated Dimensional dbt Model SQL</label>
+              <div class="code-preview" id="p1CodePreview"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHASE 2: CLIENT API STUDIO -->
+        <section id="phase2Pane" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <h3>🔌 Client API Connector &amp; Resilient SDK Studio</h3>
+            <p class="desc">Parse raw cURL commands or OpenAPI/Swagger JSON specifications to generate production-ready TypeScript and Python API client SDKs with exponential backoff and rate limiting.</p>
+            
+            <div style="margin-bottom: 12px;">
+              <label style="font-size: 11px; font-weight: bold;">Raw cURL Command / OpenAPI JSON</label>
+              <textarea id="p2ApiInput" rows="4" placeholder="curl -X POST https://api.client.com/v1/orders -H 'Authorization: Bearer token123' -d '{&quot;id&quot;: &quot;1&quot;}'"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+              <button class="btn" id="btnP2GenerateSdk">⚡ Generate Typed SDKs (TS + Python)</button>
+            </div>
+
+            <div id="p2ResultBox" style="display: none;">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Generated TypeScript Client SDK</label>
+              <div class="code-preview" id="p2CodePreview"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHASE 3: MULTI-CLOUD PILOT DEPLOYMENT -->
+        <section id="phase3Pane" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <h3>⚡ Multi-Cloud Pilot Deployment Parameter Matrix</h3>
+            <p class="desc">Scaffold production Terraform, Kubernetes manifests, Docker Compose, and CI/CD pipelines configured specifically for GCP Cloud Run, AWS ECS/Fargate, Azure Container Apps, or Docker.</p>
+            
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Cloud Provider</label>
+                <select id="p3Provider">
+                  <option value="gcp-firebase" selected>Google Cloud (Cloud Run / GKE)</option>
+                  <option value="aws">AWS (ECS / Fargate / EKS)</option>
+                  <option value="azure">Azure (Container Apps / AKS)</option>
+                  <option value="docker">Docker Compose (Air-Gapped)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Target Project / Account ID</label>
+                <input type="text" id="p3ProjectId" value="acme-pilot-prod">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Region / VPC Network</label>
+                <input type="text" id="p3Region" value="australia-southeast1">
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+              <button class="btn" id="btnP3Scaffold">🚀 Scaffold Infrastructure &amp; CI/CD</button>
+              <button class="btn btn-secondary" id="btnP3Audit">🔍 Run Preflight Audit</button>
+            </div>
+
+            <div id="p3ResultBox" style="display: none;">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Generated Terraform Configuration</label>
+              <div class="code-preview" id="p3CodePreview"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHASE 4: RUNBOOK & HANDOFF FACTORY -->
+        <section id="phase4Pane" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <h3>📑 Runbook &amp; Operational Handoff Factory</h3>
+            <p class="desc">Generate comprehensive, audit-ready client documentation including Mermaid system architecture diagrams, deployment runbooks, data dictionaries, and environment catalogs.</p>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+              <button class="btn" id="btnP4GenerateAll">📦 Generate All 5 Handoff Documents</button>
+            </div>
+
+            <div id="p4ResultBox" style="display: none;">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Architecture Document (ARCHITECTURE.md)</label>
+              <div class="code-preview" id="p4CodePreview"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PHASE 5: ENTERPRISE SUITE (11 MODULES) -->
+        <section id="phase5Pane" class="phase-pane" style="display: none;">
+          <!-- 1. SQL Transpiler -->
+          <div class="content-card">
+            <h3>🔄 Cross-Dialect SQL Transpiler</h3>
+            <p class="desc">Automated conversion of legacy Oracle PL/SQL, SQL Server T-SQL, Teradata, and Redshift to BigQuery, Snowflake, and PostgreSQL with dbt headers.</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Source Dialect</label>
+                <select id="sqlSourceDialect">
+                  <option value="oracle" selected>Oracle PL/SQL</option>
+                  <option value="tsql">SQL Server T-SQL</option>
+                  <option value="teradata">Teradata</option>
+                  <option value="redshift">AWS Redshift</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Target Warehouse Dialect</label>
+                <select id="sqlTargetDialect">
+                  <option value="bigquery" selected>Google BigQuery</option>
+                  <option value="snowflake">Snowflake</option>
+                  <option value="postgres">PostgreSQL / Supabase</option>
+                </select>
+              </div>
+            </div>
+            <textarea id="sqlTranspileInput" rows="3" placeholder="SELECT NVL(cust_id, 0), SYSDATE FROM orders;"></textarea>
+            <button class="btn" id="btnRunSqlTranspile">⚡ Transpile SQL</button>
+            <div id="sqlTranspileResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="sqlTranspileCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 2. PII Masking & HMAC Sanitizer -->
+          <div class="content-card">
+            <h3>🛡️ HIPAA &amp; GDPR PII Masking Engine</h3>
+            <p class="desc">Deterministic HMAC-SHA256 tokenization and dbt masking macro generation.</p>
+            <button class="btn" id="btnRunPiiMasking">🔒 Generate PII Masking Suite</button>
+            <div id="piiResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="piiCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 3. Reverse ETL Engine -->
+          <div class="content-card">
+            <h3>⚡ Operational Reverse ETL Sync Worker</h3>
+            <p class="desc">High-throughput sync workers pushing marts to Salesforce, HubSpot, Stripe, and Webhooks.</p>
+            <button class="btn" id="btnRunReverseEtl">🔄 Generate Sync Worker</button>
+            <div id="reverseEtlResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="reverseEtlCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 4. Zero-Trust RLS Policies -->
+          <div class="content-card">
+            <h3>🔐 Zero-Trust Row-Level Security (RLS) Generator</h3>
+            <p class="desc">Multi-tenant row access policies for Postgres, Snowflake, and BigQuery.</p>
+            <button class="btn" id="btnRunRls">🛡️ Generate RLS Policies</button>
+            <div id="rlsResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="rlsCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 5. Synthetic Golden Data Factory -->
+          <div class="content-card">
+            <h3>🧪 Air-Gapped Golden Dataset Factory</h3>
+            <p class="desc">Referentially intact synthetic customer and transaction seeds for offline pilot testing.</p>
+            <button class="btn" id="btnRunSynthetic">🌱 Generate Golden Dataset</button>
+            <div id="syntheticResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="syntheticCodePreview"></div>
+            </div>
+          </div>
+
+          <!-- 6. Contract-Driven Mock API Server -->
+          <div class="content-card">
+            <h3>🎭 Contract-Driven Mock API Server</h3>
+            <p class="desc">Zero-dependency local Node.js and Python mock API servers with chaos injection.</p>
+            <button class="btn" id="btnRunMockServer">🚀 Generate Mock Server</button>
+            <div id="mockServerResultBox" style="display: none; margin-top: 10px;">
+              <div class="code-preview" id="mockServerCodePreview"></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- Collapsible Bottom Interactive Terminal Drawer -->
+      <div class="terminal-drawer" id="terminalDrawer">
+        <div class="terminal-header">
+          <div class="terminal-tabs" id="terminalTabsContainer">
+            <div class="terminal-tab active" id="tabTerm1">⚡ Terminal 1</div>
+            <button class="btn-quick" id="btnNewTerminalTab" style="padding: 2px 6px;">➕</button>
+          </div>
+          <div class="terminal-actions">
+            <button class="btn-quick" id="btnTermDbt">dbt compile</button>
+            <button class="btn-quick" id="btnTermGit">git status</button>
+            <button class="btn-quick" id="btnClearTerm">Clear</button>
+            <button class="btn-quick" id="btnToggleTermDrawer">✕</button>
+          </div>
+        </div>
+        <div class="terminal-viewport" id="terminalViewport"></div>
+        <div class="terminal-command-bar">
+          <span class="terminal-prompt-icon">❯</span>
+          <input type="text" class="terminal-input" id="terminalCmdInput" placeholder="Enter shell command (e.g. git status, python --version, dbt run)...">
+          <button class="btn-quick" id="btnSendCmd" style="color: var(--success); font-weight: 700;">Run</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Bottom Status Bar -->
+  <footer class="status-bar">
+    <div style="display: flex; gap: 14px; align-items: center;">
+      <span>🏢 Evolve AI Enterprise Delivery Studio</span>
+      <span>🌿 Branch: <strong id="lblGitBranch">main</strong></span>
+    </div>
+    <div style="display: flex; gap: 14px; align-items: center;">
+      <span>💎 Tier: <strong id="lblLicensePlan">ENTERPRISE SOVEREIGN</strong></span>
+      <span>🟢 Engine: <strong>Local Air-Gapped V8</strong></span>
+    </div>
+  </footer>
+
+  <!-- User Identity & License Modal Dialog -->
+  <div id="licenseModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: 8px; width: 560px; max-width: 90%; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.5);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 style="margin: 0; font-size: 16px; color: var(--accent);">💎 Registered User Identity &amp; Enterprise License</h3>
+        <button class="btn-quick" id="btnCloseLicenseModal">✕</button>
+      </div>
+
+      <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color); margin-bottom: 16px; font-size: 12px;">
+        <div><strong>Registered User:</strong> <span id="modalUserEmail">alex.turner@enterprise.com</span></div>
+        <div style="margin-top: 4px;"><strong>Organization:</strong> <span id="modalOrgName">Acme Financial Group</span></div>
+        <div style="margin-top: 4px;"><strong>Plan:</strong> <span id="modalPlanBadge" style="color: var(--success); font-weight: bold;">ENTERPRISE PRO</span></div>
+        <div style="margin-top: 4px;"><strong>Machine Lock:</strong> <code id="modalHardwareFp" style="font-size: 10px;">sha256:...</code></div>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label style="font-size: 11px; font-weight: bold;">Enter New Cryptographic License Key / Token</label>
+        <textarea id="txtLicenseKeyInput" rows="3" placeholder="EVOLVE-LIC-ED25519-..."></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn-quick" id="btnExportChallenge">📤 Export Offline Challenge (.evolve-req)</button>
+        <button class="btn" id="btnActivateKey">🔑 Activate License</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

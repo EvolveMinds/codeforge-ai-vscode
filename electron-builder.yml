@@ -1,0 +1,58 @@
+appId: com.evolveminds.evolveai.enterprise
+productName: Evolve AI Enterprise Studio
+copyright: Copyright © 2026 Evolve Mind Solutions Pty Ltd
+
+directories:
+  output: dist-desktop
+  buildResources: media
+
+files:
+  - out/**/*
+  - src/desktop/renderer/**/*
+  - media/**/*
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  icon: media/icon.png
+  artifactName: "evolve-ai-enterprise-${version}-${target}-${arch}.${ext}"
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Evolve AI Enterprise Studio
+
+portable:
+  artifactName: "evolve-ai-enterprise-portable-${version}-win32-x64.exe"
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  icon: media/icon.png
+  category: public.app-category.developer-tools
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+  icon: media/icon.png
+  category: Development
