@@ -480,3 +480,28 @@ body {
 .srow .x { background: none; border: none; color: var(--text-secondary); cursor: pointer;
   font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: 4px; flex: 0 0 auto; }
 .srow .x:hover { color: var(--error); background: rgba(241,76,76,0.15); }
+
+/* AI Copilot Chat Pane — Fit-to-screen without outer window scrolling */
+#pane-chat {
+  height: 100%;
+  max-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+#chatMessagesStream {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.chat-input-bar {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: auto;
+}

@@ -122,8 +122,34 @@ function switchActivityTab(tabName: string, api?: any): void {
     (pane as HTMLElement).style.display = 'none';
   });
 
+  const scrollArea = document.querySelector('.studio-scroll-area') as HTMLElement;
   const activePane = document.getElementById(`pane-${tabName}`);
-  if (activePane) activePane.style.display = 'block';
+  if (activePane) {
+    if (tabName === 'chat') {
+      activePane.style.display = 'flex';
+      if (scrollArea) {
+        scrollArea.style.overflow = 'hidden';
+        scrollArea.style.display = 'flex';
+        scrollArea.style.flexDirection = 'column';
+        scrollArea.style.height = '100%';
+        scrollArea.style.padding = '14px 20px 10px 20px';
+      }
+      setTimeout(() => {
+        const stream = document.getElementById('chatMessagesStream');
+        if (stream) stream.scrollTop = stream.scrollHeight;
+        const chatInp = document.getElementById('txtChatInput') as HTMLInputElement;
+        if (chatInp) chatInp.focus();
+      }, 50);
+    } else {
+      activePane.style.display = 'block';
+      if (scrollArea) {
+        scrollArea.style.overflow = 'auto';
+        scrollArea.style.display = 'block';
+        scrollArea.style.height = '';
+        scrollArea.style.padding = '18px 24px';
+      }
+    }
+  }
 
   if (tabName === 'data' && api) {
     refreshWorkspaceDataFiles(api);
