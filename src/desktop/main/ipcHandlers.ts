@@ -8,6 +8,7 @@ try {
 } catch {}
 const ipcMain = electronModule?.ipcMain;
 const dialog = electronModule?.dialog;
+
 import * as http from 'http';
 import * as https from 'https';
 import * as path from 'path';
@@ -22,6 +23,7 @@ import { DesktopLicenseAuth } from './licenseAuth';
 import { DesktopSecretVault } from './secretVault';
 import { DesktopUpdater } from './updater';
 import { HardwareInspector } from '../../core/hardwareInspector';
+import { runForStdout } from '../../core/processUtil';
 import {
   SqlTranspiler,
   PiiSanitizer,
@@ -214,6 +216,12 @@ export class DesktopIpcHandlers {
     ipc.handle(DESKTOP_CHANNELS.TERMINAL.INPUT, async (_: any, id: string, data: string) => {
       terminalMgr.writeData(id, data);
       return true;
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.TERMINAL.EXECUTE_COMMAND, async (_: any, id: string, cmd: string, cwd?: string) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const targetCwd = cwd || (ws ? ws.path : process.cwd());
+      return await terminalMgr.executeCommand(id, cmd, targetCwd);
     });
 
     ipc.handle(DESKTOP_CHANNELS.TERMINAL.RESIZE, async (_: any, _id: string, _cols: number, _rows: number) => {
@@ -524,6 +532,134 @@ export class DesktopIpcHandlers {
         latencyMs: Math.floor(Math.random() * 25) + 10,
         timestamp: new Date().toISOString()
       };
+    });
+
+    // --- REAL MULTI-CLOUD CLI DETAILED STATUS (100% Match with Screenshot 2) ---
+    ipc.handle(DESKTOP_CHANNELS.CLOUD.GET_DETAILED_STATUS, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+
+      let gcpInstalled = false, gcpOk = false, gcpAccount = '', gcpProject = '';
+      let awsInstalled = false, awsOk = false, awsAccount = '';
+      let azureInstalled = false, azureOk = false, azureAccount = '';
+      let dockerInstalled = false, dockerRunning = false, dockerVersion = '';
+
+      // 1. GCP Check
+      try {
+        const gVer = await runForStdout('gcloud', ['--version'], { cwd, timeoutMs: 4000 });
+        gcpInstalled = !!gVer && !gVer.includes('not recognized');
+      } catch {}
+
+      if (gcpInstalled) {
+        try {
+          const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd, timeoutMs: 5000 });
+          if (g && !g.includes('ERROR')) {
+            const parsed = JSON.parse(g);
+            const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
+            if (active) {
+              gcpOk = true;
+              gcpAccount = active.account || '';
+            }
+          }
+          const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd, timeoutMs: 3000 });
+          if (gProj && !gProj.includes('unset') && !gProj.includes('ERROR')) gcpProject = gProj.trim();
+        } catch {}
+      }
+
+      // 2. AWS Check
+      try {
+        const aVer = await runForStdout('aws', ['--version'], { cwd, timeoutMs: 4000 });
+        awsInstalled = !!aVer && !aVer.includes('not recognized');
+      } catch {}
+
+      if (awsInstalled) {
+        try {
+          const a = await runForStdout('aws', ['sts', 'get-caller-identity', '--output', 'json'], { cwd, timeoutMs: 5000 });
+          if (a && !a.includes('error')) {
+            const parsed = JSON.parse(a);
+            if (parsed.Arn) {
+              awsOk = true;
+              awsAccount = parsed.Arn.split('/').pop() || parsed.Account || 'Active';
+            }
+          }
+        } catch {}
+      }
+
+      // 3. Azure Check
+      try {
+        const azVer = await runForStdout('az', ['version'], { cwd, timeoutMs: 4000 });
+        azureInstalled = !!azVer && !azVer.includes('not recognized');
+      } catch {}
+
+      if (azureInstalled) {
+        try {
+          const az = await runForStdout('az', ['account', 'show', '--output', 'json'], { cwd, timeoutMs: 5000 });
+          if (az && !az.includes('error')) {
+            const parsed = JSON.parse(az);
+            if (parsed.name || parsed.id) {
+              azureOk = true;
+              azureAccount = parsed.user?.name || parsed.name || 'Active';
+            }
+          }
+        } catch {}
+      }
+
+      // 4. Docker Check
+      try {
+        const dVer = await runForStdout('docker', ['--version'], { cwd, timeoutMs: 4000 });
+        dockerInstalled = !!dVer && !dVer.includes('not recognized');
+      } catch {}
+
+      if (dockerInstalled) {
+        try {
+          const d = await runForStdout('docker', ['info', '--format', '{{.ServerVersion}}'], { cwd, timeoutMs: 4000 });
+          if (d && !d.includes('error') && !d.includes('Cannot connect') && !d.includes('failed to connect')) {
+            dockerRunning = true;
+            dockerVersion = `v${d.trim()}`;
+          }
+        } catch {}
+      }
+
+      return {
+        gcp: { installed: gcpInstalled, ok: gcpOk, account: gcpAccount, project: gcpProject },
+        aws: { installed: awsInstalled, ok: awsOk, account: awsAccount },
+        azure: { installed: azureInstalled, ok: azureOk, account: azureAccount },
+        docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion }
+      };
+    });
+
+    // --- REAL MULTI-CLOUD CONNECT / INSTALL EXECUTION ---
+    ipc.handle(DESKTOP_CHANNELS.CLOUD.CONNECT_ACCOUNT, async (_: any, provider: string, action: string, sessionId?: string) => {
+      const isWin = process.platform === 'win32';
+      const isMac = process.platform === 'darwin';
+      let cmd = '';
+
+      if (provider === 'gcp') {
+        cmd = action === 'install'
+          ? (isWin ? 'winget install -e --id Google.CloudSDK' : (isMac ? 'brew install --cask google-cloud-sdk' : 'curl https://sdk.cloud.google.com | bash'))
+          : 'gcloud auth login';
+      } else if (provider === 'aws') {
+        cmd = action === 'install'
+          ? (isWin ? 'winget install -e --id Amazon.AWSCLI' : (isMac ? 'brew install awscli' : 'sudo apt-get install awscli'))
+          : 'aws configure';
+      } else if (provider === 'azure') {
+        cmd = action === 'install'
+          ? (isWin ? 'winget install -e --id Microsoft.AzureCLI' : (isMac ? 'brew install azure-cli' : 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash'))
+          : 'az login';
+      } else if (provider === 'docker') {
+        if (action === 'startDocker') {
+          cmd = isWin ? 'Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" -ErrorAction SilentlyContinue' : (isMac ? 'open /Applications/Docker.app' : 'sudo systemctl start docker');
+        } else if (action === 'install') {
+          cmd = isWin ? 'winget install -e --id Docker.DockerDesktop' : (isMac ? 'brew install --cask docker' : 'curl -fsSL https://get.docker.com | sh');
+        } else {
+          cmd = 'docker info';
+        }
+      }
+
+      if (cmd && sessionId) {
+        return await terminalMgr.executeCommand(sessionId, cmd);
+      }
+      return { cmd, success: true };
     });
 
     // --- LICENSE & IDENTITY CHANNELS ---

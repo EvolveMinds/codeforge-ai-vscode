@@ -24,6 +24,7 @@ export const DESKTOP_CHANNELS = {
   TERMINAL: {
     SPAWN: 'evolve:terminal:spawn',
     INPUT: 'evolve:terminal:input',
+    EXECUTE_COMMAND: 'evolve:terminal:execute-command',
     RESIZE: 'evolve:terminal:resize',
     KILL: 'evolve:terminal:kill',
     LIST: 'evolve:terminal:list',
@@ -51,7 +52,9 @@ export const DESKTOP_CHANNELS = {
   },
 
   CLOUD: {
-    TEST_CONNECTION: 'evolve:cloud:test-connection'
+    TEST_CONNECTION: 'evolve:cloud:test-connection',
+    GET_DETAILED_STATUS: 'evolve:cloud:get-detailed-status',
+    CONNECT_ACCOUNT: 'evolve:cloud:connect-account'
   },
 
   DATABRICKS: {

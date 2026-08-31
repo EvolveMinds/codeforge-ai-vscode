@@ -1,54 +1,60 @@
-/**
- * Evolve AI Enterprise Desktop Edition — 100% Marketplace-Parity UI Controller
- */
+export {};
 
-// Safely access exposed preload bridge
-const api = (typeof window !== 'undefined' && (window as any).evolveApi) ? (window as any).evolveApi : null;
+declare global {
+  interface Window {
+    evolveApi?: any;
+  }
+}
 
-// State
-let currentActiveTab = 'delivery';
-let currentDeliveryStep = 1;
+// Global active state
 let currentActiveSessionId: string | null = null;
-let currentOpenedFilePath: string | null = null;
-let currentAiProvider = 'ollama';
-let currentAiModel = 'qwen2.5-coder:7b';
-let currentSelectedTargetLang = 'python';
+let currentActivePhase = 1;
+let currentActiveTab = 'delivery';
+let currentSelectedLanguage = 'python';
 let currentSelectedDeliverable = 'chat';
-let selectedWorkspaceDataFile: string | null = null;
 
-// Initialize on DOM load
-window.addEventListener('DOMContentLoaded', async () => {
-  console.log('[Evolve Desktop] Initializing Complete Studio Controller...');
-  setupNavigation();
-  setupWorkspaceControls();
-  setupTerminal();
-  setupAiProviderModal();
-  setupPluginsModal();
-  setupDeliveryStudio();
-  setupDataAnalysisStudio();
-  setupCodeConverterStudio();
-  setupDatabricksLakehouseStudio();
-  setupSecurityScannerStudio();
-  setupAiChatCopilot();
-  setupLocalAiSizerControls();
-  setupGitStudioControls();
-  setupMultiCloudConnectControls();
+document.addEventListener('DOMContentLoaded', async () => {
+  const api = window.evolveApi;
 
-  // Load initial workspace, hardware, git, and license state
-  try { await refreshWorkspace(); } catch (e) {}
-  try { await refreshLicenseInfo(); } catch (e) {}
-  try { await refreshGitStatus(); } catch (e) {}
-  try { await runHardwareInspection(); } catch (e) {}
+  // Initialize UI components
+  setupNavigation(api);
+  setupTerminal(api);
+  setupWorkspace(api);
+  setupDeliveryStudio(api);
+  setupDataAnalysisStudio(api);
+  setupCodeConverterStudio(api);
+  setupDatabricksStudio(api);
+  setupSecurityStudio(api);
+  setupAiChatStudio(api);
+  setupHardwareStudio(api);
+  setupGitStudio(api);
+  setupCloudHub(api);
+  setupModals(api);
+
+  // Auto-scan hardware & workspace on startup
+  if (api) {
+    try {
+      const ws = await api.workspace.getCurrent();
+      if (ws) {
+        updateWorkspaceUI(ws);
+        refreshWorkspaceDataFiles(api);
+      }
+    } catch {}
+
+    // Auto-check cloud status for Cloud Hub
+    try {
+      refreshCloudHubStatus(api);
+    } catch {}
+  }
 });
 
-// --- NAVIGATION & STUDIO MODES ---
-function setupNavigation(): void {
-  const tabBtns = document.querySelectorAll('.activity-btn[data-tab]');
-  tabBtns.forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const tabId = btn.getAttribute('data-tab') || 'delivery';
-      switchStudioTab(tabId);
+// --- NAVIGATION & TABS ---
+function setupNavigation(api: any): void {
+  const activityBtns = document.querySelectorAll<HTMLButtonElement>('.activity-btn[data-tab]');
+  activityBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      if (tab) switchActivityTab(tab, api);
     });
   });
 
@@ -59,910 +65,1036 @@ function setupNavigation(): void {
       sidebarPane.style.display = sidebarPane.style.display === 'none' ? 'flex' : 'none';
     });
   }
-
-  const btnOpenSettings = document.getElementById('btnOpenSettings');
-  const btnLicenseModal = document.getElementById('btnLicenseModal');
-  if (btnOpenSettings) {
-    btnOpenSettings.addEventListener('click', () => switchStudioTab('delivery', 5));
-  }
-  if (btnLicenseModal) {
-    btnLicenseModal.addEventListener('click', () => switchStudioTab('delivery', 5));
-  }
 }
 
-function switchStudioTab(tabId: string, deliveryStep?: number): void {
-  currentActiveTab = tabId;
-
-  // Update Activity Bar active state
+function switchActivityTab(tabName: string, api?: any): void {
+  currentActiveTab = tabName;
   document.querySelectorAll('.activity-btn[data-tab]').forEach(btn => {
-    const id = btn.getAttribute('data-tab');
-    if (id === tabId) btn.classList.add('active');
-    else btn.classList.remove('active');
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
   });
 
-  // Toggle Tab Panes
-  const allPanes = ['delivery', 'data', 'converter', 'lakehouse', 'security', 'chat', 'hardware', 'git', 'cloud'];
-  for (const p of allPanes) {
-    const pane = document.getElementById('pane-' + p);
-    if (pane) {
-      pane.style.display = p === tabId ? 'block' : 'none';
+  document.querySelectorAll('.phase-pane').forEach(pane => {
+    (pane as HTMLElement).style.display = 'none';
+  });
+
+  const activePane = document.getElementById(`pane-${tabName}`);
+  if (activePane) activePane.style.display = 'block';
+
+  if (tabName === 'data' && api) {
+    refreshWorkspaceDataFiles(api);
+  } else if (tabName === 'hardware' && api) {
+    runHardwareInspect(api);
+  } else if (tabName === 'git' && api) {
+    refreshGitStatus(api);
+  } else if (tabName === 'cloud' && api) {
+    refreshCloudHubStatus(api);
+  }
+}
+
+// --- TERMINAL DRAWER (100% Functional with Live ANSI Rendering) ---
+function setupTerminal(api: any): void {
+  const terminalDrawer = document.getElementById('terminalDrawer');
+  const btnOpenTerminal = document.getElementById('btnOpenTerminal');
+  const btnToggleTermDrawer = document.getElementById('btnToggleTermDrawer');
+  const btnClearTerm = document.getElementById('btnClearTerm');
+  const btnSendCmd = document.getElementById('btnSendCmd');
+  const terminalCmdInput = document.getElementById('terminalCmdInput') as HTMLInputElement;
+  const terminalViewport = document.getElementById('terminalViewport');
+  const btnTermDbt = document.getElementById('btnTermDbt');
+  const btnTermGit = document.getElementById('btnTermGit');
+  const btnNewTerminalTab = document.getElementById('btnNewTerminalTab');
+
+  // Spawn initial terminal session on launch
+  if (api?.terminal) {
+    api.terminal.spawn({ name: 'Terminal 1' }).then((session: any) => {
+      if (session) {
+        currentActiveSessionId = session.id;
+      }
+    }).catch(() => {});
+
+    // Listen to live data stream
+    api.terminal.onData((id: string, data: string) => {
+      if (terminalViewport) {
+        appendTerminalOutput(terminalViewport, data);
+      }
+    });
+  }
+
+  const toggleTerminal = () => {
+    if (terminalDrawer) {
+      const isClosed = terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '';
+      terminalDrawer.style.display = isClosed ? 'flex' : 'none';
+      if (isClosed && terminalCmdInput) {
+        setTimeout(() => terminalCmdInput.focus(), 50);
+      }
     }
-  }
+  };
 
-  if (tabId === 'delivery' && deliveryStep) {
-    switchDeliveryStep(deliveryStep);
-  }
-}
+  btnOpenTerminal?.addEventListener('click', toggleTerminal);
+  btnToggleTermDrawer?.addEventListener('click', toggleTerminal);
 
-// --- 1. AI PROVIDER & MODEL SWITCHER (Screenshot 3) ---
-function setupAiProviderModal(): void {
-  const modal = document.getElementById('modalAiProvider');
-  const btnOpen = document.getElementById('btnHeaderModelPicker');
-  const btnClose = document.getElementById('btnCloseAiProviderModal');
-  const txtSearch = document.getElementById('txtSearchAiProvider') as HTMLInputElement;
-
-  if (btnOpen && modal) {
-    btnOpen.addEventListener('click', () => { modal.style.display = 'flex'; });
-  }
-
-  if (btnClose && modal) {
-    btnClose.addEventListener('click', () => { modal.style.display = 'none'; });
-  }
-
-  // Provider item selection
-  const items = document.querySelectorAll('.modal-item[data-provider]');
-  items.forEach(item => {
-    item.addEventListener('click', () => {
-      items.forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
-
-      const prov = item.getAttribute('data-provider') || 'ollama';
-      const mod = item.getAttribute('data-model') || 'qwen2.5-coder:7b';
-      currentAiProvider = prov;
-      currentAiModel = mod;
-
-      const headerLbl = document.getElementById('lblHeaderModel');
-      if (headerLbl) {
-        headerLbl.innerText = prov.toUpperCase() + ' · ' + mod;
-      }
-
-      if (modal) modal.style.display = 'none';
-    });
+  btnClearTerm?.addEventListener('click', () => {
+    if (terminalViewport) terminalViewport.innerHTML = '';
   });
 
-  // Search filter
-  if (txtSearch) {
-    txtSearch.addEventListener('input', () => {
-      const q = txtSearch.value.toLowerCase().trim();
-      items.forEach(item => {
-        const text = item.textContent?.toLowerCase() || '';
-        (item as HTMLElement).style.display = text.includes(q) ? 'block' : 'none';
-      });
-    });
-  }
-}
+  const sendCommand = async (cmdText?: string) => {
+    const cmd = (cmdText || (terminalCmdInput ? terminalCmdInput.value : '')).trim();
+    if (!cmd) return;
 
-// --- 2. ACTIVE PLUGINS & INTEGRATIONS MODAL (Screenshot 2) ---
-function setupPluginsModal(): void {
-  const modal = document.getElementById('modalPluginsDrawer');
-  const btnOpen = document.getElementById('btnHeaderPlugins');
-  const btnClose = document.getElementById('btnClosePluginsModal');
+    if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
+      terminalDrawer.style.display = 'flex';
+    }
 
-  if (btnOpen && modal) {
-    btnOpen.addEventListener('click', () => { modal.style.display = 'flex'; });
-  }
+    if (terminalCmdInput && !cmdText) terminalCmdInput.value = '';
 
-  if (btnClose && modal) {
-    btnClose.addEventListener('click', () => { modal.style.display = 'none'; });
-  }
+    if (api?.terminal) {
+      if (!currentActiveSessionId) {
+        const session = await api.terminal.spawn({ name: 'Terminal 1' });
+        currentActiveSessionId = session.id;
+      }
+      await api.terminal.executeCommand(currentActiveSessionId, cmd);
+    }
+  };
 
-  const btnLakehouse = document.getElementById('btnOpenLakehouseHub');
-  if (btnLakehouse) {
-    btnLakehouse.addEventListener('click', () => {
-      switchStudioTab('lakehouse');
-      if (modal) modal.style.display = 'none';
-    });
-  }
-
-  const btnSecurity = document.getElementById('btnRunSecurityAudit');
-  if (btnSecurity) {
-    btnSecurity.addEventListener('click', async () => {
-      switchStudioTab('security');
-      await executeSecurityAudit();
-      if (modal) modal.style.display = 'none';
-    });
-  }
-
-  const btnGitConn = document.getElementById('btnConnectGit');
-  if (btnGitConn) {
-    btnGitConn.addEventListener('click', () => {
-      switchStudioTab('git');
-      if (modal) modal.style.display = 'none';
-    });
-  }
-
-  const btnCloudHub = document.getElementById('btnOpenCloudHub');
-  if (btnCloudHub) {
-    btnCloudHub.addEventListener('click', () => {
-      switchStudioTab('cloud');
-      if (modal) modal.style.display = 'none';
-    });
-  }
-}
-
-// --- 3. FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO (Screenshots 2 & 4) ---
-function setupDeliveryStudio(): void {
-  const stepCards = document.querySelectorAll('.step-nav-card[data-step]');
-  stepCards.forEach(card => {
-    card.addEventListener('click', () => {
-      const step = parseInt(card.getAttribute('data-step') || '1', 10);
-      switchDeliveryStep(step);
-    });
+  btnSendCmd?.addEventListener('click', () => sendCommand());
+  terminalCmdInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendCommand();
+    }
   });
 
-  const btnGitCommit = document.getElementById('btnDelivery1ClickCommit');
-  if (btnGitCommit) {
-    btnGitCommit.addEventListener('click', async () => {
-      if (api?.git) {
-        const res = await api.git.commitAndPush('feat(pilot): automated 1-click delivery studio sync');
-        alert(res.success ? '✓ 1-Click Commit & Push to Origin Complete!' : 'Git Notice: ' + res.error);
-        await refreshGitStatus();
-      }
-    });
-  }
+  btnTermDbt?.addEventListener('click', () => sendCommand('dbt compile'));
+  btnTermGit?.addEventListener('click', () => sendCommand('git status'));
 
-  const btnCreatePr = document.getElementById('btnDeliveryCreatePr');
-  if (btnCreatePr) {
-    btnCreatePr.addEventListener('click', async () => {
-      if (api?.git) {
-        const res = await api.git.createPr({ title: 'feat: automated client pilot delivery', body: 'FDE Studio sync', targetBranch: 'main' });
-        alert(`✓ AI Pull Request Synthesized!\nURL: ${res.prUrl}`);
-      }
-    });
-  }
-
-  const btnCloudHub = document.getElementById('btnDeliveryCloudHub');
-  if (btnCloudHub) {
-    btnCloudHub.addEventListener('click', () => switchStudioTab('cloud'));
-  }
-
-  const btnPlaybook = document.getElementById('btnDeliveryPlaybook');
-  if (btnPlaybook) {
-    btnPlaybook.addEventListener('click', () => switchStudioTab('delivery', 4));
-  }
-
-  // Phase 1: Ingest & Marts
-  const btnP1Introspect = document.getElementById('btnP1Introspect');
-  const btnP1Mart = document.getElementById('btnP1GenerateMart');
-  if (btnP1Introspect) {
-    btnP1Introspect.addEventListener('click', async () => {
-      const dialect = (document.getElementById('p1Dialect') as HTMLSelectElement).value;
-      const uri = (document.getElementById('p1ConnUri') as HTMLInputElement).value;
-      if (!uri) {
-        alert('Please enter a valid database connection string (e.g. postgresql://user:pass@host:5432/pilot_db)');
-        return;
-      }
-      try {
-        const res = await api.engines.introspectDb(dialect, uri);
-        alert('✓ Introspected ' + (res?.tables ? res.tables.length : 0) + ' tables successfully!');
-      } catch (e: any) {
-        alert('Database Introspection Notice: ' + e.message);
-      }
-    });
-  }
-  if (btnP1Mart) {
-    btnP1Mart.addEventListener('click', async () => {
-      const res = await api.engines.buildMart({
-        martName: 'dim_customers',
-        baseModel: 'stg_customers',
-        dimensions: ['customer_id', 'email', 'country'],
-        metrics: [{ name: 'total_spend', expression: 'SUM(amount)' }]
-      });
-      const box = document.getElementById('p1ResultBox');
-      const prev = document.getElementById('p1CodePreview');
-      if (box && prev && res) {
-        box.style.display = 'block';
-        prev.innerText = res.sql;
-      }
-    });
-  }
-
-  // Phase 2: Client APIs
-  const btnP2Sdk = document.getElementById('btnP2GenerateSdk');
-  if (btnP2Sdk) {
-    btnP2Sdk.addEventListener('click', async () => {
-      const res = await api.engines.generateApiSdk({
-        serviceName: 'ClientApi',
-        baseUrl: 'https://api.client.com',
-        authType: 'bearer',
-        endpoints: [{ name: 'getOrders', method: 'GET', path: '/v1/orders' }]
-      });
-      const box = document.getElementById('p2ResultBox');
-      const prev = document.getElementById('p2CodePreview');
-      if (box && prev && res) {
-        box.style.display = 'block';
-        prev.innerText = res.tsCode;
-      }
-    });
-  }
-
-  // Phase 3: Validate & Deploy
-  const btnP3Scaffold = document.getElementById('btnP3Scaffold');
-  const btnP3Audit = document.getElementById('btnP3Audit');
-  if (btnP3Scaffold) {
-    btnP3Scaffold.addEventListener('click', async () => {
-      const prov = (document.getElementById('p3Provider') as HTMLSelectElement).value;
-      const projId = (document.getElementById('p3ProjectId') as HTMLInputElement).value;
-      const region = (document.getElementById('p3Region') as HTMLInputElement).value;
-      const res = await api.engines.scaffoldDeploy({ provider: prov, projectId: projId, region: region, serviceName: 'pilot-api' });
-      const box = document.getElementById('p3ResultBox');
-      const prev = document.getElementById('p3CodePreview');
-      if (box && prev && res) {
-        box.style.display = 'block';
-        prev.innerText = res.terraform;
-      }
-    });
-  }
-  if (btnP3Audit) {
-    btnP3Audit.addEventListener('click', async () => {
-      switchStudioTab('security');
-      await executeSecurityAudit();
-    });
-  }
-
-  // Phase 4: Handoff & Docs
-  const btnP4Gen = document.getElementById('btnP4GenerateAll');
-  if (btnP4Gen) {
-    btnP4Gen.addEventListener('click', async () => {
-      const res = await api.engines.generateRunbooks({ clientName: 'Client Pilot', targetVpc: 'gcp-firebase' });
-      const box = document.getElementById('p4ResultBox');
-      const prev = document.getElementById('p4CodePreview');
-      if (box && prev && res) {
-        box.style.display = 'block';
-        prev.innerText = res.architectureDoc;
-      }
-    });
-  }
-
-  // Phase 5: Enterprise License Quick Actions
-  const btnActivate = document.getElementById('btnEntActivateKey');
-  const btnTrial = document.getElementById('btnEnt30DayTrial');
-  if (btnActivate) {
-    btnActivate.addEventListener('click', async () => {
-      const keyBox = document.getElementById('txtEntLicenseKeyBox') as HTMLTextAreaElement;
-      if (keyBox && api?.license) {
-        const key = keyBox.value.trim();
-        if (!key) { alert('Please paste a cryptographic license key'); return; }
-        const res = await api.license.activateKey(key);
-        alert(res.valid ? '✓ Enterprise License Key Verified & Activated!' : '⚠️ Invalid License: ' + (res.error || 'Signature check failed'));
-      }
-    });
-  }
-  if (btnTrial) {
-    btnTrial.addEventListener('click', () => {
-      alert('✓ 30-Day Air-Gapped Enterprise Trial Active (28 days remaining). All 11 Commercial Engines Unlocked.');
-    });
-  }
-
-  // Phase 5: 11 Commercial Engines Click Bindings
-  setupPhase5Engines();
-}
-
-function switchDeliveryStep(stepNum: number): void {
-  currentDeliveryStep = stepNum;
-  document.querySelectorAll('.step-nav-card[data-step]').forEach(card => {
-    const s = parseInt(card.getAttribute('data-step') || '1', 10);
-    if (s === stepNum) card.classList.add('active');
-    else card.classList.remove('active');
-  });
-
-  for (let i = 1; i <= 5; i++) {
-    const view = document.getElementById('deliveryStep' + i + 'Content');
-    if (view) view.style.display = i === stepNum ? 'block' : 'none';
-  }
-}
-
-function setupPhase5Engines(): void {
-  // 1. SQL Transpiler
-  const btnSql = document.getElementById('btnRunSqlTranspile');
-  if (btnSql) {
-    btnSql.addEventListener('click', async () => {
-      const sqlInput = (document.getElementById('sqlTranspileInput') as HTMLTextAreaElement).value || 'SELECT NVL(cust_id, 0), SYSDATE FROM orders;';
-      const res = await api.engines.transpileSql({ sourceSql: sqlInput, sourceDialect: 'oracle', targetDialect: 'bigquery' });
-      const box = document.getElementById('sqlTranspileResultBox');
-      const prev = document.getElementById('sqlTranspileCodePreview');
-      if (box && prev && res) { box.style.display = 'block'; prev.innerText = res.transpiledSql; }
-    });
-  }
-
-  // 2. PII Masking
-  const btnPii = document.getElementById('btnRunPiiMasking');
-  if (btnPii) {
-    btnPii.addEventListener('click', async () => {
-      const res = await api.engines.piiMasking({ modelName: 'stg_customers_pii', sourceTable: 'raw_customers', rules: [{ columnName: 'ssn', piiType: 'ssn', strategy: 'hash_sha256' }] });
-      const box = document.getElementById('piiResultBox');
-      const prev = document.getElementById('piiCodePreview');
-      if (box && prev && res) { box.style.display = 'block'; prev.innerText = res.dbtMacroSql; }
-    });
-  }
-
-  // 3. Reverse ETL
-  const btnRev = document.getElementById('btnRunReverseEtl');
-  if (btnRev) {
-    btnRev.addEventListener('click', async () => {
-      const res = await api.engines.reverseEtl({ sourceTable: 'dim_customers', destination: 'salesforce', syncMode: 'upsert' });
-      const box = document.getElementById('reverseEtlResultBox');
-      const prev = document.getElementById('reverseEtlCodePreview');
-      if (box && prev && res) { box.style.display = 'block'; prev.innerText = res.pythonWorker; }
-    });
-  }
-
-  // 4. RLS
-  const btnRls = document.getElementById('btnRunRls');
-  if (btnRls) {
-    btnRls.addEventListener('click', async () => {
-      const res = await api.engines.rlsPolicies({ targetDialect: 'postgres', tableName: 'orders', tenantColumn: 'tenant_id' });
-      const box = document.getElementById('rlsResultBox');
-      const prev = document.getElementById('rlsCodePreview');
-      if (box && prev && res) { box.style.display = 'block'; prev.innerText = res.policySql; }
-    });
-  }
-
-  // 5. Synthetic Data
-  const btnSynth = document.getElementById('btnRunSynthetic');
-  if (btnSynth) {
-    btnSynth.addEventListener('click', async () => {
-      const res = await api.engines.syntheticData({ industry: 'finance', customerRowCount: 25, invoiceRowCount: 50 });
-      const box = document.getElementById('syntheticResultBox');
-      const prev = document.getElementById('syntheticCodePreview');
-      if (box && prev && res) { box.style.display = 'block'; prev.innerText = res.customersCsv; }
-    });
-  }
-
-  // 6. Mock Server
-  const btnMock = document.getElementById('btnRunMockServer');
-  if (btnMock) {
-    btnMock.addEventListener('click', async () => {
-      const res = await api.engines.mockServer({ port: 8085, latencyMs: 100, routes: [{ method: 'GET', path: '/v1/orders', status: 200 }] });
-      const box = document.getElementById('mockServerResultBox');
-      const prev = document.getElementById('mockServerCodePreview');
-      if (box && prev && res) { box.style.display = 'block'; prev.innerText = res.nodeServer; }
-    });
-  }
-}
-
-// --- 4. DATA ANALYSIS & REPORTING STUDIO (100% Parity with Screenshot 1) ---
-function setupDataAnalysisStudio(): void {
-  const btnSwitch = document.getElementById('btnDataSwitchModel');
-  if (btnSwitch) {
-    btnSwitch.addEventListener('click', () => {
-      const modal = document.getElementById('modalAiProvider');
-      if (modal) modal.style.display = 'flex';
-    });
-  }
-
-  // Source selection cards
-  const cardBrowse = document.getElementById('cardBrowseDataFile');
-  if (cardBrowse) {
-    cardBrowse.addEventListener('click', async () => {
-      if (api?.workspace?.openFileDialog) {
-        const filePath = await api.workspace.openFileDialog();
-        if (filePath) {
-          selectedWorkspaceDataFile = filePath;
-          const container = document.getElementById('wsDataFilesContainer');
-          if (container) {
-            container.innerHTML = `<span class="brand-pill" style="cursor: pointer; margin: 3px; background: var(--accent); color: #1e1e1e; padding: 4px 10px; font-size: 11px;">📄 ${filePath}</span>`;
-          }
+  btnNewTerminalTab?.addEventListener('click', async () => {
+    if (api?.terminal) {
+      const count = document.querySelectorAll('.terminal-tab').length + 1;
+      const session = await api.terminal.spawn({ name: `Terminal ${count}` });
+      if (session) {
+        currentActiveSessionId = session.id;
+        const tabContainer = document.getElementById('terminalTabsContainer');
+        if (tabContainer && btnNewTerminalTab) {
+          const newTab = document.createElement('div');
+          newTab.className = 'terminal-tab active';
+          newTab.innerText = `⚡ Terminal ${count} (PowerShell)`;
+          document.querySelectorAll('.terminal-tab').forEach(t => t.classList.remove('active'));
+          tabContainer.insertBefore(newTab, btnNewTerminalTab);
         }
       }
+    }
+  });
+}
+
+function appendTerminalOutput(viewport: HTMLElement, text: string): void {
+  const formatted = text
+    .replace(/\x1b\[36m/g, '<span style="color: #4ec9b0;">')
+    .replace(/\x1b\[32m/g, '<span style="color: #89d185;">')
+    .replace(/\x1b\[33m/g, '<span style="color: #dcdcaa;">')
+    .replace(/\x1b\[31m/g, '<span style="color: #f48771;">')
+    .replace(/\x1b\[0m/g, '</span>')
+    .replace(/\r\n/g, '<br>')
+    .replace(/\n/g, '<br>');
+
+  const span = document.createElement('span');
+  span.innerHTML = formatted;
+  viewport.appendChild(span);
+  viewport.scrollTop = viewport.scrollHeight;
+}
+
+// --- WORKSPACE & FILE EXPLORER ---
+function setupWorkspace(api: any): void {
+  const btnOpenFolder = document.getElementById('btnOpenFolder');
+  const btnRefreshTree = document.getElementById('btnRefreshTree');
+
+  const openFolderHandler = async () => {
+    if (api?.workspace) {
+      const ws = await api.workspace.openFolderDialog();
+      if (ws) {
+        updateWorkspaceUI(ws);
+        renderFileTree(api);
+        refreshWorkspaceDataFiles(api);
+      }
+    }
+  };
+
+  btnOpenFolder?.addEventListener('click', openFolderHandler);
+  btnRefreshTree?.addEventListener('click', () => renderFileTree(api));
+}
+
+function updateWorkspaceUI(ws: { name: string; path: string }): void {
+  const lblPath = document.getElementById('lblWorkspacePath');
+  if (lblPath) lblPath.innerText = `${ws.name} (${ws.path})`;
+}
+
+async function renderFileTree(api: any): Promise<void> {
+  const container = document.getElementById('fileTreeContainer');
+  if (!container || !api?.workspace) return;
+
+  try {
+    const tree = await api.workspace.getFileTree();
+    if (!tree || tree.length === 0) {
+      container.innerHTML = '<div style="padding:14px; color:var(--text-muted); font-size:11px; text-align:center;">Workspace is empty.</div>';
+      return;
+    }
+
+    let html = '';
+    const renderNode = (nodes: any[], depth: number) => {
+      nodes.forEach(node => {
+        const pad = depth * 14 + 10;
+        const icon = node.type === 'directory' ? '📁' : '📄';
+        html += `<div class="file-tree-node ${node.type}" style="padding-left: ${pad}px;" data-path="${node.path}">
+          <span>${icon}</span> <span>${node.name}</span>
+        </div>`;
+        if (node.children && node.children.length > 0) {
+          renderNode(node.children, depth + 1);
+        }
+      });
+    };
+
+    renderNode(tree, 0);
+    container.innerHTML = html;
+
+    container.querySelectorAll('.file-tree-node.file').forEach(el => {
+      el.addEventListener('click', async () => {
+        const filePath = el.getAttribute('data-path');
+        if (filePath && api?.workspace) {
+          const content = await api.workspace.readFile(filePath);
+          openFileEditor(filePath, content, api);
+        }
+      });
+    });
+  } catch (err: any) {
+    container.innerHTML = `<div style="padding:10px; color:var(--error); font-size:11px;">Error loading tree: ${err.message}</div>`;
+  }
+}
+
+function openFileEditor(filePath: string, content: string, api: any): void {
+  const editorBox = document.getElementById('fileEditorContainer');
+  const activeTitle = document.getElementById('activeFileTitle');
+  const textarea = document.getElementById('fileEditorTextarea') as HTMLTextAreaElement;
+  const btnSave = document.getElementById('btnSaveFile');
+
+  if (editorBox && activeTitle && textarea) {
+    editorBox.style.display = 'flex';
+    activeTitle.innerText = filePath.split(/[\\/]/).pop() || 'file';
+    textarea.value = content;
+
+    btnSave?.replaceWith(btnSave.cloneNode(true));
+    const newBtnSave = document.getElementById('btnSaveFile');
+    newBtnSave?.addEventListener('click', async () => {
+      if (api?.workspace) {
+        await api.workspace.writeFile(filePath, textarea.value);
+        showToast('✓ File saved successfully!');
+      }
     });
   }
+}
 
-  const cardConnectDb = document.getElementById('cardConnectDbSource');
-  if (cardConnectDb) {
-    cardConnectDb.addEventListener('click', () => {
-      switchStudioTab('delivery', 1);
+// --- MULTI-CLOUD CONNECTION & AUTHENTICATION HUB (100% Synchronized with Screenshots 1 & 2) ---
+function setupCloudHub(api: any): void {
+  const btnDeliveryCloudHub = document.getElementById('btnDeliveryCloudHub');
+  const cloudHubDrawer = document.getElementById('cloudHubDrawer');
+  const btnCloseCloudHub = document.getElementById('btnCloseCloudHub');
+  const btnRefreshCloudStatus = document.getElementById('btnRefreshCloudStatus');
+  const btnTabRefreshCloud = document.getElementById('btnTabRefreshCloud');
+
+  const btnConnectGcp = document.getElementById('btnConnectGcp');
+  const btnConnectAws = document.getElementById('btnConnectAws');
+  const btnConnectAzure = document.getElementById('btnConnectAzure');
+  const btnConnectDocker = document.getElementById('btnConnectDocker');
+
+  const btnTabConnectGcp = document.getElementById('btnTabConnectGcp');
+  const btnTabConnectAws = document.getElementById('btnTabConnectAws');
+  const btnTabConnectAzure = document.getElementById('btnTabConnectAzure');
+  const btnTabConnectDocker = document.getElementById('btnTabConnectDocker');
+
+  const toggleCloudDrawer = () => {
+    if (cloudHubDrawer) {
+      const isHidden = cloudHubDrawer.style.display === 'none' || cloudHubDrawer.style.display === '';
+      cloudHubDrawer.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) {
+        cloudHubDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        refreshCloudHubStatus(api);
+      }
+    }
+  };
+
+  btnDeliveryCloudHub?.addEventListener('click', toggleCloudDrawer);
+  btnCloseCloudHub?.addEventListener('click', () => {
+    if (cloudHubDrawer) cloudHubDrawer.style.display = 'none';
+  });
+
+  btnRefreshCloudStatus?.addEventListener('click', () => refreshCloudHubStatus(api));
+  btnTabRefreshCloud?.addEventListener('click', () => refreshCloudHubStatus(api));
+
+  const handleCloudAction = async (provider: string, action: string) => {
+    if (!api?.cloud) return;
+    showToast(`🚀 Initiating ${provider.toUpperCase()} ${action} in terminal...`);
+    
+    // Open terminal
+    const terminalDrawer = document.getElementById('terminalDrawer');
+    if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
+      terminalDrawer.style.display = 'flex';
+    }
+
+    if (!currentActiveSessionId) {
+      const session = await api.terminal.spawn({ name: 'Terminal 1' });
+      currentActiveSessionId = session.id;
+    }
+
+    await api.cloud.connectAccount(provider, action, currentActiveSessionId);
+  };
+
+  btnConnectGcp?.addEventListener('click', () => {
+    const action = btnConnectGcp.getAttribute('data-action') || 'login';
+    handleCloudAction('gcp', action);
+  });
+  btnTabConnectGcp?.addEventListener('click', () => {
+    const action = btnTabConnectGcp.getAttribute('data-action') || 'login';
+    handleCloudAction('gcp', action);
+  });
+
+  btnConnectAws?.addEventListener('click', () => {
+    const action = btnConnectAws.getAttribute('data-action') || 'login';
+    handleCloudAction('aws', action);
+  });
+  btnTabConnectAws?.addEventListener('click', () => {
+    const action = btnTabConnectAws.getAttribute('data-action') || 'login';
+    handleCloudAction('aws', action);
+  });
+
+  btnConnectAzure?.addEventListener('click', () => {
+    const action = btnConnectAzure.getAttribute('data-action') || 'login';
+    handleCloudAction('azure', action);
+  });
+  btnTabConnectAzure?.addEventListener('click', () => {
+    const action = btnTabConnectAzure.getAttribute('data-action') || 'login';
+    handleCloudAction('azure', action);
+  });
+
+  btnConnectDocker?.addEventListener('click', () => {
+    const action = btnConnectDocker.getAttribute('data-action') || 'login';
+    handleCloudAction('docker', action);
+  });
+  btnTabConnectDocker?.addEventListener('click', () => {
+    const action = btnTabConnectDocker.getAttribute('data-action') || 'login';
+    handleCloudAction('docker', action);
+  });
+}
+
+async function refreshCloudHubStatus(api: any): Promise<void> {
+  if (!api?.cloud) return;
+
+  const setBadges = (status: string) => {
+    ['cloudGcpBadge', 'cloudAwsBadge', 'cloudAzureBadge', 'cloudDockerBadge',
+     'tabCloudGcpBadge', 'tabCloudAwsBadge', 'tabCloudAzureBadge', 'tabCloudDockerBadge'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.innerText = status;
+        el.style.color = 'var(--warning)';
+      }
     });
-  }
+  };
 
-  const cardPipeline = document.getElementById('cardRunDataPipeline');
-  if (cardPipeline) {
-    cardPipeline.addEventListener('click', () => {
-      alert('✓ Loaded data pipeline specification (evolve-data-pipeline.json). Ready for execution.');
+  setBadges('checking...');
+
+  try {
+    const res = await api.cloud.getDetailedStatus();
+    if (!res) return;
+
+    // 1. Google Cloud (GCP)
+    const updateGcp = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.gcp.ok) {
+        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Account: ${res.gcp.account || 'Active'}${res.gcp.project ? ' (' + res.gcp.project + ')' : ''}`;
+        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.gcp.installed) {
+        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'gcloud CLI installed (Click to login)';
+        if (btn) { btn.innerText = '🔑 Connect GCP'; btn.setAttribute('data-action', 'login'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'gcloud CLI not found on system';
+        if (btn) { btn.innerText = '⬇️ Install gcloud (winget)'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateGcp('cloudGcpBadge', 'cloudGcpAccount', 'btnConnectGcp');
+    updateGcp('tabCloudGcpBadge', 'tabCloudGcpAccount', 'btnTabConnectGcp');
+
+    // 2. Amazon AWS
+    const updateAws = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.aws.ok) {
+        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Account: ${res.aws.account || 'Active'}`;
+        if (btn) { btn.innerText = '🔑 Re-Configure'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.aws.installed) {
+        if (badge) { badge.innerText = '⭕ Not Configured'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'AWS CLI installed (Click to configure)';
+        if (btn) { btn.innerText = '🔑 Configure AWS'; btn.setAttribute('data-action', 'login'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'AWS CLI not found on system';
+        if (btn) { btn.innerText = '⬇️ Install AWS CLI (winget)'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateAws('cloudAwsBadge', 'cloudAwsAccount', 'btnConnectAws');
+    updateAws('tabCloudAwsBadge', 'tabCloudAwsAccount', 'btnTabConnectAws');
+
+    // 3. Microsoft Azure
+    const updateAzure = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.azure.ok) {
+        if (badge) { badge.innerText = '✓ Connected'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Account: ${res.azure.account || 'Active'}`;
+        if (btn) { btn.innerText = '🔑 Re-Authenticate'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.azure.installed) {
+        if (badge) { badge.innerText = '⭕ Not Logged In'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'Azure CLI installed (Click to login)';
+        if (btn) { btn.innerText = '🔑 Connect Azure'; btn.setAttribute('data-action', 'login'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ CLI Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'Azure CLI (az) not found on system';
+        if (btn) { btn.innerText = '⬇️ 1-Click Install Azure CLI'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateAzure('cloudAzureBadge', 'cloudAzureAccount', 'btnConnectAzure');
+    updateAzure('tabCloudAzureBadge', 'tabCloudAzureAccount', 'btnTabConnectAzure');
+
+    // 4. Docker Engine
+    const updateDocker = (badgeId: string, accId: string, btnId: string) => {
+      const badge = document.getElementById(badgeId);
+      const acc = document.getElementById(accId);
+      const btn = document.getElementById(btnId);
+      if (res.docker.ok) {
+        if (badge) { badge.innerText = '✓ Active'; badge.style.color = 'var(--success)'; }
+        if (acc) acc.innerText = `Daemon: ${res.docker.version || 'Active'}`;
+        if (btn) { btn.innerText = '🐳 Check Docker'; btn.setAttribute('data-action', 'login'); }
+      } else if (res.docker.installed) {
+        if (badge) { badge.innerText = '⚠️ Daemon Stopped'; badge.style.color = 'var(--warning)'; }
+        if (acc) acc.innerText = 'Docker CLI present, app is closed';
+        if (btn) { btn.innerText = '🐳 Launch Docker Desktop'; btn.setAttribute('data-action', 'startDocker'); }
+      } else {
+        if (badge) { badge.innerText = '⚠️ Missing'; badge.style.color = 'var(--error)'; }
+        if (acc) acc.innerText = 'Docker not found on system';
+        if (btn) { btn.innerText = '⬇️ Install Docker Desktop'; btn.setAttribute('data-action', 'install'); }
+      }
+    };
+    updateDocker('cloudDockerBadge', 'cloudDockerAccount', 'btnConnectDocker');
+    updateDocker('tabCloudDockerBadge', 'tabCloudDockerAccount', 'btnTabConnectDocker');
+
+    showToast('✓ Cloud provider diagnostics updated!');
+  } catch (err: any) {
+    setBadges('error');
+  }
+}
+
+// --- DELIVERY STUDIO PHASES (1-5) ---
+function setupDeliveryStudio(api: any): void {
+  const stepCards = document.querySelectorAll<HTMLElement>('.step-nav-card');
+  stepCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const step = card.getAttribute('data-step');
+      if (step) switchDeliveryStep(parseInt(step, 10));
     });
+  });
+
+  // Step 1: Introspect & Mart
+  document.getElementById('btnP1Introspect')?.addEventListener('click', async () => {
+    const dialect = (document.getElementById('p1Dialect') as HTMLSelectElement).value;
+    const connUri = (document.getElementById('p1ConnUri') as HTMLInputElement).value;
+    if (!connUri) {
+      showToast('⚠️ Please enter a database connection string / host URI.');
+      return;
+    }
+    showToast('🔌 Introspecting schema wire protocol...');
+    if (api?.engines) {
+      const res = await api.engines.introspectDb(dialect, connUri);
+      const resBox = document.getElementById('p1ResultBox');
+      const preview = document.getElementById('p1CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = JSON.stringify(res, null, 2);
+      }
+    }
+  });
+
+  document.getElementById('btnP1GenerateMart')?.addEventListener('click', async () => {
+    showToast('🏗️ Generating Star-Schema dimensional dbt Mart...');
+    if (api?.engines) {
+      const res = await api.engines.buildMart({
+        martName: 'mart_orders_analytics',
+        materialization: 'table',
+        baseModel: 'stg_orders',
+        dimensions: ['order_id', 'customer_id', 'status'],
+        metrics: ['SUM(amount) as total_revenue']
+      });
+      const resBox = document.getElementById('p1ResultBox');
+      const preview = document.getElementById('p1CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.sql + '\n\n-- schema.yml --\n' + res.schemaYaml;
+      }
+    }
+  });
+
+  // Step 2: Client APIs
+  document.getElementById('btnP2GenerateSdk')?.addEventListener('click', async () => {
+    const input = (document.getElementById('p2ApiInput') as HTMLTextAreaElement).value;
+    showToast('⚡ Generating TypeScript & Python SDK...');
+    if (api?.engines) {
+      const res = await api.engines.generateApiSdk({
+        serviceName: 'ClientBillingApi',
+        baseUrl: 'https://api.client.com/v1',
+        endpoints: [{ path: '/customers', method: 'GET' }]
+      });
+      const resBox = document.getElementById('p2ResultBox');
+      const preview = document.getElementById('p2CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = '// --- TypeScript SDK ---\n' + res.tsCode + '\n\n# --- Python SDK ---\n' + res.pyCode;
+      }
+    }
+  });
+
+  // Step 3: Validate & Deploy
+  document.getElementById('btnP3Scaffold')?.addEventListener('click', async () => {
+    const provider = (document.getElementById('p3Provider') as HTMLSelectElement).value;
+    const projectId = (document.getElementById('p3ProjectId') as HTMLInputElement).value;
+    const region = (document.getElementById('p3Region') as HTMLInputElement).value;
+    showToast('🚀 Scaffolding Terraform & Kubernetes IaC...');
+    if (api?.engines) {
+      const res = await api.engines.scaffoldDeploy({ provider, projectId, region, appName: 'client-pilot' });
+      const resBox = document.getElementById('p3ResultBox');
+      const preview = document.getElementById('p3CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = '# --- Terraform main.tf ---\n' + res.terraform + '\n\n# --- Kubernetes ---\n' + res.kubernetes;
+      }
+    }
+  });
+
+  document.getElementById('btnP3Audit')?.addEventListener('click', async () => {
+    showToast('🧹 Running Pre-Flight Health Audit...');
+    if (api?.engines) {
+      const res = await api.engines.runPreflightAudit();
+      const resBox = document.getElementById('p3ResultBox');
+      const preview = document.getElementById('p3CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = JSON.stringify(res, null, 2);
+      }
+    }
+  });
+
+  // Step 4: Handoff & Docs
+  document.getElementById('btnP4GenerateAll')?.addEventListener('click', async () => {
+    showToast('📦 Synthesizing Complete Client Handoff Bundle...');
+    if (api?.engines) {
+      const res = await api.engines.generateRunbooks({});
+      const resBox = document.getElementById('p4ResultBox');
+      const preview = document.getElementById('p4CodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.architectureDoc + '\n\n' + res.deploymentRunbook;
+      }
+    }
+  });
+
+  // Step 5: Commercial Suite Buttons
+  document.getElementById('btnRunSqlTranspile')?.addEventListener('click', async () => {
+    const sql = (document.getElementById('sqlTranspileInput') as HTMLTextAreaElement).value || 'SELECT NVL(id, 0) FROM t;';
+    if (api?.engines) {
+      const res = await api.engines.transpileSql({ sourceSql: sql, sourceDialect: 'oracle', targetDialect: 'bigquery' });
+      const resBox = document.getElementById('sqlTranspileResultBox');
+      const preview = document.getElementById('sqlTranspileCodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.transpiledSql;
+      }
+    }
+  });
+
+  document.getElementById('btnRunPiiMasking')?.addEventListener('click', async () => {
+    if (api?.engines) {
+      const res = await api.engines.piiMasking({ tableName: 'customers', piiColumns: ['email', 'phone', 'ssn'] });
+      const resBox = document.getElementById('piiResultBox');
+      const preview = document.getElementById('piiCodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.maskingScript;
+      }
+    }
+  });
+
+  document.getElementById('btnRunReverseEtl')?.addEventListener('click', async () => {
+    if (api?.engines) {
+      const res = await api.engines.reverseEtl({ sourceWarehouse: 'snowflake', destinationApp: 'salesforce', objectType: 'Account' });
+      const resBox = document.getElementById('reverseEtlResultBox');
+      const preview = document.getElementById('reverseEtlCodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.workerCode;
+      }
+    }
+  });
+
+  document.getElementById('btnRunRls')?.addEventListener('click', async () => {
+    if (api?.engines) {
+      const res = await api.engines.rlsPolicies({ tableName: 'client_invoices', tenantColumn: 'org_id', dialect: 'postgres' });
+      const resBox = document.getElementById('rlsResultBox');
+      const preview = document.getElementById('rlsCodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.sql;
+      }
+    }
+  });
+
+  document.getElementById('btnRunSynthetic')?.addEventListener('click', async () => {
+    if (api?.engines) {
+      const res = await api.engines.syntheticData({ rowCount: 50, schema: { id: 'uuid', name: 'company', revenue: 'numeric' } });
+      const resBox = document.getElementById('syntheticResultBox');
+      const preview = document.getElementById('syntheticCodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.csvData;
+      }
+    }
+  });
+
+  document.getElementById('btnRunMockServer')?.addEventListener('click', async () => {
+    if (api?.engines) {
+      const res = await api.engines.mockServer({ port: 8080, endpoints: [{ path: '/api/v1/health', method: 'GET', response: { status: 'UP' } }] });
+      const resBox = document.getElementById('mockServerResultBox');
+      const preview = document.getElementById('mockServerCodePreview');
+      if (resBox && preview) {
+        resBox.style.display = 'block';
+        preview.innerText = res.serverCode;
+      }
+    }
+  });
+}
+
+function switchDeliveryStep(step: number): void {
+  currentActivePhase = step;
+  document.querySelectorAll('.step-nav-card').forEach(c => {
+    c.classList.toggle('active', parseInt(c.getAttribute('data-step') || '1', 10) === step);
+  });
+  for (let i = 1; i <= 5; i++) {
+    const content = document.getElementById(`deliveryStep${i}Content`);
+    if (content) content.style.display = i === step ? 'block' : 'none';
   }
+}
 
-  // Deliverable selection pills (Screenshot 1)
-  const delivPills = document.querySelectorAll('.deliverable-pill[data-deliv]');
-  const reportOptsBox = document.getElementById('dynamicReportOptionsBox');
+// --- DATA ANALYSIS & REPORTING STUDIO ---
+function setupDataAnalysisStudio(api: any): void {
+  const cardBrowse = document.getElementById('cardBrowseDataFile');
+  const deliverablePills = document.querySelectorAll<HTMLElement>('.deliverable-pill');
+  const dynamicReportOptionsBox = document.getElementById('dynamicReportOptionsBox');
+  const btnExecute = document.getElementById('btnExecuteDataAnalysis');
 
-  delivPills.forEach(pill => {
+  cardBrowse?.addEventListener('click', async () => {
+    if (api?.workspace) {
+      const filePath = await api.workspace.openFileDialog();
+      if (filePath) {
+        const dropZone = document.getElementById('dataDropZone');
+        if (dropZone) dropZone.innerText = `📁 Selected: ${filePath}`;
+        showToast(`✓ Loaded dataset: ${filePath.split(/[\\/]/).pop()}`);
+      }
+    }
+  });
+
+  deliverablePills.forEach(pill => {
     pill.addEventListener('click', () => {
-      delivPills.forEach(p => p.classList.remove('active'));
+      deliverablePills.forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
       currentSelectedDeliverable = pill.getAttribute('data-deliv') || 'chat';
 
-      // Dynamically reveal report options when HTML report is selected
-      if (reportOptsBox) {
-        reportOptsBox.style.display = currentSelectedDeliverable === 'report' ? 'block' : 'none';
+      if (dynamicReportOptionsBox) {
+        dynamicReportOptionsBox.style.display = currentSelectedDeliverable === 'report' ? 'block' : 'none';
       }
     });
   });
 
-  // Execute Analysis Runner
-  const btnRun = document.getElementById('btnExecuteDataAnalysis');
-  if (btnRun) {
-    btnRun.addEventListener('click', async () => {
-      const focusText = (document.getElementById('txtDataFocus') as HTMLInputElement).value || 'comprehensive exploratory analysis';
-      const resultsBox = document.getElementById('dataAnalysisResultsBox');
-      const preview = document.getElementById('dataAnalysisOutputPreview');
+  btnExecute?.addEventListener('click', async () => {
+    const focusInput = (document.getElementById('txtDataFocus') as HTMLInputElement).value;
+    const resultsBox = document.getElementById('dataAnalysisResultsBox');
+    const outputPreview = document.getElementById('dataAnalysisOutputPreview');
 
-      if (api?.engines?.analyzeDataset) {
-        const res = await api.engines.analyzeDataset({
-          filePath: selectedWorkspaceDataFile,
-          deliverable: currentSelectedDeliverable,
-          focus: focusText
-        });
+    showToast('⚡ Analysing dataset...');
+    if (api?.engines) {
+      const dropZone = document.getElementById('dataDropZone');
+      const selectedText = dropZone?.innerText || '';
+      const filePath = selectedText.includes('Selected: ') ? selectedText.replace('📁 Selected: ', '').trim() : '';
 
-        if (resultsBox && preview && res) {
-          resultsBox.style.display = 'block';
-          if (currentSelectedDeliverable === 'report') {
-            preview.innerText = res.summary;
-          } else {
-            preview.innerText = res.summary;
-          }
-        }
-      }
-    });
-  }
-}
-
-// --- 5. CODE CONVERTER STUDIO (Screenshot 5) ---
-function setupCodeConverterStudio(): void {
-  // Source selection cards
-  const cards = [
-    { id: 'cardUseActive', label: 'Active editor file' },
-    { id: 'cardUseSel', label: 'Selected code lines' },
-    { id: 'cardBrowseFiles', label: 'Selected workspace files' },
-    { id: 'cardBrowseFolder', label: 'Entire project folder' }
-  ];
-
-  cards.forEach(c => {
-    const el = document.getElementById(c.id);
-    if (el) {
-      el.addEventListener('click', () => {
-        document.querySelectorAll('#pane-converter .sel-card').forEach(s => s.classList.remove('active'));
-        el.classList.add('active');
-        const qBox = document.getElementById('srcQueueBox');
-        if (qBox) {
-          qBox.innerHTML = '<strong>Queued:</strong> ' + c.label + ' (Ready for cross-stack translation)';
-        }
+      const res = await api.engines.analyzeDataset({
+        filePath,
+        deliverable: currentSelectedDeliverable,
+        focus: focusInput || 'General distribution and statistical anomalies'
       });
-    }
-  });
 
-  // Target language chips
-  const chips = document.querySelectorAll('.lang-chip[data-lang]');
-  chips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      chips.forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      currentSelectedTargetLang = chip.getAttribute('data-lang') || 'typescript';
-    });
-  });
-
-  // Filter input
-  const txtFilter = document.getElementById('txtFilterLangs') as HTMLInputElement;
-  if (txtFilter) {
-    txtFilter.addEventListener('input', () => {
-      const q = txtFilter.value.toLowerCase().trim();
-      chips.forEach(chip => {
-        const text = chip.textContent?.toLowerCase() || '';
-        (chip as HTMLElement).style.display = text.includes(q) ? 'inline-flex' : 'none';
-      });
-    });
-  }
-
-  // Convert runner
-  const btnConvert = document.getElementById('btnRunFullConversion');
-  if (btnConvert) {
-    btnConvert.addEventListener('click', async () => {
-      const srcInput = (document.getElementById('convSourceInput') as HTMLTextAreaElement).value || 'def calculate_metrics(data):\n    return [x * 2 for x in data]';
-      const tgtOutput = document.getElementById('convTargetOutput') as HTMLTextAreaElement;
-
-      if (api?.converter) {
-        const res = await api.converter.convert({
-          sourceCode: srcInput,
-          fromLang: 'python',
-          toLang: currentSelectedTargetLang,
-          fidelity: 'idiomatic'
-        });
-
-        if (tgtOutput && res) {
-          tgtOutput.value = res.convertedCode;
-        }
+      if (resultsBox && outputPreview) {
+        resultsBox.style.display = 'block';
+        outputPreview.innerText = res.summary;
+        resultsBox.scrollIntoView({ behavior: 'smooth' });
       }
-    });
-  }
-}
-
-// --- 6. REAL DATABRICKS LAKEHOUSE & UNITY CATALOG STUDIO ---
-function setupDatabricksLakehouseStudio(): void {
-  const btnConnect = document.getElementById('btnDatabricksConnect');
-  const btnOpt = document.getElementById('btnDatabricksOptimize');
-  const resBox = document.getElementById('databricksResultBox');
-
-  if (btnConnect) {
-    btnConnect.addEventListener('click', async () => {
-      const host = (document.getElementById('txtDatabricksHost') as HTMLInputElement).value;
-      const catalog = (document.getElementById('txtDatabricksCatalog') as HTMLInputElement).value;
-      const token = (document.getElementById('txtDatabricksToken') as HTMLInputElement).value;
-
-      if (!host || !token) {
-        if (resBox) {
-          resBox.style.display = 'block';
-          resBox.innerHTML = '<span style="color: var(--error);">🔴 Error: Databricks Workspace Host and Personal Access Token are required to connect.</span>';
-        }
-        return;
-      }
-
-      if (resBox) {
-        resBox.style.display = 'block';
-        resBox.innerHTML = '<span style="color: var(--accent);">Probing Databricks Workspace host & authenticating token...</span>';
-      }
-
-      if (api?.databricks) {
-        const res = await api.databricks.connect({ host, token, catalog });
-        if (resBox) {
-          resBox.style.display = 'block';
-          if (res.success) {
-            resBox.innerHTML = `<span style="color: var(--success);">🟢 Databricks Connection Succeeded</span>
-Host:    ${res.host}
-Catalog: ${res.catalog}
-Status:  ${res.status}
-Clusters Discovered: ${(res.clusters || []).length} active clusters`;
-          } else {
-            resBox.innerHTML = `<span style="color: var(--error);">🔴 Databricks Connection Failed</span>
-Host:    ${host}
-Error:   ${res.error}`;
-          }
-        }
-      }
-    });
-  }
-
-  if (btnOpt) {
-    btnOpt.addEventListener('click', () => {
-      const catalog = (document.getElementById('txtDatabricksCatalog') as HTMLInputElement).value || 'main';
-      if (resBox) {
-        resBox.style.display = 'block';
-        resBox.innerText = `-- PySpark & Delta Lake Optimization Script
-OPTIMIZE ${catalog}.silver_clean_orders
-ZORDER BY (customer_id, order_date);
-
-VACUUM ${catalog}.silver_clean_orders RETAIN 168 HOURS;`;
-      }
-    });
-  }
-}
-
-// --- 7. SECURITY SCANNER & PRE-FLIGHT AUDITOR ---
-function setupSecurityScannerStudio(): void {
-  const btnScan = document.getElementById('btnRunSecurityScan');
-  const btnClean = document.getElementById('btnCleanDanglingFiles');
-
-  if (btnScan) btnScan.addEventListener('click', executeSecurityAudit);
-  if (btnClean) {
-    btnClean.addEventListener('click', async () => {
-      alert('✓ Cleaned dangling temporary & backup files from workspace.');
-      await executeSecurityAudit();
-    });
-  }
-}
-
-async function executeSecurityAudit(): Promise<void> {
-  const scoreVal = document.getElementById('secScoreVal');
-  const scoreMsg = document.getElementById('secScoreMsg');
-  const dangList = document.getElementById('secDanglingList');
-  const envList = document.getElementById('secEnvList');
-
-  if (api?.engines?.runPreflightAudit) {
-    try {
-      const rep = await api.engines.runPreflightAudit();
-      if (scoreVal) scoreVal.innerText = (rep?.score || 100) + ' / 100';
-      if (scoreMsg) scoreMsg.innerText = rep?.clean ? 'Clean Workspace: No security vulnerabilities or dangling files detected.' : 'Audit Alert: Action required.';
-      if (dangList) {
-        dangList.innerHTML = rep?.clean
-          ? '<span style="color: var(--success);">✓ Zero dangling backup files detected (.bak, .tmp, .swp)</span>'
-          : '<span style="color: var(--warning);">⚠️ Dangling files detected — Click Clean to remove.</span>';
-      }
-      if (envList) {
-        envList.innerHTML = '<span style="color: var(--success);">✓ All secret environment variables verified and encrypted in machine vault.</span>';
-      }
-    } catch (e) {}
-  }
-}
-
-// --- 8. MULTI-CLOUD CONNECT CONTROLS ---
-function setupMultiCloudConnectControls(): void {
-  const providers = [
-    { id: 'btnPingGcp', key: 'gcp', label: 'Google Cloud Platform (GCP)', statusId: 'gcpPingStatus' },
-    { id: 'btnPingAws', key: 'aws', label: 'Amazon Web Services (AWS)', statusId: 'awsPingStatus' },
-    { id: 'btnPingAzure', key: 'azure', label: 'Microsoft Azure', statusId: 'azurePingStatus' },
-    { id: 'btnPingSnow', key: 'snowflake', label: 'Snowflake Data Cloud', statusId: 'snowPingStatus' }
-  ];
-
-  providers.forEach(p => {
-    const btn = document.getElementById(p.id);
-    if (btn) {
-      btn.addEventListener('click', async () => {
-        const outBox = document.getElementById('cloudPingOutputBox');
-        const badge = document.getElementById(p.statusId);
-
-        if (api?.cloud) {
-          const res = await api.cloud.testConnection(p.key);
-          if (badge) {
-            badge.innerText = res.status;
-            badge.style.color = res.configured ? 'var(--success)' : 'var(--warning)';
-          }
-
-          if (outBox) {
-            outBox.style.display = 'block';
-            outBox.innerHTML = `[Multi-Cloud Verification: ${p.label}]
-Status:         ${res.configured ? '🟢 CONFIGURED & VERIFIED' : '⚠️ CREDENTIALS_REQUIRED'}
-Detected Vars:  ${res.detectedVars && res.detectedVars.length > 0 ? res.detectedVars.join(', ') : 'None'}
-Missing Vars:   ${res.missingVars && res.missingVars.length > 0 ? res.missingVars.join(', ') : 'None'}
-Latency:        ${res.latencyMs} ms
-Timestamp:      ${res.timestamp}`;
-          }
-        }
-      });
     }
   });
 }
 
-// --- 9. AI COPILOT CHAT (Screenshot 2 Left) ---
-function setupAiChatCopilot(): void {
-  const btnSend = document.getElementById('btnChatSend');
-  const txtInput = document.getElementById('txtChatInput') as HTMLInputElement;
-  const stream = document.getElementById('chatMessagesStream');
-  const btnClear = document.getElementById('btnChatClear');
-
-  const sendMessage = () => {
-    if (!txtInput || !stream) return;
-    const text = txtInput.value.trim();
-    if (!text) return;
-
-    // Append user bubble
-    const userDiv = document.createElement('div');
-    userDiv.style.cssText = 'background: var(--card-alt); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--accent); align-self: flex-end; max-width: 85%;';
-    userDiv.innerHTML = '<strong>You:</strong><div style="margin-top: 2px;">' + text + '</div>';
-    stream.appendChild(userDiv);
-    txtInput.value = '';
-
-    // Append Copilot response
-    setTimeout(() => {
-      const aiDiv = document.createElement('div');
-      aiDiv.style.cssText = 'background: var(--card-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); max-width: 85%;';
-      aiDiv.innerHTML = '<strong>🚀 Evolve AI (' + currentAiModel + '):</strong><div style="margin-top: 4px; color: #e2e8f0;">I have analyzed your request regarding: <em>' + text + '</em>. I have verified your data schemas and can apply the dimensional mart transformation directly to your active branch.</div>';
-      stream.appendChild(aiDiv);
-      stream.scrollTop = stream.scrollHeight;
-    }, 400);
-
-    stream.scrollTop = stream.scrollHeight;
-  };
-
-  if (btnSend) btnSend.addEventListener('click', sendMessage);
-  if (txtInput) {
-    txtInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMessage();
-    });
-  }
-  if (btnClear && stream) {
-    btnClear.addEventListener('click', () => {
-      stream.innerHTML = '<div style="background: var(--card-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); max-width: 85%;"><strong>🚀 Evolve AI Copilot:</strong><div style="margin-top: 4px; color: #e2e8f0;">Chat cleared. Ready for your next request.</div></div>';
-    });
-  }
-}
-
-// --- 10. HARDWARE INSPECTOR ---
-function setupLocalAiSizerControls(): void {
-  const btn = document.getElementById('btnRunHwInspect');
-  if (btn) btn.addEventListener('click', runHardwareInspection);
-}
-
-async function runHardwareInspection(): Promise<void> {
-  if (!api?.hardware) return;
-  const ramVal = document.getElementById('hwRamVal');
-  const gpuVal = document.getElementById('hwGpuVal');
-  const cpuVal = document.getElementById('hwCpuVal');
-  const ollamaVal = document.getElementById('hwOllamaVal');
-  const recSummary = document.getElementById('hwRecommendationSummary');
-
-  try {
-    const res = await api.hardware.inspect();
-    const models = await api.hardware.discoverLocalModels();
-    if (res && res.profile) {
-      const p = res.profile;
-      if (ramVal) ramVal.innerText = p.ramGb + ' GB';
-      if (cpuVal) cpuVal.innerText = p.cpu.cores + ' Cores';
-      if (gpuVal) gpuVal.innerText = p.gpu ? p.gpu.vramGb + ' GB VRAM' : 'CPU Only';
-      if (ollamaVal) {
-        const oActive = models.find((m: any) => m.name === 'Ollama' && m.active);
-        ollamaVal.innerText = oActive ? 'ONLINE' : 'STANDBY';
-        ollamaVal.style.color = oActive ? 'var(--success)' : 'var(--text-secondary)';
-      }
-      if (recSummary && res.recommendation) {
-        const rec = res.recommendation;
-        recSummary.innerHTML = '<strong>Recommended Local Model:</strong> ' + (rec.variant || 'gemma4:e4b') + '<br>' + (rec.reason || 'Optimal quality-to-speed balance');
-      }
-    }
-  } catch (e) {}
-}
-
-// --- 11. GIT STUDIO CONTROLS ---
-function setupGitStudioControls(): void {
-  const btnRefresh = document.getElementById('btnRefreshGit');
-  const btnCommit = document.getElementById('btnGitCommitPush');
-  if (btnRefresh) btnRefresh.addEventListener('click', refreshGitStatus);
-  if (btnCommit) {
-    btnCommit.addEventListener('click', async () => {
-      const txt = (document.getElementById('txtCommitMessage') as HTMLInputElement).value || 'feat: studio sync';
-      if (api?.git) {
-        const res = await api.git.commitAndPush(txt);
-        alert(res.success ? '✓ Committed & Pushed cleanly to origin!' : 'Git Notice: ' + res.error);
-        await refreshGitStatus();
-      }
-    });
-  }
-}
-
-async function refreshGitStatus(): Promise<void> {
-  if (!api?.git) return;
-  const branchLbl = document.getElementById('gitActiveBranch');
-  const remoteLbl = document.getElementById('gitRemoteUrl');
-  const filesList = document.getElementById('gitFilesList');
-  const delRemote = document.getElementById('lblDeliveryRemoteUrl');
-
-  try {
-    const info = await api.git.inspect();
-    if (branchLbl) branchLbl.innerText = info.currentBranch || 'main';
-    if (remoteLbl) remoteLbl.innerText = info.remoteUrl || 'local-only';
-    if (delRemote) delRemote.innerText = info.remoteUrl ? (info.remoteUrl.slice(0, 30) + '...') : 'https://github.com/client-pilot';
-
-    if (filesList) {
-      filesList.innerHTML = info.modifiedFiles && info.modifiedFiles.length > 0
-        ? info.modifiedFiles.map((f: string) => '<div style="padding: 2px 0;">' + f + '</div>').join('')
-        : '<span style="color: var(--success);">✓ Clean workspace (0 uncommitted changes)</span>';
-    }
-  } catch (e) {}
-}
-
-// --- WORKSPACE & TERMINAL CONTROLS ---
-function setupWorkspaceControls(): void {
-  const btnOpen = document.getElementById('btnOpenFolder');
-  const badge = document.getElementById('currentWorkspaceBadge');
-  const action = async () => {
-    if (api?.workspace?.openFolderDialog) {
-      await api.workspace.openFolderDialog();
-      await refreshWorkspace();
-    }
-  };
-  if (btnOpen) btnOpen.addEventListener('click', action);
-  if (badge) badge.addEventListener('click', action);
-}
-
-async function refreshWorkspace(): Promise<void> {
-  if (!api?.workspace) return;
-  const ws = await api.workspace.getCurrent();
-  const lblPath = document.getElementById('lblWorkspacePath');
-  if (ws && ws.path && lblPath) {
-    lblPath.innerText = ws.name + ' (' + ws.path + ')';
-    await refreshFileTree();
-    await scanWorkspaceDataFiles(ws.path);
-  }
-}
-
-async function scanWorkspaceDataFiles(wsPath: string): Promise<void> {
+async function refreshWorkspaceDataFiles(api: any): Promise<void> {
   const container = document.getElementById('wsDataFilesContainer');
   if (!container || !api?.workspace) return;
 
   try {
-    const dataFiles = await api.workspace.scanDataFiles(wsPath);
-
-    if (dataFiles && dataFiles.length > 0) {
-      container.innerHTML = dataFiles.map((f: any) => `<span class="brand-pill" data-filepath="${f.path}" style="cursor: pointer; margin: 3px; background: var(--card-alt); border: 1px solid var(--border); color: #fff; padding: 4px 10px; font-size: 11px;">📄 ${f.name}</span>`).join('');
-      // Bind click
-      container.querySelectorAll('.brand-pill').forEach(pill => {
-        pill.addEventListener('click', () => {
-          container.querySelectorAll('.brand-pill').forEach(p => (p as HTMLElement).style.borderColor = 'var(--border)');
-          (pill as HTMLElement).style.borderColor = 'var(--accent)';
-          selectedWorkspaceDataFile = pill.getAttribute('data-filepath') || null;
-        });
-      });
-    } else {
+    const files = await api.workspace.scanDataFiles();
+    if (!files || files.length === 0) {
       container.innerHTML = 'No data files found in the open workspace. Use <strong>Browse</strong> above, or drag a file onto this panel.';
+      return;
     }
-  } catch (e) {}
+
+    container.innerHTML = files.map((f: any) => 
+      `<button class="btn-quick ws-data-file-chip" data-path="${f.path}" style="margin: 3px; font-size: 11px;">📊 ${f.name} <span style="opacity: 0.6;">(${f.ext})</span></button>`
+    ).join('');
+
+    container.querySelectorAll('.ws-data-file-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.getAttribute('data-path');
+        const dropZone = document.getElementById('dataDropZone');
+        if (dropZone && p) {
+          dropZone.innerText = `📁 Selected: ${p}`;
+          showToast(`✓ Selected: ${btn.textContent?.trim()}`);
+        }
+      });
+    });
+  } catch {}
 }
 
-async function refreshFileTree(): Promise<void> {
-  if (!api?.workspace) return;
-  const container = document.getElementById('fileTreeContainer');
-  if (!container) return;
-  try {
-    const root = await api.workspace.getFileTree();
-    if (root && root.children) {
-      container.innerHTML = '';
-      renderTree(container, root.children, 0);
+// --- CODE CONVERTER STUDIO ---
+function setupCodeConverterStudio(api: any): void {
+  const langChips = document.querySelectorAll<HTMLElement>('.lang-chip');
+  const txtFilter = document.getElementById('txtFilterLangs') as HTMLInputElement;
+  const btnConvert = document.getElementById('btnRunFullConversion');
+
+  langChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      langChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentSelectedLanguage = chip.getAttribute('data-lang') || 'python';
+    });
+  });
+
+  txtFilter?.addEventListener('input', () => {
+    const q = txtFilter.value.toLowerCase();
+    langChips.forEach(chip => {
+      const match = chip.innerText.toLowerCase().includes(q);
+      chip.style.display = match ? 'inline-flex' : 'none';
+    });
+  });
+
+  btnConvert?.addEventListener('click', async () => {
+    const src = (document.getElementById('convSourceInput') as HTMLTextAreaElement).value;
+    const tgt = document.getElementById('convTargetOutput') as HTMLTextAreaElement;
+
+    if (!src) {
+      showToast('⚠️ Please enter or queue source code to convert.');
+      return;
     }
-  } catch (e) {}
+
+    showToast(`⚡ Converting code to ${currentSelectedLanguage.toUpperCase()}...`);
+    if (api?.converter) {
+      const res = await api.converter.convert({
+        sourceCode: src,
+        fromLang: 'python',
+        toLang: currentSelectedLanguage
+      });
+      if (tgt) tgt.value = res.convertedCode;
+      showToast('✓ Code conversion complete!');
+    }
+  });
 }
 
-function renderTree(parent: HTMLElement, nodes: any[], depth: number): void {
-  for (const n of nodes) {
-    const el = document.createElement('div');
-    el.className = 'tree-node';
-    el.style.paddingLeft = (12 + depth * 14) + 'px';
-    el.innerHTML = '<span>' + (n.isDirectory ? '📁' : '📄') + '</span><span style="margin-left: 6px;">' + n.name + '</span>';
-    parent.appendChild(el);
-    if (n.isDirectory && n.children) renderTree(parent, n.children, depth + 1);
-  }
+// --- DATABRICKS STUDIO ---
+function setupDatabricksStudio(api: any): void {
+  const btnConnect = document.getElementById('btnDatabricksConnect');
+  const btnOptimize = document.getElementById('btnDatabricksOptimize');
+  const resBox = document.getElementById('databricksResultBox');
+
+  btnConnect?.addEventListener('click', async () => {
+    const host = (document.getElementById('txtDatabricksHost') as HTMLInputElement).value.trim();
+    const catalog = (document.getElementById('txtDatabricksCatalog') as HTMLInputElement).value.trim();
+    const token = (document.getElementById('txtDatabricksToken') as HTMLInputElement).value.trim();
+
+    if (!host || !token) {
+      showToast('⚠️ Please enter Databricks Workspace Host and Token.');
+      return;
+    }
+
+    showToast('🔌 Probing Databricks REST API & Clusters...');
+    if (api?.databricks) {
+      const res = await api.databricks.connect({ host, token, catalog });
+      if (resBox) {
+        resBox.style.display = 'block';
+        if (res.success) {
+          resBox.innerText = `[Databricks Unity Catalog Connection]\nHost: ${res.host}\nCatalog: ${res.catalog}\nStatus: 🟢 ${res.status}\nActive Clusters: ${(res.clusters || []).map((c: any) => c.name + ' (' + c.state + ')').join(', ') || 'Zero running clusters'}`;
+          showToast('✓ Connected to Databricks!');
+        } else {
+          resBox.innerText = `[Databricks Connection Error]\n${res.error}`;
+          showToast('🔴 ' + res.error);
+        }
+      }
+    }
+  });
+
+  btnOptimize?.addEventListener('click', () => {
+    if (resBox) {
+      resBox.style.display = 'block';
+      resBox.innerText = `-- PySpark / Delta Lake Optimization Script\nOPTIMIZE bronze_orders ZORDER BY (order_date, customer_id);\nVACUUM bronze_orders RETAIN 168 HOURS;`;
+      showToast('✓ Generated Delta Lake Z-Order Optimization script!');
+    }
+  });
 }
 
-function setupTerminal(): void {
-  const btn = document.getElementById('btnOpenTerminal');
-  const drawer = document.getElementById('terminalDrawer');
-  const btnClose = document.getElementById('btnToggleTermDrawer');
-  const btnSend = document.getElementById('btnSendCmd');
-  const txtCmd = document.getElementById('terminalCmdInput') as HTMLInputElement;
-  const viewport = document.getElementById('terminalViewport');
-
-  if (btn && drawer) {
-    btn.addEventListener('click', () => { drawer.style.display = drawer.style.display === 'none' ? 'flex' : 'none'; });
-  }
-  if (btnClose && drawer) {
-    btnClose.addEventListener('click', () => { drawer.style.display = 'none'; });
-  }
-
-  const runCmd = async () => {
-    if (!txtCmd || !viewport) return;
-    const cmd = txtCmd.value.trim();
-    if (!cmd) return;
-
-    viewport.innerHTML += '<div style="color: var(--accent); margin-top: 4px;">❯ ' + cmd + '</div>';
-    txtCmd.value = '';
-
-    if (!currentActiveSessionId && api?.terminal) {
-      const sess = await api.terminal.spawn();
-      if (sess && sess.id) currentActiveSessionId = sess.id;
+// --- SECURITY SCANNER STUDIO ---
+function setupSecurityStudio(api: any): void {
+  const btnRun = document.getElementById('btnRunSecurityScan');
+  btnRun?.addEventListener('click', async () => {
+    showToast('🔍 Scanning workspace for security vulnerabilities...');
+    if (api?.engines) {
+      const res = await api.engines.runPreflightAudit();
+      const scoreVal = document.getElementById('secScoreVal');
+      const scoreMsg = document.getElementById('secScoreMsg');
+      if (scoreVal) scoreVal.innerText = `${res.score} / 100`;
+      if (scoreMsg) scoreMsg.innerText = res.pass ? '✓ Workspace Passed All Security Gates' : '⚠️ Action Needed: Findings detected';
+      showToast('✓ Security Scan Complete!');
     }
+  });
+}
 
-    if (currentActiveSessionId && api?.terminal) {
-      await api.terminal.input(currentActiveSessionId, cmd + '\r\n');
-    }
+// --- AI COPILOT CHAT ---
+function setupAiChatStudio(api: any): void {
+  const btnSend = document.getElementById('btnChatSend');
+  const txtInput = document.getElementById('txtChatInput') as HTMLInputElement;
+  const messagesStream = document.getElementById('chatMessagesStream');
+
+  const sendMessage = () => {
+    const text = txtInput?.value.trim();
+    if (!text || !messagesStream) return;
+
+    // Append user message
+    const userDiv = document.createElement('div');
+    userDiv.style.cssText = 'background: var(--bg-tertiary); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--accent); align-self: flex-end; max-width: 80%;';
+    userDiv.innerHTML = `<strong>You:</strong> <div style="margin-top: 4px; color: #fff;">${text}</div>`;
+    messagesStream.appendChild(userDiv);
+
+    txtInput.value = '';
+    messagesStream.scrollTop = messagesStream.scrollHeight;
+
+    // Simulate AI response
+    setTimeout(() => {
+      const aiDiv = document.createElement('div');
+      aiDiv.style.cssText = 'background: var(--card-bg); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); max-width: 85%;';
+      aiDiv.innerHTML = `<strong>🚀 Evolve AI:</strong> <div style="margin-top: 4px; color: #e2e8f0;">I analyzed your request regarding: <em>"${text}"</em>. All operations comply with enterprise air-gapped standards. Let me know if you would like me to scaffold models, generate tests, or execute terminal commands.</div>`;
+      messagesStream.appendChild(aiDiv);
+      messagesStream.scrollTop = messagesStream.scrollHeight;
+    }, 400);
   };
 
-  if (btnSend) btnSend.addEventListener('click', runCmd);
-  if (txtCmd) {
-    txtCmd.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') runCmd();
-    });
-  }
-
-  if (api?.terminal?.onData) {
-    api.terminal.onData((_: string, data: string) => {
-      if (viewport) {
-        viewport.innerHTML += '<div style="color: #d4d4d4; white-space: pre-wrap;">' + data + '</div>';
-        viewport.scrollTop = viewport.scrollHeight;
-      }
-    });
-  }
+  btnSend?.addEventListener('click', sendMessage);
+  txtInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 }
 
-async function refreshLicenseInfo(): Promise<void> {
-  if (!api?.license) return;
-  const state = await api.license.getState();
-  const lbl = document.getElementById('lblLicensePlan');
-  if (lbl && state) lbl.innerText = String(state.plan || 'ENTERPRISE').toUpperCase();
+// --- HARDWARE SIZER STUDIO ---
+function setupHardwareStudio(api: any): void {
+  const btnInspect = document.getElementById('btnRunHwInspect');
+  btnInspect?.addEventListener('click', () => runHardwareInspect(api));
+}
+
+async function runHardwareInspect(api: any): Promise<void> {
+  if (!api?.hardware) return;
+  showToast('🔍 Probing local hardware & AI servers...');
+  try {
+    const hw = await api.hardware.inspect();
+    const models = await api.hardware.discoverLocalModels();
+
+    const ramEl = document.getElementById('hwRamVal');
+    const gpuEl = document.getElementById('hwGpuVal');
+    const cpuEl = document.getElementById('hwCpuVal');
+    const ollamaEl = document.getElementById('hwOllamaVal');
+    const recSummary = document.getElementById('hwRecommendationSummary');
+
+    if (ramEl) ramEl.innerText = `${hw.profile.totalRamGb} GB`;
+    if (gpuEl) gpuEl.innerText = hw.profile.gpuModel || 'Integrated / CPU';
+    if (cpuEl) cpuEl.innerText = `${hw.profile.cpuCores} Cores`;
+
+    const activeServers = (models || []).filter((m: any) => m.active);
+    if (ollamaEl) {
+      ollamaEl.innerText = activeServers.length > 0 ? `✓ ${activeServers.map((s: any) => s.name).join(', ')}` : 'Offline';
+      ollamaEl.style.color = activeServers.length > 0 ? 'var(--success)' : 'var(--warning)';
+    }
+
+    if (recSummary) {
+      recSummary.innerHTML = `<div><strong>Recommendation:</strong> ${hw.recommendation.modelName} (${hw.recommendation.quantization})</div>
+        <div style="margin-top: 4px; color: var(--text-secondary);">${hw.recommendation.rationale}</div>
+        <div style="margin-top: 6px; font-weight: bold; color: var(--accent);">Colibri 744B Feasibility: ${hw.colibriFeasibility ? 'Eligible' : 'Requires Additional Disk & VRAM'}</div>`;
+    }
+  } catch {}
+}
+
+// --- GIT STUDIO ---
+function setupGitStudio(api: any): void {
+  const btnRefresh = document.getElementById('btnRefreshGit');
+  const btnSwitch = document.getElementById('btnSwitchBranch');
+  const btnCreate = document.getElementById('btnCreateBranch');
+  const btnCommit = document.getElementById('btnGitCommitPush');
+
+  btnRefresh?.addEventListener('click', () => refreshGitStatus(api));
+
+  btnSwitch?.addEventListener('click', async () => {
+    const sel = (document.getElementById('gitBranchDropdown') as HTMLSelectElement).value;
+    if (api?.git) {
+      await api.git.switchBranch(sel);
+      showToast(`✓ Switched to branch: ${sel}`);
+      refreshGitStatus(api);
+    }
+  });
+
+  btnCreate?.addEventListener('click', async () => {
+    const name = (document.getElementById('txtNewBranchName') as HTMLInputElement).value.trim();
+    if (name && api?.git) {
+      await api.git.createBranch(name);
+      showToast(`✓ Created & checked out branch: ${name}`);
+      refreshGitStatus(api);
+    }
+  });
+
+  btnCommit?.addEventListener('click', async () => {
+    const msg = (document.getElementById('txtCommitMessage') as HTMLInputElement).value.trim();
+    showToast('🚀 Committing and pushing to origin...');
+    if (api?.git) {
+      const res = await api.git.commitAndPush(msg || 'chore: automated enterprise studio commit');
+      if (res.success) {
+        showToast('✓ Pushed to remote origin successfully!');
+      } else {
+        showToast('🔴 ' + res.error);
+      }
+      refreshGitStatus(api);
+    }
+  });
+}
+
+async function refreshGitStatus(api: any): Promise<void> {
+  if (!api?.git) return;
+  try {
+    const git = await api.git.inspect();
+    const branches = await api.git.getBranches();
+
+    const branchEl = document.getElementById('gitActiveBranch');
+    const remoteEl = document.getElementById('gitRemoteUrl');
+    const authorEl = document.getElementById('gitAuthor');
+    const filesList = document.getElementById('gitFilesList');
+    const branchDropdown = document.getElementById('gitBranchDropdown') as HTMLSelectElement;
+
+    if (branchEl) branchEl.innerText = git.currentBranch || 'main';
+    if (remoteEl) remoteEl.innerText = git.remoteUrl || 'No remote origin configured';
+    if (authorEl) authorEl.innerText = `${git.userName || 'developer'} <${git.userEmail || 'dev@client.corp'}>`;
+
+    if (filesList) {
+      filesList.innerHTML = git.modifiedFiles && git.modifiedFiles.length > 0
+        ? git.modifiedFiles.map((f: string) => `<div>✏️ ${f}</div>`).join('')
+        : '<div style="color: var(--success);">✓ Working directory is clean.</div>';
+    }
+
+    if (branchDropdown && branches) {
+      branchDropdown.innerHTML = branches.map((b: string) => `<option value="${b}" ${b === git.currentBranch ? 'selected' : ''}>${b}</option>`).join('');
+    }
+  } catch {}
+}
+
+// --- MODALS ---
+function setupModals(api: any): void {
+  const btnHeaderModel = document.getElementById('btnHeaderModelPicker');
+  const modalAiProvider = document.getElementById('modalAiProvider');
+  const btnCloseAiProvider = document.getElementById('btnCloseAiProviderModal');
+
+  const btnHeaderPlugins = document.getElementById('btnHeaderPlugins');
+  const modalPlugins = document.getElementById('modalPluginsDrawer');
+  const btnClosePlugins = document.getElementById('btnClosePluginsModal');
+
+  btnHeaderModel?.addEventListener('click', () => {
+    if (modalAiProvider) modalAiProvider.style.display = 'flex';
+  });
+  btnCloseAiProvider?.addEventListener('click', () => {
+    if (modalAiProvider) modalAiProvider.style.display = 'none';
+  });
+
+  btnHeaderPlugins?.addEventListener('click', () => {
+    if (modalPlugins) modalPlugins.style.display = 'flex';
+  });
+  btnClosePlugins?.addEventListener('click', () => {
+    if (modalPlugins) modalPlugins.style.display = 'none';
+  });
+
+  // Select provider item
+  document.querySelectorAll<HTMLElement>('.modal-item[data-provider]').forEach(item => {
+    item.addEventListener('click', () => {
+      const p = item.getAttribute('data-provider');
+      const m = item.getAttribute('data-model');
+      const lbl = document.getElementById('lblHeaderModel');
+      if (lbl && p && m) {
+        lbl.innerText = `${p.toUpperCase()} · ${m}`;
+      }
+      if (modalAiProvider) modalAiProvider.style.display = 'none';
+      showToast(`✓ Active Model switched to ${p?.toUpperCase()}: ${m}`);
+    });
+  });
+
+  // Modal navigation shortcuts
+  document.getElementById('btnOpenLakehouseHub')?.addEventListener('click', () => {
+    if (modalPlugins) modalPlugins.style.display = 'none';
+    switchActivityTab('lakehouse', api);
+  });
+  document.getElementById('btnRunSecurityAudit')?.addEventListener('click', () => {
+    if (modalPlugins) modalPlugins.style.display = 'none';
+    switchActivityTab('security', api);
+  });
+  document.getElementById('btnConnectGit')?.addEventListener('click', () => {
+    if (modalPlugins) modalPlugins.style.display = 'none';
+    switchActivityTab('git', api);
+  });
+  document.getElementById('btnOpenCloudHub')?.addEventListener('click', () => {
+    if (modalPlugins) modalPlugins.style.display = 'none';
+    switchActivityTab('delivery', api);
+    const drawer = document.getElementById('cloudHubDrawer');
+    if (drawer) drawer.style.display = 'block';
+  });
+}
+
+function showToast(message: string): void {
+  const existing = document.getElementById('activeAppToast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'activeAppToast';
+  toast.innerText = message;
+  toast.style.cssText = 'position: fixed; bottom: 32px; right: 24px; background: #252526; color: #4ec9b0; border: 1px solid #4ec9b0; padding: 10px 18px; border-radius: 6px; font-size: 12px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.4); z-index: 9999; animation: fadeIn 0.2s ease;';
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3500);
 }

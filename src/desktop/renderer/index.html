@@ -120,7 +120,7 @@
           </div>
 
           <!-- Git Toolbar Bar (Screenshot 4) -->
-          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
             <div style="display: flex; align-items: center; gap: 10px;">
               <span>🌿</span>
               <select id="selDeliveryGitBranch" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 11.5px;">
@@ -137,7 +137,61 @@
               <button class="btn-quick" id="btnDeliverySyncFetch">🔄 Sync &amp; Fetch</button>
               <button class="btn-quick" id="btnDelivery1ClickCommit" style="color: var(--success); font-weight: 700; border-color: var(--success);">🚀 1-Click Commit &amp; Push</button>
               <button class="btn-quick" id="btnDeliveryCreatePr">✨ Create PR</button>
-              <button class="btn-quick" id="btnDeliveryCloudHub">☁️ Cloud Hub &amp; Connect</button>
+              <button class="btn-quick" id="btnDeliveryCloudHub" style="background: rgba(78, 201, 176, 0.1); border-color: var(--accent); color: var(--accent); font-weight: bold;">☁️ Cloud Hub &amp; Connect</button>
+            </div>
+          </div>
+
+          <!-- EXACT MULTI-CLOUD CONNECTION & AUTHENTICATION HUB DRAWER (Screenshots 1 & 2) -->
+          <div id="cloudHubDrawer" style="display: block; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.25);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-weight: 700; color: var(--accent); font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                <span>☁️</span> Multi-Cloud Connection &amp; Authentication Hub
+              </div>
+              <button class="btn-quick" id="btnCloseCloudHub" style="font-size: 11px;">✕ Close</button>
+            </div>
+
+            <!-- 4 Cloud Provider Status Cards (Exact match for Screenshot 2) -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-size: 11.5px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                  <span>Google Cloud (GCP)</span>
+                  <span id="cloudGcpBadge" style="color: var(--warning); font-size: 10.5px; font-weight: bold;">checking...</span>
+                </div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudGcpAccount">Account: detecting...</div>
+                <button class="btn-quick" id="btnConnectGcp" style="width: 100%; font-size: 11px;">🔑 Connect GCP</button>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-size: 11.5px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                  <span>Amazon AWS</span>
+                  <span id="cloudAwsBadge" style="color: var(--warning); font-size: 10.5px; font-weight: bold;">checking...</span>
+                </div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudAwsAccount">Account: detecting...</div>
+                <button class="btn-quick" id="btnConnectAws" style="width: 100%; font-size: 11px;">🔑 Connect AWS</button>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-size: 11.5px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                  <span>Microsoft Azure</span>
+                  <span id="cloudAzureBadge" style="color: var(--warning); font-size: 10.5px; font-weight: bold;">checking...</span>
+                </div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudAzureAccount">Account: detecting...</div>
+                <button class="btn-quick" id="btnConnectAzure" style="width: 100%; font-size: 11px;">🔑 Connect Azure</button>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                <div style="font-size: 11.5px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                  <span>Docker Engine</span>
+                  <span id="cloudDockerBadge" style="color: var(--warning); font-size: 10.5px; font-weight: bold;">checking...</span>
+                </div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="cloudDockerAccount">Daemon: detecting...</div>
+                <button class="btn-quick" id="btnConnectDocker" style="width: 100%; font-size: 11px;">🐳 Check Docker</button>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border);">
+              <span style="font-size: 11px; color: var(--text-secondary);">💡 Connecting runs official CLI login with browser SSO OAuth in your terminal.</span>
+              <button class="btn" id="btnRefreshCloudStatus" style="padding: 6px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🔄 Refresh Cloud Status</button>
             </div>
           </div>
 
@@ -763,48 +817,50 @@
         <!-- =================================================================== -->
         <section id="pane-cloud" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <h3>☁️ Multi-Cloud Connect Matrix &amp; Pre-Flight Auditor</h3>
-            <p class="desc">Test authentication, principal authorization, and latency across Google Cloud, AWS, Azure, Databricks, and Snowflake.</p>
+            <h3>☁️ Multi-Cloud Connection &amp; Authentication Hub</h3>
+            <p class="desc">Test authentication, principal authorization, and latency across Google Cloud, AWS, Azure, and Docker Engine.</p>
 
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 14px; margin-bottom: 16px;">
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 14px; margin-bottom: 16px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
                   <span>Google Cloud (GCP)</span>
-                  <span id="gcpPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
+                  <span id="tabCloudGcpBadge" style="color: var(--warning); font-size: 11px;">checking...</span>
                 </div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">BigQuery, Cloud Run, Secret Manager</div>
-                <button class="btn-quick" id="btnPingGcp" style="width: 100%;">📡 Test Connection</button>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="tabCloudGcpAccount">Account: detecting...</div>
+                <button class="btn-quick" id="btnTabConnectGcp" style="width: 100%;">🔑 Connect GCP</button>
               </div>
 
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
-                  <span>Amazon Web Services</span>
-                  <span id="awsPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                  <span>Amazon AWS</span>
+                  <span id="tabCloudAwsBadge" style="color: var(--warning); font-size: 11px;">checking...</span>
                 </div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">ECS Fargate, S3, IAM Roles</div>
-                <button class="btn-quick" id="btnPingAws" style="width: 100%;">📡 Test Connection</button>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="tabCloudAwsAccount">Account: detecting...</div>
+                <button class="btn-quick" id="btnTabConnectAws" style="width: 100%;">🔑 Connect AWS</button>
               </div>
 
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
                   <span>Microsoft Azure</span>
-                  <span id="azurePingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
+                  <span id="tabCloudAzureBadge" style="color: var(--warning); font-size: 11px;">checking...</span>
                 </div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Container Apps, Key Vault, Synapse</div>
-                <button class="btn-quick" id="btnPingAzure" style="width: 100%;">📡 Test Connection</button>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="tabCloudAzureAccount">Account: detecting...</div>
+                <button class="btn-quick" id="btnTabConnectAzure" style="width: 100%;">🔑 Connect Azure</button>
               </div>
 
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                <div style="font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
-                  <span>Snowflake Cloud</span>
-                  <span id="snowPingStatus" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">CHECK AUTH</span>
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                <div style="font-size: 12px; font-weight: bold; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                  <span>Docker Engine</span>
+                  <span id="tabCloudDockerBadge" style="color: var(--warning); font-size: 11px;">checking...</span>
                 </div>
-                <div style="font-size: 11px; color: var(--text-secondary); margin: 4px 0 8px 0;">Data Cloud Warehouses &amp; Cortex</div>
-                <button class="btn-quick" id="btnPingSnow" style="width: 100%;">📡 Test Connection</button>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="tabCloudDockerAccount">Daemon: detecting...</div>
+                <button class="btn-quick" id="btnTabConnectDocker" style="width: 100%;">🐳 Check Docker</button>
               </div>
             </div>
 
-            <div id="cloudPingOutputBox" style="display: none; background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 180px; overflow-y: auto;"></div>
+            <div style="display: flex; justify-content: flex-end;">
+              <button class="btn" id="btnTabRefreshCloud" style="background: var(--success); color: #1e1e1e; font-weight: 700;">🔄 Refresh Cloud Status</button>
+            </div>
           </div>
         </section>
 
@@ -814,7 +870,7 @@
       <div class="terminal-drawer" id="terminalDrawer">
         <div class="terminal-header">
           <div class="terminal-tabs" id="terminalTabsContainer">
-            <div class="terminal-tab active" id="tabTerm1">⚡ Terminal 1</div>
+            <div class="terminal-tab active" id="tabTerm1">⚡ Terminal 1 (PowerShell)</div>
             <button class="btn-quick" id="btnNewTerminalTab" style="padding: 2px 6px;">➕</button>
           </div>
           <div class="terminal-actions">

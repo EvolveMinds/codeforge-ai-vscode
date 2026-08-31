@@ -81,8 +81,9 @@ export class GitPlugin implements IPlugin {
 
   // ── detect ────────────────────────────────────────────────────────────────
 
-  async detect(_ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
-    return true;
+  async detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean> {
+    if (!ws) return false;
+    return fs.existsSync(path.join(ws.uri.fsPath, '.git'));
   }
 
   // ── activate ──────────────────────────────────────────────────────────────

@@ -24,7 +24,6 @@ export class DesktopTerminalManager {
     const shells: string[] = [];
 
     if (isWin) {
-      // Check for PowerShell 7 / Core
       const pwshPath = 'C:\\Program Files\\PowerShell\\7\\pwsh.exe';
       const gitBash = 'C:\\Program Files\\Git\\bin\\bash.exe';
       const sys32 = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32') : 'C:\\Windows\\System32';
@@ -67,7 +66,7 @@ export class DesktopTerminalManager {
     const isWin = os.platform() === 'win32';
     let shellArgs: string[] = options.args || [];
     if (!options.args && isWin && shell.toLowerCase().includes('powershell')) {
-      shellArgs = ['-NoLogo', '-ExecutionPolicy', 'Bypass'];
+      shellArgs = ['-NoLogo', '-NoExit', '-ExecutionPolicy', 'Bypass'];
     }
 
     const proc = child_process.spawn(shell, shellArgs, {
@@ -126,13 +125,13 @@ export class DesktopTerminalManager {
       }
     });
 
-    // Send initial welcome text
+    // Send initial prompt & welcome text
     setTimeout(() => {
-      const welcome = `\r\n\x1b[36m⚡ Evolve AI Terminal Studio Session [${sessionName}] Initialized in ${cwd}\x1b[0m\r\n\r\n`;
+      const welcome = `\r\n\x1b[36m⚡ Evolve AI Terminal Session [${sessionName}] Initialized in ${cwd}\x1b[0m\r\nPS ${cwd}> `;
       for (const listener of this._dataListeners) {
         try { listener(sessionId, welcome); } catch {}
       }
-    }, 100);
+    }, 50);
 
     return info;
   }
@@ -146,6 +145,61 @@ export class DesktopTerminalManager {
       } catch {}
     }
     return false;
+  }
+
+  public executeCommand(sessionId: string, cmd: string, cwd?: string): Promise<{ stdout: string; stderr: string; code: number }> {
+    const session = this._sessions.get(sessionId);
+    const targetCwd = cwd || (session ? session.info.cwd : process.cwd());
+
+    // Emit echo of command to listeners
+    for (const listener of this._dataListeners) {
+      try { listener(sessionId, `\r\n\x1b[33m❯ ${cmd}\x1b[0m\r\n`); } catch {}
+    }
+
+    return new Promise((resolve) => {
+      const isWin = os.platform() === 'win32';
+      const shellCmd = isWin ? 'powershell.exe' : '/bin/bash';
+      const shellArgs = isWin ? ['-NoLogo', '-Command', cmd] : ['-c', cmd];
+
+      const child = child_process.spawn(shellCmd, shellArgs, {
+        cwd: targetCwd,
+        env: process.env,
+        windowsHide: true
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout?.on('data', (chunk) => {
+        const text = chunk.toString('utf8');
+        stdout += text;
+        for (const listener of this._dataListeners) {
+          try { listener(sessionId, text); } catch {}
+        }
+      });
+
+      child.stderr?.on('data', (chunk) => {
+        const text = chunk.toString('utf8');
+        stderr += text;
+        for (const listener of this._dataListeners) {
+          try { listener(sessionId, `\x1b[31m${text}\x1b[0m`); } catch {}
+        }
+      });
+
+      child.on('close', (code) => {
+        for (const listener of this._dataListeners) {
+          try { listener(sessionId, `\r\nPS ${targetCwd}> `); } catch {}
+        }
+        resolve({ stdout, stderr, code: code || 0 });
+      });
+
+      child.on('error', (err) => {
+        for (const listener of this._dataListeners) {
+          try { listener(sessionId, `\r\n\x1b[31mCommand error: ${err.message}\x1b[0m\r\nPS ${targetCwd}> `); } catch {}
+        }
+        resolve({ stdout: '', stderr: err.message, code: 1 });
+      });
+    });
   }
 
   public killSession(sessionId: string): boolean {
@@ -177,7 +231,7 @@ export class DesktopTerminalManager {
   }
 
   public dispose(): void {
-    for (const [id, session] of this._sessions.entries()) {
+    for (const [id] of this._sessions.entries()) {
       this.killSession(id);
     }
     this._sessions.clear();

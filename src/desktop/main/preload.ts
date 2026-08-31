@@ -33,6 +33,7 @@ const desktopApi = {
   terminal: {
     spawn: (options?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.TERMINAL.SPAWN, options),
     input: (id: string, data: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.TERMINAL.INPUT, id, data),
+    executeCommand: (id: string, cmd: string, cwd?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.TERMINAL.EXECUTE_COMMAND, id, cmd, cwd),
     resize: (id: string, cols: number, rows: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.TERMINAL.RESIZE, id, cols, rows),
     kill: (id: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.TERMINAL.KILL, id),
     list: () => ipcRenderer.invoke(DESKTOP_CHANNELS.TERMINAL.LIST),
@@ -73,7 +74,10 @@ const desktopApi = {
 
   // --- MULTI-CLOUD CONNECT APIS ---
   cloud: {
-    testConnection: (provider: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION, provider)
+    testConnection: (provider: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION, provider),
+    getDetailedStatus: () => ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.GET_DETAILED_STATUS),
+    connectAccount: (provider: string, action: string, sessionId?: string) => 
+      ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.CONNECT_ACCOUNT, provider, action, sessionId)
   },
 
   // --- DATABRICKS STUDIO APIS ---
@@ -93,7 +97,7 @@ const desktopApi = {
     saveProfile: (profile: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.SAVE_PROFILE, profile)
   },
 
-  // --- SECRET VAULT APIS ---
+  // --- VAULT APIS ---
   vault: {
     getSecret: (key: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.VAULT.GET_SECRET, key),
     setSecret: (key: string, val: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.VAULT.SET_SECRET, key, val),
