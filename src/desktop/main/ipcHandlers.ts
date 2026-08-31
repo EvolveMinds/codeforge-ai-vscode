@@ -622,18 +622,104 @@ export class DesktopIpcHandlers {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
 
+      let gitInstalled = false;
+      let gitVersion = '';
+      try {
+        const { stdout: verOut } = await execFileAsync('git', ['--version'], { cwd, timeout: 3000 });
+        if (verOut && !verOut.includes('not recognized')) {
+          gitInstalled = true;
+          gitVersion = verOut.trim();
+        }
+      } catch {}
+
+      if (!gitInstalled) {
+        return {
+          isRepo: false,
+          gitInstalled: false,
+          gitVersion: '',
+          currentBranch: '',
+          remoteUrl: '',
+          remoteProvider: 'generic',
+          providerLabel: 'Git',
+          prUrl: '',
+          userName: '',
+          userEmail: '',
+          modifiedFiles: [],
+          recentCommits: [],
+          isClean: true,
+          ahead: 0,
+          behind: 0
+        };
+      }
+
       try {
         const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd });
         const currentBranch = branchOut.trim();
 
         const { stdout: statusOut } = await execFileAsync('git', ['status', '--porcelain'], { cwd });
-        const modifiedFiles = statusOut.split('\n').filter(Boolean).map(l => l.trim());
+        const rawLines = statusOut.split('\n').filter(Boolean);
+        const modifiedFiles = rawLines.map(l => {
+          const trimmed = l.trim();
+          const statusCode = trimmed.substring(0, 2).trim();
+          const filePath = trimmed.substring(2).trim();
+          let statusLabel = 'Modified';
+          if (statusCode.includes('?') || statusCode === 'A') statusLabel = 'Added / Untracked';
+          else if (statusCode.includes('D')) statusLabel = 'Deleted';
+          else if (statusCode.includes('M')) statusLabel = 'Modified';
+          else if (statusCode.includes('R')) statusLabel = 'Renamed';
+          return {
+            path: filePath,
+            code: statusCode,
+            statusLabel,
+            staged: l[0] !== ' ' && l[0] !== '?'
+          };
+        });
 
         let remoteUrl = '';
         try {
           const { stdout: remoteOut } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd });
           remoteUrl = remoteOut.trim();
         } catch {}
+
+        let remoteProvider: 'bitbucket' | 'github' | 'gitlab' | 'azure_devops' | 'generic' = 'generic';
+        let providerLabel = 'Generic Git Remote';
+        let prUrl = '';
+        let bitbucketWorkspace = '';
+        let bitbucketRepo = '';
+
+        if (remoteUrl) {
+          const cleanRemote = remoteUrl.toLowerCase();
+          if (cleanRemote.includes('bitbucket.org') || cleanRemote.includes('bitbucket')) {
+            remoteProvider = 'bitbucket';
+            providerLabel = 'Bitbucket Cloud';
+            // Parse git@bitbucket.org:workspace/repo.git or https://bitbucket.org/workspace/repo.git
+            const match = remoteUrl.match(/bitbucket\.org[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
+            if (match) {
+              bitbucketWorkspace = match[1];
+              bitbucketRepo = match[2];
+              prUrl = `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepo}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=main`;
+            }
+          } else if (cleanRemote.includes('github.com')) {
+            remoteProvider = 'github';
+            providerLabel = 'GitHub Enterprise / Cloud';
+            const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
+            if (match) {
+              const owner = match[1];
+              const repo = match[2];
+              prUrl = `https://github.com/${owner}/${repo}/compare/${encodeURIComponent(currentBranch)}?expand=1`;
+            }
+          } else if (cleanRemote.includes('gitlab.com') || cleanRemote.includes('gitlab')) {
+            remoteProvider = 'gitlab';
+            providerLabel = 'GitLab CI/CD';
+            const match = remoteUrl.match(/gitlab\.com[:/](.+?)\/([^/.]+)(?:\.git)?/i);
+            if (match) {
+              prUrl = `https://gitlab.com/${match[1]}/${match[2]}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}`;
+            }
+          } else if (cleanRemote.includes('dev.azure.com') || cleanRemote.includes('visualstudio.com')) {
+            remoteProvider = 'azure_devops';
+            providerLabel = 'Azure DevOps Repos';
+          }
+        }
 
         let userName = '', userEmail = '';
         try {
@@ -643,23 +729,62 @@ export class DesktopIpcHandlers {
           userEmail = e.trim();
         } catch {}
 
+        let recentCommits: Array<{ hash: string; shortHash: string; author: string; timeAgo: string; message: string }> = [];
+        try {
+          const { stdout: logOut } = await execFileAsync('git', ['log', '-n', '8', '--pretty=format:%H|%h|%an|%cr|%s'], { cwd });
+          recentCommits = logOut.split('\n').filter(Boolean).map(l => {
+            const [hash, shortHash, author, timeAgo, message] = l.split('|');
+            return { hash, shortHash, author, timeAgo, message };
+          });
+        } catch {}
+
+        let ahead = 0, behind = 0;
+        try {
+          const { stdout: revCount } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `origin/${currentBranch}...HEAD`], { cwd });
+          const parts = revCount.trim().split(/\s+/);
+          if (parts.length === 2) {
+            behind = parseInt(parts[0], 10) || 0;
+            ahead = parseInt(parts[1], 10) || 0;
+          }
+        } catch {}
+
         return {
           isRepo: true,
+          gitInstalled: true,
+          gitVersion,
           currentBranch,
           remoteUrl,
+          remoteProvider,
+          providerLabel,
+          prUrl,
+          bitbucketWorkspace,
+          bitbucketRepo,
           userName,
           userEmail,
           modifiedFiles,
-          isClean: modifiedFiles.length === 0
+          recentCommits,
+          isClean: modifiedFiles.length === 0,
+          ahead,
+          behind
         };
       } catch (err: any) {
         return {
           isRepo: false,
+          gitInstalled: true,
+          gitVersion,
           error: err.message,
           currentBranch: '',
           remoteUrl: '',
+          remoteProvider: 'generic',
+          providerLabel: 'Git',
+          prUrl: '',
+          userName: '',
+          userEmail: '',
           modifiedFiles: [],
-          isClean: true
+          recentCommits: [],
+          isClean: true,
+          ahead: 0,
+          behind: 0
         };
       }
     });
@@ -701,8 +826,8 @@ export class DesktopIpcHandlers {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
       try {
-        await execFileAsync('git', ['add', '.'], { cwd });
-        await execFileAsync('git', ['commit', '-m', commitMessage || 'chore: automated enterprise studio commit'], { cwd });
+        await execFileAsync('git', ['add', '-A'], { cwd });
+        await execFileAsync('git', ['commit', '-m', commitMessage || 'chore(enterprise): automated delivery studio commit'], { cwd });
         const { stdout } = await execFileAsync('git', ['push', 'origin', 'HEAD'], { cwd });
         return { success: true, output: stdout };
       } catch (err: any) {
@@ -710,12 +835,174 @@ export class DesktopIpcHandlers {
       }
     });
 
+    ipc.handle(DESKTOP_CHANNELS.GIT.INIT, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        await execFileAsync('git', ['init'], { cwd });
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.SET_REMOTE, async (_: any, remoteUrl: string, name: string = 'origin') => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        // Try set-url first, if fails try add
+        try {
+          await execFileAsync('git', ['remote', 'set-url', name, remoteUrl], { cwd });
+        } catch {
+          await execFileAsync('git', ['remote', 'add', name, remoteUrl], { cwd });
+        }
+        return { success: true, remoteUrl };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.SET_CONFIG, async (_: any, config: { name?: string; email?: string }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        if (config.name) await execFileAsync('git', ['config', 'user.name', config.name], { cwd });
+        if (config.email) await execFileAsync('git', ['config', 'user.email', config.email], { cwd });
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.SYNC, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        await execFileAsync('git', ['fetch', '--all', '--prune'], { cwd });
+        const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd });
+        const branch = branchOut.trim();
+        try {
+          const { stdout: pullOut } = await execFileAsync('git', ['pull', '--rebase', 'origin', branch], { cwd });
+          return { success: true, output: pullOut || 'Synced with remote origin' };
+        } catch {
+          return { success: true, output: 'Fetched all remote references' };
+        }
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.STAGE, async (_: any, files?: string[]) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        if (Array.isArray(files) && files.length > 0) {
+          await execFileAsync('git', ['add', ...files], { cwd });
+        } else {
+          await execFileAsync('git', ['add', '-A'], { cwd });
+        }
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.COMMIT, async (_: any, message: string) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const { stdout } = await execFileAsync('git', ['commit', '-m', message || 'chore: update files'], { cwd });
+        return { success: true, output: stdout };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.PUSH, async (_: any, branch?: string) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const target = branch || 'HEAD';
+        const { stdout } = await execFileAsync('git', ['push', 'origin', target], { cwd });
+        return { success: true, output: stdout };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.PULL, async (_: any, branch?: string) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const target = branch || 'HEAD';
+        const { stdout } = await execFileAsync('git', ['pull', 'origin', target], { cwd });
+        return { success: true, output: stdout };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.STASH, async (_: any, action: 'save' | 'pop') => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const args = action === 'pop' ? ['stash', 'pop'] : ['stash', 'save', 'Enterprise Studio Stash'];
+        const { stdout } = await execFileAsync('git', args, { cwd });
+        return { success: true, output: stdout };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.GET_LOG, async (_: any, limit: number = 10) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const { stdout } = await execFileAsync('git', ['log', '-n', String(limit), '--pretty=format:%H|%h|%an|%cr|%s'], { cwd });
+        const commits = stdout.split('\n').filter(Boolean).map(l => {
+          const [hash, shortHash, author, timeAgo, message] = l.split('|');
+          return { hash, shortHash, author, timeAgo, message };
+        });
+        return { success: true, commits };
+      } catch (err: any) {
+        return { success: false, error: err.message, commits: [] };
+      }
+    });
+
     ipc.handle(DESKTOP_CHANNELS.GIT.CREATE_PR, async (_: any, prInfo: { title: string; body: string; targetBranch: string }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      let prUrl = 'https://github.com';
+      try {
+        const { stdout: remoteOut } = await execFileAsync('git', ['remote', 'get-url', 'origin'], { cwd });
+        const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd });
+        const currentBranch = branchOut.trim();
+        const remote = remoteOut.trim();
+        const target = prInfo.targetBranch || 'main';
+
+        if (remote.includes('bitbucket.org') || remote.includes('bitbucket')) {
+          const match = remote.match(/bitbucket\.org[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
+          if (match) {
+            prUrl = `https://bitbucket.org/${match[1]}/${match[2]}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=${encodeURIComponent(target)}`;
+          }
+        } else if (remote.includes('github.com')) {
+          const match = remote.match(/github\.com[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
+          if (match) {
+            prUrl = `https://github.com/${match[1]}/${match[2]}/compare/${encodeURIComponent(target)}...${encodeURIComponent(currentBranch)}?expand=1`;
+          }
+        } else if (remote.includes('gitlab.com')) {
+          const match = remote.match(/gitlab\.com[:/](.+?)\/([^/.]+)(?:\.git)?/i);
+          if (match) {
+            prUrl = `https://gitlab.com/${match[1]}/${match[2]}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}`;
+          }
+        }
+      } catch {}
+
       return {
         success: true,
-        prUrl: 'https://github.com/EvolveMinds/client-pilot/pull/new',
-        prTitle: prInfo.title || 'feat: automated client pilot delivery',
-        summary: `PR synthesized for ${prInfo.targetBranch || 'main'}`
+        prUrl,
+        prTitle: prInfo.title || 'feat: automated client delivery update',
+        summary: `PR ready for ${prInfo.targetBranch || 'main'}`
       };
     });
 

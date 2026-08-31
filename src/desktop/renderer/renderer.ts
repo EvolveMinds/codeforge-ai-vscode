@@ -3943,43 +3943,346 @@ async function runHardwareInspect(api: any): Promise<void> {
   } catch {}
 }
 
-// --- GIT STUDIO & DYNAMIC BRANCH DISCOVERY ---
+// --- GIT & REMOTE REPOSITORY HUB STUDIO ---
 function setupGitStudio(api: any): void {
   const btnRefresh = document.getElementById('btnRefreshGit');
-  const btnSwitch = document.getElementById('btnSwitchBranch');
-  const btnCreate = document.getElementById('btnCreateBranch');
-  const selDeliveryBranch = document.getElementById('selDeliveryGitBranch') as HTMLSelectElement;
+  const btnGitPaneSync = document.getElementById('btnGitPaneSync');
+  const btnGitPaneQuickPush = document.getElementById('btnGitPaneQuickPush');
+  const btnGitPaneCreatePr = document.getElementById('btnGitPaneCreatePr');
+  const btnGitPaneToggleWizard = document.getElementById('btnGitPaneToggleWizard');
+  const btnCloseGitWizard = document.getElementById('btnCloseGitWizard');
+  const btnGitPaneOpenTerm = document.getElementById('btnGitPaneOpenTerm');
 
+  const gitWizardCard = document.getElementById('gitWizardCard');
+  const btnGitWizardSaveRemote = document.getElementById('btnGitWizardSaveRemote');
+  const btnGitWizardInit = document.getElementById('btnGitWizardInit');
+  const btnGitWizardTestRemote = document.getElementById('btnGitWizardTestRemote');
+  const selGitWizardProvider = document.getElementById('selGitWizardProvider') as HTMLSelectElement;
+  const txtGitWizardRemoteUrl = document.getElementById('txtGitWizardRemoteUrl') as HTMLInputElement;
+  const txtGitWizardUserName = document.getElementById('txtGitWizardUserName') as HTMLInputElement;
+  const txtGitWizardUserEmail = document.getElementById('txtGitWizardUserEmail') as HTMLInputElement;
+  const txtGitWizardWorkspace = document.getElementById('txtGitWizardWorkspace') as HTMLInputElement;
+
+  const btnGitStageAll = document.getElementById('btnGitStageAll');
+  const btnGitUnstageAll = document.getElementById('btnGitUnstageAll');
+  const btnGitDiscardAll = document.getElementById('btnGitDiscardAll');
+
+  const btnGitAiGenCommit = document.getElementById('btnGitAiGenCommit');
+  const txtGitCommitMessage = document.getElementById('txtGitCommitMessage') as HTMLTextAreaElement;
+  const btnGitCommitOnly = document.getElementById('btnGitCommitOnly');
+  const btnGitCommitAndPushDirect = document.getElementById('btnGitCommitAndPushDirect');
+
+  const gitPaneBranchSelect = document.getElementById('gitPaneBranchSelect') as HTMLSelectElement;
+  const btnGitPaneSwitchBranch = document.getElementById('btnGitPaneSwitchBranch');
+  const txtGitPaneNewBranch = document.getElementById('txtGitPaneNewBranch') as HTMLInputElement;
+  const btnGitPaneCreateBranch = document.getElementById('btnGitPaneCreateBranch');
+
+  const btnGitPanePull = document.getElementById('btnGitPanePull');
+  const btnGitPanePush = document.getElementById('btnGitPanePush');
+  const btnGitPaneStashSave = document.getElementById('btnGitPaneStashSave');
+  const btnGitPaneStashPop = document.getElementById('btnGitPaneStashPop');
+  const btnGitOpenPrBrowser = document.getElementById('btnGitOpenPrBrowser');
+
+  const selDeliveryBranch = document.getElementById('selDeliveryGitBranch') as HTMLSelectElement;
+  const btnDeliveryGitSetup = document.getElementById('btnDeliveryGitSetup');
+  const btnDeliveryGitSync = document.getElementById('btnDeliveryGitSync');
+  const btnDeliveryQuickCommit = document.getElementById('btnDeliveryQuickCommit');
+  const btnDeliveryCreatePr = document.getElementById('btnDeliveryCreatePr');
+
+  // Toggle Wizard Card
+  const toggleWizard = () => {
+    if (gitWizardCard) {
+      const isHidden = gitWizardCard.style.display === 'none' || gitWizardCard.style.display === '';
+      gitWizardCard.style.display = isHidden ? 'block' : 'none';
+      if (isHidden) gitWizardCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  };
+
+  btnGitPaneToggleWizard?.addEventListener('click', toggleWizard);
+  btnCloseGitWizard?.addEventListener('click', () => {
+    if (gitWizardCard) gitWizardCard.style.display = 'none';
+  });
+  btnDeliveryGitSetup?.addEventListener('click', () => {
+    switchActivityTab('git', api);
+    if (gitWizardCard) gitWizardCard.style.display = 'block';
+  });
+
+  // Open Terminal
+  btnGitPaneOpenTerm?.addEventListener('click', () => {
+    const terminalDrawer = document.getElementById('terminalDrawer');
+    if (terminalDrawer) {
+      const isHidden = terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '';
+      terminalDrawer.style.display = isHidden ? 'flex' : 'none';
+    }
+  });
+
+  // Sync & Fetch
+  const handleSync = async () => {
+    if (!api?.git) return;
+    showToast('🔄 Synchronizing references with remote origin (git fetch --all)...');
+    const res = await api.git.sync();
+    if (res.success) {
+      showToast(`✓ Synced: ${res.output || 'All branches and tags updated'}`);
+    } else {
+      showToast(`⚠️ Sync warning: ${res.error || 'Failed to sync'}`);
+    }
+    await refreshGitStatus(api);
+  };
+  btnGitPaneSync?.addEventListener('click', handleSync);
+  btnDeliveryGitSync?.addEventListener('click', handleSync);
   btnRefresh?.addEventListener('click', () => refreshGitStatus(api));
 
-  selDeliveryBranch?.addEventListener('change', async () => {
-    const branch = selDeliveryBranch.value;
-    if (branch && api?.git) {
-      showToast(`🌿 Switching to branch: ${branch}...`);
-      await api.git.switchBranch(branch);
-      showToast(`✓ Switched to branch: ${branch}`);
-      refreshGitStatus(api);
+  // Switch Branch
+  const switchBranchHandler = async (branchName: string) => {
+    if (!branchName || !api?.git) return;
+    showToast(`🌿 Switching to branch: ${branchName}...`);
+    const res = await api.git.switchBranch(branchName);
+    if (res.success) {
+      showToast(`✓ Active branch is now: ${branchName}`);
+    } else {
+      showToast(`🔴 Failed to switch branch: ${res.error}`);
     }
+    await refreshGitStatus(api);
+  };
+
+  btnGitPaneSwitchBranch?.addEventListener('click', () => {
+    if (gitPaneBranchSelect) switchBranchHandler(gitPaneBranchSelect.value);
+  });
+  selDeliveryBranch?.addEventListener('change', () => {
+    if (selDeliveryBranch) switchBranchHandler(selDeliveryBranch.value);
   });
 
-  btnSwitch?.addEventListener('click', async () => {
-    const sel = (document.getElementById('gitBranchDropdown') as HTMLSelectElement).value;
+  // Create Branch
+  btnGitPaneCreateBranch?.addEventListener('click', async () => {
+    const branchName = (txtGitPaneNewBranch ? txtGitPaneNewBranch.value : '').trim();
+    if (!branchName) {
+      showToast('⚠️ Please enter a branch name (e.g. feat/client-auth)');
+      return;
+    }
+    if (/\s/.test(branchName)) {
+      showToast('⚠️ Branch names cannot contain spaces.');
+      return;
+    }
+    showToast(`🌿 Creating and checking out branch: ${branchName}...`);
     if (api?.git) {
-      await api.git.switchBranch(sel);
-      showToast(`✓ Switched to branch: ${sel}`);
-      refreshGitStatus(api);
+      const res = await api.git.createBranch(branchName);
+      if (res.success) {
+        showToast(`✓ Created & checked out branch: ${branchName}`);
+        if (txtGitPaneNewBranch) txtGitPaneNewBranch.value = '';
+      } else {
+        showToast(`🔴 Branch creation failed: ${res.error}`);
+      }
+      await refreshGitStatus(api);
     }
   });
 
-  btnCreate?.addEventListener('click', () => {
-    const modalNewBranch = document.getElementById('modalNewBranch');
-    const txtNewBranchModalInput = document.getElementById('txtNewBranchModalInput') as HTMLInputElement;
-    if (modalNewBranch) {
-      modalNewBranch.style.display = 'flex';
-      if (txtNewBranchModalInput) {
-        txtNewBranchModalInput.value = '';
-        setTimeout(() => txtNewBranchModalInput.focus(), 60);
+  // Staging controls
+  btnGitStageAll?.addEventListener('click', async () => {
+    if (api?.git) {
+      await api.git.stage();
+      showToast('✓ Staged all working tree changes (git add -A)');
+      await refreshGitStatus(api);
+    }
+  });
+
+  btnGitUnstageAll?.addEventListener('click', async () => {
+    if (api?.terminal) {
+      if (!currentActiveSessionId) {
+        const session = await api.terminal.spawn({ name: 'Terminal 1' });
+        currentActiveSessionId = session.id;
       }
+      await api.terminal.executeCommand(currentActiveSessionId, 'git reset');
+      showToast('✓ Reset staged changes (git reset)');
+      setTimeout(() => refreshGitStatus(api), 600);
+    }
+  });
+
+  btnGitDiscardAll?.addEventListener('click', async () => {
+    if (api?.terminal) {
+      if (!currentActiveSessionId) {
+        const session = await api.terminal.spawn({ name: 'Terminal 1' });
+        currentActiveSessionId = session.id;
+      }
+      await api.terminal.executeCommand(currentActiveSessionId, 'git checkout -- .');
+      showToast('🗑️ Discarded tracked changes');
+      setTimeout(() => refreshGitStatus(api), 600);
+    }
+  });
+
+  // AI Commit Message Generator
+  btnGitAiGenCommit?.addEventListener('click', async () => {
+    if (!api?.git) return;
+    try {
+      const status = await api.git.inspect();
+      const files: Array<any> = status.modifiedFiles || [];
+      if (files.length === 0) {
+        showToast('ℹ️ No uncommitted changes detected.');
+        if (txtGitCommitMessage) txtGitCommitMessage.value = 'chore(enterprise): maintain project dependencies and configs';
+        return;
+      }
+      const firstPath = files[0].path || '';
+      let scope = 'core';
+      let type = 'feat';
+
+      if (firstPath.includes('desktop/renderer')) scope = 'desktop-ui';
+      else if (firstPath.includes('converter')) scope = 'converter';
+      else if (firstPath.includes('enterprise')) scope = 'enterprise';
+      else if (firstPath.includes('cloud')) scope = 'cloud';
+      else if (firstPath.includes('test')) { scope = 'test'; type = 'test'; }
+      else if (firstPath.includes('.md') || firstPath.includes('docs')) { scope = 'docs'; type = 'docs'; }
+
+      const generated = `${type}(${scope}): update ${files.length} file${files.length > 1 ? 's' : ''} across ${scope} modules`;
+      if (txtGitCommitMessage) txtGitCommitMessage.value = generated;
+      showToast(`✨ Synthesized conventional commit: "${generated}"`);
+    } catch {}
+  });
+
+  // Commit Staged Only
+  btnGitCommitOnly?.addEventListener('click', async () => {
+    const msg = (txtGitCommitMessage ? txtGitCommitMessage.value : '').trim() || 'chore: update changes';
+    if (api?.git) {
+      showToast('💾 Committing changes...');
+      const res = await api.git.commit(msg);
+      if (res.success) {
+        showToast('✓ Committed changes successfully');
+        if (txtGitCommitMessage) txtGitCommitMessage.value = '';
+      } else {
+        showToast(`⚠️ Commit note: ${res.error || 'No changes added to commit'}`);
+      }
+      await refreshGitStatus(api);
+    }
+  });
+
+  // 1-Click Commit & Push
+  const handleCommitAndPush = async () => {
+    const msg = (txtGitCommitMessage ? txtGitCommitMessage.value : '').trim() || 'feat(enterprise): automated delivery studio sync';
+    if (api?.git) {
+      showToast('🚀 Staging, committing, and pushing upstream...');
+      const res = await api.git.commitAndPush(msg);
+      if (res.success) {
+        showToast('✓ Successfully committed and pushed to remote origin');
+        if (txtGitCommitMessage) txtGitCommitMessage.value = '';
+      } else {
+        showToast(`⚠️ Push response: ${res.error || 'Check remote credentials'}`);
+      }
+      await refreshGitStatus(api);
+    }
+  };
+  btnGitPaneQuickPush?.addEventListener('click', handleCommitAndPush);
+  btnDeliveryQuickCommit?.addEventListener('click', handleCommitAndPush);
+  btnGitCommitAndPushDirect?.addEventListener('click', handleCommitAndPush);
+
+  // Sync / Push / Pull / Stash Buttons
+  btnGitPanePull?.addEventListener('click', async () => {
+    if (api?.git) {
+      showToast('⬇️ Pulling latest changes from remote...');
+      const res = await api.git.pull();
+      showToast(res.success ? '✓ Pull completed successfully' : `⚠️ Pull note: ${res.error}`);
+      await refreshGitStatus(api);
+    }
+  });
+
+  btnGitPanePush?.addEventListener('click', async () => {
+    if (api?.git) {
+      showToast('⬆️ Pushing active branch to remote origin...');
+      const res = await api.git.push();
+      showToast(res.success ? '✓ Push completed successfully' : `⚠️ Push note: ${res.error}`);
+      await refreshGitStatus(api);
+    }
+  });
+
+  btnGitPaneStashSave?.addEventListener('click', async () => {
+    if (api?.git) {
+      const res = await api.git.stash('save');
+      showToast(res.success ? '📦 Working changes stashed' : `⚠️ Stash note: ${res.error}`);
+      await refreshGitStatus(api);
+    }
+  });
+
+  btnGitPaneStashPop?.addEventListener('click', async () => {
+    if (api?.git) {
+      const res = await api.git.stash('pop');
+      showToast(res.success ? '📥 Restored stashed changes' : `⚠️ Stash note: ${res.error}`);
+      await refreshGitStatus(api);
+    }
+  });
+
+  // Pull Request Opener
+  const handleOpenPr = async () => {
+    if (!api?.git) return;
+    try {
+      const info = await api.git.inspect();
+      const prUrl = info.prUrl || 'https://bitbucket.org';
+      if (prUrl) {
+        showToast(`✨ Opening Pull Request: ${prUrl}`);
+        if (api?.workspace?.revealInExplorer) {
+          window.open(prUrl, '_blank');
+        }
+      }
+    } catch {}
+  };
+  btnGitPaneCreatePr?.addEventListener('click', handleOpenPr);
+  btnDeliveryCreatePr?.addEventListener('click', handleOpenPr);
+  btnGitOpenPrBrowser?.addEventListener('click', handleOpenPr);
+
+  // Save Wizard Configuration
+  btnGitWizardSaveRemote?.addEventListener('click', async () => {
+    const url = (txtGitWizardRemoteUrl ? txtGitWizardRemoteUrl.value : '').trim();
+    const name = (txtGitWizardUserName ? txtGitWizardUserName.value : '').trim();
+    const email = (txtGitWizardUserEmail ? txtGitWizardUserEmail.value : '').trim();
+
+    if (!url && !name && !email) {
+      showToast('⚠️ Please enter remote URL or author details.');
+      return;
+    }
+
+    if (api?.git) {
+      if (url) await api.git.setRemote(url);
+      if (name || email) await api.git.setConfig({ name, email });
+      showToast('✓ Git remote & identity configuration applied');
+      if (gitWizardCard) gitWizardCard.style.display = 'none';
+      await refreshGitStatus(api);
+    }
+  });
+
+  // Wizard git init
+  btnGitWizardInit?.addEventListener('click', async () => {
+    if (api?.git) {
+      const res = await api.git.init();
+      if (res.success) {
+        showToast('🌱 Initialized empty Git repository in workspace');
+      } else {
+        showToast(`⚠️ Git init: ${res.error}`);
+      }
+      await refreshGitStatus(api);
+    }
+  });
+
+  // Wizard Test Remote
+  btnGitWizardTestRemote?.addEventListener('click', async () => {
+    const url = (txtGitWizardRemoteUrl ? txtGitWizardRemoteUrl.value : '').trim() || 'origin';
+    const terminalDrawer = document.getElementById('terminalDrawer');
+    if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
+      terminalDrawer.style.display = 'flex';
+    }
+    if (!currentActiveSessionId && api?.terminal) {
+      const session = await api.terminal.spawn({ name: 'Terminal 1' });
+      currentActiveSessionId = session.id;
+    }
+    if (currentActiveSessionId && api?.terminal) {
+      await api.terminal.executeCommand(currentActiveSessionId, `git ls-remote ${url}`);
+      showToast(`⚡ Testing remote connectivity: git ls-remote ${url}`);
+    }
+  });
+
+  // Auto-fill template on provider select change
+  selGitWizardProvider?.addEventListener('change', () => {
+    const prov = selGitWizardProvider.value;
+    const ws = (txtGitWizardWorkspace ? txtGitWizardWorkspace.value : '') || 'workspace';
+    if (txtGitWizardRemoteUrl && !txtGitWizardRemoteUrl.value) {
+      if (prov === 'bitbucket') txtGitWizardRemoteUrl.value = `git@bitbucket.org:${ws}/project-repo.git`;
+      else if (prov === 'github') txtGitWizardRemoteUrl.value = `git@github.com:${ws}/project-repo.git`;
+      else if (prov === 'gitlab') txtGitWizardRemoteUrl.value = `git@gitlab.com:${ws}/project-repo.git`;
     }
   });
 }
@@ -3990,27 +4293,125 @@ async function refreshGitStatus(api: any): Promise<void> {
     const git = await api.git.inspect();
     const branches = await api.git.getBranches();
 
-    const branchEl = document.getElementById('gitActiveBranch');
-    const remoteEl = document.getElementById('gitRemoteUrl');
-    const deliveryRemote = document.getElementById('lblDeliveryRemoteUrl');
-    const deliveryBranchSelect = document.getElementById('selDeliveryGitBranch') as HTMLSelectElement;
-    const branchDropdown = document.getElementById('gitBranchDropdown') as HTMLSelectElement;
-    const footerBranch = document.getElementById('lblGitBranch');
-
     const cur = git.currentBranch || 'main';
-    if (branchEl) branchEl.innerText = cur;
-    if (footerBranch) footerBranch.innerText = cur;
-    if (remoteEl) remoteEl.innerText = git.remoteUrl || 'No remote origin';
-    if (deliveryRemote) deliveryRemote.innerText = git.remoteUrl || 'https://github.com/EvolveMinds/...';
+    const remote = git.remoteUrl || '';
+    const prov = git.providerLabel || 'Git Remote';
+    const files: Array<any> = git.modifiedFiles || [];
+    const commits: Array<any> = git.recentCommits || [];
 
+    // 1. Update Header & Top Status
+    const gitRepoBadge = document.getElementById('gitPaneRepoBadge');
+    if (gitRepoBadge) {
+      if (git.isRepo) {
+        gitRepoBadge.innerText = `● ${prov} · ${git.isClean ? 'Clean Working Copy' : files.length + ' Changes'}`;
+        gitRepoBadge.style.color = git.isClean ? 'var(--success)' : 'var(--warning)';
+        gitRepoBadge.style.borderColor = git.isClean ? 'var(--success)' : 'var(--warning)';
+        gitRepoBadge.style.background = git.isClean ? 'rgba(137, 209, 133, 0.15)' : 'rgba(229, 181, 103, 0.15)';
+      } else {
+        gitRepoBadge.innerText = '⚠️ Workspace Not a Git Repo';
+        gitRepoBadge.style.color = 'var(--error)';
+        gitRepoBadge.style.borderColor = 'var(--error)';
+        gitRepoBadge.style.background = 'rgba(244, 71, 71, 0.15)';
+      }
+    }
+
+    const gitPaneActiveBranch = document.getElementById('gitPaneActiveBranch');
+    if (gitPaneActiveBranch) gitPaneActiveBranch.innerText = cur;
+
+    const gitPaneRemoteProvider = document.getElementById('gitPaneRemoteProvider');
+    if (gitPaneRemoteProvider) {
+      gitPaneRemoteProvider.innerText = remote ? `${prov} (${remote.split('/').pop() || ''})` : 'No Remote Configured';
+    }
+
+    const gitPaneWorkingStatus = document.getElementById('gitPaneWorkingStatus');
+    if (gitPaneWorkingStatus) {
+      gitPaneWorkingStatus.innerText = git.isClean ? '✓ Clean Working Copy' : `${files.length} Modified File${files.length > 1 ? 's' : ''}`;
+      gitPaneWorkingStatus.style.color = git.isClean ? 'var(--success)' : 'var(--warning)';
+    }
+
+    const gitPaneAuthorIdentity = document.getElementById('gitPaneAuthorIdentity');
+    if (gitPaneAuthorIdentity) {
+      gitPaneAuthorIdentity.innerText = git.userName ? `${git.userName} (${git.userEmail || 'no-email'})` : 'Default Git Author';
+    }
+
+    // 2. Delivery Studio Header Elements
+    const deliveryRemote = document.getElementById('lblDeliveryRemoteUrl');
+    if (deliveryRemote) deliveryRemote.innerText = remote || 'https://bitbucket.org/workspace/repo.git';
+
+    const footerBranch = document.getElementById('lblGitBranch');
+    if (footerBranch) footerBranch.innerText = cur;
+
+    // 3. Dropdowns
+    const deliveryBranchSelect = document.getElementById('selDeliveryGitBranch') as HTMLSelectElement;
+    const gitPaneBranchSelect = document.getElementById('gitPaneBranchSelect') as HTMLSelectElement;
     if (branches && branches.length > 0) {
       const optionsHtml = branches.map((b: string) => 
         `<option value="${b}" ${b === cur ? 'selected' : ''}>${b}</option>`
       ).join('');
-
       if (deliveryBranchSelect) deliveryBranchSelect.innerHTML = optionsHtml;
-      if (branchDropdown) branchDropdown.innerHTML = optionsHtml;
+      if (gitPaneBranchSelect) gitPaneBranchSelect.innerHTML = optionsHtml;
     }
+
+    // 4. Wizard Form Pre-Fill
+    const txtGitWizardRemoteUrl = document.getElementById('txtGitWizardRemoteUrl') as HTMLInputElement;
+    if (txtGitWizardRemoteUrl && !txtGitWizardRemoteUrl.value && remote) txtGitWizardRemoteUrl.value = remote;
+
+    const txtGitWizardUserName = document.getElementById('txtGitWizardUserName') as HTMLInputElement;
+    if (txtGitWizardUserName && !txtGitWizardUserName.value && git.userName) txtGitWizardUserName.value = git.userName;
+
+    const txtGitWizardUserEmail = document.getElementById('txtGitWizardUserEmail') as HTMLInputElement;
+    if (txtGitWizardUserEmail && !txtGitWizardUserEmail.value && git.userEmail) txtGitWizardUserEmail.value = git.userEmail;
+
+    const gitWizardCliVer = document.getElementById('gitWizardCliVer');
+    if (gitWizardCliVer) gitWizardCliVer.innerText = `Runtime: ${git.gitVersion || 'git detected on PATH'}`;
+
+    // 5. Render Modified Changes List
+    const gitChangesCount = document.getElementById('gitChangesCount');
+    if (gitChangesCount) gitChangesCount.innerText = `${files.length} File${files.length !== 1 ? 's' : ''}`;
+
+    const gitChangesList = document.getElementById('gitChangesList');
+    if (gitChangesList) {
+      if (files.length === 0) {
+        gitChangesList.innerHTML = `<div style="font-size: 11.5px; color: var(--text-secondary); text-align: center; padding: 30px 0;">✓ Working tree is clean. No uncommitted changes.</div>`;
+      } else {
+        gitChangesList.innerHTML = files.map(f => {
+          const color = f.code?.includes('?') || f.code === 'A' ? 'var(--accent)' : (f.code?.includes('D') ? 'var(--error)' : 'var(--warning)');
+          return `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; font-size: 11.5px;">
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                <span style="font-weight: 800; font-size: 10px; color: ${color}; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 3px;">${f.code || 'M'}</span>
+                <span style="font-family: var(--font-mono); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${f.path}</span>
+              </div>
+              <span style="font-size: 10px; color: var(--text-secondary);">${f.statusLabel || 'Modified'}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // 6. Render Recent Commits List
+    const gitRecentCommitsList = document.getElementById('gitRecentCommitsList');
+    if (gitRecentCommitsList) {
+      if (commits.length === 0) {
+        gitRecentCommitsList.innerHTML = `<div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">No commit history found</div>`;
+      } else {
+        gitRecentCommitsList.innerHTML = commits.map(c => `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 11px;">
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="color: #fff; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.message || 'commit'}</div>
+              <div style="color: var(--text-secondary); font-size: 10px;">${c.author} · ${c.timeAgo}</div>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 10px; color: var(--accent); background: rgba(78, 201, 176, 0.12); padding: 1px 5px; border-radius: 3px;">${c.shortHash}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    const gitPrPreviewText = document.getElementById('gitPrPreviewText');
+    if (gitPrPreviewText) {
+      gitPrPreviewText.innerText = git.prUrl ? `PR: ${git.prUrl}` : 'PR target: main';
+    }
+
   } catch {}
 }
 

@@ -1956,23 +1956,246 @@
         <!-- MODE 8: GIT & REMOTE REPOSITORY STUDIO -->
         <!-- =================================================================== -->
         <section id="pane-git" class="phase-pane" style="display: none;">
-          <div class="content-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <h3>🌿 Git &amp; Remote Repository Hub</h3>
-              <button class="btn-quick" id="btnRefreshGit">🔄 Refresh Git Status</button>
-            </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px;">
-              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-                <div>Branch: <strong id="gitActiveBranch">main</strong></div>
-                <div>Remote: <span id="gitRemoteUrl" style="color: var(--accent);">--</span></div>
+          <div class="content-card" style="margin-bottom: 16px;">
+            <!-- Studio Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+              <div>
+                <h3 style="margin: 0; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>🌿</span> Git &amp; Remote Repository Hub
+                  <span id="gitPaneRepoBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px;">Detecting...</span>
+                </h3>
+                <p class="desc" style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4;">
+                  Seamless auto-detection and setup wizard for Bitbucket, GitHub, and GitLab remotes, branch lifecycle management, staged working tree changes, and 1-click pull request synchronization.
+                </p>
               </div>
-              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
-                <select id="gitBranchDropdown" style="width: 100%; padding: 4px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;"></select>
-                <div style="display: flex; gap: 6px; margin-top: 8px;">
-                  <button class="btn-quick" id="btnSwitchBranch">Switch</button>
-                  <input type="text" id="txtNewBranchName" placeholder="feature/new-branch" style="flex: 1; padding: 4px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                  <button class="btn-quick" id="btnCreateBranch">➕ Create</button>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                <button class="btn" id="btnGitPaneSync" style="padding: 6px 14px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                  <span>🔄</span> Sync &amp; Fetch
+                </button>
+                <button class="btn" id="btnGitPaneQuickPush" style="padding: 6px 14px; font-size: 12px; background: var(--accent); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                  <span>🚀</span> 1-Click Commit &amp; Push
+                </button>
+                <button class="btn-quick" id="btnGitPaneCreatePr" style="padding: 6px 12px; font-size: 12px; border-color: #e5b567; color: #e5b567;">
+                  ✨ Create PR
+                </button>
+                <button class="btn-quick" id="btnGitPaneToggleWizard" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);">
+                  ⚙️ Setup Wizard
+                </button>
+                <button class="btn-quick" id="btnGitPaneOpenTerm" style="padding: 6px 12px; font-size: 12px;">
+                  ⚡ Terminal
+                </button>
+              </div>
+            </div>
+
+            <!-- Top Metric Status Bar -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🌿</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Active Branch</div>
+                  <div id="gitPaneActiveBranch" style="font-size: 13px; font-weight: 700; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">main</div>
                 </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🌐</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Remote Provider</div>
+                  <div id="gitPaneRemoteProvider" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📝</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Working Tree</div>
+                  <div id="gitPaneWorkingStatus" style="font-size: 12px; font-weight: 700; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Clean</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">👤</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Git Author</div>
+                  <div id="gitPaneAuthorIdentity" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not configured</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- BITBUCKET & GIT SEAMLESS SETUP & CONFIGURATION WIZARD -->
+            <div id="gitWizardCard" style="display: none; background: rgba(0,0,0,0.3); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                <div style="font-size: 13.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                  <span>⚙️</span> Git &amp; Bitbucket Seamless Configuration Wizard
+                </div>
+                <button class="btn-quick" id="btnCloseGitWizard" style="font-size: 11px;">✕ Close Wizard</button>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px;">
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Remote Provider</label>
+                  <select id="selGitWizardProvider" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                    <option value="bitbucket">Bitbucket Cloud / Server</option>
+                    <option value="github">GitHub Enterprise / Cloud</option>
+                    <option value="gitlab">GitLab CI/CD</option>
+                    <option value="azure">Azure DevOps Repos</option>
+                    <option value="generic">Generic Git Remote</option>
+                  </select>
+                </div>
+                <div style="grid-column: span 2;">
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Remote Origin URL (HTTPS or SSH)</label>
+                  <input type="text" id="txtGitWizardRemoteUrl" placeholder="git@bitbucket.org:workspace/repo.git or https://github.com/org/repo.git" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Git User Name (user.name)</label>
+                  <input type="text" id="txtGitWizardUserName" placeholder="e.g. John Doe" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Git User Email (user.email)</label>
+                  <input type="email" id="txtGitWizardUserEmail" placeholder="e.g. john@company.com" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Bitbucket Workspace / Org</label>
+                  <input type="text" id="txtGitWizardWorkspace" placeholder="e.g. evolvemind" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
+                <div style="font-size: 11px; color: var(--text-secondary);" id="gitWizardCliVer">
+                  Auto-detecting Git CLI...
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn-quick" id="btnGitWizardInit" style="font-size: 11.5px;">🌱 git init Repo</button>
+                  <button class="btn-quick" id="btnGitWizardTestRemote" style="font-size: 11.5px;">🔑 Test Remote (ls-remote)</button>
+                  <button class="btn" id="btnGitWizardSaveRemote" style="padding: 6px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save &amp; Apply Config</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2-COLUMN MAIN CONTENT: WORKING TREE / SMART COMMIT & BRANCH MANAGER -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+
+              <!-- LEFT: WORKING TREE CHANGES LIST -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>📁</span> Working Tree Changes
+                      <span id="gitChangesCount" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 10px;">0 Files</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn-quick" id="btnGitStageAll" style="font-size: 10.5px; padding: 2px 8px;">➕ Stage All</button>
+                      <button class="btn-quick" id="btnGitUnstageAll" style="font-size: 10.5px; padding: 2px 8px;">➖ Reset</button>
+                    </div>
+                  </div>
+
+                  <!-- File List Scroll Area -->
+                  <div id="gitChangesList" style="max-height: 220px; min-height: 140px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-size: 11.5px; color: var(--text-secondary); text-align: center; padding: 30px 0;">✓ Working tree is clean. No uncommitted changes.</div>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 12px;">
+                  <span style="font-size: 11px; color: var(--text-secondary);">Changes are tracked automatically in real time.</span>
+                  <button class="btn-quick" id="btnGitDiscardAll" style="font-size: 11px; color: var(--error); border-color: var(--error);">🗑️ Discard All Changes</button>
+                </div>
+              </div>
+
+              <!-- RIGHT: SMART AI COMMIT & PUSH CARD -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>💬</span> Commit &amp; Upstream Push
+                    </div>
+                    <button class="btn-quick" id="btnGitAiGenCommit" style="font-size: 10.5px; padding: 2px 8px; border-color: #e5b567; color: #e5b567;">
+                      ✨ AI Generate Message
+                    </button>
+                  </div>
+
+                  <div style="margin-bottom: 10px;">
+                    <textarea id="txtGitCommitMessage" placeholder="feat(module): describe your changes cleanly..." rows="4" style="width: 100%; box-sizing: border-box; padding: 9px 12px; font-size: 12px; font-family: var(--font-mono); background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none;"></textarea>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+                  <button class="btn-quick" id="btnGitCommitOnly" style="flex: 1; font-size: 11.5px; padding: 7px 10px;">💾 Commit Staged</button>
+                  <button class="btn" id="btnGitCommitAndPushDirect" style="flex: 1.5; font-size: 11.5px; padding: 7px 12px; background: var(--accent); color: #1e1e1e; font-weight: 700;">🚀 Commit &amp; Push (HEAD)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- BOTTOM 2-COLUMN: BRANCH & SYNC CONTROLS & RECENT COMMITS -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+
+              <!-- BRANCH & REMOTE SYNC -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span>🌿</span> Branch Lifecycle &amp; Remote Synchronization
+                </div>
+
+                <!-- Switch Branch Row -->
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                  <select id="gitPaneBranchSelect" style="flex: 1; padding: 7px 10px; font-size: 12px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 5px;"></select>
+                  <button class="btn-quick" id="btnGitPaneSwitchBranch" style="font-size: 11.5px;">Switch Branch</button>
+                </div>
+
+                <!-- New Branch Row -->
+                <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                  <input type="text" id="txtGitPaneNewBranch" placeholder="feat/new-feature or bugfix/patch-01" style="flex: 1; padding: 7px 10px; font-size: 12px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                  <button class="btn-quick" id="btnGitPaneCreateBranch" style="font-size: 11.5px; border-color: var(--accent); color: var(--accent);">➕ New Branch</button>
+                </div>
+
+                <!-- Sync & Stash Buttons -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-top: 1px solid var(--border); padding-top: 12px;">
+                  <button class="btn-quick" id="btnGitPanePull" style="font-size: 11px;">⬇️ Pull (Rebase)</button>
+                  <button class="btn-quick" id="btnGitPanePush" style="font-size: 11px;">⬆️ Push Origin</button>
+                  <button class="btn-quick" id="btnGitPaneStashSave" style="font-size: 11px;">📦 Stash Save</button>
+                  <button class="btn-quick" id="btnGitPaneStashPop" style="font-size: 11px;">📥 Stash Pop</button>
+                </div>
+              </div>
+
+              <!-- PULL REQUEST & RECENT COMMITS -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>📜</span> Recent Commit History &amp; PR Link
+                    </div>
+                    <button class="btn-quick" id="btnGitOpenPrBrowser" style="font-size: 10.5px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);">
+                      ✨ Open PR ↗
+                    </button>
+                  </div>
+
+                  <!-- Recent Commits List -->
+                  <div id="gitRecentCommitsList" style="max-height: 145px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">Loading recent commits...</div>
+                  </div>
+                </div>
+
+                <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="gitPrPreviewText">
+                    PR target: main
+                  </div>
+                  <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git log -n 10 --oneline" style="font-size: 10.5px;">git log ↗</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Cloud Git Fast-Command Bar -->
+            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;">
+              <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>⚡</span> Git Terminal Quick Command Bar
+                <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: normal;">(Clicking any command executes it live in your active terminal drawer below)</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git status" style="font-size: 11px;">git status</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git log --oneline -n 10 --graph" style="font-size: 11px;">git log --graph</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git diff --stat" style="font-size: 11px;">git diff --stat</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git branch -a" style="font-size: 11px;">git branch -a</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git remote -v" style="font-size: 11px;">git remote -v</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git stash list" style="font-size: 11px;">git stash list</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git fetch --prune" style="font-size: 11px;">git fetch --prune</button>
               </div>
             </div>
           </div>

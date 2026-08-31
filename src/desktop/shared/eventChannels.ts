@@ -51,7 +51,17 @@ export const DESKTOP_CHANNELS = {
     CREATE_BRANCH: 'evolve:git:create-branch',
     SWITCH_BRANCH: 'evolve:git:switch-branch',
     COMMIT_AND_PUSH: 'evolve:git:commit-and-push',
-    CREATE_PR: 'evolve:git:create-pr'
+    CREATE_PR: 'evolve:git:create-pr',
+    INIT: 'evolve:git:init',
+    SET_REMOTE: 'evolve:git:set-remote',
+    SET_CONFIG: 'evolve:git:set-config',
+    SYNC: 'evolve:git:sync',
+    STAGE: 'evolve:git:stage',
+    COMMIT: 'evolve:git:commit',
+    PUSH: 'evolve:git:push',
+    PULL: 'evolve:git:pull',
+    STASH: 'evolve:git:stash',
+    GET_LOG: 'evolve:git:get-log'
   },
 
   CLOUD: {

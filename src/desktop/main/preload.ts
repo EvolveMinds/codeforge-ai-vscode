@@ -71,7 +71,17 @@ const desktopApi = {
     createBranch: (branchName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CREATE_BRANCH, branchName),
     switchBranch: (branchName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SWITCH_BRANCH, branchName),
     commitAndPush: (commitMessage: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.COMMIT_AND_PUSH, commitMessage),
-    createPr: (prInfo: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CREATE_PR, prInfo)
+    createPr: (prInfo: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CREATE_PR, prInfo),
+    init: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.INIT),
+    setRemote: (url: string, name?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SET_REMOTE, url, name),
+    setConfig: (config: { name?: string; email?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SET_CONFIG, config),
+    sync: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SYNC),
+    stage: (files?: string[]) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.STAGE, files),
+    commit: (message: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.COMMIT, message),
+    push: (branch?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.PUSH, branch),
+    pull: (branch?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.PULL, branch),
+    stash: (action: 'save' | 'pop') => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.STASH, action),
+    getLog: (limit?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_LOG, limit)
   },
 
   // --- MULTI-CLOUD CONNECT APIS ---
