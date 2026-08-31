@@ -2062,7 +2062,7 @@
   </div>
 
   <!-- MODAL: PLUGINS -->
-  <div id="modalPluginsDrawer" class="modal-overlay">
+  <div id="modalPluginsDrawer" class="modal-overlay" style="display: none;">
     <div class="modal-window" style="width: 480px;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
         <h3 style="margin: 0; font-size: 15px; color: #fff;">Active Plugins &amp; Integrations</h3>
@@ -2071,6 +2071,9 @@
       <div class="modal-item"><div style="font-weight: 700; color: #fff;">🗄️ Databricks Lakehouse (Unity Catalog)</div></div>
       <div class="modal-item"><div style="font-weight: 700; color: #fff;">⚡ dbt Core &amp; Data Quality Engine</div></div>
       <div class="modal-item"><div style="font-weight: 700; color: #fff;">🛡️ SIEM Audit Forwarder (SOC2/HIPAA)</div></div>
+    </div>
+  </div>
+
   <!-- MODAL: NEW BRANCH -->
   <div id="modalNewBranch" class="modal-overlay" style="display: none;">
     <div class="modal-window" style="width: 440px;">
@@ -2090,6 +2093,182 @@
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn-quick" id="btnCancelNewBranch">Cancel</button>
         <button class="btn" id="btnConfirmCreateBranchModal" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 18px;">🌿 Create Branch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS & ENTERPRISE LICENSE IDENTITY -->
+  <div id="modalSettings" class="modal-overlay" style="display: none;">
+    <div class="modal-window" style="width: 720px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); flex: 0 0 auto;">
+        <div>
+          <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>⚙️</span> Settings &amp; License Identity
+          </h3>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+            Evolve AI Enterprise Standalone • Machine Fingerprint, Cryptographic Licensing, AI Endpoints &amp; Identity
+          </div>
+        </div>
+        <button class="btn-quick" id="btnCloseSettingsModal" style="padding: 2px 8px; font-size: 12px;">✕</button>
+      </div>
+
+      <!-- Tab Buttons -->
+      <div style="display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex: 0 0 auto;">
+        <button class="btn-quick settings-tab active" data-tab="license" style="font-size: 11.5px; font-weight: 700; color: var(--accent); border-color: var(--accent);">🔑 Enterprise License</button>
+        <button class="btn-quick settings-tab" data-tab="ai" style="font-size: 11.5px;">🤖 Local &amp; Cloud AI</button>
+        <button class="btn-quick settings-tab" data-tab="identity" style="font-size: 11.5px;">🏢 Identity &amp; Profile</button>
+        <button class="btn-quick settings-tab" data-tab="security" style="font-size: 11.5px;">🛡️ Security &amp; Vault</button>
+      </div>
+
+      <!-- Tab 1: License & Activation -->
+      <div id="settingsTabLicense" class="settings-tab-pane" style="display: flex; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 440px; padding-right: 4px;">
+        <!-- License Status Card -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">ACTIVE LICENSE STATUS</div>
+            <span id="licStatusBadge" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">● ACTIVE PLATINUM</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">PLAN TIER</div>
+              <div id="licPlanName" style="font-size: 13px; font-weight: 700; color: var(--accent);">Enterprise Platinum</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">ISSUED TO / ORG</div>
+              <div id="licOrgName" style="font-size: 12px; font-weight: 600; color: #fff;">Evolve Mind Solutions</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">EXPIRES</div>
+              <div id="licExpiresAt" style="font-size: 12px; font-weight: 600; color: #fff;">Perpetual / 2030-12-31</div>
+            </div>
+          </div>
+          <div style="margin-top: 10px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+            <span>🛡️ Ed25519 Cryptographic Signature:</span>
+            <span id="licSigStatus" style="color: var(--success); font-weight: 600;">Verified &amp; Hardware Bound ✓</span>
+          </div>
+        </div>
+
+        <!-- Hardware Fingerprint -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">HOST HARDWARE FINGERPRINT</div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="txtHwFingerprint" readonly value="Loading..." style="flex: 1; font-family: monospace; font-size: 11px; padding: 6px 10px; background: #111; color: var(--accent); border: 1px solid var(--border); border-radius: 4px;" />
+            <button class="btn-quick" id="btnCopyHwFingerprint" style="font-size: 11px;">📋 Copy</button>
+          </div>
+        </div>
+
+        <!-- Online Key Activation -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">PASTE LICENSE KEY / ACTIVATION STRING</div>
+          <textarea id="txtModalLicenseKey" placeholder="Paste your base64 or Ed25519 signed enterprise license key here..." style="width: 100%; box-sizing: border-box; height: 50px; font-family: monospace; font-size: 11px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; resize: none; margin-bottom: 8px;"></textarea>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn-quick" id="btnModal30DayTrial" style="font-size: 11px; color: var(--accent); border-color: var(--accent);">✨ Activate 30-Day Air-Gapped Trial</button>
+            <button class="btn" id="btnModalActivateLicense" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;">🔑 Activate Key</button>
+          </div>
+        </div>
+
+        <!-- Offline Air-Gapped File Activation -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">OFFLINE AIR-GAPPED ACTIVATION</div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">
+            For high-security enclaves with zero internet connectivity. Export a hardware challenge and import the signed license file.
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-quick" id="btnModalExportChallenge" style="font-size: 11px;">📤 Export Challenge File (.bin)</button>
+            <button class="btn-quick" id="btnModalImportOfflineLic" style="font-size: 11px;">📥 Import Signed License File (.json)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: AI & Local Inference Settings -->
+      <div id="settingsTabAi" class="settings-tab-pane" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 440px; padding-right: 4px;">
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">LOCAL SERVER ENDPOINTS</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;">OLLAMA SERVER URL</label>
+              <input type="text" id="cfgOllamaUrl" value="http://127.0.0.1:11434" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" />
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;">LM STUDIO / OPENAI-COMPATIBLE URL</label>
+              <input type="text" id="cfgLmStudioUrl" value="http://127.0.0.1:1234/v1" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" />
+            </div>
+          </div>
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;">vLLM / TRITON INFERENCE CLUSTER URL</label>
+            <input type="text" id="cfgVllmUrl" value="http://127.0.0.1:8000/v1" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" />
+          </div>
+        </div>
+
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">CLOUD AI API KEYS (ENCRYPTED IN HARDWARE VAULT)</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;">ANTHROPIC API KEY</label>
+              <input type="password" id="cfgKeyAnthropic" placeholder="sk-ant-api03-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" />
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;">GOOGLE GEMINI API KEY</label>
+              <input type="password" id="cfgKeyGemini" placeholder="AIzaSy..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" />
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;">OPENAI / GROQ API KEY</label>
+              <input type="password" id="cfgKeyOpenai" placeholder="sk-proj-... or gsk_..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" />
+            </div>
+          </div>
+          <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+            <button class="btn" id="btnSaveAiSettings" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;">💾 Save AI Config</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Identity & Profile -->
+      <div id="settingsTabIdentity" class="settings-tab-pane" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 440px; padding-right: 4px;">
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 10px;">ENGINEER &amp; CLIENT PROFILE</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;">ENGINEER / USER NAME</label>
+              <input type="text" id="cfgProfileUser" value="Balav" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;">ORGANIZATION / FIRM</label>
+              <input type="text" id="cfgProfileOrg" value="Evolve Mind Solutions Pty Ltd" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
+            </div>
+          </div>
+          <div style="margin-bottom: 10px;">
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;">ACTIVE CLIENT ENGAGEMENT NAME</label>
+            <input type="text" id="cfgProfileClient" value="Client Pilot Engagement" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button class="btn" id="btnSaveProfileSettings" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;">💾 Save Identity Profile</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Security & Vault -->
+      <div id="settingsTabSecurity" class="settings-tab-pane" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 440px; padding-right: 4px;">
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">SECURITY ENCLAVE CONTROLS</div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #fff; cursor: pointer;">
+              <input type="checkbox" id="chkAirGappedStrict" checked />
+              <span>Strict Air-Gapped Egress Blocker (Disable all external telemetry)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #fff; cursor: pointer;">
+              <input type="checkbox" id="chkAutoRedactPii" checked />
+              <span>Automatic In-Memory PII Redactor for Prompts &amp; Schema Logs</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #fff; cursor: pointer;">
+              <input type="checkbox" id="chkAuditLogJsonl" checked />
+              <span>Local Append-Only JSONL Audit Ledger (SOC2 &amp; HIPAA Compliant)</span>
+            </label>
+          </div>
+          <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+            <button class="btn" id="btnSaveSecuritySettings" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;">🛡️ Apply Security Policies</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
