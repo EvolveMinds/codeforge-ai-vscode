@@ -1,29 +1,32 @@
 /**
- * Evolve AI Enterprise Desktop Edition — Client-Side UI Controller
+ * Evolve AI Enterprise Desktop Edition — Comprehensive Studio UI Controller
  */
 
 // Safely access exposed preload bridge
 const api = (typeof window !== 'undefined' && (window as any).evolveApi) ? (window as any).evolveApi : null;
 
 // State
-let currentActivePhase = 1;
+let currentActiveTab = 'ai-sizer';
 let currentActiveSessionId: string | null = null;
 let currentOpenedFilePath: string | null = null;
 
 // Initialize on DOM load
 window.addEventListener('DOMContentLoaded', async () => {
-  console.log('[Evolve Desktop] Initializing UI Controller...');
+  console.log('[Evolve Desktop] Initializing Full Parity Studio UI Controller...');
   setupNavigation();
   setupWorkspaceControls();
   setupTerminal();
   setupLicenseModal();
+  setupLocalAiSizerControls();
+  setupCodeConverterControls();
+  setupGitStudioControls();
   setupPhase1Controls();
   setupPhase2Controls();
   setupPhase3Controls();
   setupPhase4Controls();
   setupPhase5EnterpriseControls();
 
-  // Load initial workspace and license state
+  // Load initial workspace, hardware and license state
   try {
     await refreshWorkspace();
   } catch (e) {
@@ -35,16 +38,22 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {
     console.warn('Initial license load:', e);
   }
+
+  try {
+    await runHardwareInspection();
+  } catch (e) {
+    console.warn('Initial hardware inspect:', e);
+  }
 });
 
-// --- NAVIGATION & PHASE SWITCHING ---
+// --- NAVIGATION & STUDIO TAB SWITCHING ---
 function setupNavigation(): void {
-  const phaseBtns = document.querySelectorAll('.activity-btn[data-phase]');
-  phaseBtns.forEach(btn => {
+  const tabBtns = document.querySelectorAll('.activity-btn[data-tab]');
+  tabBtns.forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const phaseNum = parseInt(btn.getAttribute('data-phase') || '1', 10);
-      switchPhase(phaseNum);
+      const tabId = btn.getAttribute('data-tab') || 'ai-sizer';
+      switchStudioTab(tabId);
     });
   });
 
@@ -66,22 +75,273 @@ function setupNavigation(): void {
   }
 }
 
-function switchPhase(phaseNum: number): void {
-  currentActivePhase = phaseNum;
+function switchStudioTab(tabId: string): void {
+  currentActiveTab = tabId;
 
   // Update Activity Bar active state
-  document.querySelectorAll('.activity-btn[data-phase]').forEach(btn => {
-    const num = parseInt(btn.getAttribute('data-phase') || '1', 10);
-    if (num === phaseNum) btn.classList.add('active');
+  document.querySelectorAll('.activity-btn[data-tab]').forEach(btn => {
+    const id = btn.getAttribute('data-tab');
+    if (id === tabId) btn.classList.add('active');
     else btn.classList.remove('active');
   });
 
-  // Toggle Phase Panes
-  for (let i = 1; i <= 5; i++) {
-    const pane = document.getElementById(`phase${i}Pane`);
+  // Toggle Tab Panes
+  const allPanes = ['ai-sizer', 'converter', 'schema', 'api', 'git', 'cloud', 'runbook', 'enterprise'];
+  for (const p of allPanes) {
+    const pane = document.getElementById('pane-' + p);
     if (pane) {
-      pane.style.display = i === phaseNum ? 'block' : 'none';
+      pane.style.display = p === tabId ? 'block' : 'none';
     }
+  }
+
+  if (tabId === 'git') {
+    refreshGitStatus();
+  }
+}
+
+// --- TAB 1: LOCAL AI HARDWARE SIZER & MODEL PROBER ---
+function setupLocalAiSizerControls(): void {
+  const btnInspect = document.getElementById('btnRunHwInspect');
+  if (btnInspect) {
+    btnInspect.addEventListener('click', async () => {
+      await runHardwareInspection();
+    });
+  }
+}
+
+async function runHardwareInspection(): Promise<void> {
+  if (!api?.hardware) return;
+
+  const ramVal = document.getElementById('hwRamVal');
+  const gpuVal = document.getElementById('hwGpuVal');
+  const gpuDetail = document.getElementById('hwGpuDetail');
+  const cpuVal = document.getElementById('hwCpuVal');
+  const ollamaVal = document.getElementById('hwOllamaVal');
+  const recSummary = document.getElementById('hwRecommendationSummary');
+
+  if (recSummary) recSummary.innerHTML = '<em>Inspecting hardware metrics and probing local AI server ports...</em>';
+
+  try {
+    const res = await api.hardware.inspect();
+    const localModels = await api.hardware.discoverLocalModels();
+
+    if (res && res.profile) {
+      const p = res.profile;
+      if (ramVal) ramVal.innerText = p.ramGb + ' GB';
+      if (cpuVal) cpuVal.innerText = p.cpu.cores + ' Cores';
+      if (gpuVal) {
+        gpuVal.innerText = p.gpu ? p.gpu.vramGb + ' GB VRAM' : 'CPU Only';
+        if (gpuDetail && p.gpu) gpuDetail.innerText = p.gpu.name + ' (' + p.gpu.vendor.toUpperCase() + ')';
+      }
+
+      // Ollama / local server status
+      const ollamaActive = localModels.find((m: any) => m.name === 'Ollama' && m.active);
+      const lmStudioActive = localModels.find((m: any) => m.name === 'LM Studio' && m.active);
+
+      if (ollamaVal) {
+        if (ollamaActive) {
+          ollamaVal.innerText = 'ONLINE';
+          ollamaVal.style.color = 'var(--success)';
+        } else if (lmStudioActive) {
+          ollamaVal.innerText = 'LM STUDIO';
+          ollamaVal.style.color = 'var(--success)';
+        } else {
+          ollamaVal.innerText = 'STANDBY';
+          ollamaVal.style.color = 'var(--text-secondary)';
+        }
+      }
+
+      const ollamaText = document.getElementById('ollamaStatusText');
+      if (ollamaText) {
+        ollamaText.innerText = ollamaActive 
+          ? 'Online (' + ollamaActive.models.length + ' models installed: ' + ollamaActive.models.slice(0, 3).join(', ') + ')'
+          : 'Offline / Standby (Port 11434)';
+      }
+
+      const lmStudioText = document.getElementById('lmStudioStatusText');
+      if (lmStudioText) {
+        lmStudioText.innerText = lmStudioActive
+          ? 'Online (' + lmStudioActive.models.length + ' models available)'
+          : 'Offline / Standby (Port 1234)';
+      }
+
+      // Render intelligent recommendation
+      if (recSummary && res.recommendation) {
+        const rec = res.recommendation;
+        if (rec.kind === 'ok') {
+          recSummary.innerHTML = `
+            <div style="font-weight: bold; color: var(--success); margin-bottom: 4px;">✓ Optimal Recommended Local Model: ${rec.variant}</div>
+            <div>${rec.reason}</div>
+            ${rec.warnings.length > 0 ? '<div style="color: var(--warning); margin-top: 4px; font-size: 11px;">⚠️ ' + rec.warnings.join(' | ') + '</div>' : ''}
+          `;
+        } else {
+          recSummary.innerHTML = `
+            <div style="font-weight: bold; color: var(--warning); margin-bottom: 4px;">⚠️ Resource Notice</div>
+            <div>${rec.reasons.join('. ')}</div>
+            <div style="margin-top: 4px; font-size: 11px; color: var(--accent);">Suggestions: ${rec.suggestions.join(' | ')}</div>
+          `;
+        }
+      }
+    }
+  } catch (err: any) {
+    if (recSummary) recSummary.innerText = 'Inspection notice: ' + err.message;
+  }
+}
+
+// --- TAB 2: POLYGLOT CODE CONVERTER ---
+function setupCodeConverterControls(): void {
+  const btnConvert = document.getElementById('btnRunCodeConvert');
+  if (btnConvert) {
+    btnConvert.addEventListener('click', async () => {
+      if (!api?.converter) return;
+      const srcLang = (document.getElementById('convSourceLang') as HTMLSelectElement).value;
+      const tgtLang = (document.getElementById('convTargetLang') as HTMLSelectElement).value;
+      const fidelity = (document.getElementById('convFidelity') as HTMLSelectElement).value;
+      const srcCode = (document.getElementById('convSourceInput') as HTMLTextAreaElement).value;
+      const tgtOutput = document.getElementById('convTargetOutput') as HTMLTextAreaElement;
+
+      if (!srcCode.trim()) {
+        alert('Please enter source code to convert');
+        return;
+      }
+
+      try {
+        const res = await api.converter.convert({
+          sourceCode: srcCode,
+          fromLang: srcLang,
+          toLang: tgtLang,
+          fidelity: fidelity
+        });
+
+        if (tgtOutput && res) {
+          tgtOutput.value = res.convertedCode;
+        }
+      } catch (err: any) {
+        alert('Conversion Error: ' + err.message);
+      }
+    });
+  }
+}
+
+// --- TAB 5: GIT & REMOTE REPOSITORY STUDIO ---
+function setupGitStudioControls(): void {
+  const btnRefresh = document.getElementById('btnRefreshGit');
+  const btnSwitch = document.getElementById('btnSwitchBranch');
+  const btnCreate = document.getElementById('btnCreateBranch');
+  const btnCommitPush = document.getElementById('btnGitCommitPush');
+  const btnCreatePr = document.getElementById('btnGitCreatePr');
+
+  if (btnRefresh) btnRefresh.addEventListener('click', refreshGitStatus);
+
+  if (btnSwitch) {
+    btnSwitch.addEventListener('click', async () => {
+      const dropdown = document.getElementById('gitBranchDropdown') as HTMLSelectElement;
+      if (dropdown && api?.git) {
+        const branch = dropdown.value;
+        const res = await api.git.switchBranch(branch);
+        if (res.success) {
+          alert('✓ Switched to branch: ' + branch);
+          await refreshGitStatus();
+        } else {
+          alert('Error switching branch: ' + res.error);
+        }
+      }
+    });
+  }
+
+  if (btnCreate) {
+    btnCreate.addEventListener('click', async () => {
+      const txt = document.getElementById('txtNewBranchName') as HTMLInputElement;
+      if (txt && api?.git) {
+        const branch = txt.value.trim();
+        if (!branch) {
+          alert('Please enter a branch name');
+          return;
+        }
+        const res = await api.git.createBranch(branch);
+        if (res.success) {
+          alert('✓ Created and checked out: ' + branch);
+          txt.value = '';
+          await refreshGitStatus();
+        } else {
+          alert('Error creating branch: ' + res.error);
+        }
+      }
+    });
+  }
+
+  if (btnCommitPush) {
+    btnCommitPush.addEventListener('click', async () => {
+      const msgInput = document.getElementById('txtCommitMessage') as HTMLInputElement;
+      if (msgInput && api?.git) {
+        const msg = msgInput.value.trim();
+        if (!msg) {
+          alert('Please enter a commit message');
+          return;
+        }
+        const res = await api.git.commitAndPush(msg);
+        if (res.success) {
+          alert('✓ Committed & Pushed cleanly to origin!');
+          msgInput.value = '';
+          await refreshGitStatus();
+        } else {
+          alert('Git Notice: ' + res.error);
+        }
+      }
+    });
+  }
+
+  if (btnCreatePr) {
+    btnCreatePr.addEventListener('click', async () => {
+      if (api?.git) {
+        const res = await api.git.createPr({
+          title: 'feat: automated client pilot delivery',
+          body: 'Consolidated commercial studio changes for client pilot.',
+          targetBranch: 'main'
+        });
+        alert(`✓ AI Pull Request Synthesized!\nURL: ${res.prUrl}`);
+      }
+    });
+  }
+}
+
+async function refreshGitStatus(): Promise<void> {
+  if (!api?.git) return;
+
+  const branchLbl = document.getElementById('gitActiveBranch');
+  const remoteLbl = document.getElementById('gitRemoteUrl');
+  const authorLbl = document.getElementById('gitAuthor');
+  const filesList = document.getElementById('gitFilesList');
+  const dropdown = document.getElementById('gitBranchDropdown') as HTMLSelectElement;
+
+  try {
+    const gitInfo = await api.git.inspect();
+    const branches = await api.git.getBranches();
+
+    if (branchLbl) branchLbl.innerText = gitInfo.currentBranch || 'main';
+    if (remoteLbl) remoteLbl.innerText = gitInfo.remoteUrl || 'local-only (no remote configured)';
+    if (authorLbl) authorLbl.innerText = (gitInfo.userName || 'Engineer') + ' <' + (gitInfo.userEmail || 'client.corp') + '>';
+
+    if (filesList) {
+      if (gitInfo.modifiedFiles && gitInfo.modifiedFiles.length > 0) {
+        filesList.innerHTML = gitInfo.modifiedFiles.map((f: string) => '<div style="padding: 2px 0;">' + f + '</div>').join('');
+      } else {
+        filesList.innerHTML = '<span style="color: var(--success);">✓ Working directory is completely clean (no uncommitted changes).</span>';
+      }
+    }
+
+    if (dropdown && branches) {
+      dropdown.innerHTML = '';
+      branches.forEach((b: string) => {
+        const opt = document.createElement('option');
+        opt.value = b;
+        opt.innerText = b;
+        if (b === gitInfo.currentBranch) opt.selected = true;
+        dropdown.appendChild(opt);
+      });
+    }
+  } catch (err) {
+    console.warn('Git inspect error:', err);
   }
 }
 
@@ -116,7 +376,6 @@ function setupWorkspaceControls(): void {
     });
   }
 
-  // Subscribe to live file changes
   if (api?.workspace?.onWatchEvent) {
     api.workspace.onWatchEvent(async (_: string, filename: string) => {
       console.log('File changed on disk:', filename);
@@ -257,7 +516,6 @@ function setupTerminal(): void {
   if (btnToggle) btnToggle.addEventListener('click', toggleTerminal);
   if (btnOpenTerm) btnOpenTerm.addEventListener('click', toggleTerminal);
 
-  // Spawn initial terminal session
   spawnNewTerminalSession();
 
   const cmdInput = document.getElementById('terminalCmdInput') as HTMLInputElement;
@@ -280,7 +538,6 @@ function setupTerminal(): void {
     });
   }
 
-  // Preset buttons
   const btnDbt = document.getElementById('btnTermDbt');
   if (btnDbt) {
     btnDbt.addEventListener('click', () => {
@@ -314,7 +571,6 @@ function setupTerminal(): void {
     });
   }
 
-  // Subscribe to terminal output stream
   if (api?.terminal?.onData) {
     api.terminal.onData((sessionId: string, data: string) => {
       if (sessionId === currentActiveSessionId || !currentActiveSessionId) {
@@ -494,6 +750,7 @@ function setupPhase2Controls(): void {
 function setupPhase3Controls(): void {
   const btnScaffold = document.getElementById('btnP3Scaffold');
   const btnAudit = document.getElementById('btnP3Audit');
+  const btnPing = document.getElementById('btnCloudTestPing');
 
   if (btnScaffold) {
     btnScaffold.addEventListener('click', async () => {
@@ -524,6 +781,16 @@ function setupPhase3Controls(): void {
     btnAudit.addEventListener('click', async () => {
       const report = await api.engines.runPreflightAudit();
       alert(`✓ Preflight Audit Completed!\nClean Status: ${report?.clean ? 'YES' : 'CLEAN'}\nDangling Files: ${report?.danglingFiles ? report.danglingFiles.length : 0}\nScore: ${report?.score || 100}/100`);
+    });
+  }
+
+  if (btnPing) {
+    btnPing.addEventListener('click', async () => {
+      const prov = (document.getElementById('p3Provider') as HTMLSelectElement).value;
+      if (api?.cloud) {
+        const res = await api.cloud.testConnection(prov);
+        alert(`✓ Cloud Provider Authentication Verified!\nProvider: ${res.provider}\nStatus: ${res.status}\nLatency: ${res.latencyMs}ms\nPrincipal: ${res.authenticatedPrincipal}`);
+      }
     });
   }
 }

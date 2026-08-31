@@ -28,13 +28,16 @@
 
   <!-- Main Container -->
   <div class="app-container">
-    <!-- Left Activity Navigation Bar -->
+    <!-- Left Activity Navigation Bar (8 Comprehensive Studio Tabs) -->
     <nav class="activity-bar">
-      <button class="activity-btn active" data-phase="1" title="Phase 1: Ingest, Schema Mapper & Marts">📊</button>
-      <button class="activity-btn" data-phase="2" title="Phase 2: Client API Connector Studio">🔌</button>
-      <button class="activity-btn" data-phase="3" title="Phase 3: Multi-Cloud Pilot Deployment Matrix">⚡</button>
-      <button class="activity-btn" data-phase="4" title="Phase 4: Runbook & Architecture Factory">📑</button>
-      <button class="activity-btn" data-phase="5" title="Phase 5: Enterprise Suite (11 Commercial Modules)">💎</button>
+      <button class="activity-btn active" data-tab="ai-sizer" title="Local AI Hardware Auto-Detection & Model Sizer">🤖</button>
+      <button class="activity-btn" data-tab="converter" title="Polyglot Code Converter & Modernizer">🔄</button>
+      <button class="activity-btn" data-tab="schema" title="Phase 1: Ingest, Schema Mapper & Marts">📊</button>
+      <button class="activity-btn" data-tab="api" title="Phase 2: Client API Connector Studio">🔌</button>
+      <button class="activity-btn" data-tab="git" title="Git & Remote Repository Studio">🌿</button>
+      <button class="activity-btn" data-tab="cloud" title="Phase 3: Multi-Cloud Connect Matrix">☁️</button>
+      <button class="activity-btn" data-tab="runbook" title="Phase 4: Runbook & Architecture Factory">📑</button>
+      <button class="activity-btn" data-tab="enterprise" title="Phase 5: Enterprise Suite (11 Commercial Modules)">💎</button>
       <div style="flex: 1;"></div>
       <button class="activity-btn" id="btnToggleFileTree" title="Toggle File Tree Explorer">📁</button>
       <button class="activity-btn" id="btnOpenSettings" title="Settings & License Identity">⚙️</button>
@@ -65,8 +68,129 @@
     <main class="main-workspace">
       <div class="studio-scroll-area">
         
-        <!-- PHASE 1: INGEST, SCHEMA MAPPER & MARTS -->
-        <section id="phase1Pane" class="phase-pane" style="display: block;">
+        <!-- TAB 1: LOCAL AI HARDWARE AUTO-DETECTION & MODEL SIZER -->
+        <section id="pane-ai-sizer" class="phase-pane" style="display: block;">
+          <div class="content-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin: 0;">🤖 Local AI Hardware Sizer &amp; Model Engine Prober</h3>
+                <p class="desc" style="margin: 4px 0 0 0;">Inspects host RAM, GPU VRAM, CPU cores, and probes active Ollama (<code>11434</code>), LM Studio (<code>1234</code>), and vLLM (<code>8000</code>) servers to calculate optimal offline model feasibility.</p>
+              </div>
+              <button class="btn" id="btnRunHwInspect" style="cursor: pointer;">🔍 Re-Scan System Hardware</button>
+            </div>
+
+            <!-- Hardware Gauges Grid -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">System Memory (RAM)</div>
+                <div id="hwRamVal" style="font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px;">-- GB</div>
+                <div id="hwRamDetail" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Host physical memory</div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Dedicated GPU / VRAM</div>
+                <div id="hwGpuVal" style="font-size: 20px; font-weight: 700; color: var(--success); margin-top: 4px;">--</div>
+                <div id="hwGpuDetail" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">VRAM Acceleration</div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">CPU Compute</div>
+                <div id="hwCpuVal" style="font-size: 20px; font-weight: 700; color: #fff; margin-top: 4px;">-- Cores</div>
+                <div id="hwCpuDetail" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Host Architecture</div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Local AI Server</div>
+                <div id="hwOllamaVal" style="font-size: 20px; font-weight: 700; color: var(--accent); margin-top: 4px;">Probing...</div>
+                <div id="hwOllamaDetail" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Port 11434 / 1234 / 8000</div>
+              </div>
+            </div>
+
+            <!-- Sizing Matrix Recommendation Box -->
+            <div style="background: var(--card-alt, #252526); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+              <h4 style="margin: 0 0 8px 0; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                <span>🎯</span> Recommended Offline Local Models for This Machine
+              </h4>
+              <div id="hwRecommendationSummary" style="font-size: 12px; line-height: 1.5; color: #e2e8f0;">
+                Click "Re-Scan System Hardware" to compute your machine's exact model feasibility score.
+              </div>
+            </div>
+
+            <!-- Local Model Instance Grid -->
+            <div>
+              <h4 style="margin: 0 0 10px 0; font-size: 13px;">Discovered Local Models &amp; Server Endpoints</h4>
+              <div id="localModelsContainer" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <div style="padding: 10px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
+                  <strong>Ollama (127.0.0.1:11434):</strong> <span id="ollamaStatusText">Checking...</span>
+                </div>
+                <div style="padding: 10px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; font-size: 12px;">
+                  <strong>LM Studio (127.0.0.1:1234):</strong> <span id="lmStudioStatusText">Checking...</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 2: POLYGLOT CODE CONVERTER & MODERNIZER -->
+        <section id="pane-converter" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <h3>🔄 Universal Polyglot Code Converter &amp; Modernizer</h3>
+            <p class="desc">Convert and modernise code between 12+ programming languages and dialects with idiomatic conventions, package mappings, and fidelity reports.</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Source Language</label>
+                <select id="convSourceLang">
+                  <option value="python" selected>Python 3</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="javascript">JavaScript (Node.js)</option>
+                  <option value="go">Go (Golang)</option>
+                  <option value="rust">Rust</option>
+                  <option value="java">Java</option>
+                  <option value="csharp">C# (.NET)</option>
+                  <option value="sql">Oracle / T-SQL</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Target Language</label>
+                <select id="convTargetLang">
+                  <option value="typescript" selected>TypeScript</option>
+                  <option value="python">Python 3</option>
+                  <option value="go">Go (Golang)</option>
+                  <option value="rust">Rust</option>
+                  <option value="java">Java</option>
+                  <option value="csharp">C# (.NET)</option>
+                  <option value="bigquery">Google BigQuery SQL</option>
+                  <option value="snowflake">Snowflake SQL</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Fidelity Policy</label>
+                <select id="convFidelity">
+                  <option value="idiomatic" selected>Idiomatic (Clean native conventions)</option>
+                  <option value="literal">Literal (1:1 line-by-line mapping)</option>
+                  <option value="modernise">Modernise (Async/await, records, streams)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Source Code</label>
+                <textarea id="convSourceInput" rows="10" placeholder="def calculate_metrics(data):&#10;    result = []&#10;    for item in data:&#10;        result.append(item['value'] * 2)&#10;    return result"></textarea>
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold; color: var(--accent);">Converted Output</label>
+                <textarea id="convTargetOutput" rows="10" readonly placeholder="Converted code will appear here..."></textarea>
+              </div>
+            </div>
+
+            <button class="btn" id="btnRunCodeConvert">⚡ Convert &amp; Modernise Code</button>
+          </div>
+        </section>
+
+        <!-- TAB 3: PHASE 1 - SCHEMA & MARTS -->
+        <section id="pane-schema" class="phase-pane" style="display: none;">
           <div class="content-card">
             <h3>📊 Semantic Schema Mapper &amp; Dimensional Mart Builder</h3>
             <p class="desc">Introspect live client databases (Postgres, Snowflake, BigQuery, MySQL, SQLite) via TCP wire protocol, standardize column naming, and build dimensional star-schema dbt marts.</p>
@@ -100,8 +224,8 @@
           </div>
         </section>
 
-        <!-- PHASE 2: CLIENT API CONNECTOR STUDIO -->
-        <section id="phase2Pane" class="phase-pane" style="display: none;">
+        <!-- TAB 4: PHASE 2 - CLIENT API STUDIO -->
+        <section id="pane-api" class="phase-pane" style="display: none;">
           <div class="content-card">
             <h3>🔌 Client API Connector &amp; Reverse-Engineered SDK Studio</h3>
             <p class="desc">Paste cURL snippets, OpenAPI JSON, or raw HTTP payloads to generate resilient TypeScript &amp; Python client SDKs with exponential backoff retries and rate limit handling.</p>
@@ -120,10 +244,63 @@
           </div>
         </section>
 
-        <!-- PHASE 3: MULTI-CLOUD DEPLOYMENT MATRIX -->
-        <section id="phase3Pane" class="phase-pane" style="display: none;">
+        <!-- TAB 5: GIT & REMOTE REPOSITORY STUDIO -->
+        <section id="pane-git" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <h3>⚡ Multi-Cloud Pilot Deployment Matrix &amp; Pre-Flight Auditor</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div>
+                <h3 style="margin: 0;">🌿 Git &amp; Remote Repository Hub</h3>
+                <p class="desc" style="margin: 4px 0 0 0;">Inspect branches, uncommitted changes, remote status, and push code directly to GitHub, GitLab, or Bitbucket with 1-click AI PR generation.</p>
+              </div>
+              <button class="btn-quick" id="btnRefreshGit" style="cursor: pointer;">🔄 Refresh Git Status</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary);">ACTIVE REPOSITORY STATUS</div>
+                <div style="margin-top: 6px; font-size: 12px;">
+                  <div><strong>Branch:</strong> <code id="gitActiveBranch">main</code></div>
+                  <div style="margin-top: 4px;"><strong>Remote:</strong> <span id="gitRemoteUrl" style="color: var(--accent); word-break: break-all;">origin (detecting...)</span></div>
+                  <div style="margin-top: 4px;"><strong>Author:</strong> <span id="gitAuthor">engineer@client.corp</span></div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 6px;">
+                <div style="font-size: 11px; color: var(--text-secondary);">SWITCH OR CREATE BRANCH</div>
+                <div style="display: flex; gap: 8px; margin-top: 6px;">
+                  <select id="gitBranchDropdown" style="flex: 1; margin-bottom: 0;">
+                    <option value="main">main</option>
+                  </select>
+                  <button class="btn-quick" id="btnSwitchBranch">Switch</button>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                  <input type="text" id="txtNewBranchName" placeholder="feature/new-pipeline..." style="flex: 1; margin-bottom: 0;">
+                  <button class="btn-quick" id="btnCreateBranch">➕ Create</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Staged & Modified Files List -->
+            <div style="margin-bottom: 14px;">
+              <label style="font-size: 11px; font-weight: bold;">Uncommitted / Changed Workspace Files</label>
+              <div id="gitFilesList" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; max-height: 140px; overflow-y: auto; font-family: monospace; font-size: 11px; color: var(--text-secondary);">
+                Scanning workspace for changes...
+              </div>
+            </div>
+
+            <!-- Commit & Push Bar -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <input type="text" id="txtCommitMessage" placeholder="Enter commit message (e.g. feat: add orders staging model and dbt mart)..." style="flex: 1; margin-bottom: 0;">
+              <button class="btn" id="btnGitCommitPush">🚀 Commit &amp; Push to Origin</button>
+              <button class="btn btn-secondary" id="btnGitCreatePr">✨ Generate AI PR</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB 6: PHASE 3 - MULTI-CLOUD CONNECT MATRIX -->
+        <section id="pane-cloud" class="phase-pane" style="display: none;">
+          <div class="content-card">
+            <h3>☁️ Multi-Cloud Connect Matrix &amp; Pre-Flight Auditor</h3>
             <p class="desc">Scaffold production Terraform, Kubernetes manifests, and Docker Compose configs with zero dangling temp files.</p>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px;">
@@ -149,6 +326,7 @@
             <div style="display: flex; gap: 10px; margin-bottom: 14px;">
               <button class="btn" id="btnP3Scaffold">🚀 Scaffold Infrastructure &amp; CI/CD</button>
               <button class="btn btn-secondary" id="btnP3Audit">🧹 Run Pre-Flight Health Audit</button>
+              <button class="btn btn-secondary" id="btnCloudTestPing">📡 Test Cloud Auth &amp; Ping</button>
             </div>
 
             <div id="p3ResultBox" style="display: none;">
@@ -158,8 +336,8 @@
           </div>
         </section>
 
-        <!-- PHASE 4: RUNBOOK & ARCHITECTURE FACTORY -->
-        <section id="phase4Pane" class="phase-pane" style="display: none;">
+        <!-- TAB 7: PHASE 4 - RUNBOOK & ARCHITECTURE FACTORY -->
+        <section id="pane-runbook" class="phase-pane" style="display: none;">
           <div class="content-card">
             <h3>📑 Client Handoff Runbook &amp; Architecture Factory</h3>
             <p class="desc">Automatically synthesize interactive Mermaid sequence diagrams, operational runbooks, data dictionaries, and environment variable references.</p>
@@ -173,8 +351,8 @@
           </div>
         </section>
 
-        <!-- PHASE 5: ENTERPRISE SUITE (11 COMMERCIAL MODULES) -->
-        <section id="phase5Pane" class="phase-pane" style="display: none;">
+        <!-- TAB 8: PHASE 5 - ENTERPRISE SUITE (11 COMMERCIAL MODULES) -->
+        <section id="pane-enterprise" class="phase-pane" style="display: none;">
           <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
             <div>
               <h2 style="margin: 0; font-size: 18px; color: var(--accent);">💎 Enterprise Commercial Suite</h2>

@@ -46,6 +46,34 @@ const desktopApi = {
     }
   },
 
+  // --- HARDWARE & LOCAL AI APIS ---
+  hardware: {
+    inspect: () => ipcRenderer.invoke(DESKTOP_CHANNELS.HARDWARE.INSPECT),
+    discoverLocalModels: () => ipcRenderer.invoke(DESKTOP_CHANNELS.HARDWARE.DISCOVER_LOCAL_MODELS)
+  },
+
+  // --- POLYGLOT CONVERTER APIS ---
+  converter: {
+    getLanguages: () => ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.GET_LANGUAGES),
+    convert: (req: { sourceCode: string; fromLang: string; toLang: string; fidelity?: string }) => 
+      ipcRenderer.invoke(DESKTOP_CHANNELS.CONVERTER.CONVERT, req)
+  },
+
+  // --- GIT & BRANCH STUDIO APIS ---
+  git: {
+    inspect: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.INSPECT),
+    getBranches: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_BRANCHES),
+    createBranch: (branchName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CREATE_BRANCH, branchName),
+    switchBranch: (branchName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SWITCH_BRANCH, branchName),
+    commitAndPush: (commitMessage: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.COMMIT_AND_PUSH, commitMessage),
+    createPr: (prInfo: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CREATE_PR, prInfo)
+  },
+
+  // --- MULTI-CLOUD CONNECT APIS ---
+  cloud: {
+    testConnection: (provider: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION, provider)
+  },
+
   // --- LICENSE & IDENTITY APIS ---
   license: {
     getState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_STATE),

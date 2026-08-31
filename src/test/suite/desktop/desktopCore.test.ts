@@ -184,12 +184,31 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     // Verify key channel registrations
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.WORKSPACE.GET_CURRENT));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.TERMINAL.SPAWN));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.HARDWARE.INSPECT));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CONVERTER.CONVERT));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.GIT.INSPECT));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.LICENSE.GET_STATE));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.VAULT.GET_SECRET));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.PII_MASKING));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.REVERSE_ETL));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.RLS_POLICIES));
+
+    // Test invoking Hardware Inspection IPC handler
+    const hwFn = registeredChannels.get(DESKTOP_CHANNELS.HARDWARE.INSPECT)!;
+    const hwRes = await hwFn(null);
+    assert.ok(hwRes.profile !== undefined);
+    assert.ok(typeof hwRes.profile.ramGb === 'number');
+
+    // Test invoking Polyglot Code Converter IPC handler
+    const convFn = registeredChannels.get(DESKTOP_CHANNELS.CONVERTER.CONVERT)!;
+    const convRes = await convFn(null, {
+      sourceCode: 'def process_item(val):\n    print(val)',
+      fromLang: 'python',
+      toLang: 'typescript'
+    });
+    assert.ok(convRes.convertedCode.includes('function process_item'));
 
     // Test invoking SQL Transpiler IPC handler directly
     const transpileFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL)!;
@@ -214,6 +233,12 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
       ]
     });
     assert.ok(piiRes.dbtMacroSql.includes('mask_pii_column'));
+
+    // Test invoking Cloud Connection test IPC handler
+    const cloudFn = registeredChannels.get(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION)!;
+    const cloudRes = await cloudFn(null, 'gcp-firebase');
+    assert.strictEqual(cloudRes.provider, 'gcp-firebase');
+    assert.strictEqual(cloudRes.status, 'CONNECTED');
 
     wsMgr.dispose();
     termMgr.dispose();

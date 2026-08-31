@@ -1,72 +1,99 @@
 /**
- * Evolve AI Enterprise Desktop Edition — Type-Safe IPC Channel Constants
+ * Evolve AI Enterprise Desktop Edition — Type-Safe IPC Channel Definitions
  */
 
 export const DESKTOP_CHANNELS = {
   WORKSPACE: {
-    OPEN_FOLDER_DIALOG: 'workspace:openFolderDialog',
-    GET_CURRENT: 'workspace:getCurrent',
-    GET_RECENT: 'workspace:getRecent',
-    SET_CURRENT: 'workspace:setCurrent',
-    GET_FILE_TREE: 'workspace:getFileTree',
-    READ_FILE: 'workspace:readFile',
-    WRITE_FILE: 'workspace:writeFile',
-    CREATE_FILE: 'workspace:createFile',
-    CREATE_DIR: 'workspace:createDir',
-    DELETE_ITEM: 'workspace:deleteItem',
-    RENAME_ITEM: 'workspace:renameItem',
-    REVEAL_IN_EXPLORER: 'workspace:revealInExplorer',
-    WATCH_EVENT: 'workspace:watchEvent'
+    OPEN_FOLDER_DIALOG: 'evolve:workspace:open-folder-dialog',
+    GET_CURRENT: 'evolve:workspace:get-current',
+    GET_RECENT: 'evolve:workspace:get-recent',
+    SET_CURRENT: 'evolve:workspace:set-current',
+    GET_FILE_TREE: 'evolve:workspace:get-file-tree',
+    READ_FILE: 'evolve:workspace:read-file',
+    WRITE_FILE: 'evolve:workspace:write-file',
+    CREATE_FILE: 'evolve:workspace:create-file',
+    CREATE_DIR: 'evolve:workspace:create-dir',
+    DELETE_ITEM: 'evolve:workspace:delete-item',
+    RENAME_ITEM: 'evolve:workspace:rename-item',
+    REVEAL_IN_EXPLORER: 'evolve:workspace:reveal-in-explorer',
+    WATCH_EVENT: 'evolve:workspace:watch-event'
   },
+
   TERMINAL: {
-    SPAWN: 'terminal:spawn',
-    INPUT: 'terminal:input',
-    RESIZE: 'terminal:resize',
-    KILL: 'terminal:kill',
-    LIST: 'terminal:list',
-    DATA_EVENT: 'terminal:dataEvent',
-    EXIT_EVENT: 'terminal:exitEvent'
+    SPAWN: 'evolve:terminal:spawn',
+    INPUT: 'evolve:terminal:input',
+    RESIZE: 'evolve:terminal:resize',
+    KILL: 'evolve:terminal:kill',
+    LIST: 'evolve:terminal:list',
+    DATA_EVENT: 'evolve:terminal:data-event',
+    EXIT_EVENT: 'evolve:terminal:exit-event'
   },
+
+  HARDWARE: {
+    INSPECT: 'evolve:hardware:inspect',
+    DISCOVER_LOCAL_MODELS: 'evolve:hardware:discover-local-models'
+  },
+
+  CONVERTER: {
+    CONVERT: 'evolve:converter:convert',
+    GET_LANGUAGES: 'evolve:converter:get-languages'
+  },
+
+  GIT: {
+    INSPECT: 'evolve:git:inspect',
+    GET_BRANCHES: 'evolve:git:get-branches',
+    CREATE_BRANCH: 'evolve:git:create-branch',
+    SWITCH_BRANCH: 'evolve:git:switch-branch',
+    COMMIT_AND_PUSH: 'evolve:git:commit-and-push',
+    CREATE_PR: 'evolve:git:create-pr'
+  },
+
+  CLOUD: {
+    TEST_CONNECTION: 'evolve:cloud:test-connection'
+  },
+
   LICENSE: {
-    GET_STATE: 'license:getState',
-    ACTIVATE_KEY: 'license:activateKey',
-    GET_FINGERPRINT: 'license:getFingerprint',
-    EXPORT_CHALLENGE: 'license:exportChallenge',
-    IMPORT_OFFLINE_LICENSE: 'license:importOfflineLicense',
-    GET_PROFILE: 'license:getProfile',
-    SAVE_PROFILE: 'license:saveProfile'
+    GET_STATE: 'evolve:license:get-state',
+    ACTIVATE_KEY: 'evolve:license:activate-key',
+    GET_FINGERPRINT: 'evolve:license:get-fingerprint',
+    EXPORT_CHALLENGE: 'evolve:license:export-challenge',
+    IMPORT_OFFLINE_LICENSE: 'evolve:license:import-offline-license',
+    GET_PROFILE: 'evolve:license:get-profile',
+    SAVE_PROFILE: 'evolve:license:save-profile'
   },
+
   VAULT: {
-    GET_SECRET: 'vault:getSecret',
-    SET_SECRET: 'vault:setSecret',
-    LIST_KEYS: 'vault:listKeys',
-    DELETE_SECRET: 'vault:deleteSecret'
+    GET_SECRET: 'evolve:vault:get-secret',
+    SET_SECRET: 'evolve:vault:set-secret',
+    LIST_KEYS: 'evolve:vault:list-keys',
+    DELETE_SECRET: 'evolve:vault:delete-secret'
   },
+
   UPDATER: {
-    CHECK_UPDATE: 'updater:checkUpdate',
-    APPLY_OFFLINE_PATCH: 'updater:applyOfflinePatch'
+    CHECK_UPDATE: 'evolve:updater:check-update',
+    APPLY_OFFLINE_PATCH: 'evolve:updater:apply-offline-patch'
   },
+
   ENGINES: {
-    INTROSPECT_DB: 'engine:introspectDb',
-    TEST_DB_CONN: 'engine:testDbConn',
-    MAP_SCHEMA: 'engine:mapSchema',
-    BUILD_MART: 'engine:buildMart',
-    GENERATE_API_SDK: 'engine:generateApiSdk',
-    PARSE_CURL: 'engine:parseCurl',
-    PARSE_OPENAPI: 'engine:parseOpenApi',
-    SCAFFOLD_DEPLOY: 'engine:scaffoldDeploy',
-    RUN_PREFLIGHT_AUDIT: 'engine:runPreflightAudit',
-    GENERATE_RUNBOOKS: 'engine:generateRunbooks',
-    TRANSPILE_SQL: 'engine:transpileSql',
-    PII_MASKING: 'engine:piiMasking',
-    REVERSE_ETL: 'engine:reverseEtl',
-    RLS_POLICIES: 'engine:rlsPolicies',
-    SYNTHETIC_DATA: 'engine:syntheticData',
-    MOCK_SERVER: 'engine:mockServer',
-    DATA_QUALITY: 'engine:dataQuality',
-    LOAD_TEST: 'engine:loadTest',
-    RAG_PIPELINE: 'engine:ragPipeline',
-    SIEM_AUDIT: 'engine:siemAudit',
-    PRIVATE_SERVING: 'engine:privateServing'
+    TRANSPILE_SQL: 'evolve:engines:transpile-sql',
+    PII_MASKING: 'evolve:engines:pii-masking',
+    REVERSE_ETL: 'evolve:engines:reverse-etl',
+    RLS_POLICIES: 'evolve:engines:rls-policies',
+    SYNTHETIC_DATA: 'evolve:engines:synthetic-data',
+    MOCK_SERVER: 'evolve:engines:mock-server',
+    DATA_QUALITY: 'evolve:engines:data-quality',
+    LOAD_TEST: 'evolve:engines:load-test',
+    RAG_PIPELINE: 'evolve:engines:rag-pipeline',
+    SIEM_AUDIT: 'evolve:engines:siem-audit',
+    PRIVATE_SERVING: 'evolve:engines:private-serving',
+    INTROSPECT_DB: 'evolve:engines:introspect-db',
+    MAP_SCHEMA: 'evolve:engines:map-schema',
+    BUILD_MART: 'evolve:engines:build-mart',
+    GENERATE_API_SDK: 'evolve:engines:generate-api-sdk',
+    PARSE_CURL: 'evolve:engines:parse-curl',
+    PARSE_OPENAPI: 'evolve:engines:parse-openapi',
+    SCAFFOLD_DEPLOY: 'evolve:engines:scaffold-deploy',
+    RUN_PREFLIGHT_AUDIT: 'evolve:engines:run-preflight-audit',
+    GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks'
   }
 } as const;
