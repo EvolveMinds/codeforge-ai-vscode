@@ -3157,9 +3157,297 @@ function formatMarkdownToHtml(markdown: string): string {
 }
 
 // --- HARDWARE SIZER STUDIO (100% Correct Data Mapping) ---
+const LOCAL_SPECS = [
+  { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', family: 'Alibaba / Ollama', icon: '🦙', minRamGb: 8, reqVramGb: 5.0, diskGb: 4.7, context: '32k', description: 'Premier 7B coding model with 92%+ pass rate. Highly optimized for SQL, Python, TypeScript migrations.', pullCommand: 'qwen2.5-coder:7b' },
+  { id: 'gemma4:e4b', name: 'Gemma 4 e4b (Multimodal)', family: 'Google Gemma', icon: '🤖', minRamGb: 8, reqVramGb: 4.5, diskGb: 4.2, context: '32k', description: 'Google\'s newest open multimodal architecture for edge devices with exceptional efficiency.', pullCommand: 'gemma4:e4b' },
+  { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', family: 'Z.ai / GLM', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.8, context: '128k', description: 'Specialized polyglot conversion model capable of mapping complex architectures across 26 languages.', pullCommand: 'codegeex4-all-9b' },
+  { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B (Reasoning)', family: 'DeepSeek', icon: '🧠', minRamGb: 8, reqVramGb: 5.5, diskGb: 4.8, context: '64k', description: 'Distilled reasoning engine with step-by-step algorithmic decomposition for complex transformations.', pullCommand: 'deepseek-r1:7b' },
+  { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', family: 'Alibaba / Ollama', icon: '🦙', minRamGb: 16, reqVramGb: 9.5, diskGb: 9.0, context: '32k', description: 'High-capability coding model matching GPT-4 on code refactoring and data engineering tasks.', pullCommand: 'qwen2.5-coder:14b' },
+  { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B', family: 'DeepSeek', icon: '🧠', minRamGb: 16, reqVramGb: 11.0, diskGb: 9.5, context: '64k', description: 'MoE coding powerhouse with 338 programming language support and deep syntax understanding.', pullCommand: 'deepseek-coder-v2:16b' },
+  { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', family: 'Alibaba / Ollama', icon: '🦙', minRamGb: 32, reqVramGb: 20.0, diskGb: 19.5, context: '32k', description: 'Frontier-grade open coding model for full-repository modernization and zero-shot architecture design.', pullCommand: 'qwen2.5-coder:32b' },
+  { id: 'llama3.3:70b', name: 'Llama 3.3 70B Instruct', family: 'Meta LLaMA', icon: '🦙', minRamGb: 64, reqVramGb: 42.0, diskGb: 40.0, context: '128k', description: 'Meta\'s flagship open foundation model for enterprise-grade reasoning and documentation synthesis.', pullCommand: 'llama3.3:70b' },
+  { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', family: 'Colibri Local', icon: '🚀', minRamGb: 32, reqVramGb: 24.0, diskGb: 372.0, context: '128k', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise on-premise infrastructure.' },
+  { id: 'lmstudio-local', name: 'LM Studio Local Server (Port 1234)', family: 'LM Studio', icon: '🖥️', minRamGb: 8, reqVramGb: 4.0, diskGb: 0, context: 'Dynamic', description: 'Connects dynamically to any model currently loaded in LM Studio via local OpenAI-compatible endpoint.' },
+  { id: 'vllm-local', name: 'vLLM / Triton Cluster (Port 8000)', family: 'vLLM Engine', icon: '⚡', minRamGb: 16, reqVramGb: 8.0, diskGb: 0, context: 'Dynamic', description: 'Air-gapped high-throughput inference engine with PagedAttention for private enterprise clusters.' },
+  { id: 'offline-engine', name: 'Offline Deterministic Engine', family: 'Evolve Built-in', icon: '⚙️', minRamGb: 2, reqVramGb: 0, diskGb: 0, context: 'Unlimited', description: 'Built-in deterministic AST transformations, transpilers, and pattern heuristics. Instant and 100% offline.' }
+];
+
+const CLOUD_SPECS = [
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google Gemini', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'Leaderboard #1 for massive codebases, multi-file repos & complex data marts', badge: '1M Context' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google Gemini', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast (~120 tok/s)', strength: 'High-speed structured extraction, schema mapping & instant code conversions', badge: 'Low Latency' },
+  { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'Anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fast (~65 tok/s)', strength: 'State-of-the-art hybrid reasoning & complex algorithmic pipeline synthesis', badge: 'State-of-the-Art' },
+  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Instant (~140 tok/s)', strength: 'Ultra-fast refactoring, unit test generation & quick markdown documentation', badge: 'Speed Leader' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', icon: '🌐', context: '128,000 Tokens', latency: 'Fast (~80 tok/s)', strength: 'Omni flagship intelligence for cross-stack conversions & system architecture', badge: 'Flagship Omni' },
+  { id: 'llama-3.3-70b-versatile', name: 'Groq LPU — Llama 3.3 70B', provider: 'Groq Cloud', icon: '⚡', context: '128,000 Tokens', latency: 'Extreme (~500 tok/s)', strength: 'Sub-second real-time inference on Groq Language Processing Units', badge: '500 tok/s' },
+  { id: 'glm-4.6', name: 'GLM-4.6', provider: 'Z.ai Cloud', icon: '💻', context: '128,000 Tokens', latency: 'Fast (~55 tok/s)', strength: 'Flagship multilingual reasoning & enterprise schema modernization', badge: 'Cloud Flagship' },
+  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'Hugging Face Hub', icon: '🤗', context: '32,000 Tokens', latency: 'Fast (~40 tok/s)', strength: 'Serverless hosted inference on Hugging Face open model infrastructure', badge: 'Serverless API' }
+];
+
+let lastHwProfile: any = null;
+let lastInstalledLocalModels: string[] = [];
+let currentHwFilter = 'all';
+
 function setupHardwareStudio(api: any): void {
   const btnInspect = document.getElementById('btnRunHwInspect');
   btnInspect?.addEventListener('click', () => runHardwareInspect(api));
+
+  const btnHwCloudKeys = document.getElementById('btnHwOpenCloudKeys');
+  btnHwCloudKeys?.addEventListener('click', () => {
+    const btnOpenSettings = document.getElementById('btnOpenSettings');
+    if (btnOpenSettings) btnOpenSettings.click();
+    setTimeout(() => {
+      const tabAi = document.querySelector('.settings-tab[data-tab="ai"]') as HTMLElement;
+      if (tabAi) tabAi.click();
+    }, 100);
+  });
+
+  // Filter Buttons
+  const filterBtns = document.querySelectorAll('.hw-filter-btn');
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => {
+        b.classList.remove('active');
+        (b as HTMLElement).style.color = '';
+        (b as HTMLElement).style.borderColor = '';
+        (b as HTMLElement).style.fontWeight = '';
+      });
+      btn.classList.add('active');
+      (btn as HTMLElement).style.color = 'var(--accent)';
+      (btn as HTMLElement).style.borderColor = 'var(--accent)';
+      (btn as HTMLElement).style.fontWeight = '700';
+
+      currentHwFilter = btn.getAttribute('data-hwfilter') || 'all';
+      if (lastHwProfile) {
+        renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+      }
+    });
+  });
+}
+
+function renderLocalModelsMatrix(api: any, profile: any, installedModels: string[]): void {
+  const container = document.getElementById('hwLocalModelsList');
+  const cntEl = document.getElementById('cntHwLocalModels');
+  if (!container) return;
+
+  const ramGb = profile.ramGb || 16;
+  const vramGb = profile.gpu?.vramGb || 0;
+
+  if (cntEl) cntEl.innerText = `${LOCAL_SPECS.length}`;
+
+  const renderedCards = LOCAL_SPECS.map(spec => {
+    // 1. Evaluate Installation State
+    let isInstalled = false;
+    if (spec.id === 'offline-engine') {
+      isInstalled = true;
+    } else if (spec.id === 'lmstudio-local') {
+      isInstalled = installedModels.some(m => m.includes('lmstudio'));
+    } else if (spec.id === 'vllm-local') {
+      isInstalled = installedModels.some(m => m.includes('vllm'));
+    } else {
+      isInstalled = installedModels.some(m => m === spec.id || m.startsWith(spec.id.split(':')[0]) || m.includes(spec.id));
+    }
+
+    // 2. Evaluate Hardware Compatibility Rating
+    let compTier: 'optimal' | 'compatible' | 'cpu' | 'insufficient' = 'optimal';
+    let compBadge = '';
+    let compDesc = '';
+
+    if (spec.id === 'offline-engine') {
+      compTier = 'optimal';
+      compBadge = '<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 100% Instant (Built-in)</span>';
+      compDesc = 'Runs with 0 dependencies and 0 local hardware constraints.';
+    } else if (vramGb >= spec.reqVramGb && vramGb > 0) {
+      compTier = 'optimal';
+      compBadge = `<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 Optimal GPU Fit (${Math.round(spec.reqVramGb)}GB / ${vramGb}GB VRAM · ~60+ tok/s)</span>`;
+      compDesc = `Full model weights fit comfortably into your ${profile.gpu?.name || 'GPU'} VRAM for lightning-fast hardware-accelerated inference.`;
+    } else if (ramGb >= spec.minRamGb && (vramGb + ramGb >= spec.reqVramGb + 4)) {
+      compTier = 'compatible';
+      compBadge = `<span style="background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟡 Compatible (CPU/GPU Hybrid · ~25-35 tok/s)</span>`;
+      compDesc = `Runs smoothly using GPU offloading combined with system RAM. Excellent balance of capability and response speed.`;
+    } else if (ramGb >= spec.minRamGb) {
+      compTier = 'cpu';
+      compBadge = `<span style="background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟠 CPU Inferences (~10-18 tok/s)</span>`;
+      compDesc = `Exceeds dedicated VRAM but runs comfortably on your ${profile.cpu?.cores || 8}-core CPU compute.`;
+    } else {
+      compTier = 'insufficient';
+      compBadge = `<span style="background: rgba(241, 76, 76, 0.15); color: var(--error); border: 1px solid var(--error); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🔴 Exceeds Machine Specs (Requires ${spec.minRamGb}GB RAM / ${spec.reqVramGb}GB VRAM)</span>`;
+      compDesc = `Model size exceeds local memory limits. Recommended to use the serverless Cloud Flagship equivalent instead.`;
+    }
+
+    // Filter check
+    if (currentHwFilter === 'compatible' && compTier === 'insufficient') return '';
+    if (currentHwFilter === 'installed' && !isInstalled) return '';
+
+    const isActive = activeSelectedModel === spec.id || activeSelectedModel.includes(spec.id) || spec.id.includes(activeSelectedModel);
+
+    // Action button
+    let actionBtnHtml = '';
+    if (isActive) {
+      actionBtnHtml = `<span style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 6px;">● ACTIVE ENGINE</span>`;
+    } else if (isInstalled) {
+      actionBtnHtml = `
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="color: var(--success); font-size: 11px; font-weight: bold;">✓ Installed</span>
+          <button class="btn btn-hw-activate" data-model="${spec.id}" data-name="${spec.name}" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Activate</button>
+        </div>
+      `;
+    } else if (spec.pullCommand) {
+      actionBtnHtml = `
+        <button class="btn btn-hw-install" data-pull="${spec.pullCommand}" data-model="${spec.id}" data-name="${spec.name}" style="padding: 6px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700; white-space: nowrap;">
+          📥 1-Click Auto Install
+        </button>
+      `;
+    } else {
+      actionBtnHtml = `<span style="font-size: 11px; color: var(--text-muted);">Server Cluster</span>`;
+    }
+
+    return `
+      <div class="content-card" style="margin-bottom: 0; padding: 12px 16px; background: var(--bg-primary); border: 1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+        <div style="flex: 1 1 auto;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-size: 14px; font-weight: 700; color: ${isActive ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
+              <span>${spec.icon}</span> ${spec.name}
+            </span>
+            <span style="font-size: 10px; color: var(--text-secondary); background: var(--card-bg); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border);">${spec.family}</span>
+            ${compBadge}
+          </div>
+          <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 6px;">${spec.description}</div>
+          <div style="font-size: 10.5px; color: var(--text-muted); display: flex; gap: 14px;">
+            <span>Min RAM: <strong style="color: #e2e8f0;">${spec.minRamGb} GB</strong></span>
+            <span>Target VRAM: <strong style="color: #e2e8f0;">${spec.reqVramGb} GB</strong></span>
+            <span>Disk Footprint: <strong style="color: #e2e8f0;">${spec.diskGb > 0 ? spec.diskGb + ' GB' : 'N/A'}</strong></span>
+            <span>Context Limit: <strong style="color: #e2e8f0;">${spec.context}</strong></span>
+          </div>
+        </div>
+        <div style="flex: 0 0 auto; text-align: right;">
+          ${actionBtnHtml}
+        </div>
+      </div>
+    `;
+  }).filter(Boolean).join('');
+
+  container.innerHTML = renderedCards || `
+    <div style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 12px;">
+      No local models match the selected filter.
+    </div>
+  `;
+
+  // Wire Activate Buttons
+  container.querySelectorAll('.btn-hw-activate').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modelId = btn.getAttribute('data-model') || 'qwen2.5-coder:7b';
+      const modelName = btn.getAttribute('data-name') || modelId;
+
+      activeSelectedModel = modelId;
+
+      const lblHeader = document.getElementById('lblHeaderModel');
+      if (lblHeader) lblHeader.innerText = `OLLAMA · ${activeSelectedModel}`;
+
+      const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
+      if (lblChatBadge) lblChatBadge.innerText = `OLLAMA: ${activeSelectedModel.toUpperCase()}`;
+
+      const lblDataModel = document.getElementById('lblDataModelName');
+      if (lblDataModel) lblDataModel.innerText = `ollama (local) · ${activeSelectedModel}`;
+
+      renderLocalModelsMatrix(api, profile, installedModels);
+      showToast(`✓ Switched active local AI Model to: ${modelName}`);
+    });
+  });
+
+  // Wire 1-Click Auto Install Buttons
+  container.querySelectorAll('.btn-hw-install').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const pullCmd = btn.getAttribute('data-pull');
+      const modelId = btn.getAttribute('data-model') || pullCmd || '';
+      const modelName = btn.getAttribute('data-name') || modelId;
+
+      if (!pullCmd) return;
+
+      btn.setAttribute('disabled', 'true');
+      btn.innerHTML = `⏳ Downloading ${modelName}...`;
+      (btn as HTMLElement).style.opacity = '0.7';
+
+      showToast(`📥 Auto-pulling "${modelName}" from Ollama repository... Please keep the app open.`);
+
+      if (api?.ai) {
+        try {
+          const res = await api.ai.pullModel(pullCmd);
+          if (res.success) {
+            showToast(`✓ Model "${modelName}" successfully installed and ready!`);
+            if (!installedModels.includes(modelId)) {
+              installedModels.push(modelId);
+            }
+            activeSelectedModel = modelId;
+            renderLocalModelsMatrix(api, profile, installedModels);
+          } else {
+            showToast(`⚠️ Install note: ${res.message || 'Please run: ollama pull ' + pullCmd}`);
+            btn.removeAttribute('disabled');
+            btn.innerHTML = `📥 Retry 1-Click Install`;
+            (btn as HTMLElement).style.opacity = '1';
+          }
+        } catch (err: any) {
+          showToast(`⚠️ Install error: ${err.message}. You can run 'ollama pull ${pullCmd}' in terminal.`);
+          btn.removeAttribute('disabled');
+          btn.innerHTML = `📥 Retry 1-Click Install`;
+          (btn as HTMLElement).style.opacity = '1';
+        }
+      }
+    });
+  });
+}
+
+function renderCloudModelsGrid(api: any): void {
+  const grid = document.getElementById('hwCloudModelsGrid');
+  if (!grid) return;
+
+  grid.innerHTML = CLOUD_SPECS.map(c => {
+    const isActive = activeSelectedModel === c.id;
+    return `
+      <div style="background: var(--bg-primary); border: 1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+            <div style="font-weight: 700; font-size: 13.5px; color: ${isActive ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
+              <span>${c.icon}</span> ${c.name}
+            </div>
+            <span style="background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">${c.badge}</span>
+          </div>
+          <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 6px;">Provider: <strong>${c.provider}</strong> · Context: <strong>${c.context}</strong></div>
+          <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">${c.strength}</div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 6px;">
+          <span style="font-size: 10.5px; color: var(--success); font-weight: 600;">⚡ Zero Local RAM</span>
+          ${isActive ?
+            '<span style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 10.5px; padding: 3px 8px; border-radius: 4px;">● ACTIVE</span>' :
+            `<button class="btn btn-cloud-activate" data-model="${c.id}" data-name="${c.name}" data-provider="${c.provider}" style="padding: 4px 10px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Activate Engine</button>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  grid.querySelectorAll('.btn-cloud-activate').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const modelId = btn.getAttribute('data-model') || 'gemini-2.5-pro';
+      const modelName = btn.getAttribute('data-name') || modelId;
+      const provider = btn.getAttribute('data-provider') || 'Cloud';
+
+      activeSelectedModel = modelId;
+
+      const lblHeader = document.getElementById('lblHeaderModel');
+      if (lblHeader) lblHeader.innerText = `${provider.split(' ')[0].toUpperCase()} · ${activeSelectedModel}`;
+
+      const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
+      if (lblChatBadge) lblChatBadge.innerText = `${provider.toUpperCase()}: ${activeSelectedModel.toUpperCase()}`;
+
+      const lblDataModel = document.getElementById('lblDataModelName');
+      if (lblDataModel) lblDataModel.innerText = `${provider} · ${activeSelectedModel}`;
+
+      renderCloudModelsGrid(api);
+      if (lastHwProfile) renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+
+      showToast(`✓ Switched active AI Engine to: ${modelName} (${provider})`);
+    });
+  });
 }
 
 async function runHardwareInspect(api: any): Promise<void> {
@@ -3182,6 +3470,8 @@ async function runHardwareInspect(api: any): Promise<void> {
     const cpuCores = profile.cpu?.cores || 8;
     const cpuModel = profile.cpu?.model || 'Host Architecture';
 
+    lastHwProfile = profile;
+
     if (ramEl) ramEl.innerText = `${ramGb} GB`;
     if (cpuEl) cpuEl.innerText = `${cpuCores} Cores`;
     if (cpuArchEl) cpuArchEl.innerText = cpuModel.length > 25 ? cpuModel.substring(0, 25) + '...' : cpuModel;
@@ -3200,7 +3490,7 @@ async function runHardwareInspect(api: any): Promise<void> {
       ollamaEl.style.color = activeServers.length > 0 ? 'var(--success)' : 'var(--warning)';
     }
 
-    // Update Recommendations banner matching Screenshot 2
+    // Recommendations banner
     if (hwRecommendText) {
       if (hw.recommendation?.kind === 'ok') {
         hwRecommendText.innerHTML = `<strong>Recommendation: ${hw.recommendation.variant}</strong> (${hw.recommendation.reason})`;
@@ -3217,6 +3507,20 @@ async function runHardwareInspect(api: any): Promise<void> {
         hwColibriText.innerHTML = `Calibri 744B Feasibility: <strong>${ramGb >= 25 ? 'Eligible' : 'Needs 25GB+ RAM for Colibri MoE'}</strong>`;
       }
     }
+
+    // Fetch installed models from Ollama
+    try {
+      if (api?.ai) {
+        const res = await api.ai.getModels();
+        lastInstalledLocalModels = (res.catalogue || [])
+          .filter((c: any) => c.category === 'local' && c.isInstalled)
+          .map((c: any) => c.id);
+      }
+    } catch {}
+
+    // Render Local Matrix & Cloud Alternatives
+    renderLocalModelsMatrix(api, profile, lastInstalledLocalModels);
+    renderCloudModelsGrid(api);
 
   } catch {}
 }

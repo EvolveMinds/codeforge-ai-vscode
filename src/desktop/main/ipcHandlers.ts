@@ -1063,6 +1063,43 @@ export class DesktopIpcHandlers {
       };
     });
 
+    ipc.handle(DESKTOP_CHANNELS.AI.PULL_MODEL, async (_: any, modelName: string) => {
+      const cleanModel = (modelName || '').trim();
+      if (!cleanModel) return { success: false, error: 'Model name is required' };
+
+      return new Promise<{ success: boolean; message: string; error?: string }>((resolve) => {
+        const payload = JSON.stringify({ name: cleanModel, stream: false });
+        const req = http.request({
+          host: '127.0.0.1',
+          port: 11434,
+          path: '/api/pull',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          },
+          timeout: 600000
+        }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            if (res.statusCode === 200) {
+              resolve({ success: true, message: `✓ Model "${cleanModel}" installed successfully.` });
+            } else {
+              resolve({ success: false, message: `Failed to pull model: HTTP ${res.statusCode}`, error: data });
+            }
+          });
+        });
+
+        req.on('error', (err) => {
+          resolve({ success: false, message: `Ollama connection error: ${err.message}. Please ensure Ollama is running.` });
+        });
+
+        req.write(payload);
+        req.end();
+      });
+    });
+
     ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string }) => {
       const { prompt, history = [], model = 'qwen2.5-coder:7b', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
 
