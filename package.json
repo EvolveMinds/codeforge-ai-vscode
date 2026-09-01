@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Forward-Deployed Engineers Delivery Studio & AI Data Platform: Live Database Introspector, Schema Mapping, dbt Marts, API SDKs & Multi-Cloud Runbooks.",
-  "version": "2.19.1",
+  "version": "2.20.0",
   "publisher": "codeforge-ai",
   "icon": "media/icon.png",
   "engines": {

@@ -240,6 +240,37 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     assert.strictEqual(cloudRes.provider, 'gcp-firebase');
     assert.strictEqual(cloudRes.status, 'CONNECTED');
 
+    // Test invoking FDE Discovery State IPC handler
+    const fdeGetStateFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.GET_STATE)!;
+    const fdeState = await fdeGetStateFn(null);
+    assert.ok(fdeState.discovery !== undefined);
+    assert.ok(fdeState.discovery.rawClientAsk.length > 0);
+
+    // Test invoking FDE Calculate ROI (The Controller's 3 Numbers)
+    const fdeRoiFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.CALCULATE_ROI)!;
+    const fdeRoi = await fdeRoiFn(null, { volume: 10000, handleTimeMins: 15, hourlyWage: 35 });
+    assert.strictEqual(fdeRoi.volume, 10000);
+    assert.strictEqual(fdeRoi.monthlyCostSavedUsd, 61250);
+    assert.strictEqual(fdeRoi.annualSavingsUsd, 735000);
+    assert.strictEqual(fdeRoi.fteHoursReclaimed, 1750);
+    assert.strictEqual(fdeRoi.fteCapacity, '10.9');
+
+    // Test invoking FDE Save Discovery Scope
+    const fdeSaveFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY)!;
+    const fdeSaved = await fdeSaveFn(null, {
+      rawClientAsk: 'Custom customer query',
+      reframedProblem: 'Custom reframed goal',
+      archetype: 'fin-reconcile'
+    });
+    assert.strictEqual(fdeSaved.success, true);
+    assert.strictEqual(fdeSaved.state.discovery.archetype, 'fin-reconcile');
+
+    // Test invoking FDE Workflow Topology Generation
+    const fdeTopoFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY)!;
+    const fdeTopo = await fdeTopoFn(null, { archetype: 'support-copilot' });
+    assert.ok(fdeTopo.futureDiagram.includes('Rule vs Model Gate'));
+    assert.ok(fdeTopo.legacyDiagram.includes('Manual Human Operator'));
+
     wsMgr.dispose();
     termMgr.dispose();
   });

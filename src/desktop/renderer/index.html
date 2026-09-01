@@ -429,26 +429,198 @@
 
           <!-- 2-COLUMN DELIVERY STUDIO LAYOUT -->
           <div style="display: flex; gap: 16px; align-items: flex-start; margin-top: 14px;">
-            <!-- Left 5-Step Navigation Sidebar -->
+            <!-- Left 5-Step Navigation Sidebar (Industry Canonical Phases) -->
             <div class="phase-sidebar-nav">
-              <button class="phase-nav-btn active" data-phase="1">📗 1. Schema &amp; Marts</button>
-              <button class="phase-nav-btn" data-phase="2">🔌 2. Client API Studio</button>
-              <button class="phase-nav-btn" data-phase="3">⚡ 3. Pilot Deployment</button>
-              <button class="phase-nav-btn" data-phase="4">📑 4. Runbook Factory</button>
-              <button class="phase-nav-btn" data-phase="5">💎 5. Enterprise Suite</button>
+              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Refusing the ask, scope boundaries &amp; ROI)">🎯 1. Discover &amp; Frame</button>
+              <button class="phase-nav-btn" data-phase="2" title="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)">🔌 2. Engineering Core</button>
+              <button class="phase-nav-btn" data-phase="3" title="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)">🧠 3. AI Solutioning</button>
+              <button class="phase-nav-btn" data-phase="4" title="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 4. Reliability &amp; Evals</button>
+              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)">🚀 5. Deploy &amp; Influence</button>
             </div>
 
             <!-- Right Step Content Canvas -->
             <div class="phase-content-area">
               
               <!-- ============================================================= -->
-              <!-- STEP 1: SEMANTIC SCHEMA MAPPER & DIMENSIONAL MART BUILDER -->
+              <!-- STEP 1: DISCOVER & FRAME COCKPIT ("REFUSING THE ASK") -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase1Card" style="display: block;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                <!-- Phase 1 Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                   <div>
-                    <h3 style="margin: 0; font-size: 16px; color: #fff;">📊 Semantic Schema Mapper &amp; Dimensional Mart Builder</h3>
-                    <p class="desc" style="margin: 4px 0 0 0;">Ingest foreign client datasets into clean staging models, or connect directly to live databases (PostgreSQL, Snowflake, BigQuery) to introspect table schemas.</p>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🎯</span> Phase 1 · Discover &amp; Frame ("Sitting with AP. Refusing the Ask.")
+                      <span id="fdePhase1StatusBadge" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● Discovery Active</span>
+                      <span id="fdePhase1RoiPill" style="font-size: 10px; font-weight: 700; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); padding: 2px 8px; border-radius: 10px;">💰 $61.2k/mo Projected Savings</span>
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                      Transform messy customer requests into a rigorously bounded engineering engagement. Question assumptions, identify operational bottlenecks, lock scope boundaries, and compute the financial ROI.
+                    </p>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn-quick" id="btnFdeResetDiscovery">🔄 Reset Scope</button>
+                    <button class="btn" id="btnFdeSaveDiscovery" style="padding: 5px 12px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save Scope</button>
+                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 2 ➔</button>
+                  </div>
+                </div>
+
+                <!-- 1. REFUSING THE ASK DIAGNOSTIC -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>🛑</span> 1. "Refusing the Ask" Diagnostic &amp; Scope Boundary
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 11px; color: var(--text-secondary);">Industry Archetype:</span>
+                      <select id="selFdeArchetype" style="padding: 4px 8px; font-size: 11.5px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                        <option value="support-copilot" selected>Support Operations Co-Pilot (Triage, enrich &amp; draft)</option>
+                        <option value="fin-reconcile">Financial Core Reconciliation &amp; Invoice Matching</option>
+                        <option value="health-records">Healthcare Patient Record &amp; Policy Lookup</option>
+                        <option value="supply-chain">Supply Chain Exception &amp; Vendor SLA Tracker</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600;">Customer's Raw Request / Unfiltered Ask:</label>
+                    <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;">Build an AI that automates all customer support tickets and refunds so we do not need human agents.</textarea>
+                  </div>
+
+                  <!-- 3-Column Diagnostic Matrix -->
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                    <!-- Col 1: Risk & Flaw -->
+                    <div style="background: var(--card-bg); border: 1px solid rgba(244, 71, 71, 0.3); border-radius: 6px; padding: 10px;">
+                      <div style="font-size: 11px; font-weight: 700; color: var(--error); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                        <span>🔴</span> Operational Risk &amp; Fallacy
+                      </div>
+                      <textarea id="txtFdeRiskAnalysis" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #ccc; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;">Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.</textarea>
+                    </div>
+
+                    <!-- Col 2: Reframed Engineering Goal -->
+                    <div style="background: var(--card-bg); border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 6px; padding: 10px;">
+                      <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                        <span>🟢</span> Reframed Production Goal
+                      </div>
+                      <textarea id="txtFdeReframedGoal" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;">Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.</textarea>
+                    </div>
+
+                    <!-- Col 3: Out-of-Scope Locks -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+                      <div style="font-size: 11px; font-weight: 700; color: #e5b567; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                        <span>🔒</span> Explicit Out-of-Scope Locks
+                      </div>
+                      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 10.5px; color: var(--text-secondary);">
+                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+                          <input type="checkbox" id="chkFdeScope1" checked style="margin-top: 2px;">
+                          <span>No automated refunds &gt; $100 without human gate</span>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+                          <input type="checkbox" id="chkFdeScope2" checked style="margin-top: 2px;">
+                          <span>No direct external email dispatch in pilot</span>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+                          <input type="checkbox" id="chkFdeScope3" checked style="margin-top: 2px;">
+                          <span>No DB write access without audit logging</span>
+                        </label>
+                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
+                          <input type="checkbox" id="chkFdeScope4" checked style="margin-top: 2px;">
+                          <span>No ungrounded responses (must cite handbook)</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. THE CONTROLLER'S THREE NUMBERS (FINANCIAL ROI CALCULATOR) -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                      <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>💰</span> 2. The Controller's Three Numbers (Financial ROI Calculator)
+                      </span>
+                      <span style="font-size: 11px; color: var(--text-secondary);">Controllers and CFOs approve budgets based on 3 verifiable numbers: Cost Saved, Capacity Unlocked, and Error Drop.</span>
+                    </div>
+                    <button class="btn-quick" id="btnFdeRecalcRoi" style="font-size: 11px;">⚡ Recalculate</button>
+                  </div>
+
+                  <!-- Calculator Inputs Grid -->
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <label style="font-size: 11px; font-weight: 600;">Monthly Workflow Volume:</label>
+                        <span id="lblFdeVolumeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">10,000</span>
+                      </div>
+                      <input type="range" id="rngFdeVolume" min="1000" max="100000" step="1000" value="10000" style="width: 100%;">
+                    </div>
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <label style="font-size: 11px; font-weight: 600;">Average Handle Time:</label>
+                        <span id="lblFdeHandleTimeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">15 mins</span>
+                      </div>
+                      <input type="range" id="rngFdeHandleTime" min="2" max="60" step="1" value="15" style="width: 100%;">
+                    </div>
+                    <div>
+                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <label style="font-size: 11px; font-weight: 600;">Operator Hourly Wage:</label>
+                        <span id="lblFdeHourlyWageVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">$35/hr</span>
+                      </div>
+                      <input type="range" id="rngFdeHourlyWage" min="15" max="150" step="5" value="35" style="width: 100%;">
+                    </div>
+                  </div>
+
+                  <!-- 3 Output KPI Cards -->
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                    <div style="background: var(--card-bg); border: 1px solid rgba(137, 209, 133, 0.4); border-radius: 6px; padding: 12px; text-align: center;">
+                      <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">1. Monthly Cost Reduction</div>
+                      <div id="kpiFdeCostSavings" style="font-size: 22px; font-weight: 800; color: var(--success); margin: 6px 0;">$61,250 / mo</div>
+                      <div id="kpiFdeAnnualSavings" style="font-size: 11px; color: var(--text-secondary);">$735,000 / year projected</div>
+                    </div>
+
+                    <div style="background: var(--card-bg); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 12px; text-align: center;">
+                      <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">2. Capacity Unlocked (FTEs)</div>
+                      <div id="kpiFdeHoursReclaimed" style="font-size: 22px; font-weight: 800; color: var(--accent); margin: 6px 0;">1,750 Hours</div>
+                      <div id="kpiFdeFteCapacity" style="font-size: 11px; color: var(--text-secondary);">~10.9 Full-Time Equivalents</div>
+                    </div>
+
+                    <div style="background: var(--card-bg); border: 1px solid rgba(229, 181, 103, 0.4); border-radius: 6px; padding: 12px; text-align: center;">
+                      <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">3. Error &amp; Rework Rate Drop</div>
+                      <div id="kpiFdeErrorRateDrop" style="font-size: 22px; font-weight: 800; color: #e5b567; margin: 6px 0;">-85% Reduction</div>
+                      <div style="font-size: 11px; color: var(--text-secondary);">Drop from 22% human error to &lt; 3%</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. CURRENT VS FUTURE STATE WORKFLOW TOPOLOGY -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                      <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🗺️</span> 3. Current vs Future State Workflow Topology
+                      </span>
+                      <span style="font-size: 11px; color: var(--text-secondary);">Sequence diagram contrasting legacy manual bottlenecks against the proposed FDE AI system.</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn-quick active" id="btnFdeTabFutureDiagram" style="font-size: 10.5px;">🟢 Proposed AI Workflow</button>
+                      <button class="btn-quick" id="btnFdeTabLegacyDiagram" style="font-size: 10.5px;">🔴 Legacy Bottlenecks</button>
+                    </div>
+                  </div>
+
+                  <div id="fdeTopologyPreviewContainer" style="background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11.5px; color: #ccc; max-height: 180px; overflow-y: auto; white-space: pre;">Loading workflow sequence diagram...</div>
+                </div>
+              </div>
+
+              <!-- ============================================================= -->
+              <!-- STEP 2: ENGINEERING CORE & LIVE PLUMBING STUDIO -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase2Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🔌</span> Phase 2 · Engineering Core ("Their Formats. Their Broken API.")
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                      Resolve messy real-world formats, live database wire introspection, dbt dimensional data marts, and fault-tolerant client API SDK generation with idempotency keys.
+                    </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
                     <button class="btn-quick" id="btnToggleDbDrawer" style="background: var(--success); color: #1e1e1e; font-weight: 700; border-color: var(--success);">🔌 Connect Live DB / Warehouse</button>
@@ -759,24 +931,26 @@
                     </div>
                     <div style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 240px; overflow-y: auto;" id="martSqlCodePreview"></div>
                   </div>
-                </div>
-              </div>
 
-              <!-- ============================================================= -->
-              <!-- STEP 2: RESILIENT CLIENT API & WEBHOOK STUDIO -->
-              <!-- ============================================================= -->
-              <div class="content-card" id="phase2Card" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
-                  <div>
-                    <h3 style="margin: 0; font-size: 16px; color: #fff;">🔌 Resilient Client API &amp; Webhook Studio</h3>
-                    <p class="desc" style="margin: 4px 0 0 0;">Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and auth handling. Import directly from cURL or OpenAPI.</p>
+                  <!-- Divider between Database/Schema Core and API/Webhook Studio -->
+                  <div style="border-top: 1px solid var(--border); margin: 24px 0 18px 0;"></div>
+
+                  <!-- SECTION B: RESILIENT CLIENT API & WEBHOOK STUDIO -->
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                    <div>
+                      <h4 style="margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🔌</span> Client API Connectors &amp; Webhook Ingest Studio
+                      </h4>
+                      <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                        Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and idempotency key handling. Import directly from cURL or OpenAPI.
+                      </p>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
+                      <button class="btn-quick" id="btnToggleCurlModal">🪄 Import from cURL</button>
+                      <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI / Swagger</button>
+                    </div>
                   </div>
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
-                    <button class="btn-quick" id="btnToggleCurlModal">🪄 Import from cURL</button>
-                    <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI / Swagger</button>
-                  </div>
-                </div>
 
                 <div id="curlImportBox" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">

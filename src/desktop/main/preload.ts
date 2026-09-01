@@ -158,6 +158,14 @@ const desktopApi = {
     runPreflightAudit: (dirPath?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RUN_PREFLIGHT_AUDIT, dirPath),
     generateRunbooks: (state: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, state),
     analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req)
+  },
+
+  // --- FDE ENGAGEMENT CONTEXT & DISCOVERY ---
+  fde: {
+    getState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_STATE),
+    saveDiscovery: (discoveryData: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY, discoveryData),
+    calculateRoi: (params: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, params),
+    generateTopology: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, req)
   }
 };
 

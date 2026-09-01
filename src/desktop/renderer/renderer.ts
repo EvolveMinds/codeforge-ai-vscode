@@ -604,8 +604,215 @@ function setupEngagementManager(api: any): void {
   });
 }
 
+// --- PHASE 1: DISCOVER & FRAME COCKPIT ("REFUSING THE ASK") ---
+function setupPhase1Discovery(api: any): void {
+  const selArchetype = document.getElementById('selFdeArchetype') as HTMLSelectElement;
+  const txtRawAsk = document.getElementById('txtFdeRawAsk') as HTMLTextAreaElement;
+  const txtRisk = document.getElementById('txtFdeRiskAnalysis') as HTMLTextAreaElement;
+  const txtReframed = document.getElementById('txtFdeReframedGoal') as HTMLTextAreaElement;
+
+  const chkScope1 = document.getElementById('chkFdeScope1') as HTMLInputElement;
+  const chkScope2 = document.getElementById('chkFdeScope2') as HTMLInputElement;
+  const chkScope3 = document.getElementById('chkFdeScope3') as HTMLInputElement;
+  const chkScope4 = document.getElementById('chkFdeScope4') as HTMLInputElement;
+
+  const rngVolume = document.getElementById('rngFdeVolume') as HTMLInputElement;
+  const rngHandleTime = document.getElementById('rngFdeHandleTime') as HTMLInputElement;
+  const rngHourlyWage = document.getElementById('rngFdeHourlyWage') as HTMLInputElement;
+
+  const lblVolumeVal = document.getElementById('lblFdeVolumeVal');
+  const lblHandleTimeVal = document.getElementById('lblFdeHandleTimeVal');
+  const lblHourlyWageVal = document.getElementById('lblFdeHourlyWageVal');
+
+  const kpiCostSavings = document.getElementById('kpiFdeCostSavings');
+  const kpiAnnualSavings = document.getElementById('kpiFdeAnnualSavings');
+  const kpiHoursReclaimed = document.getElementById('kpiFdeHoursReclaimed');
+  const kpiFteCapacity = document.getElementById('kpiFdeFteCapacity');
+  const kpiErrorRateDrop = document.getElementById('kpiFdeErrorRateDrop');
+
+  const btnRecalcRoi = document.getElementById('btnFdeRecalcRoi');
+  const btnTabFuture = document.getElementById('btnFdeTabFutureDiagram');
+  const btnTabLegacy = document.getElementById('btnFdeTabLegacyDiagram');
+  const topologyContainer = document.getElementById('fdeTopologyPreviewContainer');
+
+  const btnReset = document.getElementById('btnFdeResetDiscovery');
+  const btnSave = document.getElementById('btnFdeSaveDiscovery');
+  const btnAdvance = document.getElementById('btnFdeAdvancePhase2');
+
+  const roiPill = document.getElementById('fdePhase1RoiPill');
+  const statusBadge = document.getElementById('fdePhase1StatusBadge');
+
+  let currentDiagramMode: 'future' | 'legacy' = 'future';
+  let cachedDiagrams: { futureDiagram?: string; legacyDiagram?: string } = {};
+
+  const archetypes: Record<string, { raw: string; risk: string; reframed: string; scope: boolean[] }> = {
+    'support-copilot': {
+      raw: 'Build an AI that automates all customer support tickets and refunds so we do not need human agents.',
+      risk: 'Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.',
+      reframed: 'Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.',
+      scope: [true, true, true, true]
+    },
+    'fin-reconcile': {
+      raw: 'Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules.',
+      risk: 'LLMs perform stochastic reasoning and suffer from arithmetic hallucinations; direct auto-reconciliation without deterministic tolerance checks causes un-auditable ledger drift.',
+      reframed: 'Hybrid Financial Reconciliation Engine: Deterministic SQL tolerance matching first, with LLM parsing used solely for unstructured PDF statement extraction.',
+      scope: [true, true, true, false]
+    },
+    'health-records': {
+      raw: 'Build a chatbot to diagnose patients and pull full medical histories directly from EHR.',
+      risk: 'Direct diagnostic generation violates medical device regulations (FDA/TGA/HIPAA); unredacted EHR queries leak protected health information (PHI).',
+      reframed: 'Clinical Documentation & Policy Assistant: Redacted PII pipeline with strict air-gapped RAG citing approved hospital clinical handbooks.',
+      scope: [true, true, true, true]
+    },
+    'supply-chain': {
+      raw: 'Automatically cancel vendor purchase orders and penalize suppliers when shipments are delayed.',
+      risk: 'Unilateral contractual cancellations risk supplier litigation and production halting; third-party logistics data is often delayed or erroneous.',
+      reframed: 'Supply Chain Exception & Vendor SLA Tracker: Multi-carrier webhook ingestion, delay severity scoring, and human escalation workflows.',
+      scope: [true, true, false, true]
+    }
+  };
+
+  const computeRoi = async () => {
+    const vol = parseInt(rngVolume?.value || '10000', 10);
+    const time = parseInt(rngHandleTime?.value || '15', 10);
+    const wage = parseInt(rngHourlyWage?.value || '35', 10);
+
+    if (lblVolumeVal) lblVolumeVal.innerText = vol.toLocaleString();
+    if (lblHandleTimeVal) lblHandleTimeVal.innerText = `${time} mins`;
+    if (lblHourlyWageVal) lblHourlyWageVal.innerText = `$${wage}/hr`;
+
+    if (api?.fde?.calculateRoi) {
+      const res = await api.fde.calculateRoi({ volume: vol, handleTimeMins: time, hourlyWage: wage });
+      if (res) {
+        if (kpiCostSavings) kpiCostSavings.innerText = `$${res.monthlyCostSavedUsd.toLocaleString()} / mo`;
+        if (kpiAnnualSavings) kpiAnnualSavings.innerText = `$${res.annualSavingsUsd.toLocaleString()} / year projected`;
+        if (kpiHoursReclaimed) kpiHoursReclaimed.innerText = `${res.fteHoursReclaimed.toLocaleString()} Hours`;
+        if (kpiFteCapacity) kpiFteCapacity.innerText = `~${res.fteCapacity} Full-Time Equivalents`;
+        if (kpiErrorRateDrop) kpiErrorRateDrop.innerText = `-${res.errorRateReductionPct}% Reduction`;
+        if (roiPill) roiPill.innerText = `💰 $${(res.monthlyCostSavedUsd / 1000).toFixed(1)}k/mo Projected Savings`;
+      }
+    }
+  };
+
+  const renderTopology = async (arch: string) => {
+    if (api?.fde?.generateTopology) {
+      const res = await api.fde.generateTopology({ archetype: arch });
+      cachedDiagrams = res;
+      if (topologyContainer) {
+        topologyContainer.innerText = currentDiagramMode === 'future' 
+          ? (res.futureDiagram || '// Proposed Future AI Workflow Sequence Diagram') 
+          : (res.legacyDiagram || '// Legacy Bottleneck Sequence Diagram');
+      }
+    }
+  };
+
+  selArchetype?.addEventListener('change', () => {
+    const key = selArchetype.value;
+    const arch = archetypes[key];
+    if (arch) {
+      if (txtRawAsk) txtRawAsk.value = arch.raw;
+      if (txtRisk) txtRisk.value = arch.risk;
+      if (txtReframed) txtReframed.value = arch.reframed;
+      if (chkScope1) chkScope1.checked = arch.scope[0];
+      if (chkScope2) chkScope2.checked = arch.scope[1];
+      if (chkScope3) chkScope3.checked = arch.scope[2];
+      if (chkScope4) chkScope4.checked = arch.scope[3];
+      renderTopology(key);
+      computeRoi();
+      showToast(`🎯 Loaded Industry Archetype: ${selArchetype.options[selArchetype.selectedIndex].text}`);
+    }
+  });
+
+  rngVolume?.addEventListener('input', computeRoi);
+  rngHandleTime?.addEventListener('input', computeRoi);
+  rngHourlyWage?.addEventListener('input', computeRoi);
+  btnRecalcRoi?.addEventListener('click', () => {
+    computeRoi();
+    showToast('⚡ Financial ROI recalculation complete');
+  });
+
+  btnTabFuture?.addEventListener('click', () => {
+    currentDiagramMode = 'future';
+    btnTabFuture.classList.add('active');
+    btnTabLegacy?.classList.remove('active');
+    if (topologyContainer && cachedDiagrams.futureDiagram) {
+      topologyContainer.innerText = cachedDiagrams.futureDiagram;
+    }
+  });
+
+  btnTabLegacy?.addEventListener('click', () => {
+    currentDiagramMode = 'legacy';
+    btnTabLegacy.classList.add('active');
+    btnTabFuture?.classList.remove('active');
+    if (topologyContainer && cachedDiagrams.legacyDiagram) {
+      topologyContainer.innerText = cachedDiagrams.legacyDiagram;
+    }
+  });
+
+  const saveScopeHandler = async (silent = false) => {
+    const rawAsk = txtRawAsk?.value || '';
+    const riskAnalysis = txtRisk?.value || '';
+    const reframedGoal = txtReframed?.value || '';
+    const archetype = selArchetype?.value || 'support-copilot';
+
+    const outOfScope: string[] = [];
+    if (chkScope1?.checked) outOfScope.push('No automated refunds > $100 without human gate');
+    if (chkScope2?.checked) outOfScope.push('No direct external email dispatch in pilot');
+    if (chkScope3?.checked) outOfScope.push('No DB write access without audit logging');
+    if (chkScope4?.checked) outOfScope.push('No ungrounded responses (must cite handbook)');
+
+    const vol = parseInt(rngVolume?.value || '10000', 10);
+    const time = parseInt(rngHandleTime?.value || '15', 10);
+    const wage = parseInt(rngHourlyWage?.value || '35', 10);
+
+    const payload = {
+      rawClientAsk: rawAsk,
+      riskAnalysis,
+      reframedProblem: reframedGoal,
+      archetype,
+      outOfScope,
+      controllersThreeNumbers: {
+        volume: vol,
+        handleTimeMins: time,
+        hourlyWage: wage
+      }
+    };
+
+    if (api?.fde?.saveDiscovery) {
+      await api.fde.saveDiscovery(payload);
+      if (statusBadge) {
+        statusBadge.innerText = '✓ Scope & ROI Validated';
+        statusBadge.style.color = 'var(--success)';
+        statusBadge.style.borderColor = 'var(--success)';
+        statusBadge.style.background = 'rgba(137, 209, 133, 0.15)';
+      }
+      if (!silent) showToast('💾 Discovery Scope & Controller\'s 3 Numbers committed to FDE Context');
+    }
+  };
+
+  btnSave?.addEventListener('click', () => saveScopeHandler(false));
+  btnReset?.addEventListener('click', () => {
+    if (selArchetype) {
+      selArchetype.value = 'support-copilot';
+      selArchetype.dispatchEvent(new Event('change'));
+    }
+    showToast('🔄 Discovery scope reset to defaults');
+  });
+
+  btnAdvance?.addEventListener('click', async () => {
+    await saveScopeHandler(true);
+    showToast('🚀 Scope Validated! Advancing to Phase 2: Engineering Core...');
+    switchDeliveryPhase(2);
+  });
+
+  // Initial load
+  renderTopology('support-copilot');
+  computeRoi();
+}
+
 // --- DELIVERY STUDIO ---
 function setupDeliveryStudio(api: any): void {
+  setupPhase1Discovery(api);
   const phaseNavBtns = document.querySelectorAll<HTMLElement>('.phase-nav-btn[data-phase]');
   const btnDeliveryPlaybook = document.getElementById('btnDeliveryPlaybook');
   const roadmapBanner = document.getElementById('roadmapBanner');

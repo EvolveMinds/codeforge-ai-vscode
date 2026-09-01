@@ -1838,5 +1838,148 @@ if len(numeric_cols) > 1:
         columns
       };
     });
+
+    // --- FDE ENGAGEMENT CONTEXT & DISCOVERY CHANNELS ---
+    ipc.handle(DESKTOP_CHANNELS.FDE.GET_STATE, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const stateFile = path.join(cwd, '.evolve', 'fde_state.json');
+
+      try {
+        if (fs.existsSync(stateFile)) {
+          const raw = fs.readFileSync(stateFile, 'utf-8');
+          return JSON.parse(raw);
+        }
+      } catch {}
+
+      return {
+        id: 'proj-fde-1',
+        clientName: 'Client Pilot Engagement',
+        activePhase: 1,
+        discovery: {
+          rawClientAsk: 'Automate all customer support tickets and refunds so we do not need human agents.',
+          reframedProblem: 'Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and draft recommendation with Human-in-the-Loop approval gate.',
+          archetype: 'support-copilot',
+          outOfScope: [
+            'No automated refunds over $100 without explicit Human-in-the-Loop approval',
+            'No direct external customer email dispatch in pilot phase (agent review required)',
+            'No write access to master database without cryptographically signed audit log',
+            'No ungrounded generative responses (strict citation to policy handbook required)'
+          ],
+          controllersThreeNumbers: {
+            volume: 10000,
+            handleTimeMins: 15,
+            hourlyWage: 35,
+            monthlyCostSavedUsd: 61250,
+            annualSavingsUsd: 735000,
+            fteHoursReclaimed: 1750,
+            fteCapacity: '10.9',
+            errorRateReductionPct: 85
+          }
+        }
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY, async (_: any, data: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const evolveDir = path.join(cwd, '.evolve');
+      const stateFile = path.join(evolveDir, 'fde_state.json');
+
+      let current: any = {};
+      try {
+        if (!fs.existsSync(evolveDir)) fs.mkdirSync(evolveDir, { recursive: true });
+        if (fs.existsSync(stateFile)) {
+          current = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+        }
+      } catch {}
+
+      const updated = {
+        ...current,
+        clientName: data.clientName || current.clientName || 'Client Pilot Engagement',
+        discovery: {
+          ...current.discovery,
+          ...data
+        },
+        updatedAt: Date.now()
+      };
+
+      try {
+        fs.writeFileSync(stateFile, JSON.stringify(updated, null, 2), 'utf-8');
+      } catch {}
+
+      return { success: true, state: updated };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, async (_: any, params: { volume: number; handleTimeMins: number; hourlyWage: number }) => {
+      const vol = Math.max(1, params.volume || 10000);
+      const time = Math.max(1, params.handleTimeMins || 15);
+      const wage = Math.max(1, params.hourlyWage || 35);
+
+      // Automated assistance ratio: 70% efficiency uplift
+      const totalHours = (vol * time) / 60;
+      const reclaimedHours = Math.round(totalHours * 0.70);
+      const monthlySavings = Math.round(reclaimedHours * wage);
+      const annualSavings = monthlySavings * 12;
+      const fteCapacity = (reclaimedHours / 160).toFixed(1);
+
+      return {
+        volume: vol,
+        handleTimeMins: time,
+        hourlyWage: wage,
+        monthlyCostSavedUsd: monthlySavings,
+        annualSavingsUsd: annualSavings,
+        fteHoursReclaimed: reclaimedHours,
+        fteCapacity,
+        errorRateReductionPct: 85
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, async (_: any, req: { archetype?: string; clientName?: string }) => {
+      const archetype = req?.archetype || 'support-copilot';
+      const client = req?.clientName || 'Client';
+
+      let legacyDiagram = `sequenceDiagram
+    autonumber
+    actor User as Customer / User
+    participant Queue as Unsorted Ticket Queue
+    participant Agent as Manual Human Operator
+    participant DB as Legacy Slow DB / Spreadsheets
+    
+    User->>Queue: Submit messy request
+    Note over Queue,Agent: Backlog delay (avg 4-18 hrs)
+    Agent->>Queue: Pick unassigned ticket
+    Agent->>DB: Manual copy-paste SQL lookup
+    Note over Agent: High fatigue, 22% human error rate
+    Agent->>User: Manual resolution email`;
+
+      let futureDiagram = `sequenceDiagram
+    autonumber
+    actor User as Customer / User
+    participant Hook as Webhook & Event Ingest
+    participant Router as Rule vs Model Gate
+    participant RAG as Hybrid Policy RAG (128-tok)
+    participant Copilot as Evolve AI Copilot
+    actor Human as Human Supervisor (HITL)
+    participant Core as Production API / DB
+    
+    User->>Hook: Submit messy request
+    Hook->>Router: Real-time event payload
+    alt Deterministic Query
+        Router->>Core: Instant Rule Engine execution (<50ms)
+    else Complex Semantic Triage
+        Router->>RAG: Retrieve grounded policy chunks
+        RAG->>Copilot: Enriched context with citations
+        Copilot->>Human: Draft recommendation & confidence
+        Human->>Core: 1-Click Approval Gate
+    end
+    Core-->>User: Verified resolution with audit trail`;
+
+      return {
+        archetype,
+        legacyDiagram,
+        futureDiagram
+      };
+    });
   }
 }

@@ -129,5 +129,12 @@ export const DESKTOP_CHANNELS = {
     RUN_PREFLIGHT_AUDIT: 'evolve:engines:run-preflight-audit',
     GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks',
     ANALYZE_DATASET: 'evolve:engines:analyze-dataset'
+  },
+
+  FDE: {
+    GET_STATE: 'evolve:fde:get-state',
+    SAVE_DISCOVERY: 'evolve:fde:save-discovery',
+    CALCULATE_ROI: 'evolve:fde:calculate-roi',
+    GENERATE_TOPOLOGY: 'evolve:fde:generate-topology'
   }
 } as const;
