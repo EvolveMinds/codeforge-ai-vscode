@@ -611,10 +611,72 @@ function setupPhase1Discovery(api: any): void {
   const txtRisk = document.getElementById('txtFdeRiskAnalysis') as HTMLTextAreaElement;
   const txtReframed = document.getElementById('txtFdeReframedGoal') as HTMLTextAreaElement;
 
-  const chkScope1 = document.getElementById('chkFdeScope1') as HTMLInputElement;
-  const chkScope2 = document.getElementById('chkFdeScope2') as HTMLInputElement;
-  const chkScope3 = document.getElementById('chkFdeScope3') as HTMLInputElement;
-  const chkScope4 = document.getElementById('chkFdeScope4') as HTMLInputElement;
+  const rulesListContainer = document.getElementById('fdeScopeRulesList');
+  const btnAddScopeRule = document.getElementById('btnFdeAddScopeRule');
+
+  let currentScopeRules: Array<{ text: string; enabled: boolean }> = [
+    { text: 'No automated write access to production database without explicit audit log', enabled: true },
+    { text: 'No external customer email dispatch without human supervisor gate', enabled: true },
+    { text: 'No processing of unredacted PII (must enforce masking stage)', enabled: true },
+    { text: 'No ungrounded responses (must cite verified documents)', enabled: true }
+  ];
+
+  const renderScopeRules = () => {
+    if (!rulesListContainer) return;
+    rulesListContainer.innerHTML = '';
+
+    if (currentScopeRules.length === 0) {
+      rulesListContainer.innerHTML = '<div style="font-size: 10px; color: var(--text-secondary); font-style: italic; padding: 4px 0;">No boundary locks defined. Click "+ Add Rule" to specify constraints.</div>';
+      return;
+    }
+
+    currentScopeRules.forEach((rule, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; gap: 6px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px;';
+
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = rule.enabled;
+      chk.style.cssText = 'margin: 0; cursor: pointer;';
+      chk.title = 'Toggle active enforcement';
+      chk.addEventListener('change', () => {
+        currentScopeRules[idx].enabled = chk.checked;
+      });
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = rule.text;
+      input.placeholder = 'e.g. No automated external mutations without human gate';
+      input.style.cssText = 'flex: 1; background: transparent; border: none; color: #fff; font-size: 10.5px; outline: none; padding: 1px 4px;';
+      input.addEventListener('input', () => {
+        currentScopeRules[idx].text = input.value;
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.innerText = '✕';
+      delBtn.title = 'Remove boundary';
+      delBtn.style.cssText = 'background: transparent; border: none; color: var(--error); cursor: pointer; font-size: 10px; padding: 0 4px; opacity: 0.8;';
+      delBtn.addEventListener('click', () => {
+        currentScopeRules.splice(idx, 1);
+        renderScopeRules();
+      });
+
+      row.appendChild(chk);
+      row.appendChild(input);
+      row.appendChild(delBtn);
+      rulesListContainer.appendChild(row);
+    });
+  };
+
+  btnAddScopeRule?.addEventListener('click', () => {
+    currentScopeRules.push({ text: '', enabled: true });
+    renderScopeRules();
+    const inputs = rulesListContainer?.querySelectorAll('input[type="text"]');
+    if (inputs && inputs.length > 0) {
+      const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
+      lastInput.focus();
+    }
+  });
 
   const rngVolume = document.getElementById('rngFdeVolume') as HTMLInputElement;
   const rngHandleTime = document.getElementById('rngFdeHandleTime') as HTMLInputElement;
@@ -645,30 +707,56 @@ function setupPhase1Discovery(api: any): void {
   let currentDiagramMode: 'future' | 'legacy' = 'future';
   let cachedDiagrams: { futureDiagram?: string; legacyDiagram?: string } = {};
 
-  const archetypes: Record<string, { raw: string; risk: string; reframed: string; scope: boolean[] }> = {
+  const archetypes: Record<string, { raw: string; risk: string; reframed: string; rules: string[] }> = {
+    'custom': {
+      raw: '',
+      risk: '',
+      reframed: '',
+      rules: [
+        'No direct production write access without cryptographically signed audit log',
+        'No ungrounded responses or unverified external API mutations'
+      ]
+    },
     'support-copilot': {
       raw: 'Build an AI that automates all customer support tickets and refunds so we do not need human agents.',
       risk: 'Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.',
       reframed: 'Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.',
-      scope: [true, true, true, true]
+      rules: [
+        'No automated refunds > $100 without Human-in-the-Loop gate',
+        'No direct external customer email dispatch in pilot phase',
+        'No DB write access without cryptographically signed audit logging',
+        'No ungrounded responses (must cite handbook)'
+      ]
     },
     'fin-reconcile': {
       raw: 'Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules.',
       risk: 'LLMs perform stochastic reasoning and suffer from arithmetic hallucinations; direct auto-reconciliation without deterministic tolerance checks causes un-auditable ledger drift.',
       reframed: 'Hybrid Financial Reconciliation Engine: Deterministic SQL tolerance matching first, with LLM parsing used solely for unstructured PDF statement extraction.',
-      scope: [true, true, true, false]
+      rules: [
+        'No un-audited ledger posting without deterministic tolerance verification',
+        'No automated currency conversions without verified FX feed timestamp',
+        'No processing of unredacted account numbers'
+      ]
     },
     'health-records': {
       raw: 'Build a chatbot to diagnose patients and pull full medical histories directly from EHR.',
       risk: 'Direct diagnostic generation violates medical device regulations (FDA/TGA/HIPAA); unredacted EHR queries leak protected health information (PHI).',
       reframed: 'Clinical Documentation & Policy Assistant: Redacted PII pipeline with strict air-gapped RAG citing approved hospital clinical handbooks.',
-      scope: [true, true, true, true]
+      rules: [
+        'No direct clinical diagnostics or treatment prescription generation',
+        'No raw PHI/PII queries without de-identification / tokenization pipeline',
+        'No retrieval outside approved air-gapped clinical handbooks'
+      ]
     },
     'supply-chain': {
       raw: 'Automatically cancel vendor purchase orders and penalize suppliers when shipments are delayed.',
       risk: 'Unilateral contractual cancellations risk supplier litigation and production halting; third-party logistics data is often delayed or erroneous.',
       reframed: 'Supply Chain Exception & Vendor SLA Tracker: Multi-carrier webhook ingestion, delay severity scoring, and human escalation workflows.',
-      scope: [true, true, false, true]
+      rules: [
+        'No unilateral PO cancellation without procurement manager approval',
+        'No automated supplier SLA penalties based on single-carrier telemetry',
+        'No production scheduling changes without ERP lock validation'
+      ]
     }
   };
 
@@ -713,13 +801,13 @@ function setupPhase1Discovery(api: any): void {
       if (txtRawAsk) txtRawAsk.value = arch.raw;
       if (txtRisk) txtRisk.value = arch.risk;
       if (txtReframed) txtReframed.value = arch.reframed;
-      if (chkScope1) chkScope1.checked = arch.scope[0];
-      if (chkScope2) chkScope2.checked = arch.scope[1];
-      if (chkScope3) chkScope3.checked = arch.scope[2];
-      if (chkScope4) chkScope4.checked = arch.scope[3];
-      renderTopology(key);
+      currentScopeRules = arch.rules.map(r => ({ text: r, enabled: true }));
+      renderScopeRules();
+      if (key !== 'custom') {
+        renderTopology(key);
+      }
       computeRoi();
-      showToast(`🎯 Loaded Industry Archetype: ${selArchetype.options[selArchetype.selectedIndex].text}`);
+      showToast(`🎯 Loaded Archetype: ${selArchetype.options[selArchetype.selectedIndex].text}`);
     }
   });
 
@@ -753,13 +841,11 @@ function setupPhase1Discovery(api: any): void {
     const rawAsk = txtRawAsk?.value || '';
     const riskAnalysis = txtRisk?.value || '';
     const reframedGoal = txtReframed?.value || '';
-    const archetype = selArchetype?.value || 'support-copilot';
+    const archetype = selArchetype?.value || 'custom';
 
-    const outOfScope: string[] = [];
-    if (chkScope1?.checked) outOfScope.push('No automated refunds > $100 without human gate');
-    if (chkScope2?.checked) outOfScope.push('No direct external email dispatch in pilot');
-    if (chkScope3?.checked) outOfScope.push('No DB write access without audit logging');
-    if (chkScope4?.checked) outOfScope.push('No ungrounded responses (must cite handbook)');
+    const outOfScope: string[] = currentScopeRules
+      .filter(r => r.enabled && r.text.trim().length > 0)
+      .map(r => r.text.trim());
 
     const vol = parseInt(rngVolume?.value || '10000', 10);
     const time = parseInt(rngHandleTime?.value || '15', 10);
@@ -793,21 +879,50 @@ function setupPhase1Discovery(api: any): void {
   btnSave?.addEventListener('click', () => saveScopeHandler(false));
   btnReset?.addEventListener('click', () => {
     if (selArchetype) {
-      selArchetype.value = 'support-copilot';
+      selArchetype.value = 'custom';
       selArchetype.dispatchEvent(new Event('change'));
     }
-    showToast('🔄 Discovery scope reset to defaults');
+    showToast('🔄 Discovery scope reset to blank template');
   });
 
   btnAdvance?.addEventListener('click', async () => {
     await saveScopeHandler(true);
-    showToast('🚀 Scope Validated! Advancing to Phase 2: Engineering Core...');
+    showToast('🚀 Scope Validated! Advancing to Phase 2: Schema & Marts...');
     switchDeliveryPhase(2);
   });
 
-  // Initial load
-  renderTopology('support-copilot');
-  computeRoi();
+  // Initial load / restore state from backend
+  const loadSavedState = async () => {
+    if (api?.fde?.getState) {
+      try {
+        const state = await api.fde.getState();
+        if (state && state.discovery) {
+          if (txtRawAsk && state.discovery.rawClientAsk) txtRawAsk.value = state.discovery.rawClientAsk;
+          if (txtRisk && state.discovery.riskAnalysis) txtRisk.value = state.discovery.riskAnalysis;
+          if (txtReframed && state.discovery.reframedProblem) txtReframed.value = state.discovery.reframedProblem;
+          if (selArchetype && state.discovery.archetype) selArchetype.value = state.discovery.archetype;
+          if (Array.isArray(state.discovery.outOfScope) && state.discovery.outOfScope.length > 0) {
+            currentScopeRules = state.discovery.outOfScope.map((s: string) => ({ text: s, enabled: true }));
+          }
+          if (state.discovery.controllersThreeNumbers) {
+            if (rngVolume) rngVolume.value = String(state.discovery.controllersThreeNumbers.volume || 10000);
+            if (rngHandleTime) rngHandleTime.value = String(state.discovery.controllersThreeNumbers.handleTimeMins || 15);
+            if (rngHourlyWage) rngHourlyWage.value = String(state.discovery.controllersThreeNumbers.hourlyWage || 35);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load FDE state:', err);
+      }
+    }
+    renderScopeRules();
+    computeRoi();
+    const initialArch = selArchetype?.value || 'custom';
+    if (initialArch !== 'custom') {
+      renderTopology(initialArch);
+    }
+  };
+
+  loadSavedState();
 }
 
 // --- DELIVERY STUDIO ---
@@ -1930,12 +2045,12 @@ function setupDeliveryStudio(api: any): void {
   });
 
   btnMapApiSchema?.addEventListener('click', () => {
-    switchDeliveryPhase(1);
+    switchDeliveryPhase(2);
     const srcCols = document.getElementById('txtSourceColumns') as HTMLTextAreaElement;
     if (srcCols) {
       srcCols.value = 'id:string\ncustomer_id:string\namount:numeric\ncurrency:string\nstatus:string\ncreated_at:timestamp';
     }
-    showToast('✓ Switched to Step 1 and mapped API schema!');
+    showToast('✓ Switched to Step 2 (Schema & Marts) and mapped API schema!');
   });
 
   tabApiTs?.addEventListener('click', () => {
@@ -2590,7 +2705,7 @@ function switchDeliveryPhase(phase: number): void {
   document.querySelectorAll('.phase-nav-btn[data-phase]').forEach(btn => {
     btn.classList.toggle('active', parseInt(btn.getAttribute('data-phase') || '1', 10) === phase);
   });
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 6; i++) {
     const card = document.getElementById(`phase${i}Card`);
     if (card) card.style.display = i === phase ? 'block' : 'none';
   }

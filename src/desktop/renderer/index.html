@@ -429,13 +429,14 @@
 
           <!-- 2-COLUMN DELIVERY STUDIO LAYOUT -->
           <div style="display: flex; gap: 16px; align-items: flex-start; margin-top: 14px;">
-            <!-- Left 5-Step Navigation Sidebar (Industry Canonical Phases) -->
+            <!-- Left 6-Step Navigation Sidebar (Preserving all previous tools + new discovery) -->
             <div class="phase-sidebar-nav">
-              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Refusing the ask, scope boundaries &amp; ROI)">🎯 1. Discover &amp; Frame</button>
-              <button class="phase-nav-btn" data-phase="2" title="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)">🔌 2. Engineering Core</button>
-              <button class="phase-nav-btn" data-phase="3" title="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)">🧠 3. AI Solutioning</button>
-              <button class="phase-nav-btn" data-phase="4" title="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 4. Reliability &amp; Evals</button>
-              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)">🚀 5. Deploy &amp; Influence</button>
+              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Refusing the ask, dynamic scope boundaries &amp; ROI)">🎯 1. Discover &amp; Frame</button>
+              <button class="phase-nav-btn" data-phase="2" title="Phase 2: Schema &amp; Marts (Semantic mapper, staging models &amp; live DB introspector)">📊 2. Schema &amp; Marts</button>
+              <button class="phase-nav-btn" data-phase="3" title="Phase 3: Client API Studio (cURL/OpenAPI import &amp; resilient SDK generation)">🔌 3. Client API Studio</button>
+              <button class="phase-nav-btn" data-phase="4" title="Phase 4: Pilot Deployment (Multi-cloud parameter matrix, Terraform, K8s &amp; pre-flight audit)">⚡ 4. Pilot Deployment</button>
+              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Runbook Factory (Mermaid architecture diagrams, runbooks &amp; data dictionary)">📑 5. Runbook Factory</button>
+              <button class="phase-nav-btn" data-phase="6" title="Phase 6: Enterprise Suite (SQL transpiler, PII sanitizer, Reverse ETL &amp; RLS policies)">💎 6. Enterprise Suite</button>
             </div>
 
             <!-- Right Step Content Canvas -->
@@ -454,13 +455,13 @@
                       <span id="fdePhase1RoiPill" style="font-size: 10px; font-weight: 700; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); padding: 2px 8px; border-radius: 10px;">💰 $61.2k/mo Projected Savings</span>
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
-                      Transform messy customer requests into a rigorously bounded engineering engagement. Question assumptions, identify operational bottlenecks, lock scope boundaries, and compute the financial ROI.
+                      Transform messy customer requests into a rigorously bounded engineering engagement. Question assumptions, identify operational bottlenecks, define dynamic scope boundaries, and compute the financial ROI.
                     </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
                     <button class="btn-quick" id="btnFdeResetDiscovery">🔄 Reset Scope</button>
                     <button class="btn" id="btnFdeSaveDiscovery" style="padding: 5px 12px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save Scope</button>
-                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 2 ➔</button>
+                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 2: Schema &amp; Marts ➔</button>
                   </div>
                 </div>
 
@@ -471,9 +472,10 @@
                       <span>🛑</span> 1. "Refusing the Ask" Diagnostic &amp; Scope Boundary
                     </span>
                     <div style="display: flex; align-items: center; gap: 6px;">
-                      <span style="font-size: 11px; color: var(--text-secondary);">Industry Archetype:</span>
+                      <span style="font-size: 11px; color: var(--text-secondary);">Load Archetype Preset:</span>
                       <select id="selFdeArchetype" style="padding: 4px 8px; font-size: 11.5px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="support-copilot" selected>Support Operations Co-Pilot (Triage, enrich &amp; draft)</option>
+                        <option value="custom" selected>Custom Project / Blank Template</option>
+                        <option value="support-copilot">Support Operations Co-Pilot (Triage, enrich &amp; draft)</option>
                         <option value="fin-reconcile">Financial Core Reconciliation &amp; Invoice Matching</option>
                         <option value="health-records">Healthcare Patient Record &amp; Policy Lookup</option>
                         <option value="supply-chain">Supply Chain Exception &amp; Vendor SLA Tracker</option>
@@ -483,7 +485,7 @@
 
                   <div style="margin-bottom: 12px;">
                     <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600;">Customer's Raw Request / Unfiltered Ask:</label>
-                    <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;">Build an AI that automates all customer support tickets and refunds so we do not need human agents.</textarea>
+                    <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;" placeholder="Describe what the customer asked for..."></textarea>
                   </div>
 
                   <!-- 3-Column Diagnostic Matrix -->
@@ -493,7 +495,7 @@
                       <div style="font-size: 11px; font-weight: 700; color: var(--error); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
                         <span>🔴</span> Operational Risk &amp; Fallacy
                       </div>
-                      <textarea id="txtFdeRiskAnalysis" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #ccc; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;">Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.</textarea>
+                      <textarea id="txtFdeRiskAnalysis" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #ccc; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="Analyze why full automation or naive approach introduces operational, financial, or security risks..."></textarea>
                     </div>
 
                     <!-- Col 2: Reframed Engineering Goal -->
@@ -501,31 +503,23 @@
                       <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
                         <span>🟢</span> Reframed Production Goal
                       </div>
-                      <textarea id="txtFdeReframedGoal" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;">Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.</textarea>
+                      <textarea id="txtFdeReframedGoal" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="State the realistic, high-ROI engineering problem statement agreed with business..."></textarea>
                     </div>
 
-                    <!-- Col 3: Out-of-Scope Locks -->
-                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
-                      <div style="font-size: 11px; font-weight: 700; color: #e5b567; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                        <span>🔒</span> Explicit Out-of-Scope Locks
+                    <!-- Col 3: Dynamic Custom Out-of-Scope Boundary Manager -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #e5b567; display: flex; align-items: center; gap: 4px;">
+                          <span>🔒</span> Out-of-Scope Boundary Locks
+                        </div>
+                        <button class="btn-quick" id="btnFdeAddScopeRule" style="font-size: 10px; padding: 2px 7px; margin-bottom: 0; background: var(--bg-primary); border-color: var(--accent); color: var(--accent); font-weight: 700;">+ Add Rule</button>
                       </div>
-                      <div style="display: flex; flex-direction: column; gap: 6px; font-size: 10.5px; color: var(--text-secondary);">
-                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-                          <input type="checkbox" id="chkFdeScope1" checked style="margin-top: 2px;">
-                          <span>No automated refunds &gt; $100 without human gate</span>
-                        </label>
-                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-                          <input type="checkbox" id="chkFdeScope2" checked style="margin-top: 2px;">
-                          <span>No direct external email dispatch in pilot</span>
-                        </label>
-                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-                          <input type="checkbox" id="chkFdeScope3" checked style="margin-top: 2px;">
-                          <span>No DB write access without audit logging</span>
-                        </label>
-                        <label style="display: flex; align-items: flex-start; gap: 6px; cursor: pointer;">
-                          <input type="checkbox" id="chkFdeScope4" checked style="margin-top: 2px;">
-                          <span>No ungrounded responses (must cite handbook)</span>
-                        </label>
+                      <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">
+                        Explicit boundaries defined by the engineer &amp; business:
+                      </div>
+                      <!-- Dynamic list of editable boundaries -->
+                      <div id="fdeScopeRulesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; padding-right: 2px;">
+                        <!-- Injected dynamically via JS -->
                       </div>
                     </div>
                   </div>
@@ -610,16 +604,16 @@
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 2: ENGINEERING CORE & LIVE PLUMBING STUDIO -->
+              <!-- STEP 2: SEMANTIC SCHEMA MAPPER & DIMENSIONAL MART BUILDER -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase2Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                      <span>🔌</span> Phase 2 · Engineering Core ("Their Formats. Their Broken API.")
+                      <span>📊</span> 2. Semantic Schema Mapper &amp; Dimensional Mart Builder
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
-                      Resolve messy real-world formats, live database wire introspection, dbt dimensional data marts, and fault-tolerant client API SDK generation with idempotency keys.
+                      Ingest foreign client datasets into clean staging models, or connect directly to live databases (PostgreSQL, Snowflake, BigQuery) to introspect table schemas.
                     </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
@@ -930,27 +924,30 @@
                       </div>
                     </div>
                     <div style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 240px; overflow-y: auto;" id="martSqlCodePreview"></div>
-                  </div>
-
-                  <!-- Divider between Database/Schema Core and API/Webhook Studio -->
-                  <div style="border-top: 1px solid var(--border); margin: 24px 0 18px 0;"></div>
-
-                  <!-- SECTION B: RESILIENT CLIENT API & WEBHOOK STUDIO -->
-                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
-                    <div>
-                      <h4 style="margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>🔌</span> Client API Connectors &amp; Webhook Ingest Studio
-                      </h4>
-                      <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
-                        Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and idempotency key handling. Import directly from cURL or OpenAPI.
-                      </p>
-                    </div>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                      <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
-                      <button class="btn-quick" id="btnToggleCurlModal">🪄 Import from cURL</button>
-                      <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI / Swagger</button>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <!-- ============================================================= -->
+              <!-- STEP 3: RESILIENT CLIENT API & WEBHOOK STUDIO -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase3Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🔌</span> 3. Resilient Client API &amp; Webhook Studio
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                      Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and auth handling. Import directly from cURL or OpenAPI.
+                    </p>
+                  </div>
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
+                    <button class="btn-quick" id="btnToggleCurlModal">🪄 Import from cURL</button>
+                    <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI / Swagger</button>
+                  </div>
+                </div>
 
                 <div id="curlImportBox" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -996,7 +993,7 @@
                   <button class="btn" id="btnScaffoldTsSdk" style="background: var(--success); color: #1e1e1e; font-weight: 700;">Scaffold TypeScript SDK</button>
                   <button class="btn btn-secondary" id="btnScaffoldPySdk">Scaffold Python SDK</button>
                   <button class="btn btn-secondary" id="btnTestApiPing">🔌 Test API Ping</button>
-                  <button class="btn-quick" id="btnMapApiSchema" style="color: var(--accent); border-color: var(--accent); font-weight: 700;">📤 Map API Schema in Step 1 (Schema &amp; Marts)</button>
+                  <button class="btn-quick" id="btnMapApiSchema" style="color: var(--accent); border-color: var(--accent); font-weight: 700;">📤 Map API Schema in Step 2 (Schema &amp; Marts)</button>
                 </div>
 
                 <div id="p2ResultBox" style="display: none; margin-top: 16px;">
@@ -1009,12 +1006,9 @@
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 3: PILOT DEPLOYMENT & PRE-FLIGHT DELIVERY -->
+              <!-- STEP 4: PILOT DEPLOYMENT & PRE-FLIGHT DELIVERY -->
               <!-- ============================================================= -->
-              <!-- ============================================================= -->
-              <!-- STEP 3: PILOT DEPLOYMENT & PRE-FLIGHT DELIVERY -->
-              <!-- ============================================================= -->
-              <div class="content-card" id="phase3Card" style="display: none;">
+              <div class="content-card" id="phase4Card" style="display: none;">
                 <!-- Pre-Flight Health Auditor Card -->
                 <div style="background: var(--bg-primary); padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1206,9 +1200,9 @@
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 4: CLIENT ENGAGEMENT HANDOFF & RUNBOOK FACTORY -->
+              <!-- STEP 5: CLIENT ENGAGEMENT HANDOFF & RUNBOOK FACTORY -->
               <!-- ============================================================= -->
-              <div class="content-card" id="phase4Card" style="display: none;">
+              <div class="content-card" id="phase5Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: #fff;">📑 Client Engagement Handoff &amp; Runbook Factory</h3>
@@ -1337,9 +1331,9 @@
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 5: COMPLETE ENTERPRISE COMMERCIAL SUITE (All 12 Modules) -->
+              <!-- STEP 6: COMPLETE ENTERPRISE COMMERCIAL SUITE (All 12 Modules) -->
               <!-- ============================================================= -->
-              <div class="content-card" id="phase5Card" style="display: none;">
+              <div class="content-card" id="phase6Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: var(--accent); display: flex; align-items: center; gap: 8px;">
