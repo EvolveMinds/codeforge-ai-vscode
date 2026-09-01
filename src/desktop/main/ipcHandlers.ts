@@ -1935,11 +1935,98 @@ if len(numeric_cols) > 1:
       };
     });
 
-    ipc.handle(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, async (_: any, req: { archetype?: string; clientName?: string }) => {
-      const archetype = req?.archetype || 'support-copilot';
+    ipc.handle(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, async (_: any, req: { archetype?: string; clientName?: string; reframedProblem?: string; outOfScope?: string[] }) => {
+      const archetype = req?.archetype || 'custom';
       const client = req?.clientName || 'Client';
 
-      let legacyDiagram = `sequenceDiagram
+      let legacyDiagram = '';
+      let futureDiagram = '';
+
+      if (archetype === 'fin-reconcile') {
+        legacyDiagram = `sequenceDiagram
+    autonumber
+    actor FinOps as Financial Operations
+    participant Bank as Banking / Card Portal
+    participant Excel as Manual Excel Sheet
+    participant ERP as Core General Ledger
+    
+    FinOps->>Bank: Download unstructured PDF / CSV
+    FinOps->>Excel: Manual row-by-row matching
+    Note over Excel: Prone to transposition errors
+    FinOps->>ERP: Manual posting without audit trail
+    ERP-->>FinOps: Unreconciled variances`;
+
+        futureDiagram = `sequenceDiagram
+    autonumber
+    actor FinOps as Financial Operations
+    participant Hook as Real-time Statement Ingest
+    participant Parser as Deterministic Parser + OCR
+    participant Matcher as SQL Tolerance Matching Engine
+    actor Human as Controller Approval Gate (HITL)
+    participant ERP as Core General Ledger
+    
+    Hook->>Parser: Ingest bank statement
+    Parser->>Matcher: Structured normalized lines
+    Matcher->>Matcher: 100% Deterministic match (zero drift)
+    Matcher->>Human: Review flagged edge-case variance
+    Human->>ERP: 1-Click Signed Batch Posting
+    ERP-->>FinOps: Cryptographic audit log created`;
+      } else if (archetype === 'health-records') {
+        legacyDiagram = `sequenceDiagram
+    autonumber
+    actor Clinician as Medical Staff
+    participant EHR as Electronic Health Record
+    participant PDF as Unindexed Clinical Guidelines
+    
+    Clinician->>EHR: Manual patient file lookup
+    Clinician->>PDF: Manual policy searching
+    Note over Clinician,PDF: 35 mins per patient record
+    Clinician->>EHR: Manual notes typing`;
+
+        futureDiagram = `sequenceDiagram
+    autonumber
+    actor Clinician as Medical Staff
+    participant PII as Redaction & De-ID Stage
+    participant RAG as Air-Gapped Hospital Policy RAG
+    participant Copilot as Clinical Documentation Assistant
+    actor Doctor as Attending Physician (HITL)
+    participant EHR as Secure EHR Store
+    
+    Clinician->>PII: Submit clinical query
+    PII->>RAG: De-identified prompt with citations
+    RAG->>Copilot: Grounded guidance from hospital handbook
+    Copilot->>Doctor: Draft clinical summary with source links
+    Doctor->>EHR: 1-Click Approved Entry
+    EHR-->>Clinician: Audit logged & compliant entry`;
+      } else if (archetype === 'supply-chain') {
+        legacyDiagram = `sequenceDiagram
+    autonumber
+    actor Planner as Supply Chain Planner
+    participant Carrier as Carrier Portal / Emails
+    participant ERP as SAP / Oracle ERP
+    
+    Carrier->>Planner: Unstructured delay notification email
+    Planner->>ERP: Manual PO lookup & status update
+    Note over Planner,ERP: Delayed reaction (avg 24-48 hrs)
+    Planner->>Carrier: Manual escalation email`;
+
+        futureDiagram = `sequenceDiagram
+    autonumber
+    actor Carrier as Logistics Provider
+    participant Ingest as Webhook / EDI Ingest
+    participant Rule as SLA & Delay Scoring Engine
+    participant Copilot as Evolve AI Supply Chain Copilot
+    actor Human as Procurement Manager (HITL)
+    participant ERP as SAP / Oracle ERP
+    
+    Carrier->>Ingest: Real-time telemetry / EDI webhook
+    Ingest->>Rule: Auto-score delay impact & contract SLA
+    Rule->>Copilot: Enrich with inventory buffer data
+    Copilot->>Human: Draft mitigation & supplier re-route
+    Human->>ERP: 1-Click PO reschedule & vendor notice
+    ERP-->>Carrier: Updated ETA committed to ledger`;
+      } else if (archetype === 'support-copilot') {
+        legacyDiagram = `sequenceDiagram
     autonumber
     actor User as Customer / User
     participant Queue as Unsorted Ticket Queue
@@ -1953,7 +2040,7 @@ if len(numeric_cols) > 1:
     Note over Agent: High fatigue, 22% human error rate
     Agent->>User: Manual resolution email`;
 
-      let futureDiagram = `sequenceDiagram
+        futureDiagram = `sequenceDiagram
     autonumber
     actor User as Customer / User
     participant Hook as Webhook & Event Ingest
@@ -1974,6 +2061,33 @@ if len(numeric_cols) > 1:
         Human->>Core: 1-Click Approval Gate
     end
     Core-->>User: Verified resolution with audit trail`;
+      } else {
+        // Custom Project / Blank Template
+        legacyDiagram = `sequenceDiagram
+    autonumber
+    actor Operator as Business Operator / User
+    participant Manual as Manual Ad-hoc Workflow
+    participant System as Legacy Data Store / Silo
+    
+    Operator->>Manual: Perform repetitive manual task
+    Note over Operator,Manual: High manual overhead, delayed turnaround
+    Manual->>System: Un-audited manual updates
+    System-->>Operator: Task complete (high rework rate)`;
+
+        futureDiagram = `sequenceDiagram
+    autonumber
+    actor Operator as Business Operator / User
+    participant Ingest as Secure API / Webhook Gateway
+    participant Agent as Evolve AI Production System
+    actor Supervisor as Human-in-the-Loop (HITL) Gate
+    participant Target as Production DB / Warehouse
+    
+    Operator->>Ingest: Submit task payload
+    Ingest->>Agent: Parse & execute deterministic pipeline
+    Agent->>Supervisor: Structured draft & audit proposal
+    Supervisor->>Target: Verified 1-Click Execution
+    Target-->>Operator: Cryptographically signed confirmation`;
+      }
 
       return {
         archetype,

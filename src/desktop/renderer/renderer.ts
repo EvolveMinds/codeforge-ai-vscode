@@ -695,7 +695,8 @@ function setupPhase1Discovery(api: any): void {
   const btnRecalcRoi = document.getElementById('btnFdeRecalcRoi');
   const btnTabFuture = document.getElementById('btnFdeTabFutureDiagram');
   const btnTabLegacy = document.getElementById('btnFdeTabLegacyDiagram');
-  const topologyContainer = document.getElementById('fdeTopologyPreviewContainer');
+  const btnCopyDiagram = document.getElementById('btnFdeCopyDiagram');
+  const topologyContainer = document.getElementById('fdeTopologyPreviewContainer') as HTMLTextAreaElement;
 
   const btnReset = document.getElementById('btnFdeResetDiscovery');
   const btnSave = document.getElementById('btnFdeSaveDiscovery');
@@ -784,15 +785,35 @@ function setupPhase1Discovery(api: any): void {
 
   const renderTopology = async (arch: string) => {
     if (api?.fde?.generateTopology) {
-      const res = await api.fde.generateTopology({ archetype: arch });
+      const res = await api.fde.generateTopology({
+        archetype: arch,
+        reframedProblem: txtReframed?.value || '',
+        outOfScope: currentScopeRules.map(r => r.text)
+      });
       cachedDiagrams = res;
       if (topologyContainer) {
-        topologyContainer.innerText = currentDiagramMode === 'future' 
+        topologyContainer.value = currentDiagramMode === 'future' 
           ? (res.futureDiagram || '// Proposed Future AI Workflow Sequence Diagram') 
           : (res.legacyDiagram || '// Legacy Bottleneck Sequence Diagram');
       }
     }
   };
+
+  topologyContainer?.addEventListener('input', () => {
+    if (currentDiagramMode === 'future') {
+      cachedDiagrams.futureDiagram = topologyContainer.value;
+    } else {
+      cachedDiagrams.legacyDiagram = topologyContainer.value;
+    }
+  });
+
+  btnCopyDiagram?.addEventListener('click', () => {
+    const text = topologyContainer ? topologyContainer.value : '';
+    if (text) {
+      navigator.clipboard.writeText(text);
+      showToast('📋 Copied Mermaid sequence diagram to clipboard');
+    }
+  });
 
   selArchetype?.addEventListener('change', () => {
     const key = selArchetype.value;
@@ -803,9 +824,7 @@ function setupPhase1Discovery(api: any): void {
       if (txtReframed) txtReframed.value = arch.reframed;
       currentScopeRules = arch.rules.map(r => ({ text: r, enabled: true }));
       renderScopeRules();
-      if (key !== 'custom') {
-        renderTopology(key);
-      }
+      renderTopology(key);
       computeRoi();
       showToast(`🎯 Loaded Archetype: ${selArchetype.options[selArchetype.selectedIndex].text}`);
     }
@@ -824,7 +843,7 @@ function setupPhase1Discovery(api: any): void {
     btnTabFuture.classList.add('active');
     btnTabLegacy?.classList.remove('active');
     if (topologyContainer && cachedDiagrams.futureDiagram) {
-      topologyContainer.innerText = cachedDiagrams.futureDiagram;
+      topologyContainer.value = cachedDiagrams.futureDiagram;
     }
   });
 
@@ -833,7 +852,7 @@ function setupPhase1Discovery(api: any): void {
     btnTabLegacy.classList.add('active');
     btnTabFuture?.classList.remove('active');
     if (topologyContainer && cachedDiagrams.legacyDiagram) {
-      topologyContainer.innerText = cachedDiagrams.legacyDiagram;
+      topologyContainer.value = cachedDiagrams.legacyDiagram;
     }
   });
 
@@ -857,6 +876,8 @@ function setupPhase1Discovery(api: any): void {
       reframedProblem: reframedGoal,
       archetype,
       outOfScope,
+      customFutureDiagram: cachedDiagrams.futureDiagram,
+      customLegacyDiagram: cachedDiagrams.legacyDiagram,
       controllersThreeNumbers: {
         volume: vol,
         handleTimeMins: time,
@@ -904,6 +925,8 @@ function setupPhase1Discovery(api: any): void {
           if (Array.isArray(state.discovery.outOfScope) && state.discovery.outOfScope.length > 0) {
             currentScopeRules = state.discovery.outOfScope.map((s: string) => ({ text: s, enabled: true }));
           }
+          if (state.discovery.customFutureDiagram) cachedDiagrams.futureDiagram = state.discovery.customFutureDiagram;
+          if (state.discovery.customLegacyDiagram) cachedDiagrams.legacyDiagram = state.discovery.customLegacyDiagram;
           if (state.discovery.controllersThreeNumbers) {
             if (rngVolume) rngVolume.value = String(state.discovery.controllersThreeNumbers.volume || 10000);
             if (rngHandleTime) rngHandleTime.value = String(state.discovery.controllersThreeNumbers.handleTimeMins || 15);
@@ -917,9 +940,7 @@ function setupPhase1Discovery(api: any): void {
     renderScopeRules();
     computeRoi();
     const initialArch = selArchetype?.value || 'custom';
-    if (initialArch !== 'custom') {
-      renderTopology(initialArch);
-    }
+    renderTopology(initialArch);
   };
 
   loadSavedState();
