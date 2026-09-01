@@ -131,16 +131,21 @@
   <div class="app-container">
     <!-- Left Activity Navigation Bar -->
     <nav class="activity-bar">
+      <!-- Top Primary Studio Tools (up to Chat) -->
       <button class="activity-btn active" data-tab="delivery" title="Forward-Deployed Engineers Delivery Studio (Phases 1-5)">🚀</button>
       <button class="activity-btn" data-tab="data" title="Data Analysis &amp; Reporting Studio">📊</button>
       <button class="activity-btn" data-tab="converter" title="Code Converter STUDIO (26 Languages)">🔀</button>
       <button class="activity-btn" data-tab="lakehouse" title="Databricks Lakehouse &amp; Unity Catalog Hub">🗄️</button>
       <button class="activity-btn" data-tab="security" title="Security Scanner &amp; Pre-Flight Health Auditor">🛡️</button>
       <button class="activity-btn" data-tab="chat" title="AI Copilot &amp; Multi-Engine Chat">💬</button>
+
+      <!-- Vertical Spacer: pushes all subsequent utility & infra icons down next to settings -->
+      <div style="flex: 1;"></div>
+
+      <!-- Bottom System, Infra, Repository & Settings Hubs (Next to Settings) -->
       <button class="activity-btn" data-tab="hardware" title="Local AI Hardware Auto-Detection &amp; Model Sizer">🤖</button>
       <button class="activity-btn" data-tab="git" title="Git &amp; Remote Repository Hub">🌿</button>
       <button class="activity-btn" data-tab="cloud" title="Multi-Cloud Connect Matrix">☁️</button>
-      <div style="flex: 1;"></div>
       <button class="activity-btn" id="btnToggleFileTree" title="Toggle File Tree Explorer">📁</button>
       <button class="activity-btn" id="btnOpenSettings" title="Settings &amp; License Identity">⚙️</button>
     </nav>
