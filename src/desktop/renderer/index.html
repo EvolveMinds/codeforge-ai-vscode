@@ -634,29 +634,43 @@
                   </div>
 
                   <!-- Calculator Inputs Grid -->
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                  <!-- Each number is typeable AND draggable: a client quotes an exact
+                       figure ("our operators are on $58/hr") and it must be enterable
+                       directly. The slider is for exploring sensitivity, not for data entry. -->
+                  <div class="fde-kpi-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; background: var(--card-bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">
                     <div>
-                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <label style="font-size: 11px; font-weight: 600;" for="rngFdeVolume">Monthly Workflow Volume:</label>
-                        <span id="lblFdeVolumeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">0</span>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;">
+                        <label style="font-size: 11px; font-weight: 600;" for="numFdeVolume">Monthly Workflow Volume:</label>
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                          <input type="number" id="numFdeVolume" min="0" max="1000000" step="1" value="0" aria-label="Monthly workflow volume, items per month" style="width: 82px; padding: 3px 6px; text-align: right; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;">
+                          <span style="font-size: 10.5px; color: var(--text-secondary);">/mo</span>
+                        </div>
                       </div>
-                      <input type="range" id="rngFdeVolume" min="0" max="100000" step="500" value="0" style="width: 100%;">
+                      <input type="range" id="rngFdeVolume" min="0" max="100000" step="100" value="0" aria-label="Monthly workflow volume slider" style="width: 100%;">
                     </div>
                     <div>
-                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <label style="font-size: 11px; font-weight: 600;" for="rngFdeHandleTime">Average Handle Time:</label>
-                        <span id="lblFdeHandleTimeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">0 mins</span>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;">
+                        <label style="font-size: 11px; font-weight: 600;" for="numFdeHandleTime">Average Handle Time:</label>
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                          <input type="number" id="numFdeHandleTime" min="0" max="600" step="0.5" value="0" aria-label="Average handle time in minutes" style="width: 62px; padding: 3px 6px; text-align: right; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;">
+                          <span style="font-size: 10.5px; color: var(--text-secondary);">mins</span>
+                        </div>
                       </div>
-                      <input type="range" id="rngFdeHandleTime" min="0" max="120" step="1" value="0" style="width: 100%;">
+                      <input type="range" id="rngFdeHandleTime" min="0" max="120" step="1" value="0" aria-label="Average handle time slider" style="width: 100%;">
                     </div>
                     <div>
-                      <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <label style="font-size: 11px; font-weight: 600;" for="rngFdeHourlyWage">Operator Hourly Wage:</label>
-                        <span id="lblFdeHourlyWageVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">$0/hr</span>
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;">
+                        <label style="font-size: 11px; font-weight: 600;" for="numFdeHourlyWage">Operator Hourly Wage:</label>
+                        <div style="display: flex; align-items: center; gap: 3px;">
+                          <span style="font-size: 10.5px; color: var(--text-secondary);">$</span>
+                          <input type="number" id="numFdeHourlyWage" min="0" max="2000" step="0.5" value="0" aria-label="Operator hourly wage in dollars" style="width: 68px; padding: 3px 6px; text-align: right; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;">
+                          <span style="font-size: 10.5px; color: var(--text-secondary);">/hr</span>
+                        </div>
                       </div>
-                      <input type="range" id="rngFdeHourlyWage" min="0" max="250" step="5" value="0" style="width: 100%;">
+                      <input type="range" id="rngFdeHourlyWage" min="0" max="250" step="1" value="0" aria-label="Operator hourly wage slider" style="width: 100%;">
                     </div>
                   </div>
+                  <div style="font-size: 10.5px; color: var(--text-secondary); margin: -8px 0 12px;">Type an exact figure, or drag to test sensitivity. Values above a slider's range are kept — the slider simply pins to its maximum.</div>
 
                   <!-- 3 Output KPI Cards -->
                   <div class="fde-kpi-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">

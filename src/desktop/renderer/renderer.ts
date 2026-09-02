@@ -784,9 +784,12 @@ function setupPhase1Discovery(api: any): void {
   const rngHandleTime = document.getElementById('rngFdeHandleTime') as HTMLInputElement;
   const rngHourlyWage = document.getElementById('rngFdeHourlyWage') as HTMLInputElement;
 
-  const lblVolumeVal = document.getElementById('lblFdeVolumeVal');
-  const lblHandleTimeVal = document.getElementById('lblFdeHandleTimeVal');
-  const lblHourlyWageVal = document.getElementById('lblFdeHourlyWageVal');
+  // Typeable twins of the three sliders. These are the source of truth for the
+  // numbers; the sliders mirror them and pin to their own max when a client's
+  // real figure exceeds the convenient drag range.
+  const numVolume = document.getElementById('numFdeVolume') as HTMLInputElement;
+  const numHandleTime = document.getElementById('numFdeHandleTime') as HTMLInputElement;
+  const numHourlyWage = document.getElementById('numFdeHourlyWage') as HTMLInputElement;
 
   const kpiCostSavings = document.getElementById('kpiFdeCostSavings');
   const kpiAnnualSavings = document.getElementById('kpiFdeAnnualSavings');
@@ -921,14 +924,40 @@ function setupPhase1Discovery(api: any): void {
     }
   };
 
-  const computeRoi = async () => {
-    const vol = parseInt(rngVolume?.value || '0', 10);
-    const time = parseInt(rngHandleTime?.value || '0', 10);
-    const wage = parseInt(rngHourlyWage?.value || '0', 10);
+  /**
+   * The three numbers live in the typeable inputs; the sliders mirror them.
+   * A slider pins to its own max when the real figure exceeds the drag range,
+   * so entering $600/hr is preserved even though the slider stops at $250.
+   */
+  const syncSlidersFromNumbers = () => {
+    const pin = (rng: HTMLInputElement | null, val: number) => {
+      if (!rng) return;
+      const max = parseFloat(rng.max || '0');
+      rng.value = String(Math.min(val, isFinite(max) ? max : val));
+    };
+    pin(rngVolume, Math.max(0, parseFloat(numVolume?.value || '0') || 0));
+    pin(rngHandleTime, Math.max(0, parseFloat(numHandleTime?.value || '0') || 0));
+    pin(rngHourlyWage, Math.max(0, parseFloat(numHourlyWage?.value || '0') || 0));
+  };
 
-    if (lblVolumeVal) lblVolumeVal.innerText = vol.toLocaleString();
-    if (lblHandleTimeVal) lblHandleTimeVal.innerText = `${time} mins`;
-    if (lblHourlyWageVal) lblHourlyWageVal.innerText = `$${wage}/hr`;
+  /** Set all three numbers at once (archetype load, AI suggestion, restore). */
+  const setThreeNumbers = (volume: number, handleTimeMins: number, hourlyWage: number) => {
+    if (numVolume) numVolume.value = String(volume ?? 0);
+    if (numHandleTime) numHandleTime.value = String(handleTimeMins ?? 0);
+    if (numHourlyWage) numHourlyWage.value = String(hourlyWage ?? 0);
+    syncSlidersFromNumbers();
+  };
+
+  const readThreeNumbers = () => ({
+    volume: Math.max(0, parseFloat(numVolume?.value || '0') || 0),
+    handleTimeMins: Math.max(0, parseFloat(numHandleTime?.value || '0') || 0),
+    hourlyWage: Math.max(0, parseFloat(numHourlyWage?.value || '0') || 0)
+  });
+
+  const computeRoi = async () => {
+    const vol = Math.max(0, parseFloat(numVolume?.value || '0') || 0);
+    const time = Math.max(0, parseFloat(numHandleTime?.value || '0') || 0);
+    const wage = Math.max(0, parseFloat(numHourlyWage?.value || '0') || 0);
 
     if (vol === 0 || time === 0 || wage === 0) {
       setRoiBlank('Awaiting scope input', '\u{1F4B0} ROI: Uncalculated (Blank Scope)');
@@ -1055,9 +1084,7 @@ function setupPhase1Discovery(api: any): void {
       currentScopeRules = arch.rules.map(r => ({ text: r, enabled: true }));
       renderScopeRules();
 
-      if (rngVolume) rngVolume.value = String(arch.volume ?? 0);
-      if (rngHandleTime) rngHandleTime.value = String(arch.handleTime ?? 0);
-      if (rngHourlyWage) rngHourlyWage.value = String(arch.wage ?? 0);
+      setThreeNumbers(arch.volume ?? 0, arch.handleTime ?? 0, arch.wage ?? 0);
 
       renderTopology(key);
       computeRoi();
@@ -1065,13 +1092,29 @@ function setupPhase1Discovery(api: any): void {
     }
   });
 
-  rngVolume?.addEventListener('input', computeRoi);
-  rngHandleTime?.addEventListener('input', computeRoi);
-  rngHourlyWage?.addEventListener('input', computeRoi);
+  // Dragging a slider writes back into its typeable twin, so the two never disagree.
+  const bindSlider = (rng: HTMLInputElement | null, num: HTMLInputElement | null) => {
+    rng?.addEventListener('input', () => {
+      if (num) num.value = rng.value;
+      computeRoi();
+    });
+  };
+  bindSlider(rngVolume, numVolume);
+  bindSlider(rngHandleTime, numHandleTime);
+  bindSlider(rngHourlyWage, numHourlyWage);
+
+  // Typing an exact figure is the primary path: a client quotes $58/hr, you type 58.
+  [numVolume, numHandleTime, numHourlyWage].forEach(el => {
+    el?.addEventListener('input', () => {
+      syncSlidersFromNumbers();
+      computeRoi();
+    });
+  });
 
   // --- Dirty tracking: any Phase 1 edit schedules an autosave and flags unsaved work ---
   [txtRawAsk, txtRisk, txtReframed].forEach(el => el?.addEventListener('input', markScopeDirty));
   [rngVolume, rngHandleTime, rngHourlyWage].forEach(el => el?.addEventListener('input', markScopeDirty));
+  [numVolume, numHandleTime, numHourlyWage].forEach(el => el?.addEventListener('input', markScopeDirty));
   [numAutomationRatio, numLoadedMultiplier, numProductiveHours,
    numBaselineError, numResidualError, numReworkCost].forEach(el => el?.addEventListener('input', markScopeDirty));
   selArchetype?.addEventListener('change', markScopeDirty);
@@ -1123,9 +1166,7 @@ function setupPhase1Discovery(api: any): void {
     if (!(txtRisk?.value || '').trim()) missing.push('operational risk analysis');
     if (!(txtReframed?.value || '').trim()) missing.push('reframed production goal');
     if (currentScopeRules.filter(r => r.enabled && r.text.trim()).length === 0) missing.push('at least one out-of-scope boundary');
-    const vol = parseInt(rngVolume?.value || '0', 10);
-    const time = parseInt(rngHandleTime?.value || '0', 10);
-    const wage = parseInt(rngHourlyWage?.value || '0', 10);
+    const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
     if (vol === 0 || time === 0 || wage === 0) missing.push("the Controller's three numbers");
     const total = 5;
     return { complete: missing.length === 0, missing, filled: total - missing.length, total };
@@ -1181,9 +1222,7 @@ function setupPhase1Discovery(api: any): void {
       .filter(r => r.enabled && r.text.trim().length > 0)
       .map(r => r.text.trim());
 
-    const vol = parseInt(rngVolume?.value || '0', 10);
-    const time = parseInt(rngHandleTime?.value || '0', 10);
-    const wage = parseInt(rngHourlyWage?.value || '0', 10);
+    const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
 
     const payload = {
       rawClientAsk: rawAsk,
@@ -1255,9 +1294,7 @@ function setupPhase1Discovery(api: any): void {
           renderScopeRules();
         }
         if (res.suggestedNumbers) {
-          if (rngVolume) rngVolume.value = String(res.suggestedNumbers.volume);
-          if (rngHandleTime) rngHandleTime.value = String(res.suggestedNumbers.handleTimeMins);
-          if (rngHourlyWage) rngHourlyWage.value = String(res.suggestedNumbers.hourlyWage);
+          setThreeNumbers(res.suggestedNumbers.volume, res.suggestedNumbers.handleTimeMins, res.suggestedNumbers.hourlyWage);
           computeRoi();
         }
         if (api?.fde?.aiGenerateTopology) {
@@ -1370,9 +1407,7 @@ function setupPhase1Discovery(api: any): void {
     const reframedGoal = txtReframed?.value || '';
     const archetype = selArchetype?.value || 'custom';
     const outOfScope: string[] = currentScopeRules.filter(r => r.enabled).map(r => r.text.trim());
-    const vol = parseInt(rngVolume?.value || '0', 10);
-    const time = parseInt(rngHandleTime?.value || '0', 10);
-    const wage = parseInt(rngHourlyWage?.value || '0', 10);
+    const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
 
     const payload = {
       discovery: {
@@ -1413,9 +1448,7 @@ function setupPhase1Discovery(api: any): void {
           renderScopeRules();
         }
         if (d.controllersThreeNumbers) {
-          if (rngVolume) rngVolume.value = String(d.controllersThreeNumbers.volume || 0);
-          if (rngHandleTime) rngHandleTime.value = String(d.controllersThreeNumbers.handleTimeMins || 0);
-          if (rngHourlyWage) rngHourlyWage.value = String(d.controllersThreeNumbers.hourlyWage || 0);
+          setThreeNumbers(d.controllersThreeNumbers.volume || 0, d.controllersThreeNumbers.handleTimeMins || 0, d.controllersThreeNumbers.hourlyWage || 0);
           computeRoi();
         }
         if (badgeVersion && res.version) {
@@ -1432,9 +1465,7 @@ function setupPhase1Discovery(api: any): void {
     const reframedGoal = txtReframed?.value || '';
     const archetype = selArchetype?.value || 'custom';
     const outOfScope: string[] = currentScopeRules.filter(r => r.enabled).map(r => r.text.trim());
-    const vol = parseInt(rngVolume?.value || '0', 10);
-    const time = parseInt(rngHandleTime?.value || '0', 10);
-    const wage = parseInt(rngHourlyWage?.value || '0', 10);
+    const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
 
     const payload = {
       clientName: 'Client Executive Sponsor',
@@ -1498,9 +1529,7 @@ function setupPhase1Discovery(api: any): void {
           if (state.discovery.customFutureDiagram) cachedDiagrams.futureDiagram = state.discovery.customFutureDiagram;
           if (state.discovery.customLegacyDiagram) cachedDiagrams.legacyDiagram = state.discovery.customLegacyDiagram;
           if (state.discovery.controllersThreeNumbers) {
-            if (rngVolume) rngVolume.value = String(state.discovery.controllersThreeNumbers.volume ?? 0);
-            if (rngHandleTime) rngHandleTime.value = String(state.discovery.controllersThreeNumbers.handleTimeMins ?? 0);
-            if (rngHourlyWage) rngHourlyWage.value = String(state.discovery.controllersThreeNumbers.hourlyWage ?? 0);
+            setThreeNumbers(state.discovery.controllersThreeNumbers.volume ?? 0, state.discovery.controllersThreeNumbers.handleTimeMins ?? 0, state.discovery.controllersThreeNumbers.hourlyWage ?? 0);
             hasLoadedSavedNumbers = true;
           }
         }
@@ -1517,9 +1546,7 @@ function setupPhase1Discovery(api: any): void {
     if (!hasLoadedSavedNumbers) {
       if (kpiRangeBar) kpiRangeBar.innerText = 'Pick an archetype above, or describe the ask, to compute a range';
       if (roiPill) roiPill.title = 'Load an archetype preset or enter the three numbers to calculate ROI.';
-      if (rngVolume) rngVolume.value = '0';
-      if (rngHandleTime) rngHandleTime.value = '0';
-      if (rngHourlyWage) rngHourlyWage.value = '0';
+      setThreeNumbers(0, 0, 0);
     }
     renderScopeRules();
     computeRoi();
