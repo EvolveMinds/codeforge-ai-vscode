@@ -42,6 +42,48 @@
       flex: 1;
       min-width: 0;
     }
+    /* --- Phase 1 step rail --- */
+    .fde-step-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      flex: 1;
+      min-width: 0;
+      text-align: left;
+      transition: all 0.15s ease;
+    }
+    .fde-step-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+    .fde-step-btn.active {
+      background: rgba(78, 201, 176, 0.12);
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    .fde-step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--bg-tertiary);
+      font-size: 10px; font-weight: 800;
+      flex-shrink: 0;
+    }
+    .fde-step-btn.active .fde-step-num { background: var(--accent); color: #1e1e1e; }
+    .fde-step-btn.done .fde-step-num { background: var(--success); color: #1e1e1e; }
+    .fde-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fde-step-dot { font-size: 9px; flex-shrink: 0; }
+    @media (max-width: 1100px) {
+      .fde-step-label { display: none; }
+      .fde-step-btn { flex: 0 0 auto; padding: 8px 12px; }
+    }
     .phase-status-dot {
       font-size: 10px;
       line-height: 1;
@@ -548,6 +590,36 @@
                   </div>
                 </div>
 
+                <!-- PHASE 1 STEP NAVIGATION
+                     The three parts of discovery are separate full-width steps rather than
+                     three panels crammed into one scroll. They stay a connected flow: the
+                     stepper shows completion, every step can be revisited, and moving
+                     between them carries the work forward (scope -> numbers -> topology). -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                  <div role="tablist" aria-label="Phase 1 discovery steps" class="fde-step-rail" style="display: flex; gap: 6px; flex: 1; min-width: 0;">
+                    <button role="tab" id="btnFdeStep1" data-step="1" aria-selected="true" aria-controls="fdeStep1Panel" class="fde-step-btn active" aria-label="Step 1 of 3: Refusing the Ask diagnostic and scope boundary">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">1</span>
+                      <span class="fde-step-label">Refusing the Ask</span>
+                    </button>
+                    <button role="tab" id="btnFdeStep2" data-step="2" aria-selected="false" aria-controls="fdeStep2Panel" class="fde-step-btn" aria-label="Step 2 of 3: The Controller&#39;s Three Numbers financial ROI calculator">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">2</span>
+                      <span class="fde-step-label">Controller&#39;s 3 Numbers</span>
+                    </button>
+                    <button role="tab" id="btnFdeStep3" data-step="3" aria-selected="false" aria-controls="fdeStep3Panel" class="fde-step-btn" aria-label="Step 3 of 3: Current versus future state workflow topology">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">3</span>
+                      <span class="fde-step-label">Workflow Topology</span>
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-quick" id="btnFdeStepPrev" style="font-size: 11px;" aria-label="Go to the previous discovery step" disabled>← Back</button>
+                    <button class="btn-quick" id="btnFdeStepNext" style="font-size: 11px; border-color: var(--accent); color: var(--accent);" aria-label="Go to the next discovery step">Next →</button>
+                  </div>
+                </div>
+
+                <div id="fdeStep1Panel" role="tabpanel" aria-labelledby="btnFdeStep1">
                 <!-- 1. REFUSING THE ASK DIAGNOSTIC -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -622,6 +694,9 @@
                   </div>
                 </div>
 
+                </div>
+
+                <div id="fdeStep2Panel" role="tabpanel" aria-labelledby="btnFdeStep2" hidden>
                 <!-- 2. THE CONTROLLER'S THREE NUMBERS (FINANCIAL ROI CALCULATOR) -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -738,6 +813,9 @@
                   </div>
                 </div>
 
+                </div>
+
+                <div id="fdeStep3Panel" role="tabpanel" aria-labelledby="btnFdeStep3" hidden>
                 <!-- 3. CURRENT VS FUTURE STATE WORKFLOW TOPOLOGY -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -761,6 +839,7 @@
                   <div role="tablist" aria-label="Topology view mode" style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
                     <button role="tab" id="btnFdeViewDiagram" aria-selected="true" aria-controls="fdeTopologyRendered" class="btn-quick active" style="font-size: 10.5px;" aria-label="Show the single rendered diagram">🗺 Diagram</button>
                     <button role="tab" id="btnFdeViewCompare" aria-selected="false" aria-controls="fdeTopologyCompare" class="btn-quick" style="font-size: 10.5px;" aria-label="Show current and future state side by side">⇄ Compare Current vs Future</button>
+                    <button role="tab" id="btnFdeViewArrange" aria-selected="false" aria-controls="fdeTopologyArrange" class="btn-quick" style="font-size: 10.5px;" aria-label="Rearrange participants and steps by dragging">☰ Arrange</button>
                     <button role="tab" id="btnFdeViewSource" aria-selected="false" aria-controls="fdeTopologyPreviewContainer" class="btn-quick" style="font-size: 10.5px;" aria-label="Show and edit Mermaid source">✎ Source</button>
                     <span id="fdeDiagramStatus" aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); align-self: center; margin-left: 6px;"></span>
                   </div>
@@ -792,7 +871,26 @@
                     <div id="fdeCompareDelta" style="margin-top: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11.5px; color: var(--text-secondary);"></div>
                   </div>
 
+                  <!-- Direct manipulation. Dragging a row is faster than editing Mermaid
+                       while a stakeholder is talking, and the arrow buttons give the same
+                       control to keyboard users. -->
+                  <div id="fdeTopologyArrange" role="tabpanel" aria-labelledby="btnFdeViewArrange" hidden style="width: 100%;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Drag to reorder, or use ↑ ↓. Changes rewrite the diagram immediately and can be undone.</div>
+                    <div class="fde-compare-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                      <div>
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Participants &amp; actors (left → right)</div>
+                        <div id="fdeArrangeParticipants" role="list" aria-label="Diagram participants, drag to reorder"></div>
+                      </div>
+                      <div>
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Steps (top → bottom)</div>
+                        <div id="fdeArrangeMessages" role="list" aria-label="Diagram steps, drag to reorder"></div>
+                      </div>
+                    </div>
+                  </div>
+
                   <textarea id="fdeTopologyPreviewContainer" role="tabpanel" aria-labelledby="btnFdeViewSource" hidden rows="8" style="width: 100%; box-sizing: border-box; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #4ec9b0; resize: vertical; line-height: 1.45; outline: none;" placeholder="Enter custom Mermaid sequence diagram here..." aria-label="Enter custom Mermaid sequence diagram here..."></textarea>
+                </div>
+
                 </div>
 
                 <!-- CLIENT MEMO PREVIEW MODAL / DRAWER -->

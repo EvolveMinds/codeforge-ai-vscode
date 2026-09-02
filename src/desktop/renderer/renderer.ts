@@ -1049,6 +1049,7 @@ function setupPhase1Discovery(api: any): void {
   let scopeDirty = false;
   let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
 
+  let currentDiscoveryStep = 1;
   let currentDiagramMode: 'future' | 'legacy' = 'future';
   let cachedDiagrams: { futureDiagram?: string; legacyDiagram?: string } = {};
 
@@ -1314,11 +1315,16 @@ function setupPhase1Discovery(api: any): void {
     }
   };
 
-  const setTopologyView = (mode: 'diagram' | 'source' | 'compare') => {
+  const setTopologyView = (mode: 'diagram' | 'source' | 'compare' | 'arrange') => {
     if (renderedPane) renderedPane.hidden = mode !== 'diagram';
     if (topologyContainer) topologyContainer.hidden = mode !== 'source';
     const cmp = document.getElementById('fdeTopologyCompare');
     if (cmp) cmp.hidden = mode !== 'compare';
+    const arr = document.getElementById('fdeTopologyArrange');
+    if (arr) arr.hidden = mode !== 'arrange';
+    const arrBtn = document.getElementById('btnFdeViewArrange');
+    arrBtn?.classList.toggle('active', mode === 'arrange');
+    arrBtn?.setAttribute('aria-selected', String(mode === 'arrange'));
     btnViewDiagram?.classList.toggle('active', mode === 'diagram');
     btnViewSource?.classList.toggle('active', mode === 'source');
     const cmpBtn = document.getElementById('btnFdeViewCompare');
@@ -1328,6 +1334,7 @@ function setupPhase1Discovery(api: any): void {
     cmpBtn?.setAttribute('aria-selected', String(mode === 'compare'));
     if (mode === 'diagram') paintDiagram();
     if (mode === 'compare') paintCompare();
+    if (mode === 'arrange') renderArrangePanel();
   };
 
   btnViewDiagram?.addEventListener('click', () => setTopologyView('diagram'));
@@ -1477,6 +1484,151 @@ function setupPhase1Discovery(api: any): void {
 
   btnViewCompare?.addEventListener('click', () => setTopologyView('compare'));
 
+  // --- Direct manipulation: reorder participants and steps without touching Mermaid ---
+  // An FDE sitting with the business says "no, approval happens before posting".
+  // Dragging a row is faster and less error-prone than editing source mid-conversation,
+  // and it round-trips through the same Mermaid text so nothing else has to change.
+
+  interface DiagramLine { raw: string; kind: 'participant' | 'message' | 'other'; label: string; }
+
+  const splitDiagram = (src: string): DiagramLine[] => {
+    return src.split(/\r?\n/).map(raw => {
+      const t = raw.trim();
+      if (/^(participant|actor)\s+/i.test(t)) {
+        const m = t.match(/^(?:participant|actor)\s+\S+(?:\s+as\s+(.+))?$/i);
+        return { raw, kind: 'participant' as const, label: (m && m[1]) ? m[1].trim() : t };
+      }
+      if (/(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(t)) {
+        const m = t.match(/^(\S+)\s*(?:-{1,2}>>?|-\)|-x)\s*([^:]+):\s*(.*)$/);
+        return { raw, kind: 'message' as const, label: m ? (m[1] + ' → ' + m[2].trim() + ': ' + m[3]) : t };
+      }
+      return { raw, kind: 'other' as const, label: t };
+    });
+  };
+
+  /** Rebuilds the diagram from a reordered set of rows, preserving untouched lines. */
+  const rebuildDiagram = (all: DiagramLine[], kind: 'participant' | 'message', order: number[]): string => {
+    const slots: number[] = [];
+    all.forEach((l, i) => { if (l.kind === kind) slots.push(i); });
+    const picked = order.map(o => all[slots[o]]);
+    const out = all.slice();
+    slots.forEach((slotIdx, n) => { out[slotIdx] = picked[n]; });
+    return out.map(l => l.raw).join('\n');
+  };
+
+  const buildRow = (text: string, idx: number, kind: string): HTMLElement => {
+    const row = document.createElement('div');
+    row.draggable = true;
+    row.dataset.idx = String(idx);
+    row.dataset.kind = kind;
+    row.setAttribute('role', 'listitem');
+    row.setAttribute('aria-label', text + ' — drag to reorder, or use the arrow buttons');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 9px;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-primary);cursor:grab;';
+    row.innerHTML =
+      '<span aria-hidden="true" style="color:var(--text-muted);cursor:grab;">☰</span>' +
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+      text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>';
+
+    // Keyboard-accessible equivalent of dragging - drag alone is not operable
+    // without a mouse, and this panel must not become the only way to reorder.
+    const mk = (glyph: string, delta: number, label: string) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = glyph;
+      b.setAttribute('aria-label', label + ' ' + text);
+      b.style.cssText = 'background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-secondary);cursor:pointer;font-size:10px;line-height:1;padding:2px 5px;';
+      b.addEventListener('click', (e) => { e.stopPropagation(); moveRow(kind as any, idx, delta); });
+      return b;
+    };
+    row.appendChild(mk('↑', -1, 'Move up:'));
+    row.appendChild(mk('↓', 1, 'Move down:'));
+    return row;
+  };
+
+  const commitReorder = (kind: 'participant' | 'message', order: number[]) => {
+    const src = topologyContainer?.value || '';
+    if (!src.trim()) return;
+    diagramUndoStack.push({ mode: currentDiagramMode, source: src });
+    refreshUndoState();
+
+    const next = rebuildDiagram(splitDiagram(src), kind, order);
+    if (topologyContainer) topologyContainer.value = next;
+    if (currentDiagramMode === 'future') cachedDiagrams.futureDiagram = next;
+    else cachedDiagrams.legacyDiagram = next;
+
+    paintDiagram();
+    paintCompare();
+    renderArrangePanel();
+    markScopeDirty();
+  };
+
+  const moveRow = (kind: 'participant' | 'message', idx: number, delta: number) => {
+    const src = topologyContainer?.value || '';
+    const count = splitDiagram(src).filter(l => l.kind === kind).length;
+    const to = idx + delta;
+    if (to < 0 || to >= count) return;
+    const order = Array.from({ length: count }, (_, i) => i);
+    order.splice(to, 0, order.splice(idx, 1)[0]);
+    commitReorder(kind, order);
+  };
+
+  const wireDnd = (container: HTMLElement, kind: 'participant' | 'message') => {
+    let dragFrom = -1;
+    container.addEventListener('dragstart', (e) => {
+      const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
+      if (!row) return;
+      dragFrom = parseInt(row.dataset.idx || '-1', 10);
+      row.style.opacity = '0.4';
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+    });
+    container.addEventListener('dragend', (e) => {
+      const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
+      if (row) row.style.opacity = '';
+    });
+    container.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
+      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderTopColor = 'var(--border)'; });
+      if (row) row.style.borderTopColor = 'var(--accent)';
+    });
+    container.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
+      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderTopColor = 'var(--border)'; });
+      if (!row || dragFrom < 0) return;
+      const to = parseInt(row.dataset.idx || '-1', 10);
+      if (to < 0 || to === dragFrom) return;
+      const count = container.querySelectorAll('[data-idx]').length;
+      const order = Array.from({ length: count }, (_, i) => i);
+      order.splice(to, 0, order.splice(dragFrom, 1)[0]);
+      dragFrom = -1;
+      commitReorder(kind, order);
+    });
+  };
+
+  const renderArrangePanel = () => {
+    const pWrap = document.getElementById('fdeArrangeParticipants');
+    const mWrap = document.getElementById('fdeArrangeMessages');
+    if (!pWrap || !mWrap) return;
+    const parsed = splitDiagram(topologyContainer?.value || '');
+    pWrap.innerHTML = '';
+    mWrap.innerHTML = '';
+    let pi = 0, mi = 0;
+    for (const l of parsed) {
+      if (l.kind === 'participant') pWrap.appendChild(buildRow(l.label, pi++, 'participant'));
+      else if (l.kind === 'message') mWrap.appendChild(buildRow(l.label, mi++, 'message'));
+    }
+    if (!pi) pWrap.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">No participants yet.</div>';
+    if (!mi) mWrap.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">No steps yet.</div>';
+  };
+
+  const arrangeP = document.getElementById('fdeArrangeParticipants');
+  const arrangeM = document.getElementById('fdeArrangeMessages');
+  if (arrangeP) wireDnd(arrangeP, 'participant');
+  if (arrangeM) wireDnd(arrangeM, 'message');
+
+  document.getElementById('btnFdeViewArrange')?.addEventListener('click', () => setTopologyView('arrange'));
+
   topologyContainer?.addEventListener('input', () => {
     if (currentDiagramMode === 'future') {
       cachedDiagrams.futureDiagram = topologyContainer.value;
@@ -1485,6 +1637,7 @@ function setupPhase1Discovery(api: any): void {
     }
     paintDiagram();
     paintCompare();
+    renderArrangePanel();
   });
 
   btnCopyDiagram?.addEventListener('click', () => {
@@ -1614,6 +1767,8 @@ function setupPhase1Discovery(api: any): void {
         : `Still outstanding: ${st.missing.join(', ')}`;
     }
     setPhaseCompletion(1, st.complete ? 'complete' : (st.filled > 0 ? 'partial' : 'empty'));
+    // Keep the three-step rail honest as fields are filled in.
+    refreshStepRail();
     if (btnAdvance) {
       (btnAdvance as HTMLButtonElement).title = st.complete
         ? 'Advance to Phase 2: Engineering Core'
@@ -1978,6 +2133,70 @@ function setupPhase1Discovery(api: any): void {
     setTopologyView('diagram');
     await refreshVersionHistory();
   };
+
+  // --- Phase 1 step flow: three full-width steps, not three squeezed panels ---
+  // They stay one connected flow: completion is shown per step, any step can be
+  // revisited, and the rail reflects work done so far so an FDE can move back and
+  // forth through revisions with the client without losing their place.
+  const stepPanels: Record<number, string> = {
+    1: 'fdeStep1Panel',
+    2: 'fdeStep2Panel',
+    3: 'fdeStep3Panel'
+  };
+
+  function stepIsDone(step: number): boolean {
+    if (step === 1) {
+      return !!(txtRawAsk?.value || '').trim()
+        && !!(txtReframed?.value || '').trim()
+        && currentScopeRules.filter(r => r.enabled && r.text.trim()).length > 0;
+    }
+    if (step === 2) {
+      const n = readThreeNumbers();
+      return n.volume > 0 && n.handleTimeMins > 0 && n.hourlyWage > 0;
+    }
+    return !!(cachedDiagrams.futureDiagram || '').trim();
+  }
+
+  function refreshStepRail(): void {
+    for (let i = 1; i <= 3; i++) {
+      const btn = document.getElementById('btnFdeStep' + i);
+      if (!btn) continue;
+      const done = stepIsDone(i);
+      btn.classList.toggle('done', done && i !== currentDiscoveryStep);
+      btn.classList.toggle('active', i === currentDiscoveryStep);
+      btn.setAttribute('aria-selected', String(i === currentDiscoveryStep));
+      const dot = btn.querySelector('.fde-step-dot');
+      if (dot) dot.textContent = done ? '●' : '○';
+      if (dot) (dot as HTMLElement).style.color = done ? 'var(--success)' : 'var(--text-muted)';
+    }
+    const prev = document.getElementById('btnFdeStepPrev') as HTMLButtonElement | null;
+    const next = document.getElementById('btnFdeStepNext') as HTMLButtonElement | null;
+    if (prev) prev.disabled = currentDiscoveryStep === 1;
+    if (next) next.textContent = currentDiscoveryStep === 3 ? 'Review →' : 'Next →';
+  }
+
+  const goToStep = (step: number) => {
+    currentDiscoveryStep = Math.min(3, Math.max(1, step));
+    for (let i = 1; i <= 3; i++) {
+      const panel = document.getElementById(stepPanels[i]);
+      if (panel) panel.hidden = i !== currentDiscoveryStep;
+    }
+    refreshStepRail();
+    // Repaint the diagram when arriving at step 3 - SVG laid out while hidden
+    // measures wrong, so it must be drawn once the panel is actually visible.
+    if (currentDiscoveryStep === 3) { paintDiagram(); paintCompare(); }
+    const card = document.getElementById('phase1Card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById('btnFdeStep' + i)?.addEventListener('click', () => goToStep(i));
+  }
+  document.getElementById('btnFdeStepPrev')?.addEventListener('click', () => goToStep(currentDiscoveryStep - 1));
+  document.getElementById('btnFdeStepNext')?.addEventListener('click', () => {
+    if (currentDiscoveryStep === 3) { saveScopeHandler(false); return; }
+    goToStep(currentDiscoveryStep + 1);
+  });
 
   loadSavedState();
 }
