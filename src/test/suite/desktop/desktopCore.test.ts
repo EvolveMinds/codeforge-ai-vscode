@@ -243,17 +243,46 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     // Test invoking FDE Discovery State IPC handler
     const fdeGetStateFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.GET_STATE)!;
     const fdeState = await fdeGetStateFn(null);
+    // GET_STATE reads .evolve/fde_state.json from the active workspace. A clean
+    // checkout has no saved engagement, so assert on shape rather than on content
+    // that only exists once someone has used the Studio.
     assert.ok(fdeState.discovery !== undefined);
-    assert.ok(fdeState.discovery.rawClientAsk.length > 0);
+    assert.strictEqual(typeof fdeState.discovery.rawClientAsk, 'string');
 
     // Test invoking FDE Calculate ROI (The Controller's 3 Numbers)
     const fdeRoiFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.CALCULATE_ROI)!;
     const fdeRoi = await fdeRoiFn(null, { volume: 10000, handleTimeMins: 15, hourlyWage: 35 });
     assert.strictEqual(fdeRoi.volume, 10000);
-    assert.strictEqual(fdeRoi.monthlyCostSavedUsd, 61250);
-    assert.strictEqual(fdeRoi.annualSavingsUsd, 735000);
     assert.strictEqual(fdeRoi.fteHoursReclaimed, 1750);
-    assert.strictEqual(fdeRoi.fteCapacity, '10.9');
+    // Savings apply the loaded-cost multiplier (1.3x) to the raw wage: 1750h x $45.50.
+    assert.strictEqual(fdeRoi.monthlyCostSavedUsd, 79625);
+    assert.strictEqual(fdeRoi.annualSavingsUsd, 955500);
+    // Capacity uses productive hours per FTE month (135), not 160 calendar hours.
+    assert.strictEqual(fdeRoi.fteCapacity, '13.0');
+
+    // Every assumption behind the headline must be returned so an FDE can defend it.
+    assert.strictEqual(fdeRoi.assumptions.automationRatioPct, 70);
+    assert.strictEqual(fdeRoi.assumptions.loadedCostMultiplier, 1.3);
+    assert.strictEqual(fdeRoi.assumptions.productiveHoursPerMonth, 135);
+    assert.ok(Array.isArray(fdeRoi.derivation) && fdeRoi.derivation.length > 0);
+
+    // A range, not a false-precision point estimate.
+    assert.strictEqual(fdeRoi.range.lowMonthlyUsd, 63700);
+    assert.strictEqual(fdeRoi.range.highMonthlyUsd, 95550);
+
+    // Error-rate reduction is NOT asserted as a constant: with no measured baseline
+    // supplied it must report as unknown rather than inventing a percentage.
+    assert.strictEqual(fdeRoi.errorRateReductionKnown, false);
+    assert.strictEqual(fdeRoi.errorRateReductionPct, 0);
+
+    // With a measured baseline it is derived from the client's own numbers.
+    const fdeRoiMeasured = await fdeRoiFn(null, {
+      volume: 10000, handleTimeMins: 15, hourlyWage: 35,
+      baselineErrorRatePct: 8, residualErrorRatePct: 2, reworkCostPerError: 12
+    });
+    assert.strictEqual(fdeRoiMeasured.errorRateReductionKnown, true);
+    assert.strictEqual(fdeRoiMeasured.errorRateReductionPct, 75);
+    assert.strictEqual(fdeRoiMeasured.monthlyReworkSavedUsd, 7200);
 
     // Test invoking FDE Save Discovery Scope
     const fdeSaveFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY)!;

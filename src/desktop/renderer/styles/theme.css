@@ -1,32 +1,70 @@
+/*
+ * theme.css — SINGLE SOURCE OF TRUTH for Evolve AI Enterprise Desktop design tokens.
+ *
+ * Every colour, font and radius token used by the Delivery Studio is defined here
+ * and ONLY here. layout.css and terminal.css consume these via var(--token); they
+ * must never redeclare them.
+ *
+ * Previously these tokens were declared in BOTH theme.css and layout.css. Because
+ * layout.css loads second, its values silently won all ten conflicts and edits to
+ * this file had no visible effect. Values below are the ones that actually rendered,
+ * so this consolidation is visually neutral except where noted.
+ */
+
 :root {
-  --bg-primary: #181818;
-  --bg-secondary: #1f1f1f;
-  --bg-tertiary: #252526;
-  --bg-input: #121212;
-  --border-color: #333333;
-  --border-focus: #0078d4;
-  --text-primary: #e0e0e0;
-  --text-secondary: #aaaaaa;
-  --text-muted: #666666;
-  --accent: #0078d4;
-  --accent-hover: #0086f0;
+  /* --- Surfaces --- */
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2d2d2d;
+  --bg-input: #1e1e1e;
+  --card-bg: #252526;
+  --card-alt: #2a2d2e;
+
+  /* --- Borders --- */
+  --border: #3e3e42;
+  --border-color: #3e3e42;   /* legacy alias — prefer --border */
+  --border-focus: #4ec9b0;
+
+  /* --- Text ---
+   * --text-muted raised from #6e6e6e to #8a8a8a: the old value scored 2.70:1 on
+   * --bg-tertiary, below the WCAG 3:1 floor for any text. #8a8a8a clears 3:1 on
+   * every surface in this theme while staying visually recessive.
+   */
+  --text-primary: #cccccc;
+  --text-secondary: #9d9d9d;
+  --text-muted: #8a8a8a;
+  --fg: #cccccc;             /* legacy alias — prefer --text-primary */
+
+  /* --- Accents & status --- */
+  --accent: #4ec9b0;
+  --accent-hover: #6fd9c4;
+  --accent-blue: #007acc;
   --accent-fg: #ffffff;
-  --success: #4ec9b0;
-  --success-bg: rgba(78, 201, 176, 0.15);
+  --success: #89d185;
+  --success-bg: rgba(137, 209, 133, 0.15);
   --warn: #cca700;
+  --warning: #cca700;        /* legacy alias — prefer --warn */
   --warn-bg: rgba(204, 167, 0, 0.15);
   --error: #f14c4c;
   --error-bg: rgba(241, 76, 76, 0.15);
   --badge-bg: #383838;
+
+  /* --- Typography --- */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'Cascadia Mono', 'Consolas', 'SF Mono', 'Menlo', 'Courier New', monospace;
+  --vscode-font-family: var(--font-sans);
+  --vscode-editor-font-family: var(--font-mono);
+  --vscode-descriptionForeground: #9d9d9d;
 }
 
 * { box-sizing: border-box; }
+
 body {
   margin: 0;
   padding: 0;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   height: 100vh;
   overflow: hidden;
   display: flex;

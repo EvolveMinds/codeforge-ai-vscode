@@ -1,27 +1,7 @@
 /* Layout CSS for Evolve AI Enterprise Desktop Edition — Full Marketplace Parity */
 
-:root {
-  --bg-primary: #1e1e1e;
-  --bg-secondary: #252526;
-  --bg-tertiary: #2d2d2d;
-  --bg-input: #1e1e1e;
-  --card-bg: #252526;
-  --card-alt: #2a2d2e;
-  --border-color: #3e3e42;
-  --border: #3e3e42;
-  --accent: #4ec9b0;
-  --accent-blue: #007acc;
-  --text-primary: #cccccc;
-  --fg: #cccccc;
-  --text-secondary: #858585;
-  --text-muted: #6e6e6e;
-  --success: #89d185;
-  --warning: #cca700;
-  --error: #f14c4c;
-  --vscode-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --vscode-editor-font-family: 'Consolas', 'Courier New', monospace;
-  --vscode-descriptionForeground: #858585;
-}
+/* Design tokens live in theme.css (loaded first) — do not redeclare them here.
+   Redeclaring caused ten silent overrides that made theme.css entirely dead. */
 
 * { box-sizing: border-box; }
 

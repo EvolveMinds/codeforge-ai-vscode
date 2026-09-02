@@ -49,6 +49,36 @@ import { LANGUAGES, languageById, detectSourceLanguage, deriveOutRelPath } from 
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Default ROI assumptions for the Controller's Three Numbers.
+ *
+ * These are STARTING POINTS, not truths. Every one of them is surfaced in the
+ * Delivery Studio UI and can be overridden per engagement, because an FDE has to
+ * be able to defend each number line-by-line in front of a client's controller.
+ * Nothing here is a hidden constant baked into a headline figure.
+ */
+const DEFAULT_ROI_ASSUMPTIONS = {
+  /** Share of manual handling time the solution realistically absorbs. */
+  automationRatioPct: 70,
+  /** Wage -> true employer cost (super/payroll tax/benefits/overheads). */
+  loadedCostMultiplier: 1.3,
+  /** Billable/productive hours per FTE month (not 160 calendar hours). */
+  productiveHoursPerMonth: 135,
+  /** Measured manual error rate. 0 = not supplied, so rework is not modelled. */
+  baselineErrorRatePct: 0,
+  /** Expected post-automation error rate. Never assumed to be zero. */
+  residualErrorRatePct: 0,
+  /** Average cost to detect and correct one downstream error. */
+  reworkCostPerError: 0,
+  /** +/- band applied to the expected case to produce a defensible range. */
+  confidenceBandPct: 20
+};
+
+function clampNum(v: number, lo: number, hi: number): number {
+  if (!Number.isFinite(v)) return lo;
+  return Math.min(hi, Math.max(lo, v));
+}
+
 const DATA_EXTENSIONS = ['.csv', '.tsv', '.parquet', '.xlsx', '.xls'];
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'out', 'dist', 'build', 'bin', '.vscode',
@@ -2023,10 +2053,38 @@ ${Array.isArray(data.outOfScope) && data.outOfScope.length > 0
       return { success: true, state: updated };
     });
 
-    ipc.handle(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, async (_: any, params: { volume: number; handleTimeMins: number; hourlyWage: number }) => {
+    ipc.handle(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, async (_: any, params: {
+      volume: number;
+      handleTimeMins: number;
+      hourlyWage: number;
+      automationRatioPct?: number;
+      loadedCostMultiplier?: number;
+      productiveHoursPerMonth?: number;
+      baselineErrorRatePct?: number;
+      residualErrorRatePct?: number;
+      reworkCostPerError?: number;
+    }) => {
       const vol = Math.max(0, params?.volume ?? 0);
       const time = Math.max(0, params?.handleTimeMins ?? 0);
       const wage = Math.max(0, params?.hourlyWage ?? 0);
+
+      // --- Explicit, FDE-editable assumptions (defaults are conservative industry norms) ---
+      const automationRatio = clampNum(params?.automationRatioPct ?? DEFAULT_ROI_ASSUMPTIONS.automationRatioPct, 0, 100) / 100;
+      const loadedMultiplier = clampNum(params?.loadedCostMultiplier ?? DEFAULT_ROI_ASSUMPTIONS.loadedCostMultiplier, 1, 3);
+      const productiveHours = clampNum(params?.productiveHoursPerMonth ?? DEFAULT_ROI_ASSUMPTIONS.productiveHoursPerMonth, 80, 200);
+      const baselineErrorRate = clampNum(params?.baselineErrorRatePct ?? DEFAULT_ROI_ASSUMPTIONS.baselineErrorRatePct, 0, 100);
+      const residualErrorRate = clampNum(params?.residualErrorRatePct ?? DEFAULT_ROI_ASSUMPTIONS.residualErrorRatePct, 0, 100);
+      const reworkCost = Math.max(0, params?.reworkCostPerError ?? DEFAULT_ROI_ASSUMPTIONS.reworkCostPerError);
+
+      const assumptions = {
+        automationRatioPct: Math.round(automationRatio * 100),
+        loadedCostMultiplier: loadedMultiplier,
+        productiveHoursPerMonth: productiveHours,
+        baselineErrorRatePct: baselineErrorRate,
+        residualErrorRatePct: residualErrorRate,
+        reworkCostPerError: reworkCost,
+        confidenceBandPct: DEFAULT_ROI_ASSUMPTIONS.confidenceBandPct
+      };
 
       if (vol === 0 || time === 0 || wage === 0) {
         return {
@@ -2037,26 +2095,71 @@ ${Array.isArray(data.outOfScope) && data.outOfScope.length > 0
           annualSavingsUsd: 0,
           fteHoursReclaimed: 0,
           fteCapacity: '0.0',
-          errorRateReductionPct: 0
+          errorRateReductionPct: 0,
+          errorRateReductionKnown: false,
+          monthlyReworkSavedUsd: 0,
+          range: { lowMonthlyUsd: 0, expectedMonthlyUsd: 0, highMonthlyUsd: 0, lowAnnualUsd: 0, expectedAnnualUsd: 0, highAnnualUsd: 0 },
+          assumptions,
+          derivation: [],
+          isComputed: false
         };
       }
 
-      // Automated assistance ratio: 70% efficiency uplift
+      // --- Labour capacity ---
       const totalHours = (vol * time) / 60;
-      const reclaimedHours = Math.round(totalHours * 0.70);
-      const monthlySavings = Math.round(reclaimedHours * wage);
-      const annualSavings = monthlySavings * 12;
-      const fteCapacity = (reclaimedHours / 160).toFixed(1);
+      const reclaimedHours = Math.round(totalHours * automationRatio);
+      const loadedHourlyCost = wage * loadedMultiplier;
+      const labourSavings = reclaimedHours * loadedHourlyCost;
+
+      // --- Error / rework reduction: derived from the FDE's own baseline vs residual rates ---
+      const errorRateReductionPct = baselineErrorRate > 0
+        ? Math.max(0, Math.round(((baselineErrorRate - residualErrorRate) / baselineErrorRate) * 100))
+        : 0;
+      const errorsAvoidedPerMonth = Math.max(0, (vol * (baselineErrorRate - residualErrorRate)) / 100);
+      const reworkSavings = Math.round(errorsAvoidedPerMonth * reworkCost);
+
+      const expectedMonthly = Math.round(labourSavings + reworkSavings);
+      const band = assumptions.confidenceBandPct / 100;
+      const lowMonthly = Math.round(expectedMonthly * (1 - band));
+      const highMonthly = Math.round(expectedMonthly * (1 + band));
+
+      const fteCapacity = (reclaimedHours / productiveHours).toFixed(1);
+
+      // --- Auditable derivation the FDE can read aloud to a controller ---
+      const derivation = [
+        `Manual effort: ${vol.toLocaleString()} items/mo x ${time} min = ${Math.round(totalHours).toLocaleString()} hrs/mo`,
+        `Automatable share: ${Math.round(automationRatio * 100)}% -> ${reclaimedHours.toLocaleString()} hrs/mo reclaimed`,
+        `Loaded cost: $${wage}/hr x ${loadedMultiplier} (on-costs) = $${loadedHourlyCost.toFixed(2)}/hr`,
+        `Labour saving: ${reclaimedHours.toLocaleString()} hrs x $${loadedHourlyCost.toFixed(2)} = $${Math.round(labourSavings).toLocaleString()}/mo`,
+        baselineErrorRate > 0
+          ? `Rework saving: ${errorsAvoidedPerMonth.toFixed(0)} errors avoided x $${reworkCost} = $${reworkSavings.toLocaleString()}/mo (${baselineErrorRate}% baseline -> ${residualErrorRate}% residual)`
+          : `Rework saving: not modelled (no baseline error rate supplied)`,
+        `Capacity: ${reclaimedHours.toLocaleString()} hrs / ${productiveHours} productive hrs = ${fteCapacity} FTE`,
+        `Range: +/-${assumptions.confidenceBandPct}% band applied to the expected case`
+      ];
 
       return {
         volume: vol,
         handleTimeMins: time,
         hourlyWage: wage,
-        monthlyCostSavedUsd: monthlySavings,
-        annualSavingsUsd: annualSavings,
+        monthlyCostSavedUsd: expectedMonthly,
+        annualSavingsUsd: expectedMonthly * 12,
         fteHoursReclaimed: reclaimedHours,
         fteCapacity,
-        errorRateReductionPct: 85
+        errorRateReductionPct,
+        errorRateReductionKnown: baselineErrorRate > 0,
+        monthlyReworkSavedUsd: reworkSavings,
+        range: {
+          lowMonthlyUsd: lowMonthly,
+          expectedMonthlyUsd: expectedMonthly,
+          highMonthlyUsd: highMonthly,
+          lowAnnualUsd: lowMonthly * 12,
+          expectedAnnualUsd: expectedMonthly * 12,
+          highAnnualUsd: highMonthly * 12
+        },
+        assumptions,
+        derivation,
+        isComputed: true
       };
     });
 
@@ -2107,7 +2210,7 @@ ${Array.isArray(data.outOfScope) && data.outOfScope.length > 0
         return {
           paradigm: 'Air-Gapped Grounded Policy RAG',
           recommendedLevel: 3,
-          rationale: 'Strict fact-retrieval from internal SOP manuals and policy documents. Enforces 128-token semantic chunking with 100% verified citations and Ed25519 cryptographic receipts.',
+          rationale: 'Strict fact-retrieval from internal SOP manuals and policy documents. Enforces 128-token semantic chunking with mandatory citation of every retrieved span, plus Ed25519 receipts for audit. Retrieval grounding substantially reduces but does not eliminate ungrounded output; residual rate must be measured by the Phase 4 golden-set evaluation.',
           codeSnippet: `// Level 3: Air-Gapped Policy RAG (<150ms)\nexport class GroundedPolicyRag {\n  public static async answer(query: string) {\n    return { answer: "Grounded in SOP §4.2", citations: ["SOP-4.2"], score: 0.99 };\n  }\n}`,
           scaffoldedCode: `// Level 3: Policy RAG\nexport async function queryHandbook(q: string) { return { grounded: true }; }`,
           ladderLevel: 3,
@@ -2227,7 +2330,7 @@ export class DeterministicRuleEngine {
     return {
       allowed: true,
       requiresSupervisorApproval: false,
-      reason: '100% Deterministic match passed. Zero hallucination risk.',
+      reason: 'Deterministic match passed - no generative step, so no hallucination surface.',
       latencyMs: Math.round(performance.now() - start),
       evaluatedAt: new Date().toISOString()
     };
@@ -2449,9 +2552,9 @@ describe('Level ${level} Architecture Target Verification', () => {
       }
 
       const titles: Record<number, { title: string; paradigm: string; latency: string; sla: string; governance: string }> = {
-        1: { title: 'Level 1: Deterministic Rule Engine & Compiled SQL', paradigm: 'Zero-Hallucination Deterministic Rule Gate', latency: '<5ms', sla: '0.0% Drift (Mathematically Exact)', governance: 'SOX / SOC2 Deterministic Gates' },
+        1: { title: 'Level 1: Deterministic Rule Engine & Compiled SQL', paradigm: 'Zero-Hallucination Deterministic Rule Gate', latency: '<5ms', sla: 'Deterministic - identical inputs always yield identical outputs', governance: 'SOX / SOC2 Deterministic Gates' },
         2: { title: 'Level 2: Fast Semantic Router & Intent Classifier', paradigm: 'Cosine Distance Embedding Triage', latency: '<30ms', sla: '98.0% Precision Boundary', governance: 'Threshold Cosine Gate (>0.85)' },
-        3: { title: 'Level 3: Air-Gapped Grounded Policy RAG', paradigm: 'Strict 128-Token Semantic Citation RAG', latency: '<150ms', sla: '100% Verified Citations', governance: 'Ed25519 Cryptographic Audit Receipts' },
+        3: { title: 'Level 3: Air-Gapped Grounded Policy RAG', paradigm: 'Strict 128-Token Semantic Citation RAG', latency: '<150ms', sla: 'Every answer citation-backed (residual rate measured in Phase 4)', governance: 'Ed25519 Cryptographic Audit Receipts' },
         4: { title: 'Level 4: Model Context Protocol (MCP) Tool Agent', paradigm: 'Standardized Sandboxed Read-Only Tool Execution', latency: '1.2s–3.0s', sla: 'Schema Validation Gate', governance: 'Model Context Protocol (MCP)' },
         5: { title: 'Level 5: Multi-Agent Swarm with Mandatory HITL Gates', paradigm: 'Multi-Role State Machine with Human Escalation Queue', latency: '5.0s–15.0s', sla: 'Supervised Multi-Role State Machine', governance: 'Human-in-the-Loop Supervisor Queue' }
       };
@@ -2543,17 +2646,41 @@ describe('Level ${level} Architecture Target Verification', () => {
         rationale = 'Structured tool execution required to query internal database schemas and external APIs via read-only Model Context Protocol (MCP).';
       } else if (needsPolicies || hasDocs) {
         recommendedLevel = 3;
-        rationale = 'Knowledge retrieval with strict citation guarantees required. 128-token semantic chunking ensures 0.0% ungrounded hallucinations.';
+        rationale = 'Knowledge retrieval with enforced citation required. 128-token semantic chunking with span-level attribution minimises ungrounded answers; the residual rate must be quantified against a golden set before client sign-off.';
       } else if (needsRouting) {
         recommendedLevel = 2;
         rationale = 'High-volume user requests can be classified within <30ms using cosine embeddings, bypassing expensive LLMs for 85% of traffic.';
       } else {
         recommendedLevel = 1;
-        rationale = 'Client requirements involve arithmetic calculations, threshold validation, or database matching. Level 1 Deterministic Rules deliver <5ms latency, $0 token cost, and 0.0% hallucination risk.';
+        rationale = 'Client requirements involve arithmetic calculations, threshold validation, or database matching. Level 1 Deterministic Rules deliver <5ms latency, no token cost, and no generative step - so there is no hallucination surface at this level.';
       }
 
-      const costSavingsVsSwarm = recommendedLevel === 1 ? 48000 : recommendedLevel === 2 ? 42000 : recommendedLevel === 3 ? 35000 : recommendedLevel === 4 ? 24000 : 0;
+      // --- Inference cost derived from token economics, not a lookup table ---
+      // LLM calls avoided per request at each level, and the typical token
+      // footprint of one Level-5 swarm turn. Both are stated so the FDE can
+      // substitute the client's real volume and contracted rate.
+      const LEVEL_LLM_CALLS_PER_REQUEST: Record<number, number> = { 1: 0, 2: 0.15, 3: 1, 4: 2.5, 5: 6 };
+      const TOKENS_PER_LLM_CALL = 3200;          // prompt + completion, one turn
+      const USD_PER_1K_TOKENS = 0.004;           // blended mid-tier cloud rate
+      const monthlyRequests = Math.max(0, state.discovery?.controllersThreeNumbers?.volume ?? 0);
+
+      const callsAtLevel = LEVEL_LLM_CALLS_PER_REQUEST[recommendedLevel] ?? 0;
+      const callsAtSwarm = LEVEL_LLM_CALLS_PER_REQUEST[5];
+      const callsAvoided = Math.max(0, callsAtSwarm - callsAtLevel);
+      const annualInferenceSavings = Math.round(
+        monthlyRequests * 12 * callsAvoided * (TOKENS_PER_LLM_CALL / 1000) * USD_PER_1K_TOKENS
+      );
+
       const latencyMs = recommendedLevel === 1 ? 2 : recommendedLevel === 2 ? 18 : recommendedLevel === 3 ? 120 : recommendedLevel === 4 ? 1800 : 8500;
+      const hasVolume = monthlyRequests > 0;
+
+      const costBasis = hasVolume
+        ? `${monthlyRequests.toLocaleString()} req/mo x ${callsAvoided.toFixed(2)} LLM calls avoided x ${TOKENS_PER_LLM_CALL} tok @ $${USD_PER_1K_TOKENS}/1k`
+        : 'Enter the monthly volume in Phase 1 to compute inference cost against this engagement.';
+
+      const goldenRuleStatement = hasVolume
+        ? `Delivering at Level ${recommendedLevel} instead of a naive Level 5 Swarm cuts typical response latency from ~${(8500 / 1000).toFixed(1)}s to ~${latencyMs < 1000 ? latencyMs + 'ms' : (latencyMs / 1000).toFixed(1) + 's'}, and avoids an estimated $${annualInferenceSavings.toLocaleString()}/yr in LLM inference at the volume entered in Phase 1 (${costBasis}).`
+        : `Delivering at Level ${recommendedLevel} instead of a naive Level 5 Swarm cuts typical response latency from ~${(8500 / 1000).toFixed(1)}s to ~${latencyMs < 1000 ? latencyMs + 'ms' : (latencyMs / 1000).toFixed(1) + 's'}. Inference savings are not yet quantified — enter the monthly volume in Phase 1 to compute them.`;
 
       return {
         success: true,
@@ -2561,8 +2688,17 @@ describe('Level ${level} Architecture Target Verification', () => {
         detectedSignals,
         rationale,
         projectedLatencyMs: latencyMs,
-        projectedAnnualSavings: costSavingsVsSwarm,
-        goldenRuleStatement: `Delivering at Level ${recommendedLevel} instead of a naive Level 5 Swarm provides ${Math.round(8500 / latencyMs)}x lower latency and eliminates $${costSavingsVsSwarm.toLocaleString()}/yr in unnecessary LLM inference costs.`
+        projectedAnnualSavings: annualInferenceSavings,
+        savingsAreEstimated: hasVolume,
+        costBasis,
+        costModel: {
+          monthlyRequests,
+          llmCallsAvoidedPerRequest: callsAvoided,
+          tokensPerCall: TOKENS_PER_LLM_CALL,
+          usdPer1kTokens: USD_PER_1K_TOKENS
+        },
+        latencyNote: 'Latency figures are architectural reference values for each capability class, not measurements of this workspace.',
+        goldenRuleStatement
       };
     });
 

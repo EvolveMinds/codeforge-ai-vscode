@@ -607,6 +607,106 @@ function setupEngagementManager(api: any): void {
 }
 
 // --- PHASE 1: DISCOVER & FRAME COCKPIT ("REFUSING THE ASK") ---
+/** Per-phase completion state shown in the left nav rail. */
+type PhaseCompletion = 'empty' | 'partial' | 'complete';
+
+const phaseCompletionState: Record<number, PhaseCompletion> = {
+  1: 'empty', 2: 'empty', 3: 'empty', 4: 'empty', 5: 'empty'
+};
+
+const PHASE_COMPLETION_GLYPH: Record<PhaseCompletion, string> = {
+  empty: '\u25cb',
+  partial: '\u25d0',
+  complete: '\u25cf'
+};
+
+const PHASE_COMPLETION_LABEL: Record<PhaseCompletion, string> = {
+  empty: 'not started',
+  partial: 'in progress',
+  complete: 'complete'
+};
+
+/**
+ * Toasts are the app's primary feedback channel, so they must reach assistive
+ * technology too. The message is written into a persistent aria-live region;
+ * the visible toast is the same text, styled, and hidden from screen readers.
+ */
+function ensureToastLiveRegion(): HTMLElement {
+  let region = document.getElementById('appToastLiveRegion');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'appToastLiveRegion';
+    region.setAttribute('role', 'status');
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('aria-atomic', 'true');
+    region.style.cssText = 'position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;';
+    document.body.appendChild(region);
+  }
+  return region;
+}
+
+function showToast(message: string): void {
+  ensureToastLiveRegion().textContent = message;
+
+  const existing = document.getElementById('activeAppToast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'activeAppToast';
+  toast.innerText = message;
+  toast.setAttribute('aria-hidden', 'true');
+  toast.style.cssText = 'position: fixed; bottom: 32px; right: 24px; background: var(--bg-secondary); color: var(--accent); border: 1px solid var(--accent); padding: 10px 18px; border-radius: 6px; font-size: 12px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.4); z-index: 9999; animation: fadeIn 0.2s ease;';
+  document.body.appendChild(toast);
+
+  setTimeout(() => { toast.remove(); }, 3500);
+}
+
+/**
+ * Navigation is deliberately NOT blocked — a real engagement is non-linear and an
+ * FDE may need to jump ahead. The rail's job is to tell the truth about progress
+ * so nobody mistakes an untouched phase for a finished one.
+ */
+function setPhaseCompletion(phase: number, state: PhaseCompletion): void {
+  phaseCompletionState[phase] = state;
+  const btn = document.querySelector(`.phase-nav-btn[data-phase="${phase}"]`) as HTMLElement | null;
+  if (!btn) return;
+
+  let dot = btn.querySelector('.phase-status-dot') as HTMLElement | null;
+  if (!dot) {
+    dot = document.createElement('span');
+    dot.className = 'phase-status-dot';
+    btn.prepend(dot);
+  }
+  dot.textContent = PHASE_COMPLETION_GLYPH[state];
+  dot.style.color = state === 'complete' ? 'var(--success)'
+    : state === 'partial' ? 'var(--warn)'
+    : 'var(--text-muted)';
+
+  const base = (btn.getAttribute('data-base-label') || btn.textContent || '')
+    .replace(/^[\u25cb\u25d0\u25cf]\s*/, '').trim();
+  btn.setAttribute('aria-label', `${base} \u2014 ${PHASE_COMPLETION_LABEL[state]}`);
+}
+
+/** Unsaved-changes indicator in the Delivery Studio header. */
+function setUnsavedIndicator(dirty: boolean): void {
+  const el = document.getElementById('fdeUnsavedIndicator');
+  if (!el) return;
+  el.hidden = !dirty;
+  el.setAttribute('aria-hidden', String(!dirty));
+}
+
+function switchDeliveryPhase(phase: number): void {
+  document.querySelectorAll('.phase-nav-btn[data-phase]').forEach(btn => {
+    const isActive = parseInt(btn.getAttribute('data-phase') || '1', 10) === phase;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-current', isActive ? 'step' : 'false');
+  });
+  for (let i = 1; i <= 5; i++) {
+    const card = document.getElementById(`phase${i}Card`);
+    if (card) card.style.display = i === phase ? 'block' : 'none';
+  }
+}
+
 function setupPhase1Discovery(api: any): void {
   const selArchetype = document.getElementById('selFdeArchetype') as HTMLSelectElement;
   const txtRawAsk = document.getElementById('txtFdeRawAsk') as HTMLTextAreaElement;
@@ -693,6 +793,19 @@ function setupPhase1Discovery(api: any): void {
   const kpiHoursReclaimed = document.getElementById('kpiFdeHoursReclaimed');
   const kpiFteCapacity = document.getElementById('kpiFdeFteCapacity');
   const kpiErrorRateDrop = document.getElementById('kpiFdeErrorRateDrop');
+  const kpiErrorBasis = document.getElementById('kpiFdeErrorBasis');
+  const kpiRangeBar = document.getElementById('kpiFdeRangeBar');
+
+  // ROI assumption inputs — every headline number must be traceable to these.
+  const numAutomationRatio = document.getElementById('numFdeAutomationRatio') as HTMLInputElement;
+  const numLoadedMultiplier = document.getElementById('numFdeLoadedMultiplier') as HTMLInputElement;
+  const numProductiveHours = document.getElementById('numFdeProductiveHours') as HTMLInputElement;
+  const numBaselineError = document.getElementById('numFdeBaselineError') as HTMLInputElement;
+  const numResidualError = document.getElementById('numFdeResidualError') as HTMLInputElement;
+  const numReworkCost = document.getElementById('numFdeReworkCost') as HTMLInputElement;
+  const btnToggleAssumptions = document.getElementById('btnFdeToggleAssumptions');
+  const assumptionsPanel = document.getElementById('fdeAssumptionsPanel');
+  const derivationList = document.getElementById('fdeRoiDerivation');
 
   const btnRecalcRoi = document.getElementById('btnFdeRecalcRoi');
   const btnTabFuture = document.getElementById('btnFdeTabFutureDiagram');
@@ -706,6 +819,10 @@ function setupPhase1Discovery(api: any): void {
 
   const roiPill = document.getElementById('fdePhase1RoiPill');
   const statusBadge = document.getElementById('fdePhase1StatusBadge');
+
+  // --- Autosave + unsaved-changes tracking (an FDE must never lose a live client session) ---
+  let scopeDirty = false;
+  let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
 
   let currentDiagramMode: 'future' | 'legacy' = 'future';
   let cachedDiagrams: { futureDiagram?: string; legacyDiagram?: string } = {};
@@ -778,6 +895,32 @@ function setupPhase1Discovery(api: any): void {
     }
   };
 
+  const readAssumptions = () => ({
+    automationRatioPct: parseFloat(numAutomationRatio?.value || '70'),
+    loadedCostMultiplier: parseFloat(numLoadedMultiplier?.value || '1.3'),
+    productiveHoursPerMonth: parseFloat(numProductiveHours?.value || '135'),
+    baselineErrorRatePct: parseFloat(numBaselineError?.value || '0'),
+    residualErrorRatePct: parseFloat(numResidualError?.value || '0'),
+    reworkCostPerError: parseFloat(numReworkCost?.value || '0')
+  });
+
+  const setRoiBlank = (message: string, pillText: string) => {
+    if (kpiCostSavings) kpiCostSavings.innerText = '$0 / mo';
+    if (kpiAnnualSavings) kpiAnnualSavings.innerText = '$0 / year projected';
+    if (kpiHoursReclaimed) kpiHoursReclaimed.innerText = '0 Hours';
+    if (kpiFteCapacity) kpiFteCapacity.innerText = '0.0 Full-Time Equivalents';
+    if (kpiErrorRateDrop) kpiErrorRateDrop.innerText = 'Pending Scope Input';
+    if (kpiErrorBasis) kpiErrorBasis.innerText = 'Enter measured baseline vs residual error rate below';
+    if (kpiRangeBar) kpiRangeBar.innerText = message;
+    if (derivationList) derivationList.innerHTML = '<li>Enter volume, handle time and wage to see the full derivation.</li>';
+    if (roiPill) {
+      roiPill.innerText = pillText;
+      roiPill.style.background = 'rgba(255, 255, 255, 0.08)';
+      roiPill.style.color = 'var(--text-secondary)';
+      roiPill.style.borderColor = 'var(--border)';
+    }
+  };
+
   const computeRoi = async () => {
     const vol = parseInt(rngVolume?.value || '0', 10);
     const time = parseInt(rngHandleTime?.value || '0', 10);
@@ -788,37 +931,87 @@ function setupPhase1Discovery(api: any): void {
     if (lblHourlyWageVal) lblHourlyWageVal.innerText = `$${wage}/hr`;
 
     if (vol === 0 || time === 0 || wage === 0) {
-      if (kpiCostSavings) kpiCostSavings.innerText = '$0 / mo';
-      if (kpiAnnualSavings) kpiAnnualSavings.innerText = '$0 / year projected';
-      if (kpiHoursReclaimed) kpiHoursReclaimed.innerText = '0 Hours';
-      if (kpiFteCapacity) kpiFteCapacity.innerText = '0.0 Full-Time Equivalents';
-      if (kpiErrorRateDrop) kpiErrorRateDrop.innerText = 'Pending Scope Input';
-      if (roiPill) {
-        roiPill.innerText = '💰 ROI: Uncalculated (Blank Scope)';
-        roiPill.style.background = 'rgba(255, 255, 255, 0.08)';
-        roiPill.style.color = 'var(--text-secondary)';
-        roiPill.style.borderColor = 'var(--border)';
-      }
+      setRoiBlank('Awaiting scope input', '\u{1F4B0} ROI: Uncalculated (Blank Scope)');
       return;
     }
 
-    if (api?.fde?.calculateRoi) {
-      const res = await api.fde.calculateRoi({ volume: vol, handleTimeMins: time, hourlyWage: wage });
-      if (res && res.monthlyCostSavedUsd > 0) {
-        if (kpiCostSavings) kpiCostSavings.innerText = `$${res.monthlyCostSavedUsd.toLocaleString()} / mo`;
-        if (kpiAnnualSavings) kpiAnnualSavings.innerText = `$${res.annualSavingsUsd.toLocaleString()} / year projected`;
-        if (kpiHoursReclaimed) kpiHoursReclaimed.innerText = `${res.fteHoursReclaimed.toLocaleString()} Hours`;
-        if (kpiFteCapacity) kpiFteCapacity.innerText = `~${res.fteCapacity} Full-Time Equivalents`;
-        if (kpiErrorRateDrop) kpiErrorRateDrop.innerText = `-${res.errorRateReductionPct}% Reduction`;
-        if (roiPill) {
-          roiPill.innerText = `💰 $${(res.monthlyCostSavedUsd / 1000).toFixed(1)}k/mo Projected Savings`;
-          roiPill.style.background = 'rgba(137, 209, 133, 0.15)';
-          roiPill.style.color = 'var(--success)';
-          roiPill.style.borderColor = 'var(--success)';
+    if (!api?.fde?.calculateRoi) {
+      setRoiBlank('ROI service unavailable', '\u26A0\uFE0F ROI: Unavailable');
+      return;
+    }
+
+    try {
+      const res = await api.fde.calculateRoi({
+        volume: vol,
+        handleTimeMins: time,
+        hourlyWage: wage,
+        ...readAssumptions()
+      });
+
+      // Never leave a previous engagement's numbers on screen after a failed recompute.
+      if (!res || !res.isComputed) {
+        setRoiBlank('Calculation returned no result', '\u26A0\uFE0F ROI: Not calculated');
+        return;
+      }
+
+      if (kpiCostSavings) kpiCostSavings.innerText = `$${res.monthlyCostSavedUsd.toLocaleString()} / mo`;
+      if (kpiAnnualSavings) kpiAnnualSavings.innerText = `$${res.annualSavingsUsd.toLocaleString()} / year (expected case)`;
+      if (kpiHoursReclaimed) kpiHoursReclaimed.innerText = `${res.fteHoursReclaimed.toLocaleString()} Hours`;
+      if (kpiFteCapacity) kpiFteCapacity.innerText = `~${res.fteCapacity} Full-Time Equivalents`;
+
+      // Error reduction is only shown when the FDE supplied a measured baseline.
+      if (kpiErrorRateDrop) {
+        kpiErrorRateDrop.innerText = res.errorRateReductionKnown
+          ? `-${res.errorRateReductionPct}% Reduction`
+          : 'Not modelled';
+      }
+      if (kpiErrorBasis) {
+        kpiErrorBasis.innerText = res.errorRateReductionKnown
+          ? `${res.assumptions.baselineErrorRatePct}% baseline \u2192 ${res.assumptions.residualErrorRatePct}% residual \u00B7 $${res.monthlyReworkSavedUsd.toLocaleString()}/mo rework saved`
+          : 'Supply a measured baseline error rate to quantify this';
+      }
+
+      if (kpiRangeBar && res.range) {
+        kpiRangeBar.innerText =
+          `$${res.range.lowMonthlyUsd.toLocaleString()} \u2013 $${res.range.highMonthlyUsd.toLocaleString()} / mo`
+          + `  (expected $${res.range.expectedMonthlyUsd.toLocaleString()})`;
+      }
+
+      if (derivationList && Array.isArray(res.derivation)) {
+        derivationList.innerHTML = '';
+        for (const step of res.derivation) {
+          const li = document.createElement('li');
+          li.innerText = step;
+          derivationList.appendChild(li);
         }
       }
+
+      if (roiPill) {
+        roiPill.innerText = `\u{1F4B0} $${(res.range.lowMonthlyUsd / 1000).toFixed(1)}k\u2013$${(res.range.highMonthlyUsd / 1000).toFixed(1)}k/mo (est.)`;
+        roiPill.style.background = 'rgba(137, 209, 133, 0.15)';
+        roiPill.style.color = 'var(--success)';
+        roiPill.style.borderColor = 'var(--success)';
+      }
+    } catch (err) {
+      console.error('ROI calculation failed:', err);
+      setRoiBlank('Calculation failed \u2014 see console', '\u26A0\uFE0F ROI: Calculation failed');
+      showToast('\u26A0\uFE0F ROI calculation failed. Figures cleared to avoid showing stale numbers.');
     }
   };
+
+  // Recompute whenever any assumption changes - the headline must always match the panel.
+  [numAutomationRatio, numLoadedMultiplier, numProductiveHours,
+   numBaselineError, numResidualError, numReworkCost].forEach(el => {
+    el?.addEventListener('input', () => { computeRoi(); });
+  });
+
+  btnToggleAssumptions?.addEventListener('click', () => {
+    if (!assumptionsPanel) return;
+    const nowHidden = !assumptionsPanel.hidden;
+    assumptionsPanel.hidden = nowHidden;
+    btnToggleAssumptions.setAttribute('aria-expanded', String(!nowHidden));
+    btnToggleAssumptions.textContent = nowHidden ? 'Show assumptions' : 'Hide assumptions';
+  });
 
   const renderTopology = async (arch: string) => {
     if (api?.fde?.generateTopology) {
@@ -875,6 +1068,29 @@ function setupPhase1Discovery(api: any): void {
   rngVolume?.addEventListener('input', computeRoi);
   rngHandleTime?.addEventListener('input', computeRoi);
   rngHourlyWage?.addEventListener('input', computeRoi);
+
+  // --- Dirty tracking: any Phase 1 edit schedules an autosave and flags unsaved work ---
+  [txtRawAsk, txtRisk, txtReframed].forEach(el => el?.addEventListener('input', markScopeDirty));
+  [rngVolume, rngHandleTime, rngHourlyWage].forEach(el => el?.addEventListener('input', markScopeDirty));
+  [numAutomationRatio, numLoadedMultiplier, numProductiveHours,
+   numBaselineError, numResidualError, numReworkCost].forEach(el => el?.addEventListener('input', markScopeDirty));
+  selArchetype?.addEventListener('change', markScopeDirty);
+
+  // Ctrl/Cmd+S saves the scope — this tool is used live in client meetings.
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      saveScopeHandler(false);
+    }
+  });
+
+  // Last-resort guard if the window is closed with unsaved scope changes.
+  window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
+    if (scopeDirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
   btnRecalcRoi?.addEventListener('click', () => {
     computeRoi();
     showToast('⚡ Financial ROI recalculation complete');
@@ -897,6 +1113,63 @@ function setupPhase1Discovery(api: any): void {
       topologyContainer.value = cachedDiagrams.legacyDiagram;
     }
   });
+
+  // --- Phase 1 completeness: drives the status badge, the nav rail and the Advance gate ---
+  interface ScopeCompleteness { complete: boolean; missing: string[]; filled: number; total: number; }
+
+  function evaluateScopeCompleteness(): ScopeCompleteness {
+    const missing: string[] = [];
+    if (!(txtRawAsk?.value || '').trim()) missing.push("customer's raw ask");
+    if (!(txtRisk?.value || '').trim()) missing.push('operational risk analysis');
+    if (!(txtReframed?.value || '').trim()) missing.push('reframed production goal');
+    if (currentScopeRules.filter(r => r.enabled && r.text.trim()).length === 0) missing.push('at least one out-of-scope boundary');
+    const vol = parseInt(rngVolume?.value || '0', 10);
+    const time = parseInt(rngHandleTime?.value || '0', 10);
+    const wage = parseInt(rngHourlyWage?.value || '0', 10);
+    if (vol === 0 || time === 0 || wage === 0) missing.push("the Controller's three numbers");
+    const total = 5;
+    return { complete: missing.length === 0, missing, filled: total - missing.length, total };
+  }
+
+  function refreshScopeCompleteness(): void {
+    const st = evaluateScopeCompleteness();
+    if (statusBadge) {
+      if (st.complete) {
+        statusBadge.innerText = scopeDirty ? '\u25cf Scope complete \u2014 unsaved changes' : '\u2713 Scope complete & saved';
+        statusBadge.style.color = scopeDirty ? 'var(--warn)' : 'var(--success)';
+        statusBadge.style.borderColor = scopeDirty ? 'var(--warn)' : 'var(--success)';
+        statusBadge.style.background = scopeDirty ? 'rgba(204, 167, 0, 0.15)' : 'rgba(137, 209, 133, 0.15)';
+      } else {
+        statusBadge.innerText = `\u25cb Discovery ${st.filled}/${st.total} complete`;
+        statusBadge.style.color = 'var(--accent)';
+        statusBadge.style.borderColor = 'var(--accent)';
+        statusBadge.style.background = 'rgba(78, 201, 176, 0.15)';
+      }
+      statusBadge.title = st.complete
+        ? 'All Phase 1 inputs supplied.'
+        : `Still outstanding: ${st.missing.join(', ')}`;
+    }
+    setPhaseCompletion(1, st.complete ? 'complete' : (st.filled > 0 ? 'partial' : 'empty'));
+    if (btnAdvance) {
+      (btnAdvance as HTMLButtonElement).title = st.complete
+        ? 'Advance to Phase 2: Engineering Core'
+        : `Advance anyway \u2014 still outstanding: ${st.missing.join(', ')}`;
+    }
+  };
+
+  function markScopeSaved(): void {
+    scopeDirty = false;
+    setUnsavedIndicator(false);
+    refreshScopeCompleteness();
+  }
+
+  function markScopeDirty(): void {
+    scopeDirty = true;
+    setUnsavedIndicator(true);
+    refreshScopeCompleteness();
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(() => { saveScopeHandler(true); }, 2500);
+  }
 
   const saveScopeHandler = async (silent = false) => {
     const rawAsk = txtRawAsk?.value || '';
@@ -929,13 +1202,15 @@ function setupPhase1Discovery(api: any): void {
 
     if (api?.fde?.saveDiscovery) {
       await api.fde.saveDiscovery(payload);
-      if (statusBadge) {
-        statusBadge.innerText = '✓ Scope & ROI Validated';
-        statusBadge.style.color = 'var(--success)';
-        statusBadge.style.borderColor = 'var(--success)';
-        statusBadge.style.background = 'rgba(137, 209, 133, 0.15)';
+      markScopeSaved();
+      // The badge reports what is ACTUALLY complete, never a blanket "validated".
+      refreshScopeCompleteness();
+      if (!silent) {
+        const st = evaluateScopeCompleteness();
+        showToast(st.complete
+          ? '💾 Discovery scope saved — all Phase 1 inputs complete'
+          : `💾 Draft saved — still outstanding: ${st.missing.join(', ')}`);
       }
-      if (!silent) showToast('💾 Discovery Scope & Controller\'s 3 Numbers committed to FDE Context');
     }
   };
 
@@ -1233,7 +1508,15 @@ function setupPhase1Discovery(api: any): void {
         console.warn('Failed to load FDE state:', err);
       }
     }
+    // Reflect restored state in the badge/rail immediately, and treat it as saved.
+    markScopeSaved();
+
+    // Empty state should teach, not show zeros. With no saved engagement we leave the
+    // fields blank (the FDE's own words matter) but point at the seeded archetypes,
+    // which carry realistic volumes, risks and scope locks to work from.
     if (!hasLoadedSavedNumbers) {
+      if (kpiRangeBar) kpiRangeBar.innerText = 'Pick an archetype above, or describe the ask, to compute a range';
+      if (roiPill) roiPill.title = 'Load an archetype preset or enter the three numbers to calculate ROI.';
       if (rngVolume) rngVolume.value = '0';
       if (rngHandleTime) rngHandleTime.value = '0';
       if (rngHourlyWage) rngHourlyWage.value = '0';
@@ -4670,16 +4953,6 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
   });
 }
 
-function switchDeliveryPhase(phase: number): void {
-  currentActiveDeliveryPhase = phase;
-  document.querySelectorAll('.phase-nav-btn[data-phase]').forEach(btn => {
-    btn.classList.toggle('active', parseInt(btn.getAttribute('data-phase') || '1', 10) === phase);
-  });
-  for (let i = 1; i <= 5; i++) {
-    const card = document.getElementById(`phase${i}Card`);
-    if (card) card.style.display = i === phase ? 'block' : 'none';
-  }
-}
 
 // --- MULTI-CLOUD HUB ---
 function setupCloudHub(api: any): void {
@@ -7147,17 +7420,3 @@ function setupModals(api: any): void {
   });
 }
 
-function showToast(message: string): void {
-  const existing = document.getElementById('activeAppToast');
-  if (existing) existing.remove();
-
-  const toast = document.createElement('div');
-  toast.id = 'activeAppToast';
-  toast.innerText = message;
-  toast.style.cssText = 'position: fixed; bottom: 32px; right: 24px; background: #252526; color: #4ec9b0; border: 1px solid #4ec9b0; padding: 10px 18px; border-radius: 6px; font-size: 12px; font-weight: 600; box-shadow: 0 4px 16px rgba(0,0,0,0.4); z-index: 9999; animation: fadeIn 0.2s ease;';
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.remove();
-  }, 3500);
-}
