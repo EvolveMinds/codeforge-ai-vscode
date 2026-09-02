@@ -10,4 +10,5 @@ export interface RlsPolicyResult {
   testVerificationSql: string;
   documentation: string;
   writtenPath: string;
+  sql?: string;
 }

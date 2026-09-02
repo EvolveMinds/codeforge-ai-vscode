@@ -31,6 +31,7 @@
 - **Convert code between 26 languages** *(v2.12)* — side by side with the original plus a translation fidelity report. → [docs/CODE_CONVERSION.md](docs/CODE_CONVERSION.md)
 - **Build data reports instead of receiving them** *(v2.13)* — compose block-by-block charts directly from real CSV/Excel/Parquet data. → [docs/DATA_ANALYSIS.md](docs/DATA_ANALYSIS.md)
 - **Zero-AI Offline Suite & Air-Gapped Mode** *(v2.16)* — 100% offline developer & data engineering tools: multi-dialect SQL formatter (Databricks, Snowflake, BigQuery, Postgres, DuckDB), dataset profiler & dbt test generator, Cron & Regex workbench, Terraform/Docker security linters, AST codemods, and a strict air-gap network blocker. → [docs/OFFLINE_SUITE.md](docs/OFFLINE_SUITE.md)
+- **Local (Community) vs. Paid (Enterprise) Management Guide** — comprehensive architectural specification on how the Free Community and Commercial Enterprise editions are managed, cryptographically licensed (Ed25519), and tested locally. → [docs/LOCAL_VS_PAID_MANAGEMENT.md](docs/LOCAL_VS_PAID_MANAGEMENT.md)
 
 > Also works in **Cursor**, **VSCodium**, and other VS Code forks.
 

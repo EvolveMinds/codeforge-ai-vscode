@@ -13,5 +13,6 @@ export interface ReverseEtlResult {
   pythonWorker: string;
   typeScriptWorker: string;
   dockerCompose: string;
+  workerCode?: string;
   writtenFiles: { pythonWorkerPath: string; typeScriptWorkerPath: string };
 }

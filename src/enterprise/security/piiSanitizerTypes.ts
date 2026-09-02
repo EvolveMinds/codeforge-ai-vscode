@@ -14,5 +14,6 @@ export interface PiiSanitizeResult {
   stagingModelSql: string;
   pythonSanitizerCode: string;
   auditMarkdown: string;
+  maskingScript?: string;
   writtenFiles: { dbtMacroPath: string; stagingModelPath: string; pythonPath: string };
 }

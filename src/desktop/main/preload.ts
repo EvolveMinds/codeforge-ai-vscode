@@ -167,8 +167,19 @@ const desktopApi = {
     calculateRoi: (params: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, params),
     generateTopology: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, req),
     evaluateRuleVsModel: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.EVALUATE_RULE_VS_MODEL, req),
+    scaffoldLadderLevel: (req: { level: number; config?: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SCAFFOLD_LADDER_LEVEL, req),
+    scaffoldMcpToolServer: (req?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SCAFFOLD_MCP_TOOL_SERVER, req),
     runGoldenBenchmark: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RUN_GOLDEN_BENCHMARK, req),
-    verifyGroundedness: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS, req)
+    exportBenchmarkReport: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.EXPORT_BENCHMARK_REPORT, data),
+    verifyGroundedness: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS, req),
+    aiAnalyzeRawAsk: (req: { rawAsk: string; archetype?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_ANALYZE_RAW_ASK, req),
+    aiGenerateTopology: (req: { rawAsk: string; reframedGoal: string; archetype?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, req),
+    snapshotScopeVersion: (req: { message: string; data: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SNAPSHOT_SCOPE_VERSION, req),
+    getScopeVersions: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_SCOPE_VERSIONS),
+    restoreScopeVersion: (versionId: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RESTORE_SCOPE_VERSION, versionId),
+    exportClientAlignmentMemo: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.EXPORT_CLIENT_ALIGNMENT_MEMO, data),
+    setArchitectureTarget: (req: { level: number; rationale?: string; latencyBudget?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SET_ARCHITECTURE_TARGET, req),
+    analyzeWorkspaceArchitecture: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ANALYZE_WORKSPACE_ARCHITECTURE)
   }
 };
 

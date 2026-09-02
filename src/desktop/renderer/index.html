@@ -84,6 +84,31 @@
       color: var(--accent);
       border-bottom-color: var(--accent);
     }
+    .deploy-prov-tab {
+      padding: 7px 14px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+    .deploy-prov-tab:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
+    .deploy-prov-tab.active {
+      background: rgba(78, 201, 176, 0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 10px rgba(78, 201, 176, 0.15);
+    }
     pre code {
       display: block;
       padding: 10px;
@@ -208,52 +233,63 @@
           <!-- DIAGRAMMATIC ROADMAP & PLAYBOOK BANNER -->
           <div id="roadmapBanner" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 18px 22px; margin-bottom: 18px; box-shadow: 0 6px 20px rgba(0,0,0,0.3);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-              <h4 style="margin: 0; font-size: 15px; color: var(--accent); font-weight: 700;">🗺️ 14-Day Forward Deployed Delivery Roadmap &amp; Playbook</h4>
+              <h4 style="margin: 0; font-size: 15px; color: var(--accent); font-weight: 700;">🗺️ 14-Day Forward Deployed Delivery Roadmap &amp; Playbook (Canonical 5-Phase System)</h4>
               <button class="btn-quick" id="btnCloseRoadmap" style="font-size: 12px;">✕ Close</button>
             </div>
             
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px;">
-              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border-top: 3px solid var(--accent);">
-                <div style="font-size: 11px; font-weight: bold; color: var(--accent);">PHASE 1 (DAYS 1–3)</div>
-                <div style="font-size: 13px; font-weight: 600; margin: 4px 0; color: #fff;">Data &amp; Schema Ingest</div>
-                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
-                  • Ingest dirty CSV / Oracle / SQL<br>
-                  • Semantic field alignment<br>
-                  • Generate dbt / PySpark staging<br>
-                  • Cross-model dimensional joins &amp; marts
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px;">
+              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border-top: 3px solid var(--accent);">
+                <div style="font-size: 10px; font-weight: bold; color: var(--accent); text-transform: uppercase;">PHASE 1 (DAYS 1–2)</div>
+                <div style="font-size: 12px; font-weight: 700; margin: 4px 0; color: #fff;">Discover &amp; Frame</div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.4;">
+                  • Refuse impossible asks<br>
+                  • Scope boundaries &amp; tags<br>
+                  • Controller's 3 Numbers (ROI)<br>
+                  • Sequence workflow topology
                 </div>
               </div>
 
-              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border-top: 3px solid var(--accent);">
-                <div style="font-size: 11px; font-weight: bold; color: var(--accent);">PHASE 2 (DAYS 4–7)</div>
-                <div style="font-size: 13px; font-weight: 600; margin: 4px 0; color: #fff;">Client API Integrations</div>
-                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
-                  • Paste cURL / OpenAPI specs<br>
-                  • Generate typed TypeScript/Python SDK<br>
-                  • Exponential backoff &amp; rate limits<br>
-                  • Offline mock unit test fixtures
+              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border-top: 3px solid #60a5fa;">
+                <div style="font-size: 10px; font-weight: bold; color: #60a5fa; text-transform: uppercase;">PHASE 2 (DAYS 3–5)</div>
+                <div style="font-size: 12px; font-weight: 700; margin: 4px 0; color: #fff;">Engineering Core</div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.4;">
+                  • Live DB &amp; lakehouse wire<br>
+                  • Semantic schema mapper<br>
+                  • Dimensional dbt marts<br>
+                  • Resilient client API SDKs
                 </div>
               </div>
 
-              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border-top: 3px solid var(--accent);">
-                <div style="font-size: 11px; font-weight: bold; color: var(--accent);">PHASE 3 (DAYS 8–11)</div>
-                <div style="font-size: 13px; font-weight: 600; margin: 4px 0; color: #fff;">Validate &amp; Pilot Deploy</div>
-                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
-                  • Multi-cloud parameter matrix<br>
-                  • Deterministic Pre-Flight Audit<br>
-                  • Scaffold Terraform / K8s / Docker<br>
-                  • Execute deploy.sh / deploy.ps1
+              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border-top: 3px solid #34d399;">
+                <div style="font-size: 10px; font-weight: bold; color: #34d399; text-transform: uppercase;">PHASE 3 (DAYS 6–8)</div>
+                <div style="font-size: 12px; font-weight: 700; margin: 4px 0; color: #fff;">AI Solutioning</div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.4;">
+                  • FDE 1–5 Capability Ladder<br>
+                  • Rule vs Model evaluator<br>
+                  • Air-gapped Policy RAG<br>
+                  • MCP tool server scaffold
                 </div>
               </div>
 
-              <div style="background: var(--bg-primary); padding: 14px; border-radius: 6px; border-top: 3px solid var(--accent);">
-                <div style="font-size: 11px; font-weight: bold; color: var(--accent);">PHASE 4 (DAYS 12–14)</div>
-                <div style="font-size: 13px; font-weight: 600; margin: 4px 0; color: #fff;">Handoff &amp; Runbooks</div>
-                <div style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">
-                  • Render Mermaid architecture diagrams<br>
-                  • Compile DEPLOYMENT_RUNBOOK.md<br>
-                  • Auto-generate DATA_DICTIONARY.md<br>
-                  • Operational handoff to client IT
+              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border-top: 3px solid #fbbf24;">
+                <div style="font-size: 10px; font-weight: bold; color: #fbbf24; text-transform: uppercase;">PHASE 4 (DAYS 9–11)</div>
+                <div style="font-size: 12px; font-weight: 700; margin: 4px 0; color: #fff;">Reliability &amp; Evals</div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.4;">
+                  • 50-case golden benchmark<br>
+                  • Ed25519 groundedness audit<br>
+                  • HITL supervisor simulator<br>
+                  • Zero hallucination SLA
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border-top: 3px solid #c084fc;">
+                <div style="font-size: 10px; font-weight: bold; color: #c084fc; text-transform: uppercase;">PHASE 5 (DAYS 12–14)</div>
+                <div style="font-size: 12px; font-weight: 700; margin: 4px 0; color: #fff;">Deploy &amp; Influence</div>
+                <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.4;">
+                  • Multi-cloud IaC &amp; MLOps<br>
+                  • Pre-flight health auditor<br>
+                  • Consolidated runbooks<br>
+                  • 5-min executive demo pitch
                 </div>
               </div>
             </div>
@@ -446,7 +482,7 @@
               <!-- ============================================================= -->
               <div class="content-card" id="phase1Card" style="display: block;">
                 <!-- Phase 1 Header -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
                       <span>🎯</span> Phase 1 · Discover &amp; Frame ("Sitting with AP. Refusing the Ask.")
@@ -461,6 +497,23 @@
                     <button class="btn-quick" id="btnFdeResetDiscovery">🔄 Reset Scope</button>
                     <button class="btn" id="btnFdeSaveDiscovery" style="padding: 5px 12px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save Scope</button>
                     <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 2: Engineering Core ➔</button>
+                  </div>
+                </div>
+
+                <!-- DISCOVERY VERSION CONTROL & CLIENT MEMO SHARING BAR -->
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #9cdcfe; display: flex; align-items: center; gap: 4px;">
+                      <span>📜</span> Scope Version:
+                    </span>
+                    <span id="badgeActiveScopeVersion" style="font-size: 10.5px; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; padding: 2px 8px; border-radius: 10px;">v1.0 (Draft Baseline)</span>
+                    <select id="selScopeVersionHistory" style="padding: 2px 6px; font-size: 10.5px; background: var(--card-bg); color: #ccc; border: 1px solid var(--border); border-radius: 4px;">
+                      <option value="latest">v1.0 - Current Working Draft</option>
+                    </select>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <button class="btn-quick" id="btnFdeSnapshotVersion" style="font-size: 10.5px; border-color: #38bdf8; color: #38bdf8; font-weight: 700;" title="Create a versioned snapshot of this scope in .evolve/scope_versions.json">📸 Snapshot Version</button>
+                    <button class="btn-quick" id="btnFdeExportMemo" style="font-size: 10.5px; background: rgba(78, 201, 176, 0.15); border-color: var(--accent); color: var(--accent); font-weight: 700;" title="Generate client-ready Scope Alignment Memo (.md & .html)">📑 Export Client Memo</button>
                   </div>
                 </div>
 
@@ -483,24 +536,35 @@
                   </div>
 
                   <div style="margin-bottom: 12px;">
-                    <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; font-weight: 600;">Customer's Raw Request / Unfiltered Ask:</label>
-                    <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;" placeholder="Describe what the customer asked for..."></textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Customer's Raw Request / Unfiltered Ask:</label>
+                      <button class="btn-quick" id="btnFdeAiAnalyzeAsk" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700; padding: 2px 10px; margin-bottom: 0;">
+                        ✨ AI Reframe &amp; Draft Scope
+                      </button>
+                    </div>
+                    <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;" placeholder="Describe what the customer asked for (e.g. 'Automate all invoice approvals and pay vendors autonomously via email')..."></textarea>
                   </div>
 
                   <!-- 3-Column Diagnostic Matrix -->
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
                     <!-- Col 1: Risk & Flaw -->
                     <div style="background: var(--card-bg); border: 1px solid rgba(244, 71, 71, 0.3); border-radius: 6px; padding: 10px;">
-                      <div style="font-size: 11px; font-weight: 700; color: var(--error); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                        <span>🔴</span> Operational Risk &amp; Fallacy
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--error); display: flex; align-items: center; gap: 4px;">
+                          <span>🔴</span> Operational Risk &amp; Fallacy
+                        </div>
+                        <button class="btn-quick" id="btnFdeAiDraftRisk" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: var(--error); border-color: rgba(244, 71, 71, 0.4);">✨ AI Audit</button>
                       </div>
                       <textarea id="txtFdeRiskAnalysis" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #ccc; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="Analyze why full automation or naive approach introduces operational, financial, or security risks..."></textarea>
                     </div>
 
                     <!-- Col 2: Reframed Engineering Goal -->
                     <div style="background: var(--card-bg); border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 6px; padding: 10px;">
-                      <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
-                        <span>🟢</span> Reframed Production Goal
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 4px;">
+                          <span>🟢</span> Reframed Production Goal
+                        </div>
+                        <button class="btn-quick" id="btnFdeAiDraftGoal" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: var(--accent); border-color: rgba(78, 201, 176, 0.4);">✨ AI Reframe</button>
                       </div>
                       <textarea id="txtFdeReframedGoal" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="State the realistic, high-ROI engineering problem statement agreed with business..."></textarea>
                     </div>
@@ -511,7 +575,10 @@
                         <div style="font-size: 11px; font-weight: 700; color: #e5b567; display: flex; align-items: center; gap: 4px;">
                           <span>🔒</span> Out-of-Scope Boundary Locks
                         </div>
-                        <button class="btn-quick" id="btnFdeAddScopeRule" style="font-size: 10px; padding: 2px 7px; margin-bottom: 0; background: var(--bg-primary); border-color: var(--accent); color: var(--accent); font-weight: 700;">+ Add Rule</button>
+                        <div style="display: flex; gap: 4px;">
+                          <button class="btn-quick" id="btnFdeAiSuggestLocks" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: #e5b567; border-color: rgba(229, 181, 103, 0.4);">✨ AI Locks</button>
+                          <button class="btn-quick" id="btnFdeAddScopeRule" style="font-size: 10px; padding: 2px 7px; margin-bottom: 0; background: var(--bg-primary); border-color: var(--accent); color: var(--accent); font-weight: 700;">+ Add</button>
+                        </div>
                       </div>
                       <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">
                         Explicit boundaries defined by the engineer &amp; business:
@@ -593,6 +660,7 @@
                       <span style="font-size: 11px; color: var(--text-secondary);">Interactive Mermaid sequence topology contrasting legacy manual bottlenecks against the proposed FDE AI system. Editable for custom projects.</span>
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center;">
+                      <button class="btn-quick" id="btnFdeAiGenTopology" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700;">✨ AI Synthesize Topology</button>
                       <button class="btn-quick active" id="btnFdeTabFutureDiagram" style="font-size: 10.5px;">🟢 Proposed AI Workflow</button>
                       <button class="btn-quick" id="btnFdeTabLegacyDiagram" style="font-size: 10.5px;">🔴 Legacy Bottlenecks</button>
                       <button class="btn-quick" id="btnFdeCopyDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);">📋 Copy Mermaid</button>
@@ -600,6 +668,26 @@
                   </div>
 
                   <textarea id="fdeTopologyPreviewContainer" rows="8" style="width: 100%; box-sizing: border-box; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #4ec9b0; resize: vertical; line-height: 1.45; outline: none;" placeholder="Enter custom Mermaid sequence diagram here..."></textarea>
+                </div>
+
+                <!-- CLIENT MEMO PREVIEW MODAL / DRAWER -->
+                <div id="fdeMemoModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                  <div style="background: #1e293b; border: 1px solid #3b82f6; border-radius: 10px; width: 850px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #334155;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">📑</span>
+                        <span style="font-weight: 700; color: #38bdf8; font-size: 14px;">Client-Shareable Scope Alignment Memorandum</span>
+                      </div>
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn-quick" id="btnCopyMemoContent" style="font-size: 11px;">📋 Copy Markdown</button>
+                        <button class="btn" id="btnOpenMemoHtml" style="font-size: 11px; padding: 4px 12px; background: #38bdf8; color: #0f172a; font-weight: 700;">🌐 Open HTML Brief</button>
+                        <button class="btn-quick" id="btnCloseMemoModal" style="font-size: 11px;">✕ Close</button>
+                      </div>
+                    </div>
+                    <div style="padding: 16px 20px; overflow-y: auto; flex: 1;">
+                      <pre id="fdeMemoPreviewText" style="margin: 0; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #cbd5e1; white-space: pre-wrap; line-height: 1.5;"></pre>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1020,41 +1108,311 @@
                   </div>
                 </div>
 
-                <!-- 3A: FDE 1-5 CAPABILITY LADDER SELECTOR -->
+                <!-- 3A: FDE 1-5 CAPABILITY LADDER & ARCHITECTURE DELIVERY TARGET -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-                  <div style="font-size: 12.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <span>🪜</span> Section 3A: FDE 1–5 Capability Ladder &amp; Architecture Target
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🪜</span> Section 3A: FDE 1–5 Capability Ladder &amp; Architecture Delivery Target
+                      </div>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        The golden FDE rule: <em>Always deliver at the lowest capability level that solves the client's problem.</em> Click any level to set the project target, inspect cross-industry blueprints, run live simulators, and scaffold production code.
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn" id="btnAnalyzeWorkspaceArchitecture" style="font-size: 11px; background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; cursor: pointer; padding: 4px 10px; border-radius: 4px;">⚡ Analyze Workspace &amp; Recommend Level</button>
+                      <button class="btn-quick" id="btnToggleLadderMatrix" style="font-size: 11px; border-color: #a855f7; color: #c084fc; font-weight: 700; cursor: pointer;">📊 5-Level Comparison Matrix</button>
+                    </div>
                   </div>
+
+                  <!-- Workspace Architecture Recommendation Drawer -->
+                  <div id="boxWorkspaceRecommendation" style="display: none; background: rgba(78, 201, 176, 0.08); border: 1.5px solid var(--accent); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                      <div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                          <span style="font-size: 14px;">🎯</span>
+                          <strong style="font-size: 12.5px; color: var(--accent);" id="recLevelHeading">Recommended Target: Level 2 (Fast Semantic Router)</strong>
+                          <span class="tag" style="background: rgba(78, 201, 176, 0.2); color: var(--accent); font-size: 10px; font-weight: 700; border: 1px solid var(--accent); padding: 1px 6px; border-radius: 4px;" id="recSavingsTag">$42k/yr Saved vs Swarm</span>
+                        </div>
+                        <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 5px; line-height: 1.45;" id="recRationaleText">
+                          Analysis detected 12 mapped API endpoints and financial transaction tokens. Recommending Level 2 Semantic Router to route 85% of traffic to Level 1 Deterministic SQL, achieving &lt;18ms latency with zero hallucination risk.
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;" id="recSignalsList">
+                          <!-- populated dynamically -->
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                        <button class="btn" id="btnAdoptRecommendation" style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 5px 12px; cursor: pointer; white-space: nowrap;">🎯 Adopt &amp; Set Target</button>
+                        <button class="btn-quick" id="btnDismissRecommendation" style="font-size: 11px; padding: 2px 7px;">✕</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 5 Level Cards Grid -->
                   <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;" id="fdeLadderGrid">
                     <!-- Level 1 -->
-                    <div class="fde-ladder-card active" data-level="1" style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 10px; cursor: pointer;">
-                      <div style="font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase;">Level 1</div>
+                    <div class="fde-ladder-card active" data-level="1" style="background: var(--card-bg); border: 1.5px solid var(--accent); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.2s ease;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase;">Level 1</span>
+                        <div style="display: flex; align-items: center;">
+                          <span style="font-size: 9px; background: rgba(78, 201, 176, 0.15); color: var(--accent); padding: 1px 5px; border-radius: 4px; font-weight: 700;">Deterministic</span>
+                          <span class="active-target-badge" id="targetBadgeL1" style="display: none; font-size: 8px; background: var(--accent); color: #1e1e1e; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">TARGET</span>
+                        </div>
+                      </div>
                       <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Rule Engine &amp; SQL</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">0 Hallucinations, &lt;5ms latency, compiled deterministic SQL.</div>
+                      <div style="font-size: 10px; color: #4ade80; font-weight: 600; margin-bottom: 4px;">⚡ &lt;5ms • 0 Tokens • 0 Drift</div>
+                      <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.35;">Deterministic compiled rules, SOX ceilings &amp; tolerance gates.</div>
                     </div>
+
                     <!-- Level 2 -->
-                    <div class="fde-ladder-card" data-level="2" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
-                      <div style="font-size: 10px; font-weight: 800; color: #60a5fa; text-transform: uppercase;">Level 2</div>
+                    <div class="fde-ladder-card" data-level="2" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.2s ease;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 10px; font-weight: 800; color: #60a5fa; text-transform: uppercase;">Level 2</span>
+                        <div style="display: flex; align-items: center;">
+                          <span style="font-size: 9px; background: rgba(96, 165, 250, 0.15); color: #60a5fa; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Semantic Router</span>
+                          <span class="active-target-badge" id="targetBadgeL2" style="display: none; font-size: 8px; background: #60a5fa; color: #1e1e1e; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">TARGET</span>
+                        </div>
+                      </div>
                       <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Semantic Router</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Intent classification, fast triage to specialized workers.</div>
+                      <div style="font-size: 10px; color: #60a5fa; font-weight: 600; margin-bottom: 4px;">⚡ &lt;30ms • 98% Precision</div>
+                      <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.35;">Fast cosine embedding triage to specialized worker engines.</div>
                     </div>
+
                     <!-- Level 3 -->
-                    <div class="fde-ladder-card" data-level="3" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
-                      <div style="font-size: 10px; font-weight: 800; color: #34d399; text-transform: uppercase;">Level 3</div>
-                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Grounded RAG</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">128-token semantic chunks, strict handbook citation.</div>
+                    <div class="fde-ladder-card" data-level="3" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.2s ease;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 10px; font-weight: 800; color: #34d399; text-transform: uppercase;">Level 3</span>
+                        <div style="display: flex; align-items: center;">
+                          <span style="font-size: 9px; background: rgba(52, 211, 153, 0.15); color: #34d399; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Grounded RAG</span>
+                          <span class="active-target-badge" id="targetBadgeL3" style="display: none; font-size: 8px; background: #34d399; color: #1e1e1e; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">TARGET</span>
+                        </div>
+                      </div>
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Grounded Policy RAG</div>
+                      <div style="font-size: 10px; color: #34d399; font-weight: 600; margin-bottom: 4px;">⚡ &lt;150ms • 100% Citations</div>
+                      <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.35;">128-token semantic chunks, strict handbook citation gate.</div>
                     </div>
+
                     <!-- Level 4 -->
-                    <div class="fde-ladder-card" data-level="4" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
-                      <div style="font-size: 10px; font-weight: 800; color: #fbbf24; text-transform: uppercase;">Level 4</div>
+                    <div class="fde-ladder-card" data-level="4" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.2s ease;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 10px; font-weight: 800; color: #fbbf24; text-transform: uppercase;">Level 4</span>
+                        <div style="display: flex; align-items: center;">
+                          <span style="font-size: 9px; background: rgba(251, 191, 36, 0.15); color: #fbbf24; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Tool Agent (MCP)</span>
+                          <span class="active-target-badge" id="targetBadgeL4" style="display: none; font-size: 8px; background: #fbbf24; color: #1e1e1e; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">TARGET</span>
+                        </div>
+                      </div>
                       <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Tool Agent (MCP)</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Model Context Protocol, dynamic DB/API tools.</div>
+                      <div style="font-size: 10px; color: #fbbf24; font-weight: 600; margin-bottom: 4px;">⚡ 1–3s • Sandboxed Tools</div>
+                      <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.35;">Model Context Protocol, zero direct write access to DB/APIs.</div>
                     </div>
+
                     <!-- Level 5 -->
-                    <div class="fde-ladder-card" data-level="5" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
-                      <div style="font-size: 10px; font-weight: 800; color: #c084fc; text-transform: uppercase;">Level 5</div>
+                    <div class="fde-ladder-card" data-level="5" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.2s ease;">
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 10px; font-weight: 800; color: #c084fc; text-transform: uppercase;">Level 5</span>
+                        <div style="display: flex; align-items: center;">
+                          <span style="font-size: 9px; background: rgba(192, 132, 252, 0.15); color: #c084fc; padding: 1px 5px; border-radius: 4px; font-weight: 700;">Swarm + HITL</span>
+                          <span class="active-target-badge" id="targetBadgeL5" style="display: none; font-size: 8px; background: #c084fc; color: #1e1e1e; font-weight: 800; padding: 1px 4px; border-radius: 3px; margin-left: 4px;">TARGET</span>
+                        </div>
+                      </div>
                       <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Multi-Agent Swarm</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Autonomous handoffs, supervisor approval gates.</div>
+                      <div style="font-size: 10px; color: #c084fc; font-weight: 600; margin-bottom: 4px;">⚡ 5–15s • Mandatory HITL</div>
+                      <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.35;">Autonomous handoffs with human supervisor escalation queue.</div>
+                    </div>
+                  </div>
+
+                  <!-- Deep Dive Canvas with Sub-Tabs -->
+                  <div id="fdeLadderDetailsBox" style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin-top: 14px;">
+                    <!-- Top Title and Action Bar -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                      <div>
+                        <strong style="font-size: 14px; color: #fff;" id="lblLadderTargetTitle">Level 1: Deterministic Rule Engine &amp; Compiled SQL</strong>
+                        <span class="brand-pill" style="margin-left: 8px; font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent);" id="lblLadderTargetBadge">&lt;5ms Latency • 0 Hallucinations</span>
+                        <span id="lblTargetActiveTag" style="margin-left: 6px; font-size: 10px; font-weight: 700; background: var(--accent); color: #1e1e1e; padding: 2px 6px; border-radius: 3px; display: none;">⭐ ACTIVE TARGET</span>
+                      </div>
+                      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                        <button class="btn" id="btnSetProjectTarget" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 800; cursor: pointer;">🎯 Set as Project Target</button>
+                        <button class="btn btn-secondary" id="btnScaffoldLadderLevel" style="padding: 5px 12px; font-size: 11px; font-weight: 700; cursor: pointer;">🚀 Scaffold Architecture</button>
+                        <button class="btn-quick" id="btnCopyLadderCode" style="padding: 5px 8px; font-size: 11px; cursor: pointer;">📋 Copy Code</button>
+                      </div>
+                    </div>
+
+                    <!-- Sub-Tabs for Details -->
+                    <div style="display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 12px; padding-bottom: 6px; flex-wrap: wrap;">
+                      <button class="btn-quick active" id="tabLadderOverview" style="font-size: 11px; font-weight: 700; cursor: pointer;">📖 Architecture &amp; Industry Lens</button>
+                      <button class="btn-quick" id="tabLadderSimulator" style="font-size: 11px; font-weight: 700; cursor: pointer;">⚡ Live Test Simulator</button>
+                      <button class="btn-quick" id="tabLadderCode" style="font-size: 11px; font-weight: 700; cursor: pointer;">💻 Production Code</button>
+                      <button class="btn-quick" id="tabLadderGate" style="font-size: 11px; font-weight: 700; cursor: pointer;">📋 Delivery Acceptance Gate</button>
+                      <button class="btn-quick" id="tabLadderMatrix" style="font-size: 11px; font-weight: 700; cursor: pointer;">📊 5-Level Comparison Matrix</button>
+                    </div>
+
+                    <!-- Panel 1: Overview & Multi-Industry Use Cases -->
+                    <div id="panelLadderOverview">
+                      <!-- 5 SLA Badges Strip -->
+                      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; background: var(--bg-primary); padding: 10px; border-radius: 6px; border: 1px solid var(--border);" id="ladderSlaStrip">
+                        <!-- Populated by JS -->
+                      </div>
+
+                      <!-- Multi-Industry Domain Lens Strip -->
+                      <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">🏢 Client Industry Lens:</span>
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                          <button class="btn-quick active domain-lens-btn" data-domain="all" id="btnLensAll" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;">🌐 Cross-Industry</button>
+                          <button class="btn-quick domain-lens-btn" data-domain="finance" id="btnLensFinance" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;">💰 FinOps &amp; Banking</button>
+                          <button class="btn-quick domain-lens-btn" data-domain="healthcare" id="btnLensHealthcare" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;">🏥 Health &amp; Life Sciences</button>
+                          <button class="btn-quick domain-lens-btn" data-domain="supply" id="btnLensSupply" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;">📦 Supply Chain &amp; ERP</button>
+                          <button class="btn-quick domain-lens-btn" data-domain="fraud" id="btnLensFraud" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;">🛡️ Fraud &amp; Risk/AML</button>
+                          <button class="btn-quick domain-lens-btn" data-domain="support" id="btnLensSupport" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;">🎧 Customer Operations</button>
+                        </div>
+                      </div>
+
+                      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px;">
+                        <div>
+                          <div style="font-size: 11.5px; font-weight: 700; color: #fff; margin-bottom: 6px;">🎯 What This Level Does:</div>
+                          <p style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5; margin: 0 0 10px 0;" id="lblLadderWhatItDoes">
+                            Zero hallucination SLA. Compiled SQL rules and TypeScript validation gates for all financial calculations, boundary limits, and audit logs.
+                          </p>
+                          <div style="font-size: 11.5px; font-weight: 700; color: #4ade80; margin-bottom: 6px;" id="lblLadderUseCasesHeader">💼 Production Use Cases:</div>
+                          <ul style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5; margin: 0 0 10px 0; padding-left: 18px;" id="lblLadderUseCases">
+                            <!-- Populated by JS -->
+                          </ul>
+                        </div>
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                          <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">⚙️ Execution Pipeline Topology:</div>
+                          <div id="lblLadderPipelineDiagram" style="font-family: monospace; font-size: 10.5px; color: #9cdcfe; line-height: 1.45; white-space: pre-wrap; background: #111; padding: 8px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 10px;"></div>
+                          <div style="font-size: 11px; font-weight: 700; color: #f87171; margin-bottom: 4px;">⚠️ When NOT to Use This Level:</div>
+                          <div id="lblLadderWhenNotToUse" style="font-size: 10.5px; color: #fca5a5; line-height: 1.4;"></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Panel 2: Live Interactive Test Simulator -->
+                    <div id="panelLadderSimulator" style="display: none;">
+                      <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                        <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px;" id="lblSimulatorTitle">
+                          ⚡ Level 1 Live Simulator: Deterministic Transaction Ceiling Gate
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="lblSimulatorDesc">
+                          Test how the deterministic rule engine verifies transaction thresholds without LLM latency or hallucination.
+                        </div>
+                        <div id="simulatorInputArea" style="margin-bottom: 10px;">
+                          <!-- Injected per level by JS -->
+                        </div>
+                        <button class="btn" id="btnRunSimulator" style="padding: 4px 14px; font-size: 11px; background: var(--success); color: #1e1e1e; font-weight: 700; cursor: pointer;">▶️ Execute Test Run</button>
+                      </div>
+                      <div id="simulatorResultBox" style="display: none; background: #181818; border: 1px solid var(--accent); border-radius: 6px; padding: 12px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px;">📊 Execution Result &amp; Audit Trace:</div>
+                        <pre id="simulatorResultText" style="margin: 0; font-family: monospace; font-size: 11px; color: #4ade80; white-space: pre-wrap;"></pre>
+                      </div>
+                    </div>
+
+                    <!-- Panel 3: Production Code -->
+                    <div id="panelLadderCode" style="display: none;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 11px; color: var(--text-secondary);" id="lblScaffoldedPath">File: src/solution/level_1_rule_engine.ts</span>
+                        <div style="display: flex; gap: 6px;">
+                          <span style="font-size: 10px; color: var(--accent); font-weight: 700;">Production-Ready TypeScript</span>
+                        </div>
+                      </div>
+                      <div style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 280px; overflow-y: auto; color: #cbd5e1; line-height: 1.45;" id="fdeLadderCodePreview"></div>
+                    </div>
+
+                    <!-- Panel 4: Delivery Acceptance Gate (Checklist) -->
+                    <div id="panelLadderGate" style="display: none;">
+                      <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                          <div>
+                            <div style="font-size: 12.5px; font-weight: 700; color: #fff;" id="lblGateLevelTitle">
+                              📋 Level 1 Delivery Acceptance Quality Gate
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                              FDE verification criteria required before promoting this architecture tier to production client handoff.
+                            </div>
+                          </div>
+                          <span class="tag" id="lblGateStatusTag" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); font-weight: 700; font-size: 10.5px; padding: 2px 8px; border-radius: 4px;">
+                            0 / 5 Criteria Verified
+                          </span>
+                        </div>
+
+                        <!-- Checklist Container -->
+                        <div id="ladderGateChecklistContainer" style="display: flex; flex-direction: column; gap: 8px;">
+                          <!-- populated dynamically per level -->
+                        </div>
+
+                        <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                          <button class="btn" id="btnVerifyAllGateCriteria" style="background: var(--success); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 5px 12px; cursor: pointer;">✓ Verify All Criteria for Handoff</button>
+                          <div style="font-size: 10.5px; color: var(--text-secondary);" id="lblGateAutoCheckNote">State persisted to .evolve/fde_state.json &amp; docs/ARCHITECTURE.md</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Panel 5: 5-Level Comparison Matrix -->
+                    <div id="panelLadderMatrix" style="display: none;">
+                      <div style="overflow-x: auto; margin-bottom: 12px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                          <thead>
+                            <tr style="background: var(--bg-primary); border-bottom: 2px solid var(--border);">
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Level</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Paradigm</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Latency</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Token Cost</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Hallucination SLA</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Governance</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Best For</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                              <td style="padding: 8px 10px; font-weight: 700; color: var(--accent);">Level 1</td>
+                              <td style="padding: 8px 10px;">Rule Engine &amp; SQL</td>
+                              <td style="padding: 8px 10px; color: #4ade80;">&lt;5ms</td>
+                              <td style="padding: 8px 10px;">$0.00 (0 tokens)</td>
+                              <td style="padding: 8px 10px; color: #4ade80;">0.0% (Zero)</td>
+                              <td style="padding: 8px 10px;">Deterministic Code</td>
+                              <td style="padding: 8px 10px;">Finance, SOX math, balance matching</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #60a5fa;">Level 2</td>
+                              <td style="padding: 8px 10px;">Semantic Router</td>
+                              <td style="padding: 8px 10px; color: #60a5fa;">&lt;30ms</td>
+                              <td style="padding: 8px 10px;">&lt;$0.0001</td>
+                              <td style="padding: 8px 10px;">&lt;0.1% (Triage only)</td>
+                              <td style="padding: 8px 10px;">Cosine Intent Classifier</td>
+                              <td style="padding: 8px 10px;">Support triage, language routing</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #34d399;">Level 3</td>
+                              <td style="padding: 8px 10px;">Grounded Policy RAG</td>
+                              <td style="padding: 8px 10px;">&lt;150ms</td>
+                              <td style="padding: 8px 10px;">~$0.001</td>
+                              <td style="padding: 8px 10px; color: #34d399;">100% Verified Citations</td>
+                              <td style="padding: 8px 10px;">128-tok Chunk Citations</td>
+                              <td style="padding: 8px 10px;">Healthcare policies, HR handbook, legal Q&amp;A</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #fbbf24;">Level 4</td>
+                              <td style="padding: 8px 10px;">Tool Agent (MCP)</td>
+                              <td style="padding: 8px 10px;">1.2s – 3.0s</td>
+                              <td style="padding: 8px 10px;">~$0.01</td>
+                              <td style="padding: 8px 10px;">Sandboxed Tool Gates</td>
+                              <td style="padding: 8px 10px;">Model Context Protocol</td>
+                              <td style="padding: 8px 10px;">ERP inventory check, carrier SLA query</td>
+                            </tr>
+                            <tr>
+                              <td style="padding: 8px 10px; font-weight: 700; color: #c084fc;">Level 5</td>
+                              <td style="padding: 8px 10px;">Multi-Agent Swarm</td>
+                              <td style="padding: 8px 10px;">5s – 15s</td>
+                              <td style="padding: 8px 10px;">~$0.05</td>
+                              <td style="padding: 8px 10px;">Supervised (HITL)</td>
+                              <td style="padding: 8px 10px;">Multi-Role State Machine</td>
+                              <td style="padding: 8px 10px;">Fraud investigation, loan underwriting</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 10px; font-size: 11px; color: #d8b4fe;">
+                        💡 <strong>The FDE Rule of Parsimony:</strong> "Clients often ask for Level 5 Swarms because of marketing hype. An expert FDE discovers that 80% of their operational volume can be solved by Level 1 Rules and Level 2 Routers, delivering 100x lower latency and zero hallucination risk."
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1065,7 +1423,10 @@
                     <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
                       <span>⚖️</span> Section 3B: Rule vs. Model Decision Gate Evaluator
                     </div>
-                    <button class="btn" id="btnEvaluateRuleModel" style="padding: 4px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Evaluate Gate</button>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn" id="btnEvaluateRuleModel" style="padding: 4px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Evaluate Gate</button>
+                      <button class="btn-quick" id="btnSaveRuleGateToProject" style="font-size: 11px;">💾 Save Gate to Project</button>
+                    </div>
                   </div>
                   <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                     <div>
@@ -1140,6 +1501,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       </div>
                     </div>
                     <button class="btn" id="btnScaffoldRagPolicy" style="width: 100%; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Scaffold Policy RAG Pipeline</button>
+                    <div id="p3RagResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;"></div>
                   </div>
 
                   <!-- MCP Scaffolder -->
@@ -1151,6 +1513,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       Expose secure database introspections and enterprise APIs as standardized MCP tools.
                     </p>
                     <button class="btn" id="btnScaffoldMcpServer" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Scaffold MCP Tool Server</button>
+                    <div id="p3McpResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;"></div>
                   </div>
                 </div>
               </div>
@@ -1183,7 +1546,10 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       </span>
                       <span style="font-size: 11px; color: var(--text-secondary);">Continuous automated regression test on real-world client edge cases.</span>
                     </div>
-                    <button class="btn" id="btnRunGoldenBenchmark" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Run 50-Case Benchmark</button>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn" id="btnRunGoldenBenchmark" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Run 50-Case Benchmark</button>
+                      <button class="btn-quick" id="btnExportBenchmarkReport" style="font-size: 11px;">📥 Export Report (.json/.md)</button>
+                    </div>
                   </div>
 
                   <!-- Benchmark KPI Dashboard -->
@@ -1191,22 +1557,52 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">ACCURACY SCORE</div>
                       <div id="lblBenchAccuracy" style="font-size: 20px; font-weight: 800; color: var(--success); margin: 4px 0;">98.0%</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">49 / 50 Passed</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);" id="lblBenchPassCount">49 / 50 Passed</div>
                     </div>
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">LATENCY (P50 / P95)</div>
-                      <div id="lblBenchLatency" style="font-size: 20px; font-weight: 800; color: var(--accent); margin: 4px 0;">38ms / 112ms</div>
+                      <div id="lblBenchLatency" style="font-size: 20px; font-weight: 800; color: var(--accent); margin: 4px 0;">18ms / 95ms</div>
                       <div style="font-size: 10px; color: var(--text-secondary);">SLA Target: &lt;200ms</div>
                     </div>
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">AVG COST / TASK</div>
                       <div id="lblBenchCost" style="font-size: 20px; font-weight: 800; color: #60a5fa; margin: 4px 0;">$0.0008</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Local Inference</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Air-Gapped Local</div>
                     </div>
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">GROUNDED CITATIONS</div>
                       <div id="lblBenchCitations" style="font-size: 20px; font-weight: 800; color: #e5b567; margin: 4px 0;">100.0%</div>
                       <div style="font-size: 10px; color: var(--text-secondary);">0 Hallucinations</div>
+                    </div>
+                  </div>
+
+                  <!-- 50-Case Results Table with Filter Bar -->
+                  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="display: flex; gap: 6px;" id="benchFilterButtons">
+                        <button class="btn-quick active" id="btnFilterAll" style="font-size: 10.5px; padding: 2px 8px;">All (50)</button>
+                        <button class="btn-quick" id="btnFilterPassed" style="font-size: 10.5px; padding: 2px 8px;">Passed (49)</button>
+                        <button class="btn-quick" id="btnFilterFailed" style="font-size: 10.5px; padding: 2px 8px;">Failed (1)</button>
+                      </div>
+                      <span style="font-size: 10.5px; color: var(--text-secondary);">Showing automated regression test suite</span>
+                    </div>
+
+                    <div style="max-height: 220px; overflow-y: auto;" id="benchTableScrollContainer">
+                      <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+                        <thead>
+                          <tr style="border-bottom: 1px solid var(--border); color: var(--text-secondary); font-size: 10px; text-transform: uppercase;">
+                            <th style="padding: 6px 8px;">#</th>
+                            <th style="padding: 6px 8px;">Category</th>
+                            <th style="padding: 6px 8px;">Test Case / Input</th>
+                            <th style="padding: 6px 8px;">Expected Outcome</th>
+                            <th style="padding: 6px 8px; text-align: center;">Status</th>
+                            <th style="padding: 6px 8px; text-align: right;">Latency</th>
+                          </tr>
+                        </thead>
+                        <tbody id="benchTableBody">
+                          <!-- Populated dynamically -->
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 </div>
@@ -1215,24 +1611,50 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                   <!-- Groundedness Verifier -->
                   <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                      <span>🛡️</span> Groundedness &amp; Citation Gate
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="font-weight: 700; color: #fff; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+                        <span>🛡️</span> Groundedness &amp; Citation Gate
+                      </div>
+                      <span class="brand-pill" style="font-size: 9.5px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent);">Ed25519 Signed</span>
                     </div>
-                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 8px 0;">
-                      Rejects ungrounded statements. Verifies source handbook citations before dispatch.
-                    </p>
+                    <div style="margin-bottom: 8px;">
+                      <label style="font-size: 10.5px; font-weight: 600;">Generated Output / Claim to Audit:</label>
+                      <textarea id="txtGroundedClaim" rows="2" style="width: 100%; margin-top: 2px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.</textarea>
+                    </div>
                     <button class="btn" id="btnVerifyGroundedness" style="width: 100%; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Verify Citation &amp; Sign Audit Log</button>
+                    <div id="fdeGroundednessResultBox" style="display: none; margin-top: 10px; background: var(--card-bg); border: 1px solid var(--success); border-radius: 6px; padding: 10px; font-size: 11px;">
+                      <div style="color: var(--success); font-weight: 700; margin-bottom: 4px;">✓ Citation 100% Grounded in Handbook §4.2</div>
+                      <div style="font-family: monospace; font-size: 10px; color: var(--text-secondary);" id="lblAuditSignature">Signature: ed25519_sig_valid</div>
+                    </div>
                   </div>
 
                   <!-- HITL Approval Simulator -->
                   <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                      <span>👤</span> Human-in-the-Loop (HITL) Supervisor Gate
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="font-weight: 700; color: #fff; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+                        <span>👤</span> Human-in-the-Loop (HITL) Supervisor Gate
+                      </div>
+                      <span class="brand-pill" style="font-size: 9.5px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">Threshold: &lt;$100 Auto</span>
                     </div>
                     <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 8px 0;">
-                      High confidence &lt; $100 auto-approved. Edge cases escalate to supervisor approval modal.
+                      Simulate high-confidence auto-clear versus supervisor approval modal routing.
                     </p>
-                    <button class="btn" id="btnSimulateHitl" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Simulate HITL Approval Flow</button>
+                    <button class="btn" id="btnSimulateHitl" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Simulate HITL Approval Queue</button>
+                    
+                    <div id="fdeHitlSimulationBox" style="display: none; margin-top: 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 6px;">
+                        <span style="font-size: 11px; font-weight: 700; color: #fff;">TX-9482 ($150.00 Refund Request)</span>
+                        <span style="font-size: 10px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 1px 6px; border-radius: 4px;">Awaiting Supervisor Approval</span>
+                      </div>
+                      <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px;">
+                        Trigger: Amount exceeds $100 automated ceiling. Customer: <code>cust_4920</code>.
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 4px; font-size: 10.5px;">✓ Approve &amp; Dispatch</button>
+                        <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 4px; font-size: 10.5px; color: var(--error);">✕ Reject</button>
+                      </div>
+                      <div id="lblHitlStatusResult" style="display: none; margin-top: 6px; font-size: 10.5px; font-weight: 700; text-align: center;"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1271,6 +1693,17 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <div id="auditFindingsExactList" style="margin-top: 6px; font-size: 11px; color: var(--text-secondary);">✓ All pre-flight checks passed. Workspace ready for cloud deployment.</div>
                     <button class="btn btn-secondary" id="btnCleanTempFilesExact" style="margin-top: 8px; font-size: 11px; padding: 4px 10px;">🧹 Clean All Temporary Files</button>
                   </div>
+                </div>
+
+                <!-- Provider Selection Tabs -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <div class="deploy-prov-tab active" id="tabProvGcp"><span>🌐</span> Google Cloud (GCP/Firebase)</div>
+                    <div class="deploy-prov-tab" id="tabProvAws"><span>🟧</span> Amazon Web Services (AWS)</div>
+                    <div class="deploy-prov-tab" id="tabProvAzure"><span>🔷</span> Microsoft Azure</div>
+                    <div class="deploy-prov-tab" id="tabProvDocker"><span>🐳</span> On-Prem / Air-Gapped Docker</div>
+                  </div>
+                  <button class="btn-quick" id="btnDiscoverCloudApi" style="margin-bottom: 0; font-size: 11px; cursor: pointer; padding: 6px 12px; border-radius: 4px; background: rgba(78, 201, 176, 0.1); border: 1px solid var(--accent); color: var(--accent); font-weight: 600;">⚡ Discover &amp; Auto-Fill (<span id="lblCloudProviderName">GCP</span> API)</button>
                 </div>
 
                 <!-- Multi-Cloud Deployment Parameters Matrix Card -->
@@ -1372,6 +1805,80 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   </button>
                 </div>
 
+                <!-- Result box for Infrastructure Scaffolding -->
+                <div id="p3ResultBox" style="margin-top: 14px; margin-bottom: 16px; display: none;">
+                  <div style="background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <div style="color: var(--accent); font-weight: 700; font-size: 12px;" id="p3ResultTitle">✓ Multi-Cloud Infrastructure Scaffolded</div>
+                      <div style="font-size: 11px; opacity: 0.9;" id="p3ResultBadge">Files written to workspace: <code>terraform/</code>, <code>k8s/</code>, <code>docker-compose.yml</code></div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn-quick" id="btnCopyP3Code" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; cursor: pointer;">📋 Copy</button>
+                    </div>
+                  </div>
+                  <pre class="code-preview" id="p3CodePreview" style="max-height: 240px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4;"></pre>
+                </div>
+
+                <!-- Automated CI/CD Infra Pipeline & Git Push Hub -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-top: 16px; margin-bottom: 18px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 16px;">🚀</span>
+                      <div>
+                        <strong style="font-size: 13px; color: var(--accent);">Automated CI/CD Infra Pipeline &amp; Git Push Hub</strong>
+                        <div style="font-size: 11px; opacity: 0.85; color: var(--text-secondary);">Generate ready-to-run CI/CD pipelines (GitHub Actions, GitLab CI, Bitbucket, Azure DevOps) and push to repository with 1-click execution.</div>
+                      </div>
+                    </div>
+                    <span id="cicdBadge" class="tag" style="background: var(--card-bg); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                      Ready to Scaffold
+                    </span>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">CI/CD Platform</label>
+                      <select id="selCicdPlatform" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="github" selected>GitHub Actions (.github/workflows/deploy.yml)</option>
+                        <option value="gitlab">GitLab CI/CD (.gitlab-ci.yml)</option>
+                        <option value="bitbucket">Bitbucket Pipelines (bitbucket-pipelines.yml)</option>
+                        <option value="azure">Azure DevOps Pipelines (azure-pipelines.yml)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Deployment Target Branch</label>
+                      <input type="text" id="cicdBranch" value="main" placeholder="main or pilot" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Deployment Tier</label>
+                      <select id="selCicdTier" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="pilot" selected>Pilot / Pre-Production</option>
+                        <option value="prod">Production</option>
+                        <option value="dev">Development / Staging</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn" id="btnScaffoldCicd" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">⚡ Scaffold CI/CD Pipeline File</button>
+                    <button class="btn btn-secondary" id="btnRunDeployScriptTerminal" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">💻 Run Deploy Script (Terminal)</button>
+                    <button class="btn" id="btnOneClickCommitPush" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">🚀 1-Click Commit &amp; Push to Git</button>
+                  </div>
+
+                  <!-- Result box for CI/CD Preview -->
+                  <div id="cicdResultBox" style="margin-top: 14px; display: none;">
+                    <div style="background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <div style="color: var(--accent); font-weight: 700; font-size: 12px;">✓ CI/CD Pipeline Scaffolded Successfully</div>
+                        <div style="font-size: 11px; opacity: 0.9;" id="cicdPathBadge">Location: <code>.github/workflows/deploy.yml</code></div>
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn-quick" id="btnCopyCicdCode" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; cursor: pointer;">📋 Copy</button>
+                      </div>
+                    </div>
+                    <pre class="code-preview" id="cicdCodePreview" style="max-height: 220px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4;"></pre>
+                  </div>
+                </div>
+
                 <!-- Runbook Factory Section -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -1385,19 +1892,38 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     </div>
                     <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 14px; font-size: 11px;">🚀 Generate All Runbooks</button>
                   </div>
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
-                    <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                    <div class="fde-doc-card active" id="cardDocArch" style="background: var(--card-bg); border: 1px solid var(--accent); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
                       <strong style="font-size: 11px; color: #fff;">🏛️ ARCHITECTURE.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Mermaid data lineage &amp; topology</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Lineage &amp; 5-Phase Topology</div>
                     </div>
-                    <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+                    <div class="fde-doc-card" id="cardDocDeploy" style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
                       <strong style="font-size: 11px; color: #fff;">🚀 DEPLOYMENT_RUNBOOK.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Operations, rollback &amp; diagnostics</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Rollback &amp; IT Diagnostics</div>
                     </div>
-                    <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
-                      <strong style="font-size: 11px; color: #fff;">📦 CLIENT_HANDOFF_COMPLETE.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Consolidated delivery package</div>
+                    <div class="fde-doc-card" id="cardDocDemo" style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                      <strong style="font-size: 11px; color: #fff;">🎤 EXECUTIVE_DEMO.md</strong>
+                      <div style="font-size: 10px; color: var(--text-secondary);">5-Minute CXO Presentation</div>
                     </div>
+                    <div class="fde-doc-card" id="cardDocComplete" style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
+                      <strong style="font-size: 11px; color: #fff;">📦 CLIENT_HANDOFF.md</strong>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Complete Delivery Package</div>
+                    </div>
+                  </div>
+
+                  <!-- Interactive Runbook Tabs & Preview Box -->
+                  <div id="p4ResultBox" style="display: none; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                      <div class="code-tabs" style="display: flex; gap: 8px;">
+                        <button class="code-tab active" id="tabDocArch" style="background: transparent; border: none; color: var(--accent); font-weight: 700; font-size: 11px; cursor: pointer;">ARCHITECTURE.md</button>
+                        <button class="code-tab" id="tabDocDeploy" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;">DEPLOYMENT_RUNBOOK.md</button>
+                        <button class="code-tab" id="tabDocDataDict" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;">DATA_DICTIONARY.md</button>
+                        <button class="code-tab" id="tabDocDemo" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;">EXECUTIVE_DEMO.md</button>
+                        <button class="code-tab" id="tabDocComplete" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;">CLIENT_HANDOFF_COMPLETE.md</button>
+                      </div>
+                      <button class="btn-quick" id="btnCopyRunbookDoc" style="padding: 2px 8px; font-size: 10.5px;">📋 Copy Document</button>
+                    </div>
+                    <pre class="code-preview" id="p4CodePreview" style="margin: 0; background: transparent; padding: 4px; font-family: monospace; font-size: 11px; color: #d4d4d4; max-height: 240px; overflow-y: auto; white-space: pre-wrap;"></pre>
                   </div>
                 </div>
 

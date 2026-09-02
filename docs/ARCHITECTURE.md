@@ -11,6 +11,9 @@ The design principle is **open for extension, closed for modification.** Adding 
 plugin requires zero changes to core code — only a new file in `plugins/` and one line in
 `plugins/index.ts`.
 
+> **Local vs. Paid (Enterprise) Architecture & Management**:  
+> For complete specifications on how the **Local / Community Edition** and **Paid / Enterprise Commercial Edition** are structured, cryptographically licensed, and locally managed, see **[docs/LOCAL_VS_PAID_MANAGEMENT.md](LOCAL_VS_PAID_MANAGEMENT.md)**.
+
 ---
 
 ## Layer diagram

@@ -101,6 +101,45 @@ export interface DataMartSession {
   createdAt: number;
 }
 
+export interface FdeDiscoveryState {
+  archetype?: string;
+  rawClientAsk?: string;
+  riskAnalysis?: string;
+  reframedProblem?: string;
+  outOfScope?: string[];
+  controllersThreeNumbers?: {
+    volume: number;
+    handleTimeMins: number;
+    hourlyWage: number;
+    projectedMonthlySavings?: number;
+    monthlyHoursReclaimed?: number;
+    threeYearValue?: number;
+  };
+  customFutureDiagram?: string;
+  customLegacyDiagram?: string;
+}
+
+export interface FdeAiSolutionState {
+  ladderLevel?: number;
+  ladderTitle?: string;
+  ruleModelParadigm?: string;
+  isGroundedRagScaffolded?: boolean;
+  ragStore?: string;
+  ragChunkSize?: number;
+  isMcpServerScaffolded?: boolean;
+}
+
+export interface FdeEvalsState {
+  accuracyScorePct?: number;
+  passedCases?: number;
+  totalCases?: number;
+  latencyP50Ms?: number;
+  latencyP95Ms?: number;
+  groundednessAuditSignature?: string;
+  hitlThreshold?: string;
+  hitlSimulatedApproved?: boolean;
+}
+
 export interface FdeEngagementState {
   id: string;
   clientName: string;
@@ -108,9 +147,12 @@ export interface FdeEngagementState {
   targetVpc: 'gcp-firebase' | 'aws' | 'docker' | 'azure';
   activePhase: 1 | 2 | 3 | 4 | 5;
   completedPhases: number[];
+  discovery?: FdeDiscoveryState;
   schemaMappings: SchemaMappingSession[];
   dataMarts?: DataMartSession[];
   apiConnectors: ApiConnectorSession[];
+  aiSolution?: FdeAiSolutionState;
+  evals?: FdeEvalsState;
   deployment?: DeploymentSession;
   activeDbConnection?: {
     dialect: string;

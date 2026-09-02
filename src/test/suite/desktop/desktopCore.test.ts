@@ -271,6 +271,39 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     assert.ok(fdeTopo.futureDiagram.includes('Rule vs Model Gate'));
     assert.ok(fdeTopo.legacyDiagram.includes('Manual Human Operator'));
 
+    // Test invoking FDE Evaluate Rule vs Model Gate
+    const fdeEvalGateFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.EVALUATE_RULE_VS_MODEL)!;
+    assert.ok(fdeEvalGateFn !== undefined, 'EVALUATE_RULE_VS_MODEL handler should be registered');
+    const mathEval = await fdeEvalGateFn(null, {
+      taskDescription: 'Reconcile ledger accounts and calculate daily revenue balance',
+      requiresStrictArithmetic: true,
+      latencyBudgetMs: 5
+    });
+    assert.strictEqual(mathEval.recommendedLevel, 1);
+    assert.strictEqual(mathEval.paradigm, 'Pure Rule Engine / Compiled SQL');
+
+    const routerEval = await fdeEvalGateFn(null, {
+      taskDescription: 'Triage customer support tickets and classify intent',
+      latencyBudgetMs: 25
+    });
+    assert.strictEqual(routerEval.recommendedLevel, 2);
+
+    // Test invoking Runbook Generator with empty/undefined state (must not throw)
+    const runbookFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS)!;
+    const runbookRes = await runbookFn(null, {});
+    assert.strictEqual(runbookRes.success, true);
+    assert.ok(runbookRes.architectureDoc.length > 0);
+
+    // Test invoking Reverse ETL with empty options (must not throw)
+    const revEtlFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.REVERSE_ETL)!;
+    const revEtlRes = await revEtlFn(null, {});
+    assert.ok(revEtlRes.pythonWorker.length > 0);
+
+    // Test invoking RLS Policies with empty options (must not throw)
+    const rlsFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RLS_POLICIES)!;
+    const rlsRes = await rlsFn(null, {});
+    assert.ok(rlsRes.policySql.length > 0);
+
     wsMgr.dispose();
     termMgr.dispose();
   });

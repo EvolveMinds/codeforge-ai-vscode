@@ -137,7 +137,18 @@ export const DESKTOP_CHANNELS = {
     CALCULATE_ROI: 'evolve:fde:calculate-roi',
     GENERATE_TOPOLOGY: 'evolve:fde:generate-topology',
     EVALUATE_RULE_VS_MODEL: 'evolve:fde:evaluate-rule-vs-model',
+    SCAFFOLD_LADDER_LEVEL: 'evolve:fde:scaffold-ladder-level',
+    SCAFFOLD_MCP_TOOL_SERVER: 'evolve:fde:scaffold-mcp-tool-server',
     RUN_GOLDEN_BENCHMARK: 'evolve:fde:run-golden-benchmark',
-    VERIFY_GROUNDEDNESS: 'evolve:fde:verify-groundedness'
+    EXPORT_BENCHMARK_REPORT: 'evolve:fde:export-benchmark-report',
+    VERIFY_GROUNDEDNESS: 'evolve:fde:verify-groundedness',
+    AI_ANALYZE_RAW_ASK: 'evolve:fde:ai-analyze-raw-ask',
+    AI_GENERATE_TOPOLOGY: 'evolve:fde:ai-generate-topology',
+    SNAPSHOT_SCOPE_VERSION: 'evolve:fde:snapshot-scope-version',
+    GET_SCOPE_VERSIONS: 'evolve:fde:get-scope-versions',
+    RESTORE_SCOPE_VERSION: 'evolve:fde:restore-scope-version',
+    EXPORT_CLIENT_ALIGNMENT_MEMO: 'evolve:fde:export-client-alignment-memo',
+    SET_ARCHITECTURE_TARGET: 'evolve:fde:set-architecture-target',
+    ANALYZE_WORKSPACE_ARCHITECTURE: 'evolve:fde:analyze-workspace-architecture'
   }
 } as const;
