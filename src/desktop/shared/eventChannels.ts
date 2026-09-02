@@ -135,6 +135,9 @@ export const DESKTOP_CHANNELS = {
     GET_STATE: 'evolve:fde:get-state',
     SAVE_DISCOVERY: 'evolve:fde:save-discovery',
     CALCULATE_ROI: 'evolve:fde:calculate-roi',
-    GENERATE_TOPOLOGY: 'evolve:fde:generate-topology'
+    GENERATE_TOPOLOGY: 'evolve:fde:generate-topology',
+    EVALUATE_RULE_VS_MODEL: 'evolve:fde:evaluate-rule-vs-model',
+    RUN_GOLDEN_BENCHMARK: 'evolve:fde:run-golden-benchmark',
+    VERIFY_GROUNDEDNESS: 'evolve:fde:verify-groundedness'
   }
 } as const;

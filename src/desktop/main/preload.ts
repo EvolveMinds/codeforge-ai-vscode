@@ -165,7 +165,10 @@ const desktopApi = {
     getState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_STATE),
     saveDiscovery: (discoveryData: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY, discoveryData),
     calculateRoi: (params: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, params),
-    generateTopology: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, req)
+    generateTopology: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, req),
+    evaluateRuleVsModel: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.EVALUATE_RULE_VS_MODEL, req),
+    runGoldenBenchmark: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RUN_GOLDEN_BENCHMARK, req),
+    verifyGroundedness: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS, req)
   }
 };
 

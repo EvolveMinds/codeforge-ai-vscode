@@ -429,14 +429,13 @@
 
           <!-- 2-COLUMN DELIVERY STUDIO LAYOUT -->
           <div style="display: flex; gap: 16px; align-items: flex-start; margin-top: 14px;">
-            <!-- Left 6-Step Navigation Sidebar (Preserving all previous tools + new discovery) -->
+            <!-- Left 5-Step Navigation Sidebar (Canonical FDE Architecture) -->
             <div class="phase-sidebar-nav">
-              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Refusing the ask, dynamic scope boundaries &amp; ROI)">🎯 1. Discover &amp; Frame</button>
-              <button class="phase-nav-btn" data-phase="2" title="Phase 2: Schema &amp; Marts (Semantic mapper, staging models &amp; live DB introspector)">📊 2. Schema &amp; Marts</button>
-              <button class="phase-nav-btn" data-phase="3" title="Phase 3: Client API Studio (cURL/OpenAPI import &amp; resilient SDK generation)">🔌 3. Client API Studio</button>
-              <button class="phase-nav-btn" data-phase="4" title="Phase 4: Pilot Deployment (Multi-cloud parameter matrix, Terraform, K8s &amp; pre-flight audit)">⚡ 4. Pilot Deployment</button>
-              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Runbook Factory (Mermaid architecture diagrams, runbooks &amp; data dictionary)">📑 5. Runbook Factory</button>
-              <button class="phase-nav-btn" data-phase="6" title="Phase 6: Enterprise Suite (SQL transpiler, PII sanitizer, Reverse ETL &amp; RLS policies)">💎 6. Enterprise Suite</button>
+              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Refusing the ask, scope boundaries &amp; ROI)">🎯 1. Discover &amp; Frame</button>
+              <button class="phase-nav-btn" data-phase="2" title="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)">🔌 2. Engineering Core</button>
+              <button class="phase-nav-btn" data-phase="3" title="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)">🧠 3. AI Solutioning</button>
+              <button class="phase-nav-btn" data-phase="4" title="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 4. Reliability &amp; Evals</button>
+              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)">🚀 5. Deploy &amp; Influence</button>
             </div>
 
             <!-- Right Step Content Canvas -->
@@ -452,7 +451,7 @@
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
                       <span>🎯</span> Phase 1 · Discover &amp; Frame ("Sitting with AP. Refusing the Ask.")
                       <span id="fdePhase1StatusBadge" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● Discovery Active</span>
-                      <span id="fdePhase1RoiPill" style="font-size: 10px; font-weight: 700; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); padding: 2px 8px; border-radius: 10px;">💰 $61.2k/mo Projected Savings</span>
+                      <span id="fdePhase1RoiPill" style="font-size: 10px; font-weight: 700; background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px;">💰 ROI: Uncalculated (Blank Scope)</span>
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
                       Transform messy customer requests into a rigorously bounded engineering engagement. Question assumptions, identify operational bottlenecks, define dynamic scope boundaries, and compute the financial ROI.
@@ -461,7 +460,7 @@
                   <div style="display: flex; gap: 8px;">
                     <button class="btn-quick" id="btnFdeResetDiscovery">🔄 Reset Scope</button>
                     <button class="btn" id="btnFdeSaveDiscovery" style="padding: 5px 12px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save Scope</button>
-                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 2: Schema &amp; Marts ➔</button>
+                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 2: Engineering Core ➔</button>
                   </div>
                 </div>
 
@@ -542,23 +541,23 @@
                     <div>
                       <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                         <label style="font-size: 11px; font-weight: 600;">Monthly Workflow Volume:</label>
-                        <span id="lblFdeVolumeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">10,000</span>
+                        <span id="lblFdeVolumeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">0</span>
                       </div>
-                      <input type="range" id="rngFdeVolume" min="1000" max="100000" step="1000" value="10000" style="width: 100%;">
+                      <input type="range" id="rngFdeVolume" min="0" max="100000" step="500" value="0" style="width: 100%;">
                     </div>
                     <div>
                       <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                         <label style="font-size: 11px; font-weight: 600;">Average Handle Time:</label>
-                        <span id="lblFdeHandleTimeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">15 mins</span>
+                        <span id="lblFdeHandleTimeVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">0 mins</span>
                       </div>
-                      <input type="range" id="rngFdeHandleTime" min="2" max="60" step="1" value="15" style="width: 100%;">
+                      <input type="range" id="rngFdeHandleTime" min="0" max="120" step="1" value="0" style="width: 100%;">
                     </div>
                     <div>
                       <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
                         <label style="font-size: 11px; font-weight: 600;">Operator Hourly Wage:</label>
-                        <span id="lblFdeHourlyWageVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">$35/hr</span>
+                        <span id="lblFdeHourlyWageVal" style="font-size: 11px; font-weight: 700; color: var(--accent);">$0/hr</span>
                       </div>
-                      <input type="range" id="rngFdeHourlyWage" min="15" max="150" step="5" value="35" style="width: 100%;">
+                      <input type="range" id="rngFdeHourlyWage" min="0" max="250" step="5" value="0" style="width: 100%;">
                     </div>
                   </div>
 
@@ -566,20 +565,20 @@
                   <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
                     <div style="background: var(--card-bg); border: 1px solid rgba(137, 209, 133, 0.4); border-radius: 6px; padding: 12px; text-align: center;">
                       <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">1. Monthly Cost Reduction</div>
-                      <div id="kpiFdeCostSavings" style="font-size: 22px; font-weight: 800; color: var(--success); margin: 6px 0;">$61,250 / mo</div>
-                      <div id="kpiFdeAnnualSavings" style="font-size: 11px; color: var(--text-secondary);">$735,000 / year projected</div>
+                      <div id="kpiFdeCostSavings" style="font-size: 22px; font-weight: 800; color: var(--success); margin: 6px 0;">$0 / mo</div>
+                      <div id="kpiFdeAnnualSavings" style="font-size: 11px; color: var(--text-secondary);">$0 / year projected</div>
                     </div>
 
                     <div style="background: var(--card-bg); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 12px; text-align: center;">
                       <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">2. Capacity Unlocked (FTEs)</div>
-                      <div id="kpiFdeHoursReclaimed" style="font-size: 22px; font-weight: 800; color: var(--accent); margin: 6px 0;">1,750 Hours</div>
-                      <div id="kpiFdeFteCapacity" style="font-size: 11px; color: var(--text-secondary);">~10.9 Full-Time Equivalents</div>
+                      <div id="kpiFdeHoursReclaimed" style="font-size: 22px; font-weight: 800; color: var(--accent); margin: 6px 0;">0 Hours</div>
+                      <div id="kpiFdeFteCapacity" style="font-size: 11px; color: var(--text-secondary);">0.0 Full-Time Equivalents</div>
                     </div>
 
                     <div style="background: var(--card-bg); border: 1px solid rgba(229, 181, 103, 0.4); border-radius: 6px; padding: 12px; text-align: center;">
                       <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">3. Error &amp; Rework Rate Drop</div>
-                      <div id="kpiFdeErrorRateDrop" style="font-size: 22px; font-weight: 800; color: #e5b567; margin: 6px 0;">-85% Reduction</div>
-                      <div style="font-size: 11px; color: var(--text-secondary);">Drop from 22% human error to &lt; 3%</div>
+                      <div id="kpiFdeErrorRateDrop" style="font-size: 22px; font-weight: 800; color: #e5b567; margin: 6px 0;">Pending Scope Input</div>
+                      <div style="font-size: 11px; color: var(--text-secondary);">Baseline manual vs automated gate</div>
                     </div>
                   </div>
                 </div>
@@ -620,6 +619,7 @@
                   <div style="display: flex; gap: 8px;">
                     <button class="btn-quick" id="btnToggleDbDrawer" style="background: var(--success); color: #1e1e1e; font-weight: 700; border-color: var(--success);">🔌 Connect Live DB / Warehouse</button>
                     <button class="btn-quick" id="btnPickSchemaFile">📁 Browse CSV / Schema</button>
+                    <button class="btn" id="btnAdvancePhase3" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 3: AI Solutioning ➔</button>
                   </div>
                 </div>
 
@@ -916,11 +916,7 @@
                   <div id="martOutputResultBox" style="display: none; margin-top: 16px;">
                     <div style="background: rgba(137, 209, 133, 0.15); border: 1px solid var(--success); padding: 12px 16px; border-radius: 6px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
                       <div>
-                        <div style="color: var(--success); font-weight: 700; font-size: 13px;">✓ Dimensional Mart &amp; schema.yml Generated</div>
-                        <div style="font-size: 11px; opacity: 0.9; margin-top: 2px;" id="martSavedBadge">Location: <code>models/marts/fct_customer_orders.sql</code></div>
-                      </div>
-                      <div style="display: flex; gap: 8px;">
-                        <button class="btn-quick" id="btnOpenGeneratedMart" style="margin-bottom: 0;">📄 Open Mart</button>
+<button class="btn-quick" id="btnOpenGeneratedMart" style="margin-bottom: 0;">📄 Open Mart</button>
                         <button class="btn-quick" id="btnCopyGeneratedMart" style="margin-bottom: 0;">📋 Copy SQL</button>
                       </div>
                     </div>
@@ -928,88 +924,331 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- SECTION 2B: RESILIENT CLIENT API & WEBHOOK STUDIO (Engineering Core) -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                    <div>
+                      <h4 style="margin: 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🔌</span> Section 2B: Resilient Client API &amp; Webhook Ingest Studio
+                      </h4>
+                      <p class="desc" style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-secondary);">
+                        Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and idempotency headers. Import directly from cURL or OpenAPI.
+                      </p>
+                    </div>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
+                      <button class="btn-quick" id="btnToggleCurlModal">🪄 Import cURL</button>
+                      <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI</button>
+                    </div>
+                  </div>
+
+                  <div id="curlImportBox" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <strong style="color: var(--accent); font-size: 11.5px;">🪄 Paste cURL Command:</strong>
+                      <button class="btn-quick" id="btnCloseCurlBox">✕ Close</button>
+                    </div>
+                    <textarea id="curlInput" rows="2" placeholder="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'" style="width: 100%; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;"></textarea>
+                    <button class="btn" id="btnParseCurl" style="margin-top: 6px; padding: 3px 10px; font-size: 10.5px;">Parse &amp; Apply</button>
+                  </div>
+
+                  <div id="openApiImportBox" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <strong style="color: var(--accent); font-size: 11.5px;">📋 Paste OpenAPI / Swagger JSON:</strong>
+                      <button class="btn-quick" id="btnCloseOpenApiBox">✕ Close</button>
+                    </div>
+                    <textarea id="openApiInput" rows="3" placeholder="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}" style="width: 100%; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;"></textarea>
+                    <button class="btn" id="btnParseOpenApi" style="margin-top: 6px; padding: 3px 10px; font-size: 10.5px;">Parse &amp; Apply</button>
+                  </div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Connector Name</label>
+                      <input type="text" id="connName" value="ClientBillingApi" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Base URL</label>
+                      <input type="text" id="connBaseUrl" value="https://api.client-vpc.internal/v1" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Auth Strategy</label>
+                      <select id="connAuthType" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="bearer" selected>Bearer Token</option>
+                        <option value="apiKey">API Key (x-api-key)</option>
+                        <option value="oauth2">OAuth2 Client Credentials</option>
+                        <option value="basic">HTTP Basic Auth</option>
+                        <option value="none">None / Public</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn" id="btnScaffoldTsSdk" style="background: var(--success); color: #1e1e1e; font-weight: 700;">Scaffold TypeScript SDK</button>
+                    <button class="btn btn-secondary" id="btnScaffoldPySdk">Scaffold Python SDK</button>
+                    <button class="btn btn-secondary" id="btnTestApiPing">🔌 Test API Ping</button>
+                  </div>
+
+                  <div id="p2ResultBox" style="display: none; margin-top: 12px;">
+                    <div class="code-tabs">
+                      <div class="code-tab active" id="tabApiTs">TypeScript SDK</div>
+                      <div class="code-tab" id="tabApiPy">Python SDK</div>
+                    </div>
+                    <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 200px; overflow-y: auto;"></div>
+                  </div>
+                </div>
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 3: RESILIENT CLIENT API & WEBHOOK STUDIO -->
+              <!-- STEP 3: PHASE 3 · AI SOLUTIONING ("FDE 1-5 LADDER, RULE VS MODEL") -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase3Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                      <span>🔌</span> 3. Resilient Client API &amp; Webhook Studio
+                      <span>🧠</span> Phase 3 · AI Solutioning ("FDE 1–5 Ladder, Rule vs Model, RAG &amp; MCP")
+                      <span style="font-size: 10px; font-weight: 700; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); padding: 2px 8px; border-radius: 10px;">● Air-Gapped Ready</span>
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
-                      Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and auth handling. Import directly from cURL or OpenAPI.
+                      Architect solutions using the canonical FDE 1–5 capability ladder. Enforce deterministic rule-versus-model decision gates and scaffold air-gapped hybrid policy RAG and MCP tools.
                     </p>
                   </div>
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-quick" id="btnLoadSampleApi">⚡ Load Sample Billing API</button>
-                    <button class="btn-quick" id="btnToggleCurlModal">🪄 Import from cURL</button>
-                    <button class="btn-quick" id="btnToggleOpenApiModal">📋 Import OpenAPI / Swagger</button>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn" id="btnAdvancePhase4" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 4: Reliability &amp; Evals ➔</button>
                   </div>
                 </div>
 
-                <div id="curlImportBox" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <strong style="color: var(--accent); font-size: 12px;">🪄 Paste cURL Command:</strong>
-                    <button class="btn-quick" id="btnCloseCurlBox">✕ Close</button>
+                <!-- 3A: FDE 1-5 CAPABILITY LADDER SELECTOR -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                  <div style="font-size: 12.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <span>🪜</span> Section 3A: FDE 1–5 Capability Ladder &amp; Architecture Target
                   </div>
-                  <textarea id="curlInput" rows="3" placeholder="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'" style="width: 100%; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;"></textarea>
-                  <button class="btn" id="btnParseCurl" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Parse &amp; Apply</button>
+                  <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;" id="fdeLadderGrid">
+                    <!-- Level 1 -->
+                    <div class="fde-ladder-card active" data-level="1" style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 10px; cursor: pointer;">
+                      <div style="font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase;">Level 1</div>
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Rule Engine &amp; SQL</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">0 Hallucinations, &lt;5ms latency, compiled deterministic SQL.</div>
+                    </div>
+                    <!-- Level 2 -->
+                    <div class="fde-ladder-card" data-level="2" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
+                      <div style="font-size: 10px; font-weight: 800; color: #60a5fa; text-transform: uppercase;">Level 2</div>
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Semantic Router</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Intent classification, fast triage to specialized workers.</div>
+                    </div>
+                    <!-- Level 3 -->
+                    <div class="fde-ladder-card" data-level="3" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
+                      <div style="font-size: 10px; font-weight: 800; color: #34d399; text-transform: uppercase;">Level 3</div>
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Grounded RAG</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">128-token semantic chunks, strict handbook citation.</div>
+                    </div>
+                    <!-- Level 4 -->
+                    <div class="fde-ladder-card" data-level="4" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
+                      <div style="font-size: 10px; font-weight: 800; color: #fbbf24; text-transform: uppercase;">Level 4</div>
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Tool Agent (MCP)</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Model Context Protocol, dynamic DB/API tools.</div>
+                    </div>
+                    <!-- Level 5 -->
+                    <div class="fde-ladder-card" data-level="5" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer;">
+                      <div style="font-size: 10px; font-weight: 800; color: #c084fc; text-transform: uppercase;">Level 5</div>
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin: 4px 0;">Multi-Agent Swarm</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Autonomous handoffs, supervisor approval gates.</div>
+                    </div>
+                  </div>
                 </div>
 
-                <div id="openApiImportBox" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <strong style="color: var(--accent); font-size: 12px;">📋 Paste OpenAPI / Swagger JSON:</strong>
-                    <button class="btn-quick" id="btnCloseOpenApiBox">✕ Close</button>
+                <!-- 3B: INTERACTIVE RULE VS MODEL EVALUATOR -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>⚖️</span> Section 3B: Rule vs. Model Decision Gate Evaluator
+                    </div>
+                    <button class="btn" id="btnEvaluateRuleModel" style="padding: 4px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Evaluate Gate</button>
                   </div>
-                  <textarea id="openApiInput" rows="4" placeholder="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}" style="width: 100%; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;"></textarea>
-                  <button class="btn" id="btnParseOpenApi" style="margin-top: 8px; padding: 4px 12px; font-size: 11px;">Parse &amp; Apply</button>
+                  <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Task Description</label>
+                      <input type="text" id="txtRuleTaskDesc" value="Transaction tolerance reconciliation and invoice total check" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Math / Arithmetic?</label>
+                      <select id="selRuleMathReq" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="yes" selected>Yes (Strict Arithmetic)</option>
+                        <option value="no">No (Text Synthesis)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Input Modality</label>
+                      <select id="selRuleModality" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="structured_data" selected>Structured SQL / CSV</option>
+                        <option value="unstructured_text">Unstructured Text / PDF</option>
+                        <option value="multimodal">Multimodal Documents</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;">Latency Budget</label>
+                      <input type="text" id="txtRuleLatencyBudget" value="50ms" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
+                  </div>
+                  <!-- Evaluator Result Box -->
+                  <div id="ruleEvaluatorResultBox" style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <div style="font-size: 12px; font-weight: 700; color: var(--accent);" id="lblRuleModelParadigm">Recommended Architecture: Pure Rule Engine &amp; SQL (Level 1)</div>
+                      <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 10px;">SLA Confidence: 99.9%</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;" id="lblRuleModelRationale">
+                      Zero hallucination risk. Arithmetic calculations and strict tolerance reconciliation should NEVER use non-deterministic LLMs directly. Execute via compiled SQL/TypeScript rule function (&lt;10ms).
+                    </div>
+                    <div style="background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;" id="lblRuleModelCodePreview">
+// Level 1: Deterministic Rule Gate (Zero Hallucinations, &lt;5ms)
+export function evaluateTransaction(amount: number, threshold: number = 100): boolean {
+  if (amount &gt; threshold) {
+    throw new SecurityGateError('HITL_REQUIRED: Transaction exceeds automatic ceiling');
+  }
+  return true;
+}
+                    </div>
+                  </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold;">Connector Name</label>
-                    <input type="text" id="connName" value="ClientBillingApi" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                <!-- 3C: AIR-GAPPED HYBRID POLICY RAG & MCP SCAFFOLDER -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <!-- RAG Scaffolder -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                      <span>📚</span> Air-Gapped Policy RAG Scaffolder
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                      <div>
+                        <label style="font-size: 10.5px; font-weight: bold;">Vector Store</label>
+                        <select id="selRagStore" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          <option value="pgvector" selected>PostgreSQL + pgvector</option>
+                          <option value="qdrant">Qdrant Vector Engine</option>
+                          <option value="chroma">ChromaDB Local</option>
+                          <option value="lancedb">LanceDB Embedded</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 10.5px; font-weight: bold;">Chunk Window</label>
+                        <select id="selRagChunkSize" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          <option value="128" selected>128 Tokens (FDE Standard)</option>
+                          <option value="256">256 Tokens</option>
+                          <option value="512">512 Tokens</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button class="btn" id="btnScaffoldRagPolicy" style="width: 100%; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Scaffold Policy RAG Pipeline</button>
                   </div>
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold;">Base URL</label>
-                    <input type="text" id="connBaseUrl" value="https://api.client-vpc.internal/v1" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; font-family: monospace;">
+
+                  <!-- MCP Scaffolder -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                      <span>🔌</span> MCP (Model Context Protocol) Server
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 10px 0;">
+                      Expose secure database introspections and enterprise APIs as standardized MCP tools.
+                    </p>
+                    <button class="btn" id="btnScaffoldMcpServer" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Scaffold MCP Tool Server</button>
                   </div>
-                </div>
-
-                <div style="margin-bottom: 14px;">
-                  <label style="font-size: 11px; font-weight: bold;">Authentication Strategy</label>
-                  <select id="connAuthType" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                    <option value="bearer" selected>Bearer Token (Authorization: Bearer ...)</option>
-                    <option value="apiKey">API Key (x-api-key header)</option>
-                    <option value="oauth2">OAuth2 Client Credentials</option>
-                    <option value="basic">HTTP Basic Authentication</option>
-                    <option value="none">None / Public</option>
-                  </select>
-                </div>
-
-                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                  <button class="btn" id="btnScaffoldTsSdk" style="background: var(--success); color: #1e1e1e; font-weight: 700;">Scaffold TypeScript SDK</button>
-                  <button class="btn btn-secondary" id="btnScaffoldPySdk">Scaffold Python SDK</button>
-                  <button class="btn btn-secondary" id="btnTestApiPing">🔌 Test API Ping</button>
-                  <button class="btn-quick" id="btnMapApiSchema" style="color: var(--accent); border-color: var(--accent); font-weight: 700;">📤 Map API Schema in Step 2 (Schema &amp; Marts)</button>
-                </div>
-
-                <div id="p2ResultBox" style="display: none; margin-top: 16px;">
-                  <div class="code-tabs">
-                    <div class="code-tab active" id="tabApiTs">TypeScript SDK</div>
-                    <div class="code-tab" id="tabApiPy">Python SDK</div>
-                  </div>
-                  <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 260px; overflow-y: auto;"></div>
                 </div>
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 4: PILOT DEPLOYMENT & PRE-FLIGHT DELIVERY -->
+              <!-- STEP 4: PHASE 4 · RELIABILITY & EVALS -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase4Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🧪</span> Phase 4 · Reliability &amp; Evals ("50-Case Golden Benchmark, Groundedness &amp; HITL")
+                      <span style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● 0 Hallucination Policy</span>
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                      Validate production readiness across a 50-case edge-case golden dataset, enforce strict citation groundedness gates, and simulate Human-in-the-Loop supervisor approval workflows.
+                    </p>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn" id="btnAdvancePhase5" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Advance to Phase 5: Deploy &amp; Influence ➔</button>
+                  </div>
+                </div>
+
+                <!-- 4A: 50-CASE GOLDEN BENCHMARK RUNNER -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div>
+                      <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🎯</span> Section 4A: 50-Case Golden Evaluation Benchmark Suite
+                      </span>
+                      <span style="font-size: 11px; color: var(--text-secondary);">Continuous automated regression test on real-world client edge cases.</span>
+                    </div>
+                    <button class="btn" id="btnRunGoldenBenchmark" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;">🚀 Run 50-Case Benchmark</button>
+                  </div>
+
+                  <!-- Benchmark KPI Dashboard -->
+                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
+                      <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">ACCURACY SCORE</div>
+                      <div id="lblBenchAccuracy" style="font-size: 20px; font-weight: 800; color: var(--success); margin: 4px 0;">98.0%</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">49 / 50 Passed</div>
+                    </div>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
+                      <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">LATENCY (P50 / P95)</div>
+                      <div id="lblBenchLatency" style="font-size: 20px; font-weight: 800; color: var(--accent); margin: 4px 0;">38ms / 112ms</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">SLA Target: &lt;200ms</div>
+                    </div>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
+                      <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">AVG COST / TASK</div>
+                      <div id="lblBenchCost" style="font-size: 20px; font-weight: 800; color: #60a5fa; margin: 4px 0;">$0.0008</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Local Inference</div>
+                    </div>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
+                      <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">GROUNDED CITATIONS</div>
+                      <div id="lblBenchCitations" style="font-size: 20px; font-weight: 800; color: #e5b567; margin: 4px 0;">100.0%</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);">0 Hallucinations</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 4B: GROUNDEDNESS & HITL DUAL CONSOLE -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                  <!-- Groundedness Verifier -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                      <span>🛡️</span> Groundedness &amp; Citation Gate
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 8px 0;">
+                      Rejects ungrounded statements. Verifies source handbook citations before dispatch.
+                    </p>
+                    <button class="btn" id="btnVerifyGroundedness" style="width: 100%; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Verify Citation &amp; Sign Audit Log</button>
+                  </div>
+
+                  <!-- HITL Approval Simulator -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                      <span>👤</span> Human-in-the-Loop (HITL) Supervisor Gate
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 8px 0;">
+                      High confidence &lt; $100 auto-approved. Edge cases escalate to supervisor approval modal.
+                    </p>
+                    <button class="btn" id="btnSimulateHitl" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;">Simulate HITL Approval Flow</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- ============================================================= -->
+              <!-- STEP 5: PHASE 5 · DEPLOY & INFLUENCE -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase5Card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>🚀</span> Phase 5 · Deploy &amp; Influence ("Cloud MLOps, Runbooks, Controller's 3 Numbers &amp; 5-Min Demo")
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                      Multi-cloud automated pilot deployment, comprehensive architecture runbooks, executive 5-minute presentation demo, and air-gapped commercial enterprise suite.
+                    </p>
+                  </div>
+                </div>
+
                 <!-- Pre-Flight Health Auditor Card -->
                 <div style="background: var(--bg-primary); padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1029,19 +1268,6 @@
                     <div id="auditFindingsExactList" style="margin-top: 6px; font-size: 11px; color: var(--text-secondary);">✓ All pre-flight checks passed. Workspace ready for cloud deployment.</div>
                     <button class="btn btn-secondary" id="btnCleanTempFilesExact" style="margin-top: 8px; font-size: 11px; padding: 4px 10px;">🧹 Clean All Temporary Files</button>
                   </div>
-                </div>
-
-                <!-- Provider Selection Tabs Row -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                  <div class="code-tabs" style="margin-bottom: 0;">
-                    <div class="code-tab active" id="tabProvGcp" data-prov="gcp-firebase" style="cursor: pointer;">🌐 Google Cloud (GCP/Firebase)</div>
-                    <div class="code-tab" id="tabProvAws" data-prov="aws" style="cursor: pointer;">🟧 Amazon Web Services (AWS)</div>
-                    <div class="code-tab" id="tabProvAzure" data-prov="azure" style="cursor: pointer;">🔷 Microsoft Azure</div>
-                    <div class="code-tab" id="tabProvDocker" data-prov="docker" style="cursor: pointer;">🐳 On-Prem / Air-Gapped Docker</div>
-                  </div>
-                  <button class="btn-quick" id="btnDiscoverCloudApi" style="margin-bottom: 0; font-size: 11px; padding: 5px 12px; color: var(--accent); border-color: var(--accent); cursor: pointer;">
-                    ⚡ Discover &amp; Auto-Fill (<span id="lblCloudProviderName">GCP</span> API)
-                  </button>
                 </div>
 
                 <!-- Multi-Cloud Deployment Parameters Matrix Card -->
@@ -1143,433 +1369,52 @@
                   </button>
                 </div>
 
-                <!-- Automated CI/CD Infra Pipeline & Git Push Hub -->
+                <!-- Runbook Factory Section -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 16px;">🚀</span>
-                      <div>
-                        <div style="font-size: 13px; font-weight: 700; color: #fff;">Automated CI/CD Infra Pipeline &amp; Git Push Hub</div>
-                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                          Generate ready-to-run CI/CD pipelines (GitHub Actions, GitLab CI, Bitbucket, Azure DevOps) and push to repository with 1-click execution.
-                        </div>
+                    <div>
+                      <h4 style="margin: 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>📑</span> Client Handoff &amp; Runbook Factory
+                      </h4>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        Auto-generate architecture blueprints, deployment runbooks, data dictionaries, and executive handoff packages.
                       </div>
                     </div>
-                    <span id="cicdBadge" style="color: var(--success); font-weight: 700; font-size: 11.5px;">Ready to Scaffold</span>
+                    <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 14px; font-size: 11px;">🚀 Generate All Runbooks</button>
                   </div>
-
-                  <div style="display: grid; grid-template-columns: 2fr 1fr 1.5fr; gap: 12px; margin-bottom: 14px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">CI/CD Platform</label>
-                      <select id="selCicdPlatform" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="github" selected>GitHub Actions (.github/workflows/deploy.yml)</option>
-                        <option value="gitlab">GitLab CI (.gitlab-ci.yml)</option>
-                        <option value="bitbucket">Bitbucket Pipelines (bitbucket-pipelines.yml)</option>
-                        <option value="azure">Azure Pipelines (azure-pipelines.yml)</option>
-                      </select>
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+                      <strong style="font-size: 11px; color: #fff;">🏛️ ARCHITECTURE.md</strong>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Mermaid data lineage &amp; topology</div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Deployment Target Branch</label>
-                      <input type="text" id="txtCicdBranch" value="main" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+                      <strong style="font-size: 11px; color: #fff;">🚀 DEPLOYMENT_RUNBOOK.md</strong>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Operations, rollback &amp; diagnostics</div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Deployment Tier</label>
-                      <select id="selCicdTier" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="pilot" selected>Pilot / Pre-Production</option>
-                        <option value="staging">Staging</option>
-                        <option value="prod">Production Air-Gapped</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn" id="btnScaffoldCicd" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">
-                      ⚡ Scaffold CI/CD Pipeline File
-                    </button>
-                    <button class="btn btn-secondary" id="btnRunDeployScriptTerminal" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">
-                      💻 Run Deploy Script (Terminal)
-                    </button>
-                    <button class="btn" id="btnOneClickCommitPush" style="background: linear-gradient(135deg, #4ec9b0, #78a9ff); color: #1e1e1e; font-weight: 700; padding: 7px 18px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">
-                      🚀 1-Click Commit &amp; Push to Git
-                    </button>
-                  </div>
-                </div>
-
-                <div id="p3ResultBox" style="display: none; margin-top: 14px;">
-                  <div class="code-preview" id="p3CodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 250px; overflow-y: auto;"></div>
-                </div>
-              </div>
-
-              <!-- ============================================================= -->
-              <!-- STEP 5: CLIENT ENGAGEMENT HANDOFF & RUNBOOK FACTORY -->
-              <!-- ============================================================= -->
-              <div class="content-card" id="phase5Card" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
-                  <div>
-                    <h3 style="margin: 0; font-size: 16px; color: #fff;">📑 Client Engagement Handoff &amp; Runbook Factory</h3>
-                    <p class="desc" style="margin: 4px 0 0 0;">Auto-generate comprehensive architecture blueprints with dynamic lineage, operations runbooks, data dictionaries, and executive handoff bundles connecting everything built in Steps 1–3.</p>
-                  </div>
-                  <span style="font-size: 11px; opacity: 0.85; font-family: monospace; color: var(--accent);" id="lblDocsWorkspacePath">📁 docs/</span>
-                </div>
-
-                <!-- 5 Documentation Cards Grid -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
-                  <!-- Card 1: ARCHITECTURE.md -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer;">
-                        <input type="checkbox" id="chkDocArch" checked style="margin: 0;">
-                        <span>🏛️ ARCHITECTURE.md</span>
-                      </label>
-                      <span id="badgeDocArch" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(96, 165, 250, 0.2); color: #60a5fa; font-weight: bold;">Not generated</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin: 6px 0 10px 0;">Mermaid data lineage &amp; topology</div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnSingleGenArch" style="padding: 2px 8px; font-size: 10.5px; color: var(--accent); border-color: var(--accent); font-weight: bold;">⚡ Generate</button>
-                      <button class="btn-quick" id="btnSingleOpenArch" style="padding: 2px 8px; font-size: 10.5px;">📄 Open</button>
-                      <button class="btn-quick" id="btnSinglePrevArch" style="padding: 2px 8px; font-size: 10.5px;">👁️ Preview</button>
-                    </div>
-                  </div>
-
-                  <!-- Card 2: DEPLOYMENT_RUNBOOK.md -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer;">
-                        <input type="checkbox" id="chkDocDeploy" checked style="margin: 0;">
-                        <span>🚀 DEPLOYMENT_RUNBOOK.md</span>
-                      </label>
-                      <span id="badgeDocDeploy" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(96, 165, 250, 0.2); color: #60a5fa; font-weight: bold;">Not generated</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin: 6px 0 10px 0;">Operations, rollback &amp; diagnostics</div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnSingleGenDeploy" style="padding: 2px 8px; font-size: 10.5px; color: var(--accent); border-color: var(--accent); font-weight: bold;">⚡ Generate</button>
-                      <button class="btn-quick" id="btnSingleOpenDeploy" style="padding: 2px 8px; font-size: 10.5px;">📄 Open</button>
-                      <button class="btn-quick" id="btnSinglePrevDeploy" style="padding: 2px 8px; font-size: 10.5px;">👁️ Preview</button>
-                    </div>
-                  </div>
-
-                  <!-- Card 3: DATA_DICTIONARY.md -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer;">
-                        <input type="checkbox" id="chkDocDataDict" checked style="margin: 0;">
-                        <span>📖 DATA_DICTIONARY.md</span>
-                      </label>
-                      <span id="badgeDocDataDict" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(96, 165, 250, 0.2); color: #60a5fa; font-weight: bold;">Not generated</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin: 6px 0 10px 0;">Column transformation mappings</div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnSingleGenDataDict" style="padding: 2px 8px; font-size: 10.5px; color: var(--accent); border-color: var(--accent); font-weight: bold;">⚡ Generate</button>
-                      <button class="btn-quick" id="btnSingleOpenDataDict" style="padding: 2px 8px; font-size: 10.5px;">📄 Open</button>
-                      <button class="btn-quick" id="btnSinglePrevDataDict" style="padding: 2px 8px; font-size: 10.5px;">👁️ Preview</button>
-                    </div>
-                  </div>
-
-                  <!-- Card 4: ENVIRONMENT_CATALOG.md -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer;">
-                        <input type="checkbox" id="chkDocEnv" checked style="margin: 0;">
-                        <span>🔐 ENVIRONMENT_CATALOG.md</span>
-                      </label>
-                      <span id="badgeDocEnv" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(96, 165, 250, 0.2); color: #60a5fa; font-weight: bold;">Not generated</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin: 6px 0 10px 0;">Required env vars &amp; secret reference</div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnSingleGenEnv" style="padding: 2px 8px; font-size: 10.5px; color: var(--accent); border-color: var(--accent); font-weight: bold;">⚡ Generate</button>
-                      <button class="btn-quick" id="btnSingleOpenEnv" style="padding: 2px 8px; font-size: 10.5px;">📄 Open</button>
-                      <button class="btn-quick" id="btnSinglePrevEnv" style="padding: 2px 8px; font-size: 10.5px;">👁️ Preview</button>
-                    </div>
-                  </div>
-
-                  <!-- Card 5: CLIENT_HANDOFF_COMPLETE.md -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                      <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 12px; cursor: pointer;">
-                        <input type="checkbox" id="chkDocComplete" checked style="margin: 0;">
-                        <span>📦 CLIENT_HANDOFF_COMPLETE.md</span>
-                      </label>
-                      <span id="badgeDocComplete" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(96, 165, 250, 0.2); color: #60a5fa; font-weight: bold;">Not generated</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin: 6px 0 10px 0;">All-in-one consolidated delivery bundle</div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnSingleGenComplete" style="padding: 2px 8px; font-size: 10.5px; color: var(--accent); border-color: var(--accent); font-weight: bold;">⚡ Generate</button>
-                      <button class="btn-quick" id="btnSingleOpenComplete" style="padding: 2px 8px; font-size: 10.5px;">📄 Open</button>
-                      <button class="btn-quick" id="btnSinglePrevComplete" style="padding: 2px 8px; font-size: 10.5px;">👁️ Preview</button>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px;">
+                      <strong style="font-size: 11px; color: #fff;">📦 CLIENT_HANDOFF_COMPLETE.md</strong>
+                      <div style="font-size: 10px; color: var(--text-secondary);">Consolidated delivery package</div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Bottom Batch Generation Bar -->
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
-                  <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 8px 18px;">🚀 Generate All Client Handoff Docs</button>
-                  <button class="btn btn-secondary" id="btnP4GenerateSelected" style="padding: 8px 16px;">✨ Generate Selected Docs</button>
-                  <button class="btn-quick" id="btnP4ToggleSelectAll" style="padding: 6px 12px;">☑️ Toggle Select All</button>
-                </div>
-
-                <!-- Live Document Viewer Container -->
-                <div id="p4ResultBox" style="display: none; margin-top: 18px;">
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <div style="color: var(--success); font-weight: 700; font-size: 12.5px;">✓ Client Handoff Documents Ready on Disk</div>
-                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;" id="p4DocsPathBadge">Location: <code>docs/</code></div>
+                <!-- Complete Enterprise Commercial Suite Modules -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                      <span>💎</span> Enterprise Commercial Suite &amp; Compliance Engines
                     </div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnP4OpenActiveDoc">📄 Open in Editor</button>
-                      <button class="btn-quick" id="btnP4CopyActiveDoc">📋 Copy Markdown</button>
-                    </div>
+                    <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); font-size: 9.5px;">SOC2 / HIPAA AIR-GAPPED</span>
                   </div>
-
-                  <div class="code-tabs">
-                    <div class="code-tab active" id="tabDocArch">🏛️ ARCHITECTURE.md</div>
-                    <div class="code-tab" id="tabDocDeploy">🚀 DEPLOYMENT_RUNBOOK.md</div>
-                    <div class="code-tab" id="tabDocDataDict">📖 DATA_DICTIONARY.md</div>
-                    <div class="code-tab" id="tabDocEnv">🔐 ENVIRONMENT_CATALOG.md</div>
-                    <div class="code-tab" id="tabDocComplete">📦 CLIENT_HANDOFF_COMPLETE.md</div>
-                  </div>
-                  <div class="code-preview" id="p4CodePreview" style="background: #181818; padding: 14px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 320px; overflow-y: auto;"></div>
-                </div>
-              </div>
-
-              <!-- ============================================================= -->
-              <!-- STEP 6: COMPLETE ENTERPRISE COMMERCIAL SUITE (All 12 Modules) -->
-              <!-- ============================================================= -->
-              <div class="content-card" id="phase6Card" style="display: none;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-                  <div>
-                    <h3 style="margin: 0; font-size: 16px; color: var(--accent); display: flex; align-items: center; gap: 8px;">
-                      💎 Enterprise Commercial Suite <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">PROPRIETARY &amp; AIR-GAPPED</span>
-                    </h3>
-                    <p class="desc" style="margin: 4px 0 0 0;">Commercial high-security modules for Forward-Deployed Engineers: Cryptographic License Manager, Air-Gapped RAG Pipelines, Distributed SLA Load Testing, dbt Data Quality &amp; Schema Drift Gates, SOC2/HIPAA SIEM Forwarder, and Private vLLM/Triton Serving.</p>
-                  </div>
-                </div>
-
-                <!-- 1. Cryptographic License & Organization Manager -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>🔑</span> Enterprise License &amp; Organization Manager
-                    </div>
-                    <span class="brand-pill" id="entLicenseBadge" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">🟢 ENTERPRISE PLATINUM (28D LEFT)</span>
-                  </div>
-                  <div style="margin-bottom: 10px;">
-                    <label style="font-size: 11px; font-weight: bold;">Enterprise License Key</label>
-                    <textarea id="txtEntLicenseKeyBox" rows="2" placeholder="EM_ENT_V1.eyJvcmciOiB... (paste signed key here)" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;"></textarea>
-                  </div>
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div style="font-size: 11px; color: var(--text-secondary);">Quick Actions:</div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnEntActivateKey" style="color: var(--success); font-weight: 700;">🚀 Activate Key</button>
-                      <button class="btn-quick" id="btnEnt30DayTrial">✨ 30-Day Trial</button>
-                      <button class="btn-quick" id="btnEntDeactivate" style="color: var(--error);">✕ Deactivate</button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 2. Air-Gapped RAG & Vector Pipeline Studio -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 16px;">🧠</span>
-                      <div>
-                        <strong style="font-size: 13px; color: var(--accent);">Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
-                        <div style="font-size: 11px; color: var(--text-secondary);">Scaffold 100% offline, private RAG stacks with chunking, pgvector / Qdrant indexing, and prompt guardrails.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Vector Database Engine</label>
-                      <select id="ragVectorDb" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="pgvector" selected>PostgreSQL + pgvector (HNSW Index)</option>
-                        <option value="qdrant">Qdrant Vector Engine</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Local Embedding Model</label>
-                      <select id="ragEmbedModel" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="nomic-embed-text:768" selected>Ollama: nomic-embed-text (768d)</option>
-                        <option value="bge-large-en-v1.5:1024">Ollama: bge-large-en-v1.5 (1024d)</option>
-                        <option value="all-minilm:384">Ollama: all-minilm-l6-v2 (384d)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Target Language</label>
-                      <select id="ragLanguage" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="python" selected>Python (Production FastAPI / LangChain)</option>
-                        <option value="typescript">TypeScript (Node.js / Express)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn" id="btnScaffoldRag" style="background: var(--accent); color: #1e1e1e; font-weight: 700;">🧠 Scaffold Air-Gapped RAG Stack</button>
-                    <button class="btn-quick" id="btnRunRagTests" style="color: var(--success); border-color: var(--success); font-weight: 700;">▶️ Run RAG Tests in Terminal</button>
-                  </div>
-
-                  <div id="ragResultBox" style="margin-top: 12px; display: none;">
-                    <div class="code-preview" id="ragCodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 220px; overflow-y: auto;"></div>
-                  </div>
-                </div>
-
-                <!-- 3. Automated Performance & SLA Load Testing -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 16px;">⚡</span>
-                      <div>
-                        <strong style="font-size: 13px; color: var(--accent);">Automated Performance &amp; SLA Load Testing</strong>
-                        <div style="font-size: 11px; color: var(--text-secondary);">Generate high-concurrency k6 &amp; Locust performance suites with strict SLA latency pass/fail gates.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Target Endpoint URL</label>
-                      <input type="text" id="loadTestUrl" value="http://localhost:8080/api/v1/invoices" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Load Profile (Virtual Users)</label>
-                      <select id="loadTestProfile" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="smoke">Smoke Test (10 VUs · 1 min)</option>
-                        <option value="standard" selected>Standard Pilot (250 VUs · 3 min)</option>
-                        <option value="stress">Stress Test (2,500 VUs · 7 min)</option>
-                        <option value="spike">Spike Test (5,000 VUs burst)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">SLA Gate (p95 / p99 Latency)</label>
-                      <select id="loadTestSla" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="strict" selected>Strict (p95 &lt; 120ms, p99 &lt; 250ms, 0% err)</option>
-                        <option value="standard">Standard (p95 &lt; 200ms, p99 &lt; 400ms, &lt;1% err)</option>
-                        <option value="relaxed">Relaxed (p95 &lt; 500ms, p99 &lt; 1000ms, &lt;3% err)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 8px; align-items: center;">
-                    <button class="btn" id="btnGenK6LoadTest" style="background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Generate k6 Load Test</button>
-                    <button class="btn btn-secondary" id="btnGenLocustLoadTest">⚡ Generate Locust Test</button>
-                    <button class="btn-quick" id="btnRunLoadTestTerm" style="color: var(--success); border-color: var(--success); font-weight: 700;">▶️ Run in Terminal</button>
-                  </div>
-
-                  <div id="loadTestResultBox" style="margin-top: 12px; display: none;">
-                    <div class="code-preview" id="loadTestCodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 220px; overflow-y: auto;"></div>
-                  </div>
-                </div>
-
-                <!-- 4. dbt Data Quality & Schema Drift Gates -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 16px;">📊</span>
-                      <div>
-                        <strong style="font-size: 13px; color: var(--accent);">dbt Data Quality &amp; Schema Drift Gates</strong>
-                        <div style="font-size: 11px; color: var(--text-secondary);">Generate Great Expectations JSON suites, Soda Core checks, and automated CI/CD schema drift assertions.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Target Model</label>
-                      <input type="text" id="dqModelName" value="fct_orders_mart" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Freshness SLA (Hours)</label>
-                      <input type="number" id="dqFreshnessHours" value="24" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Criticality Tier</label>
-                      <select id="dqCriticality" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="P0_CRITICAL" selected>P0 — Mission Critical (Block CI on drift)</option>
-                        <option value="P1_CORE">P1 — Core Analytical Model</option>
-                        <option value="P2_ANALYTICS">P2 — Standard Mart</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <button class="btn" id="btnGenDataQuality" style="background: var(--accent); color: #1e1e1e; font-weight: 700;">📊 Scaffold Data Quality &amp; Drift Gates</button>
-
-                  <div id="dqResultBox" style="margin-top: 12px; display: none;">
-                    <div class="code-preview" id="dqCodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 220px; overflow-y: auto;"></div>
-                  </div>
-                </div>
-
-                <!-- 5. SOC2 & HIPAA SIEM Compliance Audit Forwarder -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 16px;">🛡️</span>
-                      <div>
-                        <strong style="font-size: 13px; color: var(--accent);">SOC2 / HIPAA SIEM Compliance Audit Forwarder</strong>
-                        <div style="font-size: 11px; color: var(--text-secondary);">Stream structured compliance audit events directly to Splunk HEC, Datadog Logs, or Azure Sentinel.</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">SIEM Destination</label>
-                      <select id="siemDestination" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="splunk" selected>Splunk HEC (HTTP Event Collector)</option>
-                        <option value="datadog">Datadog Logs API (v2)</option>
-                        <option value="sentinel">Microsoft Sentinel (Log Analytics)</option>
-                        <option value="local_file">Air-Gapped Local JSONL File</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;">Endpoint / Collector URL</label>
-                      <input type="text" id="siemEndpoint" value="https://splunk.corp.internal:8088/services/collector/raw" style="width: 100%; margin-top: 4px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                    </div>
-                  </div>
-
-                  <button class="btn" id="btnDispatchSiemEvent" style="background: var(--accent); color: #1e1e1e; font-weight: 700;">🛡️ Dispatch Sample Audit Event</button>
-
-                  <div id="siemResultBox" style="margin-top: 12px; display: none;">
-                    <div class="code-preview" id="siemCodePreview" style="background: #181818; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11.5px; border: 1px solid var(--border); max-height: 160px; overflow-y: auto;"></div>
-                  </div>
-                </div>
-
-                <!-- 6. Extended Commercial FDE Modules Grid -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                  <div class="content-card">
-                    <h3>🔄 SQL Transpiler (Oracle/T-SQL -> BQ/Snowflake)</h3>
-                    <textarea id="sqlTranspileInput" rows="2" placeholder="SELECT NVL(cust_id, 0), SYSDATE FROM orders;" style="width: 100%; margin-bottom: 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); padding: 6px; border-radius: 4px; font-family: monospace; font-size: 11.5px;"></textarea>
-                    <button class="btn-quick" id="btnRunSqlTranspile">⚡ Transpile SQL</button>
-                    <div id="sqlTranspileResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="sqlTranspileCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-                  </div>
-
-                  <div class="content-card">
-                    <h3>🛡️ HIPAA &amp; GDPR PII Masking Engine</h3>
-                    <button class="btn-quick" id="btnRunPiiMasking">🔒 Generate Masking Suite</button>
-                    <div id="piiResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="piiCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-                  </div>
-
-                  <div class="content-card">
-                    <h3>⚡ Operational Reverse ETL Sync Worker</h3>
-                    <button class="btn-quick" id="btnRunReverseEtl">🔄 Generate Sync Worker</button>
-                    <div id="reverseEtlResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="reverseEtlCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-                  </div>
-
-                  <div class="content-card">
-                    <h3>🔐 Zero-Trust Row-Level Security (RLS)</h3>
-                    <button class="btn-quick" id="btnRunRls">🛡️ Generate RLS Policies</button>
-                    <div id="rlsResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="rlsCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-                  </div>
-
-                  <div class="content-card">
-                    <h3>🧪 Air-Gapped Golden Dataset Factory</h3>
-                    <button class="btn-quick" id="btnRunSynthetic">🌱 Generate Golden Dataset</button>
-                    <div id="syntheticResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="syntheticCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
-                  </div>
-
-                  <div class="content-card">
-                    <h3>🎭 Contract-Driven Mock API Server</h3>
-                    <button class="btn-quick" id="btnRunMockServer">🚀 Generate Mock Server</button>
-                    <div id="mockServerResultBox" style="display: none; margin-top: 8px;"><div class="code-preview" id="mockServerCodePreview" style="background:#181818; padding:8px; font-family:monospace; font-size:11px; border-radius:4px; max-height:120px; overflow-y:auto;"></div></div>
+                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                    <button class="btn-quick" id="btnRunTranspileSql" style="font-size: 10.5px; padding: 5px;">🔄 SQL Transpiler</button>
+                    <button class="btn-quick" id="btnRunPiiMasking" style="font-size: 10.5px; padding: 5px;">🎭 PII Masking Engine</button>
+                    <button class="btn-quick" id="btnRunReverseEtl" style="font-size: 10.5px; padding: 5px;">⚡ Reverse ETL Worker</button>
+                    <button class="btn-quick" id="btnRunRls" style="font-size: 10.5px; padding: 5px;">🔐 RLS Policies</button>
+                    <button class="btn-quick" id="btnRunSynthetic" style="font-size: 10.5px; padding: 5px;">🌱 Synthetic Data</button>
+                    <button class="btn-quick" id="btnRunMockServer" style="font-size: 10.5px; padding: 5px;">🎭 Mock API Server</button>
+                    <button class="btn-quick" id="btnRunLoadTest" style="font-size: 10.5px; padding: 5px;">⚡ SLA Load Testing</button>
+                    <button class="btn-quick" id="btnRunDataQuality" style="font-size: 10.5px; padding: 5px;">🧪 Data Quality Gates</button>
                   </div>
                 </div>
               </div>
