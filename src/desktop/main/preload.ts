@@ -174,6 +174,7 @@ const desktopApi = {
     verifyGroundedness: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS, req),
     aiAnalyzeRawAsk: (req: { rawAsk: string; archetype?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_ANALYZE_RAW_ASK, req),
     aiGenerateTopology: (req: { rawAsk: string; reframedGoal: string; archetype?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, req),
+    aiEditTopology: (req: { instruction: string; diagram: string; mode: 'future' | 'legacy'; model?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_EDIT_TOPOLOGY, req),
     snapshotScopeVersion: (req: { message: string; data: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SNAPSHOT_SCOPE_VERSION, req),
     getScopeVersions: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_SCOPE_VERSIONS),
     restoreScopeVersion: (versionId: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RESTORE_SCOPE_VERSION, versionId),

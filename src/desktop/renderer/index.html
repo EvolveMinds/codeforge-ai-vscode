@@ -69,6 +69,7 @@
     }
     @media (max-width: 860px) {
       .fde-kpi-grid { grid-template-columns: 1fr !important; }
+      .fde-compare-grid { grid-template-columns: 1fr !important; }
       .fde-five-grid { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important; }
     }
     .ai-copilot-banner {
@@ -757,13 +758,39 @@
 
                   <!-- Diagram / Source toggle. The rendered view is the default because
                        the point of this section is to SEE the workflow, not read Mermaid. -->
-                  <div role="tablist" aria-label="Topology view mode" style="display: flex; gap: 4px; margin-bottom: 8px;">
-                    <button role="tab" id="btnFdeViewDiagram" aria-selected="true" aria-controls="fdeTopologyRendered" class="btn-quick active" style="font-size: 10.5px;" aria-label="Show rendered diagram">🗺 Diagram</button>
+                  <div role="tablist" aria-label="Topology view mode" style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
+                    <button role="tab" id="btnFdeViewDiagram" aria-selected="true" aria-controls="fdeTopologyRendered" class="btn-quick active" style="font-size: 10.5px;" aria-label="Show the single rendered diagram">🗺 Diagram</button>
+                    <button role="tab" id="btnFdeViewCompare" aria-selected="false" aria-controls="fdeTopologyCompare" class="btn-quick" style="font-size: 10.5px;" aria-label="Show current and future state side by side">⇄ Compare Current vs Future</button>
                     <button role="tab" id="btnFdeViewSource" aria-selected="false" aria-controls="fdeTopologyPreviewContainer" class="btn-quick" style="font-size: 10.5px;" aria-label="Show and edit Mermaid source">✎ Source</button>
                     <span id="fdeDiagramStatus" aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); align-self: center; margin-left: 6px;"></span>
                   </div>
 
+                  <!-- Conversational editing: the FDE changes the workflow by describing
+                       the change, rather than hand-writing Mermaid in front of a client. -->
+                  <div style="display: flex; gap: 6px; margin-bottom: 8px; align-items: center;">
+                    <input type="text" id="txtFdeDiagramInstruction" placeholder="Tell the AI how to change this workflow, e.g. &quot;add a fraud check before posting to the ledger&quot;" aria-label="Describe how the AI should change this workflow diagram" style="flex: 1; min-width: 0; padding: 6px 10px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    <button class="btn-quick" id="btnFdeAskDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Apply this change to the diagram using AI">✨ Apply Change</button>
+                    <button class="btn-quick" id="btnFdeUndoDiagram" style="font-size: 10.5px;" aria-label="Undo the last AI change to the diagram" disabled>↶ Undo</button>
+                  </div>
+
                   <div id="fdeTopologyRendered" role="tabpanel" aria-labelledby="btnFdeViewDiagram" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow: auto; max-height: 460px; min-height: 180px;"></div>
+
+                  <!-- Side-by-side comparison. This is what the section title promises and
+                       what a business stakeholder actually needs: the bottleneck they have
+                       today next to the workflow being proposed. -->
+                  <div id="fdeTopologyCompare" role="tabpanel" aria-labelledby="btnFdeViewCompare" hidden style="width: 100%;">
+                    <div class="fde-compare-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                      <div style="border: 1px solid rgba(241, 76, 76, 0.45); border-radius: 6px; overflow: hidden;">
+                        <div style="background: rgba(241, 76, 76, 0.12); padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--error);">🔴 Current State — today&#39;s manual workflow</div>
+                        <div id="fdeCompareLegacy" style="background: var(--bg-primary); padding: 10px; overflow: auto; max-height: 420px; min-height: 160px;"></div>
+                      </div>
+                      <div style="border: 1px solid rgba(137, 209, 133, 0.45); border-radius: 6px; overflow: hidden;">
+                        <div style="background: rgba(137, 209, 133, 0.12); padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--success);">🟢 Future State — proposed Evolve AI workflow</div>
+                        <div id="fdeCompareFuture" style="background: var(--bg-primary); padding: 10px; overflow: auto; max-height: 420px; min-height: 160px;"></div>
+                      </div>
+                    </div>
+                    <div id="fdeCompareDelta" style="margin-top: 10px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 11.5px; color: var(--text-secondary);"></div>
+                  </div>
 
                   <textarea id="fdeTopologyPreviewContainer" role="tabpanel" aria-labelledby="btnFdeViewSource" hidden rows="8" style="width: 100%; box-sizing: border-box; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #4ec9b0; resize: vertical; line-height: 1.45; outline: none;" placeholder="Enter custom Mermaid sequence diagram here..." aria-label="Enter custom Mermaid sequence diagram here..."></textarea>
                 </div>

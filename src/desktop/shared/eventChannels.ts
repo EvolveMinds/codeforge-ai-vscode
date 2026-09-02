@@ -144,6 +144,7 @@ export const DESKTOP_CHANNELS = {
     VERIFY_GROUNDEDNESS: 'evolve:fde:verify-groundedness',
     AI_ANALYZE_RAW_ASK: 'evolve:fde:ai-analyze-raw-ask',
     AI_GENERATE_TOPOLOGY: 'evolve:fde:ai-generate-topology',
+    AI_EDIT_TOPOLOGY: 'evolve:fde:ai-edit-topology',
     SNAPSHOT_SCOPE_VERSION: 'evolve:fde:snapshot-scope-version',
     GET_SCOPE_VERSIONS: 'evolve:fde:get-scope-versions',
     RESTORE_SCOPE_VERSION: 'evolve:fde:restore-scope-version',

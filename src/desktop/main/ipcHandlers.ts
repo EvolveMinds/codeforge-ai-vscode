@@ -3195,6 +3195,145 @@ Establish clean staging schema models and compiled rule gates for all determinis
     });
 
     // --- AI WORKFLOW TOPOLOGY GENERATOR ---
+    /**
+     * Conversational diagram editing.
+     *
+     * The FDE is sitting with the client saying "add a fraud check before posting".
+     * Regenerating the whole topology from the archetype would throw away every
+     * refinement made so far, so this sends the CURRENT diagram plus the requested
+     * change and asks for the full revised diagram back.
+     *
+     * The reply is validated before it is accepted: a model that returns prose, a
+     * truncated diagram, or something that is not a sequenceDiagram must not be
+     * allowed to silently destroy work the FDE has already agreed with the client.
+     */
+    ipc.handle(DESKTOP_CHANNELS.FDE.AI_EDIT_TOPOLOGY, async (_: any, req: {
+      instruction?: string;
+      diagram?: string;
+      mode?: 'future' | 'legacy';
+      model?: string;
+    }) => {
+      const instruction = (req?.instruction || '').trim();
+      const current = (req?.diagram || '').trim();
+      const mode = req?.mode === 'legacy' ? 'legacy' : 'future';
+      const model = req?.model || 'qwen2.5-coder:7b';
+
+      if (!instruction) {
+        return { success: false, error: 'No instruction provided.', diagram: current };
+      }
+      if (!current) {
+        return { success: false, error: 'There is no diagram to edit yet. Generate one first.', diagram: current };
+      }
+
+      const system = [
+        'You are an expert solutions architect editing a Mermaid sequenceDiagram.',
+        'You will be given the CURRENT diagram and a requested CHANGE.',
+        'Return the COMPLETE revised diagram, not a fragment and not a diff.',
+        '',
+        'Hard rules:',
+        '- Output ONLY Mermaid source. No prose, no explanation, no markdown fences.',
+        '- The first line must be exactly: sequenceDiagram',
+        '- Preserve every participant, actor and message that the change does not affect.',
+        '- Keep the existing "participant X as Label" / "actor X as Label" declaration style.',
+        '- Use only: autonumber, participant, actor, ->>, -->>, Note over X,Y: text, loop/alt/opt ... end.',
+        mode === 'legacy'
+          ? '- This is the CURRENT (legacy) state: show manual bottlenecks, rework and unaudited steps honestly. Do not add AI components.'
+          : '- This is the FUTURE state: keep any human-in-the-loop approval gates intact. Never remove a HITL gate unless explicitly asked.'
+      ].join('\n');
+
+      const prompt = `CURRENT DIAGRAM:\n${current}\n\nREQUESTED CHANGE:\n${instruction}\n\nReturn the complete revised Mermaid sequenceDiagram now.`;
+
+      // Reuse the same local-first Ollama path the chat surface uses.
+      const aiReply = await new Promise<{ content: string; success: boolean }>((resolve) => {
+        const payload = JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt }
+          ],
+          stream: false,
+          options: { temperature: 0.15 }
+        });
+
+        const r = http.request({
+          host: '127.0.0.1',
+          port: 11434,
+          path: '/api/chat',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+          timeout: 60000
+        }, (res) => {
+          let body = '';
+          res.on('data', (c) => { body += c; });
+          res.on('end', () => {
+            try {
+              const j = JSON.parse(body);
+              resolve({ content: j?.message?.content || '', success: true });
+            } catch {
+              resolve({ content: '', success: false });
+            }
+          });
+        });
+        r.on('error', () => resolve({ content: '', success: false }));
+        r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false }); });
+        r.write(payload);
+        r.end();
+      });
+
+      if (!aiReply.success || !aiReply.content.trim()) {
+        return {
+          success: false,
+          error: 'No local model responded. Start Ollama (or pull the selected model) to edit diagrams conversationally.',
+          diagram: current
+        };
+      }
+
+      // --- Validate before accepting: never let a bad reply overwrite real work ---
+      let out = aiReply.content.trim();
+
+      // Strip markdown fences if the model added them despite instructions.
+      const fence = out.match(/```(?:mermaid)?\s*([\s\S]*?)```/i);
+      if (fence) out = fence[1].trim();
+
+      // Drop any leading prose before the diagram starts.
+      const startIdx = out.search(/sequenceDiagram/i);
+      if (startIdx > 0) out = out.slice(startIdx).trim();
+
+      if (!/^sequenceDiagram/i.test(out)) {
+        return {
+          success: false,
+          error: 'The model did not return a valid sequenceDiagram. Your diagram is unchanged.',
+          diagram: current
+        };
+      }
+
+      const bodyLines = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean).slice(1);
+      const participants = bodyLines.filter(l => /^(participant|actor)\s+/i.test(l)).length;
+      const messages = bodyLines.filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
+
+      if (participants === 0 || messages === 0) {
+        return {
+          success: false,
+          error: 'The revised diagram had no participants or no messages, so it was rejected. Your diagram is unchanged.',
+          diagram: current
+        };
+      }
+
+      // Guard against a truncated reply silently deleting most of the workflow.
+      const prevMessages = current.split(/\r?\n/).filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
+      const shrankHard = prevMessages >= 4 && messages < Math.ceil(prevMessages / 2);
+
+      return {
+        success: true,
+        diagram: out,
+        participants,
+        messages,
+        warning: shrankHard
+          ? `The revised diagram dropped from ${prevMessages} to ${messages} steps. Review it before saving — the model may have truncated the workflow.`
+          : undefined
+      };
+    });
+
     ipc.handle(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, async (_: any, req: { rawAsk?: string; reframedGoal?: string; archetype?: string }) => {
       const raw = (req?.rawAsk || '').trim();
       const reframed = (req?.reframedGoal || '').trim();

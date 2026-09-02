@@ -1278,6 +1278,7 @@ function setupPhase1Discovery(api: any): void {
           : (res.legacyDiagram || '// Legacy Bottleneck Sequence Diagram');
       }
       paintDiagram();
+      paintCompare();
     }
   };
 
@@ -1313,14 +1314,20 @@ function setupPhase1Discovery(api: any): void {
     }
   };
 
-  const setTopologyView = (mode: 'diagram' | 'source') => {
+  const setTopologyView = (mode: 'diagram' | 'source' | 'compare') => {
     if (renderedPane) renderedPane.hidden = mode !== 'diagram';
     if (topologyContainer) topologyContainer.hidden = mode !== 'source';
+    const cmp = document.getElementById('fdeTopologyCompare');
+    if (cmp) cmp.hidden = mode !== 'compare';
     btnViewDiagram?.classList.toggle('active', mode === 'diagram');
     btnViewSource?.classList.toggle('active', mode === 'source');
+    const cmpBtn = document.getElementById('btnFdeViewCompare');
+    cmpBtn?.classList.toggle('active', mode === 'compare');
     btnViewDiagram?.setAttribute('aria-selected', String(mode === 'diagram'));
     btnViewSource?.setAttribute('aria-selected', String(mode === 'source'));
+    cmpBtn?.setAttribute('aria-selected', String(mode === 'compare'));
     if (mode === 'diagram') paintDiagram();
+    if (mode === 'compare') paintCompare();
   };
 
   btnViewDiagram?.addEventListener('click', () => setTopologyView('diagram'));
@@ -1341,6 +1348,135 @@ function setupPhase1Discovery(api: any): void {
     showToast('⬇ Exported ' + a.download);
   });
 
+  // --- Side-by-side Current vs Future comparison ---
+  const comparePane = document.getElementById('fdeTopologyCompare');
+  const compareLegacy = document.getElementById('fdeCompareLegacy');
+  const compareFuture = document.getElementById('fdeCompareFuture');
+  const compareDelta = document.getElementById('fdeCompareDelta');
+  const btnViewCompare = document.getElementById('btnFdeViewCompare');
+
+  const drawInto = (el: HTMLElement | null, src: string | undefined, emptyMsg: string) => {
+    if (!el) return;
+    if (!src || !src.trim()) {
+      el.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 18px; text-align: center;">' + emptyMsg + '</div>';
+      return;
+    }
+    const { svg, errors } = renderSequenceSvg(src);
+    el.innerHTML = svg || ('<div style="color: var(--warn); font-size: 11px; padding: 14px;">Could not render: ' +
+      errors.map(e => e.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('; ') + '</div>');
+  };
+
+  /** Counts steps and human gates so the business sees the change, not just two pictures. */
+  const summariseDiagram = (src?: string) => {
+    const lines = (src || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const steps = lines.filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
+    const actors = lines.filter(l => /^actor\s+/i.test(l)).length;
+    const gates = lines.filter(l => /^actor\s+/i.test(l) && /(hitl|human|approval|supervisor|review)/i.test(l)).length;
+    return { steps, actors, gates };
+  };
+
+  const paintCompare = () => {
+    drawInto(compareLegacy, cachedDiagrams.legacyDiagram, 'No current-state diagram yet. Load an archetype or click AI Synthesize Topology.');
+    drawInto(compareFuture, cachedDiagrams.futureDiagram, 'No future-state diagram yet. Load an archetype or click AI Synthesize Topology.');
+
+    if (!compareDelta) return;
+    const a = summariseDiagram(cachedDiagrams.legacyDiagram);
+    const b = summariseDiagram(cachedDiagrams.futureDiagram);
+    if (!a.steps && !b.steps) { compareDelta.innerHTML = ''; return; }
+
+    const stepDelta = b.steps - a.steps;
+    const stepText = stepDelta === 0
+      ? 'the same number of steps'
+      : (stepDelta > 0 ? stepDelta + ' more explicit steps' : Math.abs(stepDelta) + ' fewer steps');
+
+    compareDelta.innerHTML =
+      '<strong style="color: var(--text-primary);">What changes for the business</strong><br>' +
+      'Current state: <strong>' + a.steps + '</strong> steps, <strong>' + a.gates + '</strong> human approval gate(s). ' +
+      'Future state: <strong>' + b.steps + '</strong> steps, <strong>' + b.gates + '</strong> human approval gate(s).<br>' +
+      'The proposed workflow has ' + stepText +
+      (b.gates > a.gates
+        ? ', and adds an explicit human sign-off that does not exist today.'
+        : (b.gates === a.gates && b.gates > 0
+          ? ', and keeps the existing human sign-off in place.'
+          : '.')) +
+      '<br><span style="color: var(--text-muted);">Step counts describe the diagrams above, not measured cycle time. Use the Phase 1 numbers for financial claims.</span>';
+  };
+
+  // --- Conversational diagram editing ---
+  const txtInstruction = document.getElementById('txtFdeDiagramInstruction') as HTMLInputElement;
+  const btnAskDiagram = document.getElementById('btnFdeAskDiagram');
+  const btnUndoDiagram = document.getElementById('btnFdeUndoDiagram') as HTMLButtonElement;
+  let diagramUndoStack: Array<{ mode: 'future' | 'legacy'; source: string }> = [];
+
+  const refreshUndoState = () => {
+    if (btnUndoDiagram) btnUndoDiagram.disabled = diagramUndoStack.length === 0;
+  };
+
+  const applyDiagramEdit = async () => {
+    const instruction = (txtInstruction?.value || '').trim();
+    if (!instruction) { showToast('Describe the change you want first.'); return; }
+
+    const current = topologyContainer?.value || '';
+    if (!current.trim()) { showToast('Generate a diagram before asking for changes.'); return; }
+    if (!api?.fde?.aiEditTopology) { showToast('Diagram editing is unavailable in this build.'); return; }
+
+    if (diagramStatus) { diagramStatus.textContent = 'Asking the model...'; diagramStatus.style.color = 'var(--text-secondary)'; }
+    if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
+
+    try {
+      const res = await api.fde.aiEditTopology({ instruction, diagram: current, mode: currentDiagramMode });
+
+      if (!res || !res.success) {
+        // The previous diagram is left exactly as it was - a failed edit must never
+        // destroy something the FDE already agreed with the client.
+        if (diagramStatus) { diagramStatus.textContent = 'Unchanged'; diagramStatus.style.color = 'var(--warn)'; }
+        showToast((res && res.error) || 'The diagram could not be edited.');
+        return;
+      }
+
+      diagramUndoStack.push({ mode: currentDiagramMode, source: current });
+      refreshUndoState();
+
+      if (topologyContainer) topologyContainer.value = res.diagram;
+      if (currentDiagramMode === 'future') cachedDiagrams.futureDiagram = res.diagram;
+      else cachedDiagrams.legacyDiagram = res.diagram;
+
+      paintDiagram();
+      paintCompare();
+      markScopeDirty();
+      if (txtInstruction) txtInstruction.value = '';
+
+      if (res.warning) showToast(res.warning);
+      else showToast('Diagram updated. Review it before saving.');
+    } catch (err) {
+      console.error('Diagram edit failed:', err);
+      if (diagramStatus) { diagramStatus.textContent = 'Edit failed'; diagramStatus.style.color = 'var(--warn)'; }
+      showToast('Diagram edit failed - your diagram is unchanged.');
+    } finally {
+      if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = false;
+    }
+  };
+
+  btnAskDiagram?.addEventListener('click', applyDiagramEdit);
+  txtInstruction?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') { e.preventDefault(); applyDiagramEdit(); }
+  });
+
+  btnUndoDiagram?.addEventListener('click', () => {
+    const last = diagramUndoStack.pop();
+    if (!last) return;
+    if (last.mode === 'future') cachedDiagrams.futureDiagram = last.source;
+    else cachedDiagrams.legacyDiagram = last.source;
+    if (currentDiagramMode === last.mode && topologyContainer) topologyContainer.value = last.source;
+    refreshUndoState();
+    paintDiagram();
+    paintCompare();
+    markScopeDirty();
+    showToast('Reverted the last diagram change.');
+  });
+
+  btnViewCompare?.addEventListener('click', () => setTopologyView('compare'));
+
   topologyContainer?.addEventListener('input', () => {
     if (currentDiagramMode === 'future') {
       cachedDiagrams.futureDiagram = topologyContainer.value;
@@ -1348,6 +1484,7 @@ function setupPhase1Discovery(api: any): void {
       cachedDiagrams.legacyDiagram = topologyContainer.value;
     }
     paintDiagram();
+    paintCompare();
   });
 
   btnCopyDiagram?.addEventListener('click', () => {
