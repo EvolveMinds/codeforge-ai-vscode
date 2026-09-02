@@ -15,6 +15,11 @@ import { DesktopSecretVault } from './secretVault';
 import { DesktopUpdater } from './updater';
 import { DesktopIpcHandlers } from './ipcHandlers';
 
+// Suppress GPU disk cache lock warnings on Windows when launched from CLI
+if ((app as any)?.commandLine) {
+  (app as any).commandLine.appendSwitch('disable-gpu-shader-disk-cache');
+}
+
 let mainWindow: BrowserWindow | null = null;
 
 // Determine if running in portable mode
@@ -211,7 +216,7 @@ function buildAppMenu(): void {
               type: 'info',
               title: 'About Evolve AI Enterprise Edition',
               message: 'Evolve AI Enterprise Desktop Edition',
-              detail: `Version: 2.19.1\nOrganization: ${lic.organization}\nPlan: ${lic.plan.toUpperCase()}\nStatus: ${lic.isLicensed ? 'Active (' + lic.daysRemaining + ' days left)' : 'Community Mode'}\nBuilt by Evolve Mind Solutions Pty Ltd`
+              detail: `Version: 2.20.0\nOrganization: ${lic.organization}\nPlan: ${lic.plan.toUpperCase()}\nStatus: ${lic.isLicensed ? 'Active (' + lic.daysRemaining + ' days left)' : 'Community Mode'}\nBuilt by Evolve Mind Solutions Pty Ltd`
             });
           }
         }
