@@ -43,6 +43,19 @@
       min-width: 0;
     }
     /* --- Phase 1 step rail --- */
+    .fde-export-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      border-radius: 4px;
+      color: var(--text-primary);
+      font-size: 11.5px;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    .fde-export-item:hover { background: var(--bg-tertiary); }
     .fde-step-btn {
       display: flex;
       align-items: center;
@@ -830,7 +843,14 @@
                       <button class="btn-quick active" id="btnFdeTabFutureDiagram" style="font-size: 10.5px;" aria-label="Proposed AI Workflow">🟢 Proposed AI Workflow</button>
                       <button class="btn-quick" id="btnFdeTabLegacyDiagram" style="font-size: 10.5px;" aria-label="Legacy Bottlenecks">🔴 Legacy Bottlenecks</button>
                       <button class="btn-quick" id="btnFdeCopyDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Copy Mermaid source to clipboard">📋 Copy Mermaid</button>
-                      <button class="btn-quick" id="btnFdeExportDiagramSvg" style="font-size: 10.5px;" aria-label="Export the rendered diagram as an SVG file">⬇ Export SVG</button>
+                      <span style="position: relative; display: inline-block;">
+                        <button class="btn-quick" id="btnFdeExportDiagramSvg" aria-haspopup="true" aria-expanded="false" style="font-size: 10.5px;" aria-label="Export diagrams as SVG files">⬇ Export SVG ▾</button>
+                        <span id="fdeExportMenu" hidden role="menu" style="position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 4px; min-width: 220px; z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
+                          <button role="menuitem" id="btnExportCurrentSvg" class="fde-export-item" aria-label="Export the current state diagram only">🔴 Current State only</button>
+                          <button role="menuitem" id="btnExportFutureSvg" class="fde-export-item" aria-label="Export the future state diagram only">🟢 Future State only</button>
+                          <button role="menuitem" id="btnExportBothSvg" class="fde-export-item" aria-label="Export both diagrams side by side for a presentation">⇄ Both, side by side</button>
+                        </span>
+                      </span>
                     </div>
                   </div>
 
@@ -841,6 +861,7 @@
                     <button role="tab" id="btnFdeViewCompare" aria-selected="false" aria-controls="fdeTopologyCompare" class="btn-quick" style="font-size: 10.5px;" aria-label="Show current and future state side by side">⇄ Compare Current vs Future</button>
                     <button role="tab" id="btnFdeViewArrange" aria-selected="false" aria-controls="fdeTopologyArrange" class="btn-quick" style="font-size: 10.5px;" aria-label="Rearrange participants and steps by dragging">☰ Arrange</button>
                     <button role="tab" id="btnFdeViewSource" aria-selected="false" aria-controls="fdeTopologyPreviewContainer" class="btn-quick" style="font-size: 10.5px;" aria-label="Show and edit Mermaid source">✎ Source</button>
+                    <span id="fdeEditingBanner" aria-live="polite" style="font-size: 10px; font-weight: 700; color: var(--success); background: rgba(137, 209, 133, 0.12); border: 1px solid var(--success); padding: 2px 8px; border-radius: 10px; align-self: center; margin-left: 6px;">● Editing: Future State (proposed workflow)</span>
                     <span id="fdeDiagramStatus" aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); align-self: center; margin-left: 6px;"></span>
                   </div>
 
@@ -860,11 +881,11 @@
                   <div id="fdeTopologyCompare" role="tabpanel" aria-labelledby="btnFdeViewCompare" hidden style="width: 100%;">
                     <div class="fde-compare-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                       <div style="border: 1px solid rgba(241, 76, 76, 0.45); border-radius: 6px; overflow: hidden;">
-                        <div style="background: rgba(241, 76, 76, 0.12); padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--error);">🔴 Current State — today&#39;s manual workflow</div>
+                        <div style="background: rgba(241, 76, 76, 0.12); padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--error);">🔴 Current State — how the work happens today</div>
                         <div id="fdeCompareLegacy" style="background: var(--bg-primary); padding: 10px; overflow: auto; max-height: 420px; min-height: 160px;"></div>
                       </div>
                       <div style="border: 1px solid rgba(137, 209, 133, 0.45); border-radius: 6px; overflow: hidden;">
-                        <div style="background: rgba(137, 209, 133, 0.12); padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--success);">🟢 Future State — proposed Evolve AI workflow</div>
+                        <div style="background: rgba(137, 209, 133, 0.12); padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--success);">🟢 Future State — proposed workflow</div>
                         <div id="fdeCompareFuture" style="background: var(--bg-primary); padding: 10px; overflow: auto; max-height: 420px; min-height: 160px;"></div>
                       </div>
                     </div>

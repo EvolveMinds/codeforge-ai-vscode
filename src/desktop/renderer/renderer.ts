@@ -1315,6 +1315,19 @@ function setupPhase1Discovery(api: any): void {
     }
   };
 
+  /** Says plainly which of the two diagrams the editing controls are acting on. */
+  const updateEditingBanner = () => {
+    const el = document.getElementById('fdeEditingBanner');
+    if (!el) return;
+    const isFuture = currentDiagramMode === 'future';
+    el.textContent = isFuture
+      ? '\u25cf Editing: Future State (proposed workflow)'
+      : '\u25cf Editing: Current State (today\u2019s workflow)';
+    el.style.color = isFuture ? 'var(--success)' : 'var(--error)';
+    el.style.borderColor = isFuture ? 'var(--success)' : 'var(--error)';
+    el.style.background = isFuture ? 'rgba(137, 209, 133, 0.12)' : 'rgba(241, 76, 76, 0.12)';
+  };
+
   const setTopologyView = (mode: 'diagram' | 'source' | 'compare' | 'arrange') => {
     if (renderedPane) renderedPane.hidden = mode !== 'diagram';
     if (topologyContainer) topologyContainer.hidden = mode !== 'source';
@@ -1340,19 +1353,83 @@ function setupPhase1Discovery(api: any): void {
   btnViewDiagram?.addEventListener('click', () => setTopologyView('diagram'));
   btnViewSource?.addEventListener('click', () => setTopologyView('source'));
 
-  btnExportSvg?.addEventListener('click', () => {
-    const { svg } = renderSequenceSvg(topologyContainer?.value || '');
-    if (!svg) { showToast('⚠️ Nothing to export - the diagram did not render.'); return; }
-    // Inline the computed theme colours so the file stands alone outside the app.
+  /** Inlines theme tokens so an exported file stands alone outside the app. */
+  const standaloneSvg = (svg: string): string => {
     const cs = getComputedStyle(document.documentElement);
-    const standalone = svg.replace(/var\((--[a-z-]+)\)/g, (_m, tok) => cs.getPropertyValue(tok).trim() || '#888');
-    const blob = new Blob([standalone], { type: 'image/svg+xml' });
+    return svg.replace(/var\((--[a-z-]+)\)/g, (_m, tok) => cs.getPropertyValue(tok).trim() || '#888');
+  };
+
+  const downloadSvg = (svg: string, filename: string) => {
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = (currentDiagramMode === 'future' ? 'future-state' : 'legacy-state') + '-topology.svg';
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
-    showToast('⬇ Exported ' + a.download);
+    showToast('\u2b07 Exported ' + filename);
+  };
+
+  /**
+   * One SVG containing both diagrams side by side under headings.
+   * A client deck wants the contrast as a single image, not two files the
+   * audience has to mentally align.
+   */
+  const buildComparisonSvg = (): string | null => {
+    const legacy = renderSequenceSvg(cachedDiagrams.legacyDiagram || '');
+    const future = renderSequenceSvg(cachedDiagrams.futureDiagram || '');
+    if (!legacy.svg || !future.svg) return null;
+
+    const dims = (svg: string) => {
+      const m = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+      return m ? { w: parseFloat(m[1]), h: parseFloat(m[2]) } : { w: 600, h: 400 };
+    };
+    const a = dims(legacy.svg), b = dims(future.svg);
+    const inner = (svg: string) => svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+
+    const GAP = 48, TITLE = 42, PAD = 24;
+    const width = a.w + b.w + GAP + PAD * 2;
+    const height = Math.max(a.h, b.h) + TITLE + PAD * 2;
+
+    return standaloneSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '">' +
+      '<rect width="' + width + '" height="' + height + '" fill="var(--bg-primary)"/>' +
+      '<text x="' + (PAD + a.w / 2) + '" y="27" text-anchor="middle" fill="var(--error)" font-family="var(--font-sans)" font-size="15" font-weight="700">Current State \u2014 how the work happens today</text>' +
+      '<text x="' + (PAD + a.w + GAP + b.w / 2) + '" y="27" text-anchor="middle" fill="var(--success)" font-family="var(--font-sans)" font-size="15" font-weight="700">Future State \u2014 proposed workflow</text>' +
+      '<g transform="translate(' + PAD + ', ' + TITLE + ')">' + inner(legacy.svg) + '</g>' +
+      '<g transform="translate(' + (PAD + a.w + GAP) + ', ' + TITLE + ')">' + inner(future.svg) + '</g>' +
+      '</svg>'
+    );
+  };
+
+  const exportOne = (which: 'legacy' | 'future') => {
+    const src = (which === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+    const { svg } = renderSequenceSvg(src);
+    if (!svg) { showToast('\u26a0\ufe0f That diagram is empty \u2014 nothing to export.'); return; }
+    downloadSvg(standaloneSvg(svg), which === 'future' ? 'future-state-workflow.svg' : 'current-state-workflow.svg');
+  };
+
+  const exportMenu = document.getElementById('fdeExportMenu');
+  const closeExportMenu = () => {
+    if (exportMenu) exportMenu.hidden = true;
+    btnExportSvg?.setAttribute('aria-expanded', 'false');
+  };
+
+  btnExportSvg?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!exportMenu) return;
+    exportMenu.hidden = !exportMenu.hidden;
+    btnExportSvg.setAttribute('aria-expanded', String(!exportMenu.hidden));
+  });
+  exportMenu?.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => { if (exportMenu && !exportMenu.hidden) closeExportMenu(); });
+
+  document.getElementById('btnExportCurrentSvg')?.addEventListener('click', () => { exportOne('legacy'); closeExportMenu(); });
+  document.getElementById('btnExportFutureSvg')?.addEventListener('click', () => { exportOne('future'); closeExportMenu(); });
+  document.getElementById('btnExportBothSvg')?.addEventListener('click', () => {
+    const svg = buildComparisonSvg();
+    if (!svg) { showToast('\u26a0\ufe0f Both diagrams are needed for a comparison export.'); return; }
+    downloadSvg(svg, 'workflow-current-vs-future.svg');
+    closeExportMenu();
   });
 
   // --- Side-by-side Current vs Future comparison ---
@@ -1944,25 +2021,32 @@ function setupPhase1Discovery(api: any): void {
     showToast('⚡ Financial ROI recalculation complete');
   });
 
-  btnTabFuture?.addEventListener('click', () => {
-    currentDiagramMode = 'future';
-    btnTabFuture.classList.add('active');
-    btnTabLegacy?.classList.remove('active');
-    if (topologyContainer && cachedDiagrams.futureDiagram) {
-      topologyContainer.value = cachedDiagrams.futureDiagram;
-    }
-    paintDiagram();
-  });
+  /**
+   * Switch which diagram the editing controls act on.
+   *
+   * Every surface has to follow, not just the rendered pane. Previously this
+   * repainted only the (often hidden) diagram pane, so clicking Proposed/Legacy
+   * while in Arrange or Source looked like nothing happened at all.
+   */
+  const setDiagramMode = (mode: 'future' | 'legacy') => {
+    currentDiagramMode = mode;
+    btnTabFuture?.classList.toggle('active', mode === 'future');
+    btnTabLegacy?.classList.toggle('active', mode === 'legacy');
+    btnTabFuture?.setAttribute('aria-pressed', String(mode === 'future'));
+    btnTabLegacy?.setAttribute('aria-pressed', String(mode === 'legacy'));
 
-  btnTabLegacy?.addEventListener('click', () => {
-    currentDiagramMode = 'legacy';
-    btnTabLegacy.classList.add('active');
-    btnTabFuture?.classList.remove('active');
-    if (topologyContainer && cachedDiagrams.legacyDiagram) {
-      topologyContainer.value = cachedDiagrams.legacyDiagram;
+    if (topologyContainer) {
+      topologyContainer.value = (mode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
     }
+
     paintDiagram();
-  });
+    paintCompare();
+    renderArrangePanel();
+    updateEditingBanner();
+  };
+
+  btnTabFuture?.addEventListener('click', () => setDiagramMode('future'));
+  btnTabLegacy?.addEventListener('click', () => setDiagramMode('legacy'));
 
   // --- Phase 1 completeness: drives the status badge, the nav rail and the Advance gate ---
   interface ScopeCompleteness { complete: boolean; missing: string[]; filled: number; total: number; }
@@ -2362,6 +2446,7 @@ function setupPhase1Discovery(api: any): void {
     const initialArch = selArchetype?.value || 'custom';
     renderTopology(initialArch);
     setTopologyView('diagram');
+    updateEditingBanner();
     await refreshVersionHistory();
   };
 
