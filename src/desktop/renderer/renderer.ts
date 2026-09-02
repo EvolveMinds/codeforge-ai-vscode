@@ -1047,6 +1047,8 @@ function setupPhase1Discovery(api: any): void {
 
   // --- Autosave + unsaved-changes tracking (an FDE must never lose a live client session) ---
   let scopeDirty = false;
+  let skipSavePreview = false;
+  let lastWrittenPaths: string[] = [];
   let autosaveTimer: ReturnType<typeof setTimeout> | undefined;
 
   let currentDiscoveryStep = 1;
@@ -2132,19 +2134,134 @@ function setupPhase1Discovery(api: any): void {
       }
     };
 
-    if (api?.fde?.saveDiscovery) {
-      await api.fde.saveDiscovery(payload);
-      markScopeSaved();
-      // The badge reports what is ACTUALLY complete, never a blanket "validated".
-      refreshScopeCompleteness();
-      if (!silent) {
-        const st = evaluateScopeCompleteness();
-        showToast(st.complete
-          ? '💾 Discovery scope saved — all Phase 1 inputs complete'
-          : `💾 Draft saved — still outstanding: ${st.missing.join(', ')}`);
-      }
+    if (!api?.fde?.saveDiscovery) return;
+
+    // Autosave never interrupts; an explicit save shows what it is about to write
+    // unless the FDE has opted out for this session.
+    if (!silent && !skipSavePreview) {
+      const confirmed = await confirmSaveWithPreview(payload);
+      if (!confirmed) return;
+    }
+
+    const res = await api.fde.saveDiscovery(payload);
+
+    // A failed write must not report success. The handler now returns the real
+    // outcome and the list of paths it actually wrote.
+    if (res && res.success === false) {
+      showToast('\u26a0\ufe0f Save failed: ' + (res.error || 'unknown error') + ' \u2014 nothing was written.');
+      return;
+    }
+
+    lastWrittenPaths = (res && res.written) || [];
+    markScopeSaved();
+    refreshScopeCompleteness();
+
+    if (!silent) {
+      const st = evaluateScopeCompleteness();
+      const count = lastWrittenPaths.length;
+      showToast(
+        (st.complete ? 'Saved \u2014 all Phase 1 inputs complete. ' : 'Draft saved (' + st.missing.join(', ') + ' still outstanding). ')
+        + count + ' file' + (count === 1 ? '' : 's') + ' written to your workspace.'
+      );
+      renderSavedFilesBar();
     }
   };
+
+  /** Shows the destination and content, and resolves true only if the FDE confirms. */
+  function confirmSaveWithPreview(payload: any): Promise<boolean> {
+    return new Promise(async (resolve) => {
+      const modal = document.getElementById('fdeSavePreviewModal');
+      if (!modal || !api?.fde?.previewDiscovery) { resolve(true); return; }
+
+      let info: any;
+      try {
+        info = await api.fde.previewDiscovery(payload);
+      } catch {
+        resolve(true);
+        return;
+      }
+      if (!info || !info.success) { resolve(true); return; }
+
+      const wsEl = document.getElementById('fdeSaveWorkspace');
+      if (wsEl) wsEl.textContent = info.workspace || '(unknown)';
+
+      const list = document.getElementById('fdeSaveFileList');
+      if (list) {
+        list.innerHTML = '';
+        for (const f of (info.files || [])) {
+          const row = document.createElement('div');
+          row.setAttribute('role', 'listitem');
+          row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 9px;margin-bottom:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;';
+          const tag = document.createElement('span');
+          tag.textContent = f.action === 'overwrite' ? 'OVERWRITE' : 'NEW';
+          tag.style.cssText = 'font-size:9px;font-weight:800;padding:2px 6px;border-radius:3px;flex-shrink:0;'
+            + (f.action === 'overwrite'
+              ? 'background:rgba(204,167,0,0.15);color:var(--warn);border:1px solid var(--warn);'
+              : 'background:rgba(137,209,133,0.15);color:var(--success);border:1px solid var(--success);');
+          row.appendChild(tag);
+          const txt = document.createElement('div');
+          txt.style.cssText = 'flex:1;min-width:0;';
+          txt.innerHTML = '<div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-primary);word-break:break-all;">'
+            + String(f.path).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            + '</div><div style="font-size:10px;color:var(--text-secondary);">' + f.description + ' \u00b7 ' + f.bytes + ' bytes</div>';
+          row.appendChild(txt);
+          list.appendChild(row);
+        }
+        if (!(info.files || []).length) {
+          list.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">Nothing to write.</div>';
+        }
+      }
+
+      const memo = document.getElementById('fdeSaveMemoPreview');
+      if (memo) memo.textContent = info.scopePreview || '';
+
+      const confirmBtn = document.getElementById('btnFdeConfirmSave') as HTMLButtonElement | null;
+      if (confirmBtn) {
+        confirmBtn.disabled = !info.writable;
+        confirmBtn.title = info.writable ? '' : (info.reason || 'Workspace is not writable.');
+      }
+
+      modal.hidden = false;
+      (modal as HTMLElement).style.display = 'flex';
+
+      const close = (result: boolean) => {
+        modal.hidden = true;
+        (modal as HTMLElement).style.display = 'none';
+        document.getElementById('btnFdeConfirmSave')?.removeEventListener('click', onOk);
+        document.getElementById('btnFdeCancelSave')?.removeEventListener('click', onCancel);
+        resolve(result);
+      };
+      const onOk = () => {
+        const skip = document.getElementById('chkFdeSkipSavePreview') as HTMLInputElement | null;
+        if (skip && skip.checked) skipSavePreview = true;
+        close(true);
+      };
+      const onCancel = () => close(false);
+
+      document.getElementById('btnFdeConfirmSave')?.addEventListener('click', onOk);
+      document.getElementById('btnFdeCancelSave')?.addEventListener('click', onCancel);
+    });
+  }
+
+  /** Lists what was written, with a way to open it in the OS file manager. */
+  function renderSavedFilesBar(): void {
+    const bar = document.getElementById('fdeSavedFilesBar');
+    if (!bar) return;
+    if (!lastWrittenPaths.length) { bar.hidden = true; return; }
+    bar.hidden = false;
+    bar.innerHTML = '<span style="color:var(--text-secondary);">Saved to workspace:</span> ';
+    lastWrittenPaths.forEach((fp) => {
+      const name = fp.split(/[\/]/).pop() || fp;
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = name;
+      b.title = fp;
+      b.setAttribute('aria-label', 'Reveal ' + name + ' in the file manager');
+      b.style.cssText = 'background:none;border:1px solid var(--border);border-radius:3px;color:var(--accent);cursor:pointer;font-size:10.5px;padding:2px 7px;margin-right:5px;';
+      b.addEventListener('click', () => { api?.fde?.revealPath?.(fp); });
+      bar.appendChild(b);
+    });
+  }
 
   btnSave?.addEventListener('click', () => saveScopeHandler(false));
   btnReset?.addEventListener('click', () => {

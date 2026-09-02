@@ -603,6 +603,8 @@
                   </div>
                 </div>
 
+                <div id="fdeSavedFilesBar" hidden aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; margin-bottom: 12px;"></div>
+
                 <!-- PHASE 1 STEP NAVIGATION
                      The three parts of discovery are separate full-width steps rather than
                      three panels crammed into one scroll. They stay a connected flow: the
@@ -929,6 +931,32 @@
                   <textarea id="fdeTopologyPreviewContainer" role="tabpanel" aria-labelledby="btnFdeViewSource" hidden rows="8" style="width: 100%; box-sizing: border-box; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #4ec9b0; resize: vertical; line-height: 1.45; outline: none;" placeholder="Enter custom Mermaid sequence diagram here..." aria-label="Enter custom Mermaid sequence diagram here..."></textarea>
                 </div>
 
+                </div>
+
+                <!-- SAVE PREVIEW: shows exactly what will be written, and where, before it happens -->
+                <div id="fdeSavePreviewModal" hidden role="dialog" aria-modal="true" aria-labelledby="fdeSavePreviewTitle" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+                  <div style="background: var(--bg-secondary); border: 1px solid var(--accent); border-radius: 10px; width: 820px; max-width: 94vw; max-height: 86vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="padding: 14px 18px; border-bottom: 1px solid var(--border);">
+                      <h3 id="fdeSavePreviewTitle" style="margin: 0; font-size: 15px; color: #fff;">Save discovery scope</h3>
+                      <p style="margin: 4px 0 0; font-size: 11.5px; color: var(--text-secondary);">These files will be written into your workspace. Nothing has been saved yet.</p>
+                    </div>
+                    <div style="padding: 14px 18px; overflow: auto; flex: 1;">
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">Workspace</div>
+                      <div id="fdeSaveWorkspace" style="font-family: var(--font-mono); font-size: 11px; color: var(--text-primary); background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; padding: 6px 9px; margin-bottom: 12px; word-break: break-all;"></div>
+                      <div id="fdeSaveFileList" role="list" aria-label="Files that will be written"></div>
+                      <details style="margin-top: 12px;">
+                        <summary style="font-size: 11.5px; color: var(--accent); cursor: pointer;">Preview the client-readable scope memo</summary>
+                        <pre id="fdeSaveMemoPreview" style="margin: 8px 0 0; padding: 10px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-primary); white-space: pre-wrap; max-height: 260px; overflow: auto;"></pre>
+                      </details>
+                      <label for="chkFdeSkipSavePreview" style="display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 11px; color: var(--text-secondary); cursor: pointer;">
+                        <input type="checkbox" id="chkFdeSkipSavePreview" aria-label="Do not show this preview again this session"> Don&#39;t show this again for this session
+                      </label>
+                    </div>
+                    <div style="padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
+                      <button class="btn-quick" id="btnFdeCancelSave" aria-label="Cancel and do not write any files">Cancel</button>
+                      <button class="btn" id="btnFdeConfirmSave" style="padding: 5px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Write these files to the workspace">Save these files</button>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- CLIENT MEMO PREVIEW MODAL / DRAWER -->

@@ -74,6 +74,62 @@ const DEFAULT_ROI_ASSUMPTIONS = {
   confidenceBandPct: 20
 };
 
+/**
+ * The client-readable scope memo. Shared by the save path and the preview so what
+ * an FDE sees before saving is byte-identical to what lands on disk.
+ *
+ * The savings line mirrors core ROI model semantics (loaded cost, explicit
+ * assumptions) rather than re-deriving a different number from a bare 70%, which
+ * is how this document previously came to disagree with the on-screen figure.
+ */
+function buildScopeMarkdown(clientName: string, data: any): string {
+  const n = data?.controllersThreeNumbers || {};
+  const vol = n.volume || 0;
+  const mins = n.handleTimeMins || 0;
+  const wage = n.hourlyWage || 0;
+  const a = data?.roiAssumptions || {};
+  const ratio = (a.automationRatioPct ?? DEFAULT_ROI_ASSUMPTIONS.automationRatioPct) / 100;
+  const loaded = a.loadedCostMultiplier ?? DEFAULT_ROI_ASSUMPTIONS.loadedCostMultiplier;
+  const band = a.confidenceBandPct ?? DEFAULT_ROI_ASSUMPTIONS.confidenceBandPct;
+
+  const reclaimed = Math.round((vol * mins / 60) * ratio);
+  const monthly = Math.round(reclaimed * wage * loaded);
+  const low = Math.round(monthly * (1 - band / 100));
+  const high = Math.round(monthly * (1 + band / 100));
+
+  const locks = Array.isArray(data?.outOfScope) && data.outOfScope.length > 0
+    ? data.outOfScope.map((r: string) => `- [x] **LOCKED**: ${r}`).join('\n')
+    : '- _No custom boundaries defined._';
+
+  return `# Discovery Scope Boundaries & Controller's ROI Summary
+**Client Engagement**: ${clientName}
+**Updated**: ${new Date().toISOString()}
+
+---
+
+## 1. "Refusing the Ask" Diagnostic Reframing
+* **Raw Unfiltered Request**: ${data?.rawClientAsk || 'Pending user input'}
+* **Operational Risk & Fallacy**: ${data?.riskAnalysis || 'Pending risk analysis'}
+* **Reframed Production Objective**: ${data?.reframedProblem || 'Pending reframed goal'}
+
+---
+
+## 2. Dynamic Out-of-Scope Boundary Locks
+${locks}
+
+---
+
+## 3. The Controller's Three Numbers (Financial ROI)
+* **Monthly Workflow Volume**: ${vol.toLocaleString()} units/mo
+* **Average Handle Time**: ${mins} mins
+* **Operator Hourly Wage**: $${wage}/hr
+
+**Estimated monthly saving: $${low.toLocaleString()} - $${high.toLocaleString()}** (expected $${monthly.toLocaleString()})
+
+Basis: ${reclaimed.toLocaleString()} hrs/mo reclaimed at ${Math.round(ratio * 100)}% automation, costed at $${wage}/hr x ${loaded} loaded multiplier, with a +/-${band}% confidence band. These are estimates built on the assumptions above, not measured results.
+`;
+}
+
 function clampNum(v: number, lo: number, hi: number): number {
   if (!Number.isFinite(v)) return lo;
   return Math.min(hi, Math.max(lo, v));
@@ -1985,6 +2041,76 @@ if len(numeric_cols) > 1:
       };
     });
 
+    /**
+     * Dry run of SAVE_DISCOVERY: returns exactly what WOULD be written and where,
+     * without touching the disk. The Studio writes real files into the client's
+     * repository, so an FDE must be able to see the destination and the content
+     * before committing to it.
+     */
+    ipc.handle(DESKTOP_CHANNELS.FDE.PREVIEW_DISCOVERY, async (_: any, data: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const stateFile = path.join(cwd, '.evolve', 'fde_state.json');
+      const scopeFile = path.join(cwd, 'docs', 'SCOPE_BOUNDARIES.md');
+      const topoFile = path.join(cwd, 'docs', 'WORKFLOW_TOPOLOGY.md');
+
+      const files: Array<{ path: string; exists: boolean; action: 'create' | 'overwrite'; bytes: number; description: string }> = [];
+      const add = (fp: string, content: string, description: string) => {
+        const exists = fs.existsSync(fp);
+        files.push({
+          path: fp,
+          exists,
+          action: exists ? 'overwrite' : 'create',
+          bytes: Buffer.byteLength(content, 'utf-8'),
+          description
+        });
+      };
+
+      let stateJson = '';
+      try {
+        let current: any = {};
+        if (fs.existsSync(stateFile)) current = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+        stateJson = JSON.stringify({
+          ...current,
+          clientName: data?.clientName || current.clientName || 'Client Pilot Engagement',
+          discovery: { ...current.discovery, ...data },
+          updatedAt: Date.now()
+        }, null, 2);
+      } catch {
+        stateJson = JSON.stringify({ discovery: data }, null, 2);
+      }
+
+      add(stateFile, stateJson, 'Engagement state the Studio reloads on next open');
+      add(scopeFile, buildScopeMarkdown(data?.clientName || 'Client Pilot Engagement', data), 'Client-readable scope and ROI summary');
+      if (data?.customFutureDiagram) {
+        add(topoFile, '# Workflow Topology Architecture\n\n```mermaid\n' + data.customFutureDiagram + '\n```\n', 'Proposed workflow diagram as Mermaid');
+      }
+
+      let writable = true;
+      let reason = '';
+      try {
+        fs.accessSync(cwd, fs.constants.W_OK);
+      } catch {
+        writable = false;
+        reason = 'The workspace folder is not writable.';
+      }
+
+      return { success: true, workspace: cwd, files, writable, reason, scopePreview: buildScopeMarkdown(data?.clientName || 'Client Pilot Engagement', data) };
+    });
+
+    /** Opens the OS file manager at a written artefact. */
+    ipc.handle(DESKTOP_CHANNELS.FDE.REVEAL_PATH, async (_: any, target: string) => {
+      try {
+        if (target && shell && typeof shell.showItemInFolder === 'function') {
+          shell.showItemInFolder(target);
+          return { success: true };
+        }
+        return { success: false, error: 'Reveal is unavailable in this environment.' };
+      } catch (err: any) {
+        return { success: false, error: (err && err.message) ? err.message : String(err) };
+      }
+    });
+
     ipc.handle(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY, async (_: any, data: any) => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
@@ -2009,48 +2135,45 @@ if len(numeric_cols) > 1:
         updatedAt: Date.now()
       };
 
+      const writtenPaths: string[] = [];
+
       try {
         fs.writeFileSync(stateFile, JSON.stringify(updated, null, 2), 'utf-8');
+        writtenPaths.push(stateFile);
 
         // Write docs/SCOPE_BOUNDARIES.md
         const docsDir = path.join(cwd, 'docs');
         if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
 
-        const scopeMd = `# 🎯 Discovery Scope Boundaries & Controller's ROI Summary
-**Client Engagement**: ${updated.clientName}
-**Updated**: ${new Date().toISOString()}
+        const scopeMd = buildScopeMarkdown(updated.clientName, data);
 
----
-
-## 1. "Refusing the Ask" Diagnostic Reframing
-* **Raw Unfiltered Request**: ${data.rawClientAsk || 'Pending user input'}
-* **Operational Risk & Fallacy**: ${data.riskAnalysis || 'Pending risk analysis'}
-* **Reframed Production Objective**: ${data.reframedProblem || 'Pending reframed goal'}
-
----
-
-## 2. Dynamic Out-of-Scope Boundary Locks
-${Array.isArray(data.outOfScope) && data.outOfScope.length > 0 
-  ? data.outOfScope.map((r: string) => `- [x] **LOCKED**: ${r}`).join('\n') 
-  : '- _No custom boundaries defined._'}
-
----
-
-## 3. The Controller's Three Numbers (Financial ROI)
-* **Monthly Workflow Volume**: ${(data.controllersThreeNumbers?.volume || 0).toLocaleString()} units/mo
-* **Average Handle Time**: ${data.controllersThreeNumbers?.handleTimeMins || 0} mins
-* **Operator Hourly Wage**: $${data.controllersThreeNumbers?.hourlyWage || 0}/hr
-* **Projected Monthly Savings**: $${(Math.round(((data.controllersThreeNumbers?.volume || 0) * (data.controllersThreeNumbers?.handleTimeMins || 0) / 60) * 0.70 * (data.controllersThreeNumbers?.hourlyWage || 0))).toLocaleString()} / mo
-`;
         fs.writeFileSync(path.join(docsDir, 'SCOPE_BOUNDARIES.md'), scopeMd, 'utf-8');
+        writtenPaths.push(path.join(docsDir, 'SCOPE_BOUNDARIES.md'));
 
         if (data.customFutureDiagram) {
           const topoMd = '# 🗺️ Workflow Topology Architecture\n\n```mermaid\n' + data.customFutureDiagram + '\n```\n';
           fs.writeFileSync(path.join(docsDir, 'WORKFLOW_TOPOLOGY.md'), topoMd, 'utf-8');
+          writtenPaths.push(path.join(docsDir, 'WORKFLOW_TOPOLOGY.md'));
         }
-      } catch {}
-
-      return { success: true, state: updated };
+        return {
+          success: true,
+          state: updated,
+          // Tell the caller exactly what landed on disk, so the UI can name the
+          // files rather than saying "saved" and leaving the FDE to guess where.
+          written: writtenPaths,
+          workspace: cwd
+        };
+      } catch (err: any) {
+        // Previously this catch was empty and the handler returned success:true
+        // regardless, so a failed write (read-only folder, permissions, full disk)
+        // still showed "Draft saved". A save that did not happen must say so.
+        return {
+          success: false,
+          error: (err && err.message) ? err.message : String(err),
+          written: writtenPaths,
+          workspace: cwd
+        };
+      }
     });
 
     ipc.handle(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, async (_: any, params: {
