@@ -875,15 +875,32 @@
                        while a stakeholder is talking, and the arrow buttons give the same
                        control to keyboard users. -->
                   <div id="fdeTopologyArrange" role="tabpanel" aria-labelledby="btnFdeViewArrange" hidden style="width: 100%;">
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Drag to reorder, or use ↑ ↓. Changes rewrite the diagram immediately and can be undone.</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Click a name or step text to edit it. Drag or use ↑ ↓ to reorder, ✕ to remove, and the row below to add. Every change updates the diagram immediately and can be undone.</div>
                     <div class="fde-compare-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                       <div>
                         <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Participants &amp; actors (left → right)</div>
-                        <div id="fdeArrangeParticipants" role="list" aria-label="Diagram participants, drag to reorder"></div>
+                        <div id="fdeArrangeParticipants" role="list" aria-label="Diagram participants. Rename inline, drag to reorder, or remove."></div>
+                        <div style="display: flex; gap: 5px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border);">
+                          <input type="text" id="txtFdeNewParticipant" placeholder="Add a system or person…" aria-label="Name of the participant to add" style="flex: 1; min-width: 0; padding: 5px 8px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          <label for="chkFdeNewIsActor" style="display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-secondary); white-space: nowrap; cursor: pointer;">
+                            <input type="checkbox" id="chkFdeNewIsActor" aria-label="Add as a person or role rather than a system"> person
+                          </label>
+                          <button class="btn-quick" id="btnFdeAddParticipant" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Add this participant to the diagram">+ Add</button>
+                        </div>
                       </div>
                       <div>
                         <div style="font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">Steps (top → bottom)</div>
-                        <div id="fdeArrangeMessages" role="list" aria-label="Diagram steps, drag to reorder"></div>
+                        <div id="fdeArrangeMessages" role="list" aria-label="Diagram steps. Change who is involved, edit the text, drag to reorder, or remove."></div>
+                        <div style="display: flex; gap: 5px; align-items: center; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); flex-wrap: wrap;">
+                          <select id="selFdeNewStepFrom" aria-label="Step starts at which participant" style="padding: 4px 6px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; max-width: 120px;"></select>
+                          <span aria-hidden="true" style="color: var(--accent); font-size: 12px;">→</span>
+                          <select id="selFdeNewStepTo" aria-label="Step ends at which participant" style="padding: 4px 6px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; max-width: 120px;"></select>
+                          <input type="text" id="txtFdeNewStepText" placeholder="What happens…" aria-label="Description of the step to add" style="flex: 1; min-width: 90px; padding: 5px 8px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          <label for="chkFdeNewStepDashed" style="display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--text-secondary); white-space: nowrap; cursor: pointer;">
+                            <input type="checkbox" id="chkFdeNewStepDashed" aria-label="Add as a response or return arrow rather than a request"> reply
+                          </label>
+                          <button class="btn-quick" id="btnFdeAddStep" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Add this step to the diagram">+ Add</button>
+                        </div>
                       </div>
                     </div>
                   </div>

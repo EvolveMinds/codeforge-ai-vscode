@@ -1484,74 +1484,55 @@ function setupPhase1Discovery(api: any): void {
 
   btnViewCompare?.addEventListener('click', () => setTopologyView('compare'));
 
-  // --- Direct manipulation: reorder participants and steps without touching Mermaid ---
-  // An FDE sitting with the business says "no, approval happens before posting".
-  // Dragging a row is faster and less error-prone than editing source mid-conversation,
-  // and it round-trips through the same Mermaid text so nothing else has to change.
+  // --- Direct manipulation: add, edit, remove and reorder without touching Mermaid ---
+  // An FDE sitting with the business needs to change the workflow as it is described:
+  // add the compliance team, drop a step that turns out not to exist, rename a system
+  // to the client's own vocabulary. Doing that in Mermaid source mid-conversation is
+  // slow and error-prone, so every operation is available as a direct action here and
+  // round-trips through the same diagram text.
 
-  interface DiagramLine { raw: string; kind: 'participant' | 'message' | 'other'; label: string; }
+  interface ParticipantLine { indent: string; keyword: string; id: string; label: string; }
+  interface MessageLine { indent: string; from: string; arrow: string; to: string; text: string; }
 
-  const splitDiagram = (src: string): DiagramLine[] => {
-    return src.split(/\r?\n/).map(raw => {
-      const t = raw.trim();
-      if (/^(participant|actor)\s+/i.test(t)) {
-        const m = t.match(/^(?:participant|actor)\s+\S+(?:\s+as\s+(.+))?$/i);
-        return { raw, kind: 'participant' as const, label: (m && m[1]) ? m[1].trim() : t };
-      }
-      if (/(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(t)) {
-        const m = t.match(/^(\S+)\s*(?:-{1,2}>>?|-\)|-x)\s*([^:]+):\s*(.*)$/);
-        return { raw, kind: 'message' as const, label: m ? (m[1] + ' → ' + m[2].trim() + ': ' + m[3]) : t };
-      }
-      return { raw, kind: 'other' as const, label: t };
-    });
+  // NOTE: participant ids are matched as [A-Za-z0-9_]+ rather than \S+. A greedy \S+
+  // swallows the first dash of a "-->>" arrow, which made "Core-->>User" display as
+  // "Core- -> User" and would have written back a corrupted participant id.
+  const MSG_RE = /^(\s*)([A-Za-z0-9_]+)\s*(--?>>?|--?\)|--?x)\s*([A-Za-z0-9_]+)\s*:\s*(.*)$/;
+  const PART_RE = /^(\s*)(participant|actor)\s+([A-Za-z0-9_]+)(?:\s+as\s+(.+))?$/i;
+
+  const parseParticipant = (raw: string): ParticipantLine | null => {
+    const m = raw.match(PART_RE);
+    if (!m) return null;
+    return { indent: m[1] || '    ', keyword: m[2].toLowerCase(), id: m[3], label: (m[4] || m[3]).trim() };
   };
 
-  /** Rebuilds the diagram from a reordered set of rows, preserving untouched lines. */
-  const rebuildDiagram = (all: DiagramLine[], kind: 'participant' | 'message', order: number[]): string => {
-    const slots: number[] = [];
-    all.forEach((l, i) => { if (l.kind === kind) slots.push(i); });
-    const picked = order.map(o => all[slots[o]]);
-    const out = all.slice();
-    slots.forEach((slotIdx, n) => { out[slotIdx] = picked[n]; });
-    return out.map(l => l.raw).join('\n');
+  const parseMessage = (raw: string): MessageLine | null => {
+    const m = raw.match(MSG_RE);
+    if (!m) return null;
+    return { indent: m[1] || '    ', from: m[2], arrow: m[3], to: m[4], text: m[5] };
   };
 
-  const buildRow = (text: string, idx: number, kind: string): HTMLElement => {
-    const row = document.createElement('div');
-    row.draggable = true;
-    row.dataset.idx = String(idx);
-    row.dataset.kind = kind;
-    row.setAttribute('role', 'listitem');
-    row.setAttribute('aria-label', text + ' — drag to reorder, or use the arrow buttons');
-    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 9px;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-primary);cursor:grab;';
-    row.innerHTML =
-      '<span aria-hidden="true" style="color:var(--text-muted);cursor:grab;">☰</span>' +
-      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-      text.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>';
+  const writeParticipant = (p: ParticipantLine) => `${p.indent}${p.keyword} ${p.id} as ${p.label}`;
+  const writeMessage = (m: MessageLine) => `${m.indent}${m.from}${m.arrow}${m.to}: ${m.text}`;
 
-    // Keyboard-accessible equivalent of dragging - drag alone is not operable
-    // without a mouse, and this panel must not become the only way to reorder.
-    const mk = (glyph: string, delta: number, label: string) => {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = glyph;
-      b.setAttribute('aria-label', label + ' ' + text);
-      b.style.cssText = 'background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-secondary);cursor:pointer;font-size:10px;line-height:1;padding:2px 5px;';
-      b.addEventListener('click', (e) => { e.stopPropagation(); moveRow(kind as any, idx, delta); });
-      return b;
-    };
-    row.appendChild(mk('↑', -1, 'Move up:'));
-    row.appendChild(mk('↓', 1, 'Move down:'));
-    return row;
+  /** Turns a display label into a safe, unique Mermaid participant id. */
+  const makeId = (label: string, taken: string[]): string => {
+    let base = label.replace(/[^A-Za-z0-9]/g, '').slice(0, 14) || 'Node';
+    if (/^[0-9]/.test(base)) base = 'N' + base;
+    let id = base, n = 2;
+    while (taken.indexOf(id) !== -1) { id = base + n; n++; }
+    return id;
   };
 
-  const commitReorder = (kind: 'participant' | 'message', order: number[]) => {
-    const src = topologyContainer?.value || '';
-    if (!src.trim()) return;
-    diagramUndoStack.push({ mode: currentDiagramMode, source: src });
+  const getDiagramLines = (): string[] => (topologyContainer?.value || '').split(/\r?\n/);
+
+  /** Single write path: snapshot for undo, persist, repaint every view. */
+  const commitDiagram = (lines: string[], toastMsg?: string) => {
+    const before = topologyContainer?.value || '';
+    diagramUndoStack.push({ mode: currentDiagramMode, source: before });
     refreshUndoState();
 
-    const next = rebuildDiagram(splitDiagram(src), kind, order);
+    const next = lines.join('\n');
     if (topologyContainer) topologyContainer.value = next;
     if (currentDiagramMode === 'future') cachedDiagrams.futureDiagram = next;
     else cachedDiagrams.legacyDiagram = next;
@@ -1560,16 +1541,261 @@ function setupPhase1Discovery(api: any): void {
     paintCompare();
     renderArrangePanel();
     markScopeDirty();
+    if (toastMsg) showToast(toastMsg);
   };
 
-  const moveRow = (kind: 'participant' | 'message', idx: number, delta: number) => {
-    const src = topologyContainer?.value || '';
-    const count = splitDiagram(src).filter(l => l.kind === kind).length;
-    const to = idx + delta;
-    if (to < 0 || to >= count) return;
-    const order = Array.from({ length: count }, (_, i) => i);
-    order.splice(to, 0, order.splice(idx, 1)[0]);
-    commitReorder(kind, order);
+  const participantIndices = (lines: string[]) => lines.map((l, i) => parseParticipant(l) ? i : -1).filter(i => i >= 0);
+  const messageIndices = (lines: string[]) => lines.map((l, i) => parseMessage(l) ? i : -1).filter(i => i >= 0);
+
+  const moveRow = (kind: 'participant' | 'message', from: number, to: number) => {
+    const lines = getDiagramLines();
+    const idx = kind === 'participant' ? participantIndices(lines) : messageIndices(lines);
+    if (from < 0 || to < 0 || from >= idx.length || to >= idx.length || from === to) return;
+    const rows = idx.map(i => lines[i]);
+    rows.splice(to, 0, rows.splice(from, 1)[0]);
+    idx.forEach((lineIdx, n) => { lines[lineIdx] = rows[n]; });
+    commitDiagram(lines);
+  };
+
+  const addParticipant = (label: string, isActor: boolean) => {
+    const clean = (label || '').trim();
+    if (!clean) return;
+    const lines = getDiagramLines();
+    const idx = participantIndices(lines);
+    const taken = idx.map(i => parseParticipant(lines[i])!.id);
+    const id = makeId(clean, taken);
+    const indent = idx.length ? (parseParticipant(lines[idx[0]])!.indent) : '    ';
+    const line = `${indent}${isActor ? 'actor' : 'participant'} ${id} as ${clean}`;
+    // Insert after the last participant so declarations stay grouped at the top.
+    const at = idx.length ? idx[idx.length - 1] + 1 : 1;
+    lines.splice(at, 0, line);
+    commitDiagram(lines, `Added ${isActor ? 'actor' : 'participant'} "${clean}"`);
+  };
+
+  const removeParticipant = (n: number) => {
+    const lines = getDiagramLines();
+    const idx = participantIndices(lines);
+    if (n < 0 || n >= idx.length) return;
+    const p = parseParticipant(lines[idx[n]])!;
+    const used = messageIndices(lines)
+      .map(i => parseMessage(lines[i])!)
+      .filter(m => m.from === p.id || m.to === p.id).length;
+    if (used > 0) {
+      const ok = window.confirm(
+        `"${p.label}" is used in ${used} step${used === 1 ? '' : 's'}.\n\n` +
+        `Removing it will also delete ${used === 1 ? 'that step' : 'those steps'}. Continue?`
+      );
+      if (!ok) return;
+    }
+    // Remove the declaration and any step that references it, so the diagram
+    // can never be left pointing at a participant that no longer exists.
+    const keep = lines.filter((l, i) => {
+      if (i === idx[n]) return false;
+      const m = parseMessage(l);
+      if (m && (m.from === p.id || m.to === p.id)) return false;
+      return true;
+    });
+    commitDiagram(keep, `Removed "${p.label}"` + (used ? ` and ${used} step${used === 1 ? '' : 's'}` : ''));
+  };
+
+  const renameParticipant = (n: number, label: string) => {
+    const clean = (label || '').trim();
+    if (!clean) return;
+    const lines = getDiagramLines();
+    const idx = participantIndices(lines);
+    if (n < 0 || n >= idx.length) return;
+    const p = parseParticipant(lines[idx[n]])!;
+    if (p.label === clean) return;
+    p.label = clean;
+    lines[idx[n]] = writeParticipant(p);
+    commitDiagram(lines);
+  };
+
+  const setParticipantKind = (n: number, isActor: boolean) => {
+    const lines = getDiagramLines();
+    const idx = participantIndices(lines);
+    if (n < 0 || n >= idx.length) return;
+    const p = parseParticipant(lines[idx[n]])!;
+    p.keyword = isActor ? 'actor' : 'participant';
+    lines[idx[n]] = writeParticipant(p);
+    commitDiagram(lines);
+  };
+
+  const addStep = (fromId: string, toId: string, text: string, dashed: boolean) => {
+    const clean = (text || '').trim();
+    if (!fromId || !toId || !clean) { showToast('Choose both participants and describe the step.'); return; }
+    const lines = getDiagramLines();
+    const msgs = messageIndices(lines);
+    const indent = msgs.length ? parseMessage(lines[msgs[0]])!.indent : '    ';
+    const line = `${indent}${fromId}${dashed ? '-->>' : '->>'}${toId}: ${clean}`;
+    const at = msgs.length ? msgs[msgs.length - 1] + 1 : lines.length;
+    lines.splice(at, 0, line);
+    commitDiagram(lines, 'Step added');
+  };
+
+  const removeStep = (n: number) => {
+    const lines = getDiagramLines();
+    const idx = messageIndices(lines);
+    if (n < 0 || n >= idx.length) return;
+    lines.splice(idx[n], 1);
+    commitDiagram(lines, 'Step removed');
+  };
+
+  const editStep = (n: number, patch: Partial<MessageLine>) => {
+    const lines = getDiagramLines();
+    const idx = messageIndices(lines);
+    if (n < 0 || n >= idx.length) return;
+    const m = parseMessage(lines[idx[n]])!;
+    const next: MessageLine = { ...m, ...patch };
+    if (writeMessage(next) === writeMessage(m)) return;
+    lines[idx[n]] = writeMessage(next);
+    commitDiagram(lines);
+  };
+
+  // ---------- rendering ----------
+
+  const rowShell = (idx: number, kind: string): HTMLElement => {
+    const row = document.createElement('div');
+    row.draggable = true;
+    row.dataset.idx = String(idx);
+    row.dataset.kind = kind;
+    row.setAttribute('role', 'listitem');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);border-radius:4px;font-size:11px;color:var(--text-primary);';
+    const grip = document.createElement('span');
+    grip.textContent = '☰';
+    grip.setAttribute('aria-hidden', 'true');
+    grip.style.cssText = 'color:var(--text-muted);cursor:grab;flex-shrink:0;';
+    row.appendChild(grip);
+    return row;
+  };
+
+  const iconBtn = (glyph: string, label: string, onClick: () => void, danger = false): HTMLButtonElement => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = glyph;
+    b.setAttribute('aria-label', label);
+    b.title = label;
+    b.style.cssText = 'background:none;border:1px solid var(--border);border-radius:3px;color:' +
+      (danger ? 'var(--error)' : 'var(--text-secondary)') +
+      ';cursor:pointer;font-size:10px;line-height:1;padding:3px 6px;flex-shrink:0;';
+    b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    return b;
+  };
+
+  const renderArrangePanel = () => {
+    const pWrap = document.getElementById('fdeArrangeParticipants');
+    const mWrap = document.getElementById('fdeArrangeMessages');
+    if (!pWrap || !mWrap) return;
+
+    const lines = getDiagramLines();
+    const parts = participantIndices(lines).map(i => parseParticipant(lines[i])!);
+    const msgs = messageIndices(lines).map(i => parseMessage(lines[i])!);
+
+    pWrap.innerHTML = '';
+    mWrap.innerHTML = '';
+
+    parts.forEach((p, n) => {
+      const row = rowShell(n, 'participant');
+
+      // Actor vs participant is a real modelling distinction (a person vs a system),
+      // so it is a visible toggle rather than something buried in the source.
+      const kind = document.createElement('button');
+      kind.type = 'button';
+      kind.textContent = p.keyword === 'actor' ? '\u{1F464}' : '\u{1F5A5}';
+      kind.title = p.keyword === 'actor' ? 'Person / role — click to make it a system' : 'System — click to make it a person';
+      kind.setAttribute('aria-label', kind.title);
+      kind.style.cssText = 'background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:10px;padding:2px 5px;flex-shrink:0;';
+      kind.addEventListener('click', (e) => { e.stopPropagation(); setParticipantKind(n, p.keyword !== 'actor'); });
+      row.appendChild(kind);
+
+      const name = document.createElement('input');
+      name.type = 'text';
+      name.value = p.label;
+      name.setAttribute('aria-label', 'Name of participant ' + p.label);
+      name.style.cssText = 'flex:1;min-width:0;background:transparent;border:1px solid transparent;border-radius:3px;color:var(--text-primary);font-size:11px;padding:2px 4px;';
+      name.addEventListener('focus', () => { name.style.borderColor = 'var(--border)'; name.style.background = 'var(--bg-input)'; });
+      name.addEventListener('blur', () => { name.style.borderColor = 'transparent'; name.style.background = 'transparent'; renameParticipant(n, name.value); });
+      name.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') name.blur(); });
+      row.appendChild(name);
+
+      row.appendChild(iconBtn('↑', 'Move up: ' + p.label, () => moveRow('participant', n, n - 1)));
+      row.appendChild(iconBtn('↓', 'Move down: ' + p.label, () => moveRow('participant', n, n + 1)));
+      row.appendChild(iconBtn('✕', 'Remove ' + p.label, () => removeParticipant(n), true));
+      pWrap.appendChild(row);
+    });
+
+    if (!parts.length) {
+      pWrap.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">No participants yet — add the first one below.</div>';
+    }
+
+    const labelOf = (id: string) => {
+      const hit = parts.find(p => p.id === id);
+      return hit ? hit.label : id;
+    };
+
+    msgs.forEach((m, n) => {
+      const row = rowShell(n, 'message');
+
+      const mkSel = (val: string, onChange: (v: string) => void, aria: string) => {
+        const sel = document.createElement('select');
+        sel.setAttribute('aria-label', aria);
+        sel.style.cssText = 'background:var(--bg-input);border:1px solid var(--border);border-radius:3px;color:var(--text-primary);font-size:10.5px;padding:2px 3px;max-width:110px;flex-shrink:0;';
+        parts.forEach(p => {
+          const o = document.createElement('option');
+          o.value = p.id; o.textContent = p.label;
+          if (p.id === val) o.selected = true;
+          sel.appendChild(o);
+        });
+        sel.addEventListener('change', () => onChange(sel.value));
+        return sel;
+      };
+
+      row.appendChild(mkSel(m.from, v => editStep(n, { from: v }), 'From participant for step: ' + m.text));
+      const arrow = document.createElement('button');
+      arrow.type = 'button';
+      arrow.textContent = m.arrow.indexOf('--') === 0 ? '⇢' : '→';
+      arrow.title = m.arrow.indexOf('--') === 0 ? 'Response / return — click for a request' : 'Request — click for a response';
+      arrow.setAttribute('aria-label', arrow.title);
+      arrow.style.cssText = 'background:none;border:1px solid var(--border);border-radius:3px;color:var(--accent);cursor:pointer;font-size:11px;padding:2px 6px;flex-shrink:0;';
+      arrow.addEventListener('click', (e) => { e.stopPropagation(); editStep(n, { arrow: m.arrow.indexOf('--') === 0 ? '->>' : '-->>' }); });
+      row.appendChild(arrow);
+      row.appendChild(mkSel(m.to, v => editStep(n, { to: v }), 'To participant for step: ' + m.text));
+
+      const txt = document.createElement('input');
+      txt.type = 'text';
+      txt.value = m.text;
+      txt.setAttribute('aria-label', 'Description of step from ' + labelOf(m.from) + ' to ' + labelOf(m.to));
+      txt.style.cssText = 'flex:1;min-width:60px;background:transparent;border:1px solid transparent;border-radius:3px;color:var(--text-primary);font-size:11px;padding:2px 4px;';
+      txt.addEventListener('focus', () => { txt.style.borderColor = 'var(--border)'; txt.style.background = 'var(--bg-input)'; });
+      txt.addEventListener('blur', () => { txt.style.borderColor = 'transparent'; txt.style.background = 'transparent'; editStep(n, { text: txt.value }); });
+      txt.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') txt.blur(); });
+      row.appendChild(txt);
+
+      row.appendChild(iconBtn('↑', 'Move step up', () => moveRow('message', n, n - 1)));
+      row.appendChild(iconBtn('↓', 'Move step down', () => moveRow('message', n, n + 1)));
+      row.appendChild(iconBtn('✕', 'Remove step: ' + m.text, () => removeStep(n), true));
+      mWrap.appendChild(row);
+    });
+
+    if (!msgs.length) {
+      mWrap.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">No steps yet — add the first one below.</div>';
+    }
+
+    // Keep the "add step" participant pickers in sync with the current cast.
+    const selFrom = document.getElementById('selFdeNewStepFrom') as HTMLSelectElement | null;
+    const selTo = document.getElementById('selFdeNewStepTo') as HTMLSelectElement | null;
+    [selFrom, selTo].forEach((sel, i) => {
+      if (!sel) return;
+      const prev = sel.value;
+      sel.innerHTML = '';
+      parts.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.id; o.textContent = p.label;
+        sel.appendChild(o);
+      });
+      if (prev && parts.some(p => p.id === prev)) sel.value = prev;
+      else if (parts.length) sel.value = parts[Math.min(i, parts.length - 1)].id;
+    });
   };
 
   const wireDnd = (container: HTMLElement, kind: 'participant' | 'message') => {
@@ -1584,48 +1810,53 @@ function setupPhase1Discovery(api: any): void {
     container.addEventListener('dragend', (e) => {
       const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
       if (row) row.style.opacity = '';
+      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderColor = 'var(--border)'; });
     });
     container.addEventListener('dragover', (e) => {
       e.preventDefault();
       const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
-      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderTopColor = 'var(--border)'; });
-      if (row) row.style.borderTopColor = 'var(--accent)';
+      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderColor = 'var(--border)'; });
+      if (row) row.style.borderColor = 'var(--accent)';
     });
     container.addEventListener('drop', (e) => {
       e.preventDefault();
       const row = (e.target as HTMLElement).closest('[data-idx]') as HTMLElement | null;
-      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderTopColor = 'var(--border)'; });
+      container.querySelectorAll('[data-idx]').forEach(r => { (r as HTMLElement).style.borderColor = 'var(--border)'; });
       if (!row || dragFrom < 0) return;
       const to = parseInt(row.dataset.idx || '-1', 10);
-      if (to < 0 || to === dragFrom) return;
-      const count = container.querySelectorAll('[data-idx]').length;
-      const order = Array.from({ length: count }, (_, i) => i);
-      order.splice(to, 0, order.splice(dragFrom, 1)[0]);
+      const from = dragFrom;
       dragFrom = -1;
-      commitReorder(kind, order);
+      if (to >= 0 && to !== from) moveRow(kind, from, to);
     });
-  };
-
-  const renderArrangePanel = () => {
-    const pWrap = document.getElementById('fdeArrangeParticipants');
-    const mWrap = document.getElementById('fdeArrangeMessages');
-    if (!pWrap || !mWrap) return;
-    const parsed = splitDiagram(topologyContainer?.value || '');
-    pWrap.innerHTML = '';
-    mWrap.innerHTML = '';
-    let pi = 0, mi = 0;
-    for (const l of parsed) {
-      if (l.kind === 'participant') pWrap.appendChild(buildRow(l.label, pi++, 'participant'));
-      else if (l.kind === 'message') mWrap.appendChild(buildRow(l.label, mi++, 'message'));
-    }
-    if (!pi) pWrap.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">No participants yet.</div>';
-    if (!mi) mWrap.innerHTML = '<div style="color:var(--text-muted);font-size:11px;padding:8px;">No steps yet.</div>';
   };
 
   const arrangeP = document.getElementById('fdeArrangeParticipants');
   const arrangeM = document.getElementById('fdeArrangeMessages');
   if (arrangeP) wireDnd(arrangeP, 'participant');
   if (arrangeM) wireDnd(arrangeM, 'message');
+
+  // --- add controls ---
+  const newPartInput = document.getElementById('txtFdeNewParticipant') as HTMLInputElement | null;
+  const newPartIsActor = document.getElementById('chkFdeNewIsActor') as HTMLInputElement | null;
+  const doAddParticipant = () => {
+    if (!newPartInput || !newPartInput.value.trim()) { showToast('Type a name first.'); return; }
+    addParticipant(newPartInput.value, !!(newPartIsActor && newPartIsActor.checked));
+    newPartInput.value = '';
+    newPartInput.focus();
+  };
+  document.getElementById('btnFdeAddParticipant')?.addEventListener('click', doAddParticipant);
+  newPartInput?.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); doAddParticipant(); } });
+
+  const newStepText = document.getElementById('txtFdeNewStepText') as HTMLInputElement | null;
+  const newStepDashed = document.getElementById('chkFdeNewStepDashed') as HTMLInputElement | null;
+  const doAddStep = () => {
+    const f = (document.getElementById('selFdeNewStepFrom') as HTMLSelectElement | null)?.value || '';
+    const t = (document.getElementById('selFdeNewStepTo') as HTMLSelectElement | null)?.value || '';
+    addStep(f, t, newStepText?.value || '', !!(newStepDashed && newStepDashed.checked));
+    if (newStepText) { newStepText.value = ''; newStepText.focus(); }
+  };
+  document.getElementById('btnFdeAddStep')?.addEventListener('click', doAddStep);
+  newStepText?.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Enter') { e.preventDefault(); doAddStep(); } });
 
   document.getElementById('btnFdeViewArrange')?.addEventListener('click', () => setTopologyView('arrange'));
 
