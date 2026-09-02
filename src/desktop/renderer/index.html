@@ -750,11 +750,22 @@
                       <button class="btn-quick" id="btnFdeAiGenTopology" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700;" aria-label="AI Synthesize Topology">✨ AI Synthesize Topology</button>
                       <button class="btn-quick active" id="btnFdeTabFutureDiagram" style="font-size: 10.5px;" aria-label="Proposed AI Workflow">🟢 Proposed AI Workflow</button>
                       <button class="btn-quick" id="btnFdeTabLegacyDiagram" style="font-size: 10.5px;" aria-label="Legacy Bottlenecks">🔴 Legacy Bottlenecks</button>
-                      <button class="btn-quick" id="btnFdeCopyDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Copy Mermaid">📋 Copy Mermaid</button>
+                      <button class="btn-quick" id="btnFdeCopyDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Copy Mermaid source to clipboard">📋 Copy Mermaid</button>
+                      <button class="btn-quick" id="btnFdeExportDiagramSvg" style="font-size: 10.5px;" aria-label="Export the rendered diagram as an SVG file">⬇ Export SVG</button>
                     </div>
                   </div>
 
-                  <textarea id="fdeTopologyPreviewContainer" rows="8" style="width: 100%; box-sizing: border-box; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #4ec9b0; resize: vertical; line-height: 1.45; outline: none;" placeholder="Enter custom Mermaid sequence diagram here..." aria-label="Enter custom Mermaid sequence diagram here..."></textarea>
+                  <!-- Diagram / Source toggle. The rendered view is the default because
+                       the point of this section is to SEE the workflow, not read Mermaid. -->
+                  <div role="tablist" aria-label="Topology view mode" style="display: flex; gap: 4px; margin-bottom: 8px;">
+                    <button role="tab" id="btnFdeViewDiagram" aria-selected="true" aria-controls="fdeTopologyRendered" class="btn-quick active" style="font-size: 10.5px;" aria-label="Show rendered diagram">🗺 Diagram</button>
+                    <button role="tab" id="btnFdeViewSource" aria-selected="false" aria-controls="fdeTopologyPreviewContainer" class="btn-quick" style="font-size: 10.5px;" aria-label="Show and edit Mermaid source">✎ Source</button>
+                    <span id="fdeDiagramStatus" aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); align-self: center; margin-left: 6px;"></span>
+                  </div>
+
+                  <div id="fdeTopologyRendered" role="tabpanel" aria-labelledby="btnFdeViewDiagram" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow: auto; max-height: 460px; min-height: 180px;"></div>
+
+                  <textarea id="fdeTopologyPreviewContainer" role="tabpanel" aria-labelledby="btnFdeViewSource" hidden rows="8" style="width: 100%; box-sizing: border-box; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #4ec9b0; resize: vertical; line-height: 1.45; outline: none;" placeholder="Enter custom Mermaid sequence diagram here..." aria-label="Enter custom Mermaid sequence diagram here..."></textarea>
                 </div>
 
                 <!-- CLIENT MEMO PREVIEW MODAL / DRAWER -->

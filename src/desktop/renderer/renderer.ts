@@ -707,6 +707,228 @@ function switchDeliveryPhase(phase: number): void {
   }
 }
 
+/* ============================================================================
+ * SELF-CONTAINED MERMAID SEQUENCE DIAGRAM RENDERER
+ *
+ * The Delivery Studio ships to banking and defense client laptops and advertises
+ * air-gapped operation, so pulling mermaid.js from a CDN is not an option: it
+ * would break the offline promise and simply fail to render on a locked-down
+ * machine. Bundling the full mermaid library (~2.8MB) into a renderer that is
+ * already 360KB is disproportionate for one diagram type.
+ *
+ * The generator only ever emits `sequenceDiagram`, so this renders exactly that
+ * subset - participants/actors, solid and dashed arrows, self-calls, notes,
+ * loop/alt blocks and autonumber - directly to SVG with zero dependencies.
+ * Anything it cannot parse is reported inline rather than failing silently.
+ * ========================================================================== */
+
+interface SeqParticipant { id: string; label: string; isActor: boolean; x: number; }
+interface SeqMessage {
+  kind: 'msg' | 'note' | 'block';
+  from?: string; to?: string; text: string;
+  dashed?: boolean; self?: boolean;
+  blockLabel?: string; over?: string[];
+}
+interface ParsedSequence {
+  participants: SeqParticipant[];
+  messages: SeqMessage[];
+  autonumber: boolean;
+  errors: string[];
+}
+
+function parseSequenceDiagram(src: string): ParsedSequence {
+  const out: ParsedSequence = { participants: [], messages: [], autonumber: false, errors: [] };
+  const byId = new Map<string, SeqParticipant>();
+
+  const ensure = (id: string, label?: string, isActor = false): SeqParticipant => {
+    let p = byId.get(id);
+    if (!p) {
+      p = { id, label: label || id, isActor, x: 0 };
+      byId.set(id, p);
+      out.participants.push(p);
+    } else if (label && p.label === p.id) {
+      p.label = label;
+    }
+    return p;
+  };
+
+  const lines = src.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  if (!lines.length) { out.errors.push('Diagram is empty.'); return out; }
+  if (!/^sequenceDiagram/i.test(lines[0])) {
+    out.errors.push('Preview supports `sequenceDiagram` only. First line reads: "' + lines[0].slice(0, 48) + '"');
+    return out;
+  }
+
+  for (const raw of lines.slice(1)) {
+    const line = raw.replace(/;$/, '').trim();
+    if (!line || line.startsWith('%%')) continue;
+
+    if (/^autonumber\b/i.test(line)) { out.autonumber = true; continue; }
+
+    let m = line.match(/^(participant|actor)\s+([^\s]+)(?:\s+as\s+(.+))?$/i);
+    if (m) { ensure(m[2], m[3] ? m[3].trim() : undefined, m[1].toLowerCase() === 'actor'); continue; }
+
+    m = line.match(/^note\s+(?:over|left of|right of)\s+([^:]+):\s*(.+)$/i);
+    if (m) {
+      const over = m[1].split(',').map(s => s.trim()).filter(Boolean);
+      over.forEach(id => ensure(id));
+      out.messages.push({ kind: 'note', text: m[2].trim(), over });
+      continue;
+    }
+
+    m = line.match(/^(loop|alt|opt|par|critical)\s+(.*)$/i);
+    if (m) { out.messages.push({ kind: 'block', text: m[2].trim(), blockLabel: m[1].toLowerCase() }); continue; }
+    if (/^else\b/i.test(line)) {
+      out.messages.push({ kind: 'block', text: line.replace(/^else\s*/i, '').trim(), blockLabel: 'else' });
+      continue;
+    }
+    if (/^end$/i.test(line)) { out.messages.push({ kind: 'block', text: '', blockLabel: 'end' }); continue; }
+
+    if (/^(activate|deactivate)\b/i.test(line)) continue;
+
+    m = line.match(/^([^\s\-]+)\s*(-{1,2}>>?|-\)|-x)\s*([^:]+):\s*(.*)$/);
+    if (m) {
+      const from = m[1].trim(), arrow = m[2], to = m[3].trim();
+      ensure(from); ensure(to);
+      out.messages.push({
+        kind: 'msg', from, to, text: m[4].trim(),
+        dashed: arrow.indexOf('--') === 0,
+        self: from === to
+      });
+      continue;
+    }
+
+    out.errors.push('Unrecognised line: "' + line.slice(0, 60) + '"');
+  }
+
+  if (!out.participants.length) out.errors.push('No participants found.');
+  return out;
+}
+
+function escSvg(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/** Renders the parsed diagram to standalone SVG markup. */
+function renderSequenceSvg(src: string): { svg: string; errors: string[] } {
+  const d = parseSequenceDiagram(src);
+  if (!d.participants.length) {
+    return { svg: '', errors: d.errors.length ? d.errors : ['Nothing to draw.'] };
+  }
+
+  const CHAR_W = 6.6, PAD = 14, MIN_BOX = 116, GAP = 34;
+  const TOP = 14, BOX_H = 40, ROW_H = 46, NOTE_H = 34;
+
+  let cursor = 20;
+  const widths: number[] = [];
+  d.participants.forEach((p, i) => {
+    const w = Math.max(MIN_BOX, p.label.length * CHAR_W + PAD * 2);
+    widths[i] = w;
+    p.x = cursor + w / 2;
+    cursor += w + GAP;
+  });
+  const width = Math.max(cursor + 6, 420);
+
+  let y = TOP + BOX_H + 26;
+  const body: string[] = [];
+  let seq = 0;
+  const blockStack: Array<{ y: number; label: string; text: string }> = [];
+
+  for (const msg of d.messages) {
+    if (msg.kind === 'block') {
+      if (msg.blockLabel === 'end') {
+        const open = blockStack.pop();
+        if (open) {
+          body.push(
+            '<rect x="8" y="' + (open.y - 16) + '" width="' + (width - 16) + '" height="' + (y - open.y + 22) + '" rx="4" fill="none" stroke="var(--border)" stroke-dasharray="4 3"/>' +
+            '<text x="16" y="' + (open.y - 4) + '" class="sq-block">' + escSvg(open.label.toUpperCase()) + ' ' + escSvg(open.text) + '</text>'
+          );
+        }
+        y += 10;
+      } else {
+        blockStack.push({ y, label: msg.blockLabel || '', text: msg.text });
+        y += 22;
+      }
+      continue;
+    }
+
+    if (msg.kind === 'note') {
+      const xs = (msg.over || []).map(id => {
+        const p = d.participants.find(pp => pp.id === id);
+        return p ? p.x : undefined;
+      }).filter((n): n is number => typeof n === 'number');
+      const x1 = xs.length ? Math.min.apply(null, xs) : 40;
+      const x2 = xs.length ? Math.max.apply(null, xs) : width - 40;
+      const nw = Math.max(x2 - x1 + 120, msg.text.length * CHAR_W + 28);
+      const nx = Math.max(6, (x1 + x2) / 2 - nw / 2);
+      body.push(
+        '<rect x="' + nx + '" y="' + (y - 12) + '" width="' + nw + '" height="' + NOTE_H + '" rx="3" class="sq-note"/>' +
+        '<text x="' + (nx + nw / 2) + '" y="' + (y + 9) + '" class="sq-note-text" text-anchor="middle">' + escSvg(msg.text) + '</text>'
+      );
+      y += NOTE_H + 12;
+      continue;
+    }
+
+    const from = d.participants.find(p => p.id === msg.from);
+    const to = d.participants.find(p => p.id === msg.to);
+    if (!from || !to) continue;
+    seq++;
+    const label = (d.autonumber ? seq + '. ' : '') + msg.text;
+    const dash = msg.dashed ? ' stroke-dasharray="5 4"' : '';
+
+    if (msg.self) {
+      const x = from.x;
+      body.push(
+        '<path d="M ' + x + ' ' + y + ' L ' + (x + 44) + ' ' + y + ' L ' + (x + 44) + ' ' + (y + 22) + ' L ' + (x + 6) + ' ' + (y + 22) + '" fill="none" class="sq-line"' + dash + '/>' +
+        '<path d="M ' + (x + 6) + ' ' + (y + 22) + ' l 8 -4 l 0 8 z" class="sq-head"/>' +
+        '<text x="' + (x + 52) + '" y="' + (y + 4) + '" class="sq-msg">' + escSvg(label) + '</text>'
+      );
+      y += 40;
+    } else {
+      const dir = to.x > from.x ? 1 : -1;
+      const x1 = from.x + 4 * dir, x2 = to.x - 7 * dir;
+      body.push(
+        '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" class="sq-line"' + dash + '/>' +
+        '<path d="M ' + x2 + ' ' + y + ' l ' + (-8 * dir) + ' -4 l 0 8 z" class="sq-head"/>' +
+        '<text x="' + ((x1 + x2) / 2) + '" y="' + (y - 7) + '" class="sq-msg" text-anchor="middle">' + escSvg(label) + '</text>'
+      );
+      y += ROW_H;
+    }
+  }
+
+  const height = y + 30;
+
+  const heads: string[] = [];
+  d.participants.forEach((p, i) => {
+    const w = widths[i], x = p.x - w / 2;
+    heads.push('<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 8) + '" class="sq-lifeline"/>');
+    [TOP, height - BOX_H - 8].forEach(by => {
+      heads.push(
+        '<rect x="' + x + '" y="' + by + '" width="' + w + '" height="' + BOX_H + '" rx="' + (p.isActor ? 18 : 4) + '" class="' + (p.isActor ? 'sq-actor' : 'sq-part') + '"/>' +
+        '<text x="' + p.x + '" y="' + (by + BOX_H / 2 + 4) + '" class="sq-part-text" text-anchor="middle">' + escSvg(p.label) + '</text>'
+      );
+    });
+  });
+
+  const style = '<style>' +
+    '.sq-part{fill:var(--card-bg);stroke:var(--accent);stroke-width:1.2}' +
+    '.sq-actor{fill:var(--bg-tertiary);stroke:var(--success);stroke-width:1.2}' +
+    '.sq-part-text{fill:var(--text-primary);font:600 11px var(--font-sans)}' +
+    '.sq-lifeline{stroke:var(--border);stroke-width:1;stroke-dasharray:3 4}' +
+    '.sq-line{stroke:var(--accent);stroke-width:1.4}' +
+    '.sq-head{fill:var(--accent)}' +
+    '.sq-msg{fill:var(--text-secondary);font:11px var(--font-sans)}' +
+    '.sq-note{fill:var(--warn-bg);stroke:var(--warn);stroke-width:1}' +
+    '.sq-note-text{fill:var(--text-primary);font:11px var(--font-sans)}' +
+    '.sq-block{fill:var(--text-muted);font:600 10px var(--font-sans)}' +
+    '</style>';
+
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-label="Workflow sequence diagram">' +
+    style + heads.join('') + body.join('') + '</svg>';
+
+  return { svg, errors: d.errors };
+}
+
 function setupPhase1Discovery(api: any): void {
   const selArchetype = document.getElementById('selFdeArchetype') as HTMLSelectElement;
   const txtRawAsk = document.getElementById('txtFdeRawAsk') as HTMLTextAreaElement;
@@ -1055,8 +1277,69 @@ function setupPhase1Discovery(api: any): void {
           ? (res.futureDiagram || '// Proposed Future AI Workflow Sequence Diagram') 
           : (res.legacyDiagram || '// Legacy Bottleneck Sequence Diagram');
       }
+      paintDiagram();
     }
   };
+
+  // --- Rendered diagram preview (self-contained, works air-gapped) ---
+  const renderedPane = document.getElementById('fdeTopologyRendered');
+  const btnViewDiagram = document.getElementById('btnFdeViewDiagram');
+  const btnViewSource = document.getElementById('btnFdeViewSource');
+  const diagramStatus = document.getElementById('fdeDiagramStatus');
+  const btnExportSvg = document.getElementById('btnFdeExportDiagramSvg');
+
+  const paintDiagram = () => {
+    if (!renderedPane) return;
+    const src = topologyContainer?.value || '';
+    if (!src.trim()) {
+      renderedPane.innerHTML = '<div style="color: var(--text-muted); font-size: 11.5px; padding: 24px; text-align: center;">No diagram yet. Load an archetype preset or click ✨ AI Synthesize Topology.</div>';
+      if (diagramStatus) diagramStatus.textContent = '';
+      return;
+    }
+    const { svg, errors } = renderSequenceSvg(src);
+    if (!svg) {
+      renderedPane.innerHTML = '<div style="color: var(--warn); font-size: 11.5px; padding: 16px;">Could not render this diagram.<br><span style="color: var(--text-secondary);">' +
+        errors.map(e => e.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>') + '</span></div>';
+      if (diagramStatus) diagramStatus.textContent = 'Not rendered';
+      return;
+    }
+    renderedPane.innerHTML = svg;
+    // Parse problems are surfaced, never swallowed - a half-drawn diagram that
+    // silently dropped a step would mislead the client reading it.
+    if (diagramStatus) {
+      diagramStatus.textContent = errors.length ? errors.length + ' line(s) skipped' : 'Rendered';
+      diagramStatus.style.color = errors.length ? 'var(--warn)' : 'var(--text-secondary)';
+      diagramStatus.title = errors.join(String.fromCharCode(10));
+    }
+  };
+
+  const setTopologyView = (mode: 'diagram' | 'source') => {
+    if (renderedPane) renderedPane.hidden = mode !== 'diagram';
+    if (topologyContainer) topologyContainer.hidden = mode !== 'source';
+    btnViewDiagram?.classList.toggle('active', mode === 'diagram');
+    btnViewSource?.classList.toggle('active', mode === 'source');
+    btnViewDiagram?.setAttribute('aria-selected', String(mode === 'diagram'));
+    btnViewSource?.setAttribute('aria-selected', String(mode === 'source'));
+    if (mode === 'diagram') paintDiagram();
+  };
+
+  btnViewDiagram?.addEventListener('click', () => setTopologyView('diagram'));
+  btnViewSource?.addEventListener('click', () => setTopologyView('source'));
+
+  btnExportSvg?.addEventListener('click', () => {
+    const { svg } = renderSequenceSvg(topologyContainer?.value || '');
+    if (!svg) { showToast('⚠️ Nothing to export - the diagram did not render.'); return; }
+    // Inline the computed theme colours so the file stands alone outside the app.
+    const cs = getComputedStyle(document.documentElement);
+    const standalone = svg.replace(/var\((--[a-z-]+)\)/g, (_m, tok) => cs.getPropertyValue(tok).trim() || '#888');
+    const blob = new Blob([standalone], { type: 'image/svg+xml' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (currentDiagramMode === 'future' ? 'future-state' : 'legacy-state') + '-topology.svg';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('⬇ Exported ' + a.download);
+  });
 
   topologyContainer?.addEventListener('input', () => {
     if (currentDiagramMode === 'future') {
@@ -1064,6 +1347,7 @@ function setupPhase1Discovery(api: any): void {
     } else {
       cachedDiagrams.legacyDiagram = topologyContainer.value;
     }
+    paintDiagram();
   });
 
   btnCopyDiagram?.addEventListener('click', () => {
@@ -1146,6 +1430,7 @@ function setupPhase1Discovery(api: any): void {
     if (topologyContainer && cachedDiagrams.futureDiagram) {
       topologyContainer.value = cachedDiagrams.futureDiagram;
     }
+    paintDiagram();
   });
 
   btnTabLegacy?.addEventListener('click', () => {
@@ -1155,6 +1440,7 @@ function setupPhase1Discovery(api: any): void {
     if (topologyContainer && cachedDiagrams.legacyDiagram) {
       topologyContainer.value = cachedDiagrams.legacyDiagram;
     }
+    paintDiagram();
   });
 
   // --- Phase 1 completeness: drives the status badge, the nav rail and the Advance gate ---
@@ -1552,6 +1838,7 @@ function setupPhase1Discovery(api: any): void {
     computeRoi();
     const initialArch = selArchetype?.value || 'custom';
     renderTopology(initialArch);
+    setTopologyView('diagram');
     await refreshVersionHistory();
   };
 
