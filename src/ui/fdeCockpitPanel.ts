@@ -7254,6 +7254,8 @@ Output ONLY the message without markdown code fences.`;
       } else if (msg.type === 'commitDraftResult') {
         const titleInput = document.getElementById('commitTitleInput');
         if (titleInput && msg.title) titleInput.value = msg.title;
+        var cockpitMsg = document.getElementById('txtCockpitCommitMessage');
+        if (cockpitMsg && msg.title) cockpitMsg.value = msg.title + (msg.description ? '\n\n' + msg.description : '');
         const descInput = document.getElementById('commitDescInput');
         if (descInput && msg.description) descInput.value = msg.description;
         showToast('✓ Commit message & description drafted!');
@@ -7970,7 +7972,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function gitPaneCommitPushDirect() {
-      const msg = (document.getElementById('txtCockpitCommitMessage') as HTMLTextAreaElement)?.value || '';
+      const msg = (document.getElementById('txtCockpitCommitMessage') ? document.getElementById('txtCockpitCommitMessage').value : '');
       if (!msg.trim()) {
         showToast('⚠️ Please enter a commit message!');
         return;
@@ -7981,7 +7983,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function gitPaneCommitStagedOnly() {
-      const msg = (document.getElementById('txtCockpitCommitMessage') as HTMLTextAreaElement)?.value || '';
+      const msg = (document.getElementById('txtCockpitCommitMessage') ? document.getElementById('txtCockpitCommitMessage').value : '');
       if (!msg.trim()) {
         showToast('⚠️ Please enter a commit message!');
         return;
@@ -8012,7 +8014,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function gitPaneSwitchBranch() {
-      const sel = (document.getElementById('selCockpitBranchSelect') as HTMLSelectElement)?.value;
+      const sel = (document.getElementById('selCockpitBranchSelect') ? document.getElementById('selCockpitBranchSelect').value : '');
       if (sel) {
         showToast('🌿 Switching branch to: ' + sel);
         vscode.postMessage({ command: 'gitSwitchBranch', branch: sel });
@@ -8021,11 +8023,11 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function gitPaneCreateBranch() {
-      const inp = (document.getElementById('txtCockpitNewBranch') as HTMLInputElement)?.value;
+      const inp = (document.getElementById('txtCockpitNewBranch') ? document.getElementById('txtCockpitNewBranch').value : '');
       if (inp && inp.trim()) {
         showToast('➕ Creating and switching to branch: ' + inp.trim());
         vscode.postMessage({ command: 'gitCreateBranch', branch: inp.trim() });
-        (document.getElementById('txtCockpitNewBranch') as HTMLInputElement).value = '';
+        var _inp = document.getElementById('txtCockpitNewBranch'); if (_inp) _inp.value = '';
         setTimeout(refreshGitPaneState, 1500);
       } else {
         showToast('⚠️ Please enter a valid branch name.');
@@ -8062,9 +8064,9 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function gitPaneSaveConfig() {
-      const remoteUrl = (document.getElementById('txtCockpitGitRemoteUrl') as HTMLInputElement)?.value || '';
-      const userName = (document.getElementById('txtCockpitGitUserName') as HTMLInputElement)?.value || '';
-      const userEmail = (document.getElementById('txtCockpitGitUserEmail') as HTMLInputElement)?.value || '';
+      const remoteUrl = (document.getElementById('txtCockpitGitRemoteUrl') ? document.getElementById('txtCockpitGitRemoteUrl').value : '');
+      const userName = (document.getElementById('txtCockpitGitUserName') ? document.getElementById('txtCockpitGitUserName').value : '');
+      const userEmail = (document.getElementById('txtCockpitGitUserEmail') ? document.getElementById('txtCockpitGitUserEmail').value : '');
       vscode.postMessage({ command: 'gitSaveConfig', remoteUrl, userName, userEmail });
       setTimeout(refreshGitPaneState, 1500);
     }
@@ -8086,26 +8088,26 @@ Output ONLY the message without markdown code fences.`;
       vscode.postMessage({ command: 'gitInspectFull' });
     }
 
-    window.toggleGitCockpitWizard = toggleGitCockpitWizard;
-    window.gitPaneFetch = gitPaneFetch;
-    window.gitPaneCommitPushDirect = gitPaneCommitPushDirect;
-    window.gitPaneCommitStagedOnly = gitPaneCommitStagedOnly;
-    window.gitPaneStageAll = gitPaneStageAll;
-    window.gitPaneUnstageAll = gitPaneUnstageAll;
-    window.gitPaneDiscardAll = gitPaneDiscardAll;
-    window.gitPaneSwitchBranch = gitPaneSwitchBranch;
-    window.gitPaneCreateBranch = gitPaneCreateBranch;
-    window.gitPanePullRebase = gitPanePullRebase;
-    window.gitPanePushOrigin = gitPanePushOrigin;
-    window.gitPaneStashSave = gitPaneStashSave;
-    window.gitPaneStashPop = gitPaneStashPop;
-    window.gitPaneInit = gitPaneInit;
-    window.gitPaneTestRemote = gitPaneTestRemote;
-    window.gitPaneSaveConfig = gitPaneSaveConfig;
-    window.gitPaneAiGenerateMessage = gitPaneAiGenerateMessage;
-    window.gitRunQuickCommand = gitRunQuickCommand;
-    window.openGitTerminal = openGitTerminal;
-    window.refreshGitPaneState = refreshGitPaneState;
+    try { window.toggleGitCockpitWizard = toggleGitCockpitWizard; } catch(e) {}
+    try { window.gitPaneFetch = gitPaneFetch; } catch(e) {}
+    try { window.gitPaneCommitPushDirect = gitPaneCommitPushDirect; } catch(e) {}
+    try { window.gitPaneCommitStagedOnly = gitPaneCommitStagedOnly; } catch(e) {}
+    try { window.gitPaneStageAll = gitPaneStageAll; } catch(e) {}
+    try { window.gitPaneUnstageAll = gitPaneUnstageAll; } catch(e) {}
+    try { window.gitPaneDiscardAll = gitPaneDiscardAll; } catch(e) {}
+    try { window.gitPaneSwitchBranch = gitPaneSwitchBranch; } catch(e) {}
+    try { window.gitPaneCreateBranch = gitPaneCreateBranch; } catch(e) {}
+    try { window.gitPanePullRebase = gitPanePullRebase; } catch(e) {}
+    try { window.gitPanePushOrigin = gitPanePushOrigin; } catch(e) {}
+    try { window.gitPaneStashSave = gitPaneStashSave; } catch(e) {}
+    try { window.gitPaneStashPop = gitPaneStashPop; } catch(e) {}
+    try { window.gitPaneInit = gitPaneInit; } catch(e) {}
+    try { window.gitPaneTestRemote = gitPaneTestRemote; } catch(e) {}
+    try { window.gitPaneSaveConfig = gitPaneSaveConfig; } catch(e) {}
+    try { window.gitPaneAiGenerateMessage = gitPaneAiGenerateMessage; } catch(e) {}
+    try { window.gitRunQuickCommand = gitRunQuickCommand; } catch(e) {}
+    try { window.openGitTerminal = openGitTerminal; } catch(e) {}
+    try { window.refreshGitPaneState = refreshGitPaneState; } catch(e) {}
 
 </script>
 </body>
