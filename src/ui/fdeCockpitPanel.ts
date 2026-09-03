@@ -4856,6 +4856,7 @@ Output ONLY the message without markdown code fences.`;
             <span id="privProbeStatus" style="font-size: 11px; opacity: 0.9;"></span>
           </div>
         </div>
+      </div>
 
       <!-- ============================================================= -->
       <!-- PHASE 6: DEVOPS & GIT HUB (BITBUCKET, GITHUB, GITLAB, PR & CI/CD) -->
@@ -5129,8 +5130,6 @@ Output ONLY the message without markdown code fences.`;
         </div>
       </div>
 
-
-      </div>
     </div>
   </div>
 
