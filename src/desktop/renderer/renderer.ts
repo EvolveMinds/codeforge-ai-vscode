@@ -116,6 +116,12 @@ function setupNavigation(api: any): void {
 }
 
 function switchActivityTab(tabName: string, api?: any): void {
+  if (tabName === 'git') {
+    switchActivityTab('delivery', api);
+    switchDeliveryPhase(6);
+    return;
+  }
+
   currentActiveTab = tabName;
   document.querySelectorAll('.activity-btn[data-tab]').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tabName);
@@ -701,9 +707,13 @@ function switchDeliveryPhase(phase: number): void {
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-current', isActive ? 'step' : 'false');
   });
-  for (let i = 1; i <= 5; i++) {
+  for (let i = 1; i <= 6; i++) {
     const card = document.getElementById(`phase${i}Card`);
     if (card) card.style.display = i === phase ? 'block' : 'none';
+  }
+  if (phase === 6) {
+    const api = (window as any).evolveApi;
+    if (api) refreshGitStatus(api);
   }
 }
 
@@ -3639,6 +3649,129 @@ function setupDeliveryStudio(api: any): void {
   });
 
   // --- STEP 2: CLIENT API STUDIO ---
+  // --- Phase 2: 2A Ingest -> 2B Model ---
+  // Ingest comes first because you cannot map a schema you have not landed. What
+  // 2A scaffolds (the connector and the endpoints it pulls) is what 2B then models
+  // into staging tables and marts, so the lineage bar names that hand-off explicitly
+  // rather than leaving two unrelated tools sharing a heading.
+
+  /** Endpoints imported from cURL or OpenAPI. Empty until the FDE imports a spec. */
+  let importedEndpoints: Array<{ path: string; method: string }> = [];
+
+  const SAMPLE_ENDPOINTS = [{ path: '/customers', method: 'GET' }, { path: '/invoices', method: 'POST' }];
+
+  /**
+   * The endpoints the SDK is actually generated for.
+   * Previously the scaffold hardcoded the two samples, so importing a client's real
+   * OpenAPI spec produced an SDK for endpoints that did not exist.
+   */
+  const effectiveEndpoints = () => (importedEndpoints.length ? importedEndpoints : SAMPLE_ENDPOINTS);
+
+  const renderImportedEndpoints = () => {
+    const wrap = document.getElementById('p2EndpointList');
+    if (!wrap) return;
+    const eps = effectiveEndpoints();
+    const isSample = importedEndpoints.length === 0;
+
+    wrap.innerHTML = '<div style="font-size:10.5px;color:' +
+      (isSample ? 'var(--warn)' : 'var(--text-secondary)') + ';margin-bottom:5px;">' +
+      (isSample
+        ? 'No spec imported — these are sample endpoints. Import cURL or OpenAPI to scaffold the client’s real API.'
+        : eps.length + ' endpoint' + (eps.length === 1 ? '' : 's') + ' imported from the client’s spec.') +
+      '</div>';
+
+    const list = document.createElement('div');
+    list.setAttribute('role', 'list');
+    list.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;max-height:110px;overflow:auto;';
+    eps.slice(0, 60).forEach(e => {
+      const chip = document.createElement('span');
+      chip.setAttribute('role', 'listitem');
+      chip.textContent = e.method + ' ' + e.path;
+      chip.style.cssText = 'font-family:var(--font-mono);font-size:10px;padding:2px 7px;border-radius:3px;background:var(--card-bg);border:1px solid ' +
+        (isSample ? 'var(--warn)' : 'var(--border)') + ';color:var(--text-primary);';
+      list.appendChild(chip);
+    });
+    wrap.appendChild(list);
+    if (eps.length > 60) {
+      const more = document.createElement('div');
+      more.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:4px;';
+      more.textContent = '+ ' + (eps.length - 60) + ' more';
+      wrap.appendChild(more);
+    }
+    updateP2Lineage();
+  };
+
+  /** States plainly what flows from 2A into 2B, and what is still missing. */
+  const updateP2Lineage = () => {
+    const bar = document.getElementById('p2LineageBar');
+    if (!bar) return;
+
+    const connName = (document.getElementById('connName') as HTMLInputElement | null)?.value || '';
+    const epCount = importedEndpoints.length;
+    const martName = (document.getElementById('martNameInput') as HTMLInputElement | null)?.value || '';
+
+    const a = epCount
+      ? `<strong style="color:var(--text-primary);">2A</strong> pulls ${epCount} endpoint${epCount === 1 ? '' : 's'}` +
+        (connName ? ` via <code style="font-family:var(--font-mono);">${connName}</code>` : '')
+      : `<strong style="color:var(--text-primary);">2A</strong> has no client spec imported yet`;
+
+    const b = martName
+      ? `<strong style="color:var(--text-primary);">2B</strong> models the landed tables into <code style="font-family:var(--font-mono);">${martName}</code>`
+      : `<strong style="color:var(--text-primary);">2B</strong> models those landed tables into staging and marts`;
+
+    bar.innerHTML = a + ' → ' + b +
+      '<br><span style="color:var(--text-muted);">If a mart needs a field the connector does not fetch, that gap belongs back in 2A — and is a discovery finding for the client.</span>';
+  };
+
+  // --- Step navigation ---
+  let currentP2Step = 1;
+
+  const p2StepIsDone = (step: number): boolean => {
+    if (step === 1) return importedEndpoints.length > 0;
+    const mart = (document.getElementById('martNameInput') as HTMLInputElement | null)?.value || '';
+    return !!mart.trim();
+  };
+
+  const refreshP2Rail = () => {
+    [1, 2].forEach(i => {
+      const btn = document.getElementById(i === 1 ? 'btnP2StepA' : 'btnP2StepB');
+      if (!btn) return;
+      const done = p2StepIsDone(i);
+      btn.classList.toggle('active', i === currentP2Step);
+      btn.classList.toggle('done', done && i !== currentP2Step);
+      btn.setAttribute('aria-selected', String(i === currentP2Step));
+      const dot = btn.querySelector('.fde-step-dot') as HTMLElement | null;
+      if (dot) {
+        dot.textContent = done ? '●' : '○';
+        dot.style.color = done ? 'var(--success)' : 'var(--text-muted)';
+      }
+    });
+    const prev = document.getElementById('btnP2StepPrev') as HTMLButtonElement | null;
+    const next = document.getElementById('btnP2StepNext') as HTMLButtonElement | null;
+    if (prev) prev.disabled = currentP2Step === 1;
+    if (next) next.textContent = currentP2Step === 2 ? 'Review →' : 'Next →';
+  };
+
+  const goToP2Step = (step: number) => {
+    currentP2Step = Math.min(2, Math.max(1, step));
+    const a = document.getElementById('p2StepAPanel');
+    const b = document.getElementById('p2StepBPanel');
+    if (a) a.hidden = currentP2Step !== 1;
+    if (b) b.hidden = currentP2Step !== 2;
+    refreshP2Rail();
+    updateP2Lineage();
+  };
+
+  document.getElementById('btnP2StepA')?.addEventListener('click', () => goToP2Step(1));
+  document.getElementById('btnP2StepB')?.addEventListener('click', () => goToP2Step(2));
+  document.getElementById('btnP2StepPrev')?.addEventListener('click', () => goToP2Step(currentP2Step - 1));
+  document.getElementById('btnP2StepNext')?.addEventListener('click', () => goToP2Step(currentP2Step + 1));
+
+  document.getElementById('martNameInput')?.addEventListener('input', () => { refreshP2Rail(); updateP2Lineage(); });
+
+  renderImportedEndpoints();
+  refreshP2Rail();
+
   const connNameInput = document.getElementById('connName') as HTMLInputElement;
   const connBaseUrlInput = document.getElementById('connBaseUrl') as HTMLInputElement;
   const connAuthTypeSelect = document.getElementById('connAuthType') as HTMLSelectElement;
@@ -3672,19 +3805,76 @@ function setupDeliveryStudio(api: any): void {
 
   document.getElementById('btnParseCurl')?.addEventListener('click', () => {
     const raw = (document.getElementById('curlInput') as HTMLTextAreaElement).value;
-    if (raw) {
-      const matchUrl = raw.match(/https?:\/\/[^\s'"]+/);
-      if (matchUrl) {
+    if (!raw.trim()) { showToast('Paste a cURL command first.'); return; }
+
+    const matchUrl = raw.match(/https?:\/\/[^\s'"]+/);
+    if (matchUrl) {
+      try {
+        const u = new URL(matchUrl[0]);
+        // Split origin from path so the SDK gets a base URL plus a real endpoint,
+        // rather than baking the whole request URL into the base.
+        const basePath = u.pathname.replace(/\/+$/, '');
+        connBaseUrlInput.value = u.origin + (basePath.split('/').length > 2 ? '' : basePath);
+        const method = (raw.match(/-X\s+([A-Z]+)/) || [, raw.includes('-d ') || raw.includes('--data') ? 'POST' : 'GET'])[1];
+        importedEndpoints = [{ path: u.pathname || '/', method: String(method).toUpperCase() }];
+      } catch {
         connBaseUrlInput.value = matchUrl[0];
-        connNameInput.value = 'ClientImportedApi';
       }
-      if (raw.includes('Bearer')) {
-        connAuthTypeSelect.value = 'bearer';
-      }
-      const box = document.getElementById('curlImportBox');
-      if (box) box.style.display = 'none';
-      showToast('✓ Parsed & applied cURL parameters!');
+      connNameInput.value = 'ClientImportedApi';
     }
+    if (/Bearer/i.test(raw)) connAuthTypeSelect.value = 'bearer';
+
+    const box = document.getElementById('curlImportBox');
+    if (box) box.style.display = 'none';
+    renderImportedEndpoints();
+    showToast(importedEndpoints.length
+      ? `\u2713 Imported ${importedEndpoints.length} endpoint from cURL`
+      : '\u2713 Applied cURL parameters');
+  });
+
+  /** Parses an OpenAPI/Swagger document into the endpoint list used for scaffolding. */
+  document.getElementById('btnParseOpenApi')?.addEventListener('click', () => {
+    const el = document.getElementById('openApiInput') as HTMLTextAreaElement | null;
+    const raw = (el?.value || '').trim();
+    if (!raw) { showToast('Paste an OpenAPI/Swagger document first.'); return; }
+
+    let doc: any;
+    try {
+      doc = JSON.parse(raw);
+    } catch {
+      showToast('\u26a0\ufe0f That is not valid JSON. YAML specs need converting to JSON first.');
+      return;
+    }
+
+    const found: Array<{ path: string; method: string }> = [];
+    const paths = doc && doc.paths;
+    if (paths && typeof paths === 'object') {
+      for (const p of Object.keys(paths)) {
+        const ops = paths[p];
+        if (!ops || typeof ops !== 'object') continue;
+        for (const m of Object.keys(ops)) {
+          if (['get', 'post', 'put', 'patch', 'delete'].indexOf(m.toLowerCase()) >= 0) {
+            found.push({ path: p, method: m.toUpperCase() });
+          }
+        }
+      }
+    }
+
+    if (!found.length) {
+      showToast('\u26a0\ufe0f No paths found in that document. Nothing imported.');
+      return;
+    }
+
+    importedEndpoints = found;
+    const server = (doc.servers && doc.servers[0] && doc.servers[0].url) || '';
+    if (server) connBaseUrlInput.value = server;
+    if (doc.info && doc.info.title) {
+      connNameInput.value = String(doc.info.title).replace(/[^A-Za-z0-9]/g, '').slice(0, 30) || 'ClientImportedApi';
+    }
+    const box = document.getElementById('openApiImportBox');
+    if (box) box.style.display = 'none';
+    renderImportedEndpoints();
+    showToast(`\u2713 Imported ${found.length} endpoints from OpenAPI`);
   });
 
   document.getElementById('btnToggleOpenApiModal')?.addEventListener('click', () => {
@@ -3702,7 +3892,7 @@ function setupDeliveryStudio(api: any): void {
       const res = await api.engines.generateApiSdk({
         serviceName: connNameInput.value || 'ClientBillingApi',
         baseUrl: connBaseUrlInput.value || 'https://api.client-vpc.internal/v1',
-        endpoints: [{ path: '/customers', method: 'GET' }, { path: '/invoices', method: 'POST' }]
+        endpoints: effectiveEndpoints()
       });
       generatedTsSdk = res.tsCode;
       generatedPySdk = res.pyCode;
@@ -3727,7 +3917,7 @@ function setupDeliveryStudio(api: any): void {
       const res = await api.engines.generateApiSdk({
         serviceName: connNameInput.value || 'ClientBillingApi',
         baseUrl: connBaseUrlInput.value || 'https://api.client-vpc.internal/v1',
-        endpoints: [{ path: '/customers', method: 'GET' }, { path: '/invoices', method: 'POST' }]
+        endpoints: effectiveEndpoints()
       });
       generatedTsSdk = res.tsCode;
       generatedPySdk = res.pyCode;

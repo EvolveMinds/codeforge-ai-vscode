@@ -557,6 +557,7 @@
               <button class="phase-nav-btn" data-phase="3" title="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)" aria-label="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)">🧠 3. AI Solutioning</button>
               <button class="phase-nav-btn" data-phase="4" title="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)" aria-label="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 4. Reliability &amp; Evals</button>
               <button class="phase-nav-btn" data-phase="5" title="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)" aria-label="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)">🚀 5. Deploy &amp; Influence</button>
+              <button class="phase-nav-btn" data-phase="6" title="Phase 6: DevOps &amp; Git Hub (Bitbucket, GitHub, GitLab, Remotes, PR &amp; CI/CD)" aria-label="Phase 6: DevOps &amp; Git Hub (Bitbucket, GitHub, GitLab, Remotes, PR &amp; CI/CD)">🌿 6. DevOps &amp; Git</button>
             </div>
 
             <!-- Right Step Content Canvas -->
@@ -1081,6 +1082,113 @@
                   </div>
                 </div>
 
+
+                <!-- PHASE 2 STEP NAVIGATION
+                     Ingest before modelling: you cannot map a schema you have not landed.
+                     Step 2A scaffolds the connector that lands the client's raw tables;
+                     step 2B models those tables into staging and marts. Lineage runs left
+                     to right, and a gap found while modelling points back at the connector
+                     that has to fetch the missing field. -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                  <div role="tablist" aria-label="Phase 2 engineering steps" style="display: flex; gap: 6px; flex: 1; min-width: 0;">
+                    <button role="tab" id="btnP2StepA" data-step="1" aria-selected="true" aria-controls="p2StepAPanel" class="fde-step-btn active" aria-label="Step 2A of 2: Ingest, client API and webhooks">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">2A</span>
+                      <span class="fde-step-label">Ingest — Client API &amp; Webhooks</span>
+                    </button>
+                    <button role="tab" id="btnP2StepB" data-step="2" aria-selected="false" aria-controls="p2StepBPanel" class="fde-step-btn" aria-label="Step 2B of 2: Model, schema mapper and dimensional marts">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">2B</span>
+                      <span class="fde-step-label">Model — Schema &amp; Marts</span>
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-quick" id="btnP2StepPrev" style="font-size: 11px;" aria-label="Go to the previous engineering step" disabled>← Back</button>
+                    <button class="btn-quick" id="btnP2StepNext" style="font-size: 11px; border-color: var(--accent); color: var(--accent);" aria-label="Go to the next engineering step">Next →</button>
+                  </div>
+                </div>
+
+                <div id="p2LineageBar" aria-live="polite" style="font-size: 11px; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px;"></div>
+
+                <div id="p2StepAPanel" role="tabpanel" aria-labelledby="btnP2StepA">
+                <!-- SECTION 2B: RESILIENT CLIENT API & WEBHOOK STUDIO (Engineering Core) -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                    <div>
+                      <h4 style="margin: 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🔌</span> Section 2B: Resilient Client API &amp; Webhook Ingest Studio
+                      </h4>
+                      <p class="desc" style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-secondary);">
+                        Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and idempotency headers. Import directly from cURL or OpenAPI.
+                      </p>
+                    </div>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      <button class="btn-quick" id="btnLoadSampleApi" aria-label="Load Sample Billing API">⚡ Load Sample Billing API</button>
+                      <button class="btn-quick" id="btnToggleCurlModal" aria-label="Import cURL">🪄 Import cURL</button>
+                      <button class="btn-quick" id="btnToggleOpenApiModal" aria-label="Import OpenAPI">📋 Import OpenAPI</button>
+                    </div>
+                  </div>
+
+                  <div id="curlImportBox" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <strong style="color: var(--accent); font-size: 11.5px;">🪄 Paste cURL Command:</strong>
+                      <button class="btn-quick" id="btnCloseCurlBox" aria-label="Close">✕ Close</button>
+                    </div>
+                    <textarea id="curlInput" rows="2" placeholder="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'" style="width: 100%; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;" aria-label="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'"></textarea>
+                    <button class="btn" id="btnParseCurl" style="margin-top: 6px; padding: 3px 10px; font-size: 10.5px;" aria-label="Parse & Apply">Parse &amp; Apply</button>
+                  </div>
+
+                  <div id="openApiImportBox" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <strong style="color: var(--accent); font-size: 11.5px;">📋 Paste OpenAPI / Swagger JSON:</strong>
+                      <button class="btn-quick" id="btnCloseOpenApiBox" aria-label="Close">✕ Close</button>
+                    </div>
+                    <textarea id="openApiInput" rows="3" placeholder="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}" style="width: 100%; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;" aria-label="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}"></textarea>
+                    <button class="btn" id="btnParseOpenApi" style="margin-top: 6px; padding: 3px 10px; font-size: 10.5px;" aria-label="Parse & Apply">Parse &amp; Apply</button>
+                  </div>
+
+                  <!-- What the SDK will actually be generated for. Sample endpoints are
+                       flagged, so nobody ships a connector for paths the client does not have. -->
+                  <div id="p2EndpointList" style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 9px 11px; margin-bottom: 10px;"></div>
+
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;" for="connName">Connector Name</label>
+                      <input type="text" id="connName" value="ClientBillingApi" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;" for="connBaseUrl">Base URL</label>
+                      <input type="text" id="connBaseUrl" value="https://api.client-vpc.internal/v1" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;">
+                    </div>
+                    <div>
+                      <label style="font-size: 11px; font-weight: bold;" for="connAuthType">Auth Strategy</label>
+                      <select id="connAuthType" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <option value="bearer" selected>Bearer Token</option>
+                        <option value="apiKey">API Key (x-api-key)</option>
+                        <option value="oauth2">OAuth2 Client Credentials</option>
+                        <option value="basic">HTTP Basic Auth</option>
+                        <option value="none">None / Public</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn" id="btnScaffoldTsSdk" style="background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Scaffold TypeScript SDK">Scaffold TypeScript SDK</button>
+                    <button class="btn btn-secondary" id="btnScaffoldPySdk" aria-label="Scaffold Python SDK">Scaffold Python SDK</button>
+                    <button class="btn btn-secondary" id="btnTestApiPing" aria-label="Test API Ping">🔌 Test API Ping</button>
+                  </div>
+
+                  <div id="p2ResultBox" style="display: none; margin-top: 12px;">
+                    <div class="code-tabs">
+                      <div class="code-tab active" id="tabApiTs">TypeScript SDK</div>
+                      <div class="code-tab" id="tabApiPy">Python SDK</div>
+                    </div>
+                    <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 200px; overflow-y: auto;"></div>
+                  </div>
+                </div>
+                </div>
+
+                <div id="p2StepBPanel" role="tabpanel" aria-labelledby="btnP2StepB" hidden>
                 <!-- Submode Tabs -->
                 <div class="code-tabs">
                   <div class="code-tab active" id="tabModeStaging">1. Staging Schema Mapper</div>
@@ -1305,77 +1413,8 @@
                   </div>
                 </div>
 
-                <!-- SECTION 2B: RESILIENT CLIENT API & WEBHOOK STUDIO (Engineering Core) -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                    <div>
-                      <h4 style="margin: 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>🔌</span> Section 2B: Resilient Client API &amp; Webhook Ingest Studio
-                      </h4>
-                      <p class="desc" style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-secondary);">
-                        Scaffold fault-tolerant client SDKs with exponential backoff, rate-limiting, and idempotency headers. Import directly from cURL or OpenAPI.
-                      </p>
-                    </div>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                      <button class="btn-quick" id="btnLoadSampleApi" aria-label="Load Sample Billing API">⚡ Load Sample Billing API</button>
-                      <button class="btn-quick" id="btnToggleCurlModal" aria-label="Import cURL">🪄 Import cURL</button>
-                      <button class="btn-quick" id="btnToggleOpenApiModal" aria-label="Import OpenAPI">📋 Import OpenAPI</button>
-                    </div>
-                  </div>
-
-                  <div id="curlImportBox" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                      <strong style="color: var(--accent); font-size: 11.5px;">🪄 Paste cURL Command:</strong>
-                      <button class="btn-quick" id="btnCloseCurlBox" aria-label="Close">✕ Close</button>
-                    </div>
-                    <textarea id="curlInput" rows="2" placeholder="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'" style="width: 100%; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;" aria-label="curl -X POST https://api.client-vpc.internal/v1/payments -H 'Authorization: Bearer sec_key' -H 'Content-Type: application/json' -d '{&quot;amount&quot;: 100}'"></textarea>
-                    <button class="btn" id="btnParseCurl" style="margin-top: 6px; padding: 3px 10px; font-size: 10.5px;" aria-label="Parse & Apply">Parse &amp; Apply</button>
-                  </div>
-
-                  <div id="openApiImportBox" style="display: none; background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                      <strong style="color: var(--accent); font-size: 11.5px;">📋 Paste OpenAPI / Swagger JSON:</strong>
-                      <button class="btn-quick" id="btnCloseOpenApiBox" aria-label="Close">✕ Close</button>
-                    </div>
-                    <textarea id="openApiInput" rows="3" placeholder="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}" style="width: 100%; padding: 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11px;" aria-label="{&quot;openapi&quot;: &quot;3.0.0&quot;, &quot;info&quot;: {&quot;title&quot;: &quot;BillingApi&quot;}, &quot;paths&quot;: {...}}"></textarea>
-                    <button class="btn" id="btnParseOpenApi" style="margin-top: 6px; padding: 3px 10px; font-size: 10.5px;" aria-label="Parse & Apply">Parse &amp; Apply</button>
-                  </div>
-
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="connName">Connector Name</label>
-                      <input type="text" id="connName" value="ClientBillingApi" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="connBaseUrl">Base URL</label>
-                      <input type="text" id="connBaseUrl" value="https://api.client-vpc.internal/v1" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="connAuthType">Auth Strategy</label>
-                      <select id="connAuthType" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="bearer" selected>Bearer Token</option>
-                        <option value="apiKey">API Key (x-api-key)</option>
-                        <option value="oauth2">OAuth2 Client Credentials</option>
-                        <option value="basic">HTTP Basic Auth</option>
-                        <option value="none">None / Public</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn" id="btnScaffoldTsSdk" style="background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Scaffold TypeScript SDK">Scaffold TypeScript SDK</button>
-                    <button class="btn btn-secondary" id="btnScaffoldPySdk" aria-label="Scaffold Python SDK">Scaffold Python SDK</button>
-                    <button class="btn btn-secondary" id="btnTestApiPing" aria-label="Test API Ping">🔌 Test API Ping</button>
-                  </div>
-
-                  <div id="p2ResultBox" style="display: none; margin-top: 12px;">
-                    <div class="code-tabs">
-                      <div class="code-tab active" id="tabApiTs">TypeScript SDK</div>
-                      <div class="code-tab" id="tabApiPy">Python SDK</div>
-                    </div>
-                    <div class="code-preview" id="p2CodePreview" style="background: #181818; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 200px; overflow-y: auto;"></div>
-                  </div>
                 </div>
+
               </div>
 
               <!-- ============================================================= -->
@@ -2237,6 +2276,255 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 </div>
               </div>
 
+              <!-- ============================================================= -->
+              <!-- STEP 6: DEVOPS & GIT HUB (BITBUCKET, GITHUB, GITLAB, PR & CI/CD) -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase6Card" style="display: none; margin-bottom: 16px;">
+
+            <!-- Studio Header -->
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+              <div>
+                <h3 style="margin: 0; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>🌿</span> Git &amp; Remote Repository Hub
+                  <span id="gitPaneRepoBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px;">Detecting...</span>
+                </h3>
+                <p class="desc" style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4;">
+                  Seamless auto-detection and setup wizard for Bitbucket, GitHub, and GitLab remotes, branch lifecycle management, staged working tree changes, and 1-click pull request synchronization.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                <button class="btn" id="btnGitPaneSync" style="padding: 6px 14px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="Sync & Fetch">
+                  <span>🔄</span> Sync &amp; Fetch
+                </button>
+                <button class="btn" id="btnGitPaneQuickPush" style="padding: 6px 14px; font-size: 12px; background: var(--accent); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="1-Click Commit & Push">
+                  <span>🚀</span> 1-Click Commit &amp; Push
+                </button>
+                <button class="btn-quick" id="btnGitPaneCreatePr" style="padding: 6px 12px; font-size: 12px; border-color: #e5b567; color: #e5b567;" aria-label="Create PR">
+                  ✨ Create PR
+                </button>
+                <button class="btn-quick" id="btnGitPaneToggleWizard" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);" aria-label="Setup Wizard">
+                  ⚙️ Setup Wizard
+                </button>
+                <button class="btn-quick" id="btnGitPaneOpenTerm" style="padding: 6px 12px; font-size: 12px;" aria-label="Terminal">
+                  ⚡ Terminal
+                </button>
+              </div>
+            </div>
+
+            <!-- Top Metric Status Bar -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🌿</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Active Branch</div>
+                  <div id="gitPaneActiveBranch" style="font-size: 13px; font-weight: 700; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">main</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">🌐</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Remote Provider</div>
+                  <div id="gitPaneRemoteProvider" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">📝</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Working Tree</div>
+                  <div id="gitPaneWorkingStatus" style="font-size: 12px; font-weight: 700; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Clean</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 20px;">👤</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Git Author</div>
+                  <div id="gitPaneAuthorIdentity" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not configured</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- BITBUCKET & GIT SEAMLESS SETUP & CONFIGURATION WIZARD -->
+            <div id="gitWizardCard" style="display: none; background: rgba(0,0,0,0.3); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                <div style="font-size: 13.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                  <span>⚙️</span> Git &amp; Bitbucket Seamless Configuration Wizard
+                </div>
+                <button class="btn-quick" id="btnCloseGitWizard" style="font-size: 11px;" aria-label="Close Wizard">✕ Close Wizard</button>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px;">
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selGitWizardProvider">Remote Provider</label>
+                  <select id="selGitWizardProvider" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
+                    <option value="bitbucket">Bitbucket Cloud / Server</option>
+                    <option value="github">GitHub Enterprise / Cloud</option>
+                    <option value="gitlab">GitLab CI/CD</option>
+                    <option value="azure">Azure DevOps Repos</option>
+                    <option value="generic">Generic Git Remote</option>
+                  </select>
+                </div>
+                <div style="grid-column: span 2;">
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardRemoteUrl">Remote Origin URL (HTTPS or SSH)</label>
+                  <input type="text" id="txtGitWizardRemoteUrl" placeholder="git@bitbucket.org:workspace/repo.git or https://github.com/org/repo.git" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="git@bitbucket.org:workspace/repo.git or https://github.com/org/repo.git">
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardUserName">Git User Name (user.name)</label>
+                  <input type="text" id="txtGitWizardUserName" placeholder="e.g. John Doe" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="e.g. John Doe">
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardUserEmail">Git User Email (user.email)</label>
+                  <input type="email" id="txtGitWizardUserEmail" placeholder="e.g. john@company.com" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="e.g. john@company.com">
+                </div>
+                <div>
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardWorkspace">Bitbucket Workspace / Org</label>
+                  <input type="text" id="txtGitWizardWorkspace" placeholder="e.g. evolvemind" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="e.g. evolvemind">
+                </div>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
+                <div style="font-size: 11px; color: var(--text-secondary);" id="gitWizardCliVer">
+                  Auto-detecting Git CLI...
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn-quick" id="btnGitWizardInit" style="font-size: 11.5px;" aria-label="git init Repo">🌱 git init Repo</button>
+                  <button class="btn-quick" id="btnGitWizardTestRemote" style="font-size: 11.5px;" aria-label="Test Remote (ls-remote)">🔑 Test Remote (ls-remote)</button>
+                  <button class="btn" id="btnGitWizardSaveRemote" style="padding: 6px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Save & Apply Config">💾 Save &amp; Apply Config</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2-COLUMN MAIN CONTENT: WORKING TREE / SMART COMMIT & BRANCH MANAGER -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+
+              <!-- LEFT: WORKING TREE CHANGES LIST -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>📁</span> Working Tree Changes
+                      <span id="gitChangesCount" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 10px;">0 Files</span>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                      <button class="btn-quick" id="btnGitStageAll" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Stage All">➕ Stage All</button>
+                      <button class="btn-quick" id="btnGitUnstageAll" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Reset">➖ Reset</button>
+                    </div>
+                  </div>
+
+                  <!-- File List Scroll Area -->
+                  <div id="gitChangesList" style="max-height: 220px; min-height: 140px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-size: 11.5px; color: var(--text-secondary); text-align: center; padding: 30px 0;">✓ Working tree is clean. No uncommitted changes.</div>
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 12px;">
+                  <span style="font-size: 11px; color: var(--text-secondary);">Changes are tracked automatically in real time.</span>
+                  <button class="btn-quick" id="btnGitDiscardAll" style="font-size: 11px; color: var(--error); border-color: var(--error);" aria-label="Discard All Changes">🗑️ Discard All Changes</button>
+                </div>
+              </div>
+
+              <!-- RIGHT: SMART AI COMMIT & PUSH CARD -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>💬</span> Commit &amp; Upstream Push
+                    </div>
+                    <button class="btn-quick" id="btnGitAiGenCommit" style="font-size: 10.5px; padding: 2px 8px; border-color: #e5b567; color: #e5b567;" aria-label="AI Generate Message">
+                      ✨ AI Generate Message
+                    </button>
+                  </div>
+
+                  <div style="margin-bottom: 10px;">
+                    <textarea id="txtGitCommitMessage" placeholder="feat(module): describe your changes cleanly..." rows="4" style="width: 100%; box-sizing: border-box; padding: 9px 12px; font-size: 12px; font-family: var(--font-mono); background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none;" aria-label="feat(module): describe your changes cleanly..."></textarea>
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+                  <button class="btn-quick" id="btnGitCommitOnly" style="flex: 1; font-size: 11.5px; padding: 7px 10px;" aria-label="Commit Staged">💾 Commit Staged</button>
+                  <button class="btn" id="btnGitCommitAndPushDirect" style="flex: 1.5; font-size: 11.5px; padding: 7px 12px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Commit & Push (HEAD)">🚀 Commit &amp; Push (HEAD)</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- BOTTOM 2-COLUMN: BRANCH & SYNC CONTROLS & RECENT COMMITS -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+
+              <!-- BRANCH & REMOTE SYNC -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+                  <span>🌿</span> Branch Lifecycle &amp; Remote Synchronization
+                </div>
+
+                <!-- Switch Branch Row -->
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                  <select id="gitPaneBranchSelect" style="flex: 1; padding: 7px 10px; font-size: 12px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 5px;"></select>
+                  <button class="btn-quick" id="btnGitPaneSwitchBranch" style="font-size: 11.5px;" aria-label="Switch Branch">Switch Branch</button>
+                </div>
+
+                <!-- New Branch Row -->
+                <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                  <input type="text" id="txtGitPaneNewBranch" placeholder="feat/new-feature or bugfix/patch-01" style="flex: 1; padding: 7px 10px; font-size: 12px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="feat/new-feature or bugfix/patch-01">
+                  <button class="btn-quick" id="btnGitPaneCreateBranch" style="font-size: 11.5px; border-color: var(--accent); color: var(--accent);" aria-label="New Branch">➕ New Branch</button>
+                </div>
+
+                <!-- Sync & Stash Buttons -->
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-top: 1px solid var(--border); padding-top: 12px;">
+                  <button class="btn-quick" id="btnGitPanePull" style="font-size: 11px;" aria-label="Pull (Rebase)">⬇️ Pull (Rebase)</button>
+                  <button class="btn-quick" id="btnGitPanePush" style="font-size: 11px;" aria-label="Push Origin">⬆️ Push Origin</button>
+                  <button class="btn-quick" id="btnGitPaneStashSave" style="font-size: 11px;" aria-label="Stash Save">📦 Stash Save</button>
+                  <button class="btn-quick" id="btnGitPaneStashPop" style="font-size: 11px;" aria-label="Stash Pop">📥 Stash Pop</button>
+                </div>
+              </div>
+
+              <!-- PULL REQUEST & RECENT COMMITS -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>📜</span> Recent Commit History &amp; PR Link
+                    </div>
+                    <button class="btn-quick" id="btnGitOpenPrBrowser" style="font-size: 10.5px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);" aria-label="Open PR">
+                      ✨ Open PR ↗
+                    </button>
+                  </div>
+
+                  <!-- Recent Commits List -->
+                  <div id="gitRecentCommitsList" style="max-height: 145px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">Loading recent commits...</div>
+                  </div>
+                </div>
+
+                <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                  <div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="gitPrPreviewText">
+                    PR target: main
+                  </div>
+                  <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git log -n 10 --oneline" style="font-size: 10.5px;" aria-label="git log">git log ↗</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Multi-Cloud Git Fast-Command Bar -->
+            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;">
+              <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span>⚡</span> Git Terminal Quick Command Bar
+                <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: normal;">(Clicking any command executes it live in your active terminal drawer below)</span>
+              </div>
+              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git status" style="font-size: 11px;" aria-label="git status">git status</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git log --oneline -n 10 --graph" style="font-size: 11px;" aria-label="git log --graph">git log --graph</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git diff --stat" style="font-size: 11px;" aria-label="git diff --stat">git diff --stat</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git branch -a" style="font-size: 11px;" aria-label="git branch -a">git branch -a</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git remote -v" style="font-size: 11px;" aria-label="git remote -v">git remote -v</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git stash list" style="font-size: 11px;" aria-label="git stash list">git stash list</button>
+                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git fetch --prune" style="font-size: 11px;" aria-label="git fetch --prune">git fetch --prune</button>
+              </div>
+            </div>
+          
+              </div>
+
             </div>
           </div>
         </section>
@@ -2789,254 +3077,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
           </div>
         </section>
 
-        <!-- =================================================================== -->
-        <!-- MODE 8: GIT & REMOTE REPOSITORY STUDIO -->
-        <!-- =================================================================== -->
-        <section id="pane-git" class="phase-pane" style="display: none;">
-          <div class="content-card" style="margin-bottom: 16px;">
-            <!-- Studio Header -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
-              <div>
-                <h3 style="margin: 0; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                  <span>🌿</span> Git &amp; Remote Repository Hub
-                  <span id="gitPaneRepoBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px;">Detecting...</span>
-                </h3>
-                <p class="desc" style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4;">
-                  Seamless auto-detection and setup wizard for Bitbucket, GitHub, and GitLab remotes, branch lifecycle management, staged working tree changes, and 1-click pull request synchronization.
-                </p>
-              </div>
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
-                <button class="btn" id="btnGitPaneSync" style="padding: 6px 14px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="Sync & Fetch">
-                  <span>🔄</span> Sync &amp; Fetch
-                </button>
-                <button class="btn" id="btnGitPaneQuickPush" style="padding: 6px 14px; font-size: 12px; background: var(--accent); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="1-Click Commit & Push">
-                  <span>🚀</span> 1-Click Commit &amp; Push
-                </button>
-                <button class="btn-quick" id="btnGitPaneCreatePr" style="padding: 6px 12px; font-size: 12px; border-color: #e5b567; color: #e5b567;" aria-label="Create PR">
-                  ✨ Create PR
-                </button>
-                <button class="btn-quick" id="btnGitPaneToggleWizard" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);" aria-label="Setup Wizard">
-                  ⚙️ Setup Wizard
-                </button>
-                <button class="btn-quick" id="btnGitPaneOpenTerm" style="padding: 6px 12px; font-size: 12px;" aria-label="Terminal">
-                  ⚡ Terminal
-                </button>
-              </div>
-            </div>
 
-            <!-- Top Metric Status Bar -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">🌿</span>
-                <div style="min-width: 0; flex: 1;">
-                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Active Branch</div>
-                  <div id="gitPaneActiveBranch" style="font-size: 13px; font-weight: 700; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">main</div>
-                </div>
-              </div>
-
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">🌐</span>
-                <div style="min-width: 0; flex: 1;">
-                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Remote Provider</div>
-                  <div id="gitPaneRemoteProvider" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
-                </div>
-              </div>
-
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">📝</span>
-                <div style="min-width: 0; flex: 1;">
-                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Working Tree</div>
-                  <div id="gitPaneWorkingStatus" style="font-size: 12px; font-weight: 700; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Clean</div>
-                </div>
-              </div>
-
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
-                <span style="font-size: 20px;">👤</span>
-                <div style="min-width: 0; flex: 1;">
-                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Git Author</div>
-                  <div id="gitPaneAuthorIdentity" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not configured</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- BITBUCKET & GIT SEAMLESS SETUP & CONFIGURATION WIZARD -->
-            <div id="gitWizardCard" style="display: none; background: rgba(0,0,0,0.3); border: 1px solid var(--accent); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                <div style="font-size: 13.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                  <span>⚙️</span> Git &amp; Bitbucket Seamless Configuration Wizard
-                </div>
-                <button class="btn-quick" id="btnCloseGitWizard" style="font-size: 11px;" aria-label="Close Wizard">✕ Close Wizard</button>
-              </div>
-
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px;">
-                <div>
-                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selGitWizardProvider">Remote Provider</label>
-                  <select id="selGitWizardProvider" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;">
-                    <option value="bitbucket">Bitbucket Cloud / Server</option>
-                    <option value="github">GitHub Enterprise / Cloud</option>
-                    <option value="gitlab">GitLab CI/CD</option>
-                    <option value="azure">Azure DevOps Repos</option>
-                    <option value="generic">Generic Git Remote</option>
-                  </select>
-                </div>
-                <div style="grid-column: span 2;">
-                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardRemoteUrl">Remote Origin URL (HTTPS or SSH)</label>
-                  <input type="text" id="txtGitWizardRemoteUrl" placeholder="git@bitbucket.org:workspace/repo.git or https://github.com/org/repo.git" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="git@bitbucket.org:workspace/repo.git or https://github.com/org/repo.git">
-                </div>
-                <div>
-                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardUserName">Git User Name (user.name)</label>
-                  <input type="text" id="txtGitWizardUserName" placeholder="e.g. John Doe" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="e.g. John Doe">
-                </div>
-                <div>
-                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardUserEmail">Git User Email (user.email)</label>
-                  <input type="email" id="txtGitWizardUserEmail" placeholder="e.g. john@company.com" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="e.g. john@company.com">
-                </div>
-                <div>
-                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="txtGitWizardWorkspace">Bitbucket Workspace / Org</label>
-                  <input type="text" id="txtGitWizardWorkspace" placeholder="e.g. evolvemind" style="width: 100%; box-sizing: border-box; padding: 7px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="e.g. evolvemind">
-                </div>
-              </div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px;">
-                <div style="font-size: 11px; color: var(--text-secondary);" id="gitWizardCliVer">
-                  Auto-detecting Git CLI...
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn-quick" id="btnGitWizardInit" style="font-size: 11.5px;" aria-label="git init Repo">🌱 git init Repo</button>
-                  <button class="btn-quick" id="btnGitWizardTestRemote" style="font-size: 11.5px;" aria-label="Test Remote (ls-remote)">🔑 Test Remote (ls-remote)</button>
-                  <button class="btn" id="btnGitWizardSaveRemote" style="padding: 6px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Save & Apply Config">💾 Save &amp; Apply Config</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 2-COLUMN MAIN CONTENT: WORKING TREE / SMART COMMIT & BRANCH MANAGER -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-
-              <!-- LEFT: WORKING TREE CHANGES LIST -->
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>📁</span> Working Tree Changes
-                      <span id="gitChangesCount" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 10px;">0 Files</span>
-                    </div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnGitStageAll" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Stage All">➕ Stage All</button>
-                      <button class="btn-quick" id="btnGitUnstageAll" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Reset">➖ Reset</button>
-                    </div>
-                  </div>
-
-                  <!-- File List Scroll Area -->
-                  <div id="gitChangesList" style="max-height: 220px; min-height: 140px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
-                    <div style="font-size: 11.5px; color: var(--text-secondary); text-align: center; padding: 30px 0;">✓ Working tree is clean. No uncommitted changes.</div>
-                  </div>
-                </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 12px;">
-                  <span style="font-size: 11px; color: var(--text-secondary);">Changes are tracked automatically in real time.</span>
-                  <button class="btn-quick" id="btnGitDiscardAll" style="font-size: 11px; color: var(--error); border-color: var(--error);" aria-label="Discard All Changes">🗑️ Discard All Changes</button>
-                </div>
-              </div>
-
-              <!-- RIGHT: SMART AI COMMIT & PUSH CARD -->
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>💬</span> Commit &amp; Upstream Push
-                    </div>
-                    <button class="btn-quick" id="btnGitAiGenCommit" style="font-size: 10.5px; padding: 2px 8px; border-color: #e5b567; color: #e5b567;" aria-label="AI Generate Message">
-                      ✨ AI Generate Message
-                    </button>
-                  </div>
-
-                  <div style="margin-bottom: 10px;">
-                    <textarea id="txtGitCommitMessage" placeholder="feat(module): describe your changes cleanly..." rows="4" style="width: 100%; box-sizing: border-box; padding: 9px 12px; font-size: 12px; font-family: var(--font-mono); background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none;" aria-label="feat(module): describe your changes cleanly..."></textarea>
-                  </div>
-                </div>
-
-                <div style="display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
-                  <button class="btn-quick" id="btnGitCommitOnly" style="flex: 1; font-size: 11.5px; padding: 7px 10px;" aria-label="Commit Staged">💾 Commit Staged</button>
-                  <button class="btn" id="btnGitCommitAndPushDirect" style="flex: 1.5; font-size: 11.5px; padding: 7px 12px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Commit & Push (HEAD)">🚀 Commit &amp; Push (HEAD)</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- BOTTOM 2-COLUMN: BRANCH & SYNC CONTROLS & RECENT COMMITS -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-
-              <!-- BRANCH & REMOTE SYNC -->
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
-                <div style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-                  <span>🌿</span> Branch Lifecycle &amp; Remote Synchronization
-                </div>
-
-                <!-- Switch Branch Row -->
-                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                  <select id="gitPaneBranchSelect" style="flex: 1; padding: 7px 10px; font-size: 12px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 5px;"></select>
-                  <button class="btn-quick" id="btnGitPaneSwitchBranch" style="font-size: 11.5px;" aria-label="Switch Branch">Switch Branch</button>
-                </div>
-
-                <!-- New Branch Row -->
-                <div style="display: flex; gap: 8px; margin-bottom: 14px;">
-                  <input type="text" id="txtGitPaneNewBranch" placeholder="feat/new-feature or bugfix/patch-01" style="flex: 1; padding: 7px 10px; font-size: 12px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 5px;" aria-label="feat/new-feature or bugfix/patch-01">
-                  <button class="btn-quick" id="btnGitPaneCreateBranch" style="font-size: 11.5px; border-color: var(--accent); color: var(--accent);" aria-label="New Branch">➕ New Branch</button>
-                </div>
-
-                <!-- Sync & Stash Buttons -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-top: 1px solid var(--border); padding-top: 12px;">
-                  <button class="btn-quick" id="btnGitPanePull" style="font-size: 11px;" aria-label="Pull (Rebase)">⬇️ Pull (Rebase)</button>
-                  <button class="btn-quick" id="btnGitPanePush" style="font-size: 11px;" aria-label="Push Origin">⬆️ Push Origin</button>
-                  <button class="btn-quick" id="btnGitPaneStashSave" style="font-size: 11px;" aria-label="Stash Save">📦 Stash Save</button>
-                  <button class="btn-quick" id="btnGitPaneStashPop" style="font-size: 11px;" aria-label="Stash Pop">📥 Stash Pop</button>
-                </div>
-              </div>
-
-              <!-- PULL REQUEST & RECENT COMMITS -->
-              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
-                <div>
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>📜</span> Recent Commit History &amp; PR Link
-                    </div>
-                    <button class="btn-quick" id="btnGitOpenPrBrowser" style="font-size: 10.5px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);" aria-label="Open PR">
-                      ✨ Open PR ↗
-                    </button>
-                  </div>
-
-                  <!-- Recent Commits List -->
-                  <div id="gitRecentCommitsList" style="max-height: 145px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
-                    <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">Loading recent commits...</div>
-                  </div>
-                </div>
-
-                <div style="border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
-                  <div style="font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="gitPrPreviewText">
-                    PR target: main
-                  </div>
-                  <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git log -n 10 --oneline" style="font-size: 10.5px;" aria-label="git log">git log ↗</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Multi-Cloud Git Fast-Command Bar -->
-            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;">
-              <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                <span>⚡</span> Git Terminal Quick Command Bar
-                <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: normal;">(Clicking any command executes it live in your active terminal drawer below)</span>
-              </div>
-              <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git status" style="font-size: 11px;" aria-label="git status">git status</button>
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git log --oneline -n 10 --graph" style="font-size: 11px;" aria-label="git log --graph">git log --graph</button>
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git diff --stat" style="font-size: 11px;" aria-label="git diff --stat">git diff --stat</button>
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git branch -a" style="font-size: 11px;" aria-label="git branch -a">git branch -a</button>
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git remote -v" style="font-size: 11px;" aria-label="git remote -v">git remote -v</button>
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git stash list" style="font-size: 11px;" aria-label="git stash list">git stash list</button>
-                <button class="btn-quick btn-cloud-quick-cmd" data-cmd="git fetch --prune" style="font-size: 11px;" aria-label="git fetch --prune">git fetch --prune</button>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <!-- =================================================================== -->
         <!-- MODE 9: MULTI-CLOUD MATRIX STUDIO -->
