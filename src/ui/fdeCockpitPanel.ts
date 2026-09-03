@@ -6038,6 +6038,14 @@ Output ONLY the message without markdown code fences.`;
       if (url) vscode.postMessage({ command: 'openExternalUrl', url: url });
     }
 
+    document.addEventListener('click', function(e) {
+      var a = e.target && e.target.closest ? e.target.closest('a') : null;
+      if (a && a.getAttribute('href') && a.getAttribute('href').startsWith('http')) {
+        e.preventDefault();
+        openExternalUrl(a.getAttribute('href'));
+      }
+    });
+
     function diagnoseGit(target) {
       vscode.postMessage({ command: 'diagnoseGitConnection', target: target });
       showToast('🔍 Testing ' + target.toUpperCase() + ' SSH connection...');

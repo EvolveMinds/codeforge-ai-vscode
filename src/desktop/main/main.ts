@@ -91,6 +91,26 @@ function createWindow(): void {
   const rendererPath = resolveRendererPath();
   mainWindow.loadFile(rendererPath);
 
+  // Open external links in default OS browser
+  const wc = mainWindow.webContents as any;
+  if (wc.setWindowOpenHandler) {
+    wc.setWindowOpenHandler((details: { url: string }) => {
+      if (details?.url && (details.url.startsWith('http://') || details.url.startsWith('https://'))) {
+        shell.openExternal(details.url);
+      }
+      return { action: 'deny' };
+    });
+  }
+
+  if (wc.on) {
+    wc.on('will-navigate', (event: any, url: string) => {
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        event.preventDefault();
+        shell.openExternal(url);
+      }
+    });
+  }
+
   // Wire terminal stream events to renderer
   terminalMgr.onData((id, data) => {
     if (mainWindow && !mainWindow.isDestroyed()) {

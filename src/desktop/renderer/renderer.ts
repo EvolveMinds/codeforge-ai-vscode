@@ -56,20 +56,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   const api = (window as any).evolveApi;
 
   // Initialize UI subsystems
-  setupNavigation(api);
-  setupTerminal(api);
-  setupWorkspace(api);
-  setupEngagementManager(api);
-  setupDeliveryStudio(api);
-  setupDataAnalysisStudio(api);
-  setupCodeConverterStudio(api);
-  setupDatabricksStudio(api);
-  setupSecurityStudio(api);
-  setupAiChatStudio(api);
-  setupHardwareStudio(api);
-  setupGitStudio(api);
-  setupCloudHub(api);
-  setupModals(api);
+  try { setupNavigation(api); } catch (e) { console.error('setupNavigation failed', e); }
+  try { setupTerminal(api); } catch (e) { console.error('setupTerminal failed', e); }
+  try { setupWorkspace(api); } catch (e) { console.error('setupWorkspace failed', e); }
+  try { setupEngagementManager(api); } catch (e) { console.error('setupEngagementManager failed', e); }
+  try { setupDeliveryStudio(api); } catch (e) { console.error('setupDeliveryStudio failed', e); }
+  try { setupDataAnalysisStudio(api); } catch (e) { console.error('setupDataAnalysisStudio failed', e); }
+  try { setupCodeConverterStudio(api); } catch (e) { console.error('setupCodeConverterStudio failed', e); }
+  try { setupDatabricksStudio(api); } catch (e) { console.error('setupDatabricksStudio failed', e); }
+  try { setupSecurityStudio(api); } catch (e) { console.error('setupSecurityStudio failed', e); }
+  try { setupAiChatStudio(api); } catch (e) { console.error('setupAiChatStudio failed', e); }
+  try { setupHardwareStudio(api); } catch (e) { console.error('setupHardwareStudio failed', e); }
+  try { setupGitStudio(api); } catch (e) { console.error('setupGitStudio failed', e); }
+  try { setupCloudHub(api); } catch (e) { console.error('setupCloudHub failed', e); }
+  try { setupModals(api); } catch (e) { console.error('setupModals failed', e); }
 
   // Auto-scan hardware, branches & workspace on startup
   if (api) {
@@ -113,6 +113,15 @@ function setupNavigation(api: any): void {
       sidebarPane.style.display = sidebarPane.style.display === 'none' ? 'flex' : 'none';
     });
   }
+
+  // Intercept all clicks on external <a> links
+  document.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement)?.closest('a');
+    if (target && target.href && (target.href.startsWith('http://') || target.href.startsWith('https://'))) {
+      e.preventDefault();
+      window.open(target.href, '_blank');
+    }
+  });
 }
 
 function switchActivityTab(tabName: string, api?: any): void {
@@ -2646,7 +2655,7 @@ function setupPhase1Discovery(api: any): void {
 
 // --- DELIVERY STUDIO ---
 function setupDeliveryStudio(api: any): void {
-  setupPhase1Discovery(api);
+  try { setupPhase1Discovery(api); } catch (e) { console.error('setupPhase1Discovery failed:', e); }
   const phaseNavBtns = document.querySelectorAll<HTMLElement>('.phase-nav-btn[data-phase]');
   const btnDeliveryPlaybook = document.getElementById('btnDeliveryPlaybook');
   const roadmapBanner = document.getElementById('roadmapBanner');
