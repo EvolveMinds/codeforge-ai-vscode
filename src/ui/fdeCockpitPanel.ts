@@ -3341,27 +3341,27 @@ Output ONLY the message without markdown code fences.`;
 
   <!-- Stepper -->
   <div class="stepper">
-    <div class="step-card ${state.activePhase === 1 ? 'active' : ''} ${state.completedPhases.includes(1) ? 'completed' : ''}" onclick="setPhase(1)">
+    <div class="step-card ${state.activePhase === 1 ? 'active' : ''} ${state.completedPhases.includes(1) ? 'completed' : ''}" data-phase="1" onclick="setPhase(1)">
       <div class="step-num"><span>Step 1</span> ${state.completedPhases.includes(1) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">Ingest &amp; Map</div>
     </div>
-    <div class="step-card ${state.activePhase === 2 ? 'active' : ''} ${state.completedPhases.includes(2) ? 'completed' : ''}" onclick="setPhase(2)">
+    <div class="step-card ${state.activePhase === 2 ? 'active' : ''} ${state.completedPhases.includes(2) ? 'completed' : ''}" data-phase="2" onclick="setPhase(2)">
       <div class="step-num"><span>Step 2</span> ${state.completedPhases.includes(2) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">Client APIs</div>
     </div>
-    <div class="step-card ${state.activePhase === 3 ? 'active' : ''} ${state.completedPhases.includes(3) ? 'completed' : ''}" onclick="setPhase(3)">
+    <div class="step-card ${state.activePhase === 3 ? 'active' : ''} ${state.completedPhases.includes(3) ? 'completed' : ''}" data-phase="3" onclick="setPhase(3)">
       <div class="step-num"><span>Step 3</span> ${state.completedPhases.includes(3) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">Validate &amp; Deploy</div>
     </div>
-    <div class="step-card ${state.activePhase === 4 ? 'active' : ''} ${state.completedPhases.includes(4) ? 'completed' : ''}" onclick="setPhase(4)">
+    <div class="step-card ${state.activePhase === 4 ? 'active' : ''} ${state.completedPhases.includes(4) ? 'completed' : ''}" data-phase="4" onclick="setPhase(4)">
       <div class="step-num"><span>Step 4</span> ${state.completedPhases.includes(4) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">Handoff &amp; Docs</div>
     </div>
-    <div class="step-card ${state.activePhase === 5 ? 'active' : ''} ${state.completedPhases.includes(5) ? 'completed' : ''}" onclick="setPhase(5)">
+    <div class="step-card ${state.activePhase === 5 ? 'active' : ''} ${state.completedPhases.includes(5) ? 'completed' : ''}" data-phase="5" onclick="setPhase(5)">
       <div class="step-num"><span>Step 5</span> ${state.completedPhases.includes(5) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">💎 Enterprise Suite</div>
     </div>
-    <div class="step-card ${state.activePhase === 6 ? 'active' : ''} ${state.completedPhases.includes(6) ? 'completed' : ''}" onclick="setPhase(6)">
+    <div class="step-card ${state.activePhase === 6 ? 'active' : ''} ${state.completedPhases.includes(6) ? 'completed' : ''}" data-phase="6" onclick="setPhase(6)">
       <div class="step-num"><span>Step 6</span> ${state.completedPhases.includes(6) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">🌿 DevOps &amp; Git</div>
     </div>
@@ -3370,12 +3370,12 @@ Output ONLY the message without markdown code fences.`;
   <!-- Main Grid -->
   <div class="main-grid">
     <div class="sidebar-nav">
-      <button class="nav-btn ${state.activePhase === 1 ? 'active' : ''}" onclick="setPhase(1)">📊 1. Schema &amp; Marts</button>
-      <button class="nav-btn ${state.activePhase === 2 ? 'active' : ''}" onclick="setPhase(2)">🔌 2. Client API Studio</button>
-      <button class="nav-btn ${state.activePhase === 3 ? 'active' : ''}" onclick="setPhase(3)">⚡ 3. Pilot Deployment</button>
-      <button class="nav-btn ${state.activePhase === 4 ? 'active' : ''}" onclick="setPhase(4)">📑 4. Runbook Factory</button>
-      <button class="nav-btn ${state.activePhase === 5 ? 'active' : ''}" onclick="setPhase(5)">💎 5. Enterprise Suite</button>
-      <button class="nav-btn ${state.activePhase === 6 ? 'active' : ''}" onclick="setPhase(6)">🌿 6. DevOps &amp; Git Hub</button>
+      <button class="nav-btn ${state.activePhase === 1 ? 'active' : ''}" data-phase="1" onclick="setPhase(1)">📊 1. Schema &amp; Marts</button>
+      <button class="nav-btn ${state.activePhase === 2 ? 'active' : ''}" data-phase="2" onclick="setPhase(2)">🔌 2. Client API Studio</button>
+      <button class="nav-btn ${state.activePhase === 3 ? 'active' : ''}" data-phase="3" onclick="setPhase(3)">⚡ 3. Pilot Deployment</button>
+      <button class="nav-btn ${state.activePhase === 4 ? 'active' : ''}" data-phase="4" onclick="setPhase(4)">📑 4. Runbook Factory</button>
+      <button class="nav-btn ${state.activePhase === 5 ? 'active' : ''}" data-phase="5" onclick="setPhase(5)">💎 5. Enterprise Suite</button>
+      <button class="nav-btn ${state.activePhase === 6 ? 'active' : ''}" data-phase="6" onclick="setPhase(6)">🌿 6. DevOps &amp; Git Hub</button>
     </div>
 
     <div>
@@ -6039,10 +6039,22 @@ Output ONLY the message without markdown code fences.`;
     }
 
     document.addEventListener('click', function(e) {
+      // 1. Phase navigation buttons & step cards
+      var phaseEl = e.target && e.target.closest ? e.target.closest('[data-phase]') : null;
+      if (phaseEl) {
+        var p = parseInt(phaseEl.getAttribute('data-phase'), 10);
+        if (p >= 1 && p <= 6) {
+          setPhase(p);
+          return;
+        }
+      }
+
+      // 2. External links
       var a = e.target && e.target.closest ? e.target.closest('a') : null;
       if (a && a.getAttribute('href') && a.getAttribute('href').startsWith('http')) {
         e.preventDefault();
         openExternalUrl(a.getAttribute('href'));
+        return;
       }
     });
 
@@ -7263,7 +7275,7 @@ Output ONLY the message without markdown code fences.`;
         const titleInput = document.getElementById('commitTitleInput');
         if (titleInput && msg.title) titleInput.value = msg.title;
         var cockpitMsg = document.getElementById('txtCockpitCommitMessage');
-        if (cockpitMsg && msg.title) cockpitMsg.value = msg.title + (msg.description ? '\n\n' + msg.description : '');
+        if (cockpitMsg && msg.title) cockpitMsg.value = msg.title + (msg.description ? '\\n\\n' + msg.description : '');
         const descInput = document.getElementById('commitDescInput');
         if (descInput && msg.description) descInput.value = msg.description;
         showToast('✓ Commit message & description drafted!');
