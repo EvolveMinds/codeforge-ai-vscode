@@ -1463,6 +1463,199 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      
+      case 'gitInspectFull': {
+        if (!ws) return;
+        try {
+          const branchOut = await runForStdout('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ws });
+          const activeBranch = (branchOut || 'main').trim();
+
+          const remoteOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws });
+          const remoteUrl = (remoteOut || '').trim();
+
+          let provider = 'Local / None';
+          if (/bitbucket.org/i.test(remoteUrl)) provider = 'Bitbucket Cloud';
+          else if (/github.com/i.test(remoteUrl)) provider = 'GitHub Enterprise / Cloud';
+          else if (/gitlab.com/i.test(remoteUrl)) provider = 'GitLab CI/CD';
+          else if (/dev.azure.com|visualstudio.com/i.test(remoteUrl)) provider = 'Azure DevOps Repos';
+          else if (remoteUrl) provider = 'Generic Git Remote';
+
+          const userName = (await runForStdout('git', ['config', 'user.name'], { cwd: ws }) || '').trim();
+          const userEmail = (await runForStdout('git', ['config', 'user.email'], { cwd: ws }) || '').trim();
+          const author = userName && userEmail ? `${userName} (${userEmail})` : userName || userEmail || 'Not configured';
+
+          const statusOut = await runForStdout('git', ['status', '--porcelain'], { cwd: ws }) || '';
+          const statusLines = statusOut.split('\n').map(l => l.trimEnd()).filter(Boolean);
+          const files = statusLines.map(l => {
+            const code = l.substring(0, 2).trim();
+            const file = l.substring(3).trim();
+            let label = 'Modified';
+            if (code === '??') label = 'Untracked';
+            else if (code.includes('A')) label = 'Added';
+            else if (code.includes('D')) label = 'Deleted';
+            else if (code.includes('R')) label = 'Renamed';
+            return { code, file, label };
+          });
+
+          const branchListOut = await runForStdout('git', ['branch', '--list'], { cwd: ws }) || '';
+          const branches = branchListOut.split('\n').map(b => b.replace(/^[*\s]+/, '').trim()).filter(Boolean);
+          if (branches.length === 0) branches.push(activeBranch);
+
+          const logOut = await runForStdout('git', ['log', '-n', '5', '--pretty=format:%h|||%an|||%cr|||%s'], { cwd: ws }) || '';
+          const commits = logOut.split('\n').filter(Boolean).map(line => {
+            const parts = line.split('|||');
+            return {
+              hash: parts[0] || '',
+              author: parts[1] || '',
+              date: parts[2] || '',
+              message: parts[3] || ''
+            };
+          });
+
+          this._panel.webview.postMessage({
+            type: 'gitInspectFullResult',
+            data: {
+              activeBranch,
+              remoteUrl,
+              provider,
+              author,
+              userName,
+              userEmail,
+              workingTree: {
+                clean: files.length === 0,
+                count: files.length,
+                files
+              },
+              branches,
+              commits
+            }
+          });
+        } catch (err: any) {
+          console.error('[Evolve AI] gitInspectFull failed:', err);
+        }
+        break;
+      }
+
+      case 'gitStageFiles': {
+        if (!ws) return;
+        await runCommand('git', ['add', '-A'], { cwd: ws, timeoutMs: 10000 });
+        vscode.window.showInformationMessage('✓ Staged all changes.');
+        vscode.commands.executeCommand('aiForge.fde.openCockpit');
+        break;
+      }
+
+      case 'gitUnstageFiles': {
+        if (!ws) return;
+        await runCommand('git', ['reset', 'HEAD'], { cwd: ws, timeoutMs: 10000 });
+        vscode.window.showInformationMessage('✓ Unstaged all changes.');
+        break;
+      }
+
+      case 'gitDiscardFiles': {
+        if (!ws) return;
+        await runCommand('git', ['checkout', '--', '.'], { cwd: ws, timeoutMs: 10000 });
+        await runCommand('git', ['clean', '-fd'], { cwd: ws, timeoutMs: 10000 });
+        vscode.window.showInformationMessage('✓ Working tree discarded and cleaned.');
+        break;
+      }
+
+      case 'gitSwitchBranch': {
+        if (!ws || !msg.branch) return;
+        const res = await runCommand('git', ['checkout', msg.branch], { cwd: ws, timeoutMs: 10000 });
+        if (res && res.code === 0) {
+          vscode.window.showInformationMessage(`✓ Switched to branch: ${msg.branch}`);
+        } else {
+          vscode.window.showErrorMessage(`Failed to switch branch: ${res?.stderr || 'Unknown error'}`);
+        }
+        break;
+      }
+
+      case 'gitCreateBranch': {
+        if (!ws || !msg.branch) return;
+        const res = await runCommand('git', ['checkout', '-b', msg.branch], { cwd: ws, timeoutMs: 10000 });
+        if (res && res.code === 0) {
+          vscode.window.showInformationMessage(`✓ Created and switched to new branch: ${msg.branch}`);
+        } else {
+          vscode.window.showErrorMessage(`Failed to create branch: ${res?.stderr || 'Unknown error'}`);
+        }
+        break;
+      }
+
+      case 'gitPullRebase': {
+        if (!ws) return;
+        const terminal = this.getOrCreateGitTerminal();
+        terminal.show();
+        terminal.sendText('git pull --rebase origin HEAD');
+        vscode.window.showInformationMessage('⬇️ Running "git pull --rebase" in terminal...');
+        break;
+      }
+
+      case 'gitPushOrigin': {
+        if (!ws) return;
+        const terminal = this.getOrCreateGitTerminal();
+        terminal.show();
+        terminal.sendText('git push origin HEAD');
+        vscode.window.showInformationMessage('⬆️ Running "git push origin HEAD" in terminal...');
+        break;
+      }
+
+      case 'gitStashAction': {
+        if (!ws) return;
+        const action = msg.action === 'pop' ? 'pop' : 'save';
+        const res = await runCommand('git', ['stash', action], { cwd: ws, timeoutMs: 10000 });
+        vscode.window.showInformationMessage(`📦 Git stash ${action}: ${res?.code === 0 ? 'Success' : res?.stderr || 'Done'}`);
+        break;
+      }
+
+      case 'gitInitRepo': {
+        if (!ws) return;
+        const res = await runCommand('git', ['init'], { cwd: ws, timeoutMs: 10000 });
+        vscode.window.showInformationMessage(`🌱 Initialized Git repository in ${ws}`);
+        break;
+      }
+
+      case 'gitTestRemote': {
+        if (!ws) return;
+        vscode.window.showInformationMessage('🔑 Testing remote connectivity (git ls-remote)...');
+        const res = await runForStdout('git', ['ls-remote'], { cwd: ws, timeoutMs: 10000 });
+        if (res && !res.includes('fatal:')) {
+          vscode.window.showInformationMessage('✓ Remote connectivity verified successfully!');
+        } else {
+          vscode.window.showWarningMessage(`Remote test warning: ${res || 'Could not reach remote'}`);
+        }
+        break;
+      }
+
+      case 'gitSaveConfig': {
+        if (!ws) return;
+        if (msg.remoteUrl) {
+          const checkOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws });
+          if (checkOut && !checkOut.includes('fatal:')) {
+            await runCommand('git', ['remote', 'set-url', 'origin', msg.remoteUrl], { cwd: ws });
+          } else {
+            await runCommand('git', ['remote', 'add', 'origin', msg.remoteUrl], { cwd: ws });
+          }
+        }
+        if (msg.userName) await runCommand('git', ['config', 'user.name', msg.userName], { cwd: ws });
+        if (msg.userEmail) await runCommand('git', ['config', 'user.email', msg.userEmail], { cwd: ws });
+        vscode.window.showInformationMessage('✓ Git & Remote configuration saved and applied!');
+        break;
+      }
+
+      case 'gitRunTerminalCommand': {
+        if (!msg.cmd) return;
+        const terminal = this.getOrCreateGitTerminal();
+        terminal.show();
+        terminal.sendText(msg.cmd);
+        break;
+      }
+
+      case 'gitOpenTerminal': {
+        const terminal = this.getOrCreateGitTerminal();
+        terminal.show();
+        break;
+      }
+
       case 'gitFetch': {
         if (!ws) {
           vscode.window.showWarningMessage('Open a workspace folder first.');
@@ -2093,15 +2286,32 @@ Output ONLY the message without markdown code fences.`;
       case 'createPullRequest': {
         if (!ws) return;
         const remoteOut = await runForStdout('git', ['remote', 'get-url', 'origin'], { cwd: ws, timeoutMs: 3000 });
-        if (remoteOut && /github\.com|gitlab\.com|bitbucket\.org/i.test(remoteOut)) {
+        const branchOut = await runForStdout('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ws, timeoutMs: 3000 });
+        const currentBranch = (branchOut || 'main').trim();
+
+        if (remoteOut && /github\.com|gitlab\.com|bitbucket\.org|dev\.azure\.com/i.test(remoteOut)) {
           let url = remoteOut.trim().replace(/^git@([^:]+):/, 'https://$1/').replace(/\.git$/, '');
-          if (url.includes('github.com')) url += '/pull/new';
-          else if (url.includes('gitlab.com')) url += '/-/merge_requests/new';
-          else if (url.includes('bitbucket.org')) url += '/pull-requests/new';
+          if (url.includes('bitbucket.org')) {
+            const match = url.match(/bitbucket\.org\/([^\/]+)\/([^\/.]+)/i);
+            if (match) {
+              url = `https://bitbucket.org/${match[1]}/${match[2]}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=main`;
+            } else {
+              url += '/pull-requests/new';
+            }
+          } else if (url.includes('github.com')) {
+            const match = url.match(/github\.com\/([^\/]+)\/([^\/.]+)/i);
+            if (match) {
+              url = `https://github.com/${match[1]}/${match[2]}/compare/main...${encodeURIComponent(currentBranch)}?expand=1`;
+            } else {
+              url += '/pull/new';
+            }
+          } else if (url.includes('gitlab.com')) {
+            url += `/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}`;
+          }
           vscode.env.openExternal(vscode.Uri.parse(url));
           vscode.window.showInformationMessage(`🚀 Opening Pull Request in browser: ${url}`);
         } else {
-          vscode.window.showInformationMessage('Open a Git repository with an origin remote to create Pull Requests.');
+          vscode.window.showInformationMessage('Open a Git repository with a GitHub, Bitbucket, or GitLab remote to create Pull Requests.');
         }
         break;
       }
@@ -2794,7 +3004,7 @@ Output ONLY the message without markdown code fences.`;
   <div class="header">
     <div>
       <div class="header-title">
-        <span>🚀</span> Forward-Deployed Engineers Delivery Studio <span class="beta-pill">Beta</span>
+        <span>🚀</span> FDE Studio <span class="beta-pill">Beta</span>
       </div>
       <div style="font-size: 11px; margin-top: 3px; opacity: 0.85;">
         Built by <a href="https://www.evolveminds.com.au/" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 700;">Evolve Mind Solutions Pty Ltd</a> • Enterprise Client Delivery System
@@ -3151,6 +3361,10 @@ Output ONLY the message without markdown code fences.`;
       <div class="step-num"><span>Step 5</span> ${state.completedPhases.includes(5) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">💎 Enterprise Suite</div>
     </div>
+    <div class="step-card ${state.activePhase === 6 ? 'active' : ''} ${state.completedPhases.includes(6) ? 'completed' : ''}" onclick="setPhase(6)">
+      <div class="step-num"><span>Step 6</span> ${state.completedPhases.includes(6) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
+      <div class="step-name">🌿 DevOps &amp; Git</div>
+    </div>
   </div>
 
   <!-- Main Grid -->
@@ -3161,6 +3375,7 @@ Output ONLY the message without markdown code fences.`;
       <button class="nav-btn ${state.activePhase === 3 ? 'active' : ''}" onclick="setPhase(3)">⚡ 3. Pilot Deployment</button>
       <button class="nav-btn ${state.activePhase === 4 ? 'active' : ''}" onclick="setPhase(4)">📑 4. Runbook Factory</button>
       <button class="nav-btn ${state.activePhase === 5 ? 'active' : ''}" onclick="setPhase(5)">💎 5. Enterprise Suite</button>
+      <button class="nav-btn ${state.activePhase === 6 ? 'active' : ''}" onclick="setPhase(6)">🌿 6. DevOps &amp; Git Hub</button>
     </div>
 
     <div>
@@ -4641,6 +4856,280 @@ Output ONLY the message without markdown code fences.`;
             <span id="privProbeStatus" style="font-size: 11px; opacity: 0.9;"></span>
           </div>
         </div>
+
+      <!-- ============================================================= -->
+      <!-- PHASE 6: DEVOPS & GIT HUB (BITBUCKET, GITHUB, GITLAB, PR & CI/CD) -->
+      <!-- ============================================================= -->
+      <div class="content-card" id="phase6" style="display: ${state.activePhase === 6 ? 'block' : 'none'};">
+        <!-- Studio Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
+          <div>
+            <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+              <span>🌿</span> Git &amp; Remote Repository Hub
+              <span id="gitCockpitRepoBadge" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px;">Detecting...</span>
+            </h3>
+            <p class="desc" style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 11.5px; line-height: 1.4;">
+              Seamless auto-detection and setup wizard for Bitbucket, GitHub, and GitLab remotes, branch lifecycle management, staged working tree changes, and 1-click pull request synchronization. Available for all users in Community and Enterprise editions.
+            </p>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+            <button class="btn" onclick="gitPaneFetch()" style="padding: 5px 12px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <span>🔄</span> Sync &amp; Fetch
+            </button>
+            <button class="btn" onclick="gitPaneCommitPushDirect()" style="padding: 5px 12px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 4px;">
+              <span>🚀</span> 1-Click Commit &amp; Push
+            </button>
+            <button class="btn-quick" onclick="createPullRequest()" style="padding: 5px 10px; font-size: 11.5px; border-color: #e5b567; color: #e5b567;">
+              ✨ Create PR
+            </button>
+            <button class="btn-quick" onclick="toggleGitCockpitWizard()" style="padding: 5px 10px; font-size: 11.5px; border-color: var(--accent); color: var(--accent);">
+              ⚙️ Setup Wizard
+            </button>
+            <button class="btn-quick" onclick="openGitTerminal()" style="padding: 5px 10px; font-size: 11.5px;">
+              ⚡ Terminal
+            </button>
+          </div>
+        </div>
+
+        <!-- Top Metric Status Bar (4 Cards) -->
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px;">
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🌿</span>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Active Branch</div>
+              <div id="gitCockpitActiveBranch" style="font-size: 12px; font-weight: 700; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">main</div>
+            </div>
+          </div>
+
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🌐</span>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Remote Provider</div>
+              <div id="gitCockpitRemoteProvider" style="font-size: 11.5px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+            </div>
+          </div>
+
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">📝</span>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Working Tree</div>
+              <div id="gitCockpitWorkingStatus" style="font-size: 11.5px; font-weight: 700; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Clean</div>
+            </div>
+          </div>
+
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">👤</span>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-size: 10px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Git Author</div>
+              <div id="gitCockpitAuthorIdentity" style="font-size: 11.5px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Not configured</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BITBUCKET & GIT SEAMLESS SETUP & CONFIGURATION WIZARD -->
+        <div id="gitCockpitWizardCard" style="display: none; background: rgba(0,0,0,0.3); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+            <div style="font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+              <span>⚙️</span> Git &amp; Bitbucket Seamless Configuration Wizard
+            </div>
+            <button class="btn-quick" onclick="toggleGitCockpitWizard()" style="font-size: 11px; margin-bottom: 0;">✕ Close Wizard</button>
+          </div>
+
+          <!-- Quick Portal Shortcuts for Bitbucket / GitHub / GitLab -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+              <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #2684ff;">Atlassian Bitbucket</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <button class="btn-quick" style="margin-bottom: 0; text-align: left; font-size: 10.5px;" onclick="openExternalUrl('https://bitbucket.org/account/settings/app-passwords/new')">🔑 Get App Password ↗</button>
+                <button class="btn-quick" style="margin-bottom: 0; text-align: left; font-size: 10.5px;" onclick="openExternalUrl('https://bitbucket.org/account/settings/ssh-keys/')">🗝️ Add SSH Key ↗</button>
+              </div>
+            </div>
+
+            <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+              <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #fff;">GitHub</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <button class="btn-quick" style="margin-bottom: 0; text-align: left; font-size: 10.5px;" onclick="openExternalUrl('https://github.com/settings/tokens/new?scopes=repo,workflow&description=Evolve+AI+(VS+Code)')">🔑 Get GitHub PAT ↗</button>
+                <button class="btn-quick" style="margin-bottom: 0; text-align: left; font-size: 10.5px;" onclick="openExternalUrl('https://github.com/settings/keys')">🗝️ Add SSH Key ↗</button>
+              </div>
+            </div>
+
+            <div style="background: var(--card-bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border);">
+              <div style="font-size: 11px; font-weight: 700; margin-bottom: 4px; color: #fc6d26;">GitLab</div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <button class="btn-quick" style="margin-bottom: 0; text-align: left; font-size: 10.5px;" onclick="openExternalUrl('https://gitlab.com/-/user_settings/personal_access_tokens')">🔑 Get Access Token ↗</button>
+                <button class="btn-quick" style="margin-bottom: 0; text-align: left; font-size: 10.5px;" onclick="openExternalUrl('https://gitlab.com/-/user_settings/ssh_keys')">🗝️ Add SSH Key ↗</button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 10.5px; opacity: 0.85; display: block; margin-bottom: 3px;">Remote Provider</label>
+              <select id="selCockpitGitProvider" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: var(--bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                <option value="bitbucket">Bitbucket Cloud / Server</option>
+                <option value="github">GitHub Enterprise / Cloud</option>
+                <option value="gitlab">GitLab CI/CD</option>
+                <option value="azure">Azure DevOps Repos</option>
+                <option value="generic">Generic Git Remote</option>
+              </select>
+            </div>
+            <div style="grid-column: span 2;">
+              <label style="font-size: 10.5px; opacity: 0.85; display: block; margin-bottom: 3px;">Remote Origin URL (HTTPS or SSH)</label>
+              <input type="text" id="txtCockpitGitRemoteUrl" placeholder="git@bitbucket.org:workspace/repo.git or https://github.com/org/repo.git" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: var(--bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 10.5px; opacity: 0.85; display: block; margin-bottom: 3px;">Git User Name (user.name)</label>
+              <input type="text" id="txtCockpitGitUserName" placeholder="e.g. John Doe" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: var(--bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 10.5px; opacity: 0.85; display: block; margin-bottom: 3px;">Git User Email (user.email)</label>
+              <input type="email" id="txtCockpitGitUserEmail" placeholder="e.g. john@company.com" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: var(--bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 10.5px; opacity: 0.85; display: block; margin-bottom: 3px;">Bitbucket Workspace / Org</label>
+              <input type="text" id="txtCockpitGitWorkspace" placeholder="e.g. evolvemind" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: var(--bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0;">
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px;">
+            <div style="font-size: 10.5px; opacity: 0.75;" id="gitCockpitWizardCliVer">Git CLI ready</div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn-quick" onclick="gitPaneInit()" style="font-size: 11px; margin-bottom: 0;">🌱 git init Repo</button>
+              <button class="btn-quick" onclick="gitPaneTestRemote()" style="font-size: 11px; margin-bottom: 0;">🔑 Test Remote (ls-remote)</button>
+              <button class="btn" onclick="gitPaneSaveConfig()" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700; margin-bottom: 0;">💾 Save &amp; Apply Config</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2-COLUMN MAIN CONTENT: WORKING TREE / COMMIT & BRANCH MANAGER -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
+
+          <!-- LEFT: WORKING TREE CHANGES LIST -->
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  <span>📁</span> Working Tree Changes
+                  <span id="gitCockpitChangesCount" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 1px 6px; border-radius: 10px;">0 Files</span>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <button class="btn-quick" onclick="gitPaneStageAll()" style="font-size: 10.5px; padding: 2px 8px; margin-bottom: 0;">➕ Stage All</button>
+                  <button class="btn-quick" onclick="gitPaneUnstageAll()" style="font-size: 10.5px; padding: 2px 8px; margin-bottom: 0;">➖ Reset</button>
+                </div>
+              </div>
+
+              <!-- File List Scroll Area -->
+              <div id="gitCockpitChangesList" style="max-height: 200px; min-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 4px; padding: 8px; display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 11px; opacity: 0.7; text-align: center; padding: 30px 0;">✓ Working tree is clean. No uncommitted changes.</div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 10px;">
+              <span style="font-size: 10.5px; opacity: 0.75;">Changes tracked automatically in real time.</span>
+              <button class="btn-quick" onclick="gitPaneDiscardAll()" style="font-size: 10.5px; color: var(--error); border-color: var(--error); margin-bottom: 0;">🗑️ Discard All Changes</button>
+            </div>
+          </div>
+
+          <!-- RIGHT: SMART AI COMMIT & PUSH CARD -->
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  <span>💬</span> Commit &amp; Upstream Push
+                </div>
+                <button class="btn-quick" onclick="gitPaneAiGenerateMessage()" style="font-size: 10.5px; padding: 2px 8px; border-color: #e5b567; color: #e5b567; margin-bottom: 0;">
+                  ✨ AI Generate Message
+                </button>
+              </div>
+
+              <div style="margin-bottom: 8px;">
+                <textarea id="txtCockpitCommitMessage" placeholder="feat(module): describe your changes cleanly..." rows="4" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 11.5px; font-family: monospace; background: rgba(0,0,0,0.25); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; margin-bottom: 0;"></textarea>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px;">
+              <button class="btn-quick" onclick="gitPaneCommitStagedOnly()" style="flex: 1; font-size: 11px; padding: 6px 8px; margin-bottom: 0;">💾 Commit Staged</button>
+              <button class="btn" onclick="gitPaneCommitPushDirect()" style="flex: 1.5; font-size: 11px; padding: 6px 10px; background: var(--accent); color: #1e1e1e; font-weight: 700; margin-bottom: 0;">🚀 Commit &amp; Push (HEAD)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTTOM 2-COLUMN: BRANCH & SYNC CONTROLS & RECENT COMMITS -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;">
+
+          <!-- BRANCH & REMOTE SYNC -->
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px;">
+            <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+              <span>🌿</span> Branch Lifecycle &amp; Remote Synchronization
+            </div>
+
+            <!-- Switch Branch Row -->
+            <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+              <select id="selCockpitBranchSelect" style="flex: 1; padding: 6px 8px; font-size: 11.5px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0;"></select>
+              <button class="btn-quick" onclick="gitPaneSwitchBranch()" style="font-size: 11px; margin-bottom: 0;">Switch Branch</button>
+            </div>
+
+            <!-- New Branch Row -->
+            <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+              <input type="text" id="txtCockpitNewBranch" placeholder="feat/new-feature or bugfix/patch-01" style="flex: 1; padding: 6px 8px; font-size: 11.5px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0;">
+              <button class="btn-quick" onclick="gitPaneCreateBranch()" style="font-size: 11px; border-color: var(--accent); color: var(--accent); margin-bottom: 0;">➕ New Branch</button>
+            </div>
+
+            <!-- Sync & Stash Buttons -->
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-top: 1px solid var(--border); padding-top: 10px;">
+              <button class="btn-quick" onclick="gitPanePullRebase()" style="font-size: 10.5px; margin-bottom: 0;">⬇️ Pull (Rebase)</button>
+              <button class="btn-quick" onclick="gitPanePushOrigin()" style="font-size: 10.5px; margin-bottom: 0;">⬆️ Push Origin</button>
+              <button class="btn-quick" onclick="gitPaneStashSave()" style="font-size: 10.5px; margin-bottom: 0;">📦 Stash Save</button>
+              <button class="btn-quick" onclick="gitPaneStashPop()" style="font-size: 10.5px; margin-bottom: 0;">📥 Stash Pop</button>
+            </div>
+          </div>
+
+          <!-- PULL REQUEST & RECENT COMMITS -->
+          <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  <span>📜</span> Recent Commit History &amp; PR Link
+                </div>
+                <button class="btn-quick" onclick="createPullRequest()" style="font-size: 10.5px; padding: 2px 8px; border-color: var(--accent); color: var(--accent); margin-bottom: 0;">
+                  ✨ Open PR ↗
+                </button>
+              </div>
+
+              <!-- Recent Commits List -->
+              <div id="gitCockpitCommitsList" style="max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 4px; padding: 6px; display: flex; flex-direction: column; gap: 4px;">
+                <div style="font-size: 10.5px; opacity: 0.7; text-align: center; padding: 16px 0;">Loading recent commits...</div>
+              </div>
+            </div>
+
+            <div style="border-top: 1px solid var(--border); padding-top: 8px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-size: 10.5px; opacity: 0.8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="gitCockpitPrPreviewText">
+                PR target: main
+              </div>
+              <button class="btn-quick" onclick="gitRunQuickCommand('git log -n 10 --oneline')" style="font-size: 10px; margin-bottom: 0;">git log ↗</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Multi-Cloud Git Fast-Command Bar -->
+        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>⚡</span> Git Terminal Quick Command Bar
+            <span style="font-size: 10px; opacity: 0.7; font-weight: normal;">(Clicking any command executes it live in your active terminal)</span>
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button class="btn-quick" onclick="gitRunQuickCommand('git status')" style="font-size: 10.5px; margin-bottom: 0;">git status</button>
+            <button class="btn-quick" onclick="gitRunQuickCommand('git log --oneline -n 10 --graph')" style="font-size: 10.5px; margin-bottom: 0;">git log --graph</button>
+            <button class="btn-quick" onclick="gitRunQuickCommand('git diff --stat')" style="font-size: 10.5px; margin-bottom: 0;">git diff --stat</button>
+            <button class="btn-quick" onclick="gitRunQuickCommand('git branch -a')" style="font-size: 10.5px; margin-bottom: 0;">git branch -a</button>
+            <button class="btn-quick" onclick="gitRunQuickCommand('git remote -v')" style="font-size: 10.5px; margin-bottom: 0;">git remote -v</button>
+            <button class="btn-quick" onclick="gitRunQuickCommand('git stash list')" style="font-size: 10.5px; margin-bottom: 0;">git stash list</button>
+            <button class="btn-quick" onclick="gitRunQuickCommand('git fetch --prune')" style="font-size: 10.5px; margin-bottom: 0;">git fetch --prune</button>
+          </div>
+        </div>
+      </div>
+
+
       </div>
     </div>
   </div>
@@ -4784,7 +5273,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function setPhase(p) {
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         const el = document.getElementById('phase' + i);
         if (el) el.style.display = i === p ? 'block' : 'none';
       }
@@ -4802,6 +5291,7 @@ Output ONLY the message without markdown code fences.`;
           else card.classList.remove('active');
         }
       });
+      if (p === 6) { refreshGitPaneState(); }
       vscode.postMessage({ command: 'setActivePhase', phase: p });
     }
 
@@ -7465,7 +7955,159 @@ Output ONLY the message without markdown code fences.`;
     } catch (e) {
       console.warn('Initial refreshMartModelOptions defer:', e);
     }
-  </script>
+  
+
+    // --- DEVOPS & GIT HUB CLIENT LOGIC ---
+    function toggleGitCockpitWizard() {
+      const el = document.getElementById('gitCockpitWizardCard');
+      if (el) el.style.display = el.style.display === 'none' || el.style.display === '' ? 'block' : 'none';
+    }
+
+    function gitPaneFetch() {
+      showToast('🔄 Syncing with remote origin...');
+      vscode.postMessage({ command: 'gitFetch' });
+      setTimeout(refreshGitPaneState, 2000);
+    }
+
+    function gitPaneCommitPushDirect() {
+      const msg = (document.getElementById('txtCockpitCommitMessage') as HTMLTextAreaElement)?.value || '';
+      if (!msg.trim()) {
+        showToast('⚠️ Please enter a commit message!');
+        return;
+      }
+      showToast('🚀 Running Commit & Push to upstream HEAD...');
+      vscode.postMessage({ command: 'gitCommitAndPush', title: msg, runInTerminal: true, pushToRemote: true });
+      setTimeout(refreshGitPaneState, 2500);
+    }
+
+    function gitPaneCommitStagedOnly() {
+      const msg = (document.getElementById('txtCockpitCommitMessage') as HTMLTextAreaElement)?.value || '';
+      if (!msg.trim()) {
+        showToast('⚠️ Please enter a commit message!');
+        return;
+      }
+      showToast('💾 Committing staged deliverables...');
+      vscode.postMessage({ command: 'gitCommitAndPush', title: msg, runInTerminal: false, pushToRemote: false });
+      setTimeout(refreshGitPaneState, 2000);
+    }
+
+    function gitPaneStageAll() {
+      showToast('➕ Staging all working tree changes...');
+      vscode.postMessage({ command: 'gitStageFiles' });
+      setTimeout(refreshGitPaneState, 1500);
+    }
+
+    function gitPaneUnstageAll() {
+      showToast('➖ Resetting staged index...');
+      vscode.postMessage({ command: 'gitUnstageFiles' });
+      setTimeout(refreshGitPaneState, 1500);
+    }
+
+    function gitPaneDiscardAll() {
+      if (confirm('Are you sure you want to discard ALL uncommitted changes? This cannot be undone!')) {
+        showToast('🗑️ Discarding all changes in working tree...');
+        vscode.postMessage({ command: 'gitDiscardFiles' });
+        setTimeout(refreshGitPaneState, 1500);
+      }
+    }
+
+    function gitPaneSwitchBranch() {
+      const sel = (document.getElementById('selCockpitBranchSelect') as HTMLSelectElement)?.value;
+      if (sel) {
+        showToast('🌿 Switching branch to: ' + sel);
+        vscode.postMessage({ command: 'gitSwitchBranch', branch: sel });
+        setTimeout(refreshGitPaneState, 1500);
+      }
+    }
+
+    function gitPaneCreateBranch() {
+      const inp = (document.getElementById('txtCockpitNewBranch') as HTMLInputElement)?.value;
+      if (inp && inp.trim()) {
+        showToast('➕ Creating and switching to branch: ' + inp.trim());
+        vscode.postMessage({ command: 'gitCreateBranch', branch: inp.trim() });
+        (document.getElementById('txtCockpitNewBranch') as HTMLInputElement).value = '';
+        setTimeout(refreshGitPaneState, 1500);
+      } else {
+        showToast('⚠️ Please enter a valid branch name.');
+      }
+    }
+
+    function gitPanePullRebase() {
+      vscode.postMessage({ command: 'gitPullRebase' });
+    }
+
+    function gitPanePushOrigin() {
+      vscode.postMessage({ command: 'gitPushOrigin' });
+    }
+
+    function gitPaneStashSave() {
+      showToast('📦 Stashing uncommitted changes...');
+      vscode.postMessage({ command: 'gitStashAction', action: 'save' });
+      setTimeout(refreshGitPaneState, 1500);
+    }
+
+    function gitPaneStashPop() {
+      showToast('📥 Popping latest stash...');
+      vscode.postMessage({ command: 'gitStashAction', action: 'pop' });
+      setTimeout(refreshGitPaneState, 1500);
+    }
+
+    function gitPaneInit() {
+      vscode.postMessage({ command: 'gitInitRepo' });
+      setTimeout(refreshGitPaneState, 1500);
+    }
+
+    function gitPaneTestRemote() {
+      vscode.postMessage({ command: 'gitTestRemote' });
+    }
+
+    function gitPaneSaveConfig() {
+      const remoteUrl = (document.getElementById('txtCockpitGitRemoteUrl') as HTMLInputElement)?.value || '';
+      const userName = (document.getElementById('txtCockpitGitUserName') as HTMLInputElement)?.value || '';
+      const userEmail = (document.getElementById('txtCockpitGitUserEmail') as HTMLInputElement)?.value || '';
+      vscode.postMessage({ command: 'gitSaveConfig', remoteUrl, userName, userEmail });
+      setTimeout(refreshGitPaneState, 1500);
+    }
+
+    function gitPaneAiGenerateMessage() {
+      showToast('✨ Analyzing git diff to generate conventional commit...');
+      vscode.postMessage({ command: 'requestCommitDraft' });
+    }
+
+    function gitRunQuickCommand(cmd) {
+      vscode.postMessage({ command: 'gitRunTerminalCommand', cmd });
+    }
+
+    function openGitTerminal() {
+      vscode.postMessage({ command: 'gitOpenTerminal' });
+    }
+
+    function refreshGitPaneState() {
+      vscode.postMessage({ command: 'gitInspectFull' });
+    }
+
+    window.toggleGitCockpitWizard = toggleGitCockpitWizard;
+    window.gitPaneFetch = gitPaneFetch;
+    window.gitPaneCommitPushDirect = gitPaneCommitPushDirect;
+    window.gitPaneCommitStagedOnly = gitPaneCommitStagedOnly;
+    window.gitPaneStageAll = gitPaneStageAll;
+    window.gitPaneUnstageAll = gitPaneUnstageAll;
+    window.gitPaneDiscardAll = gitPaneDiscardAll;
+    window.gitPaneSwitchBranch = gitPaneSwitchBranch;
+    window.gitPaneCreateBranch = gitPaneCreateBranch;
+    window.gitPanePullRebase = gitPanePullRebase;
+    window.gitPanePushOrigin = gitPanePushOrigin;
+    window.gitPaneStashSave = gitPaneStashSave;
+    window.gitPaneStashPop = gitPaneStashPop;
+    window.gitPaneInit = gitPaneInit;
+    window.gitPaneTestRemote = gitPaneTestRemote;
+    window.gitPaneSaveConfig = gitPaneSaveConfig;
+    window.gitPaneAiGenerateMessage = gitPaneAiGenerateMessage;
+    window.gitRunQuickCommand = gitRunQuickCommand;
+    window.openGitTerminal = openGitTerminal;
+    window.refreshGitPaneState = refreshGitPaneState;
+
+</script>
 </body>
 </html>`;
   }

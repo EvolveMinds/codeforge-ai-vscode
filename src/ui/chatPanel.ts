@@ -660,7 +660,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   </div>
 
   <div id="rightBtns">
-    <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio (FDE Cockpit)" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 Studio</button>
+    <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio (FDE Studio)" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 FDE Studio</button>
     <button class="hbtn" id="dataBtn" title="Launch Data Analysis &amp; Reporting Studio" style="color: #3794ff; font-weight: 600; border-color: rgba(55,148,255,0.4); background: rgba(55,148,255,0.1);">📊 Data</button>
     <button class="hbtn" id="convertBtn" title="Launch Side-by-Side Code Converter" style="color: #dcdcaa; font-weight: 600; border-color: rgba(220,220,170,0.4); background: rgba(220,220,170,0.1);">⚡ Convert</button>
     <button class="hbtn" id="thinkBtn" title="Toggle Gemma 4 thinking mode — shows chain-of-thought reasoning" style="display:none;">Think</button>
@@ -683,7 +683,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
     </div>
     <p style="font-size: 11px; opacity: 0.8; margin-bottom: 10px;">Built by <a href="https://www.evolveminds.com.au/" style="color: var(--vscode-textLink-foreground, #4ec9b0); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a></p>
     
-    <p><strong>🚀 Forward-Deployed Engineers Delivery Studio (Beta)</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs &amp; handoff runbooks</p>
+    <p><strong>🚀 FDE Studio</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs, DevOps &amp; Git repository connectivity &amp; handoff runbooks</p>
     <p><strong>Chat</strong> &mdash; ask questions about your code</p>
     <p><strong>Edit</strong> &mdash; describe changes to the active file</p>
     <p><strong>Create</strong> &mdash; generate new files from scratch</p>
@@ -709,8 +709,8 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
         <div class="pop-item" data-mode="fde" data-action="fdeHub" style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; background: rgba(78, 201, 176, 0.08);">
           <div class="pop-icon">&#128640;</div>
           <div class="pop-body">
-            <div class="pop-name" style="color: var(--vscode-charts-teal, #4ec9b0); font-weight: 700;">FDE Delivery Studio (Beta) <span style="font-size: 9px; background: rgba(78,201,176,0.2); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">STUDIO</span></div>
-            <div class="pop-desc">Forward-Deployed Engineers Delivery Studio &mdash; live DB introspection, foreign schema mapping, custom client APIs, Multi-Cloud Hub, pilot deployment, pre-flight audits, and handoff runbooks.</div>
+            <div class="pop-name" style="color: var(--vscode-charts-teal, #4ec9b0); font-weight: 700;">FDE Studio <span style="font-size: 9px; background: rgba(78,201,176,0.2); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">STUDIO</span></div>
+            <div class="pop-desc">Forward-Deployed Engineers Delivery Studio &mdash; live DB introspection, foreign schema mapping, custom client APIs, Multi-Cloud Hub, DevOps &amp; Git repository connectivity, pilot deployment, pre-flight audits, and handoff runbooks.</div>
           </div>
         </div>
         <div class="pop-item" data-mode="chat">
@@ -1409,7 +1409,7 @@ window.addEventListener('message', ({ data }) => {
       w.className = 'welcome';
       w.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;"><h3 style="margin:0; font-size:17px; font-weight:700;">Evolve AI</h3><span style="font-size:10px; background:rgba(78,201,176,0.15); color:#4ec9b0; border:1px solid rgba(78,201,176,0.4); padding:1px 6px; border-radius:10px; font-weight:700;">STUDIO</span></div>'
         + '<p style="font-size:11px; opacity:0.8; margin-bottom:10px;">Built by <a href="https://www.evolveminds.com.au/" style="color:var(--vscode-textLink-foreground, #4ec9b0); text-decoration:underline; font-weight:600;">Evolve Mind Solutions Pty Ltd</a></p>'
-        + '<p><strong>🚀 Forward-Deployed Engineers Delivery Studio (Beta)</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs &amp; handoff runbooks</p>'
+        + '<p><strong>🚀 FDE Studio</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs, DevOps &amp; Git repository connectivity &amp; handoff runbooks</p>'
         + '<p><strong>Chat</strong> &mdash; ask questions about your code</p>'
         + '<p><strong>Edit</strong> &mdash; describe changes to the active file</p>'
         + '<p><strong>Create</strong> &mdash; generate new files from scratch</p>'
