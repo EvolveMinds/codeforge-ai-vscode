@@ -4878,6 +4878,401 @@ function setupDeliveryStudio(api: any): void {
   let activeCustomTabId: string | null = null;
   const ladderUndoHistory: Map<string, any> = new Map();
 
+  interface CustomIndustryLens {
+    id: string;
+    emoji: string;
+    name: string;
+    whatItDoes: string;
+    useCases: string[];
+    pipeline: string;
+    whenNotToUse?: string;
+  }
+
+  const customIndustryLenses: Record<number, Record<string, CustomIndustryLens>> = {
+    1: {},
+    2: {},
+    3: {},
+    4: {},
+    5: {}
+  };
+
+  const customPipelineTopologies: Record<string, string> = {};
+  const defaultDomainBackups: Map<string, any> = new Map();
+
+  interface IndustryPresetSpec {
+    emoji: string;
+    name: string;
+    whatItDoes: Record<number, string>;
+    useCases: Record<number, string[]>;
+    pipeline: Record<number, string>;
+    whenNotToUse: Record<number, string>;
+  }
+
+  const industryPresets: Record<string, IndustryPresetSpec> = {
+    energy: {
+      emoji: '⚡',
+      name: 'Energy & Utilities',
+      whatItDoes: {
+        1: 'SCADA substation voltage limits, deterministic frequency trip gates, and zero-latency grid breaker telemetry validation.',
+        2: 'Smart meter anomaly classifier and outage dispatch ticket semantic router.',
+        3: 'NERC CIP cyber-governance RAG, high-voltage maintenance manuals, and grounding procedures.',
+        4: 'Dynamic peak-shaving dispatch agent coordinating battery energy storage systems (BESS) via Modbus/MCP.',
+        5: 'Autonomous microgrid emergency islanding swarm with utility grid operator human-in-the-loop (HITL) queue.'
+      },
+      useCases: {
+        1: [
+          'SCADA Feeder Voltage Check: Validates grid bus voltage is within +/- 5% ANSI C84.1 limit (<2ms).',
+          'Transformer Temperature Trip: Deterministic emergency trip if top-oil temperature exceeds 105°C.',
+          'Substation Telemetry Audit: Appends microsecond-accurate time-series telemetry to audit ledger.'
+        ],
+        2: [
+          'Outage vs. Billing Triage: Classifies incoming smart-meter alarms into storm outages vs. payment disconnects.',
+          'DER (Solar/Battery) Intent Route: Directs solar interconnection requests to engineering portal.'
+        ],
+        3: [
+          'NERC CIP Standard Verification: Grounded retrieval of mandatory bulk-power cyber security controls.',
+          'Substation Transformer Overhaul Manual: Answers field technician questions with exact page references.'
+        ],
+        4: [
+          'Battery Storage Peak Shaving Agent: Dispatches 50MW BESS during regional LMP price spikes via MCP.',
+          'EV Fleet Charge Throttling: Manages commercial depot charging load against transformer thermal headrooms.'
+        ],
+        5: [
+          'Autonomous Grid Islanding Swarm: Coordinates generation drop, feeder switches, and load shed during wildfire alert.',
+          'Renewable Generation Curtailment Swarm: Optimizes multi-park wind/solar curtailment to prevent negative pricing.'
+        ]
+      },
+      pipeline: {
+        1: `[Substation SCADA Sensor: 13.8kV Bus] 
+    └──> [Level 1: ANSI C84.1 Ceiling Validator (<2ms)]
+           ├──> [Within +/- 5% Window] ──> [Commit to SCADA Historian]
+           └──> [Out of Limits]       ──> [🛑 Hardware Breaker Trip Signal]`,
+        2: `[Smart Meter AMI Event Stream] 
+    └──> [Level 2: Cosine Embedding Classifier (<25ms)]
+           ├──> [Phase Loss / Zero Voltage] ──> [High-Priority Outage Queue]
+           └──> [Tamper / Reverse Polarity] ──> [Revenue Protection Investigation]`,
+        3: `[Field Tech Query: NERC CIP-007 R3] 
+    └──> [Level 3: Grounded Vector Search over Utility Runbooks]
+           └──> [Substation Security Policy Citation + Verification Gate (<120ms)]`,
+        4: `[Regional LMP Energy Price Spike: $950/MWh] 
+    └──> [Level 4: Tool-Using Battery Dispatch Agent (MCP)]
+           └──> [Executes Modbus Discharge Command on 50MW BESS] 
+                  └──> [Telemetry Verifies Inverter Ramp Rate < 3s]`,
+        5: `[Severe Wildfire High-Wind Threat Alert] 
+    └──> [Weather Agent + Line Tension Agent + Substation Agent]
+           └──> [Synthesized De-Energization Plan Formulated]
+                  └──> [🛑 Mandatory Grid Operations Supervisor Sign-Off]`
+      },
+      whenNotToUse: {
+        1: 'Do not use deterministic gates for predictive solar generation forecasting or long-term load planning.',
+        2: 'Do not route high-voltage emergency breaker commands through semantic LLM embeddings.',
+        3: 'Do not rely on static RAG for sub-second realtime breaker status or millisecond trip decisions.',
+        4: 'Never permit autonomous tool agents to command high-voltage transmission interconnects without safety interlocks.',
+        5: 'Do not deploy autonomous multi-agent swarms for simple meter reading or billing inquiries.'
+      }
+    },
+    government: {
+      emoji: '🏛️',
+      name: 'Government & Defense',
+      whatItDoes: {
+        1: 'Statutory procurement budget ceilings, Anti-Deficiency Act hard gates, and FOIA automated exemption redaction.',
+        2: 'Citizen service intent router and multilingual public agency benefit classifier.',
+        3: 'FedRAMP High policy RAG, military standard (MIL-STD) specifications, and defense acquisition regulations (DFARS).',
+        4: 'Air-gapped clearance verification agent and cross-agency secure credentialing via MCP.',
+        5: 'Critical infrastructure emergency disaster response swarm with Incident Commander HITL oversight.'
+      },
+      useCases: {
+        1: [
+          'Anti-Deficiency Act Ceiling: Hard-stops purchase commitments exceeding statutory appropriations limit.',
+          'FOIA Exemption 6 Redaction: Deterministic regex and dictionary redaction of SSNs and PII.',
+          'FAR Clause Compliance Gate: Validates mandatory contract clauses before solicitation release.'
+        ],
+        2: [
+          'Veterans Affairs Claims Triage: Routes disability claims, education benefits, and healthcare inquiries.',
+          'Multi-Agency Inquiry Router: Directs public inquiries to correct municipal or federal bureaus.'
+        ],
+        3: [
+          'DFARS 252.204-7012 Verification: Answers cybersecurity compliance queries with exact CFR citations.',
+          'Military Specification Query: Retrieves MIL-STD-810 environmental test requirements with table references.'
+        ],
+        4: [
+          'Clearance Verification Agent: Queries defense security databases via sandboxed MCP connector.',
+          'Secure Equipment Requisition: Issues procurement requests through ERP with automated approval tracking.'
+        ],
+        5: [
+          'Disaster Relief Coordination Swarm: Coordinates FEMA resource allocations, logistics, and emergency shelters.',
+          'Multi-Domain Defense Exercise Swarm: Simulates logistical supply chains under contested communications.'
+        ]
+      },
+      pipeline: {
+        1: `[Vendor Purchase Request: $250,000] 
+    └──> [Level 1: Statutory Appropriation Hard Gate (<3ms)]
+           ├──> [Budget Available] ──> [Commit Ledger & Sign Warrant]
+           └──> [Over Ceiling]     ──> [🛑 Anti-Deficiency Act Rejection]`,
+        2: `[Citizen Portal Query] 
+    └──> [Level 2: Semantic Intent Classifier (<20ms)]
+           ├──> [Housing Assistance] ──> [HUD Regional Workflow]
+           └──> [Veterans Care]      ──> [VA Priority Service Track]`,
+        3: `[Defense Contractor RFP Submission] 
+    └──> [Level 3: FedRAMP High Grounded Evaluation]
+           └──> [Extracts & Validates 110 NIST SP 800-171 Security Controls (<150ms)]`,
+        4: `[Airbase Logistics Agent] 
+    └──> [MCP Tool: Sandboxed Defense Supply Chain API]
+           └──> [Verifies National Stock Number (NSN) & Depot Availability (<2.5s)]`,
+        5: `[Category 5 Hurricane Landfall Alert] 
+    └──> [FEMA Logistics Agent + Evacuation Routing Agent + Medical Reserve Agent]
+           └──> [Composite Response Plan with Critical Bottlenecks Flagged]
+                  └──> [🛑 Incident Commander Live Command Authorization]`
+      },
+      whenNotToUse: {
+        1: 'Do not use Level 1 for evaluating complex open-ended policy proposals.',
+        2: 'Do not route classified or kinetic commands through unverified semantic embeddings.',
+        3: 'Do not use RAG without tamper-evident cryptographic provenance in national security contexts.',
+        4: 'Never grant autonomous tool agents write access to classified databases without hardware guardrails.',
+        5: 'Avoid multi-agent swarms when deterministic SOPs or doctrine dictate single chain-of-command.'
+      }
+    },
+    automotive: {
+      emoji: '🚗',
+      name: 'Automotive & Connected Fleets',
+      whatItDoes: {
+        1: 'CAN-bus deterministic message filtering, speed limiter boundaries, and ISO 26262 ASIL-D safety interlocks.',
+        2: 'In-cabin voice intent classifier, infotainment triage, and predictive diagnostic fault router.',
+        3: 'Technical Service Bulletins (TSB) grounded RAG and workshop repair procedure retrieval.',
+        4: 'Over-The-Air (OTA) firmware delta deployment agent and telemetry diagnostic agent via MCP.',
+        5: 'Autonomous fleet rebalancing and smart depot charging swarm with Fleet Director HITL oversight.'
+      },
+      useCases: {
+        1: [
+          'CAN-Bus Message Guard: Blocks unauthenticated OBD-II velocity commands exceeding 120 km/h (<1ms).',
+          'Battery Overvoltage Safety Interlock: Deterministic contactor open on cell voltage > 4.25V.',
+          'High-Voltage Interlock Loop (HVIL): Immediate traction inverter shutdown on circuit break.'
+        ],
+        2: [
+          'Cabin Voice Command Triage: Routes driver command to HVAC, navigation, or phone sub-controller.',
+          'DTC Diagnostic Trouble Code Router: Routes powertrain vs. chassis codes to appropriate specialist module.'
+        ],
+        3: [
+          'Workshop TSB Search: Retrieves exact torque specs and wiring diagrams from OEM technical bulletins.',
+          'Warranty Claim Admissibility: Evaluates repair orders against factory warranty terms with citations.'
+        ],
+        4: [
+          'OTA Update Campaign Agent: Validates battery state-of-charge > 50% and pushes targeted ECU firmware.',
+          'Remote Fleet Telematics Diagnostic Agent: Queries CAN telemetry logs and isolates intermittent CAN bus errors.'
+        ],
+        5: [
+          'Autonomous Robotaxi Fleet Swarm: Coordinates depot charging, passenger demand surge, and preventative maintenance.',
+          'Commercial Trucking Logistics Swarm: Reroutes heavy EV trucks based on dynamic highway megawatt chargers.'
+        ]
+      },
+      pipeline: {
+        1: `[In-Vehicle CAN Bus Frame: ID 0x1A0] 
+    └──> [Level 1: ASIL-D Deterministic Safety Gate (<1ms)]
+           ├──> [Valid Checksum & Safe Range] ──> [Pass to ECU Actuator]
+           └──> [Anomalous Frequency / Value]  ──> [🛑 Safe State Fallback & DTC Flag]`,
+        2: `[Driver Natural Voice Utterance] 
+    └──> [Level 2: In-Cabin Edge Intent Router (<18ms)]
+           ├──> [Safety Critical / Defrost] ──> [Direct CAN Gateway Call]
+           └──> [Infotainment / Media]      ──> [Android Automotive Cloud Service]`,
+        3: `[Dealership Master Tech Diagnostic Query] 
+    └──> [Level 3: OEM Workshop Manual Grounded RAG (<100ms)]
+           └──> [Returns Exact Wiring Schematic, Connector Pinout & Torque Limits]`,
+        4: `[Fleet Management Telemetry Agent] 
+    └──> [MCP Connector: Connected Vehicle Cloud API]
+           └──> [Requests Cell Voltage Balance & Triggers Remote Battery Conditioning (<2s)]`,
+        5: `[Severe Snowstorm Fleet Re-Routing Alert] 
+    └──> [Routing Agent + Energy Consumption Agent + Charger Booking Agent]
+           └──> [Synthesizes Commercial Fleet Evacuation Schedule]
+                  └──> [🛑 Fleet Dispatch Manager 1-Click Authorization]`
+      },
+      whenNotToUse: {
+        1: 'Do not use deterministic rules for driver behavior profiling or open-ended route suggestions.',
+        2: 'Never route steering, braking, or airbag deployment through semantic LLM embeddings.',
+        3: 'Do not rely on RAG for real-time in-motion collision avoidance or adaptive cruise control.',
+        4: 'Never allow autonomous tool agents to flash primary safety ECUs without parked-vehicle physical interlocks.',
+        5: 'Do not use multi-agent swarms when an immediate fail-safe stop condition is active.'
+      }
+    },
+    telecom: {
+      emoji: '📡',
+      name: 'Telecom & 5G Edge',
+      whatItDoes: {
+        1: 'CDR billing reconciliation, roaming bandwidth ceiling enforcement, and zero-loss SIM provisioning gates.',
+        2: '5G network slice triage, customer self-care intent router, and tower alarm classifier.',
+        3: '3GPP standards technical RAG, Open RAN specifications, and radio network optimization runbooks.',
+        4: 'Autonomous cell site diagnostic agent coordinating beamforming adjustments via MCP.',
+        5: 'Core network disaster failover and multi-carrier DDoS mitigation swarm with Network Operations Center (NOC) HITL.'
+      },
+      useCases: {
+        1: [
+          'Realtime CDR Rating: Verifies prepaid account balance before opening packet data protocol (PDP) session (<4ms).',
+          'Roaming SIM Fraud Gate: Blocks instant SIM registration 5,000 miles away from previous cell within 10 minutes.',
+          'Bandwidth Ceiling Throttling: Enforces fair-usage policy speed cap deterministically upon 100GB limit.'
+        ],
+        2: [
+          '5G Network Slice Intent: Routes enterprise ultra-reliable low-latency (URLLC) traffic vs. mobile broadband.',
+          'Subscriber Support Intent Router: Separates network outage reports from billing and upgrade queries.'
+        ],
+        3: [
+          '3GPP Release 18 Specification Query: Grounded search over technical standards with clause citations.',
+          'gNodeB Troubleshooting Runbook: Delivers step-by-step fiber link troubleshooting procedure to field engineers.'
+        ],
+        4: [
+          'Automated Cell Site Diagnostic Agent: Inspects RF spectrum analyzer telemetry and recalibrates antenna tilt.',
+          'Edge Computing Workload Scheduler: Deploys latency-sensitive microservices to nearest MEC node via MCP.'
+        ],
+        5: [
+          'Fiber Cut Core Network Recovery Swarm: Automatically reroutes terabit backbone traffic across dark fiber rings.',
+          'Distributed DDoS Mitigation Swarm: Identifies botnet traffic spikes and deploys dynamic BGP Flowspec filters.'
+        ]
+      },
+      pipeline: {
+        1: `[Diameter CCR-I Packet: Session Request] 
+    └──> [Level 1: Prepaid Balance Hard Gate (<3ms)]
+           ├──> [Balance Available] ──> [Grant 500MB Quota & Open PDP Context]
+           └──> [Zero Balance]      ──> [🛑 Redirect to Captive Top-Up Portal]`,
+        2: `[Subscriber Support SMS Stream] 
+    └──> [Level 2: Fast Semantic Intent Classifier (<20ms)]
+           ├──> [Coverage Outage] ──> [Cell Tower Geolocation Correlation]
+           └──> [eSIM Activation] ──> [Automated SM-DP+ Profile Server]`,
+        3: `[NOC Engineer Query: Beamforming Degradation] 
+    └──> [Level 3: 3GPP Technical Specs & Vendor Runbook RAG (<110ms)]
+           └──> [Returns Exact Antenna Tilt Azimuth Calibration Procedures]`,
+        4: `[Tower Site High Noise Floor Alert] 
+    └──> [Level 4: Tool-Using RF Optimization Agent (MCP)]
+           └──> [Executes Spectrum Scan & Adjusts Channel Bandwidth via O-RAN API (<2s)]`,
+        5: `[Terabit Fiber Cut: Major Metro Corridor] 
+    └──> [Optical Routing Agent + MPLS Traffic Agent + Customer SLA Agent]
+           └──> [Formulates Autonomous 100Gbps Re-Route Mesh Plan]
+                  └──> [🛑 NOC Director Emergency Sign-Off Queue]`
+      },
+      whenNotToUse: {
+        1: 'Do not use Level 1 for churn prediction or complex subscriber sentiment analysis.',
+        2: 'Do not route physical layer optical switching through LLM embeddings.',
+        3: 'Do not use RAG for millisecond handoff decisions between 5G gNodeB towers.',
+        4: 'Never give tool agents unconstrained authority to de-power base stations in dense metro areas.',
+        5: 'Avoid multi-agent swarms during emergency 911/112 routing where zero latency overhead is legally mandated.'
+      }
+    },
+    retail: {
+      emoji: '🛒',
+      name: 'Retail & E-Commerce',
+      whatItDoes: {
+        1: 'Basket coupon discount caps, checkout total validation, and real-time inventory decrement gates.',
+        2: 'Customer inquiry semantic router, returns vs. product search intent classifier, and visual match triage.',
+        3: 'Return policy grounded RAG, warranty terms retrieval, and vendor seller guidelines verification.',
+        4: 'Omnichannel inventory rebalancing agent and 3PL carrier rate shopping agent via MCP.',
+        5: 'Dynamic flash-sale surge pricing and supply shock mitigation swarm with Merchandising VP HITL oversight.'
+      },
+      useCases: {
+        1: [
+          'Promo Stacking Ceiling Gate: Blocks promo code combinations resulting in negative gross margin (<3ms).',
+          'Inventory Atomic Decrement: Deterministic reservation lock on stock count during checkout burst.',
+          'Gift Card Balance Deduction: Ensures atomic ledger subtraction with zero duplicate redemption.'
+        ],
+        2: [
+          'Order Support Intent Router: Instantly classifies buyer intent into order tracking, damaged item, or size exchange.',
+          'Product Discovery Semantic Classifier: Maps natural language queries to catalog categories.'
+        ],
+        3: [
+          'Return Policy Verification: Verifies return eligibility against product category and days since delivery.',
+          'Vendor Marketplace Guidelines: Answers merchant queries on listing compliance with policy links.'
+        ],
+        4: [
+          '3PL Carrier Rate Optimization Agent: Queries FedEx, UPS, and DHL APIs to select optimal carrier via MCP.',
+          'Warehouse Cross-Docking Agent: Automatically directs incoming supplier pallets to backordered customer shipments.'
+        ],
+        5: [
+          'Black Friday Traffic Surge Swarm: Optimizes checkout queue throttling, dynamic pricing, and cache invalidation.',
+          'Supplier Disruption Fulfillment Swarm: Reroutes fulfillment centers when primary regional DC suffers storm closure.'
+        ]
+      },
+      pipeline: {
+        1: `[Checkout Cart: $140.00 with Promo "FLASH50"] 
+    └──> [Level 1: Gross Margin Ceiling Validator (<2ms)]
+           ├──> [Cart Margin >= 15%] ──> [Authorize Payment Gateway Token]
+           └──> [Cart Margin < 15%]  ──> [🛑 Reject Coupon: Margin Protection Gate]`,
+        2: `[Customer Chat Message: "Where is my order?"] 
+    └──> [Level 2: Fast Semantic Classifier (<22ms)]
+           ├──> [Order Tracking] ──> [Carrier Tracking API Webhook]
+           └──> [Product Defect]  ──> [RMA Return Label Generator Track]`,
+        3: `[Shopper Policy Query: "Can I return opened electronics?"] 
+    └──> [Level 3: Return Policy Grounded RAG (<120ms)]
+           └──> [Returns Exact 14-day Policy with Restocking Fee Terms & Return Portal Link]`,
+        4: `[Warehouse Fulfillment Agent] 
+    └──> [MCP Tool: Omnichannel WMS API]
+           └──> [Splits Multi-Item Order to Nearest Regional Depots (<1.8s)]`,
+        5: `[Viral Social Surge: 100x Order Spike in 10 Minutes] 
+    └──> [Inventory Allocation Agent + Price Elasticity Agent + Fraud Check Agent]
+           └──> [Formulates Allocation Caps & Backorder Delivery Schedule]
+                  └──> [🛑 VP of Merchandising 1-Click Campaign Approval]`
+      },
+      whenNotToUse: {
+        1: 'Do not use Level 1 rules for subjective product recommendations or outfit styling advice.',
+        2: 'Do not route simple SKU lookups through generative AI when SQL query gives instant response.',
+        3: 'Do not use RAG for live inventory counts or rapidly fluctuating stock numbers.',
+        4: 'Never allow autonomous agents to issue cash refunds over $500 without supervisor approval.',
+        5: 'Do not use multi-agent swarms for single item order status lookups.'
+      }
+    }
+  };
+
+  const pipelineTopologyPresets: Record<string, string> = {
+    deterministic_gate: `[Client Request Ingress]
+       │
+       ▼
+[Level 1: Rule Engine & SQL Ceiling Validator (<5ms)]
+       │
+       ├─── Valid ────► [Write to DB & Emit Audit Log (0% Hallucination)]
+       │
+       └─── Failed ───► [🛑 400 Bad Request / SLA Exception]`,
+
+    semantic_router: `[Customer Utterance / Telemetry]
+       │
+       ▼
+[Embedding Layer: cosine similarity model (<15ms)]
+       │
+       ▼
+[Semantic Intent Router (<30ms)]
+       ├─── High Intent (FinOps) ──────► [Specialized Level 1 Rules]
+       ├─── Ambiguous Intent ──────────► [Clarification Prompt]
+       └─── Complex Architecture ──────► [Level 3 Grounded RAG]`,
+
+    grounded_rag: `[User Regulatory Query] ──► [Hybrid BM25 + Dense Vector Search]
+                                        │
+                                        ▼
+                   [Top-3 Statutory Chunks with Provenance Hashes]
+                                        │
+                                        ▼
+                   [LLM Synthesizer (<150ms, Zero Ungrounded Claims)]
+                                        │
+                                        ├── Citation Valid ──► [Response + Exact Paragraph Anchor]
+                                        └── Citation Missing ─► [🛑 Fail-Closed Redaction Gate]`,
+
+    mcp_tool_agent: `[User Business Objective]
+       │
+       ▼
+[Model Context Protocol (MCP) Client]
+       │
+       ├── List Tools & JSON Schemas
+       ├── Run Tool in Sandboxed Docker / MicroVM
+       └── Verify Output Structure (<3.0s SLA)
+       │
+       ▼
+[Deterministic State Verification & Audit Trail]`,
+
+    swarm_hitl: `[High-Stakes Investigation Payload]
+       │
+       ▼
+[Multi-Role State Machine Orchestrator]
+       ├── [Extractor Micro-Agent] ──► [Evidence Graph]
+       ├── [Policy Auditor Agent]  ──► [Contract Variance]
+       └── [Risk Scorer Agent]     ──► [Composite Swarm Confidence]
+       │
+       ├── Confidence >= 0.90 ──► [Autonomous Production Execution]
+       └── Confidence < 0.90  ──► [🛑 ESCALATE TO HUMAN SUPERVISOR (HITL Queue)]`
+  };
+
   interface GateChecklistItem {
     label: string;
     detail: string;
@@ -5801,11 +6196,66 @@ export class SwarmOrchestrator {
     refreshP3Rail();
   };
 
+  const renderCustomIndustryButtons = () => {
+    const container = document.getElementById('ladderCustomIndustryButtonsContainer');
+    if (!container) return;
+
+    const list = customIndustryLenses[selectedLadderLevel] || {};
+    const keys = Object.keys(list);
+
+    const builtInDomains = ['all', 'finance', 'healthcare', 'supply', 'fraud', 'support'];
+    const customKeys = keys.filter(k => !builtInDomains.includes(k));
+
+    container.innerHTML = customKeys.map(k => {
+      const lens = list[k];
+      const isActive = activeDomainLens === k;
+      return `
+        <button class="btn-quick domain-lens-btn custom-domain-btn ${isActive ? 'active' : ''}" data-domain="${k}" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="${escapeHtml(lens.name)}">
+          <span>${lens.emoji}</span> ${escapeHtml(lens.name)}
+          <span class="btn-del-custom-industry" data-del-domain="${k}" title="Delete" style="margin-left: 5px; opacity: 0.7; font-weight: 700; cursor: pointer;">✕</span>
+        </button>
+      `;
+    }).join('');
+
+    container.querySelectorAll<HTMLElement>('.custom-domain-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('btn-del-custom-industry')) {
+          e.stopPropagation();
+          const delKey = target.getAttribute('data-del-domain');
+          if (delKey && customIndustryLenses[selectedLadderLevel]) {
+            delete customIndustryLenses[selectedLadderLevel][delKey];
+            if (activeDomainLens === delKey) {
+              activeDomainLens = 'all';
+              document.querySelectorAll('.domain-lens-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-domain') === 'all'));
+            }
+            const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
+            renderDomainUseCases(meta, activeDomainLens);
+            showToast('🗑️ Removed custom industry lens');
+          }
+          return;
+        }
+
+        const dom = btn.getAttribute('data-domain');
+        if (dom) {
+          activeDomainLens = dom;
+          document.querySelectorAll('.domain-lens-btn').forEach(b => b.classList.toggle('active', b === btn));
+          const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
+          renderDomainUseCases(meta, activeDomainLens);
+          showToast(`🏢 Switched to ${btn.textContent?.trim()} domain blueprint`);
+        }
+      });
+    });
+  };
+
   const renderDomainUseCases = (meta: LadderLevelMeta, domain: string) => {
     const useCasesUl = document.getElementById('lblLadderUseCases');
     const headerEl = document.getElementById('lblLadderUseCasesHeader');
     const pipelineEl = document.getElementById('lblLadderPipelineDiagram');
     const whatEl = document.getElementById('lblLadderWhatItDoes');
+    const whenNotToUseEl = document.getElementById('lblLadderWhenNotToUse');
+    const btnResetIndustry = document.getElementById('btnResetActiveIndustryLens');
+    const btnResetPipeline = document.getElementById('btnResetPipelineTopology');
 
     const domainLabels: Record<string, string> = {
       all: '💼 Production Use Cases (Cross-Industry):',
@@ -5816,18 +6266,43 @@ export class SwarmOrchestrator {
       support: '🎧 Customer Operations & ITSM Use Cases:'
     };
 
-    if (headerEl) headerEl.textContent = domainLabels[domain] || domainLabels['all'];
+    const customIndustriesForLevel = customIndustryLenses[selectedLadderLevel] || {};
+    const customLens = customIndustriesForLevel[domain];
 
-    if (domain === 'all' || !meta.domainUseCases || !meta.domainUseCases[domain]) {
-      if (useCasesUl) useCasesUl.innerHTML = meta.useCases.map(u => `<li>${u}</li>`).join('');
-      if (pipelineEl) pipelineEl.textContent = meta.pipelineDiagram;
-      if (whatEl) whatEl.textContent = meta.whatItDoes;
+    if (customLens) {
+      if (headerEl) headerEl.textContent = `${customLens.emoji} ${customLens.name} Use Cases:`;
+      if (useCasesUl) useCasesUl.innerHTML = customLens.useCases.map(u => `<li>${escapeHtml(u)}</li>`).join('');
+      if (whatEl) whatEl.textContent = customLens.whatItDoes;
+      if (pipelineEl) pipelineEl.textContent = customLens.pipeline;
+      if (whenNotToUseEl && customLens.whenNotToUse) whenNotToUseEl.textContent = customLens.whenNotToUse;
+      if (btnResetIndustry) btnResetIndustry.style.display = 'inline-block';
     } else {
-      const dMeta = meta.domainUseCases[domain];
-      if (useCasesUl) useCasesUl.innerHTML = dMeta.useCases.map(u => `<li>${u}</li>`).join('');
-      if (pipelineEl) pipelineEl.textContent = dMeta.pipeline;
-      if (whatEl) whatEl.textContent = dMeta.whatItDoes;
+      if (headerEl) headerEl.textContent = domainLabels[domain] || domainLabels['all'];
+
+      if (domain === 'all' || !meta.domainUseCases || !meta.domainUseCases[domain]) {
+        if (useCasesUl) useCasesUl.innerHTML = meta.useCases.map(u => `<li>${escapeHtml(u)}</li>`).join('');
+        if (pipelineEl) pipelineEl.textContent = meta.pipelineDiagram;
+        if (whatEl) whatEl.textContent = meta.whatItDoes;
+      } else {
+        const dMeta = meta.domainUseCases[domain];
+        if (useCasesUl) useCasesUl.innerHTML = dMeta.useCases.map(u => `<li>${escapeHtml(u)}</li>`).join('');
+        if (pipelineEl) pipelineEl.textContent = dMeta.pipeline;
+        if (whatEl) whatEl.textContent = dMeta.whatItDoes;
+      }
+      if (whenNotToUseEl) whenNotToUseEl.textContent = meta.whenNotToUse;
+      if (btnResetIndustry) btnResetIndustry.style.display = 'none';
     }
+
+    // Check custom pipeline topology override
+    const topoKey = `${selectedLadderLevel}_${domain}`;
+    if (customPipelineTopologies[topoKey]) {
+      if (pipelineEl) pipelineEl.textContent = customPipelineTopologies[topoKey];
+      if (btnResetPipeline) btnResetPipeline.style.display = 'inline-block';
+    } else {
+      if (btnResetPipeline) btnResetPipeline.style.display = 'none';
+    }
+
+    renderCustomIndustryButtons();
   };
 
   const renderGateChecklist = (level: number) => {
@@ -6394,6 +6869,53 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
     btnRevert.style.display = hasUndo ? 'inline-block' : 'none';
   };
 
+  let customLensViewMode: 'preview' | 'split' = 'preview';
+
+  const setCustomLensViewMode = (mode: 'preview' | 'split') => {
+    customLensViewMode = mode;
+    const btnPreview = document.getElementById('btnCustomLensPreviewMode');
+    const btnSplit = document.getElementById('btnCustomLensSplitEditMode');
+    const previewOnly = document.getElementById('customLensPreviewOnlyView');
+    const splitEdit = document.getElementById('customLensSplitEditView');
+    const currentTab = (customLadderTabs[selectedLadderLevel] || []).find(t => t.id === activeCustomTabId);
+
+    if (mode === 'split') {
+      if (btnPreview) btnPreview.classList.remove('active');
+      if (btnSplit) btnSplit.classList.add('active');
+      if (previewOnly) previewOnly.style.display = 'none';
+      if (splitEdit) splitEdit.style.display = 'block';
+
+      if (currentTab) {
+        const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+        const liveBox = document.getElementById('customTabLivePreviewBox');
+        if (txtArea) txtArea.value = currentTab.content;
+        if (liveBox) liveBox.innerHTML = formatMarkdownToHtml(currentTab.content);
+      }
+    } else {
+      if (btnPreview) btnPreview.classList.add('active');
+      if (btnSplit) btnSplit.classList.remove('active');
+      if (previewOnly) previewOnly.style.display = 'block';
+      if (splitEdit) splitEdit.style.display = 'none';
+
+      if (currentTab) {
+        const bodyContainer = document.getElementById('customTabBodyContainer');
+        if (bodyContainer) bodyContainer.innerHTML = formatMarkdownToHtml(currentTab.content);
+      }
+    }
+  };
+
+  const insertTextAtCursor = (txtArea: HTMLTextAreaElement, textToInsert: string) => {
+    const start = txtArea.selectionStart ?? txtArea.value.length;
+    const end = txtArea.selectionEnd ?? txtArea.value.length;
+    const val = txtArea.value;
+    txtArea.value = val.substring(0, start) + textToInsert + val.substring(end);
+    const newPos = start + textToInsert.length;
+    txtArea.selectionStart = newPos;
+    txtArea.selectionEnd = newPos;
+    txtArea.focus();
+    txtArea.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
   const renderCustomLadderTabs = (level: number) => {
     const container = document.getElementById('ladderCustomTabsContainer');
     if (!container) return;
@@ -6422,8 +6944,6 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
   const switchLadderSubTab = (tabKey: string) => {
     const standardKeys = ['overview', 'simulator', 'code', 'gate', 'matrix'];
     const customPanel = document.getElementById('panelLadderCustom');
-    const customEditor = document.getElementById('customTabEditorContainer');
-    if (customEditor) customEditor.style.display = 'none';
 
     if (tabKey.startsWith('custom_') || tabKey === 'custom') {
       const customId = tabKey.startsWith('custom_') ? tabKey.replace('custom_', '') : activeCustomTabId;
@@ -6450,10 +6970,9 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
         if (customPanel) customPanel.style.display = 'block';
         const lblTitle = document.getElementById('lblCustomTabTitle');
         const lblDesc = document.getElementById('lblCustomTabDesc');
-        const bodyContainer = document.getElementById('customTabBodyContainer');
         if (lblTitle) lblTitle.innerHTML = `<span>${tab.emoji}</span> ${escapeHtml(tab.title)}`;
         if (lblDesc) lblDesc.textContent = tab.desc;
-        if (bodyContainer) bodyContainer.innerHTML = formatMarkdownToHtml(tab.content);
+        setCustomLensViewMode(customLensViewMode);
       }
     } else {
       activeLadderSubTab = tabKey;
@@ -6462,6 +6981,7 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
       // Deactivate all custom tab buttons
       document.querySelectorAll('.ladder-custom-tab-btn').forEach(b => b.classList.remove('active'));
       if (customPanel) customPanel.style.display = 'none';
+      setCustomLensViewMode('preview');
 
       standardKeys.forEach(k => {
         const btn = document.getElementById(`tabLadder${k.charAt(0).toUpperCase() + k.slice(1)}`);
@@ -6904,32 +7424,88 @@ Return the complete updated markdown document with clear headings, bullet points
     showToast(`✓ Added custom lens: ${emoji} ${title}`);
   });
 
-  // Custom Lens Edit / Save / Cancel / Copy / Delete
+  // Custom Lens Split Live Edit & Preview Mode Handlers
   document.getElementById('btnEditCustomTabContent')?.addEventListener('click', () => {
-    const editor = document.getElementById('customTabEditorContainer');
-    const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
-    const currentTab = (customLadderTabs[selectedLadderLevel] || []).find(t => t.id === activeCustomTabId);
-    if (editor && txtArea && currentTab) {
-      editor.style.display = 'block';
-      txtArea.value = currentTab.content;
-      txtArea.focus();
+    setCustomLensViewMode('split');
+  });
+
+  document.getElementById('btnCustomLensPreviewMode')?.addEventListener('click', () => {
+    setCustomLensViewMode('preview');
+  });
+
+  document.getElementById('btnCustomLensSplitEditMode')?.addEventListener('click', () => {
+    setCustomLensViewMode('split');
+  });
+
+  const txtCustomTabEditor = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+  txtCustomTabEditor?.addEventListener('input', () => {
+    const liveBox = document.getElementById('customTabLivePreviewBox');
+    if (liveBox && txtCustomTabEditor) {
+      liveBox.innerHTML = formatMarkdownToHtml(txtCustomTabEditor.value);
     }
   });
 
+  document.getElementById('btnInsertMdTable')?.addEventListener('click', () => {
+    const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+    if (!txtArea) return;
+    const snippet = `\n| Component / Phase | Requirement | SLA / Target | Verification Gate |
+| :--- | :--- | :--- | :--- |
+| **Data Ingestion** | Zero data loss | < 100ms | SHA-256 Checksum |
+| **Inference Core** | Deterministic guardrails | 99.99% | Unit & Regression Tests |
+| **Audit Logging** | Tamper-proof trail | Synchronous | Append-only SIEM sink |\n`;
+    insertTextAtCursor(txtArea, snippet);
+  });
+
+  document.getElementById('btnInsertMdCallout')?.addEventListener('click', () => {
+    const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+    if (!txtArea) return;
+    const snippet = `\n> 💡 **Architectural Note & Best Practice:**
+> Always enforce fail-closed circuit breakers and sanitize inputs before routing to downstream model providers.\n`;
+    insertTextAtCursor(txtArea, snippet);
+  });
+
+  document.getElementById('btnInsertMdCode')?.addEventListener('click', () => {
+    const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+    if (!txtArea) return;
+    const snippet = `\n\`\`\`typescript
+// Architectural Guardrail Contract
+export interface SecurityGateSpec {
+  level: number;
+  enforceZeroTrust: boolean;
+  maxLatencyMs: number;
+  auditSink: string;
+}
+\`\`\`\n`;
+    insertTextAtCursor(txtArea, snippet);
+  });
+
+  document.getElementById('btnInsertMdList')?.addEventListener('click', () => {
+    const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+    if (!txtArea) return;
+    const snippet = `\n- [x] **Boundary Verification:** Ingress network filters configured
+- [x] **Static Analysis:** Zero high/critical CVEs in dependencies
+- [ ] **SLA Certification:** P99 latency within contract boundaries
+- [ ] **Sign-Off Gate:** Principal FDE and client sponsor approval\n`;
+    insertTextAtCursor(txtArea, snippet);
+  });
+
   document.getElementById('btnCancelEditCustomTab')?.addEventListener('click', () => {
-    const editor = document.getElementById('customTabEditorContainer');
-    if (editor) editor.style.display = 'none';
+    const currentTab = (customLadderTabs[selectedLadderLevel] || []).find(t => t.id === activeCustomTabId);
+    if (currentTab) {
+      const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
+      if (txtArea) txtArea.value = currentTab.content;
+    }
+    setCustomLensViewMode('preview');
   });
 
   document.getElementById('btnSaveEditCustomTab')?.addEventListener('click', () => {
-    const editor = document.getElementById('customTabEditorContainer');
     const txtArea = document.getElementById('txtCustomTabEditor') as HTMLTextAreaElement;
     const currentTab = (customLadderTabs[selectedLadderLevel] || []).find(t => t.id === activeCustomTabId);
-    if (editor && txtArea && currentTab) {
+    if (txtArea && currentTab) {
       currentTab.content = txtArea.value;
       const bodyContainer = document.getElementById('customTabBodyContainer');
       if (bodyContainer) bodyContainer.innerHTML = formatMarkdownToHtml(currentTab.content);
-      editor.style.display = 'none';
+      setCustomLensViewMode('preview');
       showToast(`✓ Saved changes to ${currentTab.title}`);
     }
   });
@@ -6952,6 +7528,320 @@ Return the complete updated markdown document with clear headings, bullet points
       switchLadderSubTab('overview');
       showToast(`🗑️ Removed custom lens: ${removed.title}`);
     }
+  });
+
+  // ==========================================
+  // Industry Lens Live Modal & Customizer Handlers
+  // ==========================================
+  const updateModalIndustryPreview = () => {
+    const txtEmoji = document.getElementById('txtIndustryLensEmoji') as HTMLInputElement;
+    const txtName = document.getElementById('txtIndustryLensName') as HTMLInputElement;
+    const txtWhat = document.getElementById('txtIndustryWhatItDoes') as HTMLTextAreaElement;
+    const txtUseCases = document.getElementById('txtIndustryUseCases') as HTMLTextAreaElement;
+    const txtPipeline = document.getElementById('txtIndustryPipeline') as HTMLTextAreaElement;
+
+    const prevWhat = document.getElementById('prevIndustryWhat');
+    const prevUseCases = document.getElementById('prevIndustryUseCases');
+    const prevPipeline = document.getElementById('prevIndustryPipeline');
+
+    const emoji = txtEmoji?.value.trim() || '🏢';
+    const name = txtName?.value.trim() || 'Industry Lens';
+    const what = txtWhat?.value.trim() || 'No description provided.';
+    const useCasesLines = (txtUseCases?.value || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const pipeline = txtPipeline?.value || '';
+
+    if (prevWhat) {
+      prevWhat.innerHTML = `<span style="color: var(--accent);">${emoji}</span> <strong>${escapeHtml(name)}:</strong> ${escapeHtml(what)}`;
+    }
+    if (prevUseCases) {
+      if (useCasesLines.length === 0) {
+        prevUseCases.innerHTML = '<li style="color: var(--text-secondary); font-style: italic;">Enter use cases above to see live preview...</li>';
+      } else {
+        prevUseCases.innerHTML = useCasesLines.map(u => `<li>${escapeHtml(u)}</li>`).join('');
+      }
+    }
+    if (prevPipeline) {
+      prevPipeline.textContent = pipeline || '(Execution pipeline topology diagram preview will appear here)';
+    }
+  };
+
+  ['txtIndustryLensEmoji', 'txtIndustryLensName', 'txtIndustryWhatItDoes', 'txtIndustryUseCases', 'txtIndustryPipeline'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateModalIndustryPreview);
+  });
+
+  document.getElementById('selIndustryPreset')?.addEventListener('change', () => {
+    const sel = document.getElementById('selIndustryPreset') as HTMLSelectElement;
+    const presetKey = sel?.value;
+    if (!presetKey || !industryPresets[presetKey]) return;
+
+    const p = industryPresets[presetKey];
+    const lvl = selectedLadderLevel;
+
+    const txtEmoji = document.getElementById('txtIndustryLensEmoji') as HTMLInputElement;
+    const txtName = document.getElementById('txtIndustryLensName') as HTMLInputElement;
+    const txtWhat = document.getElementById('txtIndustryWhatItDoes') as HTMLTextAreaElement;
+    const txtUseCases = document.getElementById('txtIndustryUseCases') as HTMLTextAreaElement;
+    const txtPipeline = document.getElementById('txtIndustryPipeline') as HTMLTextAreaElement;
+    const txtWhen = document.getElementById('txtIndustryWhenNotToUse') as HTMLTextAreaElement;
+
+    if (txtEmoji) txtEmoji.value = p.emoji;
+    if (txtName) txtName.value = p.name;
+    if (txtWhat) txtWhat.value = p.whatItDoes[lvl] || p.whatItDoes[1];
+    if (txtUseCases) txtUseCases.value = (p.useCases[lvl] || p.useCases[1]).join('\n');
+    if (txtPipeline) txtPipeline.value = p.pipeline[lvl] || p.pipeline[1];
+    if (txtWhen) txtWhen.value = p.whenNotToUse[lvl] || p.whenNotToUse[1];
+
+    updateModalIndustryPreview();
+  });
+
+  document.getElementById('btnEditActiveIndustryLens')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalEditIndustryLens');
+    const modalTitle = document.getElementById('lblEditIndustryLensModalTitle');
+    if (!modal) return;
+
+    const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
+    const customLens = customIndustryLenses[selectedLadderLevel]?.[activeDomainLens];
+
+    const txtEmoji = document.getElementById('txtIndustryLensEmoji') as HTMLInputElement;
+    const txtName = document.getElementById('txtIndustryLensName') as HTMLInputElement;
+    const txtWhat = document.getElementById('txtIndustryWhatItDoes') as HTMLTextAreaElement;
+    const txtUseCases = document.getElementById('txtIndustryUseCases') as HTMLTextAreaElement;
+    const txtPipeline = document.getElementById('txtIndustryPipeline') as HTMLTextAreaElement;
+    const txtWhen = document.getElementById('txtIndustryWhenNotToUse') as HTMLTextAreaElement;
+    const selPreset = document.getElementById('selIndustryPreset') as HTMLSelectElement;
+    if (selPreset) selPreset.value = '';
+
+    modal.setAttribute('data-editing-domain', activeDomainLens);
+
+    if (customLens) {
+      if (modalTitle) modalTitle.innerHTML = `<span>✏️</span> Edit "${escapeHtml(customLens.name)}" Industry Blueprint (Level ${selectedLadderLevel})`;
+      if (txtEmoji) txtEmoji.value = customLens.emoji;
+      if (txtName) txtName.value = customLens.name;
+      if (txtWhat) txtWhat.value = customLens.whatItDoes;
+      if (txtUseCases) txtUseCases.value = customLens.useCases.join('\n');
+      if (txtPipeline) txtPipeline.value = customLens.pipeline;
+      if (txtWhen) txtWhen.value = customLens.whenNotToUse || meta.whenNotToUse;
+    } else if (activeDomainLens !== 'all' && meta.domainUseCases && meta.domainUseCases[activeDomainLens]) {
+      const dMeta = meta.domainUseCases[activeDomainLens];
+      const domainNames: Record<string, { emoji: string; name: string }> = {
+        finance: { emoji: '💰', name: 'FinOps & Banking' },
+        healthcare: { emoji: '🏥', name: 'Health & Life Sciences' },
+        supply: { emoji: '📦', name: 'Supply Chain & ERP' },
+        fraud: { emoji: '🛡️', name: 'Fraud & Risk/AML' },
+        support: { emoji: '🎧', name: 'Customer Operations' }
+      };
+      const info = domainNames[activeDomainLens] || { emoji: '🏢', name: activeDomainLens };
+      if (modalTitle) modalTitle.innerHTML = `<span>✏️</span> Edit "${escapeHtml(info.name)}" Industry Blueprint (Level ${selectedLadderLevel})`;
+      if (txtEmoji) txtEmoji.value = info.emoji;
+      if (txtName) txtName.value = info.name;
+      if (txtWhat) txtWhat.value = dMeta.whatItDoes;
+      if (txtUseCases) txtUseCases.value = dMeta.useCases.join('\n');
+      if (txtPipeline) txtPipeline.value = dMeta.pipeline;
+      if (txtWhen) txtWhen.value = meta.whenNotToUse;
+    } else {
+      if (modalTitle) modalTitle.innerHTML = `<span>✏️</span> Edit Cross-Industry Blueprint (Level ${selectedLadderLevel})`;
+      if (txtEmoji) txtEmoji.value = '🌐';
+      if (txtName) txtName.value = 'Cross-Industry';
+      if (txtWhat) txtWhat.value = meta.whatItDoes;
+      if (txtUseCases) txtUseCases.value = meta.useCases.join('\n');
+      if (txtPipeline) txtPipeline.value = meta.pipelineDiagram;
+      if (txtWhen) txtWhen.value = meta.whenNotToUse;
+    }
+
+    updateModalIndustryPreview();
+    modal.style.display = 'block';
+  });
+
+  document.getElementById('btnAddCustomIndustryLens')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalEditIndustryLens');
+    const modalTitle = document.getElementById('lblEditIndustryLensModalTitle');
+    if (!modal) return;
+
+    modal.setAttribute('data-editing-domain', 'NEW');
+    if (modalTitle) modalTitle.innerHTML = `<span>➕</span> Add New Client Industry Blueprint (Level ${selectedLadderLevel})`;
+
+    const txtEmoji = document.getElementById('txtIndustryLensEmoji') as HTMLInputElement;
+    const txtName = document.getElementById('txtIndustryLensName') as HTMLInputElement;
+    const txtWhat = document.getElementById('txtIndustryWhatItDoes') as HTMLTextAreaElement;
+    const txtUseCases = document.getElementById('txtIndustryUseCases') as HTMLTextAreaElement;
+    const txtPipeline = document.getElementById('txtIndustryPipeline') as HTMLTextAreaElement;
+    const txtWhen = document.getElementById('txtIndustryWhenNotToUse') as HTMLTextAreaElement;
+    const selPreset = document.getElementById('selIndustryPreset') as HTMLSelectElement;
+    if (selPreset) selPreset.value = '';
+
+    if (txtEmoji) txtEmoji.value = '🏭';
+    if (txtName) txtName.value = 'Manufacturing & IoT';
+    if (txtWhat) txtWhat.value = 'Assembly line quality inspection, predictive sensor maintenance, and shop-floor yield optimization.';
+    if (txtUseCases) txtUseCases.value = [
+      'High-Speed Vision Defect Gate: Validates surface roughness and dimension tolerance (<3ms).',
+      'Vibration Spectrum Anomaly Router: Routes bearing telemetry to preventative maintenance queue.',
+      'Equipment Maintenance Standard RAG: Answers ISO 9001 and machine maintenance manual queries.'
+    ].join('\n');
+    if (txtPipeline) txtPipeline.value = `[Edge Camera / Telemetry Ingress]
+    └──> [Level 1: Dimensional Tolerance Gate (<2ms)]
+           ├──> [Pass Tolerance] ──> [Advance Conveyor & Record Yield]
+           └──> [Defect Flagged] ──> [🛑 Actuate Pneumatic Reject Diverter]`;
+    if (txtWhen) txtWhen.value = 'Do not use for long-term multi-year supply contract negotiations or ungrounded manual interpretation.';
+
+    updateModalIndustryPreview();
+    modal.style.display = 'block';
+  });
+
+  document.getElementById('btnSaveEditIndustryLens')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalEditIndustryLens');
+    if (!modal) return;
+
+    const editingDomain = modal.getAttribute('data-editing-domain') || activeDomainLens;
+    const txtEmoji = document.getElementById('txtIndustryLensEmoji') as HTMLInputElement;
+    const txtName = document.getElementById('txtIndustryLensName') as HTMLInputElement;
+    const txtWhat = document.getElementById('txtIndustryWhatItDoes') as HTMLTextAreaElement;
+    const txtUseCases = document.getElementById('txtIndustryUseCases') as HTMLTextAreaElement;
+    const txtPipeline = document.getElementById('txtIndustryPipeline') as HTMLTextAreaElement;
+    const txtWhen = document.getElementById('txtIndustryWhenNotToUse') as HTMLTextAreaElement;
+
+    const emoji = txtEmoji?.value.trim() || '🏢';
+    const name = txtName?.value.trim() || 'Custom Industry';
+    const whatItDoes = txtWhat?.value.trim() || '';
+    const useCases = (txtUseCases?.value || '').split('\n').map(l => l.trim()).filter(Boolean);
+    const pipeline = txtPipeline?.value || '';
+    const whenNotToUse = txtWhen?.value.trim() || '';
+
+    let domainKey = editingDomain;
+    if (editingDomain === 'NEW') {
+      domainKey = `custom_ind_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    }
+
+    if (!customIndustryLenses[selectedLadderLevel]) {
+      customIndustryLenses[selectedLadderLevel] = {};
+    }
+
+    customIndustryLenses[selectedLadderLevel][domainKey] = {
+      id: domainKey,
+      emoji,
+      name,
+      whatItDoes,
+      useCases,
+      pipeline,
+      whenNotToUse
+    };
+
+    activeDomainLens = domainKey;
+    modal.style.display = 'none';
+
+    // Update active class on buttons
+    document.querySelectorAll('.domain-lens-btn').forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-domain') === domainKey);
+    });
+
+    const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
+    renderDomainUseCases(meta, activeDomainLens);
+    showToast(`✓ Saved "${emoji} ${name}" industry blueprint!`);
+  });
+
+  document.getElementById('btnResetActiveIndustryLens')?.addEventListener('click', () => {
+    const list = customIndustryLenses[selectedLadderLevel];
+    if (list && list[activeDomainLens]) {
+      const builtIn = ['all', 'finance', 'healthcare', 'supply', 'fraud', 'support'];
+      delete list[activeDomainLens];
+      if (!builtIn.includes(activeDomainLens)) {
+        activeDomainLens = 'all';
+        document.querySelectorAll('.domain-lens-btn').forEach(b => {
+          b.classList.toggle('active', b.getAttribute('data-domain') === 'all');
+        });
+      }
+    }
+
+    const topoKey = `${selectedLadderLevel}_${activeDomainLens}`;
+    if (customPipelineTopologies[topoKey]) {
+      delete customPipelineTopologies[topoKey];
+    }
+
+    const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
+    renderDomainUseCases(meta, activeDomainLens);
+    showToast('↩ Reset industry lens to default blueprint');
+  });
+
+  document.getElementById('btnCloseEditIndustryLensModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalEditIndustryLens');
+    if (modal) modal.style.display = 'none';
+  });
+
+  document.getElementById('btnCancelEditIndustryLens')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalEditIndustryLens');
+    if (modal) modal.style.display = 'none';
+  });
+
+  // ==========================================
+  // Execution Pipeline Topology Editor Handlers
+  // ==========================================
+  document.getElementById('btnEditPipelineTopology')?.addEventListener('click', () => {
+    const displayBox = document.getElementById('pipelineDiagramDisplayBox');
+    const editorBox = document.getElementById('boxPipelineTopologyEditor');
+    const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
+    const preview = document.getElementById('liveTopologyPreviewBox');
+    const curDiagram = document.getElementById('lblLadderPipelineDiagram')?.textContent || '';
+
+    if (editorBox && displayBox && txt) {
+      displayBox.style.display = 'none';
+      editorBox.style.display = 'block';
+      txt.value = curDiagram;
+      if (preview) preview.textContent = curDiagram;
+      txt.focus();
+    }
+  });
+
+  document.getElementById('txtPipelineTopologyEditor')?.addEventListener('input', () => {
+    const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
+    const preview = document.getElementById('liveTopologyPreviewBox');
+    if (preview && txt) {
+      preview.textContent = txt.value;
+    }
+  });
+
+  document.getElementById('selTopologyPreset')?.addEventListener('change', () => {
+    const sel = document.getElementById('selTopologyPreset') as HTMLSelectElement;
+    const patternKey = sel?.value;
+    if (patternKey && pipelineTopologyPresets[patternKey]) {
+      const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
+      const preview = document.getElementById('liveTopologyPreviewBox');
+      if (txt) txt.value = pipelineTopologyPresets[patternKey];
+      if (preview && txt) preview.textContent = txt.value;
+    }
+  });
+
+  document.getElementById('btnCancelEditPipelineTopology')?.addEventListener('click', () => {
+    const displayBox = document.getElementById('pipelineDiagramDisplayBox');
+    const editorBox = document.getElementById('boxPipelineTopologyEditor');
+    if (editorBox) editorBox.style.display = 'none';
+    if (displayBox) displayBox.style.display = 'block';
+  });
+
+  document.getElementById('btnSaveEditPipelineTopology')?.addEventListener('click', () => {
+    const displayBox = document.getElementById('pipelineDiagramDisplayBox');
+    const editorBox = document.getElementById('boxPipelineTopologyEditor');
+    const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
+    const diagramEl = document.getElementById('lblLadderPipelineDiagram');
+    const btnResetPipeline = document.getElementById('btnResetPipelineTopology');
+
+    if (txt) {
+      const topoKey = `${selectedLadderLevel}_${activeDomainLens}`;
+      customPipelineTopologies[topoKey] = txt.value;
+      if (diagramEl) diagramEl.textContent = txt.value;
+      if (btnResetPipeline) btnResetPipeline.style.display = 'inline-block';
+      if (editorBox) editorBox.style.display = 'none';
+      if (displayBox) displayBox.style.display = 'block';
+      showToast('✓ Saved custom execution pipeline topology!');
+    }
+  });
+
+  document.getElementById('btnResetPipelineTopology')?.addEventListener('click', () => {
+    const topoKey = `${selectedLadderLevel}_${activeDomainLens}`;
+    if (customPipelineTopologies[topoKey]) {
+      delete customPipelineTopologies[topoKey];
+    }
+    const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
+    renderDomainUseCases(meta, activeDomainLens);
+    showToast('↩ Reset pipeline topology to default');
   });
 
   // AI Layer Actions & Listeners
@@ -7017,7 +7907,7 @@ Return the complete updated markdown document with clear headings, bullet points
   });
 
   // Domain Lens Filter Buttons
-  document.querySelectorAll<HTMLElement>('.domain-lens-btn').forEach(btn => {
+  document.querySelectorAll<HTMLElement>('.domain-lens-btn:not(.custom-domain-btn)').forEach(btn => {
     btn.addEventListener('click', () => {
       const dom = btn.getAttribute('data-domain') || 'all';
       activeDomainLens = dom;
@@ -8728,28 +9618,154 @@ function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-function formatMarkdownToHtml(markdown: string): string {
-  let html = markdown;
+function formatInlineMarkdown(text: string): string {
+  let s = text;
+  // Inline code: `code`
+  s = s.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-family: monospace; color: #4ec9b0; font-size: 10.5px;">$1</code>');
+  // Bold: **text**
+  s = s.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff;">$1</strong>');
+  // Italics: *text*
+  s = s.replace(/\*(.*?)\*/g, '<em style="color: #9cdcfe;">$1</em>');
+  return s;
+}
 
-  // Code blocks: ```lang ... ```
-  html = html.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_match, lang, code) => {
-    return `<pre style="background: #111; padding: 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); overflow-x: auto; margin: 8px 0;"><code style="font-family: Consolas, monospace; font-size: 11.5px; color: #9cdcfe;">${escapeHtml(code.trim())}</code></pre>`;
+function formatMarkdownToHtml(markdown: string): string {
+  if (!markdown) return '';
+  const codeBlocks: string[] = [];
+  let text = markdown.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_match, _lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre style="background: #111; padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); overflow-x: auto; margin: 10px 0;"><code style="font-family: Consolas, monospace; font-size: 11.5px; color: #9cdcfe;">${escapeHtml(code.trim())}</code></pre>`);
+    return `%%%CODEBLOCK_${idx}%%%`;
   });
 
-  // Inline code: `code`
-  html = html.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #4ec9b0;">$1</code>');
+  const lines = text.split('\n');
+  const processedLines: string[] = [];
+  let inTable = false;
+  let tableHeader: string[] = [];
+  let tableRows: string[][] = [];
 
-  // Bold: **text**
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  const flushTable = () => {
+    if (!inTable) return;
+    let tableHtml = '<div style="overflow-x: auto; margin: 12px 0;"><table style="width: 100%; border-collapse: collapse; font-size: 11px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">';
+    if (tableHeader.length > 0) {
+      tableHtml += '<thead><tr style="background: rgba(78, 201, 176, 0.12); border-bottom: 2px solid var(--border);">';
+      tableHeader.forEach(th => {
+        tableHtml += `<th style="padding: 8px 12px; text-align: left; color: var(--accent); font-weight: 700; border-right: 1px solid rgba(255,255,255,0.06);">${formatInlineMarkdown(th.trim())}</th>`;
+      });
+      tableHtml += '</tr></thead>';
+    }
+    tableHtml += '<tbody>';
+    tableRows.forEach(row => {
+      tableHtml += '<tr style="border-bottom: 1px solid rgba(255,255,255,0.06);">';
+      row.forEach(cell => {
+        tableHtml += `<td style="padding: 7px 12px; color: #cbd5e1; border-right: 1px solid rgba(255,255,255,0.04);">${formatInlineMarkdown(cell.trim())}</td>`;
+      });
+      tableHtml += '</tr>';
+    });
+    tableHtml += '</tbody></table></div>';
+    processedLines.push(tableHtml);
+    inTable = false;
+    tableHeader = [];
+    tableRows = [];
+  };
 
-  // Italics: *text*
-  html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|') && line.endsWith('|')) {
+      const cells = line.split('|').slice(1, -1);
+      const isSeparator = cells.every(c => /^[\s:-]+$/.test(c));
+      if (isSeparator) continue;
+      if (!inTable) {
+        inTable = true;
+        tableHeader = cells;
+      } else {
+        tableRows.push(cells);
+      }
+    } else {
+      if (inTable) flushTable();
+      processedLines.push(lines[i]);
+    }
+  }
+  if (inTable) flushTable();
 
-  // Line breaks to <br> outside code blocks
-  html = html.split('\n').map(line => line.startsWith('<pre') ? line : line + '<br>').join('');
-  html = html.replace(/(<br>)+$/, '');
+  let inUl = false;
+  let inOl = false;
+  const resultLines: string[] = [];
 
-  return html;
+  const closeLists = () => {
+    if (inUl) { resultLines.push('</ul>'); inUl = false; }
+    if (inOl) { resultLines.push('</ol>'); inOl = false; }
+  };
+
+  for (let i = 0; i < processedLines.length; i++) {
+    const line = processedLines[i];
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('%%%CODEBLOCK_') || trimmed.startsWith('<div style="overflow-x:')) {
+      closeLists();
+      resultLines.push(line);
+      continue;
+    }
+
+    if (/^---{3,}$/.test(trimmed)) {
+      closeLists();
+      resultLines.push('<hr style="border: none; border-top: 1px solid var(--border); margin: 14px 0;">');
+      continue;
+    }
+
+    if (/^#\s+(.+)$/.test(trimmed)) {
+      closeLists();
+      resultLines.push(`<h2 style="font-size: 15px; font-weight: 700; color: #fff; margin: 14px 0 8px 0; border-bottom: 1px solid var(--border); padding-bottom: 5px;">${formatInlineMarkdown(trimmed.replace(/^#\s+/, ''))}</h2>`);
+      continue;
+    }
+    if (/^##\s+(.+)$/.test(trimmed)) {
+      closeLists();
+      resultLines.push(`<h3 style="font-size: 13.5px; font-weight: 700; color: var(--accent); margin: 12px 0 6px 0;">${formatInlineMarkdown(trimmed.replace(/^##\s+/, ''))}</h3>`);
+      continue;
+    }
+    if (/^###\s+(.+)$/.test(trimmed)) {
+      closeLists();
+      resultLines.push(`<h4 style="font-size: 12.5px; font-weight: 700; color: #38bdf8; margin: 10px 0 6px 0; display: flex; align-items: center; gap: 6px;">${formatInlineMarkdown(trimmed.replace(/^###\s+/, ''))}</h4>`);
+      continue;
+    }
+    if (/^####\s+(.+)$/.test(trimmed)) {
+      closeLists();
+      resultLines.push(`<h5 style="font-size: 11.5px; font-weight: 700; color: #fbbf24; margin: 8px 0 4px 0;">${formatInlineMarkdown(trimmed.replace(/^####\s+/, ''))}</h5>`);
+      continue;
+    }
+
+    if (/^>\s*(.+)$/.test(trimmed)) {
+      closeLists();
+      resultLines.push(`<blockquote style="border-left: 3px solid var(--accent); background: rgba(78, 201, 176, 0.08); padding: 8px 12px; margin: 8px 0; border-radius: 0 4px 4px 0; color: #cbd5e1; font-size: 11px;">${formatInlineMarkdown(trimmed.replace(/^>\s*/, ''))}</blockquote>`);
+      continue;
+    }
+
+    if (/^[-*]\s+(.+)$/.test(trimmed)) {
+      if (inOl) { resultLines.push('</ol>'); inOl = false; }
+      if (!inUl) { resultLines.push('<ul style="margin: 6px 0 8px 0; padding-left: 20px; line-height: 1.6;">'); inUl = true; }
+      resultLines.push(`<li style="margin-bottom: 3px; color: #cbd5e1;">${formatInlineMarkdown(trimmed.replace(/^[-*]\s+/, ''))}</li>`);
+      continue;
+    }
+
+    if (/^\d+\.\s+(.+)$/.test(trimmed)) {
+      if (inUl) { resultLines.push('</ul>'); inUl = false; }
+      if (!inOl) { resultLines.push('<ol style="margin: 6px 0 8px 0; padding-left: 20px; line-height: 1.6;">'); inOl = true; }
+      resultLines.push(`<li style="margin-bottom: 3px; color: #cbd5e1;">${formatInlineMarkdown(trimmed.replace(/^\d+\.\s+/, ''))}</li>`);
+      continue;
+    }
+
+    closeLists();
+    if (trimmed === '') {
+      resultLines.push('<div style="height: 6px;"></div>');
+    } else {
+      resultLines.push(`<p style="margin: 0 0 6px 0; line-height: 1.5; color: #cbd5e1;">${formatInlineMarkdown(trimmed)}</p>`);
+    }
+  }
+  closeLists();
+
+  let finalHtml = resultLines.join('\n');
+  finalHtml = finalHtml.replace(/%%%CODEBLOCK_(\d+)%%%/g, (_m, idx) => codeBlocks[parseInt(idx, 10)] || '');
+  return finalHtml;
 }
 
 // --- HARDWARE SIZER STUDIO (100% Correct Data Mapping) ---

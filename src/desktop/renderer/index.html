@@ -1634,15 +1634,97 @@
                       </div>
 
                       <!-- Multi-Industry Domain Lens Strip -->
-                      <div style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
-                        <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">🏢 Client Industry Lens:</span>
-                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                          <button class="btn-quick active domain-lens-btn" data-domain="all" id="btnLensAll" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Cross-Industry">🌐 Cross-Industry</button>
-                          <button class="btn-quick domain-lens-btn" data-domain="finance" id="btnLensFinance" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="FinOps & Banking">💰 FinOps &amp; Banking</button>
-                          <button class="btn-quick domain-lens-btn" data-domain="healthcare" id="btnLensHealthcare" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Health & Life Sciences">🏥 Health &amp; Life Sciences</button>
-                          <button class="btn-quick domain-lens-btn" data-domain="supply" id="btnLensSupply" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Supply Chain & ERP">📦 Supply Chain &amp; ERP</button>
-                          <button class="btn-quick domain-lens-btn" data-domain="fraud" id="btnLensFraud" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Fraud & Risk/AML">🛡️ Fraud &amp; Risk/AML</button>
-                          <button class="btn-quick domain-lens-btn" data-domain="support" id="btnLensSupport" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Customer Operations">🎧 Customer Operations</button>
+                      <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; background: rgba(0,0,0,0.25); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border); gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                          <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">🏢 Client Industry Lens:</span>
+                          <div style="display: flex; gap: 4px; flex-wrap: wrap;" id="ladderIndustryButtonsGroup">
+                            <button class="btn-quick active domain-lens-btn" data-domain="all" id="btnLensAll" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Cross-Industry">🌐 Cross-Industry</button>
+                            <button class="btn-quick domain-lens-btn" data-domain="finance" id="btnLensFinance" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="FinOps & Banking">💰 FinOps &amp; Banking</button>
+                            <button class="btn-quick domain-lens-btn" data-domain="healthcare" id="btnLensHealthcare" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Health & Life Sciences">🏥 Health &amp; Life Sciences</button>
+                            <button class="btn-quick domain-lens-btn" data-domain="supply" id="btnLensSupply" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Supply Chain & ERP">📦 Supply Chain &amp; ERP</button>
+                            <button class="btn-quick domain-lens-btn" data-domain="fraud" id="btnLensFraud" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Fraud & Risk/AML">🛡️ Fraud &amp; Risk/AML</button>
+                            <button class="btn-quick domain-lens-btn" data-domain="support" id="btnLensSupport" style="font-size: 10.5px; padding: 2px 8px; margin: 0; cursor: pointer;" aria-label="Customer Operations">🎧 Customer Operations</button>
+                            <div id="ladderCustomIndustryButtonsContainer" style="display: inline-flex; gap: 4px; flex-wrap: wrap;"></div>
+                            <button class="btn-quick" id="btnAddCustomIndustryLens" style="font-size: 10.5px; padding: 2px 8px; margin: 0; border-style: dashed; border-color: var(--accent); color: var(--accent); cursor: pointer;" aria-label="+ Add Industry">+ Add Industry</button>
+                          </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                          <button class="btn-quick" id="btnEditActiveIndustryLens" style="font-size: 10.5px; padding: 2px 8px; cursor: pointer;" aria-label="Edit Active Industry Blueprint">✏️ Edit Lens</button>
+                          <button class="btn-quick" id="btnResetActiveIndustryLens" style="font-size: 10.5px; padding: 2px 8px; color: var(--text-secondary); cursor: pointer; display: none;" aria-label="Reset Lens to Default">↩ Reset Default</button>
+                        </div>
+                      </div>
+
+                      <!-- Industry Lens Edit / Add Drawer Modal -->
+                      <div id="modalEditIndustryLens" style="display: none; background: rgba(0, 0, 0, 0.5); border: 1.5px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                          <strong style="font-size: 12.5px; color: var(--accent); display: flex; align-items: center; gap: 6px;" id="lblEditIndustryLensModalTitle">
+                            <span>✏️</span> Edit Client Industry Blueprint
+                          </strong>
+                          <button class="btn-quick" id="btnCloseEditIndustryLensModal" style="padding: 2px 7px; font-size: 11px; cursor: pointer;">✕</button>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 80px 1.5fr 1fr; gap: 8px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="txtIndustryLensEmoji">Emoji</label>
+                            <input type="text" id="txtIndustryLensEmoji" value="🏢" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="txtIndustryLensName">Industry Name</label>
+                            <input type="text" id="txtIndustryLensName" value="Custom Industry" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="selIndustryPreset">Load Preset</label>
+                            <select id="selIndustryPreset" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 5px 8px; background: var(--bg-primary); color: #cbd5e1; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                              <option value="">Custom / Current...</option>
+                              <option value="energy">⚡ Energy &amp; Utilities</option>
+                              <option value="government">🏛️ Government &amp; Defense</option>
+                              <option value="automotive">🚗 Automotive &amp; IoT</option>
+                              <option value="telecom">📡 Telecom &amp; 5G Edge</option>
+                              <option value="retail">🛒 Retail &amp; E-Commerce</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                          <div>
+                            <div style="margin-bottom: 8px;">
+                              <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="txtIndustryWhatItDoes">🎯 What This Level Does (for this Industry):</label>
+                              <textarea id="txtIndustryWhatItDoes" rows="3" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;"></textarea>
+                            </div>
+                            <div>
+                              <label style="font-size: 10.5px; font-weight: 700; color: #4ade80;" for="txtIndustryUseCases">💼 Production Use Cases (one per line):</label>
+                              <textarea id="txtIndustryUseCases" rows="5" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; background: var(--bg-primary); color: #cbd5e1; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace;"></textarea>
+                            </div>
+                          </div>
+                          <div>
+                            <div style="margin-bottom: 8px;">
+                              <label style="font-size: 10.5px; font-weight: 700; color: #38bdf8;" for="txtIndustryPipeline">⚙️ Execution Pipeline Topology Diagram:</label>
+                              <textarea id="txtIndustryPipeline" rows="5" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; background: #111; color: #9cdcfe; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; font-family: monospace;"></textarea>
+                            </div>
+                            <div>
+                              <label style="font-size: 10.5px; font-weight: 700; color: #f87171;" for="txtIndustryWhenNotToUse">⚠️ When NOT to Use This Level:</label>
+                              <textarea id="txtIndustryWhenNotToUse" rows="3" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 6px 8px; background: var(--bg-primary); color: #fca5a5; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px;"></textarea>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Live Preview inside Modal -->
+                        <div style="background: #151515; border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+                          <div style="font-size: 10.5px; font-weight: 700; color: var(--accent); margin-bottom: 6px;">⚡ Industry Blueprint Live Preview:</div>
+                          <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px;">
+                            <div>
+                              <div style="font-size: 11px; font-weight: 700; color: #fff;" id="prevIndustryWhat"></div>
+                              <ul style="font-size: 10.5px; color: #cbd5e1; margin: 6px 0 0 16px; padding: 0;" id="prevIndustryUseCases"></ul>
+                            </div>
+                            <div>
+                              <div id="prevIndustryPipeline" style="font-family: monospace; font-size: 9.5px; color: #9cdcfe; line-height: 1.35; white-space: pre-wrap; background: #0c0c0c; padding: 6px; border-radius: 4px; border: 1px solid var(--border);"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                          <button class="btn-quick" id="btnCancelEditIndustryLens" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Cancel</button>
+                          <button class="btn" id="btnSaveEditIndustryLens" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 4px 14px; font-size: 11px; cursor: pointer;">✓ Save Industry Blueprint</button>
                         </div>
                       </div>
 
@@ -1658,8 +1740,39 @@
                           </ul>
                         </div>
                         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                          <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8; margin-bottom: 6px;">⚙️ Execution Pipeline Topology:</div>
-                          <div id="lblLadderPipelineDiagram" style="font-family: monospace; font-size: 10.5px; color: #9cdcfe; line-height: 1.45; white-space: pre-wrap; background: #111; padding: 8px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 10px;"></div>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8;">⚙️ Execution Pipeline Topology:</div>
+                            <div style="display: flex; gap: 4px;">
+                              <button class="btn-quick" id="btnEditPipelineTopology" style="font-size: 10px; padding: 2px 7px; cursor: pointer;" aria-label="Edit Pipeline Topology">✏️ Edit Topology</button>
+                              <button class="btn-quick" id="btnResetPipelineTopology" style="font-size: 10px; padding: 2px 7px; cursor: pointer; display: none;" aria-label="Reset Topology to Default">↩ Reset</button>
+                            </div>
+                          </div>
+
+                          <div id="pipelineDiagramDisplayBox">
+                            <div id="lblLadderPipelineDiagram" style="font-family: monospace; font-size: 10.5px; color: #9cdcfe; line-height: 1.45; white-space: pre-wrap; background: #111; padding: 8px; border-radius: 4px; border: 1px solid var(--border); margin-bottom: 10px;"></div>
+                          </div>
+
+                          <div id="boxPipelineTopologyEditor" style="display: none; background: #151515; border: 1px solid var(--accent); border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                              <label style="font-size: 10.5px; font-weight: 700; color: var(--accent);">Architectural Topology Pattern:</label>
+                              <select id="selTopologyPreset" style="background: var(--bg-primary); border: 1px solid var(--border); color: #cbd5e1; font-size: 10px; padding: 2px 6px; border-radius: 3px;">
+                                <option value="">Choose Preset Pattern...</option>
+                                <option value="deterministic_gate">Linear Rule Gate</option>
+                                <option value="semantic_router">Semantic Intent Router</option>
+                                <option value="grounded_rag">Grounded Policy RAG</option>
+                                <option value="mcp_tool_agent">MCP Sandboxed Tool Agent</option>
+                                <option value="swarm_hitl">Swarm Multi-Agent with HITL</option>
+                              </select>
+                            </div>
+                            <textarea id="txtPipelineTopologyEditor" rows="6" style="width: 100%; box-sizing: border-box; background: #111; border: 1px solid var(--border); color: #9cdcfe; font-family: monospace; font-size: 10.5px; padding: 8px; border-radius: 4px;"></textarea>
+                            <div style="font-size: 10px; font-weight: 700; color: #4ade80; margin: 6px 0 2px 0;">⚡ Live Preview:</div>
+                            <div id="liveTopologyPreviewBox" style="font-family: monospace; font-size: 10px; color: #9cdcfe; line-height: 1.4; white-space: pre-wrap; background: #0c0c0c; padding: 6px; border-radius: 4px; border: 1px solid rgba(74, 222, 128, 0.3); max-height: 120px; overflow-y: auto;"></div>
+                            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+                              <button class="btn-quick" id="btnCancelEditPipelineTopology" style="font-size: 10px; padding: 3px 8px;">Cancel</button>
+                              <button class="btn" id="btnSaveEditPipelineTopology" style="background: var(--accent); color: #1e1e1e; font-size: 10px; font-weight: 700; padding: 3px 10px;">✓ Save Topology</button>
+                            </div>
+                          </div>
+
                           <div style="font-size: 11px; font-weight: 700; color: #f87171; margin-bottom: 4px;">⚠️ When NOT to Use This Level:</div>
                           <div id="lblLadderWhenNotToUse" style="font-size: 10.5px; color: #fca5a5; line-height: 1.4;"></div>
                         </div>
@@ -1797,7 +1910,7 @@
 
                     <!-- Panel 6: Custom Lens Display Panel -->
                     <div id="panelLadderCustom" style="display: none;">
-                      <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                         <div>
                           <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;" id="lblCustomTabTitle">
                             <span>🛡️</span> Security &amp; Threat Model (STRIDE)
@@ -1807,19 +1920,55 @@
                           </div>
                         </div>
                         <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                          <button class="btn-quick" id="btnEditCustomTabContent" style="font-size: 11px; padding: 3px 8px; cursor: pointer;" aria-label="Edit Lens Content">✏️ Edit</button>
+                          <div style="display: flex; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+                            <button class="btn-quick active" id="btnCustomLensPreviewMode" style="font-size: 11px; padding: 3px 9px; cursor: pointer; border: none; margin: 0;" aria-label="Formatted Preview Mode">👁️ Formatted Preview</button>
+                            <button class="btn-quick" id="btnCustomLensSplitEditMode" style="font-size: 11px; padding: 3px 9px; cursor: pointer; border: none; margin: 0;" aria-label="Split Live Edit Mode">✏️ Split Live Edit &amp; Preview</button>
+                          </div>
                           <button class="btn-quick" id="btnCopyCustomTabContent" style="font-size: 11px; padding: 3px 8px; cursor: pointer;" aria-label="Copy Lens Content">📋 Copy</button>
                           <button class="btn-quick" id="btnDeleteCustomTab" style="font-size: 11px; padding: 3px 8px; color: var(--error); border-color: var(--error); cursor: pointer;" aria-label="Delete Custom Lens">🗑️ Remove Lens</button>
                         </div>
                       </div>
-                      <div id="customTabBodyContainer" style="background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 14px; color: #cbd5e1; font-size: 11.5px; line-height: 1.55; min-height: 220px; max-height: 380px; overflow-y: auto;">
-                        <!-- Custom lens content injected dynamically -->
+
+                      <!-- Normal Preview View (Full Width) -->
+                      <div id="customLensPreviewOnlyView">
+                        <div id="customTabBodyContainer" style="background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 16px; color: #cbd5e1; font-size: 11.5px; line-height: 1.55; min-height: 240px; max-height: 480px; overflow-y: auto;">
+                          <!-- Custom lens content injected dynamically -->
+                        </div>
                       </div>
-                      <div id="customTabEditorContainer" style="display: none; margin-top: 10px;">
-                        <textarea id="txtCustomTabEditor" rows="10" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--accent); color: #fff; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 6px;"></textarea>
-                        <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px;">
-                          <button class="btn-quick" id="btnCancelEditCustomTab" style="font-size: 11px; padding: 4px 10px;">Cancel</button>
-                          <button class="btn" id="btnSaveEditCustomTab" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 4px 12px;">Save Changes</button>
+
+                      <!-- Split Edit & Live Preview View -->
+                      <div id="customLensSplitEditView" style="display: none;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                          <!-- Left: Editor with Quick Templates -->
+                          <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px;">
+                              <span style="font-size: 11px; font-weight: 700; color: var(--accent);">Markdown Editor:</span>
+                              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                <button class="btn-quick" id="btnInsertMdTable" style="font-size: 10px; padding: 2px 6px; cursor: pointer;">+ Table</button>
+                                <button class="btn-quick" id="btnInsertMdCallout" style="font-size: 10px; padding: 2px 6px; cursor: pointer;">+ Callout</button>
+                                <button class="btn-quick" id="btnInsertMdCode" style="font-size: 10px; padding: 2px 6px; cursor: pointer;">+ Code</button>
+                                <button class="btn-quick" id="btnInsertMdList" style="font-size: 10px; padding: 2px 6px; cursor: pointer;">+ Checklist</button>
+                              </div>
+                            </div>
+                            <textarea id="txtCustomTabEditor" rows="18" style="flex: 1; min-height: 320px; box-sizing: border-box; background: #111; border: 1px solid var(--border); color: #fff; font-family: Consolas, monospace; font-size: 11px; padding: 10px; border-radius: 4px; resize: vertical; line-height: 1.45;"></textarea>
+                            <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+                              <button class="btn-quick" id="btnCancelEditCustomTab" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">Cancel</button>
+                              <button class="btn" id="btnSaveEditCustomTab" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 4px 12px; cursor: pointer;">✓ Save Changes</button>
+                            </div>
+                          </div>
+
+                          <!-- Right: Real-time Live Preview -->
+                          <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                              <span style="font-size: 11px; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 4px;">
+                                <span>⚡</span> Live Formatted Preview (Real-Time):
+                              </span>
+                              <span style="font-size: 10px; color: var(--text-secondary);">Updates automatically</span>
+                            </div>
+                            <div id="customTabLivePreviewBox" style="flex: 1; min-height: 320px; max-height: 420px; overflow-y: auto; background: #181818; border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 4px; padding: 14px; font-size: 11.5px; line-height: 1.55; color: #cbd5e1;">
+                              <!-- Live updated on input -->
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
