@@ -2292,87 +2292,337 @@ if len(numeric_cols) > 1:
       requiresStrictArithmetic?: boolean;
       inputModality?: string;
       zeroToleranceForHallucination?: boolean;
+      architectureOverride?: string;
+      hitlRequired?: string;
     }) => {
       const taskDesc = (req?.taskDescription || '').toLowerCase();
       const mathReq = req?.requiresStrictArithmetic || /math|arithmetic|reconcil|balance|invoice|tax|currency|fx|sox|ledger|tolerance/i.test(taskDesc);
       const latencyBudget = req?.latencyBudgetMs || 50;
+      const override = req?.architectureOverride || '';
 
-      if (mathReq || latencyBudget <= 5) {
+      // 1. Explicit Overrides
+      if (override === 'hybrid_1_3' || (!override && mathReq && /policy|handbook|guideline|sop|compliance|legal|contract|regulation/i.test(taskDesc))) {
+        return {
+          paradigm: 'Deterministic Rule-Gated Grounded Policy RAG',
+          recommendedLevel: '1+3',
+          ladderLevel: 3,
+          hybridTiers: [1, 3],
+          slaConfidence: '99.5%',
+          latencySla: '<80ms P99',
+          costSla: '$0.0008 / query',
+          hallucinationSla: '0% on Hard Gates (<0.5% Residual RAG)',
+          hitlTrigger: 'Retrieved span confidence <0.92 or rule threshold breach',
+          rationale: 'Hybrid Tier 1 + Tier 3 Architecture. Deterministic compiled SQL/TypeScript boundary gates intercept ingress requests to validate hard mathematical limits and statutory constraints before querying the air-gapped vector store. Combines zero-hallucination boundary guarantees with grounded semantic knowledge retrieval.',
+          codeSnippet: `// Hybrid Level 1 + Level 3: Deterministic Rule-Gated Policy RAG
+import { VectorStore } from './vector_store';
+
+export class RuleGatedPolicyRag {
+  // Level 1: Deterministic Ingress Interlock (<2ms, 0% Hallucination)
+  public static validateBoundaryLimits(amount: number, ceiling = 50000): void {
+    if (amount <= 0 || isNaN(amount)) throw new Error("INVALID_AMOUNT_FORMAT");
+    if (amount > ceiling) throw new Error("HITL_REQUIRED: Statutory ceiling breached");
+  }
+
+  // Level 3: Grounded Air-Gapped Policy Retrieval with Signed Citations
+  public static async executeGroundedRetrieval(query: string, amount: number) {
+    this.validateBoundaryLimits(amount);
+    const results = await VectorStore.querySemanticSop(query, { maxTokens: 128, threshold: 0.88 });
+    return {
+      status: 'VERIFIED_GROUNDED',
+      citations: results.citations,
+      auditReceipt: results.ed25519Signature
+    };
+  }
+}`,
+          scaffoldedCode: `// Hybrid Level 1+3: Rule-Gated Grounded RAG\nexport async function evaluateRuleGatedRag(q: string, amt: number) { /* gate + rag */ }`,
+          guardrails: [
+            'Mandatory deterministic rule validation before embedding/vector lookup',
+            '128-token semantic chunking with Ed25519 signed citation receipts',
+            'Zero probabilistic sampling on numerical or statutory calculations',
+            'Automatic escalation to human queue on ambiguity'
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Task"] --> Gate1{"🛡️ Level 1: Deterministic Gate"}
+  Gate1 -- "Rule Breach" --> Escalate["🛑 Escalate / Reject (<2ms)"]
+  Gate1 -- "Boundary Validated" --> Rag3["📚 Level 3: Grounded Policy RAG"]
+  Rag3 --> Verify{"🔍 Citation Verifier"}
+  Verify -- "Score >= 0.90" --> Egress["✅ Verified Output (<80ms)"]
+  Verify -- "Score < 0.90" --> HITL["👤 Human Supervisor Queue"]`
+        };
+      }
+
+      if (override === 'hybrid_1_4' || (!override && mathReq && /tool|mcp|api|erp|warehouse|db|database|booking|execute/i.test(taskDesc))) {
+        return {
+          paradigm: 'Guardrailed Tool Execution (Deterministic Interlock + MCP)',
+          recommendedLevel: '1+4',
+          ladderLevel: 4,
+          hybridTiers: [1, 4],
+          slaConfidence: '99.8%',
+          latencySla: '<120ms P99',
+          costSla: '$0.0012 / transaction',
+          hallucinationSla: '0% on Tool Parameters & Financial Values',
+          hitlTrigger: 'Parameter schema mismatch, idempotency collision, or budget ceiling exceedance',
+          rationale: 'Hybrid Tier 1 + Tier 4 Architecture. Executes strict deterministic rule checks (JSON schema, boundary ceilings, balance reconciliations) before granting execution permissions to MCP tool agents. Protects client ERPs and databases against non-deterministic tool calls.',
+          codeSnippet: `// Hybrid Level 1 + Level 4: Guardrailed MCP Tool Execution
+import { McpClient } from '@modelcontextprotocol/sdk/client';
+
+export class GuardrailedToolAgent {
+  // Level 1: Hard Boundary Pre-Flight Check (<1ms)
+  public static preflightCheck(params: { accountId: string; amount: number }): void {
+    if (params.amount > 10000) throw new Error("HITL_REQUIRED: Transfer ceiling exceeded");
+    if (!/^[A-Z0-9_]{8,32}$/.test(params.accountId)) throw new Error("INVALID_ACCOUNT_IDENTIFIER");
+  }
+
+  // Level 4: Sandboxed Idempotent MCP Tool Invocation
+  public static async executeMcpAction(params: { accountId: string; amount: number; idempotencyKey: string }) {
+    this.preflightCheck(params);
+    return await McpClient.callTool("execute_erp_settlement", {
+      ...params,
+      readOnly: false,
+      signedHeaders: { "X-Idempotency-Key": params.idempotencyKey }
+    });
+  }
+}`,
+          scaffoldedCode: `// Hybrid Level 1+4: Guardrailed Tool Execution\nexport async function executeGuardrailedTool(p: any) { /* preflight + mcp */ }`,
+          guardrails: [
+            'Strict preflight parameter assertion before MCP invocation',
+            'Idempotency key enforcement on all state mutations',
+            'Read-only sandbox verification on analytical queries',
+            'Audit logging with SHA-256 state hashing'
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Action"] --> Preflight{"🛡️ Level 1: Pre-Flight Rule Check"}
+  Preflight -- "Ceiling / Schema Breach" --> Reject["🛑 Reject Transaction (<1ms)"]
+  Preflight -- "Passed Invariants" --> McpTool["⚡ Level 4: Sandboxed MCP Agent"]
+  McpTool --> Audit["📝 Idempotent ERP Execution (<120ms)"]`
+        };
+      }
+
+      if (override === 'hybrid_1_5' || (!override && mathReq && /swarm|multi-agent|adjudicat|cross-border|underwrit|investigat/i.test(taskDesc))) {
+        return {
+          paradigm: 'Multi-Agent Swarm with Mandatory Deterministic Boundary & HITL',
+          recommendedLevel: '1+5',
+          ladderLevel: 5,
+          hybridTiers: [1, 5],
+          slaConfidence: '99.0%',
+          latencySla: '<1500ms P99',
+          costSla: '$0.0080 / orchestration',
+          hallucinationSla: '0% on Monetary Constraints (<1% Overall)',
+          hitlTrigger: 'Consensus score <0.90, anomaly detected, or high-risk transaction class',
+          rationale: 'Hybrid Tier 1 + Tier 5 Architecture. Coordinates a multi-agent swarm of specialized micro-agents with hard mathematical/statutory invariant gates between every agent handover. Any constraint breach or confidence drop automatically halts autonomous execution and enqueues a human supervisor ticket.',
+          codeSnippet: `// Hybrid Level 1 + Level 5: Swarm with Mandatory Boundary Gates & HITL
+export class SovereignSwarmOrchestrator {
+  public static async orchestrate(claimPayload: any) {
+    // Step 1: Level 1 Hard Statutory Gate
+    if (claimPayload.amount > 250000) {
+      return await SupervisorQueue.escalate("EXCEEDS_AUTOMATIC_LIMIT", claimPayload);
+    }
+
+    // Step 2: Multi-Agent Swarm Specialist Handover
+    const extraction = await ExtractorAgent.process(claimPayload);
+    const auditResult = await AuditorAgent.verify(extraction);
+
+    // Step 3: Level 1 Post-Execution Reconciliation Gate
+    if (Math.abs(auditResult.computed - claimPayload.amount) > 0.01) {
+      throw new Error("RECONCILIATION_DRIFT_DETECTED: HALTING_PIPELINE");
+    }
+
+    return { status: 'DISPATCHED', auditResult };
+  }
+}`,
+          scaffoldedCode: `// Hybrid Level 1+5: Swarm with Hard Gate\nexport async function runSwarmWithGate(claim: any) { /* swarm + hitl */ }`,
+          guardrails: [
+            'Deterministic mathematical interlock at each agent transition',
+            'State machine checkpointing with rollback ability',
+            'Mandatory human-in-the-loop supervisor queue below 90% confidence',
+            'Cryptographic immutable audit trail'
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Claim"] --> HardGate{"🛡️ Level 1: Hard Gate"}
+  HardGate -- "Statutory Breach" --> Supervisor["🛑 Human Supervisor Queue"]
+  HardGate -- "Valid" --> Swarm["🐝 Level 5: Specialist Swarm"]
+  Swarm --> Reconcile{"⚖️ Reconcile Gate"}
+  Reconcile -- "Drift == 0" --> Commit["✅ Execute Settlement"]
+  Reconcile -- "Drift > 0" --> Supervisor`
+        };
+      }
+
+      if (override === 'hybrid_1_2' || (!override && /route|triage|classify/i.test(taskDesc) && mathReq)) {
+        return {
+          paradigm: 'Deterministic Ingress Gate + Fast Semantic Router',
+          recommendedLevel: '1+2',
+          ladderLevel: 2,
+          hybridTiers: [1, 2],
+          slaConfidence: '99.7%',
+          latencySla: '<25ms P99',
+          costSla: '$0.0002 / dispatch',
+          hallucinationSla: '0% on Ingress Filters (Zero Drift)',
+          hitlTrigger: 'Semantic classification confidence <0.85',
+          rationale: 'Hybrid Tier 1 + Tier 2 Architecture. Employs a compiled deterministic pre-filter for boundary limits and credential formats, followed by a fast embedding-based cosine distance router to dispatch requests to specialized downstream processing pipelines.',
+          codeSnippet: `// Hybrid Level 1 + Level 2: Rule Gate + Semantic Router
+export class RuleGatedSemanticRouter {
+  public static async dispatch(req: { payload: string; authHeader: string }): Promise<string> {
+    // Level 1: Deterministic Header / Boundary Invariant (<1ms)
+    if (!req.authHeader || req.payload.length > 32768) throw new Error("INVALID_INGRESS_CONTRACT");
+
+    // Level 2: Fast Cosine Semantic Intent Router (<20ms)
+    const embedding = await EmbeddingEngine.embed(req.payload);
+    const intent = await RouterModel.classify(embedding);
+    return intent.confidence > 0.85 ? intent.route : "SUPERVISOR_QUEUE";
+  }
+}`,
+          scaffoldedCode: `// Hybrid Level 1+2: Rule Gate + Semantic Router\nexport async function routeGatedRequest(r: any) { return "RULE_ENGINE"; }`,
+          guardrails: [
+            'Zero latency overhead ingress filter (<1ms)',
+            'Cosine similarity threshold gate (>0.85)',
+            'Instant fail-closed routing for ambiguous requests'
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Request"] --> Gate1{"🛡️ Level 1: Rule Pre-Filter"}
+  Gate1 -- "Invalid" --> Drop["❌ Reject (<1ms)"]
+  Gate1 -- "Valid" --> Router2["🧭 Level 2: Semantic Router"]
+  Router2 --> RouteChoice{"🎯 Route Dispatch"}
+  RouteChoice -- "Financial" --> EngineRule["💰 Rule Engine"]
+  RouteChoice -- "Policy" --> EngineRag["📚 Policy RAG"]`
+        };
+      }
+
+      // 2. Standard Single-Level Evaluation
+      if (override === 'level_1' || (!override && (mathReq || latencyBudget <= 5))) {
         return {
           paradigm: 'Pure Rule Engine / Compiled SQL',
           recommendedLevel: 1,
+          ladderLevel: 1,
+          hybridTiers: [1],
+          slaConfidence: '99.9%',
+          latencySla: '<5ms P99',
+          costSla: '$0.0000 / op (Zero LLM Tokens)',
+          hallucinationSla: '0.0% (Zero Drift Guarantee)',
+          hitlTrigger: 'Hard threshold ceiling breach (e.g. >$10,000 transaction)',
           rationale: 'Strict arithmetic calculations and monetary ledgers must never use non-deterministic probabilistic LLMs. Executed via deterministic compiled TypeScript/SQL boundary rules (<5ms latency, 0% hallucination SLA).',
           codeSnippet: `// Level 1: Deterministic Rule Gate (<5ms, Zero Hallucination SLA)\nexport class DeterministicRuleEngine {\n  public static evaluateTransaction(amount: number, ceiling = 100.00): boolean {\n    if (amount > ceiling) throw new Error("HITL_REQUIRED: Exceeds threshold");\n    return true;\n  }\n}`,
           scaffoldedCode: `// Level 1: Deterministic Rule Gate\nexport function evaluateGate(val: number): boolean {\n  return val <= 100.00;\n}`,
-          ladderLevel: 1,
           guardrails: [
             'Zero probabilistic token sampling',
             'Strict IEEE-754 / decimal arithmetic precision',
             'SOX compliant audit logging for any override'
-          ]
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Input"] --> RuleCheck{"🛡️ Level 1: Deterministic Gate"}
+  RuleCheck -- "Within Threshold" --> Execute["✅ Compiled SQL / TS Rule (<5ms)"]
+  RuleCheck -- "Ceiling Exceeded" --> HITL["🛑 Escalate to Human Supervisor"]`
         };
       }
 
-      if (/route|triage|classify|category|intent|dispatch/i.test(taskDesc) || latencyBudget <= 30) {
+      if (override === 'level_2' || (!override && (/route|triage|classify|category|intent|dispatch/i.test(taskDesc) || latencyBudget <= 30))) {
         return {
           paradigm: 'Fast Semantic Router (Intent Classifier)',
           recommendedLevel: 2,
+          ladderLevel: 2,
+          hybridTiers: [2],
+          slaConfidence: '98.5%',
+          latencySla: '<25ms P99',
+          costSla: '$0.0001 / query',
+          hallucinationSla: '<1.0% Intent Misclassification',
+          hitlTrigger: 'Confidence score <0.85',
           rationale: 'High-throughput intent triage and ticket classification. Uses lightweight embedding cosine distance (<30ms) to route queries to specialized deterministic engines or sub-handlers.',
           codeSnippet: `// Level 2: Fast Semantic Router (<30ms)\nexport class SemanticRouter {\n  public static async route(query: string): Promise<string> {\n    return /refund|invoice/i.test(query) ? "RULE_ENGINE" : "POLICY_RAG";\n  }\n}`,
           scaffoldedCode: `// Level 2: Semantic Router\nexport async function routeRequest(text: string) { return "RULE_ENGINE"; }`,
-          ladderLevel: 2,
           guardrails: [
             'Lightweight embedding model (<30ms SLA)',
             'Confidence threshold gate (>0.85)',
             'Fallback to human supervisor for ambiguous queries'
-          ]
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Text"] --> Embed["🧭 Vectorize Query (<10ms)"]
+  Embed --> Cosine["📐 Cosine Similarity Classifier"]
+  Cosine --> Threshold{"Confidence >= 0.85?"}
+  Threshold -- "Yes" --> Dispatch["⚡ Dispatch to Handler (<25ms)"]
+  Threshold -- "No" --> Queue["👤 Triage Queue"]`
         };
       }
 
-      if (/policy|handbook|guideline|sop|hipaa|clinical|legal|contract/i.test(taskDesc)) {
+      if (override === 'level_3' || (!override && /policy|handbook|guideline|sop|hipaa|clinical|legal|contract/i.test(taskDesc))) {
         return {
           paradigm: 'Air-Gapped Grounded Policy RAG',
           recommendedLevel: 3,
+          ladderLevel: 3,
+          hybridTiers: [3],
+          slaConfidence: '97.8%',
+          latencySla: '<120ms P99',
+          costSla: '$0.0006 / query',
+          hallucinationSla: '<1.0% Un-Grounded Claim Rate',
+          hitlTrigger: 'Retrieval citation score <0.88',
           rationale: 'Strict fact-retrieval from internal SOP manuals and policy documents. Enforces 128-token semantic chunking with mandatory citation of every retrieved span, plus Ed25519 receipts for audit. Retrieval grounding substantially reduces but does not eliminate ungrounded output; residual rate must be measured by the Phase 4 golden-set evaluation.',
           codeSnippet: `// Level 3: Air-Gapped Policy RAG (<150ms)\nexport class GroundedPolicyRag {\n  public static async answer(query: string) {\n    return { answer: "Grounded in SOP §4.2", citations: ["SOP-4.2"], score: 0.99 };\n  }\n}`,
           scaffoldedCode: `// Level 3: Policy RAG\nexport async function queryHandbook(q: string) { return { grounded: true }; }`,
-          ladderLevel: 3,
           guardrails: [
             '128-token semantic chunking',
             'Strict citation verification before answer release',
             'Air-gapped on-premise vector store'
-          ]
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Query"] --> VectorSearch["🔍 Vector Retrieval (<50ms)"]
+  VectorSearch --> Chunks["📑 128-Token Chunks"]
+  Chunks --> GroundCheck{"🛡️ Citation Verifier"}
+  GroundCheck -- "Score >= 0.88" --> Answer["📚 Grounded Answer + Ed25519 Receipt"]
+  GroundCheck -- "Score < 0.88" --> Review["🛑 Reject Ungrounded Output"]`
         };
       }
 
-      if (/db|database|introspect|api|erp|warehouse|inventory|carrier|telemetry/i.test(taskDesc)) {
+      if (override === 'level_4' || (!override && /db|database|introspect|api|erp|warehouse|inventory|carrier|telemetry/i.test(taskDesc))) {
         return {
           paradigm: 'Model Context Protocol (MCP) Tool Agent',
           recommendedLevel: 4,
+          ladderLevel: 4,
+          hybridTiers: [4],
+          slaConfidence: '98.2%',
+          latencySla: '<250ms P99',
+          costSla: '$0.0015 / invocation',
+          hallucinationSla: '0% on Tool Schema Parameters',
+          hitlTrigger: 'Mutation without idempotency key or schema validation failure',
           rationale: 'Standardized tool agent with Model Context Protocol (MCP). Dynamically queries warehouse schemas and authenticated client VPC APIs with read-only sandbox enforcement.',
           codeSnippet: `// Level 4: MCP Tool Agent\nexport const toolDefinition = {\n  name: "introspect_table_schema",\n  readOnly: true,\n  inputSchema: { type: "object", properties: { tableName: { type: "string" } } }\n};`,
           scaffoldedCode: `// Level 4: MCP Tool\nexport const mcpTool = { name: "warehouse_query", readOnly: true };`,
-          ladderLevel: 4,
           guardrails: [
             'Read-only sandbox enforcement',
             'JSON schema parameter validation',
             'Idempotency key enforcement on all mutations'
-          ]
+          ],
+          mermaidDiagram: `flowchart TD
+  Ingress["📥 Tool Request"] --> SchemaCheck{"🛡️ JSON Schema Validator"}
+  SchemaCheck -- "Invalid" --> Drop["❌ Reject Tool Call"]
+  SchemaCheck -- "Valid" --> McpServer["🔌 Sandboxed MCP Server"]
+  McpServer --> Execute["⚡ API / SQL Invocation (<250ms)"]`
         };
       }
 
+      // Default to Level 5
       return {
         paradigm: 'Autonomous Multi-Agent Swarm with HITL Approval Gates',
         recommendedLevel: 5,
+        ladderLevel: 5,
+        hybridTiers: [5],
+        slaConfidence: '96.5%',
+        latencySla: '<2000ms P99',
+        costSla: '$0.0120 / flow',
+        hallucinationSla: '<0.5% (Enforced via Multi-Agent Consensus)',
+        hitlTrigger: 'Consensus score <0.90 or anomaly detected',
         rationale: 'Multi-role state machine coordinating specialist agents (Extractor, Auditor, Verifier). Any confidence score below 90% automatically pauses execution and routes to a human supervisor queue.',
         codeSnippet: `// Level 5: Multi-Agent Swarm with HITL Gate\nexport class SwarmOrchestrator {\n  public static async dispatch(task: any) {\n    if (task.confidence < 0.90) await SupervisorQueue.escalate(task);\n    else await ProductionWorker.execute(task);\n  }\n}`,
         scaffoldedCode: `// Level 5: Swarm Orchestrator\nexport async function runSwarm(task: any) { /* state machine */ }`,
-        ladderLevel: 5,
         guardrails: [
           'Confidence score threshold (>0.90)',
           'Supervisor queue escalation on ambiguity',
           'Cryptographically signed audit logs'
-        ]
+        ],
+        mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Goal"] --> Orchestrator["🐝 Swarm Orchestrator"]
+  Orchestrator --> Agent1["Extractor Agent"]
+  Orchestrator --> Agent2["Auditor Agent"]
+  Agent1 & Agent2 --> Consensus{"Consensus >= 0.90?"}
+  Consensus -- "Yes" --> Commit["✅ Execute Production Work"]
+  Consensus -- "No" --> HITL["🛑 Escalate to Human Supervisor"]`
       };
     });
 

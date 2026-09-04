@@ -2105,51 +2105,380 @@
 
                 <!-- 3B: INTERACTIVE RULE VS MODEL EVALUATOR -->
                 <div id="p3StepBPanel" role="tabpanel" aria-labelledby="btnP3StepB" style="display: none;">
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>⚖️</span> Section 3B: Rule vs. Model Decision Gate Evaluator
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                    
+                    <!-- Section 3B Header & Action Bar -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 14px;">⚖️</span>
+                        <strong style="font-size: 13px; color: #fff;">Section 3B: Rule vs. Model Decision Gate Evaluator</strong>
+                        <span class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 9.5px; border: 1px solid rgba(56, 189, 248, 0.3);">Deterministic &amp; Hybrid Ready</span>
+                      </div>
+                      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn-quick" id="btnExportGateDoc" style="font-size: 10.5px; padding: 3px 8px; color: var(--accent); border-color: var(--accent); cursor: pointer;" aria-label="Export Decision Gate ADR">📖 Export ADR Docs</button>
+                        
+                        <!-- Version History Selector & Snapshot Button -->
+                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px;">
+                          <span style="font-size: 10px; color: var(--text-secondary);">📜 Ver:</span>
+                          <select id="selGateVersionHistory" style="background: transparent; border: none; color: #9cdcfe; font-size: 10px; padding: 2px 4px; cursor: pointer;">
+                            <option value="v1.0.0">v1.0.0 (Evaluator Baseline)</option>
+                          </select>
+                          <button class="btn-quick" id="btnSaveGateVersionSnapshot" style="font-size: 9.5px; padding: 1px 6px; border: none; margin: 0; cursor: pointer;" title="Save current gate as a version snapshot">💾 Snapshot</button>
+                        </div>
+
+                        <button class="btn-quick" id="btnToggleEditDecisionGate" style="font-size: 10.5px; padding: 3px 8px; cursor: pointer;" aria-label="Edit Decision Gate">✏️ Edit Gate</button>
+                        <button class="btn" id="btnEvaluateRuleModel" style="padding: 3px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;" aria-label="Evaluate Gate">⚡ Evaluate Gate</button>
+                        <button class="btn-quick" id="btnSaveRuleGateToProject" style="font-size: 10.5px; padding: 3px 8px; cursor: pointer;" aria-label="Save Gate to Project">💾 Save to Project</button>
+                      </div>
                     </div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn" id="btnEvaluateRuleModel" style="padding: 4px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Evaluate Gate">⚡ Evaluate Gate</button>
-                      <button class="btn-quick" id="btnSaveRuleGateToProject" style="font-size: 11px;" aria-label="Save Gate to Project">💾 Save Gate to Project</button>
+
+                    <!-- AI Engineering Layer for Section 3B -->
+                    <div id="boxGateAiLayer" style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(74, 222, 128, 0.08)); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                          <span>✨</span> Decision Gate AI Co-Architect:
+                          <span style="font-size: 10px; font-weight: 400; color: var(--text-secondary);">(Natural language transformations &amp; hybrid recommendations)</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn-quick" id="btnGateAiRevert" style="font-size: 9.5px; padding: 2px 7px; color: #f87171; border-color: rgba(248, 113, 113, 0.4); display: none; cursor: pointer;" title="Revert last AI modification">↩ Revert AI Edit</button>
+                          <button class="btn-quick" id="btnGateAiSuggestHybrid" style="font-size: 9.5px; padding: 2px 8px; color: #4ade80; border-color: rgba(74, 222, 128, 0.4); cursor: pointer;" title="Suggest Hybrid Architecture for this workload">🔀 Suggest Hybrid</button>
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                        <input type="text" id="txtGateAiPrompt" placeholder="e.g. 'Convert to a Level 1 + Level 3 hybrid with strict SQL tolerance checks before RAG retrieval', 'Optimize for &lt;15ms latency', 'Add strict SOX guardrails'..." style="flex: 1; background: #0c0c0c; border: 1px solid rgba(56, 189, 248, 0.4); color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 11px;">
+                        <button class="btn" id="btnApplyGateAi" style="background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 10.5px; padding: 5px 14px; cursor: pointer;">⚡ Apply</button>
+                      </div>
+                      <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 10px; color: var(--text-secondary);">Quick Prompts:</span>
+                        <button class="btn-quick gate-quick-chip" data-prompt="Convert to a Level 1 + Level 3 Hybrid with strict SQL tolerance check before Grounded Policy RAG" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">🛡️ Hybrid Level 1+3</button>
+                        <button class="btn-quick gate-quick-chip" data-prompt="Convert to a Level 1 + Level 4 Guardrailed Tool Agent with deterministic preflight checks before ERP invocation" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">⚡ Guardrailed Tool Agent (1+4)</button>
+                        <button class="btn-quick gate-quick-chip" data-prompt="Elevate to Level 5 Multi-Agent Swarm with mandatory boundary checks and human supervisor escalation queue" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">🐝 Swarm with HITL (1+5)</button>
+                        <button class="btn-quick gate-quick-chip" data-prompt="Optimize architecture for strict &lt;10ms P99 latency with zero hallucination SLA" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">⏱️ Low Latency (&lt;10ms)</button>
+                        <button class="btn-quick gate-quick-chip" data-prompt="Challenge this recommendation for SOX compliance and generate immutable audit log requirements" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">⚖️ Challenge for SOX Audit</button>
+                      </div>
                     </div>
-                  </div>
-                  <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="txtRuleTaskDesc">Task Description</label>
-                      <input type="text" id="txtRuleTaskDesc" value="Transaction tolerance reconciliation and invoice total check" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+
+                    <!-- Input Controls & Archetype Presets Grid -->
+                    <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                      <!-- Top Row: Archetype Preset & Architecture Override -->
+                      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: 700; color: #4ade80;" for="selRuleGatePreset">🏢 Enterprise Task Archetype Preset:</label>
+                          <select id="selRuleGatePreset" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="">Choose Enterprise Archetype...</option>
+                            <option value="financial_reconciliation" selected>💰 Financial Tolerance &amp; Ledger Balance (Level 1: Pure Rule Engine &amp; SQL)</option>
+                            <option value="support_triage">🎧 Customer Support Ingress &amp; Intent Triage (Level 2: Semantic Router &amp; Classifier)</option>
+                            <option value="clinical_protocol">📚 Clinical Protocol &amp; HIPAA SOP Guidance (Level 3: Grounded Policy RAG)</option>
+                            <option value="erp_rebalance">📦 ERP Warehouse Inventory Rebalancing (Level 4: MCP Tool Agent)</option>
+                            <option value="claims_adjudication">🐝 Multi-Entity Claims Adjudication (Level 5: Swarm with HITL)</option>
+                            <option value="payment_interlock">🛡️ High-Value Payment with Fraud Interlock (Hybrid Level 1+4: Guardrailed Tool)</option>
+                            <option value="contract_boundary">📑 Contract Risk Analysis with Hard Gates (Hybrid Level 1+3: Rule-Gated RAG)</option>
+                            <option value="credit_underwrite">🏦 Credit Underwriting with Escalation (Hybrid Level 1+5: Swarm with Interlocks)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: 700; color: #38bdf8;" for="selArchitectureTierOverride">🎯 Architecture Paradigm Override:</label>
+                          <select id="selArchitectureTierOverride" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="auto" selected>Auto (Evaluator Recommended)</option>
+                            <option value="level_1">Level 1: Pure Rule Engine &amp; Compiled SQL (&lt;5ms, 0% Drift)</option>
+                            <option value="level_2">Level 2: Fast Semantic Router &amp; Intent Classifier (&lt;25ms)</option>
+                            <option value="level_3">Level 3: Air-Gapped Grounded Policy RAG (&lt;120ms)</option>
+                            <option value="level_4">Level 4: Model Context Protocol (MCP) Tool Agent (&lt;250ms)</option>
+                            <option value="level_5">Level 5: Autonomous Swarm with HITL Approval Gates</option>
+                            <option value="hybrid_1_2">Hybrid Level 1 + 2: Rule Gate + Semantic Ingress Router</option>
+                            <option value="hybrid_1_3">Hybrid Level 1 + 3: Deterministic Rule-Gated Grounded RAG</option>
+                            <option value="hybrid_1_4">Hybrid Level 1 + 4: Guardrailed Tool Execution (Rule + MCP)</option>
+                            <option value="hybrid_1_5">Hybrid Level 1 + 5: Multi-Agent Swarm with Hard Gate &amp; HITL</option>
+                            <option value="custom">Custom Architecture Definition</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <!-- Second Row: Task Description & Strict Technical Constraints -->
+                      <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1.1fr 1.1fr; gap: 8px;">
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="txtRuleTaskDesc">Task Description</label>
+                          <input type="text" id="txtRuleTaskDesc" value="Transaction tolerance reconciliation and invoice total check" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="selRuleMathReq">Arithmetic?</label>
+                          <select id="selRuleMathReq" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="yes" selected>Strict Math (Zero Drift)</option>
+                            <option value="no">Text / Synthesis</option>
+                            <option value="hybrid">Hybrid (Math + Policy)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="selRuleModality">Input Modality</label>
+                          <select id="selRuleModality" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="structured_data" selected>Structured SQL / CSV</option>
+                            <option value="unstructured_text">Unstructured Text / PDF</option>
+                            <option value="multimodal">Multimodal Documents</option>
+                            <option value="api_stream">API Stream / Event Bus</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="txtRuleLatencyBudget">Latency Budget</label>
+                          <input type="text" id="txtRuleLatencyBudget" value="50ms" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="selRuleHallucinationTolerance">Hallucination SLA</label>
+                          <select id="selRuleHallucinationTolerance" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="zero" selected>0.0% (Zero Hallucination)</option>
+                            <option value="low">&lt;1.0% (High Precision)</option>
+                            <option value="advisory">Advisory / Synthesis OK</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="selRuleHitlReq">HITL Escalation</label>
+                          <select id="selRuleHitlReq" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="mandatory">Mandatory Supervisor Queue</option>
+                            <option value="discrepancy" selected>Discrepancy Triggered</option>
+                            <option value="autonomous">Fully Autonomous</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="selRuleMathReq">Math / Arithmetic?</label>
-                      <select id="selRuleMathReq" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="yes" selected>Yes (Strict Arithmetic)</option>
-                        <option value="no">No (Text Synthesis)</option>
-                      </select>
+
+                    <!-- Architecture Documentation ADR Export Modal -->
+                    <div id="modalExportGateDoc" style="display: none; background: rgba(0, 0, 0, 0.6); border: 1.5px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                        <strong style="font-size: 12.5px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                          <span>📖</span> Export Architectural Decision Record (ADR)
+                        </strong>
+                        <button class="btn-quick" id="btnCloseExportGateDocModal" style="padding: 2px 7px; font-size: 11px; cursor: pointer;">✕</button>
+                      </div>
+                      
+                      <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 10px 0;">
+                        Export this evaluated decision gate as a formal production Architectural Decision Record (ADR) with SLAs, trade-off matrix, visual Mermaid flowcharts, and governance guardrails.
+                      </p>
+
+                      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; margin-bottom: 10px;">
+                        <div>
+                          <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">Destination Target:</div>
+                          <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                              <input type="radio" name="radExportGateDocTarget" value="decision_log_md" checked style="accent-color: var(--accent);">
+                              <span><strong>docs/DECISION_LOG.md</strong> (Architectural Decision Records Log)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                              <input type="radio" name="radExportGateDocTarget" value="standalone_gate_file" style="accent-color: var(--accent);">
+                              <span id="lblExportGateDocStandalonePath"><strong>docs/architecture/gates/gate_reconciliation_adr.md</strong></span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                              <input type="radio" name="radExportGateDocTarget" value="architecture_md" style="accent-color: var(--accent);">
+                              <span><strong>docs/ARCHITECTURE.md</strong> (Append to Main Architecture Document)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                              <input type="radio" name="radExportGateDocTarget" value="clipboard_adr_md" style="accent-color: var(--accent);">
+                              <span>Copy Complete ADR Markdown to Clipboard</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; cursor: pointer;">
+                              <input type="radio" name="radExportGateDocTarget" value="clipboard_gate_mermaid" style="accent-color: var(--accent);">
+                              <span>Copy Mermaid Flowchart Code Only (GitHub / Notion)</span>
+                            </label>
+                          </div>
+
+                          <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">Sections to Include:</div>
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10.5px; color: #cbd5e1;">
+                            <label style="display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkGateDocIncludeContext" checked style="accent-color: var(--accent);"> Problem Framing &amp; Invariants</label>
+                            <label style="display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkGateDocIncludeMermaid" checked style="accent-color: var(--accent);"> Visual Mermaid Flowchart</label>
+                            <label style="display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkGateDocIncludeTradeOffs" checked style="accent-color: var(--accent);"> Trade-Off Comparison Matrix</label>
+                            <label style="display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkGateDocIncludeGuardrails" checked style="accent-color: var(--accent);"> Mandatory Guardrails &amp; SLAs</label>
+                            <label style="display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkGateDocIncludeCode" checked style="accent-color: var(--accent);"> Production Code Contract</label>
+                            <label style="display: flex; align-items: center; gap: 4px;"><input type="checkbox" id="chkGateDocIncludeConsequences" checked style="accent-color: var(--accent);"> Consequences &amp; Rollback Plan</label>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style="font-size: 10.5px; font-weight: 700; color: #4ade80; margin-bottom: 4px;">Documentation Preview:</div>
+                          <div id="prevExportGateDoc" style="background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 8px; font-size: 10px; font-family: monospace; color: #9cdcfe; line-height: 1.4; max-height: 160px; overflow-y: auto; white-space: pre-wrap;"></div>
+                        </div>
+                      </div>
+
+                      <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                        <button class="btn-quick" id="btnCancelExportGateDocModal" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Cancel</button>
+                        <button class="btn" id="btnConfirmExportGateDoc" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 4px 14px; font-size: 11px; cursor: pointer;">✓ Write ADR to Workspace</button>
+                      </div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="selRuleModality">Input Modality</label>
-                      <select id="selRuleModality" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="structured_data" selected>Structured SQL / CSV</option>
-                        <option value="unstructured_text">Unstructured Text / PDF</option>
-                        <option value="multimodal">Multimodal Documents</option>
-                      </select>
+
+                    <!-- Save Version Snapshot Modal -->
+                    <div id="modalSaveGateVersion" style="display: none; background: rgba(0, 0, 0, 0.6); border: 1.5px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 6px;">
+                        <strong style="font-size: 12px; color: var(--accent);">💾 Save Decision Gate Version Snapshot</strong>
+                        <button class="btn-quick" id="btnCloseSaveGateVersionModal" style="padding: 1px 6px; font-size: 10px; cursor: pointer;">✕</button>
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 8px; margin-bottom: 10px;">
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="txtSaveGateVersionTag">Version Tag</label>
+                          <input type="text" id="txtSaveGateVersionTag" value="v1.1.0" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;" for="txtSaveGateVersionNote">Version Description / Change Rationale</label>
+                          <input type="text" id="txtSaveGateVersionNote" value="Hybrid Level 1+3: Deterministic Rule-Gated RAG with SOX limits" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                      </div>
+                      <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                        <button class="btn-quick" id="btnCancelSaveGateVersion" style="padding: 3px 8px; font-size: 10.5px; cursor: pointer;">Cancel</button>
+                        <button class="btn" id="btnConfirmSaveGateVersion" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 3px 12px; font-size: 10.5px; cursor: pointer;">✓ Save Snapshot</button>
+                      </div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="txtRuleLatencyBudget">Latency Budget</label>
-                      <input type="text" id="txtRuleLatencyBudget" value="50ms" style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+
+                    <!-- Interactive Gate Customizer & Editor Drawer -->
+                    <div id="boxDecisionGateEditor" style="display: none; background: #141414; border: 1.5px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="font-size: 11.5px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                          <span>✏️</span> Custom Define Decision Gate Specification
+                        </strong>
+                        <div style="display: flex; gap: 4px;">
+                          <button class="btn-quick" id="btnLoadEditTemplateL1" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">Load Level 1</button>
+                          <button class="btn-quick" id="btnLoadEditTemplateL3" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">Load Level 3 RAG</button>
+                          <button class="btn-quick" id="btnLoadEditTemplateHybrid13" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">Load Hybrid 1+3</button>
+                          <button class="btn-quick" id="btnLoadEditTemplateHybrid14" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">Load Hybrid 1+4</button>
+                          <button class="btn-quick" id="btnLoadEditTemplateL5" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">Load Level 5 Swarm</button>
+                        </div>
+                      </div>
+
+                      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 8px;">
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;">Architecture Title / Paradigm</label>
+                          <input type="text" id="txtEditGateTitle" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 4px 6px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;">Capability Tier</label>
+                          <select id="selEditGateTier" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="1">Level 1: Pure Rule Engine &amp; Compiled SQL</option>
+                            <option value="2">Level 2: Fast Semantic Router</option>
+                            <option value="3">Level 3: Grounded Policy RAG</option>
+                            <option value="4">Level 4: MCP Tool Agent</option>
+                            <option value="5">Level 5: Multi-Agent Swarm with HITL</option>
+                            <option value="1+2">Hybrid Level 1 + Level 2</option>
+                            <option value="1+3">Hybrid Level 1 + Level 3</option>
+                            <option value="1+4">Hybrid Level 1 + Level 4</option>
+                            <option value="1+5">Hybrid Level 1 + Level 5</option>
+                            <option value="custom">Custom Multi-Tier Cascade</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+                        <div>
+                          <label style="font-size: 10px; font-weight: bold;">Latency SLA</label>
+                          <input type="text" id="txtEditGateLatencySla" value="&lt;50ms P99" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; font-weight: bold;">Cost SLA</label>
+                          <input type="text" id="txtEditGateCostSla" value="$0.0005 / op" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; font-weight: bold;">Hallucination SLA</label>
+                          <input type="text" id="txtEditGateHallucinationSla" value="0.0% Hard Gate" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; font-weight: bold;">HITL Trigger</label>
+                          <input type="text" id="txtEditGateHitlTrigger" value="Threshold breach / score &lt;0.90" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10px;">
+                        </div>
+                      </div>
+
+                      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 8px;">
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;">Rationale &amp; Architectural Invariants</label>
+                          <textarea id="txtEditGateRationale" rows="3" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 6px; background: #0c0c0c; color: #cbd5e1; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; resize: vertical;"></textarea>
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: bold;">Mandatory Guardrails (one per line)</label>
+                          <textarea id="txtEditGateGuardrails" rows="3" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 6px; background: #0c0c0c; color: #cbd5e1; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; resize: vertical;"></textarea>
+                        </div>
+                      </div>
+
+                      <div style="margin-bottom: 8px;">
+                        <label style="font-size: 10.5px; font-weight: bold;">Implementation Code Contract (TypeScript / SQL)</label>
+                        <textarea id="txtEditGateCode" rows="6" style="width: 100%; box-sizing: border-box; margin-top: 2px; padding: 6px; background: #0c0c0c; color: #9cdcfe; font-family: monospace; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; resize: vertical;"></textarea>
+                      </div>
+
+                      <div style="margin-bottom: 8px;">
+                        <div style="font-size: 10px; font-weight: 700; color: #4ade80; margin-bottom: 4px;">⚡ Editor Live Flow Preview:</div>
+                        <div id="gateEditorLivePreviewBox" style="background: #0c0c0c; border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 4px; padding: 8px; max-height: 140px; overflow-y: auto;"></div>
+                      </div>
+
+                      <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button class="btn-quick" id="btnResetEditDecisionGate" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">↩ Reset to Evaluated Default</button>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn-quick" id="btnCancelEditDecisionGate" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Cancel</button>
+                          <button class="btn" id="btnSaveEditDecisionGate" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 4px 14px; font-size: 11px; cursor: pointer;">✓ Save Gate Configuration</button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <!-- Evaluator Result Box -->
-                  <div id="ruleEvaluatorResultBox" style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-top: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                      <div style="font-size: 12px; font-weight: 700; color: var(--accent);" id="lblRuleModelParadigm">Recommended Architecture: Pure Rule Engine &amp; SQL (Level 1)</div>
-                      <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 10px;">SLA Confidence: 99.9%</span>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;" id="lblRuleModelRationale">
-                      Zero hallucination risk. Arithmetic calculations and strict tolerance reconciliation should NEVER use non-deterministic LLMs directly. Execute via compiled SQL/TypeScript rule function (&lt;10ms).
-                    </div>
-                    <div style="background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;" id="lblRuleModelCodePreview">
+
+                    <!-- Evaluator Result & Multi-Modal Display Box -->
+                    <div id="boxDecisionGateDisplay" style="background: var(--card-bg); border: 1.5px solid var(--accent); border-radius: 6px; padding: 12px; margin-top: 8px;">
+                      
+                      <!-- Display Card Header -->
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <div style="font-size: 12.5px; font-weight: 700; color: var(--accent);" id="lblRuleModelParadigm">Recommended Architecture: Pure Rule Engine &amp; SQL (Level 1)</div>
+                          <span id="lblRuleModelLevelBadge" class="brand-pill" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 9.5px; border: 1px solid rgba(56, 189, 248, 0.4);">LEVEL 1</span>
+                        </div>
+                        <span id="lblRuleModelConfidencePill" class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 10px; border: 1px solid rgba(74, 222, 128, 0.3);">SLA Confidence: 99.9%</span>
+                      </div>
+
+                      <!-- Rationale Description -->
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.45;" id="lblRuleModelRationale">
+                        Zero hallucination risk. Arithmetic calculations and strict tolerance reconciliation should NEVER use non-deterministic LLMs directly. Execute via compiled SQL/TypeScript rule function (&lt;10ms).
+                      </div>
+
+                      <!-- SLA Summary Row (4 Mini Stat Boxes) -->
+                      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px;">
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;">
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">P99 Latency SLA</div>
+                          <div id="lblGateSlaLatency" style="font-size: 11px; font-weight: 700; color: #38bdf8;">&lt;5ms P99</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;">
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">Unit Economics</div>
+                          <div id="lblGateSlaCost" style="font-size: 11px; font-weight: 700; color: #4ade80;">$0.0000 (0 Tokens)</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;">
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">Hallucination SLA</div>
+                          <div id="lblGateSlaHallucination" style="font-size: 11px; font-weight: 700; color: #cbd5e1;">0.0% Zero Drift</div>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;">
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">HITL Trigger</div>
+                          <div id="lblGateSlaHitl" style="font-size: 11px; font-weight: 700; color: #f87171;">Ceiling Exceeded</div>
+                        </div>
+                      </div>
+
+                      <!-- 4-Mode Visual Preview Tabs Header -->
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                        <div style="display: flex; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+                          <button class="btn-quick active" id="btnGatePreviewVisual" style="font-size: 9.5px; padding: 3px 8px; border: none; margin: 0; cursor: pointer;">🎨 Visual Flow</button>
+                          <button class="btn-quick" id="btnGatePreviewMermaid" style="font-size: 9.5px; padding: 3px 8px; border: none; margin: 0; cursor: pointer;">📐 Mermaid Flowchart</button>
+                          <button class="btn-quick" id="btnGatePreviewTradeOff" style="font-size: 9.5px; padding: 3px 8px; border: none; margin: 0; cursor: pointer;">📊 Trade-Off Matrix</button>
+                          <button class="btn-quick" id="btnGatePreviewCode" style="font-size: 9.5px; padding: 3px 8px; border: none; margin: 0; cursor: pointer;">💻 Code Contract</button>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                          <button class="btn-quick" id="btnCopyGateMermaid" style="font-size: 9.5px; padding: 2px 7px; cursor: pointer;" title="Copy Mermaid Flowchart code">📋 Copy Mermaid</button>
+                          <button class="btn-quick" id="btnCopyGateCode" style="font-size: 9.5px; padding: 2px 7px; cursor: pointer;" title="Copy Code Snippet">📋 Copy Code</button>
+                        </div>
+                      </div>
+
+                      <!-- Multi-Modal View Panels -->
+                      <!-- Mode 1: Visual Interactive Node Flow Graph -->
+                      <div id="gateVisualFlowDisplay" style="background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 10px; max-height: 240px; overflow-y: auto;">
+                        <!-- Dynamically populated -->
+                      </div>
+
+                      <!-- Mode 2: Mermaid Flowchart -->
+                      <div id="gateMermaidDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 10px; max-height: 240px; overflow-y: auto;">
+                        <pre id="preGateMermaidCode" style="margin: 0; font-family: monospace; font-size: 10px; color: #9cdcfe; white-space: pre-wrap;"></pre>
+                      </div>
+
+                      <!-- Mode 3: Trade-Off Matrix -->
+                      <div id="gateTradeOffDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 10px; max-height: 240px; overflow-y: auto;">
+                        <!-- Dynamic Trade-Off Matrix Table -->
+                      </div>
+
+                      <!-- Mode 4: Code Preview -->
+                      <div id="lblRuleModelCodePreview" style="display: none; background: #141414; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 10.5px; color: #9cdcfe; border: 1px solid var(--border); max-height: 240px; overflow-y: auto; white-space: pre-wrap;">
 // Level 1: Deterministic Rule Gate (Zero Hallucinations, &lt;5ms)
 export function evaluateTransaction(amount: number, threshold: number = 100): boolean {
   if (amount &gt; threshold) {
@@ -2157,9 +2486,22 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
   }
   return true;
 }
+                      </div>
+
+                      <!-- Guardrails Checklist Display Box -->
+                      <div id="boxGateGuardrailsDisplay" style="background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; padding: 6px 10px; margin-top: 8px;">
+                        <div style="font-size: 10px; font-weight: 700; color: #cbd5e1; margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                          <span>🛡️</span> Mandatory Governance Guardrails:
+                        </div>
+                        <ul id="lblGateGuardrailsList" style="margin: 0; padding-left: 16px; font-size: 10px; color: var(--text-secondary); line-height: 1.4;">
+                          <li>Zero probabilistic token sampling on numerical ledgers</li>
+                          <li>Strict IEEE-754 / decimal arithmetic precision</li>
+                          <li>SOX compliant immutable audit logging for overrides</li>
+                        </ul>
+                      </div>
                     </div>
+
                   </div>
-                </div>
                 </div>
 
                 <!-- 3C: AIR-GAPPED HYBRID POLICY RAG & MCP SCAFFOLDER -->

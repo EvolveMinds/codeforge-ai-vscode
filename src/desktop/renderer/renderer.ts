@@ -8591,15 +8591,951 @@ export interface SecurityGateSpec {
     showToast('📋 Copied Level template code to clipboard');
   });
 
-  // 3B. Rule vs Model Decision Gate Evaluator
+  // ==========================================
+  // 3B. RULE VS. MODEL DECISION GATE ARCHITECTURE SUITE
+  // ==========================================
+  interface DecisionGateState {
+    title: string;
+    level: string | number;
+    levelBadge: string;
+    paradigm: string;
+    rationale: string;
+    slaConfidence: string;
+    latencySla: string;
+    costSla: string;
+    hallucinationSla: string;
+    hitlTrigger: string;
+    guardrails: string[];
+    codeSnippet: string;
+    mermaidDiagram?: string;
+  }
+
+  interface GateVersionSnapshot {
+    id: string;
+    tag: string;
+    timestamp: string;
+    note: string;
+    state: DecisionGateState;
+  }
+
+  const gateTemplates: Record<string, DecisionGateState> = {
+    level_1: {
+      title: 'Pure Rule Engine & SQL',
+      level: 1,
+      levelBadge: 'LEVEL 1',
+      paradigm: 'Pure Rule Engine / Compiled SQL',
+      rationale: 'Zero hallucination risk. Arithmetic calculations, ledger balances, and strict tolerance reconciliation should NEVER use non-deterministic probabilistic LLMs directly. Execute via compiled SQL/TypeScript rule functions (<5ms).',
+      slaConfidence: '99.9%',
+      latencySla: '<5ms P99',
+      costSla: '$0.0000 (0 Tokens)',
+      hallucinationSla: '0.0% Zero Drift',
+      hitlTrigger: 'Ceiling Exceeded (> $10,000 threshold)',
+      guardrails: [
+        'Zero probabilistic token sampling on numerical ledgers',
+        'Strict IEEE-754 / decimal arithmetic precision',
+        'SOX compliant immutable audit logging for overrides'
+      ],
+      codeSnippet: `// Level 1: Deterministic Rule Gate (Zero Hallucinations, <5ms)
+export function evaluateTransaction(amount: number, threshold = 100): boolean {
+  if (amount > threshold) {
+    throw new SecurityGateError('HITL_REQUIRED: Transaction exceeds automatic ceiling');
+  }
+  return true;
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Input"] --> RuleCheck{"🛡️ Level 1: Deterministic Gate"}
+  RuleCheck -- "Within Threshold" --> Execute["✅ Compiled SQL / TS Rule (<5ms)"]
+  RuleCheck -- "Ceiling Exceeded" --> HITL["🛑 Escalate to Human Supervisor"]`
+    },
+    level_2: {
+      title: 'Fast Semantic Router',
+      level: 2,
+      levelBadge: 'LEVEL 2',
+      paradigm: 'Fast Semantic Router (Intent Classifier)',
+      rationale: 'High-throughput intent triage and ticket classification. Uses lightweight embedding cosine distance (<25ms) to route queries to specialized deterministic engines or sub-handlers.',
+      slaConfidence: '98.5%',
+      latencySla: '<25ms P99',
+      costSla: '$0.0001 / query',
+      hallucinationSla: '<1.0% Intent Misclassification',
+      hitlTrigger: 'Semantic classification confidence <0.85',
+      guardrails: [
+        'Lightweight quantized embedding model (<25ms SLA)',
+        'Cosine confidence threshold gate (>0.85)',
+        'Fail-closed fallback to human supervisor for ambiguous queries'
+      ],
+      codeSnippet: `// Level 2: Fast Semantic Router (<25ms)
+export class SemanticRouter {
+  public static async route(query: string): Promise<string> {
+    const embedding = await EmbeddingEngine.embed(query);
+    const intent = await IntentClassifier.classify(embedding);
+    return intent.confidence >= 0.85 ? intent.targetRoute : "SUPERVISOR_QUEUE";
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Text"] --> Embed["🧭 Vectorize Query (<10ms)"]
+  Embed --> Cosine["📐 Cosine Similarity Classifier"]
+  Cosine --> Threshold{"Confidence >= 0.85?"}
+  Threshold -- "Yes" --> Dispatch["⚡ Dispatch to Handler (<25ms)"]
+  Threshold -- "No" --> Queue["👤 Triage Queue"]`
+    },
+    level_3: {
+      title: 'Air-Gapped Grounded Policy RAG',
+      level: 3,
+      levelBadge: 'LEVEL 3',
+      paradigm: 'Air-Gapped Grounded Policy RAG',
+      rationale: 'Strict fact-retrieval from internal SOP manuals and policy documents. Enforces 128-token semantic chunking with mandatory citation of every retrieved span, plus Ed25519 receipts for audit. Retrieval grounding substantially reduces but does not eliminate ungrounded output; residual rate must be measured by the Phase 4 golden-set evaluation.',
+      slaConfidence: '97.8%',
+      latencySla: '<120ms P99',
+      costSla: '$0.0006 / query',
+      hallucinationSla: '<1.0% Un-Grounded Claim Rate',
+      hitlTrigger: 'Retrieval citation score <0.88',
+      guardrails: [
+        '128-token semantic chunking with Ed25519 citation verification',
+        'Strict citation validation before answer release',
+        'Air-gapped on-premise vector store isolation'
+      ],
+      codeSnippet: `// Level 3: Air-Gapped Policy RAG (<120ms)
+export class GroundedPolicyRag {
+  public static async answer(query: string) {
+    const spans = await VectorStore.query(query, { maxTokens: 128, threshold: 0.88 });
+    return {
+      answer: spans.content,
+      citations: spans.citations,
+      auditReceipt: spans.signature
+    };
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Query"] --> VectorSearch["🔍 Vector Retrieval (<50ms)"]
+  VectorSearch --> Chunks["📑 128-Token Chunks"]
+  Chunks --> GroundCheck{"🛡️ Citation Verifier"}
+  GroundCheck -- "Score >= 0.88" --> Answer["📚 Grounded Answer + Ed25519 Receipt"]
+  GroundCheck -- "Score < 0.88" --> Review["🛑 Reject Ungrounded Output"]`
+    },
+    level_4: {
+      title: 'MCP Tool Agent',
+      level: 4,
+      levelBadge: 'LEVEL 4',
+      paradigm: 'Model Context Protocol (MCP) Tool Agent',
+      rationale: 'Standardized tool agent with Model Context Protocol (MCP). Dynamically queries warehouse schemas and authenticated client VPC APIs with read-only sandbox enforcement.',
+      slaConfidence: '98.2%',
+      latencySla: '<250ms P99',
+      costSla: '$0.0015 / invocation',
+      hallucinationSla: '0% on Tool Schema Parameters',
+      hitlTrigger: 'Mutation without idempotency key or schema validation failure',
+      guardrails: [
+        'Read-only sandbox verification on analytical queries',
+        'JSON schema parameter validation',
+        'Idempotency key enforcement on all mutations'
+      ],
+      codeSnippet: `// Level 4: MCP Tool Agent (<250ms)
+export const toolDefinition = {
+  name: "introspect_table_schema",
+  readOnly: true,
+  inputSchema: { type: "object", properties: { tableName: { type: "string" } } }
+};`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Tool Request"] --> SchemaCheck{"🛡️ JSON Schema Validator"}
+  SchemaCheck -- "Invalid" --> Drop["❌ Reject Tool Call"]
+  SchemaCheck -- "Valid" --> McpServer["🔌 Sandboxed MCP Server"]
+  McpServer --> Execute["⚡ API / SQL Invocation (<250ms)"]`
+    },
+    level_5: {
+      title: 'Autonomous Swarm with HITL',
+      level: 5,
+      levelBadge: 'LEVEL 5',
+      paradigm: 'Autonomous Multi-Agent Swarm with HITL Approval Gates',
+      rationale: 'Multi-role state machine coordinating specialist agents (Extractor, Auditor, Verifier). Any confidence score below 90% automatically pauses execution and routes to a human supervisor queue.',
+      slaConfidence: '96.5%',
+      latencySla: '<2000ms P99',
+      costSla: '$0.0120 / flow',
+      hallucinationSla: '<0.5% (Multi-Agent Consensus)',
+      hitlTrigger: 'Consensus score <0.90 or anomaly detected',
+      guardrails: [
+        'Multi-agent consensus threshold (>0.90)',
+        'Mandatory human supervisor queue escalation on ambiguity',
+        'Cryptographically signed audit logs for state transitions'
+      ],
+      codeSnippet: `// Level 5: Multi-Agent Swarm with HITL Gate
+export class SwarmOrchestrator {
+  public static async dispatch(task: any) {
+    const verdict = await ConsensusEngine.evaluate(task);
+    if (verdict.confidence < 0.90) return await SupervisorQueue.escalate(task);
+    return await ProductionWorker.execute(task);
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Goal"] --> Orchestrator["🐝 Swarm Orchestrator"]
+  Orchestrator --> Agent1["Extractor Agent"]
+  Orchestrator --> Agent2["Auditor Agent"]
+  Agent1 & Agent2 --> Consensus{"Consensus >= 0.90?"}
+  Consensus -- "Yes" --> Commit["✅ Execute Production Work"]
+  Consensus -- "No" --> HITL["🛑 Escalate to Human Supervisor"]`
+    },
+    hybrid_1_2: {
+      title: 'Rule Gate + Semantic Router',
+      level: '1+2',
+      levelBadge: 'LEVEL 1 + 2 HYBRID',
+      paradigm: 'Deterministic Ingress Gate + Fast Semantic Router',
+      rationale: 'Hybrid Tier 1 + Tier 2 Architecture. Employs a compiled deterministic pre-filter for boundary limits and credential formats, followed by a fast embedding-based cosine distance router to dispatch requests to specialized downstream processing pipelines.',
+      slaConfidence: '99.7%',
+      latencySla: '<25ms P99',
+      costSla: '$0.0002 / dispatch',
+      hallucinationSla: '0% on Ingress Filters (Zero Drift)',
+      hitlTrigger: 'Semantic classification confidence <0.85',
+      guardrails: [
+        'Zero latency overhead ingress filter (<1ms)',
+        'Cosine similarity threshold gate (>0.85)',
+        'Instant fail-closed routing for ambiguous requests'
+      ],
+      codeSnippet: `// Hybrid Level 1 + Level 2: Rule Gate + Semantic Router
+export class RuleGatedSemanticRouter {
+  public static async dispatch(req: { payload: string; authHeader: string }): Promise<string> {
+    if (!req.authHeader || req.payload.length > 32768) throw new Error("INVALID_INGRESS_CONTRACT");
+    const embedding = await EmbeddingEngine.embed(req.payload);
+    const intent = await RouterModel.classify(embedding);
+    return intent.confidence > 0.85 ? intent.route : "SUPERVISOR_QUEUE";
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Request"] --> Gate1{"🛡️ Level 1: Rule Pre-Filter"}
+  Gate1 -- "Invalid" --> Drop["❌ Reject (<1ms)"]
+  Gate1 -- "Valid" --> Router2["🧭 Level 2: Semantic Router"]
+  Router2 --> RouteChoice{"🎯 Route Dispatch"}
+  RouteChoice -- "Financial" --> EngineRule["💰 Rule Engine"]
+  RouteChoice -- "Policy" --> EngineRag["📚 Policy RAG"]`
+    },
+    hybrid_1_3: {
+      title: 'Rule-Gated Grounded RAG',
+      level: '1+3',
+      levelBadge: 'LEVEL 1 + 3 HYBRID',
+      paradigm: 'Deterministic Rule-Gated Grounded Policy RAG',
+      rationale: 'Hybrid Tier 1 + Tier 3 Architecture. Deterministic compiled SQL/TypeScript boundary gates intercept ingress requests to validate hard mathematical limits and statutory constraints before querying the air-gapped vector store. Combines zero-hallucination boundary guarantees with grounded semantic knowledge retrieval.',
+      slaConfidence: '99.5%',
+      latencySla: '<80ms P99',
+      costSla: '$0.0008 / query',
+      hallucinationSla: '0% on Hard Gates (<0.5% Residual RAG)',
+      hitlTrigger: 'Retrieved span confidence <0.92 or rule threshold breach',
+      guardrails: [
+        'Mandatory deterministic rule validation before embedding/vector lookup',
+        '128-token semantic chunking with Ed25519 signed citation receipts',
+        'Zero probabilistic sampling on numerical or statutory calculations',
+        'Automatic escalation to human queue on ambiguity'
+      ],
+      codeSnippet: `// Hybrid Level 1 + Level 3: Deterministic Rule-Gated Policy RAG
+import { VectorStore } from './vector_store';
+
+export class RuleGatedPolicyRag {
+  public static validateBoundaryLimits(amount: number, ceiling = 50000): void {
+    if (amount <= 0 || isNaN(amount)) throw new Error("INVALID_AMOUNT_FORMAT");
+    if (amount > ceiling) throw new Error("HITL_REQUIRED: Statutory ceiling breached");
+  }
+
+  public static async executeGroundedRetrieval(query: string, amount: number) {
+    this.validateBoundaryLimits(amount);
+    const results = await VectorStore.querySemanticSop(query, { maxTokens: 128, threshold: 0.88 });
+    return { status: 'VERIFIED_GROUNDED', citations: results.citations, auditReceipt: results.ed25519Signature };
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Task"] --> Gate1{"🛡️ Level 1: Deterministic Gate"}
+  Gate1 -- "Rule Breach" --> Escalate["🛑 Escalate / Reject (<2ms)"]
+  Gate1 -- "Boundary Validated" --> Rag3["📚 Level 3: Grounded Policy RAG"]
+  Rag3 --> Verify{"🔍 Citation Verifier"}
+  Verify -- "Score >= 0.90" --> Egress["✅ Verified Output (<80ms)"]
+  Verify -- "Score < 0.90" --> HITL["👤 Human Supervisor Queue"]`
+    },
+    hybrid_1_4: {
+      title: 'Guardrailed Tool Execution',
+      level: '1+4',
+      levelBadge: 'LEVEL 1 + 4 HYBRID',
+      paradigm: 'Guardrailed Tool Execution (Deterministic Interlock + MCP)',
+      rationale: 'Hybrid Tier 1 + Tier 4 Architecture. Executes strict deterministic rule checks (JSON schema, boundary ceilings, balance reconciliations) before granting execution permissions to MCP tool agents. Protects client ERPs and databases against non-deterministic tool calls.',
+      slaConfidence: '99.8%',
+      latencySla: '<120ms P99',
+      costSla: '$0.0012 / transaction',
+      hallucinationSla: '0% on Tool Parameters & Financial Values',
+      hitlTrigger: 'Parameter schema mismatch, idempotency collision, or budget ceiling exceedance',
+      guardrails: [
+        'Strict preflight parameter assertion before MCP invocation',
+        'Idempotency key enforcement on all state mutations',
+        'Read-only sandbox verification on analytical queries',
+        'Audit logging with SHA-256 state hashing'
+      ],
+      codeSnippet: `// Hybrid Level 1 + Level 4: Guardrailed MCP Tool Execution
+import { McpClient } from '@modelcontextprotocol/sdk/client';
+
+export class GuardrailedToolAgent {
+  public static preflightCheck(params: { accountId: string; amount: number }): void {
+    if (params.amount > 10000) throw new Error("HITL_REQUIRED: Transfer ceiling exceeded");
+    if (!/^[A-Z0-9_]{8,32}$/.test(params.accountId)) throw new Error("INVALID_ACCOUNT_IDENTIFIER");
+  }
+
+  public static async executeMcpAction(params: { accountId: string; amount: number; idempotencyKey: string }) {
+    this.preflightCheck(params);
+    return await McpClient.callTool("execute_erp_settlement", { ...params, readOnly: false });
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Action"] --> Preflight{"🛡️ Level 1: Pre-Flight Rule Check"}
+  Preflight -- "Ceiling / Schema Breach" --> Reject["🛑 Reject Transaction (<1ms)"]
+  Preflight -- "Passed Invariants" --> McpTool["⚡ Level 4: Sandboxed MCP Agent"]
+  McpTool --> Audit["📝 Idempotent ERP Execution (<120ms)"]`
+    },
+    hybrid_1_5: {
+      title: 'Swarm with Hard Gate & HITL',
+      level: '1+5',
+      levelBadge: 'LEVEL 1 + 5 HYBRID',
+      paradigm: 'Multi-Agent Swarm with Mandatory Deterministic Boundary & HITL',
+      rationale: 'Hybrid Tier 1 + Tier 5 Architecture. Coordinates a multi-agent swarm of specialized micro-agents with hard mathematical/statutory invariant gates between every agent handover. Any constraint breach or confidence drop automatically halts autonomous execution and enqueues a human supervisor ticket.',
+      slaConfidence: '99.0%',
+      latencySla: '<1500ms P99',
+      costSla: '$0.0080 / orchestration',
+      hallucinationSla: '0% on Monetary Constraints (<1% Overall)',
+      hitlTrigger: 'Consensus score <0.90, anomaly detected, or high-risk transaction class',
+      guardrails: [
+        'Deterministic mathematical interlock at each agent transition',
+        'State machine checkpointing with rollback ability',
+        'Mandatory human-in-the-loop supervisor queue below 90% confidence',
+        'Cryptographic immutable audit trail'
+      ],
+      codeSnippet: `// Hybrid Level 1 + Level 5: Swarm with Mandatory Boundary Gates & HITL
+export class SovereignSwarmOrchestrator {
+  public static async orchestrate(claimPayload: any) {
+    if (claimPayload.amount > 250000) return await SupervisorQueue.escalate("EXCEEDS_AUTOMATIC_LIMIT", claimPayload);
+    const extraction = await ExtractorAgent.process(claimPayload);
+    const auditResult = await AuditorAgent.verify(extraction);
+    if (Math.abs(auditResult.computed - claimPayload.amount) > 0.01) {
+      throw new Error("RECONCILIATION_DRIFT_DETECTED: HALTING_PIPELINE");
+    }
+    return { status: 'DISPATCHED', auditResult };
+  }
+}`,
+      mermaidDiagram: `flowchart TD
+  Ingress["📥 Ingress Claim"] --> HardGate{"🛡️ Level 1: Hard Gate"}
+  HardGate -- "Statutory Breach" --> Supervisor["🛑 Human Supervisor Queue"]
+  HardGate -- "Valid" --> Swarm["🐝 Level 5: Specialist Swarm"]
+  Swarm --> Reconcile{"⚖️ Reconcile Gate"}
+  Reconcile -- "Drift == 0" --> Commit["✅ Execute Settlement"]
+  Reconcile -- "Drift > 0" --> Supervisor`
+    }
+  };
+
+  const gatePresets: Record<string, { desc: string; math: string; modality: string; latency: string; hallucination: string; hitl: string; override: string }> = {
+    financial_reconciliation: {
+      desc: 'Transaction tolerance reconciliation and invoice total check',
+      math: 'yes',
+      modality: 'structured_data',
+      latency: '50ms',
+      hallucination: 'zero',
+      hitl: 'discrepancy',
+      override: 'level_1'
+    },
+    support_triage: {
+      desc: 'Customer support ticket ingress classification and sentiment routing',
+      math: 'no',
+      modality: 'unstructured_text',
+      latency: '25ms',
+      hallucination: 'low',
+      hitl: 'discrepancy',
+      override: 'level_2'
+    },
+    clinical_protocol: {
+      desc: 'Clinical diagnostic guideline lookup and HIPAA compliant SOP verification',
+      math: 'no',
+      modality: 'unstructured_text',
+      latency: '120ms',
+      hallucination: 'low',
+      hitl: 'mandatory',
+      override: 'level_3'
+    },
+    erp_rebalance: {
+      desc: 'Multi-warehouse ERP inventory rebalancing and automated carrier booking',
+      math: 'no',
+      modality: 'api_stream',
+      latency: '250ms',
+      hallucination: 'zero',
+      hitl: 'discrepancy',
+      override: 'level_4'
+    },
+    claims_adjudication: {
+      desc: 'Cross-border multi-entity insurance claim investigation with fraud state machine',
+      math: 'hybrid',
+      modality: 'multimodal',
+      latency: '1500ms',
+      hallucination: 'zero',
+      hitl: 'mandatory',
+      override: 'level_5'
+    },
+    payment_interlock: {
+      desc: 'High-value SWIFT payment execution with strict balance verification & MCP ERP settlement',
+      math: 'yes',
+      modality: 'structured_data',
+      latency: '100ms',
+      hallucination: 'zero',
+      hitl: 'mandatory',
+      override: 'hybrid_1_4'
+    },
+    contract_boundary: {
+      desc: 'Master Services Agreement financial liability clause extraction with statutory cap checks',
+      math: 'hybrid',
+      modality: 'unstructured_text',
+      latency: '150ms',
+      hallucination: 'zero',
+      hitl: 'discrepancy',
+      override: 'hybrid_1_3'
+    },
+    credit_underwrite: {
+      desc: 'Commercial loan credit underwriting scoring with statutory debt-to-income hard gate and human escalation',
+      math: 'hybrid',
+      modality: 'multimodal',
+      latency: '800ms',
+      hallucination: 'zero',
+      hitl: 'mandatory',
+      override: 'hybrid_1_5'
+    }
+  };
+
+  let activeGateState: DecisionGateState = { ...gateTemplates.level_1 };
+  let gatePreviewMode: 'visual' | 'mermaid' | 'tradeoff' | 'code' = 'visual';
+  const gateUndoHistory: DecisionGateState[] = [];
+
+  const initialBaselineTimestamp = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+  const gateVersionHistory: GateVersionSnapshot[] = [
+    {
+      id: 'v1.0.0',
+      tag: 'v1.0.0',
+      timestamp: initialBaselineTimestamp,
+      note: 'Evaluator Baseline Specification',
+      state: { ...gateTemplates.level_1 }
+    }
+  ];
+
+  // Helper: Visual Flow HTML Generator for Decision Gate
+  const renderGateVisualFlowHtml = (state: DecisionGateState): string => {
+    const isHybrid = String(state.level).includes('+');
+    const levelNum = String(state.level);
+
+    let html = `
+      <div style="display: flex; flex-direction: column; gap: 8px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        <!-- Step 1: Ingress Input -->
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="background: rgba(56,189,248,0.2); color: #38bdf8; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;">STEP 1</span>
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">📥 Ingress Workload</span>
+          </div>
+          <span style="font-size: 9.5px; color: var(--text-secondary); font-family: monospace;">Payload &amp; Parameters</span>
+        </div>
+
+        <div style="display: flex; justify-content: center; align-items: center; height: 12px; margin: -2px 0;">
+          <span style="color: var(--accent); font-size: 11px; opacity: 0.85;">↓</span>
+        </div>
+
+        <!-- Step 2: Deterministic Rule Gate (Level 1) -->
+        <div style="background: rgba(74, 222, 128, 0.05); border: 1px solid rgba(74, 222, 128, 0.4); border-radius: 6px; padding: 8px 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: rgba(74, 222, 128, 0.2); color: #4ade80; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;">STEP 2</span>
+              <span style="font-size: 11px; font-weight: 700; color: #4ade80;">🛡️ Level 1 Deterministic Boundary Gate</span>
+            </div>
+            <span style="font-size: 9.5px; color: #4ade80; font-weight: 600;">&lt;5ms · 0% Drift</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+            <div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 4px; padding: 4px 6px; font-size: 9.5px;">
+              <span style="color: #f87171; font-weight: 700;">✗ Boundary Breach:</span>
+              <span style="color: #cbd5e1;"> ➔ 🛑 Reject / Escalate</span>
+            </div>
+            <div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 4px; padding: 4px 6px; font-size: 9.5px;">
+              <span style="color: #4ade80; font-weight: 700;">✓ Invariants Validated:</span>
+              <span style="color: #cbd5e1;"> ➔ Proceed to Step 3</span>
+            </div>
+          </div>
+        </div>
+    `;
+
+    if (levelNum === '1') {
+      html += `
+        <div style="display: flex; justify-content: center; align-items: center; height: 12px; margin: -2px 0;">
+          <span style="color: var(--accent); font-size: 11px; opacity: 0.85;">↓</span>
+        </div>
+        <div style="background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;">STEP 3</span>
+            <span style="font-size: 11px; font-weight: 700; color: #fff;">✅ Compiled SQL / TS Rule Execution</span>
+          </div>
+          <span style="font-size: 9.5px; color: #4ade80; font-weight: 600;">Deterministic Egress (&lt;5ms)</span>
+        </div>
+      `;
+    } else {
+      let step3Title = '🧭 Level 2 Semantic Router';
+      let step3Sla = '&lt;25ms';
+      let step3Color = '#a855f7';
+      if (levelNum === '3' || levelNum === '1+3') {
+        step3Title = '📚 Level 3 Grounded Policy RAG (128-Token Chunks)';
+        step3Sla = '&lt;120ms';
+        step3Color = '#38bdf8';
+      } else if (levelNum === '4' || levelNum === '1+4') {
+        step3Title = '⚡ Level 4 Sandboxed MCP Tool Execution';
+        step3Sla = '&lt;250ms';
+        step3Color = '#f59e0b';
+      } else if (levelNum === '5' || levelNum === '1+5') {
+        step3Title = '🐝 Level 5 Multi-Agent Swarm Orchestration';
+        step3Sla = '&lt;1500ms';
+        step3Color = '#f97316';
+      }
+
+      html += `
+        <div style="display: flex; justify-content: center; align-items: center; height: 12px; margin: -2px 0;">
+          <span style="color: var(--accent); font-size: 11px; opacity: 0.85;">↓</span>
+        </div>
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid ${step3Color}; border-radius: 6px; padding: 8px 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="background: rgba(255,255,255,0.1); color: #fff; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px;">STEP 3</span>
+              <span style="font-size: 11px; font-weight: 700; color: ${step3Color};">${step3Title}</span>
+            </div>
+            <span style="font-size: 9.5px; color: ${step3Color}; font-weight: 600;">${step3Sla}</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+            <div style="background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.3); border-radius: 4px; padding: 4px 6px; font-size: 9.5px;">
+              <span style="color: #4ade80; font-weight: 700;">✓ High Confidence (&ge;0.90):</span>
+              <span style="color: #cbd5e1;"> ➔ Verified Settlement</span>
+            </div>
+            <div style="background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 4px; padding: 4px 6px; font-size: 9.5px;">
+              <span style="color: #f87171; font-weight: 700;">✗ Uncertainty (&lt;0.90):</span>
+              <span style="color: #cbd5e1;"> ➔ 👤 Human Supervisor Queue</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    html += '</div>';
+    return html;
+  };
+
+  // Helper: Mermaid Diagram Generator
+  const generateGateMermaidDiagram = (state: DecisionGateState): string => {
+    if (state.mermaidDiagram) return state.mermaidDiagram;
+    return `flowchart TD\n  Ingress["📥 Ingress Input"] --> Gate{"🛡️ ${state.title}"}\n  Gate --> Egress["✅ Output (<50ms)"]`;
+  };
+
+  // Helper: Trade-Off Matrix HTML Generator
+  const renderGateTradeOffMatrixHtml = (state: DecisionGateState): string => {
+    const activeLevelStr = String(state.level);
+    const rows = [
+      { tier: 'Level 1: Pure Rule Engine & SQL', latency: '<5ms', cost: '$0.0000', hallucination: '0.0%', compliance: '100% Deterministic SOX', hitl: 'Threshold Only (<0.1%)', key: '1' },
+      { tier: 'Level 2: Fast Semantic Router', latency: '<25ms', cost: '$0.0001', hallucination: '<1.0%', compliance: 'Fast Ingress Triage', hitl: 'Ambiguity Only (~2%)', key: '2' },
+      { tier: 'Level 3: Grounded Policy RAG', latency: '<120ms', cost: '$0.0006', hallucination: '<1.0%', compliance: 'Ed25519 Signed SOPs', hitl: 'Low Citation (<5%)', key: '3' },
+      { tier: 'Level 4: MCP Tool Agent', latency: '<250ms', cost: '$0.0015', hallucination: '0% Schema', compliance: 'Sandboxed Read-Only', hitl: 'Schema Breaches (<1%)', key: '4' },
+      { tier: 'Level 5: Swarm with HITL', latency: '<2000ms', cost: '$0.0120', hallucination: '<0.5%', compliance: 'Multi-Agent Consensus', hitl: 'Mandatory Escalation (~10%)', key: '5' }
+    ];
+
+    let html = `
+      <table style="width: 100%; border-collapse: collapse; font-size: 10px; color: #cbd5e1;">
+        <thead>
+          <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border); color: #38bdf8;">
+            <th style="padding: 6px 8px; text-align: left;">Architecture Tier</th>
+            <th style="padding: 6px 8px; text-align: left;">P99 Latency</th>
+            <th style="padding: 6px 8px; text-align: left;">Token Cost</th>
+            <th style="padding: 6px 8px; text-align: left;">Hallucination SLA</th>
+            <th style="padding: 6px 8px; text-align: left;">Statutory Governance</th>
+            <th style="padding: 6px 8px; text-align: left;">HITL Rate</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    rows.forEach(r => {
+      const isSelected = activeLevelStr === r.key || (r.key === '1' && activeLevelStr.includes('1'));
+      const rowBg = isSelected ? 'rgba(56, 189, 248, 0.12)' : 'transparent';
+      const borderStyle = isSelected ? 'border-left: 3px solid var(--accent);' : '';
+      html += `
+        <tr style="background: ${rowBg}; border-bottom: 1px solid rgba(255,255,255,0.06); ${borderStyle}">
+          <td style="padding: 6px 8px; font-weight: ${isSelected ? '700' : '400'}; color: ${isSelected ? '#fff' : '#cbd5e1'};">
+            ${isSelected ? '⭐ ' : ''}${r.tier}
+          </td>
+          <td style="padding: 6px 8px; font-family: monospace; color: #38bdf8;">${r.latency}</td>
+          <td style="padding: 6px 8px; font-family: monospace; color: #4ade80;">${r.cost}</td>
+          <td style="padding: 6px 8px;">${r.hallucination}</td>
+          <td style="padding: 6px 8px;">${r.compliance}</td>
+          <td style="padding: 6px 8px; color: #f87171;">${r.hitl}</td>
+        </tr>
+      `;
+    });
+
+    if (activeLevelStr.includes('+') || activeLevelStr === 'custom') {
+      html += `
+        <tr style="background: rgba(74, 222, 128, 0.12); border-bottom: 1px solid rgba(255,255,255,0.06); border-left: 3px solid #4ade80;">
+          <td style="padding: 6px 8px; font-weight: 700; color: #4ade80;">
+            ✨ Recommended: ${state.paradigm}
+          </td>
+          <td style="padding: 6px 8px; font-family: monospace; color: #38bdf8;">${state.latencySla}</td>
+          <td style="padding: 6px 8px; font-family: monospace; color: #4ade80;">${state.costSla}</td>
+          <td style="padding: 6px 8px;">${state.hallucinationSla}</td>
+          <td style="padding: 6px 8px;">Multi-Tier Hybrid Gate</td>
+          <td style="padding: 6px 8px; color: #f87171;">${state.hitlTrigger.substring(0, 24)}...</td>
+        </tr>
+      `;
+    }
+
+    html += '</tbody></table>';
+    return html;
+  };
+
+  // Helper: Update Decision Gate Display
+  const updateDecisionGateDisplay = (state: DecisionGateState) => {
+    const lblParadigm = document.getElementById('lblRuleModelParadigm');
+    const lblBadge = document.getElementById('lblRuleModelLevelBadge');
+    const lblConfidence = document.getElementById('lblRuleModelConfidencePill');
+    const lblRationale = document.getElementById('lblRuleModelRationale');
+    const lblLatency = document.getElementById('lblGateSlaLatency');
+    const lblCost = document.getElementById('lblGateSlaCost');
+    const lblHallucination = document.getElementById('lblGateSlaHallucination');
+    const lblHitl = document.getElementById('lblGateSlaHitl');
+    const lblGuardrails = document.getElementById('lblGateGuardrailsList');
+    const lblCode = document.getElementById('lblRuleModelCodePreview');
+    const preMermaid = document.getElementById('preGateMermaidCode');
+    const visualBox = document.getElementById('gateVisualFlowDisplay');
+    const tradeOffBox = document.getElementById('gateTradeOffDisplay');
+    const mermaidBox = document.getElementById('gateMermaidDisplay');
+
+    if (lblParadigm) lblParadigm.textContent = `Recommended Architecture: ${state.paradigm} (${state.levelBadge})`;
+    if (lblBadge) lblBadge.textContent = state.levelBadge;
+    if (lblConfidence) lblConfidence.textContent = `SLA Confidence: ${state.slaConfidence}`;
+    if (lblRationale) lblRationale.textContent = state.rationale;
+    if (lblLatency) lblLatency.textContent = state.latencySla;
+    if (lblCost) lblCost.textContent = state.costSla;
+    if (lblHallucination) lblHallucination.textContent = state.hallucinationSla;
+    if (lblHitl) lblHitl.textContent = state.hitlTrigger.length > 20 ? state.hitlTrigger.substring(0, 20) + '...' : state.hitlTrigger;
+
+    if (lblGuardrails && state.guardrails) {
+      lblGuardrails.innerHTML = state.guardrails.map(g => `<li>${escapeHtml(g)}</li>`).join('');
+    }
+
+    if (lblCode) lblCode.textContent = state.codeSnippet;
+    if (preMermaid) preMermaid.textContent = generateGateMermaidDiagram(state);
+    if (visualBox) visualBox.innerHTML = renderGateVisualFlowHtml(state);
+    if (tradeOffBox) tradeOffBox.innerHTML = renderGateTradeOffMatrixHtml(state);
+
+    // Toggle Preview Tab Visibility
+    if (visualBox) visualBox.style.display = gatePreviewMode === 'visual' ? 'block' : 'none';
+    if (mermaidBox) mermaidBox.style.display = gatePreviewMode === 'mermaid' ? 'block' : 'none';
+    if (tradeOffBox) tradeOffBox.style.display = gatePreviewMode === 'tradeoff' ? 'block' : 'none';
+    if (lblCode) lblCode.style.display = gatePreviewMode === 'code' ? 'block' : 'none';
+
+    document.getElementById('btnGatePreviewVisual')?.classList.toggle('active', gatePreviewMode === 'visual');
+    document.getElementById('btnGatePreviewMermaid')?.classList.toggle('active', gatePreviewMode === 'mermaid');
+    document.getElementById('btnGatePreviewTradeOff')?.classList.toggle('active', gatePreviewMode === 'tradeoff');
+    document.getElementById('btnGatePreviewCode')?.classList.toggle('active', gatePreviewMode === 'code');
+  };
+
+  // Helper: Live Preview for Gate Editor Drawer
+  const updateGateEditorLivePreview = (state: DecisionGateState) => {
+    const box = document.getElementById('gateEditorLivePreviewBox');
+    if (box) {
+      box.innerHTML = renderGateVisualFlowHtml(state);
+    }
+  };
+
+  // Helper: Populate Gate Editor Form Fields
+  const populateGateEditorFromState = (state: DecisionGateState) => {
+    const txtTitle = document.getElementById('txtEditGateTitle') as HTMLInputElement;
+    const selTier = document.getElementById('selEditGateTier') as HTMLSelectElement;
+    const txtLatency = document.getElementById('txtEditGateLatencySla') as HTMLInputElement;
+    const txtCost = document.getElementById('txtEditGateCostSla') as HTMLInputElement;
+    const txtHallucination = document.getElementById('txtEditGateHallucinationSla') as HTMLInputElement;
+    const txtHitl = document.getElementById('txtEditGateHitlTrigger') as HTMLInputElement;
+    const txtRationale = document.getElementById('txtEditGateRationale') as HTMLTextAreaElement;
+    const txtGuardrails = document.getElementById('txtEditGateGuardrails') as HTMLTextAreaElement;
+    const txtCode = document.getElementById('txtEditGateCode') as HTMLTextAreaElement;
+
+    if (txtTitle) txtTitle.value = state.paradigm;
+    if (selTier) selTier.value = String(state.level);
+    if (txtLatency) txtLatency.value = state.latencySla;
+    if (txtCost) txtCost.value = state.costSla;
+    if (txtHallucination) txtHallucination.value = state.hallucinationSla;
+    if (txtHitl) txtHitl.value = state.hitlTrigger;
+    if (txtRationale) txtRationale.value = state.rationale;
+    if (txtGuardrails) txtGuardrails.value = (state.guardrails || []).join('\n');
+    if (txtCode) txtCode.value = state.codeSnippet;
+
+    updateGateEditorLivePreview(state);
+  };
+
+  // Helper: Read Gate Editor State
+  const readGateEditorState = (): DecisionGateState => {
+    const txtTitle = (document.getElementById('txtEditGateTitle') as HTMLInputElement)?.value || activeGateState.paradigm;
+    const tierVal = (document.getElementById('selEditGateTier') as HTMLSelectElement)?.value || '1';
+    const txtLatency = (document.getElementById('txtEditGateLatencySla') as HTMLInputElement)?.value || '<50ms P99';
+    const txtCost = (document.getElementById('txtEditGateCostSla') as HTMLInputElement)?.value || '$0.0005 / op';
+    const txtHallucination = (document.getElementById('txtEditGateHallucinationSla') as HTMLInputElement)?.value || '0.0% Hard Gate';
+    const txtHitl = (document.getElementById('txtEditGateHitlTrigger') as HTMLInputElement)?.value || 'Ceiling Exceeded';
+    const txtRationale = (document.getElementById('txtEditGateRationale') as HTMLTextAreaElement)?.value || activeGateState.rationale;
+    const txtGuardrails = (document.getElementById('txtEditGateGuardrails') as HTMLTextAreaElement)?.value || '';
+    const txtCode = (document.getElementById('txtEditGateCode') as HTMLTextAreaElement)?.value || activeGateState.codeSnippet;
+
+    const badge = tierVal.includes('+') ? `LEVEL ${tierVal} HYBRID` : `LEVEL ${tierVal}`;
+    const guardrailList = txtGuardrails.split('\n').map(s => s.trim()).filter(Boolean);
+
+    return {
+      title: txtTitle,
+      level: tierVal,
+      levelBadge: badge,
+      paradigm: txtTitle,
+      rationale: txtRationale,
+      slaConfidence: activeGateState.slaConfidence || '99.0%',
+      latencySla: txtLatency,
+      costSla: txtCost,
+      hallucinationSla: txtHallucination,
+      hitlTrigger: txtHitl,
+      guardrails: guardrailList.length > 0 ? guardrailList : activeGateState.guardrails,
+      codeSnippet: txtCode,
+      mermaidDiagram: activeGateState.mermaidDiagram
+    };
+  };
+
+  // Helper: Render Gate Version Dropdown
+  const renderGateVersionDropdown = () => {
+    const sel = document.getElementById('selGateVersionHistory') as HTMLSelectElement;
+    if (!sel) return;
+    sel.innerHTML = gateVersionHistory.map(v => `
+      <option value="${v.tag}">${v.tag} (${v.note})</option>
+    `).join('');
+  };
+
+  // Helper: Generate Architectural Decision Record (ADR) Markdown
+  const generateGateAdrMarkdown = (state: DecisionGateState): string => {
+    const taskDesc = (document.getElementById('txtRuleTaskDesc') as HTMLInputElement)?.value || 'Decision Gate Workload';
+    const mathReq = (document.getElementById('selRuleMathReq') as HTMLSelectElement)?.value || 'yes';
+    const latencyBudget = (document.getElementById('txtRuleLatencyBudget') as HTMLInputElement)?.value || '50ms';
+    const modality = (document.getElementById('selRuleModality') as HTMLSelectElement)?.value || 'structured_data';
+
+    const includeContext = (document.getElementById('chkGateDocIncludeContext') as HTMLInputElement)?.checked ?? true;
+    const includeMermaid = (document.getElementById('chkGateDocIncludeMermaid') as HTMLInputElement)?.checked ?? true;
+    const includeTradeOffs = (document.getElementById('chkGateDocIncludeTradeOffs') as HTMLInputElement)?.checked ?? true;
+    const includeGuardrails = (document.getElementById('chkGateDocIncludeGuardrails') as HTMLInputElement)?.checked ?? true;
+    const includeCode = (document.getElementById('chkGateDocIncludeCode') as HTMLInputElement)?.checked ?? true;
+    const includeConsequences = (document.getElementById('chkGateDocIncludeConsequences') as HTMLInputElement)?.checked ?? true;
+
+    const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+
+    let md = `## ADR: Decision Gate — ${state.paradigm} (${state.levelBadge})\n\n`;
+    md += `> **Status:** Verified for Production Handoff  \n`;
+    md += `> **Decision Date:** ${dateStr}  \n`;
+    md += `> **Capability Tier:** ${state.levelBadge}  \n`;
+    md += `> **SLA Confidence:** ${state.slaConfidence}\n\n`;
+
+    if (includeContext) {
+      md += `### 1. Problem Framing & Input Invariants\n\n`;
+      md += `- **Task Description:** ${taskDesc}\n`;
+      md += `- **Mathematical Requirement:** ${mathReq === 'yes' ? 'Strict Decimal Math (Zero Tolerance for Sampling)' : mathReq}\n`;
+      md += `- **Input Modality:** ${modality}\n`;
+      md += `- **Latency SLA Target:** ${latencyBudget} (Delivered: ${state.latencySla})\n\n`;
+      md += `**Architectural Rationale:**\n${state.rationale}\n\n`;
+    }
+
+    md += `### 2. Architectural SLAs & Unit Economics\n\n`;
+    md += `| SLA Dimension | Target Guarantee | Enforcement Mechanism |\n`;
+    md += `| :--- | :--- | :--- |\n`;
+    md += `| **Latency P99** | \`${state.latencySla}\` | Hardware Pre-Filter + Fast Dispatch |\n`;
+    md += `| **Token Economics** | \`${state.costSla}\` | Boundary Gate Before Probabilistic Sampling |\n`;
+    md += `| **Hallucination SLA** | \`${state.hallucinationSla}\` | Zero Drift Hard Gates |\n`;
+    md += `| **HITL Escalation Trigger** | \`${state.hitlTrigger}\` | Automated Supervisor Queue |\n\n`;
+
+    if (includeMermaid) {
+      md += `### 3. Visual Architecture Flowchart\n\n`;
+      md += `\`\`\`mermaid\n${generateGateMermaidDiagram(state)}\n\`\`\`\n\n`;
+    }
+
+    if (includeTradeOffs) {
+      md += `### 4. Trade-Off Evaluation Matrix\n\n`;
+      md += `| Architecture Tier | P99 Latency | Unit Cost | Hallucination Risk | Governance Ceiling |\n`;
+      md += `| :--- | :--- | :--- | :--- | :--- |\n`;
+      md += `| **Level 1: Pure Rule / SQL** | \`<5ms\` | \`$0.0000\` | 0.0% Zero Drift | SOX / Statutory Compliant |\n`;
+      md += `| **Level 2: Semantic Router** | \`<25ms\` | \`$0.0001\` | <1.0% Intent Drift | Ingress Classification Only |\n`;
+      md += `| **Level 3: Policy RAG** | \`<120ms\` | \`$0.0006\` | <1.0% Citation Verified | Ed25519 Signed Audit Receipts |\n`;
+      md += `| **Level 4: MCP Tool Agent** | \`<250ms\` | \`$0.0015\` | 0% Parameter Drift | Sandboxed VPC & Idempotent |\n`;
+      md += `| **Level 5: Swarm with HITL** | \`<2000ms\` | \`$0.0120\` | <0.5% Consensus Drift | Human-Supervised State Machine |\n`;
+      md += `| **Selected: ${state.paradigm}** | \`${state.latencySla}\` | \`${state.costSla}\` | \`${state.hallucinationSla}\` | Hard Interlock + Fallback |\n\n`;
+    }
+
+    if (includeGuardrails && state.guardrails && state.guardrails.length > 0) {
+      md += `### 5. Mandatory Governance Guardrails\n\n`;
+      state.guardrails.forEach(g => {
+        md += `- [x] **${g}**\n`;
+      });
+      md += `\n`;
+    }
+
+    if (includeCode) {
+      md += `### 6. Reference Implementation Contract\n\n`;
+      md += `\`\`\`typescript\n${state.codeSnippet}\n\`\`\`\n\n`;
+    }
+
+    if (includeConsequences) {
+      md += `### 7. Consequences & Failure Mode Rollback Strategy\n\n`;
+      md += `- **Positive Consequence:** Guarantees zero non-deterministic financial calculation errors while maintaining sub-${state.latencySla} latency SLAs.\n`;
+      md += `- **Edge-Case Failure Mode:** Any input exceeding statutory bounds or failing schema validation immediately trips the circuit breaker without mutating production state.\n`;
+      md += `- **Rollback Plan:** Revert to pure deterministic compiled SQL rule function if model endpoint degrades or times out.\n\n`;
+    }
+
+    md += `---\n*Generated by Evolve AI Forward-Deployed Engineering Decision Gate Evaluator*\n`;
+    return md;
+  };
+
+  // Helper: Save ADR to Workspace
+  const saveGateAdrToWorkspace = async (targetMode: string) => {
+    const mdContent = generateGateAdrMarkdown(activeGateState);
+    const taskSlug = activeGateState.paradigm.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 24);
+
+    if (targetMode === 'clipboard_adr_md') {
+      await navigator.clipboard.writeText(mdContent);
+      showToast('📋 Copied complete ADR Markdown to clipboard!');
+      return;
+    }
+
+    if (targetMode === 'clipboard_gate_mermaid') {
+      await navigator.clipboard.writeText(generateGateMermaidDiagram(activeGateState));
+      showToast('📋 Copied Mermaid Flowchart code to clipboard!');
+      return;
+    }
+
+    try {
+      const ws = api?.workspace?.getCurrent ? await api.workspace.getCurrent() : null;
+      if (!ws || !ws.path) {
+        // Fallback: download as .md file
+        const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = targetMode === 'standalone_gate_file' ? `gate_${taskSlug}_adr.md` : 'DECISION_LOG.md';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('📥 Downloaded ADR specification markdown!');
+        return;
+      }
+
+      if (targetMode === 'standalone_gate_file') {
+        const outDir = ws.path + '/docs/architecture/gates';
+        const fileName = `gate_${taskSlug}_adr.md`;
+        const fullPath = `${outDir}/${fileName}`;
+        try { await api.workspace.createDir(outDir); } catch (_) {}
+        await api.workspace.createFile(fullPath, mdContent);
+        showToast(`✓ Saved ADR to docs/architecture/gates/${fileName}!`);
+      } else if (targetMode === 'architecture_md') {
+        const archPath = ws.path + '/docs/ARCHITECTURE.md';
+        let existing = '';
+        try { existing = await api.workspace.readFile(archPath); } catch (_) { existing = ''; }
+        const newContent = existing ? existing.trimEnd() + '\n\n---\n\n' + mdContent : `# Architecture Specifications\n\n${mdContent}`;
+        await api.workspace.writeFile(archPath, newContent);
+        showToast('✓ Appended Decision Gate ADR to docs/ARCHITECTURE.md!');
+      } else {
+        // docs/DECISION_LOG.md
+        const logPath = ws.path + '/docs/DECISION_LOG.md';
+        let existing = '';
+        try { existing = await api.workspace.readFile(logPath); } catch (_) { existing = ''; }
+        const header = `## ADR: Decision Gate — ${activeGateState.paradigm}`;
+        let newContent = '';
+        if (existing.includes(header)) {
+          const startIdx = existing.indexOf(header);
+          const nextIdx = existing.indexOf('\n## ADR: Decision Gate — ', startIdx + header.length);
+          if (nextIdx !== -1) {
+            newContent = existing.substring(0, startIdx) + mdContent + '\n' + existing.substring(nextIdx);
+          } else {
+            newContent = existing.substring(0, startIdx) + mdContent;
+          }
+        } else if (existing.trim()) {
+          newContent = existing.trimEnd() + '\n\n---\n\n' + mdContent;
+        } else {
+          newContent = `# Architectural Decision Records (ADR Log)\n\n${mdContent}`;
+        }
+        await api.workspace.writeFile(logPath, newContent);
+        showToast('✓ Successfully updated docs/DECISION_LOG.md with Decision Gate ADR!');
+      }
+    } catch (e) {
+      console.error('Error saving ADR doc:', e);
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gate_${taskSlug}_adr.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✓ Exported decision gate ADR markdown!');
+    }
+  };
+
+  // Helper: AI Command Executor for Section 3B
+  const executeGateAiCommand = (prompt: string, isHybridSuggestion = false) => {
+    gateUndoHistory.push({ ...activeGateState });
+    const btnRevert = document.getElementById('btnGateAiRevert');
+    if (btnRevert) btnRevert.style.display = 'inline-block';
+
+    const p = prompt.toLowerCase();
+    const taskDesc = (document.getElementById('txtRuleTaskDesc') as HTMLInputElement)?.value || '';
+
+    if (isHybridSuggestion || /hybrid|combine|cascade|both/i.test(p)) {
+      if (/tool|mcp|api|erp/i.test(p) || /warehouse|erp/i.test(taskDesc)) {
+        activeGateState = { ...gateTemplates.hybrid_1_4 };
+      } else if (/swarm|multi-agent|adjudicat/i.test(p) || /claims|cross-border/i.test(taskDesc)) {
+        activeGateState = { ...gateTemplates.hybrid_1_5 };
+      } else {
+        activeGateState = { ...gateTemplates.hybrid_1_3 };
+      }
+      showToast(`✨ AI recommended ${activeGateState.paradigm}`);
+    } else if (/latency|<10ms|<5ms|fastest|pure rule/i.test(p)) {
+      activeGateState = { ...gateTemplates.level_1 };
+      showToast('⚡ AI optimized gate for <5ms low-latency rule interlock');
+    } else if (/sox|compliance|audit|governance|immutable/i.test(p)) {
+      activeGateState = {
+        ...activeGateState,
+        guardrails: [
+          ...activeGateState.guardrails,
+          'Statutory SOX 404 immutable transaction journal logging',
+          'Ed25519 digital signature on all approval events',
+          'Automated four-eyes principle on any override'
+        ]
+      };
+      showToast('🔒 AI added statutory SOX compliance guardrails');
+    } else if (/level 5|swarm/i.test(p)) {
+      activeGateState = { ...gateTemplates.level_5 };
+      showToast('🐝 AI elevated architecture to Level 5 Multi-Agent Swarm with HITL');
+    } else if (/level 4|mcp|tool/i.test(p)) {
+      activeGateState = { ...gateTemplates.level_4 };
+      showToast('🔌 AI updated architecture to Level 4 MCP Tool Agent');
+    } else if (/level 3|rag|policy/i.test(p)) {
+      activeGateState = { ...gateTemplates.level_3 };
+      showToast('📚 AI updated architecture to Level 3 Grounded Policy RAG');
+    } else if (/level 2|router|triage/i.test(p)) {
+      activeGateState = { ...gateTemplates.level_2 };
+      showToast('🧭 AI updated architecture to Level 2 Semantic Router');
+    } else {
+      // General refinement
+      activeGateState = {
+        ...activeGateState,
+        rationale: `AI Refined Specification: ${prompt}. Enforces zero-drift boundary validation with optimized P99 latency contracts.`
+      };
+      showToast('✨ AI refined decision gate specification');
+    }
+
+    updateDecisionGateDisplay(activeGateState);
+    populateGateEditorFromState(activeGateState);
+  };
+
+  // ------------------------------------------
+  // Event Listeners for Section 3B
+  // ------------------------------------------
+  // 1. Evaluate Gate Button
   document.getElementById('btnEvaluateRuleModel')?.addEventListener('click', async () => {
     const taskDesc = (document.getElementById('txtRuleTaskDesc') as HTMLInputElement)?.value || 'Tolerance reconciliation';
     const mathReq = (document.getElementById('selRuleMathReq') as HTMLSelectElement)?.value === 'yes';
     const modality = (document.getElementById('selRuleModality') as HTMLSelectElement)?.value || 'structured_data';
     const latencyVal = parseInt((document.getElementById('txtRuleLatencyBudget') as HTMLInputElement)?.value?.replace(/\D/g, '') || '50', 10);
+    const tierOverride = (document.getElementById('selArchitectureTierOverride') as HTMLSelectElement)?.value || 'auto';
 
     showToast('⚖️ Evaluating Rule vs. Model architecture gate...');
-    let res;
+    let res: any;
     if (api?.fde?.evaluateRuleVsModel) {
       res = await api.fde.evaluateRuleVsModel({
         taskDescription: taskDesc,
@@ -8607,36 +9543,358 @@ export interface SecurityGateSpec {
         requiresStrictArithmetic: mathReq,
         inputModality: modality as any,
         zeroToleranceForHallucination: true,
+        architectureOverride: tierOverride !== 'auto' ? tierOverride : undefined
       });
-    } else {
-      res = {
-        paradigm: mathReq ? 'Pure Rule Engine / SQL' : 'Hybrid Semantic Router + Rule',
-        recommendedLevel: mathReq ? 1 : 2,
-        rationale: mathReq 
-          ? 'Strict arithmetic calculations must never use non-deterministic LLMs. Executed via deterministic TypeScript/SQL rule.'
-          : 'Intent classification. Fast semantic triage to specialized micro-agents.',
-        codeSnippet: `// Level 1: Deterministic Rule Gate (<5ms)\nexport function evaluateGate(val: number): boolean {\n  return val <= 100;\n}`,
-      };
     }
 
-    const lblParadigm = document.getElementById('lblRuleModelParadigm');
-    const lblRationale = document.getElementById('lblRuleModelRationale');
-    const lblCode = document.getElementById('lblRuleModelCodePreview');
+    if (res && res.paradigm) {
+      const levelKey = tierOverride !== 'auto' ? tierOverride : (res.recommendedLevel === '1+3' ? 'hybrid_1_3' : res.recommendedLevel === '1+4' ? 'hybrid_1_4' : res.recommendedLevel === '1+5' ? 'hybrid_1_5' : `level_${res.recommendedLevel || 1}`);
+      const tmpl = gateTemplates[levelKey] || gateTemplates.level_1;
 
-    if (lblParadigm) lblParadigm.textContent = `Recommended Architecture: ${res.paradigm} (Level ${res.recommendedLevel || res.ladderLevel || 1})`;
-    if (lblRationale) lblRationale.textContent = res.rationale;
-    if (lblCode) lblCode.textContent = res.codeSnippet || res.scaffoldedCode;
+      activeGateState = {
+        ...tmpl,
+        paradigm: res.paradigm || tmpl.paradigm,
+        level: res.recommendedLevel || tmpl.level,
+        levelBadge: String(res.recommendedLevel).includes('+') ? `LEVEL ${res.recommendedLevel} HYBRID` : `LEVEL ${res.recommendedLevel || 1}`,
+        rationale: res.rationale || tmpl.rationale,
+        codeSnippet: res.codeSnippet || res.scaffoldedCode || tmpl.codeSnippet,
+        slaConfidence: res.slaConfidence || tmpl.slaConfidence,
+        latencySla: res.latencySla || tmpl.latencySla,
+        costSla: res.costSla || tmpl.costSla,
+        hallucinationSla: res.hallucinationSla || tmpl.hallucinationSla,
+        hitlTrigger: res.hitlTrigger || tmpl.hitlTrigger,
+        guardrails: res.guardrails || tmpl.guardrails,
+        mermaidDiagram: res.mermaidDiagram || tmpl.mermaidDiagram
+      };
+    } else {
+      const levelKey = tierOverride !== 'auto' ? tierOverride : (mathReq ? 'level_1' : 'level_2');
+      activeGateState = { ...(gateTemplates[levelKey] || gateTemplates.level_1) };
+    }
 
-    showToast(`✓ Evaluated Gate: ${res.paradigm}`);
+    updateDecisionGateDisplay(activeGateState);
+    populateGateEditorFromState(activeGateState);
+    showToast(`✓ Evaluated Gate: ${activeGateState.paradigm}`);
     hasEvaluatedRuleModelGate = true;
     refreshP3Rail();
   });
 
+  // 2. Enterprise Task Archetypes Preset Change
+  document.getElementById('selRuleGatePreset')?.addEventListener('change', () => {
+    const sel = document.getElementById('selRuleGatePreset') as HTMLSelectElement;
+    const presetKey = sel?.value;
+    if (presetKey && gatePresets[presetKey]) {
+      const p = gatePresets[presetKey];
+      const txtDesc = document.getElementById('txtRuleTaskDesc') as HTMLInputElement;
+      const selMath = document.getElementById('selRuleMathReq') as HTMLSelectElement;
+      const selMod = document.getElementById('selRuleModality') as HTMLSelectElement;
+      const txtLat = document.getElementById('txtRuleLatencyBudget') as HTMLInputElement;
+      const selHal = document.getElementById('selRuleHallucinationTolerance') as HTMLSelectElement;
+      const selHitl = document.getElementById('selRuleHitlReq') as HTMLSelectElement;
+      const selOver = document.getElementById('selArchitectureTierOverride') as HTMLSelectElement;
+
+      if (txtDesc) txtDesc.value = p.desc;
+      if (selMath) selMath.value = p.math;
+      if (selMod) selMod.value = p.modality;
+      if (txtLat) txtLat.value = p.latency;
+      if (selHal) selHal.value = p.hallucination;
+      if (selHitl) selHitl.value = p.hitl;
+      if (selOver) selOver.value = p.override;
+
+      // Automatically switch to corresponding preset template
+      if (gateTemplates[p.override]) {
+        activeGateState = { ...gateTemplates[p.override] };
+        updateDecisionGateDisplay(activeGateState);
+        populateGateEditorFromState(activeGateState);
+        showToast(`🏢 Loaded enterprise archetype: ${sel.options[sel.selectedIndex].text}`);
+      }
+    }
+  });
+
+  // 3. Architecture Tier Override Change
+  document.getElementById('selArchitectureTierOverride')?.addEventListener('change', () => {
+    const sel = document.getElementById('selArchitectureTierOverride') as HTMLSelectElement;
+    const overrideVal = sel?.value;
+    if (overrideVal && overrideVal !== 'auto' && overrideVal !== 'custom') {
+      if (gateTemplates[overrideVal]) {
+        activeGateState = { ...gateTemplates[overrideVal] };
+        updateDecisionGateDisplay(activeGateState);
+        populateGateEditorFromState(activeGateState);
+        showToast(`🎯 Switched architecture tier to ${activeGateState.paradigm}`);
+      }
+    } else if (overrideVal === 'custom') {
+      document.getElementById('btnToggleEditDecisionGate')?.click();
+    }
+  });
+
+  // 4. AI Layer Actions
+  document.getElementById('btnApplyGateAi')?.addEventListener('click', () => {
+    const prompt = (document.getElementById('txtGateAiPrompt') as HTMLInputElement)?.value || '';
+    if (prompt.trim()) executeGateAiCommand(prompt, false);
+  });
+
+  document.getElementById('txtGateAiPrompt')?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const prompt = (document.getElementById('txtGateAiPrompt') as HTMLInputElement)?.value || '';
+      if (prompt.trim()) executeGateAiCommand(prompt, false);
+    }
+  });
+
+  document.getElementById('btnGateAiSuggestHybrid')?.addEventListener('click', () => {
+    executeGateAiCommand('', true);
+  });
+
+  document.getElementById('btnGateAiRevert')?.addEventListener('click', () => {
+    const previous = gateUndoHistory.pop();
+    if (previous) {
+      activeGateState = previous;
+      updateDecisionGateDisplay(activeGateState);
+      populateGateEditorFromState(activeGateState);
+      showToast('↩ Reverted last AI modification!');
+      if (gateUndoHistory.length === 0) {
+        const btnRevert = document.getElementById('btnGateAiRevert');
+        if (btnRevert) btnRevert.style.display = 'none';
+      }
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>('.gate-quick-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const prompt = chip.getAttribute('data-prompt') || chip.textContent || '';
+      const input = document.getElementById('txtGateAiPrompt') as HTMLInputElement;
+      if (input) input.value = prompt;
+      executeGateAiCommand(prompt, false);
+    });
+  });
+
+  // 5. 4-Mode Visual Preview Tabs
+  document.getElementById('btnGatePreviewVisual')?.addEventListener('click', () => {
+    gatePreviewMode = 'visual';
+    updateDecisionGateDisplay(activeGateState);
+  });
+
+  document.getElementById('btnGatePreviewMermaid')?.addEventListener('click', () => {
+    gatePreviewMode = 'mermaid';
+    updateDecisionGateDisplay(activeGateState);
+  });
+
+  document.getElementById('btnGatePreviewTradeOff')?.addEventListener('click', () => {
+    gatePreviewMode = 'tradeoff';
+    updateDecisionGateDisplay(activeGateState);
+  });
+
+  document.getElementById('btnGatePreviewCode')?.addEventListener('click', () => {
+    gatePreviewMode = 'code';
+    updateDecisionGateDisplay(activeGateState);
+  });
+
+  // 1-Click Copy Buttons
+  document.getElementById('btnCopyGateMermaid')?.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(generateGateMermaidDiagram(activeGateState));
+    showToast('📋 Copied Mermaid Flowchart code to clipboard!');
+  });
+
+  document.getElementById('btnCopyGateCode')?.addEventListener('click', async () => {
+    await navigator.clipboard.writeText(activeGateState.codeSnippet);
+    showToast('📋 Copied Implementation Code to clipboard!');
+  });
+
+  // 6. Interactive Gate Editor Drawer
+  document.getElementById('btnToggleEditDecisionGate')?.addEventListener('click', () => {
+    const editorBox = document.getElementById('boxDecisionGateEditor');
+    const displayBox = document.getElementById('boxDecisionGateDisplay');
+    const isEditing = editorBox?.style.display === 'block';
+
+    if (editorBox && displayBox) {
+      if (isEditing) {
+        editorBox.style.display = 'none';
+        displayBox.style.display = 'block';
+      } else {
+        populateGateEditorFromState(activeGateState);
+        editorBox.style.display = 'block';
+        displayBox.style.display = 'none';
+        document.getElementById('txtEditGateTitle')?.focus();
+      }
+    }
+  });
+
+  // Editor Inputs on input/change update live preview
+  ['txtEditGateTitle', 'selEditGateTier', 'txtEditGateLatencySla', 'txtEditGateCostSla', 'txtEditGateHallucinationSla', 'txtEditGateHitlTrigger', 'txtEditGateRationale', 'txtEditGateGuardrails', 'txtEditGateCode'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', () => {
+      updateGateEditorLivePreview(readGateEditorState());
+    });
+  });
+
+  // Editor Quick-Load Template Buttons
+  document.getElementById('btnLoadEditTemplateL1')?.addEventListener('click', () => {
+    populateGateEditorFromState(gateTemplates.level_1);
+  });
+  document.getElementById('btnLoadEditTemplateL3')?.addEventListener('click', () => {
+    populateGateEditorFromState(gateTemplates.level_3);
+  });
+  document.getElementById('btnLoadEditTemplateHybrid13')?.addEventListener('click', () => {
+    populateGateEditorFromState(gateTemplates.hybrid_1_3);
+  });
+  document.getElementById('btnLoadEditTemplateHybrid14')?.addEventListener('click', () => {
+    populateGateEditorFromState(gateTemplates.hybrid_1_4);
+  });
+  document.getElementById('btnLoadEditTemplateL5')?.addEventListener('click', () => {
+    populateGateEditorFromState(gateTemplates.level_5);
+  });
+
+  document.getElementById('btnCancelEditDecisionGate')?.addEventListener('click', () => {
+    const editorBox = document.getElementById('boxDecisionGateEditor');
+    const displayBox = document.getElementById('boxDecisionGateDisplay');
+    if (editorBox) editorBox.style.display = 'none';
+    if (displayBox) displayBox.style.display = 'block';
+  });
+
+  document.getElementById('btnSaveEditDecisionGate')?.addEventListener('click', () => {
+    activeGateState = readGateEditorState();
+    updateDecisionGateDisplay(activeGateState);
+    const editorBox = document.getElementById('boxDecisionGateEditor');
+    const displayBox = document.getElementById('boxDecisionGateDisplay');
+    if (editorBox) editorBox.style.display = 'none';
+    if (displayBox) displayBox.style.display = 'block';
+    showToast(`✓ Saved customized decision gate: ${activeGateState.paradigm}`);
+  });
+
+  document.getElementById('btnResetEditDecisionGate')?.addEventListener('click', () => {
+    activeGateState = { ...gateTemplates.level_1 };
+    populateGateEditorFromState(activeGateState);
+    updateDecisionGateDisplay(activeGateState);
+    showToast('↩ Reset decision gate to baseline Level 1 template');
+  });
+
+  // 7. Version History Management
+  document.getElementById('selGateVersionHistory')?.addEventListener('change', () => {
+    const sel = document.getElementById('selGateVersionHistory') as HTMLSelectElement;
+    const tag = sel?.value;
+    const snapshot = gateVersionHistory.find(v => v.tag === tag);
+    if (snapshot) {
+      activeGateState = { ...snapshot.state };
+      updateDecisionGateDisplay(activeGateState);
+      populateGateEditorFromState(activeGateState);
+      showToast(`📜 Restored Decision Gate snapshot ${snapshot.tag}`);
+    }
+  });
+
+  document.getElementById('btnSaveGateVersionSnapshot')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalSaveGateVersion');
+    const tagInput = document.getElementById('txtSaveGateVersionTag') as HTMLInputElement;
+    const noteInput = document.getElementById('txtSaveGateVersionNote') as HTMLInputElement;
+    if (tagInput) {
+      tagInput.value = `v1.${gateVersionHistory.length}.0`;
+    }
+    if (noteInput) {
+      noteInput.value = `${activeGateState.paradigm} (${activeGateState.levelBadge})`;
+    }
+    if (modal) modal.style.display = 'block';
+  });
+
+  document.getElementById('btnCloseSaveGateVersionModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalSaveGateVersion');
+    if (modal) modal.style.display = 'none';
+  });
+
+  document.getElementById('btnCancelSaveGateVersion')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalSaveGateVersion');
+    if (modal) modal.style.display = 'none';
+  });
+
+  document.getElementById('btnConfirmSaveGateVersion')?.addEventListener('click', () => {
+    const tag = (document.getElementById('txtSaveGateVersionTag') as HTMLInputElement)?.value.trim() || `v1.${gateVersionHistory.length}.0`;
+    const note = (document.getElementById('txtSaveGateVersionNote') as HTMLInputElement)?.value.trim() || activeGateState.paradigm;
+    const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+
+    gateVersionHistory.push({
+      id: tag,
+      tag: tag,
+      timestamp: dateStr,
+      note: note,
+      state: { ...activeGateState }
+    });
+
+    renderGateVersionDropdown();
+    const sel = document.getElementById('selGateVersionHistory') as HTMLSelectElement;
+    if (sel) sel.value = tag;
+
+    const modal = document.getElementById('modalSaveGateVersion');
+    if (modal) modal.style.display = 'none';
+    showToast(`✓ Saved version snapshot ${tag}!`);
+  });
+
+  // 8. Architectural Decision Record (ADR) Exporter Modal
+  const refreshGateAdrModalPreview = () => {
+    const prevEl = document.getElementById('prevExportGateDoc');
+    if (prevEl) {
+      prevEl.textContent = generateGateAdrMarkdown(activeGateState);
+    }
+  };
+
+  document.getElementById('btnExportGateDoc')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalExportGateDoc');
+    const lblPath = document.getElementById('lblExportGateDocStandalonePath');
+    const taskSlug = activeGateState.paradigm.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 24);
+    if (lblPath) {
+      lblPath.innerHTML = `<strong>docs/architecture/gates/gate_${taskSlug}_adr.md</strong>`;
+    }
+    refreshGateAdrModalPreview();
+    if (modal) modal.style.display = 'block';
+  });
+
+  document.getElementById('btnCloseExportGateDocModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalExportGateDoc');
+    if (modal) modal.style.display = 'none';
+  });
+
+  document.getElementById('btnCancelExportGateDocModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalExportGateDoc');
+    if (modal) modal.style.display = 'none';
+  });
+
+  ['chkGateDocIncludeContext', 'chkGateDocIncludeMermaid', 'chkGateDocIncludeTradeOffs', 'chkGateDocIncludeGuardrails', 'chkGateDocIncludeCode', 'chkGateDocIncludeConsequences'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      refreshGateAdrModalPreview();
+    });
+  });
+
+  document.getElementById('btnConfirmExportGateDoc')?.addEventListener('click', async () => {
+    const radios = document.querySelectorAll<HTMLInputElement>('input[name="radExportGateDocTarget"]');
+    let selectedTarget = 'decision_log_md';
+    radios.forEach(r => {
+      if (r.checked) selectedTarget = r.value;
+    });
+    await saveGateAdrToWorkspace(selectedTarget);
+    const modal = document.getElementById('modalExportGateDoc');
+    if (modal) modal.style.display = 'none';
+  });
+
+  // Initial render of Section 3B display
+  updateDecisionGateDisplay(activeGateState);
+
+  // 9. Save Gate to Project
   document.getElementById('btnSaveRuleGateToProject')?.addEventListener('click', async () => {
-    const code = (document.getElementById('lblRuleModelCodePreview') as HTMLElement)?.innerText;
+    const code = activeGateState.codeSnippet;
+    const taskSlug = activeGateState.paradigm.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 24);
+    if (api?.workspace?.getCurrent) {
+      const ws = await api.workspace.getCurrent();
+      if (ws && ws.path) {
+        const outDir = ws.path + '/src/solution';
+        const fileName = `gate_${taskSlug}.ts`;
+        const fullPath = `${outDir}/${fileName}`;
+        try { await api.workspace.createDir(outDir); } catch (_) {}
+        await api.workspace.createFile(fullPath, code);
+        showToast(`💾 Saved Decision Gate to src/solution/${fileName}!`);
+        hasEvaluatedRuleModelGate = true;
+        refreshP3Rail();
+        return;
+      }
+    }
     if (api?.fde?.scaffoldLadderLevel) {
-      await api.fde.scaffoldLadderLevel({ level: 1 });
-      showToast('💾 Saved Decision Gate to src/solution/level_1_rule_engine.ts');
+      const lvl = typeof activeGateState.level === 'number' ? activeGateState.level : 1;
+      await api.fde.scaffoldLadderLevel({ level: lvl });
+      showToast(`💾 Saved Decision Gate to src/solution/level_${lvl}_rule_engine.ts`);
     } else {
       showToast('💾 Saved Decision Gate to project');
     }
