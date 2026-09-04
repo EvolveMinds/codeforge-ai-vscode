@@ -1591,13 +1591,39 @@
                       </div>
                     </div>
 
+                    <!-- FDE AI Modification Layer -->
+                    <div id="ladderAiLayerBar" style="background: linear-gradient(90deg, rgba(78, 201, 176, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <span style="font-size: 14px;">✨</span>
+                          <strong style="font-size: 11.5px; color: var(--accent);">FDE AI Co-Pilot &amp; Modification Layer</strong>
+                          <span id="lblLadderAiContextBadge" class="brand-pill" style="font-size: 9.5px; background: rgba(0,0,0,0.3); border: 1px solid var(--border);">Active: Level 1 • 📖 Architecture &amp; Industry Lens</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                          <span id="lblLadderAiStatus" style="font-size: 10.5px; color: var(--accent); font-weight: 600; display: none;"></span>
+                          <button class="btn-quick" id="btnLadderAiRevert" style="display: none; font-size: 10px; padding: 2px 8px; color: #f87171; border-color: #f87171;" aria-label="Undo / Revert Last AI Edit">↩ Revert Edit</button>
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 6px; align-items: center;">
+                        <input type="text" id="txtLadderAiPrompt" placeholder="Enter natural language command to update this tab (e.g. 'Add SOC2 audit checklist', 'Convert code to Python', 'Tailor for healthcare HIPAA')..." style="flex: 1; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; padding: 6px 10px; border-radius: 4px; font-size: 11.5px;" aria-label="FDE AI Command Prompt">
+                        <button class="btn" id="btnApplyLadderAi" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 12px; font-size: 11px; white-space: nowrap; cursor: pointer;" aria-label="Refine Active Tab with AI">✨ Refine with AI</button>
+                        <button class="btn btn-secondary" id="btnGenerateCustomLensAi" style="font-size: 11px; padding: 6px 12px; white-space: nowrap; cursor: pointer;" aria-label="Generate as New Custom Lens">🪄 Generate New Lens</button>
+                      </div>
+                      <!-- Dynamic Prompt Suggestion Chips -->
+                      <div id="ladderAiPromptChips" style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; align-items: center;">
+                        <!-- Injected dynamically based on active tab -->
+                      </div>
+                    </div>
+
                     <!-- Sub-Tabs for Details -->
-                    <div style="display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 12px; padding-bottom: 6px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 12px; padding-bottom: 6px; flex-wrap: wrap; align-items: center;" id="ladderSubTabsList">
                       <button class="btn-quick active" id="tabLadderOverview" style="font-size: 11px; font-weight: 700; cursor: pointer;" aria-label="Architecture & Industry Lens">📖 Architecture &amp; Industry Lens</button>
                       <button class="btn-quick" id="tabLadderSimulator" style="font-size: 11px; font-weight: 700; cursor: pointer;" aria-label="Live Test Simulator">⚡ Live Test Simulator</button>
                       <button class="btn-quick" id="tabLadderCode" style="font-size: 11px; font-weight: 700; cursor: pointer;" aria-label="Production Code">💻 Production Code</button>
                       <button class="btn-quick" id="tabLadderGate" style="font-size: 11px; font-weight: 700; cursor: pointer;" aria-label="Delivery Acceptance Gate">📋 Delivery Acceptance Gate</button>
                       <button class="btn-quick" id="tabLadderMatrix" style="font-size: 11px; font-weight: 700; cursor: pointer;" aria-label="5-Level Comparison Matrix">📊 5-Level Comparison Matrix</button>
+                      <div id="ladderCustomTabsContainer" style="display: inline-flex; gap: 6px; flex-wrap: wrap;"></div>
+                      <button class="btn-quick" id="btnAddCustomLadderTab" style="font-size: 11px; font-weight: 700; border-style: dashed; border-color: var(--accent); color: var(--accent); cursor: pointer; padding: 2px 8px;" aria-label="+ Add Custom Lens">+ Add Custom Lens</button>
                     </div>
 
                     <!-- Panel 1: Overview & Multi-Industry Use Cases -->
@@ -1766,6 +1792,74 @@
                       </div>
                       <div style="background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 10px; font-size: 11px; color: #d8b4fe;">
                         💡 <strong>The FDE Rule of Parsimony:</strong> "Clients often ask for Level 5 Swarms because of marketing hype. An expert FDE discovers that 80% of their operational volume can be solved by Level 1 Rules and Level 2 Routers, delivering 100x lower latency and zero hallucination risk."
+                      </div>
+                    </div>
+
+                    <!-- Panel 6: Custom Lens Display Panel -->
+                    <div id="panelLadderCustom" style="display: none;">
+                      <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                          <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;" id="lblCustomTabTitle">
+                            <span>🛡️</span> Security &amp; Threat Model (STRIDE)
+                          </div>
+                          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;" id="lblCustomTabDesc">
+                            Custom FDE architectural analysis tailored for this capability level.
+                          </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                          <button class="btn-quick" id="btnEditCustomTabContent" style="font-size: 11px; padding: 3px 8px; cursor: pointer;" aria-label="Edit Lens Content">✏️ Edit</button>
+                          <button class="btn-quick" id="btnCopyCustomTabContent" style="font-size: 11px; padding: 3px 8px; cursor: pointer;" aria-label="Copy Lens Content">📋 Copy</button>
+                          <button class="btn-quick" id="btnDeleteCustomTab" style="font-size: 11px; padding: 3px 8px; color: var(--error); border-color: var(--error); cursor: pointer;" aria-label="Delete Custom Lens">🗑️ Remove Lens</button>
+                        </div>
+                      </div>
+                      <div id="customTabBodyContainer" style="background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 14px; color: #cbd5e1; font-size: 11.5px; line-height: 1.55; min-height: 220px; max-height: 380px; overflow-y: auto;">
+                        <!-- Custom lens content injected dynamically -->
+                      </div>
+                      <div id="customTabEditorContainer" style="display: none; margin-top: 10px;">
+                        <textarea id="txtCustomTabEditor" rows="10" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--accent); color: #fff; font-family: monospace; font-size: 11px; padding: 10px; border-radius: 6px;"></textarea>
+                        <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px;">
+                          <button class="btn-quick" id="btnCancelEditCustomTab" style="font-size: 11px; padding: 4px 10px;">Cancel</button>
+                          <button class="btn" id="btnSaveEditCustomTab" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 4px 12px;">Save Changes</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Add Custom Lens Drawer / Modal -->
+                    <div id="modalAddCustomLens" style="display: none; background: rgba(0, 0, 0, 0.4); border: 1.5px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-top: 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                        <strong style="font-size: 12.5px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                          <span>➕</span> Add Custom FDE Lens / View
+                        </strong>
+                        <button class="btn-quick" id="btnCloseCustomLensModal" style="padding: 2px 7px; font-size: 11px; cursor: pointer;">✕</button>
+                      </div>
+                      <div style="margin-bottom: 10px;">
+                        <label style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Select from Pre-Built Enterprise Lens Presets:</label>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 4px;" id="presetLensButtonsContainer">
+                          <button class="btn-quick preset-lens-btn active" data-preset="security" style="text-align: left; font-size: 10.5px; padding: 6px; cursor: pointer;">🛡️ Security &amp; STRIDE Model</button>
+                          <button class="btn-quick preset-lens-btn" data-preset="finops" style="text-align: left; font-size: 10.5px; padding: 6px; cursor: pointer;">💰 FinOps &amp; Unit Economics</button>
+                          <button class="btn-quick preset-lens-btn" data-preset="compliance" style="text-align: left; font-size: 10.5px; padding: 6px; cursor: pointer;">⚖️ SOC2 &amp; HIPAA Governance</button>
+                          <button class="btn-quick preset-lens-btn" data-preset="integration" style="text-align: left; font-size: 10.5px; padding: 6px; cursor: pointer;">🌐 Integration &amp; Runbook</button>
+                          <button class="btn-quick preset-lens-btn" data-preset="chaos" style="text-align: left; font-size: 10.5px; padding: 6px; cursor: pointer;">🧪 Chaos &amp; Failover SLA</button>
+                          <button class="btn-quick preset-lens-btn" data-preset="blank" style="text-align: left; font-size: 10.5px; padding: 6px; cursor: pointer;">✍️ Blank Custom Lens</button>
+                        </div>
+                      </div>
+                      <div style="display: grid; grid-template-columns: 80px 1.5fr 2fr; gap: 8px; margin-bottom: 10px;">
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="txtCustomLensEmoji">Icon / Emoji</label>
+                          <input type="text" id="txtCustomLensEmoji" value="🛡️" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="txtCustomLensTitle">Lens Title</label>
+                          <input type="text" id="txtCustomLensTitle" value="Security &amp; Threat Model" placeholder="e.g. Disaster Recovery SLA" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary);" for="txtCustomLensDesc">Purpose / Description</label>
+                          <input type="text" id="txtCustomLensDesc" value="STRIDE threat modeling and air-gapped zero-trust boundary verification" placeholder="Brief explanation of this lens" style="width: 100%; box-sizing: border-box; margin-top: 3px; padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                        </div>
+                      </div>
+                      <div style="display: flex; justify-content: flex-end; gap: 6px;">
+                        <button class="btn-quick" id="btnCancelCustomLens" style="padding: 4px 10px; font-size: 11px; cursor: pointer;">Cancel</button>
+                        <button class="btn" id="btnConfirmAddCustomLens" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 4px 14px; font-size: 11px; cursor: pointer;">✓ Add Lens to Ladder</button>
                       </div>
                     </div>
                   </div>
