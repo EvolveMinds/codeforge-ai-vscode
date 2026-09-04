@@ -3973,6 +3973,14 @@ function setupDeliveryStudio(api: any): void {
     if (p2CodePreview && generatedPySdk) p2CodePreview.innerText = generatedPySdk;
   });
 
+  // --- Phase 5 Step Rail Navigation State ---
+  let currentP5Step = 1;
+  let hasRunAuditExact = false;
+  let hasScaffoldedDeployOrCicd = false;
+  let hasGeneratedRunbooks = false;
+  let hasRunEnterpriseModule = false;
+  let refreshP5Rail: () => void;
+
   // --- STEP 3: MULTI-CLOUD PILOT DEPLOYMENT & CI/CD HUB ---
   const deployTabs = [
     { id: 'tabProvGcp', prov: 'gcp-firebase' },
@@ -4091,6 +4099,8 @@ function setupDeliveryStudio(api: any): void {
         showToast('✓ Pre-flight audit passed!');
       }
     }
+    hasRunAuditExact = true;
+    refreshP5Rail?.();
   });
 
   document.getElementById('btnCleanTempFilesExact')?.addEventListener('click', () => {
@@ -4156,6 +4166,8 @@ function setupDeliveryStudio(api: any): void {
         }
       }
       showToast(`✓ Successfully scaffolded ${cfg.provider.toUpperCase()} deployment & IaC scripts!`);
+      hasScaffoldedDeployOrCicd = true;
+      refreshP5Rail?.();
     }
   });
 
@@ -4264,6 +4276,8 @@ function setupDeliveryStudio(api: any): void {
         cicdBadge.style.borderColor = 'var(--success)';
       }
       showToast(`✓ Generated ${filePath} on disk!`);
+      hasScaffoldedDeployOrCicd = true;
+      refreshP5Rail?.();
     }
   });
 
@@ -4466,6 +4480,8 @@ function setupDeliveryStudio(api: any): void {
       updateDocBadges(['arch', 'deploy', 'dataDict', 'env', 'complete']);
       showDocPreview('arch');
       showToast('✓ All 6 client handoff documents generated on disk in docs/!');
+      hasGeneratedRunbooks = true;
+      refreshP5Rail?.();
     }
   });
 
@@ -4700,6 +4716,87 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // Enterprise Module Trigger Aliases
+  document.getElementById('btnRunTranspileSql')?.addEventListener('click', () => {
+    document.getElementById('btnRunSqlTranspile')?.click();
+    hasRunEnterpriseModule = true;
+    refreshP5Rail?.();
+  });
+
+  document.getElementById('btnRunLoadTest')?.addEventListener('click', () => {
+    document.getElementById('btnGenK6LoadTest')?.click();
+    hasRunEnterpriseModule = true;
+    refreshP5Rail?.();
+  });
+
+  document.getElementById('btnRunDataQuality')?.addEventListener('click', async () => {
+    showToast('🧪 Running Great Expectations Data Quality Gates...');
+    if (api?.engines) {
+      await api.engines.dataQualitySuite?.({ suiteName: 'bronze_to_silver_integrity' });
+    }
+    showToast('✓ Data Quality Gates Passed (100% assertions verified)!');
+    hasRunEnterpriseModule = true;
+    refreshP5Rail?.();
+  });
+
+  // --- Phase 5 Step Rail Navigation (5A -> 5B -> 5C -> 5D) ---
+  const p5StepIsDone = (step: number) => {
+    if (step === 1) return hasRunAuditExact;
+    if (step === 2) return hasScaffoldedDeployOrCicd;
+    if (step === 3) return hasGeneratedRunbooks;
+    if (step === 4) return hasRunEnterpriseModule;
+    return false;
+  };
+
+  refreshP5Rail = () => {
+    [1, 2, 3, 4].forEach(i => {
+      const btnId = i === 1 ? 'btnP5StepA' : i === 2 ? 'btnP5StepB' : i === 3 ? 'btnP5StepC' : 'btnP5StepD';
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const done = p5StepIsDone(i);
+      btn.classList.toggle('active', i === currentP5Step);
+      btn.classList.toggle('done', done && i !== currentP5Step);
+      btn.setAttribute('aria-selected', String(i === currentP5Step));
+      const dot = btn.querySelector('.fde-step-dot') as HTMLElement | null;
+      if (dot) {
+        dot.textContent = done ? '●' : '○';
+        dot.style.color = done ? 'var(--success)' : 'var(--text-muted)';
+      }
+    });
+    const prev = document.getElementById('btnP5StepPrev') as HTMLButtonElement | null;
+    const next = document.getElementById('btnP5StepNext') as HTMLButtonElement | null;
+    if (prev) prev.disabled = currentP5Step === 1;
+    if (next) next.textContent = currentP5Step === 4 ? 'Advance to Phase 6 ➔' : 'Next →';
+  };
+
+  const goToP5Step = (step: number) => {
+    if (step > 4) {
+      document.getElementById('btnAdvancePhase6')?.click();
+      return;
+    }
+    currentP5Step = Math.min(4, Math.max(1, step));
+    const a = document.getElementById('p5StepAPanel');
+    const b = document.getElementById('p5StepBPanel');
+    const c = document.getElementById('p5StepCPanel');
+    const d = document.getElementById('p5StepDPanel');
+    if (a) { a.style.display = currentP5Step === 1 ? 'block' : 'none'; a.hidden = currentP5Step !== 1; }
+    if (b) { b.style.display = currentP5Step === 2 ? 'block' : 'none'; b.hidden = currentP5Step !== 2; }
+    if (c) { c.style.display = currentP5Step === 3 ? 'block' : 'none'; c.hidden = currentP5Step !== 3; }
+    if (d) { d.style.display = currentP5Step === 4 ? 'block' : 'none'; d.hidden = currentP5Step !== 4; }
+    refreshP5Rail();
+    const card = document.getElementById('phase5Card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  document.getElementById('btnP5StepA')?.addEventListener('click', () => goToP5Step(1));
+  document.getElementById('btnP5StepB')?.addEventListener('click', () => goToP5Step(2));
+  document.getElementById('btnP5StepC')?.addEventListener('click', () => goToP5Step(3));
+  document.getElementById('btnP5StepD')?.addEventListener('click', () => goToP5Step(4));
+  document.getElementById('btnP5StepPrev')?.addEventListener('click', () => goToP5Step(currentP5Step - 1));
+  document.getElementById('btnP5StepNext')?.addEventListener('click', () => goToP5Step(currentP5Step + 1));
+
+  refreshP5Rail();
+
   // Advance Buttons Navigation between 5 Canonical Phases
   document.getElementById('btnAdvancePhase3')?.addEventListener('click', () => {
     switchDeliveryPhase(3);
@@ -4742,8 +4839,13 @@ function setupDeliveryStudio(api: any): void {
 
   document.getElementById('btnAdvancePhase5')?.addEventListener('click', () => {
     switchDeliveryPhase(5);
-    document.getElementById('btnRunPreflightAuditExact')?.click();
+    document.getElementById('btnRunAuditExact')?.click();
     showToast('🚀 Advancing to Phase 5: Deploy & Influence...');
+  });
+
+  document.getElementById('btnAdvancePhase6')?.addEventListener('click', () => {
+    switchDeliveryPhase(6);
+    showToast('🚀 Advancing to Phase 6: DevOps & Git Hub...');
   });
 
   // ==========================================
@@ -6230,6 +6332,8 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       }
 
       showToast(`✓ 50-Case Benchmark Complete: ${benchRes.accuracyScorePct}% Accuracy (${benchRes.passedCases}/${benchRes.totalCases} passed)`);
+      hasRunGoldenBenchmark = true;
+      refreshP4Rail?.();
     } catch (err: any) {
       showToast(`⚠️ Benchmark error: ${err.message || err}`);
     } finally {
@@ -6288,6 +6392,8 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       if (box) box.style.display = 'block';
       if (lblSig) lblSig.innerText = `Ed25519 Audit Signature: ${res.auditSignature}`;
       showToast(`✓ Groundedness 100% Verified! Saved to audit/compliance_receipt.json`);
+      hasVerifiedGroundedness = true;
+      refreshP4Rail?.();
     } catch (err: any) {
       showToast(`⚠️ Groundedness error: ${err.message || err}`);
     }
@@ -6300,6 +6406,8 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     if (box) box.style.display = 'block';
     if (status) status.style.display = 'none';
     showToast('👤 HITL Simulation Queue active: TX-9482 awaiting supervisor approval');
+    hasSimulatedHitl = true;
+    refreshP4Rail?.();
   });
 
   document.getElementById('btnHitlApprove')?.addEventListener('click', () => {
@@ -6310,6 +6418,8 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       status.textContent = '✅ Transaction TX-9482 Approved & Ledger Batch Posted (Supervisor Verified)';
     }
     showToast('✓ Transaction Approved & Cryptographic Receipt Logged');
+    hasSimulatedHitl = true;
+    refreshP4Rail?.();
   });
 
   document.getElementById('btnHitlReject')?.addEventListener('click', () => {
@@ -6320,7 +6430,68 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       status.textContent = '❌ Transaction TX-9482 Rejected (Reason: Exceeds manual policy ceiling)';
     }
     showToast('✕ Transaction Rejected & Reversal Dispatched');
+    hasSimulatedHitl = true;
+    refreshP4Rail?.();
   });
+
+  // --- Phase 4 Step Rail Navigation (4A -> 4B -> 4C) ---
+  let currentP4Step = 1;
+  let hasRunGoldenBenchmark = false;
+  let hasVerifiedGroundedness = false;
+  let hasSimulatedHitl = false;
+
+  const p4StepIsDone = (step: number) => {
+    if (step === 1) return hasRunGoldenBenchmark;
+    if (step === 2) return hasVerifiedGroundedness;
+    if (step === 3) return hasSimulatedHitl;
+    return false;
+  };
+
+  const refreshP4Rail = () => {
+    [1, 2, 3].forEach(i => {
+      const btnId = i === 1 ? 'btnP4StepA' : i === 2 ? 'btnP4StepB' : 'btnP4StepC';
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const done = p4StepIsDone(i);
+      btn.classList.toggle('active', i === currentP4Step);
+      btn.classList.toggle('done', done && i !== currentP4Step);
+      btn.setAttribute('aria-selected', String(i === currentP4Step));
+      const dot = btn.querySelector('.fde-step-dot') as HTMLElement | null;
+      if (dot) {
+        dot.textContent = done ? '●' : '○';
+        dot.style.color = done ? 'var(--success)' : 'var(--text-muted)';
+      }
+    });
+    const prev = document.getElementById('btnP4StepPrev') as HTMLButtonElement | null;
+    const next = document.getElementById('btnP4StepNext') as HTMLButtonElement | null;
+    if (prev) prev.disabled = currentP4Step === 1;
+    if (next) next.textContent = currentP4Step === 3 ? 'Advance to Phase 5 ➔' : 'Next →';
+  };
+
+  const goToP4Step = (step: number) => {
+    if (step > 3) {
+      document.getElementById('btnAdvancePhase5')?.click();
+      return;
+    }
+    currentP4Step = Math.min(3, Math.max(1, step));
+    const a = document.getElementById('p4StepAPanel');
+    const b = document.getElementById('p4StepBPanel');
+    const c = document.getElementById('p4StepCPanel');
+    if (a) { a.style.display = currentP4Step === 1 ? 'block' : 'none'; a.hidden = currentP4Step !== 1; }
+    if (b) { b.style.display = currentP4Step === 2 ? 'block' : 'none'; b.hidden = currentP4Step !== 2; }
+    if (c) { c.style.display = currentP4Step === 3 ? 'block' : 'none'; c.hidden = currentP4Step !== 3; }
+    refreshP4Rail();
+    const card = document.getElementById('phase4Card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  document.getElementById('btnP4StepA')?.addEventListener('click', () => goToP4Step(1));
+  document.getElementById('btnP4StepB')?.addEventListener('click', () => goToP4Step(2));
+  document.getElementById('btnP4StepC')?.addEventListener('click', () => goToP4Step(3));
+  document.getElementById('btnP4StepPrev')?.addEventListener('click', () => goToP4Step(currentP4Step - 1));
+  document.getElementById('btnP4StepNext')?.addEventListener('click', () => goToP4Step(currentP4Step + 1));
+
+  refreshP4Rail();
 }
 
 

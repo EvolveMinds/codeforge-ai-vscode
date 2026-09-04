@@ -1896,6 +1896,32 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   </div>
                 </div>
 
+                <!-- PHASE 4 STEP NAVIGATION -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                  <div role="tablist" aria-label="Phase 4 reliability and evals steps" class="fde-step-rail" style="display: flex; gap: 6px; flex: 1; min-width: 0;">
+                    <button role="tab" id="btnP4StepA" data-step="1" aria-selected="true" aria-controls="p4StepAPanel" class="fde-step-btn active" aria-label="Step 4A of 3: 50-Case Golden Evaluation Benchmark">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">4A</span>
+                      <span class="fde-step-label">50-Case Golden Benchmark</span>
+                    </button>
+                    <button role="tab" id="btnP4StepB" data-step="2" aria-selected="false" aria-controls="p4StepBPanel" class="fde-step-btn" aria-label="Step 4B of 3: Groundedness & Citation Gate">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">4B</span>
+                      <span class="fde-step-label">Groundedness &amp; Citations</span>
+                    </button>
+                    <button role="tab" id="btnP4StepC" data-step="3" aria-selected="false" aria-controls="p4StepCPanel" class="fde-step-btn" aria-label="Step 4C of 3: Human-in-the-Loop Supervisor Gate">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">4C</span>
+                      <span class="fde-step-label">HITL Supervisor Gate</span>
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-quick" id="btnP4StepPrev" style="font-size: 11px;" aria-label="Go to previous evals step" disabled>← Back</button>
+                    <button class="btn-quick" id="btnP4StepNext" style="font-size: 11px; border-color: var(--accent); color: var(--accent);" aria-label="Go to next evals step">Next →</button>
+                  </div>
+                </div>
+
+                <div id="p4StepAPanel" role="tabpanel" aria-labelledby="btnP4StepA">
                 <!-- 4A: 50-CASE GOLDEN BENCHMARK RUNNER -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
@@ -1965,56 +1991,65 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     </div>
                   </div>
                 </div>
+                </div>
 
-                <!-- 4B: GROUNDEDNESS & HITL DUAL CONSOLE -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                  <!-- Groundedness Verifier -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <div style="font-weight: 700; color: #fff; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
-                        <span>🛡️</span> Groundedness &amp; Citation Gate
+                <!-- 4B: GROUNDEDNESS CITATION GATE -->
+                <div id="p4StepBPanel" role="tabpanel" aria-labelledby="btnP4StepB" style="display: none;">
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                      <div style="font-weight: 700; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                        <span>🛡️</span> Section 4B: Groundedness &amp; Citation Gate (Zero Ungrounded Claims)
                       </div>
-                      <span class="brand-pill" style="font-size: 9.5px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent);">Ed25519 Signed</span>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        Enforce 100% verified handbook and policy citations with Ed25519 cryptographically signed compliance audit receipts.
+                      </div>
                     </div>
-                    <div style="margin-bottom: 8px;">
-                      <label style="font-size: 10.5px; font-weight: 600;" for="txtGroundedClaim">Generated Output / Claim to Audit:</label>
-                      <textarea id="txtGroundedClaim" rows="2" style="width: 100%; margin-top: 2px; padding: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.</textarea>
-                    </div>
-                    <button class="btn" id="btnVerifyGroundedness" style="width: 100%; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Verify Citation & Sign Audit Log">Verify Citation &amp; Sign Audit Log</button>
-                    <div id="fdeGroundednessResultBox" style="display: none; margin-top: 10px; background: var(--card-bg); border: 1px solid var(--success); border-radius: 6px; padding: 10px; font-size: 11px;">
-                      <div style="color: var(--success); font-weight: 700; margin-bottom: 4px;">✓ Citation 100% Grounded in Handbook §4.2</div>
-                      <div style="font-family: monospace; font-size: 10px; color: var(--text-secondary);" id="lblAuditSignature">Signature: ed25519_sig_valid</div>
-                    </div>
+                    <span class="brand-pill" style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent);">Ed25519 Cryptographically Signed</span>
                   </div>
+                  <div style="margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: 600;" for="txtGroundedClaim">Generated Output / Claim to Audit:</label>
+                    <textarea id="txtGroundedClaim" rows="3" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.</textarea>
+                  </div>
+                  <button class="btn" id="btnVerifyGroundedness" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px;" aria-label="Verify Citation & Sign Audit Log">Verify Citation &amp; Sign Audit Log</button>
+                  <div id="fdeGroundednessResultBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--success); border-radius: 6px; padding: 12px; font-size: 11.5px;">
+                    <div style="color: var(--success); font-weight: 700; margin-bottom: 4px;">✓ Citation 100% Grounded in Handbook §4.2</div>
+                    <div style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary);" id="lblAuditSignature">Signature: ed25519_sig_valid</div>
+                  </div>
+                </div>
+                </div>
 
-                  <!-- HITL Approval Simulator -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <div style="font-weight: 700; color: #fff; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
-                        <span>👤</span> Human-in-the-Loop (HITL) Supervisor Gate
+                <!-- 4C: HITL APPROVAL SIMULATOR -->
+                <div id="p4StepCPanel" role="tabpanel" aria-labelledby="btnP4StepC" style="display: none;">
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <div>
+                      <div style="font-weight: 700; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                        <span>👤</span> Section 4C: Human-in-the-Loop (HITL) Supervisor Gate
                       </div>
-                      <span class="brand-pill" style="font-size: 9.5px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">Threshold: &lt;$100 Auto</span>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                        Simulate high-confidence automated clearance versus supervisor review routing when monetary ceilings or confidence thresholds are triggered.
+                      </div>
                     </div>
-                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 8px 0;">
-                      Simulate high-confidence auto-clear versus supervisor approval modal routing.
-                    </p>
-                    <button class="btn" id="btnSimulateHitl" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Simulate HITL Approval Queue">Simulate HITL Approval Queue</button>
-                    
-                    <div id="fdeHitlSimulationBox" style="display: none; margin-top: 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 6px;">
-                        <span style="font-size: 11px; font-weight: 700; color: #fff;">TX-9482 ($150.00 Refund Request)</span>
-                        <span style="font-size: 10px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 1px 6px; border-radius: 4px;">Awaiting Supervisor Approval</span>
-                      </div>
-                      <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px;">
-                        Trigger: Amount exceeds $100 automated ceiling. Customer: <code>cust_4920</code>.
-                      </div>
-                      <div style="display: flex; gap: 6px;">
-                        <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 4px; font-size: 10.5px;" aria-label="Approve & Dispatch">✓ Approve &amp; Dispatch</button>
-                        <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 4px; font-size: 10.5px; color: var(--error);" aria-label="Reject">✕ Reject</button>
-                      </div>
-                      <div id="lblHitlStatusResult" style="display: none; margin-top: 6px; font-size: 10.5px; font-weight: 700; text-align: center;"></div>
-                    </div>
+                    <span class="brand-pill" style="font-size: 10px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">Threshold: &lt;$100 Auto</span>
                   </div>
+                  <button class="btn" id="btnSimulateHitl" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px;" aria-label="Simulate HITL Approval Queue">Simulate HITL Approval Queue</button>
+                  
+                  <div id="fdeHitlSimulationBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px;">
+                      <span style="font-size: 12px; font-weight: 700; color: #fff;">TX-9482 ($150.00 Refund Request)</span>
+                      <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;">Awaiting Supervisor Approval</span>
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">
+                      Trigger: Amount exceeds $100 automated ceiling. Customer: <code>cust_4920</code>.
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Approve & Dispatch">✓ Approve &amp; Dispatch</button>
+                      <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 6px; font-size: 11px; color: var(--error);" aria-label="Reject">✕ Reject</button>
+                    </div>
+                    <div id="lblHitlStatusResult" style="display: none; margin-top: 8px; font-size: 11px; font-weight: 700; text-align: center;"></div>
+                  </div>
+                </div>
                 </div>
               </div>
 
@@ -2031,14 +2066,49 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       Multi-cloud automated pilot deployment, comprehensive architecture runbooks, executive 5-minute presentation demo, and air-gapped commercial enterprise suite.
                     </p>
                   </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn" id="btnAdvancePhase6" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 6: DevOps & Git Hub">🌿 Advance to Phase 6: DevOps &amp; Git Hub ➔</button>
+                  </div>
                 </div>
 
+                <!-- PHASE 5 STEP NAVIGATION -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                  <div role="tablist" aria-label="Phase 5 deploy and influence steps" class="fde-step-rail" style="display: flex; gap: 6px; flex: 1; min-width: 0;">
+                    <button role="tab" id="btnP5StepA" data-step="1" aria-selected="true" aria-controls="p5StepAPanel" class="fde-step-btn active" aria-label="Step 5A of 4: Pre-Flight Health Auditor">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">5A</span>
+                      <span class="fde-step-label">Pre-Flight Health Auditor</span>
+                    </button>
+                    <button role="tab" id="btnP5StepB" data-step="2" aria-selected="false" aria-controls="p5StepBPanel" class="fde-step-btn" aria-label="Step 5B of 4: Cloud Deployment & CI/CD Hub">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">5B</span>
+                      <span class="fde-step-label">Cloud Deployment &amp; CI/CD Hub</span>
+                    </button>
+                    <button role="tab" id="btnP5StepC" data-step="3" aria-selected="false" aria-controls="p5StepCPanel" class="fde-step-btn" aria-label="Step 5C of 4: Runbook Factory & Executive Demo">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">5C</span>
+                      <span class="fde-step-label">Runbook Factory &amp; Demo</span>
+                    </button>
+                    <button role="tab" id="btnP5StepD" data-step="4" aria-selected="false" aria-controls="p5StepDPanel" class="fde-step-btn" aria-label="Step 5D of 4: Enterprise Suite & Compliance Engines">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">5D</span>
+                      <span class="fde-step-label">Enterprise Suite</span>
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-quick" id="btnP5StepPrev" style="font-size: 11px;" aria-label="Go to previous deploy step" disabled>← Back</button>
+                    <button class="btn-quick" id="btnP5StepNext" style="font-size: 11px; border-color: var(--accent); color: var(--accent);" aria-label="Go to next deploy step">Next →</button>
+                  </div>
+                </div>
+
+                <!-- 5A: PRE-FLIGHT HEALTH AUDITOR -->
+                <div id="p5StepAPanel" role="tabpanel" aria-labelledby="btnP5StepA">
                 <!-- Pre-Flight Health Auditor Card -->
                 <div style="background: var(--bg-primary); padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
                       <div style="font-weight: 700; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>🛡️</span> Pre-Flight Health Auditor (100% Deterministic)
+                        <span>🛡️</span> Section 5A: Pre-Flight Health Auditor (100% Deterministic)
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
                         Scans for dangling backup files, secret leaks, and .env parity with 0 network calls.
@@ -2053,7 +2123,10 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <button class="btn btn-secondary" id="btnCleanTempFilesExact" style="margin-top: 8px; font-size: 11px; padding: 4px 10px;" aria-label="Clean All Temporary Files">🧹 Clean All Temporary Files</button>
                   </div>
                 </div>
+                </div>
 
+                <!-- 5B: CLOUD DEPLOYMENT & CI/CD HUB -->
+                <div id="p5StepBPanel" role="tabpanel" aria-labelledby="btnP5StepB" style="display: none;">
                 <!-- Provider Selection Tabs -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
                   <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -2237,13 +2310,16 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <pre class="code-preview" id="cicdCodePreview" style="max-height: 220px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4;"></pre>
                   </div>
                 </div>
+                </div>
 
+                <!-- 5C: RUNBOOK FACTORY & DEMO -->
+                <div id="p5StepCPanel" role="tabpanel" aria-labelledby="btnP5StepC" style="display: none;">
                 <!-- Runbook Factory Section -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                     <div>
                       <h4 style="margin: 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>📑</span> Client Handoff &amp; Runbook Factory
+                        <span>📑</span> Section 5C: Client Handoff &amp; Runbook Factory
                       </h4>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
                         Auto-generate architecture blueprints, deployment runbooks, data dictionaries, and executive handoff packages.
@@ -2285,12 +2361,15 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <pre class="code-preview" id="p4CodePreview" style="margin: 0; background: transparent; padding: 4px; font-family: monospace; font-size: 11px; color: #d4d4d4; max-height: 240px; overflow-y: auto; white-space: pre-wrap;"></pre>
                   </div>
                 </div>
+                </div>
 
+                <!-- 5D: ENTERPRISE SUITE & COMPLIANCE ENGINES -->
+                <div id="p5StepDPanel" role="tabpanel" aria-labelledby="btnP5StepD" style="display: none;">
                 <!-- Complete Enterprise Commercial Suite Modules -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <div style="font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                      <span>💎</span> Enterprise Commercial Suite &amp; Compliance Engines
+                      <span>💎</span> Section 5D: Enterprise Commercial Suite &amp; Compliance Engines
                     </div>
                     <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); font-size: 9.5px;">SOC2 / HIPAA AIR-GAPPED</span>
                   </div>
@@ -2304,6 +2383,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <button class="btn-quick" id="btnRunLoadTest" style="font-size: 10.5px; padding: 5px;" aria-label="SLA Load Testing">⚡ SLA Load Testing</button>
                     <button class="btn-quick" id="btnRunDataQuality" style="font-size: 10.5px; padding: 5px;" aria-label="Data Quality Gates">🧪 Data Quality Gates</button>
                   </div>
+                </div>
                 </div>
               </div>
 
