@@ -10,5 +10,5 @@
     "sourceMap": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"]
   },
-  "exclude": ["node_modules", ".vscode-test"]
+  "exclude": ["node_modules", ".vscode-test", "src/mcp", "src/solution"]
 }

@@ -4756,6 +4756,7 @@ function setupDeliveryStudio(api: any): void {
   let committedProjectTargetLevel = 1;
   let activeLadderSubTab = 'overview';
   let activeDomainLens = 'all';
+  let refreshP3Rail: () => void = () => {};
 
   interface GateChecklistItem {
     label: string;
@@ -5677,6 +5678,7 @@ export class SwarmOrchestrator {
         btnSetProjectTarget.style.border = 'none';
       }
     }
+    refreshP3Rail();
   };
 
   const renderDomainUseCases = (meta: LadderLevelMeta, domain: string) => {
@@ -6029,6 +6031,8 @@ export class SwarmOrchestrator {
     if (lblCode) lblCode.textContent = res.codeSnippet || res.scaffoldedCode;
 
     showToast(`✓ Evaluated Gate: ${res.paradigm}`);
+    hasEvaluatedRuleModelGate = true;
+    refreshP3Rail();
   });
 
   document.getElementById('btnSaveRuleGateToProject')?.addEventListener('click', async () => {
@@ -6039,6 +6043,8 @@ export class SwarmOrchestrator {
     } else {
       showToast('💾 Saved Decision Gate to project');
     }
+    hasEvaluatedRuleModelGate = true;
+    refreshP3Rail();
   });
 
   // 3C. Scaffold Air-Gapped Policy RAG
@@ -6062,6 +6068,8 @@ export class GroundedPolicyRag {
       ragBox.innerText = code;
     }
     showToast(`✓ Policy RAG Pipeline scaffolded in src/rag/`);
+    hasScaffoldedRagOrMcp = true;
+    refreshP3Rail();
   });
 
   // 3D. Scaffold MCP Server
@@ -6080,7 +6088,67 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       mcpBox.innerText = code;
     }
     showToast('✓ MCP Tool Server scaffolded in src/mcp/server.ts');
+    hasScaffoldedRagOrMcp = true;
+    refreshP3Rail();
   });
+
+  // --- Phase 3 Step Rail Navigation (3A -> 3B -> 3C) ---
+  let currentP3Step = 1;
+  let hasEvaluatedRuleModelGate = false;
+  let hasScaffoldedRagOrMcp = false;
+
+  const p3StepIsDone = (step: number) => {
+    if (step === 1) return committedProjectTargetLevel > 0;
+    if (step === 2) return hasEvaluatedRuleModelGate;
+    if (step === 3) return hasScaffoldedRagOrMcp;
+    return false;
+  };
+
+  refreshP3Rail = () => {
+    [1, 2, 3].forEach(i => {
+      const btnId = i === 1 ? 'btnP3StepA' : i === 2 ? 'btnP3StepB' : 'btnP3StepC';
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const done = p3StepIsDone(i);
+      btn.classList.toggle('active', i === currentP3Step);
+      btn.classList.toggle('done', done && i !== currentP3Step);
+      btn.setAttribute('aria-selected', String(i === currentP3Step));
+      const dot = btn.querySelector('.fde-step-dot') as HTMLElement | null;
+      if (dot) {
+        dot.textContent = done ? '●' : '○';
+        dot.style.color = done ? 'var(--success)' : 'var(--text-muted)';
+      }
+    });
+    const prev = document.getElementById('btnP3StepPrev') as HTMLButtonElement | null;
+    const next = document.getElementById('btnP3StepNext') as HTMLButtonElement | null;
+    if (prev) prev.disabled = currentP3Step === 1;
+    if (next) next.textContent = currentP3Step === 3 ? 'Advance to Phase 4 ➔' : 'Next →';
+  };
+
+  const goToP3Step = (step: number) => {
+    if (step > 3) {
+      document.getElementById('btnAdvancePhase4')?.click();
+      return;
+    }
+    currentP3Step = Math.min(3, Math.max(1, step));
+    const a = document.getElementById('p3StepAPanel');
+    const b = document.getElementById('p3StepBPanel');
+    const c = document.getElementById('p3StepCPanel');
+    if (a) { a.style.display = currentP3Step === 1 ? 'block' : 'none'; a.hidden = currentP3Step !== 1; }
+    if (b) { b.style.display = currentP3Step === 2 ? 'block' : 'none'; b.hidden = currentP3Step !== 2; }
+    if (c) { c.style.display = currentP3Step === 3 ? 'block' : 'none'; c.hidden = currentP3Step !== 3; }
+    refreshP3Rail();
+    const card = document.getElementById('phase3Card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  document.getElementById('btnP3StepA')?.addEventListener('click', () => goToP3Step(1));
+  document.getElementById('btnP3StepB')?.addEventListener('click', () => goToP3Step(2));
+  document.getElementById('btnP3StepC')?.addEventListener('click', () => goToP3Step(3));
+  document.getElementById('btnP3StepPrev')?.addEventListener('click', () => goToP3Step(currentP3Step - 1));
+  document.getElementById('btnP3StepNext')?.addEventListener('click', () => goToP3Step(currentP3Step + 1));
+
+  refreshP3Rail();
 
   // ==========================================
   // PHASE 4: RELIABILITY & EVALS HANDLERS

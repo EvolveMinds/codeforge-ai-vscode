@@ -1436,6 +1436,32 @@
                   </div>
                 </div>
 
+                <!-- PHASE 3 STEP NAVIGATION -->
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+                  <div role="tablist" aria-label="Phase 3 AI solutioning steps" class="fde-step-rail" style="display: flex; gap: 6px; flex: 1; min-width: 0;">
+                    <button role="tab" id="btnP3StepA" data-step="1" aria-selected="true" aria-controls="p3StepAPanel" class="fde-step-btn active" aria-label="Step 3A of 3: FDE 1-5 Capability Ladder & Architecture Target">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">3A</span>
+                      <span class="fde-step-label">1–5 Capability Ladder &amp; Target</span>
+                    </button>
+                    <button role="tab" id="btnP3StepB" data-step="2" aria-selected="false" aria-controls="p3StepBPanel" class="fde-step-btn" aria-label="Step 3B of 3: Rule vs Model Decision Gate Evaluator">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">3B</span>
+                      <span class="fde-step-label">Rule vs. Model Decision Gate</span>
+                    </button>
+                    <button role="tab" id="btnP3StepC" data-step="3" aria-selected="false" aria-controls="p3StepCPanel" class="fde-step-btn" aria-label="Step 3C of 3: Policy RAG & MCP Tool Scaffolder">
+                      <span class="fde-step-dot" aria-hidden="true">○</span>
+                      <span class="fde-step-num">3C</span>
+                      <span class="fde-step-label">Policy RAG &amp; MCP Scaffolder</span>
+                    </button>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-quick" id="btnP3StepPrev" style="font-size: 11px;" aria-label="Go to the previous solutioning step" disabled>← Back</button>
+                    <button class="btn-quick" id="btnP3StepNext" style="font-size: 11px; border-color: var(--accent); color: var(--accent);" aria-label="Go to the next solutioning step">Next →</button>
+                  </div>
+                </div>
+
+                <div id="p3StepAPanel" role="tabpanel" aria-labelledby="btnP3StepA">
                 <!-- 3A: FDE 1-5 CAPABILITY LADDER & ARCHITECTURE DELIVERY TARGET -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
@@ -1744,8 +1770,10 @@
                     </div>
                   </div>
                 </div>
+                </div>
 
                 <!-- 3B: INTERACTIVE RULE VS MODEL EVALUATOR -->
+                <div id="p3StepBPanel" role="tabpanel" aria-labelledby="btnP3StepB" style="display: none;">
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <div style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
@@ -1801,8 +1829,10 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     </div>
                   </div>
                 </div>
+                </div>
 
                 <!-- 3C: AIR-GAPPED HYBRID POLICY RAG & MCP SCAFFOLDER -->
+                <div id="p3StepCPanel" role="tabpanel" aria-labelledby="btnP3StepC" style="display: none;">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
                   <!-- RAG Scaffolder -->
                   <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
@@ -1843,6 +1873,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <button class="btn" id="btnScaffoldMcpServer" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Scaffold MCP Tool Server">Scaffold MCP Tool Server</button>
                     <div id="p3McpResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;"></div>
                   </div>
+                </div>
                 </div>
               </div>
 
