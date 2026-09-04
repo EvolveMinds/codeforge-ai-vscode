@@ -6196,6 +6196,424 @@ export class SwarmOrchestrator {
     refreshP3Rail();
   };
 
+  interface PipelineTopologyStage {
+    title: string;
+    branches: Array<{ condition: string; target: string }>;
+    subNodes: string[];
+  }
+
+  const parseTopologyToStages = (ascii: string): PipelineTopologyStage[] => {
+    const lines = (ascii || '').split('\n');
+    const stages: PipelineTopologyStage[] = [];
+    let currentStage: PipelineTopologyStage | null = null;
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      const isConnectorOnly = /^([│|▼v]|├───|└───|─+►?|\s+)+$/.test(line);
+      const bracketMatches = [...line.matchAll(/\[(.*?)\]/g)].map(m => m[1]);
+      const isBranch = line.includes('├──') || line.includes('└──') || line.startsWith('|--') || line.startsWith('\\--');
+
+      if (isBranch) {
+        let condition = '';
+        let target = '';
+
+        if (bracketMatches.length >= 2) {
+          condition = bracketMatches[0];
+          target = bracketMatches[1];
+        } else if (bracketMatches.length === 1) {
+          target = bracketMatches[0];
+          const beforeBracket = line.substring(0, line.indexOf('['));
+          condition = beforeBracket.replace(/[├└│─|\-►>]+/g, '').trim();
+        }
+
+        if (target) {
+          if (!currentStage) {
+            currentStage = { title: 'Pipeline Ingress', branches: [], subNodes: [] };
+            stages.push(currentStage);
+          }
+          currentStage.branches.push({ condition, target });
+        }
+      } else if (bracketMatches.length > 0 && !isConnectorOnly) {
+        if (bracketMatches.length === 1) {
+          currentStage = {
+            title: bracketMatches[0],
+            branches: [],
+            subNodes: []
+          };
+          stages.push(currentStage);
+        } else if (bracketMatches.length >= 2) {
+          currentStage = {
+            title: bracketMatches[0],
+            branches: [{ condition: '', target: bracketMatches[1] }],
+            subNodes: bracketMatches.slice(1)
+          };
+          stages.push(currentStage);
+        }
+      }
+    }
+
+    return stages;
+  };
+
+  const renderVisualPipelineFlowHtml = (ascii: string): string => {
+    const stages = parseTopologyToStages(ascii);
+    if (stages.length === 0) {
+      return `<div style="font-family: monospace; font-size: 10px; color: #9cdcfe; white-space: pre-wrap; padding: 6px;">${escapeHtml(ascii || 'No topology defined.')}</div>`;
+    }
+
+    let html = '<div class="visual-pipeline-flow" style="display: flex; flex-direction: column; gap: 6px; padding: 4px 2px;">';
+
+    stages.forEach((stage, idx) => {
+      const isFirst = idx === 0;
+      let badgeText = 'STAGE ' + (idx + 1);
+      let badgeBg = 'rgba(129, 140, 248, 0.2)';
+      let badgeColor = '#818cf8';
+      let cardBorder = 'rgba(129, 140, 248, 0.4)';
+
+      const lower = stage.title.toLowerCase();
+      if (isFirst || lower.includes('ingress') || lower.includes('request') || lower.includes('query') || lower.includes('payload') || lower.includes('alert') || lower.includes('cart')) {
+        badgeText = '📥 INGRESS';
+        badgeBg = 'rgba(56, 189, 248, 0.2)';
+        badgeColor = '#38bdf8';
+        cardBorder = 'rgba(56, 189, 248, 0.5)';
+      } else if (lower.includes('gate') || lower.includes('validator') || lower.includes('rule') || lower.includes('ceiling')) {
+        badgeText = '🛡️ DETERMINISTIC GATE';
+        badgeBg = 'rgba(74, 222, 128, 0.2)';
+        badgeColor = '#4ade80';
+        cardBorder = 'rgba(74, 222, 128, 0.5)';
+      } else if (lower.includes('router') || lower.includes('classifier')) {
+        badgeText = '🧭 SEMANTIC ROUTER';
+        badgeBg = 'rgba(96, 165, 250, 0.2)';
+        badgeColor = '#60a5fa';
+        cardBorder = 'rgba(96, 165, 250, 0.5)';
+      } else if (lower.includes('rag') || lower.includes('retrieval') || lower.includes('search')) {
+        badgeText = '📚 GROUNDED RAG';
+        badgeBg = 'rgba(52, 211, 153, 0.2)';
+        badgeColor = '#34d399';
+        cardBorder = 'rgba(52, 211, 153, 0.5)';
+      } else if (lower.includes('agent') || lower.includes('mcp') || lower.includes('tool')) {
+        badgeText = '⚡ TOOL AGENT';
+        badgeBg = 'rgba(251, 191, 36, 0.2)';
+        badgeColor = '#fbbf24';
+        cardBorder = 'rgba(251, 191, 36, 0.5)';
+      } else if (lower.includes('swarm') || lower.includes('orchestrator') || lower.includes('state machine')) {
+        badgeText = '🐝 MULTI-AGENT SWARM';
+        badgeBg = 'rgba(192, 132, 252, 0.2)';
+        badgeColor = '#c084fc';
+        cardBorder = 'rgba(192, 132, 252, 0.5)';
+      }
+
+      html += `
+        <div class="pipeline-flow-node" style="background: #141414; border: 1.5px solid ${cardBorder}; border-radius: 6px; padding: 8px 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+            <span style="font-size: 9px; font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; padding: 1px 5px; border-radius: 3px; letter-spacing: 0.5px;">${badgeText}</span>
+            <span style="font-size: 9px; color: var(--text-secondary); font-family: monospace;">Step ${idx + 1}</span>
+          </div>
+          <div style="font-size: 11px; font-weight: 700; color: #fff; line-height: 1.35;">${escapeHtml(stage.title)}</div>
+      `;
+
+      if (stage.branches.length > 0) {
+        html += '<div style="margin-top: 6px; display: flex; flex-direction: column; gap: 5px;">';
+        stage.branches.forEach(b => {
+          const bLower = (b.condition + ' ' + b.target).toLowerCase();
+          let bColor = '#38bdf8';
+          let bBg = 'rgba(56, 189, 248, 0.1)';
+          let bBorder = 'rgba(56, 189, 248, 0.3)';
+
+          if (bLower.includes('valid') || bLower.includes('pass') || bLower.includes('>=') || bLower.includes('high intent') || bLower.includes('commit') || bLower.includes('success')) {
+            bColor = '#4ade80';
+            bBg = 'rgba(74, 222, 128, 0.12)';
+            bBorder = 'rgba(74, 222, 128, 0.35)';
+          } else if (bLower.includes('failed') || bLower.includes('reject') || bLower.includes('<') || bLower.includes('error') || bLower.includes('stop') || bLower.includes('escalat') || bLower.includes('hitl') || bLower.includes('🛑')) {
+            bColor = '#f87171';
+            bBg = 'rgba(248, 113, 113, 0.12)';
+            bBorder = 'rgba(248, 113, 113, 0.35)';
+          }
+
+          html += `
+            <div style="display: flex; align-items: flex-start; gap: 6px; background: ${bBg}; border: 1px solid ${bBorder}; border-radius: 4px; padding: 5px 7px;">
+              <span style="color: ${bColor}; font-weight: 700; font-size: 9.5px; margin-top: 1px;">➔</span>
+              <div style="flex: 1;">
+                ${b.condition ? `<div style="font-size: 9px; font-weight: 700; color: ${bColor}; text-transform: uppercase; margin-bottom: 2px;">Condition: ${escapeHtml(b.condition)}</div>` : ''}
+                <div style="font-size: 10.5px; color: #fff; font-weight: 600;">${escapeHtml(b.target)}</div>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+      }
+
+      html += '</div>';
+
+      if (idx < stages.length - 1) {
+        html += `
+          <div style="display: flex; justify-content: center; align-items: center; height: 14px; margin: -1px 0;">
+            <span style="color: var(--accent); font-size: 12px; opacity: 0.85;">↓</span>
+          </div>
+        `;
+      }
+    });
+
+    html += '</div>';
+    return html;
+  };
+
+  const convertTopologyToMermaid = (ascii: string): string => {
+    const stages = parseTopologyToStages(ascii);
+    if (stages.length === 0) {
+      return 'flowchart TD\n  Start["Ingress"] --> EndNode["Execution"]';
+    }
+
+    let mermaid = 'flowchart TD\n';
+    const cleanId = (str: string) => 'node_' + str.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 24);
+
+    stages.forEach((stage, idx) => {
+      const stageId = `S${idx + 1}_` + cleanId(stage.title);
+      const cleanTitle = stage.title.replace(/"/g, "'");
+      mermaid += `  ${stageId}["${cleanTitle}"]\n`;
+
+      if (stage.branches.length > 0) {
+        stage.branches.forEach((b, bIdx) => {
+          const branchId = `B${idx + 1}_${bIdx + 1}_` + cleanId(b.target);
+          const cleanTarget = b.target.replace(/"/g, "'");
+          const cleanCond = b.condition ? b.condition.replace(/"/g, "'") : '';
+
+          mermaid += `  ${branchId}["${cleanTarget}"]\n`;
+          if (cleanCond) {
+            mermaid += `  ${stageId} -- "${cleanCond}" --> ${branchId}\n`;
+          } else {
+            mermaid += `  ${stageId} --> ${branchId}\n`;
+          }
+        });
+      }
+
+      if (idx < stages.length - 1 && stage.branches.length === 0) {
+        const nextStageId = `S${idx + 2}_` + cleanId(stages[idx + 1].title);
+        mermaid += `  ${stageId} --> ${nextStageId}\n`;
+      }
+    });
+
+    return mermaid;
+  };
+
+  let topologyNormalViewMode: 'visual' | 'ascii' = 'visual';
+  let topologyPreviewMode: 'visual' | 'mermaid' | 'ascii' = 'visual';
+
+  const updateTopologyNormalDisplay = (ascii: string) => {
+    const visualBox = document.getElementById('pipelineVisualGraphDisplay');
+    const asciiBox = document.getElementById('lblLadderPipelineDiagram');
+    const btnVisual = document.getElementById('btnTopologyNormalVisual');
+    const btnAscii = document.getElementById('btnTopologyNormalAscii');
+
+    if (visualBox) {
+      visualBox.innerHTML = renderVisualPipelineFlowHtml(ascii);
+      visualBox.style.display = topologyNormalViewMode === 'visual' ? 'block' : 'none';
+    }
+    if (asciiBox) {
+      asciiBox.textContent = ascii;
+      asciiBox.style.display = topologyNormalViewMode === 'ascii' ? 'block' : 'none';
+    }
+    if (btnVisual) btnVisual.classList.toggle('active', topologyNormalViewMode === 'visual');
+    if (btnAscii) btnAscii.classList.toggle('active', topologyNormalViewMode === 'ascii');
+  };
+
+  const updateTopologyEditorLivePreview = (ascii: string) => {
+    const liveBox = document.getElementById('liveTopologyPreviewBox');
+    if (!liveBox) return;
+
+    if (topologyPreviewMode === 'visual') {
+      liveBox.innerHTML = renderVisualPipelineFlowHtml(ascii);
+    } else if (topologyPreviewMode === 'mermaid') {
+      liveBox.innerHTML = `<pre style="margin:0; font-family:monospace; font-size:10px; color:#9cdcfe; white-space:pre-wrap;">${escapeHtml(convertTopologyToMermaid(ascii))}</pre>`;
+    } else {
+      liveBox.innerHTML = `<pre style="margin:0; font-family:monospace; font-size:10px; color:#9cdcfe; white-space:pre-wrap;">${escapeHtml(ascii)}</pre>`;
+    }
+
+    document.getElementById('btnTopologyPreviewVisual')?.classList.toggle('active', topologyPreviewMode === 'visual');
+    document.getElementById('btnTopologyPreviewMermaid')?.classList.toggle('active', topologyPreviewMode === 'mermaid');
+    document.getElementById('btnTopologyPreviewAscii')?.classList.toggle('active', topologyPreviewMode === 'ascii');
+  };
+
+  const generateArchitectureDocumentationMarkdown = (level: number, domain: string): string => {
+    const meta = ladderTemplates[level] || ladderTemplates[1];
+    const customIndustriesForLevel = customIndustryLenses[level] || {};
+    const customLens = customIndustriesForLevel[domain];
+
+    let industryName = 'Cross-Industry Standard';
+    let industryEmoji = '🌐';
+    let whatItDoes = meta.whatItDoes;
+    let useCases = meta.useCases;
+    let pipeline = meta.pipelineDiagram;
+    let whenNotToUse = meta.whenNotToUse;
+
+    if (customLens) {
+      industryName = customLens.name;
+      industryEmoji = customLens.emoji;
+      whatItDoes = customLens.whatItDoes;
+      useCases = customLens.useCases;
+      pipeline = customLens.pipeline;
+      if (customLens.whenNotToUse) whenNotToUse = customLens.whenNotToUse;
+    } else if (domain !== 'all' && meta.domainUseCases && meta.domainUseCases[domain]) {
+      const d = meta.domainUseCases[domain];
+      const domainNames: Record<string, { emoji: string; name: string }> = {
+        finance: { emoji: '💰', name: 'FinOps & Banking' },
+        healthcare: { emoji: '🏥', name: 'Health & Life Sciences' },
+        supply: { emoji: '📦', name: 'Supply Chain & ERP' },
+        fraud: { emoji: '🛡️', name: 'Fraud & Risk/AML' },
+        support: { emoji: '🎧', name: 'Customer Operations' }
+      };
+      const info = domainNames[domain] || { emoji: '🏢', name: domain };
+      industryName = info.name;
+      industryEmoji = info.emoji;
+      whatItDoes = d.whatItDoes;
+      useCases = d.useCases;
+      pipeline = d.pipeline;
+    }
+
+    const topoKey = `${level}_${domain}`;
+    if (customPipelineTopologies[topoKey]) {
+      pipeline = customPipelineTopologies[topoKey];
+    }
+
+    const includeMermaid = (document.getElementById('chkDocIncludeMermaid') as HTMLInputElement)?.checked ?? true;
+    const includeAscii = (document.getElementById('chkDocIncludeAscii') as HTMLInputElement)?.checked ?? true;
+    const includeGate = (document.getElementById('chkDocIncludeGate') as HTMLInputElement)?.checked ?? true;
+    const includeSla = (document.getElementById('chkDocIncludeSla') as HTMLInputElement)?.checked ?? true;
+
+    const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+
+    let md = `## Level ${level}: ${meta.title} — ${industryEmoji} ${industryName} Specification\n\n`;
+    md += `> **Architecture Status:** Verified for Production Handoff  \n`;
+    md += `> **Last Updated:** ${dateStr}  \n`;
+    md += `> **Reference Code:** \`${meta.filePath}\`\n\n`;
+
+    if (includeSla) {
+      md += `### 📊 Architectural SLAs & Unit Economics\n\n`;
+      md += `| Metric | Contract Specification | Verification Target |\n`;
+      md += `| :--- | :--- | :--- |\n`;
+      md += `| **Latency SLA** | \`${meta.latency}\` | P99 Ingress to Egress |\n`;
+      md += `| **Token Economics** | \`${meta.cost}\` | Marginal Cost per Interaction |\n`;
+      md += `| **Hallucination SLA** | \`${meta.hallucinationSla}\` | Zero Drift Guarantee |\n`;
+      md += `| **Governance Boundary** | \`${meta.governance}\` | Statutory Compliance Gate |\n`;
+      md += `| **HITL Threshold** | \`${meta.hitlTrigger}\` | Mandatory Human Escalation Trigger |\n\n`;
+    }
+
+    md += `### 🎯 Architectural Purpose & Invariants\n\n${whatItDoes}\n\n`;
+
+    md += `### 💼 Verified Production Use Cases (${industryName})\n\n`;
+    useCases.forEach(u => {
+      md += `- ${u}\n`;
+    });
+    md += `\n`;
+
+    md += `### ⚙️ Execution Pipeline Topology\n\n`;
+    if (includeMermaid) {
+      md += `#### Visual Pipeline Flowchart\n\`\`\`mermaid\n${convertTopologyToMermaid(pipeline)}\n\`\`\`\n\n`;
+    }
+    if (includeAscii) {
+      md += `#### Topology ASCII Specification\n\`\`\`text\n${pipeline}\n\`\`\`\n\n`;
+    }
+
+    if (includeGate && meta.gateChecklist && meta.gateChecklist.length > 0) {
+      md += `### 📋 Level ${level} Delivery Acceptance Quality Gate\n\n`;
+      meta.gateChecklist.forEach(item => {
+        md += `- [x] **${item.label}:** ${item.detail}\n`;
+      });
+      md += `\n`;
+    }
+
+    md += `### ⚠️ When NOT to Use This Architecture Level\n\n${whenNotToUse}\n\n`;
+    md += `---\n*Generated by Evolve AI Forward-Deployed Engineering Studio*\n`;
+
+    return md;
+  };
+
+  const saveArchitectureDocToWorkspace = async (targetMode: string) => {
+    const mdContent = generateArchitectureDocumentationMarkdown(selectedLadderLevel, activeDomainLens);
+
+    if (targetMode === 'clipboard_md') {
+      await navigator.clipboard.writeText(mdContent);
+      showToast('📋 Copied complete Architecture Markdown to clipboard!');
+      return;
+    }
+
+    if (targetMode === 'clipboard_mermaid') {
+      const pipelineText = document.getElementById('lblLadderPipelineDiagram')?.textContent || '';
+      const mermaidCode = convertTopologyToMermaid(pipelineText);
+      await navigator.clipboard.writeText(mermaidCode);
+      showToast('📋 Copied Mermaid Flowchart code to clipboard!');
+      return;
+    }
+
+    try {
+      const ws = api?.workspace?.getCurrent ? await api.workspace.getCurrent() : null;
+      if (!ws || !ws.path) {
+        // Fallback: download as .md file
+        const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = targetMode === 'standalone_file' ? `level_${selectedLadderLevel}_${activeDomainLens}_spec.md` : 'ARCHITECTURE.md';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('📥 Downloaded architecture specification markdown!');
+        return;
+      }
+
+      if (targetMode === 'standalone_file') {
+        const outDir = ws.path + '/docs/architecture';
+        const fileName = `level_${selectedLadderLevel}_${activeDomainLens}_spec.md`;
+        const fullPath = `${outDir}/${fileName}`;
+        try {
+          await api.workspace.createDir(outDir);
+        } catch (_) {}
+        await api.workspace.createFile(fullPath, mdContent);
+        showToast(`✓ Saved specification to docs/architecture/${fileName}!`);
+      } else {
+        // docs/ARCHITECTURE.md
+        const archPath = ws.path + '/docs/ARCHITECTURE.md';
+        let existing = '';
+        try {
+          existing = await api.workspace.readFile(archPath);
+        } catch (_) {
+          existing = '';
+        }
+
+        const sectionHeader = `## Level ${selectedLadderLevel}:`;
+        let newContent = '';
+
+        if (existing.includes(sectionHeader)) {
+          const startIdx = existing.indexOf(sectionHeader);
+          const nextSectionIdx = existing.indexOf('\n## Level ', startIdx + sectionHeader.length);
+          if (nextSectionIdx !== -1) {
+            newContent = existing.substring(0, startIdx) + mdContent + '\n' + existing.substring(nextSectionIdx);
+          } else {
+            newContent = existing.substring(0, startIdx) + mdContent;
+          }
+        } else if (existing.trim()) {
+          newContent = existing.trimEnd() + '\n\n---\n\n' + mdContent;
+        } else {
+          newContent = `# Project Architecture Specifications\n\n${mdContent}`;
+        }
+
+        await api.workspace.writeFile(archPath, newContent);
+        showToast(`✓ Successfully updated docs/ARCHITECTURE.md with Level ${selectedLadderLevel} spec!`);
+      }
+    } catch (e) {
+      console.error('Error saving architecture doc:', e);
+      const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `level_${selectedLadderLevel}_${activeDomainLens}_spec.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('✓ Exported architecture specification markdown!');
+    }
+  };
+
   const renderCustomIndustryButtons = () => {
     const container = document.getElementById('ladderCustomIndustryButtonsContainer');
     if (!container) return;
@@ -6269,11 +6687,13 @@ export class SwarmOrchestrator {
     const customIndustriesForLevel = customIndustryLenses[selectedLadderLevel] || {};
     const customLens = customIndustriesForLevel[domain];
 
+    let pipelineContent = meta.pipelineDiagram;
+
     if (customLens) {
       if (headerEl) headerEl.textContent = `${customLens.emoji} ${customLens.name} Use Cases:`;
       if (useCasesUl) useCasesUl.innerHTML = customLens.useCases.map(u => `<li>${escapeHtml(u)}</li>`).join('');
       if (whatEl) whatEl.textContent = customLens.whatItDoes;
-      if (pipelineEl) pipelineEl.textContent = customLens.pipeline;
+      if (customLens.pipeline) pipelineContent = customLens.pipeline;
       if (whenNotToUseEl && customLens.whenNotToUse) whenNotToUseEl.textContent = customLens.whenNotToUse;
       if (btnResetIndustry) btnResetIndustry.style.display = 'inline-block';
     } else {
@@ -6281,12 +6701,12 @@ export class SwarmOrchestrator {
 
       if (domain === 'all' || !meta.domainUseCases || !meta.domainUseCases[domain]) {
         if (useCasesUl) useCasesUl.innerHTML = meta.useCases.map(u => `<li>${escapeHtml(u)}</li>`).join('');
-        if (pipelineEl) pipelineEl.textContent = meta.pipelineDiagram;
+        pipelineContent = meta.pipelineDiagram;
         if (whatEl) whatEl.textContent = meta.whatItDoes;
       } else {
         const dMeta = meta.domainUseCases[domain];
         if (useCasesUl) useCasesUl.innerHTML = dMeta.useCases.map(u => `<li>${escapeHtml(u)}</li>`).join('');
-        if (pipelineEl) pipelineEl.textContent = dMeta.pipeline;
+        if (dMeta.pipeline) pipelineContent = dMeta.pipeline;
         if (whatEl) whatEl.textContent = dMeta.whatItDoes;
       }
       if (whenNotToUseEl) whenNotToUseEl.textContent = meta.whenNotToUse;
@@ -6296,11 +6716,14 @@ export class SwarmOrchestrator {
     // Check custom pipeline topology override
     const topoKey = `${selectedLadderLevel}_${domain}`;
     if (customPipelineTopologies[topoKey]) {
-      if (pipelineEl) pipelineEl.textContent = customPipelineTopologies[topoKey];
+      pipelineContent = customPipelineTopologies[topoKey];
       if (btnResetPipeline) btnResetPipeline.style.display = 'inline-block';
     } else {
       if (btnResetPipeline) btnResetPipeline.style.display = 'none';
     }
+
+    if (pipelineEl) pipelineEl.textContent = pipelineContent;
+    updateTopologyNormalDisplay(pipelineContent);
 
     renderCustomIndustryButtons();
   };
@@ -7772,43 +8195,90 @@ export interface SecurityGateSpec {
   });
 
   // ==========================================
-  // Execution Pipeline Topology Editor Handlers
+  // Execution Pipeline Topology & Visual Flow Handlers
   // ==========================================
+  // Normal Display View Mode Switcher
+  document.getElementById('btnTopologyNormalVisual')?.addEventListener('click', () => {
+    topologyNormalViewMode = 'visual';
+    const curDiagram = document.getElementById('lblLadderPipelineDiagram')?.textContent || '';
+    updateTopologyNormalDisplay(curDiagram);
+  });
+
+  document.getElementById('btnTopologyNormalAscii')?.addEventListener('click', () => {
+    topologyNormalViewMode = 'ascii';
+    const curDiagram = document.getElementById('lblLadderPipelineDiagram')?.textContent || '';
+    updateTopologyNormalDisplay(curDiagram);
+  });
+
+  // Editor Live Preview Mode Switchers
+  document.getElementById('btnTopologyPreviewVisual')?.addEventListener('click', () => {
+    topologyPreviewMode = 'visual';
+    const txt = (document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement)?.value || '';
+    updateTopologyEditorLivePreview(txt);
+  });
+
+  document.getElementById('btnTopologyPreviewMermaid')?.addEventListener('click', () => {
+    topologyPreviewMode = 'mermaid';
+    const txt = (document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement)?.value || '';
+    updateTopologyEditorLivePreview(txt);
+  });
+
+  document.getElementById('btnTopologyPreviewAscii')?.addEventListener('click', () => {
+    topologyPreviewMode = 'ascii';
+    const txt = (document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement)?.value || '';
+    updateTopologyEditorLivePreview(txt);
+  });
+
+  // 1-Click Copy Mermaid from Editor
+  document.getElementById('btnCopyTopologyMermaid')?.addEventListener('click', async () => {
+    const txt = (document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement)?.value || '';
+    const mermaid = convertTopologyToMermaid(txt);
+    try {
+      await navigator.clipboard.writeText(mermaid);
+      showToast('📋 Copied Mermaid flowchart code to clipboard!');
+    } catch (e) {
+      console.error('Failed to copy mermaid code', e);
+    }
+  });
+
+  // Open Topology Editor
   document.getElementById('btnEditPipelineTopology')?.addEventListener('click', () => {
     const displayBox = document.getElementById('pipelineDiagramDisplayBox');
     const editorBox = document.getElementById('boxPipelineTopologyEditor');
     const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
-    const preview = document.getElementById('liveTopologyPreviewBox');
     const curDiagram = document.getElementById('lblLadderPipelineDiagram')?.textContent || '';
 
     if (editorBox && displayBox && txt) {
       displayBox.style.display = 'none';
       editorBox.style.display = 'block';
       txt.value = curDiagram;
-      if (preview) preview.textContent = curDiagram;
+      updateTopologyEditorLivePreview(curDiagram);
       txt.focus();
     }
   });
 
+  // Live Preview as user types
   document.getElementById('txtPipelineTopologyEditor')?.addEventListener('input', () => {
     const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
-    const preview = document.getElementById('liveTopologyPreviewBox');
-    if (preview && txt) {
-      preview.textContent = txt.value;
+    if (txt) {
+      updateTopologyEditorLivePreview(txt.value);
     }
   });
 
+  // Preset Selection in Editor
   document.getElementById('selTopologyPreset')?.addEventListener('change', () => {
     const sel = document.getElementById('selTopologyPreset') as HTMLSelectElement;
     const patternKey = sel?.value;
     if (patternKey && pipelineTopologyPresets[patternKey]) {
       const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
-      const preview = document.getElementById('liveTopologyPreviewBox');
-      if (txt) txt.value = pipelineTopologyPresets[patternKey];
-      if (preview && txt) preview.textContent = txt.value;
+      if (txt) {
+        txt.value = pipelineTopologyPresets[patternKey];
+        updateTopologyEditorLivePreview(txt.value);
+      }
     }
   });
 
+  // Cancel Editor
   document.getElementById('btnCancelEditPipelineTopology')?.addEventListener('click', () => {
     const displayBox = document.getElementById('pipelineDiagramDisplayBox');
     const editorBox = document.getElementById('boxPipelineTopologyEditor');
@@ -7816,17 +8286,17 @@ export interface SecurityGateSpec {
     if (displayBox) displayBox.style.display = 'block';
   });
 
+  // Save Editor
   document.getElementById('btnSaveEditPipelineTopology')?.addEventListener('click', () => {
     const displayBox = document.getElementById('pipelineDiagramDisplayBox');
     const editorBox = document.getElementById('boxPipelineTopologyEditor');
     const txt = document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement;
-    const diagramEl = document.getElementById('lblLadderPipelineDiagram');
     const btnResetPipeline = document.getElementById('btnResetPipelineTopology');
 
     if (txt) {
       const topoKey = `${selectedLadderLevel}_${activeDomainLens}`;
       customPipelineTopologies[topoKey] = txt.value;
-      if (diagramEl) diagramEl.textContent = txt.value;
+      updateTopologyNormalDisplay(txt.value);
       if (btnResetPipeline) btnResetPipeline.style.display = 'inline-block';
       if (editorBox) editorBox.style.display = 'none';
       if (displayBox) displayBox.style.display = 'block';
@@ -7834,6 +8304,7 @@ export interface SecurityGateSpec {
     }
   });
 
+  // Reset Topology to Default
   document.getElementById('btnResetPipelineTopology')?.addEventListener('click', () => {
     const topoKey = `${selectedLadderLevel}_${activeDomainLens}`;
     if (customPipelineTopologies[topoKey]) {
@@ -7842,6 +8313,66 @@ export interface SecurityGateSpec {
     const meta = ladderTemplates[selectedLadderLevel] || ladderTemplates[1];
     renderDomainUseCases(meta, activeDomainLens);
     showToast('↩ Reset pipeline topology to default');
+  });
+
+  // Inline Save to docs/ARCHITECTURE.md from Editor
+  document.getElementById('btnSaveTopologyToDocInline')?.addEventListener('click', async () => {
+    const val = (document.getElementById('txtPipelineTopologyEditor') as HTMLTextAreaElement)?.value || '';
+    if (val) {
+      const topoKey = `${selectedLadderLevel}_${activeDomainLens}`;
+      customPipelineTopologies[topoKey] = val;
+      updateTopologyNormalDisplay(val);
+    }
+    await saveArchitectureDocToWorkspace('architecture_md');
+  });
+
+  // ==========================================
+  // Architecture Documentation Exporter Modal Handlers
+  // ==========================================
+  const refreshExportDocModalPreview = () => {
+    const prevEl = document.getElementById('prevExportArchitectureDoc');
+    if (prevEl) {
+      prevEl.textContent = generateArchitectureDocumentationMarkdown(selectedLadderLevel, activeDomainLens);
+    }
+  };
+
+  document.getElementById('btnExportArchitectureDoc')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalExportArchitectureDoc');
+    const lblPath = document.getElementById('lblExportDocStandalonePath');
+    if (lblPath) {
+      lblPath.innerHTML = `<strong>docs/architecture/level_${selectedLadderLevel}_${activeDomainLens}_spec.md</strong>`;
+    }
+    refreshExportDocModalPreview();
+    if (modal) modal.style.display = 'block';
+  });
+
+  document.getElementById('btnCloseExportDocModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalExportArchitectureDoc');
+    if (modal) modal.style.display = 'none';
+  });
+
+  document.getElementById('btnCancelExportDocModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalExportArchitectureDoc');
+    if (modal) modal.style.display = 'none';
+  });
+
+  // Checkbox triggers live preview recalculation in modal
+  ['chkDocIncludeMermaid', 'chkDocIncludeAscii', 'chkDocIncludeGate', 'chkDocIncludeSla'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', () => {
+      refreshExportDocModalPreview();
+    });
+  });
+
+  // Confirm Documentation Export
+  document.getElementById('btnConfirmExportArchitectureDoc')?.addEventListener('click', async () => {
+    const radios = document.querySelectorAll<HTMLInputElement>('input[name="radExportDocTarget"]');
+    let selectedTarget = 'architecture_md';
+    radios.forEach(r => {
+      if (r.checked) selectedTarget = r.value;
+    });
+    await saveArchitectureDocToWorkspace(selectedTarget);
+    const modal = document.getElementById('modalExportArchitectureDoc');
+    if (modal) modal.style.display = 'none';
   });
 
   // AI Layer Actions & Listeners
