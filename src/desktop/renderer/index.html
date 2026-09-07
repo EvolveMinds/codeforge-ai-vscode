@@ -3721,57 +3721,305 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 </div>
                 
                 <!-- 5C: RUNBOOK FACTORY & DEMO -->
+                                <!-- 5C: RUNBOOK FACTORY & CLIENT HANDOFF WORKSTATION -->
                 <div id="p5StepCPanel" role="tabpanel" aria-labelledby="btnP5StepC" style="display: none;">
-                <!-- Runbook Factory Section -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div>
-                      <h4 style="margin: 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>📑</span> Section 5C: Client Handoff &amp; Runbook Factory
-                      </h4>
-                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Auto-generate architecture blueprints, deployment runbooks, data dictionaries, and executive handoff packages.
+                  <!-- Runbook Factory Section -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-top: 14px;">
+                    <!-- Section Header -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                      <div>
+                        <h4 style="margin: 0; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                          <span style="font-size: 16px;">📑</span> Client Engagement Handoff &amp; Runbook Factory
+                        </h4>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+                          Auto-generate comprehensive architecture blueprints with dynamic lineage, operations runbooks, data dictionaries, environment catalogs, and executive handoff bundles connecting everything built in Steps 1–3.
+                        </div>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 11px; font-family: monospace; background: var(--card-bg); border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; color: var(--text-secondary);" id="docsPathBadge" title="Workspace Output Directory">📁 docs/</span>
+                        <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 14px; font-size: 11px;" aria-label="Generate All Client Handoff Docs">🚀 Generate All Client Handoff Docs</button>
                       </div>
                     </div>
-                    <button class="btn" id="btnP4GenerateAll" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 14px; font-size: 11px;" aria-label="Generate All Runbooks">🚀 Generate All Runbooks</button>
-                  </div>
-                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
-                    <div class="fde-doc-card active" id="cardDocArch" style="background: var(--card-bg); border: 1px solid var(--accent); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                      <strong style="font-size: 11px; color: #fff;">🏛️ ARCHITECTURE.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Lineage &amp; 5-Phase Topology</div>
-                    </div>
-                    <div class="fde-doc-card" id="cardDocDeploy" style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                      <strong style="font-size: 11px; color: #fff;">🚀 DEPLOYMENT_RUNBOOK.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Rollback &amp; IT Diagnostics</div>
-                    </div>
-                    <div class="fde-doc-card" id="cardDocDemo" style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                      <strong style="font-size: 11px; color: #fff;">🎤 EXECUTIVE_DEMO.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">5-Minute CXO Presentation</div>
-                    </div>
-                    <div class="fde-doc-card" id="cardDocComplete" style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 4px; cursor: pointer;">
-                      <strong style="font-size: 11px; color: #fff;">📦 CLIENT_HANDOFF.md</strong>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Complete Delivery Package</div>
-                    </div>
-                  </div>
 
-                  <!-- Interactive Runbook Tabs & Preview Box -->
-                  <div id="p4ResultBox" style="display: none; background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                      <div class="code-tabs" style="display: flex; gap: 8px;">
-                        <button class="code-tab active" id="tabDocArch" style="background: transparent; border: none; color: var(--accent); font-weight: 700; font-size: 11px; cursor: pointer;" aria-label="ARCHITECTURE.md">ARCHITECTURE.md</button>
-                        <button class="code-tab" id="tabDocDeploy" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;" aria-label="DEPLOYMENT_RUNBOOK.md">DEPLOYMENT_RUNBOOK.md</button>
-                        <button class="code-tab" id="tabDocDataDict" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;" aria-label="DATA_DICTIONARY.md">DATA_DICTIONARY.md</button>
-                        <button class="code-tab" id="tabDocDemo" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;" aria-label="EXECUTIVE_DEMO.md">EXECUTIVE_DEMO.md</button>
-                        <button class="code-tab" id="tabDocComplete" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer;" aria-label="CLIENT_HANDOFF_COMPLETE.md">CLIENT_HANDOFF_COMPLETE.md</button>
+                    <!-- Deliverable Document Cards Matrix (6 Cards) -->
+                    <div style="margin-bottom: 14px;">
+                      <div style="font-weight: 700; margin-bottom: 10px; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">
+                        Generated Documentation Artifacts:
                       </div>
-                      <button class="btn-quick" id="btnCopyRunbookDoc" style="padding: 2px 8px; font-size: 10.5px;" aria-label="Copy Document">📋 Copy Document</button>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px;" id="p4DocCardsGrid">
+                        <!-- Card 1: ARCHITECTURE.md -->
+                        <div class="fde-doc-card active" id="cardDocArch" style="background: var(--card-bg); border: 1px solid var(--accent); padding: 12px; border-radius: 6px; cursor: pointer; transition: border-color 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <input type="checkbox" id="chkDocArch" checked style="margin: 0; cursor: pointer;" aria-label="Select ARCHITECTURE.md">
+                              <strong style="font-size: 11.5px; color: #fff;">🏛️ ARCHITECTURE.md</strong>
+                            </div>
+                            <span id="badgeDocArch" style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: rgba(137, 209, 133, 0.2); color: var(--success); font-weight: 600;">✓ Ready</span>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin: 6px 0 10px 0;">Mermaid data lineage &amp; 5-phase topology</div>
+                          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn-quick" id="btnSingleGenArch" style="padding: 2px 7px; font-size: 10px; color: var(--accent); border-color: var(--accent); font-weight: 600;">⚡ Generate</button>
+                            <button class="btn-quick" id="btnSingleOpenArch" style="padding: 2px 7px; font-size: 10px;">📄 Open</button>
+                            <button class="btn-quick" id="btnSinglePrevArch" style="padding: 2px 7px; font-size: 10px;">👁️ Preview</button>
+                          </div>
+                        </div>
+
+                        <!-- Card 2: DEPLOYMENT_RUNBOOK.md -->
+                        <div class="fde-doc-card" id="cardDocDeploy" style="background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: 6px; cursor: pointer; transition: border-color 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <input type="checkbox" id="chkDocDeploy" checked style="margin: 0; cursor: pointer;" aria-label="Select DEPLOYMENT_RUNBOOK.md">
+                              <strong style="font-size: 11.5px; color: #fff;">🚀 DEPLOYMENT_RUNBOOK.md</strong>
+                            </div>
+                            <span id="badgeDocDeploy" style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: rgba(137, 209, 133, 0.2); color: var(--success); font-weight: 600;">✓ Ready</span>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin: 6px 0 10px 0;">Operations, rollback &amp; diagnostics</div>
+                          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn-quick" id="btnSingleGenDeploy" style="padding: 2px 7px; font-size: 10px; color: var(--accent); border-color: var(--accent); font-weight: 600;">⚡ Generate</button>
+                            <button class="btn-quick" id="btnSingleOpenDeploy" style="padding: 2px 7px; font-size: 10px;">📄 Open</button>
+                            <button class="btn-quick" id="btnSinglePrevDeploy" style="padding: 2px 7px; font-size: 10px;">👁️ Preview</button>
+                          </div>
+                        </div>
+
+                        <!-- Card 3: DATA_DICTIONARY.md -->
+                        <div class="fde-doc-card" id="cardDocDataDict" style="background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: 6px; cursor: pointer; transition: border-color 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <input type="checkbox" id="chkDocDataDict" checked style="margin: 0; cursor: pointer;" aria-label="Select DATA_DICTIONARY.md">
+                              <strong style="font-size: 11.5px; color: #fff;">📖 DATA_DICTIONARY.md</strong>
+                            </div>
+                            <span id="badgeDocDataDict" style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: rgba(137, 209, 133, 0.2); color: var(--success); font-weight: 600;">✓ Ready</span>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin: 6px 0 10px 0;">Column transformation mappings &amp; marts</div>
+                          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn-quick" id="btnSingleGenDataDict" style="padding: 2px 7px; font-size: 10px; color: var(--accent); border-color: var(--accent); font-weight: 600;">⚡ Generate</button>
+                            <button class="btn-quick" id="btnSingleOpenDataDict" style="padding: 2px 7px; font-size: 10px;">📄 Open</button>
+                            <button class="btn-quick" id="btnSinglePrevDataDict" style="padding: 2px 7px; font-size: 10px;">👁️ Preview</button>
+                          </div>
+                        </div>
+
+                        <!-- Card 4: ENVIRONMENT_CATALOG.md -->
+                        <div class="fde-doc-card" id="cardDocEnv" style="background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: 6px; cursor: pointer; transition: border-color 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <input type="checkbox" id="chkDocEnv" checked style="margin: 0; cursor: pointer;" aria-label="Select ENVIRONMENT_CATALOG.md">
+                              <strong style="font-size: 11.5px; color: #fff;">🔐 ENVIRONMENT_CATALOG.md</strong>
+                            </div>
+                            <span id="badgeDocEnv" style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: rgba(137, 209, 133, 0.2); color: var(--success); font-weight: 600;">✓ Ready</span>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin: 6px 0 10px 0;">Required env vars &amp; secret reference</div>
+                          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn-quick" id="btnSingleGenEnv" style="padding: 2px 7px; font-size: 10px; color: var(--accent); border-color: var(--accent); font-weight: 600;">⚡ Generate</button>
+                            <button class="btn-quick" id="btnSingleOpenEnv" style="padding: 2px 7px; font-size: 10px;">📄 Open</button>
+                            <button class="btn-quick" id="btnSinglePrevEnv" style="padding: 2px 7px; font-size: 10px;">👁️ Preview</button>
+                          </div>
+                        </div>
+
+                        <!-- Card 5: EXECUTIVE_DEMO.md -->
+                        <div class="fde-doc-card" id="cardDocDemo" style="background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: 6px; cursor: pointer; transition: border-color 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <input type="checkbox" id="chkDocDemo" checked style="margin: 0; cursor: pointer;" aria-label="Select EXECUTIVE_DEMO.md">
+                              <strong style="font-size: 11.5px; color: #fff;">🎤 EXECUTIVE_DEMO.md</strong>
+                            </div>
+                            <span id="badgeDocDemo" style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: rgba(137, 209, 133, 0.2); color: var(--success); font-weight: 600;">✓ Ready</span>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin: 6px 0 10px 0;">5-Minute CXO Presentation Script</div>
+                          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn-quick" id="btnSingleGenDemo" style="padding: 2px 7px; font-size: 10px; color: var(--accent); border-color: var(--accent); font-weight: 600;">⚡ Generate</button>
+                            <button class="btn-quick" id="btnSingleOpenDemo" style="padding: 2px 7px; font-size: 10px;">📄 Open</button>
+                            <button class="btn-quick" id="btnSinglePrevDemo" style="padding: 2px 7px; font-size: 10px;">👁️ Preview</button>
+                          </div>
+                        </div>
+
+                        <!-- Card 6: CLIENT_HANDOFF.md -->
+                        <div class="fde-doc-card" id="cardDocComplete" style="background: var(--card-bg); border: 1px solid var(--border); padding: 12px; border-radius: 6px; cursor: pointer; transition: border-color 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                              <input type="checkbox" id="chkDocComplete" checked style="margin: 0; cursor: pointer;" aria-label="Select CLIENT_HANDOFF.md">
+                              <strong style="font-size: 11.5px; color: #fff;">📦 CLIENT_HANDOFF.md</strong>
+                            </div>
+                            <span id="badgeDocComplete" style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: rgba(137, 209, 133, 0.2); color: var(--success); font-weight: 600;">✓ Ready</span>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin: 6px 0 10px 0;">All-in-one consolidated delivery bundle</div>
+                          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            <button class="btn-quick" id="btnSingleGenComplete" style="padding: 2px 7px; font-size: 10px; color: var(--accent); border-color: var(--accent); font-weight: 600;">⚡ Generate</button>
+                            <button class="btn-quick" id="btnSingleOpenComplete" style="padding: 2px 7px; font-size: 10px;">📄 Open</button>
+                            <button class="btn-quick" id="btnSinglePrevComplete" style="padding: 2px 7px; font-size: 10px;">👁️ Preview</button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <pre class="code-preview" id="p4CodePreview" style="margin: 0; background: transparent; padding: 4px; font-family: monospace; font-size: 11px; color: #d4d4d4; max-height: 240px; overflow-y: auto; white-space: pre-wrap;"></pre>
+
+                    <!-- Batch Controls & Add Document Toolbar -->
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; padding: 10px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px;">
+                      <button class="btn" id="btnP4GenerateSelected" style="background: var(--accent); color: var(--bg-primary); font-weight: 700; font-size: 11px; padding: 5px 12px;">✨ Generate Selected Docs</button>
+                      <button class="btn-quick" id="btnP4ToggleSelectAll" style="font-size: 11px; padding: 4px 10px;">☑️ Toggle Select All</button>
+                      <button class="btn-quick" id="btnAddCustomDoc" style="font-size: 11px; padding: 4px 10px; color: var(--accent); border-color: var(--accent);">➕ Add Custom Document</button>
+                      <button class="btn-quick" id="btnP4WriteAllDocs" style="font-size: 11px; padding: 4px 10px; color: var(--success); border-color: var(--success);">💾 Save All to docs/</button>
+                    </div>
+
+                    <!-- Inline Add Custom Document Drawer (Toggled) -->
+                    <div id="addCustomDocDrawer" style="display: none; background: #1a1a1a; border: 1px dashed var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+                      <div style="font-weight: 700; font-size: 12px; color: var(--accent); margin-bottom: 8px;">➕ Create &amp; Add Custom Deliverable Document</div>
+                      <div style="display: grid; grid-template-columns: 1.5fr 2fr 1fr auto; gap: 8px; align-items: end;">
+                        <div>
+                          <label style="font-size: 10.5px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Filename (e.g. docs/SECURITY_AUDIT.md)</label>
+                          <input type="text" id="txtNewDocName" placeholder="docs/SECURITY_AUDIT.md" style="width: 100%; padding: 5px 8px; font-size: 11px; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Description</label>
+                          <input type="text" id="txtNewDocDesc" placeholder="Client security architecture &amp; controls" style="width: 100%; padding: 5px 8px; font-size: 11px; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; box-sizing: border-box;">
+                        </div>
+                        <div>
+                          <label style="font-size: 10.5px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Template</label>
+                          <select id="selNewDocTemplate" style="width: 100%; padding: 5px 8px; font-size: 11px; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; box-sizing: border-box;">
+                            <option value="blank">Blank Document</option>
+                            <option value="security">Security &amp; Audit Policy</option>
+                            <option value="api">API Specification</option>
+                            <option value="sla">SLA &amp; Support Playbook</option>
+                          </select>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn" id="btnConfirmAddDoc" style="background: var(--success); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 5px 12px;">Create</button>
+                          <button class="btn-quick" id="btnCancelAddDoc" style="font-size: 11px; padding: 5px 10px;">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Interactive Live Document Workstation & Preview Box (ALWAYS VISIBLE BY DEFAULT) -->
+                    <div id="p4ResultBox" style="display: block; background: #161616; border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 16px;">
+                      <!-- Status Banner with Action Controls -->
+                      <div style="background: rgba(137, 209, 133, 0.1); border: 1px solid rgba(137, 209, 133, 0.3); padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                          <div style="color: var(--success); font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                            <span>✓</span> Client Handoff Documents Ready on Disk
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 2px;" id="docsPathLabel">
+                            Location: <code style="color: var(--accent);">docs/</code> · <span id="activeDocStatsBadge">ARCHITECTURE.md · 186 lines</span>
+                          </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                          <button class="btn-quick" id="btnOpenActiveDoc" style="font-size: 10.5px; padding: 3px 8px;" title="Open in VS Code Editor">📄 Open in Editor</button>
+                          <button class="btn-quick" id="btnTogglePreviewMode" style="font-size: 10.5px; padding: 3px 8px; color: var(--accent); border-color: var(--accent);">👁️ Rendered Preview</button>
+                          <button class="btn-quick" id="btnSaveDocEdits" style="font-size: 10.5px; padding: 3px 8px; color: var(--success); border-color: var(--success);">💾 Save Edits</button>
+                          <button class="btn-quick" id="btnCopyRunbookDoc" style="font-size: 10.5px; padding: 3px 8px;">📋 Copy Content</button>
+                        </div>
+                      </div>
+
+                      <!-- Document Switcher Tabs -->
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; overflow-x: auto;">
+                        <div class="code-tabs" style="display: flex; gap: 6px;" id="p4DocumentTabs">
+                          <button class="code-tab active" id="tabDocArch" style="background: transparent; border: none; color: var(--accent); font-weight: 700; font-size: 11px; cursor: pointer; padding: 4px 8px; border-bottom: 2px solid var(--accent);" aria-label="ARCHITECTURE.md">🏛️ ARCHITECTURE.md</button>
+                          <button class="code-tab" id="tabDocDeploy" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer; padding: 4px 8px;" aria-label="DEPLOYMENT_RUNBOOK.md">🚀 DEPLOYMENT_RUNBOOK.md</button>
+                          <button class="code-tab" id="tabDocDataDict" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer; padding: 4px 8px;" aria-label="DATA_DICTIONARY.md">📖 DATA_DICTIONARY.md</button>
+                          <button class="code-tab" id="tabDocEnv" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer; padding: 4px 8px;" aria-label="ENVIRONMENT_CATALOG.md">🔐 ENVIRONMENT_CATALOG.md</button>
+                          <button class="code-tab" id="tabDocDemo" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer; padding: 4px 8px;" aria-label="EXECUTIVE_DEMO.md">🎤 EXECUTIVE_DEMO.md</button>
+                          <button class="code-tab" id="tabDocComplete" style="background: transparent; border: none; color: var(--text-secondary); font-weight: 700; font-size: 11px; cursor: pointer; padding: 4px 8px;" aria-label="CLIENT_HANDOFF.md">📦 CLIENT_HANDOFF.md</button>
+                        </div>
+                      </div>
+
+                      <!-- Document Content Area (Raw Code, Editor, and Rendered Markdown) -->
+                      <div id="p4DocViewerWrapper" style="position: relative;">
+                        <!-- Raw Code Preview (Default) -->
+                        <pre class="code-preview" id="p4CodePreview" style="margin: 0; background: #121212; padding: 12px; font-family: monospace; font-size: 11px; color: #d4d4d4; max-height: 280px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);"></pre>
+
+                        <!-- Editable Markdown Textarea (When in Edit Mode) -->
+                        <textarea id="p4CodeEditor" class="code-preview" style="display: none; width: 100%; min-height: 280px; max-height: 380px; background: #121212; color: #d4d4d4; font-family: 'Consolas', 'Courier New', monospace; font-size: 11.5px; line-height: 1.5; border: 1px solid var(--accent); border-radius: 4px; padding: 12px; resize: vertical; box-sizing: border-box;" spellcheck="false" placeholder="Edit markdown content here..."></textarea>
+
+                        <!-- Rendered Markdown View (When in Rendered Mode) -->
+                        <div id="p4RenderedPreview" style="display: none; background: #141414; padding: 16px; border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; max-height: 320px; overflow-y: auto; font-size: 12px; line-height: 1.6; color: #e0e0e0;"></div>
+                      </div>
+                    </div>
+
+                    <!-- 5-Minute CXO Executive Demo Rehearsal Console -->
+                    <div style="background: #141414; border: 1px solid var(--border); border-radius: 6px; padding: 14px;" id="p5DemoRehearsalBox">
+                      <!-- Rehearsal Header & Timer -->
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                          <div style="font-weight: 700; font-size: 12.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                            <span>⏱️</span> 5-Minute CXO Executive Demo Rehearsal Player
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 2px;">
+                            Strict FDE timeboxed rehearsal protocol with minute-by-minute talking points, financial ROI metrics, and CXO objection handling.
+                          </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <div id="demoTimerDisplay" style="font-family: monospace; font-size: 14px; font-weight: 700; color: var(--accent); background: rgba(0,0,0,0.4); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border);">00:00 / 05:00</div>
+                          <button class="btn-quick" id="btnDemoTimerPlay" style="font-size: 10.5px; padding: 3px 8px; background: var(--accent); color: #000; font-weight: 700;">▶ Start</button>
+                          <button class="btn-quick" id="btnDemoTimerPause" style="font-size: 10.5px; padding: 3px 8px;">⏸ Pause</button>
+                          <button class="btn-quick" id="btnDemoTimerReset" style="font-size: 10.5px; padding: 3px 8px;">🔄 Reset</button>
+                        </div>
+                      </div>
+
+                      <!-- Timer Progress Bar -->
+                      <div style="height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-bottom: 12px; overflow: hidden;">
+                        <div id="demoTimerProgress" style="height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease;"></div>
+                      </div>
+
+                      <!-- Minute Slide Selector Tabs -->
+                      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 12px;">
+                        <button class="fde-slide-tab active" id="btnSlide1" style="background: var(--card-bg); border: 1px solid var(--accent); color: #fff; padding: 6px 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 10.5px;">
+                          <div style="font-weight: 700; color: var(--accent);">[0:00 - 1:00]</div>
+                          <div style="font-size: 9.5px; opacity: 0.85;">1. Problem &amp; ROI</div>
+                        </button>
+                        <button class="fde-slide-tab" id="btnSlide2" style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 10.5px;">
+                          <div style="font-weight: 700;">[1:00 - 2:00]</div>
+                          <div style="font-size: 9.5px; opacity: 0.85;">2. Data Lineage</div>
+                        </button>
+                        <button class="fde-slide-tab" id="btnSlide3" style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 10.5px;">
+                          <div style="font-weight: 700;">[2:00 - 3:00]</div>
+                          <div style="font-size: 9.5px; opacity: 0.85;">3. AI Solution Gate</div>
+                        </button>
+                        <button class="fde-slide-tab" id="btnSlide4" style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 10.5px;">
+                          <div style="font-weight: 700;">[3:00 - 4:00]</div>
+                          <div style="font-size: 9.5px; opacity: 0.85;">4. 50-Case Golden Evals</div>
+                        </button>
+                        <button class="fde-slide-tab" id="btnSlide5" style="background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary); padding: 6px 8px; border-radius: 4px; cursor: pointer; text-align: left; font-size: 10.5px;">
+                          <div style="font-weight: 700;">[4:00 - 5:00]</div>
+                          <div style="font-size: 9.5px; opacity: 0.85;">5. Cloud Deploy &amp; Handoff</div>
+                        </button>
+                      </div>
+
+                      <!-- Slide Teleprompter & Talking Points Panel -->
+                      <div id="demoTeleprompterCard" style="background: #181818; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                          <span style="font-weight: 700; font-size: 11.5px; color: var(--accent);" id="demoSlideTitle">Slide 1: The Business Problem &amp; Controller's 3 Numbers [0:00 - 1:00]</span>
+                          <span style="font-size: 10px; color: var(--text-secondary);" id="demoSlideTarget">Target: CFO &amp; Business Unit Sponsors</span>
+                        </div>
+                        <div id="demoSpeakerScript" style="font-size: 11.5px; line-height: 1.6; color: #ddd; margin-bottom: 10px;">
+                          "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was to automate manual operations with AI. Instead of building a generic chatbot that hallucinates numbers, we calculated your exact economics: 10,000 tasks/month, 15 min each, at $35/hr. By implementing deterministic rules with zero hallucinations, this system reclaims 1,750 hours/month and delivers $61.3k/month in hard economic savings."
+                        </div>
+                        <div style="background: rgba(255,255,255,0.03); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 0 4px 4px 0;">
+                          <span style="font-size: 10.5px; font-weight: 700; color: var(--accent);">🖥️ On-Screen Visual Cue:</span>
+                          <span style="font-size: 10.5px; color: var(--text-secondary); margin-left: 6px;" id="demoVisualCue">Highlight Controller's Three Numbers KPI card in Section 1 and annual hours reclaimed ledger.</span>
+                        </div>
+                      </div>
+
+                      <!-- Executive Objection Handling Quick Reference -->
+                      <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">
+                          🛡️ CXO Objection Handling Quick Reference:
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                          <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 10px; border-radius: 4px;">
+                            <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">Q: Hallucination Risk?</div>
+                            <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.4;">All financial math and business rules run via compiled SQL and TypeScript rule engines with <strong>0.0% Hallucination SLA</strong>.</div>
+                          </div>
+                          <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 10px; border-radius: 4px;">
+                            <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">Q: Custom vs Off-the-Shelf SaaS?</div>
+                            <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.4;">Runs 100% inside your VPC/Air-Gap. Zero recurring per-seat licensing, no vendor lock-in, customized to your exact schema.</div>
+                          </div>
+                          <div style="background: var(--card-bg); border: 1px solid var(--border); padding: 8px 10px; border-radius: 4px;">
+                            <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">Q: Post-Handoff Maintenance?</div>
+                            <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.4;">Standard dbt models, Terraform IaC, automated GitHub Actions, and single-command rollback runbooks hand off directly to your IT.</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                </div>
-
-                <!-- 5D: ENTERPRISE SUITE & COMPLIANCE ENGINES -->
+<!-- 5D: ENTERPRISE SUITE & COMPLIANCE ENGINES -->
                 <div id="p5StepDPanel" role="tabpanel" aria-labelledby="btnP5StepD" style="display: none;">
                 <!-- Complete Enterprise Commercial Suite Modules -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
