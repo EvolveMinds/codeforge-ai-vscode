@@ -156,6 +156,8 @@ const desktopApi = {
     parseOpenApi: (openApiStr: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.PARSE_OPENAPI, openApiStr),
     scaffoldDeploy: (config: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.SCAFFOLD_DEPLOY, config),
     runPreflightAudit: (dirPath?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RUN_PREFLIGHT_AUDIT, dirPath),
+    cleanTemporaryFiles: (files?: string[]) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.CLEAN_TEMPORARY_FILES, files),
+    savePreflightReport: (report: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.SAVE_PREFLIGHT_REPORT, report),
     generateRunbooks: (state: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, state),
     analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req)
   },

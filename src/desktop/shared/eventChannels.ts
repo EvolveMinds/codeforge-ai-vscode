@@ -127,6 +127,8 @@ export const DESKTOP_CHANNELS = {
     PARSE_OPENAPI: 'evolve:engines:parse-openapi',
     SCAFFOLD_DEPLOY: 'evolve:engines:scaffold-deploy',
     RUN_PREFLIGHT_AUDIT: 'evolve:engines:run-preflight-audit',
+    CLEAN_TEMPORARY_FILES: 'evolve:engines:clean-temp-files',
+    SAVE_PREFLIGHT_REPORT: 'evolve:engines:save-preflight-report',
     GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks',
     ANALYZE_DATASET: 'evolve:engines:analyze-dataset'
   },

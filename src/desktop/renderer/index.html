@@ -3177,26 +3177,104 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
                 <!-- 5A: PRE-FLIGHT HEALTH AUDITOR -->
                 <div id="p5StepAPanel" role="tabpanel" aria-labelledby="btnP5StepA">
-                <!-- Pre-Flight Health Auditor Card -->
-                <div style="background: var(--bg-primary); padding: 14px 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <div style="font-weight: 700; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>🛡️</span> Section 5A: Pre-Flight Health Auditor (100% Deterministic)
+                  <!-- Main Pre-Flight Health Auditor Card -->
+                  <div style="background: var(--bg-primary); padding: 16px 18px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
+                    <!-- Top Control & Action Bar -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+                      <div>
+                        <div style="font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                          <span>🛡️</span> Section 5A: Pre-Flight Health Auditor (100% Deterministic)
+                          <span id="auditHeaderStatusBadge" class="brand-pill" style="background: rgba(140, 140, 140, 0.15); color: var(--text-secondary); font-size: 10px;">⚪ AWAITING SCAN</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                          Scans workspace for secret &amp; credential leaks, dangling backup files, .env parity, and container hygiene with 0 network calls.
+                        </div>
                       </div>
-                      <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Scans for dangling backup files, secret leaks, and .env parity with 0 network calls.
+                      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <label for="selAuditTargetMode" style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Target:</label>
+                          <select id="selAuditTargetMode" style="padding: 5px 10px; font-size: 11.5px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
+                            <option value="live" selected>⚡ Live Workspace Scan</option>
+                            <option value="pristine">🟢 Pristine Pilot Repo (100/100)</option>
+                            <option value="dirty">🟠 Dirty Workspace (Backups &amp; Env Drift - 75/100)</option>
+                            <option value="compromised">🔴 Compromised Secret Leak (Blocked - 40/100)</option>
+                          </select>
+                        </div>
+                        <button class="btn" id="btnRunAuditExact" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Run Pre-Flight Audit">🛡️ Run Pre-Flight Audit</button>
+                        <button class="btn btn-secondary" id="btnCleanTempFilesExact" style="padding: 6px 12px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Clean All Temporary Files">🧹 Clean Temp Files</button>
+                        <button class="btn-quick" id="btnExportAuditReceipt" style="padding: 5px 10px; font-size: 11px; cursor: pointer; border-color: var(--accent); color: var(--accent);" aria-label="Export Pre-Flight Receipt">📋 Export Receipt</button>
                       </div>
                     </div>
-                    <button class="btn" id="btnRunAuditExact" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Run Pre-Flight Audit">Run Pre-Flight Audit</button>
+
+                    <!-- Readiness Scorecard & KPI Ribbon -->
+                    <div id="auditScorecardRow" style="display: grid; grid-template-columns: 200px 1fr; gap: 14px; margin-bottom: 16px;">
+                      <!-- Score Tile -->
+                      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                        <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Readiness Score</div>
+                        <div id="auditScoreExactVal" style="font-size: 28px; font-weight: 800; color: var(--text-muted); margin: 4px 0;">-- / 100</div>
+                        <div id="auditVerdictLabel" style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary); background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 10px;">Not Yet Audited</div>
+                      </div>
+
+                      <!-- 4 Category KPI Cards -->
+                      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px;">🔒</span>
+                            <span id="badgeAuditSecrets" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">Secret &amp; Key Leaks</div>
+                          <div id="valAuditSecrets" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                        </div>
+
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px;">⚖️</span>
+                            <span id="badgeAuditEnv" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">.env Parity</div>
+                          <div id="valAuditEnv" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                        </div>
+
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px;">🧹</span>
+                            <span id="badgeAuditCleanup" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">Dangling Backups</div>
+                          <div id="valAuditCleanup" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                        </div>
+
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 14px;">🐳</span>
+                            <span id="badgeAuditDocker" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">Container &amp; Git</div>
+                          <div id="valAuditDocker" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Findings & Diagnostic Drawer -->
+                    <div id="auditResultExactBox" style="margin-top: 14px; display: none;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <strong style="font-size: 12px; color: #fff;">Diagnostic Findings &amp; Invariant Checks:</strong>
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn-quick active" id="btnFilterFindingAll" style="font-size: 10px; padding: 2px 8px;">All (<span id="cntFindingAll">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingErrors" style="font-size: 10px; padding: 2px 8px; border-color: var(--error); color: var(--error);">Errors (<span id="cntFindingErrors">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingWarnings" style="font-size: 10px; padding: 2px 8px; border-color: #e5b567; color: #e5b567;">Warnings (<span id="cntFindingWarnings">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingCleanable" style="font-size: 10px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);">Cleanable (<span id="cntFindingCleanable">0</span>)</button>
+                          </div>
+                        </div>
+                        <div id="auditTimestampBadge" style="font-size: 10.5px; color: var(--text-secondary);">Last scan: --</div>
+                      </div>
+
+                      <div id="auditFindingsContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+                        <div id="auditFindingsExactList" style="font-size: 11px; color: var(--text-secondary); padding: 8px;">Click "Run Pre-Flight Audit" to inspect the workspace.</div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div id="auditResultExactBox" style="margin-top: 12px; display: none;">
-                    <div style="font-size: 18px; font-weight: 700; color: var(--success);" id="auditScoreExactVal">98 / 100 ✓ Ready</div>
-                    <div id="auditFindingsExactList" style="margin-top: 6px; font-size: 11px; color: var(--text-secondary);">✓ All pre-flight checks passed. Workspace ready for cloud deployment.</div>
-                    <button class="btn btn-secondary" id="btnCleanTempFilesExact" style="margin-top: 8px; font-size: 11px; padding: 4px 10px;" aria-label="Clean All Temporary Files">🧹 Clean All Temporary Files</button>
-                  </div>
-                </div>
                 </div>
 
                 <!-- 5B: CLOUD DEPLOYMENT & CI/CD HUB -->

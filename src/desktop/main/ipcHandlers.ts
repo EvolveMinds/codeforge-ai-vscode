@@ -1836,6 +1836,25 @@ export async function executeTask() {
       return PreflightAuditor.scanWorkspace(targetDir);
     });
 
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.CLEAN_TEMPORARY_FILES, async (_: any, files?: string[]) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const targetDir = ws ? ws.path : process.cwd();
+      const targetFiles = files && Array.isArray(files) && files.length > 0
+        ? files
+        : PreflightAuditor.scanWorkspace(targetDir).temporaryFiles;
+      return PreflightAuditor.cleanTemporaryFiles(targetFiles);
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.SAVE_PREFLIGHT_REPORT, async (_: any, report: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const evalsDir = path.join(cwd, 'evals');
+      if (!fs.existsSync(evalsDir)) fs.mkdirSync(evalsDir, { recursive: true });
+      const reportPath = path.join(evalsDir, 'preflight_audit_report.json');
+      fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');
+      return { success: true, path: reportPath };
+    });
+
     ipc.handle(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, async (_: any, state: any) => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
