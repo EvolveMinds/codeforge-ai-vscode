@@ -3827,8 +3827,13 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
       return { cases: generated, prompt: req.prompt, count: generated.length };
     });
 
-    ipc.handle(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS, async (_: any, req: { generatedClaim?: string; handbookChunks?: any[] }) => {
+    ipc.handle(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS, async (_: any, req: {
+      generatedClaim?: string;
+      handbookChunks?: any[];
+      minThreshold?: number;
+    }) => {
       const claim = (req?.generatedClaim || 'Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.').trim();
+      const minThreshold = typeof req?.minThreshold === 'number' && !isNaN(req.minThreshold) ? req.minThreshold : 65.0;
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
       const auditDir = path.join(cwd, 'audit');
@@ -3841,7 +3846,7 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
           ];
 
       // Extract significant alphanumeric tokens and entities from claim (ignoring common stop words)
-      const stopWords = new Set(['the', 'and', 'a', 'an', 'to', 'of', 'in', 'for', 'is', 'are', 'by', 'on', 'with', 'according', 'as', 'that', 'this', 'at', 'from', 'or']);
+      const stopWords = new Set(['the', 'and', 'a', 'an', 'to', 'of', 'in', 'for', 'is', 'are', 'by', 'on', 'with', 'according', 'as', 'that', 'this', 'at', 'from', 'or', 'be', 'it']);
       const claimWords = claim.toLowerCase().match(/\b[a-z0-9_$.§-]+\b/gi) || [];
       const salientWords = claimWords.filter(w => !stopWords.has(w.toLowerCase()) && w.length > 1);
 
@@ -3862,8 +3867,8 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
       const groundednessScorePct = parseFloat(((matchedWords.length / totalSalient) * 100).toFixed(1));
       const hallucinationScorePct = parseFloat((100 - groundednessScorePct).toFixed(1));
       
-      // Strict groundedness threshold: at least 65% entity overlap and no completely contradictory clauses
-      const isGrounded = groundednessScorePct >= 65.0;
+      // Strict groundedness threshold evaluation
+      const isGrounded = groundednessScorePct >= minThreshold;
 
       const verifiedCitations = isGrounded
         ? chunks.filter(c => {
@@ -3881,20 +3886,34 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
         sig = 'ed25519_sig_' + crypto.createHash('sha256').update(claim + JSON.stringify(verifiedCitations) + Date.now()).digest('hex').slice(0, 32);
       }
 
+      // Build visual token diff array for interactive UI rendering
+      const tokenDiff = claim.split(/(\s+)/).map(segment => {
+        const clean = segment.toLowerCase().replace(/[^a-z0-9_$.§-]/g, '');
+        if (!clean) return { text: segment, type: 'separator' };
+        if (stopWords.has(clean)) return { text: segment, type: 'neutral' };
+        const matched = chunkCombinedText.includes(clean);
+        return {
+          text: segment,
+          type: matched ? 'grounded' : 'hallucinated'
+        };
+      });
+
       const receipt = {
         claim,
         isGrounded,
         groundednessScorePct,
         hallucinationScorePct,
+        minThreshold,
         verifiedCitations,
         unmatchedTokens: ungroundedWords,
         unmatchedEntities: ungroundedWords,
+        tokenDiff,
         auditSignature: sig,
         timestamp: new Date().toISOString(),
         verifiedBy: 'Evolve AI Groundedness Gate v2.20.0',
         message: isGrounded
-          ? `✓ Citation Grounded: ${groundednessScorePct}% entity grounding against handbook`
-          : `❌ Groundedness Violation: Claim contains ${hallucinationScorePct}% ungrounded assertions not in handbook (unverified: ${ungroundedWords.slice(0, 5).join(', ')})`
+          ? `✓ Citation Grounded: ${groundednessScorePct}% entity grounding against handbook (Threshold: ${minThreshold}%)`
+          : `❌ Groundedness Violation: Claim contains ${hallucinationScorePct}% ungrounded assertions not in handbook (Threshold: ${minThreshold}%, unverified: ${ungroundedWords.slice(0, 5).join(', ')})`
       };
 
       try {

@@ -2853,35 +2853,89 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         Cross-reference generated claims against verified handbook knowledge chunks with Ed25519 cryptographic receipts.
                       </div>
                     </div>
-                    <span id="lblGroundedHeaderBadge" class="brand-pill" style="font-size: 10px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid #64748b;">⚪ Awaiting Verification (No Signature Issued)</span>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-size: 10.5px; color: var(--text-secondary);">Min Grounding:</span>
+                      <select id="selGroundedStrictness" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
+                        <option value="90">Strict Regulated (90% min)</option>
+                        <option value="75" selected>Standard Enterprise (75% min)</option>
+                        <option value="60">Flexible Synthesis (60% min)</option>
+                      </select>
+                      <span id="lblGroundedHeaderBadge" class="brand-pill" style="font-size: 10px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid #64748b;">⚪ Awaiting Verification (No Signature Issued)</span>
+                    </div>
                   </div>
 
                   <!-- Source Policy Chunks Selection -->
                   <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
                       <label style="font-size: 11px; font-weight: 600;" for="selGroundedHandbookPreset">📖 Reference Policy / Handbook Source:</label>
-                      <select id="selGroundedHandbookPreset" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 10.5px; outline: none;">
-                        <option value="merchant_sop" selected>Merchant Operations Manual SOP-2026-08 §4.2</option>
-                        <option value="clinical_bnf">BNF Clinical Dosage Guidelines §2.1</option>
-                        <option value="cloud_cis">CIS Cloud &amp; Container Baseline Rule 4.1</option>
-                      </select>
+                      <div style="display: flex; gap: 6px; align-items: center;">
+                        <select id="selGroundedHandbookPreset" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 10.5px; outline: none;">
+                          <option value="merchant_sop" selected>Merchant Operations Manual SOP-2026-08 §4.2</option>
+                          <option value="clinical_bnf">BNF Clinical Dosage Guidelines §2.1</option>
+                          <option value="cloud_cis">CIS Cloud &amp; Container Baseline Rule 4.1</option>
+                          <option value="workspace_doc">📁 Workspace File (docs/ARCHITECTURE.md)</option>
+                        </select>
+                        <button class="btn-quick" id="btnLoadCustomHandbookFile" style="font-size: 9.5px; padding: 2px 6px;" title="Load any file from workspace">📂 Load Workspace File</button>
+                      </div>
                     </div>
                     <textarea id="txtGroundedHandbookSource" rows="2" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--card-bg); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace;">Refunds strictly under $100 require no manager override. Any transaction of $100 or above mandates supervisor escalation.</textarea>
                   </div>
 
+                  <!-- Generated Claim Under Audit -->
                   <div style="margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
                       <label style="font-size: 11px; font-weight: 600;" for="txtGroundedClaim">Generated Output / Claim to Audit:</label>
-                      <div style="display: flex; gap: 4px;">
-                        <button class="btn-quick" id="btnPresetValidClaim" style="font-size: 9.5px; padding: 1px 6px;">Valid Claim Example</button>
-                        <button class="btn-quick" id="btnPresetInvalidClaim" style="font-size: 9.5px; padding: 1px 6px; color: var(--error);">Ungrounded Claim Example</button>
+                      <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        <button class="btn-quick" id="btnPresetValidClaim" style="font-size: 9.5px; padding: 1px 6px; color: var(--success);">✓ Valid Grounded Claim</button>
+                        <button class="btn-quick" id="btnPresetBoundaryClaim" style="font-size: 9.5px; padding: 1px 6px; color: #e5b567;">⚠️ Mixed / Boundary Claim</button>
+                        <button class="btn-quick" id="btnPresetInvalidClaim" style="font-size: 9.5px; padding: 1px 6px; color: var(--error);">✕ Ungrounded Hallucination</button>
                       </div>
                     </div>
                     <textarea id="txtGroundedClaim" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.</textarea>
                   </div>
 
-                  <button class="btn" id="btnVerifyGroundedness" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px;" aria-label="Verify Citation & Sign Audit Log">Verify Citation &amp; Sign Audit Log</button>
-                  
+                  <!-- Action Buttons -->
+                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                    <button class="btn" id="btnVerifyGroundedness" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 18px; font-size: 11.5px;" aria-label="Verify Citation & Sign Audit Log">🛡️ Verify Citation &amp; Sign Audit Log</button>
+                    <button class="btn-quick" id="btnToggleReceiptDrawer" style="font-size: 11px; padding: 6px 12px;" aria-label="View Audit Receipt JSON">📄 View Compliance Receipt JSON</button>
+                  </div>
+
+                  <!-- Real-Time Grounding KPI Ribbon (Displayed after verification) -->
+                  <div id="groundedKpiRibbon" style="display: none; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px;">
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; text-align: center;">
+                      <div style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Grounding Overlap</div>
+                      <div id="lblGroundedScoreValue" style="font-size: 16px; font-weight: 800; margin-top: 2px; color: var(--success);">--%</div>
+                      <div id="lblGroundedThresholdValue" style="font-size: 9px; color: var(--text-muted); margin-top: 1px;">Target: &gt;=75%</div>
+                    </div>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; text-align: center;">
+                      <div style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Hallucination Risk</div>
+                      <div id="lblHallucinationScoreValue" style="font-size: 16px; font-weight: 800; margin-top: 2px; color: var(--error);">--%</div>
+                      <div style="font-size: 9px; color: var(--text-muted); margin-top: 1px;">Target: &lt;25%</div>
+                    </div>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; text-align: center;">
+                      <div style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Attributed Chunks</div>
+                      <div id="lblCitedChunksCount" style="font-size: 16px; font-weight: 800; margin-top: 2px; color: #60a5fa;">0</div>
+                      <div style="font-size: 9px; color: var(--text-muted); margin-top: 1px;">Verified SOP Source</div>
+                    </div>
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; text-align: center;">
+                      <div style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Cryptographic State</div>
+                      <div id="lblCryptoStateValue" style="font-size: 12px; font-weight: 800; margin-top: 4px; color: #94a3b8;">⚪ PENDING</div>
+                      <div style="font-size: 9px; color: var(--text-muted); margin-top: 1px;">Ed25519 Signature</div>
+                    </div>
+                  </div>
+
+                  <!-- Visual Token Diff & Entity Inspection Container -->
+                  <div id="groundedVisualDiffBox" style="display: none; margin-top: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span style="font-size: 11px; font-weight: 700; color: #fff;">🔍 Visual Token &amp; Entity Overlap Inspector:</span>
+                      <div style="display: flex; gap: 8px; font-size: 9.5px;">
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: rgba(137, 209, 133, 0.5);"></span> Grounded in Source</span>
+                        <span style="display: flex; align-items: center; gap: 4px;"><span style="display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: rgba(241, 76, 76, 0.5);"></span> Novel / Hallucinated</span>
+                      </div>
+                    </div>
+                    <div id="groundedVisualTokens" style="font-family: monospace; font-size: 11.5px; line-height: 1.8; background: var(--card-bg); padding: 10px; border-radius: 4px; border: 1px solid var(--border);"></div>
+                  </div>
+
                   <!-- Grounded Success Box -->
                   <div id="fdeGroundednessResultBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--success); border-radius: 6px; padding: 12px; font-size: 11.5px;">
                     <div style="color: var(--success); font-weight: 700; margin-bottom: 4px;" id="lblGroundedStatusTitle">✓ Citation 100% Grounded in Handbook §4.2</div>
@@ -2894,6 +2948,18 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <div style="color: var(--error); font-weight: 700; margin-bottom: 4px;" id="lblGroundedViolationTitle">❌ Groundedness Violation (Hallucination Detected)</div>
                     <div style="font-size: 11px; color: #fca5a5; margin-bottom: 6px;" id="lblGroundedViolationDetails">Claim contains assertions not found in cited handbook chunks. Cryptographic signature withheld.</div>
                     <div style="font-size: 10.5px; color: var(--text-secondary);" id="lblGroundedUnmatchedTokens"></div>
+                  </div>
+
+                  <!-- Cryptographic Compliance Receipt Drawer (Collapsible) -->
+                  <div id="groundedReceiptDrawer" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <span style="font-size: 11px; font-weight: 700; color: #fff;">📜 Cryptographic Audit Receipt (audit/compliance_receipt.json)</span>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn-quick" id="btnCopyComplianceReceipt" style="font-size: 9.5px; padding: 2px 6px;">📋 Copy JSON</button>
+                        <button class="btn-quick" id="btnCloseReceiptDrawer" style="font-size: 9.5px; padding: 2px 6px;">✕ Close</button>
+                      </div>
+                    </div>
+                    <pre id="txtComplianceReceiptJson" style="margin: 0; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 10px; color: var(--accent); background: var(--bg-primary); padding: 8px; border-radius: 4px; border: 1px solid var(--border); white-space: pre-wrap;"></pre>
                   </div>
                 </div>
                 </div>

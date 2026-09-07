@@ -10902,24 +10902,33 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     }
   });
 
+  // --- Phase 4 Step Rail State ---
+  let currentP4Step = 1;
+  let hasVerifiedGroundedness = false;
+  let hasSimulatedHitl = false;
+  let refreshP4Rail: (() => void) | undefined;
+
   // 4B. Groundedness Verification Gate
-  const HANDBOOK_PRESET_TEXTS: Record<string, { title: string; text: string; validClaim: string; invalidClaim: string }> = {
+  const HANDBOOK_PRESET_TEXTS: Record<string, { title: string; text: string; validClaim: string; boundaryClaim: string; invalidClaim: string }> = {
     merchant_sop: {
       title: 'Merchant Operations Manual SOP-2026-08 §4.2',
       text: 'Refunds strictly under $100 require no manager override. Any transaction of $100 or above mandates supervisor escalation.',
       validClaim: 'Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy without requiring manager override.',
+      boundaryClaim: 'Partial refund: Refunds under $100 require no manager override, but unverified transfers up to $2,500 can be dispatched via instant crypto rails.',
       invalidClaim: 'Unconditional refunds of up to $50,000 are authorized with zero human approval and immediate crypto payout.'
     },
     clinical_bnf: {
       title: 'BNF Clinical Dosage Guidelines §2.1',
       text: 'Adult oral dosage for Paracetamol is 500mg to 1000mg every 4 to 6 hours as required. Maximum daily dose must strictly not exceed 4000mg in 24 hours.',
       validClaim: 'Adult Paracetamol dosing is recommended between 500mg and 1000mg every 4 to 6 hours, capped at a maximum of 4000mg daily per BNF 2.1.',
+      boundaryClaim: 'Adult Paracetamol dosing is recommended between 500mg and 1000mg every 4 to 6 hours, but off-label daily dosages can safely reach 8000mg with vitamin C.',
       invalidClaim: 'Paracetamol can be safely administered at 10,000mg daily intravenously without liver toxicity monitoring.'
     },
     cloud_cis: {
       title: 'CIS Cloud & Container Baseline Rule 4.1',
       text: 'CIS Rule 4.1: Root account access keys must be deleted and MFA unconditionally enforced across all administrative principals.',
       validClaim: 'Per CIS Rule 4.1, root access keys must be removed and multi-factor authentication must be enabled for all administrative accounts.',
+      boundaryClaim: 'Per CIS Rule 4.1, root access keys must be removed, but secondary developer keys can remain unrotated indefinitely in test environments.',
       invalidClaim: 'CIS guidelines recommend hardcoding root AWS access keys directly inside public GitHub CI/CD workflows for convenience.'
     }
   };
@@ -10936,20 +10945,91 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     const violationBox = document.getElementById('fdeGroundednessViolationBox');
     if (successBox) successBox.style.display = 'none';
     if (violationBox) violationBox.style.display = 'none';
+
+    const ribbon = document.getElementById('groundedKpiRibbon');
+    if (ribbon) ribbon.style.display = 'none';
+    const visualDiff = document.getElementById('groundedVisualDiffBox');
+    if (visualDiff) visualDiff.style.display = 'none';
+    const receiptDrawer = document.getElementById('groundedReceiptDrawer');
+    if (receiptDrawer) receiptDrawer.style.display = 'none';
+
+    const lblScore = document.getElementById('lblGroundedScoreValue');
+    if (lblScore) lblScore.textContent = '--%';
+    const lblHalluc = document.getElementById('lblHallucinationScoreValue');
+    if (lblHalluc) lblHalluc.textContent = '--%';
+    const lblChunks = document.getElementById('lblCitedChunksCount');
+    if (lblChunks) lblChunks.textContent = '0';
+    const lblCrypto = document.getElementById('lblCryptoStateValue');
+    if (lblCrypto) {
+      lblCrypto.textContent = '⚪ PENDING';
+      lblCrypto.style.color = '#94a3b8';
+    }
+
     hasVerifiedGroundedness = false;
     refreshP4Rail?.();
   };
 
-  document.getElementById('selGroundedHandbookPreset')?.addEventListener('change', (e) => {
+  document.getElementById('selGroundedHandbookPreset')?.addEventListener('change', async (e) => {
     const val = (e.target as HTMLSelectElement).value;
-    const preset = HANDBOOK_PRESET_TEXTS[val];
-    if (preset) {
-      const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
-      const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
-      if (txtSource) txtSource.value = preset.text;
-      if (txtClaim) txtClaim.value = preset.validClaim;
+    if (val === 'workspace_doc') {
+      try {
+        const ws = await (api as any)?.workspace?.getCurrent?.();
+        const archPath = ws ? `${ws.path}/docs/ARCHITECTURE.md` : 'docs/ARCHITECTURE.md';
+        let content = '';
+        if ((api as any)?.workspace?.readFile) {
+          try {
+            content = await (api as any).workspace.readFile(archPath);
+          } catch (_) {
+            const readmePath = ws ? `${ws.path}/README.md` : 'README.md';
+            content = await (api as any).workspace.readFile(readmePath);
+          }
+        }
+        if (content) {
+          const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
+          const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
+          if (txtSource) txtSource.value = content.slice(0, 3000);
+          if (txtClaim) txtClaim.value = 'Evolve AI Enterprise provides a deterministic architecture with audited gates and cryptographic verification.';
+        }
+      } catch (_) {}
+    } else {
+      const preset = HANDBOOK_PRESET_TEXTS[val];
+      if (preset) {
+        const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
+        const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
+        if (txtSource) txtSource.value = preset.text;
+        if (txtClaim) txtClaim.value = preset.validClaim;
+      }
     }
     resetGroundedUiState();
+  });
+
+  document.getElementById('btnLoadCustomHandbookFile')?.addEventListener('click', async () => {
+    try {
+      const ws = await (api as any)?.workspace?.getCurrent?.();
+      const userPath = prompt('Enter relative or absolute workspace document path to load:', 'docs/ARCHITECTURE.md');
+      if (!userPath) return;
+
+      const targetPath = ws && !userPath.startsWith('/') && !userPath.includes(':')
+        ? `${ws.path}/${userPath}`
+        : userPath;
+
+      let content = '';
+      if ((api as any)?.workspace?.readFile) {
+        content = await (api as any).workspace.readFile(targetPath);
+      }
+      if (content) {
+        const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
+        if (txtSource) txtSource.value = content.slice(0, 4000);
+        const selPreset = document.getElementById('selGroundedHandbookPreset') as HTMLSelectElement;
+        if (selPreset) selPreset.value = 'workspace_doc';
+        resetGroundedUiState();
+        showToast(`📖 Loaded custom workspace file: ${userPath}`);
+      } else {
+        showToast(`⚠️ Could not read file or file is empty: ${userPath}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Error loading workspace file: ${err.message || err}`);
+    }
   });
 
   document.getElementById('btnPresetValidClaim')?.addEventListener('click', () => {
@@ -10961,6 +11041,17 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     showToast('📝 Loaded valid grounded claim');
   });
 
+  document.getElementById('btnPresetBoundaryClaim')?.addEventListener('click', () => {
+    const sel = (document.getElementById('selGroundedHandbookPreset') as HTMLSelectElement)?.value || 'merchant_sop';
+    const preset = HANDBOOK_PRESET_TEXTS[sel];
+    const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
+    if (preset && txtClaim) {
+      txtClaim.value = preset.boundaryClaim || 'Partial refund: Refunds under $100 require no manager override, but unverified transfers up to $2,500 can be dispatched via instant crypto rails.';
+    }
+    resetGroundedUiState();
+    showToast('⚠️ Loaded mixed / boundary claim');
+  });
+
   document.getElementById('btnPresetInvalidClaim')?.addEventListener('click', () => {
     const sel = (document.getElementById('selGroundedHandbookPreset') as HTMLSelectElement)?.value || 'merchant_sop';
     const preset = HANDBOOK_PRESET_TEXTS[sel];
@@ -10970,11 +11061,16 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     showToast('⚠️ Loaded ungrounded hallucinated claim');
   });
 
+  document.getElementById('selGroundedStrictness')?.addEventListener('change', () => {
+    resetGroundedUiState();
+  });
+
   document.getElementById('btnVerifyGroundedness')?.addEventListener('click', async () => {
     const claim = (document.getElementById('txtGroundedClaim') as HTMLTextAreaElement)?.value?.trim() || '';
     const handbookSource = (document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement)?.value?.trim() || '';
     const presetKey = (document.getElementById('selGroundedHandbookPreset') as HTMLSelectElement)?.value || 'merchant_sop';
     const preset = HANDBOOK_PRESET_TEXTS[presetKey] || HANDBOOK_PRESET_TEXTS.merchant_sop;
+    const minThreshold = parseFloat((document.getElementById('selGroundedStrictness') as HTMLSelectElement)?.value || '75');
 
     if (!claim) {
       showToast('⚠️ Please enter a claim or generated output to audit.');
@@ -10989,29 +11085,126 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           generatedClaim: claim,
           handbookChunks: [{
             chunkId: `chk-${presetKey}`,
-            title: preset.title,
+            title: preset?.title || 'Custom Knowledge Chunk',
             text: handbookSource
-          }]
+          }],
+          minThreshold
         });
       } else {
-        const words = claim.toLowerCase().match(/[a-z0-9]+/g) || [];
+        const stopWords = new Set(['the', 'and', 'a', 'an', 'to', 'of', 'in', 'for', 'is', 'are', 'by', 'on', 'with', 'according', 'as', 'that', 'this', 'at', 'from', 'or', 'be', 'it']);
+        const claimWords = claim.toLowerCase().match(/\b[a-z0-9_$.§-]+\b/gi) || [];
+        const salientWords = claimWords.filter(w => !stopWords.has(w.toLowerCase()) && w.length > 1);
         const sourceLower = handbookSource.toLowerCase();
-        const matched = words.filter((w: string) => sourceLower.includes(w)).length;
-        const score = words.length > 0 ? Math.round((matched / words.length) * 100) : 0;
+        const matchedWords = salientWords.filter(w => sourceLower.includes(w.toLowerCase()));
+        const ungroundedWords = salientWords.filter(w => !sourceLower.includes(w.toLowerCase()));
+        const score = salientWords.length > 0 ? parseFloat(((matchedWords.length / salientWords.length) * 100).toFixed(1)) : 0;
+        const isGrounded = score >= minThreshold;
+
+        const tokenDiff = claim.split(/(\s+)/).map(segment => {
+          const clean = segment.toLowerCase().replace(/[^a-z0-9_$.§-]/g, '');
+          if (!clean) return { text: segment, type: 'separator' };
+          if (stopWords.has(clean)) return { text: segment, type: 'neutral' };
+          const matched = sourceLower.includes(clean);
+          return {
+            text: segment,
+            type: matched ? 'grounded' : 'hallucinated'
+          };
+        });
+
         res = {
-          isGrounded: score >= 65,
+          claim,
+          isGrounded,
           groundednessScorePct: score,
-          hallucinationScorePct: 100 - score,
-          citedChunkId: `chk-${presetKey}`,
-          citedChunkTitle: preset.title,
-          auditSignature: score >= 65 ? 'ed25519_sig_demo_' + Date.now() : null,
-          unmatchedEntities: score < 65 ? ['50,000', 'crypto', 'unconditional'] : []
+          hallucinationScorePct: parseFloat((100 - score).toFixed(1)),
+          minThreshold,
+          verifiedCitations: isGrounded ? [{ chunkId: `chk-${presetKey}`, title: preset?.title || 'Handbook Source' }] : [],
+          unmatchedTokens: ungroundedWords,
+          unmatchedEntities: ungroundedWords,
+          tokenDiff,
+          auditSignature: isGrounded ? 'ed25519_sig_demo_' + Date.now().toString(36) : null,
+          timestamp: new Date().toISOString(),
+          verifiedBy: 'Evolve AI Groundedness Gate v2.20.0'
         };
       }
 
+      // 1. Populate KPI Ribbon
+      const ribbon = document.getElementById('groundedKpiRibbon');
+      if (ribbon) ribbon.style.display = 'grid';
+      const lblScore = document.getElementById('lblGroundedScoreValue');
+      if (lblScore) {
+        lblScore.textContent = `${res.groundednessScorePct}%`;
+        lblScore.style.color = res.isGrounded ? 'var(--success)' : 'var(--error)';
+      }
+      const lblThreshold = document.getElementById('lblGroundedThresholdValue');
+      if (lblThreshold) lblThreshold.textContent = `Target: >=${res.minThreshold || minThreshold}%`;
+      const lblHalluc = document.getElementById('lblHallucinationScoreValue');
+      if (lblHalluc) {
+        lblHalluc.textContent = `${res.hallucinationScorePct}%`;
+        lblHalluc.style.color = res.hallucinationScorePct > (100 - (res.minThreshold || minThreshold)) ? 'var(--error)' : 'var(--text-secondary)';
+      }
+      const lblChunks = document.getElementById('lblCitedChunksCount');
+      if (lblChunks) {
+        const count = Array.isArray(res.verifiedCitations) ? res.verifiedCitations.length : (res.isGrounded ? 1 : 0);
+        lblChunks.textContent = String(count);
+      }
+      const lblCrypto = document.getElementById('lblCryptoStateValue');
+      if (lblCrypto) {
+        if (res.isGrounded) {
+          lblCrypto.textContent = '🟢 SIGNED (Ed25519)';
+          lblCrypto.style.color = 'var(--success)';
+        } else {
+          lblCrypto.textContent = '🔴 WITHHELD';
+          lblCrypto.style.color = 'var(--error)';
+        }
+      }
+
+      // 2. Render Visual Token Diff
+      const visualDiffBox = document.getElementById('groundedVisualDiffBox');
+      const visualTokens = document.getElementById('groundedVisualTokens');
+      if (visualDiffBox) visualDiffBox.style.display = 'block';
+      if (visualTokens) {
+        visualTokens.innerHTML = '';
+        if (Array.isArray(res.tokenDiff) && res.tokenDiff.length > 0) {
+          res.tokenDiff.forEach((tok: { text: string; type: string }) => {
+            const span = document.createElement('span');
+            span.textContent = tok.text;
+            if (tok.type === 'grounded') {
+              span.style.background = 'rgba(137, 209, 133, 0.25)';
+              span.style.color = '#89d185';
+              span.style.padding = '1px 3px';
+              span.style.borderRadius = '3px';
+              span.style.fontWeight = '600';
+              span.style.margin = '0 1px';
+              span.title = 'Grounded in reference handbook chunk';
+            } else if (tok.type === 'hallucinated') {
+              span.style.background = 'rgba(241, 76, 76, 0.25)';
+              span.style.color = '#f87171';
+              span.style.textDecoration = 'line-through';
+              span.style.padding = '1px 3px';
+              span.style.borderRadius = '3px';
+              span.style.fontWeight = '600';
+              span.style.margin = '0 1px';
+              span.title = 'Novel / ungrounded entity not found in handbook';
+            } else {
+              span.style.color = 'var(--text-secondary)';
+            }
+            visualTokens.appendChild(span);
+          });
+        } else {
+          visualTokens.textContent = claim;
+        }
+      }
+
+      // 3. Populate Compliance Receipt
+      const txtReceipt = document.getElementById('txtComplianceReceiptJson');
+      if (txtReceipt) {
+        const receiptData = res.receipt || res;
+        txtReceipt.textContent = JSON.stringify(receiptData, null, 2);
+      }
+
+      // 4. Update Header Badge and Status Boxes
       const successBox = document.getElementById('fdeGroundednessResultBox');
       const violationBox = document.getElementById('fdeGroundednessViolationBox');
-
       const headerBadge = document.getElementById('lblGroundedHeaderBadge');
 
       if (res.isGrounded) {
@@ -11021,8 +11214,8 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           const title = document.getElementById('lblGroundedStatusTitle');
           const details = document.getElementById('lblGroundedDetails');
           const sig = document.getElementById('lblAuditSignature');
-          if (title) title.textContent = `✓ Citation Grounded: ${res.groundednessScorePct}% Verified (${res.citedChunkTitle})`;
-          if (details) details.textContent = `Grounding Score: ${res.groundednessScorePct}% | Hallucination Score: ${res.hallucinationScorePct}% | Verified against ${res.citedChunkId}`;
+          if (title) title.textContent = `✓ Citation Grounded: ${res.groundednessScorePct}% Verified (${preset?.title || 'Handbook Source'})`;
+          if (details) details.textContent = `Grounding Score: ${res.groundednessScorePct}% | Hallucination Score: ${res.hallucinationScorePct}% | Verified against ${res.citedChunkId || 'chk-' + presetKey} (Threshold: ${res.minThreshold || minThreshold}%)`;
           if (sig) sig.textContent = `Ed25519 Audit Signature: ${res.auditSignature || 'verified'}`;
         }
         if (headerBadge) {
@@ -11040,10 +11233,10 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           const title = document.getElementById('lblGroundedViolationTitle');
           const details = document.getElementById('lblGroundedViolationDetails');
           const unmatched = document.getElementById('lblGroundedUnmatchedTokens');
-          if (title) title.textContent = `❌ Groundedness Violation (Hallucination Detected: Grounded ${res.groundednessScorePct}%, Hallucination ${res.hallucinationScorePct}%)`;
-          if (details) details.textContent = 'Claim contains assertions not found in cited handbook chunks. Cryptographic signature withheld.';
+          if (title) title.textContent = `❌ Groundedness Violation (Hallucination Detected: Grounded ${res.groundednessScorePct}%, Hallucination ${res.hallucinationScorePct}%, Min Required: ${res.minThreshold || minThreshold}%)`;
+          if (details) details.textContent = 'Claim contains ungrounded assertions exceeding risk tolerance. Cryptographic signature withheld.';
           if (unmatched) {
-            unmatched.textContent = `Ungrounded/Unmatched Entities: ${Array.isArray(res.unmatchedEntities) && res.unmatchedEntities.length > 0 ? res.unmatchedEntities.join(', ') : (Array.isArray(res.unmatchedTokens) && res.unmatchedTokens.length > 0 ? res.unmatchedTokens.join(', ') : 'Novel terms absent from handbook')}`;
+            unmatched.textContent = `Ungrounded / Novel Entities: ${Array.isArray(res.unmatchedEntities) && res.unmatchedEntities.length > 0 ? res.unmatchedEntities.join(', ') : (Array.isArray(res.unmatchedTokens) && res.unmatchedTokens.length > 0 ? res.unmatchedTokens.join(', ') : 'Novel terms absent from handbook')}`;
           }
         }
         if (headerBadge) {
@@ -11059,6 +11252,29 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       refreshP4Rail?.();
     } catch (err: any) {
       showToast(`⚠️ Groundedness verification error: ${err.message || err}`);
+    }
+  });
+
+  // Receipt Drawer Controls
+  document.getElementById('btnToggleReceiptDrawer')?.addEventListener('click', () => {
+    const drawer = document.getElementById('groundedReceiptDrawer');
+    if (drawer) {
+      drawer.style.display = drawer.style.display === 'none' || !drawer.style.display ? 'block' : 'none';
+    }
+  });
+
+  document.getElementById('btnCloseReceiptDrawer')?.addEventListener('click', () => {
+    const drawer = document.getElementById('groundedReceiptDrawer');
+    if (drawer) drawer.style.display = 'none';
+  });
+
+  document.getElementById('btnCopyComplianceReceipt')?.addEventListener('click', () => {
+    const txt = (document.getElementById('txtComplianceReceiptJson') as HTMLPreElement)?.textContent || '';
+    if (txt && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(txt);
+      showToast('📋 Copied compliance receipt JSON');
+    } else {
+      showToast('⚠️ No compliance receipt JSON available to copy');
     }
   });
 
@@ -11153,10 +11369,6 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
   document.getElementById('btnHitlReject')?.addEventListener('click', () => recordHitlDecision('REJECTED'));
 
   // --- Phase 4 Step Rail Navigation (4A -> 4B -> 4C) ---
-  let currentP4Step = 1;
-  let hasVerifiedGroundedness = false;
-  let hasSimulatedHitl = false;
-
   const p4StepIsDone = (step: number) => {
     if (step === 1) return hasRunGoldenBenchmark;
     if (step === 2) return hasVerifiedGroundedness;
@@ -11164,7 +11376,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     return false;
   };
 
-  const refreshP4Rail = () => {
+  refreshP4Rail = () => {
     [1, 2, 3].forEach(i => {
       const btnId = i === 1 ? 'btnP4StepA' : i === 2 ? 'btnP4StepB' : 'btnP4StepC';
       const btn = document.getElementById(btnId);
