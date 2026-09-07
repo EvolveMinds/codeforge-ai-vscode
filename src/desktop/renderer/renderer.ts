@@ -10924,6 +10924,22 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     }
   };
 
+  const resetGroundedUiState = () => {
+    const headerBadge = document.getElementById('lblGroundedHeaderBadge');
+    if (headerBadge) {
+      headerBadge.textContent = '⚪ Awaiting Verification (No Signature Issued)';
+      headerBadge.style.color = '#94a3b8';
+      headerBadge.style.borderColor = '#64748b';
+      headerBadge.style.background = 'rgba(148, 163, 184, 0.15)';
+    }
+    const successBox = document.getElementById('fdeGroundednessResultBox');
+    const violationBox = document.getElementById('fdeGroundednessViolationBox');
+    if (successBox) successBox.style.display = 'none';
+    if (violationBox) violationBox.style.display = 'none';
+    hasVerifiedGroundedness = false;
+    refreshP4Rail?.();
+  };
+
   document.getElementById('selGroundedHandbookPreset')?.addEventListener('change', (e) => {
     const val = (e.target as HTMLSelectElement).value;
     const preset = HANDBOOK_PRESET_TEXTS[val];
@@ -10933,6 +10949,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       if (txtSource) txtSource.value = preset.text;
       if (txtClaim) txtClaim.value = preset.validClaim;
     }
+    resetGroundedUiState();
   });
 
   document.getElementById('btnPresetValidClaim')?.addEventListener('click', () => {
@@ -10940,6 +10957,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     const preset = HANDBOOK_PRESET_TEXTS[sel];
     const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
     if (preset && txtClaim) txtClaim.value = preset.validClaim;
+    resetGroundedUiState();
     showToast('📝 Loaded valid grounded claim');
   });
 
@@ -10948,6 +10966,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     const preset = HANDBOOK_PRESET_TEXTS[sel];
     const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
     if (preset && txtClaim) txtClaim.value = preset.invalidClaim;
+    resetGroundedUiState();
     showToast('⚠️ Loaded ungrounded hallucinated claim');
   });
 
@@ -10993,6 +11012,8 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       const successBox = document.getElementById('fdeGroundednessResultBox');
       const violationBox = document.getElementById('fdeGroundednessViolationBox');
 
+      const headerBadge = document.getElementById('lblGroundedHeaderBadge');
+
       if (res.isGrounded) {
         if (violationBox) violationBox.style.display = 'none';
         if (successBox) {
@@ -11003,6 +11024,12 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           if (title) title.textContent = `✓ Citation Grounded: ${res.groundednessScorePct}% Verified (${res.citedChunkTitle})`;
           if (details) details.textContent = `Grounding Score: ${res.groundednessScorePct}% | Hallucination Score: ${res.hallucinationScorePct}% | Verified against ${res.citedChunkId}`;
           if (sig) sig.textContent = `Ed25519 Audit Signature: ${res.auditSignature || 'verified'}`;
+        }
+        if (headerBadge) {
+          headerBadge.textContent = '🟢 Ed25519 Cryptographically Signed';
+          headerBadge.style.color = 'var(--success)';
+          headerBadge.style.borderColor = 'var(--success)';
+          headerBadge.style.background = 'rgba(137, 209, 133, 0.15)';
         }
         showToast(`✓ Groundedness Verified (${res.groundednessScorePct}%)! Cryptographic receipt signed.`);
         hasVerifiedGroundedness = true;
@@ -11016,8 +11043,14 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           if (title) title.textContent = `❌ Groundedness Violation (Hallucination Detected: Grounded ${res.groundednessScorePct}%, Hallucination ${res.hallucinationScorePct}%)`;
           if (details) details.textContent = 'Claim contains assertions not found in cited handbook chunks. Cryptographic signature withheld.';
           if (unmatched) {
-            unmatched.textContent = `Ungrounded/Unmatched Entities: ${Array.isArray(res.unmatchedEntities) && res.unmatchedEntities.length > 0 ? res.unmatchedEntities.join(', ') : 'Novel terms absent from handbook'}`;
+            unmatched.textContent = `Ungrounded/Unmatched Entities: ${Array.isArray(res.unmatchedEntities) && res.unmatchedEntities.length > 0 ? res.unmatchedEntities.join(', ') : (Array.isArray(res.unmatchedTokens) && res.unmatchedTokens.length > 0 ? res.unmatchedTokens.join(', ') : 'Novel terms absent from handbook')}`;
           }
+        }
+        if (headerBadge) {
+          headerBadge.textContent = '🔴 Signature Withheld (Groundedness Breach)';
+          headerBadge.style.color = 'var(--error)';
+          headerBadge.style.borderColor = 'var(--error)';
+          headerBadge.style.background = 'rgba(241, 76, 76, 0.15)';
         }
         showToast(`❌ Groundedness Violation: Claim rejected. Cryptographic signature withheld.`);
         hasVerifiedGroundedness = false;
