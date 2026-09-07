@@ -4242,7 +4242,7 @@ function setupDeliveryStudio(api: any): void {
   };
 
   let lastPreflightReport: PreflightReportData | null = null;
-  let activeFindingFilter: 'all' | 'error' | 'warning' | 'cleanable' = 'all';
+  let activeFindingFilter: 'all' | 'p1' | 'p2' | 'p3' | 'p4' | 'p5' | 'error' = 'all';
 
   const renderPreflightFindings = () => {
     if (!lastPreflightReport) return;
@@ -4250,36 +4250,53 @@ function setupDeliveryStudio(api: any): void {
     if (!container) return;
 
     const findings = lastPreflightReport.findings;
-    const filtered = findings.filter(f => {
-      if (activeFindingFilter === 'all') return true;
-      if (activeFindingFilter === 'error') return f.severity === 'error';
-      if (activeFindingFilter === 'warning') return f.severity === 'warning';
-      if (activeFindingFilter === 'cleanable') return f.fixable || f.category === 'cleanup';
-      return true;
-    });
+    const p1Count = findings.filter(f => f.category === 'security' && f.code === 'PRE-SEC-01').length;
+    const p2Count = findings.filter(f => f.category === 'cleanup').length;
+    const p3Count = findings.filter(f => f.category === 'env_parity').length;
+    const p4Count = findings.filter(f => f.category === 'docker').length;
+    const p5Count = findings.filter(f => f.code === 'PRE-GIT-01').length;
+    const errCount = findings.filter(f => f.severity === 'error').length;
 
     const cntAll = document.getElementById('cntFindingAll');
+    const cntP1 = document.getElementById('cntFindingP1');
+    const cntP2 = document.getElementById('cntFindingP2');
+    const cntP3 = document.getElementById('cntFindingP3');
+    const cntP4 = document.getElementById('cntFindingP4');
+    const cntP5 = document.getElementById('cntFindingP5');
     const cntErr = document.getElementById('cntFindingErrors');
-    const cntWarn = document.getElementById('cntFindingWarnings');
-    const cntClean = document.getElementById('cntFindingCleanable');
+
     if (cntAll) cntAll.innerText = String(findings.length);
-    if (cntErr) cntErr.innerText = String(findings.filter(f => f.severity === 'error').length);
-    if (cntWarn) cntWarn.innerText = String(findings.filter(f => f.severity === 'warning').length);
-    if (cntClean) cntClean.innerText = String(findings.filter(f => f.fixable || f.category === 'cleanup').length);
+    if (cntP1) cntP1.innerText = String(p1Count);
+    if (cntP2) cntP2.innerText = String(p2Count);
+    if (cntP3) cntP3.innerText = String(p3Count);
+    if (cntP4) cntP4.innerText = String(p4Count);
+    if (cntP5) cntP5.innerText = String(p5Count);
+    if (cntErr) cntErr.innerText = String(errCount);
+
+    const filtered = findings.filter(f => {
+      if (activeFindingFilter === 'all') return true;
+      if (activeFindingFilter === 'p1') return f.category === 'security' && f.code === 'PRE-SEC-01';
+      if (activeFindingFilter === 'p2') return f.category === 'cleanup';
+      if (activeFindingFilter === 'p3') return f.category === 'env_parity';
+      if (activeFindingFilter === 'p4') return f.category === 'docker';
+      if (activeFindingFilter === 'p5') return f.code === 'PRE-GIT-01';
+      if (activeFindingFilter === 'error') return f.severity === 'error';
+      return true;
+    });
 
     if (filtered.length === 0) {
       if (findings.length === 0) {
         container.innerHTML = `
           <div style="text-align: center; padding: 22px 14px; background: rgba(137, 209, 133, 0.08); border: 1px solid var(--success); border-radius: 6px;">
             <div style="font-size: 20px;">🛡️ ✓</div>
-            <div style="font-weight: 700; color: var(--success); font-size: 13px; margin-top: 4px;">Clean Pre-Flight Bill of Health</div>
-            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Zero secret leaks, zero dangling files, and 100% environment variable parity. Ready for pilot deployment.</div>
+            <div style="font-weight: 700; color: var(--success); font-size: 13px; margin-top: 4px;">Clean Pre-Flight Bill of Health across all 5 Pillars</div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Zero secret leaks, zero dangling files, 100% environment parity, non-root Docker, and clean git repository ignore. Ready for pilot deployment.</div>
           </div>
         `;
       } else {
         container.innerHTML = `
           <div style="text-align: center; padding: 18px 12px; color: var(--text-secondary); font-size: 11px;">
-            No findings matching the "<strong>${activeFindingFilter}</strong>" filter.
+            No findings matching the "<strong>${activeFindingFilter.toUpperCase()}</strong>" filter.
           </div>
         `;
       }
@@ -4393,48 +4410,62 @@ function setupDeliveryStudio(api: any): void {
       }
     }
 
-    // Update Category KPIs
-    const secretFindings = report.findings.filter(f => f.category === 'security');
-    const envFindings = report.findings.filter(f => f.category === 'env_parity');
+    // 5 PILLARS SPECIFIC KPI BINDINGS
+    // Pillar 1: Secrets
+    const secretFindings = report.findings.filter(f => f.category === 'security' && f.code === 'PRE-SEC-01');
+    const valP1 = document.getElementById('valAuditPillar1');
+    const badgeP1 = document.getElementById('badgeAuditPillar1');
+    if (valP1 && badgeP1) {
+      valP1.innerText = secretFindings.length === 0 ? '0 Leaks' : `${secretFindings.length} Leaked`;
+      badgeP1.innerText = secretFindings.length === 0 ? 'CLEAN' : 'ALERT';
+      badgeP1.style.background = secretFindings.length === 0 ? 'var(--success)' : 'var(--error)';
+      badgeP1.style.color = '#1e1e1e';
+    }
+
+    // Pillar 2: Cleanup
     const cleanupFindings = report.findings.filter(f => f.category === 'cleanup');
+    const valP2 = document.getElementById('valAuditPillar2');
+    const badgeP2 = document.getElementById('badgeAuditPillar2');
+    if (valP2 && badgeP2) {
+      const count = report.cleanableCount || report.temporaryFiles?.length || cleanupFindings.length || 0;
+      valP2.innerText = count === 0 ? '0 Files' : `${count} Dangling`;
+      badgeP2.innerText = count === 0 ? 'PRISTINE' : 'CLEANABLE';
+      badgeP2.style.background = count === 0 ? 'var(--success)' : '#e5b567';
+      badgeP2.style.color = '#1e1e1e';
+    }
+
+    // Pillar 3: Parity
+    const envFindings = report.findings.filter(f => f.category === 'env_parity');
+    const valP3 = document.getElementById('valAuditPillar3');
+    const badgeP3 = document.getElementById('badgeAuditPillar3');
+    if (valP3 && badgeP3) {
+      const missing = report.environmentSummary?.missingProdKeys?.length || envFindings.length || 0;
+      valP3.innerText = missing === 0 ? '100% Match' : `${missing} Missing`;
+      badgeP3.innerText = missing === 0 ? 'ALIGNED' : 'DRIFT';
+      badgeP3.style.background = missing === 0 ? 'var(--success)' : '#e5b567';
+      badgeP3.style.color = '#1e1e1e';
+    }
+
+    // Pillar 4: Docker
     const dockerFindings = report.findings.filter(f => f.category === 'docker');
-
-    const valSecrets = document.getElementById('valAuditSecrets');
-    const badgeSecrets = document.getElementById('badgeAuditSecrets');
-    if (valSecrets && badgeSecrets) {
-      valSecrets.innerText = secretFindings.length === 0 ? '0 Leaks' : `${secretFindings.length} Leak(s)`;
-      badgeSecrets.innerText = secretFindings.length === 0 ? 'CLEAN' : 'ALERT';
-      badgeSecrets.style.background = secretFindings.length === 0 ? 'var(--success)' : 'var(--error)';
-      badgeSecrets.style.color = '#1e1e1e';
+    const valP4 = document.getElementById('valAuditPillar4');
+    const badgeP4 = document.getElementById('badgeAuditPillar4');
+    if (valP4 && badgeP4) {
+      valP4.innerText = dockerFindings.length === 0 ? 'Non-Root OK' : 'Root Default';
+      badgeP4.innerText = dockerFindings.length === 0 ? 'SECURE' : 'WARNING';
+      badgeP4.style.background = dockerFindings.length === 0 ? 'var(--success)' : '#e5b567';
+      badgeP4.style.color = '#1e1e1e';
     }
 
-    const valEnv = document.getElementById('valAuditEnv');
-    const badgeEnv = document.getElementById('badgeAuditEnv');
-    if (valEnv && badgeEnv) {
-      const missing = report.environmentSummary?.missingProdKeys?.length || 0;
-      valEnv.innerText = missing === 0 ? '100% Match' : `${missing} Missing`;
-      badgeEnv.innerText = missing === 0 ? 'ALIGNED' : 'DRIFT';
-      badgeEnv.style.background = missing === 0 ? 'var(--success)' : '#e5b567';
-      badgeEnv.style.color = '#1e1e1e';
-    }
-
-    const valCleanup = document.getElementById('valAuditCleanup');
-    const badgeCleanup = document.getElementById('badgeAuditCleanup');
-    if (valCleanup && badgeCleanup) {
-      const count = report.cleanableCount || report.temporaryFiles?.length || 0;
-      valCleanup.innerText = count === 0 ? '0 Files' : `${count} Dangling`;
-      badgeCleanup.innerText = count === 0 ? 'PRISTINE' : 'CLEANABLE';
-      badgeCleanup.style.background = count === 0 ? 'var(--success)' : '#e5b567';
-      badgeCleanup.style.color = '#1e1e1e';
-    }
-
-    const valDocker = document.getElementById('valAuditDocker');
-    const badgeDocker = document.getElementById('badgeAuditDocker');
-    if (valDocker && badgeDocker) {
-      valDocker.innerText = dockerFindings.length === 0 ? 'Compliant' : 'Review Needed';
-      badgeDocker.innerText = dockerFindings.length === 0 ? 'SECURE' : 'WARNING';
-      badgeDocker.style.background = dockerFindings.length === 0 ? 'var(--success)' : '#e5b567';
-      badgeDocker.style.color = '#1e1e1e';
+    // Pillar 5: Git Sec
+    const gitFindings = report.findings.filter(f => f.code === 'PRE-GIT-01');
+    const valP5 = document.getElementById('valAuditPillar5');
+    const badgeP5 = document.getElementById('badgeAuditPillar5');
+    if (valP5 && badgeP5) {
+      valP5.innerText = gitFindings.length === 0 ? '.env Excluded' : 'Unignored!';
+      badgeP5.innerText = gitFindings.length === 0 ? 'PROTECTED' : 'CRITICAL';
+      badgeP5.style.background = gitFindings.length === 0 ? 'var(--success)' : 'var(--error)';
+      badgeP5.style.color = '#1e1e1e';
     }
 
     const ts = document.getElementById('auditTimestampBadge');
@@ -4499,15 +4530,21 @@ function setupDeliveryStudio(api: any): void {
       return;
     }
     const receipt = {
-      title: 'Evolve AI Pre-Flight Deployment Audit Receipt',
+      title: 'Evolve AI Pre-Flight Deployment Audit Receipt (5 Pillars)',
       scanTimestamp: new Date(lastPreflightReport.timestamp).toISOString(),
       score: lastPreflightReport.score,
       verdict: lastPreflightReport.score >= 90 ? 'PASS_READY_FOR_DEPLOYMENT' : lastPreflightReport.score >= 70 ? 'WARNING_RESIDUAL_RISKS' : 'BLOCKED_CRITICAL_RISK',
       totalFindings: lastPreflightReport.findings.length,
+      pillars: {
+        pillar1_secrets: lastPreflightReport.findings.filter(f => f.category === 'security' && f.code === 'PRE-SEC-01'),
+        pillar2_cleanup: lastPreflightReport.findings.filter(f => f.category === 'cleanup'),
+        pillar3_envParity: lastPreflightReport.environmentSummary,
+        pillar4_docker: lastPreflightReport.findings.filter(f => f.category === 'docker'),
+        pillar5_gitSecurity: lastPreflightReport.findings.filter(f => f.code === 'PRE-GIT-01')
+      },
       findings: lastPreflightReport.findings,
-      environmentSummary: lastPreflightReport.environmentSummary,
       temporaryFiles: lastPreflightReport.temporaryFiles,
-      engine: 'EvolveAI PreflightAuditor v2.20 (Deterministic Zero-Network Engine)',
+      engine: 'EvolveAI PreflightAuditor v2.20 (5-Pillar Deterministic Zero-Network Engine)',
       signature: 'ed25519_secops_audit_verified_' + Math.random().toString(36).slice(2, 10)
     };
 
@@ -4521,9 +4558,12 @@ function setupDeliveryStudio(api: any): void {
 
   const findingFilterButtons = [
     { id: 'btnFilterFindingAll', filter: 'all' },
-    { id: 'btnFilterFindingErrors', filter: 'error' },
-    { id: 'btnFilterFindingWarnings', filter: 'warning' },
-    { id: 'btnFilterFindingCleanable', filter: 'cleanable' }
+    { id: 'btnFilterFindingP1', filter: 'p1' },
+    { id: 'btnFilterFindingP2', filter: 'p2' },
+    { id: 'btnFilterFindingP3', filter: 'p3' },
+    { id: 'btnFilterFindingP4', filter: 'p4' },
+    { id: 'btnFilterFindingP5', filter: 'p5' },
+    { id: 'btnFilterFindingErrors', filter: 'error' }
   ];
 
   findingFilterButtons.forEach(b => {

@@ -3187,7 +3187,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                           <span id="auditHeaderStatusBadge" class="brand-pill" style="background: rgba(140, 140, 140, 0.15); color: var(--text-secondary); font-size: 10px;">⚪ AWAITING SCAN</span>
                         </div>
                         <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                          Scans workspace for secret &amp; credential leaks, dangling backup files, .env parity, and container hygiene with 0 network calls.
+                          Scans workspace across 5 core deterministic pillars with 0 network calls: secret leaks, backup pollution, .env parity, container hygiene &amp; git security.
                         </div>
                       </div>
                       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -3206,72 +3206,120 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       </div>
                     </div>
 
-                    <!-- Readiness Scorecard & KPI Ribbon -->
-                    <div id="auditScorecardRow" style="display: grid; grid-template-columns: 200px 1fr; gap: 14px; margin-bottom: 16px;">
+                    <!-- Readiness Scorecard & 5-Pillar Diagnostics Ribbon -->
+                    <div id="auditScorecardRow" style="display: grid; grid-template-columns: 180px 1fr; gap: 12px; margin-bottom: 16px;">
                       <!-- Score Tile -->
-                      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+                      <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                         <div style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px;">Readiness Score</div>
-                        <div id="auditScoreExactVal" style="font-size: 28px; font-weight: 800; color: var(--text-muted); margin: 4px 0;">-- / 100</div>
-                        <div id="auditVerdictLabel" style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary); background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 10px;">Not Yet Audited</div>
+                        <div id="auditScoreExactVal" style="font-size: 26px; font-weight: 800; color: var(--text-muted); margin: 3px 0;">-- / 100</div>
+                        <div id="auditVerdictLabel" style="font-size: 10px; font-weight: 700; color: var(--text-secondary); background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 10px;">Not Yet Audited</div>
                       </div>
 
-                      <!-- 4 Category KPI Cards -->
-                      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
-                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                      <!-- 5 Pillar Cards -->
+                      <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;">
+                        <!-- Pillar 1 -->
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;">
                           <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 14px;">🔒</span>
-                            <span id="badgeAuditSecrets" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                            <span style="font-size: 13px;">🔒</span>
+                            <span id="badgeAuditPillar1" class="tag" style="font-size: 9px; padding: 1px 5px;">UNCHECKED</span>
                           </div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">Secret &amp; Key Leaks</div>
-                          <div id="valAuditSecrets" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                          <div style="font-size: 9.5px; color: var(--accent); font-weight: 700; margin-top: 4px;">Pillar 1: Secrets</div>
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">API &amp; Key Leaks</div>
+                          <div id="valAuditPillar1" style="font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
                         </div>
 
-                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                        <!-- Pillar 2 -->
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;">
                           <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 14px;">⚖️</span>
-                            <span id="badgeAuditEnv" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                            <span style="font-size: 13px;">🧹</span>
+                            <span id="badgeAuditPillar2" class="tag" style="font-size: 9px; padding: 1px 5px;">UNCHECKED</span>
                           </div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">.env Parity</div>
-                          <div id="valAuditEnv" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                          <div style="font-size: 9.5px; color: var(--accent); font-weight: 700; margin-top: 4px;">Pillar 2: Cleanup</div>
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">Dangling Backups</div>
+                          <div id="valAuditPillar2" style="font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
                         </div>
 
-                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                        <!-- Pillar 3 -->
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;">
                           <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 14px;">🧹</span>
-                            <span id="badgeAuditCleanup" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                            <span style="font-size: 13px;">⚖️</span>
+                            <span id="badgeAuditPillar3" class="tag" style="font-size: 9px; padding: 1px 5px;">UNCHECKED</span>
                           </div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">Dangling Backups</div>
-                          <div id="valAuditCleanup" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                          <div style="font-size: 9.5px; color: var(--accent); font-weight: 700; margin-top: 4px;">Pillar 3: Parity</div>
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">.env vs Example</div>
+                          <div id="valAuditPillar3" style="font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
                         </div>
 
-                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                        <!-- Pillar 4 -->
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;">
                           <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 14px;">🐳</span>
-                            <span id="badgeAuditDocker" class="tag" style="font-size: 9.5px; padding: 1px 6px;">UNCHECKED</span>
+                            <span style="font-size: 13px;">🐳</span>
+                            <span id="badgeAuditPillar4" class="tag" style="font-size: 9px; padding: 1px 5px;">UNCHECKED</span>
                           </div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 6px; text-transform: uppercase; font-weight: 700;">Container &amp; Git</div>
-                          <div id="valAuditDocker" style="font-size: 13px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                          <div style="font-size: 9.5px; color: var(--accent); font-weight: 700; margin-top: 4px;">Pillar 4: Docker</div>
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">Non-Root USER</div>
+                          <div id="valAuditPillar4" style="font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
+                        </div>
+
+                        <!-- Pillar 5 -->
+                        <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px;">📦</span>
+                            <span id="badgeAuditPillar5" class="tag" style="font-size: 9px; padding: 1px 5px;">UNCHECKED</span>
+                          </div>
+                          <div style="font-size: 9.5px; color: var(--accent); font-weight: 700; margin-top: 4px;">Pillar 5: Git Sec</div>
+                          <div style="font-size: 9px; color: var(--text-secondary); text-transform: uppercase;">.gitignore Secrets</div>
+                          <div id="valAuditPillar5" style="font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px;">--</div>
                         </div>
                       </div>
                     </div>
 
-                    <!-- Findings & Diagnostic Drawer -->
-                    <div id="auditResultExactBox" style="margin-top: 14px; display: none;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                    <!-- 5-PILLAR DETERMINISTIC DIAGNOSTICS MATRIX & INSPECTION DRAWER -->
+                    <div id="auditResultExactBox" style="margin-top: 14px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
-                          <strong style="font-size: 12px; color: #fff;">Diagnostic Findings &amp; Invariant Checks:</strong>
-                          <div style="display: flex; gap: 6px;">
-                            <button class="btn-quick active" id="btnFilterFindingAll" style="font-size: 10px; padding: 2px 8px;">All (<span id="cntFindingAll">0</span>)</button>
-                            <button class="btn-quick" id="btnFilterFindingErrors" style="font-size: 10px; padding: 2px 8px; border-color: var(--error); color: var(--error);">Errors (<span id="cntFindingErrors">0</span>)</button>
-                            <button class="btn-quick" id="btnFilterFindingWarnings" style="font-size: 10px; padding: 2px 8px; border-color: #e5b567; color: #e5b567;">Warnings (<span id="cntFindingWarnings">0</span>)</button>
-                            <button class="btn-quick" id="btnFilterFindingCleanable" style="font-size: 10px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);">Cleanable (<span id="cntFindingCleanable">0</span>)</button>
+                          <strong style="font-size: 12.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                            <span>🏛️</span> 5-Pillar Deterministic Diagnostics Matrix:
+                          </strong>
+                          <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                            <button class="btn-quick active" id="btnFilterFindingAll" style="font-size: 10px; padding: 2px 7px;">All Findings (<span id="cntFindingAll">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingP1" style="font-size: 10px; padding: 2px 7px;">🔒 P1: Secrets (<span id="cntFindingP1">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingP2" style="font-size: 10px; padding: 2px 7px;">🧹 P2: Cleanup (<span id="cntFindingP2">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingP3" style="font-size: 10px; padding: 2px 7px;">⚖️ P3: Parity (<span id="cntFindingP3">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingP4" style="font-size: 10px; padding: 2px 7px;">🐳 P4: Docker (<span id="cntFindingP4">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingP5" style="font-size: 10px; padding: 2px 7px;">📦 P5: Git (<span id="cntFindingP5">0</span>)</button>
+                            <button class="btn-quick" id="btnFilterFindingErrors" style="font-size: 10px; padding: 2px 7px; border-color: var(--error); color: var(--error);">Errors (<span id="cntFindingErrors">0</span>)</button>
                           </div>
                         </div>
                         <div id="auditTimestampBadge" style="font-size: 10.5px; color: var(--text-secondary);">Last scan: --</div>
                       </div>
 
+                      <!-- 5-Pillar Overview Cards (Always visible explanation) -->
+                      <div id="auditPillarsExplainerRow" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px;">
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">🔒 1. Secret Leaks</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.3;">Pattern match Google, OpenAI, AWS, GitHub PATs &amp; raw passwords in bundles.</div>
+                        </div>
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">🧹 2. Backup Pollution</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.3;">Recursive scan for .bak, .backup, _OLD, ~ and temporary database dumps.</div>
+                        </div>
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">⚖️ 3. .env Parity</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.3;">Bidirectional diff of .env.example against .env / .env.production.</div>
+                        </div>
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">🐳 4. Container Hygiene</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.3;">Static parse of Dockerfiles ensuring non-root USER execution is enforced.</div>
+                        </div>
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">📦 5. Git Repository Sec</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 3px; line-height: 1.3;">Verifies .gitignore rules exclude .env and credentials to prevent repo leaks.</div>
+                        </div>
+                      </div>
+
                       <div id="auditFindingsContainer" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
-                        <div id="auditFindingsExactList" style="font-size: 11px; color: var(--text-secondary); padding: 8px;">Click "Run Pre-Flight Audit" to inspect the workspace.</div>
+                        <div id="auditFindingsExactList" style="font-size: 11px; color: var(--text-secondary); padding: 8px;">Click "Run Pre-Flight Audit" above to run the 5-pillar diagnostics across your workspace.</div>
                       </div>
                     </div>
                   </div>
