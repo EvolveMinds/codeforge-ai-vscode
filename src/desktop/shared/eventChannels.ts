@@ -141,6 +141,8 @@ export const DESKTOP_CHANNELS = {
     SCAFFOLD_MCP_TOOL_SERVER: 'evolve:fde:scaffold-mcp-tool-server',
     RUN_GOLDEN_BENCHMARK: 'evolve:fde:run-golden-benchmark',
     EXPORT_BENCHMARK_REPORT: 'evolve:fde:export-benchmark-report',
+    EXPORT_BENCHMARK_RUNNER: 'evolve:fde:export-benchmark-runner',
+    GENERATE_BENCHMARK_CASES: 'evolve:fde:generate-benchmark-cases',
     VERIFY_GROUNDEDNESS: 'evolve:fde:verify-groundedness',
     AI_ANALYZE_RAW_ASK: 'evolve:fde:ai-analyze-raw-ask',
     AI_GENERATE_TOPOLOGY: 'evolve:fde:ai-generate-topology',

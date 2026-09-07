@@ -158,6 +158,7 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
 
   test('DesktopIpcHandlers registers and executes all IPC channel handlers', async () => {
     const wsMgr = new DesktopWorkspaceManager(tmpDir);
+    wsMgr.setCurrentWorkspace(tmpDir);
     const termMgr = new DesktopTerminalManager();
     const licAuth = new DesktopLicenseAuth(tmpDir);
     const secretVault = new DesktopSecretVault(tmpDir);
@@ -332,6 +333,73 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     const rlsFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RLS_POLICIES)!;
     const rlsRes = await rlsFn(null, {});
     assert.ok(rlsRes.policySql.length > 0);
+
+    // Test invoking Golden Evaluation Benchmark Suite Runner (Section 4A)
+    const benchFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.RUN_GOLDEN_BENCHMARK)!;
+    assert.ok(benchFn !== undefined, 'RUN_GOLDEN_BENCHMARK handler should be registered');
+    const customCases = [
+      { id: 'T-001', category: 'Arithmetic & Limits', prompt: 'Refund $50', expectedOutput: 'Approved', status: 'PASSED', latencyMs: 5, costUsd: 0.0005, citations: ['SOP-1'] },
+      { id: 'T-002', category: 'Arithmetic & Limits', prompt: 'Refund $500', expectedOutput: 'Escalated', status: 'PASSED', latencyMs: 8, costUsd: 0.0006, citations: ['SOP-1'] },
+      { id: 'T-003', category: 'PII & Security', prompt: 'SSN check', expectedOutput: 'Redacted', status: 'PASSED', latencyMs: 4, costUsd: 0.0004, citations: ['SOP-2'] }
+    ];
+    const benchRes = await benchFn(null, {
+      suiteSize: 3,
+      domain: 'fintech',
+      customCases,
+      slaTargets: { minAccuracy: 90, maxLatencyP95: 100, maxCost: 0.001, minGroundedness: 95 }
+    });
+    assert.strictEqual(benchRes.totalCases, 3);
+    assert.strictEqual(benchRes.passedCases, 3);
+    assert.strictEqual(benchRes.accuracyScorePct, 100.0);
+    assert.strictEqual(benchRes.isSlaMet, true);
+    assert.ok(benchRes.p50LatencyMs > 0);
+
+    // Verify benchmark reports written to disk
+    const reportJsonPath = path.join(tmpDir, 'evals', 'golden_benchmark_report.json');
+    const reportMdPath = path.join(tmpDir, 'evals', 'BENCHMARK.md');
+    assert.ok(fs.existsSync(reportJsonPath), 'golden_benchmark_report.json should exist');
+    assert.ok(fs.existsSync(reportMdPath), 'BENCHMARK.md should exist');
+
+    // Test invoking Export Benchmark Runner (Jest & PyTest)
+    const exportRunnerFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.EXPORT_BENCHMARK_RUNNER)!;
+    assert.ok(exportRunnerFn !== undefined, 'EXPORT_BENCHMARK_RUNNER handler should be registered');
+    const jestRes = await exportRunnerFn(null, {
+      format: 'jest',
+      suiteName: 'Test FinTech Suite',
+      cases: customCases
+    });
+    assert.strictEqual(jestRes.success, true);
+    assert.strictEqual(jestRes.format, 'jest');
+    const jestFilePath = path.join(tmpDir, 'evals', 'benchmark.test.ts');
+    assert.ok(fs.existsSync(jestFilePath), 'benchmark.test.ts should exist');
+    const jestContent = fs.readFileSync(jestFilePath, 'utf8');
+    assert.ok(jestContent.includes('@jest/globals'));
+    assert.ok(jestContent.includes('Test FinTech Suite'));
+
+    const pytestRes = await exportRunnerFn(null, {
+      format: 'pytest',
+      suiteName: 'Test FinTech Suite',
+      cases: customCases
+    });
+    assert.strictEqual(pytestRes.success, true);
+    assert.strictEqual(pytestRes.format, 'pytest');
+    const pytestFilePath = path.join(tmpDir, 'evals', 'test_benchmark.py');
+    assert.ok(fs.existsSync(pytestFilePath), 'test_benchmark.py should exist');
+    const pytestContent = fs.readFileSync(pytestFilePath, 'utf8');
+    assert.ok(pytestContent.includes('pytest.mark.parametrize'));
+
+    // Test invoking AI Benchmark Case Generator
+    const genCasesFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.GENERATE_BENCHMARK_CASES)!;
+    assert.ok(genCasesFn !== undefined, 'GENERATE_BENCHMARK_CASES handler should be registered');
+    const aiCasesRes = await genCasesFn(null, {
+      prompt: 'mortgage appraisal loan fraud detection',
+      domain: 'fintech',
+      count: 5
+    });
+    assert.strictEqual(aiCasesRes.count, 5);
+    assert.strictEqual(aiCasesRes.cases.length, 5);
+    assert.ok(aiCasesRes.cases[0].prompt.length > 0);
+    assert.ok(aiCasesRes.cases[0].expectedOutput.length > 0);
 
     wsMgr.dispose();
     termMgr.dispose();
