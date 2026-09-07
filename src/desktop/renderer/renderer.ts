@@ -4056,22 +4056,205 @@ function setupDeliveryStudio(api: any): void {
     const mainScaffoldBtn = document.getElementById('btnScaffoldDeployExact');
     if (mainScaffoldBtn) {
       if (prov === 'gcp-firebase') {
-        mainScaffoldBtn.innerHTML = '🚀 Scaffold Firebase &amp; Deploy Scripts';
+        mainScaffoldBtn.innerHTML = '🚀 Scaffold GCP &amp; Firebase Assets';
       } else if (prov === 'aws') {
-        mainScaffoldBtn.innerHTML = '🚀 Scaffold AWS Fargate &amp; Deploy Scripts';
+        mainScaffoldBtn.innerHTML = '🚀 Scaffold AWS Fargate &amp; IaC Assets';
       } else if (prov === 'azure') {
-        mainScaffoldBtn.innerHTML = '🚀 Scaffold Azure Container Apps &amp; Deploy Scripts';
+        mainScaffoldBtn.innerHTML = '🚀 Scaffold Azure Container Apps &amp; IaC Assets';
       } else if (prov === 'docker') {
-        mainScaffoldBtn.innerHTML = '🚀 Scaffold Docker Compose &amp; Deploy Scripts';
+        mainScaffoldBtn.innerHTML = '🚀 Scaffold Docker Compose &amp; IaC Assets';
       }
     }
 
+    renderCloudSecretsMatrix(prov);
     showToast(`Switched to ${prov.toUpperCase()} deployment parameters`);
+  };
+
+  const DEPLOY_SIZING_PRESETS: Record<string, {
+    cpu: string;
+    memory: string;
+    gpu: string;
+    minInst: string;
+    maxInst: string;
+    ingress: string;
+    secrets: string;
+    summary: string;
+    cost: string;
+  }> = {
+    pilot: {
+      cpu: '1',
+      memory: '1Gi',
+      gpu: 'none',
+      minInst: '0',
+      maxInst: '10',
+      ingress: 'all',
+      secrets: 'gcp-secret-manager',
+      summary: 'Profile: Serverless Managed Container · Autoscale 0-10 instances · Single Region · Public HTTPS',
+      cost: 'Est. Spend: $0 - $15 / month (Scale-to-Zero)'
+    },
+    enterprise_ha: {
+      cpu: '4',
+      memory: '8Gi',
+      gpu: 'none',
+      minInst: '2',
+      maxInst: '20',
+      ingress: 'internal-load-balanced',
+      secrets: 'gcp-secret-manager',
+      summary: 'Profile: High-Availability Resilient Cluster · Min 2 Warm Replicas · Private VPC Isolated · Multi-Zone',
+      cost: 'Est. Spend: $180 - $420 / month (High Availability)'
+    },
+    ai_gpu: {
+      cpu: '4',
+      memory: '16Gi',
+      gpu: 'nvidia-l4',
+      minInst: '1',
+      maxInst: '4',
+      ingress: 'internal',
+      secrets: 'gcp-secret-manager',
+      summary: 'Profile: Dedicated AI Inference Node · NVIDIA L4 (24GB VRAM) · Low-Latency Direct Memory',
+      cost: 'Est. Spend: $580 - $1,150 / month (Hardware Accelerated)'
+    },
+    air_gapped: {
+      cpu: '2.0',
+      memory: '4Gi',
+      gpu: 'none',
+      minInst: '1',
+      maxInst: '1',
+      ingress: 'internal',
+      secrets: 'env-file',
+      summary: 'Profile: Air-Gapped Standalone Daemon · Docker Compose · Offline Local Network · Zero Internet Egress',
+      cost: 'Est. Spend: $0 / month (Customer Infrastructure / Bare Metal)'
+    },
+    custom: {
+      cpu: '1',
+      memory: '1Gi',
+      gpu: 'none',
+      minInst: '0',
+      maxInst: '10',
+      ingress: 'internal',
+      secrets: 'gcp-secret-manager',
+      summary: 'Profile: Custom Sizing Profile · User-defined compute, scaling, and network boundaries',
+      cost: 'Est. Spend: Dependent on configured capacity'
+    }
+  };
+
+  const applySizingPreset = (presetKey: string) => {
+    const preset = DEPLOY_SIZING_PRESETS[presetKey];
+    if (!preset) return;
+
+    const cpuInput = document.getElementById('deployCpu') as HTMLInputElement;
+    const memInput = document.getElementById('deployMemory') as HTMLInputElement;
+    const gpuSel = document.getElementById('deployGpu') as HTMLSelectElement;
+    const minInput = document.getElementById('deployMinInst') as HTMLInputElement;
+    const maxInput = document.getElementById('deployMaxInst') as HTMLInputElement;
+    const ingressSel = document.getElementById('deployIngress') as HTMLSelectElement;
+    const secretsSel = document.getElementById('deploySecrets') as HTMLSelectElement;
+    const summaryEl = document.getElementById('deploySizingSummary');
+    const costEl = document.getElementById('deploySizingCost');
+
+    if (presetKey !== 'custom') {
+      if (cpuInput) cpuInput.value = preset.cpu;
+      if (memInput) memInput.value = preset.memory;
+      if (gpuSel) gpuSel.value = preset.gpu;
+      if (minInput) minInput.value = preset.minInst;
+      if (maxInput) maxInput.value = preset.maxInst;
+      if (ingressSel) ingressSel.value = preset.ingress;
+
+      if (secretsSel) {
+        if (preset.secrets === 'env-file' || activeDeployProvider === 'docker') {
+          secretsSel.value = 'env-file';
+        } else if (activeDeployProvider === 'aws') {
+          secretsSel.value = 'aws-secrets-manager';
+        } else if (activeDeployProvider === 'azure') {
+          secretsSel.value = 'azure-key-vault';
+        } else {
+          secretsSel.value = 'gcp-secret-manager';
+        }
+      }
+    }
+
+    if (summaryEl) summaryEl.innerHTML = `<strong>Profile:</strong> ${preset.summary.replace('Profile: ', '')}`;
+    if (costEl) costEl.innerText = preset.cost;
+  };
+
+  const CLOUD_SECRETS_DATA: Record<string, {
+    cloudName: string;
+    secrets: Array<{ name: string; scope: string; purpose: string; status: string }>;
+  }> = {
+    'gcp-firebase': {
+      cloudName: 'Google Cloud (GCP/Firebase)',
+      secrets: [
+        { name: 'GCP_SA_KEY', scope: 'Repository Secret', purpose: 'Base64 Service Account JSON with Cloud Run Admin & Storage roles', status: 'Required' },
+        { name: 'GCP_PROJECT_ID', scope: 'Repository Variable', purpose: 'Target Google Cloud Project ID (e.g. acme-pilot-2026)', status: 'Configured' },
+        { name: 'GCP_REGION', scope: 'Repository Variable', purpose: 'Compute Region (e.g. australia-southeast1, us-central1)', status: 'Configured' }
+      ]
+    },
+    'aws': {
+      cloudName: 'Amazon Web Services (AWS)',
+      secrets: [
+        { name: 'AWS_ACCESS_KEY_ID', scope: 'Repository Secret', purpose: 'IAM Deployer Access Key ID with ECS/ECR permissions', status: 'Required' },
+        { name: 'AWS_SECRET_ACCESS_KEY', scope: 'Repository Secret', purpose: 'IAM Deployer Secret Access Key', status: 'Required' },
+        { name: 'AWS_REGION', scope: 'Repository Variable', purpose: 'Target AWS Region (e.g. us-east-1, ap-southeast-2)', status: 'Configured' },
+        { name: 'AWS_ROLE_ARN', scope: 'Repository Variable', purpose: 'Optional OIDC GitHub Actions AssumeRole ARN', status: 'Optional' }
+      ]
+    },
+    'azure': {
+      cloudName: 'Microsoft Azure',
+      secrets: [
+        { name: 'ARM_CLIENT_ID', scope: 'Repository Secret', purpose: 'Azure AD App Registration Service Principal Client ID', status: 'Required' },
+        { name: 'ARM_CLIENT_SECRET', scope: 'Repository Secret', purpose: 'Service Principal Client Secret Password', status: 'Required' },
+        { name: 'ARM_SUBSCRIPTION_ID', scope: 'Repository Secret', purpose: 'Target Azure Subscription GUID', status: 'Required' },
+        { name: 'ARM_TENANT_ID', scope: 'Repository Secret', purpose: 'Target Azure Active Directory Tenant GUID', status: 'Configured' }
+      ]
+    },
+    'docker': {
+      cloudName: 'Air-Gapped Docker & On-Prem',
+      secrets: [
+        { name: 'DOCKER_REGISTRY_USER', scope: 'Environment Secret', purpose: 'Private Docker Registry Username / Service Account', status: 'Optional' },
+        { name: 'DOCKER_REGISTRY_TOKEN', scope: 'Environment Secret', purpose: 'Private Container Registry Access Token / Password', status: 'Optional' },
+        { name: 'LOCAL_DEPLOY_HOST', scope: 'Environment Variable', purpose: 'On-prem host address or socket (unix:///var/run/docker.sock)', status: 'Configured' }
+      ]
+    }
+  };
+
+  const renderCloudSecretsMatrix = (prov: string) => {
+    const data = CLOUD_SECRETS_DATA[prov] || CLOUD_SECRETS_DATA['gcp-firebase'];
+    const lblTarget = document.getElementById('lblSecretTargetCloud');
+    if (lblTarget) lblTarget.innerText = data.cloudName;
+
+    const tbody = document.getElementById('tblCloudSecretsBody');
+    if (tbody) {
+      tbody.innerHTML = data.secrets.map((s, idx) => `
+        <tr style="border-bottom: ${idx < data.secrets.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none'};">
+          <td style="padding: 6px 8px;"><code style="color: var(--accent);">${s.name}</code></td>
+          <td style="padding: 6px 8px;">${s.scope}</td>
+          <td style="padding: 6px 8px;">${s.purpose}</td>
+          <td style="padding: 6px 8px; text-align: right;"><span style="color: ${s.status === 'Required' ? 'var(--accent)' : 'var(--success)'}; font-weight: 600;">${s.status}</span></td>
+        </tr>
+      `).join('');
+    }
   };
 
   deployTabs.forEach(t => {
     document.getElementById(t.id)?.addEventListener('click', () => switchDeployProvider(t.prov));
   });
+
+  document.getElementById('selDeploySizingPreset')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLSelectElement).value;
+    applySizingPreset(val);
+    showToast(`Applied sizing preset: ${val.toUpperCase()}`);
+  });
+
+  document.getElementById('btnCopySecretNames')?.addEventListener('click', () => {
+    const data = CLOUD_SECRETS_DATA[activeDeployProvider] || CLOUD_SECRETS_DATA['gcp-firebase'];
+    const template = `# --- ${data.cloudName} Required CI/CD Secrets ---\n` +
+      data.secrets.map(s => `${s.name}=<insert-${s.name.toLowerCase().replace(/_/g, '-')}-value> # [${s.status}] ${s.purpose}`).join('\n');
+    navigator.clipboard.writeText(template);
+    showToast(`✓ Copied ${data.cloudName} secret template to clipboard!`);
+  });
+
+  // Initialize Cloud Secrets Matrix on load
+  renderCloudSecretsMatrix(activeDeployProvider);
 
   document.getElementById('btnDiscoverCloudApi')?.addEventListener('click', async () => {
     showToast(`⚡ Probing active ${activeDeployProvider.toUpperCase()} credentials & VPC topology...`);
@@ -4609,17 +4792,141 @@ function setupDeliveryStudio(api: any): void {
     };
   };
 
+  // --- Section 5B: Multi-File IaC State & File Tab Navigator ---
+  interface IaCScaffoldResult {
+    terraform?: string;
+    kubernetes?: string;
+    dockerCompose?: string;
+    deployBash?: string;
+    deployPs1?: string;
+    prepJs?: string;
+    cicd?: string;
+    [key: string]: string | undefined;
+  }
+
+  let activeIaCAssets: IaCScaffoldResult = {};
+  let currentIaCFileKey = 'terraform';
+
+  const IAC_FILE_META: Record<string, { path: string; lang: string }> = {
+    terraform: { path: 'terraform/main.tf', lang: 'Terraform HCL' },
+    kubernetes: { path: 'k8s/deployment.yaml', lang: 'Kubernetes YAML' },
+    dockerCompose: { path: 'docker-compose.yml', lang: 'Docker Compose YAML' },
+    deployBash: { path: 'scripts/deploy.sh', lang: 'Shell Script (Bash)' },
+    deployPs1: { path: 'scripts/deploy.ps1', lang: 'PowerShell Script' },
+    prepJs: { path: 'scripts/prepare-deployment.js', lang: 'Node.js Sanity Runner' },
+    cicd: { path: '.github/workflows/deploy.yml', lang: 'CI/CD Pipeline YAML' }
+  };
+
+  const getActiveCicdPath = () => {
+    const platform = (document.getElementById('selCicdPlatform') as HTMLSelectElement)?.value || 'github';
+    if (platform === 'gitlab') return '.gitlab-ci.yml';
+    if (platform === 'bitbucket') return 'bitbucket-pipelines.yml';
+    if (platform === 'azure') return 'azure-pipelines.yml';
+    return '.github/workflows/deploy.yml';
+  };
+
+  const renderActiveIaCFile = (fileKey: string) => {
+    currentIaCFileKey = fileKey;
+    const meta = IAC_FILE_META[fileKey] || { path: fileKey, lang: 'Code' };
+    const displayPath = fileKey === 'cicd' ? getActiveCicdPath() : meta.path;
+
+    // Update tab active classes
+    document.querySelectorAll('#p3FileTabs .p3-file-tab').forEach(tab => {
+      const k = tab.getAttribute('data-file');
+      if (k === fileKey) {
+        tab.classList.add('active');
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+
+    // Update target path & size indicators
+    const pathEl = document.getElementById('p3ActiveFilePath');
+    const sizeEl = document.getElementById('p3ActiveFileSize');
+    if (pathEl) pathEl.innerHTML = `Workspace Target: <code>${displayPath}</code>`;
+
+    const content = activeIaCAssets[fileKey] || '';
+    const lineCount = content ? content.split('\n').length : 0;
+    if (sizeEl) sizeEl.innerText = `${meta.lang} (${lineCount} lines)`;
+
+    // Update code preview
+    const previewEl = document.getElementById('p3CodePreview');
+    if (previewEl) {
+      previewEl.innerText = content || `# File '${displayPath}' has not been scaffolded yet.\n# Click 'Scaffold All Deployment & IaC Assets' to generate all production assets.`;
+    }
+  };
+
+  // Wire Tab Clicks
+  document.querySelectorAll('#p3FileTabs .p3-file-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-file');
+      if (key) renderActiveIaCFile(key);
+    });
+  });
+
+  // Write All to Workspace
+  document.getElementById('btnWriteAllToWorkspace')?.addEventListener('click', async () => {
+    if (!api?.workspace) return;
+    const ws = await api.workspace.getCurrent();
+    if (!ws) {
+      showToast('⚠️ No active workspace open.');
+      return;
+    }
+
+    if (!activeIaCAssets.terraform && !activeIaCAssets.kubernetes) {
+      const cfg = getDeployConfig();
+      if (api?.engines) {
+        const res = await api.engines.scaffoldDeploy(cfg);
+        activeIaCAssets = res;
+      }
+    }
+
+    let writeCount = 0;
+    if (activeIaCAssets.terraform) {
+      await api.workspace.createFile(ws.path + '/terraform/main.tf', activeIaCAssets.terraform);
+      writeCount++;
+    }
+    if (activeIaCAssets.kubernetes) {
+      await api.workspace.createFile(ws.path + '/k8s/deployment.yaml', activeIaCAssets.kubernetes);
+      writeCount++;
+    }
+    if (activeIaCAssets.dockerCompose) {
+      await api.workspace.createFile(ws.path + '/docker-compose.yml', activeIaCAssets.dockerCompose);
+      writeCount++;
+    }
+    if (activeIaCAssets.deployBash) {
+      await api.workspace.createFile(ws.path + '/scripts/deploy.sh', activeIaCAssets.deployBash);
+      writeCount++;
+    }
+    if (activeIaCAssets.deployPs1) {
+      await api.workspace.createFile(ws.path + '/scripts/deploy.ps1', activeIaCAssets.deployPs1);
+      writeCount++;
+    }
+    if (activeIaCAssets.prepJs) {
+      await api.workspace.createFile(ws.path + '/scripts/prepare-deployment.js', activeIaCAssets.prepJs);
+      writeCount++;
+    }
+    if (activeIaCAssets.cicd) {
+      const cicdPath = getActiveCicdPath();
+      await api.workspace.createFile(ws.path + '/' + cicdPath, activeIaCAssets.cicd);
+      writeCount++;
+    }
+
+    renderFileTree(api);
+    showToast(`✓ Wrote ${writeCount} deployment & IaC assets to workspace!`);
+    hasScaffoldedDeployOrCicd = true;
+    refreshP5Rail?.();
+  });
+
   document.getElementById('btnScaffoldDeployExact')?.addEventListener('click', async () => {
     const cfg = getDeployConfig();
     showToast(`🚀 Scaffolding ${cfg.provider.toUpperCase()} infrastructure & deploy scripts...`);
     if (api?.engines) {
       const res = await api.engines.scaffoldDeploy(cfg);
+      activeIaCAssets = res;
       const p3Box = document.getElementById('p3ResultBox');
-      const p3Prev = document.getElementById('p3CodePreview');
-      if (p3Box && p3Prev) {
-        p3Box.style.display = 'block';
-        p3Prev.innerText = `# --- Multi-Cloud IaC: ${cfg.provider.toUpperCase()} ---\n\n${res.terraform}\n\n# --- Kubernetes Manifest ---\n\n${res.kubernetes}`;
-      }
+      if (p3Box) p3Box.style.display = 'block';
+      renderActiveIaCFile(currentIaCFileKey || 'terraform');
 
       if (api?.workspace) {
         const ws = await api.workspace.getCurrent();
@@ -4627,7 +4934,8 @@ function setupDeliveryStudio(api: any): void {
           await api.workspace.createFile(ws.path + '/terraform/main.tf', res.terraform);
           await api.workspace.createFile(ws.path + '/k8s/deployment.yaml', res.kubernetes);
           await api.workspace.createFile(ws.path + '/docker-compose.yml', res.dockerCompose);
-          await api.workspace.createFile(ws.path + '/.github/workflows/deploy.yml', res.cicd);
+          const cicdPath = getActiveCicdPath();
+          await api.workspace.createFile(ws.path + '/' + cicdPath, res.cicd);
           if (res.deployBash) await api.workspace.createFile(ws.path + '/scripts/deploy.sh', res.deployBash);
           if (res.deployPs1) await api.workspace.createFile(ws.path + '/scripts/deploy.ps1', res.deployPs1);
           if (res.prepJs) await api.workspace.createFile(ws.path + '/scripts/prepare-deployment.js', res.prepJs);
@@ -4644,12 +4952,10 @@ function setupDeliveryStudio(api: any): void {
     const cfg = getDeployConfig();
     if (api?.engines) {
       const res = await api.engines.scaffoldDeploy(cfg);
+      activeIaCAssets = { ...activeIaCAssets, ...res };
       const p3Box = document.getElementById('p3ResultBox');
-      const p3Prev = document.getElementById('p3CodePreview');
-      if (p3Box && p3Prev) {
-        p3Box.style.display = 'block';
-        p3Prev.innerText = res.terraform;
-      }
+      if (p3Box) p3Box.style.display = 'block';
+      renderActiveIaCFile('terraform');
       if (api?.workspace) {
         const ws = await api.workspace.getCurrent();
         if (ws) {
@@ -4665,12 +4971,10 @@ function setupDeliveryStudio(api: any): void {
     const cfg = getDeployConfig();
     if (api?.engines) {
       const res = await api.engines.scaffoldDeploy(cfg);
+      activeIaCAssets = { ...activeIaCAssets, ...res };
       const p3Box = document.getElementById('p3ResultBox');
-      const p3Prev = document.getElementById('p3CodePreview');
-      if (p3Box && p3Prev) {
-        p3Box.style.display = 'block';
-        p3Prev.innerText = res.kubernetes;
-      }
+      if (p3Box) p3Box.style.display = 'block';
+      renderActiveIaCFile('kubernetes');
       if (api?.workspace) {
         const ws = await api.workspace.getCurrent();
         if (ws) {
@@ -4686,12 +4990,10 @@ function setupDeliveryStudio(api: any): void {
     const cfg = getDeployConfig();
     if (api?.engines) {
       const res = await api.engines.scaffoldDeploy(cfg);
+      activeIaCAssets = { ...activeIaCAssets, ...res };
       const p3Box = document.getElementById('p3ResultBox');
-      const p3Prev = document.getElementById('p3CodePreview');
-      if (p3Box && p3Prev) {
-        p3Box.style.display = 'block';
-        p3Prev.innerText = res.dockerCompose;
-      }
+      if (p3Box) p3Box.style.display = 'block';
+      renderActiveIaCFile('dockerCompose');
       if (api?.workspace) {
         const ws = await api.workspace.getCurrent();
         if (ws) {
@@ -4713,14 +5015,12 @@ function setupDeliveryStudio(api: any): void {
     showToast(`⚡ Scaffolding CI/CD pipeline for ${platform.toUpperCase()} (${tier})...`);
     if (api?.engines) {
       const res = await api.engines.scaffoldDeploy(cfg);
+      activeIaCAssets = { ...activeIaCAssets, ...res };
       const cicdBox = document.getElementById('cicdResultBox');
       const cicdPrev = document.getElementById('cicdCodePreview');
       const cicdBadgePath = document.getElementById('cicdPathBadge');
 
-      let filePath = '.github/workflows/deploy.yml';
-      if (platform === 'gitlab') filePath = '.gitlab-ci.yml';
-      else if (platform === 'bitbucket') filePath = 'bitbucket-pipelines.yml';
-      else if (platform === 'azure') filePath = 'azure-pipelines.yml';
+      const filePath = getActiveCicdPath();
 
       if (cicdBox && cicdPrev) {
         cicdBox.style.display = 'block';
@@ -4750,6 +5050,84 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // Simulated CI/CD Pipeline Visualizer
+  let isSimulatingCicd = false;
+  document.getElementById('btnSimulateCicdRun')?.addEventListener('click', async () => {
+    if (isSimulatingCicd) return;
+    isSimulatingCicd = true;
+
+    const trackEl = document.getElementById('cicdSimPipelineTrack');
+    const badgeEl = document.getElementById('cicdSimStatusBadge');
+    const logEl = document.getElementById('cicdSimLogBox');
+    if (trackEl) trackEl.style.display = 'block';
+    if (badgeEl) {
+      badgeEl.innerText = 'Running Pipeline...';
+      badgeEl.style.color = 'var(--accent)';
+      badgeEl.style.background = 'rgba(78, 201, 176, 0.15)';
+    }
+
+    const steps = [
+      { id: 'simStep1', name: 'Lint & Types', duration: '0.4s', log: '[lint] ESLint & TypeScript compile check passed: 0 syntax or type errors.' },
+      { id: 'simStep2', name: 'Security Audit', duration: '0.5s', log: '[security] 5-Pillar Security Audit: Zero hardcoded secrets, clean environment parity.' },
+      { id: 'simStep3', name: 'Build Container', duration: '0.6s', log: `[build] Multi-stage container build completed. Pushed to registry (${activeDeployProvider}).` },
+      { id: 'simStep4', name: 'Infra IaC Apply', duration: '0.7s', log: '[iac] Terraform execution plan generated: 3 to add, 0 to change. Applying to VPC...' },
+      { id: 'simStep5', name: 'Health Probe', duration: '0.3s', log: '[probe] Synthetic HTTP GET /healthz returned 200 OK (latency: 18ms).' }
+    ];
+
+    // Reset all steps to pending
+    steps.forEach(s => {
+      const node = document.getElementById(s.id);
+      if (node) {
+        node.classList.remove('running', 'passed');
+        const circle = node.querySelector('.cicd-step-circle');
+        if (circle) (circle as HTMLElement).innerText = s.id.replace('simStep', '');
+        const time = node.querySelector('.sim-step-time');
+        if (time) (time as HTMLElement).innerText = 'Pending';
+      }
+    });
+
+    const selPlatform = (document.getElementById('selCicdPlatform') as HTMLSelectElement)?.value || 'github';
+    if (logEl) logEl.innerText = `[runner] Initializing virtual runner environment (${selPlatform.toUpperCase()})...\n`;
+
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      const node = document.getElementById(s.id);
+      if (node) {
+        node.classList.add('running');
+        const time = node.querySelector('.sim-step-time');
+        if (time) (time as HTMLElement).innerText = 'Running...';
+      }
+      if (logEl) {
+        logEl.innerText += `\n>> Stage ${i + 1}/5: ${s.name}...\n${s.log}`;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      await new Promise(r => setTimeout(r, 450));
+
+      if (node) {
+        node.classList.remove('running');
+        node.classList.add('passed');
+        const circle = node.querySelector('.cicd-step-circle');
+        if (circle) (circle as HTMLElement).innerText = '✓';
+        const time = node.querySelector('.sim-step-time');
+        if (time) (time as HTMLElement).innerText = s.duration;
+      }
+    }
+
+    if (logEl) {
+      logEl.innerText += '\n\n✓ PIPELINE SUCCESS: Deployment artifacts live & verified on target cloud.';
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    if (badgeEl) {
+      badgeEl.innerText = '✓ Pipeline Passed (2.5s)';
+      badgeEl.style.color = 'var(--success)';
+      badgeEl.style.background = 'rgba(78, 201, 176, 0.2)';
+    }
+
+    showToast('✓ CI/CD Pipeline Simulation Succeeded!');
+    isSimulatingCicd = false;
+  });
+
   document.getElementById('btnRunDeployScriptTerminal')?.addEventListener('click', () => {
     const termInput = document.getElementById('terminalCmdInput') as HTMLInputElement;
     const isWin = navigator.platform.toLowerCase().includes('win');
@@ -4777,10 +5155,12 @@ function setupDeliveryStudio(api: any): void {
   });
 
   document.getElementById('btnCopyP3Code')?.addEventListener('click', () => {
-    const code = (document.getElementById('p3CodePreview') as HTMLElement)?.innerText;
+    const code = activeIaCAssets[currentIaCFileKey] || (document.getElementById('p3CodePreview') as HTMLElement)?.innerText;
     if (code) {
       navigator.clipboard.writeText(code);
-      showToast('✓ IaC template copied to clipboard!');
+      const meta = IAC_FILE_META[currentIaCFileKey] || { path: currentIaCFileKey };
+      const displayPath = currentIaCFileKey === 'cicd' ? getActiveCicdPath() : meta.path;
+      showToast(`✓ Copied ${displayPath} to clipboard!`);
     }
   });
 

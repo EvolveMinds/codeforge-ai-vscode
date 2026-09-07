@@ -194,6 +194,69 @@
       color: var(--accent);
       box-shadow: 0 0 10px rgba(78, 201, 176, 0.15);
     }
+    .p3-file-tab {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-family: var(--font-mono, monospace);
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-secondary);
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .p3-file-tab:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
+    .p3-file-tab.active {
+      background: rgba(78, 201, 176, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .cicd-step-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      text-align: center;
+    }
+    .cicd-step-circle {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10.5px;
+      font-weight: bold;
+      color: var(--text-secondary);
+      transition: all 0.25s ease;
+      margin-bottom: 4px;
+    }
+    .cicd-step-node.running .cicd-step-circle {
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: cicdPulse 1.2s infinite;
+    }
+    .cicd-step-node.passed .cicd-step-circle {
+      border-color: var(--success);
+      background: rgba(78, 201, 176, 0.15);
+      color: var(--success);
+    }
+    @keyframes cicdPulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.08); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
+    }
     pre code {
       display: block;
       padding: 10px;
@@ -3327,191 +3390,336 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
                 <!-- 5B: CLOUD DEPLOYMENT & CI/CD HUB -->
                 <div id="p5StepBPanel" role="tabpanel" aria-labelledby="btnP5StepB" style="display: none;">
-                <!-- Provider Selection Tabs -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <div class="deploy-prov-tab active" id="tabProvGcp"><span>🌐</span> Google Cloud (GCP/Firebase)</div>
-                    <div class="deploy-prov-tab" id="tabProvAws"><span>🟧</span> Amazon Web Services (AWS)</div>
-                    <div class="deploy-prov-tab" id="tabProvAzure"><span>🔷</span> Microsoft Azure</div>
-                    <div class="deploy-prov-tab" id="tabProvDocker"><span>🐳</span> On-Prem / Air-Gapped Docker</div>
-                  </div>
-                  <button class="btn-quick" id="btnDiscoverCloudApi" style="margin-bottom: 0; font-size: 11px; cursor: pointer; padding: 6px 12px; border-radius: 4px; background: rgba(78, 201, 176, 0.1); border: 1px solid var(--accent); color: var(--accent); font-weight: 600;" aria-label="Discover & Auto-Fill ( GCP API)">⚡ Discover &amp; Auto-Fill (<span id="lblCloudProviderName">GCP</span> API)</button>
-                </div>
-
-                <!-- Multi-Cloud Deployment Parameters Matrix Card -->
-                <div style="background: var(--card-bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 18px;">
-                  <h4 id="lblMatrixTitle" style="margin: 0 0 12px 0; font-size: 13px; color: #fff; font-weight: 700;">⚙️ Google Cloud Deployment Parameter Matrix</h4>
-                  
-                  <!-- Row 1: Compute & GPU -->
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployCpu" for="deployCpu">CPU Allocation (Cloud Run / GKE)</label>
-                      <input type="text" id="deployCpu" value="1" placeholder="e.g. 1, 2, 4, 8.0, 16.0" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. 1, 2, 4, 8.0, 16.0">
+                  <!-- Provider Selection Ribbon & Sizing Presets -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <div class="deploy-prov-tab active" id="tabProvGcp" role="button" tabindex="0"><span>🌐</span> Google Cloud (GCP/Firebase)</div>
+                      <div class="deploy-prov-tab" id="tabProvAws" role="button" tabindex="0"><span>🟧</span> Amazon Web Services (AWS)</div>
+                      <div class="deploy-prov-tab" id="tabProvAzure" role="button" tabindex="0"><span>🔷</span> Microsoft Azure</div>
+                      <div class="deploy-prov-tab" id="tabProvDocker" role="button" tabindex="0"><span>🐳</span> On-Prem / Air-Gapped Docker</div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployMemory" for="deployMemory">Memory Allocation (RAM)</label>
-                      <input type="text" id="deployMemory" value="1Gi" placeholder="e.g. 1Gi, 2Gi, 4Gi, 16Gi" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. 1Gi, 2Gi, 4Gi, 16Gi">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployGpu" for="deployGpu">Hardware Accelerator / GPU</label>
-                      <select id="deployGpu" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="none" selected>None (Standard CPU)</option>
-                        <option value="nvidia-tesla-t4">NVIDIA T4 (Inference)</option>
-                        <option value="nvidia-l4">NVIDIA L4 (Modern AI)</option>
-                        <option value="nvidia-a100-80gb">NVIDIA A100 80GB (Training / LLM)</option>
-                        <option value="tpu-v5e">Google Cloud TPU v5e</option>
-                      </select>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                      <button class="btn-quick" id="btnDiscoverCloudApi" style="margin-bottom: 0; font-size: 11px; cursor: pointer; padding: 6px 12px; border-radius: 4px; background: rgba(78, 201, 176, 0.1); border: 1px solid var(--accent); color: var(--accent); font-weight: 600;" aria-label="Discover & Auto-Fill Cloud API">⚡ Discover &amp; Auto-Fill (<span id="lblCloudProviderName">GCP</span> API)</button>
                     </div>
                   </div>
 
-                  <!-- Row 2: Networking & VPC -->
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployVpc" for="deployVpcId">Client VPC / Network ID</label>
-                      <input type="text" id="deployVpcId" placeholder="e.g. default or custom-vpc" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. default or custom-vpc">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeploySubnet" for="deploySubnetId">Subnet ID / Subnetwork</label>
-                      <input type="text" id="deploySubnetId" placeholder="e.g. pilot-subnet or subnet-0a1b2c" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. pilot-subnet or subnet-0a1b2c">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeploySg" for="deploySecurityGroups">Security Groups / Firewall Tags</label>
-                      <input type="text" id="deploySecurityGroups" placeholder="e.g. allow-internal-pilot, sg-0123456789" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. allow-internal-pilot, sg-0123456789">
-                    </div>
-                  </div>
-
-                  <!-- Row 3: Ingress, Autoscaling & Secrets -->
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployIngress" for="deployIngress">Network Ingress Security</label>
-                      <select id="deployIngress" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="internal" selected>Internal VPC Only (Air-Gapped)</option>
-                        <option value="internal-load-balanced">VPC + Cloud Load Balancer</option>
-                        <option value="all">Public HTTPS (Direct)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deployMinInst">Autoscaling Bounds (Min - Max)</label>
-                      <div style="display: flex; gap: 8px; margin-top: 4px;">
-                        <input type="text" id="deployMinInst" value="0" placeholder="0" style="width: 50%; box-sizing: border-box; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="0">
-                        <input type="text" id="deployMaxInst" value="10" placeholder="10" style="width: 50%; box-sizing: border-box; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="10">
+                  <!-- Environment Sizing Presets Banner -->
+                  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                      <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">📐</span>
+                        <div>
+                          <strong style="font-size: 12.5px; color: #fff;">Environment Sizing &amp; Architecture Presets</strong>
+                          <div style="font-size: 11px; color: var(--text-secondary);">1-click configuration for development sandboxes, high-availability clusters, GPU inference, or air-gapped on-prem.</div>
+                        </div>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="selDeploySizingPreset" style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Preset:</label>
+                        <select id="selDeploySizingPreset" style="padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--accent); border-radius: 4px; font-size: 11.5px; font-weight: 600;">
+                          <option value="pilot" selected>🚀 Pilot Sandbox (Scale-to-Zero, 1 CPU, 1Gi, Direct HTTPS)</option>
+                          <option value="enterprise_ha">🏢 Enterprise HA (2-10 Instances, 4 CPU, 8Gi, Private VPC + Secrets)</option>
+                          <option value="ai_gpu">🧠 GPU Inference (1-4 Instances, 4 CPU, 16Gi, NVIDIA L4/A100)</option>
+                          <option value="air_gapped">🔒 Air-Gapped On-Prem (Docker Compose, Zero Egress, Bridge)</option>
+                          <option value="custom">⚙️ Custom Manual Configuration</option>
+                        </select>
                       </div>
                     </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deploySecrets">Secrets &amp; Env Provider</label>
-                      <select id="deploySecrets" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="gcp-secret-manager" selected>Google Cloud Secret Manager</option>
-                        <option value="aws-secrets-manager">AWS Secrets Manager</option>
-                        <option value="azure-key-vault">Azure Key Vault</option>
-                        <option value="env-file">.env.production File</option>
-                      </select>
+                    <div id="deploySizingBanner" style="margin-top: 10px; padding: 8px 12px; background: rgba(78, 201, 176, 0.08); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <span id="deploySizingSummary"><strong>Profile:</strong> Serverless Managed Container · Autoscale 0-10 instances · Single Region · Public HTTPS</span>
+                      <span id="deploySizingCost" style="font-weight: 600; color: var(--accent);">Est. Spend: $0 - $15 / month (Scale-to-Zero)</span>
                     </div>
                   </div>
-                </div>
 
-                <!-- 1-Click Infrastructure Scaffolding -->
-                <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #fff; font-weight: 700;">📦 1-Click Infrastructure Scaffolding (Terraform / K8s / Docker / Firebase)</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblTargetProjId" for="gcpProjId">Target Cloud Project ID / Account</label>
-                    <input type="text" id="gcpProjId" value="acme-pilot-2026" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                  </div>
-                  <div>
-                    <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deployRegion">Deployment Region / Location</label>
-                    <input type="text" id="deployRegion" value="australia-southeast1" placeholder="e.g. australia-southeast1, us-central1, us-east-1" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. australia-southeast1, us-central1, us-east-1">
-                  </div>
-                </div>
-
-                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
-                  <button class="btn" id="btnScaffoldDeployExact" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Scaffold Firebase & Deploy Scripts">
-                    🚀 Scaffold Firebase &amp; Deploy Scripts
-                  </button>
-                  <button class="btn btn-secondary" id="btnGenerateTerraformExact" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Generate Terraform (main.tf)">
-                    📄 Generate Terraform (main.tf)
-                  </button>
-                  <button class="btn btn-secondary" id="btnGenerateK8sExact" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Generate Kubernetes (k8s.yaml)">
-                    📄 Generate Kubernetes (k8s.yaml)
-                  </button>
-                  <button class="btn btn-secondary" id="btnGenerateDockerExact" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Generate Docker Compose">
-                    📄 Generate Docker Compose
-                  </button>
-                </div>
-
-                <!-- Result box for Infrastructure Scaffolding -->
-                <div id="p3ResultBox" style="margin-top: 14px; margin-bottom: 16px; display: none;">
-                  <div style="background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <div style="color: var(--accent); font-weight: 700; font-size: 12px;" id="p3ResultTitle">✓ Multi-Cloud Infrastructure Scaffolded</div>
-                      <div style="font-size: 11px; opacity: 0.9;" id="p3ResultBadge">Files written to workspace: <code>terraform/</code>, <code>k8s/</code>, <code>docker-compose.yml</code></div>
+                  <!-- Multi-Cloud Deployment Parameters Matrix Card -->
+                  <div style="background: var(--card-bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                      <h4 id="lblMatrixTitle" style="margin: 0; font-size: 13px; color: #fff; font-weight: 700;">⚙️ Google Cloud Deployment Parameter Matrix</h4>
+                      <span class="tag" style="background: rgba(78, 201, 176, 0.1); border: 1px solid var(--accent); color: var(--accent); font-size: 10.5px; padding: 2px 8px; border-radius: 4px;">Verified for IaC v2.5</span>
                     </div>
-                    <div style="display: flex; gap: 6px;">
-                      <button class="btn-quick" id="btnCopyP3Code" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; cursor: pointer;" aria-label="Copy">📋 Copy</button>
-                    </div>
-                  </div>
-                  <pre class="code-preview" id="p3CodePreview" style="max-height: 240px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4;"></pre>
-                </div>
-
-                <!-- Automated CI/CD Infra Pipeline & Git Push Hub -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-top: 16px; margin-bottom: 18px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="font-size: 16px;">🚀</span>
+                    
+                    <!-- Row 1: Compute & GPU -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
                       <div>
-                        <strong style="font-size: 13px; color: var(--accent);">Automated CI/CD Infra Pipeline &amp; Git Push Hub</strong>
-                        <div style="font-size: 11px; opacity: 0.85; color: var(--text-secondary);">Generate ready-to-run CI/CD pipelines (GitHub Actions, GitLab CI, Bitbucket, Azure DevOps) and push to repository with 1-click execution.</div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployCpu" for="deployCpu">CPU Allocation (Cloud Run / GKE)</label>
+                        <input type="text" id="deployCpu" value="1" placeholder="e.g. 1, 2, 4, 8.0, 16.0" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. 1, 2, 4, 8.0, 16.0">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployMemory" for="deployMemory">Memory Allocation (RAM)</label>
+                        <input type="text" id="deployMemory" value="1Gi" placeholder="e.g. 1Gi, 2Gi, 4Gi, 16Gi" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. 1Gi, 2Gi, 4Gi, 16Gi">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployGpu" for="deployGpu">Hardware Accelerator / GPU</label>
+                        <select id="deployGpu" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                          <option value="none" selected>None (Standard CPU)</option>
+                          <option value="nvidia-tesla-t4">NVIDIA T4 (Inference)</option>
+                          <option value="nvidia-l4">NVIDIA L4 (Modern AI)</option>
+                          <option value="nvidia-a100-80gb">NVIDIA A100 80GB (Training / LLM)</option>
+                          <option value="tpu-v5e">Google Cloud TPU v5e</option>
+                        </select>
                       </div>
                     </div>
-                    <span id="cicdBadge" class="tag" style="background: var(--card-bg); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
-                      Ready to Scaffold
-                    </span>
-                  </div>
 
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="selCicdPlatform">CI/CD Platform</label>
-                      <select id="selCicdPlatform" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="github" selected>GitHub Actions (.github/workflows/deploy.yml)</option>
-                        <option value="gitlab">GitLab CI/CD (.gitlab-ci.yml)</option>
-                        <option value="bitbucket">Bitbucket Pipelines (bitbucket-pipelines.yml)</option>
-                        <option value="azure">Azure DevOps Pipelines (azure-pipelines.yml)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="cicdBranch">Deployment Target Branch</label>
-                      <input type="text" id="cicdBranch" value="main" placeholder="main or pilot" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="main or pilot">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="selCicdTier">Deployment Tier</label>
-                      <select id="selCicdTier" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                        <option value="pilot" selected>Pilot / Pre-Production</option>
-                        <option value="prod">Production</option>
-                        <option value="dev">Development / Staging</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <button class="btn" id="btnScaffoldCicd" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Scaffold CI/CD Pipeline File">⚡ Scaffold CI/CD Pipeline File</button>
-                    <button class="btn btn-secondary" id="btnRunDeployScriptTerminal" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Run Deploy Script (Terminal)">💻 Run Deploy Script (Terminal)</button>
-                    <button class="btn" id="btnOneClickCommitPush" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="1-Click Commit & Push to Git">🚀 1-Click Commit &amp; Push to Git</button>
-                  </div>
-
-                  <!-- Result box for CI/CD Preview -->
-                  <div id="cicdResultBox" style="margin-top: 14px; display: none;">
-                    <div style="background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <!-- Row 2: Networking & VPC -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
                       <div>
-                        <div style="color: var(--accent); font-weight: 700; font-size: 12px;">✓ CI/CD Pipeline Scaffolded Successfully</div>
-                        <div style="font-size: 11px; opacity: 0.9;" id="cicdPathBadge">Location: <code>.github/workflows/deploy.yml</code></div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployVpc" for="deployVpcId">Client VPC / Network ID</label>
+                        <input type="text" id="deployVpcId" placeholder="e.g. default or custom-vpc" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. default or custom-vpc">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeploySubnet" for="deploySubnetId">Subnet ID / Subnetwork</label>
+                        <input type="text" id="deploySubnetId" placeholder="e.g. pilot-subnet or subnet-0a1b2c" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. pilot-subnet or subnet-0a1b2c">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeploySg" for="deploySecurityGroups">Security Groups / Firewall Tags</label>
+                        <input type="text" id="deploySecurityGroups" placeholder="e.g. allow-internal-pilot, sg-0123456789" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. allow-internal-pilot, sg-0123456789">
+                      </div>
+                    </div>
+
+                    <!-- Row 3: Ingress, Autoscaling & Secrets -->
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeployIngress" for="deployIngress">Network Ingress Security</label>
+                        <select id="deployIngress" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                          <option value="internal">Internal VPC Only (Air-Gapped)</option>
+                          <option value="internal-load-balanced">VPC + Cloud Load Balancer</option>
+                          <option value="all" selected>Public HTTPS (Direct)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deployMinInst">Autoscaling Bounds (Min - Max)</label>
+                        <div style="display: flex; gap: 8px; margin-top: 4px;">
+                          <input type="text" id="deployMinInst" value="0" placeholder="0" style="width: 50%; box-sizing: border-box; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="0">
+                          <input type="text" id="deployMaxInst" value="10" placeholder="10" style="width: 50%; box-sizing: border-box; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="10">
+                        </div>
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deploySecrets">Secrets &amp; Env Provider</label>
+                        <select id="deploySecrets" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                          <option value="gcp-secret-manager" selected>Google Cloud Secret Manager</option>
+                          <option value="aws-secrets-manager">AWS Secrets Manager</option>
+                          <option value="azure-key-vault">Azure Key Vault</option>
+                          <option value="env-file">.env.production File</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 1-Click Infrastructure Scaffolding Parameters & Triggers -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 18px;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #fff; font-weight: 700;">📦 1-Click Infrastructure Scaffolding (Terraform / K8s / Docker / Cross-Platform Runners)</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblTargetProjId" for="gcpProjId">Target Cloud Project ID / Account</label>
+                        <input type="text" id="gcpProjId" value="acme-pilot-2026" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deployRegion">Deployment Region / Location</label>
+                        <input type="text" id="deployRegion" value="australia-southeast1" placeholder="e.g. australia-southeast1, us-central1, us-east-1" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. australia-southeast1, us-central1, us-east-1">
+                      </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <button class="btn" id="btnScaffoldDeployExact" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Scaffold All Deployment & IaC Assets">
+                        🚀 Scaffold All Deployment &amp; IaC Assets
+                      </button>
+                      <button class="btn btn-secondary" id="btnGenerateTerraformExact" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Generate Terraform (main.tf)">
+                        📄 Generate Terraform (main.tf)
+                      </button>
+                      <button class="btn btn-secondary" id="btnGenerateK8sExact" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Generate Kubernetes (k8s.yaml)">
+                        📄 Generate Kubernetes (k8s.yaml)
+                      </button>
+                      <button class="btn btn-secondary" id="btnGenerateDockerExact" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Generate Docker Compose">
+                        📄 Generate Docker Compose
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Result Drawer for Multi-File Infrastructure Scaffolding -->
+                  <div id="p3ResultBox" style="margin-top: 14px; margin-bottom: 18px; display: none;">
+                    <div style="background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <div>
+                        <div style="color: var(--accent); font-weight: 700; font-size: 12px;" id="p3ResultTitle">✓ Multi-Cloud Infrastructure Scaffolded</div>
+                        <div style="font-size: 11px; opacity: 0.9;" id="p3ResultBadge">Files written to workspace: <code>terraform/</code>, <code>k8s/</code>, <code>docker-compose.yml</code>, <code>scripts/</code></div>
                       </div>
                       <div style="display: flex; gap: 6px;">
-                        <button class="btn-quick" id="btnCopyCicdCode" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; cursor: pointer;" aria-label="Copy">📋 Copy</button>
+                        <button class="btn" id="btnWriteAllToWorkspace" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 4px 10px; font-size: 11px; cursor: pointer; border-radius: 4px;" aria-label="Write All to Workspace">💾 Write All to Workspace</button>
+                        <button class="btn-quick" id="btnCopyP3Code" style="margin-bottom: 0; padding: 4px 10px; font-size: 11px; cursor: pointer;" aria-label="Copy Active File">📋 Copy Active File</button>
                       </div>
                     </div>
-                    <pre class="code-preview" id="cicdCodePreview" style="max-height: 220px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4;"></pre>
+
+                    <!-- Multi-File Tab Navigator -->
+                    <div style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap;" id="p3FileTabs">
+                      <button class="p3-file-tab active" data-file="terraform">📄 terraform/main.tf</button>
+                      <button class="p3-file-tab" data-file="kubernetes">📄 k8s/deployment.yaml</button>
+                      <button class="p3-file-tab" data-file="dockerCompose">🐳 docker-compose.yml</button>
+                      <button class="p3-file-tab" data-file="deployBash">🐚 scripts/deploy.sh</button>
+                      <button class="p3-file-tab" data-file="deployPs1">🔷 scripts/deploy.ps1</button>
+                      <button class="p3-file-tab" data-file="prepJs">⚙️ scripts/prepare-deployment.js</button>
+                      <button class="p3-file-tab" data-file="cicd">🚀 .github/workflows/deploy.yml</button>
+                    </div>
+
+                    <div style="font-size: 11px; margin-bottom: 6px; color: var(--text-secondary); display: flex; justify-content: space-between;">
+                      <span id="p3ActiveFilePath">Workspace Target: <code>terraform/main.tf</code></span>
+                      <span id="p3ActiveFileSize" style="font-family: monospace;">Terraform HCL</span>
+                    </div>
+
+                    <pre class="code-preview" id="p3CodePreview" style="max-height: 260px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 12px; font-family: monospace; font-size: 11px; color: #d4d4d4; white-space: pre;"></pre>
+                  </div>
+
+                  <!-- Cloud Secret Requirements Matrix Card -->
+                  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">🔐</span>
+                        <div>
+                          <strong style="font-size: 12.5px; color: #fff;">Cloud Provider Secret Requirements Matrix</strong>
+                          <div style="font-size: 11px; color: var(--text-secondary);">Exact environment secrets required by CI/CD runners to deploy to <span id="lblSecretTargetCloud">Google Cloud</span>.</div>
+                        </div>
+                      </div>
+                      <button class="btn-quick" id="btnCopySecretNames" style="font-size: 10.5px; padding: 3px 8px; cursor: pointer;" aria-label="Copy Secret Names">📋 Copy Secret Template</button>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                      <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;">
+                        <thead>
+                          <tr style="border-bottom: 1px solid var(--border); color: var(--text-secondary);">
+                            <th style="padding: 6px 8px;">Secret / Env Name</th>
+                            <th style="padding: 6px 8px;">Target CI/CD Secret Scope</th>
+                            <th style="padding: 6px 8px;">Purpose &amp; Expected Value</th>
+                            <th style="padding: 6px 8px; text-align: right;">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody id="tblCloudSecretsBody">
+                          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <td style="padding: 6px 8px;"><code style="color: var(--accent);">GCP_SA_KEY</code></td>
+                            <td style="padding: 6px 8px;">Repository / Organization Secret</td>
+                            <td style="padding: 6px 8px;">Base64 Service Account JSON with Cloud Run Admin &amp; Storage roles</td>
+                            <td style="padding: 6px 8px; text-align: right;"><span style="color: var(--accent); font-weight: 600;">Required</span></td>
+                          </tr>
+                          <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                            <td style="padding: 6px 8px;"><code style="color: var(--accent);">GCP_PROJECT_ID</code></td>
+                            <td style="padding: 6px 8px;">Repository Variable / Secret</td>
+                            <td style="padding: 6px 8px;">Target Google Cloud Project ID (e.g. <code>acme-pilot-2026</code>)</td>
+                            <td style="padding: 6px 8px; text-align: right;"><span style="color: var(--accent); font-weight: 600;">Configured</span></td>
+                          </tr>
+                          <tr>
+                            <td style="padding: 6px 8px;"><code style="color: var(--accent);">GCP_REGION</code></td>
+                            <td style="padding: 6px 8px;">Repository Variable</td>
+                            <td style="padding: 6px 8px;">Compute Region (e.g. <code>australia-southeast1</code>, <code>us-central1</code>)</td>
+                            <td style="padding: 6px 8px; text-align: right;"><span style="color: var(--accent); font-weight: 600;">Configured</span></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <!-- Automated CI/CD Infra Pipeline & Git Push Hub -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 18px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">🚀</span>
+                        <div>
+                          <strong style="font-size: 13px; color: var(--accent);">Automated CI/CD Infra Pipeline &amp; Git Push Hub</strong>
+                          <div style="font-size: 11px; opacity: 0.85; color: var(--text-secondary);">Generate ready-to-run CI/CD pipelines (GitHub Actions, GitLab CI, Bitbucket, Azure DevOps) with simulated verification.</div>
+                        </div>
+                      </div>
+                      <span id="cicdBadge" class="tag" style="background: var(--card-bg); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 11px; padding: 3px 8px; border-radius: 4px;">
+                        Ready to Scaffold
+                      </span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="selCicdPlatform">CI/CD Platform</label>
+                        <select id="selCicdPlatform" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                          <option value="github" selected>GitHub Actions (.github/workflows/deploy.yml)</option>
+                          <option value="gitlab">GitLab CI/CD (.gitlab-ci.yml)</option>
+                          <option value="bitbucket">Bitbucket Pipelines (bitbucket-pipelines.yml)</option>
+                          <option value="azure">Azure DevOps Pipelines (azure-pipelines.yml)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="cicdBranch">Deployment Target Branch</label>
+                        <input type="text" id="cicdBranch" value="main" placeholder="main or pilot" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="main or pilot">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="selCicdTier">Deployment Tier</label>
+                        <select id="selCicdTier" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                          <option value="pilot" selected>Pilot / Pre-Production</option>
+                          <option value="prod">Production</option>
+                          <option value="dev">Development / Staging</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;">
+                      <button class="btn" id="btnScaffoldCicd" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Scaffold CI/CD Pipeline File">⚡ Scaffold CI/CD Pipeline File</button>
+                      <button class="btn btn-secondary" id="btnSimulateCicdRun" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer; border-color: var(--accent); color: var(--accent);" aria-label="Simulate CI/CD Pipeline Run">▶️ Simulate CI/CD Pipeline Run</button>
+                      <button class="btn btn-secondary" id="btnRunDeployScriptTerminal" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="Run Deploy Script (Terminal)">💻 Run Deploy Script (Terminal)</button>
+                      <button class="btn" id="btnOneClickCommitPush" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 14px; font-size: 11.5px; border-radius: 4px; cursor: pointer;" aria-label="1-Click Commit & Push to Git">🚀 1-Click Commit &amp; Push to Git</button>
+                    </div>
+
+                    <!-- Simulated CI/CD Pipeline Visualizer Track -->
+                    <div id="cicdSimPipelineTrack" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 12px; display: none;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 11.5px; font-weight: bold; color: #fff;">🔄 Simulated CI/CD Pipeline Execution</span>
+                        <span id="cicdSimStatusBadge" class="tag" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); font-size: 10px; padding: 2px 8px; border-radius: 4px;">In Progress...</span>
+                      </div>
+                      
+                      <!-- Pipeline Node Steps -->
+                      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; position: relative;">
+                        <div class="cicd-step-node" id="simStep1">
+                          <div class="cicd-step-circle">1</div>
+                          <strong style="font-size: 10.5px; color: #fff;">Lint &amp; Types</strong>
+                          <span style="font-size: 9.5px; color: var(--text-secondary);" class="sim-step-time">Pending</span>
+                        </div>
+                        <div style="flex: 0 0 16px; height: 2px; background: var(--border); margin-top: 13px;"></div>
+                        <div class="cicd-step-node" id="simStep2">
+                          <div class="cicd-step-circle">2</div>
+                          <strong style="font-size: 10.5px; color: #fff;">Security Audit</strong>
+                          <span style="font-size: 9.5px; color: var(--text-secondary);" class="sim-step-time">Pending</span>
+                        </div>
+                        <div style="flex: 0 0 16px; height: 2px; background: var(--border); margin-top: 13px;"></div>
+                        <div class="cicd-step-node" id="simStep3">
+                          <div class="cicd-step-circle">3</div>
+                          <strong style="font-size: 10.5px; color: #fff;">Build Container</strong>
+                          <span style="font-size: 9.5px; color: var(--text-secondary);" class="sim-step-time">Pending</span>
+                        </div>
+                        <div style="flex: 0 0 16px; height: 2px; background: var(--border); margin-top: 13px;"></div>
+                        <div class="cicd-step-node" id="simStep4">
+                          <div class="cicd-step-circle">4</div>
+                          <strong style="font-size: 10.5px; color: #fff;">Infra IaC Apply</strong>
+                          <span style="font-size: 9.5px; color: var(--text-secondary);" class="sim-step-time">Pending</span>
+                        </div>
+                        <div style="flex: 0 0 16px; height: 2px; background: var(--border); margin-top: 13px;"></div>
+                        <div class="cicd-step-node" id="simStep5">
+                          <div class="cicd-step-circle">5</div>
+                          <strong style="font-size: 10.5px; color: #fff;">Health Probe</strong>
+                          <span style="font-size: 9.5px; color: var(--text-secondary);" class="sim-step-time">Pending</span>
+                        </div>
+                      </div>
+
+                      <div id="cicdSimLogBox" style="margin-top: 12px; background: #121212; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-family: monospace; font-size: 10.5px; color: #85e89d; max-height: 90px; overflow-y: auto;">
+                        [runner] Initializing virtual environment runner (ubuntu-latest)...
+                      </div>
+                    </div>
+
+                    <!-- Result box for CI/CD Preview -->
+                    <div id="cicdResultBox" style="margin-top: 14px; display: none;">
+                      <div style="background: rgba(78, 201, 176, 0.15); border: 1px solid var(--accent); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                          <div style="color: var(--accent); font-weight: 700; font-size: 12px;">✓ CI/CD Pipeline Scaffolded Successfully</div>
+                          <div style="font-size: 11px; opacity: 0.9;" id="cicdPathBadge">Location: <code>.github/workflows/deploy.yml</code></div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn-quick" id="btnCopyCicdCode" style="margin-bottom: 0; padding: 2px 8px; font-size: 11px; cursor: pointer;" aria-label="Copy">📋 Copy</button>
+                        </div>
+                      </div>
+                      <pre class="code-preview" id="cicdCodePreview" style="max-height: 220px; overflow: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4;"></pre>
+                    </div>
                   </div>
                 </div>
-                </div>
-
+                
                 <!-- 5C: RUNBOOK FACTORY & DEMO -->
                 <div id="p5StepCPanel" role="tabpanel" aria-labelledby="btnP5StepC" style="display: none;">
                 <!-- Runbook Factory Section -->
