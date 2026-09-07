@@ -11278,94 +11278,390 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     }
   });
 
-  // 4C. HITL Approval Flow Simulator with Persistent Audit Logging
+  // 4C. HITL Approval Flow Simulator with Persistent Audit Logging & Multi-Domain Governance
   let hitlAuditEntries: any[] = [];
   let hitlAuditFilter: 'ALL' | 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED' = 'ALL';
   let hitlSlaTimerInterval: any = null;
   let hitlSlaSecondsRemaining = 898;
 
-  const updateHitlRoutingPill = () => {
+  interface HitlDomainPreset {
+    id: string;
+    val: number;
+    entity: string;
+    reason: string;
+    supervisor: string;
+    notes: string;
+    label: string;
+  }
+
+  interface HitlDomainConfig {
+    name: string;
+    unit: string;
+    metricLabel: string;
+    idLabel: string;
+    entityLabel: string;
+    reasonLabel: string;
+    ceilings: { label: string; value: number }[];
+    defaultCeiling: number;
+    operator: 'lte' | 'lt' | 'gte' | 'gt';
+    supervisors: { id: string; label: string }[];
+    presets: {
+      auto: HitlDomainPreset;
+      ceiling: HitlDomainPreset;
+      anomaly: HitlDomainPreset;
+    };
+  }
+
+  const HITL_DOMAINS: Record<string, HitlDomainConfig> = {
+    fintech: {
+      name: 'FinOps & Payments',
+      unit: '$',
+      metricLabel: 'Amount ($ USD)',
+      idLabel: 'Transaction ID',
+      entityLabel: 'Customer / Merchant',
+      reasonLabel: 'Policy Ceiling / Risk Vector',
+      ceilings: [
+        { label: '< $100 Auto', value: 100 },
+        { label: '< $250 Auto', value: 250 },
+        { label: '< $500 Auto', value: 500 },
+        { label: '< $1,000 Auto', value: 1000 }
+      ],
+      defaultCeiling: 100,
+      operator: 'lte',
+      supervisors: [
+        { id: 'SUP-EVAL-01', label: 'SUP-EVAL-01 (Lead FinOps Supervisor)' },
+        { id: 'SUP-SEC-04', label: 'SUP-SEC-04 (Director of Risk & AML)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Autonomous Engine)' }
+      ],
+      presets: {
+        auto: { id: 'TX-1042', val: 42.5, entity: 'cust_coffee_club', reason: 'Autonomous micro-refund (Below $100 ceiling)', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Auto-cleared below policy ceiling. Direct ledger dispatch.', label: '🟢 Auto-Clear Micro-Refund ($42.50)' },
+        ceiling: { id: 'TX-8831', val: 275.0, entity: 'cust_enterprise_cloud', reason: 'Refund amount $275.00 exceeds ceiling. Mandates dual supervisor sign-off.', supervisor: 'SUP-EVAL-01', notes: 'Approved after manual policy verification against merchant account history.', label: '🟠 Ceiling Breach Override ($275.00)' },
+        anomaly: { id: 'TX-9912', val: 4850.0, entity: 'cust_crossborder_remit', reason: 'High-Risk AML Velocity Alert: Multiple rapid refunds requested to overseas beneficiary.', supervisor: 'SUP-SEC-04', notes: 'Investigation complete: Source account verified with corporate card billing.', label: '🔴 High-Risk AML Flag ($4,850.00)' }
+      }
+    },
+    healthcare: {
+      name: 'Clinical Safety & Drug Dosage',
+      unit: 'mg',
+      metricLabel: 'Daily Cumulative Dose (mg / 24h)',
+      idLabel: 'Prescription / Rx ID',
+      entityLabel: 'Patient MRN / Ward',
+      reasonLabel: 'Clinical Toxicity Warning / Escalation',
+      ceilings: [
+        { label: '< 1,000 mg Auto', value: 1000 },
+        { label: '< 2,000 mg Auto', value: 2000 },
+        { label: '< 4,000 mg Auto', value: 4000 },
+        { label: '< 6,000 mg Auto', value: 6000 }
+      ],
+      defaultCeiling: 4000,
+      operator: 'lte',
+      supervisors: [
+        { id: 'CLIN-PHARM-02', label: 'CLIN-PHARM-02 (Lead Clinical Pharmacist)' },
+        { id: 'PHYS-ATTENDING', label: 'PHYS-ATTENDING (Attending Physician)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (BNF Guideline Engine)' }
+      ],
+      presets: {
+        auto: { id: 'RX-4410', val: 500, entity: 'MRN-3092 (Ward 3B)', reason: 'Routine analgesic prescription per BNF §2.1', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Dose verified within safe therapeutic range. Auto-dispensed.', label: '🟢 Safe Analgesic (500 mg)' },
+        ceiling: { id: 'RX-7721', val: 4000, entity: 'MRN-8841 (ICU-A)', reason: 'Daily maximum ceiling reached (4,000 mg in 24h). Clinical review required.', supervisor: 'CLIN-PHARM-02', notes: 'Pharmacist approved: Liver function tests normal, administered with 6h spacing.', label: '🟠 Maximum Daily Ceiling (4,000 mg)' },
+        anomaly: { id: 'RX-9940', val: 8000, entity: 'MRN-1102 (ER-Resus)', reason: 'CRITICAL ALERT: Acute cumulative overdose (8,000 mg). Severe hepatotoxicity risk.', supervisor: 'PHYS-ATTENDING', notes: 'Emergency escalation: High dosage flagged. Consult required before administration.', label: '🔴 Toxic Overdose Alert (8,000 mg)' }
+      }
+    },
+    devops: {
+      name: 'Cloud SRE & IAM Provisioning',
+      unit: 'Nodes',
+      metricLabel: 'Cluster Scaling Delta (Nodes)',
+      idLabel: 'Change Ticket / PR #',
+      entityLabel: 'Target VPC / Environment',
+      reasonLabel: 'Production Blast Radius Alert',
+      ceilings: [
+        { label: '< 5 Nodes Auto', value: 5 },
+        { label: '< 10 Nodes Auto', value: 10 },
+        { label: '< 25 Nodes Auto', value: 25 },
+        { label: '< 50 Nodes Auto', value: 50 }
+      ],
+      defaultCeiling: 10,
+      operator: 'lte',
+      supervisors: [
+        { id: 'SRE-LEAD-03', label: 'SRE-LEAD-03 (Principal SRE / On-Call)' },
+        { id: 'CISO-OPS-01', label: 'CISO-OPS-01 (Security & Infrastructure Director)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Terraform Auto-Scaler)' }
+      ],
+      presets: {
+        auto: { id: 'CHG-1099', val: 3, entity: 'vpc-dev-sandbox (Dev)', reason: 'Horizontal Pod Auto-scale (Non-production environment)', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Auto-approved for staging workload within monthly budget limit.', label: '🟢 Dev Sandbox Scale (3 Nodes)' },
+        ceiling: { id: 'CHG-4019', val: 16, entity: 'vpc-prod-east (Production)', reason: 'Cluster expansion exceeds 10-node limit ($4,200/mo delta). Mandates SRE Lead review.', supervisor: 'SRE-LEAD-03', notes: 'SRE approved: Capacity verified for scheduled Black Friday load test.', label: '🟠 Prod Expansion (16 Nodes)' },
+        anomaly: { id: 'CHG-9904', val: 75, entity: 'vpc-prod-global (Multi-Region)', reason: 'CRITICAL BLAST RADIUS: Multi-region teardown + root IAM privilege grant attempted.', supervisor: 'CISO-OPS-01', notes: 'Security intervention: Unauthorized root elevation blocked. Audit investigation opened.', label: '🔴 High-Impact Infra Drop (75 Nodes)' }
+      }
+    },
+    data: {
+      name: 'Data Platform & Schema Drift',
+      unit: 'Rows',
+      metricLabel: 'Mutation Volume / Rows Affected',
+      idLabel: 'Pipeline Run ID',
+      entityLabel: 'Target Dataset / Table',
+      reasonLabel: 'Data Loss & Schema Drift Alert',
+      ceilings: [
+        { label: '< 5,000 Rows Auto', value: 5000 },
+        { label: '< 25,000 Rows Auto', value: 25000 },
+        { label: '< 50,000 Rows Auto', value: 50000 },
+        { label: '< 100,000 Rows Auto', value: 100000 }
+      ],
+      defaultCeiling: 25000,
+      operator: 'lte',
+      supervisors: [
+        { id: 'DATA-LEAD-07', label: 'DATA-LEAD-07 (Data Platform Architect)' },
+        { id: 'GOV-OFFICER-02', label: 'GOV-OFFICER-02 (Data Governance Officer)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (dbt Pipeline Gate)' }
+      ],
+      presets: {
+        auto: { id: 'RUN-2041', val: 1800, entity: 'mart_customer_orders', reason: 'Scheduled hourly micro-batch incremental ingestion', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Within row budget. Schema checks and null tests 100% passing.', label: '🟢 Hourly Batch (1,800 Rows)' },
+        ceiling: { id: 'RUN-6602', val: 85000, entity: 'mart_financial_ledger', reason: 'Bulk history backfill exceeds 25,000-row autonomous ceiling.', supervisor: 'DATA-LEAD-07', notes: 'Backfill authorized: Upstream ERP reconciliation migration verified.', label: '🟠 Backfill Mutation (85,000 Rows)' },
+        anomaly: { id: 'RUN-9981', val: 1250000, entity: 'dim_customer_pii', reason: 'EMERGENCY ALERT: Unbounded DELETE/TRUNCATE affecting 1.25M records without snapshot!', supervisor: 'GOV-OFFICER-02', notes: 'Halt triggered: Unfiltered table purge prevented by data governance guardrail.', label: '🔴 Catastrophic Purge (1.25M Rows)' }
+      }
+    },
+    custom: {
+      name: 'Custom FDE Work',
+      unit: 'Units',
+      metricLabel: 'Custom Metric Value (Units)',
+      idLabel: 'Work Item ID',
+      entityLabel: 'Target Entity / Asset',
+      reasonLabel: 'Custom Governance Trigger',
+      ceilings: [
+        { label: '< 50 Auto', value: 50 },
+        { label: '< 100 Auto', value: 100 },
+        { label: '< 500 Auto', value: 500 },
+        { label: '< 1,000 Auto', value: 1000 }
+      ],
+      defaultCeiling: 100,
+      operator: 'lte',
+      supervisors: [
+        { id: 'SUP-CUSTOM-01', label: 'SUP-CUSTOM-01 (FDE Lead Evaluator)' },
+        { id: 'DIR-ENG-05', label: 'DIR-ENG-05 (Engineering Director)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Custom Policy Engine)' }
+      ],
+      presets: {
+        auto: { id: 'REQ-1001', val: 25, entity: 'Tenant_Alpha', reason: 'Safe baseline within custom threshold', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Below threshold. Auto-cleared by custom FDE specification.', label: '🟢 Safe Baseline (25 Units)' },
+        ceiling: { id: 'REQ-2045', val: 180, entity: 'Tenant_Beta', reason: 'Metric exceeds standard clearance ceiling.', supervisor: 'SUP-CUSTOM-01', notes: 'Manual override granted after engineering review.', label: '🟠 Threshold Override (180 Units)' },
+        anomaly: { id: 'REQ-9099', val: 950, entity: 'Tenant_Gamma', reason: 'Critical anomaly threshold breached. Mandatory dual approval required.', supervisor: 'DIR-ENG-05', notes: 'Director escalation: High-risk anomaly logged.', label: '🔴 Critical Anomaly (950 Units)' }
+      }
+    }
+  };
+
+  let currentHitlDomainKey = 'fintech';
+
+  const getActiveHitlConfig = (): HitlDomainConfig => {
+    const base = HITL_DOMAINS[currentHitlDomainKey] || HITL_DOMAINS.fintech;
+    if (currentHitlDomainKey === 'custom') {
+      const customMetric = (document.getElementById('txtHitlCustomMetricUnit') as HTMLInputElement)?.value?.trim() || 'Score (0-100)';
+      const customId = (document.getElementById('txtHitlCustomIdLabel') as HTMLInputElement)?.value?.trim() || 'Request ID';
+      const customEntity = (document.getElementById('txtHitlCustomEntityLabel') as HTMLInputElement)?.value?.trim() || 'Target Asset';
+      const customOp = ((document.getElementById('selHitlCustomOperator') as HTMLSelectElement)?.value || 'lte') as 'lte' | 'lt' | 'gte' | 'gt';
+      const customCeilingVal = parseFloat((document.getElementById('txtHitlCustomCeilingValue') as HTMLInputElement)?.value || '100');
+
+      return {
+        ...base,
+        unit: customMetric.includes('(') ? customMetric.replace(/.*\((.*?)\).*/, '$1') : customMetric,
+        metricLabel: customMetric,
+        idLabel: customId,
+        entityLabel: customEntity,
+        operator: customOp,
+        defaultCeiling: isNaN(customCeilingVal) ? 100 : customCeilingVal
+      };
+    }
+    return base;
+  };
+
+  const formatHitlVal = (val: number, unit: string) => {
+    if (unit === '$') return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${val.toLocaleString()} ${unit}`;
+  };
+
+  const getHitlCeilingValue = (): number => {
     const selCeiling = document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement;
+    if (selCeiling?.value === 'custom') {
+      const customInput = document.getElementById('txtHitlCustomCeilingValue') as HTMLInputElement;
+      const num = parseFloat(customInput?.value || '100');
+      return isNaN(num) ? 100 : num;
+    }
+    const num = parseFloat(selCeiling?.value || '100');
+    return isNaN(num) ? 100 : num;
+  };
+
+  const updateHitlRoutingPill = () => {
+    const cfg = getActiveHitlConfig();
     const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
     const pill = document.getElementById('lblHitlRoutingPill');
     if (!pill) return;
 
-    const ceiling = parseFloat(selCeiling?.value || '100');
+    const ceiling = getHitlCeilingValue();
     const amount = parseFloat(txtAmount?.value || '0');
+    const op = cfg.operator;
 
-    if (amount <= ceiling) {
-      pill.textContent = `🟢 Within $${ceiling} Ceiling ➔ Direct Autonomous Clearance`;
+    let isPassing = false;
+    if (op === 'lte') isPassing = amount <= ceiling;
+    else if (op === 'lt') isPassing = amount < ceiling;
+    else if (op === 'gte') isPassing = amount >= ceiling;
+    else if (op === 'gt') isPassing = amount > ceiling;
+
+    const ceilingFormatted = formatHitlVal(ceiling, cfg.unit);
+
+    if (isPassing) {
+      pill.textContent = `🟢 Within ${ceilingFormatted} Ceiling ➔ Direct Autonomous Clearance`;
       pill.style.background = 'rgba(137, 209, 133, 0.15)';
       pill.style.color = 'var(--success)';
       pill.style.borderColor = 'var(--success)';
     } else {
-      pill.textContent = `🟠 Exceeds $${ceiling} Ceiling ➔ Mandatory Supervisor Override`;
+      pill.textContent = `🟠 Exceeds ${ceilingFormatted} Ceiling ➔ Mandatory Supervisor Override`;
       pill.style.background = 'rgba(229, 181, 103, 0.15)';
       pill.style.color = '#e5b567';
       pill.style.borderColor = '#e5b567';
     }
   };
 
-  document.getElementById('selHitlCeilingThreshold')?.addEventListener('change', updateHitlRoutingPill);
+  const applyHitlDomain = (domainKey: string) => {
+    currentHitlDomainKey = domainKey;
+    const cfg = getActiveHitlConfig();
+
+    // 1. Update Form Labels
+    const lblId = document.getElementById('lblHitlIdTitle');
+    const lblMetric = document.getElementById('lblHitlMetricTitle');
+    const lblEntity = document.getElementById('lblHitlEntityTitle');
+    const lblReason = document.getElementById('lblHitlReasonTitle');
+    if (lblId) lblId.textContent = cfg.idLabel;
+    if (lblMetric) lblMetric.textContent = cfg.metricLabel;
+    if (lblEntity) lblEntity.textContent = cfg.entityLabel;
+    if (lblReason) lblReason.textContent = cfg.reasonLabel;
+
+    // 2. Update Ceiling Selector
+    const selCeiling = document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement;
+    const txtCustomCeiling = document.getElementById('txtHitlCustomCeilingValue') as HTMLInputElement;
+    if (selCeiling) {
+      selCeiling.innerHTML = '';
+      cfg.ceilings.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = String(c.value);
+        opt.textContent = c.label;
+        if (c.value === cfg.defaultCeiling) opt.selected = true;
+        selCeiling.appendChild(opt);
+      });
+      const optCustom = document.createElement('option');
+      optCustom.value = 'custom';
+      optCustom.textContent = 'Custom Threshold...';
+      selCeiling.appendChild(optCustom);
+    }
+    if (txtCustomCeiling) {
+      txtCustomCeiling.style.display = 'none';
+      txtCustomCeiling.value = String(cfg.defaultCeiling);
+    }
+
+    // 3. Update Assigned Supervisor Select
+    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
+    if (selSupervisor) {
+      selSupervisor.innerHTML = '';
+      cfg.supervisors.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.label;
+        selSupervisor.appendChild(opt);
+      });
+    }
+
+    // 4. Update Scenario Presets Container
+    const presetsContainer = document.getElementById('hitlScenarioPresets');
+    if (presetsContainer) {
+      presetsContainer.innerHTML = `
+        <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Scenario Presets:</span>
+        <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load safe baseline">${cfg.presets.auto.label}</button>
+        <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">${cfg.presets.ceiling.label}</button>
+        <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load high-risk anomaly requiring dual signoff">${cfg.presets.anomaly.label}</button>
+      `;
+
+      // Wire preset buttons
+      document.getElementById('btnPresetHitlAuto')?.addEventListener('click', () => loadHitlPreset(cfg.presets.auto));
+      document.getElementById('btnPresetHitlCeiling')?.addEventListener('click', () => loadHitlPreset(cfg.presets.ceiling));
+      document.getElementById('btnPresetHitlAml')?.addEventListener('click', () => loadHitlPreset(cfg.presets.anomaly));
+    }
+
+    // 5. Show/Hide Custom Builder
+    const customPanel = document.getElementById('hitlCustomConfigPanel');
+    if (customPanel) {
+      customPanel.style.display = domainKey === 'custom' ? 'block' : 'none';
+    }
+
+    // 6. Load Default Auto Preset
+    loadHitlPreset(cfg.presets.auto);
+    updateHitlRoutingPill();
+  };
+
+  const loadHitlPreset = (preset: HitlDomainPreset) => {
+    const cfg = getActiveHitlConfig();
+    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
+    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
+    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
+    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
+    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
+    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
+
+    if (txtTxId) txtTxId.value = preset.id;
+    if (txtAmount) txtAmount.value = String(preset.val);
+    if (txtCustomer) txtCustomer.value = preset.entity;
+    if (selSupervisor) selSupervisor.value = preset.supervisor;
+    if (txtReason) txtReason.value = preset.reason;
+    if (txtNotes) txtNotes.value = preset.notes;
+
+    updateHitlRoutingPill();
+    showToast(`📝 Loaded preset: ${preset.label}`);
+  };
+
+  // Domain change handler
+  document.getElementById('selHitlDomain')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLSelectElement).value;
+    applyHitlDomain(val);
+  });
+
+  // Custom panel toggle
+  document.getElementById('btnToggleHitlCustomConfig')?.addEventListener('click', () => {
+    const customPanel = document.getElementById('hitlCustomConfigPanel');
+    if (customPanel) {
+      const isVisible = customPanel.style.display === 'block';
+      customPanel.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible) {
+        const selDomain = document.getElementById('selHitlDomain') as HTMLSelectElement;
+        if (selDomain && selDomain.value !== 'custom') {
+          selDomain.value = 'custom';
+          applyHitlDomain('custom');
+        }
+      }
+    }
+  });
+
+  // Listeners on Custom Inputs to re-render in real-time
+  ['txtHitlCustomMetricUnit', 'txtHitlCustomIdLabel', 'txtHitlCustomEntityLabel', 'selHitlCustomOperator', 'txtHitlCustomCeilingValue'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', () => {
+      if (currentHitlDomainKey === 'custom') {
+        const cfg = getActiveHitlConfig();
+        const lblId = document.getElementById('lblHitlIdTitle');
+        const lblMetric = document.getElementById('lblHitlMetricTitle');
+        const lblEntity = document.getElementById('lblHitlEntityTitle');
+        if (lblId) lblId.textContent = cfg.idLabel;
+        if (lblMetric) lblMetric.textContent = cfg.metricLabel;
+        if (lblEntity) lblEntity.textContent = cfg.entityLabel;
+        updateHitlRoutingPill();
+      }
+    });
+  });
+
+  // Ceiling select changes
+  document.getElementById('selHitlCeilingThreshold')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLSelectElement).value;
+    const txtCustom = document.getElementById('txtHitlCustomCeilingValue') as HTMLInputElement;
+    if (txtCustom) {
+      txtCustom.style.display = val === 'custom' ? 'inline-block' : 'none';
+      if (val === 'custom') txtCustom.focus();
+    }
+    updateHitlRoutingPill();
+  });
+
+  document.getElementById('txtHitlCustomCeilingValue')?.addEventListener('input', updateHitlRoutingPill);
   document.getElementById('txtHitlTxAmount')?.addEventListener('input', updateHitlRoutingPill);
-
-  // Scenario Presets
-  document.getElementById('btnPresetHitlAuto')?.addEventListener('click', () => {
-    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
-    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
-    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
-    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
-    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
-    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
-
-    if (txtTxId) txtTxId.value = 'TX-1042';
-    if (txtAmount) txtAmount.value = '42.50';
-    if (txtCustomer) txtCustomer.value = 'cust_coffee_club';
-    if (selSupervisor) selSupervisor.value = 'SYSTEM-AUTONOMOUS';
-    if (txtReason) txtReason.value = 'Autonomous micro-refund (Below policy ceiling)';
-    if (txtNotes) txtNotes.value = 'Auto-cleared below policy ceiling. Direct ledger dispatch.';
-
-    updateHitlRoutingPill();
-    showToast('🟢 Loaded low-risk micro-refund preset ($42.50)');
-  });
-
-  document.getElementById('btnPresetHitlCeiling')?.addEventListener('click', () => {
-    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
-    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
-    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
-    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
-    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
-    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
-
-    if (txtTxId) txtTxId.value = 'TX-8831';
-    if (txtAmount) txtAmount.value = '275.00';
-    if (txtCustomer) txtCustomer.value = 'cust_enterprise_cloud';
-    if (selSupervisor) selSupervisor.value = 'SUP-EVAL-01';
-    if (txtReason) txtReason.value = 'Refund amount $275.00 exceeds ceiling. Mandates dual supervisor sign-off.';
-    if (txtNotes) txtNotes.value = 'Approved after manual policy verification against merchant account history.';
-
-    updateHitlRoutingPill();
-    showToast('🟠 Loaded standard ceiling breach preset ($275.00)');
-  });
-
-  document.getElementById('btnPresetHitlAml')?.addEventListener('click', () => {
-    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
-    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
-    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
-    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
-    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
-    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
-
-    if (txtTxId) txtTxId.value = 'TX-9912';
-    if (txtAmount) txtAmount.value = '4850.00';
-    if (txtCustomer) txtCustomer.value = 'cust_crossborder_remit';
-    if (selSupervisor) selSupervisor.value = 'SUP-SEC-04';
-    if (txtReason) txtReason.value = 'High-Risk AML Velocity Alert: Multiple rapid refunds requested to overseas beneficiary.';
-    if (txtNotes) txtNotes.value = 'Investigation complete: Source account verified with corporate card billing.';
-
-    updateHitlRoutingPill();
-    showToast('🔴 Loaded high-risk AML flag preset ($4,850.00)');
-  });
 
   const startHitlSlaTimer = () => {
     if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
@@ -11407,14 +11703,15 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
       const badgeColor = isApproved ? 'var(--success)' : isAuto ? '#60a5fa' : 'var(--error)';
       const badgeBg = isApproved ? 'rgba(137, 209, 133, 0.15)' : isAuto ? 'rgba(96, 165, 250, 0.15)' : 'rgba(241, 76, 76, 0.15)';
       const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
-      const amountStr = typeof item.amount === 'number' ? item.amount.toFixed(2) : item.amount;
+      const unit = item.unit || '$';
+      const formattedAmount = formatHitlVal(typeof item.amount === 'number' ? item.amount : parseFloat(item.amount || '0'), unit);
 
       return `<div style="padding: 6px 8px; margin-bottom: 6px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <strong style="color: #fff;">${item.transactionId}</strong>
             <span style="font-size: 9px; font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeColor}; padding: 1px 6px; border-radius: 3px;">${item.action}</span>
-            <span style="color: var(--accent); font-weight: 700;">$${amountStr}</span>
+            <span style="color: var(--accent); font-weight: 700;">${formattedAmount}</span>
           </div>
           <span style="font-size: 9.5px; color: var(--text-muted); font-family: monospace;">${timeStr} [${item.supervisor || 'SUP-EVAL-01'}]</span>
         </div>
@@ -11422,7 +11719,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           ${item.reason || item.notes || 'No supervisor notes recorded.'}
         </div>
         <div style="font-size: 8.5px; color: var(--text-muted); font-family: monospace;">
-          Hash: ${item.auditHash || 'sha256_verified'} | Priority: ${item.priority || 'NORMAL'}
+          Domain: ${item.domain || 'FDE'} | Hash: ${item.auditHash || 'sha256_verified'} | Priority: ${item.priority || 'NORMAL'}
         </div>
       </div>`;
     }).join('');
@@ -11442,19 +11739,20 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
   })();
 
   document.getElementById('btnSimulateHitl')?.addEventListener('click', () => {
+    const cfg = getActiveHitlConfig();
     const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'TX-9482';
-    const amount = (document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '150.00';
+    const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
     const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'cust_4920';
     const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'SUP-EVAL-01';
-    const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Refund amount exceeds $100 ceiling';
+    const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Exceeds autonomous policy ceiling';
 
     const box = document.getElementById('fdeHitlSimulationBox');
     const header = document.getElementById('lblHitlBoxTxHeader');
     const triggerDetail = document.getElementById('lblHitlBoxTriggerDetail');
     const status = document.getElementById('lblHitlStatusResult');
 
-    if (header) header.textContent = `${txId} ($${parseFloat(amount).toFixed(2)} Refund Request)`;
-    if (triggerDetail) triggerDetail.innerHTML = `Trigger: ${reason}. Customer: <code>${customer}</code>. Assigned Supervisor: <strong>${supervisor}</strong>.`;
+    if (header) header.textContent = `${txId} (${formatHitlVal(amount, cfg.unit)} Request)`;
+    if (triggerDetail) triggerDetail.innerHTML = `Trigger: ${reason}. ${cfg.entityLabel}: <code>${customer}</code>. Assigned Supervisor: <strong>${supervisor}</strong>.`;
     if (box) box.style.display = 'block';
     if (status) status.style.display = 'none';
 
@@ -11465,14 +11763,15 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
   });
 
   const recordHitlDecision = async (action: 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED') => {
+    const cfg = getActiveHitlConfig();
     const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'TX-9482';
-    const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '150.00');
+    const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
     const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'cust_4920';
     const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'SUP-EVAL-01';
-    const ceiling = parseFloat((document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement)?.value || '100');
+    const ceiling = getHitlCeilingValue();
     const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Policy check';
     const notesInput = (document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement)?.value?.trim();
-    const notes = notesInput || (action === 'APPROVED' ? 'Approved after supervisor policy verification' : action === 'AUTO_CLEARED' ? 'Autonomous policy clearance (< ceiling)' : `Rejected: ${reason}`);
+    const notes = notesInput || (action === 'APPROVED' ? 'Approved after supervisor policy verification' : action === 'AUTO_CLEARED' ? `Autonomous clearance (${formatHitlVal(amount, cfg.unit)} <= ${formatHitlVal(ceiling, cfg.unit)})` : `Rejected: ${reason}`);
     const status = document.getElementById('lblHitlStatusResult');
 
     if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
@@ -11484,11 +11783,13 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           transactionId: txId,
           action,
           amount,
+          unit: cfg.unit,
+          domain: currentHitlDomainKey,
           customer,
           supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
           reason: notes,
           notes,
-          priority: amount > 1000 ? 'CRITICAL' : 'HIGH',
+          priority: amount > (ceiling * 2) ? 'CRITICAL' : 'HIGH',
           ceilingThreshold: ceiling
         });
       } else {
@@ -11497,11 +11798,13 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           transactionId: txId,
           action,
           amount,
+          unit: cfg.unit,
+          domain: currentHitlDomainKey,
           customer,
           supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
           reason: notes,
           notes,
-          priority: amount > 1000 ? 'CRITICAL' : 'HIGH',
+          priority: amount > (ceiling * 2) ? 'CRITICAL' : 'HIGH',
           ceilingThreshold: ceiling,
           timestamp: new Date().toISOString(),
           auditHash: 'sha256_' + Date.now().toString(36)
@@ -11520,25 +11823,26 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
 
       if (status) {
         status.style.display = 'block';
+        const formattedAmount = formatHitlVal(amount, cfg.unit);
         if (action === 'APPROVED') {
           status.style.color = 'var(--success)';
           status.style.borderColor = 'var(--success)';
           status.style.background = 'rgba(137, 209, 133, 0.1)';
-          status.textContent = `✅ Transaction ${txId} Approved & Dispatched to Ledger (${supervisor} Verified, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
+          status.textContent = `✅ Request ${txId} (${formattedAmount}) Authorized & Dispatched (${supervisor} Verified, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
         } else if (action === 'AUTO_CLEARED') {
           status.style.color = '#60a5fa';
           status.style.borderColor = '#60a5fa';
           status.style.background = 'rgba(96, 165, 250, 0.1)';
-          status.textContent = `⚡ Transaction ${txId} Auto-Cleared & Dispatched (Autonomous Clearance < $${ceiling}, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
+          status.textContent = `⚡ Request ${txId} (${formattedAmount}) Auto-Cleared & Dispatched (Autonomous Clearance, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
         } else {
           status.style.color = 'var(--error)';
           status.style.borderColor = 'var(--error)';
           status.style.background = 'rgba(241, 76, 76, 0.1)';
-          status.textContent = `❌ Transaction ${txId} Rejected & Incident Escalated (${supervisor} Flagged: ${notes})`;
+          status.textContent = `❌ Request ${txId} Rejected & Incident Escalated (${supervisor} Flagged: ${notes})`;
         }
       }
 
-      showToast(action === 'APPROVED' ? `✓ Transaction ${txId} Approved & Logged` : action === 'AUTO_CLEARED' ? `⚡ Transaction ${txId} Auto-Cleared` : `✕ Transaction ${txId} Rejected & Logged`);
+      showToast(action === 'APPROVED' ? `✓ ${txId} Authorized & Logged` : action === 'AUTO_CLEARED' ? `⚡ ${txId} Auto-Cleared` : `✕ ${txId} Rejected & Logged`);
       hasSimulatedHitl = true;
       refreshP4Rail?.();
     } catch (err: any) {
@@ -11549,10 +11853,19 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
   document.getElementById('btnHitlApprove')?.addEventListener('click', () => recordHitlDecision('APPROVED'));
   document.getElementById('btnHitlReject')?.addEventListener('click', () => recordHitlDecision('REJECTED'));
   document.getElementById('btnHitlDirectAutoClear')?.addEventListener('click', () => {
+    const cfg = getActiveHitlConfig();
     const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
-    const ceiling = parseFloat((document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement)?.value || '100');
-    if (amount > ceiling) {
-      showToast(`⚠️ Amount ($${amount.toFixed(2)}) exceeds autonomous ceiling ($${ceiling.toFixed(2)}). Escalating to supervisor review queue.`);
+    const ceiling = getHitlCeilingValue();
+    const op = cfg.operator;
+
+    let isPassing = false;
+    if (op === 'lte') isPassing = amount <= ceiling;
+    else if (op === 'lt') isPassing = amount < ceiling;
+    else if (op === 'gte') isPassing = amount >= ceiling;
+    else if (op === 'gt') isPassing = amount > ceiling;
+
+    if (!isPassing) {
+      showToast(`⚠️ Value (${formatHitlVal(amount, cfg.unit)}) breaches autonomous ceiling (${formatHitlVal(ceiling, cfg.unit)}). Escalating to supervisor queue.`);
       document.getElementById('btnSimulateHitl')?.click();
       return;
     }

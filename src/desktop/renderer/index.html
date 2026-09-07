@@ -2967,89 +2967,137 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <!-- 4C: HITL APPROVAL SIMULATOR -->
                 <div id="p4StepCPanel" role="tabpanel" aria-labelledby="btnP4StepC" style="display: none;">
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                  <!-- Header & Policy Ceiling Bar -->
+                  <!-- Header & Governance Framework Bar -->
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <div>
                       <div style="font-weight: 700; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                         <span>👤</span> Section 4C: Human-in-the-Loop (HITL) Supervisor Gate
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Enforce autonomous policy ceilings with dual-control supervisor review, SLA countdowns, and immutable audit logs.
+                        Enforce autonomous policy ceilings with dual-control supervisor review, SLA countdowns, and customizable domain metrics.
                       </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span style="font-size: 10.5px; color: var(--text-secondary);">Ceiling Rule:</span>
-                      <select id="selHitlCeilingThreshold" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
-                        <option value="100" selected>Ceiling: &lt;$100 Auto</option>
-                        <option value="250">Ceiling: &lt;$250 Auto</option>
-                        <option value="500">Ceiling: &lt;$500 Auto</option>
-                        <option value="1000">Ceiling: &lt;$1,000 Auto</option>
+                      <label for="selHitlDomain" style="font-size: 10px; color: var(--text-secondary); font-weight: 600;">Governance Domain:</label>
+                      <select id="selHitlDomain" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
+                        <option value="fintech" selected>💳 FinOps: Payments &amp; Refunds ($ USD)</option>
+                        <option value="healthcare">🏥 Healthcare: Clinical Dosage &amp; Safety (mg)</option>
+                        <option value="devops">☁️ Cloud SRE: Infra Provisioning &amp; IAM (Nodes)</option>
+                        <option value="data">📊 Data Platform: Mutation &amp; Drift (Rows)</option>
+                        <option value="custom">🛠️ Custom FDE Work (User-Defined Metric)</option>
                       </select>
-                      <span id="lblHitlRoutingPill" class="brand-pill" style="font-size: 10px; background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567;">🟠 Supervisor Override Required</span>
+                      <button class="btn-quick" id="btnToggleHitlCustomConfig" style="font-size: 9.5px; padding: 2px 6px;" title="Customize metric unit, ceiling and operator">⚙️ Custom Gate Options</button>
                     </div>
                   </div>
 
-                  <!-- Scenario Preset Chips -->
-                  <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
-                    <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Scenario Presets:</span>
-                    <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load micro-refund below policy ceiling">🟢 Auto-Clear Micro-Refund ($42.50)</button>
-                    <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">🟠 Ceiling Breach Override ($275.00)</button>
-                    <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load suspicious rapid velocity AML alert">🔴 High-Risk AML Flag ($4,850.00)</button>
+                  <!-- Custom Metric Definition Drawer (Collapsible) -->
+                  <div id="hitlCustomConfigPanel" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--accent); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span style="font-size: 11px; font-weight: 700; color: var(--accent);">🛠️ Custom FDE Gate Specification Builder</span>
+                      <span style="font-size: 9.5px; color: var(--text-muted);">Configure target metric, field names and clearance condition</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+                      <div>
+                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomMetricUnit">Metric Name &amp; Unit</label>
+                        <input type="text" id="txtHitlCustomMetricUnit" value="Risk Score (0-100)" placeholder="e.g. Tokens, QPS, GB, Score" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomIdLabel">Identifier Label</label>
+                        <input type="text" id="txtHitlCustomIdLabel" value="Request ID" placeholder="e.g. Job ID, Ticket, Run ID" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomEntityLabel">Entity / Subject Label</label>
+                        <input type="text" id="txtHitlCustomEntityLabel" value="Target Tenant / Principal" placeholder="e.g. User, Model, Dataset" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlCustomOperator">Clearance Operator</label>
+                        <select id="selHitlCustomOperator" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px; outline: none;">
+                          <option value="lte" selected>&le; (Auto if Less or Equal)</option>
+                          <option value="lt">&lt; (Auto if Less Than)</option>
+                          <option value="gte">&ge; (Auto if Greater or Equal)</option>
+                          <option value="gt">&gt; (Auto if Greater Than)</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
-                  <!-- Transaction Details & Routing Station -->
+                  <!-- Policy Ceiling Bar & Routing Status -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; flex-wrap: wrap; gap: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <label for="selHitlCeilingThreshold" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Autonomous Ceiling:</label>
+                      <select id="selHitlCeilingThreshold" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
+                        <option value="100" selected>&lt; $100 Auto</option>
+                        <option value="250">&lt; $250 Auto</option>
+                        <option value="500">&lt; $500 Auto</option>
+                        <option value="1000">&lt; $1,000 Auto</option>
+                        <option value="custom">Custom Threshold...</option>
+                      </select>
+                      <input type="number" id="txtHitlCustomCeilingValue" value="100" style="display: none; width: 70px; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 2px 4px; border-radius: 3px;" title="Custom ceiling threshold" />
+                    </div>
+                    <span id="lblHitlRoutingPill" class="brand-pill" style="font-size: 10px; background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567;">🟠 Supervisor Override Required</span>
+                  </div>
+
+                  <!-- Scenario Preset Chips Container (Dynamically rendered per domain) -->
+                  <div id="hitlScenarioPresets" style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Scenario Presets:</span>
+                    <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load safe baseline below policy ceiling">🟢 Auto-Clear Micro-Refund ($42.50)</button>
+                    <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">🟠 Ceiling Breach Override ($275.00)</button>
+                    <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load high-risk anomaly requiring dual signoff">🔴 High-Risk AML Flag ($4,850.00)</button>
+                  </div>
+
+                  <!-- Transaction / Item Details & Routing Station -->
                   <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px;">
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxId">Transaction ID</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxId" id="lblHitlIdTitle">Transaction ID</label>
                         <input type="text" id="txtHitlTxId" value="TX-9482" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxAmount">Amount ($ USD)</label>
-                        <input type="number" id="txtHitlTxAmount" value="150.00" step="10" min="1" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxAmount" id="lblHitlMetricTitle">Amount ($ USD)</label>
+                        <input type="number" id="txtHitlTxAmount" value="150.00" step="any" min="0" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxCustomer">Customer / Entity</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxCustomer" id="lblHitlEntityTitle">Customer / Entity</label>
                         <input type="text" id="txtHitlTxCustomer" value="cust_4920" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlSupervisor">Assigned Supervisor</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlSupervisor" id="lblHitlSupervisorTitle">Assigned Supervisor</label>
                         <select id="selHitlSupervisor" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px; outline: none;">
-                          <option value="SUP-EVAL-01" selected>SUP-EVAL-01 (Lead FinOps Supervisor)</option>
-                          <option value="SUP-SEC-04">SUP-SEC-04 (Director of Risk &amp; AML)</option>
+                          <option value="SUP-EVAL-01" selected>SUP-EVAL-01 (Lead Supervisor)</option>
+                          <option value="SUP-SEC-04">SUP-SEC-04 (Director of Risk &amp; Compliance)</option>
                           <option value="SYSTEM-AUTONOMOUS">SYSTEM-AUTONOMOUS (Autonomous Engine)</option>
                         </select>
                       </div>
                       <div style="grid-column: 1 / -1;">
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxReason">Escalation Trigger Reason / Risk Vector</label>
-                        <input type="text" id="txtHitlTxReason" value="Refund amount $150.00 exceeds $100 ceiling" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxReason" id="lblHitlReasonTitle">Escalation Trigger Reason / Risk Vector</label>
+                        <input type="text" id="txtHitlTxReason" value="Amount $150.00 exceeds $100 ceiling" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
                       <button class="btn" id="btnSimulateHitl" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px;" aria-label="Route Transaction to HITL Queue">👤 Queue for Supervisor Review ➔</button>
-                      <button class="btn-quick" id="btnHitlDirectAutoClear" style="font-size: 11px; padding: 6px 12px; color: var(--success);" aria-label="Direct Autonomous Clearance">⚡ Direct Autonomous Clearance (&lt; Ceiling)</button>
+                      <button class="btn-quick" id="btnHitlDirectAutoClear" style="font-size: 11px; padding: 6px 12px; color: var(--success);" aria-label="Direct Autonomous Clearance">⚡ Direct Autonomous Clearance (&le; Ceiling)</button>
                     </div>
                   </div>
                   
                   <!-- Active Supervisor Decision & Review Station -->
                   <div id="fdeHitlSimulationBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                      <span style="font-size: 12px; font-weight: 700; color: #fff;" id="lblHitlBoxTxHeader">TX-9482 ($150.00 Refund Request)</span>
+                      <span style="font-size: 12px; font-weight: 700; color: #fff;" id="lblHitlBoxTxHeader">TX-9482 ($150.00 Request)</span>
                       <div style="display: flex; gap: 8px; align-items: center;">
                         <span id="lblHitlSlaTimer" style="font-size: 10px; color: #94a3b8; font-family: monospace;">⏱️ SLA: 14m 58s remaining</span>
                         <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;" id="lblHitlBoxStatus">Awaiting Supervisor Approval</span>
                       </div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="lblHitlBoxTriggerDetail">
-                      Trigger: Amount exceeds $100 automated ceiling. Customer: <code>cust_4920</code>.
+                      Trigger: Exceeds automated ceiling. Customer: <code>cust_4920</code>.
                     </div>
                     <!-- Supervisor Justification Notes Input -->
                     <div style="margin-bottom: 10px;">
                       <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlSupervisorNotes">Supervisor Justification / Override Notes:</label>
-                      <input type="text" id="txtHitlSupervisorNotes" value="Approved after manual policy verification against merchant account history." style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                      <input type="text" id="txtHitlSupervisorNotes" value="Approved after manual policy verification." style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                     </div>
                     <div style="display: flex; gap: 8px;">
-                      <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px; font-size: 11.5px;" aria-label="Approve & Dispatch to General Ledger">✓ Approve &amp; Dispatch to Ledger</button>
+                      <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px; font-size: 11.5px;" aria-label="Approve & Dispatch to Execution">✓ Authorize &amp; Dispatch</button>
                       <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 7px; font-size: 11.5px; color: var(--error);" aria-label="Reject & Issue Alert">✕ Reject &amp; Issue Incident Alert</button>
                     </div>
                     <div id="lblHitlStatusResult" style="display: none; margin-top: 10px; font-size: 11px; font-weight: 700; text-align: center; padding: 8px; border-radius: 4px; border: 1px solid var(--border);"></div>
