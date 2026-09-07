@@ -184,7 +184,9 @@ const desktopApi = {
     restoreScopeVersion: (versionId: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RESTORE_SCOPE_VERSION, versionId),
     exportClientAlignmentMemo: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.EXPORT_CLIENT_ALIGNMENT_MEMO, data),
     setArchitectureTarget: (req: { level: number; rationale?: string; latencyBudget?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SET_ARCHITECTURE_TARGET, req),
-    analyzeWorkspaceArchitecture: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ANALYZE_WORKSPACE_ARCHITECTURE)
+    analyzeWorkspaceArchitecture: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ANALYZE_WORKSPACE_ARCHITECTURE),
+    testTargetConnection: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.TEST_TARGET_CONNECTION, req),
+    logHitlAction: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, req)
   }
 };
 

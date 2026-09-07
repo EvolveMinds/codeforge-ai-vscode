@@ -401,6 +401,78 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     assert.ok(aiCasesRes.cases[0].prompt.length > 0);
     assert.ok(aiCasesRes.cases[0].expectedOutput.length > 0);
 
+    // Test invoking Target Connection Test (TEST_TARGET_CONNECTION)
+    const testConnFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.TEST_TARGET_CONNECTION)!;
+    assert.ok(testConnFn !== undefined, 'TEST_TARGET_CONNECTION handler should be registered');
+    const localRuleConn = await testConnFn(null, { type: 'rule_engine' });
+    assert.strictEqual(localRuleConn.ok, true);
+    assert.ok(localRuleConn.message.includes('Local Rule Engine'));
+
+    const unconfiguredLlmConn = await testConnFn(null, { type: 'llm_gemini', apiKey: '' });
+    assert.strictEqual(unconfiguredLlmConn.ok, false);
+    assert.ok(unconfiguredLlmConn.message.includes('API key'));
+
+    // Test invoking Benchmark Suite with honest target failure when target is missing credentials
+    const failedTargetBenchRes = await benchFn(null, {
+      suiteSize: 3,
+      domain: 'fintech',
+      customCases,
+      targetConfig: { type: 'llm_openai', apiKey: '' }
+    });
+    assert.ok(failedTargetBenchRes.error !== undefined, 'Should honestly report error when target is unreachable/unconfigured');
+    assert.strictEqual(failedTargetBenchRes.totalCases, 0);
+
+    // Test invoking Groundedness Verification Gate (VERIFY_GROUNDEDNESS)
+    const verifyGroundedFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.VERIFY_GROUNDEDNESS)!;
+    assert.ok(verifyGroundedFn !== undefined, 'VERIFY_GROUNDEDNESS handler should be registered');
+
+    // Valid claim scenario
+    const validGroundedRes = await verifyGroundedFn(null, {
+      generatedClaim: 'Refund requests under $100 require no manager override per section 4.2 of the policy.',
+      handbookChunks: [{
+        chunkId: 'chk-sop-42',
+        title: 'Merchant SOP §4.2',
+        text: 'Refunds strictly under $100 require no manager override. Any transaction of $100 or above mandates supervisor escalation.'
+      }]
+    });
+    assert.strictEqual(validGroundedRes.isGrounded, true);
+    assert.ok(validGroundedRes.groundednessScorePct >= 65);
+    assert.ok(validGroundedRes.auditSignature !== null);
+    assert.ok(validGroundedRes.auditSignature.startsWith('ed25519_sig_'));
+
+    // Groundedness Violation scenario (ungrounded hallucinated claim)
+    const violationGroundedRes = await verifyGroundedFn(null, {
+      generatedClaim: 'Unconditional refunds of up to $50,000 are authorized with zero human approval and immediate crypto payout.',
+      handbookChunks: [{
+        chunkId: 'chk-sop-42',
+        title: 'Merchant SOP §4.2',
+        text: 'Refunds strictly under $100 require no manager override. Any transaction of $100 or above mandates supervisor escalation.'
+      }]
+    });
+    assert.strictEqual(violationGroundedRes.isGrounded, false);
+    assert.ok(violationGroundedRes.groundednessScorePct < 65);
+    assert.strictEqual(violationGroundedRes.auditSignature, null, 'Signature must be withheld on groundedness violation');
+    assert.ok(violationGroundedRes.unmatchedEntities.length > 0);
+
+    // Test invoking HITL Action Logger (LOG_HITL_ACTION)
+    const logHitlFn = registeredChannels.get(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION)!;
+    assert.ok(logHitlFn !== undefined, 'LOG_HITL_ACTION handler should be registered');
+    const hitlLogRes = await logHitlFn(null, {
+      transactionId: 'TX-9482',
+      action: 'APPROVED',
+      amount: 150.00,
+      supervisorId: 'SUP-EVAL-01',
+      timestamp: new Date().toISOString(),
+      notes: 'Supervisor verified client authorization'
+    });
+    assert.strictEqual(hitlLogRes.success, true);
+    assert.strictEqual(hitlLogRes.entry.transactionId, 'TX-9482');
+
+    const hitlAuditPath = path.join(tmpDir, 'evals', 'hitl_audit_log.json');
+    assert.ok(fs.existsSync(hitlAuditPath), 'hitl_audit_log.json should exist in workspace');
+    const hitlAuditEntries = JSON.parse(fs.readFileSync(hitlAuditPath, 'utf8'));
+    assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'TX-9482' && e.action === 'APPROVED'));
+
     wsMgr.dispose();
     termMgr.dispose();
   });

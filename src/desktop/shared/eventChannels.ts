@@ -154,6 +154,8 @@ export const DESKTOP_CHANNELS = {
     RESTORE_SCOPE_VERSION: 'evolve:fde:restore-scope-version',
     EXPORT_CLIENT_ALIGNMENT_MEMO: 'evolve:fde:export-client-alignment-memo',
     SET_ARCHITECTURE_TARGET: 'evolve:fde:set-architecture-target',
-    ANALYZE_WORKSPACE_ARCHITECTURE: 'evolve:fde:analyze-workspace-architecture'
+    ANALYZE_WORKSPACE_ARCHITECTURE: 'evolve:fde:analyze-workspace-architecture',
+    TEST_TARGET_CONNECTION: 'evolve:fde:test-target-connection',
+    LOG_HITL_ACTION: 'evolve:fde:log-hitl-action'
   }
 } as const;

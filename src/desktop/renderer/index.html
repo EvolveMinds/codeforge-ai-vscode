@@ -2620,7 +2620,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   </div>
 
                   <!-- Domain Preset Selector & Suite Size Controls Row -->
-                  <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                  <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <span style="font-size: 11px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 4px;">
                         <span>🗂️</span> Domain Preset:
@@ -2644,6 +2644,56 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         <button class="btn-quick" data-size="100" style="font-size: 10.5px; padding: 2px 8px;">100 (Audit)</button>
                       </div>
                     </div>
+                  </div>
+
+                  <!-- Execution Target (System Under Test - SUT) Bar -->
+                  <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-size: 11px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 4px;">
+                        <span>🔌</span> Execution Target (SUT):
+                      </span>
+                      <select id="selBenchTargetType" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11px; outline: none;">
+                        <option value="rule_engine" selected>⚙️ Local Deterministic Rule &amp; Invariant Engine (Offline)</option>
+                        <option value="llm_ollama">🦙 Local Ollama (127.0.0.1:11434 / qwen2.5-coder)</option>
+                        <option value="llm_gemini">🤖 Google Gemini 1.5/2.0 Flash (API Key / Vault)</option>
+                        <option value="llm_openai">🧠 OpenAI GPT-4o / GPT-4o-mini (API Key / Vault)</option>
+                        <option value="llm_anthropic">⚡ Anthropic Claude 3.5 Sonnet (API Key / Vault)</option>
+                        <option value="rest_api">🌐 Custom REST / HTTP Endpoint (POST / JSON)</option>
+                        <option value="workspace_script">🐍 Workspace CLI Script (python / bash)</option>
+                      </select>
+                      <button class="btn-quick" id="btnOpenTargetConfigModal" style="font-size: 10.5px; padding: 3px 8px; border-color: var(--accent); color: var(--accent);" aria-label="Target Settings">⚙️ SUT Settings</button>
+                      <button class="btn-quick" id="btnTestTargetConn" style="font-size: 10.5px; padding: 3px 8px;" aria-label="Test Connection">🔌 Ping Target</button>
+                    </div>
+                    <div id="lblTargetConnectionStatus" style="font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 4px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">
+                      🟢 Ready: Local Rule &amp; Invariant Engine
+                    </div>
+                  </div>
+
+                  <!-- Target SUT Configuration Drawer (initially hidden) -->
+                  <div id="benchTargetConfigDrawer" style="display: none; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <span style="font-size: 11.5px; font-weight: 700; color: #fff;">⚙️ Execution Target (System Under Test) Configuration</span>
+                      <button class="btn-quick" id="btnCloseTargetConfigDrawer" style="font-size: 10px; padding: 1px 6px;">✕ Close</button>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 8px;">
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Endpoint URL / Host</label>
+                        <input type="text" id="txtTargetEndpointUrl" value="http://localhost:8000/eval" style="width: 100%; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Target Model / Name</label>
+                        <input type="text" id="txtTargetModelName" value="gemini-1.5-flash" style="width: 100%; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">API Key (Auto-detected from Vault)</label>
+                        <input type="password" id="txtTargetApiKey" placeholder="Auto-detected from Vault" style="width: 100%; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Timeout (ms)</label>
+                        <input type="number" id="numTargetTimeout" value="5000" min="500" max="60000" style="width: 100%; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                    </div>
+                    <div id="benchTargetConnResult" style="display: none; font-size: 11px; padding: 6px 10px; border-radius: 4px; margin-top: 6px;"></div>
                   </div>
 
                   <!-- AI Evaluation Co-Architect Bar -->
@@ -2691,32 +2741,32 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       </div>
                     </div>
 
-                    <div id="lblSlaStatusBadge" style="font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 4px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">
-                      ✅ PRODUCTION READY (All Client SLAs Met)
+                    <div id="lblSlaStatusBadge" style="font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 4px; background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid #64748b;">
+                      ⚪ AWAITING EXECUTION (Select Target &amp; Run Suite)
                     </div>
                   </div>
 
-                  <!-- Benchmark KPI Dashboard -->
+                  <!-- Benchmark KPI Dashboard (Honest Untested Initial Values) -->
                   <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px;">
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">ACCURACY SCORE</div>
-                      <div id="lblBenchAccuracy" style="font-size: 20px; font-weight: 800; color: var(--success); margin: 4px 0;">98.0%</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);" id="lblBenchPassCount">49 / 50 Passed</div>
+                      <div id="lblBenchAccuracy" style="font-size: 20px; font-weight: 800; color: #94a3b8; margin: 4px 0;">--%</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);" id="lblBenchPassCount">0 / 50 Executed</div>
                     </div>
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">LATENCY (P50 / P95)</div>
-                      <div id="lblBenchLatency" style="font-size: 20px; font-weight: 800; color: var(--accent); margin: 4px 0;">18ms / 95ms</div>
+                      <div id="lblBenchLatency" style="font-size: 20px; font-weight: 800; color: #94a3b8; margin: 4px 0;">--ms / --ms</div>
                       <div style="font-size: 10px; color: var(--text-secondary);" id="lblBenchLatencyTarget">SLA Target: &lt;200ms</div>
                     </div>
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">AVG COST / TASK</div>
-                      <div id="lblBenchCost" style="font-size: 20px; font-weight: 800; color: #60a5fa; margin: 4px 0;">$0.0008</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">Air-Gapped Local</div>
+                      <div id="lblBenchCost" style="font-size: 20px; font-weight: 800; color: #94a3b8; margin: 4px 0;">--</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);" id="lblBenchCostDetail">Awaiting Run</div>
                     </div>
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;">
                       <div style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">GROUNDED CITATIONS</div>
-                      <div id="lblBenchCitations" style="font-size: 20px; font-weight: 800; color: #e5b567; margin: 4px 0;">100.0%</div>
-                      <div style="font-size: 10px; color: var(--text-secondary);">0 Hallucinations</div>
+                      <div id="lblBenchCitations" style="font-size: 20px; font-weight: 800; color: #94a3b8; margin: 4px 0;">--%</div>
+                      <div style="font-size: 10px; color: var(--text-secondary);" id="lblBenchHallucinationDetail">-- Hallucinations</div>
                     </div>
                   </div>
 
@@ -2725,8 +2775,9 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                       <div style="display: flex; gap: 6px; align-items: center;" id="benchFilterButtons">
                         <button class="btn-quick active" id="btnFilterAll" style="font-size: 10.5px; padding: 2px 8px;" aria-label="All">All (<span id="lblFilterCountAll">50</span>)</button>
-                        <button class="btn-quick" id="btnFilterPassed" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Passed">Passed (<span id="lblFilterCountPassed">49</span>)</button>
-                        <button class="btn-quick" id="btnFilterFailed" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Failed">Failed (<span id="lblFilterCountFailed">1</span>)</button>
+                        <button class="btn-quick" id="btnFilterPassed" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Passed">Passed (<span id="lblFilterCountPassed">0</span>)</button>
+                        <button class="btn-quick" id="btnFilterFailed" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Failed">Failed (<span id="lblFilterCountFailed">0</span>)</button>
+                        <button class="btn-quick" id="btnFilterUntested" style="font-size: 10.5px; padding: 2px 8px;" aria-label="Untested">Untested (<span id="lblFilterCountUntested">50</span>)</button>
                         <select id="selBenchCategoryFilter" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none; margin-left: 6px;">
                           <option value="all">All Categories</option>
                         </select>
@@ -2793,25 +2844,56 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <!-- 4B: GROUNDEDNESS CITATION GATE -->
                 <div id="p4StepBPanel" role="tabpanel" aria-labelledby="btnP4StepB" style="display: none;">
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <div>
                       <div style="font-weight: 700; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                         <span>🛡️</span> Section 4B: Groundedness &amp; Citation Gate (Zero Ungrounded Claims)
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Enforce 100% verified handbook and policy citations with Ed25519 cryptographically signed compliance audit receipts.
+                        Cross-reference generated claims against verified handbook knowledge chunks with Ed25519 cryptographic receipts.
                       </div>
                     </div>
                     <span class="brand-pill" style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent);">Ed25519 Cryptographically Signed</span>
                   </div>
-                  <div style="margin-bottom: 12px;">
-                    <label style="font-size: 11px; font-weight: 600;" for="txtGroundedClaim">Generated Output / Claim to Audit:</label>
-                    <textarea id="txtGroundedClaim" rows="3" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.</textarea>
+
+                  <!-- Source Policy Chunks Selection -->
+                  <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label style="font-size: 11px; font-weight: 600;" for="selGroundedHandbookPreset">📖 Reference Policy / Handbook Source:</label>
+                      <select id="selGroundedHandbookPreset" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 10.5px; outline: none;">
+                        <option value="merchant_sop" selected>Merchant Operations Manual SOP-2026-08 §4.2</option>
+                        <option value="clinical_bnf">BNF Clinical Dosage Guidelines §2.1</option>
+                        <option value="cloud_cis">CIS Cloud &amp; Container Baseline Rule 4.1</option>
+                      </select>
+                    </div>
+                    <textarea id="txtGroundedHandbookSource" rows="2" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--card-bg); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace;">Refunds strictly under $100 require no manager override. Any transaction of $100 or above mandates supervisor escalation.</textarea>
                   </div>
+
+                  <div style="margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label style="font-size: 11px; font-weight: 600;" for="txtGroundedClaim">Generated Output / Claim to Audit:</label>
+                      <div style="display: flex; gap: 4px;">
+                        <button class="btn-quick" id="btnPresetValidClaim" style="font-size: 9.5px; padding: 1px 6px;">Valid Claim Example</button>
+                        <button class="btn-quick" id="btnPresetInvalidClaim" style="font-size: 9.5px; padding: 1px 6px; color: var(--error);">Ungrounded Claim Example</button>
+                      </div>
+                    </div>
+                    <textarea id="txtGroundedClaim" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.</textarea>
+                  </div>
+
                   <button class="btn" id="btnVerifyGroundedness" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px;" aria-label="Verify Citation & Sign Audit Log">Verify Citation &amp; Sign Audit Log</button>
+                  
+                  <!-- Grounded Success Box -->
                   <div id="fdeGroundednessResultBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--success); border-radius: 6px; padding: 12px; font-size: 11.5px;">
-                    <div style="color: var(--success); font-weight: 700; margin-bottom: 4px;">✓ Citation 100% Grounded in Handbook §4.2</div>
+                    <div style="color: var(--success); font-weight: 700; margin-bottom: 4px;" id="lblGroundedStatusTitle">✓ Citation 100% Grounded in Handbook §4.2</div>
+                    <div style="font-size: 11px; color: var(--text-primary); margin-bottom: 4px;" id="lblGroundedDetails"></div>
                     <div style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary);" id="lblAuditSignature">Signature: ed25519_sig_valid</div>
+                  </div>
+
+                  <!-- Groundedness Breach Box -->
+                  <div id="fdeGroundednessViolationBox" style="display: none; margin-top: 12px; background: rgba(241, 76, 76, 0.1); border: 1px solid var(--error); border-radius: 6px; padding: 12px; font-size: 11.5px;">
+                    <div style="color: var(--error); font-weight: 700; margin-bottom: 4px;" id="lblGroundedViolationTitle">❌ Groundedness Violation (Hallucination Detected)</div>
+                    <div style="font-size: 11px; color: #fca5a5; margin-bottom: 6px;" id="lblGroundedViolationDetails">Claim contains assertions not found in cited handbook chunks. Cryptographic signature withheld.</div>
+                    <div style="font-size: 10.5px; color: var(--text-secondary);" id="lblGroundedUnmatchedTokens"></div>
                   </div>
                 </div>
                 </div>
@@ -2825,19 +2907,40 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         <span>👤</span> Section 4C: Human-in-the-Loop (HITL) Supervisor Gate
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Simulate high-confidence automated clearance versus supervisor review routing when monetary ceilings or confidence thresholds are triggered.
+                        Enforce automated clearance ceiling and simulate supervisor approval queue with persistent cryptographic audit records.
                       </div>
                     </div>
-                    <span class="brand-pill" style="font-size: 10px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">Threshold: &lt;$100 Auto</span>
+                    <span class="brand-pill" style="font-size: 10px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">Ceiling: &lt;$100 Auto</span>
                   </div>
-                  <button class="btn" id="btnSimulateHitl" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px;" aria-label="Simulate HITL Approval Queue">Simulate HITL Approval Queue</button>
+
+                  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 8px;">
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Transaction ID</label>
+                        <input type="text" id="txtHitlTxId" value="TX-9482" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Amount ($ USD)</label>
+                        <input type="number" id="txtHitlTxAmount" value="150.00" step="10" min="1" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Customer / Entity</label>
+                        <input type="text" id="txtHitlTxCustomer" value="cust_4920" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Escalation Trigger Reason</label>
+                        <input type="text" id="txtHitlTxReason" value="Refund amount $150.00 exceeds $100 ceiling" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                    </div>
+                    <button class="btn" id="btnSimulateHitl" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px;" aria-label="Route Transaction to HITL Queue">Queue for Supervisor Review</button>
+                  </div>
                   
                   <div id="fdeHitlSimulationBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px;">
-                      <span style="font-size: 12px; font-weight: 700; color: #fff;">TX-9482 ($150.00 Refund Request)</span>
-                      <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;">Awaiting Supervisor Approval</span>
+                      <span style="font-size: 12px; font-weight: 700; color: #fff;" id="lblHitlBoxTxHeader">TX-9482 ($150.00 Refund Request)</span>
+                      <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;" id="lblHitlBoxStatus">Awaiting Supervisor Approval</span>
                     </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="lblHitlBoxTriggerDetail">
                       Trigger: Amount exceeds $100 automated ceiling. Customer: <code>cust_4920</code>.
                     </div>
                     <div style="display: flex; gap: 8px;">
@@ -2845,6 +2948,16 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 6px; font-size: 11px; color: var(--error);" aria-label="Reject">✕ Reject</button>
                     </div>
                     <div id="lblHitlStatusResult" style="display: none; margin-top: 8px; font-size: 11px; font-weight: 700; text-align: center;"></div>
+                  </div>
+
+                  <!-- Persistent HITL Audit Trail Box -->
+                  <div id="hitlAuditHistoryBox" style="margin-top: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">
+                      📋 Supervisor Decision Audit Log (evals/hitl_audit_log.json)
+                    </div>
+                    <div id="hitlAuditLogEntries" style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary); max-height: 120px; overflow-y: auto;">
+                      <div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">No supervisor decisions logged yet.</div>
+                    </div>
                   </div>
                 </div>
                 </div>
