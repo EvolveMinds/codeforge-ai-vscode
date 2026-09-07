@@ -5172,6 +5172,25 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // Auto-initialize Section 5B multi-file IaC preview on load
+  const initSection5BPreviews = async () => {
+    try {
+      const cfg = getDeployConfig();
+      if (api?.engines) {
+        const res = await api.engines.scaffoldDeploy(cfg);
+        if (res) {
+          activeIaCAssets = res;
+          renderActiveIaCFile('terraform');
+          const cicdPrev = document.getElementById('cicdCodePreview');
+          if (cicdPrev && res.cicd) cicdPrev.innerText = res.cicd;
+        }
+      }
+    } catch (e) {
+      console.warn('Initial Section 5B IaC scaffold skipped:', e);
+    }
+  };
+  setTimeout(() => { initSection5BPreviews(); }, 150);
+
   // --- STEP 4: RUNBOOK FACTORY ---
   const updateDocBadges = (keys: string[]) => {
     keys.forEach(k => {
@@ -5632,6 +5651,9 @@ function setupDeliveryStudio(api: any): void {
     if (b) { b.style.display = currentP5Step === 2 ? 'block' : 'none'; b.hidden = currentP5Step !== 2; }
     if (c) { c.style.display = currentP5Step === 3 ? 'block' : 'none'; c.hidden = currentP5Step !== 3; }
     if (d) { d.style.display = currentP5Step === 4 ? 'block' : 'none'; d.hidden = currentP5Step !== 4; }
+    if (currentP5Step === 2 && !activeIaCAssets.terraform) {
+      initSection5BPreviews();
+    }
     refreshP5Rail();
     const card = document.getElementById('phase5Card');
     if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
