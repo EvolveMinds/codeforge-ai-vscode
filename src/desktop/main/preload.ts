@@ -186,7 +186,9 @@ const desktopApi = {
     setArchitectureTarget: (req: { level: number; rationale?: string; latencyBudget?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SET_ARCHITECTURE_TARGET, req),
     analyzeWorkspaceArchitecture: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ANALYZE_WORKSPACE_ARCHITECTURE),
     testTargetConnection: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.TEST_TARGET_CONNECTION, req),
-    logHitlAction: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, req)
+    logHitlAction: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, req),
+    getHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_HITL_LOG),
+    clearHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CLEAR_HITL_LOG)
   }
 };
 

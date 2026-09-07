@@ -11279,10 +11279,173 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
   });
 
   // 4C. HITL Approval Flow Simulator with Persistent Audit Logging
+  let hitlAuditEntries: any[] = [];
+  let hitlAuditFilter: 'ALL' | 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED' = 'ALL';
+  let hitlSlaTimerInterval: any = null;
+  let hitlSlaSecondsRemaining = 898;
+
+  const updateHitlRoutingPill = () => {
+    const selCeiling = document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement;
+    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
+    const pill = document.getElementById('lblHitlRoutingPill');
+    if (!pill) return;
+
+    const ceiling = parseFloat(selCeiling?.value || '100');
+    const amount = parseFloat(txtAmount?.value || '0');
+
+    if (amount <= ceiling) {
+      pill.textContent = `🟢 Within $${ceiling} Ceiling ➔ Direct Autonomous Clearance`;
+      pill.style.background = 'rgba(137, 209, 133, 0.15)';
+      pill.style.color = 'var(--success)';
+      pill.style.borderColor = 'var(--success)';
+    } else {
+      pill.textContent = `🟠 Exceeds $${ceiling} Ceiling ➔ Mandatory Supervisor Override`;
+      pill.style.background = 'rgba(229, 181, 103, 0.15)';
+      pill.style.color = '#e5b567';
+      pill.style.borderColor = '#e5b567';
+    }
+  };
+
+  document.getElementById('selHitlCeilingThreshold')?.addEventListener('change', updateHitlRoutingPill);
+  document.getElementById('txtHitlTxAmount')?.addEventListener('input', updateHitlRoutingPill);
+
+  // Scenario Presets
+  document.getElementById('btnPresetHitlAuto')?.addEventListener('click', () => {
+    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
+    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
+    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
+    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
+    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
+    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
+
+    if (txtTxId) txtTxId.value = 'TX-1042';
+    if (txtAmount) txtAmount.value = '42.50';
+    if (txtCustomer) txtCustomer.value = 'cust_coffee_club';
+    if (selSupervisor) selSupervisor.value = 'SYSTEM-AUTONOMOUS';
+    if (txtReason) txtReason.value = 'Autonomous micro-refund (Below policy ceiling)';
+    if (txtNotes) txtNotes.value = 'Auto-cleared below policy ceiling. Direct ledger dispatch.';
+
+    updateHitlRoutingPill();
+    showToast('🟢 Loaded low-risk micro-refund preset ($42.50)');
+  });
+
+  document.getElementById('btnPresetHitlCeiling')?.addEventListener('click', () => {
+    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
+    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
+    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
+    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
+    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
+    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
+
+    if (txtTxId) txtTxId.value = 'TX-8831';
+    if (txtAmount) txtAmount.value = '275.00';
+    if (txtCustomer) txtCustomer.value = 'cust_enterprise_cloud';
+    if (selSupervisor) selSupervisor.value = 'SUP-EVAL-01';
+    if (txtReason) txtReason.value = 'Refund amount $275.00 exceeds ceiling. Mandates dual supervisor sign-off.';
+    if (txtNotes) txtNotes.value = 'Approved after manual policy verification against merchant account history.';
+
+    updateHitlRoutingPill();
+    showToast('🟠 Loaded standard ceiling breach preset ($275.00)');
+  });
+
+  document.getElementById('btnPresetHitlAml')?.addEventListener('click', () => {
+    const txtTxId = document.getElementById('txtHitlTxId') as HTMLInputElement;
+    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
+    const txtCustomer = document.getElementById('txtHitlTxCustomer') as HTMLInputElement;
+    const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
+    const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
+    const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
+
+    if (txtTxId) txtTxId.value = 'TX-9912';
+    if (txtAmount) txtAmount.value = '4850.00';
+    if (txtCustomer) txtCustomer.value = 'cust_crossborder_remit';
+    if (selSupervisor) selSupervisor.value = 'SUP-SEC-04';
+    if (txtReason) txtReason.value = 'High-Risk AML Velocity Alert: Multiple rapid refunds requested to overseas beneficiary.';
+    if (txtNotes) txtNotes.value = 'Investigation complete: Source account verified with corporate card billing.';
+
+    updateHitlRoutingPill();
+    showToast('🔴 Loaded high-risk AML flag preset ($4,850.00)');
+  });
+
+  const startHitlSlaTimer = () => {
+    if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
+    hitlSlaSecondsRemaining = 898;
+    const timerLabel = document.getElementById('lblHitlSlaTimer');
+    const updateDisplay = () => {
+      if (!timerLabel) return;
+      const mins = Math.floor(hitlSlaSecondsRemaining / 60);
+      const secs = hitlSlaSecondsRemaining % 60;
+      timerLabel.textContent = `⏱️ SLA: ${mins}m ${secs < 10 ? '0' : ''}${secs}s remaining`;
+    };
+    updateDisplay();
+    hitlSlaTimerInterval = setInterval(() => {
+      hitlSlaSecondsRemaining = Math.max(0, hitlSlaSecondsRemaining - 1);
+      updateDisplay();
+      if (hitlSlaSecondsRemaining <= 0 && hitlSlaTimerInterval) {
+        clearInterval(hitlSlaTimerInterval);
+      }
+    }, 1000);
+  };
+
+  const renderHitlAuditEntries = () => {
+    const logContainer = document.getElementById('hitlAuditLogEntries');
+    if (!logContainer) return;
+
+    const filtered = hitlAuditEntries.filter(entry => {
+      if (hitlAuditFilter === 'ALL') return true;
+      return entry.action === hitlAuditFilter;
+    });
+
+    if (filtered.length === 0) {
+      logContainer.innerHTML = `<div style="padding: 6px 0; color: var(--text-muted); font-size: 11px;">No supervisor decisions logged${hitlAuditFilter !== 'ALL' ? ' for filter: ' + hitlAuditFilter : ''}.</div>`;
+      return;
+    }
+
+    logContainer.innerHTML = filtered.map(item => {
+      const isApproved = item.action === 'APPROVED';
+      const isAuto = item.action === 'AUTO_CLEARED';
+      const badgeColor = isApproved ? 'var(--success)' : isAuto ? '#60a5fa' : 'var(--error)';
+      const badgeBg = isApproved ? 'rgba(137, 209, 133, 0.15)' : isAuto ? 'rgba(96, 165, 250, 0.15)' : 'rgba(241, 76, 76, 0.15)';
+      const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
+      const amountStr = typeof item.amount === 'number' ? item.amount.toFixed(2) : item.amount;
+
+      return `<div style="padding: 6px 8px; margin-bottom: 6px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <strong style="color: #fff;">${item.transactionId}</strong>
+            <span style="font-size: 9px; font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeColor}; padding: 1px 6px; border-radius: 3px;">${item.action}</span>
+            <span style="color: var(--accent); font-weight: 700;">$${amountStr}</span>
+          </div>
+          <span style="font-size: 9.5px; color: var(--text-muted); font-family: monospace;">${timeStr} [${item.supervisor || 'SUP-EVAL-01'}]</span>
+        </div>
+        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">
+          ${item.reason || item.notes || 'No supervisor notes recorded.'}
+        </div>
+        <div style="font-size: 8.5px; color: var(--text-muted); font-family: monospace;">
+          Hash: ${item.auditHash || 'sha256_verified'} | Priority: ${item.priority || 'NORMAL'}
+        </div>
+      </div>`;
+    }).join('');
+  };
+
+  // Initial load of existing HITL log if available
+  (async () => {
+    try {
+      if ((api as any)?.fde?.getHitlLog) {
+        const res = await (api as any).fde.getHitlLog();
+        if (res && res.success && Array.isArray(res.entries)) {
+          hitlAuditEntries = res.entries;
+          renderHitlAuditEntries();
+        }
+      }
+    } catch (_) {}
+  })();
+
   document.getElementById('btnSimulateHitl')?.addEventListener('click', () => {
     const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'TX-9482';
     const amount = (document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '150.00';
     const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'cust_4920';
+    const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'SUP-EVAL-01';
     const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Refund amount exceeds $100 ceiling';
 
     const box = document.getElementById('fdeHitlSimulationBox');
@@ -11290,74 +11453,92 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
     const triggerDetail = document.getElementById('lblHitlBoxTriggerDetail');
     const status = document.getElementById('lblHitlStatusResult');
 
-    if (header) header.textContent = `${txId} ($${amount} Refund Request)`;
-    if (triggerDetail) triggerDetail.innerHTML = `Trigger: ${reason}. Customer: <code>${customer}</code>.`;
+    if (header) header.textContent = `${txId} ($${parseFloat(amount).toFixed(2)} Refund Request)`;
+    if (triggerDetail) triggerDetail.innerHTML = `Trigger: ${reason}. Customer: <code>${customer}</code>. Assigned Supervisor: <strong>${supervisor}</strong>.`;
     if (box) box.style.display = 'block';
     if (status) status.style.display = 'none';
 
-    showToast(`👤 HITL Simulation Queue active: ${txId} awaiting supervisor approval`);
+    startHitlSlaTimer();
+    showToast(`👤 HITL Simulation Queue active: ${txId} awaiting supervisor review`);
     hasSimulatedHitl = true;
     refreshP4Rail?.();
   });
 
-  const recordHitlDecision = async (action: 'APPROVED' | 'REJECTED') => {
+  const recordHitlDecision = async (action: 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED') => {
     const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'TX-9482';
     const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '150.00');
-    const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Policy ceiling';
+    const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'cust_4920';
+    const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'SUP-EVAL-01';
+    const ceiling = parseFloat((document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement)?.value || '100');
+    const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Policy check';
+    const notesInput = (document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement)?.value?.trim();
+    const notes = notesInput || (action === 'APPROVED' ? 'Approved after supervisor policy verification' : action === 'AUTO_CLEARED' ? 'Autonomous policy clearance (< ceiling)' : `Rejected: ${reason}`);
     const status = document.getElementById('lblHitlStatusResult');
+
+    if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
 
     try {
       let logRes: any;
       if (api?.fde?.logHitlAction) {
         logRes = await api.fde.logHitlAction({
           transactionId: txId,
-          action: action,
-          amount: amount,
-          supervisorId: 'SUP-EVAL-01',
-          timestamp: new Date().toISOString(),
-          notes: action === 'APPROVED' ? 'Approved after supervisor policy verification' : `Rejected: ${reason}`
+          action,
+          amount,
+          customer,
+          supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
+          reason: notes,
+          notes,
+          priority: amount > 1000 ? 'CRITICAL' : 'HIGH',
+          ceilingThreshold: ceiling
         });
       } else {
+        const dummyEntry = {
+          id: `HITL-${Date.now()}`,
+          transactionId: txId,
+          action,
+          amount,
+          customer,
+          supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
+          reason: notes,
+          notes,
+          priority: amount > 1000 ? 'CRITICAL' : 'HIGH',
+          ceilingThreshold: ceiling,
+          timestamp: new Date().toISOString(),
+          auditHash: 'sha256_' + Date.now().toString(36)
+        };
         logRes = {
           success: true,
-          entry: {
-            transactionId: txId,
-            action: action,
-            amount: amount,
-            supervisorId: 'SUP-EVAL-01',
-            timestamp: new Date().toISOString(),
-            notes: action === 'APPROVED' ? 'Approved' : 'Rejected'
-          }
+          entry: dummyEntry,
+          history: [dummyEntry, ...hitlAuditEntries]
         };
+      }
+
+      if (logRes && logRes.entry) {
+        hitlAuditEntries.unshift(logRes.entry);
+        renderHitlAuditEntries();
       }
 
       if (status) {
         status.style.display = 'block';
         if (action === 'APPROVED') {
           status.style.color = 'var(--success)';
-          status.textContent = `✅ Transaction ${txId} Approved & Ledger Batch Posted (Supervisor SUP-EVAL-01 Verified)`;
+          status.style.borderColor = 'var(--success)';
+          status.style.background = 'rgba(137, 209, 133, 0.1)';
+          status.textContent = `✅ Transaction ${txId} Approved & Dispatched to Ledger (${supervisor} Verified, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
+        } else if (action === 'AUTO_CLEARED') {
+          status.style.color = '#60a5fa';
+          status.style.borderColor = '#60a5fa';
+          status.style.background = 'rgba(96, 165, 250, 0.1)';
+          status.textContent = `⚡ Transaction ${txId} Auto-Cleared & Dispatched (Autonomous Clearance < $${ceiling}, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
         } else {
           status.style.color = 'var(--error)';
-          status.textContent = `❌ Transaction ${txId} Rejected (Reason: ${reason})`;
+          status.style.borderColor = 'var(--error)';
+          status.style.background = 'rgba(241, 76, 76, 0.1)';
+          status.textContent = `❌ Transaction ${txId} Rejected & Incident Escalated (${supervisor} Flagged: ${notes})`;
         }
       }
 
-      // Append entry to hitlAuditLogEntries UI
-      const logContainer = document.getElementById('hitlAuditLogEntries');
-      if (logContainer) {
-        const timeStr = new Date().toLocaleTimeString();
-        const entryHtml = `<div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between;">
-          <span><strong>${txId}</strong>: <span style="color: ${action === 'APPROVED' ? 'var(--success)' : 'var(--error)'}; font-weight: 700;">${action}</span> ($${amount.toFixed(2)})</span>
-          <span style="color: var(--text-muted);">${timeStr} [SUP-EVAL-01]</span>
-        </div>`;
-        if (logContainer.textContent?.includes('No supervisor decisions')) {
-          logContainer.innerHTML = entryHtml;
-        } else {
-          logContainer.insertAdjacentHTML('afterbegin', entryHtml);
-        }
-      }
-
-      showToast(action === 'APPROVED' ? `✓ Transaction ${txId} Approved & Logged` : `✕ Transaction ${txId} Rejected & Logged`);
+      showToast(action === 'APPROVED' ? `✓ Transaction ${txId} Approved & Logged` : action === 'AUTO_CLEARED' ? `⚡ Transaction ${txId} Auto-Cleared` : `✕ Transaction ${txId} Rejected & Logged`);
       hasSimulatedHitl = true;
       refreshP4Rail?.();
     } catch (err: any) {
@@ -11367,6 +11548,60 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
 
   document.getElementById('btnHitlApprove')?.addEventListener('click', () => recordHitlDecision('APPROVED'));
   document.getElementById('btnHitlReject')?.addEventListener('click', () => recordHitlDecision('REJECTED'));
+  document.getElementById('btnHitlDirectAutoClear')?.addEventListener('click', () => {
+    const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
+    const ceiling = parseFloat((document.getElementById('selHitlCeilingThreshold') as HTMLSelectElement)?.value || '100');
+    if (amount > ceiling) {
+      showToast(`⚠️ Amount ($${amount.toFixed(2)}) exceeds autonomous ceiling ($${ceiling.toFixed(2)}). Escalating to supervisor review queue.`);
+      document.getElementById('btnSimulateHitl')?.click();
+      return;
+    }
+    recordHitlDecision('AUTO_CLEARED');
+  });
+
+  // Filter and Action Controls
+  const setHitlFilter = (filter: 'ALL' | 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED') => {
+    hitlAuditFilter = filter;
+    ['btnFilterHitlAll', 'btnFilterHitlApproved', 'btnFilterHitlRejected', 'btnFilterHitlAuto'].forEach(btnId => {
+      const b = document.getElementById(btnId);
+      if (b) {
+        const isSelected = (btnId === 'btnFilterHitlAll' && filter === 'ALL') ||
+                           (btnId === 'btnFilterHitlApproved' && filter === 'APPROVED') ||
+                           (btnId === 'btnFilterHitlRejected' && filter === 'REJECTED') ||
+                           (btnId === 'btnFilterHitlAuto' && filter === 'AUTO_CLEARED');
+        b.style.fontWeight = isSelected ? '800' : '500';
+        b.style.textDecoration = isSelected ? 'underline' : 'none';
+      }
+    });
+    renderHitlAuditEntries();
+  };
+
+  document.getElementById('btnFilterHitlAll')?.addEventListener('click', () => setHitlFilter('ALL'));
+  document.getElementById('btnFilterHitlApproved')?.addEventListener('click', () => setHitlFilter('APPROVED'));
+  document.getElementById('btnFilterHitlRejected')?.addEventListener('click', () => setHitlFilter('REJECTED'));
+  document.getElementById('btnFilterHitlAuto')?.addEventListener('click', () => setHitlFilter('AUTO_CLEARED'));
+
+  document.getElementById('btnCopyHitlLog')?.addEventListener('click', () => {
+    if (hitlAuditEntries.length === 0) {
+      showToast('⚠️ No HITL audit log entries to copy');
+      return;
+    }
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(JSON.stringify(hitlAuditEntries, null, 2));
+      showToast('📋 Copied HITL audit log JSON to clipboard');
+    }
+  });
+
+  document.getElementById('btnClearHitlLog')?.addEventListener('click', async () => {
+    hitlAuditEntries = [];
+    renderHitlAuditEntries();
+    try {
+      if ((api as any)?.fde?.clearHitlLog) {
+        await (api as any).fde.clearHitlLog();
+      }
+    } catch (_) {}
+    showToast('🗑️ Cleared HITL supervisor audit log');
+  });
 
   // --- Phase 4 Step Rail Navigation (4A -> 4B -> 4C) ---
   const p4StepIsDone = (step: number) => {

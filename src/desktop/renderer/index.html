@@ -2967,61 +2967,111 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <!-- 4C: HITL APPROVAL SIMULATOR -->
                 <div id="p4StepCPanel" role="tabpanel" aria-labelledby="btnP4StepC" style="display: none;">
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <!-- Header & Policy Ceiling Bar -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <div>
                       <div style="font-weight: 700; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px;">
                         <span>👤</span> Section 4C: Human-in-the-Loop (HITL) Supervisor Gate
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Enforce automated clearance ceiling and simulate supervisor approval queue with persistent cryptographic audit records.
+                        Enforce autonomous policy ceilings with dual-control supervisor review, SLA countdowns, and immutable audit logs.
                       </div>
                     </div>
-                    <span class="brand-pill" style="font-size: 10px; background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success);">Ceiling: &lt;$100 Auto</span>
+                    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                      <span style="font-size: 10.5px; color: var(--text-secondary);">Ceiling Rule:</span>
+                      <select id="selHitlCeilingThreshold" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
+                        <option value="100" selected>Ceiling: &lt;$100 Auto</option>
+                        <option value="250">Ceiling: &lt;$250 Auto</option>
+                        <option value="500">Ceiling: &lt;$500 Auto</option>
+                        <option value="1000">Ceiling: &lt;$1,000 Auto</option>
+                      </select>
+                      <span id="lblHitlRoutingPill" class="brand-pill" style="font-size: 10px; background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567;">🟠 Supervisor Override Required</span>
+                    </div>
                   </div>
 
+                  <!-- Scenario Preset Chips -->
+                  <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Scenario Presets:</span>
+                    <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load micro-refund below policy ceiling">🟢 Auto-Clear Micro-Refund ($42.50)</button>
+                    <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">🟠 Ceiling Breach Override ($275.00)</button>
+                    <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load suspicious rapid velocity AML alert">🔴 High-Risk AML Flag ($4,850.00)</button>
+                  </div>
+
+                  <!-- Transaction Details & Routing Station -->
                   <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-bottom: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px;">
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Transaction ID</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxId">Transaction ID</label>
                         <input type="text" id="txtHitlTxId" value="TX-9482" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Amount ($ USD)</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxAmount">Amount ($ USD)</label>
                         <input type="number" id="txtHitlTxAmount" value="150.00" step="10" min="1" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Customer / Entity</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxCustomer">Customer / Entity</label>
                         <input type="text" id="txtHitlTxCustomer" value="cust_4920" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                       <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Escalation Trigger Reason</label>
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlSupervisor">Assigned Supervisor</label>
+                        <select id="selHitlSupervisor" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px; outline: none;">
+                          <option value="SUP-EVAL-01" selected>SUP-EVAL-01 (Lead FinOps Supervisor)</option>
+                          <option value="SUP-SEC-04">SUP-SEC-04 (Director of Risk &amp; AML)</option>
+                          <option value="SYSTEM-AUTONOMOUS">SYSTEM-AUTONOMOUS (Autonomous Engine)</option>
+                        </select>
+                      </div>
+                      <div style="grid-column: 1 / -1;">
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxReason">Escalation Trigger Reason / Risk Vector</label>
                         <input type="text" id="txtHitlTxReason" value="Refund amount $150.00 exceeds $100 ceiling" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                       </div>
                     </div>
-                    <button class="btn" id="btnSimulateHitl" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px;" aria-label="Route Transaction to HITL Queue">Queue for Supervisor Review</button>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                      <button class="btn" id="btnSimulateHitl" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px;" aria-label="Route Transaction to HITL Queue">👤 Queue for Supervisor Review ➔</button>
+                      <button class="btn-quick" id="btnHitlDirectAutoClear" style="font-size: 11px; padding: 6px 12px; color: var(--success);" aria-label="Direct Autonomous Clearance">⚡ Direct Autonomous Clearance (&lt; Ceiling)</button>
+                    </div>
                   </div>
                   
+                  <!-- Active Supervisor Decision & Review Station -->
                   <div id="fdeHitlSimulationBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                       <span style="font-size: 12px; font-weight: 700; color: #fff;" id="lblHitlBoxTxHeader">TX-9482 ($150.00 Refund Request)</span>
-                      <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;" id="lblHitlBoxStatus">Awaiting Supervisor Approval</span>
+                      <div style="display: flex; gap: 8px; align-items: center;">
+                        <span id="lblHitlSlaTimer" style="font-size: 10px; color: #94a3b8; font-family: monospace;">⏱️ SLA: 14m 58s remaining</span>
+                        <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;" id="lblHitlBoxStatus">Awaiting Supervisor Approval</span>
+                      </div>
                     </div>
                     <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="lblHitlBoxTriggerDetail">
                       Trigger: Amount exceeds $100 automated ceiling. Customer: <code>cust_4920</code>.
                     </div>
-                    <div style="display: flex; gap: 8px;">
-                      <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Approve & Dispatch">✓ Approve &amp; Dispatch</button>
-                      <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 6px; font-size: 11px; color: var(--error);" aria-label="Reject">✕ Reject</button>
+                    <!-- Supervisor Justification Notes Input -->
+                    <div style="margin-bottom: 10px;">
+                      <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlSupervisorNotes">Supervisor Justification / Override Notes:</label>
+                      <input type="text" id="txtHitlSupervisorNotes" value="Approved after manual policy verification against merchant account history." style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
                     </div>
-                    <div id="lblHitlStatusResult" style="display: none; margin-top: 8px; font-size: 11px; font-weight: 700; text-align: center;"></div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px; font-size: 11.5px;" aria-label="Approve & Dispatch to General Ledger">✓ Approve &amp; Dispatch to Ledger</button>
+                      <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 7px; font-size: 11.5px; color: var(--error);" aria-label="Reject & Issue Alert">✕ Reject &amp; Issue Incident Alert</button>
+                    </div>
+                    <div id="lblHitlStatusResult" style="display: none; margin-top: 10px; font-size: 11px; font-weight: 700; text-align: center; padding: 8px; border-radius: 4px; border: 1px solid var(--border);"></div>
                   </div>
 
-                  <!-- Persistent HITL Audit Trail Box -->
-                  <div id="hitlAuditHistoryBox" style="margin-top: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
-                    <div style="font-size: 10.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">
-                      📋 Supervisor Decision Audit Log (evals/hitl_audit_log.json)
+                  <!-- Persistent HITL Audit Trail & History Inspector -->
+                  <div id="hitlAuditHistoryBox" style="margin-top: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                      <div style="font-size: 10.5px; font-weight: 700; color: #fff; text-transform: uppercase;">
+                        📋 Supervisor Decision Audit Log (evals/hitl_audit_log.json)
+                      </div>
+                      <div style="display: flex; gap: 6px; align-items: center;">
+                        <button class="btn-quick" id="btnFilterHitlAll" style="font-size: 9px; padding: 1px 6px; font-weight: 700;">All</button>
+                        <button class="btn-quick" id="btnFilterHitlApproved" style="font-size: 9px; padding: 1px 6px; color: var(--success);">Approved</button>
+                        <button class="btn-quick" id="btnFilterHitlRejected" style="font-size: 9px; padding: 1px 6px; color: var(--error);">Rejected</button>
+                        <button class="btn-quick" id="btnFilterHitlAuto" style="font-size: 9px; padding: 1px 6px; color: #60a5fa;">Auto-Cleared</button>
+                        <span style="color: var(--border);">|</span>
+                        <button class="btn-quick" id="btnCopyHitlLog" style="font-size: 9px; padding: 1px 6px;">📋 Copy JSON</button>
+                        <button class="btn-quick" id="btnClearHitlLog" style="font-size: 9px; padding: 1px 6px; color: var(--text-muted);">🗑️ Clear</button>
+                      </div>
                     </div>
-                    <div id="hitlAuditLogEntries" style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary); max-height: 120px; overflow-y: auto;">
+                    <div id="hitlAuditLogEntries" style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
                       <div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">No supervisor decisions logged yet.</div>
                     </div>
                   </div>

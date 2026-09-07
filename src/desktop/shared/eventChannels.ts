@@ -156,6 +156,8 @@ export const DESKTOP_CHANNELS = {
     SET_ARCHITECTURE_TARGET: 'evolve:fde:set-architecture-target',
     ANALYZE_WORKSPACE_ARCHITECTURE: 'evolve:fde:analyze-workspace-architecture',
     TEST_TARGET_CONNECTION: 'evolve:fde:test-target-connection',
-    LOG_HITL_ACTION: 'evolve:fde:log-hitl-action'
+    LOG_HITL_ACTION: 'evolve:fde:log-hitl-action',
+    GET_HITL_LOG: 'evolve:fde:get-hitl-log',
+    CLEAR_HITL_LOG: 'evolve:fde:clear-hitl-log'
   }
 } as const;

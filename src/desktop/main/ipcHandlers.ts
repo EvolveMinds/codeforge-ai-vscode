@@ -3925,10 +3925,15 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
 
     ipc.handle(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, async (_: any, req: {
       transactionId: string;
-      action: 'APPROVED' | 'REJECTED';
+      action: 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED';
       amount?: number;
+      customer?: string;
       supervisor?: string;
+      supervisorId?: string;
       reason?: string;
+      notes?: string;
+      priority?: string;
+      ceilingThreshold?: number;
     }) => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
@@ -3943,20 +3948,58 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
         }
       } catch {}
 
+      const action = req?.action || 'APPROVED';
+      const supervisor = req?.supervisor || req?.supervisorId || (action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : 'SUP-EVAL-01');
+      const reason = req?.reason || req?.notes || (action === 'APPROVED' ? 'Manual supervisor override approved' : action === 'AUTO_CLEARED' ? 'Autonomous policy clearance (< ceiling)' : 'Exceeds autonomous policy ceiling');
+      const amountVal = typeof req?.amount === 'number' ? req.amount : parseFloat(String(req?.amount || '150.0'));
+
       const entry = {
-        id: `HITL-${Date.now()}`,
+        id: `HITL-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         transactionId: req?.transactionId || 'TX-9482',
-        action: req?.action || 'APPROVED',
-        amount: req?.amount ?? 150.0,
-        supervisor: req?.supervisor || 'supervisor_fde_lead',
-        reason: req?.reason || (req?.action === 'APPROVED' ? 'Manual supervisor override approved' : 'Exceeds autonomous policy ceiling'),
+        action,
+        amount: isNaN(amountVal) ? 150.0 : amountVal,
+        customer: req?.customer || 'cust_4920',
+        supervisor,
+        reason,
+        priority: req?.priority || (action === 'AUTO_CLEARED' ? 'LOW' : 'HIGH'),
+        ceilingThreshold: typeof req?.ceilingThreshold === 'number' ? req.ceilingThreshold : 100,
         timestamp: new Date().toISOString(),
-        auditHash: crypto.createHash('sha256').update((req?.transactionId || 'TX-9482') + (req?.action || '') + Date.now()).digest('hex').slice(0, 24)
+        auditHash: 'sha256_' + crypto.createHash('sha256').update((req?.transactionId || 'TX-9482') + action + supervisor + Date.now()).digest('hex').slice(0, 24)
       };
 
       history.unshift(entry);
       fs.writeFileSync(logFile, JSON.stringify(history.slice(0, 100), null, 2), 'utf-8');
-      return { success: true, entry, totalCount: history.length };
+      return { success: true, entry, totalCount: history.length, history: history.slice(0, 100) };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.FDE.GET_HITL_LOG, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const logFile = path.join(cwd, 'evals', 'hitl_audit_log.json');
+      if (!fs.existsSync(logFile)) {
+        return { success: true, entries: [], count: 0 };
+      }
+      try {
+        const raw = fs.readFileSync(logFile, 'utf-8');
+        const entries = JSON.parse(raw);
+        return { success: true, entries: Array.isArray(entries) ? entries : [], count: entries.length };
+      } catch (err: any) {
+        return { success: false, entries: [], count: 0, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.FDE.CLEAR_HITL_LOG, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const logFile = path.join(cwd, 'evals', 'hitl_audit_log.json');
+      try {
+        if (fs.existsSync(logFile)) {
+          fs.writeFileSync(logFile, '[]', 'utf-8');
+        }
+        return { success: true, count: 0 };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
     });
 
     ipc.handle(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, async (_: any, req: { archetype?: string; clientName?: string; reframedProblem?: string; outOfScope?: string[] }) => {
