@@ -269,9 +269,180 @@
       margin: 8px 0;
       border: 1px solid rgba(255,255,255,0.08);
     }
+    /* --- Enterprise License Gate & Enclave Styles --- */
+    .license-gate-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 999999;
+      background: radial-gradient(circle at 50% 20%, #1e293b 0%, #0f172a 60%, #020617 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-y: auto;
+      backdrop-filter: blur(28px);
+    }
+    .license-gate-card {
+      width: 700px;
+      max-width: 95vw;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(78, 201, 176, 0.35);
+      border-radius: 14px;
+      padding: 32px 36px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 50px rgba(78, 201, 176, 0.1);
+      backdrop-filter: blur(24px);
+      text-align: center;
+    }
+    .license-gate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(78, 201, 176, 0.12);
+      border: 1px solid rgba(78, 201, 176, 0.35);
+      border-radius: 20px;
+      color: #4ec9b0;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .license-gate-title {
+      margin: 0 0 6px 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: #f8fafc;
+      letter-spacing: -0.3px;
+    }
+    .license-gate-subtitle {
+      margin: 0 0 20px 0;
+      font-size: 12.5px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+    .license-gate-hw-box {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .license-gate-hw-code {
+      font-family: var(--font-mono, monospace);
+      font-size: 11px;
+      color: #38bdf8;
+      word-break: break-all;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .license-gate-textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-family: var(--font-mono, monospace);
+      background: rgba(15, 23, 42, 0.85);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      resize: vertical;
+      line-height: 1.4;
+      transition: all 0.2s ease;
+    }
+    .license-gate-textarea:focus {
+      outline: none;
+      border-color: #4ec9b0;
+      box-shadow: 0 0 0 3px rgba(78, 201, 176, 0.2);
+    }
+    .btn-gate-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+      transition: all 0.15s ease;
+    }
+    .btn-gate-primary:hover {
+      background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-gate-link {
+      background: none;
+      border: none;
+      color: #38bdf8;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.15s ease;
+    }
+    .btn-gate-link:hover {
+      color: #7dd3fc;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+  <!-- ENTERPRISE LICENSE ACTIVATION & VERIFICATION GATE -->
+  <div id="licenseGateOverlay" class="license-gate-overlay" style="display: flex;">
+    <div class="license-gate-card">
+      <div class="license-gate-badge">
+        <span>🔒</span> ENTERPRISE SECURITY ENCLAVE
+      </div>
+      <h2 class="license-gate-title">Evolve AI Enterprise Studio</h2>
+      <p class="license-gate-subtitle">
+        Offline Cryptographic Verification Required. Enter your Ed25519 enterprise license key to validate and unlock this workstation.
+      </p>
+
+      <!-- Hardware Fingerprint Box -->
+      <div class="license-gate-hw-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <span style="font-size: 10.5px; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px;">🖥️ WORKSTATION HARDWARE FINGERPRINT (AIR-GAPPED ID)</span>
+          <button class="btn-quick" id="btnGateCopyHw" style="font-size: 10px; padding: 2px 8px;" type="button">📋 Copy ID</button>
+        </div>
+        <div class="license-gate-hw-code" id="gateHwFingerprint">Computing machine entropy...</div>
+      </div>
+
+      <!-- License Key Textarea -->
+      <div style="margin-top: 16px; text-align: left;">
+        <label for="txtGateLicenseKey" style="font-size: 11.5px; font-weight: 700; color: #cbd5e1; display: block; margin-bottom: 6px;">
+          ENTERPRISE LICENSE TOKEN (EM-ENT-V1.*)
+        </label>
+        <textarea id="txtGateLicenseKey" rows="4" placeholder="Paste your cryptographically signed license token here (starts with EM-ENT-V1.)..." class="license-gate-textarea" spellcheck="false"></textarea>
+      </div>
+
+      <!-- Status & Error Alert -->
+      <div id="gateValidationMsg" style="display: none; margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 12px; line-height: 1.4;"></div>
+
+      <!-- Actions Row -->
+      <div style="display: flex; gap: 10px; margin-top: 16px; align-items: center;">
+        <button id="btnGateValidateAndOpen" class="btn-gate-primary" type="button" style="flex: 1;">
+          <span>🔑</span> Validate License &amp; Open Application
+        </button>
+      </div>
+
+      <!-- Secondary Utility Row -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: #94a3b8;">
+        <button class="btn-gate-link" id="btnGateImportFile" type="button">📁 Import license.json</button>
+        <input type="file" id="gateFileInput" accept=".json,.bin,.txt" style="display: none;">
+        <button class="btn-gate-link" id="btnGateExportChallenge" type="button">📋 Request Air-Gapped Challenge</button>
+        <button class="btn-gate-link" id="btnGateGenerateTrial" type="button">⚡ Generate 30-Day Evaluation Key</button>
+      </div>
+    </div>
+  </div>
   <!-- Top App Header -->
   <header class="app-header">
     <div class="brand-section">
@@ -5475,9 +5646,12 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">PASTE LICENSE KEY / ACTIVATION STRING</div>
           <textarea id="txtModalLicenseKey" placeholder="Paste your base64 or Ed25519 signed enterprise license key here..." style="width: 100%; box-sizing: border-box; height: 50px; font-family: monospace; font-size: 11px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; resize: none; margin-bottom: 8px;" aria-label="Paste your base64 or Ed25519 signed enterprise license key here..."></textarea>
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <button class="btn-quick" id="btnModal30DayTrial" style="font-size: 11px; color: var(--accent); border-color: var(--accent);" aria-label="Activate 30-Day Air-Gapped Trial">✨ Activate 30-Day Air-Gapped Trial</button>
-            <button class="btn" id="btnModalActivateLicense" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;" aria-label="Activate Key">🔑 Activate Key</button>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+            <button class="btn-quick" id="btnModal30DayTrial" style="font-size: 11px; color: var(--accent); border-color: var(--accent);" aria-label="Activate 30-Day Air-Gapped Trial">✨ 30-Day Trial Key</button>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-quick" id="btnModalDeactivateLicense" style="font-size: 11px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);" aria-label="Deactivate License">🔓 Deactivate</button>
+              <button class="btn" id="btnModalActivateLicense" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;" aria-label="Activate Key">🔑 Activate Key</button>
+            </div>
           </div>
         </div>
 

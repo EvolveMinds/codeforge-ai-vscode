@@ -1378,6 +1378,14 @@ export class DesktopIpcHandlers {
       return await licenseAuth.activateLicenseKey(key);
     });
 
+    ipc.handle(DESKTOP_CHANNELS.LICENSE.DEACTIVATE, async () => {
+      return await licenseAuth.deactivateLicense();
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.LICENSE.GENERATE_TRIAL_KEY, async (_: any, orgName?: string, days?: number) => {
+      return licenseAuth.generateTrialKey(orgName, days);
+    });
+
     ipc.handle(DESKTOP_CHANNELS.LICENSE.GET_FINGERPRINT, async () => {
       return licenseAuth.getHardwareFingerprint();
     });

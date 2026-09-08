@@ -78,6 +78,8 @@ export const DESKTOP_CHANNELS = {
   LICENSE: {
     GET_STATE: 'evolve:license:get-state',
     ACTIVATE_KEY: 'evolve:license:activate-key',
+    DEACTIVATE: 'evolve:license:deactivate',
+    GENERATE_TRIAL_KEY: 'evolve:license:generate-trial-key',
     GET_FINGERPRINT: 'evolve:license:get-fingerprint',
     EXPORT_CHALLENGE: 'evolve:license:export-challenge',
     IMPORT_OFFLINE_LICENSE: 'evolve:license:import-offline-license',

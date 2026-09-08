@@ -102,6 +102,8 @@ const desktopApi = {
   license: {
     getState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_STATE),
     activateKey: (key: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.ACTIVATE_KEY, key),
+    deactivate: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.DEACTIVATE),
+    generateTrialKey: (orgName?: string, days?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GENERATE_TRIAL_KEY, orgName, days),
     getFingerprint: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_FINGERPRINT),
     exportChallenge: (userId: string, orgName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.EXPORT_CHALLENGE, userId, orgName),
     importOfflineLicense: (filePath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.IMPORT_OFFLINE_LICENSE, filePath),

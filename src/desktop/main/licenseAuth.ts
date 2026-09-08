@@ -14,6 +14,7 @@ import {
 } from '../shared/desktopTypes';
 import { LicenseValidator } from '../../enterprise/license/licenseValidator';
 import { LicenseManager } from '../../enterprise/license/licenseManager';
+import { LicenseGenerator } from '../../enterprise/license/licenseGenerator';
 
 export class DesktopLicenseAuth {
   private _storageDir: string;
@@ -34,7 +35,7 @@ export class DesktopLicenseAuth {
         try {
           if (fs.existsSync(this._licenseFile)) {
             const raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8'));
-            return raw[key] || undefined;
+            return raw[key] || raw.licenseKey || raw.key || (typeof raw === 'string' ? raw : undefined);
           }
         } catch {}
         return undefined;
@@ -43,9 +44,11 @@ export class DesktopLicenseAuth {
         try {
           let raw: any = {};
           if (fs.existsSync(this._licenseFile)) {
-            raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8'));
+            try { raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8')); } catch {}
           }
           raw[key] = val;
+          raw.licenseKey = val;
+          raw.key = val;
           fs.writeFileSync(this._licenseFile, JSON.stringify(raw, null, 2), 'utf8');
         } catch {}
       },
@@ -54,6 +57,8 @@ export class DesktopLicenseAuth {
           if (fs.existsSync(this._licenseFile)) {
             const raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8'));
             delete raw[key];
+            delete raw.licenseKey;
+            delete raw.key;
             fs.writeFileSync(this._licenseFile, JSON.stringify(raw, null, 2), 'utf8');
           }
         } catch {}
@@ -61,6 +66,48 @@ export class DesktopLicenseAuth {
     };
 
     this._licenseMgr = new LicenseManager(mockStorage);
+    this._syncFromStorage();
+  }
+
+  private _syncFromStorage(): void {
+    try {
+      if (fs.existsSync(this._licenseFile)) {
+        const rawContent = fs.readFileSync(this._licenseFile, 'utf8').trim();
+        let key = rawContent;
+        if (rawContent.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(rawContent);
+            key = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
+          } catch {}
+        }
+        if (typeof key === 'string' && key.startsWith('EM-ENT-V1.')) {
+          const res = LicenseValidator.verify(key);
+          if (res.valid && res.payload) {
+            (this._licenseMgr as any)._state = {
+              isLicensed: true,
+              plan: res.payload.plan,
+              organization: res.payload.organization,
+              licenseId: res.payload.licenseId,
+              expiresAt: res.payload.expiresAt,
+              daysRemaining: res.daysRemaining || 0,
+              features: res.payload.features || [],
+              rawKey: key
+            };
+            return;
+          }
+        }
+      }
+      // If no valid license found
+      (this._licenseMgr as any)._state = {
+        isLicensed: false,
+        plan: 'community',
+        organization: 'Community User',
+        licenseId: '',
+        expiresAt: '',
+        daysRemaining: 0,
+        features: []
+      };
+    } catch {}
   }
 
   public getHardwareFingerprint(): HardwareFingerprintInfo {
@@ -99,6 +146,7 @@ export class DesktopLicenseAuth {
   }
 
   public getLicenseState(): EnterpriseLicenseState {
+    this._syncFromStorage();
     const base = this._licenseMgr.getState();
     const hw = this.getHardwareFingerprint();
 
@@ -117,12 +165,28 @@ export class DesktopLicenseAuth {
   }
 
   public async activateLicenseKey(licenseKey: string): Promise<{ valid: boolean; error?: string; state: EnterpriseLicenseState }> {
-    const result = await this._licenseMgr.activateLicense(licenseKey);
+    const result = await this._licenseMgr.activateLicense(licenseKey.trim());
+    this._syncFromStorage();
     return {
       valid: result.valid,
       error: result.error,
       state: this.getLicenseState()
     };
+  }
+
+  public async deactivateLicense(): Promise<EnterpriseLicenseState> {
+    await this._licenseMgr.deactivateLicense();
+    try {
+      if (fs.existsSync(this._licenseFile)) {
+        fs.unlinkSync(this._licenseFile);
+      }
+    } catch {}
+    this._syncFromStorage();
+    return this.getLicenseState();
+  }
+
+  public generateTrialKey(orgName: string = 'Enterprise Partner', days: number = 30): string {
+    return LicenseGenerator.generateTrialKey(orgName, days);
   }
 
   public generateOfflineChallenge(userId: string, orgName: string): ActivationChallengeRequest {

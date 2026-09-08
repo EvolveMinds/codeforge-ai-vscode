@@ -52,8 +52,219 @@ let activeProjects: EngagementProject[] = [
   { id: 'health-azure', name: 'Healthcare Data Lakehouse', targetVpc: 'azure-container', goal: 'HIPAA compliant Delta Lakehouse with automated PII masking' }
 ];
 
+// --- ENTERPRISE CRYPTOGRAPHIC LICENSE GATE ---
+async function setupLicenseGate(api: any): Promise<boolean> {
+  const gateOverlay = document.getElementById('licenseGateOverlay');
+  const txtKey = document.getElementById('txtGateLicenseKey') as HTMLTextAreaElement;
+  const msgBox = document.getElementById('gateValidationMsg');
+  const btnValidate = document.getElementById('btnGateValidateAndOpen');
+  const hwLabel = document.getElementById('gateHwFingerprint');
+  const headerLicPill = document.getElementById('btnLicenseModal');
+  const btnCopyHw = document.getElementById('btnGateCopyHw');
+  const btnImportFile = document.getElementById('btnGateImportFile');
+  const gateFileInput = document.getElementById('gateFileInput') as HTMLInputElement;
+  const btnExportReq = document.getElementById('btnGateExportChallenge');
+  const btnGenerateTrial = document.getElementById('btnGateGenerateTrial');
+
+  const updateHeaderBadge = (st: any) => {
+    if (headerLicPill) {
+      if (st?.isLicensed) {
+        headerLicPill.className = 'header-pill success';
+        headerLicPill.innerText = `💎 ${st.organization || 'Enterprise'} · ${(st.plan || 'PLATINUM').toUpperCase()} (${st.daysRemaining ?? 365}d)`;
+      } else {
+        headerLicPill.className = 'header-pill warning';
+        headerLicPill.innerText = '⚠️ UNLICENSED (Activation Required)';
+      }
+    }
+  };
+
+  headerLicPill?.addEventListener('click', () => {
+    const modalSettings = document.getElementById('modalSettings');
+    if (modalSettings) {
+      modalSettings.style.display = 'flex';
+      const licenseTabBtn = document.querySelector('.settings-tab[data-tab="license"]') as HTMLElement;
+      licenseTabBtn?.click();
+    }
+  });
+
+  if (!api?.license) {
+    if (gateOverlay) gateOverlay.style.display = 'none';
+    return true;
+  }
+
+  // 1. Fetch & display hardware fingerprint
+  try {
+    const fp = await api.license.getFingerprint();
+    if (hwLabel && fp?.machineFingerprint) {
+      hwLabel.innerText = `${fp.machineFingerprint} (${fp.hostname || 'localhost'} · ${fp.platform || 'win32'}-${fp.arch || 'x64'})`;
+    }
+  } catch {}
+
+  // 2. Validate current license on startup
+  let state = await api.license.getState();
+  updateHeaderBadge(state);
+
+  if (state?.isLicensed) {
+    // Valid and active license exists! Un-gate and open application fully
+    if (gateOverlay) gateOverlay.style.display = 'none';
+  } else {
+    // Unlicensed / Expired / First launch! Keep application gated
+    if (gateOverlay) gateOverlay.style.display = 'flex';
+    if (msgBox) {
+      msgBox.style.display = 'block';
+      msgBox.style.background = 'rgba(239, 68, 68, 0.12)';
+      msgBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+      msgBox.style.color = '#fca5a5';
+      msgBox.innerHTML = '<strong>🔒 Standalone Workstation Locked:</strong> A valid cryptographically signed enterprise license is required. Please paste your license token below to unlock the application.';
+    }
+  }
+
+  // 3. Copy hardware fingerprint
+  btnCopyHw?.addEventListener('click', () => {
+    if (hwLabel?.innerText) {
+      navigator.clipboard.writeText(hwLabel.innerText);
+      showToast('✓ Hardware Fingerprint copied to clipboard!');
+    }
+  });
+
+  // 4. Request air-gapped challenge
+  btnExportReq?.addEventListener('click', async () => {
+    try {
+      const challenge = await api.license.exportChallenge('developer@client.corp', 'Enterprise Partner');
+      const blob = new Blob([JSON.stringify(challenge, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `license_challenge_${challenge.challengeId || Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✓ Challenge ${challenge.challengeId} saved! Provide this file to Evolve Mind Solutions for a signed air-gapped license.`);
+    } catch (e: any) {
+      showToast(`⚠️ Failed to export challenge: ${e.message}`);
+    }
+  });
+
+  // 5. Generate 30-Day Evaluation Key (Demo convenience)
+  btnGenerateTrial?.addEventListener('click', async () => {
+    try {
+      const trialKey = await api.license.generateTrialKey('Enterprise Pilot Partner', 30);
+      if (txtKey) txtKey.value = trialKey;
+      if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(78, 201, 176, 0.12)';
+        msgBox.style.border = '1px solid rgba(78, 201, 176, 0.35)';
+        msgBox.style.color = '#89d185';
+        msgBox.innerHTML = '✨ <strong>Evaluation Key Ready:</strong> Valid 30-day token generated. Click <b>"Validate License & Open Application"</b> to activate.';
+      }
+      showToast('✨ 30-Day Evaluation Token populated. Click Validate to unlock!');
+    } catch (e: any) {
+      showToast(`⚠️ Failed to generate evaluation key: ${e.message}`);
+    }
+  });
+
+  // 6. Import license.json
+  btnImportFile?.addEventListener('click', () => {
+    gateFileInput?.click();
+  });
+
+  gateFileInput?.addEventListener('change', (e: any) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = String(reader.result || '').trim();
+      let key = content;
+      if (content.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(content);
+          key = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || content;
+        } catch {}
+      }
+      if (txtKey) txtKey.value = key;
+      showToast(`📥 Imported ${file.name}. Validating...`);
+      btnValidate?.click();
+    };
+    reader.readAsText(file);
+  });
+
+  // 7. Validate License & Open Application
+  btnValidate?.addEventListener('click', async () => {
+    const rawKey = txtKey?.value?.trim();
+    if (!rawKey) {
+      if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(245, 158, 11, 0.15)';
+        msgBox.style.border = '1px solid rgba(245, 158, 11, 0.5)';
+        msgBox.style.color = '#fde68a';
+        msgBox.innerHTML = '⚠️ Please paste your EM-ENT-V1 cryptographic license token.';
+      }
+      showToast('⚠️ Please paste a valid license token.');
+      return;
+    }
+
+    if (btnValidate) {
+      btnValidate.innerText = '⏳ Validating Ed25519 Cryptographic Signature...';
+      (btnValidate as HTMLButtonElement).disabled = true;
+    }
+
+    try {
+      const res = await api.license.activateKey(rawKey);
+      if (res.valid && res.state?.isLicensed) {
+        if (msgBox) {
+          msgBox.style.display = 'block';
+          msgBox.style.background = 'rgba(16, 185, 129, 0.15)';
+          msgBox.style.border = '1px solid rgba(16, 185, 129, 0.5)';
+          msgBox.style.color = '#a7f3d0';
+          msgBox.innerHTML = `<strong>✓ License Verified:</strong> Welcome, <b>${res.state.organization}</b> (${(res.state.plan || 'Platinum').toUpperCase()} · ${res.state.daysRemaining} days remaining). Unlocking Studio...`;
+        }
+
+        updateHeaderBadge(res.state);
+
+        setTimeout(() => {
+          if (gateOverlay) {
+            gateOverlay.style.opacity = '0';
+            gateOverlay.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => {
+              gateOverlay.style.display = 'none';
+              gateOverlay.style.opacity = '1';
+            }, 300);
+          }
+          showToast(`✓ Studio Unlocked: Active ${(res.state.plan || 'Platinum').toUpperCase()} license for ${res.state.organization}`);
+        }, 500);
+      } else {
+        if (msgBox) {
+          msgBox.style.display = 'block';
+          msgBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          msgBox.style.border = '1px solid rgba(239, 68, 68, 0.5)';
+          msgBox.style.color = '#fca5a5';
+          msgBox.innerHTML = `<strong>⚠️ Validation Failed:</strong> ${res.error || 'Cryptographic signature is invalid, tampered, or expired.'}`;
+        }
+        showToast('⚠️ License validation failed.');
+      }
+    } catch (err: any) {
+      if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.15)';
+        msgBox.style.border = '1px solid rgba(239, 68, 68, 0.5)';
+        msgBox.style.color = '#fca5a5';
+        msgBox.innerHTML = `<strong>⚠️ Validation Error:</strong> ${err.message || String(err)}`;
+      }
+    } finally {
+      if (btnValidate) {
+        btnValidate.innerHTML = '<span>🔑</span> Validate License &amp; Open Application';
+        (btnValidate as HTMLButtonElement).disabled = false;
+      }
+    }
+  });
+
+  return state?.isLicensed ?? false;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   const api = (window as any).evolveApi;
+
+  // 0. Enforce Cryptographic License Gate before opening workstation fully
+  try { await setupLicenseGate(api); } catch (e) { console.error('setupLicenseGate failed', e); }
 
   // Initialize UI subsystems
   try { setupNavigation(api); } catch (e) { console.error('setupNavigation failed', e); }
@@ -364,6 +575,18 @@ function setupWorkspace(api: any): void {
   const btnTreeNewFolder = document.getElementById('btnTreeNewFolder');
 
   const openFolderHandler = async () => {
+    if (api?.license) {
+      const state = await api.license.getState();
+      if (!state?.isLicensed) {
+        showToast('⚠️ Valid Enterprise License required before opening workspace.');
+        const gate = document.getElementById('licenseGateOverlay');
+        if (gate) {
+          gate.style.display = 'flex';
+          gate.style.opacity = '1';
+        }
+        return;
+      }
+    }
     if (api?.workspace) {
       const ws = await api.workspace.openFolderDialog();
       if (ws) {
@@ -16100,15 +16323,19 @@ function setupModals(api: any): void {
         const licExpiresAt = document.getElementById('licExpiresAt');
         const licSigStatus = document.getElementById('licSigStatus');
 
+        const isLic = !!(state?.isLicensed || state?.isValid);
         if (licStatusBadge) {
-          licStatusBadge.innerText = state.isValid ? `● ACTIVE ${state.plan.toUpperCase()}` : '⚠️ UNLICENSED';
-          licStatusBadge.style.color = state.isValid ? 'var(--success)' : 'var(--error)';
-          licStatusBadge.style.borderColor = state.isValid ? 'var(--success)' : 'var(--error)';
+          licStatusBadge.innerText = isLic ? `● ACTIVE ${(state.plan || 'PLATINUM').toUpperCase()}` : '⚠️ UNLICENSED';
+          licStatusBadge.style.color = isLic ? 'var(--success)' : 'var(--error)';
+          licStatusBadge.style.borderColor = isLic ? 'var(--success)' : 'var(--error)';
         }
-        if (licPlanName) licPlanName.innerText = `Enterprise ${state.plan.charAt(0).toUpperCase() + state.plan.slice(1)}`;
+        if (licPlanName) licPlanName.innerText = `Enterprise ${(state.plan || 'Platinum').charAt(0).toUpperCase() + (state.plan || 'Platinum').slice(1)}`;
         if (licOrgName) licOrgName.innerText = state.organization || 'Evolve Mind Solutions';
         if (licExpiresAt) licExpiresAt.innerText = state.expiresAt ? new Date(state.expiresAt).toLocaleDateString() : 'Perpetual / Active';
-        if (licSigStatus) licSigStatus.innerText = state.isValid ? 'Verified & Hardware Bound ✓' : 'Signature Unverified';
+        if (licSigStatus) {
+          licSigStatus.innerText = isLic ? 'Verified & Hardware Bound ✓' : 'Signature Unverified / Required';
+          licSigStatus.style.color = isLic ? 'var(--success)' : 'var(--error)';
+        }
       } catch {}
 
       // 2. Fetch Hardware Fingerprint
@@ -16215,6 +16442,13 @@ function setupModals(api: any): void {
         const res = await api.license.activateKey(key);
         if (res.valid) {
           showToast('✓ License activated successfully! Enterprise features unlocked.');
+          const gate = document.getElementById('licenseGateOverlay');
+          if (gate) gate.style.display = 'none';
+          const headerLicPill = document.getElementById('btnLicenseModal');
+          if (headerLicPill && res.state) {
+            headerLicPill.className = 'header-pill success';
+            headerLicPill.innerText = `💎 ${res.state.organization || 'Enterprise'} · ${(res.state.plan || 'PLATINUM').toUpperCase()} (${res.state.daysRemaining ?? 365}d)`;
+          }
           openSettingsModal();
         } else {
           showToast(`⚠️ License validation failed: ${res.error || 'Invalid signature'}`);
@@ -16225,14 +16459,47 @@ function setupModals(api: any): void {
     }
   });
 
+  // Deactivate Key
+  document.getElementById('btnModalDeactivateLicense')?.addEventListener('click', async () => {
+    if (api?.license) {
+      const state = await api.license.deactivate();
+      showToast('🔓 License deactivated. Workstation locked.');
+      if (modalSettings) modalSettings.style.display = 'none';
+      const gate = document.getElementById('licenseGateOverlay');
+      if (gate) {
+        gate.style.display = 'flex';
+        gate.style.opacity = '1';
+      }
+      const headerLicPill = document.getElementById('btnLicenseModal');
+      if (headerLicPill) {
+        headerLicPill.className = 'header-pill warning';
+        headerLicPill.innerText = '⚠️ UNLICENSED (Activation Required)';
+      }
+    }
+  });
+
   // 30-Day Air-Gapped Trial
-  document.getElementById('btnModal30DayTrial')?.addEventListener('click', () => {
-    showToast('✨ Activated 30-Day Air-Gapped Platinum Trial! All enterprise modules unlocked.');
-    const licStatusBadge = document.getElementById('licStatusBadge');
-    if (licStatusBadge) {
-      licStatusBadge.innerText = '● ACTIVE PLATINUM TRIAL';
-      licStatusBadge.style.color = 'var(--success)';
-      licStatusBadge.style.borderColor = 'var(--success)';
+  document.getElementById('btnModal30DayTrial')?.addEventListener('click', async () => {
+    if (api?.license) {
+      try {
+        const trialKey = await api.license.generateTrialKey('Acme Financial Corp', 30);
+        const txtKey = document.getElementById('txtModalLicenseKey') as HTMLTextAreaElement;
+        if (txtKey) txtKey.value = trialKey;
+        const res = await api.license.activateKey(trialKey);
+        if (res.valid) {
+          showToast('✨ Activated 30-Day Air-Gapped Platinum Trial! All enterprise modules unlocked.');
+          const gate = document.getElementById('licenseGateOverlay');
+          if (gate) gate.style.display = 'none';
+          const headerLicPill = document.getElementById('btnLicenseModal');
+          if (headerLicPill && res.state) {
+            headerLicPill.className = 'header-pill success';
+            headerLicPill.innerText = `💎 ${res.state.organization} · TRIAL (${res.state.daysRemaining}d)`;
+          }
+          openSettingsModal();
+        }
+      } catch (e: any) {
+        showToast(`⚠️ Trial error: ${e.message}`);
+      }
     }
   });
 
