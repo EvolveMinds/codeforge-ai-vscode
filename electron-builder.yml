@@ -6,6 +6,9 @@ directories:
   output: dist-desktop
   buildResources: media
 
+extraMetadata:
+  main: out/desktop/main/main.js
+
 files:
   - out/**/*
   - src/desktop/renderer/**/*
