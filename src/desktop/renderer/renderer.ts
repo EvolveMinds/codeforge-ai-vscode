@@ -569,6 +569,11 @@ function appendTerminalOutput(viewport: HTMLElement, text: string): void {
 // --- WORKSPACE & COLLAPSIBLE FILE EXPLORER ---
 function setupWorkspace(api: any): void {
   const btnOpenFolder = document.getElementById('btnOpenFolder');
+  const currentWorkspaceBadge = document.getElementById('currentWorkspaceBadge');
+  const btnDeliveryOpenFolder = document.getElementById('btnDeliveryOpenFolder');
+  const btnGitPaneOpenFolder = document.getElementById('btnGitPaneOpenFolder');
+  const btnGitWizardOpenFolder = document.getElementById('btnGitWizardOpenFolder');
+  const gitPaneRepoBadge = document.getElementById('gitPaneRepoBadge');
   const btnRefreshTree = document.getElementById('btnRefreshTree');
   const btnCollapseAll = document.getElementById('btnCollapseAllTree');
   const btnTreeNewFile = document.getElementById('btnTreeNewFile');
@@ -599,6 +604,11 @@ function setupWorkspace(api: any): void {
   };
 
   btnOpenFolder?.addEventListener('click', openFolderHandler);
+  currentWorkspaceBadge?.addEventListener('click', openFolderHandler);
+  btnDeliveryOpenFolder?.addEventListener('click', openFolderHandler);
+  btnGitPaneOpenFolder?.addEventListener('click', openFolderHandler);
+  btnGitWizardOpenFolder?.addEventListener('click', openFolderHandler);
+  gitPaneRepoBadge?.addEventListener('click', openFolderHandler);
   btnRefreshTree?.addEventListener('click', () => renderFileTree(api));
 
   btnCollapseAll?.addEventListener('click', () => {
@@ -15979,6 +15989,8 @@ async function refreshGitStatus(api: any): Promise<void> {
         gitRepoBadge.style.color = 'var(--error)';
         gitRepoBadge.style.borderColor = 'var(--error)';
         gitRepoBadge.style.background = 'rgba(244, 71, 71, 0.15)';
+        gitRepoBadge.style.cursor = 'pointer';
+        gitRepoBadge.title = 'Click to Open Local Repository Folder';
       }
     }
 

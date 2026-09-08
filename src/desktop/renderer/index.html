@@ -645,6 +645,7 @@
               <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ Clean</span>
             </div>
             <div style="display: flex; gap: 6px;">
+              <button class="btn-quick" id="btnDeliveryOpenFolder" style="border-color: var(--accent); color: var(--accent); font-weight: bold;" aria-label="Open Workspace / Repo">📂 Open Repo</button>
               <button class="btn-quick" id="btnDeliveryGitSetup" style="background: rgba(78, 201, 176, 0.1); border-color: var(--accent); color: var(--accent); font-weight: bold;" aria-label="Git Setup">⚙️ Git Setup</button>
               <button class="btn-quick" id="btnDeliverySyncFetch" aria-label="Sync & Fetch">🔄 Sync &amp; Fetch</button>
               <button class="btn-quick" id="btnDelivery1ClickCommit" style="color: var(--success); font-weight: 700; border-color: var(--success);" aria-label="1-Click Commit & Push">🚀 1-Click Commit &amp; Push</button>
@@ -4224,13 +4225,16 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
               <div>
                 <h3 style="margin: 0; font-size: 17px; color: #fff; display: flex; align-items: center; gap: 8px;">
                   <span>🌿</span> Git &amp; Remote Repository Hub
-                  <span id="gitPaneRepoBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px;">Detecting...</span>
+                  <span id="gitPaneRepoBadge" style="font-size: 10.5px; font-weight: 700; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 2px 8px; border-radius: 10px; cursor: pointer;" title="Click to Open Local Repository Folder">Detecting...</span>
                 </h3>
                 <p class="desc" style="margin: 6px 0 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.4;">
                   Seamless auto-detection and setup wizard for Bitbucket, GitHub, and GitLab remotes, branch lifecycle management, staged working tree changes, and 1-click pull request synchronization.
                 </p>
               </div>
               <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end;">
+                <button class="btn-quick" id="btnGitPaneOpenFolder" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent); font-weight: 700; display: flex; align-items: center; gap: 5px;" aria-label="Open Local Repo">
+                  <span>📂</span> Open Local Repo
+                </button>
                 <button class="btn" id="btnGitPaneSync" style="padding: 6px 14px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="Sync & Fetch">
                   <span>🔄</span> Sync &amp; Fetch
                 </button>
@@ -4327,6 +4331,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   Auto-detecting Git CLI...
                 </div>
                 <div style="display: flex; gap: 8px;">
+                  <button class="btn-quick" id="btnGitWizardOpenFolder" style="font-size: 11.5px; border-color: var(--accent); color: var(--accent); font-weight: bold;" aria-label="Browse & Open Local Repo">📂 Browse &amp; Open Local Repo</button>
                   <button class="btn-quick" id="btnGitWizardInit" style="font-size: 11.5px;" aria-label="git init Repo">🌱 git init Repo</button>
                   <button class="btn-quick" id="btnGitWizardTestRemote" style="font-size: 11.5px;" aria-label="Test Remote (ls-remote)">🔑 Test Remote (ls-remote)</button>
                   <button class="btn" id="btnGitWizardSaveRemote" style="padding: 6px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Save & Apply Config">💾 Save &amp; Apply Config</button>
