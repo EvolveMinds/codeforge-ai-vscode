@@ -1,5 +1,6 @@
 # Compiled output
 out/
+dist-desktop/
 
 # VS Code test runner download cache (@vscode/test-electron)
 .vscode-test/

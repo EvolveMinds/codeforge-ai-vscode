@@ -4,6 +4,7 @@
   "description": "Forward-Deployed Engineers Delivery Studio & AI Data Platform: Live Database Introspector, Schema Mapping, dbt Marts, API SDKs & Multi-Cloud Runbooks.",
   "version": "2.20.0",
   "publisher": "codeforge-ai",
+  "author": "Evolve Mind Solutions Pty Ltd <info@evolveminds.com.au>",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.85.0"
@@ -2227,10 +2228,10 @@
     "package:enterprise": "node scripts/package-enterprise.js",
     "package:enterprise:win": "node scripts/package-enterprise.js --platform=win32-x64",
     "license:generate": "node scripts/generate-license.js",
-    "desktop:start": "electron out/desktop/main/main.js",
-    "desktop:build:win": "electron-builder --win",
-    "desktop:build:portable": "electron-builder --win portable",
-    "desktop:build:all": "electron-builder --win --mac --linux",
+    "desktop:start": "npx electron out/desktop/main/main.js",
+    "desktop:build:win": "npx electron-builder --win",
+    "desktop:build:portable": "npx electron-builder --win portable",
+    "desktop:build:all": "npx electron-builder --win --mac --linux",
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
