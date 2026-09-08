@@ -336,9 +336,15 @@ export class DesktopIpcHandlers {
       return true;
     });
 
+    terminalMgr.onCwdChange((_id: string, newCwd: string) => {
+      try {
+        workspaceMgr.setCurrentWorkspace(newCwd);
+      } catch {}
+    });
+
     ipc.handle(DESKTOP_CHANNELS.TERMINAL.EXECUTE_COMMAND, async (_: any, id: string, cmd: string, cwd?: string) => {
       const ws = workspaceMgr.getCurrentWorkspace();
-      const targetCwd = cwd || (ws ? ws.path : process.cwd());
+      const targetCwd = cwd || (ws ? ws.path : undefined);
       return await terminalMgr.executeCommand(id, cmd, targetCwd);
     });
 

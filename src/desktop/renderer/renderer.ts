@@ -487,6 +487,17 @@ function setupTerminal(api: any): void {
         currentActiveSessionId = session.id;
       }
       await api.terminal.executeCommand(currentActiveSessionId, cmd);
+      if (/^(?:cd|chdir|pushd|Set-Location|sl)\b|[a-zA-Z]:$/i.test(cmd.trim())) {
+        if (api?.workspace) {
+          const ws = await api.workspace.getCurrent();
+          if (ws) {
+            updateWorkspaceUI(ws);
+            renderFileTree(api);
+            refreshWorkspaceDataFiles(api);
+            refreshGitStatus(api);
+          }
+        }
+      }
     }
     terminalCmdInput?.focus();
   };

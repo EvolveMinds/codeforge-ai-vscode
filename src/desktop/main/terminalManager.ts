@@ -3,6 +3,7 @@
  */
 
 import * as child_process from 'child_process';
+import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { TerminalSessionInfo, TerminalSpawnOptions } from '../shared/desktopTypes';
@@ -16,8 +17,13 @@ export class DesktopTerminalManager {
   private _sessions: Map<string, ActiveSession> = new Map();
   private _dataListeners: Array<(id: string, data: string) => void> = [];
   private _exitListeners: Array<(id: string, code: number) => void> = [];
+  private _cwdListeners: Array<(id: string, newCwd: string) => void> = [];
 
   constructor() {}
+
+  public onCwdChange(listener: (id: string, newCwd: string) => void): void {
+    this._cwdListeners.push(listener);
+  }
 
   public getAvailableShells(): string[] {
     const isWin = os.platform() === 'win32';
@@ -147,13 +153,77 @@ export class DesktopTerminalManager {
     return false;
   }
 
+  private _parseCdCommand(cmd: string, currentCwd: string): { isCd: boolean; newCwd?: string; error?: string } {
+    const trimmed = cmd.trim();
+    
+    // Windows drive letter switch: e.g. "D:" or "d:"
+    const driveMatch = trimmed.match(/^([a-zA-Z]):$/);
+    if (driveMatch) {
+      const driveLetter = driveMatch[1].toUpperCase();
+      const targetPath = `${driveLetter}:\\`;
+      if (fs.existsSync(targetPath)) return { isCd: true, newCwd: targetPath };
+      return { isCd: true, error: `The drive ${driveLetter}: does not exist.` };
+    }
+
+    const cdRegex = /^(?:cd|chdir)(?:\s+\/d)?(?:\s+(.*))?$|^(?:pushd|Set-Location|sl)(?:\s+(.*))?$/i;
+    const match = trimmed.match(cdRegex);
+    if (!match) return { isCd: false };
+
+    let target = (match[1] || match[2] || '').trim();
+    if (!target) return { isCd: true, newCwd: os.homedir() };
+
+    if ((target.startsWith('"') && target.endsWith('"')) || (target.startsWith("'") && target.endsWith("'"))) {
+      target = target.slice(1, -1).trim();
+    }
+
+    if (target === '~' || target.startsWith('~/') || target.startsWith('~\\')) {
+      target = path.join(os.homedir(), target.slice(1));
+    }
+
+    let resolved = path.isAbsolute(target) ? path.normalize(target) : path.resolve(currentCwd, target);
+    if (/^[a-zA-Z]:$/.test(resolved)) resolved += '\\';
+
+    try {
+      if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+        return { isCd: true, newCwd: resolved };
+      }
+      return { isCd: true, error: `Cannot find path '${resolved}' because it does not exist.` };
+    } catch (err: any) {
+      return { isCd: true, error: err.message || String(err) };
+    }
+  }
+
   public executeCommand(sessionId: string, cmd: string, cwd?: string): Promise<{ stdout: string; stderr: string; code: number }> {
     const session = this._sessions.get(sessionId);
-    const targetCwd = cwd || (session ? session.info.cwd : process.cwd());
+    const targetCwd = (session && session.info.cwd) ? session.info.cwd : (cwd || process.cwd());
 
     // Emit echo of command to listeners
     for (const listener of this._dataListeners) {
       try { listener(sessionId, `\r\n\x1b[33m❯ ${cmd}\x1b[0m\r\n`); } catch {}
+    }
+
+    // Check directory change command
+    const cdCheck = this._parseCdCommand(cmd, targetCwd);
+    if (cdCheck.isCd) {
+      return new Promise((resolve) => {
+        if (cdCheck.error) {
+          for (const listener of this._dataListeners) {
+            try { listener(sessionId, `\x1b[31m${cdCheck.error}\x1b[0m\r\nPS ${targetCwd}> `); } catch {}
+          }
+          resolve({ stdout: '', stderr: cdCheck.error, code: 1 });
+        } else if (cdCheck.newCwd) {
+          if (session) {
+            session.info.cwd = cdCheck.newCwd;
+          }
+          for (const listener of this._cwdListeners) {
+            try { listener(sessionId, cdCheck.newCwd); } catch {}
+          }
+          for (const listener of this._dataListeners) {
+            try { listener(sessionId, `PS ${cdCheck.newCwd}> `); } catch {}
+          }
+          resolve({ stdout: '', stderr: '', code: 0 });
+        }
+      });
     }
 
     return new Promise((resolve) => {
@@ -187,15 +257,17 @@ export class DesktopTerminalManager {
       });
 
       child.on('close', (code) => {
+        const activeCwd = (session && session.info.cwd) ? session.info.cwd : targetCwd;
         for (const listener of this._dataListeners) {
-          try { listener(sessionId, `\r\nPS ${targetCwd}> `); } catch {}
+          try { listener(sessionId, `\r\nPS ${activeCwd}> `); } catch {}
         }
         resolve({ stdout, stderr, code: code || 0 });
       });
 
       child.on('error', (err) => {
+        const activeCwd = (session && session.info.cwd) ? session.info.cwd : targetCwd;
         for (const listener of this._dataListeners) {
-          try { listener(sessionId, `\r\n\x1b[31mCommand error: ${err.message}\x1b[0m\r\nPS ${targetCwd}> `); } catch {}
+          try { listener(sessionId, `\r\n\x1b[31mCommand error: ${err.message}\x1b[0m\r\nPS ${activeCwd}> `); } catch {}
         }
         resolve({ stdout: '', stderr: err.message, code: 1 });
       });
