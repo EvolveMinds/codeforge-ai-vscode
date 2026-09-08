@@ -1,14 +1,40 @@
 /* Terminal Pane Styling for Evolve AI Enterprise Desktop Edition */
 
+.resizer-vertical {
+  height: 5px;
+  background: var(--border-color);
+  cursor: row-resize;
+  flex-shrink: 0;
+  z-index: 25;
+  position: relative;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  user-select: none;
+}
+.resizer-vertical:hover,
+.resizer-vertical.dragging {
+  background: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(78, 201, 176, 0.7);
+}
+.resizer-vertical::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 0;
+  right: 0;
+}
+
 .terminal-drawer {
-  height: 240px;
-  min-height: 120px;
-  max-height: 500px;
+  height: 220px;
+  min-height: 65px;
+  max-height: 85vh;
   background: #121212;
-  border-top: 2px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
 }
 
 .terminal-header {

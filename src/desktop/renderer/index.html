@@ -523,6 +523,9 @@
       </div>
     </aside>
 
+    <!-- Draggable Horizontal Resizer Sash (Move Workspace Explorer Left/Right) -->
+    <div class="resizer-horizontal" id="sidebarResizer" title="Drag left/right to resize Workspace Explorer (double-click to reset)"></div>
+
     <!-- Central Main Studio Canvas -->
     <main class="main-workspace">
       <div class="studio-scroll-area">
@@ -531,7 +534,7 @@
         <!-- MODE 1: FORWARD-DEPLOYED ENGINEERS DELIVERY STUDIO -->
         <!-- =================================================================== -->
         <section id="pane-delivery" class="phase-pane" style="display: block;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap; gap: 8px;">
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h1 style="margin: 0; font-size: 18px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
@@ -615,8 +618,8 @@
           </div>
 
           <!-- Engagement Selector Bar -->
-          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <span style="font-weight: 700; color: var(--text-secondary); font-size: 11px;">ENGAGEMENT:</span>
               <select id="selEngagement" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 12px;">
                 <option value="pilot-gcp">🏢 Client Pilot Engagement (gcp-firebase)</option>
@@ -626,15 +629,15 @@
               <button class="btn-quick" id="btnNewEngagement" style="color: var(--accent); font-weight: bold;" aria-label="+ New Project">+ New Project</button>
               <button class="btn-quick" id="btnResetEngagement" aria-label="Reset / Redo">🔄 Reset / Redo</button>
             </div>
-            <div style="display: flex; gap: 14px; color: var(--text-secondary); font-size: 11.5px;">
+            <div style="display: flex; gap: 14px; color: var(--text-secondary); font-size: 11.5px; flex-wrap: wrap;">
               <span>Target VPC: <strong id="lblTargetVpc" style="color: var(--accent);">gcp-firebase</strong></span>
               <span>Artifacts: <strong id="lblArtifactCount" style="color: #fff;">0 models, 0 marts, 0 APIs</strong></span>
             </div>
           </div>
 
           <!-- Git Toolbar Bar (Exact Match with Image 1) -->
-          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <span>🌿</span>
               <select id="selDeliveryGitBranch" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; font-size: 11.5px; min-width: 110px;">
                 <option value="main">main</option>
@@ -644,7 +647,7 @@
               <span id="lblDeliveryRemoteUrl" style="color: var(--accent); font-family: monospace; font-size: 11px;">https://github.com/SAAS-Models/h...</span>
               <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); border: 1px solid var(--success); font-size: 9.5px;">✓ Clean</span>
             </div>
-            <div style="display: flex; gap: 6px;">
+            <div style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
               <button class="btn-quick" id="btnDeliveryOpenFolder" style="border-color: var(--accent); color: var(--accent); font-weight: bold;" aria-label="Open Workspace / Repo">📂 Open Repo</button>
               <button class="btn-quick" id="btnDeliveryGitSetup" style="background: rgba(78, 201, 176, 0.1); border-color: var(--accent); color: var(--accent); font-weight: bold;" aria-label="Git Setup">⚙️ Git Setup</button>
               <button class="btn-quick" id="btnDeliverySyncFetch" aria-label="Sync & Fetch">🔄 Sync &amp; Fetch</button>
@@ -803,9 +806,9 @@
               <!-- ============================================================= -->
               <div class="content-card" id="phase1Card" style="display: block;">
                 <!-- Phase 1 Header -->
-                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                  <div>
-                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                  <div style="flex: 1; min-width: 260px;">
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                       <span>🎯</span> Phase 1 · Discover &amp; Frame ("Sitting with AP. Refusing the Ask.")
                       <span id="fdeUnsavedIndicator" hidden aria-live="polite" style="font-size: 10px; font-weight: 700; background: rgba(204, 167, 0, 0.15); color: var(--warn); border: 1px solid var(--warn); padding: 2px 8px; border-radius: 10px; margin-right: 6px;">● Unsaved changes</span>
                       <span id="fdePhase1StatusBadge" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● Discovery Active</span>
@@ -815,10 +818,10 @@
                       Transform messy customer requests into a rigorously bounded engineering engagement. Question assumptions, identify operational bottlenecks, define dynamic scope boundaries, and compute the financial ROI.
                     </p>
                   </div>
-                  <div style="display: flex; gap: 8px;">
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
                     <button class="btn-quick" id="btnFdeResetDiscovery" aria-label="Reset Scope">🔄 Reset Scope</button>
                     <button class="btn" id="btnFdeSaveDiscovery" style="padding: 5px 12px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Save Scope">💾 Save Scope</button>
-                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 2: Engineering Core">🚀 Advance to Phase 2: Engineering Core ➔</button>
+                    <button class="btn" id="btnFdeAdvancePhase2" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 2: Engineering Core">🚀 Advance to Phase 2 ➔</button>
                   </div>
                 </div>
 
@@ -5300,6 +5303,9 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
       </div>
 
+      <!-- Draggable Vertical Resizer Sash (Move Terminal Up/Down) -->
+      <div class="resizer-vertical" id="terminalResizer" title="Drag up/down to resize Terminal Drawer (double-click to toggle maximize)"></div>
+
       <!-- Collapsible Bottom Interactive Terminal Drawer -->
       <div class="terminal-drawer" id="terminalDrawer">
         <div class="terminal-header">
@@ -5313,7 +5319,9 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
             <button class="btn-quick" id="btnTermLs" aria-label="dir / ls">dir / ls</button>
             <button class="btn-quick" id="btnTermPython" aria-label="python --version">python --version</button>
             <button class="btn-quick" id="btnClearTerm" aria-label="Clear">Clear</button>
-            <button class="btn-quick" id="btnToggleTermDrawer">✕</button>
+            <button class="btn-quick" id="btnMaximizeTerm" title="Maximize Terminal (70% height)" aria-label="Maximize Terminal">▲</button>
+            <button class="btn-quick" id="btnMinimizeTerm" title="Minimize Terminal (compact 75px)" aria-label="Minimize Terminal">▼</button>
+            <button class="btn-quick" id="btnToggleTermDrawer" title="Close Terminal Drawer">✕</button>
           </div>
         </div>
         <div class="terminal-viewport" id="terminalViewport" title="Click anywhere here to focus and type shell commands"></div>

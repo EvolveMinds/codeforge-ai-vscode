@@ -270,6 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { setupNavigation(api); } catch (e) { console.error('setupNavigation failed', e); }
   try { setupTerminal(api); } catch (e) { console.error('setupTerminal failed', e); }
   try { setupWorkspace(api); } catch (e) { console.error('setupWorkspace failed', e); }
+  try { setupLayoutResizers(); } catch (e) { console.error('setupLayoutResizers failed', e); }
   try { setupEngagementManager(api); } catch (e) { console.error('setupEngagementManager failed', e); }
   try { setupDeliveryStudio(api); } catch (e) { console.error('setupDeliveryStudio failed', e); }
   try { setupDataAnalysisStudio(api); } catch (e) { console.error('setupDataAnalysisStudio failed', e); }
@@ -391,6 +392,145 @@ function switchActivityTab(tabName: string, api?: any): void {
   }
 }
 
+// --- INTERACTIVE DRAGGABLE RESIZERS (WORKSPACE EXPLORER & TERMINAL DRAWER) ---
+function setupLayoutResizers(): void {
+  // 1. Horizontal Sidebar Resizer (Left <-> Right)
+  const sidebarPane = document.getElementById('sidebarPane');
+  const sidebarResizer = document.getElementById('sidebarResizer');
+  if (sidebarPane && sidebarResizer) {
+    try {
+      const savedWidth = localStorage.getItem('evolve_sidebar_width');
+      if (savedWidth) {
+        sidebarPane.style.width = savedWidth;
+        sidebarPane.style.flex = `0 0 ${savedWidth}`;
+      }
+    } catch {}
+
+    let isResizingH = false;
+    let startX = 0;
+    let startWidth = 240;
+
+    const onMouseMoveH = (e: MouseEvent) => {
+      if (!isResizingH) return;
+      const deltaX = e.clientX - startX;
+      const minW = 140;
+      const maxW = Math.max(minW, Math.floor(window.innerWidth * 0.55));
+      const newWidth = Math.max(minW, Math.min(maxW, startWidth + deltaX));
+      sidebarPane.style.width = `${newWidth}px`;
+      sidebarPane.style.flex = `0 0 ${newWidth}px`;
+    };
+
+    const onMouseUpH = () => {
+      if (!isResizingH) return;
+      isResizingH = false;
+      document.body.classList.remove('resizing-h');
+      sidebarResizer.classList.remove('dragging');
+      window.removeEventListener('mousemove', onMouseMoveH);
+      window.removeEventListener('mouseup', onMouseUpH);
+      try {
+        localStorage.setItem('evolve_sidebar_width', sidebarPane.style.width);
+      } catch {}
+    };
+
+    sidebarResizer.addEventListener('mousedown', (e: MouseEvent) => {
+      isResizingH = true;
+      startX = e.clientX;
+      startWidth = sidebarPane.getBoundingClientRect().width;
+      document.body.classList.add('resizing-h');
+      sidebarResizer.classList.add('dragging');
+      window.addEventListener('mousemove', onMouseMoveH);
+      window.addEventListener('mouseup', onMouseUpH);
+      e.preventDefault();
+    });
+
+    sidebarResizer.addEventListener('dblclick', () => {
+      sidebarPane.style.width = '240px';
+      sidebarPane.style.flex = '0 0 240px';
+      try {
+        localStorage.setItem('evolve_sidebar_width', '240px');
+      } catch {}
+    });
+  }
+
+  // 2. Vertical Terminal Resizer (Up <-> Down)
+  const terminalDrawer = document.getElementById('terminalDrawer');
+  const terminalResizer = document.getElementById('terminalResizer');
+  const btnMaximizeTerm = document.getElementById('btnMaximizeTerm');
+  const btnMinimizeTerm = document.getElementById('btnMinimizeTerm');
+
+  if (terminalDrawer && terminalResizer) {
+    try {
+      const savedHeight = localStorage.getItem('evolve_terminal_height');
+      if (savedHeight) {
+        terminalDrawer.style.height = savedHeight;
+      }
+    } catch {}
+
+    let isResizingV = false;
+    let startY = 0;
+    let startHeight = 220;
+
+    const onMouseMoveV = (e: MouseEvent) => {
+      if (!isResizingV) return;
+      const deltaY = startY - e.clientY;
+      const minH = 65;
+      const maxH = Math.max(minH, Math.floor(window.innerHeight * 0.85));
+      const newHeight = Math.max(minH, Math.min(maxH, startHeight + deltaY));
+      terminalDrawer.style.height = `${newHeight}px`;
+    };
+
+    const onMouseUpV = () => {
+      if (!isResizingV) return;
+      isResizingV = false;
+      document.body.classList.remove('resizing-v');
+      terminalResizer.classList.remove('dragging');
+      window.removeEventListener('mousemove', onMouseMoveV);
+      window.removeEventListener('mouseup', onMouseUpV);
+      try {
+        localStorage.setItem('evolve_terminal_height', terminalDrawer.style.height);
+      } catch {}
+    };
+
+    terminalResizer.addEventListener('mousedown', (e: MouseEvent) => {
+      isResizingV = true;
+      startY = e.clientY;
+      startHeight = terminalDrawer.getBoundingClientRect().height;
+      document.body.classList.add('resizing-v');
+      terminalResizer.classList.add('dragging');
+      window.addEventListener('mousemove', onMouseMoveV);
+      window.addEventListener('mouseup', onMouseUpV);
+      e.preventDefault();
+    });
+
+    terminalResizer.addEventListener('dblclick', () => {
+      const curH = terminalDrawer.getBoundingClientRect().height;
+      const targetH = curH > 320 ? '220px' : `${Math.floor(window.innerHeight * 0.70)}px`;
+      terminalDrawer.style.height = targetH;
+      try {
+        localStorage.setItem('evolve_terminal_height', targetH);
+      } catch {}
+    });
+
+    btnMaximizeTerm?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const maxH = `${Math.floor(window.innerHeight * 0.72)}px`;
+      terminalDrawer.style.height = maxH;
+      try {
+        localStorage.setItem('evolve_terminal_height', maxH);
+      } catch {}
+    });
+
+    btnMinimizeTerm?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const minH = '75px';
+      terminalDrawer.style.height = minH;
+      try {
+        localStorage.setItem('evolve_terminal_height', minH);
+      } catch {}
+    });
+  }
+}
+
 // --- TERMINAL DRAWER ---
 function setupTerminal(api: any): void {
   const terminalDrawer = document.getElementById('terminalDrawer');
@@ -455,6 +595,10 @@ function setupTerminal(api: any): void {
     if (terminalDrawer) {
       const isClosed = terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '';
       terminalDrawer.style.display = isClosed ? 'flex' : 'none';
+      const terminalResizer = document.getElementById('terminalResizer');
+      if (terminalResizer) {
+        terminalResizer.style.display = isClosed ? 'block' : 'none';
+      }
       if (isClosed && terminalCmdInput) {
         setTimeout(() => terminalCmdInput.focus(), 60);
       }
@@ -475,6 +619,8 @@ function setupTerminal(api: any): void {
 
     if (terminalDrawer && (terminalDrawer.style.display === 'none' || terminalDrawer.style.display === '')) {
       terminalDrawer.style.display = 'flex';
+      const terminalResizer = document.getElementById('terminalResizer');
+      if (terminalResizer) terminalResizer.style.display = 'block';
     }
 
     if (terminalCmdInput && !cmdText) terminalCmdInput.value = '';
