@@ -389,6 +389,56 @@
       border-radius: 4px;
       transition: color 0.15s ease;
     }
+
+    .btn-gate-buy {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 13.5px;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      border-radius: 8px;
+      padding: 12px 18px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+      transition: all 0.15s ease;
+    }
+    .btn-gate-buy:hover {
+      background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+      transform: translateY(-1px);
+    }
+    .buy-modal-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      font-size: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .buy-modal-input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    }
+    .buy-license-modal-box {
+      width: 680px;
+      max-width: 94%;
+      background: #181c24;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(56, 189, 248, 0.18);
+      border-radius: 12px;
+      overflow: hidden;
+      padding: 0;
+      position: relative;
+    }
+
     .btn-gate-link:hover {
       color: #7dd3fc;
       text-decoration: underline;
@@ -429,8 +479,11 @@
 
       <!-- Actions Row -->
       <div style="display: flex; gap: 10px; margin-top: 16px; align-items: center;">
-        <button id="btnGateValidateAndOpen" class="btn-gate-primary" type="button" style="flex: 1;">
+        <button id="btnGateValidateAndOpen" class="btn-gate-primary" type="button" style="flex: 1.15;">
           <span>🔑</span> Validate License &amp; Open Application
+        </button>
+        <button id="btnGateBuyLicense" class="btn-gate-buy" type="button" style="flex: 1;">
+          <span>💬</span> Buy License / Contact Sales
         </button>
       </div>
 
@@ -440,6 +493,119 @@
         <input type="file" id="gateFileInput" accept=".json,.bin,.txt" style="display: none;">
         <button class="btn-gate-link" id="btnGateExportChallenge" type="button">📋 Request Air-Gapped Challenge</button>
         <button class="btn-gate-link" id="btnGateGenerateTrial" type="button">⚡ Generate 30-Day Evaluation Key</button>
+      </div>
+    </div>
+    <!-- Enterprise Procurement & Buy License Modal -->
+    <div id="modalBuyLicense" class="modal-overlay" style="display: none; z-index: 1000000; position: fixed; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+      <div class="buy-license-modal-box">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid rgba(255,255,255,0.1);">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 22px;">💎</span>
+            <div>
+              <h3 style="margin: 0; font-size: 15px; color: #fff; font-weight: 700;">Evolve AI Enterprise License Procurement</h3>
+              <div style="font-size: 11px; color: #94a3b8;">Direct inquiry &amp; hardware-bound licensing with Evolve Mind Solutions Pty Ltd</div>
+            </div>
+          </div>
+          <button class="btn-quick" id="btnBuyClose" type="button" style="padding: 4px 10px; font-size: 13px;" aria-label="Close">✕</button>
+        </div>
+
+        <div style="padding: 16px 20px; max-height: 72vh; overflow-y: auto;">
+          <!-- Informational Banner -->
+          <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; color: #cbd5e1; line-height: 1.5;">
+            <strong style="color: #38bdf8;">How Purchasing Works:</strong> Fill out your organization details below. Our sales engineering team will issue a cryptographically signed offline Ed25519 license key (<code>EM-ENT-V1.*</code>) or <code>license.json</code> file configured for your seats and air-gapped compliance requirements.
+          </div>
+
+          <!-- Form Grid Row 1 -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label for="txtBuyOrgName" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
+                ORGANIZATION / CLIENT NAME *
+              </label>
+              <input type="text" id="txtBuyOrgName" class="buy-modal-input" placeholder="e.g. Acme Financial Group" />
+            </div>
+            <div>
+              <label for="txtBuyEmail" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
+                WORK EMAIL (FOR KEY DELIVERY) *
+              </label>
+              <input type="email" id="txtBuyEmail" class="buy-modal-input" placeholder="e.g. procurement@acme.com" />
+            </div>
+          </div>
+
+          <!-- Form Grid Row 2 -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label for="selBuyPlan" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
+                EDITION / PLAN TIER
+              </label>
+              <select id="selBuyPlan" class="buy-modal-input">
+                <option value="enterprise_platinum">Enterprise Platinum (Full Suite)</option>
+                <option value="enterprise_standard">Enterprise Standard</option>
+                <option value="air_gapped_defense">Air-Gapped Defense / Banking</option>
+                <option value="evaluation_pilot">30-Day Evaluation Pilot</option>
+              </select>
+            </div>
+            <div>
+              <label for="numBuySeats" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
+                DEVELOPER SEATS
+              </label>
+              <select id="numBuySeats" class="buy-modal-input">
+                <option value="1">1 Developer (Single Seat)</option>
+                <option value="5">5 Developers (Team)</option>
+                <option value="10" selected>10 Developers (Squad)</option>
+                <option value="25">25 Developers (Department)</option>
+                <option value="50">50 Developers (Enterprise Core)</option>
+                <option value="100">100+ Developers (Unlimited Scale)</option>
+              </select>
+            </div>
+            <div>
+              <label for="selBuyDuration" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
+                TERM DURATION
+              </label>
+              <select id="selBuyDuration" class="buy-modal-input">
+                <option value="365" selected>1 Year (Annual Subscription)</option>
+                <option value="730">2 Years (Multi-Year Lock)</option>
+                <option value="90">90-Day Extended Pilot</option>
+                <option value="30">30-Day Evaluation</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Workstation Hardware Binding -->
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
+              WORKSTATION HARDWARE FINGERPRINT (AIR-GAPPED NODE ID)
+            </label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="txtBuyHwFingerprint" class="buy-modal-input" readonly style="flex: 1; font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.4); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" value="Computing machine entropy..." />
+              <button class="btn-quick" id="btnBuyCopyHw" type="button" style="padding: 6px 12px; font-size: 11px;">📋 Copy HW</button>
+            </div>
+          </div>
+
+          <!-- Live Generated Request Preview -->
+          <div style="margin-bottom: 4px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+              <label style="font-size: 11px; font-weight: 700; color: #94a3b8;">
+                GENERATED PROCUREMENT REQUEST PAYLOAD
+              </label>
+              <span style="font-size: 10px; color: #38bdf8;">Auto-Generated for sales@evolveminds.com.au</span>
+            </div>
+            <textarea id="txtBuyRequestPreview" rows="6" readonly class="license-gate-textarea" style="font-family: monospace; font-size: 11px; line-height: 1.45; background: #0c0d10; color: #93c5fd; border-color: rgba(255,255,255,0.12);" spellcheck="false"></textarea>
+          </div>
+        </div>
+
+        <div style="padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.1);">
+          <div style="font-size: 11px; color: #94a3b8;">
+            Direct contact: <a href="mailto:sales@evolveminds.com.au" style="color: #38bdf8; text-decoration: none;">sales@evolveminds.com.au</a>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-quick" id="btnBuyCopyRequest" type="button" style="font-weight: 700; border-color: #38bdf8; color: #38bdf8;">
+              📋 Copy Request
+            </button>
+            <button class="btn" id="btnBuySendEmail" type="button" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #ffffff; font-weight: 700; padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.4);">
+              ✉️ Open in Email Client
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

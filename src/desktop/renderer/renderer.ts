@@ -58,6 +58,19 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   const txtKey = document.getElementById('txtGateLicenseKey') as HTMLTextAreaElement;
   const msgBox = document.getElementById('gateValidationMsg');
   const btnValidate = document.getElementById('btnGateValidateAndOpen');
+  const btnBuyLicense = document.getElementById('btnGateBuyLicense');
+  const modalBuyLicense = document.getElementById('modalBuyLicense');
+  const btnBuyClose = document.getElementById('btnBuyClose');
+  const txtBuyOrgName = document.getElementById('txtBuyOrgName') as HTMLInputElement;
+  const txtBuyEmail = document.getElementById('txtBuyEmail') as HTMLInputElement;
+  const selBuyPlan = document.getElementById('selBuyPlan') as HTMLSelectElement;
+  const numBuySeats = document.getElementById('numBuySeats') as HTMLSelectElement;
+  const selBuyDuration = document.getElementById('selBuyDuration') as HTMLSelectElement;
+  const txtBuyHwFingerprint = document.getElementById('txtBuyHwFingerprint') as HTMLInputElement;
+  const btnBuyCopyHw = document.getElementById('btnBuyCopyHw');
+  const txtBuyRequestPreview = document.getElementById('txtBuyRequestPreview') as HTMLTextAreaElement;
+  const btnBuyCopyRequest = document.getElementById('btnBuyCopyRequest');
+  const btnBuySendEmail = document.getElementById('btnBuySendEmail');
   const hwLabel = document.getElementById('gateHwFingerprint');
   const headerLicPill = document.getElementById('btnLicenseModal');
   const btnCopyHw = document.getElementById('btnGateCopyHw');
@@ -97,6 +110,9 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     const fp = await api.license.getFingerprint();
     if (hwLabel && fp?.machineFingerprint) {
       hwLabel.innerText = `${fp.machineFingerprint} (${fp.hostname || 'localhost'} · ${fp.platform || 'win32'}-${fp.arch || 'x64'})`;
+    }
+    if (txtBuyHwFingerprint && fp?.machineFingerprint) {
+      txtBuyHwFingerprint.value = `${fp.machineFingerprint} (${fp.hostname || 'localhost'} · ${fp.platform || 'win32'}-${fp.arch || 'x64'})`;
     }
   } catch {}
 
@@ -255,6 +271,93 @@ async function setupLicenseGate(api: any): Promise<boolean> {
         (btnValidate as HTMLButtonElement).disabled = false;
       }
     }
+  });
+
+  // 8. Buy License / Contact Sales Procurement Modal & Generator
+  const updateBuyRequestPreview = () => {
+    if (!txtBuyRequestPreview) return;
+    const org = txtBuyOrgName?.value?.trim() || '[Organization Name]';
+    const email = txtBuyEmail?.value?.trim() || '[Contact Email]';
+    const plan = selBuyPlan ? selBuyPlan.options[selBuyPlan.selectedIndex]?.text || 'Enterprise Platinum (Full Suite)' : 'Enterprise Platinum (Full Suite)';
+    const seats = numBuySeats ? numBuySeats.value : '10';
+    const duration = selBuyDuration ? selBuyDuration.options[selBuyDuration.selectedIndex]?.text || '1 Year (Annual Subscription)' : '1 Year (Annual Subscription)';
+    const hw = txtBuyHwFingerprint?.value || 'HW-AIRGAP-NODE';
+    const today = new Date().toISOString().split('T')[0];
+
+    const lines = [
+      '================================================================================',
+      '  EVOLVE AI ENTERPRISE — LICENSE PROCUREMENT REQUEST',
+      '================================================================================',
+      `Organization : ${org}`,
+      `Contact Email: ${email}`,
+      `Plan Tier    : ${plan}`,
+      `Seats Count  : ${seats} Developer Seats`,
+      `Term Duration: ${duration}`,
+      `Workstation  : ${hw}`,
+      `Request Date : ${today}`,
+      'Vendor Entity: Evolve Mind Solutions Pty Ltd (sales@evolveminds.com.au)',
+      '================================================================================',
+      'Please issue an official cryptographically signed Ed25519 license key token',
+      '(EM-ENT-V1.*) or license.json file for this organization and workstation node.'
+    ];
+
+    txtBuyRequestPreview.value = lines.join('\n');
+  };
+
+  btnBuyLicense?.addEventListener('click', () => {
+    if (modalBuyLicense) {
+      modalBuyLicense.style.display = 'flex';
+      updateBuyRequestPreview();
+      txtBuyOrgName?.focus();
+    }
+  });
+
+  const closeBuyModal = () => {
+    if (modalBuyLicense) modalBuyLicense.style.display = 'none';
+  };
+
+  btnBuyClose?.addEventListener('click', closeBuyModal);
+  modalBuyLicense?.addEventListener('click', (e) => {
+    if (e.target === modalBuyLicense) closeBuyModal();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modalBuyLicense && modalBuyLicense.style.display !== 'none') {
+      closeBuyModal();
+    }
+  });
+
+  [txtBuyOrgName, txtBuyEmail].forEach(input => {
+    input?.addEventListener('input', updateBuyRequestPreview);
+  });
+  [selBuyPlan, numBuySeats, selBuyDuration].forEach(select => {
+    select?.addEventListener('change', updateBuyRequestPreview);
+  });
+
+  btnBuyCopyHw?.addEventListener('click', () => {
+    if (txtBuyHwFingerprint?.value) {
+      navigator.clipboard.writeText(txtBuyHwFingerprint.value);
+      showToast('✓ Hardware Fingerprint copied to clipboard!');
+    }
+  });
+
+  btnBuyCopyRequest?.addEventListener('click', () => {
+    updateBuyRequestPreview();
+    if (txtBuyRequestPreview?.value) {
+      navigator.clipboard.writeText(txtBuyRequestPreview.value);
+      showToast('✓ Enterprise License Procurement Request copied to clipboard!');
+    }
+  });
+
+  btnBuySendEmail?.addEventListener('click', () => {
+    updateBuyRequestPreview();
+    const org = txtBuyOrgName?.value?.trim() || 'Client';
+    const seats = numBuySeats ? numBuySeats.value : '10';
+    const subject = encodeURIComponent(`Evolve AI Enterprise License Order: ${org} (${seats} Seats)`);
+    const body = encodeURIComponent(txtBuyRequestPreview?.value || '');
+    const mailto = `mailto:sales@evolveminds.com.au?subject=${subject}&body=${body}`;
+    window.open(mailto);
+    showToast('✉️ Opening email client with pre-filled license request...');
   });
 
   return state?.isLicensed ?? false;
