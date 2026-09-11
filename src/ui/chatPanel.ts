@@ -660,6 +660,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   </div>
 
   <div id="rightBtns">
+    <button class="hbtn" id="desktopBtn" title="Download Evolve AI Enterprise Desktop Edition (Portable Standalone) from Company Website" style="color: #e8825a; font-weight: 700; border-color: rgba(196,86,43,0.5); background: rgba(196,86,43,0.12);">🖥️ Desktop</button>
     <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio (FDE Studio)" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 FDE Studio</button>
     <button class="hbtn" id="dataBtn" title="Launch Data Analysis &amp; Reporting Studio" style="color: #3794ff; font-weight: 600; border-color: rgba(55,148,255,0.4); background: rgba(55,148,255,0.1);">📊 Data</button>
     <button class="hbtn" id="convertBtn" title="Launch Side-by-Side Code Converter" style="color: #dcdcaa; font-weight: 600; border-color: rgba(220,220,170,0.4); background: rgba(220,220,170,0.1);">⚡ Convert</button>
@@ -1541,6 +1542,7 @@ function copy() {
 function on(id, evt, fn) { const el = document.getElementById(id); if (el) el.addEventListener(evt, fn); else console.warn('[Evolve AI] Missing element:', id); }
 
 
+on('desktopBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.downloadDesktop' }));
 on('studioBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' }));
 on('dataBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.data.analyze' }));
 on('convertBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' }));

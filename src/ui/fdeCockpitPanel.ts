@@ -3011,7 +3011,7 @@ Output ONLY the message without markdown code fences.`;
       </div>
     </div>
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
-      <button class="btn btn-primary" onclick="launchDesktopStudio()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px;" title="Open Evolve AI Enterprise Standalone Desktop Studio (Outside VS Code)">🖥️ Desktop App</button>
+      <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #c4562b 0%, #a8481f 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Download Evolve AI Enterprise Desktop Edition from Company Website">🖥️ Desktop App ↗</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
         <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
@@ -3357,14 +3357,6 @@ Output ONLY the message without markdown code fences.`;
       <div class="step-num"><span>Step 4</span> ${state.completedPhases.includes(4) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
       <div class="step-name">Handoff &amp; Docs</div>
     </div>
-    <div class="step-card ${state.activePhase === 5 ? 'active' : ''} ${state.completedPhases.includes(5) ? 'completed' : ''}" data-phase="5" onclick="setPhase(5)">
-      <div class="step-num"><span>Step 5</span> ${state.completedPhases.includes(5) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
-      <div class="step-name">💎 Enterprise Suite</div>
-    </div>
-    <div class="step-card ${state.activePhase === 6 ? 'active' : ''} ${state.completedPhases.includes(6) ? 'completed' : ''}" data-phase="6" onclick="setPhase(6)">
-      <div class="step-num"><span>Step 6</span> ${state.completedPhases.includes(6) ? '<span style="color:var(--success)">✓ Done</span>' : ''}</div>
-      <div class="step-name">🌿 DevOps &amp; Git</div>
-    </div>
   </div>
 
   <!-- Main Grid -->
@@ -3374,8 +3366,6 @@ Output ONLY the message without markdown code fences.`;
       <button class="nav-btn ${state.activePhase === 2 ? 'active' : ''}" data-phase="2" onclick="setPhase(2)">🔌 2. Client API Studio</button>
       <button class="nav-btn ${state.activePhase === 3 ? 'active' : ''}" data-phase="3" onclick="setPhase(3)">⚡ 3. Pilot Deployment</button>
       <button class="nav-btn ${state.activePhase === 4 ? 'active' : ''}" data-phase="4" onclick="setPhase(4)">📑 4. Runbook Factory</button>
-      <button class="nav-btn ${state.activePhase === 5 ? 'active' : ''}" data-phase="5" onclick="setPhase(5)">💎 5. Enterprise Suite</button>
-      <button class="nav-btn ${state.activePhase === 6 ? 'active' : ''}" data-phase="6" onclick="setPhase(6)">🌿 6. DevOps &amp; Git Hub</button>
     </div>
 
     <div>
@@ -5207,8 +5197,12 @@ Output ONLY the message without markdown code fences.`;
       }
     }
 
+    function downloadDesktopStudio() {
+      vscode.postMessage({ command: 'downloadDesktopStudio' });
+    }
+
     function launchDesktopStudio() {
-      vscode.postMessage({ command: 'launchDesktopStudio' });
+      vscode.postMessage({ command: 'downloadDesktopStudio' });
     }
 
     function switchProject(id) {
@@ -5272,7 +5266,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function setPhase(p) {
-      for (let i = 1; i <= 6; i++) {
+      for (let i = 1; i <= 4; i++) {
         const el = document.getElementById('phase' + i);
         if (el) el.style.display = i === p ? 'block' : 'none';
       }
@@ -5290,7 +5284,6 @@ Output ONLY the message without markdown code fences.`;
           else card.classList.remove('active');
         }
       });
-      if (p === 6) { refreshGitPaneState(); }
       vscode.postMessage({ command: 'setActivePhase', phase: p });
     }
 

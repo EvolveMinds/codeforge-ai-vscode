@@ -63,37 +63,9 @@ export class FdeCommands {
   }
 
   async downloadDesktop(): Promise<void> {
-    const items: vscode.QuickPickItem[] = [
-      {
-        label: '📦 Windows Portable Edition (.zip / Zero-Install)',
-        description: 'No admin rights required • Runs on USB & air-gapped bastions',
-        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
-      },
-      {
-        label: '🖥️ Windows Setup Installer (.exe)',
-        description: 'Standard NSIS installer with Desktop & Start Menu shortcuts',
-        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
-      },
-      {
-        label: '🍎 macOS Universal Package (.dmg)',
-        description: 'Intel & Apple Silicon M1/M2/M3/M4',
-        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
-      },
-      {
-        label: '🐧 Linux Standalone AppImage (.AppImage)',
-        description: 'Single-file executable for Ubuntu/Debian/RHEL/Arch',
-        detail: 'https://github.com/EvolveMinds/evolve-ai-enterprise/releases/latest'
-      }
-    ];
-
-    const pick = await vscode.window.showQuickPick(items, {
-      placeHolder: 'Select Evolve AI Enterprise Desktop Edition distribution to download:'
-    });
-
-    if (pick && pick.detail) {
-      vscode.env.openExternal(vscode.Uri.parse(pick.detail));
-      vscode.window.showInformationMessage(`🌐 Opening Enterprise Release Download Portal for ${pick.label}...`);
-    }
+    const companyDownloadUrl = 'https://www.evolveminds.com.au/products/evolve-ai/download/';
+    await vscode.env.openExternal(vscode.Uri.parse(companyDownloadUrl));
+    vscode.window.showInformationMessage('🌐 Opening Evolve AI Enterprise Desktop download page on Evolve Mind Solutions website...');
   }
 
   openCockpit(): void {
