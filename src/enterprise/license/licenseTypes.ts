@@ -5,7 +5,9 @@
  * Copyright (c) 2026 Evolve Mind Solutions Pty Ltd. All rights reserved.
  */
 
-export type LicensePlan = 'community' | 'pro' | 'enterprise_standard' | 'enterprise_platinum';
+export type LicensePlan = 'community' | 'pro' | 'enterprise_standard' | 'enterprise_platinum' | 'enterprise_site';
+
+export type LicenseScope = 'seat' | 'site';
 
 export type EnterpriseFeature =
   | 'load_testing'
@@ -23,8 +25,10 @@ export interface EnterpriseLicensePayload {
   licenseId: string;
   /** License tier */
   plan: LicensePlan;
-  /** Maximum licensed developer seats */
+  /** Maximum licensed developer seats (-1 denotes unlimited site license) */
   maxSeats: number;
+  /** Licensing model scope: seat-based or organization-wide site license */
+  licenseScope?: LicenseScope;
   /** ISO 8601 issuance timestamp */
   issuedAt: string;
   /** ISO 8601 expiry timestamp */
@@ -51,6 +55,9 @@ export interface LicenseState {
   licenseId: string;
   expiresAt: string;
   daysRemaining: number;
+  maxSeats?: number;
+  seats?: number;
+  licenseScope?: LicenseScope;
   features: EnterpriseFeature[];
   rawKey?: string;
 }

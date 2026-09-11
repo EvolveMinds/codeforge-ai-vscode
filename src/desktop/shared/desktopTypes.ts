@@ -93,6 +93,8 @@ export interface EnterpriseLicenseState {
   expiresAt: string;
   daysRemaining: number;
   seats: number;
+  maxSeats?: number;
+  licenseScope?: 'seat' | 'site';
   hardwareFingerprint?: string;
   hardwareMatched?: boolean;
   features: string[];

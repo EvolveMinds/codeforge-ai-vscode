@@ -279,7 +279,9 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     const org = txtBuyOrgName?.value?.trim() || '[Organization Name]';
     const email = txtBuyEmail?.value?.trim() || '[Contact Email]';
     const plan = selBuyPlan ? selBuyPlan.options[selBuyPlan.selectedIndex]?.text || 'Enterprise Platinum (Full Suite)' : 'Enterprise Platinum (Full Suite)';
-    const seats = numBuySeats ? numBuySeats.value : '10';
+    const rawSeats = numBuySeats ? numBuySeats.value : '10';
+    const isSite = rawSeats === 'site' || rawSeats === 'unlimited' || rawSeats === '-1';
+    const seatsLabel = isSite ? 'Enterprise Site License (Unlimited Developers / Organization-Wide)' : `${rawSeats} Developer Seats`;
     const duration = selBuyDuration ? selBuyDuration.options[selBuyDuration.selectedIndex]?.text || '1 Year (Annual Subscription)' : '1 Year (Annual Subscription)';
     const hw = txtBuyHwFingerprint?.value || 'HW-AIRGAP-NODE';
     const today = new Date().toISOString().split('T')[0];
@@ -291,7 +293,8 @@ async function setupLicenseGate(api: any): Promise<boolean> {
       `Organization : ${org}`,
       `Contact Email: ${email}`,
       `Plan Tier    : ${plan}`,
-      `Seats Count  : ${seats} Developer Seats`,
+      `Licensing    : ${isSite ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers)' : `👥 PER-SEAT LICENSE (${rawSeats} Developer Seats)`}`,
+      `Scope / Seats: ${seatsLabel}`,
       `Term Duration: ${duration}`,
       `Workstation  : ${hw}`,
       `Request Date : ${today}`,
@@ -352,8 +355,10 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   btnBuySendEmail?.addEventListener('click', () => {
     updateBuyRequestPreview();
     const org = txtBuyOrgName?.value?.trim() || 'Client';
-    const seats = numBuySeats ? numBuySeats.value : '10';
-    const subject = encodeURIComponent(`Evolve AI Enterprise License Order: ${org} (${seats} Seats)`);
+    const rawSeats = numBuySeats ? numBuySeats.value : '10';
+    const isSite = rawSeats === 'site' || rawSeats === 'unlimited' || rawSeats === '-1';
+    const seatsSubject = isSite ? 'Enterprise Site License' : `${rawSeats} Seats`;
+    const subject = encodeURIComponent(`Evolve AI Enterprise License Order: ${org} (${seatsSubject})`);
     const body = encodeURIComponent(txtBuyRequestPreview?.value || '');
     const mailto = `mailto:sales@evolveminds.com.au?subject=${subject}&body=${body}`;
     window.open(mailto);
@@ -16855,6 +16860,7 @@ function setupModals(api: any): void {
         const state = await api.license.getState();
         const licStatusBadge = document.getElementById('licStatusBadge');
         const licPlanName = document.getElementById('licPlanName');
+        const licSeats = document.getElementById('licSeats');
         const licOrgName = document.getElementById('licOrgName');
         const licExpiresAt = document.getElementById('licExpiresAt');
         const licSigStatus = document.getElementById('licSigStatus');
@@ -16866,6 +16872,16 @@ function setupModals(api: any): void {
           licStatusBadge.style.borderColor = isLic ? 'var(--success)' : 'var(--error)';
         }
         if (licPlanName) licPlanName.innerText = `Enterprise ${(state.plan || 'Platinum').charAt(0).toUpperCase() + (state.plan || 'Platinum').slice(1)}`;
+        if (licSeats) {
+          if (!isLic) {
+            licSeats.innerText = 'Unlicensed';
+            licSeats.style.color = 'var(--text-muted)';
+          } else {
+            const isSite = state.licenseScope === 'site' || state.seats === -1 || state.maxSeats === -1;
+            licSeats.innerText = isSite ? '🏢 Site License (Unlimited)' : `👥 ${state.seats || state.maxSeats || 1} Developer Seat${(state.seats || state.maxSeats || 1) === 1 ? '' : 's'}`;
+            licSeats.style.color = '#38bdf8';
+          }
+        }
         if (licOrgName) licOrgName.innerText = state.organization || 'Evolve Mind Solutions';
         if (licExpiresAt) licExpiresAt.innerText = state.expiresAt ? new Date(state.expiresAt).toLocaleDateString() : 'Perpetual / Active';
         if (licSigStatus) {

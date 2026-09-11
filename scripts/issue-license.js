@@ -22,17 +22,53 @@ function parseArgs() {
     plan: 'enterprise_platinum',
     days: 365,
     seats: 25,
+    scope: 'seat',
     email: 'admin@evolveminds.com.au',
     out: null
   };
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--org' && args[i + 1]) options.org = args[++i];
-    else if (args[i] === '--plan' && args[i + 1]) options.plan = args[++i];
-    else if (args[i] === '--days' && args[i + 1]) options.days = parseInt(args[++i], 10);
-    else if (args[i] === '--seats' && args[i + 1]) options.seats = parseInt(args[++i], 10);
-    else if (args[i] === '--email' && args[i + 1]) options.email = args[++i];
-    else if (args[i] === '--out' && args[i + 1]) options.out = args[++i];
+    const a = args[i];
+    if (a.startsWith('--org=')) options.org = a.slice('--org='.length);
+    else if (a === '--org' && args[i + 1]) options.org = args[++i];
+    else if (a.startsWith('--plan=')) options.plan = a.slice('--plan='.length);
+    else if (a === '--plan' && args[i + 1]) options.plan = args[++i];
+    else if (a.startsWith('--days=')) options.days = parseInt(a.slice('--days='.length), 10);
+    else if (a === '--days' && args[i + 1]) options.days = parseInt(args[++i], 10);
+    else if (a.startsWith('--seats=')) {
+      const s = a.slice('--seats='.length).toLowerCase();
+      if (s === 'site' || s === 'unlimited' || s === '-1') {
+        options.scope = 'site';
+        options.seats = -1;
+      } else {
+        options.seats = parseInt(s, 10);
+      }
+    }
+    else if (a === '--seats' && args[i + 1]) {
+      const s = args[++i].toLowerCase();
+      if (s === 'site' || s === 'unlimited' || s === '-1') {
+        options.scope = 'site';
+        options.seats = -1;
+      } else {
+        options.seats = parseInt(s, 10);
+      }
+    }
+    else if (a.startsWith('--scope=')) {
+      options.scope = a.slice('--scope='.length).toLowerCase();
+      if (options.scope === 'site') options.seats = -1;
+    }
+    else if (a === '--scope' && args[i + 1]) {
+      options.scope = args[++i].toLowerCase();
+      if (options.scope === 'site') options.seats = -1;
+    }
+    else if (a === '--site') {
+      options.scope = 'site';
+      options.seats = -1;
+    }
+    else if (a.startsWith('--email=')) options.email = a.slice('--email='.length);
+    else if (a === '--email' && args[i + 1]) options.email = args[++i];
+    else if (a.startsWith('--out=')) options.out = a.slice('--out='.length);
+    else if (a === '--out' && args[i + 1]) options.out = args[++i];
   }
   return options;
 }
@@ -42,11 +78,16 @@ function issueLicense(options) {
   const expiry = new Date();
   expiry.setDate(now.getDate() + options.days);
 
+  const isSiteLicense = options.scope === 'site' || options.seats === -1;
+  const maxSeats = isSiteLicense ? -1 : options.seats;
+  const prefixId = isSiteLicense ? 'EM-SITE' : 'EM-LIC';
+
   const payload = {
     organization: options.org,
-    licenseId: `EM-LIC-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+    licenseId: `${prefixId}-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
     plan: options.plan,
-    maxSeats: options.seats,
+    maxSeats: maxSeats,
+    licenseScope: isSiteLicense ? 'site' : 'seat',
     issuedAt: now.toISOString(),
     expiresAt: expiry.toISOString(),
     features: [
@@ -72,25 +113,26 @@ function issueLicense(options) {
     organization: options.org,
     licenseId: payload.licenseId,
     plan: options.plan,
-    maxSeats: options.seats,
+    licenseScope: payload.licenseScope,
+    maxSeats: payload.maxSeats,
     issuedAt: payload.issuedAt,
     expiresAt: payload.expiresAt,
     "evolve.enterprise.licenseKey": token,
     signature: signatureB64
   };
 
-  return { token, jsonBundle, payload };
+  return { token, jsonBundle, payload, isSiteLicense };
 }
 
 const opts = parseArgs();
-const { token, jsonBundle, payload } = issueLicense(opts);
+const { token, jsonBundle, payload, isSiteLicense } = issueLicense(opts);
 
 console.log('\n================================================================');
 console.log('   EVOLVE AI ENTERPRISE LICENSE GENERATOR');
 console.log('================================================================');
 console.log(`Organization : ${payload.organization}`);
 console.log(`Plan         : ${payload.plan}`);
-console.log(`Seats        : ${payload.maxSeats}`);
+console.log(`Scope        : ${isSiteLicense ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers / Org-wide)' : `👥 SEAT-BASED (${payload.maxSeats} Licensed Developers)`}`);
 console.log(`Issued At    : ${payload.issuedAt}`);
 console.log(`Expires At   : ${payload.expiresAt} (${opts.days} days)`);
 console.log('----------------------------------------------------------------');

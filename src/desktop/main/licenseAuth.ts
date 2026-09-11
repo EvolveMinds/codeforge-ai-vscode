@@ -90,6 +90,9 @@ export class DesktopLicenseAuth {
               licenseId: res.payload.licenseId,
               expiresAt: res.payload.expiresAt,
               daysRemaining: res.daysRemaining || 0,
+              maxSeats: res.payload.maxSeats,
+              seats: res.payload.maxSeats,
+              licenseScope: res.payload.licenseScope || (res.payload.maxSeats === -1 ? 'site' : 'seat'),
               features: res.payload.features || [],
               rawKey: key
             };
@@ -105,6 +108,9 @@ export class DesktopLicenseAuth {
         licenseId: '',
         expiresAt: '',
         daysRemaining: 0,
+        maxSeats: 0,
+        seats: 0,
+        licenseScope: 'seat',
         features: []
       };
     } catch {}
@@ -150,6 +156,9 @@ export class DesktopLicenseAuth {
     const base = this._licenseMgr.getState();
     const hw = this.getHardwareFingerprint();
 
+    const maxSeats = (base as any).maxSeats ?? (base as any).seats ?? 1;
+    const isSite = (base as any).licenseScope === 'site' || maxSeats === -1;
+
     return {
       isLicensed: base.isLicensed,
       plan: base.plan,
@@ -157,7 +166,9 @@ export class DesktopLicenseAuth {
       licenseId: base.licenseId,
       expiresAt: base.expiresAt,
       daysRemaining: base.daysRemaining,
-      seats: (base as any).seats || 1,
+      seats: isSite ? -1 : maxSeats,
+      maxSeats: maxSeats,
+      licenseScope: isSite ? 'site' : 'seat',
       hardwareFingerprint: hw.machineFingerprint,
       hardwareMatched: base.isLicensed ? true : false,
       features: base.features
@@ -187,6 +198,10 @@ export class DesktopLicenseAuth {
 
   public generateTrialKey(orgName: string = 'Enterprise Partner', days: number = 30): string {
     return LicenseGenerator.generateTrialKey(orgName, days);
+  }
+
+  public generateSiteLicenseKey(orgName: string = 'Enterprise Partner', days: number = 365): string {
+    return LicenseGenerator.generateSiteLicenseKey(orgName, days);
   }
 
   public generateOfflineChallenge(userId: string, orgName: string): ActivationChallengeRequest {

@@ -42,7 +42,39 @@ export class LicenseGenerator {
       organization: organizationName,
       licenseId: `EM-TRIAL-${Date.now()}`,
       plan: 'enterprise_platinum',
+      licenseScope: 'seat',
       maxSeats: 25,
+      issuedAt: now.toISOString(),
+      expiresAt: expiry.toISOString(),
+      features: [
+        'load_testing',
+        'rag_scaffolder',
+        'data_quality',
+        'siem_logging',
+        'co_branding',
+        'multi_tenant_sync',
+        'priority_sla',
+      ],
+      contactEmail: 'sales@evolveminds.com.au',
+    };
+
+    return this.sign(payload);
+  }
+
+  /**
+   * Generates an Enterprise Site License key (organization-wide, unlimited developer seats).
+   */
+  public static generateSiteLicenseKey(organizationName: string = 'Demo Enterprise Partner', days: number = 365): string {
+    const now = new Date();
+    const expiry = new Date();
+    expiry.setDate(now.getDate() + days);
+
+    const payload: EnterpriseLicensePayload = {
+      organization: organizationName,
+      licenseId: `EM-SITE-${Date.now()}`,
+      plan: 'enterprise_platinum',
+      licenseScope: 'site',
+      maxSeats: -1, // -1 denotes unlimited seats
       issuedAt: now.toISOString(),
       expiresAt: expiry.toISOString(),
       features: [

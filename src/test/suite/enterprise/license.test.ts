@@ -92,4 +92,18 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     assert.strictEqual(LicenseValidator.hasFeature(payload, 'load_testing'), true);
     assert.strictEqual(LicenseValidator.hasFeature(payload, 'rag_scaffolder'), false);
   });
+
+  test('generates and validates an Enterprise Site License (Unlimited Seats / Org-wide)', () => {
+    const siteToken = LicenseGenerator.generateSiteLicenseKey('Mega Banking Group Corp', 365);
+    assert.ok(siteToken.startsWith('EM-ENT-V1.'), 'Site token should have standard EM-ENT-V1 prefix');
+
+    const result = LicenseValidator.verify(siteToken);
+    assert.strictEqual(result.valid, true);
+    assert.strictEqual(result.status, 'active');
+    assert.strictEqual(result.payload?.organization, 'Mega Banking Group Corp');
+    assert.strictEqual(result.payload?.licenseScope, 'site');
+    assert.strictEqual(result.payload?.maxSeats, -1, 'Site license should have maxSeats = -1 (unlimited)');
+    assert.strictEqual(result.payload?.plan, 'enterprise_platinum');
+    assert.ok(result.daysRemaining! >= 364);
+  });
 });

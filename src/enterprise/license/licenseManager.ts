@@ -45,6 +45,9 @@ export class LicenseManager {
             licenseId: result.payload.licenseId,
             expiresAt: result.payload.expiresAt,
             daysRemaining: result.daysRemaining || 0,
+            maxSeats: result.payload.maxSeats,
+            seats: result.payload.maxSeats,
+            licenseScope: result.payload.licenseScope || (result.payload.maxSeats === -1 ? 'site' : 'seat'),
             features: result.payload.features || [],
             rawKey: storedKey,
           };
@@ -78,6 +81,9 @@ export class LicenseManager {
       licenseId: result.payload.licenseId,
       expiresAt: result.payload.expiresAt,
       daysRemaining: result.daysRemaining || 0,
+      maxSeats: result.payload.maxSeats,
+      seats: result.payload.maxSeats,
+      licenseScope: result.payload.licenseScope || (result.payload.maxSeats === -1 ? 'site' : 'seat'),
       features: result.payload.features || [],
       rawKey: rawKey.trim(),
     };

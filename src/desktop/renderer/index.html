@@ -546,15 +546,16 @@
             </div>
             <div>
               <label for="numBuySeats" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
-                DEVELOPER SEATS
+                DEVELOPER SEATS / SCOPE
               </label>
               <select id="numBuySeats" class="buy-modal-input">
                 <option value="1">1 Developer (Single Seat)</option>
-                <option value="5">5 Developers (Team)</option>
-                <option value="10" selected>10 Developers (Squad)</option>
-                <option value="25">25 Developers (Department)</option>
+                <option value="5">5 Developers (Team Tier)</option>
+                <option value="10" selected>10 Developers (Squad Tier)</option>
+                <option value="25">25 Developers (Department Tier)</option>
                 <option value="50">50 Developers (Enterprise Core)</option>
-                <option value="100">100+ Developers (Unlimited Scale)</option>
+                <option value="100">100 Developers (Scale Tier)</option>
+                <option value="site">🏢 Enterprise Site License (Unlimited Seats / Org-Wide)</option>
               </select>
             </div>
             <div>
@@ -5866,10 +5867,14 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
             <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">ACTIVE LICENSE STATUS</div>
             <span id="licStatusBadge" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">● ACTIVE PLATINUM</span>
           </div>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+          <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px;">
             <div>
               <div style="font-size: 10px; color: var(--text-muted);">PLAN TIER</div>
               <div id="licPlanName" style="font-size: 13px; font-weight: 700; color: var(--accent);">Enterprise Platinum</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">SCOPE / SEATS</div>
+              <div id="licSeats" style="font-size: 12px; font-weight: 700; color: #38bdf8;">🏢 Site License (Unlimited)</div>
             </div>
             <div>
               <div style="font-size: 10px; color: var(--text-muted);">ISSUED TO / ORG</div>
