@@ -77,7 +77,6 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   const btnImportFile = document.getElementById('btnGateImportFile');
   const gateFileInput = document.getElementById('gateFileInput') as HTMLInputElement;
   const btnExportReq = document.getElementById('btnGateExportChallenge');
-  const btnGenerateTrial = document.getElementById('btnGateGenerateTrial');
 
   const updateHeaderBadge = (st: any) => {
     if (headerLicPill) {
@@ -160,25 +159,7 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     }
   });
 
-  // 5. Generate 30-Day Evaluation Key (Demo convenience)
-  btnGenerateTrial?.addEventListener('click', async () => {
-    try {
-      const trialKey = await api.license.generateTrialKey('Enterprise Pilot Partner', 30);
-      if (txtKey) txtKey.value = trialKey;
-      if (msgBox) {
-        msgBox.style.display = 'block';
-        msgBox.style.background = 'rgba(78, 201, 176, 0.12)';
-        msgBox.style.border = '1px solid rgba(78, 201, 176, 0.35)';
-        msgBox.style.color = '#89d185';
-        msgBox.innerHTML = '✨ <strong>Evaluation Key Ready:</strong> Valid 30-day token generated. Click <b>"Validate License & Open Application"</b> to activate.';
-      }
-      showToast('✨ 30-Day Evaluation Token populated. Click Validate to unlock!');
-    } catch (e: any) {
-      showToast(`⚠️ Failed to generate evaluation key: ${e.message}`);
-    }
-  });
-
-  // 6. Import license.json
+  // 5. Import license.json
   btnImportFile?.addEventListener('click', () => {
     gateFileInput?.click();
   });
@@ -17029,31 +17010,6 @@ function setupModals(api: any): void {
       if (headerLicPill) {
         headerLicPill.className = 'header-pill warning';
         headerLicPill.innerText = '⚠️ UNLICENSED (Activation Required)';
-      }
-    }
-  });
-
-  // 30-Day Air-Gapped Trial
-  document.getElementById('btnModal30DayTrial')?.addEventListener('click', async () => {
-    if (api?.license) {
-      try {
-        const trialKey = await api.license.generateTrialKey('Acme Financial Corp', 30);
-        const txtKey = document.getElementById('txtModalLicenseKey') as HTMLTextAreaElement;
-        if (txtKey) txtKey.value = trialKey;
-        const res = await api.license.activateKey(trialKey);
-        if (res.valid) {
-          showToast('✨ Activated 30-Day Air-Gapped Platinum Trial! All enterprise modules unlocked.');
-          const gate = document.getElementById('licenseGateOverlay');
-          if (gate) gate.style.display = 'none';
-          const headerLicPill = document.getElementById('btnLicenseModal');
-          if (headerLicPill && res.state) {
-            headerLicPill.className = 'header-pill success';
-            headerLicPill.innerText = `💎 ${res.state.organization} · TRIAL (${res.state.daysRemaining}d)`;
-          }
-          openSettingsModal();
-        }
-      } catch (e: any) {
-        showToast(`⚠️ Trial error: ${e.message}`);
       }
     }
   });

@@ -210,7 +210,64 @@ Runs fully local with Ollama or Gemma 4 (free, private, your code never leaves y
 
 ---
 
+## 7. LinkedIn — Enterprise Limited Pilot Launch Post (with PDF Carousel)
+
+**Hook / Post Copy:**
+
+```text
+Why do 80% of Enterprise AI pilots stall before reaching production?
+
+It’s almost never the model.
+It’s the plumbing:
+
+❌ 6 weeks waiting for InfoSec to approve a cloud LLM SaaS.
+❌ 4 weeks waiting for IT administrator rights just to install tools.
+❌ Hundreds of legacy Oracle & T-SQL stored procedures that need manual rewrites.
+❌ No automated air-gapped licensing for defense/banking enclaves.
+
+Today, we're announcing the **Evolve AI Enterprise Edition — Limited Pilot Program**. 🚀
+
+We are opening up access to an exclusive cohort of **5 selected enterprise partners** (forward-deployed engineering teams, banks, resources, and regulated defense enclaves) to test-drive the full enterprise suite in live client environments before broader commercial release.
+
+Here is what our 5 Pilot Partners get access to on Day 1:
+
+1️⃣ **Zero-Install Standalone Desktop Studio (.exe)**
+Runs straight from an encrypted thumb drive or client folder. Zero administrator rights required. Zero corporate proxy blockage.
+
+2️⃣ **100% Air-Gapped Ed25519 Machine-Bound Licensing**
+Zero external telemetry. Zero outbound cloud calls. Hardware machine-bound offline signatures built for banking & defense enclaves.
+
+3️⃣ **Phase 5: Automated SQL Transpiler & Migration Suite**
+Instantly transpiles Oracle PL/SQL and SQL Server T-SQL to Snowflake and BigQuery. Generates automated Row-Level Security (RLS) policies, referential synthetic test data, and reverse ETL sync workers.
+
+4️⃣ **Phase 6: Multi-Cloud DevOps & Kubernetes Hub**
+Scaffolds production Terraform HCL, GPU-enabled Kubernetes manifests, and multi-cloud CI/CD pipelines (GitHub Actions, GitLab CI, Azure DevOps, Bitbucket) in minutes.
+
+5️⃣ **Automated PII Masking & SIEM Forwarder**
+Splunk, Datadog, and Sentinel compliant audit trails generated automatically with Great Expectations drift gates.
+
+---
+
+📊 **Attached:** Check out the 8-slide executive carousel breaking down how Forward-Deployed Engineering teams cut client delivery cycles from 3 months to 14 days.
+
+🎯 **Want to join the 5-Partner Limited Pilot?**
+Drop a comment with **"PILOT"** below or send us a direct message, and our engineering team will provide a 90-day pilot key, architectural brief, and a 15-minute technical onboarding walkthrough.
+
+🔗 Explore the studio: https://www.evolveminds.com.au/products/evolve-ai/
+📦 Free Community Edition on VS Code Marketplace: https://marketplace.visualstudio.com/items?itemName=codeforge-ai.evolve-ai
+
+#EnterpriseAI #ForwardDeployedEngineering #DataEngineering #AirGapped #DevOps #Databricks #BigQuery #Snowflake #GenerativeAI #LimitedPilot
+```
+
+---
+
 ## Posting Tips
+
+### LinkedIn (Carousel PDF Post)
+- Export `docs/Evolve_AI_Enterprise_LinkedIn_Carousel.html` to PDF (or use `docs/Evolve_AI_Enterprise_LinkedIn_Carousel.pdf`) and attach as a Document on LinkedIn for maximum algorithmic reach and swipe engagement.
+- Post Tuesday-Thursday, 8:00 AM – 9:30 AM local time (AEDT / AEST for Sydney/Melbourne, or EST for US East).
+- Tag @Evolve Mind Solutions and relevant team members in the first comment rather than the main post body.
+- Reply to every comment within 60 minutes to maintain feed momentum.
 
 ### Hacker News
 - Post Tuesday-Thursday, 8-10 AM Pacific

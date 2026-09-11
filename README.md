@@ -11,20 +11,22 @@
 **Evolve AI** is built by **[Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)** to bring enterprise AI code assistance, autonomous data engineering, and a comprehensive **Forward-Deployed Engineers Delivery Studio** directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Colibri** (GLM-5.2 744B running locally), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
 
 > [!NOTE]
-> ### 📢 Free Community Edition vs. 💎 Paid Enterprise Edition
+> ### 📢 Free Community Edition vs. 💎 Enterprise Edition (Limited Pilot)
 > You are viewing the **Free Community Edition** of Evolve AI (MIT License) on the VS Code Marketplace.
 > 
 > The Community Edition provides core AI assistance, local offline LLM execution, and our foundational 4-step Forward-Deployed Engineers delivery studio with limited features.
 > 
-> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Paid Enterprise Edition** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
+> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Enterprise Edition (Limited Pilot)** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
 > 
-> 🔗 **[Explore & Buy Enterprise Edition](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Licensing & Demos](https://www.evolveminds.com.au/contact/)**
+> > 🔒 **Limited Pilot Program**: The Enterprise Edition is currently in an invite-only **Limited Pilot** with **5 selected enterprise partners** (including major Australian banking, mining, and healthcare institutions) to validate real-world production workloads before general commercial availability and public pricing.
+> 
+> 🔗 **[Explore Enterprise Limited Pilot](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Pilot Onboarding](https://www.evolveminds.com.au/contact/)**
 
-### 📊 Edition Comparison Matrix: Free vs. Paid Enterprise
+### 📊 Edition Comparison Matrix: Free Community vs. Enterprise (Limited Pilot)
 
-| Capability & Feature Area | Free Community Edition (VS Marketplace) | Paid Enterprise Edition (Desktop & Studio) |
+| Capability & Feature Area | Free Community Edition (VS Marketplace) | Enterprise Edition (Limited Pilot) |
 | :--- | :---: | :---: |
-| **Price & Licensing** | **Free & Open Source** (MIT) | **Commercial Tier** (`Pro`, `Standard`, `Platinum`) |
+| **Price & Licensing** | **Free & Open Source** (MIT) | **Limited Pilot (5 Initial Partners)** / Commercial |
 | **Runtime Environment** | VS Code Extension Only | **Zero-Install Standalone Desktop App (.exe)** + Enterprise VS Code Extension |
 | **Air-Gapped & Security Enclave** | Basic local mode | **100% Air-Gapped Enclave**, Ed25519 Cryptographic Hardware Machine-Bound Licensing, Offline Patch (.zip) Loader |
 | **Telemetry & Outbound Network** | Zero telemetry | **Zero external telemetry**, strict air-gap compliance guarantee |
@@ -37,7 +39,7 @@
 
 ### Why Evolve AI?
 
-- **Free Community vs. Enterprise Delivery Studio Alignment** *(v2.20.0)* — Clear frontline boundary between the Free Community Edition (4-step Ingestion, API SDK, Pre-Flight, and Runbook factory) and the Paid Enterprise Edition (standalone `.exe`, 8-step enterprise studio, Oracle/T-SQL transpilation, and site licensing).
+- **Free Community vs. Enterprise Delivery Studio Alignment** *(v2.20.0)* — Clear frontline boundary between the Free Community Edition (4-step Ingestion, API SDK, Pre-Flight, and Runbook factory) and the Enterprise Edition (Limited Pilot: standalone `.exe`, 8-step enterprise studio, Oracle/T-SQL transpilation, and site licensing).
 - **Display Scale, Zoom Manager & High-DPI Readability** *(v2.20.0)* — Native GPU-accelerated subpixel zoom, High-DPI auto-detection (115%/125%), interactive zoom widget with slider and presets, reading comfort modes, and elevated theme luminance.
 - **Updates & Version Management Hub** *(v2.20.0)* — Embedded Settings panel for live GitHub release checking and 1-click air-gapped offline patch bundle management.
 - **AI Schema Copilot & Dimensional Mart Discovery** *(v2.19.1)* — domain-agnostic AI schema standardizer with automated PII masking, multi-table foreign-key graph traversal, and natural-language prompt-to-mart modeling.

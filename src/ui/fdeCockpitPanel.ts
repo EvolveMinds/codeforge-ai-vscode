@@ -3012,7 +3012,7 @@ Output ONLY the message without markdown code fences.`;
     </div>
     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
-      <button class="btn btn-primary" onclick="openEnterpriseModal()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Compare Community Free vs. Paid Enterprise Edition">💎 Upgrade to Enterprise</button>
+      <button class="btn btn-primary" onclick="openEnterpriseModal()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Compare Community Free vs. Paid Enterprise Edition (Limited Pilot)">💎 Enterprise <span style="background: rgba(255,255,255,0.25); font-size: 9.5px; padding: 1px 6px; border-radius: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">Limited Pilot</span></button>
       <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #c4562b 0%, #a8481f 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Download Evolve AI Enterprise Desktop Edition from Company Website">🖥️ Desktop App ↗</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
@@ -3027,10 +3027,10 @@ Output ONLY the message without markdown code fences.`;
       <span style="font-size: 20px;">🛡️</span>
       <div>
         <div style="font-size: 12px; font-weight: 700; color: #38bdf8;">
-          You are running the Free Community Edition (Phases 1–4)
+          You are running the Free Community Edition (Phases 1–4) • Enterprise Edition currently in <span style="background: rgba(56, 189, 248, 0.2); padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.4);">Limited Pilot</span>
         </div>
         <div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">
-          Need <b>Phase 5: Enterprise Suite</b> (Oracle/T-SQL to BigQuery/Snowflake Transpiler, Automated RLS, Reverse ETL, Synthetic Data) or <b>Phase 6: DevOps &amp; Kubernetes Hub</b>? Upgrade to the <b>Paid Enterprise Edition</b> or download the zero-install <b>Standalone Desktop App</b>.
+          Need <b>Phase 5: Enterprise Suite</b> (Oracle/T-SQL to BigQuery/Snowflake Transpiler, Automated RLS, Reverse ETL, Synthetic Data) or <b>Phase 6: DevOps Hub</b>? The Enterprise Edition is currently in an invite-only <b>Limited Pilot with 5 selected enterprise partners</b>.
         </div>
       </div>
     </div>
@@ -8162,15 +8162,19 @@ Output ONLY the message without markdown code fences.`;
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 26px;">💎</span>
         <div>
-          <h2 style="margin: 0; font-size: 18px; color: #fff;">Evolve AI Enterprise Edition</h2>
+          <h2 style="margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 8px;">Evolve AI Enterprise Edition <span style="font-size: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase;">Limited Pilot</span></h2>
           <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">Zero-Install Desktop Studio • Air-Gapped Security • Enterprise Migration Engines</div>
         </div>
       </div>
       <button class="btn-quick" onclick="closeEnterpriseModal()" style="padding: 4px 10px; font-size: 14px; cursor: pointer;">✕</button>
     </div>
 
+    <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; color: var(--fg, #e4e4e7);">
+      <strong style="color: #38bdf8;">📢 Limited Pilot Status:</strong> The Enterprise Edition is currently in an invite-only <b>Limited Pilot</b> with <b>5 selected enterprise partners</b> to validate live workloads before open commercial release and public charging.
+    </div>
+
     <p style="font-size: 13px; color: var(--fg, #e4e4e7); line-height: 1.5; margin-bottom: 16px;">
-      The <b>Free Community Edition</b> on the VS Code Marketplace includes our foundational 4-step delivery studio. The <b>Paid Enterprise Edition</b> delivers full commercial autonomy, bank-grade air-gapped security, automated database migration suites, and a zero-install standalone desktop executable.
+      The <b>Free Community Edition</b> on the VS Code Marketplace includes our foundational 4-step delivery studio. The <b>Paid Enterprise Edition (Limited Pilot)</b> delivers full commercial autonomy, bank-grade air-gapped security, automated database migration suites, and a zero-install standalone desktop executable.
     </p>
 
     <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; text-align: left;">
@@ -8178,7 +8182,7 @@ Output ONLY the message without markdown code fences.`;
         <tr style="border-bottom: 2px solid var(--border, #27272a); background: var(--card-alt, #111);">
           <th style="padding: 10px 12px;">Capability / Module</th>
           <th style="padding: 10px 12px; text-align: center;">Free Community (Marketplace)</th>
-          <th style="padding: 10px 12px; text-align: center; color: #38bdf8;">Paid Enterprise Edition</th>
+          <th style="padding: 10px 12px; text-align: center; color: #38bdf8;">Enterprise Edition <span style="font-size: 9.5px; background: rgba(56,189,248,0.2); padding: 1px 6px; border-radius: 4px; font-weight: 700; border: 1px solid rgba(56,189,248,0.4);">Limited Pilot</span></th>
         </tr>
       </thead>
       <tbody>
@@ -8222,8 +8226,8 @@ Output ONLY the message without markdown code fences.`;
 
     <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
       <div>
-        <div style="font-weight: 700; color: #fff; font-size: 13px;">Ready to evaluate or purchase Enterprise licenses?</div>
-        <div style="color: var(--fg, #a1a1aa); font-size: 12px; margin-top: 3px;">Direct download standalone executable or contact our team for enterprise procurement.</div>
+        <div style="font-weight: 700; color: #fff; font-size: 13px;">Enterprise Edition — Limited Pilot Program (5 Initial Partners)</div>
+        <div style="color: var(--fg, #a1a1aa); font-size: 12px; margin-top: 3px;">Currently testing with 5 selected enterprise partners before wider commercial rollout. Contact us to enquire about pilot slots or download the standalone desktop evaluator.</div>
       </div>
       <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 8px 16px; font-size: 12px; background: #c4562b; color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px;">Download Desktop App (.exe) ↗</button>
