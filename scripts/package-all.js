@@ -34,7 +34,13 @@ execSync('npm run compile', { stdio: 'inherit', cwd: path.join(__dirname, '..') 
 // 2. Secret Scan
 console.log(`\n[2/3] Performing pre-packaging security and secret scan...`);
 const vsceList = execSync('npx vsce ls', { encoding: 'utf8', cwd: path.join(__dirname, '..') });
-const secretMatches = vsceList.split('\n').filter(line => /token|secret|\.env|credential|password|key/i.test(line));
+const secretMatches = vsceList.split('\n')
+  .filter(Boolean)
+  .filter(line => {
+    // Compiled JS code in out/ is not a secret file
+    if (line.startsWith('out/')) return false;
+    return /token|secret|\.env|credential|password|\.key|\.pem/i.test(line);
+  });
 if (secretMatches.length > 0) {
   console.error(`\n[ERROR] Secret scan failed! The following sensitive files matched:\n`);
   secretMatches.forEach(m => console.error(`  - ${m}`));

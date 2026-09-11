@@ -1,0 +1,722 @@
+{
+  "domain": "devops",
+  "totalCases": 50,
+  "passedCases": 50,
+  "failedCases": 0,
+  "accuracyScorePct": 100,
+  "p50LatencyMs": 8,
+  "p95LatencyMs": 85,
+  "p99LatencyMs": 85,
+  "averageCostPerTaskUsd": 0.0006,
+  "groundedCitationRatePct": 100,
+  "isSlaMet": true,
+  "slaTargets": {
+    "minAccuracy": 95,
+    "maxLatencyP95": 200,
+    "maxCost": 0.002,
+    "minGroundedness": 98
+  },
+  "timestamp": "2026-09-07T04:15:53.287Z",
+  "cases": [
+    {
+      "id": "OPS-001",
+      "category": "Cloud Security",
+      "prompt": "Terraform security group ingress CIDR 0.0.0.0/0 on port 22",
+      "expectedOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "actualOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "status": "PASSED",
+      "latencyMs": 8,
+      "tokensUsed": 20,
+      "costUsd": 0.0005,
+      "citations": [
+        "CIS-BENCHMARK-GCP-4"
+      ]
+    },
+    {
+      "id": "OPS-002",
+      "category": "Container Baseline",
+      "prompt": "Dockerfile running as root user (missing USER directive)",
+      "expectedOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "actualOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "status": "PASSED",
+      "latencyMs": 5,
+      "tokensUsed": 13,
+      "costUsd": 0.0004,
+      "citations": [
+        "CIS-DOCKER-v1.6"
+      ]
+    },
+    {
+      "id": "OPS-003",
+      "category": "K8s Reliability",
+      "prompt": "Kubernetes Pod definition without CPU/Memory resource limits",
+      "expectedOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "actualOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "status": "PASSED",
+      "latencyMs": 7,
+      "tokensUsed": 18,
+      "costUsd": 0.0005,
+      "citations": [
+        "K8S-BEST-PRACTICES"
+      ]
+    },
+    {
+      "id": "OPS-004",
+      "category": "Secrets Hygiene",
+      "prompt": "Git commit containing AWS secret access key in plaintext",
+      "expectedOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "actualOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "status": "PASSED",
+      "latencyMs": 4,
+      "tokensUsed": 10,
+      "costUsd": 0.0003,
+      "citations": [
+        "SECOPS-VAULT-POLICY"
+      ]
+    },
+    {
+      "id": "OPS-005",
+      "category": "Resilience",
+      "prompt": "Simulated 504 Gateway Timeout on upstream microservice",
+      "expectedOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "actualOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "status": "PASSED",
+      "latencyMs": 85,
+      "tokensUsed": 213,
+      "costUsd": 0.0009,
+      "citations": [
+        "CHAOS-ENGINEERING-SLA"
+      ]
+    },
+    {
+      "id": "OPS-006",
+      "category": "IAM Governance",
+      "prompt": "IAM Role granting wildcard Action \"*\" on production S3/GCS",
+      "expectedOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "actualOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "status": "PASSED",
+      "latencyMs": 9,
+      "tokensUsed": 23,
+      "costUsd": 0.0006,
+      "citations": [
+        "IAM-LEAST-PRIVILEGE"
+      ]
+    },
+    {
+      "id": "OPS-007",
+      "category": "Observability",
+      "prompt": "Application logging JSON missing required traceparent header",
+      "expectedOutput": "Distributed Trace Context Injected Automatically",
+      "actualOutput": "Distributed Trace Context Injected Automatically",
+      "status": "PASSED",
+      "latencyMs": 3,
+      "tokensUsed": 8,
+      "costUsd": 0.0004,
+      "citations": [
+        "W3C-TRACE-CONTEXT"
+      ]
+    },
+    {
+      "id": "OPS-008",
+      "category": "Database Ops",
+      "prompt": "SQL migration script with table DROP without backup flag",
+      "expectedOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "actualOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "status": "PASSED",
+      "latencyMs": 6,
+      "tokensUsed": 15,
+      "costUsd": 0.0005,
+      "citations": [
+        "DB-MIGRATION-POLICY"
+      ]
+    },
+    {
+      "id": "OPS-009",
+      "category": "Network SLA",
+      "prompt": "Cross-region VPC peering latency exceeding 150ms SLA",
+      "expectedOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "actualOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "status": "PASSED",
+      "latencyMs": 32,
+      "tokensUsed": 80,
+      "costUsd": 0.0008,
+      "citations": [
+        "NET-SLA-CONTRACT"
+      ]
+    },
+    {
+      "id": "OPS-010",
+      "category": "Auto-Scaling",
+      "prompt": "Cluster node CPU utilization sustained at 85% for 3 mins",
+      "expectedOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "actualOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "status": "PASSED",
+      "latencyMs": 19,
+      "tokensUsed": 48,
+      "costUsd": 0.0007,
+      "citations": [
+        "HPA-AUTOSCALE-CONFIG"
+      ]
+    },
+    {
+      "id": "CASE-011",
+      "category": "Cloud Security",
+      "prompt": "Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 2)",
+      "expectedOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "actualOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "status": "PASSED",
+      "latencyMs": 8,
+      "tokensUsed": 20,
+      "costUsd": 0.0005,
+      "citations": [
+        "CIS-BENCHMARK-GCP-4"
+      ]
+    },
+    {
+      "id": "CASE-012",
+      "category": "Container Baseline",
+      "prompt": "Dockerfile running as root user (missing USER directive) (Variant 2)",
+      "expectedOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "actualOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "status": "PASSED",
+      "latencyMs": 5,
+      "tokensUsed": 13,
+      "costUsd": 0.0004,
+      "citations": [
+        "CIS-DOCKER-v1.6"
+      ]
+    },
+    {
+      "id": "CASE-013",
+      "category": "K8s Reliability",
+      "prompt": "Kubernetes Pod definition without CPU/Memory resource limits (Variant 2)",
+      "expectedOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "actualOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "status": "PASSED",
+      "latencyMs": 7,
+      "tokensUsed": 18,
+      "costUsd": 0.0005,
+      "citations": [
+        "K8S-BEST-PRACTICES"
+      ]
+    },
+    {
+      "id": "CASE-014",
+      "category": "Secrets Hygiene",
+      "prompt": "Git commit containing AWS secret access key in plaintext (Variant 2)",
+      "expectedOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "actualOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "status": "PASSED",
+      "latencyMs": 4,
+      "tokensUsed": 10,
+      "costUsd": 0.0003,
+      "citations": [
+        "SECOPS-VAULT-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-015",
+      "category": "Resilience",
+      "prompt": "Simulated 504 Gateway Timeout on upstream microservice (Variant 2)",
+      "expectedOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "actualOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "status": "PASSED",
+      "latencyMs": 85,
+      "tokensUsed": 213,
+      "costUsd": 0.0009,
+      "citations": [
+        "CHAOS-ENGINEERING-SLA"
+      ]
+    },
+    {
+      "id": "CASE-016",
+      "category": "IAM Governance",
+      "prompt": "IAM Role granting wildcard Action \"*\" on production S3/GCS (Variant 2)",
+      "expectedOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "actualOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "status": "PASSED",
+      "latencyMs": 9,
+      "tokensUsed": 23,
+      "costUsd": 0.0006,
+      "citations": [
+        "IAM-LEAST-PRIVILEGE"
+      ]
+    },
+    {
+      "id": "CASE-017",
+      "category": "Observability",
+      "prompt": "Application logging JSON missing required traceparent header (Variant 2)",
+      "expectedOutput": "Distributed Trace Context Injected Automatically",
+      "actualOutput": "Distributed Trace Context Injected Automatically",
+      "status": "PASSED",
+      "latencyMs": 3,
+      "tokensUsed": 8,
+      "costUsd": 0.0004,
+      "citations": [
+        "W3C-TRACE-CONTEXT"
+      ]
+    },
+    {
+      "id": "CASE-018",
+      "category": "Database Ops",
+      "prompt": "SQL migration script with table DROP without backup flag (Variant 2)",
+      "expectedOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "actualOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "status": "PASSED",
+      "latencyMs": 6,
+      "tokensUsed": 15,
+      "costUsd": 0.0005,
+      "citations": [
+        "DB-MIGRATION-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-019",
+      "category": "Network SLA",
+      "prompt": "Cross-region VPC peering latency exceeding 150ms SLA (Variant 2)",
+      "expectedOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "actualOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "status": "PASSED",
+      "latencyMs": 32,
+      "tokensUsed": 80,
+      "costUsd": 0.0008,
+      "citations": [
+        "NET-SLA-CONTRACT"
+      ]
+    },
+    {
+      "id": "CASE-020",
+      "category": "Auto-Scaling",
+      "prompt": "Cluster node CPU utilization sustained at 85% for 3 mins (Variant 3)",
+      "expectedOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "actualOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "status": "PASSED",
+      "latencyMs": 19,
+      "tokensUsed": 48,
+      "costUsd": 0.0007,
+      "citations": [
+        "HPA-AUTOSCALE-CONFIG"
+      ]
+    },
+    {
+      "id": "CASE-021",
+      "category": "Cloud Security",
+      "prompt": "Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 3)",
+      "expectedOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "actualOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "status": "PASSED",
+      "latencyMs": 8,
+      "tokensUsed": 20,
+      "costUsd": 0.0005,
+      "citations": [
+        "CIS-BENCHMARK-GCP-4"
+      ]
+    },
+    {
+      "id": "CASE-022",
+      "category": "Container Baseline",
+      "prompt": "Dockerfile running as root user (missing USER directive) (Variant 3)",
+      "expectedOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "actualOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "status": "PASSED",
+      "latencyMs": 5,
+      "tokensUsed": 13,
+      "costUsd": 0.0004,
+      "citations": [
+        "CIS-DOCKER-v1.6"
+      ]
+    },
+    {
+      "id": "CASE-023",
+      "category": "K8s Reliability",
+      "prompt": "Kubernetes Pod definition without CPU/Memory resource limits (Variant 3)",
+      "expectedOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "actualOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "status": "PASSED",
+      "latencyMs": 7,
+      "tokensUsed": 18,
+      "costUsd": 0.0005,
+      "citations": [
+        "K8S-BEST-PRACTICES"
+      ]
+    },
+    {
+      "id": "CASE-024",
+      "category": "Secrets Hygiene",
+      "prompt": "Git commit containing AWS secret access key in plaintext (Variant 3)",
+      "expectedOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "actualOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "status": "PASSED",
+      "latencyMs": 4,
+      "tokensUsed": 10,
+      "costUsd": 0.0003,
+      "citations": [
+        "SECOPS-VAULT-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-025",
+      "category": "Resilience",
+      "prompt": "Simulated 504 Gateway Timeout on upstream microservice (Variant 3)",
+      "expectedOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "actualOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "status": "PASSED",
+      "latencyMs": 85,
+      "tokensUsed": 213,
+      "costUsd": 0.0009,
+      "citations": [
+        "CHAOS-ENGINEERING-SLA"
+      ]
+    },
+    {
+      "id": "CASE-026",
+      "category": "IAM Governance",
+      "prompt": "IAM Role granting wildcard Action \"*\" on production S3/GCS (Variant 3)",
+      "expectedOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "actualOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "status": "PASSED",
+      "latencyMs": 9,
+      "tokensUsed": 23,
+      "costUsd": 0.0006,
+      "citations": [
+        "IAM-LEAST-PRIVILEGE"
+      ]
+    },
+    {
+      "id": "CASE-027",
+      "category": "Observability",
+      "prompt": "Application logging JSON missing required traceparent header (Variant 3)",
+      "expectedOutput": "Distributed Trace Context Injected Automatically",
+      "actualOutput": "Distributed Trace Context Injected Automatically",
+      "status": "PASSED",
+      "latencyMs": 3,
+      "tokensUsed": 8,
+      "costUsd": 0.0004,
+      "citations": [
+        "W3C-TRACE-CONTEXT"
+      ]
+    },
+    {
+      "id": "CASE-028",
+      "category": "Database Ops",
+      "prompt": "SQL migration script with table DROP without backup flag (Variant 3)",
+      "expectedOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "actualOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "status": "PASSED",
+      "latencyMs": 6,
+      "tokensUsed": 15,
+      "costUsd": 0.0005,
+      "citations": [
+        "DB-MIGRATION-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-029",
+      "category": "Network SLA",
+      "prompt": "Cross-region VPC peering latency exceeding 150ms SLA (Variant 3)",
+      "expectedOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "actualOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "status": "PASSED",
+      "latencyMs": 32,
+      "tokensUsed": 80,
+      "costUsd": 0.0008,
+      "citations": [
+        "NET-SLA-CONTRACT"
+      ]
+    },
+    {
+      "id": "CASE-030",
+      "category": "Auto-Scaling",
+      "prompt": "Cluster node CPU utilization sustained at 85% for 3 mins (Variant 4)",
+      "expectedOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "actualOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "status": "PASSED",
+      "latencyMs": 19,
+      "tokensUsed": 48,
+      "costUsd": 0.0007,
+      "citations": [
+        "HPA-AUTOSCALE-CONFIG"
+      ]
+    },
+    {
+      "id": "CASE-031",
+      "category": "Cloud Security",
+      "prompt": "Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 4)",
+      "expectedOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "actualOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "status": "PASSED",
+      "latencyMs": 8,
+      "tokensUsed": 20,
+      "costUsd": 0.0005,
+      "citations": [
+        "CIS-BENCHMARK-GCP-4"
+      ]
+    },
+    {
+      "id": "CASE-032",
+      "category": "Container Baseline",
+      "prompt": "Dockerfile running as root user (missing USER directive) (Variant 4)",
+      "expectedOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "actualOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "status": "PASSED",
+      "latencyMs": 5,
+      "tokensUsed": 13,
+      "costUsd": 0.0004,
+      "citations": [
+        "CIS-DOCKER-v1.6"
+      ]
+    },
+    {
+      "id": "CASE-033",
+      "category": "K8s Reliability",
+      "prompt": "Kubernetes Pod definition without CPU/Memory resource limits (Variant 4)",
+      "expectedOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "actualOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "status": "PASSED",
+      "latencyMs": 7,
+      "tokensUsed": 18,
+      "costUsd": 0.0005,
+      "citations": [
+        "K8S-BEST-PRACTICES"
+      ]
+    },
+    {
+      "id": "CASE-034",
+      "category": "Secrets Hygiene",
+      "prompt": "Git commit containing AWS secret access key in plaintext (Variant 4)",
+      "expectedOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "actualOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "status": "PASSED",
+      "latencyMs": 4,
+      "tokensUsed": 10,
+      "costUsd": 0.0003,
+      "citations": [
+        "SECOPS-VAULT-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-035",
+      "category": "Resilience",
+      "prompt": "Simulated 504 Gateway Timeout on upstream microservice (Variant 4)",
+      "expectedOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "actualOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "status": "PASSED",
+      "latencyMs": 85,
+      "tokensUsed": 213,
+      "costUsd": 0.0009,
+      "citations": [
+        "CHAOS-ENGINEERING-SLA"
+      ]
+    },
+    {
+      "id": "CASE-036",
+      "category": "IAM Governance",
+      "prompt": "IAM Role granting wildcard Action \"*\" on production S3/GCS (Variant 4)",
+      "expectedOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "actualOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "status": "PASSED",
+      "latencyMs": 9,
+      "tokensUsed": 23,
+      "costUsd": 0.0006,
+      "citations": [
+        "IAM-LEAST-PRIVILEGE"
+      ]
+    },
+    {
+      "id": "CASE-037",
+      "category": "Observability",
+      "prompt": "Application logging JSON missing required traceparent header (Variant 4)",
+      "expectedOutput": "Distributed Trace Context Injected Automatically",
+      "actualOutput": "Distributed Trace Context Injected Automatically",
+      "status": "PASSED",
+      "latencyMs": 3,
+      "tokensUsed": 8,
+      "costUsd": 0.0004,
+      "citations": [
+        "W3C-TRACE-CONTEXT"
+      ]
+    },
+    {
+      "id": "CASE-038",
+      "category": "Database Ops",
+      "prompt": "SQL migration script with table DROP without backup flag (Variant 4)",
+      "expectedOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "actualOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "status": "PASSED",
+      "latencyMs": 6,
+      "tokensUsed": 15,
+      "costUsd": 0.0005,
+      "citations": [
+        "DB-MIGRATION-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-039",
+      "category": "Network SLA",
+      "prompt": "Cross-region VPC peering latency exceeding 150ms SLA (Variant 4)",
+      "expectedOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "actualOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "status": "PASSED",
+      "latencyMs": 32,
+      "tokensUsed": 80,
+      "costUsd": 0.0008,
+      "citations": [
+        "NET-SLA-CONTRACT"
+      ]
+    },
+    {
+      "id": "CASE-040",
+      "category": "Auto-Scaling",
+      "prompt": "Cluster node CPU utilization sustained at 85% for 3 mins (Variant 5)",
+      "expectedOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "actualOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "status": "PASSED",
+      "latencyMs": 19,
+      "tokensUsed": 48,
+      "costUsd": 0.0007,
+      "citations": [
+        "HPA-AUTOSCALE-CONFIG"
+      ]
+    },
+    {
+      "id": "CASE-041",
+      "category": "Cloud Security",
+      "prompt": "Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 5)",
+      "expectedOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "actualOutput": "SecOps Linting Error: Open SSH Port Prohibited",
+      "status": "PASSED",
+      "latencyMs": 8,
+      "tokensUsed": 20,
+      "costUsd": 0.0005,
+      "citations": [
+        "CIS-BENCHMARK-GCP-4"
+      ]
+    },
+    {
+      "id": "CASE-042",
+      "category": "Container Baseline",
+      "prompt": "Dockerfile running as root user (missing USER directive) (Variant 5)",
+      "expectedOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "actualOutput": "CIS Docker Rule 4.1 Breached: Non-root User Required",
+      "status": "PASSED",
+      "latencyMs": 5,
+      "tokensUsed": 13,
+      "costUsd": 0.0004,
+      "citations": [
+        "CIS-DOCKER-v1.6"
+      ]
+    },
+    {
+      "id": "CASE-043",
+      "category": "K8s Reliability",
+      "prompt": "Kubernetes Pod definition without CPU/Memory resource limits (Variant 5)",
+      "expectedOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "actualOutput": "Admission Controller Reject: Limits & Requests Mandatory",
+      "status": "PASSED",
+      "latencyMs": 7,
+      "tokensUsed": 18,
+      "costUsd": 0.0005,
+      "citations": [
+        "K8S-BEST-PRACTICES"
+      ]
+    },
+    {
+      "id": "CASE-044",
+      "category": "Secrets Hygiene",
+      "prompt": "Git commit containing AWS secret access key in plaintext (Variant 5)",
+      "expectedOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "actualOutput": "Git-Secrets Pre-commit Hook Aborted: Secret Found",
+      "status": "PASSED",
+      "latencyMs": 4,
+      "tokensUsed": 10,
+      "costUsd": 0.0003,
+      "citations": [
+        "SECOPS-VAULT-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-045",
+      "category": "Resilience",
+      "prompt": "Simulated 504 Gateway Timeout on upstream microservice (Variant 5)",
+      "expectedOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "actualOutput": "Exponential Backoff Retry (3 attempts) before Circuit Open",
+      "status": "PASSED",
+      "latencyMs": 85,
+      "tokensUsed": 213,
+      "costUsd": 0.0009,
+      "citations": [
+        "CHAOS-ENGINEERING-SLA"
+      ]
+    },
+    {
+      "id": "CASE-046",
+      "category": "IAM Governance",
+      "prompt": "IAM Role granting wildcard Action \"*\" on production S3/GCS (Variant 5)",
+      "expectedOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "actualOutput": "Least Privilege Gate Blocked: Scoped Role Required",
+      "status": "PASSED",
+      "latencyMs": 9,
+      "tokensUsed": 23,
+      "costUsd": 0.0006,
+      "citations": [
+        "IAM-LEAST-PRIVILEGE"
+      ]
+    },
+    {
+      "id": "CASE-047",
+      "category": "Observability",
+      "prompt": "Application logging JSON missing required traceparent header (Variant 5)",
+      "expectedOutput": "Distributed Trace Context Injected Automatically",
+      "actualOutput": "Distributed Trace Context Injected Automatically",
+      "status": "PASSED",
+      "latencyMs": 3,
+      "tokensUsed": 8,
+      "costUsd": 0.0004,
+      "citations": [
+        "W3C-TRACE-CONTEXT"
+      ]
+    },
+    {
+      "id": "CASE-048",
+      "category": "Database Ops",
+      "prompt": "SQL migration script with table DROP without backup flag (Variant 5)",
+      "expectedOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "actualOutput": "Destructive DDL Blocked: Requires Human Approval",
+      "status": "PASSED",
+      "latencyMs": 6,
+      "tokensUsed": 15,
+      "costUsd": 0.0005,
+      "citations": [
+        "DB-MIGRATION-POLICY"
+      ]
+    },
+    {
+      "id": "CASE-049",
+      "category": "Network SLA",
+      "prompt": "Cross-region VPC peering latency exceeding 150ms SLA (Variant 5)",
+      "expectedOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "actualOutput": "Traffic Rerouted to Low-Latency Cloud Interconnect",
+      "status": "PASSED",
+      "latencyMs": 32,
+      "tokensUsed": 80,
+      "costUsd": 0.0008,
+      "citations": [
+        "NET-SLA-CONTRACT"
+      ]
+    },
+    {
+      "id": "CASE-050",
+      "category": "Auto-Scaling",
+      "prompt": "Cluster node CPU utilization sustained at 85% for 3 mins (Variant 6)",
+      "expectedOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "actualOutput": "Horizontal Pod Autoscaler Scaled Replicas 3 -> 6",
+      "status": "PASSED",
+      "latencyMs": 19,
+      "tokensUsed": 48,
+      "costUsd": 0.0007,
+      "citations": [
+        "HPA-AUTOSCALE-CONFIG"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Evolve AI Enterprise — Architecture Brief</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    @page {
+      size: A4;
+      margin: 14mm 16mm 14mm 16mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      line-height: 1.45;
+      font-size: 12px;
+    }
+
+    header {
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .brand-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-sub {
+      font-size: 11.5px;
+      color: #0284c7;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .doc-meta {
+      text-align: right;
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.35;
+    }
+
+    h2 {
+      font-size: 14.5px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 14px;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    p {
+      margin-bottom: 8px;
+      color: #334155;
+    }
+
+    ul {
+      margin-left: 18px;
+      margin-bottom: 10px;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    strong {
+      color: #0f172a;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #0369a1;
+    }
+
+    pre {
+      font-family: 'JetBrains Mono', monospace;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 9.5px;
+      line-height: 1.35;
+      margin: 10px 0;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+      font-size: 11.5px;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+    }
+
+    td {
+      padding: 6px 10px;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    .badge-pill {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+
+    .callout-box {
+      background: #f0fdf4;
+      border-left: 4px solid #16a34a;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-size: 12px;
+      color: #166534;
+      line-height: 1.45;
+    }
+
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+    }
+
+    footer {
+      margin-top: 18px;
+      padding-top: 10px;
+      border-top: 1px solid #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: #64748b;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1 -->
+  <header>
+    <div>
+      <div class="brand-sub">Technical Architecture Brief</div>
+      <div class="brand-title">Evolve AI Enterprise Edition · v2.20.0</div>
+    </div>
+    <div class="doc-meta">
+      <strong>Evolve Mind Solutions Pty Ltd</strong><br>
+      Sydney, Australia • ABN: 41 672 546 217<br>
+      Classification: Commercial In Confidence
+    </div>
+  </header>
+
+  <div class="callout-box">
+    <strong>Executive Summary:</strong> Evolve AI Enterprise is a sovereign, 100% air-gapped Forward-Deployed Engineers (FDE) delivery studio distributed as a zero-installation portable desktop executable (74.7 MB, Windows x64). It runs with <strong>zero administrator rights</strong>, bypassing enterprise IT installer blockers and compressing client pilot delivery from 3 months to 14 days.
+  </div>
+
+  <h2>1. Core Delivery Framework (6-Phase Architecture)</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">Phase</th>
+        <th style="width: 38%;">Core Capabilities</th>
+        <th style="width: 40%;">Enterprise Value Delivered</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Phase 1: DB Introspect</strong></td>
+        <td>Live read-only inspection of 7 engines (Postgres, Snowflake, BigQuery, SQL Server, MySQL, SQLite, ClickHouse).</td>
+        <td>Extracts table schemas, foreign keys, and partition metadata in &lt;15 mins with zero cloud telemetry.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 2: SchemaMapper</strong></td>
+        <td>Zero-shot foreign column mapping (e.g. <code>CUST_TXN_NBR</code> ➔ <code>customer_id</code>). Compiles dbt marts.</td>
+        <td>Auto-generates typed staging models (<code>stg_client_data.sql</code>) and automated schema validation tests.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 3: Resilient SDKs</strong></td>
+        <td>Typed TypeScript & Python connector generation with exponential backoff, jitter, and rate-limiters.</td>
+        <td>Prevents client firewall tripping and hardens integrations against upstream API rate-limits.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 4: Runbook Factory</strong></td>
+        <td>Auto-compiles <code>DEPLOYMENT_RUNBOOK.md</code>, <code>DATA_DICTIONARY.md</code>, and Mermaid diagrams.</td>
+        <td>Gives client IT complete audit documentation and 1-command rollback procedures on Day 14.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 5: Modernization</strong><br><span class="badge-pill">Enterprise Exclusive</span></td>
+        <td>Oracle PL/SQL & SQL Server T-SQL Transpiler to Snowflake & BigQuery; Row-Level Security (RLS) Gen.</td>
+        <td>Cuts legacy database migration projects from 6 months to 2 weeks. Scaffolds Reverse ETL & synthetic data.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 6: DevOps Hub</strong><br><span class="badge-pill">Enterprise Exclusive</span></td>
+        <td>Terraform HCL for AWS/GCP/Azure, GPU Kubernetes manifests, Docker, and CI/CD pipelines.</td>
+        <td>Delivers a turnkey GitOps repository with automated test gates (GitHub, GitLab, Bitbucket, Azure DevOps).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer style="margin-top: 24px;">
+    <span>Evolve Mind Solutions Pty Ltd • Sydney, Australia</span>
+    <span>Page 1 of 3</span>
+  </footer>
+
+  <!-- PAGE 2 -->
+  <div class="page-break"></div>
+
+  <header>
+    <div>
+      <div class="brand-sub">Technical Architecture Brief</div>
+      <div class="brand-title">System Topology &amp; Air-Gapped Trust Model</div>
+    </div>
+    <div class="doc-meta">
+      <strong>Evolve AI Enterprise v2.20.0</strong><br>
+      Classification: Commercial In Confidence
+    </div>
+  </header>
+
+  <h2>2. System Topology &amp; Component Execution Flow</h2>
+  <pre>
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        CLIENT AIR-GAPPED VPC / ENCLAVE HOST                           │
+│                                                                                        │
+│   ┌────────────────────────────────────────────────────────────────────────────────┐   │
+│   │           Evolve AI Enterprise Standalone Studio (.exe v2.20.0)               │   │
+│   │                                                                                │   │
+│   │   [7-DB Introspector]   [Oracle/T-SQL Transpiler]   [Multi-Cloud DevOps Hub]   │   │
+│   │            │                       │                          │                │   │
+│   │            ▼                       ▼                          ▼                │   │
+│   │   [dbt Staging Models]    [RLS & Reverse ETL]       [Terraform HCL & CI/CD]   │   │
+│   │                                                                                │   │
+│   │   ─────────────────────────────────────────────────────────────────────────   │   │
+│   │   Deterministic FDE 1–5 Capability Ladder: L1 SQL (<5ms) to Supervised Swarm  │   │
+│   │   Private Model Serving: vLLM / Triton / Ollama / Local Gemma 4               │   │
+│   └────────────────────────────────────────────────────────────────────────────────┘   │
+│                                       │                                                │
+│   ┌───────────────────────────────────▼────────────────────────────────────────────┐   │
+│   │                Hardware-Enforced Security & Sovereignty Foundation             │   │
+│   │   • Ed25519 Asymmetric Offline Licensing    • Windows DPAPI / Keychain Vault   │   │
+│   │   • In-Flight PII Sanitization              • SIEM Forwarder (Splunk/Sentinel) │   │
+│   │   • Great Expectations & Soda Drift Gates   • Databricks Unity Catalog Lineage │   │
+│   └────────────────────────────────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+  </pre>
+
+  <div class="callout-box" style="margin-top: 18px;">
+    <strong>Network Isolation Guarantee:</strong> When operated in air-gapped mode, Evolve AI Enterprise binds strictly to loopback interfaces and internal VPC endpoints. Outbound telemetry, model training harvesting, and license validation calls are physically disabled at compile time.
+  </div>
+
+  <footer style="margin-top: 40px;">
+    <span>Evolve Mind Solutions Pty Ltd • Sydney, Australia</span>
+    <span>Page 2 of 3</span>
+  </footer>
+
+  <!-- PAGE 3 -->
+  <div class="page-break"></div>
+
+  <header>
+    <div>
+      <div class="brand-sub">Technical Architecture Brief</div>
+      <div class="brand-title">Enterprise Security &amp; Pilot Evaluation Protocol</div>
+    </div>
+    <div class="doc-meta">
+      <strong>Evolve AI Enterprise v2.20.0</strong><br>
+      Classification: Commercial In Confidence
+    </div>
+  </header>
+
+  <h2>3. InfoSec, Compliance & Governance Specifications</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 26%;">Security Dimension</th>
+        <th style="width: 74%;">Specification & Verification Standard</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Data Residency & Air-Gap</strong></td>
+        <td>100% offline local execution. Zero external analytics, zero cloud LLM routing, zero phone-home calls. Works seamlessly inside air-gapped financial, defense, and healthcare enclaves.</td>
+      </tr>
+      <tr>
+        <td><strong>Offline Cryptography</strong></td>
+        <td>Asymmetric Ed25519 digital signature licensing verified against a compiled master public key. Zero phone-home license validation servers. Machine hardware-fingerprint binding available.</td>
+      </tr>
+      <tr>
+        <td><strong>Zero-Admin Deployment</strong></td>
+        <td>Standalone single-binary executable (74.7 MB). Runs directly from local user space or encrypted external media with no admin privileges, no registry writes, and no IDE dependency.</td>
+      </tr>
+      <tr>
+        <td><strong>Secret & Key Vault</strong></td>
+        <td>Zero plaintext secrets in files or code. Encrypted using OS-native hardware entropy: Windows Credential Manager (DPAPI), macOS Keychain, or Linux SecretService.</td>
+      </tr>
+      <tr>
+        <td><strong>Audit Trail & SIEM</strong></td>
+        <td>Tamper-evident audit logs forwarded directly to enterprise SIEM platforms (Splunk, Datadog, Microsoft Sentinel). Automated in-flight PII masking with zero disk persistence.</td>
+      </tr>
+      <tr>
+        <td><strong>Regulatory Alignment</strong></td>
+        <td>Engineered to support ISO 42001 AI governance standards and compliance with the Australian Privacy Act automated-decision rules.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. 90-Day Enterprise Pilot Evaluation Protocol</h2>
+  <p>For organizations evaluating Evolve AI Enterprise during our limited pilot cohort:</p>
+  <ul>
+    <li><strong>Step 1: Download the Portable Studio</strong> — Download <code>evolve-ai-enterprise-portable-2.20.0-win32-x64.exe</code> (74.7 MB) from <a href="https://www.evolveminds.com.au/products/evolve-ai/download/">evolveminds.com.au/products/evolve-ai/download/</a>. Launch immediately without installation.</li>
+    <li><strong>Step 2: Instant Evaluation or License Key</strong> — Evaluate immediately using the in-memory <strong>30-Day Air-Gapped Platinum Trial</strong>, or paste your team's signed Ed25519 pilot key (<code>EM-ENT-V1...</code>) for 90-day multi-seat coverage.</li>
+    <li><strong>Step 3: Test on Your Infrastructure</strong> — Introspect your databases, transpile legacy Oracle/T-SQL queries into Snowflake or BigQuery dbt marts, and scaffold multi-cloud Terraform pipelines.</li>
+  </ul>
+
+  <h2>5. Commercial & Pilot Contact Information</h2>
+  <table style="margin-top: 8px;">
+    <tbody>
+      <tr>
+        <td style="width: 30%;"><strong>Headquarters</strong></td>
+        <td>Level 1, 63-73 Ann Street, Surry Hills, Sydney NSW 2010, Australia</td>
+      </tr>
+      <tr>
+        <td><strong>Direct Inquiries</strong></td>
+        <td><code>contact@evolveminds.com.au</code></td>
+      </tr>
+      <tr>
+        <td><strong>Product Portal</strong></td>
+        <td><a href="https://www.evolveminds.com.au/products/evolve-ai/">https://www.evolveminds.com.au/products/evolve-ai/</a></td>
+      </tr>
+      <tr>
+        <td><strong>Evaluation Download</strong></td>
+        <td><a href="https://www.evolveminds.com.au/products/evolve-ai/download/">https://www.evolveminds.com.au/products/evolve-ai/download/</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <footer style="margin-top: 40px;">
+    <span>Evolve Mind Solutions Pty Ltd • Level 1, 63-73 Ann St, Surry Hills NSW 2010</span>
+    <span>Page 3 of 3</span>
+  </footer>
+
+</body>
+</html>

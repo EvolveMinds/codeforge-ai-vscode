@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Evolve AI Enterprise — LinkedIn Carousel</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    @page {
+      size: 1080px 1350px;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #060911;
+      color: #f1f5f9;
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      margin: 0;
+      padding: 0;
+    }
+
+    .slide {
+      width: 1080px;
+      height: 1350px;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+      overflow: hidden;
+      background: #080c16;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 68px 76px 56px 76px;
+    }
+
+    /* Ambient glows */
+    .slide::before {
+      content: '';
+      position: absolute;
+      top: -160px;
+      right: -160px;
+      width: 620px;
+      height: 620px;
+      background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(14, 165, 233, 0) 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .slide::after {
+      content: '';
+      position: absolute;
+      bottom: -160px;
+      left: -160px;
+      width: 540px;
+      height: 540px;
+      background: radial-gradient(circle, rgba(196, 86, 43, 0.1) 0%, rgba(78, 201, 176, 0.06) 50%, rgba(0, 0, 0, 0) 75%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content-layer {
+      position: relative;
+      z-index: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .brand-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 8px 18px;
+      border-radius: 9999px;
+      font-size: 13.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #38bdf8;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #89d185;
+      background: rgba(137, 209, 133, 0.12);
+      border: 1px solid rgba(137, 209, 133, 0.3);
+      padding: 6px 14px;
+      border-radius: 9999px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      background-color: #89d185;
+      border-radius: 50%;
+    }
+
+    /* Headings */
+    .heading-group {
+      margin-bottom: 26px;
+    }
+
+    .category-kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #4ec9b0;
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .main-title {
+      font-size: 48px;
+      line-height: 1.15;
+      font-weight: 800;
+      letter-spacing: normal;
+      color: #ffffff;
+      margin-bottom: 14px;
+    }
+
+    .main-title .highlight-red {
+      color: #f43f5e;
+      text-decoration: underline;
+      text-decoration-color: rgba(244, 63, 94, 0.4);
+      text-underline-offset: 8px;
+    }
+
+    .main-title .highlight-cyan {
+      background: linear-gradient(135deg, #38bdf8 0%, #4ec9b0 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .main-title .highlight-ochre {
+      background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 21px;
+      line-height: 1.45;
+      color: #94a3b8;
+      font-weight: 500;
+      max-width: 920px;
+    }
+
+    /* Cards & Containers */
+    .cards-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      flex: 1;
+      justify-content: center;
+      margin: 12px 0;
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.78);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      border-radius: 18px;
+      padding: 24px 28px;
+      position: relative;
+    }
+
+    .glass-card.danger {
+      border-left: 5px solid #f43f5e;
+      background: linear-gradient(90deg, rgba(244, 63, 94, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%);
+    }
+
+    .glass-card.accent {
+      border-left: 5px solid #38bdf8;
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%);
+    }
+
+    .glass-card.success {
+      border-left: 5px solid #89d185;
+      background: linear-gradient(90deg, rgba(137, 209, 133, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%);
+    }
+
+    .glass-card.ochre {
+      border-left: 5px solid #f59e0b;
+      background: linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%);
+    }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-size: 21px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(51, 65, 85, 0.6);
+      color: #94a3b8;
+    }
+
+    .card-badge.red {
+      background: rgba(244, 63, 94, 0.2);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+
+    .card-badge.green {
+      background: rgba(137, 209, 133, 0.2);
+      color: #89d185;
+      border: 1px solid rgba(137, 209, 133, 0.4);
+    }
+
+    .card-badge.cyan {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .card-badge.ochre {
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .card-body {
+      font-size: 16.5px;
+      line-height: 1.55;
+      color: #cbd5e1;
+    }
+
+    /* Grid layout (2x2) */
+    .grid-2x2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 10px 0;
+      flex: 1;
+      align-content: center;
+    }
+
+    .grid-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      border-radius: 18px;
+      padding: 24px 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 10px;
+    }
+
+    .grid-icon {
+      font-size: 28px;
+      margin-bottom: 2px;
+    }
+
+    .grid-card-title {
+      font-size: 19.5px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+
+    .grid-card-desc {
+      font-size: 15px;
+      line-height: 1.5;
+      color: #94a3b8;
+    }
+
+    /* Comparison Table */
+    .compare-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 8px;
+      margin: 8px 0;
+    }
+
+    .compare-table th {
+      font-size: 13.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #94a3b8;
+      font-weight: 600;
+      padding: 10px 18px;
+      text-align: left;
+    }
+
+    .compare-table td {
+      background: rgba(15, 23, 42, 0.7);
+      padding: 15px 18px;
+      font-size: 15px;
+      border-top: 1px solid rgba(51, 65, 85, 0.5);
+      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    }
+
+    .compare-table td:first-child {
+      font-weight: 700;
+      color: #ffffff;
+      border-left: 1px solid rgba(51, 65, 85, 0.5);
+      border-radius: 12px 0 0 12px;
+    }
+
+    .compare-table td:nth-child(2) {
+      color: #f87171;
+    }
+
+    .compare-table td:last-child {
+      color: #89d185;
+      font-weight: 700;
+      border-right: 1px solid rgba(78, 201, 176, 0.6);
+      background: rgba(15, 33, 30, 0.85);
+      border-radius: 0 12px 12px 0;
+    }
+
+    /* Bottom / Footer */
+    .slide-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 24px;
+      border-top: 1px solid rgba(51, 65, 85, 0.5);
+      margin-top: 18px;
+    }
+
+    .footer-org {
+      font-size: 14.5px;
+      font-weight: 600;
+      color: #64748b;
+      letter-spacing: 0.03em;
+    }
+
+    .footer-org strong {
+      color: #cbd5e1;
+    }
+
+    .page-index {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 5px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    /* Cover specific styles */
+    .hero-box {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 22px;
+      padding: 34px;
+      margin: 22px 0;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .hero-features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .hero-feat-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 17px;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .hero-feat-icon {
+      font-size: 22px;
+    }
+
+    .pilot-tag-banner {
+      background: linear-gradient(90deg, #0284c7 0%, #0d9488 100%);
+      color: #ffffff;
+      padding: 16px 22px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    /* CTA Slide specifics */
+    .cta-container {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 33, 30, 0.95) 100%);
+      border: 2px solid rgba(78, 201, 176, 0.5);
+      border-radius: 22px;
+      padding: 36px;
+      margin: 16px 0;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    .action-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 18px;
+      background: rgba(30, 41, 59, 0.5);
+      padding: 18px 22px;
+      border-radius: 14px;
+      border: 1px solid rgba(51, 65, 85, 0.6);
+    }
+
+    .action-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: #38bdf8;
+      color: #060911;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .action-text h4 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+
+    .action-text p {
+      font-size: 15px;
+      line-height: 1.45;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== SLIDE 1: COVER ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>⚡ EVOLVE AI ENTERPRISE · v2.20.0</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>100% AIR-GAPPED SUITE</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">SOVEREIGN AI &amp; FORWARD-DEPLOYED DELIVERY STUDIO</span>
+          <h1 class="main-title">
+            Why 80% of Enterprise AI Pilots <span class="highlight-red">Fail</span>
+          </h1>
+          <p class="subtitle">
+            And how modern Forward-Deployed Engineering teams cut client delivery from 3 months to 14 days with zero cloud data leaks.
+          </p>
+        </div>
+
+        <div class="hero-box">
+          <div style="font-family: 'JetBrains Mono', monospace; font-size: 13.5px; text-transform: uppercase; color: #38bdf8; font-weight: 700; letter-spacing: 0.1em; margin-bottom: 10px;">
+            THE ZERO-ADMIN PORTABLE DELIVERY STUDIO
+          </div>
+          <div style="font-size: 21px; font-weight: 700; color: #ffffff; line-height: 1.4;">
+            Automate data plumbing, transpile legacy Oracle/T-SQL, scaffold multi-cloud DevOps, and deploy deterministic AI directly in client VPCs.
+          </div>
+
+          <div class="hero-features">
+            <div class="hero-feat-item">
+              <span class="hero-feat-icon">💻</span>
+              <span>Portable .exe (Zero Admin Rights)</span>
+            </div>
+            <div class="hero-feat-item">
+              <span class="hero-feat-icon">🔄</span>
+              <span>Phase 5: Oracle/T-SQL Transpiler</span>
+            </div>
+            <div class="hero-feat-item">
+              <span class="hero-feat-icon">☁️</span>
+              <span>Phase 6: Multi-Cloud DevOps Hub</span>
+            </div>
+            <div class="hero-feat-item">
+              <span class="hero-feat-icon">🔒</span>
+              <span>Ed25519 Hardware-Bound Offline Licensing</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pilot-tag-banner">
+          <span>🚀 PRIVATE ENTERPRISE PILOT PROGRAM</span>
+          <span>5 SEATS OPEN FOR EVALUATION →</span>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          Published by <strong>Evolve Mind Solutions Pty Ltd</strong> • Sydney, Australia
+        </div>
+        <div class="page-index">Slide 01 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 2: REALITY CHECK ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>THE ENTERPRISE REALITY</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>PILOT DIAGNOSTIC</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">WHERE TRADITIONAL AI STALLS IN CLIENT VPCS</span>
+          <h2 class="main-title">
+            The 3 Enterprise <span class="highlight-red">Blockers</span>
+          </h2>
+          <p class="subtitle">
+            Most pilots don't fail on model capability. They fail on IT installation friction, compliance bans, and tedious migration drag.
+          </p>
+        </div>
+
+        <div class="cards-stack">
+          <div class="glass-card danger">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>💻 1. The IT Admin Rights Barrier</span>
+              </div>
+              <span class="card-badge red">4–8 WEEKS LOST</span>
+            </div>
+            <div class="card-body">
+              Enterprise security blocks IDE plugins and third-party installers on client-managed laptops. FDEs burn weeks waiting for IT procurement tickets just to install basic developer tooling.
+            </div>
+          </div>
+
+          <div class="glass-card danger">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>🔒 2. The Cloud SaaS Compliance Veto</span>
+              </div>
+              <span class="card-badge red">BLOCKED BY INFOSEC</span>
+            </div>
+            <div class="card-body">
+              Proprietary banking schemas, customer PII, and production SQL cannot touch external SaaS endpoints. Cloud-dependent AI coding assistants fail bank-grade data sovereignty reviews immediately.
+            </div>
+          </div>
+
+          <div class="glass-card danger">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>🔄 3. The Legacy Migration &amp; Plumbing Sinkhole</span>
+              </div>
+              <span class="card-badge red">MONTHS OF DRAG</span>
+            </div>
+            <div class="card-body">
+              Engineers waste 80% of pilot time manually rewriting decades of legacy Oracle PL/SQL &amp; T-SQL into modern Snowflake/BigQuery, hand-crafting schema mappers, and writing retry glue.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>The Solution:</strong> A zero-admin standalone desktop studio with automated transpilation and air-gap security.
+        </div>
+        <div class="page-index">Slide 02 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 3: PHASES 1–4 CORE FDE STUDIO ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>PHASES 1–4 • FDE CORE STUDIO</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>FREE &amp; ENTERPRISE</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">LIVE INTROSPECTION &amp; INSTANT INGESTION</span>
+          <h2 class="main-title">
+            From Raw DBs to <span class="highlight-cyan">Typed Marts</span>
+          </h2>
+          <p class="subtitle">
+            Plug straight into live client data and emit typed staging models and SDKs in 15 minutes—not weeks.
+          </p>
+        </div>
+
+        <div class="cards-stack">
+          <div class="glass-card accent">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>🔍 Phase 1: Live DB Introspection (7 Engines)</span>
+              </div>
+              <span class="card-badge cyan">100% AIR-GAPPED</span>
+            </div>
+            <div class="card-body">
+              Direct, read-only introspection across <strong>Postgres, Snowflake, BigQuery, SQL Server, MySQL, SQLite, and ClickHouse</strong>. Extracts tables, foreign keys, and partition keys without sending a single byte outside the VPC.
+            </div>
+          </div>
+
+          <div class="glass-card accent">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>🗺️ Phase 2: Foreign SchemaMapper &amp; dbt</span>
+              </div>
+              <span class="card-badge cyan">ZERO-SHOT ALIGNMENT</span>
+            </div>
+            <div class="card-body">
+              Instantly maps messy enterprise column naming (<code style="color:#38bdf8;">CUST_TXN_NBR</code> ➔ <code style="color:#89d185;">customer_id</code>). Compiles production <strong>dbt staging models</strong> (<code style="color:#89d185;">stg_client_data.sql</code>) with automated data contracts.
+            </div>
+          </div>
+
+          <div class="glass-card success">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>⚡ Phase 3 &amp; 4: Typed SDKs &amp; Runbook Factory</span>
+              </div>
+              <span class="card-badge green">CLIENT HANDOFF</span>
+            </div>
+            <div class="card-body">
+              Scaffolds resilient <strong>TypeScript &amp; Python SDKs</strong> with jittered exponential backoff and rate-limiting guards. Automatically generates executive handover documentation (<code style="color:#89d185;">DEPLOYMENT_RUNBOOK.md</code> and <code style="color:#89d185;">DATA_DICTIONARY.md</code>).
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>Dual-Edition:</strong> Phases 1–4 are fully included in both Free Community and Paid Enterprise.
+        </div>
+        <div class="page-index">Slide 03 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 4: PHASE 5 ENTERPRISE SUITE ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>PHASE 5 • ENTERPRISE SUITE</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>COMMERCIAL EXCLUSIVE</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">ENTERPRISE MODERNIZATION POWERHOUSE</span>
+          <h2 class="main-title">
+            Automated <span class="highlight-ochre">SQL Transpiler &amp; Security</span>
+          </h2>
+          <p class="subtitle">
+            Save hundreds of engineering hours on legacy migrations, access governance, and synthetic pipelines.
+          </p>
+        </div>
+
+        <div class="grid-2x2">
+          <div class="grid-card" style="border-left: 4px solid #f59e0b;">
+            <div class="grid-icon">🔄</div>
+            <div class="grid-card-title">Oracle &amp; T-SQL Transpiler</div>
+            <div class="grid-card-desc">
+              Converts complex legacy Oracle PL/SQL &amp; SQL Server T-SQL directly into <strong>Snowflake and BigQuery</strong> dbt models with tests, macros, and schema validations.
+            </div>
+          </div>
+
+          <div class="grid-card" style="border-left: 4px solid #38bdf8;">
+            <div class="grid-icon">🛡️</div>
+            <div class="grid-card-title">Row-Level Security (RLS) Gen</div>
+            <div class="grid-card-desc">
+              Generates production multi-tenant isolation and Row-Level Security policies across <strong>Postgres, Snowflake, and BigQuery</strong> with zero manual scripting.
+            </div>
+          </div>
+
+          <div class="grid-card" style="border-left: 4px solid #89d185;">
+            <div class="grid-icon">🔁</div>
+            <div class="grid-card-title">Reverse ETL Sync Workers</div>
+            <div class="grid-card-desc">
+              Scaffolds idempotent synchronization pipelines with dead-letter queues, exponential batching, and automated failure recovery for warehouse-to-app syncs.
+            </div>
+          </div>
+
+          <div class="grid-card" style="border-left: 4px solid #a855f7;">
+            <div class="grid-icon">🧪</div>
+            <div class="grid-card-title">Synthetic Data &amp; Mock APIs</div>
+            <div class="grid-card-desc">
+              Generates referentially intact synthetic datasets (Customers, Invoices) and zero-dependency mock REST servers in Node.js &amp; Python for offline staging.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>Migration ROI:</strong> Cuts enterprise database migration projects from 6 months to 2 weeks.
+        </div>
+        <div class="page-index">Slide 04 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 5: PHASE 6 DEVOPS HUB ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>PHASE 6 • DEVOPS &amp; CLOUD HUB</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>MULTI-CLOUD READY</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">TURNKEY INFRASTRUCTURE SCAFFOLDING</span>
+          <h2 class="main-title">
+            Phase 6: Multi-Cloud <span class="highlight-cyan">DevOps Hub</span>
+          </h2>
+          <p class="subtitle">
+            Bridge the gap between data code and production infrastructure. Scaffold cloud deployments in 1 click.
+          </p>
+        </div>
+
+        <div class="cards-stack">
+          <div class="glass-card accent">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>🏗️ Multi-Cloud Terraform HCL (GCP, AWS, Azure)</span>
+              </div>
+              <span class="card-badge cyan">IAC PRODUCTION CODE</span>
+            </div>
+            <div class="card-body">
+              Auto-scaffolds complete infrastructure as code: secure VPCs, private subnets, least-privilege IAM roles, Cloud Run services, BigQuery datasets, and S3/GCS buckets.
+            </div>
+          </div>
+
+          <div class="glass-card ochre">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>☸️ GPU Kubernetes Manifests &amp; Docker Compose</span>
+              </div>
+              <span class="card-badge ochre">CONTAINER HARDENED</span>
+            </div>
+            <div class="card-body">
+              Generates production Kubernetes manifests with GPU node-selectors, resource limits, namespace boundaries, and multi-stage container Dockerfiles.
+            </div>
+          </div>
+
+          <div class="glass-card success">
+            <div class="card-title-row">
+              <div class="card-title">
+                <span>🚀 Automated CI/CD Pipeline Generators</span>
+              </div>
+              <span class="card-badge green">4 PLATFORMS</span>
+            </div>
+            <div class="card-body">
+              One-click pipeline generation for <strong>GitHub Actions, GitLab CI, Bitbucket Pipelines, and Azure DevOps</strong>—complete with test runners and pre-flight gates.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>Outcome:</strong> Hand your client a complete, deployable multi-cloud GitOps repository on Day 14.
+        </div>
+        <div class="page-index">Slide 05 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 6: SECURITY & AIR-GAP ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>SECURITY &amp; SOVEREIGNTY</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>BANK-GRADE INFOSEC</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">ZERO TRUST • ZERO TELEMETRY</span>
+          <h2 class="main-title">
+            Air-Gapped &amp; Banking <span class="highlight-cyan">Security</span>
+          </h2>
+          <p class="subtitle">
+            Engineered specifically to satisfy strict bank-grade, defense, and enterprise healthcare audit standards on Day 1.
+          </p>
+        </div>
+
+        <div class="grid-2x2">
+          <div class="grid-card">
+            <div class="grid-icon">🔐</div>
+            <div class="grid-card-title">Ed25519 Offline Licensing</div>
+            <div class="grid-card-desc">
+              Hardware-bound cryptographic signatures with compiled master public key. Zero phone-home licensing servers. Operates permanently air-gapped.
+            </div>
+          </div>
+
+          <div class="grid-card">
+            <div class="grid-icon">💻</div>
+            <div class="grid-card-title">Portable .exe (Zero Admin)</div>
+            <div class="grid-card-desc">
+              Runs directly as a standalone portable Windows executable (74.7 MB) with no admin rights, no registry modifications, and no VS Code dependencies.
+            </div>
+          </div>
+
+          <div class="grid-card">
+            <div class="grid-icon">🛡️</div>
+            <div class="grid-card-title">PII Sanitizer &amp; SIEM Forwarder</div>
+            <div class="grid-card-desc">
+              Automated in-flight PII masking and tamper-evident audit forwarding to <strong>Splunk, Datadog, or Microsoft Sentinel</strong> for strict compliance.
+            </div>
+          </div>
+
+          <div class="grid-card">
+            <div class="grid-icon">📊</div>
+            <div class="grid-card-title">Data Drift &amp; Quality Gates</div>
+            <div class="grid-card-desc">
+              Automated <strong>Great Expectations &amp; Soda Core</strong> test runners and Databricks Lakehouse Unity Catalog lineage and query cost analysis.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>Compliance Ready:</strong> Aligned with ISO 42001 and Australian Privacy Act automated-decision rules.
+        </div>
+        <div class="page-index">Slide 06 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 7: COMPARISON MATRIX ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>DELIVERY VELOCITY MATRIX</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>MEASURED IMPACT</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">SPEED TO IMPACT</span>
+          <h2 class="main-title">
+            From Months of Drag to <span class="highlight-cyan">14-Day Delivery</span>
+          </h2>
+          <p class="subtitle">
+            Traditional Manual Delivery vs. Evolve AI Enterprise Standalone Studio.
+          </p>
+        </div>
+
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th style="width: 27%;">Delivery Dimension</th>
+              <th style="width: 36%;">Traditional Manual FDE</th>
+              <th style="width: 37%;">Evolve AI Enterprise Studio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>IT Tooling Approval</td>
+              <td>4–8 Weeks (Admin rights &amp; MSI)</td>
+              <td>Instant (Portable .exe, No Admin)</td>
+            </tr>
+            <tr>
+              <td>InfoSec &amp; Air-Gap</td>
+              <td>Rejected (Cloud SaaS LLMs)</td>
+              <td>Day 1 (100% Air-gapped / Local VPC)</td>
+            </tr>
+            <tr>
+              <td>DB &amp; Schema Ingest</td>
+              <td>5–10 Days (Manual DDL scripts)</td>
+              <td>&lt;15 Minutes (Live 7-DB Introspect)</td>
+            </tr>
+            <tr>
+              <td>Legacy SQL Modernization</td>
+              <td>Months of manual PL/SQL rewrite</td>
+              <td>Minutes (Phase 5 SQL Transpiler)</td>
+            </tr>
+            <tr>
+              <td>Cloud Infrastructure</td>
+              <td>1–2 Weeks manual Terraform</td>
+              <td>1-Click (Phase 6 DevOps Hub)</td>
+            </tr>
+            <tr>
+              <td>Time to Client Handoff</td>
+              <td>3–4 Months average</td>
+              <td>&lt;14 Days Guaranteed</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>Proven Velocity:</strong> Eliminate software installation friction and compress client delivery cycles by 4x.
+        </div>
+        <div class="page-index">Slide 07 / 08 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE 8: CALL TO ACTION ==================== -->
+  <div class="slide">
+    <div class="content-layer">
+      <div>
+        <div class="top-bar">
+          <div class="brand-pill">
+            <span>LIMITED PILOT PROGRAM · Q3 / Q4 2026</span>
+          </div>
+          <div class="status-indicator">
+            <span class="pulse-dot"></span>
+            <span>APPLICATIONS OPEN</span>
+          </div>
+        </div>
+
+        <div class="heading-group">
+          <span class="category-kicker">FAST-TRACK YOUR DEPLOYMENT</span>
+          <h2 class="main-title">
+            Deploy Your Next Pilot in <span class="highlight-cyan">14 Days</span>
+          </h2>
+          <p class="subtitle">
+            Secure one of the 5 pilot seats and equip your team with the standalone air-gapped studio.
+          </p>
+        </div>
+
+        <div class="cta-container">
+          <div class="action-step">
+            <div class="action-badge">1</div>
+            <div class="action-text">
+              <h4>Comment "PILOT" on LinkedIn</h4>
+              <p>Leave a comment below, and our engineering team will send you the 90-day evaluation pack, architecture brief, and offline license key.</p>
+            </div>
+          </div>
+
+          <div class="action-step">
+            <div class="action-badge">2</div>
+            <div class="action-text">
+              <h4>Download the Portable Studio (.exe)</h4>
+              <p>Visit <strong>evolveminds.com.au/products/evolve-ai/</strong> to download the zero-install Windows desktop executable (v2.20.0) with an instant 30-day evaluation.</p>
+            </div>
+          </div>
+
+          <div class="action-step" style="margin-bottom: 0;">
+            <div class="action-badge">3</div>
+            <div class="action-text">
+              <h4>Direct Inquiries &amp; Pilot Onboarding</h4>
+              <p>Contact our Sydney engineering team directly at <strong>contact@evolveminds.com.au</strong> for a confidential 15-minute architectural walkthrough.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-footer">
+        <div class="footer-org">
+          <strong>Evolve Mind Solutions Pty Ltd</strong> • Level 1, 63-73 Ann St, Surry Hills NSW 2010
+        </div>
+        <div class="page-index">Slide 08 / 08 • Finish</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -2,6 +2,45 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.20.0] — 2026-09-11
+
+### Free Community vs. Enterprise Edition Alignment, UI Scale & High-DPI Readability, Commercial Licensing & Version Management
+* **Free Community Edition Alignment (4-Step Frontline Studio)**:
+  * Aligned the Free VS Code Community Edition on the VS Code Marketplace as a lightweight, focused frontline delivery studio comprising the 4 essential delivery steps:
+    1. **Step 1: Ingestion & Schema Mapper**: Live database introspection (PostgreSQL, Supabase, Snowflake, BigQuery, MySQL, SQLite) and dbt dimensional data mart generation.
+    2. **Step 2: Client API Studio**: Resilient TypeScript and Python SDK generator with retry circuit breakers, jitter, and rate-limit handling.
+    3. **Step 3: Pre-Flight Health Auditor**: Offline secret leak detection, dangling backup cleaner, and multi-cloud deployment scaffolding (Firebase, Cloud Run, Kubernetes, Docker, Terraform).
+    4. **Step 4: Client IT Handoff & Runbook Factory**: Comprehensive documentation compiler generating `ARCHITECTURE.md` with rendered Mermaid diagrams, `DEPLOYMENT_RUNBOOK.md`, `DATA_DICTIONARY.md`, and `ENVIRONMENT_CATALOG.md`.
+  * Added direct links and badges to explore the Commercial Enterprise Edition, download the standalone desktop app, and access the company procurement portal.
+
+* **UI Scale, Zoom Manager & High-DPI Readability Engine**:
+  * **Native GPU Subpixel Zoom (`webFrame.setZoomFactor`)**: Integrated Electron webFrame scaling to provide smooth, subpixel window scaling without layout breakage or misaligned resizers.
+  * **Automatic High-DPI Detection**: Automatically activates 115% Comfort Scale (or 125% on 4K) on first launch for high-resolution displays.
+  * **Multi-Tiered Interactive Controls**:
+    * Top header scale indicator pill (`🔍 100% ▾`) opening the Display Scale & Text Size Popover.
+    * Smooth range slider spanning **80% to 175%** with live visual feedback.
+    * 6 instant one-click presets: *Compact (90%)*, *Default (100%)*, *Comfort (115%)*, *High-DPI (125%)*, *Large (140%)*, and *4K Ultra (150%)*.
+    * 3 Reading Comfort Density Modes: *Compact* (13.5px base), *Balanced* (15px base), and *Large Text* (16.5px base).
+  * **Shortcuts & Feedback**: Fluid keyboard shortcuts (`Ctrl +`, `Ctrl -`, `Ctrl 0`), `Ctrl + Mouse Wheel` zooming, and subtle animated floating HUD notification toast (`🔍 Zoom: 125%`).
+  * **Elevated Theme Luminance**: Upgraded text contrast and raised font floors across card grids, file trees, navigation pills, and status bars.
+
+* **Commercial Licensing & Offline Verification Engine**:
+  * **Asymmetric Ed25519 Cryptographic Signatures**: RFC 8032 digital signing supporting both Per-Seat volume licenses and Unlimited Site-wide licenses.
+  * **Offline Machine Hardware Binding**: Multi-attribute hardware fingerprinting with zero external telemetry or SaaS dependency.
+  * **In-App License Procurement & Key Import**:
+    * "Buy License & Contact Sales" modal with 1-click automated hardware fingerprint binding request generator.
+    * 1-click paste and import for signed license tokens and `license.json` files.
+
+* **Interactive Updates & Version Management Tab**:
+  * Embedded **"Updates & Version"** panel in the Settings view.
+  * **Online GitHub Release Checking**: Fetches the latest published release tags, changelogs, and download links directly from GitHub releases.
+  * **Air-Gapped Offline Patch Management**: Supports importing and applying offline `.epk` / `.zip` update bundles for isolated defense and banking networks.
+
+* **Terminal & Workspace Synchronisation**:
+  * Added active directory tracking across Windows PowerShell, CMD, and Linux/macOS bash shells.
+  * Automatically synchronizes the workspace file tree upon terminal directory changes (`cd`) and cross-drive switches.
+  * Draggable layout resizers between the workspace explorer and terminal drawer with responsive small-screen collapse thresholds.
+
 ## [2.19.1] — 2026-08-30
 
 ### AI Schema Copilot, Automated Mart Recipe Discovery, Customizable Paths & Header Polish

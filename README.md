@@ -37,6 +37,9 @@
 
 ### Why Evolve AI?
 
+- **Free Community vs. Enterprise Delivery Studio Alignment** *(v2.20.0)* — Clear frontline boundary between the Free Community Edition (4-step Ingestion, API SDK, Pre-Flight, and Runbook factory) and the Paid Enterprise Edition (standalone `.exe`, 8-step enterprise studio, Oracle/T-SQL transpilation, and site licensing).
+- **Display Scale, Zoom Manager & High-DPI Readability** *(v2.20.0)* — Native GPU-accelerated subpixel zoom, High-DPI auto-detection (115%/125%), interactive zoom widget with slider and presets, reading comfort modes, and elevated theme luminance.
+- **Updates & Version Management Hub** *(v2.20.0)* — Embedded Settings panel for live GitHub release checking and 1-click air-gapped offline patch bundle management.
 - **AI Schema Copilot & Dimensional Mart Discovery** *(v2.19.1)* — domain-agnostic AI schema standardizer with automated PII masking, multi-table foreign-key graph traversal, and natural-language prompt-to-mart modeling.
 - **Databricks Lakehouse & Delta Studio Hub** *(v2.19)* — interactive setup wizard (`aiForge.databricks.connect`), live connection testing with hardware-encrypted secret storage, and dedicated PySpark, Delta Lake, Unity Catalog, and Delta Live Tables (DLT) tools.
 - **Multi-Cloud & Pilot Deployment Hub** *(v2.19)* — unified multi-cloud scaffolding for AWS, GCP, Azure, Firebase, and Kubernetes/Docker.
