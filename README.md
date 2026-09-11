@@ -10,6 +10,31 @@
 
 **Evolve AI** is built by **[Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)** to bring enterprise AI code assistance, autonomous data engineering, and a comprehensive **Forward-Deployed Engineers Delivery Studio** directly into your editor. It works with **Ollama** (local/offline), **Gemma 4** (Google's multimodal open model), **GLM / CodeGeeX** (local coding models), **Colibri** (GLM-5.2 744B running locally), **Anthropic Claude**, **OpenAI-compatible APIs**, **Google Gemini**, **GLM (Z.ai)**, and **Hugging Face** — so you choose where your code goes.
 
+> [!NOTE]
+> ### 📢 Free Community Edition vs. 💎 Paid Enterprise Edition
+> You are viewing the **Free Community Edition** of Evolve AI (MIT License) on the VS Code Marketplace.
+> 
+> The Community Edition provides core AI assistance, local offline LLM execution, and our foundational 4-step Forward-Deployed Engineers delivery studio with limited features.
+> 
+> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Paid Enterprise Edition** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
+> 
+> 🔗 **[Explore & Buy Enterprise Edition](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Licensing & Demos](https://www.evolveminds.com.au/contact/)**
+
+### 📊 Edition Comparison Matrix: Free vs. Paid Enterprise
+
+| Capability & Feature Area | Free Community Edition (VS Marketplace) | Paid Enterprise Edition (Desktop & Studio) |
+| :--- | :---: | :---: |
+| **Price & Licensing** | **Free & Open Source** (MIT) | **Commercial Tier** (`Pro`, `Standard`, `Platinum`) |
+| **Runtime Environment** | VS Code Extension Only | **Zero-Install Standalone Desktop App (.exe)** + Enterprise VS Code Extension |
+| **Air-Gapped & Security Enclave** | Basic local mode | **100% Air-Gapped Enclave**, Ed25519 Cryptographic Hardware Machine-Bound Licensing, Offline Patch (.zip) Loader |
+| **Telemetry & Outbound Network** | Zero telemetry | **Zero external telemetry**, strict air-gap compliance guarantee |
+| **Core FDE Studio (Phases 1–4)** | ✅ **Included** (Ingestion, Schemas, Scaffolder, Runbooks) | ✅ **Included** + Unlimited Client Workspaces |
+| **Phase 5: Enterprise Migration Suite** | ❌ *Locked* | ✅ **Oracle & T-SQL to Snowflake/BigQuery SQL Transpiler**, Automated Row-Level Security (RLS) Generator, Reverse ETL Sync Workers, Referential Synthetic Data Generator, Mock API Servers |
+| **Phase 6: DevOps & Cloud Infra Hub** | ❌ *Locked* | ✅ **Multi-Cloud Terraform Scaffolding**, GPU Kubernetes Manifests, Docker Compose, CI/CD Pipelines (GitHub Actions, GitLab CI, Bitbucket, Azure DevOps), VPC Discovery |
+| **Data Privacy & Sanitization** | Standard | ✅ **Automated PII Masking & Sanitizer**, SIEM Event Forwarder (Splunk, Datadog, Sentinel), Great Expectations & Soda Core Drift Gates |
+| **Databricks Lakehouse Hub** | Basic queries | ✅ **Deep Unity Catalog Table Lineage**, Query Cost Analyzer, Impact Analysis Hub |
+| **Commercial Support & SLA** | Community GitHub Issues | ✅ **Dedicated Enterprise Support, Custom Migration Rules & SLA** |
+
 ### Why Evolve AI?
 
 - **AI Schema Copilot & Dimensional Mart Discovery** *(v2.19.1)* — domain-agnostic AI schema standardizer with automated PII masking, multi-table foreign-key graph traversal, and natural-language prompt-to-mart modeling.

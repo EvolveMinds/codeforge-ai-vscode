@@ -622,6 +622,13 @@
     </div>
     
     <div style="display: flex; align-items: center; gap: 8px;">
+      <!-- Version & Updates Status Pill -->
+      <div class="header-pill" id="btnHeaderVersionUpdate" title="Click to view Version Details & Check Updates" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; border: 1px solid var(--border); background: var(--card-bg);">
+        <span id="headerUpdateDot" style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+        <span id="headerVersionLabel" style="color: var(--accent); font-weight: 700;">v2.20.0</span>
+        <span id="headerUpdateStatusLabel" style="font-size: 10px; opacity: 0.85; color: var(--text-secondary);">Up to date</span>
+      </div>
+
       <!-- AI Model Provider Pill -->
       <div class="header-pill success" id="btnHeaderModelPicker" title="Click to Switch AI Model / Provider" style="cursor: pointer;">
         <span>🟢</span> <span id="lblHeaderModel">OLLAMA · qwen2.5-coder:7b</span>
@@ -647,7 +654,6 @@
       <button class="activity-btn" data-tab="converter" title="Code Converter STUDIO (26 Languages)" aria-label="Code Converter STUDIO (26 Languages)">🔀</button>
       <button class="activity-btn" data-tab="lakehouse" title="Databricks Lakehouse &amp; Unity Catalog Hub" aria-label="Databricks Lakehouse &amp; Unity Catalog Hub">🗄️</button>
       <button class="activity-btn" data-tab="security" title="Security Scanner &amp; Pre-Flight Health Auditor" aria-label="Security Scanner &amp; Pre-Flight Health Auditor">🛡️</button>
-        <button class="btn-quick settings-tab" data-tab="updates" style="font-size: 11.5px;" aria-label="Updates &amp; Version">🔄 Updates &amp; Version</button>
       <button class="activity-btn" data-tab="chat" title="AI Copilot &amp; Multi-Engine Chat" aria-label="AI Copilot &amp; Multi-Engine Chat">💬</button>
 
       <!-- Vertical Spacer: pushes all subsequent utility & infra icons down next to settings -->
@@ -5783,6 +5789,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
         <button class="btn-quick settings-tab" data-tab="ai" style="font-size: 11.5px;" aria-label="Local & Cloud AI">🤖 Local &amp; Cloud AI</button>
         <button class="btn-quick settings-tab" data-tab="identity" style="font-size: 11.5px;" aria-label="Identity & Profile">🏢 Identity &amp; Profile</button>
         <button class="btn-quick settings-tab" data-tab="security" style="font-size: 11.5px;" aria-label="Security & Vault">🛡️ Security &amp; Vault</button>
+        <button class="btn-quick settings-tab" data-tab="updates" style="font-size: 11.5px;" aria-label="Updates & Version">🔄 Updates &amp; Version</button>
       </div>
 
       <!-- Tab 1: License & Activation -->

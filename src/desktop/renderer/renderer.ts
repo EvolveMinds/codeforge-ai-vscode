@@ -1009,8 +1009,12 @@ async function renderFileTree(api: any): Promise<void> {
 
         const filePath = fileItem.getAttribute('data-path');
         if (filePath && api?.workspace) {
-          const content = await api.workspace.readFile(filePath);
-          openFileEditor(filePath, content, api);
+          try {
+            const fileData = await api.workspace.readFile(filePath);
+            openFileEditor(filePath, fileData, api);
+          } catch (err: any) {
+            showToast(`⚠️ Cannot open file: ${err?.message || err}`);
+          }
         }
       });
     });
@@ -1019,25 +1023,52 @@ async function renderFileTree(api: any): Promise<void> {
   }
 }
 
-function openFileEditor(filePath: string, content: string, api: any): void {
+function openFileEditor(filePath: string, fileData: any, api: any): void {
   const editorBox = document.getElementById('fileEditorContainer');
   const activeTitle = document.getElementById('activeFileTitle');
   const textarea = document.getElementById('fileEditorTextarea') as HTMLTextAreaElement;
-  const btnSave = document.getElementById('btnSaveFile');
+  const btnSave = document.getElementById('btnSaveFile') as HTMLButtonElement;
 
   if (editorBox && activeTitle && textarea) {
     editorBox.style.display = 'flex';
-    activeTitle.innerText = filePath.split(/[\\/]/).pop() || 'file';
+    const fileName = filePath.split(/[\\/]/).pop() || 'file';
+    activeTitle.innerText = fileName;
+
+    const content = typeof fileData === 'object' && fileData !== null && 'content' in fileData
+      ? fileData.content
+      : (typeof fileData === 'string' ? fileData : '');
+
+    const isReadOnly = !!(fileData?.readOnly || fileData?.isBinary || fileData?.isTruncated);
     textarea.value = content;
+    textarea.readOnly = isReadOnly;
+    textarea.style.opacity = isReadOnly ? '0.85' : '1';
+
+    if (fileData?.isBinary) {
+      showToast(`📦 Binary file preview: ${fileName} (${((fileData?.size || 0) / (1024 * 1024)).toFixed(2)} MB)`);
+    } else if (fileData?.isTruncated) {
+      showToast(`⚠️ Large file (${((fileData?.size || 0) / (1024 * 1024)).toFixed(2)} MB): Showing truncated preview in read-only mode.`);
+    } else if (fileData?.error) {
+      showToast(`⚠️ ${fileData.error}`);
+    }
 
     btnSave?.replaceWith(btnSave.cloneNode(true));
-    const newBtnSave = document.getElementById('btnSaveFile');
-    newBtnSave?.addEventListener('click', async () => {
-      if (api?.workspace) {
-        await api.workspace.writeFile(filePath, textarea.value);
-        showToast('✓ File saved successfully!');
-      }
-    });
+    const newBtnSave = document.getElementById('btnSaveFile') as HTMLButtonElement;
+    if (newBtnSave) {
+      newBtnSave.disabled = isReadOnly;
+      newBtnSave.style.opacity = isReadOnly ? '0.4' : '1';
+      newBtnSave.style.cursor = isReadOnly ? 'not-allowed' : 'pointer';
+      newBtnSave.title = isReadOnly ? 'Read-only preview (saving disabled)' : 'Save file';
+      newBtnSave.addEventListener('click', async () => {
+        if (isReadOnly) {
+          showToast('⚠️ Cannot save read-only or binary file preview.');
+          return;
+        }
+        if (api?.workspace) {
+          await api.workspace.writeFile(filePath, textarea.value);
+          showToast('✓ File saved successfully!');
+        }
+      });
+    }
   }
 }
 
@@ -16852,18 +16883,64 @@ function setupModals(api: any): void {
   const lblPatchFileSelected = document.getElementById('lblPatchFileSelected');
   const patchResultBox = document.getElementById('patchResultBox');
 
+  // Top-Right Header Version & Updates Pill
+  const btnHeaderVersionUpdate = document.getElementById('btnHeaderVersionUpdate');
+  const headerUpdateDot = document.getElementById('headerUpdateDot');
+  const headerVersionLabel = document.getElementById('headerVersionLabel');
+  const headerUpdateStatusLabel = document.getElementById('headerUpdateStatusLabel');
+
+  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.20.0') => {
+    if (headerVersionLabel) headerVersionLabel.innerText = version.startsWith('v') ? version : `v${version}`;
+    if (!headerUpdateDot || !headerUpdateStatusLabel) return;
+
+    if (status === 'update-available') {
+      headerUpdateDot.style.background = '#f59e0b';
+      headerUpdateStatusLabel.innerText = 'Update available';
+      headerUpdateStatusLabel.style.color = '#f59e0b';
+      if (btnHeaderVersionUpdate) btnHeaderVersionUpdate.title = `⚡ New version available! Click to view & download.`;
+    } else if (status === 'air-gapped') {
+      headerUpdateDot.style.background = '#64748b';
+      headerUpdateStatusLabel.innerText = 'Air-Gapped';
+      headerUpdateStatusLabel.style.color = '#94a3b8';
+      if (btnHeaderVersionUpdate) btnHeaderVersionUpdate.title = `🛡️ Air-Gapped / Intranet Enclave: Running securely offline. Click for updates & offline patches.`;
+    } else {
+      headerUpdateDot.style.background = '#22c55e';
+      headerUpdateStatusLabel.innerText = 'Up to date';
+      headerUpdateStatusLabel.style.color = '#34d399';
+      if (btnHeaderVersionUpdate) btnHeaderVersionUpdate.title = `✓ Up to date (${version.startsWith('v') ? version : 'v' + version}). Click to check updates & view version details.`;
+    }
+  };
+
+  btnHeaderVersionUpdate?.addEventListener('click', async () => {
+    await openSettingsModal();
+    const tabBtn = document.querySelector('.settings-tab[data-tab="updates"]') as HTMLElement;
+    if (tabBtn) tabBtn.click();
+    btnCheckUpdates?.click();
+  });
+
   btnCheckUpdates?.addEventListener('click', async () => {
     if (updateCheckStatus) {
       updateCheckStatus.style.background = '#111';
       updateCheckStatus.style.color = '#38bdf8';
       updateCheckStatus.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-      updateCheckStatus.innerHTML = '<span>⏳</span> <span>Connecting to official release registry (GitHub Releases)...</span>';
+      updateCheckStatus.innerHTML = '<span>⏳</span> <span>Connecting to official release registry (GitHub Releases / Corporate Mirror)...</span>';
     }
     if (btnCheckUpdates) (btnCheckUpdates as HTMLButtonElement).disabled = true;
 
     try {
       const res = await api?.updater?.checkUpdate();
-      if (res && res.updateAvailable) {
+      if (res && res.isAirGapped) {
+        setHeaderVersionPillState('air-gapped', res.currentVersion);
+        if (updateCheckStatus) {
+          updateCheckStatus.style.background = 'rgba(100, 116, 139, 0.15)';
+          updateCheckStatus.style.color = '#94a3b8';
+          updateCheckStatus.style.borderColor = 'rgba(100, 116, 139, 0.4)';
+          updateCheckStatus.innerHTML = `<span>🛡️</span> <span><b>Air-Gapped / Intranet Enclave Detected:</b> External release registry is unreachable or blocked by corporate network policy. Software is running securely offline. You can apply updates via <b>Offline Hot Patch (.zip)</b> below.</span>`;
+        }
+        if (updateDownloadArea) updateDownloadArea.style.display = 'none';
+        showToast('🛡️ Air-gapped / intranet mode active: Running securely offline.');
+      } else if (res && res.updateAvailable) {
+        setHeaderVersionPillState('update-available', res.currentVersion);
         if (updateCheckStatus) {
           updateCheckStatus.style.background = 'rgba(56, 189, 248, 0.15)';
           updateCheckStatus.style.color = '#38bdf8';
@@ -16876,6 +16953,7 @@ function setupModals(api: any): void {
         if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
         showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
       } else {
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.20.0');
         if (updateCheckStatus) {
           updateCheckStatus.style.background = 'rgba(16, 185, 129, 0.15)';
           updateCheckStatus.style.color = '#34d399';
@@ -16886,16 +16964,33 @@ function setupModals(api: any): void {
         showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.20.0'}).`);
       }
     } catch (err: any) {
+      setHeaderVersionPillState('air-gapped', '2.20.0');
       if (updateCheckStatus) {
-        updateCheckStatus.style.background = 'rgba(239, 68, 68, 0.15)';
-        updateCheckStatus.style.color = '#f87171';
-        updateCheckStatus.style.borderColor = 'rgba(239, 68, 68, 0.4)';
-        updateCheckStatus.innerHTML = `<span>⚠️</span> <span><b>Update Check Failed:</b> ${err.message || 'Unable to reach update server.'}</span>`;
+        updateCheckStatus.style.background = 'rgba(100, 116, 139, 0.15)';
+        updateCheckStatus.style.color = '#94a3b8';
+        updateCheckStatus.style.borderColor = 'rgba(100, 116, 139, 0.4)';
+        updateCheckStatus.innerHTML = `<span>🛡️</span> <span><b>Network Unreachable / Air-Gapped:</b> ${err.message || 'Offline mode active.'} You can apply updates via <b>Offline Hot Patch (.zip)</b> below.</span>`;
       }
     } finally {
       if (btnCheckUpdates) (btnCheckUpdates as HTMLButtonElement).disabled = false;
     }
   });
+
+  // Initial background version check (non-blocking, fast timeout)
+  setTimeout(async () => {
+    try {
+      const res = await api?.updater?.checkUpdate();
+      if (res?.isAirGapped) {
+        setHeaderVersionPillState('air-gapped', res.currentVersion);
+      } else if (res?.updateAvailable) {
+        setHeaderVersionPillState('update-available', res.currentVersion);
+      } else {
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.20.0');
+      }
+    } catch {
+      setHeaderVersionPillState('air-gapped', '2.20.0');
+    }
+  }, 2500);
 
   btnApplyOfflinePatch?.addEventListener('click', () => {
     fileInputOfflinePatch?.click();

@@ -3004,18 +3004,40 @@ Output ONLY the message without markdown code fences.`;
   <div class="header">
     <div>
       <div class="header-title">
-        <span>🚀</span> FDE Studio <span class="beta-pill">Beta</span>
+        <span>🚀</span> FDE Studio <span class="beta-pill" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3);">Community Free</span>
       </div>
       <div style="font-size: 11px; margin-top: 3px; opacity: 0.85;">
         Built by <a href="https://www.evolveminds.com.au/" target="_blank" style="color: var(--accent); text-decoration: none; font-weight: 700;">Evolve Mind Solutions Pty Ltd</a> • Enterprise Client Delivery System
       </div>
     </div>
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
+      <button class="btn btn-primary" onclick="openEnterpriseModal()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Compare Community Free vs. Paid Enterprise Edition">💎 Upgrade to Enterprise</button>
       <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #c4562b 0%, #a8481f 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Download Evolve AI Enterprise Desktop Edition from Company Website">🖥️ Desktop App ↗</button>
       <div style="display: flex; align-items: center; gap: 6px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px;">
         <span style="font-size: 11px; font-weight: 700; opacity: 0.85;">Client:</span>
-        <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 200px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
+        <input type="text" id="clientNameInput" value="${state.clientName}" placeholder="Client Name..." style="width: 180px; margin-bottom: 0; padding: 4px 8px; border: none; background: transparent; font-weight: 600;" onchange="updateClientName(this.value)">
       </div>
+    </div>
+  </div>
+
+  <!-- Free Community vs Paid Enterprise Banner -->
+  <div style="background: linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, rgba(196, 86, 43, 0.08) 100%); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 20px;">🛡️</span>
+      <div>
+        <div style="font-size: 12px; font-weight: 700; color: #38bdf8;">
+          You are running the Free Community Edition (Phases 1–4)
+        </div>
+        <div style="font-size: 11px; opacity: 0.85; margin-top: 2px;">
+          Need <b>Phase 5: Enterprise Suite</b> (Oracle/T-SQL to BigQuery/Snowflake Transpiler, Automated RLS, Reverse ETL, Synthetic Data) or <b>Phase 6: DevOps &amp; Kubernetes Hub</b>? Upgrade to the <b>Paid Enterprise Edition</b> or download the zero-install <b>Standalone Desktop App</b>.
+        </div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <button class="btn-quick" onclick="openEnterpriseModal()" style="font-size: 11px; font-weight: 700; color: #38bdf8; border-color: rgba(56, 189, 248, 0.5);">Compare Editions</button>
+      <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 4px 10px; font-size: 11px; background: #c4562b; color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px;">Get Enterprise Desktop ↗</button>
+    </div>
   </div>
 
   <!-- Multi-Project Switcher & Toolbar -->
@@ -8119,9 +8141,97 @@ Output ONLY the message without markdown code fences.`;
     try { window.gitPaneAiGenerateMessage = gitPaneAiGenerateMessage; } catch(e) {}
     try { window.gitRunQuickCommand = gitRunQuickCommand; } catch(e) {}
     try { window.openGitTerminal = openGitTerminal; } catch(e) {}
-    try { window.refreshGitPaneState = refreshGitPaneState; } catch(e) {}
+    function openEnterpriseModal() {
+      const m = document.getElementById('enterpriseModal');
+      if (m) m.style.display = 'flex';
+    }
+    function closeEnterpriseModal() {
+      const m = document.getElementById('enterpriseModal');
+      if (m) m.style.display = 'none';
+    }
+
+    try { window.openEnterpriseModal = openEnterpriseModal; } catch(e) {}
+    try { window.closeEnterpriseModal = closeEnterpriseModal; } catch(e) {}
 
 </script>
+
+<!-- Enterprise Feature Comparison Modal -->
+<div id="enterpriseModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+  <div style="background: var(--card-bg, #18181b); border: 1px solid var(--border, #27272a); border-radius: 12px; max-width: 820px; width: 92%; max-height: 88vh; overflow-y: auto; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); color: var(--fg, #f4f4f5);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border, #27272a); padding-bottom: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 26px;">💎</span>
+        <div>
+          <h2 style="margin: 0; font-size: 18px; color: #fff;">Evolve AI Enterprise Edition</h2>
+          <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">Zero-Install Desktop Studio • Air-Gapped Security • Enterprise Migration Engines</div>
+        </div>
+      </div>
+      <button class="btn-quick" onclick="closeEnterpriseModal()" style="padding: 4px 10px; font-size: 14px; cursor: pointer;">✕</button>
+    </div>
+
+    <p style="font-size: 13px; color: var(--fg, #e4e4e7); line-height: 1.5; margin-bottom: 16px;">
+      The <b>Free Community Edition</b> on the VS Code Marketplace includes our foundational 4-step delivery studio. The <b>Paid Enterprise Edition</b> delivers full commercial autonomy, bank-grade air-gapped security, automated database migration suites, and a zero-install standalone desktop executable.
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; text-align: left;">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--border, #27272a); background: var(--card-alt, #111);">
+          <th style="padding: 10px 12px;">Capability / Module</th>
+          <th style="padding: 10px 12px; text-align: center;">Free Community (Marketplace)</th>
+          <th style="padding: 10px 12px; text-align: center; color: #38bdf8;">Paid Enterprise Edition</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid var(--border, #27272a);">
+          <td style="padding: 10px 12px;"><b>Distribution Format</b></td>
+          <td style="padding: 10px 12px; text-align: center; opacity: 0.8;">VS Code Extension Only</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">Standalone .exe (Zero Install) + Extension</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border, #27272a);">
+          <td style="padding: 10px 12px;"><b>Air-Gapped &amp; Enclave Licensing</b></td>
+          <td style="padding: 10px 12px; text-align: center; opacity: 0.8;">Basic Offline Mode</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">Hardware Ed25519 Cryptographic Keys</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border, #27272a);">
+          <td style="padding: 10px 12px;"><b>Phase 1–4: Core FDE Delivery Studio</b></td>
+          <td style="padding: 10px 12px; text-align: center; color: #22c55e;">✓ Included</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Included + Custom Client Rules</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border, #27272a);">
+          <td style="padding: 10px 12px;"><b>Phase 5: Enterprise Migration Suite</b><br><span style="font-size: 11px; opacity: 0.75;">Oracle/T-SQL to BigQuery Transpiler, Automated RLS, Reverse ETL, Synthetic Data, Mock Servers</span></td>
+          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Locked</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Fully Unlocked</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border, #27272a);">
+          <td style="padding: 10px 12px;"><b>Phase 6: DevOps, Cloud Infra &amp; CI/CD Hub</b><br><span style="font-size: 11px; opacity: 0.75;">Terraform HCL, GPU Kubernetes, Docker Compose, Multi-CI/CD Pipelines</span></td>
+          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Locked</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Fully Unlocked</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border, #27272a);">
+          <td style="padding: 10px 12px;"><b>Automated PII Masking &amp; SIEM Forwarder</b><br><span style="font-size: 11px; opacity: 0.75;">Splunk, Datadog, Sentinel &amp; Local Audit Trails</span></td>
+          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Locked</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Fully Unlocked</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px 12px;"><b>Enterprise Support &amp; SLA</b></td>
+          <td style="padding: 10px 12px; text-align: center; opacity: 0.8;">Community GitHub</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #38bdf8;">Priority SLA &amp; Direct Architecture Advisory</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+      <div>
+        <div style="font-weight: 700; color: #fff; font-size: 13px;">Ready to evaluate or purchase Enterprise licenses?</div>
+        <div style="color: var(--fg, #a1a1aa); font-size: 12px; margin-top: 3px;">Direct download standalone executable or contact our team for enterprise procurement.</div>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 8px 16px; font-size: 12px; background: #c4562b; color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px;">Download Desktop App (.exe) ↗</button>
+        <button class="btn btn-secondary" onclick="toggleRoadmap(); closeEnterpriseModal();" style="padding: 8px 16px; font-size: 12px;">View FDE Playbook</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>`;
   }

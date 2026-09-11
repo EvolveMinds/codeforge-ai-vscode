@@ -660,7 +660,7 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   </div>
 
   <div id="rightBtns">
-    <button class="hbtn" id="desktopBtn" title="Download Evolve AI Enterprise Desktop Edition (Portable Standalone) from Company Website" style="color: #e8825a; font-weight: 700; border-color: rgba(196,86,43,0.5); background: rgba(196,86,43,0.12);">🖥️ Desktop</button>
+    <button class="hbtn" id="desktopBtn" title="💎 Upgrade to Evolve AI Enterprise Desktop Edition (Air-Gapped Standalone .exe) from Company Website" style="color: #e8825a; font-weight: 700; border-color: rgba(196,86,43,0.5); background: rgba(196,86,43,0.12);">🖥️ Enterprise Desktop ↗</button>
     <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio (FDE Studio)" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 FDE Studio</button>
     <button class="hbtn" id="dataBtn" title="Launch Data Analysis &amp; Reporting Studio" style="color: #3794ff; font-weight: 600; border-color: rgba(55,148,255,0.4); background: rgba(55,148,255,0.1);">📊 Data</button>
     <button class="hbtn" id="convertBtn" title="Launch Side-by-Side Code Converter" style="color: #dcdcaa; font-weight: 600; border-color: rgba(220,220,170,0.4); background: rgba(220,220,170,0.1);">⚡ Convert</button>
@@ -680,10 +680,16 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   <div class="welcome">
     <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 4px;">
       <h3 style="margin: 0; font-size: 17px; font-weight: 700;">Evolve AI</h3>
-      <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 1px 6px; border-radius: 10px; font-weight: 700;">STUDIO</span>
+      <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); padding: 1px 6px; border-radius: 10px; font-weight: 700;">FREE COMMUNITY EDITION</span>
     </div>
-    <p style="font-size: 11px; opacity: 0.8; margin-bottom: 10px;">Built by <a href="https://www.evolveminds.com.au/" style="color: var(--vscode-textLink-foreground, #4ec9b0); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a></p>
+    <p style="font-size: 11px; opacity: 0.8; margin-bottom: 8px;">Built by <a href="https://www.evolveminds.com.au/" style="color: var(--vscode-textLink-foreground, #4ec9b0); text-decoration: underline; font-weight: 600;">Evolve Mind Solutions Pty Ltd</a></p>
     
+    <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 7px 10px; margin: 0 0 12px 0; font-size: 11px; text-align: left; line-height: 1.45;">
+      <span style="font-weight: 700; color: #38bdf8;">📢 Free Community Edition:</span> Core multi-provider AI chat &amp; FDE Phases 1–4 are included under MIT license.
+      <br>Looking for <strong>Air-Gapped Standalone Desktop (.exe)</strong>, <strong>Oracle/T-SQL Transpiler</strong>, <strong>Automated RLS</strong>, or <strong>DevOps/Kubernetes Hub</strong>?
+      <a href="https://www.evolveminds.com.au/products/evolve-ai/download/" style="color: #4ec9b0; font-weight: 600; text-decoration: underline; margin-left: 4px;">Upgrade to Enterprise Desktop &rarr;</a>
+    </div>
+
     <p><strong>🚀 FDE Studio</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs, DevOps &amp; Git repository connectivity &amp; handoff runbooks</p>
     <p><strong>Chat</strong> &mdash; ask questions about your code</p>
     <p><strong>Edit</strong> &mdash; describe changes to the active file</p>
@@ -1408,8 +1414,13 @@ window.addEventListener('message', ({ data }) => {
       // Restore welcome message
       const w = document.createElement('div');
       w.className = 'welcome';
-      w.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;"><h3 style="margin:0; font-size:17px; font-weight:700;">Evolve AI</h3><span style="font-size:10px; background:rgba(78,201,176,0.15); color:#4ec9b0; border:1px solid rgba(78,201,176,0.4); padding:1px 6px; border-radius:10px; font-weight:700;">STUDIO</span></div>'
-        + '<p style="font-size:11px; opacity:0.8; margin-bottom:10px;">Built by <a href="https://www.evolveminds.com.au/" style="color:var(--vscode-textLink-foreground, #4ec9b0); text-decoration:underline; font-weight:600;">Evolve Mind Solutions Pty Ltd</a></p>'
+      w.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px;"><h3 style="margin:0; font-size:17px; font-weight:700;">Evolve AI</h3><span style="font-size:10px; background:rgba(78,201,176,0.15); color:#4ec9b0; border:1px solid rgba(78,201,176,0.4); padding:1px 6px; border-radius:10px; font-weight:700;">FREE COMMUNITY EDITION</span></div>'
+        + '<p style="font-size:11px; opacity:0.8; margin-bottom:8px;">Built by <a href="https://www.evolveminds.com.au/" style="color:var(--vscode-textLink-foreground, #4ec9b0); text-decoration:underline; font-weight:600;">Evolve Mind Solutions Pty Ltd</a></p>'
+        + '<div style="background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.3); border-radius:6px; padding:7px 10px; margin:0 0 12px 0; font-size:11px; text-align:left; line-height:1.45;">'
+        + '<span style="font-weight:700; color:#38bdf8;">📢 Free Community Edition:</span> Core multi-provider AI chat &amp; FDE Phases 1–4 are included under MIT license.<br>'
+        + 'Looking for <strong>Air-Gapped Standalone Desktop (.exe)</strong>, <strong>Oracle/T-SQL Transpiler</strong>, <strong>Automated RLS</strong>, or <strong>DevOps/Kubernetes Hub</strong>? '
+        + '<a href="https://www.evolveminds.com.au/products/evolve-ai/download/" style="color:#4ec9b0; font-weight:600; text-decoration:underline; margin-left:4px;">Upgrade to Enterprise Desktop &rarr;</a>'
+        + '</div>'
         + '<p><strong>🚀 FDE Studio</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs, DevOps &amp; Git repository connectivity &amp; handoff runbooks</p>'
         + '<p><strong>Chat</strong> &mdash; ask questions about your code</p>'
         + '<p><strong>Edit</strong> &mdash; describe changes to the active file</p>'

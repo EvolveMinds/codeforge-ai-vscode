@@ -25,6 +25,13 @@ const IGNORED_DIRECTORIES = new Set([
   '.terraform'
 ]);
 
+const BINARY_EXTENSIONS = new Set([
+  '.vsix', '.exe', '.dll', '.bin', '.zip', '.tar', '.gz', '.tgz', '.iso',
+  '.png', '.jpg', '.jpeg', '.gif', '.ico', '.webp', '.pdf', '.parquet',
+  '.db', '.sqlite', '.sqlite3', '.pyc', '.node', '.so', '.dylib', '.woff',
+  '.woff2', '.ttf', '.eot', '.mp4', '.mp3', '.wav', '.7z', '.rar'
+]);
+
 export class DesktopWorkspaceManager {
   private _currentWorkspace: WorkspaceInfo | null = null;
   private _recentWorkspacesFile: string;
@@ -167,23 +174,75 @@ export class DesktopWorkspaceManager {
       ? filePath
       : (this._currentWorkspace ? path.join(this._currentWorkspace.path, filePath) : path.resolve(filePath));
 
+    const relPath = this._currentWorkspace ? path.relative(this._currentWorkspace.path, fullPath) : path.basename(fullPath);
+    const ext = path.extname(fullPath).toLowerCase();
+
     if (!fs.existsSync(fullPath)) {
-      throw new Error(`File does not exist: ${fullPath}`);
+      return {
+        path: fullPath,
+        relativePath: relPath,
+        content: `// [Error Opening File]\n// File does not exist: ${fullPath}`,
+        size: 0,
+        readOnly: true,
+        language: 'plaintext',
+        error: `File does not exist: ${fullPath}`
+      };
     }
 
     const stat = fs.statSync(fullPath);
     if (stat.isDirectory()) {
-      throw new Error(`Cannot open directory as file: ${fullPath}`);
+      return {
+        path: fullPath,
+        relativePath: relPath,
+        content: `// [Cannot Open Directory As File: ${fullPath}]`,
+        size: 0,
+        readOnly: true,
+        language: 'plaintext',
+        error: `Cannot open directory as file: ${fullPath}`
+      };
     }
 
-    // Limit preview to 5MB
+    const mb = (stat.size / (1024 * 1024)).toFixed(2);
+
+    // 1. Binary files: return metadata preview without loading raw bytes into editor
+    if (BINARY_EXTENSIONS.has(ext)) {
+      return {
+        path: fullPath,
+        relativePath: relPath,
+        content: `// ====================================================================\n// [BINARY FILE: ${path.basename(fullPath)}]\n// File Size: ${mb} MB (${stat.size.toLocaleString()} bytes)\n// Extension: ${ext || '(none)'}\n//\n// Binary files cannot be edited directly in the text editor.\n// Use a dedicated package viewer or terminal command to inspect this file.\n// ====================================================================`,
+        size: stat.size,
+        readOnly: true,
+        language: 'plaintext',
+        isBinary: true
+      };
+    }
+
+    // 2. Large files (> 5MB): read first 256KB preview chunk gracefully without crashing
     if (stat.size > 5 * 1024 * 1024) {
-      throw new Error(`File too large for live preview (${(stat.size / (1024 * 1024)).toFixed(2)} MB). Max limit is 5MB.`);
+      let preview = '';
+      try {
+        const fd = fs.openSync(fullPath, 'r');
+        const previewSize = Math.min(256 * 1024, stat.size);
+        const buffer = Buffer.alloc(previewSize);
+        fs.readSync(fd, buffer, 0, previewSize, 0);
+        fs.closeSync(fd);
+        preview = buffer.toString('utf8');
+      } catch (err: any) {
+        preview = `// [Error reading preview chunk: ${err?.message || err}]`;
+      }
+
+      return {
+        path: fullPath,
+        relativePath: relPath,
+        content: `// ====================================================================\n// [LARGE FILE PREVIEW - TRUNCATED]\n// File Size: ${mb} MB (exceeds 5MB live edit limit).\n// Displaying first 256 KB below in read-only mode.\n// ====================================================================\n\n` + preview,
+        size: stat.size,
+        readOnly: true,
+        language: this._detectLanguage(ext, fullPath),
+        isTruncated: true
+      };
     }
 
     const content = fs.readFileSync(fullPath, 'utf8');
-    const ext = path.extname(fullPath).toLowerCase();
-    const relPath = this._currentWorkspace ? path.relative(this._currentWorkspace.path, fullPath) : path.basename(fullPath);
 
     return {
       path: fullPath,

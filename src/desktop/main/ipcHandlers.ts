@@ -276,7 +276,19 @@ export class DesktopIpcHandlers {
     });
 
     ipc.handle(DESKTOP_CHANNELS.WORKSPACE.READ_FILE, async (_: any, filePath: string) => {
-      return workspaceMgr.readFile(filePath);
+      try {
+        return workspaceMgr.readFile(filePath);
+      } catch (err: any) {
+        return {
+          path: filePath,
+          relativePath: path.basename(filePath),
+          content: `// [Error Opening File]\n// ${err?.message || err}`,
+          size: 0,
+          readOnly: true,
+          language: 'plaintext',
+          error: err?.message || String(err)
+        };
+      }
     });
 
     ipc.handle(DESKTOP_CHANNELS.WORKSPACE.WRITE_FILE, async (_: any, filePath: string, content: string) => {

@@ -32,6 +32,9 @@ export interface FileOpenResult {
   size: number;
   readOnly: boolean;
   language: string;
+  isBinary?: boolean;
+  isTruncated?: boolean;
+  error?: string;
 }
 
 export interface FileSaveResult {
@@ -121,6 +124,9 @@ export interface UpdateCheckResult {
   releaseDate?: string;
   downloadUrl?: string;
   checksumSha512?: string;
+  isAirGapped?: boolean;
+  networkStatus?: 'online' | 'offline' | 'blocked';
+  statusMessage?: string;
 }
 
 export interface OfflinePatchApplyResult {

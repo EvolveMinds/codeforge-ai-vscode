@@ -147,6 +147,18 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     const checkRes = await updater.checkForUpdates();
     assert.strictEqual(checkRes.currentVersion, '2.20.0');
 
+    // Test Air-Gapped / Intranet Enclave fallback handling
+    process.env.EVOLVE_UPDATE_URL = 'http://127.0.0.1:59999/nonexistent-airgap';
+    try {
+      const offlineRes = await updater.checkForUpdates();
+      assert.strictEqual(offlineRes.currentVersion, '2.20.0');
+      assert.strictEqual(offlineRes.isAirGapped, true);
+      assert.strictEqual(offlineRes.networkStatus, 'offline');
+      assert.ok(offlineRes.statusMessage?.includes('Air-gapped / Intranet'));
+    } finally {
+      delete process.env.EVOLVE_UPDATE_URL;
+    }
+
     const patchFile = path.join(tmpDir, 'test-patch.zip');
     fs.writeFileSync(patchFile, 'EVOLVE_PATCH_BINARY_DATA', 'utf8');
 
