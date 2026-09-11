@@ -187,9 +187,33 @@ function buildAppMenu(): void {
         { role: 'forceReload' },
         { role: 'toggleDevTools' },
         { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
+        {
+          label: 'Zoom In',
+          accelerator: 'CmdOrCtrl+=',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:zoom:in');
+            }
+          }
+        },
+        {
+          label: 'Zoom Out',
+          accelerator: 'CmdOrCtrl+-',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:zoom:out');
+            }
+          }
+        },
+        {
+          label: 'Reset Zoom (100%)',
+          accelerator: 'CmdOrCtrl+0',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:zoom:reset');
+            }
+          }
+        },
         { type: 'separator' },
         { role: 'togglefullscreen' }
       ]

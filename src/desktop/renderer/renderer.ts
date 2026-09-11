@@ -370,6 +370,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { await setupLicenseGate(api); } catch (e) { console.error('setupLicenseGate failed', e); }
 
   // Initialize UI subsystems
+  try { setupZoomManager(api); } catch (e) { console.error('setupZoomManager failed', e); }
   try { setupNavigation(api); } catch (e) { console.error('setupNavigation failed', e); }
   try { setupTerminal(api); } catch (e) { console.error('setupTerminal failed', e); }
   try { setupWorkspace(api); } catch (e) { console.error('setupWorkspace failed', e); }
@@ -410,6 +411,238 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
   }
 });
+
+// --- DISPLAY SCALE & ZOOM MANAGER ---
+function setupZoomManager(api: any): void {
+  const STORAGE_KEY_ZOOM = 'evolve_desktop_zoom_factor';
+  const STORAGE_KEY_DENSITY = 'evolve_desktop_reading_density';
+
+  let currentZoom = 1.0;
+
+  // 1. Initial zoom determination: Check localStorage or auto-detect high DPI
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_ZOOM);
+    if (saved) {
+      currentZoom = parseFloat(saved) || 1.0;
+    } else {
+      // Auto-detect high-DPI displays (>=125% DPI scale or >=1800px width)
+      if (window.devicePixelRatio >= 1.25 || window.innerWidth >= 1800) {
+        currentZoom = 1.15; // default to 115% comfort scale
+      } else {
+        currentZoom = 1.0;
+      }
+    }
+  } catch {
+    currentZoom = 1.0;
+  }
+
+  // 2. Reading density initial state
+  try {
+    const savedDensity = localStorage.getItem(STORAGE_KEY_DENSITY) || 'comfortable';
+    applyDensity(savedDensity, false);
+  } catch {}
+
+  let hudTimer: any = null;
+  function triggerZoomHud(text: string) {
+    const hud = document.getElementById('zoomHudToast');
+    const hudText = document.getElementById('zoomHudText');
+    if (!hud) return;
+    if (hudText) hudText.textContent = `Display Zoom: ${text}`;
+    hud.style.opacity = '1';
+    hud.style.transform = 'translateY(0)';
+    if (hudTimer) clearTimeout(hudTimer);
+    hudTimer = setTimeout(() => {
+      hud.style.opacity = '0';
+      hud.style.transform = 'translateY(8px)';
+    }, 1400);
+  }
+
+  function applyZoom(factor: number, showHud = true) {
+    // Clamp between 0.75 and 2.0
+    factor = Math.max(0.75, Math.min(2.0, Math.round(factor * 100) / 100));
+    currentZoom = factor;
+    const percent = Math.round(factor * 100);
+
+    // Apply native Electron webFrame zoom if available
+    if (api?.zoom?.setZoomFactor) {
+      try {
+        api.zoom.setZoomFactor(factor);
+      } catch (e) {
+        console.warn('api.zoom.setZoomFactor error:', e);
+      }
+    } else {
+      // Fallback for non-electron or test environments
+      (document.body.style as any).zoom = factor.toString();
+    }
+
+    // Persist
+    try {
+      localStorage.setItem(STORAGE_KEY_ZOOM, factor.toString());
+    } catch {}
+
+    // Update Header Pill
+    const lblZoomPercent = document.getElementById('lblZoomPercent');
+    if (lblZoomPercent) lblZoomPercent.textContent = `${percent}%`;
+
+    // Update Popover Header
+    const zoomPopoverPercent = document.getElementById('zoomPopoverPercent');
+    if (zoomPopoverPercent) zoomPopoverPercent.textContent = `${percent}%`;
+
+    // Update Slider
+    const sliderZoom = document.getElementById('sliderZoom') as HTMLInputElement | null;
+    if (sliderZoom && document.activeElement !== sliderZoom) {
+      sliderZoom.value = percent.toString();
+    }
+
+    // Update Status Bar Zoom Indicator
+    const statusZoomLabel = document.getElementById('statusZoomLabel');
+    if (statusZoomLabel) statusZoomLabel.textContent = `${percent}%`;
+
+    // Update Preset Buttons Active State
+    document.querySelectorAll<HTMLButtonElement>('.btn-zoom-preset').forEach(btn => {
+      const presetVal = parseFloat(btn.getAttribute('data-zoom') || '1.0');
+      const isCurrent = Math.abs(presetVal - factor) < 0.02;
+      if (isCurrent) {
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.fontWeight = '800';
+        btn.style.boxShadow = '0 0 8px rgba(78, 201, 176, 0.4)';
+      } else {
+        btn.style.borderColor = '';
+        btn.style.fontWeight = '';
+        btn.style.boxShadow = '';
+      }
+    });
+
+    if (showHud) {
+      triggerZoomHud(`${percent}%`);
+    }
+  }
+
+  function applyDensity(mode: string, showToastMsg = true) {
+    document.body.setAttribute('data-density', mode);
+    try {
+      localStorage.setItem(STORAGE_KEY_DENSITY, mode);
+    } catch {}
+
+    const modes = [
+      { id: 'btnDensityCompact', key: 'compact', name: 'Compact' },
+      { id: 'btnDensityComfortable', key: 'comfortable', name: 'Balanced' },
+      { id: 'btnDensitySpacious', key: 'spacious', name: 'Large Text' }
+    ];
+
+    modes.forEach(m => {
+      const btn = document.getElementById(m.id);
+      if (btn) {
+        const isActive = mode === m.key;
+        btn.style.borderColor = isActive ? 'var(--accent)' : '';
+        btn.style.background = isActive ? 'rgba(78, 201, 176, 0.15)' : '';
+        btn.style.fontWeight = isActive ? '700' : 'normal';
+      }
+    });
+
+    if (showToastMsg && typeof showToast === 'function') {
+      const activeMode = modes.find(m => m.key === mode);
+      showToast(`👓 Reading Density: ${activeMode?.name || mode}`);
+    }
+  }
+
+  // Initial apply
+  applyZoom(currentZoom, false);
+
+  // Widget Popover Toggle
+  const btnZoomWidget = document.getElementById('btnZoomWidget');
+  const zoomPopover = document.getElementById('zoomPopover');
+  const statusZoomIndicator = document.getElementById('statusZoomIndicator');
+
+  const togglePopover = (e: MouseEvent) => {
+    e.stopPropagation();
+    if (!zoomPopover) return;
+    const isHidden = zoomPopover.style.display === 'none' || zoomPopover.hasAttribute('hidden');
+    if (isHidden) {
+      zoomPopover.removeAttribute('hidden');
+      zoomPopover.style.display = 'block';
+    } else {
+      zoomPopover.setAttribute('hidden', '');
+      zoomPopover.style.display = 'none';
+    }
+  };
+
+  btnZoomWidget?.addEventListener('click', togglePopover);
+  statusZoomIndicator?.addEventListener('click', togglePopover);
+
+  // Close popover when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!zoomPopover || zoomPopover.style.display === 'none') return;
+    const target = e.target as HTMLElement;
+    if (!zoomPopover.contains(target) && !btnZoomWidget?.contains(target) && !statusZoomIndicator?.contains(target)) {
+      zoomPopover.setAttribute('hidden', '');
+      zoomPopover.style.display = 'none';
+    }
+  });
+
+  // Steppers
+  document.getElementById('btnZoomIn')?.addEventListener('click', () => {
+    applyZoom(currentZoom + 0.1);
+  });
+  document.getElementById('btnZoomOut')?.addEventListener('click', () => {
+    applyZoom(currentZoom - 0.1);
+  });
+  document.getElementById('btnZoomReset')?.addEventListener('click', () => {
+    applyZoom(1.0);
+  });
+
+  // Slider
+  const sliderZoom = document.getElementById('sliderZoom') as HTMLInputElement | null;
+  sliderZoom?.addEventListener('input', () => {
+    const val = parseInt(sliderZoom.value, 10);
+    applyZoom(val / 100, true);
+  });
+
+  // Presets
+  document.querySelectorAll<HTMLButtonElement>('.btn-zoom-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const z = parseFloat(btn.getAttribute('data-zoom') || '1.0');
+      applyZoom(z);
+    });
+  });
+
+  // Density buttons
+  document.getElementById('btnDensityCompact')?.addEventListener('click', () => applyDensity('compact'));
+  document.getElementById('btnDensityComfortable')?.addEventListener('click', () => applyDensity('comfortable'));
+  document.getElementById('btnDensitySpacious')?.addEventListener('click', () => applyDensity('spacious'));
+
+  // Global Keyboard Shortcuts (Ctrl +, Ctrl -, Ctrl 0)
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === '=' || e.key === '+') {
+        e.preventDefault();
+        applyZoom(currentZoom + 0.1);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        applyZoom(currentZoom - 0.1);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        applyZoom(1.0);
+      }
+    }
+  });
+
+  // Mouse Wheel with Ctrl key for fluid zooming
+  window.addEventListener('wheel', (e: WheelEvent) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.05 : -0.05;
+      applyZoom(currentZoom + delta);
+    }
+  }, { passive: false });
+
+  // Native Electron Menu IPC listeners
+  if (api?.zoom) {
+    api.zoom.onZoomIn?.(() => applyZoom(currentZoom + 0.1));
+    api.zoom.onZoomOut?.(() => applyZoom(currentZoom - 0.1));
+    api.zoom.onZoomReset?.(() => applyZoom(1.0));
+  }
+}
 
 // --- NAVIGATION & TABS ---
 function setupNavigation(api: any): void {

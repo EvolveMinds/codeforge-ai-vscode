@@ -30,10 +30,10 @@
    * --bg-tertiary, below the WCAG 3:1 floor for any text. #8a8a8a clears 3:1 on
    * every surface in this theme while staying visually recessive.
    */
-  --text-primary: #cccccc;
-  --text-secondary: #9d9d9d;
-  --text-muted: #8a8a8a;
-  --fg: #cccccc;             /* legacy alias — prefer --text-primary */
+  --text-primary: #e2e8f0;
+  --text-secondary: #b0bac9;
+  --text-muted: #94a3b8;
+  --fg: #e2e8f0;             /* legacy alias — prefer --text-primary */
 
   /* --- Accents & status --- */
   --accent: #4ec9b0;
@@ -54,7 +54,8 @@
   --font-mono: 'Cascadia Mono', 'Consolas', 'SF Mono', 'Menlo', 'Courier New', monospace;
   --vscode-font-family: var(--font-sans);
   --vscode-editor-font-family: var(--font-mono);
-  --vscode-descriptionForeground: #9d9d9d;
+  --vscode-descriptionForeground: #b0bac9;
+  --vscode-font-size: 14px;
 }
 
 * { box-sizing: border-box; }
@@ -65,8 +66,24 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-size: var(--vscode-font-size, 14px);
+  line-height: 1.5;
   height: 100vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
+
+/* --- Reading Density Modes --- */
+body[data-density="comfortable"] {
+  --vscode-font-size: 15px;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+body[data-density="spacious"] {
+  --vscode-font-size: 16.5px;
+  font-size: 16.5px;
+  line-height: 1.7;
+}
+

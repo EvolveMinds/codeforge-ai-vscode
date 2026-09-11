@@ -2,7 +2,7 @@
  * Evolve AI Enterprise Desktop Edition — Secure Context Isolation Preload Bridge
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import { DESKTOP_CHANNELS } from '../shared/eventChannels';
 
 const desktopApi = {
@@ -193,6 +193,29 @@ const desktopApi = {
     logHitlAction: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, req),
     getHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_HITL_LOG),
     clearHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CLEAR_HITL_LOG)
+  },
+
+  // --- DISPLAY SCALE & ZOOM APIS ---
+  zoom: {
+    getZoomFactor: () => webFrame.getZoomFactor(),
+    setZoomFactor: (factor: number) => webFrame.setZoomFactor(factor),
+    getZoomLevel: () => webFrame.getZoomLevel(),
+    setZoomLevel: (level: number) => webFrame.setZoomLevel(level),
+    onZoomIn: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('evolve:zoom:in', handler);
+      return () => ipcRenderer.removeListener('evolve:zoom:in', handler);
+    },
+    onZoomOut: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('evolve:zoom:out', handler);
+      return () => ipcRenderer.removeListener('evolve:zoom:out', handler);
+    },
+    onZoomReset: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('evolve:zoom:reset', handler);
+      return () => ipcRenderer.removeListener('evolve:zoom:reset', handler);
+    }
   }
 };
 

@@ -54,4 +54,11 @@ declare module 'electron' {
     openExternal(url: string): Promise<void>;
     showItemInFolder(fullPath: string): void;
   };
+
+  export const webFrame: {
+    getZoomFactor(): number;
+    setZoomFactor(factor: number): void;
+    getZoomLevel(): number;
+    setZoomLevel(level: number): void;
+  };
 }

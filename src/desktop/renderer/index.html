@@ -639,6 +639,69 @@
         <span>🔌</span> <span>6 active</span>
       </div>
 
+      <!-- UI Scale & Zoom Controller -->
+      <div style="position: relative; display: inline-block;">
+        <button class="header-pill" id="btnZoomWidget" title="Adjust Display Scale &amp; Zoom (Ctrl + / Ctrl - / Ctrl + Wheel)" style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 700; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.08);">
+          <span>🔍</span>
+          <span id="lblZoomPercent">100%</span>
+          <span style="font-size: 8px; opacity: 0.7;">▾</span>
+        </button>
+
+        <!-- Zoom Popover Menu -->
+        <div id="zoomPopover" class="popover" hidden style="position: absolute; top: calc(100% + 6px); right: 0; width: 310px; background: #18191f; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 12px; padding: 16px; box-shadow: 0 20px 45px rgba(0,0,0,0.7); z-index: 10000; color: #fff; font-family: var(--vscode-font-family); display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+            <div style="font-weight: 700; font-size: 13.5px; display: flex; align-items: center; gap: 6px; color: #38bdf8;">
+              <span>🔍</span> Display Scale &amp; Text Size
+            </div>
+            <span id="zoomPopoverPercent" style="font-size: 12px; font-weight: 800; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(56,189,248,0.3);">100%</span>
+          </div>
+
+          <!-- Stepper Buttons Row -->
+          <div style="display: flex; gap: 6px; margin-bottom: 14px;">
+            <button id="btnZoomOut" class="btn-quick" style="flex: 1; justify-content: center; font-weight: 700; padding: 6px 10px; font-size: 12px;">− Zoom Out</button>
+            <button id="btnZoomReset" class="btn-quick" style="flex: 1; justify-content: center; font-weight: 700; padding: 6px 10px; font-size: 12px;">100% (Reset)</button>
+            <button id="btnZoomIn" class="btn-quick" style="flex: 1; justify-content: center; font-weight: 700; padding: 6px 10px; font-size: 12px;">+ Zoom In</button>
+          </div>
+
+          <!-- Slider -->
+          <div style="margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+              <span>Smaller (80%)</span>
+              <span style="font-weight: 600; color: #fff;">Slider Control</span>
+              <span>Larger (175%)</span>
+            </div>
+            <input type="range" id="sliderZoom" min="80" max="175" step="5" value="100" style="width: 100%; accent-color: #38bdf8; cursor: pointer;" />
+          </div>
+
+          <!-- Quick Presets -->
+          <div style="margin-bottom: 14px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">Scale Presets</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+              <button class="btn-quick btn-zoom-preset" data-zoom="1.0" style="font-size: 11.5px; justify-content: center;">100% (Default)</button>
+              <button class="btn-quick btn-zoom-preset" data-zoom="1.15" style="font-size: 11.5px; justify-content: center; color: #38bdf8; border-color: rgba(56,189,248,0.4);">115% (Comfort)</button>
+              <button class="btn-quick btn-zoom-preset" data-zoom="1.25" style="font-size: 11.5px; justify-content: center; color: #22c55e; border-color: rgba(34,197,94,0.4);">125% (High-DPI)</button>
+              <button class="btn-quick btn-zoom-preset" data-zoom="0.9" style="font-size: 11.5px; justify-content: center;">90% (Compact)</button>
+              <button class="btn-quick btn-zoom-preset" data-zoom="1.4" style="font-size: 11.5px; justify-content: center;">140% (Large)</button>
+              <button class="btn-quick btn-zoom-preset" data-zoom="1.5" style="font-size: 11.5px; justify-content: center;">150% (4K Ultra)</button>
+            </div>
+          </div>
+
+          <!-- Density & Reading Modes -->
+          <div style="border-top: 1px solid var(--border); padding-top: 12px; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.05em;">Reading Comfort Modes</div>
+            <div style="display: flex; gap: 6px;">
+              <button id="btnDensityCompact" class="btn-quick" style="flex: 1; justify-content: center; font-size: 11px; padding: 5px;">⚡ Compact</button>
+              <button id="btnDensityComfortable" class="btn-quick" style="flex: 1; justify-content: center; font-size: 11px; padding: 5px; color: #38bdf8; border-color: rgba(56,189,248,0.4);">👓 Balanced</button>
+              <button id="btnDensitySpacious" class="btn-quick" style="flex: 1; justify-content: center; font-size: 11px; padding: 5px; color: #e8a33d; border-color: rgba(232,163,61,0.4);">📖 Large Text</button>
+            </div>
+          </div>
+
+          <div style="font-size: 10.5px; color: var(--text-muted); line-height: 1.4; background: rgba(0,0,0,0.25); padding: 6px 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+            💡 <strong>Shortcut:</strong> Hold <kbd style="background: rgba(255,255,255,0.15); padding: 1px 4px; border-radius: 3px;">Ctrl</kbd> + Scroll mouse wheel anywhere to zoom, or use <kbd style="background: rgba(255,255,255,0.15); padding: 1px 4px; border-radius: 3px;">Ctrl +</kbd> / <kbd style="background: rgba(255,255,255,0.15); padding: 1px 4px; border-radius: 3px;">Ctrl -</kbd>.
+          </div>
+        </div>
+      </div>
+
       <button class="btn-quick" id="btnOpenTerminal" title="Toggle Terminal Drawer" aria-label="Toggle Terminal Drawer">⚡ Terminal</button>
       <button class="header-pill success" id="btnLicenseModal" style="font-weight: 700;" aria-label="Enterprise Platinum">💎 Enterprise Platinum</button>
     </div>
@@ -5516,6 +5579,9 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
     <div style="display: flex; gap: 14px; align-items: center;">
       <span>💎 Tier: <strong id="lblLicensePlan">ENTERPRISE SOVEREIGN</strong></span>
       <span>🟢 Engine: <strong>Local Air-Gapped V8</strong></span>
+      <span id="statusZoomIndicator" style="cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); color: #38bdf8; font-weight: 600; transition: background 0.15s ease;" title="Click to adjust zoom scale (Ctrl + / Ctrl - / Ctrl 0)" role="button" tabindex="0">
+        <span>🔍</span> <span id="statusZoomLabel">100%</span>
+      </span>
     </div>
   </footer>
 
@@ -6007,6 +6073,12 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Floating Zoom HUD Toast -->
+  <div id="zoomHudToast" style="position: fixed; bottom: 38px; right: 24px; z-index: 10000; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px); border: 1px solid rgba(56, 189, 248, 0.4); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; transform: translateY(8px);">
+    <span style="color: var(--accent); font-size: 15px;">🔍</span>
+    <span id="zoomHudText">Zoom: 100%</span>
   </div>
 
   <script>
