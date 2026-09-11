@@ -95,7 +95,7 @@ function createWindow(): void {
   const wc = mainWindow.webContents as any;
   if (wc.setWindowOpenHandler) {
     wc.setWindowOpenHandler((details: { url: string }) => {
-      if (details?.url && (details.url.startsWith('http://') || details.url.startsWith('https://'))) {
+      if (details?.url && (details.url.startsWith('http://') || details.url.startsWith('https://') || details.url.startsWith('mailto:'))) {
         shell.openExternal(details.url);
       }
       return { action: 'deny' };
@@ -104,7 +104,7 @@ function createWindow(): void {
 
   if (wc.on) {
     wc.on('will-navigate', (event: any, url: string) => {
-      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:'))) {
         event.preventDefault();
         shell.openExternal(url);
       }

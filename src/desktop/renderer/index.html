@@ -537,16 +537,13 @@
               <label for="selBuyPlan" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
                 EDITION / PLAN TIER
               </label>
-              <select id="selBuyPlan" class="buy-modal-input">
-                <option value="enterprise_platinum">Enterprise Platinum — Pilot (Full Suite)</option>
-                <option value="enterprise_standard">Enterprise Standard — Pilot</option>
-                <option value="air_gapped_defense">Air-Gapped Sovereign Defense — Pilot</option>
-                <option value="evaluation_pilot">Limited Pilot Evaluation (On Request)</option>
+              <select id="selBuyPlan" class="buy-modal-input" disabled style="opacity: 0.9; cursor: not-allowed; background: rgba(15, 23, 42, 0.8);">
+                <option value="enterprise_pilot" selected>Enterprise Limited Pilot (Full Suite Unlocked)</option>
               </select>
             </div>
             <div>
               <label for="numBuySeats" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
-                DEVELOPER SEATS / SCOPE
+                PILOT SEATS / SCOPE
               </label>
               <select id="numBuySeats" class="buy-modal-input">
                 <option value="1">1 Developer (Single Seat)</option>
@@ -560,25 +557,34 @@
             </div>
             <div>
               <label for="selBuyDuration" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
-                TERM DURATION
+                PILOT TERM
               </label>
-              <select id="selBuyDuration" class="buy-modal-input">
-                <option value="365" selected>1 Year (Pilot Agreement)</option>
-                <option value="730">2 Years (Multi-Year Lock)</option>
-                <option value="90">90-Day Extended Pilot</option>
-                <option value="30">30-Day Pilot Evaluation</option>
+              <select id="selBuyDuration" class="buy-modal-input" disabled style="opacity: 0.9; cursor: not-allowed; background: rgba(15, 23, 42, 0.8);">
+                <option value="30" selected>30 Days (Maximum Pilot Window)</option>
               </select>
             </div>
           </div>
 
-          <!-- Workstation Hardware Binding -->
-          <div style="margin-bottom: 12px;">
-            <label style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
-              WORKSTATION HARDWARE FINGERPRINT (AIR-GAPPED NODE ID)
+          <!-- Licensing Scope & Hardware Binding Mode -->
+          <div style="background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+            <label for="selBuyBindingMode" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 6px;">
+              LICENSING &amp; HARDWARE BINDING MODEL
             </label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="txtBuyHwFingerprint" class="buy-modal-input" readonly style="flex: 1; font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.4); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" value="Computing machine entropy..." />
-              <button class="btn-quick" id="btnBuyCopyHw" type="button" style="padding: 6px 12px; font-size: 11px;">📋 Copy HW</button>
+            <select id="selBuyBindingMode" class="buy-modal-input" style="margin-bottom: 8px;">
+              <option value="team_org" selected>🏢 Team / Organization License (Recommended — valid across all developer machines in org)</option>
+              <option value="single_node">🔒 Air-Gapped Single Node (Locked strictly to this machine hardware fingerprint)</option>
+            </select>
+
+            <div id="buyBindingInfoBox" style="font-size: 11px; line-height: 1.45; padding: 8px 10px; border-radius: 6px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); color: #86efac; margin-bottom: 8px;">
+              ✓ <strong>Multi-Machine &amp; Team Ready:</strong> Organization licenses are valid across all developer workstations in your company. Individual team member machine IDs are <u>not</u> required.
+            </div>
+
+            <div id="buyHwContainer" style="display: flex; gap: 8px; align-items: center;">
+              <div style="flex: 1;">
+                <span style="font-size: 10px; color: #64748b; display: block; margin-bottom: 3px;" id="lblBuyHwTitle">Requesting Workstation ID (Origin Reference):</span>
+                <input type="text" id="txtBuyHwFingerprint" class="buy-modal-input" readonly style="width: 100%; font-family: monospace; font-size: 11px; background: rgba(0,0,0,0.4); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" value="Computing machine entropy..." />
+              </div>
+              <button class="btn-quick" id="btnBuyCopyHw" type="button" style="padding: 6px 12px; font-size: 11px; margin-top: 15px;">📋 Copy HW</button>
             </div>
           </div>
 

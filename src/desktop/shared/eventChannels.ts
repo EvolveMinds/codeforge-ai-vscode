@@ -163,5 +163,10 @@ export const DESKTOP_CHANNELS = {
     LOG_HITL_ACTION: 'evolve:fde:log-hitl-action',
     GET_HITL_LOG: 'evolve:fde:get-hitl-log',
     CLEAR_HITL_LOG: 'evolve:fde:clear-hitl-log'
+  },
+
+  SYSTEM: {
+    OPEN_EXTERNAL: 'evolve:system:open-external',
+    COPY_TO_CLIPBOARD: 'evolve:system:copy-to-clipboard'
   }
 } as const;

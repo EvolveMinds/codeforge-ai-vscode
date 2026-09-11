@@ -9,6 +9,7 @@ try {
 const ipcMain = electronModule?.ipcMain;
 const dialog = electronModule?.dialog;
 const shell = electronModule?.shell;
+const clipboard = electronModule?.clipboard;
 
 import * as http from 'http';
 import * as https from 'https';
@@ -178,6 +179,25 @@ export class DesktopIpcHandlers {
     const licenseAuth = this._licenseAuth;
     const secretVault = this._secretVault;
     const updater = this._updater;
+
+    // --- SYSTEM & OS CHANNELS ---
+    ipc.handle(DESKTOP_CHANNELS.SYSTEM.OPEN_EXTERNAL, async (_: any, url: string) => {
+      if (shell && url && typeof url === 'string') {
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')) {
+          await shell.openExternal(url);
+          return true;
+        }
+      }
+      return false;
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, async (_: any, text: string) => {
+      if (clipboard && typeof text === 'string') {
+        clipboard.writeText(text);
+        return true;
+      }
+      return false;
+    });
 
     // --- WORKSPACE CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.WORKSPACE.OPEN_FOLDER_DIALOG, async () => {

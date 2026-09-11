@@ -66,6 +66,9 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   const selBuyPlan = document.getElementById('selBuyPlan') as HTMLSelectElement;
   const numBuySeats = document.getElementById('numBuySeats') as HTMLSelectElement;
   const selBuyDuration = document.getElementById('selBuyDuration') as HTMLSelectElement;
+  const selBuyBindingMode = document.getElementById('selBuyBindingMode') as HTMLSelectElement;
+  const buyBindingInfoBox = document.getElementById('buyBindingInfoBox');
+  const lblBuyHwTitle = document.getElementById('lblBuyHwTitle');
   const txtBuyHwFingerprint = document.getElementById('txtBuyHwFingerprint') as HTMLInputElement;
   const btnBuyCopyHw = document.getElementById('btnBuyCopyHw');
   const txtBuyRequestPreview = document.getElementById('txtBuyRequestPreview') as HTMLTextAreaElement;
@@ -77,6 +80,54 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   const btnImportFile = document.getElementById('btnGateImportFile');
   const gateFileInput = document.getElementById('gateFileInput') as HTMLInputElement;
   const btnExportReq = document.getElementById('btnGateExportChallenge');
+
+  const copyTextToClipboard = async (text: string): Promise<boolean> => {
+    if (!text) return false;
+    // 1. Electron Native OS Clipboard via IPC (100% reliable)
+    try {
+      if (api?.system?.copyToClipboard) {
+        const ok = await api.system.copyToClipboard(text);
+        if (ok) return true;
+      }
+    } catch {}
+    // 2. Browser Navigator Clipboard API
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    // 3. Document execCommand fallback
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) return true;
+    } catch {}
+    return false;
+  };
+
+  const openExternalUrl = async (url: string): Promise<void> => {
+    if (!url) return;
+    try {
+      if (api?.system?.openExternal) {
+        const ok = await api.system.openExternal(url);
+        if (ok) return;
+      }
+    } catch {}
+    try {
+      window.open(url);
+    } catch {
+      window.location.href = url;
+    }
+  };
 
   const updateHeaderBadge = (st: any) => {
     if (headerLicPill) {
@@ -135,10 +186,14 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   }
 
   // 3. Copy hardware fingerprint
-  btnCopyHw?.addEventListener('click', () => {
+  btnCopyHw?.addEventListener('click', async () => {
     if (hwLabel?.innerText) {
-      navigator.clipboard.writeText(hwLabel.innerText);
-      showToast('✓ Hardware Fingerprint copied to clipboard!');
+      const ok = await copyTextToClipboard(hwLabel.innerText);
+      if (ok) {
+        showToast('✓ Hardware Fingerprint copied to clipboard!');
+      } else {
+        showToast('⚠️ Could not copy hardware fingerprint.');
+      }
     }
   });
 
@@ -259,31 +314,57 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     if (!txtBuyRequestPreview) return;
     const org = txtBuyOrgName?.value?.trim() || '[Organization Name]';
     const email = txtBuyEmail?.value?.trim() || '[Contact Email]';
-    const plan = selBuyPlan ? selBuyPlan.options[selBuyPlan.selectedIndex]?.text || 'Enterprise Platinum (Full Suite)' : 'Enterprise Platinum (Full Suite)';
     const rawSeats = numBuySeats ? numBuySeats.value : '10';
     const isSite = rawSeats === 'site' || rawSeats === 'unlimited' || rawSeats === '-1';
-    const seatsLabel = isSite ? 'Enterprise Site License (Unlimited Developers / Organization-Wide)' : `${rawSeats} Developer Seats`;
-    const duration = selBuyDuration ? selBuyDuration.options[selBuyDuration.selectedIndex]?.text || '1 Year (Annual Subscription)' : '1 Year (Annual Subscription)';
+    const seatsLabel = isSite ? 'Enterprise Site License (Unlimited Developers / Org-Wide)' : `${rawSeats} Developer Seats`;
     const hw = txtBuyHwFingerprint?.value || 'HW-AIRGAP-NODE';
     const today = new Date().toISOString().split('T')[0];
+    const bindingMode = selBuyBindingMode?.value || 'team_org';
+    const isTeam = bindingMode === 'team_org';
+
+    if (buyBindingInfoBox) {
+      if (isTeam) {
+        buyBindingInfoBox.style.background = 'rgba(34, 197, 94, 0.08)';
+        buyBindingInfoBox.style.borderColor = 'rgba(34, 197, 94, 0.25)';
+        buyBindingInfoBox.style.color = '#86efac';
+        buyBindingInfoBox.innerHTML = '✓ <strong>Multi-Machine &amp; Team Ready:</strong> Organization licenses are valid across all developer workstations in your company. Individual team member machine IDs are <u>not</u> required.';
+      } else {
+        buyBindingInfoBox.style.background = 'rgba(245, 158, 11, 0.08)';
+        buyBindingInfoBox.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+        buyBindingInfoBox.style.color = '#fcd34d';
+        buyBindingInfoBox.innerHTML = '🔒 <strong>Single-Node Hardware Lock:</strong> License will be strictly cryptographically pinned to this machine\'s CPU/Motherboard/OS fingerprint.';
+      }
+    }
+
+    if (lblBuyHwTitle) {
+      lblBuyHwTitle.innerText = isTeam
+        ? 'Requesting Workstation ID (Origin Reference):'
+        : 'Air-Gapped Hardware Node ID (Strict Node Lock):';
+    }
 
     const lines = [
       '================================================================================',
-      '  EVOLVE AI ENTERPRISE — LICENSE PROCUREMENT REQUEST',
+      '  EVOLVE AI ENTERPRISE — LIMITED PILOT ACCESS REQUEST',
       '================================================================================',
       `Organization : ${org}`,
       `Contact Email: ${email}`,
-      `Plan Tier    : ${plan}`,
-      `Licensing    : ${isSite ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers)' : `👥 PER-SEAT LICENSE (${rawSeats} Developer Seats)`}`,
+      'Pilot Edition: Enterprise Limited Pilot (Full Enterprise Suite Unlocked)',
+      `Licensing    : ${isSite ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers)' : `👥 TEAM PILOT (${rawSeats} Developer Seats)`}`,
       `Scope / Seats: ${seatsLabel}`,
-      `Term Duration: ${duration}`,
-      `Workstation  : ${hw}`,
+      'Term Duration: 30 Days (Maximum Pilot Evaluation Window)',
+      `Binding Model: ${isTeam ? 'Organization / Team License (Valid across all developer machines in org)' : 'Single Dedicated Node (Air-Gapped Enclave)'}`,
+      isTeam
+        ? 'HW Policy    : Organization-Wide — Valid across all developer machines in org.\n               Individual workstation hardware IDs are NOT required.'
+        : `Workstation  : ${hw} (Strict Machine Lock)`,
+      isTeam ? `Request Node : ${hw} (Origin Reference)` : '',
       `Request Date : ${today}`,
       'Vendor Entity: Evolve Mind Solutions Pty Ltd (sales@evolveminds.com.au)',
       '================================================================================',
-      'Please issue an official cryptographically signed Ed25519 license key token',
-      '(EM-ENT-V1.*) or license.json file for this organization and workstation node.'
-    ];
+      'Please issue an official cryptographically signed Ed25519 pilot license token',
+      isTeam
+        ? '(EM-ENT-V1.*) or license.json file valid for all developer workstations in this organization.'
+        : '(EM-ENT-V1.*) or license.json file locked to this air-gapped node.'
+    ].filter(Boolean);
 
     txtBuyRequestPreview.value = lines.join('\n');
   };
@@ -314,36 +395,54 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   [txtBuyOrgName, txtBuyEmail].forEach(input => {
     input?.addEventListener('input', updateBuyRequestPreview);
   });
-  [selBuyPlan, numBuySeats, selBuyDuration].forEach(select => {
+  [selBuyPlan, numBuySeats, selBuyDuration, selBuyBindingMode].forEach(select => {
     select?.addEventListener('change', updateBuyRequestPreview);
   });
 
-  btnBuyCopyHw?.addEventListener('click', () => {
+  btnBuyCopyHw?.addEventListener('click', async () => {
     if (txtBuyHwFingerprint?.value) {
-      navigator.clipboard.writeText(txtBuyHwFingerprint.value);
-      showToast('✓ Hardware Fingerprint copied to clipboard!');
+      const ok = await copyTextToClipboard(txtBuyHwFingerprint.value);
+      if (ok) {
+        showToast('✓ Hardware Fingerprint copied to clipboard!');
+      } else {
+        showToast('⚠️ Could not copy hardware fingerprint.');
+      }
     }
   });
 
-  btnBuyCopyRequest?.addEventListener('click', () => {
+  btnBuyCopyRequest?.addEventListener('click', async () => {
     updateBuyRequestPreview();
     if (txtBuyRequestPreview?.value) {
-      navigator.clipboard.writeText(txtBuyRequestPreview.value);
-      showToast('✓ Enterprise License Procurement Request copied to clipboard!');
+      const ok = await copyTextToClipboard(txtBuyRequestPreview.value);
+      if (ok) {
+        showToast('✓ Enterprise Pilot Request copied to clipboard!');
+        const origText = btnBuyCopyRequest.innerText;
+        btnBuyCopyRequest.innerText = '✓ Copied!';
+        setTimeout(() => {
+          if (btnBuyCopyRequest) btnBuyCopyRequest.innerText = origText;
+        }, 2500);
+      } else {
+        showToast('⚠️ Could not copy to clipboard. Please select and copy text manually.');
+      }
     }
   });
 
-  btnBuySendEmail?.addEventListener('click', () => {
+  btnBuySendEmail?.addEventListener('click', async () => {
     updateBuyRequestPreview();
     const org = txtBuyOrgName?.value?.trim() || 'Client';
     const rawSeats = numBuySeats ? numBuySeats.value : '10';
     const isSite = rawSeats === 'site' || rawSeats === 'unlimited' || rawSeats === '-1';
     const seatsSubject = isSite ? 'Enterprise Site License' : `${rawSeats} Seats`;
-    const subject = encodeURIComponent(`Evolve AI Enterprise License Order: ${org} (${seatsSubject})`);
+    const subject = encodeURIComponent(`Evolve AI Enterprise Pilot Request: ${org} (${seatsSubject})`);
     const body = encodeURIComponent(txtBuyRequestPreview?.value || '');
     const mailto = `mailto:sales@evolveminds.com.au?subject=${subject}&body=${body}`;
-    window.open(mailto);
-    showToast('✉️ Opening email client with pre-filled license request...');
+
+    // Always copy request text to clipboard first as a safety net
+    if (txtBuyRequestPreview?.value) {
+      await copyTextToClipboard(txtBuyRequestPreview.value);
+    }
+    await openExternalUrl(mailto);
+    showToast('✉️ Opening email client (request text also copied to clipboard)...');
   });
 
   return state?.isLicensed ?? false;

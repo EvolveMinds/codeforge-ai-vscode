@@ -216,6 +216,12 @@ const desktopApi = {
       ipcRenderer.on('evolve:zoom:reset', handler);
       return () => ipcRenderer.removeListener('evolve:zoom:reset', handler);
     }
+  },
+
+  // --- SYSTEM & OS UTILITIES ---
+  system: {
+    openExternal: (url: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.OPEN_EXTERNAL, url),
+    copyToClipboard: (text: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, text)
   }
 };
 
