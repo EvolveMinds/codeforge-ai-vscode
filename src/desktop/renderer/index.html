@@ -647,6 +647,7 @@
       <button class="activity-btn" data-tab="converter" title="Code Converter STUDIO (26 Languages)" aria-label="Code Converter STUDIO (26 Languages)">🔀</button>
       <button class="activity-btn" data-tab="lakehouse" title="Databricks Lakehouse &amp; Unity Catalog Hub" aria-label="Databricks Lakehouse &amp; Unity Catalog Hub">🗄️</button>
       <button class="activity-btn" data-tab="security" title="Security Scanner &amp; Pre-Flight Health Auditor" aria-label="Security Scanner &amp; Pre-Flight Health Auditor">🛡️</button>
+        <button class="btn-quick settings-tab" data-tab="updates" style="font-size: 11.5px;" aria-label="Updates &amp; Version">🔄 Updates &amp; Version</button>
       <button class="activity-btn" data-tab="chat" title="AI Copilot &amp; Multi-Engine Chat" aria-label="AI Copilot &amp; Multi-Engine Chat">💬</button>
 
       <!-- Vertical Spacer: pushes all subsequent utility & infra icons down next to settings -->
@@ -5934,6 +5935,68 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
           <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
             <button class="btn" id="btnSaveSecuritySettings" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;" aria-label="Apply Security Policies">🛡️ Apply Security Policies</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Tab 5: Updates & Version Lifecycle -->
+      <div id="settingsTabUpdates" class="settings-tab-pane" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 440px; padding-right: 4px;">
+        <!-- Current Version Header Card -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">SOFTWARE VERSION &amp; RELEASE CHANNEL</div>
+            <span id="updateChannelBadge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">● ENTERPRISE STABLE</span>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">INSTALLED VERSION</div>
+              <div id="lblCurrentAppVersion" style="font-size: 14px; font-weight: 800; color: var(--accent);">v2.20.0</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">DISTRIBUTION FORMAT</div>
+              <div style="font-size: 12px; font-weight: 600; color: #fff;">Portable Standalone (.exe)</div>
+            </div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted);">HOST ARCHITECTURE</div>
+              <div id="lblHostArch" style="font-size: 12px; font-weight: 600; color: #fff;">Windows x64 (Air-Gapped)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Online GitHub Releases Update Check Card -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">ONLINE RELEASE MANIFEST CHECK</div>
+            <button class="btn" id="btnCheckForUpdates" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 5px 12px;" aria-label="Check for Updates">🔄 Check for Updates</button>
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
+            Queries the official Evolve AI Enterprise release registry (GitHub Releases) for newer signed portable binaries and security patches.
+          </p>
+          <div id="updateCheckStatus" style="font-size: 12px; padding: 10px 12px; border-radius: 6px; background: #111; border: 1px solid var(--border); color: #94a3b8; display: flex; align-items: center; gap: 8px;">
+            <span>ℹ️</span> <span>Click <b>"Check for Updates"</b> to inspect the upstream release channel.</span>
+          </div>
+          <div id="updateDownloadArea" style="display: none; margin-top: 10px; padding: 12px; border-radius: 6px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-weight: 700; color: #fff; font-size: 12px;" id="lblNewVersionTag">New Version Available</div>
+                <div style="font-size: 11px; color: var(--text-secondary);" id="lblNewVersionNotes">Release notes summary...</div>
+              </div>
+              <a id="btnDownloadNewRelease" href="#" target="_blank" class="btn" style="background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 11px; padding: 6px 14px; text-decoration: none; border-radius: 4px;">⬇️ Download New .exe</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Air-Gapped Offline Hot Patch Card -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">AIR-GAPPED OFFLINE HOT PATCHING (.ZIP)</div>
+          <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
+            For banking, defense, and high-assurance enclaves without public internet access. Import a cryptographically signed patch archive to hot-reload dbt templates, regex schema mappers, and transpilation engines without restarting or re-licensing.
+          </p>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="file" id="fileInputOfflinePatch" accept=".zip,.tar.gz" style="display: none;" />
+            <button class="btn-quick" id="btnApplyOfflinePatch" style="font-size: 11px; font-weight: 700; border-color: var(--accent); color: var(--accent);" aria-label="Select Offline Patch Archive">📁 Apply Offline Patch (.zip)</button>
+            <span id="lblPatchFileSelected" style="font-size: 11px; color: var(--text-muted);">No patch selected</span>
+          </div>
+          <div id="patchResultBox" style="display: none; margin-top: 10px; font-size: 11.5px; padding: 10px 12px; border-radius: 6px;"></div>
         </div>
       </div>
     </div>

@@ -145,14 +145,14 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     const updater = new DesktopUpdater(tmpDir);
 
     const checkRes = await updater.checkForUpdates();
-    assert.strictEqual(checkRes.currentVersion, '2.19.1');
+    assert.strictEqual(checkRes.currentVersion, '2.20.0');
 
     const patchFile = path.join(tmpDir, 'test-patch.zip');
     fs.writeFileSync(patchFile, 'EVOLVE_PATCH_BINARY_DATA', 'utf8');
 
     const patchRes = updater.applyOfflinePatch(patchFile);
     assert.strictEqual(patchRes.success, true);
-    assert.ok(patchRes.patchedVersion.includes('2.19.1-patch-'));
+    assert.ok(patchRes.patchedVersion.includes('2.20.0-patch-'));
     assert.ok(patchRes.enginesReloaded.includes('SqlTranspiler'));
   });
 

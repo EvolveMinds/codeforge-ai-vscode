@@ -16686,6 +16686,9 @@ function setupModals(api: any): void {
       } else if (targetTab === 'security') {
         const p = document.getElementById('settingsTabSecurity');
         if (p) p.style.display = 'flex';
+      } else if (targetTab === 'updates') {
+        const p = document.getElementById('settingsTabUpdates');
+        if (p) p.style.display = 'flex';
       }
     });
   });
@@ -16835,6 +16838,98 @@ function setupModals(api: any): void {
   // Save Security Settings
   document.getElementById('btnSaveSecuritySettings')?.addEventListener('click', () => {
     showToast('🛡️ Security enclave policies applied: Air-Gapped strict mode & PII redaction active.');
+  });
+
+  // Updates & Releases Lifecycle
+  const btnCheckUpdates = document.getElementById('btnCheckForUpdates');
+  const updateCheckStatus = document.getElementById('updateCheckStatus');
+  const updateDownloadArea = document.getElementById('updateDownloadArea');
+  const lblNewVersionTag = document.getElementById('lblNewVersionTag');
+  const lblNewVersionNotes = document.getElementById('lblNewVersionNotes');
+  const btnDownloadNewRelease = document.getElementById('btnDownloadNewRelease') as HTMLAnchorElement;
+  const btnApplyOfflinePatch = document.getElementById('btnApplyOfflinePatch');
+  const fileInputOfflinePatch = document.getElementById('fileInputOfflinePatch') as HTMLInputElement;
+  const lblPatchFileSelected = document.getElementById('lblPatchFileSelected');
+  const patchResultBox = document.getElementById('patchResultBox');
+
+  btnCheckUpdates?.addEventListener('click', async () => {
+    if (updateCheckStatus) {
+      updateCheckStatus.style.background = '#111';
+      updateCheckStatus.style.color = '#38bdf8';
+      updateCheckStatus.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      updateCheckStatus.innerHTML = '<span>⏳</span> <span>Connecting to official release registry (GitHub Releases)...</span>';
+    }
+    if (btnCheckUpdates) (btnCheckUpdates as HTMLButtonElement).disabled = true;
+
+    try {
+      const res = await api?.updater?.checkUpdate();
+      if (res && res.updateAvailable) {
+        if (updateCheckStatus) {
+          updateCheckStatus.style.background = 'rgba(56, 189, 248, 0.15)';
+          updateCheckStatus.style.color = '#38bdf8';
+          updateCheckStatus.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+          updateCheckStatus.innerHTML = `<span>🚀</span> <span><b>New Version Available:</b> v${res.latestVersion} (Installed: v${res.currentVersion})</span>`;
+        }
+        if (updateDownloadArea) updateDownloadArea.style.display = 'block';
+        if (lblNewVersionTag) lblNewVersionTag.innerText = `Evolve AI Enterprise v${res.latestVersion}`;
+        if (lblNewVersionNotes) lblNewVersionNotes.innerText = res.releaseNotes || 'New enhancements and security updates.';
+        if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
+        showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
+      } else {
+        if (updateCheckStatus) {
+          updateCheckStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+          updateCheckStatus.style.color = '#34d399';
+          updateCheckStatus.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.20.0'}).</span>`;
+        }
+        if (updateDownloadArea) updateDownloadArea.style.display = 'none';
+        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.20.0'}).`);
+      }
+    } catch (err: any) {
+      if (updateCheckStatus) {
+        updateCheckStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+        updateCheckStatus.style.color = '#f87171';
+        updateCheckStatus.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+        updateCheckStatus.innerHTML = `<span>⚠️</span> <span><b>Update Check Failed:</b> ${err.message || 'Unable to reach update server.'}</span>`;
+      }
+    } finally {
+      if (btnCheckUpdates) (btnCheckUpdates as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  btnApplyOfflinePatch?.addEventListener('click', () => {
+    fileInputOfflinePatch?.click();
+  });
+
+  fileInputOfflinePatch?.addEventListener('change', async () => {
+    const file = fileInputOfflinePatch?.files?.[0];
+    if (!file) return;
+
+    if (lblPatchFileSelected) lblPatchFileSelected.innerText = file.name;
+    const filePath = (file as any).path || file.name;
+
+    showToast(`📦 Applying offline patch ${file.name}...`);
+    try {
+      const res = await api?.updater?.applyOfflinePatch(filePath);
+      if (patchResultBox) {
+        patchResultBox.style.display = 'block';
+        if (res?.success) {
+          patchResultBox.style.background = 'rgba(16, 185, 129, 0.15)';
+          patchResultBox.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+          patchResultBox.style.color = '#34d399';
+          patchResultBox.innerHTML = `<b>✓ Patch Applied Successfully:</b> Patched version <code>${res.patchedVersion}</code>. Reloaded ${res.templatesUpdated} templates and ${res.enginesReloaded?.length || 0} internal engines.`;
+          showToast('✓ Offline patch applied successfully!');
+        } else {
+          patchResultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+          patchResultBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+          patchResultBox.style.color = '#f87171';
+          patchResultBox.innerHTML = `<b>⚠️ Patch Failed:</b> ${res?.error || 'Invalid patch archive.'}`;
+          showToast(`⚠️ Patch failed: ${res?.error || 'Unknown error'}`);
+        }
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Patch error: ${err.message}`);
+    }
   });
 }
 
