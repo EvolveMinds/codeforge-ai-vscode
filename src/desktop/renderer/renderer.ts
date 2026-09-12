@@ -356,9 +356,9 @@ async function setupLicenseGate(api: any): Promise<boolean> {
       isTeam
         ? 'HW Policy    : Organization-Wide — Valid across all developer machines in org.\n               Individual workstation hardware IDs are NOT required.'
         : `Workstation  : ${hw} (Strict Machine Lock)`,
-      isTeam ? `Request Node : ${hw} (Origin Reference)` : '',
       `Request Date : ${today}`,
       'Vendor Entity: Evolve Mind Solutions Pty Ltd (sales@evolveminds.com.au)',
+      'Legal & EULA : Subject to Evolve AI Enterprise EULA & Terms (https://www.evolveminds.com.au/eula)',
       '================================================================================',
       'Please issue an official cryptographically signed Ed25519 pilot license token',
       isTeam
