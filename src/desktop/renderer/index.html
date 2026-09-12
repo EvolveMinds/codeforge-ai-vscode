@@ -494,6 +494,14 @@
         <button class="btn-gate-link" id="btnGateExportChallenge" type="button">📋 Request Air-Gapped Challenge</button>
         <span style="font-size: 11px; color: #64748b; display: inline-flex; align-items: center; gap: 4px;">🔒 Pilot key provided on request</span>
       </div>
+
+      <!-- Legal Agreement Disclosure -->
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 10.5px; color: #64748b; text-align: center; line-height: 1.4;">
+        By activating or using this software, your organization agrees to the 
+        <a href="#" id="linkGateOpenEula" style="color: #38bdf8; text-decoration: underline;">EULA</a> &amp; 
+        <a href="#" id="linkGateOpenTerms" style="color: #38bdf8; text-decoration: underline;">Terms of Service</a>. 
+        Customer Code remains 100% customer-owned.
+      </div>
     </div>
     <!-- Enterprise Procurement & Buy License Modal -->
     <div id="modalBuyLicense" class="modal-overlay" style="display: none; z-index: 1000000; position: fixed; inset: 0; background: rgba(0,0,0,0.78); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
@@ -618,6 +626,93 @@
       </div>
     </div>
   </div>
+
+  <!-- In-App EULA & Legal Agreement Modal -->
+  <div id="modalEulaViewer" class="modal-overlay" style="display: none; z-index: 2000000; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); align-items: center; justify-content: center;">
+    <div class="buy-license-modal-box" style="max-width: 820px; width: 94%; max-height: 88vh; display: flex; flex-direction: column; background: #13151b; border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; box-shadow: 0 25px 60px rgba(0,0,0,0.7); overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">⚖️</span>
+          <div>
+            <h3 style="margin: 0; font-size: 15px; color: #fff; font-weight: 700;">Evolve AI Enterprise — Legal Agreement &amp; Protections</h3>
+            <div style="font-size: 11px; color: #94a3b8;">Evolve Mind Solutions Pty Ltd (ABN 41 672 546 217) · Sydney, NSW, Australia</div>
+          </div>
+        </div>
+        <button class="btn-quick" id="btnEulaClose" type="button" style="padding: 4px 10px; font-size: 13px;" aria-label="Close">✕</button>
+      </div>
+
+      <!-- Agreement Switcher Tabs -->
+      <div style="display: flex; gap: 8px; padding: 10px 20px; background: rgba(15, 23, 42, 0.7); border-bottom: 1px solid rgba(255,255,255,0.06);">
+        <button id="tabBtnEulaDoc" class="btn-quick" style="padding: 6px 14px; font-size: 11.5px; font-weight: 700; color: #38bdf8; border-color: rgba(56,189,248,0.5); background: rgba(56,189,248,0.1);" type="button">
+          📄 End User License Agreement (EULA)
+        </button>
+        <button id="tabBtnTermsDoc" class="btn-quick" style="padding: 6px 14px; font-size: 11.5px; font-weight: 600;" type="button">
+          📋 Master Terms &amp; Conditions
+        </button>
+      </div>
+
+      <!-- Scrollable Legal Text -->
+      <div id="eulaDocScrollArea" style="padding: 20px 24px; overflow-y: auto; flex: 1 1 auto; max-height: 58vh; font-size: 12px; line-height: 1.65; color: #cbd5e1; background: #0c0d12;">
+        <div id="eulaTextSection">
+          <div style="background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); border-radius: 6px; padding: 12px 16px; margin-bottom: 16px; font-size: 12px; color: #86efac;">
+            <strong>✓ Air-Gapped Sovereign Guarantee:</strong> Customer Code, ASTs, prompts, and database schemas never leave your workstation or enterprise network. All code created with Evolve AI remains 100% customer-owned.
+          </div>
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">1. PARTIES &amp; ACCEPTANCE</h4>
+          <p>This End User License Agreement (&quot;EULA&quot;) is a legal contract between Evolve Mind Solutions Pty Ltd (ABN 41 672 546 217, Level 1, 63-73 Ann Street, Surry Hills NSW 2010, Australia) (&quot;Licensor&quot;) and your enterprise or organisation (&quot;Licensee&quot;). By activating, copying, or executing the software, Licensee agrees to be bound by these terms.</p>
+          
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. LICENSE GRANTS &amp; EVALUATION PILOTS</h4>
+          <p><strong>2.1 Enterprise Limited Pilot:</strong> Grants a non-exclusive, non-transferable, revocable license strictly for internal evaluation by selected pilot partners (CBA, ANZ, BHP, Defence, Sonic Healthcare, and approved trials) for a period not exceeding <strong>thirty (30) days</strong>.</p>
+          <p><strong>2.2 Commercial Licenses:</strong> Available as Seat-Based or Enterprise Site Licenses. Organization / Team licenses cover all developer workstations within Licensee&apos;s organisation without requiring individual machine IDs.</p>
+          <p><strong>2.3 Air-Gapped Enclave Licenses:</strong> Where requested for classified defense or banking enclaves, the cryptographic token is bound to host CPU/motherboard hardware entropy.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">3. 100% CUSTOMER CODE OWNERSHIP</h4>
+          <p>Licensee retains sole, exclusive, and unencumbered ownership of all Customer Code, transpiled SQL, synthetic data, tests, and models generated or refactored with the software. Licensor asserts zero copyright or licensing interest in your outputs.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">4. PROHIBITIONS &amp; CRYPTOGRAPHIC INTEGRITY</h4>
+          <p>Licensee shall not reverse engineer, decompile, or disassemble the binary software; nor tamper with, bypass, or forge Ed25519 asymmetric cryptographic license signatures (EM-ENT-V1.*); nor sublicense or distribute the software to third parties outside Licensee&apos;s organization.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">5. ENGINEERING OVERSIGHT &amp; AS-IS PROVISION</h4>
+          <p>The Software is provided &quot;AS IS&quot;. Licensee maintains sole responsibility for reviewing, testing, and verifying all AI code suggestions and automated transpilation outputs before production deployment.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">6. LIMITATION OF LIABILITY &amp; GOVERNING LAW</h4>
+          <p>Licensor&apos;s cumulative liability is limited to license fees paid in the preceding 12 months (or $100 AUD for unpaid pilots), subject to the Australian Consumer Law. This EULA is governed by the laws of <strong>New South Wales, Australia</strong>.</p>
+        </div>
+
+        <div id="termsTextSection" style="display: none;">
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">1. MASTER TERMS &amp; CONDITIONS</h4>
+          <p>These Terms govern all products, platforms, and forward-deployed engineering engagements provided by Evolve Mind Solutions Pty Ltd (ABN 41 672 546 217). In commercial licensing, these Terms operate in conjunction with the Evolve AI EULA.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. CONFIDENTIALITY &amp; PILOT PARTICIPATION</h4>
+          <p>All pilot evaluations are limited to internal validation for up to 30 days. Non-public compiler grammars and tokens are deemed confidential. Resale or bureau use is strictly prohibited.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">3. PRIVACY ACT 1988 (CTH) COMPLIANCE</h4>
+          <p>Evolve Mind Solutions adheres strictly to the Australian Privacy Principles. The standalone desktop application operates client-side and offline, ensuring zero cloud exfiltration of proprietary code.</p>
+
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">4. DISPUTE RESOLUTION</h4>
+          <p>Disputes shall be escalated to good-faith executive negotiation, then commercial mediation in Sydney, NSW, before submission to the courts of New South Wales.</p>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div style="padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.95); border-top: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; gap: 8px;">
+        <div style="font-size: 11px; color: #86efac; display: flex; align-items: center; gap: 6px;">
+          <span>🛡️</span> <strong>Air-Gapped Sovereign:</strong> 100% Customer Code Ownership Guaranteed
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-quick" id="btnEulaCopyText" type="button" style="font-size: 11px;">
+            📋 Copy Agreement
+          </button>
+          <button class="btn-quick" id="btnEulaOpenWeb" type="button" style="font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">
+            🌐 Open on Web ↗
+          </button>
+          <button class="btn" id="btnEulaDismiss" type="button" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: #fff; font-weight: 700; font-size: 11.5px; padding: 6px 16px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.4);">
+            ✓ Understood &amp; Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Top App Header -->
   <header class="app-header">
     <div class="brand-section">
@@ -5930,6 +6025,21 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
           <div style="display: flex; gap: 8px;">
             <button class="btn-quick" id="btnModalExportChallenge" style="font-size: 11px;" aria-label="Export Challenge File (.bin)">📤 Export Challenge File (.bin)</button>
             <button class="btn-quick" id="btnModalImportOfflineLic" style="font-size: 11px;" aria-label="Import Signed License File (.json)">📥 Import Signed License File (.json)</button>
+          </div>
+        </div>
+
+        <!-- Legal & Compliance Agreement / EULA -->
+        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">LEGAL &amp; COMPLIANCE AGREEMENT</div>
+            <span style="font-size: 10px; color: #22c55e; background: rgba(34,197,94,0.1); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(34,197,94,0.3);">Active &amp; Enforceable</span>
+          </div>
+          <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.45;">
+            Use of Evolve AI Enterprise is governed by the <strong>Evolve AI End User License Agreement (EULA)</strong> and <strong>Master Terms &amp; Conditions</strong>. Licensor guarantees 100% customer code ownership and zero cloud data exfiltration.
+          </p>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-quick" id="btnSettingsViewEula" style="font-size: 11px; color: #38bdf8; border-color: rgba(56,189,248,0.4);" type="button">📄 Read In-App EULA &amp; Terms</button>
+            <button class="btn-quick" id="btnSettingsOpenWebEula" style="font-size: 11px;" type="button">🌐 Open on Web ↗</button>
           </div>
         </div>
       </div>

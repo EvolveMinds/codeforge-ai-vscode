@@ -445,6 +445,94 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     showToast('✉️ Opening email client (request text also copied to clipboard)...');
   });
 
+  // --- In-App EULA & Legal Agreement Modal Logic ---
+  const modalEulaViewer = document.getElementById('modalEulaViewer');
+  const btnEulaClose = document.getElementById('btnEulaClose');
+  const btnEulaDismiss = document.getElementById('btnEulaDismiss');
+  const tabBtnEulaDoc = document.getElementById('tabBtnEulaDoc');
+  const tabBtnTermsDoc = document.getElementById('tabBtnTermsDoc');
+  const eulaTextSection = document.getElementById('eulaTextSection');
+  const termsTextSection = document.getElementById('termsTextSection');
+  const btnEulaCopyText = document.getElementById('btnEulaCopyText');
+  const btnEulaOpenWeb = document.getElementById('btnEulaOpenWeb');
+  const linkGateOpenEula = document.getElementById('linkGateOpenEula');
+  const linkGateOpenTerms = document.getElementById('linkGateOpenTerms');
+  const btnSettingsViewEula = document.getElementById('btnSettingsViewEula');
+  const btnSettingsOpenWebEula = document.getElementById('btnSettingsOpenWebEula');
+
+  const openEulaModal = (tab: 'eula' | 'terms' = 'eula') => {
+    if (!modalEulaViewer) return;
+    modalEulaViewer.style.display = 'flex';
+    switchEulaTab(tab);
+  };
+
+  const closeEulaModal = () => {
+    if (modalEulaViewer) modalEulaViewer.style.display = 'none';
+  };
+
+  const switchEulaTab = (tab: 'eula' | 'terms') => {
+    if (tab === 'eula') {
+      if (eulaTextSection) eulaTextSection.style.display = 'block';
+      if (termsTextSection) termsTextSection.style.display = 'none';
+      if (tabBtnEulaDoc) {
+        tabBtnEulaDoc.style.color = '#38bdf8';
+        tabBtnEulaDoc.style.borderColor = 'rgba(56,189,248,0.5)';
+        tabBtnEulaDoc.style.background = 'rgba(56,189,248,0.1)';
+      }
+      if (tabBtnTermsDoc) {
+        tabBtnTermsDoc.style.color = '#cbd5e1';
+        tabBtnTermsDoc.style.borderColor = 'transparent';
+        tabBtnTermsDoc.style.background = 'transparent';
+      }
+    } else {
+      if (eulaTextSection) eulaTextSection.style.display = 'none';
+      if (termsTextSection) termsTextSection.style.display = 'block';
+      if (tabBtnTermsDoc) {
+        tabBtnTermsDoc.style.color = '#38bdf8';
+        tabBtnTermsDoc.style.borderColor = 'rgba(56,189,248,0.5)';
+        tabBtnTermsDoc.style.background = 'rgba(56,189,248,0.1)';
+      }
+      if (tabBtnEulaDoc) {
+        tabBtnEulaDoc.style.color = '#cbd5e1';
+        tabBtnEulaDoc.style.borderColor = 'transparent';
+        tabBtnEulaDoc.style.background = 'transparent';
+      }
+    }
+  };
+
+  linkGateOpenEula?.addEventListener('click', (e) => { e.preventDefault(); openEulaModal('eula'); });
+  linkGateOpenTerms?.addEventListener('click', (e) => { e.preventDefault(); openEulaModal('terms'); });
+  btnSettingsViewEula?.addEventListener('click', (e) => { e.preventDefault(); openEulaModal('eula'); });
+
+  btnEulaClose?.addEventListener('click', closeEulaModal);
+  btnEulaDismiss?.addEventListener('click', closeEulaModal);
+  tabBtnEulaDoc?.addEventListener('click', () => switchEulaTab('eula'));
+  tabBtnTermsDoc?.addEventListener('click', () => switchEulaTab('terms'));
+
+  btnEulaOpenWeb?.addEventListener('click', async () => {
+    await openExternalUrl('https://www.evolveminds.com.au/eula/');
+  });
+  btnSettingsOpenWebEula?.addEventListener('click', async () => {
+    await openExternalUrl('https://www.evolveminds.com.au/eula/');
+  });
+
+  btnEulaCopyText?.addEventListener('click', async () => {
+    const isEula = eulaTextSection && eulaTextSection.style.display !== 'none';
+    const textToCopy = isEula
+      ? eulaTextSection?.innerText || 'Evolve AI Enterprise EULA: https://www.evolveminds.com.au/eula/'
+      : termsTextSection?.innerText || 'Evolve Mind Solutions Terms: https://www.evolveminds.com.au/terms/';
+    const ok = await copyTextToClipboard(textToCopy);
+    if (ok) {
+      showToast('✓ Agreement text copied to clipboard!');
+    } else {
+      showToast('⚠️ Could not copy text to clipboard.');
+    }
+  });
+
+  modalEulaViewer?.addEventListener('click', (e) => {
+    if (e.target === modalEulaViewer) closeEulaModal();
+  });
+
   return state?.isLicensed ?? false;
 }
 
