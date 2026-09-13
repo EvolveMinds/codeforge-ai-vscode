@@ -19,9 +19,24 @@ export class LicenseValidator {
   private static readonly TOKEN_PREFIX = 'EM-ENT-V1.';
 
   /**
-   * Cryptographically verifies an offline license key string.
+   * Cryptographically verifies an offline license key string and optional workstation identity.
    */
-  public static verify(rawKey: string, customPublicKey?: string): LicenseVerificationResult {
+  public static verify(
+    rawKey: string,
+    claimantEmailOrPubKey?: string,
+    customPublicKey?: string
+  ): LicenseVerificationResult {
+    let claimantEmail: string | undefined = undefined;
+    let resolvedPubKey = customPublicKey;
+
+    if (claimantEmailOrPubKey) {
+      if (claimantEmailOrPubKey.includes('BEGIN PUBLIC KEY')) {
+        resolvedPubKey = claimantEmailOrPubKey;
+      } else {
+        claimantEmail = claimantEmailOrPubKey;
+      }
+    }
+
     if (!rawKey || typeof rawKey !== 'string') {
       return {
         valid: false,
@@ -65,7 +80,7 @@ export class LicenseValidator {
       const payload: EnterpriseLicensePayload = JSON.parse(payloadStr);
 
       // Verify cryptographic signature against Master Public Key
-      const pubKey = customPublicKey || EVOLVE_MASTER_PUBLIC_KEY;
+      const pubKey = resolvedPubKey || EVOLVE_MASTER_PUBLIC_KEY;
       const cleanSig = signatureB64.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
       const paddedSig = cleanSig.padEnd(cleanSig.length + (4 - (cleanSig.length % 4)) % 4, '=');
       const signatureBuf = Buffer.from(paddedSig, 'base64');
@@ -99,6 +114,22 @@ export class LicenseValidator {
         };
       }
 
+      // Check Corporate Email Domain Authorization
+      const allowedDomains = this.extractAllowedDomains(payload);
+      if (claimantEmail && allowedDomains.length > 0) {
+        const isAuthorized = this.isEmailAuthorized(claimantEmail, payload);
+        if (!isAuthorized) {
+          return {
+            valid: false,
+            isExpired: false,
+            status: 'unauthorized_domain',
+            payload,
+            daysRemaining,
+            error: `Corporate Domain Verification Failed: This license is restricted to @${allowedDomains.join(', @')}. The workstation identity "${claimantEmail}" is not authorized.`,
+          };
+        }
+      }
+
       return {
         valid: true,
         isExpired: false,
@@ -114,6 +145,33 @@ export class LicenseValidator {
         error: `Failed to decode license payload: ${err.message || err}`,
       };
     }
+  }
+
+  /**
+   * Extracts the authorized corporate email domains from the payload.
+   */
+  public static extractAllowedDomains(payload: EnterpriseLicensePayload): string[] {
+    if (payload.allowedEmailDomains && payload.allowedEmailDomains.length > 0) {
+      return payload.allowedEmailDomains.map((d) => d.trim().toLowerCase().replace(/^@/, ''));
+    }
+    if (payload.contactEmail && payload.contactEmail.includes('@')) {
+      return [payload.contactEmail.split('@')[1].toLowerCase()];
+    }
+    return [];
+  }
+
+  /**
+   * Checks whether a claimant email matches the corporate domains in the license payload.
+   */
+  public static isEmailAuthorized(claimantEmail: string, payload: EnterpriseLicensePayload): boolean {
+    const allowed = this.extractAllowedDomains(payload);
+    if (allowed.length === 0) return true;
+    if (!claimantEmail || !claimantEmail.includes('@')) return false;
+
+    const userDomain = claimantEmail.trim().split('@')[1]?.toLowerCase();
+    if (!userDomain) return false;
+
+    return allowed.some((d) => userDomain === d || userDomain.endsWith('.' + d));
   }
 
   /**

@@ -37,12 +37,16 @@ export interface EnterpriseLicensePayload {
   features: EnterpriseFeature[];
   /** Optional customer support contact email */
   contactEmail?: string;
+  /** Allowed corporate email domains (e.g. ["cba.com.au", "commbank.com.au"]) */
+  allowedEmailDomains?: string[];
+  /** Optional hardware fingerprint for node-locking */
+  hardwareFingerprint?: string;
 }
 
 export interface LicenseVerificationResult {
   valid: boolean;
   isExpired: boolean;
-  status: 'active' | 'expired' | 'invalid_signature' | 'malformed' | 'unlicensed';
+  status: 'active' | 'expired' | 'invalid_signature' | 'malformed' | 'unlicensed' | 'unauthorized_domain';
   payload?: EnterpriseLicensePayload;
   error?: string;
   daysRemaining?: number;
@@ -60,4 +64,6 @@ export interface LicenseState {
   licenseScope?: LicenseScope;
   features: EnterpriseFeature[];
   rawKey?: string;
+  allowedEmailDomains?: string[];
+  claimantEmail?: string;
 }

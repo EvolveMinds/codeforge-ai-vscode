@@ -74,15 +74,17 @@ export class DesktopLicenseAuth {
       if (fs.existsSync(this._licenseFile)) {
         const rawContent = fs.readFileSync(this._licenseFile, 'utf8').trim();
         let key = (rawContent || '').replace(/[\r\n\s\t]+/g, '').trim();
+        let claimantEmail: string | undefined = undefined;
         if (rawContent.startsWith('{')) {
           try {
             const parsed = JSON.parse(rawContent);
             const extracted = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
             key = (extracted || '').replace(/[\r\n\s\t]+/g, '').trim();
+            claimantEmail = parsed.claimedBy || parsed.userEmail || parsed.email;
           } catch {}
         }
         if (typeof key === 'string' && key.startsWith('EM-ENT-V1.')) {
-          const res = LicenseValidator.verify(key);
+          const res = LicenseValidator.verify(key, claimantEmail);
           if (res.valid && res.payload) {
             (this._licenseMgr as any)._state = {
               isLicensed: true,
@@ -95,7 +97,9 @@ export class DesktopLicenseAuth {
               seats: res.payload.maxSeats,
               licenseScope: res.payload.licenseScope || (res.payload.maxSeats === -1 ? 'site' : 'seat'),
               features: res.payload.features || [],
-              rawKey: key
+              rawKey: key,
+              allowedEmailDomains: res.payload.allowedEmailDomains,
+              claimantEmail: claimantEmail,
             };
             return;
           }
@@ -176,9 +180,31 @@ export class DesktopLicenseAuth {
     };
   }
 
-  public async activateLicenseKey(licenseKey: string): Promise<{ valid: boolean; error?: string; state: EnterpriseLicenseState }> {
+  public async activateLicenseKey(licenseKey: string, userEmail?: string): Promise<{ valid: boolean; error?: string; state: EnterpriseLicenseState }> {
     const cleanKey = (licenseKey || '').replace(/[\r\n\s\t]+/g, '').trim();
-    const result = await this._licenseMgr.activateLicense(cleanKey);
+    const result = await this._licenseMgr.activateLicense(cleanKey, userEmail);
+    if (result.valid && result.payload) {
+      try {
+        const bundle = {
+          organization: result.payload.organization,
+          licenseId: result.payload.licenseId,
+          plan: result.payload.plan,
+          licenseScope: result.payload.licenseScope,
+          maxSeats: result.payload.maxSeats,
+          issuedAt: result.payload.issuedAt,
+          expiresAt: result.payload.expiresAt,
+          'evolve.enterprise.licenseKey': cleanKey,
+          signature: cleanKey.split('.')[2] || '',
+          features: result.payload.features,
+          contactEmail: result.payload.contactEmail,
+          ...(result.payload.allowedEmailDomains ? { allowedEmailDomains: result.payload.allowedEmailDomains } : {}),
+          ...(userEmail ? { claimedBy: userEmail, claimedAt: new Date().toISOString() } : {}),
+        };
+        const dir = path.dirname(this._licenseFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(this._licenseFile, JSON.stringify(bundle, null, 2), 'utf8');
+      } catch {}
+    }
     this._syncFromStorage();
     return {
       valid: result.valid,

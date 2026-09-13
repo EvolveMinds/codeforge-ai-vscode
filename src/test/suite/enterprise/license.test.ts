@@ -116,4 +116,64 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     assert.strictEqual(result.valid, true, 'Wrapped license must validate successfully');
     assert.strictEqual(result.payload?.organization, 'Wrapped Corp');
   });
+
+  test('validates an enterprise license when claimant corporate email matches allowed domain', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 60);
+
+    const payload: EnterpriseLicensePayload = {
+      organization: 'Commonwealth Bank of Australia',
+      licenseId: 'EM-LIC-CBA-001',
+      plan: 'enterprise_platinum',
+      maxSeats: 50,
+      issuedAt: new Date().toISOString(),
+      expiresAt: futureDate.toISOString(),
+      features: ['load_testing', 'siem_logging'],
+      contactEmail: 'sarah.jenkins@cba.com.au',
+      allowedEmailDomains: ['cba.com.au', 'commbank.com.au'],
+    };
+
+    const token = LicenseGenerator.sign(payload);
+
+    // 1. Authorized corporate email should succeed
+    const validResult = LicenseValidator.verify(token, 'engineer@cba.com.au');
+    assert.strictEqual(validResult.valid, true, 'Matching corporate email must validate');
+    assert.strictEqual(validResult.status, 'active');
+
+    // 2. Secondary authorized domain should also succeed
+    const subDomainResult = LicenseValidator.verify(token, 'lead@commbank.com.au');
+    assert.strictEqual(subDomainResult.valid, true, 'Secondary corporate domain must validate');
+
+    // 3. Unauthorized external email (e.g. Gmail) should fail with unauthorized_domain status
+    const rogueResult = LicenseValidator.verify(token, 'contractor@gmail.com');
+    assert.strictEqual(rogueResult.valid, false, 'External email must be rejected');
+    assert.strictEqual(rogueResult.status, 'unauthorized_domain');
+    assert.ok(rogueResult.error?.includes('Corporate Domain Verification Failed'), 'Error message should clearly state domain rejection');
+  });
+
+  test('enforces domain verification using contactEmail fallback for legacy tokens', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+
+    const payload: EnterpriseLicensePayload = {
+      organization: 'Westpac Banking Corp',
+      licenseId: 'EM-LIC-WBC-001',
+      plan: 'enterprise_standard',
+      maxSeats: 10,
+      issuedAt: new Date().toISOString(),
+      expiresAt: futureDate.toISOString(),
+      features: ['load_testing'],
+      contactEmail: 'procurement@westpac.com.au',
+      // No explicit allowedEmailDomains — should fallback to westpac.com.au
+    };
+
+    const token = LicenseGenerator.sign(payload);
+
+    const matchResult = LicenseValidator.verify(token, 'dev.lead@westpac.com.au');
+    assert.strictEqual(matchResult.valid, true, 'Fallback to contactEmail domain must succeed for matching email');
+
+    const mismatchResult = LicenseValidator.verify(token, 'attacker@external.com');
+    assert.strictEqual(mismatchResult.valid, false, 'Fallback must reject mismatching external domain');
+    assert.strictEqual(mismatchResult.status, 'unauthorized_domain');
+  });
 });

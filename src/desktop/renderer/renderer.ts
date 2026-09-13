@@ -230,6 +230,9 @@ async function setupLicenseGate(api: any): Promise<boolean> {
         try {
           const parsed = JSON.parse(content);
           key = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || content;
+          if (parsed.claimedBy) {
+            (window as any)._evolveClaimedBy = parsed.claimedBy;
+          }
         } catch {}
       }
       if (txtKey) txtKey.value = key;
@@ -260,7 +263,8 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     }
 
     try {
-      const res = await api.license.activateKey(rawKey);
+      const claimant = (window as any)._evolveClaimedBy;
+      const res = await api.license.activateKey(rawKey, claimant);
       if (res.valid && res.state?.isLicensed) {
         if (msgBox) {
           msgBox.style.display = 'block';
@@ -17162,7 +17166,8 @@ function setupModals(api: any): void {
     if (api?.license) {
       showToast('🔑 Validating Ed25519 license signature...');
       try {
-        const res = await api.license.activateKey(key);
+        const claimant = (window as any)._evolveClaimedBy;
+        const res = await api.license.activateKey(key, claimant);
         if (res.valid) {
           showToast('✓ License activated successfully! Enterprise features unlocked.');
           const gate = document.getElementById('licenseGateOverlay');

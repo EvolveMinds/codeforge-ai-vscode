@@ -63,10 +63,10 @@ export class LicenseManager {
   }
 
   /**
-   * Activates a new enterprise license key.
+   * Activates a new enterprise license key with optional claimant identity check.
    */
-  public async activateLicense(rawKey: string): Promise<LicenseVerificationResult> {
-    const result = LicenseValidator.verify(rawKey);
+  public async activateLicense(rawKey: string, claimantEmail?: string): Promise<LicenseVerificationResult> {
+    const result = LicenseValidator.verify(rawKey, claimantEmail);
     if (!result.valid || !result.payload) {
       return result;
     }
@@ -86,6 +86,8 @@ export class LicenseManager {
       licenseScope: result.payload.licenseScope || (result.payload.maxSeats === -1 ? 'site' : 'seat'),
       features: result.payload.features || [],
       rawKey: rawKey.trim(),
+      allowedEmailDomains: result.payload.allowedEmailDomains,
+      claimantEmail: claimantEmail,
     };
 
     if (this._events) {

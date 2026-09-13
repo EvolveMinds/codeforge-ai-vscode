@@ -1412,8 +1412,8 @@ export class DesktopIpcHandlers {
       return licenseAuth.getLicenseState();
     });
 
-    ipc.handle(DESKTOP_CHANNELS.LICENSE.ACTIVATE_KEY, async (_: any, key: string) => {
-      return await licenseAuth.activateLicenseKey(key);
+    ipc.handle(DESKTOP_CHANNELS.LICENSE.ACTIVATE_KEY, async (_: any, key: string, userEmail?: string) => {
+      return await licenseAuth.activateLicenseKey(key, userEmail);
     });
 
     ipc.handle(DESKTOP_CHANNELS.LICENSE.DEACTIVATE, async () => {
