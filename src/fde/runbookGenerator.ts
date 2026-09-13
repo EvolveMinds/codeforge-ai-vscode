@@ -115,7 +115,7 @@ export class RunbookGenerator {
 
 * **Original Client Request:** "${disc?.rawClientAsk || 'Automate client manual workflow and data operations'}"
 * **Identified Failure Modes:** ${disc?.riskAnalysis || 'Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.'}
-* **Reframed Problem ("Refusing the Ask"):** ${disc?.reframedProblem || 'Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.'}
+* **Agreed Production Target (Observation-to-Spec / O2S):** ${disc?.reframedProblem || 'Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.'}
 * **Explicit Out-of-Scope Boundaries:** ${(disc?.outOfScope && disc.outOfScope.length > 0) ? disc.outOfScope.map(o => `\`${o}\``).join(', ') : '`Direct LLM database write access`, `Unverified external API scraping`, `Unsupervised transactions >$100`'}
 ${roiSection}
 

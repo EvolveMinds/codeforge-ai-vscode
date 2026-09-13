@@ -52,6 +52,41 @@ let activeProjects: EngagementProject[] = [
   { id: 'health-azure', name: 'Healthcare Data Lakehouse', targetVpc: 'azure-container', goal: 'HIPAA compliant Delta Lakehouse with automated PII masking' }
 ];
 
+// --- SHARED CLIPBOARD HELPER ---
+async function copyTextToClipboard(text: string, api?: any): Promise<boolean> {
+  if (!text) return false;
+  // 1. Electron Native OS Clipboard via IPC (100% reliable)
+  try {
+    const targetApi = api || (window as any).evolveApi || (window as any).electronAPI || (window as any).api;
+    if (targetApi?.system?.copyToClipboard) {
+      const ok = await targetApi.system.copyToClipboard(text);
+      if (ok) return true;
+    }
+  } catch {}
+  // 2. Browser Navigator Clipboard API
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+  // 3. Document execCommand fallback
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    if (ok) return true;
+  } catch {}
+  return false;
+}
+
 // --- ENTERPRISE CRYPTOGRAPHIC LICENSE GATE ---
 async function setupLicenseGate(api: any): Promise<boolean> {
   const gateOverlay = document.getElementById('licenseGateOverlay');
@@ -79,40 +114,6 @@ async function setupLicenseGate(api: any): Promise<boolean> {
   const btnCopyHw = document.getElementById('btnGateCopyHw');
   const btnImportFile = document.getElementById('btnGateImportFile');
   const gateFileInput = document.getElementById('gateFileInput') as HTMLInputElement;
-  const btnExportReq = document.getElementById('btnGateExportChallenge');
-
-  const copyTextToClipboard = async (text: string): Promise<boolean> => {
-    if (!text) return false;
-    // 1. Electron Native OS Clipboard via IPC (100% reliable)
-    try {
-      if (api?.system?.copyToClipboard) {
-        const ok = await api.system.copyToClipboard(text);
-        if (ok) return true;
-      }
-    } catch {}
-    // 2. Browser Navigator Clipboard API
-    try {
-      if (navigator?.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-    } catch {}
-    // 3. Document execCommand fallback
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      ta.style.top = '-9999px';
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      if (ok) return true;
-    } catch {}
-    return false;
-  };
 
   const openExternalUrl = async (url: string): Promise<void> => {
     if (!url) return;
@@ -197,24 +198,7 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     }
   });
 
-  // 4. Request air-gapped challenge
-  btnExportReq?.addEventListener('click', async () => {
-    try {
-      const challenge = await api.license.exportChallenge('developer@client.corp', 'Enterprise Partner');
-      const blob = new Blob([JSON.stringify(challenge, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `license_challenge_${challenge.challengeId || Date.now()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast(`✓ Challenge ${challenge.challengeId} saved! Provide this file to Evolve Mind Solutions for a signed air-gapped license.`);
-    } catch (e: any) {
-      showToast(`⚠️ Failed to export challenge: ${e.message}`);
-    }
-  });
-
-  // 5. Import license.json
+  // 4. Import license.json
   btnImportFile?.addEventListener('click', () => {
     gateFileInput?.click();
   });
@@ -1555,7 +1539,7 @@ function setupEngagementManager(api: any): void {
   });
 }
 
-// --- PHASE 1: DISCOVER & FRAME COCKPIT ("REFUSING THE ASK") ---
+// --- PHASE 1: DISCOVERY & O2S SPECIFICATION ENGINE ---
 /** Per-phase completion state shown in the left nav rail. */
 type PhaseCompletion = 'empty' | 'partial' | 'complete';
 
@@ -1887,9 +1871,54 @@ function setupPhase1Discovery(api: any): void {
   const txtRawAsk = document.getElementById('txtFdeRawAsk') as HTMLTextAreaElement;
   const txtRisk = document.getElementById('txtFdeRiskAnalysis') as HTMLTextAreaElement;
   const txtReframed = document.getElementById('txtFdeReframedGoal') as HTMLTextAreaElement;
+  const txtFloorObservations = document.getElementById('txtFdeFloorObservations') as HTMLTextAreaElement;
+
+  // Delivery Standard Selector & Section Containers
+  const btnStdSimple = document.getElementById('btnFdeStdSimple');
+  const btnStdMedium = document.getElementById('btnFdeStdMedium');
+  const btnStdAdvanced = document.getElementById('btnFdeStdAdvanced');
+  const secGemba = document.getElementById('fdeSectionGemba');
+  const secFirstPrinciples = document.getElementById('fdeSectionFirstPrinciples');
+  const secO2S = document.getElementById('fdeSectionO2S');
+
+  // Inquiry Probes & Invariants Containers
+  const probesListContainer = document.getElementById('fdeInquiryProbesList');
+  const btnAddInquiryProbe = document.getElementById('btnFdeAddInquiryProbe');
+  const lblProbesCount = document.getElementById('lblProbesCount');
+  const invariantsTableBody = document.getElementById('fdeInvariantsTableBody');
+  const linkedArtifactsContainer = document.getElementById('fdeLinkedArtifactsList');
 
   const rulesListContainer = document.getElementById('fdeScopeRulesList');
   const btnAddScopeRule = document.getElementById('btnFdeAddScopeRule');
+
+  let currentDeliveryStandard: 'simple' | 'medium' | 'advanced' = 'medium';
+
+  let currentInquiryProbes: Array<{ category: string; question: string; checked: boolean }> = [
+    { category: 'Shadow IT', question: 'What offline spreadsheets, sticky notes, or WhatsApp chats are consulted before approval?', checked: true },
+    { category: 'Failure Mode', question: 'If an edge-case transaction executes incorrectly, what is the recovery SLA and legal blast radius?', checked: true },
+    { category: 'Exception Iceberg', question: 'What percentage of tasks deviate from standard process and who resolves them?', checked: true },
+    { category: 'Regulatory Gate', question: 'Is cryptographic audit logging or multi-party authorization legally required?', checked: true }
+  ];
+
+  let currentInvariants: Array<{ assumption: string; physics: string; invariant: string }> = [
+    {
+      assumption: 'AI can calculate decimal currency amounts and balances',
+      physics: 'LLMs are probabilistic token predictors, mathematically incapable of guaranteed decimal arithmetic',
+      invariant: 'Zero LLM arithmetic: all calculations executed in compiled SQL tolerance models (<5ms)'
+    },
+    {
+      assumption: 'Autonomous transaction mutations can proceed without review',
+      physics: 'Direct external API writes without authorization violate statutory compliance and create liability',
+      invariant: 'Autonomous payouts locked; transactions route to Human-in-the-Loop Controller approval'
+    }
+  ];
+
+  let currentLinkedArtifacts: Array<{ name: string; type: string; path: string; desc: string; status: string }> = [
+    { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates labor reclaimed, capacity unlocked, and error drop", status: "Synchronized" },
+    { name: "As-Is vs To-Be Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Sequence diagram contrasting As-Is fragmentation vs To-Be Architecture", status: "Synchronized" },
+    { name: "Staging Schema Model", type: "model", path: "models/staging/stg_core.sql", desc: "Compiled SQL validation and staging model", status: "Pending Build" },
+    { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "Preflight boundary locks and cryptographic audit verification", status: "Linked" }
+  ];
 
   let currentScopeRules: Array<{ text: string; enabled: boolean }> = [
     { text: 'No automated write access to production database without explicit audit log', enabled: true },
@@ -1897,6 +1926,168 @@ function setupPhase1Discovery(api: any): void {
     { text: 'No processing of unredacted PII (must enforce masking stage)', enabled: true },
     { text: 'No ungrounded responses (must cite verified documents)', enabled: true }
   ];
+
+  const applyDeliveryStandard = (std: 'simple' | 'medium' | 'advanced') => {
+    currentDeliveryStandard = std;
+    const stdBtns = [btnStdSimple, btnStdMedium, btnStdAdvanced];
+    stdBtns.forEach(btn => {
+      if (!btn) return;
+      btn.classList.remove('active');
+      btn.style.background = '';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = '#ccc';
+      btn.style.fontWeight = 'normal';
+    });
+
+    const activeBtn = std === 'simple' ? btnStdSimple : std === 'advanced' ? btnStdAdvanced : btnStdMedium;
+    if (activeBtn) {
+      activeBtn.classList.add('active');
+      if (std === 'simple') {
+        activeBtn.style.background = 'rgba(74, 222, 128, 0.2)';
+        activeBtn.style.borderColor = '#4ade80';
+        activeBtn.style.color = '#4ade80';
+      } else if (std === 'advanced') {
+        activeBtn.style.background = 'rgba(239, 68, 68, 0.2)';
+        activeBtn.style.borderColor = '#ef4444';
+        activeBtn.style.color = '#ef4444';
+      } else {
+        activeBtn.style.background = 'rgba(78, 201, 176, 0.2)';
+        activeBtn.style.borderColor = 'var(--accent)';
+        activeBtn.style.color = 'var(--accent)';
+      }
+      activeBtn.style.fontWeight = '700';
+    }
+
+    if (secFirstPrinciples) {
+      secFirstPrinciples.style.display = std === 'simple' ? 'none' : 'block';
+    }
+
+    renderInquiryProbes();
+    renderInvariants();
+    renderLinkedArtifacts();
+  };
+
+  btnStdSimple?.addEventListener('click', () => applyDeliveryStandard('simple'));
+  btnStdMedium?.addEventListener('click', () => applyDeliveryStandard('medium'));
+  btnStdAdvanced?.addEventListener('click', () => applyDeliveryStandard('advanced'));
+
+  const renderInquiryProbes = () => {
+    if (!probesListContainer) return;
+    probesListContainer.innerHTML = '';
+
+    const probesToRender = currentDeliveryStandard === 'simple'
+      ? currentInquiryProbes.slice(0, 3)
+      : currentInquiryProbes;
+
+    if (lblProbesCount) {
+      lblProbesCount.innerText = `${probesToRender.length} ${currentDeliveryStandard} probes`;
+    }
+
+    if (probesToRender.length === 0) {
+      probesListContainer.innerHTML = '<div style="font-size: 10px; color: var(--text-secondary); font-style: italic; padding: 4px 0;">No inquiry probes defined. Click "+ Add Question" or "✨ AI Suggest Probes".</div>';
+      return;
+    }
+
+    probesToRender.forEach((probe, idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display: flex; align-items: center; gap: 6px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px;';
+
+      const chk = document.createElement('input');
+      chk.type = 'checkbox';
+      chk.checked = probe.checked;
+      chk.style.cssText = 'margin: 0; cursor: pointer;';
+      chk.title = 'Mark probe as answered / investigated';
+      chk.addEventListener('change', () => {
+        currentInquiryProbes[idx].checked = chk.checked;
+      });
+
+      const badge = document.createElement('span');
+      badge.innerText = probe.category || 'Probe';
+      badge.style.cssText = 'font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); white-space: nowrap;';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = probe.question;
+      input.placeholder = 'Diagnostic inquiry question...';
+      input.style.cssText = 'flex: 1; background: transparent; border: none; color: #fff; font-size: 10.5px; outline: none; padding: 1px 4px;';
+      input.addEventListener('input', () => {
+        currentInquiryProbes[idx].question = input.value;
+      });
+
+      const delBtn = document.createElement('button');
+      delBtn.innerText = '✕';
+      delBtn.title = 'Remove question';
+      delBtn.style.cssText = 'background: transparent; border: none; color: var(--error); cursor: pointer; font-size: 10px; padding: 0 4px; opacity: 0.8;';
+      delBtn.addEventListener('click', () => {
+        currentInquiryProbes.splice(idx, 1);
+        renderInquiryProbes();
+      });
+
+      row.appendChild(chk);
+      row.appendChild(badge);
+      row.appendChild(input);
+      row.appendChild(delBtn);
+      probesListContainer.appendChild(row);
+    });
+  };
+
+  btnAddInquiryProbe?.addEventListener('click', () => {
+    currentInquiryProbes.push({ category: 'Custom', question: '', checked: true });
+    renderInquiryProbes();
+    const inputs = probesListContainer?.querySelectorAll('input[type="text"]');
+    if (inputs && inputs.length > 0) {
+      const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
+      lastInput.focus();
+    }
+  });
+
+  const renderInvariants = () => {
+    if (!invariantsTableBody) return;
+    invariantsTableBody.innerHTML = '';
+
+    if (currentInvariants.length === 0) {
+      invariantsTableBody.innerHTML = '<tr><td colspan="3" style="padding: 8px; text-align: center; color: var(--text-secondary); font-style: italic;">No invariants defined. Click "✨ Deconstruct Assumptions" to analyze.</td></tr>';
+      return;
+    }
+
+    currentInvariants.forEach((inv) => {
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-bottom: 1px solid var(--border);';
+      tr.innerHTML = `
+        <td style="padding: 6px 8px; color: #f87171; font-weight: 600;">"${inv.assumption}"</td>
+        <td style="padding: 6px 8px; color: #cbd5e1;">${inv.physics}</td>
+        <td style="padding: 6px 8px; color: #4ade80; font-weight: 700;">🔒 ${inv.invariant}</td>
+      `;
+      invariantsTableBody.appendChild(tr);
+    });
+  };
+
+  const renderLinkedArtifacts = () => {
+    if (!linkedArtifactsContainer) return;
+    linkedArtifactsContainer.innerHTML = '';
+
+    currentLinkedArtifacts.forEach((art) => {
+      const item = document.createElement('div');
+      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;';
+
+      const icon = art.type === 'roi' ? '💰' : art.type === 'diagram' ? '🔄' : art.type === 'model' ? '🔌' : '📖';
+      const statusColor = art.status === 'Synchronized' ? '#4ade80' : art.status === 'Linked' ? '#38bdf8' : '#e5b567';
+
+      item.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+          <span style="font-size: 11px;">${icon}</span>
+          <div style="overflow: hidden;">
+            <div style="font-size: 10px; font-weight: 700; color: #fff; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${art.name}</div>
+            <div style="font-size: 9px; color: var(--text-secondary); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${art.desc}</div>
+          </div>
+        </div>
+        <span style="font-size: 9px; font-weight: 700; color: ${statusColor}; background: rgba(0,0,0,0.3); border: 1px solid ${statusColor}; padding: 1px 5px; border-radius: 8px; white-space: nowrap; margin-left: 6px;">
+          ● ${art.status}
+        </span>
+      `;
+      linkedArtifactsContainer.appendChild(item);
+    });
+  };
 
   const renderScopeRules = () => {
     if (!rulesListContainer) return;
@@ -2008,7 +2199,19 @@ function setupPhase1Discovery(api: any): void {
   let currentDiagramMode: 'future' | 'legacy' = 'future';
   let cachedDiagrams: { futureDiagram?: string; legacyDiagram?: string } = {};
 
-  const archetypes: Record<string, { raw: string; risk: string; reframed: string; rules: string[]; volume?: number; handleTime?: number; wage?: number }> = {
+  const archetypes: Record<string, {
+    raw: string;
+    risk: string;
+    reframed: string;
+    rules: string[];
+    volume?: number;
+    handleTime?: number;
+    wage?: number;
+    probes?: Array<{ category: string; question: string; checked: boolean }>;
+    observations?: string;
+    invariants?: Array<{ assumption: string; physics: string; invariant: string }>;
+    artifacts?: Array<{ name: string; type: string; path: string; desc: string; status: string }>;
+  }> = {
     'custom': {
       raw: '',
       risk: '',
@@ -2019,7 +2222,32 @@ function setupPhase1Discovery(api: any): void {
       ],
       volume: 0,
       handleTime: 0,
-      wage: 0
+      wage: 0,
+      probes: [
+        { category: 'Shadow IT', question: 'What manual workarounds, personal spreadsheets, or unofficial channels bypass the official system?', checked: true },
+        { category: 'Failure Mode', question: 'What is the absolute worst-case outcome if this automated workflow executes incorrect actions?', checked: true },
+        { category: 'Exception Iceberg', question: 'What proportion of inputs do not follow the declared standard process, and who handles them today?', checked: true },
+        { category: 'Regulatory Gate', question: 'What compliance frameworks, audit log requirements, or legal constraints govern this workflow?', checked: true }
+      ],
+      observations: '',
+      invariants: [
+        {
+          assumption: 'Full autonomous automation can replace human operators on Day 1',
+          physics: 'Edge-case entropy and real-world variance make unconstrained end-to-end automation brittle',
+          invariant: 'Deterministic core for repeatable rules + Human-in-the-Loop approval gate for variance exceptions'
+        },
+        {
+          assumption: 'Probabilistic AI outputs can directly mutate operational databases',
+          physics: 'AI hallucination rate > 0% creates creeping data corruption without cryptographically verified provenance',
+          invariant: 'Zero direct database writes from generative models without schema validation and signed audit trails'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates labor reclaimed, capacity unlocked, and error reduction", status: "Synchronized" },
+        { name: "As-Is vs To-Be Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Sequence diagram contrasting As-Is fragmentation vs To-Be Architecture", status: "Synchronized" },
+        { name: "Staging Schema Model", type: "model", path: "models/staging/stg_core.sql", desc: "Compiled SQL validation and staging model", status: "Pending Build" },
+        { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "Preflight boundary locks and cryptographic audit verification", status: "Linked" }
+      ]
     },
     'support-copilot': {
       raw: 'Build an AI that automates all customer support tickets and refunds so we do not need human agents.',
@@ -2033,7 +2261,37 @@ function setupPhase1Discovery(api: any): void {
       ],
       volume: 10000,
       handleTime: 15,
-      wage: 35
+      wage: 35,
+      probes: [
+        { category: 'Failure Mode', question: 'How do you prevent adversarial customers from using prompt injection to extract refunds or concessions?', checked: true },
+        { category: 'Shadow IT', question: 'What undocumented canned responses, macro shortcuts, or team Slack channels do support agents rely on?', checked: true },
+        { category: 'Exception Iceberg', question: 'What fraction of incoming tickets are simple status queries vs complex billing disputes?', checked: true },
+        { category: 'Regulatory Gate', question: 'Who has authority to grant SLA credits or policy exceptions, and what threshold requires supervisor sign-off?', checked: true }
+      ],
+      observations: `• Shadow IT: Agents keep 40+ personal text snippets in Notepad and message colleagues in Slack for policy interpretations.\n• Process Reality: 65% of tickets are repetitive status queries ("Where is my order?"), while agents spend 12 mins researching complex exceptions.\n• Risk Observed: Customers frequently paste aggressive prompts attempting to trigger auto-replies with discount codes.`,
+      invariants: [
+        {
+          assumption: 'LLM can read emails and autonomously send replies to customers',
+          physics: 'Untrusted user input can contain prompt injection attacks and hallucinate legally binding promises',
+          invariant: 'Zero autonomous dispatch: human agent 1-click confirmation required for all customer communications'
+        },
+        {
+          assumption: 'Use large LLM for every inbound ticket triage',
+          physics: 'Large LLMs incur 1500ms latency and high compute cost for trivial status lookups',
+          invariant: 'Sub-30ms deterministic intent router; routine status routed to compiled DB lookup (<10ms)'
+        },
+        {
+          assumption: 'Copilot can draft answers from open web or arbitrary training weights',
+          physics: 'Generates outdated return policies and incorrect SLA commitments',
+          invariant: 'Strict grounding: copilot answers only from versioned, approved support knowledge base'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates 85% triage speedup & $120k/yr support labor reclaimed", status: "Synchronized" },
+        { name: "As-Is vs To-Be Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Sequence diagram contrasting manual Notepad triage vs Sub-30ms Semantic Router", status: "Synchronized" },
+        { name: "Intent Classification Schema", type: "model", path: "models/staging/stg_support_intents.sql", desc: "Compiled SQL intent routing staging table", status: "Pending Build" },
+        { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "Anti-injection prompt sanitizer preflight checks", status: "Linked" }
+      ]
     },
     'fin-reconcile': {
       raw: 'Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules.',
@@ -2046,7 +2304,37 @@ function setupPhase1Discovery(api: any): void {
       ],
       volume: 5000,
       handleTime: 20,
-      wage: 55
+      wage: 55,
+      probes: [
+        { category: 'Shadow IT', question: 'What offline Excel spreadsheet, sticky notes, or shared folders do clerks check before clicking pay?', checked: true },
+        { category: 'Failure Mode', question: 'If a payment executes to a fraudulent IBAN or duplicate invoice, what is the recovery SLA and who is personally liable?', checked: true },
+        { category: 'Exception Iceberg', question: 'What percentage of invoices fail the 3-way PO match and require manual phone/email verification with vendors?', checked: true },
+        { category: 'Regulatory Gate', question: 'Is SOX-compliant cryptographic signing and two-person authorization legally mandatory for disbursement?', checked: true }
+      ],
+      observations: `• Shadow IT: Clerks maintain an offline Excel workbook ("Exceptions_2026.xlsx") on a network share to cross-check unbilled tax IDs.\n• Process Reality: 28% of invoices lack exact PO line matching; staff verify vendor ABN/tax ID on government portal before ERP approval.\n• Bottleneck: Average invoice takes 18 mins not because of typing, but waiting 3 days for department head email sign-off.`,
+      invariants: [
+        {
+          assumption: 'AI can calculate invoice balances and payment totals',
+          physics: 'LLMs are probabilistic token predictors, mathematically incapable of guaranteed decimal arithmetic',
+          invariant: 'Zero LLM arithmetic: all calculations executed in compiled SQL tolerance models (<5ms)'
+        },
+        {
+          assumption: 'Let AI disburse payments autonomously via bank API',
+          physics: 'Direct API mutation without two-party cryptographic sign-off violates SOX Section 404',
+          invariant: 'Autonomous payouts strictly locked; payments > $500 route to human Controller 1-click signature gate'
+        },
+        {
+          assumption: 'Invoices can be ingested directly into ERP without staging',
+          physics: 'Heterogeneous OCR PDFs contain unstandardized vendor strings and noise',
+          invariant: 'Deterministic staging schema layer with strict rejection of unmapped vendor entities'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates $189k annual savings & 1.4 FTE capacity unlocked", status: "Synchronized" },
+        { name: "As-Is vs To-Be Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Sequence diagram contrasting offline Excel vs Compiled SQL Rule Engine", status: "Synchronized" },
+        { name: "Staging Schema Model", type: "model", path: "models/staging/stg_invoices.sql", desc: "Compiled SQL tolerance matching model (<5ms)", status: "Pending Build" },
+        { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "Preflight boundary locks and cryptographic audit verification", status: "Linked" }
+      ]
     },
     'health-records': {
       raw: 'Build a chatbot to diagnose patients and pull full medical histories directly from EHR.',
@@ -2059,7 +2347,37 @@ function setupPhase1Discovery(api: any): void {
       ],
       volume: 8000,
       handleTime: 12,
-      wage: 45
+      wage: 45,
+      probes: [
+        { category: 'Regulatory Gate', question: 'What HIPAA / regional health data residency laws restrict sending patient identifiers to external cloud APIs?', checked: true },
+        { category: 'Failure Mode', question: 'If an AI dosage or clinical policy citation is ungrounded, what is the clinical liability and patient safety protocol?', checked: true },
+        { category: 'Shadow IT', question: 'Do physicians or nurses maintain local cheat sheets or unapproved transcription tools to bypass slow EHR workflows?', checked: true },
+        { category: 'Exception Iceberg', question: 'What percentage of patient records have missing lab results, conflicting allergy histories, or unstructured doctor notes?', checked: true }
+      ],
+      observations: `• Shadow IT: Nursing staff cross-reference paper ward handoff sheets and clinical guideline printouts taped to monitors.\n• Process Reality: Physicians spend 25 mins per consult, with 14 mins spent searching hospital SOP PDFs across 4 disconnected intranet portals.\n• Data Reality: Patient charts contain legacy abbreviations and unstandardized medication brand names.`,
+      invariants: [
+        {
+          assumption: 'AI can diagnose patient conditions and prescribe dosages',
+          physics: 'AI systems are uncertified medical devices; generating dosages creates catastrophic malpractice liability',
+          invariant: 'Zero autonomous diagnosis or prescription: strictly restricted to air-gapped SOP policy retrieval'
+        },
+        {
+          assumption: 'Patient data can be sent to external LLM APIs for summarization',
+          physics: 'Unmasked PHI transmission outside local VPC violates HIPAA/GDPR statutory mandates',
+          invariant: 'Local de-identification & entity masking stage before any model interaction; zero data leaves VPC'
+        },
+        {
+          assumption: 'Physicians will trust generic generative summaries',
+          physics: 'Clinicians require exact legal evidence grounding to approve treatments',
+          invariant: '100% token-level citations to approved hospital SOPs with 128-token chunk precision'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates clinical capacity reclaimed & physician burnout reduction", status: "Synchronized" },
+        { name: "As-Is vs To-Be Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Sequence diagram contrasting disconnected intranet vs Air-Gapped SOP Copilot", status: "Synchronized" },
+        { name: "PII Masking Gate", type: "model", path: "models/staging/stg_patient_phi.sql", desc: "Deterministic regex de-identification filter", status: "Pending Build" },
+        { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "HIPAA audit trail verification & VPC egress lock validation", status: "Linked" }
+      ]
     },
     'supply-chain': {
       raw: 'Automatically cancel vendor purchase orders and penalize suppliers when shipments are delayed.',
@@ -2072,7 +2390,37 @@ function setupPhase1Discovery(api: any): void {
       ],
       volume: 12000,
       handleTime: 18,
-      wage: 40
+      wage: 40,
+      probes: [
+        { category: 'Data Physics', question: 'How fragile are heterogeneous carrier EDI (214/315) and webhook payloads across different logistics providers?', checked: true },
+        { category: 'Failure Mode', question: 'If a shipment delay is miscalculated, what is the contractual SLA penalty or factory shutdown cost?', checked: true },
+        { category: 'Shadow IT', question: 'What manual WhatsApp chats or phone calls with freight forwarders are used to confirm real container locations?', checked: true },
+        { category: 'Regulatory Gate', question: 'Who has signing authority to cancel or reschedule a purchase order in the primary ERP?', checked: true }
+      ],
+      observations: `• Shadow IT: Logistics coordinators text drivers on WhatsApp and manually track tracking URLs in browser bookmark folders.\n• Process Reality: EDI 214 status webhooks arrive out of sequence (e.g. "delivered" before "in transit"), causing false alarm exception tickets.\n• Bottleneck: ERP order rescheduling requires procurement manager signature, but coordinators spend 20 mins chasing signatures via phone.`,
+      invariants: [
+        {
+          assumption: 'AI can automatically reschedule purchase orders in ERP when shipments are late',
+          physics: 'Automated order mutation disrupts downstream warehouse allocation and supplier contract commitments',
+          invariant: 'Zero autonomous ERP mutation: provides 1-click mitigation recommendation with procurement manager sign-off'
+        },
+        {
+          assumption: 'Carrier webhook status feeds are clean and ordered',
+          physics: 'Heterogeneous EDI webhooks arrive out of order, corrupted, or duplicated',
+          invariant: 'Strict idempotent staging pipeline with event-timestamp deduplication'
+        },
+        {
+          assumption: 'LLM can compute contractual SLA penalty calculations',
+          physics: 'Complex penalty schedules are contractual formulas requiring auditable precision',
+          invariant: 'Compiled SQL penalty logic: SLA calculation executed in deterministic SQL queries'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates SLA chargeback reductions & freight expediting savings", status: "Synchronized" },
+        { name: "As-Is vs To-Be Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Sequence diagram contrasting WhatsApp tracking vs Standardized Staging Gateway", status: "Synchronized" },
+        { name: "Telemetry Staging Model", type: "model", path: "models/staging/stg_carrier_telemetry.sql", desc: "Idempotent event-time deduplication staging model", status: "Pending Build" },
+        { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "ERP credential isolation and audit log verification", status: "Linked" }
+      ]
     }
   };
 
@@ -2921,6 +3269,22 @@ function setupPhase1Discovery(api: any): void {
       currentScopeRules = arch.rules.map(r => ({ text: r, enabled: true }));
       renderScopeRules();
 
+      if (arch.probes) {
+        currentInquiryProbes = JSON.parse(JSON.stringify(arch.probes));
+        renderInquiryProbes();
+      }
+      if (txtFloorObservations) {
+        txtFloorObservations.value = arch.observations || '';
+      }
+      if (arch.invariants) {
+        currentInvariants = JSON.parse(JSON.stringify(arch.invariants));
+        renderInvariants();
+      }
+      if (arch.artifacts) {
+        currentLinkedArtifacts = JSON.parse(JSON.stringify(arch.artifacts));
+        renderLinkedArtifacts();
+      }
+
       setThreeNumbers(arch.volume ?? 0, arch.handleTime ?? 0, arch.wage ?? 0);
 
       renderTopology(key);
@@ -2949,7 +3313,7 @@ function setupPhase1Discovery(api: any): void {
   });
 
   // --- Dirty tracking: any Phase 1 edit schedules an autosave and flags unsaved work ---
-  [txtRawAsk, txtRisk, txtReframed].forEach(el => el?.addEventListener('input', markScopeDirty));
+  [txtRawAsk, txtRisk, txtReframed, txtFloorObservations].forEach(el => el?.addEventListener('input', markScopeDirty));
   [rngVolume, rngHandleTime, rngHourlyWage].forEach(el => el?.addEventListener('input', markScopeDirty));
   [numVolume, numHandleTime, numHourlyWage].forEach(el => el?.addEventListener('input', markScopeDirty));
   [numAutomationRatio, numLoadedMultiplier, numProductiveHours,
@@ -3009,12 +3373,12 @@ function setupPhase1Discovery(api: any): void {
   function evaluateScopeCompleteness(): ScopeCompleteness {
     const missing: string[] = [];
     if (!(txtRawAsk?.value || '').trim()) missing.push("customer's raw ask");
-    if (!(txtRisk?.value || '').trim()) missing.push('operational risk analysis');
+    if (currentDeliveryStandard !== 'simple' && !(txtRisk?.value || '').trim()) missing.push('operational risk analysis');
     if (!(txtReframed?.value || '').trim()) missing.push('reframed production goal');
     if (currentScopeRules.filter(r => r.enabled && r.text.trim()).length === 0) missing.push('at least one out-of-scope boundary');
     const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
     if (vol === 0 || time === 0 || wage === 0) missing.push("the Controller's three numbers");
-    const total = 5;
+    const total = currentDeliveryStandard === 'simple' ? 4 : 5;
     return { complete: missing.length === 0, missing, filled: total - missing.length, total };
   }
 
@@ -3073,11 +3437,16 @@ function setupPhase1Discovery(api: any): void {
     const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
 
     const payload = {
+      standard: currentDeliveryStandard,
       rawClientAsk: rawAsk,
+      inquiryProbes: currentInquiryProbes,
+      floorObservations: txtFloorObservations?.value || '',
+      firstPrinciplesDeconstruction: currentInvariants,
       riskAnalysis,
       reframedProblem: reframedGoal,
       archetype,
       outOfScope,
+      linkedArtifacts: currentLinkedArtifacts,
       customFutureDiagram: cachedDiagrams.futureDiagram,
       customLegacyDiagram: cachedDiagrams.legacyDiagram,
       controllersThreeNumbers: {
@@ -3233,6 +3602,8 @@ function setupPhase1Discovery(api: any): void {
 
   // --- AI REFLECTION & REFRAMING HANDLERS ---
   const btnAiAnalyzeAsk = document.getElementById('btnFdeAiAnalyzeAsk');
+  const btnAiSuggestProbes = document.getElementById('btnFdeAiSuggestProbes');
+  const btnAiFirstPrinciples = document.getElementById('btnFdeAiFirstPrinciples');
   const btnAiDraftRisk = document.getElementById('btnFdeAiDraftRisk');
   const btnAiDraftGoal = document.getElementById('btnFdeAiDraftGoal');
   const btnAiSuggestLocks = document.getElementById('btnFdeAiSuggestLocks');
@@ -3245,13 +3616,30 @@ function setupPhase1Discovery(api: any): void {
       txtRawAsk?.focus();
       return;
     }
-    showToast('✨ AI is analyzing raw ask & reframing boundaries...');
+    showToast('✨ AI is conducting Gemba discovery & synthesizing O2S spec...');
     if (api?.fde?.aiAnalyzeRawAsk) {
       try {
-        const res = await api.fde.aiAnalyzeRawAsk({ rawAsk: raw, archetype: selArchetype?.value });
+        const res = await api.fde.aiAnalyzeRawAsk({
+          rawAsk: raw,
+          archetype: selArchetype?.value,
+          standard: currentDeliveryStandard
+        });
         if (txtRisk && res.operationalRisks) txtRisk.value = res.operationalRisks;
         if (txtReframed && res.reframedGoal) txtReframed.value = res.reframedGoal;
+        if (txtFloorObservations && res.floorObservations) txtFloorObservations.value = res.floorObservations;
         if (selArchetype && res.detectedArchetype) selArchetype.value = res.detectedArchetype;
+        if (Array.isArray(res.suggestedProbes) && res.suggestedProbes.length > 0) {
+          currentInquiryProbes = res.suggestedProbes;
+          renderInquiryProbes();
+        }
+        if (Array.isArray(res.firstPrinciplesDeconstruction) && res.firstPrinciplesDeconstruction.length > 0) {
+          currentInvariants = res.firstPrinciplesDeconstruction;
+          renderInvariants();
+        }
+        if (Array.isArray(res.linkedArtifacts) && res.linkedArtifacts.length > 0) {
+          currentLinkedArtifacts = res.linkedArtifacts;
+          renderLinkedArtifacts();
+        }
         if (Array.isArray(res.outOfScopeRules) && res.outOfScopeRules.length > 0) {
           currentScopeRules = res.outOfScopeRules.map((s: string) => ({ text: s, enabled: true }));
           renderScopeRules();
@@ -3268,9 +3656,50 @@ function setupPhase1Discovery(api: any): void {
             topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
           }
         }
-        showToast('✓ AI Scope Reframed! Risks, goals, boundary locks & topology generated.');
+        markScopeDirty();
+        showToast('✓ AI Scope Reframed! Gemba observations, invariant gates, O2S spec & topology generated.');
       } catch (err: any) {
         showToast('❌ AI Analysis failed: ' + (err.message || err));
+      }
+    }
+  });
+
+  btnAiSuggestProbes?.addEventListener('click', async () => {
+    const raw = txtRawAsk?.value || '';
+    if (api?.fde?.aiAnalyzeRawAsk) {
+      showToast('✨ Formulating diagnostic Gemba inquiry probes...');
+      try {
+        const res = await api.fde.aiAnalyzeRawAsk({ rawAsk: raw, archetype: selArchetype?.value, standard: currentDeliveryStandard });
+        if (Array.isArray(res.suggestedProbes) && res.suggestedProbes.length > 0) {
+          currentInquiryProbes = res.suggestedProbes;
+          renderInquiryProbes();
+          markScopeDirty();
+          showToast(`✓ Injected ${res.suggestedProbes.length} diagnostic inquiry probes!`);
+        }
+        if (txtFloorObservations && res.floorObservations && !txtFloorObservations.value.trim()) {
+          txtFloorObservations.value = res.floorObservations;
+          markScopeDirty();
+        }
+      } catch (err: any) {
+        showToast('❌ AI probe formulation failed: ' + (err.message || err));
+      }
+    }
+  });
+
+  btnAiFirstPrinciples?.addEventListener('click', async () => {
+    const raw = txtRawAsk?.value || '';
+    if (api?.fde?.aiAnalyzeRawAsk) {
+      showToast('✨ Deconstructing customer assumptions into invariants...');
+      try {
+        const res = await api.fde.aiAnalyzeRawAsk({ rawAsk: raw, archetype: selArchetype?.value, standard: currentDeliveryStandard });
+        if (Array.isArray(res.firstPrinciplesDeconstruction) && res.firstPrinciplesDeconstruction.length > 0) {
+          currentInvariants = res.firstPrinciplesDeconstruction;
+          renderInvariants();
+          markScopeDirty();
+          showToast(`✓ Grounded ${res.firstPrinciplesDeconstruction.length} hard engineering invariants!`);
+        }
+      } catch (err: any) {
+        showToast('❌ Assumption deconstruction failed: ' + (err.message || err));
       }
     }
   });
@@ -3374,11 +3803,16 @@ function setupPhase1Discovery(api: any): void {
 
     const payload = {
       discovery: {
+        standard: currentDeliveryStandard,
         rawClientAsk: rawAsk,
+        inquiryProbes: currentInquiryProbes,
+        floorObservations: txtFloorObservations?.value || '',
+        firstPrinciplesDeconstruction: currentInvariants,
         riskAnalysis,
         reframedProblem: reframedGoal,
         archetype,
         outOfScope,
+        linkedArtifacts: currentLinkedArtifacts,
         customFutureDiagram: cachedDiagrams.futureDiagram,
         customLegacyDiagram: cachedDiagrams.legacyDiagram,
         controllersThreeNumbers: { volume: vol, handleTimeMins: time, hourlyWage: wage }
@@ -3402,7 +3836,23 @@ function setupPhase1Discovery(api: any): void {
       const res = await api.fde.restoreScopeVersion(selectedId);
       if (res.success && res.restoredData?.discovery) {
         const d = res.restoredData.discovery;
+        if (d.standard && (d.standard === 'simple' || d.standard === 'medium' || d.standard === 'advanced')) {
+          applyDeliveryStandard(d.standard);
+        }
         if (txtRawAsk && d.rawClientAsk) txtRawAsk.value = d.rawClientAsk;
+        if (txtFloorObservations && d.floorObservations) txtFloorObservations.value = d.floorObservations;
+        if (Array.isArray(d.inquiryProbes) && d.inquiryProbes.length > 0) {
+          currentInquiryProbes = d.inquiryProbes;
+          renderInquiryProbes();
+        }
+        if (Array.isArray(d.firstPrinciplesDeconstruction) && d.firstPrinciplesDeconstruction.length > 0) {
+          currentInvariants = d.firstPrinciplesDeconstruction;
+          renderInvariants();
+        }
+        if (Array.isArray(d.linkedArtifacts) && d.linkedArtifacts.length > 0) {
+          currentLinkedArtifacts = d.linkedArtifacts;
+          renderLinkedArtifacts();
+        }
         if (txtRisk && d.riskAnalysis) txtRisk.value = d.riskAnalysis;
         if (txtReframed && d.reframedProblem) txtReframed.value = d.reframedProblem;
         if (selArchetype && d.archetype) selArchetype.value = d.archetype;
@@ -3433,11 +3883,16 @@ function setupPhase1Discovery(api: any): void {
     const payload = {
       clientName: 'Client Executive Sponsor',
       discovery: {
+        standard: currentDeliveryStandard,
         rawClientAsk: rawAsk,
+        inquiryProbes: currentInquiryProbes,
+        floorObservations: txtFloorObservations?.value || '',
+        firstPrinciplesDeconstruction: currentInvariants,
         riskAnalysis,
         reframedProblem: reframedGoal,
         archetype,
         outOfScope,
+        linkedArtifacts: currentLinkedArtifacts,
         customFutureDiagram: cachedDiagrams.futureDiagram,
         customLegacyDiagram: cachedDiagrams.legacyDiagram,
         controllersThreeNumbers: { volume: vol, handleTimeMins: time, hourlyWage: wage }
@@ -3482,7 +3937,23 @@ function setupPhase1Discovery(api: any): void {
       try {
         const state = await api.fde.getState();
         if (state && state.discovery) {
+          if (state.discovery.standard && (state.discovery.standard === 'simple' || state.discovery.standard === 'medium' || state.discovery.standard === 'advanced')) {
+            applyDeliveryStandard(state.discovery.standard);
+          }
           if (txtRawAsk && state.discovery.rawClientAsk) txtRawAsk.value = state.discovery.rawClientAsk;
+          if (txtFloorObservations && state.discovery.floorObservations) txtFloorObservations.value = state.discovery.floorObservations;
+          if (Array.isArray(state.discovery.inquiryProbes) && state.discovery.inquiryProbes.length > 0) {
+            currentInquiryProbes = state.discovery.inquiryProbes;
+            renderInquiryProbes();
+          }
+          if (Array.isArray(state.discovery.firstPrinciplesDeconstruction) && state.discovery.firstPrinciplesDeconstruction.length > 0) {
+            currentInvariants = state.discovery.firstPrinciplesDeconstruction;
+            renderInvariants();
+          }
+          if (Array.isArray(state.discovery.linkedArtifacts) && state.discovery.linkedArtifacts.length > 0) {
+            currentLinkedArtifacts = state.discovery.linkedArtifacts;
+            renderLinkedArtifacts();
+          }
           if (txtRisk && state.discovery.riskAnalysis) txtRisk.value = state.discovery.riskAnalysis;
           if (txtReframed && state.discovery.reframedProblem) txtReframed.value = state.discovery.reframedProblem;
           if (selArchetype && state.discovery.archetype) selArchetype.value = state.discovery.archetype;
@@ -3919,6 +4390,7 @@ function setupDeliveryStudio(api: any): void {
 
   const populateDiscoveredTables = (tables: any[], dialectName: string) => {
     currentIntrospectedTables = tables;
+    (window as any)._phase2DiscoveredTables = tables;
     if (dbTablesContainer) dbTablesContainer.style.display = 'block';
 
     if (dbConnectionStatusBadge) {
@@ -6991,7 +7463,7 @@ function setupDeliveryStudio(api: any): void {
         '## 1. Executive Problem Reframing & Economic Boundaries (Phase 1)\n\n' +
         '* **Original Client Request:** "Automate client manual workflow and reporting with AI"\n' +
         '* **Identified Failure Modes:** Direct LLM hallucination on strict arithmetic tasks, schema drift, ungrounded external calls.\n' +
-        '* **Reframed Problem ("Refusing the Ask"):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.\n' +
+        '* **Agreed Production Target (Observation-to-Spec / O2S):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.\n' +
         '* **Explicit Out-of-Scope Boundaries:** `Direct LLM database write access`, `Unverified external API scraping`, `Unsupervised transactions >$100`\n\n' +
         '### Controller\'s Three Numbers & Economic ROI (Phase 1)\n' +
         '* **Monthly Volume:** `10,000 tasks/mo`\n' +
@@ -14974,17 +15446,331 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
 }
 
 // --- DATA ANALYSIS STUDIO ---
+interface ActiveDbTableSource {
+  dialect: string;
+  database: string;
+  schema: string;
+  tableName: string;
+  columns: Array<{ name: string; type: string; isNullable?: boolean }>;
+  columnsFormatted?: string;
+  connectionUri?: string;
+}
+
+let activeAnalysisDbTable: ActiveDbTableSource | null = null;
+let currentDataStudioIntrospectedTables: any[] = [];
+
 function setupDataAnalysisStudio(api: any): void {
   const cardBrowse = document.getElementById('cardBrowseDataFile');
+  const cardConnectDb = document.getElementById('cardConnectDbSource');
+  const btnDataToggleDbDrawer = document.getElementById('btnDataToggleDbDrawer');
+  const dataDbConnectDrawer = document.getElementById('dataDbConnectDrawer');
+  const btnDataCloseDbDrawer = document.getElementById('btnDataCloseDbDrawer');
+  const btnDataToggleMaskUri = document.getElementById('btnDataToggleMaskUri');
+  const dataDbUriInput = document.getElementById('dataDbUriInput') as HTMLInputElement;
+  const dataDbDialectSelect = document.getElementById('dataDbDialectSelect') as HTMLSelectElement;
+  const dataDbProjectIdInput = document.getElementById('dataDbProjectIdInput') as HTMLInputElement;
+  const dataDbSchemaIdInput = document.getElementById('dataDbSchemaIdInput') as HTMLInputElement;
+  const dataDbVaultPolicy = document.getElementById('dataDbVaultPolicy') as HTMLSelectElement;
+
+  const btnDataExecuteIntrospect = document.getElementById('btnDataExecuteIntrospect');
+  const btnDataTestDbPing = document.getElementById('btnDataTestDbPing');
+  const btnDataAutoDetectDb = document.getElementById('btnDataAutoDetectDb');
+  const btnDataWipeDbCreds = document.getElementById('btnDataWipeDbCreds');
+
+  const dataDbTablesContainer = document.getElementById('dataDbTablesContainer');
+  const dataDbConnectionStatusBadge = document.getElementById('dataDbConnectionStatusBadge');
+  const dataDbTableFilterInput = document.getElementById('dataDbTableFilterInput') as HTMLInputElement;
+  const dataDbTableSelect = document.getElementById('dataDbTableSelect') as HTMLSelectElement;
+  const btnDataLoadTableForAnalysis = document.getElementById('btnDataLoadTableForAnalysis');
+  const dataDbColumnsPreview = document.getElementById('dataDbColumnsPreview');
+
   const deliverablePills = document.querySelectorAll<HTMLElement>('.deliverable-pill');
   const btnExecute = document.getElementById('btnExecuteDataAnalysis');
 
+  // Render column pills for selected table
+  const renderColumnsPreview = (tbl: any) => {
+    if (!dataDbColumnsPreview) return;
+    if (!tbl || !tbl.columns || tbl.columns.length === 0) {
+      dataDbColumnsPreview.innerHTML = '<span style="font-size: 11px; color: var(--text-secondary); font-style: italic;">Select a table above to view column types.</span>';
+      return;
+    }
+    dataDbColumnsPreview.innerHTML = tbl.columns.map((c: any) => {
+      const typeColor = c.type === 'integer' || c.type === 'numeric' ? '#4ec9b0' : c.type === 'timestamp' ? '#ce9178' : c.type === 'boolean' ? '#dcdcaa' : '#9cdcfe';
+      return `<span style="background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 11px; font-family: var(--font-mono); display: inline-flex; align-items: center; gap: 4px;">
+        <span style="color: #fff;">${c.name}</span><span style="color: ${typeColor}; font-size: 9.5px; opacity: 0.85;">:${c.type}</span>
+      </span>`;
+    }).join(' ');
+  };
+
+  // Populate discovered tables in select dropdown
+  const populateDataDiscoveredTables = (tables: any[], dialectName: string) => {
+    currentDataStudioIntrospectedTables = tables;
+    if (dataDbTablesContainer) dataDbTablesContainer.style.display = 'block';
+
+    if (dataDbConnectionStatusBadge) {
+      dataDbConnectionStatusBadge.innerText = `✓ Connected to ${dialectName.toUpperCase()}: ${tables.length} tables discovered`;
+    }
+
+    if (dataDbTableSelect) {
+      dataDbTableSelect.innerHTML = `<option value="">-- Choose an introspected table (${tables.length} found) --</option>` +
+        tables.map(t => {
+          const schemaPrefix = t.schema ? `${t.schema}.` : '';
+          const name = t.tableName || t.name;
+          const colCount = t.columns ? t.columns.length : 0;
+          return `<option value="${name}">${schemaPrefix}${name} (${colCount} columns)</option>`;
+        }).join('');
+
+      if (tables.length > 0) {
+        dataDbTableSelect.value = tables[0].tableName || tables[0].name;
+        renderColumnsPreview(tables[0]);
+      }
+    }
+  };
+
+  // Synchronize credentials with Phase 2 if already filled
+  const syncFromPhase2Db = () => {
+    const p2Dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement)?.value;
+    const p2Uri = (document.getElementById('dbUriInput') as HTMLInputElement)?.value;
+    const p2Project = (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value;
+    const p2Schema = (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value;
+    const p2Vault = (document.getElementById('dbVaultPolicy') as HTMLSelectElement)?.value;
+
+    if (p2Dialect && dataDbDialectSelect) dataDbDialectSelect.value = p2Dialect;
+    if (p2Uri && dataDbUriInput && !dataDbUriInput.value) dataDbUriInput.value = p2Uri;
+    if (p2Project && dataDbProjectIdInput && dataDbProjectIdInput.value === 'postgres') dataDbProjectIdInput.value = p2Project;
+    if (p2Schema && dataDbSchemaIdInput && dataDbSchemaIdInput.value === 'public') dataDbSchemaIdInput.value = p2Schema;
+    if (p2Vault && dataDbVaultPolicy) dataDbVaultPolicy.value = p2Vault;
+
+    // Check if Phase 2 discovered tables are available
+    if (currentDataStudioIntrospectedTables.length === 0 && (window as any)._phase2DiscoveredTables) {
+      populateDataDiscoveredTables((window as any)._phase2DiscoveredTables, dataDbDialectSelect?.value || 'postgres');
+    }
+  };
+
+  // Toggle Live DB Drawer
+  const toggleDbDrawer = () => {
+    if (!dataDbConnectDrawer) return;
+    const isHidden = dataDbConnectDrawer.style.display === 'none' || dataDbConnectDrawer.style.display === '';
+    dataDbConnectDrawer.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) {
+      syncFromPhase2Db();
+      dataDbConnectDrawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      cardConnectDb?.classList.add('active');
+      if (cardConnectDb) cardConnectDb.style.borderColor = 'var(--accent)';
+    } else {
+      if (!activeAnalysisDbTable) {
+        cardConnectDb?.classList.remove('active');
+        if (cardConnectDb) cardConnectDb.style.borderColor = '';
+      }
+    }
+  };
+
+  cardConnectDb?.addEventListener('click', toggleDbDrawer);
+  btnDataToggleDbDrawer?.addEventListener('click', toggleDbDrawer);
+  btnDataCloseDbDrawer?.addEventListener('click', () => {
+    if (dataDbConnectDrawer) dataDbConnectDrawer.style.display = 'none';
+  });
+
+  // Toggle Password Masking
+  btnDataToggleMaskUri?.addEventListener('click', () => {
+    if (dataDbUriInput) {
+      dataDbUriInput.type = dataDbUriInput.type === 'password' ? 'text' : 'password';
+    }
+  });
+
+  // Test Connection
+  btnDataTestDbPing?.addEventListener('click', async () => {
+    const dialect = dataDbDialectSelect?.value || 'postgres';
+    const uri = dataDbUriInput?.value || '';
+    const schema = dataDbSchemaIdInput?.value || 'public';
+    const database = dataDbProjectIdInput?.value || 'postgres';
+
+    if (!uri) {
+      showToast('⚠️ Please enter database connection URI.');
+      return;
+    }
+    showToast(`🔌 Testing connection to ${dialect.toUpperCase()} database...`);
+    if (api?.engines?.testDb) {
+      const res = await api.engines.testDb({ dialect, connectionUri: uri, schema, database });
+      if (res && res.success) {
+        showToast(`✓ ${res.message || 'Connection successful!'}`);
+      } else {
+        showToast(`⚠️ ${res?.message || res?.error || 'Connection check completed.'}`);
+      }
+    }
+  });
+
+  // Auto-Detect from .env / dbt
+  btnDataAutoDetectDb?.addEventListener('click', async () => {
+    showToast('⚡ Scanning workspace for .env, dbt, prisma & supabase configs...');
+    if (api?.engines?.detectDb) {
+      const detected = await api.engines.detectDb();
+      if (detected && detected.found) {
+        if (detected.dialect && dataDbDialectSelect) dataDbDialectSelect.value = detected.dialect;
+        if (detected.connectionUri && dataDbUriInput) dataDbUriInput.value = detected.connectionUri;
+        if (detected.database && dataDbProjectIdInput) dataDbProjectIdInput.value = detected.database;
+        if (detected.schema && dataDbSchemaIdInput) dataDbSchemaIdInput.value = detected.schema;
+        showToast(`✓ Auto-detected ${detected.dialect?.toUpperCase() || 'DB'} connection from ${detected.sourceFile || '.env'}!`);
+      } else {
+        showToast('⚠️ No database connection parameters detected in project files.');
+      }
+    }
+  });
+
+  // Wipe Credentials
+  btnDataWipeDbCreds?.addEventListener('click', () => {
+    if (dataDbUriInput) dataDbUriInput.value = '';
+    showToast('🗑️ Cleared database connection credentials from memory.');
+  });
+
+  // Connect & Fetch Tables
+  btnDataExecuteIntrospect?.addEventListener('click', async () => {
+    const dialect = dataDbDialectSelect?.value || 'postgres';
+    const uri = dataDbUriInput?.value || '';
+    const schema = dataDbSchemaIdInput?.value || 'public';
+    const database = dataDbProjectIdInput?.value || 'postgres';
+
+    if (!uri) {
+      showToast('⚠️ Please enter database connection URI.');
+      return;
+    }
+    showToast(`🔌 Introspecting ${dialect.toUpperCase()} database schema...`);
+    if (api?.engines) {
+      const res = await api.engines.introspectDb({ dialect, connectionUri: uri, schema, database });
+      if (res && res.tables && res.tables.length > 0) {
+        (window as any)._phase2DiscoveredTables = res.tables;
+        populateDataDiscoveredTables(res.tables, dialect);
+        showToast(`✓ Discovered ${res.tables.length} tables from ${dialect.toUpperCase()}!`);
+      } else {
+        showToast(`⚠️ ${res?.error || res?.message || 'No tables discovered.'}`);
+      }
+    }
+  });
+
+  // Filter Tables
+  dataDbTableFilterInput?.addEventListener('input', () => {
+    const filter = dataDbTableFilterInput.value.toLowerCase().trim();
+    if (!dataDbTableSelect || !currentDataStudioIntrospectedTables) return;
+
+    const filtered = currentDataStudioIntrospectedTables.filter(t => {
+      const name = (t.tableName || t.name || '').toLowerCase();
+      const s = (t.schema || '').toLowerCase();
+      return name.includes(filter) || s.includes(filter);
+    });
+
+    dataDbTableSelect.innerHTML = `<option value="">-- Choose an introspected table (${filtered.length} match${filtered.length === 1 ? '' : 'es'}) --</option>` +
+      filtered.map(t => {
+        const schemaPrefix = t.schema ? `${t.schema}.` : '';
+        const name = t.tableName || t.name;
+        const colCount = t.columns ? t.columns.length : 0;
+        return `<option value="${name}">${schemaPrefix}${name} (${colCount} columns)</option>`;
+      }).join('');
+
+    if (filtered.length > 0) {
+      dataDbTableSelect.value = filtered[0].tableName || filtered[0].name;
+      renderColumnsPreview(filtered[0]);
+    } else {
+      renderColumnsPreview(null);
+    }
+  });
+
+  // Change Table Selection
+  dataDbTableSelect?.addEventListener('change', () => {
+    const tblName = dataDbTableSelect.value;
+    const tbl = currentDataStudioIntrospectedTables.find(t => (t.tableName === tblName) || (t.name === tblName));
+    renderColumnsPreview(tbl);
+  });
+
+  // Load Table for Analysis
+  btnDataLoadTableForAnalysis?.addEventListener('click', () => {
+    const tblName = dataDbTableSelect?.value;
+    if (!tblName) {
+      showToast('⚠️ Please select an introspected table first.');
+      return;
+    }
+
+    const tbl = currentDataStudioIntrospectedTables.find(t => 
+      (t.tableName === tblName) || 
+      (t.name === tblName) || 
+      ((t.schema ? `${t.schema}.${t.tableName || t.name}` : '') === tblName)
+    );
+    if (!tbl) {
+      showToast('⚠️ Could not find table metadata.');
+      return;
+    }
+
+    const dialect = dataDbDialectSelect?.value || 'postgres';
+    const schema = dataDbSchemaIdInput?.value || tbl.schema || 'public';
+    const database = dataDbProjectIdInput?.value || 'postgres';
+    const uri = dataDbUriInput?.value || '';
+
+    activeAnalysisDbTable = {
+      dialect,
+      database,
+      schema,
+      tableName: tbl.tableName || tbl.name,
+      columns: tbl.columns || [],
+      columnsFormatted: tbl.columnsFormatted || (tbl.columns ? tbl.columns.map((c: any) => `${c.name}:${c.type}`).join('\n') : ''),
+      connectionUri: uri
+    };
+
+    const dropZone = document.getElementById('dataDropZone');
+    if (dropZone) {
+      dropZone.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 0;">
+          <span style="font-size: 24px;">🗄️</span>
+          <div style="text-align: left;">
+            <div style="font-size: 13.5px; font-weight: 700; color: #fff;">
+              Connected Table: <span style="color: var(--accent); font-family: monospace;">${schema}.${tbl.tableName || tbl.name}</span>
+              <span class="brand-pill" style="margin-left: 8px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); font-size: 10px;">${dialect.toUpperCase()}</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+              ${(tbl.columns || []).length} columns loaded &middot; Live DB source ready for analysis deliverables
+            </div>
+          </div>
+        </div>
+      `;
+      dropZone.style.borderColor = 'var(--accent)';
+      dropZone.style.background = 'rgba(78, 201, 176, 0.05)';
+    }
+
+    if (cardConnectDb) {
+      cardConnectDb.classList.add('active');
+      cardConnectDb.style.borderColor = 'var(--accent)';
+      cardConnectDb.style.background = 'rgba(78, 201, 176, 0.08)';
+    }
+    if (cardBrowse) {
+      cardBrowse.classList.remove('active');
+      cardBrowse.style.borderColor = '';
+      cardBrowse.style.background = '';
+    }
+
+    showToast(`✓ Loaded ${tbl.tableName || tbl.name} (${(tbl.columns || []).length} columns) from ${dialect.toUpperCase()} for analysis!`);
+    document.getElementById('deliv')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // Browse local file
   cardBrowse?.addEventListener('click', async () => {
     if (api?.workspace) {
       const filePath = await api.workspace.openFileDialog();
       if (filePath) {
+        activeAnalysisDbTable = null;
+        if (cardConnectDb) {
+          cardConnectDb.classList.remove('active');
+          cardConnectDb.style.borderColor = '';
+          cardConnectDb.style.background = '';
+        }
+        if (cardBrowse) {
+          cardBrowse.classList.add('active');
+          cardBrowse.style.borderColor = 'var(--accent)';
+          cardBrowse.style.background = 'rgba(78, 201, 176, 0.08)';
+        }
         const dropZone = document.getElementById('dataDropZone');
-        if (dropZone) dropZone.innerText = `📁 Selected: ${filePath}`;
+        if (dropZone) {
+          dropZone.innerText = `📁 Selected: ${filePath}`;
+          dropZone.style.borderColor = '';
+          dropZone.style.background = '';
+        }
         showToast(`✓ Loaded dataset: ${filePath.split(/[\\/]/).pop()}`);
       }
     }
@@ -15002,27 +15788,404 @@ function setupDataAnalysisStudio(api: any): void {
     });
   });
 
+  // Deliverable Viewer State & Elements
+  const resultsBox = document.getElementById('dataAnalysisResultsBox');
+  const dataDeliverableIcon = document.getElementById('dataDeliverableIcon');
+  const dataDeliverableTitle = document.getElementById('dataDeliverableTitle');
+  const dataDeliverableSourceBadge = document.getElementById('dataDeliverableSourceBadge');
+  const btnDataViewPreview = document.getElementById('btnDataViewPreview');
+  const btnDataViewSource = document.getElementById('btnDataViewSource');
+  const btnDataCopyDeliverable = document.getElementById('btnDataCopyDeliverable');
+  const btnDataOpenBrowser = document.getElementById('btnDataOpenBrowser');
+  const btnDataExportFile = document.getElementById('btnDataExportFile');
+  const dataVisualPreviewPanel = document.getElementById('dataVisualPreviewPanel');
+  const dataSourceEditorPanel = document.getElementById('dataSourceEditorPanel');
+  const dataHtmlIframeContainer = document.getElementById('dataHtmlIframeContainer');
+  const dataReportIframe = document.getElementById('dataReportIframe') as HTMLIFrameElement;
+  const dataFormattedCardContainer = document.getElementById('dataFormattedCardContainer');
+  const dataFormattedCardContent = document.getElementById('dataFormattedCardContent');
+  const dataNotebookContainer = document.getElementById('dataNotebookContainer');
+  const dataNotebookCodeBlock = document.getElementById('dataNotebookCodeBlock');
+  const btnDataCopyScriptOnly = document.getElementById('btnDataCopyScriptOnly');
+  const dataAnalysisSourceEditor = document.getElementById('dataAnalysisSourceEditor') as HTMLTextAreaElement;
+  const btnDataApplyEdits = document.getElementById('btnDataApplyEdits');
+  const dataDeliverableFormatBadge = document.getElementById('dataDeliverableFormatBadge');
+
+  let currentDeliverableContent = '';
+  let currentDeliverableType = 'insights';
+  let currentDeliverableSourceTitle = 'Active Dataset';
+  let currentViewMode: 'preview' | 'source' = 'preview';
+
+  // Helper to format text/markdown into structured HTML cards
+  const formatTextDeliverableToHtml = (raw: string, type: string): string => {
+    if (!raw) return '<div style="color: var(--text-secondary); font-style: italic;">No deliverable output.</div>';
+
+    const lines = raw.split('\n');
+    let html = '';
+    let inTable = false;
+    let tableRows: string[] = [];
+
+    const flushTable = () => {
+      if (tableRows.length > 0) {
+        html += `<table style="width: 100%; border-collapse: collapse; margin: 12px 0; background: rgba(0,0,0,0.25); border-radius: 6px; overflow: hidden; border: 1px solid var(--border);">
+          <thead>
+            <tr style="background: rgba(255,255,255,0.04); text-align: left; font-size: 11px; text-transform: uppercase; color: var(--accent);">
+              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Attribute</th>
+              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Type</th>
+              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Nullability</th>
+              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Cardinality</th>
+            </tr>
+          </thead>
+          <tbody>${tableRows.join('')}</tbody>
+        </table>`;
+        tableRows = [];
+      }
+      inTable = false;
+    };
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        if (inTable) flushTable();
+        continue;
+      }
+
+      // Title Banner e.g. [Evolve Data Intelligence Insights]
+      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        if (inTable) flushTable();
+        const titleText = trimmed.slice(1, -1);
+        html += `<div style="font-size: 14.5px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">${type === 'profile' ? '📋' : '💬'}</span>
+          <span>${titleText}</span>
+        </div>`;
+        continue;
+      }
+
+      // Target Source Bullet
+      if (trimmed.startsWith('• Target Source:') || trimmed.startsWith('• Target:')) {
+        if (inTable) flushTable();
+        const content = trimmed.replace(/^• Target( Source)?:/, '').trim();
+        html += `<div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
+          <strong style="color: #38bdf8;">🎯 Target Asset:</strong> <span style="color: #fff; font-weight: 600;">${content}</span>
+        </div>`;
+        continue;
+      }
+
+      // Discovered Columns Bullet
+      if (trimmed.startsWith('• Discovered Columns:')) {
+        if (inTable) flushTable();
+        const colList = trimmed.replace('• Discovered Columns:', '').trim().split(',').map(s => s.trim()).filter(Boolean);
+        html += `<div style="margin-bottom: 12px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">Introspected Schema Columns (${colList.length}):</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${colList.map(c => `<span style="background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; font-size: 11px; font-family: var(--font-mono); color: #9cdcfe;">${c}</span>`).join('')}
+          </div>
+        </div>`;
+        continue;
+      }
+
+      // Structural Integrity Bullet
+      if (trimmed.startsWith('• Structural Integrity:')) {
+        if (inTable) flushTable();
+        const content = trimmed.replace('• Structural Integrity:', '').trim();
+        html += `<div style="background: rgba(137, 209, 133, 0.08); border: 1px solid rgba(137, 209, 133, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
+          <strong style="color: #89d185;">✅ Structural Integrity:</strong> <span style="color: #e2e8f0;">${content}</span>
+        </div>`;
+        continue;
+      }
+
+      // Analytical Takeaway Bullet
+      if (trimmed.startsWith('• Analytical Takeaway:')) {
+        if (inTable) flushTable();
+        const content = trimmed.replace('• Analytical Takeaway:', '').trim();
+        html += `<div style="background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
+          <strong style="color: #fde047;">💡 Analytical Takeaway:</strong> <span style="color: #e2e8f0;">${content}</span>
+        </div>`;
+        continue;
+      }
+
+      // Next Step Recommendation Bullet
+      if (trimmed.startsWith('• Next Step Recommendation:')) {
+        if (inTable) flushTable();
+        const content = trimmed.replace('• Next Step Recommendation:', '').trim();
+        html += `<div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
+          <strong style="color: #c084fc;">🚀 Next Step Recommendation:</strong> <span style="color: #e2e8f0;">${content}</span>
+        </div>`;
+        continue;
+      }
+
+      // Column Level Profiles in 'profile'
+      if (trimmed.startsWith('Column Level Profiles:')) {
+        if (inTable) flushTable();
+        html += `<div style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 6px 0;">📋 Column Level Schema &amp; Profiling</div>`;
+        inTable = true;
+        continue;
+      }
+
+      // Table Row inside Column Level Profiles
+      if (inTable && trimmed.startsWith('-')) {
+        const parts = trimmed.substring(1).split('|');
+        const colPart = (parts[0] || '').split(':');
+        const colName = (colPart[0] || '').trim();
+        const colType = (colPart[2] || colPart[1] || 'STRING').replace('Type:', '').trim();
+        const nulls = (parts[1] || '').replace('Nulls:', '').trim() || '0.0%';
+        const card = (parts[2] || '').replace('Cardinality:', '').trim() || 'Normal';
+
+        tableRows.push(`<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <td style="padding: 7px 12px; font-family: var(--font-mono); color: #fff; font-size: 11.5px;">${colName}</td>
+          <td style="padding: 7px 12px; color: #ce9178; font-size: 11.5px; font-weight: 600;">${colType}</td>
+          <td style="padding: 7px 12px; color: #89d185; font-size: 11.5px;">${nulls}</td>
+          <td style="padding: 7px 12px; color: #9cdcfe; font-size: 11.5px;">${card}</td>
+        </tr>`);
+        continue;
+      }
+
+      // Key Structural Insights Section
+      if (trimmed.startsWith('Key Structural Insights:')) {
+        if (inTable) flushTable();
+        html += `<div style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 8px 0;">🔍 Key Structural Insights</div>`;
+        continue;
+      }
+
+      // Generic Bullets
+      if (trimmed.startsWith('•')) {
+        if (inTable) flushTable();
+        html += `<div style="padding: 4px 0 4px 14px; font-size: 12px; position: relative;">
+          <span style="position: absolute; left: 0; color: var(--accent);">&bull;</span>
+          ${trimmed.substring(1).trim()}
+        </div>`;
+        continue;
+      }
+
+      // Regular text
+      if (inTable) flushTable();
+      html += `<div style="margin-bottom: 6px; font-size: 12px; color: #cbd5e1;">${trimmed}</div>`;
+    }
+
+    if (inTable) flushTable();
+    return html;
+  };
+
+  // Update Visual Preview Panel
+  const updateVisualPreview = (type: string, content: string) => {
+    if (type === 'report') {
+      if (dataHtmlIframeContainer) dataHtmlIframeContainer.style.display = 'block';
+      if (dataFormattedCardContainer) dataFormattedCardContainer.style.display = 'none';
+      if (dataNotebookContainer) dataNotebookContainer.style.display = 'none';
+      if (dataReportIframe) {
+        dataReportIframe.srcdoc = content;
+      }
+      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
+    } else if (type === 'notebook') {
+      if (dataHtmlIframeContainer) dataHtmlIframeContainer.style.display = 'none';
+      if (dataFormattedCardContainer) dataFormattedCardContainer.style.display = 'none';
+      if (dataNotebookContainer) dataNotebookContainer.style.display = 'block';
+      if (dataNotebookCodeBlock) {
+        dataNotebookCodeBlock.textContent = content;
+      }
+      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'none';
+    } else {
+      if (dataHtmlIframeContainer) dataHtmlIframeContainer.style.display = 'none';
+      if (dataFormattedCardContainer) dataFormattedCardContainer.style.display = 'block';
+      if (dataNotebookContainer) dataNotebookContainer.style.display = 'none';
+      if (dataFormattedCardContent) {
+        dataFormattedCardContent.innerHTML = formatTextDeliverableToHtml(content, type);
+      }
+      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'none';
+    }
+  };
+
+  // Switch between Visual Preview and Code/Edit tabs
+  const switchViewMode = (mode: 'preview' | 'source') => {
+    currentViewMode = mode;
+    if (mode === 'preview') {
+      if (dataAnalysisSourceEditor && dataAnalysisSourceEditor.value !== currentDeliverableContent) {
+        currentDeliverableContent = dataAnalysisSourceEditor.value;
+        updateVisualPreview(currentDeliverableType, currentDeliverableContent);
+      }
+      if (dataVisualPreviewPanel) dataVisualPreviewPanel.style.display = 'block';
+      if (dataSourceEditorPanel) dataSourceEditorPanel.style.display = 'none';
+      if (btnDataViewPreview) {
+        btnDataViewPreview.style.background = 'var(--accent)';
+        btnDataViewPreview.style.color = '#1e1e1e';
+        btnDataViewPreview.style.fontWeight = '700';
+      }
+      if (btnDataViewSource) {
+        btnDataViewSource.style.background = 'transparent';
+        btnDataViewSource.style.color = 'var(--text-secondary)';
+        btnDataViewSource.style.fontWeight = '500';
+      }
+    } else {
+      if (dataVisualPreviewPanel) dataVisualPreviewPanel.style.display = 'none';
+      if (dataSourceEditorPanel) dataSourceEditorPanel.style.display = 'block';
+      if (btnDataViewSource) {
+        btnDataViewSource.style.background = 'var(--accent)';
+        btnDataViewSource.style.color = '#1e1e1e';
+        btnDataViewSource.style.fontWeight = '700';
+      }
+      if (btnDataViewPreview) {
+        btnDataViewPreview.style.background = 'transparent';
+        btnDataViewPreview.style.color = 'var(--text-secondary)';
+        btnDataViewPreview.style.fontWeight = '500';
+      }
+      if (dataAnalysisSourceEditor) {
+        dataAnalysisSourceEditor.value = currentDeliverableContent;
+        dataAnalysisSourceEditor.focus();
+      }
+    }
+  };
+
+  btnDataViewPreview?.addEventListener('click', () => switchViewMode('preview'));
+  btnDataViewSource?.addEventListener('click', () => switchViewMode('source'));
+
+  // Copy Deliverable
+  const handleCopyDeliverable = async () => {
+    const text = dataAnalysisSourceEditor?.value || currentDeliverableContent;
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      showToast('✓ Copied deliverable to clipboard!');
+    } else {
+      showToast('⚠️ Could not copy to clipboard.');
+    }
+  };
+  btnDataCopyDeliverable?.addEventListener('click', handleCopyDeliverable);
+  btnDataCopyScriptOnly?.addEventListener('click', handleCopyDeliverable);
+
+  // Apply Edits
+  btnDataApplyEdits?.addEventListener('click', () => {
+    if (dataAnalysisSourceEditor) {
+      currentDeliverableContent = dataAnalysisSourceEditor.value;
+      updateVisualPreview(currentDeliverableType, currentDeliverableContent);
+      showToast('✓ Applied edits to visual preview!');
+    }
+  });
+
+  // Open in Browser (HTML Report)
+  btnDataOpenBrowser?.addEventListener('click', () => {
+    const htmlContent = dataAnalysisSourceEditor?.value || currentDeliverableContent;
+    try {
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const opened = window.open(url, '_blank');
+      if (opened) {
+        showToast('✓ Opened HTML Report in new browser tab!');
+        return;
+      }
+    } catch {}
+
+    try {
+      if (api?.system?.openExternal) {
+        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        api.system.openExternal(url);
+        showToast('✓ Launched HTML Report in default browser!');
+        return;
+      }
+    } catch {}
+
+    showToast('⚠️ Use "Save Deliverable" to download and open the HTML file.');
+  });
+
+  // Export Deliverable File
+  btnDataExportFile?.addEventListener('click', async () => {
+    const contentToSave = dataAnalysisSourceEditor?.value || currentDeliverableContent;
+    let ext = 'html';
+    let mime = 'text/html';
+    if (currentDeliverableType === 'notebook') {
+      ext = 'py';
+      mime = 'text/x-python';
+    } else if (currentDeliverableType === 'insights') {
+      ext = 'md';
+      mime = 'text/markdown';
+    } else if (currentDeliverableType === 'profile') {
+      ext = 'txt';
+      mime = 'text/plain';
+    }
+
+    const safeTitle = (currentDeliverableSourceTitle || 'dataset').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    const filename = `evolve_${currentDeliverableType}_${safeTitle}_${Date.now()}.${ext}`;
+
+    try {
+      const blob = new Blob([contentToSave], { type: `${mime};charset=utf-8` });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✓ Downloaded ${filename}!`);
+    } catch (err: any) {
+      showToast(`⚠️ Download failed: ${err.message}`);
+    }
+
+    try {
+      if (api?.workspace?.createFile) {
+        await api.workspace.createFile(filename, contentToSave);
+        showToast(`✓ Also saved ${filename} to workspace root!`);
+      }
+    } catch {}
+  });
+
   btnExecute?.addEventListener('click', async () => {
     const focusInput = (document.getElementById('txtDataFocus') as HTMLInputElement).value;
-    const resultsBox = document.getElementById('dataAnalysisResultsBox');
-    const outputPreview = document.getElementById('dataAnalysisOutputPreview');
 
     showToast('⚡ Analysing dataset...');
     if (api?.engines) {
       const dropZone = document.getElementById('dataDropZone');
       const selectedText = dropZone?.innerText || '';
-      const filePath = selectedText.includes('Selected: ') ? selectedText.replace('📁 Selected: ', '').trim() : '';
+      const filePath = (!activeAnalysisDbTable && selectedText.includes('Selected: ')) ? selectedText.replace('📁 Selected: ', '').trim() : '';
 
       const res = await api.engines.analyzeDataset({
         filePath,
         deliverable: currentSelectedDeliverable,
-        focus: focusInput || 'General distribution and statistical anomalies'
+        focus: focusInput || 'General distribution and statistical anomalies',
+        options: {
+          dbTable: activeAnalysisDbTable
+        }
       });
 
-      if (resultsBox && outputPreview) {
+      if (resultsBox && res?.summary) {
+        currentDeliverableContent = res.summary;
+        currentDeliverableType = currentSelectedDeliverable;
+        currentDeliverableSourceTitle = res.datasetTitle || (activeAnalysisDbTable ? `${activeAnalysisDbTable.dialect?.toUpperCase()}: ${activeAnalysisDbTable.schema}.${activeAnalysisDbTable.tableName}` : (filePath ? filePath.split(/[\\/]/).pop() : 'Active Dataset'));
+
         resultsBox.style.display = 'block';
-        outputPreview.innerText = res.summary;
+
+        // Update titles and badges
+        if (dataDeliverableTitle) {
+          if (currentDeliverableType === 'report') {
+            dataDeliverableTitle.innerText = 'Executive HTML Data Intelligence Report';
+            if (dataDeliverableIcon) dataDeliverableIcon.innerText = '📈';
+          } else if (currentDeliverableType === 'notebook') {
+            dataDeliverableTitle.innerText = 'Python Data Analysis Script (Jupyter / PySpark)';
+            if (dataDeliverableIcon) dataDeliverableIcon.innerText = '📓';
+          } else if (currentDeliverableType === 'profile') {
+            dataDeliverableTitle.innerText = 'Schema & Column Profiling Matrix';
+            if (dataDeliverableIcon) dataDeliverableIcon.innerText = '📋';
+          } else {
+            dataDeliverableTitle.innerText = 'Executive Data Intelligence Insights';
+            if (dataDeliverableIcon) dataDeliverableIcon.innerText = '💬';
+          }
+        }
+
+        if (dataDeliverableSourceBadge) {
+          dataDeliverableSourceBadge.innerText = currentDeliverableSourceTitle;
+        }
+
+        if (dataDeliverableFormatBadge) {
+          dataDeliverableFormatBadge.innerText = currentDeliverableType === 'report' ? '.HTML' : currentDeliverableType === 'notebook' ? '.PY' : currentDeliverableType === 'insights' ? '.MD' : '.TXT';
+        }
+
+        if (dataAnalysisSourceEditor) {
+          dataAnalysisSourceEditor.value = currentDeliverableContent;
+        }
+
+        // Render visual preview and activate preview tab
+        updateVisualPreview(currentDeliverableType, currentDeliverableContent);
+        switchViewMode('preview');
+
         resultsBox.scrollIntoView({ behavior: 'smooth' });
+        showToast('✓ Analysis deliverable generated and ready for review!');
       }
     }
   });
@@ -15263,10 +16426,18 @@ function setupCodeConverterStudio(api: any): void {
     dbt: '.sql',
     r: '.r',
     dart: '.dart',
+    elixir: '.ex',
+    bash: '.sh',
+    powershell: '.ps1',
+    lua: '.lua',
+    perl: '.pl',
+    vba: '.bas',
+    cobol: '.cbl',
+    matlab: '.m',
+    sas: '.sas',
     zig: '.zig',
     mojo: '.mojo',
     julia: '.jl',
-    lua: '.lua',
     solidity: '.sol'
   };
 
@@ -15439,6 +16610,7 @@ function setupCodeConverterStudio(api: any): void {
           sourceCode: sourceToConvert,
           fromLang,
           toLang: selectedTarget,
+          model: activeSelectedModel,
           fidelity: selectedFidelity,
           dependencies: selectedDependencies,
           includeTests,
@@ -15470,8 +16642,13 @@ function setupCodeConverterStudio(api: any): void {
           const mapped = res.fidelityReport.mappedPatterns || [];
           const approx = res.fidelityReport.approximations || [];
           const warn = res.fidelityReport.warnings || [];
+          const summary = res.fidelityReport.summary || '';
+          const modelUsed = res.fidelityReport.modelUsed || activeSelectedModel;
 
           let reportHtml = '';
+          if (summary) {
+            reportHtml += `<div style="margin-bottom: 8px; padding: 6px 10px; background: rgba(78, 201, 176, 0.08); border-left: 3px solid #4ec9b0; border-radius: 4px; font-size: 11.5px; line-height: 1.45;"><strong style="color: #4ec9b0;">AI Engine (${escapeHtml(modelUsed)}):</strong> ${escapeHtml(summary)}</div>`;
+          }
           if (mapped.length > 0) {
             reportHtml += `<div style="margin-bottom: 6px;"><strong style="color: #4ec9b0;">✓ Transformed Idioms &amp; AST:</strong><ul style="margin: 4px 0 0 16px; padding: 0;">${mapped.map((m: string) => `<li>${escapeHtml(m)}</li>`).join('')}</ul></div>`;
           }

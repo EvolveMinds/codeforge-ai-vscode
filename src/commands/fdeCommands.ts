@@ -50,7 +50,12 @@ export class FdeCommands {
       return;
     }
 
-    const devMain = path.join(this._svc.vsCtx.extensionPath, 'out', 'desktop', 'main', 'main.js');
+    // Check if the current workspace folder itself has out/desktop/main/main.js (dev repo)
+    const workspaceDevMain = ws ? path.join(ws, 'out', 'desktop', 'main', 'main.js') : '';
+    const devMain = (workspaceDevMain && fs.existsSync(workspaceDevMain))
+      ? workspaceDevMain
+      : path.join(this._svc.vsCtx.extensionPath, 'out', 'desktop', 'main', 'main.js');
+
     if (fs.existsSync(devMain)) {
       const term = vscode.window.createTerminal({ name: '🚀 Evolve AI: Desktop Launcher' });
       term.show();

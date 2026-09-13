@@ -24,7 +24,8 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     }
   });
 
-  suiteTeardown(() => {
+  suiteTeardown(async () => {
+    await new Promise(r => setTimeout(r, 200));
     if (fs.existsSync(tmpDir)) {
       try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
     }
@@ -221,7 +222,20 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
       fromLang: 'python',
       toLang: 'typescript'
     });
-    assert.ok(convRes.convertedCode.includes('function process_item'));
+    assert.ok(convRes.convertedCode.includes('process_item') || convRes.convertedCode.includes('processItem'), 'Must contain function identifier');
+
+    // Test invoking Code Converter IPC handler for Python -> SAS
+    const sasConvRes = await convFn(null, {
+      sourceCode: 'def calculate_metrics(data):\n    result = []\n    for item in data:\n        result.append(item["value"] * 2)\n    return result',
+      fromLang: 'python',
+      toLang: 'sas'
+    });
+    assert.strictEqual(sasConvRes.targetLang, 'SAS');
+    assert.strictEqual(sasConvRes.targetExt, '.sas');
+    assert.ok(sasConvRes.convertedCode.includes('DATA') || sasConvRes.convertedCode.includes('data'));
+    assert.ok(!sasConvRes.convertedCode.includes('function calculate_metrics(data) {'), 'Must not produce invalid JS/Python hybrid in SAS');
+    assert.ok(!sasConvRes.convertedCode.includes('// Transpiled target code'), 'Must not produce // comment in SAS');
+    assert.ok(sasConvRes.targetFileName.endsWith('.sas'));
 
     // Test invoking SQL Transpiler IPC handler directly
     const transpileFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL)!;

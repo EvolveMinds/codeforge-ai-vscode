@@ -11,7 +11,7 @@
 
 * **Original Client Request:** "Automate client manual workflow and data operations"
 * **Identified Failure Modes:** Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.
-* **Reframed Problem ("Refusing the Ask"):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.
+* **Agreed Production Target (Observation-to-Spec / O2S):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.
 * **Explicit Out-of-Scope Boundaries:** `No direct production write access without cryptographically signed audit log`, `No ungrounded responses or unverified external API mutations`
 
 ### Controller's Three Numbers & Economic ROI (Phase 1)

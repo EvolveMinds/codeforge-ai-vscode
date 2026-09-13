@@ -481,42 +481,76 @@ export const LANGUAGES: LanguageSpec[] = [
     ext: '.pl', altExts: ['.pm'], vsLang: 'perl', fence: 'perl', naming: 'snake',
     check: { cmd: 'perl', args: (f) => ['-c', f], needs: 'Perl on PATH', verifies: 'compile' },
     idioms: [
-      '`use strict; use warnings;` at the top, always.',
-      'Lexical `my` variables, references for nested data, `die`/`eval` for error handling.',
+      '`use strict; use warnings;` at the top of every script or module.',
+      'Lexical `my` variables, references for nested data structures (`\\@array`, `\\%hash`), and clean subroutines.',
+      'Use `die`/`eval` or `Try::Tiny` for structured error handling.',
+    ],
+    pitfalls: [
+      'Context matters: scalar context vs list context can alter return values and behaviour silently.',
+      'Sigil switching: `$hash{key}` for scalar lookup, not `%hash{key}`.',
     ],
   },
   {
     id: 'vba', label: 'VBA', group: 'Legacy',
     ext: '.bas', altExts: ['.cls', '.vb'], vsLang: 'vb', fence: 'vb', naming: 'pascal',
     idioms: [
-      '`Option Explicit` at the top; declare every variable with an explicit type.',
-      '`On Error GoTo` handlers with a cleanup label — never `On Error Resume Next` in new code.',
-      'Work with typed objects and arrays; avoid `Variant` unless the API forces it.',
+      '`Option Explicit` at the top; declare every variable with an explicit type (e.g. `Dim count As Long`).',
+      'Distinguish `Sub` (side-effects) from `Function` (returns a value); explicitly specify `ByVal` or `ByRef`.',
+      'Structured error handling using `On Error GoTo ErrorHandler` with a clean exit label and `Resume`.',
+      'Work with strongly-typed objects and collections rather than `Variant` where possible.',
+    ],
+    pitfalls: [
+      'Object assignment requires the `Set` keyword (e.g. `Set obj = New Collection`); primitive assignment does not.',
+      'VBA array and collection indexing: standard arrays default to 0-based unless `Option Base 1` is declared, while native VBA Collections are 1-based.',
+      'Never use `On Error Resume Next` to silence unhandled defects.',
     ],
   },
   {
     id: 'cobol', label: 'COBOL', group: 'Legacy',
     ext: '.cbl', altExts: ['.cob', '.cpy'], vsLang: 'cobol', fence: 'cobol', naming: 'kebab',
     idioms: [
-      'Standard four divisions; PIC clauses sized to the real data.',
-      'Paragraph-per-step structure with PERFORM; no fall-through logic.',
+      'Standard four divisions: IDENTIFICATION DIVISION, ENVIRONMENT DIVISION, DATA DIVISION, PROCEDURE DIVISION.',
+      'PIC clauses sized precisely to the domain data (e.g. `PIC X(30)` for strings, `PIC 9(7)V99` for currency).',
+      'Structured paragraph-per-step architecture with `PERFORM` and `EVALUATE` statements; end programs with `GOBACK` or `STOP RUN`.',
+      'Use descriptive, uppercase hyphenated identifiers (e.g. `WS-TOTAL-AMOUNT`, `CALC-TAX-AMT`).',
+    ],
+    pitfalls: [
+      'Adhere strictly to standard COBOL column layout rules (Area A: columns 8-11 for division/section/paragraph headers, Area B: columns 12-72 for statements).',
+      'Level numbers (01, 05, 10, 77, 88) must be properly sequenced in `WORKING-STORAGE SECTION`.',
+      'Never leave statements without period terminators where expected by legacy compilers.',
     ],
   },
   {
     id: 'matlab', label: 'MATLAB', group: 'Data & Science',
     ext: '.m', vsLang: 'matlab', fence: 'matlab', naming: 'snake',
     idioms: [
-      'Vectorised array operations; preallocate before loops.',
-      'One function per file, file named after the function.',
+      'Vectorised array operations over scalar loops; preallocate arrays before loops (e.g. `zeros(n, 1)`).',
+      'One function per file, file named exactly after the primary function.',
+      'Use element-wise operators (`.*`, `./`, `.^`) when operating on matrices element by element.',
+      'Terminate statements with semicolons (;) to suppress unwanted command-window output.',
     ],
-    pitfalls: ['1-based indexing and column-major order — index translation is where conversions break.'],
+    pitfalls: [
+      '1-based indexing and column-major matrix storage order — index translation from 0-based languages is a primary bug source.',
+      'Distinguish matrix multiplication (`*`) from element-wise multiplication (`.*`).',
+    ],
   },
   {
     id: 'sas', label: 'SAS', group: 'Legacy',
     ext: '.sas', vsLang: 'sas', fence: 'sas', naming: 'snake',
     idioms: [
-      'DATA steps for row logic, PROC SQL for set logic; keep them separate and named.',
-      'Use LIBNAME references rather than hard-coded paths.',
+      'Use DATA steps with SET statements for row-by-row dataset transformations and calculations.',
+      'For standalone custom/scalar functions, use PROC FCMP with outlib, function, return(), and endsub statements.',
+      'For parametrized or macro-level dataset routines, use %macro <name>(...); ... %mend <name>;.',
+      'Use PROC SQL for relational joins, aggregations, and set operations.',
+      'Every SAS statement must terminate with a semicolon (;), and blocks finish with RUN; or QUIT;.',
+      'Use LIBNAME references rather than hard-coded file paths.',
+      'Comments must use /* comment */ or * comment; style.',
+    ],
+    pitfalls: [
+      'Never emit curly braces ({}) or C-style/Python function syntax. SAS does not use curly brackets.',
+      'Never emit double-slash (//) or hash (#) comments. SAS only supports /* */ and * ; comments.',
+      'In-memory list/dictionary iterations from dynamic languages (like Python `for item in data:`) do not exist in SAS — convert them to dataset observations processed by a DATA step or a PROC FCMP routine.',
+      'Missing values in SAS: numeric missing is represented as a period (.) and character missing is a blank space (\' \').',
     ],
   },
 ];
@@ -529,7 +563,7 @@ export function languageById(id: string): LanguageSpec | undefined {
 
 /** The fence tag → language id mapping the parser uses. */
 const FENCE_ALIASES: Record<string, string> = {
-  py: 'python', python3: 'python',
+  py: 'python', python3: 'python', py3: 'python',
   ts: 'typescript', tsx: 'typescript',
   js: 'javascript', jsx: 'javascript', node: 'javascript',
   'c#': 'csharp', cs: 'csharp',
@@ -538,7 +572,13 @@ const FENCE_ALIASES: Record<string, string> = {
   sh: 'bash', shell: 'shellscript', zsh: 'bash',
   ps1: 'powershell', pwsh: 'powershell',
   vb: 'vba', vbnet: 'vba',
-  plsql: 'sql', tsql: 'sql', mysql: 'sql', postgres: 'sql', postgresql: 'sql',
+  plsql: 'sql', tsql: 'sql', mysql: 'sql', postgres: 'sql', postgresql: 'sql', snowflake: 'sql', bigquery: 'sql',
+  sas: 'sas', 'sas-macro': 'sas', 'sas-program': 'sas',
+  cobol: 'cobol', cbl: 'cobol', cob: 'cobol',
+  matlab: 'matlab', m: 'matlab', octave: 'matlab',
+  perl: 'perl', pl: 'perl', pm: 'perl',
+  r: 'r', rscript: 'r',
+  elixir: 'elixir', ex: 'elixir', exs: 'elixir',
 };
 
 /** Detect the source language from a path and/or a VS Code language id. */
@@ -672,7 +712,12 @@ export const CONVERT_SYSTEM =
   '4. THE RESULT COMPILES. Imports/includes complete, names consistent across files, types line up. ' +
   'Read your own output back before finishing.\n' +
   '5. IDIOMATIC, NOT TRANSLITERATED. Use the target language\'s own constructs. A reader should not be ' +
-  'able to tell which language it came from.\n\n' +
+  'able to tell which language it came from.\n' +
+  '6. PARADIGM ADAPTATION. When translating between disparate paradigms (e.g. imperative/OO in-memory ' +
+  'objects in Python/JS to tabular/dataflow/dataset operations in SAS, SQL, or COBOL), translate the business ' +
+  'logic into the target paradigm natively. For example: map Python list/dict iterations over records into ' +
+  'a native SAS DATA step with a SET statement or a PROC FCMP function, or SQL queries. NEVER invent hybrid ' +
+  'syntax like curly braces ({}) or C-style function headers in languages that do not use them (such as SAS, SQL, or COBOL).\n\n' +
   'You do not chat. You return the converted files and the conversion report, in the specified format, and nothing else.';
 
 // ── Prompt builders ──────────────────────────────────────────────────────────
@@ -1220,11 +1265,19 @@ function parseInfoString(info: string): { lang: string; path: string } {
   return { lang, path: path.replace(/^\.\//, '').replace(/\\/g, '/') };
 }
 
-/** Some models put the path on a comment line at the top of the block instead. */
-function pathFromLeadingComment(body: string): string {
+/** Some models put the path on a comment line or header line at the top of the block instead. */
+function pathFromLeadingComment(body: string): { path: string; strippedBody: string } {
   const first = body.split('\n', 2)[0] ?? '';
-  const m = first.match(/^\s*(?:\/\/|#|--|;|<!--|\/\*)\s*(?:file|path|filename)\s*[:=]\s*([^\s*>-]+)/i);
-  return m ? m[1].replace(/^\.\//, '').replace(/\\/g, '/') : '';
+  const m = first.match(/^\s*(?:(?:\/\/|#|--|;|<!--|\/\*)\s*)?(?:file|path|filename)\s*[:=]\s*([^\s*>-]+)/i);
+  if (m) {
+    const extractedPath = m[1].replace(/^\.\//, '').replace(/\\/g, '/');
+    let strippedBody = body;
+    if (/^\s*(?:(?:\/\/|#|--|;|<!--|\/\*)\s*)?(?:file|path|filename)\s*[:=]\s*[^\s*>-]+(?:\s*\*\/)?\s*$/i.test(first)) {
+      strippedBody = body.slice(first.length).replace(/^\r?\n/, '');
+    }
+    return { path: extractedPath, strippedBody };
+  }
+  return { path: '', strippedBody: body };
 }
 
 function emptyReport(summary = ''): ConversionReport {
@@ -1299,7 +1352,7 @@ export function parseConversionResult(
 
   for (const b of blocks) {
     const { lang, path: infoPath } = parseInfoString(b.info);
-    const body = b.body.replace(/\s+$/, '');
+    let body = b.body.replace(/\s+$/, '');
     if (!body.trim()) continue;
 
     // The report block: json, and it parses to an object with our shape.
@@ -1316,7 +1369,12 @@ export function parseConversionResult(
       } catch { /* not the report — fall through and treat it as a file */ }
     }
 
-    let relPath = infoPath || pathFromLeadingComment(body);
+    let relPath = infoPath;
+    const fromComment = pathFromLeadingComment(body);
+    if (fromComment.path) {
+      if (!relPath) relPath = fromComment.path;
+      body = fromComment.strippedBody;
+    }
     if (!relPath) {
       // No path given. Line the block up with the source file in the same
       // position; past the end of the source list, number it. Then make sure

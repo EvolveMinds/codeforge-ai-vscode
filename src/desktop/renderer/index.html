@@ -491,7 +491,6 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: #94a3b8;">
         <button class="btn-gate-link" id="btnGateImportFile" type="button">📁 Import license.json</button>
         <input type="file" id="gateFileInput" accept=".json,.bin,.txt" style="display: none;">
-        <button class="btn-gate-link" id="btnGateExportChallenge" type="button">📋 Request Air-Gapped Challenge</button>
         <span style="font-size: 11px; color: #64748b; display: inline-flex; align-items: center; gap: 4px;">🔒 Pilot key provided on request</span>
       </div>
 
@@ -1130,7 +1129,7 @@
           <div class="delivery-studio-body" style="display: flex; gap: 16px; align-items: flex-start; margin-top: 14px;">
             <!-- Left 5-Step Navigation Sidebar (Canonical FDE Architecture) -->
             <div class="phase-sidebar-nav">
-              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Refusing the ask, scope boundaries &amp; ROI)" aria-label="Phase 1: Discover &amp; Frame (Refusing the ask, scope boundaries &amp; ROI)">🎯 1. Discover &amp; Frame</button>
+              <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Gemba Ground-Truth, First-Principles &amp; O2S Spec)" aria-label="Phase 1: Discover &amp; Frame (Gemba Ground-Truth, First-Principles &amp; O2S Spec)">🎯 1. Discover &amp; Frame</button>
               <button class="phase-nav-btn" data-phase="2" title="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)" aria-label="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)">🔌 2. Engineering Core</button>
               <button class="phase-nav-btn" data-phase="3" title="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)" aria-label="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)">🧠 3. AI Solutioning</button>
               <button class="phase-nav-btn" data-phase="4" title="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)" aria-label="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 4. Reliability &amp; Evals</button>
@@ -1142,20 +1141,20 @@
             <div class="phase-content-area">
               
               <!-- ============================================================= -->
-              <!-- STEP 1: DISCOVER & FRAME COCKPIT ("REFUSING THE ASK") -->
+              <!-- STEP 1: DISCOVER & FRAME COCKPIT (GEMBA -> FIRST-PRINCIPLES -> O2S) -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase1Card" style="display: block;">
                 <!-- Phase 1 Header -->
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; gap: 10px;">
                   <div style="flex: 1; min-width: 260px;">
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <span>🎯</span> Phase 1 · Discover &amp; Frame ("Sitting with AP. Refusing the Ask.")
+                      <span>🎯</span> Phase 1 · Discover &amp; Frame ("Gemba Deconstruction · First-Principles Scoping · Observation-to-Spec")
                       <span id="fdeUnsavedIndicator" hidden aria-live="polite" style="font-size: 10px; font-weight: 700; background: rgba(204, 167, 0, 0.15); color: var(--warn); border: 1px solid var(--warn); padding: 2px 8px; border-radius: 10px; margin-right: 6px;">● Unsaved changes</span>
                       <span id="fdePhase1StatusBadge" style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● Discovery Active</span>
                       <span id="fdePhase1RoiPill" style="font-size: 10px; font-weight: 700; background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); border: 1px solid var(--border); padding: 2px 8px; border-radius: 10px;">💰 ROI: Uncalculated (Blank Scope)</span>
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
-                      Transform messy customer requests into a rigorously bounded engineering engagement. Question assumptions, identify operational bottlenecks, define dynamic scope boundaries, and compute the financial ROI.
+                      Transform raw customer asks into production-grade engineering specifications. Deconstruct ground-truth reality with the operator, bust naive assumptions using first principles, and codify an unambiguous build specification.
                     </p>
                   </div>
                   <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
@@ -1166,7 +1165,7 @@
                 </div>
 
                 <!-- DISCOVERY VERSION CONTROL & CLIENT MEMO SHARING BAR -->
-                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
                   <div style="display: flex; align-items: center; gap: 10px;">
                     <span style="font-size: 11px; font-weight: 700; color: #9cdcfe; display: flex; align-items: center; gap: 4px;">
                       <span>📜</span> Scope Version:
@@ -1184,17 +1183,13 @@
 
                 <div id="fdeSavedFilesBar" hidden aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; margin-bottom: 12px;"></div>
 
-                <!-- PHASE 1 STEP NAVIGATION
-                     The three parts of discovery are separate full-width steps rather than
-                     three panels crammed into one scroll. They stay a connected flow: the
-                     stepper shows completion, every step can be revisited, and moving
-                     between them carries the work forward (scope -> numbers -> topology). -->
+                <!-- PHASE 1 STEP NAVIGATION -->
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
                   <div role="tablist" aria-label="Phase 1 discovery steps" class="fde-step-rail" style="display: flex; gap: 6px; flex: 1; min-width: 0;">
-                    <button role="tab" id="btnFdeStep1" data-step="1" aria-selected="true" aria-controls="fdeStep1Panel" class="fde-step-btn active" aria-label="Step 1 of 3: Refusing the Ask diagnostic and scope boundary">
+                    <button role="tab" id="btnFdeStep1" data-step="1" aria-selected="true" aria-controls="fdeStep1Panel" class="fde-step-btn active" aria-label="Step 1 of 3: Ground-Truth Discovery and O2S Spec">
                       <span class="fde-step-dot" aria-hidden="true">○</span>
                       <span class="fde-step-num">1</span>
-                      <span class="fde-step-label">Refusing the Ask</span>
+                      <span class="fde-step-label">Discovery &amp; O2S Spec</span>
                     </button>
                     <button role="tab" id="btnFdeStep2" data-step="2" aria-selected="false" aria-controls="fdeStep2Panel" class="fde-step-btn" aria-label="Step 2 of 3: The Controller&#39;s Three Numbers financial ROI calculator">
                       <span class="fde-step-dot" aria-hidden="true">○</span>
@@ -1214,80 +1209,203 @@
                 </div>
 
                 <div id="fdeStep1Panel" role="tabpanel" aria-labelledby="btnFdeStep1">
-                <!-- 1. REFUSING THE ASK DIAGNOSTIC -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>🛑</span> 1. "Refusing the Ask" Diagnostic &amp; Scope Boundary
-                    </span>
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <span style="font-size: 11px; color: var(--text-secondary);">Load Archetype Preset:</span>
-                      <select id="selFdeArchetype" style="padding: 4px 8px; font-size: 11.5px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
-                        <option value="custom" selected>Custom Project / Blank Template</option>
-                        <option value="support-copilot">Support Operations Co-Pilot (Triage, enrich &amp; draft)</option>
-                        <option value="fin-reconcile">Financial Core Reconciliation &amp; Invoice Matching</option>
-                        <option value="health-records">Healthcare Patient Record &amp; Policy Lookup</option>
-                        <option value="supply-chain">Supply Chain Exception &amp; Vendor SLA Tracker</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style="margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                      <label style="font-size: 11px; color: var(--text-secondary); font-weight: 600;" for="txtFdeRawAsk">Customer's Raw Request / Unfiltered Ask:</label>
-                      <button class="btn-quick" id="btnFdeAiAnalyzeAsk" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700; padding: 2px 10px; margin-bottom: 0;" aria-label="AI Reframe & Draft Scope">
-                        ✨ AI Reframe &amp; Draft Scope
-                      </button>
-                    </div>
-                    <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;" placeholder="Describe what the customer asked for (e.g. 'Automate all invoice approvals and pay vendors autonomously via email')..." aria-label="Describe what the customer asked for (e.g. 'Automate all invoice approvals and pay vendors autonomously via email')..."></textarea>
-                  </div>
-
-                  <!-- 3-Column Diagnostic Matrix -->
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                    <!-- Col 1: Risk & Flaw -->
-                    <div style="background: var(--card-bg); border: 1px solid rgba(244, 71, 71, 0.3); border-radius: 6px; padding: 10px;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <div style="font-size: 11px; font-weight: 700; color: var(--error); display: flex; align-items: center; gap: 4px;">
-                          <span>🔴</span> Operational Risk &amp; Fallacy
+                  <!-- MAIN DISCOVERY CONTAINER -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+                    
+                    <!-- Top Control Bar: Standards & Archetype -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                      <div>
+                        <span style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                          <span>🎯</span> 1. Ground-Truth Discovery &amp; Scope Architecture
+                        </span>
+                        <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 2px;">
+                          Deconstruct ground reality, bust naive assumptions, and articulate an ironclad build spec.
                         </div>
-                        <button class="btn-quick" id="btnFdeAiDraftRisk" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: var(--error); border-color: rgba(244, 71, 71, 0.4);" aria-label="AI Audit">✨ AI Audit</button>
                       </div>
-                      <textarea id="txtFdeRiskAnalysis" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #ccc; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="Analyze why full automation or naive approach introduces operational, financial, or security risks..." aria-label="Analyze why full automation or naive approach introduces operational, financial, or security risks..."></textarea>
-                    </div>
-
-                    <!-- Col 2: Reframed Engineering Goal -->
-                    <div style="background: var(--card-bg); border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 6px; padding: 10px;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <div style="font-size: 11px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 4px;">
-                          <span>🟢</span> Reframed Production Goal
+                      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                        <!-- Delivery Standard Selector -->
+                        <div style="display: flex; align-items: center; gap: 3px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 2px 4px;">
+                          <span style="font-size: 10px; color: var(--text-secondary); font-weight: 700; padding: 0 4px; text-transform: uppercase;">Standard:</span>
+                          <button type="button" class="btn-quick fde-standard-btn" data-standard="simple" id="btnFdeStdSimple" style="font-size: 10px; padding: 2px 8px; margin: 0; border-radius: 4px;" title="Simple / Rapid Pilot: Fast 3-question probe &amp; baseline boundary locks">🟢 Simple</button>
+                          <button type="button" class="btn-quick fde-standard-btn active" data-standard="medium" id="btnFdeStdMedium" style="font-size: 10px; padding: 2px 8px; margin: 0; border-radius: 4px; background: rgba(78, 201, 176, 0.2); border-color: var(--accent); color: var(--accent); font-weight: 700;" title="Medium / Enterprise Standard: Full Gemba inquiry, shadow IT log, Assumption vs Invariant matrix">🟡 Medium (Standard)</button>
+                          <button type="button" class="btn-quick fde-standard-btn" data-standard="advanced" id="btnFdeStdAdvanced" style="font-size: 10px; padding: 2px 8px; margin: 0; border-radius: 4px;" title="Advanced / Mission-Critical: Deep shadow audit, formal invariant proofs &amp; artifact traceability">🔴 Advanced</button>
                         </div>
-                        <button class="btn-quick" id="btnFdeAiDraftGoal" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: var(--accent); border-color: rgba(78, 201, 176, 0.4);" aria-label="AI Reframe">✨ AI Reframe</button>
+                        <!-- Archetype Selector -->
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                          <span style="font-size: 10.5px; color: var(--text-secondary);">Archetype:</span>
+                          <select id="selFdeArchetype" style="padding: 3px 8px; font-size: 11px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                            <option value="custom" selected>Custom Project / Blank Template</option>
+                            <option value="support-copilot">Support Operations Co-Pilot (Triage, enrich &amp; draft)</option>
+                            <option value="fin-reconcile">Financial Core Reconciliation &amp; Invoice Matching</option>
+                            <option value="health-records">Healthcare Patient Record &amp; Policy Lookup</option>
+                            <option value="supply-chain">Supply Chain Exception &amp; Vendor SLA Tracker</option>
+                          </select>
+                        </div>
                       </div>
-                      <textarea id="txtFdeReframedGoal" rows="4" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="State the realistic, high-ROI engineering problem statement agreed with business..." aria-label="State the realistic, high-ROI engineering problem statement agreed with business..."></textarea>
                     </div>
 
-                    <!-- Col 3: Dynamic Custom Out-of-Scope Boundary Manager -->
-                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column;">
+                    <!-- Customer Raw Ask Input -->
+                    <div style="margin-bottom: 14px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
                       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <div style="font-size: 11px; font-weight: 700; color: #e5b567; display: flex; align-items: center; gap: 4px;">
-                          <span>🔒</span> Out-of-Scope Boundary Locks
+                        <label style="font-size: 11px; color: #9cdcfe; font-weight: 700;" for="txtFdeRawAsk">Customer's Raw Request / Unfiltered Wish:</label>
+                        <button class="btn-quick" id="btnFdeAiAnalyzeAsk" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700; padding: 3px 12px; margin-bottom: 0;" aria-label="AI Reframe & Synthesize O2S Spec">
+                          ✨ AI Reframe &amp; Synthesize O2S Spec
+                        </button>
+                      </div>
+                      <textarea id="txtFdeRawAsk" rows="2" style="width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; resize: none; font-family: inherit;" placeholder="Describe what the customer asked for (e.g. 'Automate all invoice approvals and pay vendors autonomously via email')..." aria-label="Customer's Raw Request"></textarea>
+                    </div>
+
+                    <!-- ========================================================================= -->
+                    <!-- 1A. GEMBA DECONSTRUCTION (Sitting with the Operator) -->
+                    <!-- ========================================================================= -->
+                    <div id="fdeSectionGemba" style="background: var(--card-bg); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <div>
+                          <div style="font-size: 12px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                            <span>🔍</span> 1A · Gemba Deconstruction ("Sitting with the Operator")
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                            Uncover how work actually happens on the floor, observe shadow IT, and ask the probing questions clients and junior engineers miss.
+                          </div>
                         </div>
                         <div style="display: flex; gap: 4px;">
-                          <button class="btn-quick" id="btnFdeAiSuggestLocks" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: #e5b567; border-color: rgba(229, 181, 103, 0.4);" aria-label="AI Locks">✨ AI Locks</button>
-                          <button class="btn-quick" id="btnFdeAddScopeRule" style="font-size: 10px; padding: 2px 7px; margin-bottom: 0; background: var(--bg-primary); border-color: var(--accent); color: var(--accent); font-weight: 700;" aria-label="+ Add">+ Add</button>
+                          <button class="btn-quick" id="btnFdeAiSuggestProbes" style="font-size: 10px; padding: 2px 8px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" aria-label="AI Suggest Missing Probes">✨ AI Suggest Probes</button>
+                          <button class="btn-quick" id="btnFdeAddInquiryProbe" style="font-size: 10px; padding: 2px 8px; background: var(--bg-primary); border-color: var(--accent); color: var(--accent); font-weight: 700;" aria-label="+ Add Question">+ Add Question</button>
                         </div>
                       </div>
-                      <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">
-                        Explicit boundaries defined by the engineer &amp; business:
-                      </div>
-                      <!-- Dynamic list of editable boundaries -->
-                      <div id="fdeScopeRulesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; padding-right: 2px;">
-                        <!-- Injected dynamically via JS -->
+
+                      <div style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 12px;" class="fde-gemba-grid">
+                        <!-- Left: Inquiry Checklist ("Questions You Must Not Miss") -->
+                        <div>
+                          <div style="font-size: 10.5px; font-weight: 700; color: #ccc; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                            <span>The Critical Inquiry Matrix (Unasked Questions):</span>
+                            <span id="lblProbesCount" style="font-size: 9.5px; color: var(--text-secondary);">4 active probes</span>
+                          </div>
+                          <div id="fdeInquiryProbesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; padding-right: 2px;">
+                            <!-- Dynamically injected inquiry probes -->
+                          </div>
+                        </div>
+
+                        <!-- Right: Floor Observations & Ground Truth -->
+                        <div style="display: flex; flex-direction: column;">
+                          <div style="font-size: 10.5px; font-weight: 700; color: #f59e0b; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                            <span>Floor Observations &amp; Ground Truth:</span>
+                            <span style="font-size: 9.5px; color: var(--text-secondary);">What you actually saw</span>
+                          </div>
+                          <textarea id="txtFdeFloorObservations" rows="8" style="flex: 1; width: 100%; box-sizing: border-box; padding: 8px; font-size: 11px; background: var(--bg-primary); color: #cbd5e1; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit; line-height: 1.45;" placeholder="Log field notes from shadowing the team (e.g. 'Observed: 28% of invoices have unlinked POs; clerks verify tax IDs manually on state portal; team keeps an offline Excel file Exceptions_2026.xlsx on shared drive...')" aria-label="Floor Observations"></textarea>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
+                    <!-- ========================================================================= -->
+                    <!-- 1B. FIRST-PRINCIPLES SCOPING (Assumption Busting & Invariants) -->
+                    <!-- ========================================================================= -->
+                    <div id="fdeSectionFirstPrinciples" style="background: var(--card-bg); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; padding: 12px; margin-bottom: 14px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <div>
+                          <div style="font-size: 12px; font-weight: 700; color: #f87171; display: flex; align-items: center; gap: 6px;">
+                            <span>⚡</span> 1B · First-Principles Scoping (Data Physics &amp; Invariants)
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                            Deconstruct client assumptions down to fundamental business physics and establish immutable engineering invariants.
+                          </div>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                          <button class="btn-quick" id="btnFdeAiFirstPrinciples" style="font-size: 10px; padding: 2px 8px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);" aria-label="Deconstruct Assumptions">✨ Deconstruct Assumptions</button>
+                          <button class="btn-quick" id="btnFdeAiDraftRisk" style="font-size: 10px; padding: 2px 8px; color: var(--error); border-color: rgba(244, 71, 71, 0.4);" aria-label="AI Risk Audit">✨ AI Risk Audit</button>
+                        </div>
+                      </div>
+
+                      <!-- Invariants Table -->
+                      <div id="fdeInvariantsTableWrapper" style="overflow-x: auto; margin-bottom: 10px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; background: var(--bg-primary); border-radius: 4px; overflow: hidden;">
+                          <thead>
+                            <tr style="background: rgba(0,0,0,0.3); color: #94a3b8; text-align: left; border-bottom: 1px solid var(--border);">
+                              <th style="padding: 6px 8px; width: 32%;">Naive Client Assumption</th>
+                              <th style="padding: 6px 8px; width: 34%;">Fundamental Physics / Legal Constraint</th>
+                              <th style="padding: 6px 8px; width: 34%;">Hard Invariant (Engineering Rule)</th>
+                            </tr>
+                          </thead>
+                          <tbody id="fdeInvariantsTableBody">
+                            <!-- Populated dynamically via JS -->
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <!-- Operational Risk & Blast Radius -->
+                      <div>
+                        <div style="font-size: 10.5px; font-weight: 700; color: var(--error); margin-bottom: 4px;">
+                          Operational Risk &amp; Blast Radius Analysis:
+                        </div>
+                        <textarea id="txtFdeRiskAnalysis" rows="3" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11px; background: var(--bg-primary); color: #ccc; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="Analyze why full automation or naive approach introduces operational, financial, or security risks..." aria-label="Operational Risk Analysis"></textarea>
+                      </div>
+                    </div>
+
+                    <!-- ========================================================================= -->
+                    <!-- 1C. OBSERVATION-TO-SPEC (O2S) (The Articulated Build Specification) -->
+                    <!-- ========================================================================= -->
+                    <div id="fdeSectionO2S" style="background: var(--card-bg); border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 6px; padding: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <div>
+                          <div style="font-size: 12px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                            <span>📐</span> 1C · Observation-to-Spec (O2S) (Articulated Build Specification)
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                            Synthesize observations and invariants into an unambiguous, verifiable build specification with dynamic boundary locks.
+                          </div>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                          <button class="btn-quick" id="btnFdeAiDraftGoal" style="font-size: 10px; padding: 2px 8px; color: var(--accent); border-color: rgba(78, 201, 176, 0.4);" aria-label="AI Refine Target">✨ AI Refine Target</button>
+                        </div>
+                      </div>
+
+                      <!-- Reframed Production Target -->
+                      <div style="margin-bottom: 12px;">
+                        <label style="font-size: 10.5px; font-weight: 700; color: #fff; display: block; margin-bottom: 4px;" for="txtFdeReframedGoal">Reframed Production Target (Agreed with Business):</label>
+                        <textarea id="txtFdeReframedGoal" rows="3" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; resize: none; font-family: inherit;" placeholder="State the realistic, high-ROI engineering problem statement agreed with business..." aria-label="Reframed Production Target"></textarea>
+                      </div>
+
+                      <!-- Two columns: Boundary Locks & Artifact Traceability -->
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" class="fde-o2s-grid">
+                        <!-- Left: Boundary Locks -->
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-size: 11px; font-weight: 700; color: #e5b567; display: flex; align-items: center; gap: 4px;">
+                              <span>🔒</span> Out-of-Scope Boundary Locks
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                              <button class="btn-quick" id="btnFdeAiSuggestLocks" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: #e5b567; border-color: rgba(229, 181, 103, 0.4);" aria-label="AI Locks">✨ AI Locks</button>
+                              <button class="btn-quick" id="btnFdeAddScopeRule" style="font-size: 10px; padding: 2px 7px; margin-bottom: 0; background: var(--card-bg); border-color: var(--accent); color: var(--accent); font-weight: 700;" aria-label="+ Add">+ Add</button>
+                            </div>
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">
+                            Hard constraints protecting the build from hallucination &amp; scope drift:
+                          </div>
+                          <div id="fdeScopeRulesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; padding-right: 2px;">
+                            <!-- Injected dynamically via JS -->
+                          </div>
+                        </div>
+
+                        <!-- Right: Live Artifact & Architecture Traceability -->
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-size: 11px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 4px;">
+                              <span>🔗</span> Architecture &amp; Artifact Traceability
+                            </div>
+                            <span style="font-size: 9.5px; color: var(--accent); font-weight: 700;">● Live Bi-Directional</span>
+                          </div>
+                          <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">
+                            Verified linkage connecting this discovery scope directly to engineering deliverables:
+                          </div>
+                          <div id="fdeLinkedArtifactsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto; padding-right: 2px;">
+                            <!-- Injected dynamically via JS -->
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
                 </div>
 
                 <div id="fdeStep2Panel" role="tabpanel" aria-labelledby="btnFdeStep2" hidden>
@@ -4846,19 +4964,113 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
             <button class="btn-quick" id="btnDataSwitchModel" style="color: var(--accent); border-color: var(--accent);" aria-label="Switch Model / Provider">⚡ Switch Model / Provider</button>
           </div>
 
-          <h2 style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 10px 0;">1 &middot; CHOOSE YOUR DATA SOURCE</h2>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 10px 0;">
+            <h2 style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 0;">1 &middot; CHOOSE YOUR DATA SOURCE</h2>
+            <button class="btn-quick" id="btnDataToggleDbDrawer" style="background: var(--success); color: #1e1e1e; font-weight: 700; border-color: var(--success); font-size: 11px; padding: 4px 10px;" aria-label="Connect Live DB / Warehouse">🔌 Connect Live DB / Warehouse</button>
+          </div>
           <div class="card-grid">
             <div class="sel-card" id="cardBrowseDataFile">
               <div class="t">📁 Browse for a file...</div>
               <div class="d">CSV, Excel, JSON, Parquet &mdash; from anywhere on your computer</div>
             </div>
-            <div class="sel-card" id="cardConnectDbSource">
+            <div class="sel-card" id="cardConnectDbSource" style="cursor: pointer;">
               <div class="t">🗄️ Database or cloud source</div>
               <div class="d">BigQuery, Databricks, Cosmos, DynamoDB, S3/GCS/Blob, SQL</div>
             </div>
             <div class="sel-card" id="cardRunDataPipeline">
               <div class="t">▶️ Run a data pipeline</div>
               <div class="d">A saved multi-step analysis (evolve-data-pipeline.json)</div>
+            </div>
+          </div>
+
+          <!-- Live DB Connector Drawer for Data Analysis & Reporting Studio -->
+          <div id="dataDbConnectDrawer" style="display: none; background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-weight: 700; color: var(--accent); font-size: 12.5px;">🔌 Connect Live Database / Warehouse (Credentials Encrypted at Rest via OS Vault)</div>
+              <button class="btn-quick" id="btnDataCloseDbDrawer" aria-label="Close">✕ Close</button>
+            </div>
+
+            <!-- Row 1: Engine & Connection URI with Show/Hide -->
+            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;" for="dataDbDialectSelect">Database Engine / Dialect</label>
+                <select id="dataDbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                  <option value="snowflake">Snowflake Data Cloud</option>
+                  <option value="bigquery">Google BigQuery</option>
+                  <option value="databricks">Databricks Lakehouse / SQL</option>
+                  <option value="mysql">MySQL / Aurora</option>
+                  <option value="sqlite">SQLite Local .db</option>
+                  <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
+                </select>
+              </div>
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbUriInput">Connection URI / Host String (Masked)</label>
+                  <button class="btn-quick" id="btnDataToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
+                </div>
+                <input type="password" id="dataDbUriInput" value="postgresql://username:password@host:5432/pilot_db" placeholder="postgresql://user:password@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+              </div>
+            </div>
+
+            <!-- Row 2: Database ID, Schema ID, Credential Policy -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;" for="dataDbProjectIdInput">Database / Project ID</label>
+                <input type="text" id="dataDbProjectIdInput" value="postgres" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;" for="dataDbSchemaIdInput">Schema / Dataset ID</label>
+                <input type="text" id="dataDbSchemaIdInput" value="public" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;" for="dataDbVaultPolicy">Credential Vault Policy</label>
+                <select id="dataDbVaultPolicy" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <option value="session" selected>Session Only (In-Memory)</option>
+                  <option value="keyring">Encrypt at Rest (OS Keyring)</option>
+                  <option value="air-gap">Air-Gapped Temporary</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Action Buttons Row -->
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
+              <button class="btn" id="btnDataExecuteIntrospect" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" aria-label="Connect & Fetch Tables">
+                <span>🔍</span> Connect &amp; Fetch Tables
+              </button>
+              <button class="btn btn-secondary" id="btnDataTestDbPing" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" aria-label="Test Connection">
+                <span>🔌</span> Test Connection
+              </button>
+              <button class="btn btn-secondary" id="btnDataAutoDetectDb" style="padding: 7px 14px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" aria-label="Auto-Detect from .env / dbt">
+                <span>⚡</span> Auto-Detect from .env / dbt
+              </button>
+              <button class="btn-quick" id="btnDataWipeDbCreds" style="color: var(--error); border-color: var(--error); padding: 6px 12px; font-size: 11px; margin-bottom: 0; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" aria-label="Wipe Stored Credentials">
+                <span>🗑️</span> Wipe Stored Credentials
+              </button>
+            </div>
+
+            <!-- Discovered Tables Selector -->
+            <div id="dataDbTablesContainer" style="display: none; margin-top: 14px; background: var(--card-bg); padding: 12px 14px; border-radius: 6px; border: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <div style="font-size: 12px; font-weight: 700; color: var(--success);" id="dataDbConnectionStatusBadge">
+                  ✓ Connected: 0 tables discovered
+                </div>
+                <input type="text" id="dataDbTableFilterInput" placeholder="🔍 Filter tables..." style="width: 180px; margin-bottom: 0; font-size: 11px; padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;" aria-label="🔍 Filter tables...">
+              </div>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="dataDbTableSelect" style="flex: 1; margin-bottom: 0; padding: 7px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <option value="">-- Choose an introspected table --</option>
+                </select>
+                <button class="btn" id="btnDataLoadTableForAnalysis" style="white-space: nowrap; margin-bottom: 0; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px;" aria-label="Select Table for Analysis">📥 Select Table for Analysis</button>
+              </div>
+
+              <!-- Columns preview for selected table -->
+              <div id="dataDbColumnsPreviewBox" style="margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);">
+                <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Schema &amp; Column Preview:</div>
+                <div id="dataDbColumnsPreview" style="display: flex; flex-wrap: wrap; gap: 4px; max-height: 100px; overflow-y: auto;">
+                  <span style="font-size: 11px; color: var(--text-secondary); font-style: italic;">Select a table above to view column types.</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4885,12 +5097,94 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
           <button class="btn-analyse" id="btnExecuteDataAnalysis" aria-label="Analyse">Analyse &rarr;</button>
 
-          <div id="dataAnalysisResultsBox" style="display: none; margin-top: 18px; border: 1px solid var(--accent); border-radius: 8px; padding: 16px; background: var(--card-bg);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h3 style="margin: 0; color: var(--accent); font-size: 14px;">📈 Analysis Result &amp; Statistical Deliverable</h3>
-              <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success);">READY</span>
+          <div id="dataAnalysisResultsBox" style="display: none; margin-top: 22px; border: 1px solid var(--accent); border-radius: 10px; padding: 18px 20px; background: var(--card-bg); box-shadow: 0 8px 24px rgba(0,0,0,0.25);">
+            <!-- Header Toolbar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h3 style="margin: 0; color: var(--accent); font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                  <span id="dataDeliverableIcon">📊</span> <span id="dataDeliverableTitle">Statistical Deliverable</span>
+                </h3>
+                <span id="dataDeliverableSourceBadge" class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 11px;">
+                  Source
+                </span>
+                <span class="brand-pill" style="background: rgba(137, 209, 133, 0.2); color: var(--success); font-size: 10.5px;">
+                  ● READY
+                </span>
+              </div>
+
+              <!-- View Switcher & Action Buttons -->
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- View Mode Switcher -->
+                <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid var(--border);">
+                  <button id="btnDataViewPreview" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" aria-label="Visual Preview">
+                    👁️ Visual Preview
+                  </button>
+                  <button id="btnDataViewSource" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="Code & Edit">
+                    📝 Code &amp; Edit
+                  </button>
+                </div>
+
+                <!-- Action Buttons -->
+                <button id="btnDataCopyDeliverable" type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Copy to Clipboard">
+                  <span>📋</span> Copy
+                </button>
+                <button id="btnDataOpenBrowser" type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px; border-radius: 6px; display: none; align-items: center; gap: 5px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" aria-label="Open Full Report in Browser">
+                  <span>🌐</span> Open in Browser
+                </button>
+                <button id="btnDataExportFile" type="button" class="btn" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 14px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Save Deliverable File">
+                  <span>💾</span> Save Deliverable
+                </button>
+              </div>
             </div>
-            <div id="dataAnalysisOutputPreview" style="font-size: 12px; line-height: 1.5; color: #e2e8f0; font-family: monospace; max-height: 320px; overflow-y: auto;"></div>
+
+            <!-- Panel 1: Live Rendered Visual Preview -->
+            <div id="dataVisualPreviewPanel" style="width: 100%;">
+              <!-- HTML Report Iframe Preview Container -->
+              <div id="dataHtmlIframeContainer" style="display: none; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px; color: var(--text-secondary);">
+                  <span>🖥️ Interactive HTML Document View (Sandboxed Canvas):</span>
+                  <span style="font-size: 11px; color: var(--accent);">Tip: Click '🌐 Open in Browser' to view full-screen or print as PDF</span>
+                </div>
+                <iframe id="dataReportIframe" sandbox="allow-scripts allow-same-origin" style="width: 100%; height: 560px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: #1e1e1e; box-sizing: border-box;"></iframe>
+              </div>
+
+              <!-- Formatted Insights / Profiling Cards Container -->
+              <div id="dataFormattedCardContainer" style="display: none; width: 100%; max-height: 560px; overflow-y: auto; padding-right: 4px;">
+                <div id="dataFormattedCardContent" style="font-size: 12.5px; line-height: 1.6; color: #e2e8f0;"></div>
+              </div>
+
+              <!-- Notebook / Script Formatted View Container -->
+              <div id="dataNotebookContainer" style="display: none; width: 100%;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px; color: var(--text-secondary);">
+                  <span>🐍 Python Analysis Script (Jupyter / PySpark / SQLAlchemy Ready):</span>
+                  <span style="font-size: 11px; color: #4ec9b0;">Ready for Jupyter Notebook or .py Execution</span>
+                </div>
+                <pre id="dataNotebookCodeBlock" style="margin: 0; padding: 16px; background: #111317; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; color: #9cdcfe; max-height: 520px; overflow: auto; white-space: pre;"></pre>
+              </div>
+            </div>
+
+            <!-- Panel 2: Source Code & Live Editor -->
+            <div id="dataSourceEditorPanel" style="display: none; width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px;">
+                <span style="color: var(--text-secondary);">
+                  ✏️ <strong>Live Source Editor:</strong> You can edit the deliverable below. Changes apply instantly to preview and export.
+                </span>
+                <button id="btnDataApplyEdits" type="button" class="btn-quick" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border-color: rgba(78, 201, 176, 0.4); padding: 3px 10px; font-size: 11px; font-weight: 600;">
+                  ✓ Apply Edits to Preview
+                </button>
+              </div>
+              <textarea id="dataAnalysisSourceEditor" rows="22" spellcheck="false" style="width: 100%; box-sizing: border-box; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; background: #111317; color: #e2e8f0; border: 1px solid var(--border); border-radius: 8px; padding: 14px; resize: vertical;"></textarea>
+            </div>
+
+            <!-- Deliverable Footer Note -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 11px; color: var(--text-secondary); flex-wrap: wrap; gap: 8px;">
+              <span id="dataDeliverableMeta">
+                🔒 100% Air-Gapped Local Computation &middot; 0 bytes transmitted externally
+              </span>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <span style="font-size: 10.5px; opacity: 0.8;">Deliverable format: <code id="dataDeliverableFormatBadge" style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: var(--accent);">HTML</code></span>
+              </div>
+            </div>
           </div>
         </section>
 
