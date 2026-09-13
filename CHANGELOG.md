@@ -2,6 +2,20 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.21.0] — 2026-09-13
+
+### Data Analysis & Executive Reporting Studio, Multi-Seat License Claim Ledger & Packaging
+* **Data Analysis & Executive Reporting Studio**:
+  * **Sandboxed Executive HTML Iframe Canvas**: Added safe iframe-based rendering for complex executive dashboards, interactive graphs, and data analysis summaries without style leakage or script security risks.
+  * **Dynamic KPI Ribbon**: Integrated high-level metrics cards providing instant visibility into key performance indicators, model metrics, and data processing stats.
+  * **Print & Boardroom PDF Export Optimization**: Added dedicated `@media print` styles and page-break rules for printing reports or exporting clean, professional PDFs directly from the studio.
+* **Enterprise Multi-Seat License Claim & Active Claimant Ledger**:
+  * Added self-service seat claim validation supporting per-seat corporate domain binding, quota enforcement, and offline hardware fingerprint verification.
+  * Seamless integration with client administrator claim management and key distribution workflows.
+* **Packaging & Desktop Core**:
+  * Generated new standalone Windows desktop portable binary `evolve-ai-enterprise-portable-2.21.0-win32-x64.exe`.
+  * Updated version assertions, IPC endpoints, and embedded release tags across all desktop modules.
+
 ## [2.20.0] — 2026-09-11
 
 ### Free Community vs. Enterprise Edition Alignment, UI Scale & High-DPI Readability, Commercial Licensing & Version Management

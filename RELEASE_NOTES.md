@@ -1,5 +1,32 @@
 # Evolve AI — Release Notes
 
+## Version 2.21.0 — September 13, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** MIT (Community Edition) / Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Evolve AI version 2.21.0 expands the Enterprise Edition with the **Data Analysis & Executive Reporting Studio** (featuring sandboxed interactive HTML dashboard previews, KPI ribbons, and print/PDF export styling), along with **Enhanced Multi-Seat Enterprise License Claim & Domain Management** and updated desktop packaging.
+
+---
+
+### 1. Data Analysis & Executive Reporting Studio
+* **Sandboxed Interactive HTML Dashboard Previews**: High-performance isolated iframe preview canvas for HTML reports, business intelligence dashboards, and interactive visual data analyses with zero external resource leaks.
+* **Executive KPI Ribbon & Stat Cards**: Live visual badges and metric cards summarizing key performance indicators, anomaly indicators, and trend directions.
+* **Print & Export Stylesheets**: Native print CSS media queries (`@media print`) and PDF layout optimizations for boardroom-ready client reports and runbook exports.
+
+---
+
+### 2. Enterprise License Claim & Multi-Seat Activation
+* **Self-Service Seat Claim Workflow**: Streamlined seat activation supporting per-seat corporate domain validation, claimant ledger tracking, and hardware profile binding.
+* **Enhanced Offline Key Verification**: Continued 100% air-gapped cryptographic validation with zero telemetry or outbound network calls required.
+
+---
+
 ## Version 2.20.0 — September 11, 2026
 
 **Publisher:** `codeforge-ai`  

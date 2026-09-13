@@ -44,3 +44,5 @@ bin/
 .de3-sim/
 .de4-sim/
 .*-sim/
+.evolve/
+

@@ -13073,7 +13073,7 @@ export class GroundedPolicyRag {
     showToast('🔌 Scaffolding MCP Tool Server & Protocol Handlers in src/mcp/...');
     let code = `// Model Context Protocol Server (Evolve AI FDE)
 import { Server } from '@modelcontextprotocol/sdk/server';
-export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`;
+export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.21.0' });`;
     if (api?.fde?.scaffoldMcpToolServer) {
       const res = await api.fde.scaffoldMcpToolServer();
       if (res && res.code) code = res.code;
@@ -14264,7 +14264,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.20.0' });`
           tokenDiff,
           auditSignature: isGrounded ? 'ed25519_sig_demo_' + Date.now().toString(36) : null,
           timestamp: new Date().toISOString(),
-          verifiedBy: 'Evolve AI Groundedness Gate v2.20.0'
+          verifiedBy: 'Evolve AI Groundedness Gate v2.21.0'
         };
       }
 
@@ -18463,7 +18463,7 @@ function setupModals(api: any): void {
   const headerVersionLabel = document.getElementById('headerVersionLabel');
   const headerUpdateStatusLabel = document.getElementById('headerUpdateStatusLabel');
 
-  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.20.0') => {
+  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.21.0') => {
     if (headerVersionLabel) headerVersionLabel.innerText = version.startsWith('v') ? version : `v${version}`;
     if (!headerUpdateDot || !headerUpdateStatusLabel) return;
 
@@ -18527,18 +18527,18 @@ function setupModals(api: any): void {
         if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
         showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.20.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.21.0');
         if (updateCheckStatus) {
           updateCheckStatus.style.background = 'rgba(16, 185, 129, 0.15)';
           updateCheckStatus.style.color = '#34d399';
           updateCheckStatus.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.20.0'}).</span>`;
+          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.21.0'}).</span>`;
         }
         if (updateDownloadArea) updateDownloadArea.style.display = 'none';
-        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.20.0'}).`);
+        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.21.0'}).`);
       }
     } catch (err: any) {
-      setHeaderVersionPillState('air-gapped', '2.20.0');
+      setHeaderVersionPillState('air-gapped', '2.21.0');
       if (updateCheckStatus) {
         updateCheckStatus.style.background = 'rgba(100, 116, 139, 0.15)';
         updateCheckStatus.style.color = '#94a3b8';
@@ -18559,10 +18559,10 @@ function setupModals(api: any): void {
       } else if (res?.updateAvailable) {
         setHeaderVersionPillState('update-available', res.currentVersion);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.20.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.21.0');
       }
     } catch {
-      setHeaderVersionPillState('air-gapped', '2.20.0');
+      setHeaderVersionPillState('air-gapped', '2.21.0');
     }
   }, 2500);
 

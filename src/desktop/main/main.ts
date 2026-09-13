@@ -260,7 +260,7 @@ function buildAppMenu(): void {
               type: 'info',
               title: 'About Evolve AI Enterprise Edition',
               message: 'Evolve AI Enterprise Desktop Edition',
-              detail: `Version: 2.20.0\nOrganization: ${lic.organization}\nPlan: ${lic.plan.toUpperCase()}\nStatus: ${lic.isLicensed ? 'Active (' + lic.daysRemaining + ' days left)' : 'Community Mode'}\nBuilt by Evolve Mind Solutions Pty Ltd`
+              detail: `Version: 2.21.0\nOrganization: ${lic.organization}\nPlan: ${lic.plan.toUpperCase()}\nStatus: ${lic.isLicensed ? 'Active (' + lic.daysRemaining + ' days left)' : 'Community Mode'}\nBuilt by Evolve Mind Solutions Pty Ltd`
             });
           }
         }
