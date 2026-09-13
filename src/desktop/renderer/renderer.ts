@@ -241,7 +241,7 @@ async function setupLicenseGate(api: any): Promise<boolean> {
 
   // 7. Validate License & Open Application
   btnValidate?.addEventListener('click', async () => {
-    const rawKey = txtKey?.value?.trim();
+    const rawKey = (txtKey?.value || '').replace(/[\r\n\s\t]+/g, '').trim();
     if (!rawKey) {
       if (msgBox) {
         msgBox.style.display = 'block';
@@ -17153,7 +17153,7 @@ function setupModals(api: any): void {
   // Activate Key
   document.getElementById('btnModalActivateLicense')?.addEventListener('click', async () => {
     const txtKey = document.getElementById('txtModalLicenseKey') as HTMLTextAreaElement;
-    const key = txtKey?.value.trim();
+    const key = (txtKey?.value || '').replace(/[\r\n\s\t]+/g, '').trim();
     if (!key) {
       showToast('⚠️ Please paste a valid cryptographic license key.');
       return;

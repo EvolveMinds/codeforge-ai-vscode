@@ -106,4 +106,14 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     assert.strictEqual(result.payload?.plan, 'enterprise_platinum');
     assert.ok(result.daysRemaining! >= 364);
   });
+
+  test('validates an enterprise license with email client line-wrapping and soft breaks', () => {
+    const validToken = LicenseGenerator.generateSiteLicenseKey('Wrapped Corp', 30);
+    // Simulate email client wrapping after EM-ENT- and wrapping at column boundaries
+    const wrappedToken = validToken.slice(0, 7) + '\r\n' + validToken.slice(7, 80) + '\n  ' + validToken.slice(80);
+
+    const result = LicenseValidator.verify(wrappedToken);
+    assert.strictEqual(result.valid, true, 'Wrapped license must validate successfully');
+    assert.strictEqual(result.payload?.organization, 'Wrapped Corp');
+  });
 });

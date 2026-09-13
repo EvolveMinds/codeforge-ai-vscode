@@ -31,7 +31,7 @@ export class LicenseValidator {
       };
     }
 
-    const trimmed = rawKey.trim();
+    const trimmed = (rawKey || '').replace(/[\r\n\s\t]+/g, '').trim();
     if (!trimmed.startsWith(this.TOKEN_PREFIX)) {
       return {
         valid: false,
@@ -54,12 +54,21 @@ export class LicenseValidator {
     const [payloadB64, signatureB64] = parts;
 
     try {
-      const payloadStr = Buffer.from(payloadB64, 'base64').toString('utf8');
+      let payloadStr = '';
+      try {
+        payloadStr = Buffer.from(payloadB64, 'base64').toString('utf8');
+      } catch {
+        const cleaned = payloadB64.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
+        const padded = cleaned.padEnd(cleaned.length + (4 - (cleaned.length % 4)) % 4, '=');
+        payloadStr = Buffer.from(padded, 'base64').toString('utf8');
+      }
       const payload: EnterpriseLicensePayload = JSON.parse(payloadStr);
 
       // Verify cryptographic signature against Master Public Key
       const pubKey = customPublicKey || EVOLVE_MASTER_PUBLIC_KEY;
-      const signatureBuf = Buffer.from(signatureB64, 'base64');
+      const cleanSig = signatureB64.replace(/ /g, '+').replace(/-/g, '+').replace(/_/g, '/');
+      const paddedSig = cleanSig.padEnd(cleanSig.length + (4 - (cleanSig.length % 4)) % 4, '=');
+      const signatureBuf = Buffer.from(paddedSig, 'base64');
       const payloadBuf = Buffer.from(payloadStr, 'utf8');
 
       const isSignatureValid = crypto.verify(null, payloadBuf, pubKey, signatureBuf);

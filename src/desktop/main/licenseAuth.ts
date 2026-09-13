@@ -73,11 +73,12 @@ export class DesktopLicenseAuth {
     try {
       if (fs.existsSync(this._licenseFile)) {
         const rawContent = fs.readFileSync(this._licenseFile, 'utf8').trim();
-        let key = rawContent;
+        let key = (rawContent || '').replace(/[\r\n\s\t]+/g, '').trim();
         if (rawContent.startsWith('{')) {
           try {
             const parsed = JSON.parse(rawContent);
-            key = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
+            const extracted = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
+            key = (extracted || '').replace(/[\r\n\s\t]+/g, '').trim();
           } catch {}
         }
         if (typeof key === 'string' && key.startsWith('EM-ENT-V1.')) {
@@ -176,7 +177,8 @@ export class DesktopLicenseAuth {
   }
 
   public async activateLicenseKey(licenseKey: string): Promise<{ valid: boolean; error?: string; state: EnterpriseLicenseState }> {
-    const result = await this._licenseMgr.activateLicense(licenseKey.trim());
+    const cleanKey = (licenseKey || '').replace(/[\r\n\s\t]+/g, '').trim();
+    const result = await this._licenseMgr.activateLicense(cleanKey);
     this._syncFromStorage();
     return {
       valid: result.valid,
