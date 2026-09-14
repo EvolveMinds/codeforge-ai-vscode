@@ -98,6 +98,9 @@ export interface EnterpriseLicenseState {
   hardwareFingerprint?: string;
   hardwareMatched?: boolean;
   features: string[];
+  claimantEmail?: string;
+  seatId?: string;
+  seatNumber?: number;
 }
 
 export interface HardwareFingerprintInfo {

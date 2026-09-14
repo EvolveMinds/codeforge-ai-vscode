@@ -176,4 +176,40 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     assert.strictEqual(mismatchResult.valid, false, 'Fallback must reject mismatching external domain');
     assert.strictEqual(mismatchResult.status, 'unauthorized_domain');
   });
+
+  test('validates unique per-seat key for bound claimant and rejects other corporate colleagues', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 30);
+
+    // Alice's uniquely signed per-seat key
+    const alicePayload: EnterpriseLicensePayload = {
+      organization: 'Evolve Mind Solutions',
+      licenseId: 'EM-LIC-2026-56K3WI',
+      seatId: 'SEAT-01/25',
+      seatNumber: 1,
+      claimantEmail: 'alice@evolveminds.com.au',
+      plan: 'enterprise_platinum',
+      maxSeats: 1,
+      issuedAt: new Date().toISOString(),
+      expiresAt: futureDate.toISOString(),
+      features: ['load_testing', 'siem_logging'],
+      allowedEmailDomains: ['evolveminds.com.au'],
+    };
+
+    const aliceToken = LicenseGenerator.sign(alicePayload);
+
+    // 1. Alice verifies with her own email — must succeed
+    const aliceResult = LicenseValidator.verify(aliceToken, 'alice@evolveminds.com.au');
+    assert.strictEqual(aliceResult.valid, true, 'Alice must successfully validate her own unique seat key');
+    assert.strictEqual(aliceResult.status, 'active');
+    assert.strictEqual(aliceResult.payload?.seatId, 'SEAT-01/25');
+    assert.strictEqual(aliceResult.payload?.claimantEmail, 'alice@evolveminds.com.au');
+
+    // 2. Bob (even with corporate email) tries to use Alice's key — must fail with unauthorized_claimant
+    const bobResult = LicenseValidator.verify(aliceToken, 'bob@evolveminds.com.au');
+    assert.strictEqual(bobResult.valid, false, 'Bob must be rejected from using Alice unique seat key');
+    assert.strictEqual(bobResult.status, 'unauthorized_claimant');
+    assert.ok(bobResult.error?.includes('Seat Identity Mismatch'), 'Error message must state seat identity mismatch');
+  });
 });
+

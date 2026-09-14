@@ -50,6 +50,9 @@ export class LicenseManager {
             licenseScope: result.payload.licenseScope || (result.payload.maxSeats === -1 ? 'site' : 'seat'),
             features: result.payload.features || [],
             rawKey: storedKey,
+            seatId: result.payload.seatId,
+            seatNumber: result.payload.seatNumber,
+            claimantEmail: result.payload.claimantEmail,
           };
         } else {
           // Stored key is invalid or expired
@@ -87,7 +90,9 @@ export class LicenseManager {
       features: result.payload.features || [],
       rawKey: rawKey.trim(),
       allowedEmailDomains: result.payload.allowedEmailDomains,
-      claimantEmail: claimantEmail,
+      claimantEmail: result.payload.claimantEmail || claimantEmail,
+      seatId: result.payload.seatId,
+      seatNumber: result.payload.seatNumber,
     };
 
     if (this._events) {

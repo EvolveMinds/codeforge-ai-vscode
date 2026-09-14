@@ -41,12 +41,20 @@ export interface EnterpriseLicensePayload {
   allowedEmailDomains?: string[];
   /** Optional hardware fingerprint for node-locking */
   hardwareFingerprint?: string;
+  /** Cryptographically bound seat claimant email (for unique per-seat keys) */
+  claimantEmail?: string;
+  /** Formatted seat identifier (e.g. "SEAT-01/25") */
+  seatId?: string;
+  /** 1-based sequential seat number */
+  seatNumber?: number;
+  /** Unique claim record identifier */
+  claimId?: string;
 }
 
 export interface LicenseVerificationResult {
   valid: boolean;
   isExpired: boolean;
-  status: 'active' | 'expired' | 'invalid_signature' | 'malformed' | 'unlicensed' | 'unauthorized_domain';
+  status: 'active' | 'expired' | 'invalid_signature' | 'malformed' | 'unlicensed' | 'unauthorized_domain' | 'unauthorized_claimant';
   payload?: EnterpriseLicensePayload;
   error?: string;
   daysRemaining?: number;
@@ -66,4 +74,6 @@ export interface LicenseState {
   rawKey?: string;
   allowedEmailDomains?: string[];
   claimantEmail?: string;
+  seatId?: string;
+  seatNumber?: number;
 }

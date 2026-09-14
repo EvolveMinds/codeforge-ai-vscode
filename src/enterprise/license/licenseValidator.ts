@@ -130,6 +130,24 @@ export class LicenseValidator {
         }
       }
 
+      // Check Specific Seat Claimant Binding (Unique Per-Seat Cryptographic Key)
+      if (payload.claimantEmail) {
+        const boundEmail = payload.claimantEmail.trim().toLowerCase();
+        if (claimantEmail) {
+          const currentClaimant = claimantEmail.trim().toLowerCase();
+          if (boundEmail !== currentClaimant) {
+            return {
+              valid: false,
+              isExpired: false,
+              status: 'unauthorized_claimant',
+              payload,
+              daysRemaining,
+              error: `Seat Identity Mismatch: This unique license token (${payload.seatId || 'Seat'}) was cryptographically issued to ${boundEmail}. The current workstation claimant is "${claimantEmail}".`,
+            };
+          }
+        }
+      }
+
       return {
         valid: true,
         isExpired: false,

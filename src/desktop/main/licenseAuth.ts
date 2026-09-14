@@ -99,7 +99,9 @@ export class DesktopLicenseAuth {
               features: res.payload.features || [],
               rawKey: key,
               allowedEmailDomains: res.payload.allowedEmailDomains,
-              claimantEmail: claimantEmail,
+              claimantEmail: res.payload.claimantEmail || claimantEmail,
+              seatId: res.payload.seatId,
+              seatNumber: res.payload.seatNumber,
             };
             return;
           }
@@ -176,7 +178,10 @@ export class DesktopLicenseAuth {
       licenseScope: isSite ? 'site' : 'seat',
       hardwareFingerprint: hw.machineFingerprint,
       hardwareMatched: base.isLicensed ? true : false,
-      features: base.features
+      features: base.features,
+      claimantEmail: (base as any).claimantEmail,
+      seatId: (base as any).seatId,
+      seatNumber: (base as any).seatNumber,
     };
   }
 
@@ -188,6 +193,8 @@ export class DesktopLicenseAuth {
         const bundle = {
           organization: result.payload.organization,
           licenseId: result.payload.licenseId,
+          ...(result.payload.seatId ? { seatId: result.payload.seatId } : {}),
+          ...(result.payload.seatNumber ? { seatNumber: result.payload.seatNumber } : {}),
           plan: result.payload.plan,
           licenseScope: result.payload.licenseScope,
           maxSeats: result.payload.maxSeats,
@@ -198,7 +205,7 @@ export class DesktopLicenseAuth {
           features: result.payload.features,
           contactEmail: result.payload.contactEmail,
           ...(result.payload.allowedEmailDomains ? { allowedEmailDomains: result.payload.allowedEmailDomains } : {}),
-          ...(userEmail ? { claimedBy: userEmail, claimedAt: new Date().toISOString() } : {}),
+          ...(result.payload.claimantEmail || userEmail ? { claimedBy: result.payload.claimantEmail || userEmail, claimedAt: new Date().toISOString() } : {}),
         };
         const dir = path.dirname(this._licenseFile);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
