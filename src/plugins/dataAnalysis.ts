@@ -68,6 +68,7 @@ import { injectDataPrep } from '../core/reportBlocks';
 import type { ReportBlock, DataPrep, ReportTemplate, BlockType } from '../core/reportBlocks';
 import { extractBlock, buildBlockRefinePrompt } from '../core/reportEditor';
 import { assessModelForDataAnalysis, defaultModelFor } from '../core/modelCapability';
+import { LicenseGenerator, LicenseValidator } from '../enterprise';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
@@ -753,6 +754,52 @@ export class DataAnalysisPlugin implements IPlugin {
           if (!selectedFile) { panel.setStatus('Choose a data file first.'); return; }
           await this._runFromPanel(services, panel, selectedFile, deliverable, focus || undefined,
             deliverable === 'report' ? { ...spec, focus } : undefined);
+          break;
+        }
+        case 'startTrial': {
+          try {
+            const trialKey = LicenseGenerator.generateTrialKey('VS Code Community User', 30);
+            if (services.vsCtx?.secrets) {
+              await services.vsCtx.secrets.store('evolve.enterprise.licenseKey', trialKey);
+            }
+            vscode.window.showInformationMessage(
+              `⚡ 30-Day Enterprise Trial Activated!\nTrial License: ${trialKey.slice(0, 24)}... (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Touchscreen Topology.`,
+              'Launch Desktop Edition',
+              'Copy Full Key'
+            ).then(async (choice) => {
+              if (choice === 'Launch Desktop Edition') {
+                vscode.commands.executeCommand('aiForge.fde.launchDesktop');
+              } else if (choice === 'Copy Full Key') {
+                await vscode.env.clipboard.writeText(trialKey);
+                vscode.window.showInformationMessage('✓ 30-Day Enterprise Trial Key copied to clipboard!');
+              }
+            });
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Trial activation error: ${err?.message || err}`);
+          }
+          break;
+        }
+        case 'enterLicense': {
+          const key = await vscode.window.showInputBox({
+            prompt: 'Enter your Evolve AI Enterprise License Key (EM-ENT-V1...)',
+            placeHolder: 'EM-ENT-V1.ey...',
+            ignoreFocusOut: true,
+          });
+          if (key) {
+            const res = LicenseValidator.verify(key.trim());
+            if (res.valid && res.payload) {
+              if (services.vsCtx?.secrets) {
+                await services.vsCtx.secrets.store('evolve.enterprise.licenseKey', key.trim());
+              }
+              vscode.window.showInformationMessage(`✓ Enterprise License Verified for ${res.payload.organization} (Plan: ${res.payload.plan})!`);
+            } else {
+              vscode.window.showErrorMessage(`Invalid license key: ${res.error || 'Verification failed'}`);
+            }
+          }
+          break;
+        }
+        case 'launchDesktop': {
+          vscode.commands.executeCommand('aiForge.fde.launchDesktop');
           break;
         }
         case 'cancelAnalyze':

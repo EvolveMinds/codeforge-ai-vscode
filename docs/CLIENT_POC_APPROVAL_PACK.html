@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Client POC &amp; Data Architecture Approval Pack — Global Retail Enterprises</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f8fafc; padding: 40px; margin: 0; line-height: 1.6; }
+    .container { max-width: 960px; margin: 0 auto; background: #131b2e; border: 1px solid #1e293b; border-radius: 14px; padding: 40px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); }
+    .header { border-bottom: 2px solid #6366f1; padding-bottom: 22px; margin-bottom: 28px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+    h1 { color: #818cf8; margin: 0 0 8px 0; font-size: 23px; display: flex; align-items: center; gap: 10px; }
+    .badge { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid #6366f1; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .section { margin-bottom: 32px; }
+    h2 { color: #a5b4fc; font-size: 16px; border-bottom: 1px solid #1e293b; padding-bottom: 8px; margin-top: 28px; display: flex; align-items: center; gap: 8px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .kpi-card { background: #0b0f19; border: 1px solid #1e293b; border-radius: 10px; padding: 18px; text-align: center; }
+    .kpi-val { font-size: 26px; font-weight: 800; color: #34d399; margin: 6px 0; }
+    .kpi-lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+    .box-quote { background: #0b0f19; border-left: 4px solid #6366f1; padding: 14px 18px; border-radius: 6px; margin: 14px 0; font-size: 13.5px; color: #cbd5e1; }
+    .diagram-box { background: #0b0f19; border: 1px solid #1e293b; border-radius: 8px; padding: 18px; font-family: monospace; font-size: 11.5px; color: #38bdf8; overflow-x: auto; white-space: pre; line-height: 1.35; margin: 16px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px; background: #0b0f19; border-radius: 8px; overflow: hidden; border: 1px solid #1e293b; }
+    th, td { border: 1px solid #1e293b; padding: 12px 16px; text-align: left; }
+    th { background: #1e293b; color: #818cf8; font-weight: 700; font-size: 12px; text-transform: uppercase; }
+    .sign-table td { padding: 16px; }
+    .print-btn { background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 9px 20px; border-radius: 6px; cursor: pointer; float: right; transition: opacity 0.2s; }
+    .print-btn:hover { opacity: 0.9; }
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .container { border: none; box-shadow: none; padding: 0; background: #fff; max-width: 100%; color: #000; }
+      .print-btn { display: none; }
+      .diagram-box { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
+      .kpi-card { background: #f8fafc; border-color: #cbd5e1; }
+      .kpi-val { color: #059669; }
+      table { border-color: #94a3b8; }
+      th { background: #f1f5f9; color: #0f172a; border-color: #94a3b8; }
+      td { border-color: #cbd5e1; color: #000; }
+      .box-quote { background: #f8fafc; border-left-color: #6366f1; color: #000; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <div class="header">
+      <div>
+        <h1>📑 Enterprise Client POC &amp; Data Architecture Approval Pack</h1>
+        <div style="font-size: 12px; color: #94a3b8; margin-top: 4px;">
+          Client: <strong>Global Retail Enterprises</strong> &bull; Target VPC: <strong>client-prod-vpc-ap-southeast-2</strong> &bull; Prepared by: <strong>Lead Forward Deployed Engineer</strong> &bull; Date: <strong>2026-09-14</strong>
+        </div>
+      </div>
+      <span class="badge">Enterprise Approved Specification</span>
+    </div>
+
+    <div class="section">
+      <h2>1. Executive Summary &amp; ROI Baseline</h2>
+      <div class="box-quote"><strong>Pilot Scope Problem Statement:</strong> Establish automated staging models, dimensional data marts, and real-time client intelligence pipelines.</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-lbl">Projected Annual Savings</div>
+          <div class="kpi-val">$145,000</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Capacity Reclaimed</div>
+          <div class="kpi-val">1.8 FTEs</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Target Query Latency</div>
+          <div class="kpi-val">&lt; 15s</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>2. Discovered Schema Topology &amp; Vault Security</h2>
+      <p style="font-size: 13px; color: #cbd5e1;">The architecture has introspected <strong>10 tables</strong> and <strong>63 columns</strong> across <strong>20 relational foreign key links</strong>. All credentials are isolated in OS Keyring vaults with zero plaintext persistence.</p>
+      
+      <div class="diagram-box">
+                    ┌─────────────────────────┐
+                    │       CUSTOMERS         │
+                    │  (CRM Dimension Hub)    │
+                    └────────────┬────────────┘
+                                 │ 1:N
+                                 ▼
+┌─────────────────────────┐ 1:N ┌─────────────────────────┐ 1:N ┌─────────────────────────┐
+│        PAYMENTS         │◀────│         ORDERS          │────▶│        SHIPMENTS        │
+│    (Finance Fact)       │     │   (Core Sales Fact)     │     │    (Logistics Fact)     │
+└─────────────────────────┘     └────────────┬────────────┘     └─────────────────────────┘
+                                             │ 1:N
+                                             ▼
+                                ┌─────────────────────────┐
+                                │       ORDER_ITEMS       │
+                                │   (Relational Bridge)   │
+                                └────────────┬────────────┘
+                                             │ N:1
+                                             ▼
+                                ┌─────────────────────────┐
+                                │        PRODUCTS         │
+                                │   (Catalog Dimension)   │
+                                └────────────┬────────────┘
+                                             │ N:1
+                                             ▼
+                                ┌─────────────────────────┐
+                                │       CATEGORIES        │
+                                │    (Lookup Entity)      │
+                                └─────────────────────────┘
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>3. Formal Stakeholder Approval Sign-Off</h2>
+      <p style="font-size: 12.5px; color: #94a3b8;">Execution of this sign-off verifies agreement on table scope, dimensional marts, SLA criteria, and data governance standards for pilot deployment.</p>
+      <table class="sign-table">
+        <tr>
+          <th>Stakeholder Role</th>
+          <th>Representative Name</th>
+          <th>Formal Signature</th>
+          <th>Date</th>
+        </tr>
+        <tr>
+          <td><strong>Client Executive Sponsor</strong></td>
+          <td>Global Retail Enterprises Sponsor</td>
+          <td>________________________________</td>
+          <td>____/____/2026</td>
+        </tr>
+        <tr>
+          <td><strong>Client Lead Data Architect</strong></td>
+          <td>Enterprise Technical Lead</td>
+          <td>________________________________</td>
+          <td>____/____/2026</td>
+        </tr>
+        <tr>
+          <td><strong>Lead Forward Deployed Engineer</strong></td>
+          <td>Lead Forward Deployed Engineer</td>
+          <td><span style="color: #34d399; font-weight: 700;">✓ DIGITALLY SEALED</span></td>
+          <td>2026-09-14</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

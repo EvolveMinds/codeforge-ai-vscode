@@ -132,7 +132,9 @@ export const DESKTOP_CHANNELS = {
     CLEAN_TEMPORARY_FILES: 'evolve:engines:clean-temp-files',
     SAVE_PREFLIGHT_REPORT: 'evolve:engines:save-preflight-report',
     GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks',
-    ANALYZE_DATASET: 'evolve:engines:analyze-dataset'
+    ANALYZE_DATASET: 'evolve:engines:analyze-dataset',
+    DISCOVER_SCHEMA_GRAPH: 'evolve:engines:discover-schema-graph',
+    QUERY_TABLE_SAMPLE: 'evolve:engines:query-table-sample'
   },
 
   FDE: {
@@ -140,6 +142,7 @@ export const DESKTOP_CHANNELS = {
     SAVE_DISCOVERY: 'evolve:fde:save-discovery',
     CALCULATE_ROI: 'evolve:fde:calculate-roi',
     GENERATE_TOPOLOGY: 'evolve:fde:generate-topology',
+    GENERATE_POC_PACK: 'evolve:fde:generate-poc-pack',
     EVALUATE_RULE_VS_MODEL: 'evolve:fde:evaluate-rule-vs-model',
     SCAFFOLD_LADDER_LEVEL: 'evolve:fde:scaffold-ladder-level',
     SCAFFOLD_MCP_TOOL_SERVER: 'evolve:fde:scaffold-mcp-tool-server',

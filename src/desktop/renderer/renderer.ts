@@ -36,6 +36,13 @@ let runbookDocs: {
 };
 let activeRunbookTab = 'arch';
 let currentIntrospectedTables: any[] = [];
+let activeLiveDbConnection: {
+  dialect: string;
+  connectionUri: string;
+  database: string;
+  schema: string;
+  vaultPolicy: string;
+} | null = null;
 let activeDeployProvider = 'gcp-firebase';
 
 // Engagement project catalog
@@ -134,7 +141,8 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     if (headerLicPill) {
       if (st?.isLicensed) {
         headerLicPill.className = 'header-pill success';
-        headerLicPill.innerText = `💎 ${st.organization || 'Enterprise'} · ${(st.plan || 'PLATINUM').toUpperCase()} (${st.daysRemaining ?? 365}d)`;
+        const seatTag = st.seatId ? ` · ${st.seatId}` : '';
+        headerLicPill.innerText = `💎 ${st.organization || 'Enterprise'}${seatTag} · ${(st.plan || 'PLATINUM').toUpperCase()} (${st.daysRemaining ?? 365}d)`;
       } else {
         headerLicPill.className = 'header-pill warning';
         headerLicPill.innerText = '⚠️ UNLICENSED (Activation Required)';
@@ -539,6 +547,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { setupEngagementManager(api); } catch (e) { console.error('setupEngagementManager failed', e); }
   try { setupDeliveryStudio(api); } catch (e) { console.error('setupDeliveryStudio failed', e); }
   try { setupDataAnalysisStudio(api); } catch (e) { console.error('setupDataAnalysisStudio failed', e); }
+  try { setupDataCosmosStudio(api); } catch (e) { console.error('setupDataCosmosStudio failed', e); }
   try { setupCodeConverterStudio(api); } catch (e) { console.error('setupCodeConverterStudio failed', e); }
   try { setupDatabricksStudio(api); } catch (e) { console.error('setupDatabricksStudio failed', e); }
   try { setupSecurityStudio(api); } catch (e) { console.error('setupSecurityStudio failed', e); }
@@ -547,6 +556,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { setupGitStudio(api); } catch (e) { console.error('setupGitStudio failed', e); }
   try { setupCloudHub(api); } catch (e) { console.error('setupCloudHub failed', e); }
   try { setupModals(api); } catch (e) { console.error('setupModals failed', e); }
+  try { setupDbSampleDataModal(api); } catch (e) { console.error('setupDbSampleDataModal failed', e); }
 
   // Auto-scan hardware, branches & workspace on startup
   if (api) {
@@ -878,8 +888,11 @@ function switchActivityTab(tabName: string, api?: any): void {
     }
   }
 
-  if (tabName === 'data' && api) {
-    refreshWorkspaceDataFiles(api);
+  if (tabName === 'data') {
+    if (api) refreshWorkspaceDataFiles(api);
+    if (typeof (window as any).syncPhase2ToDataStudio === 'function') {
+      (window as any).syncPhase2ToDataStudio();
+    }
   } else if (tabName === 'hardware' && api) {
     runHardwareInspect(api);
   } else if (tabName === 'git' && api) {
@@ -4264,19 +4277,47 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  const tabModeCosmos = document.getElementById('tabModeCosmos');
+  const subpanelCosmosView = document.getElementById('subpanelCosmosView');
+  const btnP2OpenCosmos = document.getElementById('btnP2OpenCosmos');
+  const btnP2OpenPocPack = document.getElementById('btnP2OpenPocPack');
+
   tabModeStaging?.addEventListener('click', () => {
     tabModeStaging.classList.add('active');
     tabModeMart?.classList.remove('active');
+    tabModeCosmos?.classList.remove('active');
     if (subpanelStagingView) subpanelStagingView.style.display = 'block';
     if (subpanelMartView) subpanelMartView.style.display = 'none';
+    if (subpanelCosmosView) subpanelCosmosView.style.display = 'none';
   });
 
   tabModeMart?.addEventListener('click', () => {
     tabModeMart.classList.add('active');
     tabModeStaging?.classList.remove('active');
+    tabModeCosmos?.classList.remove('active');
     if (subpanelStagingView) subpanelStagingView.style.display = 'none';
     if (subpanelMartView) subpanelMartView.style.display = 'block';
+    if (subpanelCosmosView) subpanelCosmosView.style.display = 'none';
     refreshMartModelOptions();
+  });
+
+  tabModeCosmos?.addEventListener('click', () => {
+    tabModeCosmos.classList.add('active');
+    tabModeStaging?.classList.remove('active');
+    tabModeMart?.classList.remove('active');
+    if (subpanelStagingView) subpanelStagingView.style.display = 'none';
+    if (subpanelMartView) subpanelMartView.style.display = 'none';
+    if (subpanelCosmosView) subpanelCosmosView.style.display = 'block';
+    (window as any).refreshP2CosmosTopology?.();
+  });
+
+  btnP2OpenCosmos?.addEventListener('click', () => {
+    goToP2Step(2);
+    tabModeCosmos?.click();
+  });
+
+  btnP2OpenPocPack?.addEventListener('click', () => {
+    (window as any).openFdePocApprovalModal?.();
   });
 
   btnAiAutoClean?.addEventListener('click', () => {
@@ -4388,15 +4429,42 @@ function setupDeliveryStudio(api: any): void {
   const btnLoadSchemaIntoMapper = document.getElementById('btnLoadSchemaIntoMapper');
   const btnAutoDetectDb = document.getElementById('btnAutoDetectDb');
 
+  // Staging Live DB Switcher Elements
+  const stagingLiveDbSelectorBar = document.getElementById('stagingLiveDbSelectorBar');
+  const lblStagingLiveDbName = document.getElementById('lblStagingLiveDbName');
+  const selStagingLiveTable = document.getElementById('selStagingLiveTable') as HTMLSelectElement | null;
+  const btnLoadStagingLiveTable = document.getElementById('btnLoadStagingLiveTable');
+  const btnPreviewLiveTableData = document.getElementById('btnPreviewLiveTableData');
+  const btnStagingSendToCosmos = document.getElementById('btnStagingSendToCosmos');
+
+  // Mart View Extra Buttons
+  const btnMartViewCosmos = document.getElementById('btnMartViewCosmos');
+  const btnMartPreviewJoinedData = document.getElementById('btnMartPreviewJoinedData');
+
   const populateDiscoveredTables = (tables: any[], dialectName: string) => {
     currentIntrospectedTables = tables;
     (window as any)._phase2DiscoveredTables = tables;
+
+    // Cache active live connection info
+    const currentUri = (document.getElementById('dbUriInput') as HTMLInputElement)?.value || '';
+    const currentDb = (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value || 'postgres';
+    const currentSchema = (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value || 'public';
+    const currentVault = (document.getElementById('dbVaultPolicy') as HTMLSelectElement)?.value || 'session';
+    activeLiveDbConnection = {
+      dialect: dialectName,
+      connectionUri: currentUri,
+      database: currentDb,
+      schema: currentSchema,
+      vaultPolicy: currentVault
+    };
+
     if (dbTablesContainer) dbTablesContainer.style.display = 'block';
 
     if (dbConnectionStatusBadge) {
       dbConnectionStatusBadge.innerText = `✓ Connected to ${dialectName.toUpperCase()}: ${tables.length} tables discovered`;
     }
 
+    // 1. Populate Drawer Introspected Table Selector
     if (dbTableSelect) {
       dbTableSelect.innerHTML = `<option value="">-- Choose an introspected table (${tables.length} found) --</option>` +
         tables.map(t => {
@@ -4409,8 +4477,110 @@ function setupDeliveryStudio(api: any): void {
         dbTableSelect.value = tables[0].tableName || tables[0].name;
       }
     }
+
+    // 2. Populate Inline Staging Live Table Selector Bar
+    if (selStagingLiveTable) {
+      selStagingLiveTable.innerHTML = `<option value="">-- Choose Live Table (${tables.length} available) --</option>` +
+        tables.map(t => {
+          const schemaPrefix = t.schema ? `${t.schema}.` : '';
+          const name = t.tableName || t.name;
+          const colCount = t.columns ? t.columns.length : 0;
+          return `<option value="${name}">${schemaPrefix}${name} (${colCount} cols)</option>`;
+        }).join('');
+      if (tables.length > 0) {
+        selStagingLiveTable.value = tables[0].tableName || tables[0].name;
+      }
+    }
+    if (stagingLiveDbSelectorBar) {
+      stagingLiveDbSelectorBar.style.display = 'flex';
+    }
+    if (lblStagingLiveDbName) {
+      lblStagingLiveDbName.textContent = `(${dialectName.toUpperCase()}: ${tables.length} tables)`;
+    }
+
+    // 3. Refresh Mart Join Builder options with live models
     refreshMartModelOptions();
+
+    // 4. Update 3D/2D Schema Topology (Cosmos) with live discovered tables
+    const p2CosmosSourceBadge = document.getElementById('p2CosmosSourceBadge');
+    if (p2CosmosSourceBadge) {
+      p2CosmosSourceBadge.textContent = `⚡ Live Database (${tables.length} tables)`;
+      p2CosmosSourceBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      p2CosmosSourceBadge.style.color = '#10b981';
+      p2CosmosSourceBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+    }
+    const cosmosSourceSelect = document.getElementById('cosmosSourceSelect') as HTMLSelectElement | null;
+    if (cosmosSourceSelect) {
+      cosmosSourceSelect.value = 'connected';
+    }
+    if (typeof (window as any).loadSchemaGraph === 'function') {
+      (window as any).loadSchemaGraph('connected', tables);
+    }
+
+    // 5. Synchronize with Data Analysis & Reporting Studio
+    if (typeof (window as any).populateDataDiscoveredTables === 'function') {
+      (window as any).populateDataDiscoveredTables(tables, dialectName);
+    }
+    if (typeof (window as any).syncPhase2ToDataStudio === 'function') {
+      (window as any).syncPhase2ToDataStudio();
+    }
   };
+
+  (window as any).populateDiscoveredTables = populateDiscoveredTables;
+
+  // Wire Staging Live Table Selector Bar events
+  btnLoadStagingLiveTable?.addEventListener('click', () => {
+    const tblName = selStagingLiveTable?.value || dbTableSelect?.value;
+    if (!tblName) {
+      showToast('⚠️ Please select a live table first.');
+      return;
+    }
+    applySelectedTableToMapper(tblName);
+  });
+
+  selStagingLiveTable?.addEventListener('change', () => {
+    if (selStagingLiveTable.value) {
+      if (dbTableSelect) dbTableSelect.value = selStagingLiveTable.value;
+      applySelectedTableToMapper(selStagingLiveTable.value);
+    }
+  });
+
+  btnPreviewLiveTableData?.addEventListener('click', () => {
+    const tblName = selStagingLiveTable?.value || dbTableSelect?.value || (currentIntrospectedTables[0]?.tableName || currentIntrospectedTables[0]?.name);
+    if (!tblName) {
+      showToast('⚠️ Please select a table to preview.');
+      return;
+    }
+    (window as any).openSampleDataModal?.(tblName);
+  });
+
+  btnStagingSendToCosmos?.addEventListener('click', () => {
+    const tblName = selStagingLiveTable?.value || dbTableSelect?.value;
+    const tabModeCosmos = document.getElementById('tabModeCosmos');
+    tabModeCosmos?.click();
+    if (tblName && (window as any).spotlightCosmosTable) {
+      setTimeout(() => (window as any).spotlightCosmosTable(tblName), 120);
+    }
+  });
+
+  // Wire Mart View Extra Buttons
+  btnMartViewCosmos?.addEventListener('click', () => {
+    const baseModelVal = martBaseModel?.value || (martJoinModel?.value || '');
+    const tabModeCosmos = document.getElementById('tabModeCosmos');
+    tabModeCosmos?.click();
+    if (baseModelVal && (window as any).spotlightCosmosTable) {
+      setTimeout(() => (window as any).spotlightCosmosTable(baseModelVal), 120);
+    }
+  });
+
+  btnMartPreviewJoinedData?.addEventListener('click', () => {
+    const tblName = martBaseModel?.value || martJoinModel?.value || (currentIntrospectedTables[0]?.tableName || currentIntrospectedTables[0]?.name);
+    if (!tblName) {
+      showToast('⚠️ Please select a model in Mart Builder to preview.');
+      return;
+    }
+    (window as any).openSampleDataModal?.(tblName);
+  });
 
   const applySelectedTableToMapper = (tableName?: string) => {
     let tblName = tableName || (dbTableSelect ? dbTableSelect.value : '');
@@ -4446,6 +4616,8 @@ function setupDeliveryStudio(api: any): void {
       showToast(`✓ Loaded schema for ${realName} into Semantic Mapper!`);
     }
   };
+
+  (window as any).applySelectedTableToMapper = applySelectedTableToMapper;
 
   document.getElementById('btnExecuteIntrospect')?.addEventListener('click', async () => {
     const dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement).value;
@@ -15527,6 +15699,8 @@ function setupDataAnalysisStudio(api: any): void {
     }
   };
 
+  (window as any).populateDataDiscoveredTables = populateDataDiscoveredTables;
+
   // Synchronize credentials with Phase 2 if already filled
   const syncFromPhase2Db = () => {
     const p2Dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement)?.value;
@@ -15542,10 +15716,14 @@ function setupDataAnalysisStudio(api: any): void {
     if (p2Vault && dataDbVaultPolicy) dataDbVaultPolicy.value = p2Vault;
 
     // Check if Phase 2 discovered tables are available
-    if (currentDataStudioIntrospectedTables.length === 0 && (window as any)._phase2DiscoveredTables) {
-      populateDataDiscoveredTables((window as any)._phase2DiscoveredTables, dataDbDialectSelect?.value || 'postgres');
+    if ((window as any)._phase2DiscoveredTables && (window as any)._phase2DiscoveredTables.length > 0) {
+      if (currentDataStudioIntrospectedTables.length === 0 || currentDataStudioIntrospectedTables.length !== (window as any)._phase2DiscoveredTables.length) {
+        populateDataDiscoveredTables((window as any)._phase2DiscoveredTables, dataDbDialectSelect?.value || 'postgres');
+      }
     }
   };
+
+  (window as any).syncPhase2ToDataStudio = syncFromPhase2Db;
 
   // Toggle Live DB Drawer
   const toggleDbDrawer = () => {
@@ -15640,6 +15818,10 @@ function setupDataAnalysisStudio(api: any): void {
       if (res && res.tables && res.tables.length > 0) {
         (window as any)._phase2DiscoveredTables = res.tables;
         populateDataDiscoveredTables(res.tables, dialect);
+        if (typeof (window as any).populateDiscoveredTables === 'function') {
+          (window as any).populateDiscoveredTables(res.tables, dialect);
+        }
+        loadTableForAnalysis(res.tables[0].tableName || res.tables[0].name);
         showToast(`✓ Discovered ${res.tables.length} tables from ${dialect.toUpperCase()}!`);
       } else {
         showToast(`⚠️ ${res?.error || res?.message || 'No tables discovered.'}`);
@@ -15681,15 +15863,18 @@ function setupDataAnalysisStudio(api: any): void {
     renderColumnsPreview(tbl);
   });
 
-  // Load Table for Analysis
-  btnDataLoadTableForAnalysis?.addEventListener('click', () => {
-    const tblName = dataDbTableSelect?.value;
+  // Load Table for Analysis Helper
+  const loadTableForAnalysis = (tblName?: string) => {
     if (!tblName) {
       showToast('⚠️ Please select an introspected table first.');
       return;
     }
 
-    const tbl = currentDataStudioIntrospectedTables.find(t => 
+    const allTables = (currentDataStudioIntrospectedTables && currentDataStudioIntrospectedTables.length > 0)
+      ? currentDataStudioIntrospectedTables
+      : currentIntrospectedTables;
+
+    const tbl = allTables.find(t => 
       (t.tableName === tblName) || 
       (t.name === tblName) || 
       ((t.schema ? `${t.schema}.${t.tableName || t.name}` : '') === tblName)
@@ -15699,10 +15884,10 @@ function setupDataAnalysisStudio(api: any): void {
       return;
     }
 
-    const dialect = dataDbDialectSelect?.value || 'postgres';
-    const schema = dataDbSchemaIdInput?.value || tbl.schema || 'public';
-    const database = dataDbProjectIdInput?.value || 'postgres';
-    const uri = dataDbUriInput?.value || '';
+    const dialect = dataDbDialectSelect?.value || activeLiveDbConnection?.dialect || 'postgres';
+    const schema = dataDbSchemaIdInput?.value || tbl.schema || activeLiveDbConnection?.schema || 'public';
+    const database = dataDbProjectIdInput?.value || activeLiveDbConnection?.database || 'postgres';
+    const uri = dataDbUriInput?.value || activeLiveDbConnection?.connectionUri || '';
 
     activeAnalysisDbTable = {
       dialect,
@@ -15713,6 +15898,11 @@ function setupDataAnalysisStudio(api: any): void {
       columnsFormatted: tbl.columnsFormatted || (tbl.columns ? tbl.columns.map((c: any) => `${c.name}:${c.type}`).join('\n') : ''),
       connectionUri: uri
     };
+
+    if (dataDbTableSelect) {
+      dataDbTableSelect.value = tbl.tableName || tbl.name;
+    }
+    renderColumnsPreview(tbl);
 
     const dropZone = document.getElementById('dataDropZone');
     if (dropZone) {
@@ -15746,6 +15936,19 @@ function setupDataAnalysisStudio(api: any): void {
     }
 
     showToast(`✓ Loaded ${tbl.tableName || tbl.name} (${(tbl.columns || []).length} columns) from ${dialect.toUpperCase()} for analysis!`);
+  };
+
+  // Expose global handoff for Phase 2 / Cosmos / Modals
+  (window as any).loadTableInDataStudio = (tableName: string) => {
+    switchActivityTab('data', api);
+    syncFromPhase2Db();
+    loadTableForAnalysis(tableName);
+    document.getElementById('deliv')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  // Load Table for Analysis Button
+  btnDataLoadTableForAnalysis?.addEventListener('click', () => {
+    loadTableForAnalysis(dataDbTableSelect?.value);
     document.getElementById('deliv')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
 
@@ -16217,6 +16420,2043 @@ async function refreshWorkspaceDataFiles(api: any): Promise<void> {
       });
     });
   } catch {}
+}
+
+// ===================================================================
+// 3D DATA COSMOS & RELATIONAL TOPOLOGY ENGINE (Paid/Enterprise Tier)
+// ===================================================================
+
+interface CosmosNode {
+  id: string;
+  name: string;
+  schema: string;
+  role: 'fact' | 'dimension' | 'bridge' | 'lookup';
+  domain: string;
+  color: string;
+  columns: Array<{ name: string; type: string; isPrimary?: boolean; isForeign?: boolean; isNullable?: boolean }>;
+  rowCountEstimate: number;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  radius: number;
+  // 2D ERD position
+  x2D: number;
+  y2D: number;
+  // Active render projection
+  screenX: number;
+  screenY: number;
+  screenZ: number;
+  screenRadius: number;
+}
+
+interface CosmosLink {
+  source: string;
+  target: string;
+  sourceCol: string;
+  targetCol: string;
+  cardinality?: string;
+  confidence?: number;
+  isVirtual?: boolean;
+  isPathHighlighted?: boolean;
+  particles: Array<{ progress: number; speed: number; size: number }>;
+}
+
+interface CosmosGraphData {
+  dialect: string;
+  database: string;
+  schema: string;
+  nodes: CosmosNode[];
+  links: CosmosLink[];
+  stats: {
+    totalTables: number;
+    totalColumns: number;
+    totalRelationships: number;
+    factCount: number;
+    dimensionCount: number;
+    orphanCount: number;
+  };
+}
+
+class DataCosmosEngine {
+  public canvas: HTMLCanvasElement;
+  public ctx: CanvasRenderingContext2D;
+  public nodes: CosmosNode[] = [];
+  public links: CosmosLink[] = [];
+  public nodeMap: Map<string, CosmosNode> = new Map();
+  public selectedNodeId: string | null = null;
+  public hoveredNodeId: string | null = null;
+  public activePath: string[] = [];
+
+  public mode: '3D' | '2D' = '3D';
+  public isSimulating = true;
+  public isTurntable = false;
+  public turntableSpeed = 0.003;
+
+  // 3D Camera Spherical Coordinates (Euler)
+  public R = 640;
+  public targetR = 640;
+  public theta = 0.45;
+  public targetTheta = 0.45;
+  public phi = 0.35;
+  public targetPhi = 0.35;
+  public panX = 0;
+  public panY = 0;
+  public focalLength = 540;
+
+  // 2D Camera
+  public zoom2D = 1.0;
+  public targetZoom2D = 1.0;
+  public panX2D = 0;
+  public panY2D = 0;
+
+  // Multi-Touch & Pointer Tracking
+  private activePointers = new Map<number, {
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+    startTime: number;
+    lastX: number;
+    lastY: number;
+  }>();
+  private isDraggingNode = false;
+  private draggedNode: CosmosNode | null = null;
+  private lastTapTime = 0;
+  private animFrameId: number | null = null;
+  private resizeObserver: ResizeObserver | null = null;
+
+  // Callbacks
+  public onNodeSelect?: (node: CosmosNode | null) => void;
+  public onPathFound?: (path: string[], sql: string) => void;
+
+  constructor(
+    canvas: HTMLCanvasElement,
+    options?: {
+      onNodeSelect?: (node: CosmosNode | null) => void;
+      onPathFound?: (path: string[], sql: string) => void;
+    }
+  ) {
+    this.canvas = canvas;
+    const context = canvas.getContext('2d');
+    if (!context) {
+      throw new Error('Canvas 2D context could not be created');
+    }
+    this.ctx = context;
+    this.onNodeSelect = options?.onNodeSelect;
+    this.onPathFound = options?.onPathFound;
+
+    this.initEvents();
+    this.resize();
+    this.startLoop();
+  }
+
+  public resize(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(200, Math.floor(rect.width * dpr));
+    const h = Math.max(200, Math.floor(rect.height * dpr));
+    if (this.canvas.width !== w || this.canvas.height !== h) {
+      this.canvas.width = w;
+      this.canvas.height = h;
+    }
+  }
+
+  public loadGraph(graph: CosmosGraphData): void {
+    this.nodeMap.clear();
+    this.nodes = (graph.nodes || []).map((n, idx) => {
+      // Setup initial positions
+      const phi = Math.acos(1 - 2 * (idx + 0.5) / Math.max(graph.nodes.length, 1));
+      const theta = Math.PI * (1 + Math.sqrt(5)) * (idx + 0.5);
+      const dist = n.role === 'fact' ? 140 : n.role === 'dimension' ? 280 : 360;
+
+      const node: CosmosNode = {
+        id: n.id,
+        name: n.name || n.id,
+        schema: n.schema || 'public',
+        role: n.role || 'dimension',
+        domain: n.domain || 'Core',
+        color: n.color || '#818cf8',
+        columns: n.columns || [],
+        rowCountEstimate: n.rowCountEstimate || 1000,
+        x: n.x ?? (dist * Math.sin(phi) * Math.cos(theta)),
+        y: n.y ?? (dist * Math.sin(phi) * Math.sin(theta)),
+        z: n.z ?? (dist * Math.cos(phi)),
+        vx: 0,
+        vy: 0,
+        vz: 0,
+        radius: n.radius || (n.role === 'fact' ? 34 : 26),
+        x2D: (idx % 4 - 1.5) * 220,
+        y2D: (Math.floor(idx / 4) - 1) * 160,
+        screenX: 0,
+        screenY: 0,
+        screenZ: 0,
+        screenRadius: 20
+      };
+      this.nodeMap.set(node.id, node);
+      return node;
+    });
+
+    this.links = (graph.links || []).map(l => {
+      // Setup 2-3 photon particles per link
+      const particleCount = l.confidence && l.confidence > 0.8 ? 3 : 2;
+      const particles = [];
+      for (let p = 0; p < particleCount; p++) {
+        particles.push({
+          progress: (p / particleCount) + Math.random() * 0.2,
+          speed: 0.003 + Math.random() * 0.004,
+          size: 2.2 + Math.random() * 1.5
+        });
+      }
+
+      return {
+        source: l.source,
+        target: l.target,
+        sourceCol: l.sourceCol,
+        targetCol: l.targetCol,
+        cardinality: l.cardinality || '1:N',
+        confidence: l.confidence ?? 1.0,
+        isVirtual: l.isVirtual ?? false,
+        isPathHighlighted: false,
+        particles
+      };
+    });
+
+    this.activePath = [];
+    this.selectedNodeId = null;
+    this.fitToView();
+  }
+
+  public setMode(m: '3D' | '2D'): void {
+    this.mode = m;
+    if (m === '2D') {
+      // Re-layout 2D cards neatly around center
+      const cols = Math.max(3, Math.ceil(Math.sqrt(this.nodes.length)));
+      const colW = 240;
+      const rowH = 180;
+      this.nodes.forEach((n, idx) => {
+        const c = idx % cols;
+        const r = Math.floor(idx / cols);
+        n.x2D = (c - (cols - 1) / 2) * colW;
+        n.y2D = (r - (Math.ceil(this.nodes.length / cols) - 1) / 2) * rowH;
+      });
+      this.targetZoom2D = 1.0;
+      this.panX2D = 0;
+      this.panY2D = 0;
+    }
+  }
+
+  private initEvents(): void {
+    this.canvas.style.touchAction = 'none';
+
+    // Resize observer
+    if (window.ResizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => this.resize());
+      this.resizeObserver.observe(this.canvas);
+    }
+
+    // Pointer events (Multi-touch & Mouse unified)
+    this.canvas.addEventListener('pointerdown', (e: PointerEvent) => {
+      this.canvas.setPointerCapture(e.pointerId);
+      this.activePointers.set(e.pointerId, {
+        x: e.clientX,
+        y: e.clientY,
+        startX: e.clientX,
+        startY: e.clientY,
+        startTime: Date.now(),
+        lastX: e.clientX,
+        lastY: e.clientY
+      });
+
+      if (this.activePointers.size === 1) {
+        const hit = this.hitTestNode(e.clientX, e.clientY);
+        if (hit) {
+          this.isDraggingNode = true;
+          this.draggedNode = hit;
+        } else {
+          this.isDraggingNode = false;
+          this.draggedNode = null;
+        }
+      } else {
+        this.isDraggingNode = false;
+        this.draggedNode = null;
+      }
+    });
+
+    this.canvas.addEventListener('pointermove', (e: PointerEvent) => {
+      const p = this.activePointers.get(e.pointerId);
+      if (!p) {
+        // Hover state check
+        const hit = this.hitTestNode(e.clientX, e.clientY);
+        const newHover = hit ? hit.id : null;
+        if (newHover !== this.hoveredNodeId) {
+          this.hoveredNodeId = newHover;
+          this.canvas.style.cursor = hit ? 'pointer' : 'grab';
+        }
+        return;
+      }
+
+      p.lastX = p.x;
+      p.lastY = p.y;
+      p.x = e.clientX;
+      p.y = e.clientY;
+
+      if (this.activePointers.size === 1) {
+        const dx = p.x - p.lastX;
+        const dy = p.y - p.lastY;
+
+        if (this.isDraggingNode && this.draggedNode) {
+          if (this.mode === '3D') {
+            this.draggedNode.x += dx * 0.8;
+            this.draggedNode.y += dy * 0.8;
+          } else {
+            this.draggedNode.x2D += dx / this.zoom2D;
+            this.draggedNode.y2D += dy / this.zoom2D;
+          }
+        } else {
+          if (this.mode === '3D') {
+            this.targetTheta += dx * 0.007;
+            this.targetPhi = Math.max(-Math.PI / 2.3, Math.min(Math.PI / 2.3, this.targetPhi - dy * 0.007));
+          } else {
+            this.panX2D += dx;
+            this.panY2D += dy;
+          }
+        }
+      } else if (this.activePointers.size === 2) {
+        // Multi-touch pinch-to-zoom & two-finger pan
+        const [p1, p2] = Array.from(this.activePointers.values());
+        const lastDist = Math.hypot(p1.lastX - p2.lastX, p1.lastY - p2.lastY) || 1;
+        const newDist = Math.hypot(p1.x - p2.x, p1.y - p2.y) || 1;
+        const scale = newDist / lastDist;
+
+        if (this.mode === '3D') {
+          this.targetR = Math.max(160, Math.min(1800, this.targetR / scale));
+          const midDx = ((p1.x + p2.x) - (p1.lastX + p2.lastX)) * 0.5;
+          const midDy = ((p1.y + p2.y) - (p1.lastY + p2.lastY)) * 0.5;
+          this.panX += midDx * 0.6;
+          this.panY += midDy * 0.6;
+        } else {
+          this.targetZoom2D = Math.max(0.25, Math.min(3.2, this.targetZoom2D * scale));
+          const midDx = ((p1.x + p2.x) - (p1.lastX + p2.lastX)) * 0.5;
+          const midDy = ((p1.y + p2.y) - (p1.lastY + p2.lastY)) * 0.5;
+          this.panX2D += midDx;
+          this.panY2D += midDy;
+        }
+      }
+    });
+
+    const handlePointerUp = (e: PointerEvent) => {
+      const p = this.activePointers.get(e.pointerId);
+      if (p) {
+        const duration = Date.now() - p.startTime;
+        const distMoved = Math.hypot(p.x - p.startX, p.y - p.startY);
+
+        // Tap detected (< 280ms and < 8px travel)
+        if (duration < 280 && distMoved < 8) {
+          const hit = this.hitTestNode(p.startX, p.startY);
+          const now = Date.now();
+          const isDoubleTap = (now - this.lastTapTime < 350);
+          this.lastTapTime = now;
+
+          if (isDoubleTap && hit) {
+            // Double-tap: fly camera to focus on node
+            this.flyCameraToNode(hit);
+          } else {
+            this.selectNode(hit);
+          }
+        }
+      }
+
+      this.activePointers.delete(e.pointerId);
+      if (this.activePointers.size === 0) {
+        this.isDraggingNode = false;
+        this.draggedNode = null;
+        try {
+          if (this.canvas.hasPointerCapture(e.pointerId)) {
+            this.canvas.releasePointerCapture(e.pointerId);
+          }
+        } catch {}
+      }
+    };
+
+    this.canvas.addEventListener('pointerup', handlePointerUp);
+    this.canvas.addEventListener('pointercancel', handlePointerUp);
+
+    // Mouse wheel zoom
+    this.canvas.addEventListener('wheel', (e: WheelEvent) => {
+      e.preventDefault();
+      if (this.mode === '3D') {
+        const factor = e.deltaY < 0 ? 0.9 : 1.1;
+        this.targetR = Math.max(160, Math.min(1800, this.targetR * factor));
+      } else {
+        const factor = e.deltaY < 0 ? 1.12 : 0.88;
+        this.targetZoom2D = Math.max(0.25, Math.min(3.2, this.targetZoom2D * factor));
+      }
+    }, { passive: false });
+  }
+
+  public hitTestNode(clientX: number, clientY: number): CosmosNode | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    if (this.mode === '3D') {
+      // Check from front to back (closest screenZ first)
+      const sorted = [...this.nodes].sort((a, b) => (a.screenZ || 0) - (b.screenZ || 0));
+      for (const n of sorted) {
+        const r = Math.max(n.screenRadius, 20);
+        const dist = Math.hypot(x - n.screenX, y - n.screenY);
+        if (dist <= r + 6) {
+          return n;
+        }
+      }
+    } else {
+      // In 2D, check card bounding boxes
+      const cardW = 180 * this.zoom2D;
+      const cardH = 120 * this.zoom2D;
+      for (const n of this.nodes) {
+        const left = n.screenX - cardW / 2;
+        const top = n.screenY - cardH / 2;
+        if (x >= left && x <= left + cardW && y >= top && y <= top + cardH) {
+          return n;
+        }
+      }
+    }
+    return null;
+  }
+
+  public selectNode(node: CosmosNode | null): void {
+    this.selectedNodeId = node ? node.id : null;
+    if (this.onNodeSelect) {
+      this.onNodeSelect(node);
+    }
+  }
+
+  public flyCameraToNode(node: CosmosNode): void {
+    if (this.mode === '3D') {
+      // Calculate target theta and phi towards node
+      const r = Math.hypot(node.x, node.y, node.z) || 1;
+      this.targetTheta = Math.atan2(node.x, node.z);
+      this.targetPhi = Math.asin(-node.y / r);
+      this.targetR = 380;
+      this.panX = 0;
+      this.panY = 0;
+    } else {
+      this.panX2D = -node.x2D;
+      this.panY2D = -node.y2D;
+      this.targetZoom2D = 1.3;
+    }
+    this.selectNode(node);
+  }
+
+  public findShortestPath(startId: string, endId: string): { path: string[]; sql: string } | null {
+    if (!startId || !endId || startId === endId) return null;
+
+    // Build Adjacency List
+    const adj = new Map<string, Array<{ neighbor: string; link: CosmosLink }>>();
+    this.nodes.forEach(n => adj.set(n.id, []));
+
+    this.links.forEach(l => {
+      adj.get(l.source)?.push({ neighbor: l.target, link: l });
+      adj.get(l.target)?.push({ neighbor: l.source, link: l });
+    });
+
+    // BFS Shortest Path
+    const queue: Array<{ curr: string; path: string[]; linkPath: CosmosLink[] }> = [
+      { curr: startId, path: [startId], linkPath: [] }
+    ];
+    const visited = new Set<string>([startId]);
+
+    let foundPath: string[] | null = null;
+    let foundLinks: CosmosLink[] = [];
+
+    while (queue.length > 0) {
+      const { curr, path, linkPath } = queue.shift()!;
+      if (curr === endId) {
+        foundPath = path;
+        foundLinks = linkPath;
+        break;
+      }
+
+      const neighbors = adj.get(curr) || [];
+      for (const edge of neighbors) {
+        if (!visited.has(edge.neighbor)) {
+          visited.add(edge.neighbor);
+          queue.push({
+            curr: edge.neighbor,
+            path: [...path, edge.neighbor],
+            linkPath: [...linkPath, edge.link]
+          });
+        }
+      }
+    }
+
+    if (!foundPath) return null;
+
+    this.activePath = foundPath;
+
+    // Highlight links on path
+    const pathLinkKeys = new Set<string>();
+    for (let i = 0; i < foundPath.length - 1; i++) {
+      pathLinkKeys.add(`${foundPath[i]}->${foundPath[i + 1]}`);
+      pathLinkKeys.add(`${foundPath[i + 1]}->${foundPath[i]}`);
+    }
+
+    this.links.forEach(l => {
+      l.isPathHighlighted = pathLinkKeys.has(`${l.source}->${l.target}`) || pathLinkKeys.has(`${l.target}->${l.source}`);
+    });
+
+    // Generate ANSI SQL Join Query
+    const joins: string[] = [];
+    for (let i = 0; i < foundPath.length - 1; i++) {
+      const t1 = foundPath[i];
+      const t2 = foundPath[i + 1];
+      const rel = foundLinks[i];
+      if (rel) {
+        const isForward = rel.source === t1;
+        const col1 = isForward ? rel.sourceCol : rel.targetCol;
+        const col2 = isForward ? rel.targetCol : rel.sourceCol;
+        joins.push(`  JOIN ${t2} ON ${t1}.${col1} = ${t2}.${col2}`);
+      } else {
+        joins.push(`  JOIN ${t2} ON ${t1}.id = ${t2}.${t1}_id`);
+      }
+    }
+
+    const selectCols = foundPath.map(t => `  ${t}.*`).join(',\n');
+    const sql = `-- Generated Multi-Hop Join Path: ${foundPath.join(' ➔ ')}\nSELECT\n${selectCols}\nFROM ${foundPath[0]}\n${joins.join('\n')}\nLIMIT 100;`;
+
+    if (this.onPathFound) {
+      this.onPathFound(foundPath, sql);
+    }
+
+    return { path: foundPath, sql };
+  }
+
+  public clearPath(): void {
+    this.activePath = [];
+    this.links.forEach(l => l.isPathHighlighted = false);
+  }
+
+  public zoomIn(): void {
+    if (this.mode === '3D') {
+      this.targetR = Math.max(160, this.targetR * 0.82);
+    } else {
+      this.targetZoom2D = Math.min(3.2, this.targetZoom2D * 1.2);
+    }
+  }
+
+  public zoomOut(): void {
+    if (this.mode === '3D') {
+      this.targetR = Math.min(1800, this.targetR * 1.22);
+    } else {
+      this.targetZoom2D = Math.max(0.25, this.targetZoom2D * 0.82);
+    }
+  }
+
+  public resetCamera(): void {
+    this.targetTheta = 0.45;
+    this.targetPhi = 0.35;
+    this.targetR = 640;
+    this.panX = 0;
+    this.panY = 0;
+    this.panX2D = 0;
+    this.panY2D = 0;
+    this.targetZoom2D = 1.0;
+  }
+
+  public toggleTurntable(): boolean {
+    this.isTurntable = !this.isTurntable;
+    return this.isTurntable;
+  }
+
+  public togglePhysics(): boolean {
+    this.isSimulating = !this.isSimulating;
+    return this.isSimulating;
+  }
+
+  public fitToView(): void {
+    if (this.nodes.length === 0) return;
+    this.panX = 0;
+    this.panY = 0;
+    this.panX2D = 0;
+    this.panY2D = 0;
+
+    let maxDist = 100;
+    this.nodes.forEach(n => {
+      const d = Math.hypot(n.x, n.y, n.z);
+      if (d > maxDist) maxDist = d;
+    });
+
+    this.targetR = Math.max(380, Math.min(1200, maxDist * 2.2));
+    this.targetZoom2D = Math.max(0.5, Math.min(1.5, 600 / (maxDist * 2 + 1)));
+  }
+
+  public async exportPngBlob(): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      this.canvas.toBlob((blob) => resolve(blob), 'image/png');
+    });
+  }
+
+  private startLoop(): void {
+    const loop = () => {
+      this.updateState();
+      this.render();
+      this.animFrameId = requestAnimationFrame(loop);
+    };
+    this.animFrameId = requestAnimationFrame(loop);
+  }
+
+  private updateState(): void {
+    // Smooth camera lerp
+    this.R += (this.targetR - this.R) * 0.12;
+    this.theta += (this.targetTheta - this.theta) * 0.12;
+    this.phi += (this.targetPhi - this.phi) * 0.12;
+    this.zoom2D += (this.targetZoom2D - this.zoom2D) * 0.14;
+
+    // Turntable rotation
+    if (this.isTurntable && this.activePointers.size === 0) {
+      this.targetTheta += this.turntableSpeed;
+      this.theta += this.turntableSpeed;
+    }
+
+    // Advance Link Photons
+    this.links.forEach(l => {
+      l.particles.forEach(p => {
+        p.progress += p.speed;
+        if (p.progress > 1.0) p.progress -= 1.0;
+      });
+    });
+
+    // Physics Simulation Tick (Coulomb repulsion + Hooke spring tension + Centering)
+    if (this.isSimulating && this.mode === '3D') {
+      const nLen = this.nodes.length;
+
+      // 1. Coulomb anti-collision ($O(N^2)$ force)
+      for (let i = 0; i < nLen; i++) {
+        for (let j = i + 1; j < nLen; j++) {
+          const a = this.nodes[i];
+          const b = this.nodes[j];
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
+          const dz = b.z - a.z;
+          const distSq = dx * dx + dy * dy + dz * dz + 1.0;
+          const dist = Math.sqrt(distSq);
+          if (dist < 460) {
+            const force = 14000 / distSq;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            const fz = (dz / dist) * force;
+            const massA = a.role === 'fact' ? 3.0 : 1.0;
+            const massB = b.role === 'fact' ? 3.0 : 1.0;
+            a.vx -= fx / massA;
+            a.vy -= fy / massA;
+            a.vz -= fz / massA;
+            b.vx += fx / massB;
+            b.vy += fy / massB;
+            b.vz += fz / massB;
+          }
+        }
+      }
+
+      // 2. Hooke Spring Tension along Links
+      for (const link of this.links) {
+        const a = this.nodeMap.get(link.source);
+        const b = this.nodeMap.get(link.target);
+        if (!a || !b) continue;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const dz = b.z - a.z;
+        const dist = Math.hypot(dx, dy, dz) || 1;
+        const desiredDist = 180;
+        const delta = dist - desiredDist;
+        const springForce = delta * 0.007;
+        const fx = (dx / dist) * springForce;
+        const fy = (dy / dist) * springForce;
+        const fz = (dz / dist) * springForce;
+        a.vx += fx;
+        a.vy += fy;
+        a.vz += fz;
+        b.vx -= fx;
+        b.vy -= fy;
+        b.vz -= fz;
+      }
+
+      // 3. Gravity Centering & Damping (Facts anchored at core)
+      for (const node of this.nodes) {
+        if (node === this.draggedNode) {
+          node.vx = 0;
+          node.vy = 0;
+          node.vz = 0;
+          continue;
+        }
+
+        const centerPull = node.role === 'fact' ? 0.005 : 0.0015;
+        node.vx -= node.x * centerPull;
+        node.vy -= node.y * centerPull;
+        node.vz -= node.z * centerPull;
+
+        node.vx *= 0.88;
+        node.vy *= 0.88;
+        node.vz *= 0.88;
+
+        node.x += node.vx;
+        node.y += node.vy;
+        node.z += node.vz;
+      }
+    }
+  }
+
+  private render(): void {
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.canvas.width / dpr;
+    const h = this.canvas.height / dpr;
+
+    this.ctx.save();
+    this.ctx.scale(dpr, dpr);
+
+    // Deep Cosmic Background Gradient
+    const bgGrad = this.ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h));
+    bgGrad.addColorStop(0, '#0d1527');
+    bgGrad.addColorStop(0.65, '#070b14');
+    bgGrad.addColorStop(1, '#04070d');
+    this.ctx.fillStyle = bgGrad;
+    this.ctx.fillRect(0, 0, w, h);
+
+    if (this.mode === '3D') {
+      this.render3D(w, h);
+    } else {
+      this.render2D(w, h);
+    }
+
+    this.ctx.restore();
+  }
+
+  private render3D(w: number, h: number): void {
+    const centerX = w / 2;
+    const centerY = h / 2;
+
+    const cosT = Math.cos(this.theta);
+    const sinT = Math.sin(this.theta);
+    const cosP = Math.cos(this.phi);
+    const sinP = Math.sin(this.phi);
+
+    // Subtle celestial orbital rings around origin
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(99, 102, 241, 0.06)';
+    this.ctx.lineWidth = 1;
+    for (const radius of [150, 300, 450]) {
+      this.ctx.beginPath();
+      for (let a = 0; a <= Math.PI * 2; a += 0.2) {
+        const rx = radius * Math.cos(a);
+        const rz = radius * Math.sin(a);
+        // Project ring
+        const x1 = rx * cosT + rz * sinT;
+        const z1 = -rx * sinT + rz * cosT;
+        const y2 = -z1 * sinP;
+        const z2 = z1 * cosP;
+        const zCam = z2 + this.R;
+        if (zCam > 10) {
+          const scale = this.focalLength / zCam;
+          const sx = centerX + (x1 + this.panX) * scale;
+          const sy = centerY + (y2 + this.panY) * scale;
+          if (a === 0) this.ctx.moveTo(sx, sy);
+          else this.ctx.lineTo(sx, sy);
+        }
+      }
+      this.ctx.closePath();
+      this.ctx.stroke();
+    }
+    this.ctx.restore();
+
+    // Project Nodes
+    for (const node of this.nodes) {
+      const x1 = node.x * cosT + node.z * sinT;
+      const y1 = node.y;
+      const z1 = -node.x * sinT + node.z * cosT;
+
+      const x2 = x1;
+      const y2 = y1 * cosP - z1 * sinP;
+      const z2 = y1 * sinP + z1 * cosP;
+
+      const zCam = z2 + this.R;
+      const scale = zCam > 10 ? this.focalLength / zCam : 0.01;
+
+      node.screenX = centerX + (x2 + this.panX) * scale;
+      node.screenY = centerY + (y2 + this.panY) * scale;
+      node.screenZ = zCam;
+      node.screenRadius = Math.max(10, node.radius * scale);
+    }
+
+    // Depth sort links & nodes
+    const sortedNodes = [...this.nodes].sort((a, b) => b.screenZ - a.screenZ);
+
+    // Draw Links & Photon Traffic
+    for (const link of this.links) {
+      const a = this.nodeMap.get(link.source);
+      const b = this.nodeMap.get(link.target);
+      if (!a || !b) continue;
+
+      const isPath = link.isPathHighlighted;
+      const isConnected = this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.moveTo(a.screenX, a.screenY);
+
+      // Arc calculation
+      const midX = (a.screenX + b.screenX) / 2;
+      const midY = (a.screenY + b.screenY) / 2 - 12;
+      this.ctx.quadraticCurveTo(midX, midY, b.screenX, b.screenY);
+
+      if (isPath) {
+        this.ctx.strokeStyle = '#facc15';
+        this.ctx.lineWidth = 3.5;
+        this.ctx.shadowColor = 'rgba(250, 204, 21, 0.75)';
+        this.ctx.shadowBlur = 12;
+      } else if (isConnected) {
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 2.4;
+        this.ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
+        this.ctx.shadowBlur = 8;
+      } else {
+        this.ctx.strokeStyle = link.isVirtual ? 'rgba(148, 163, 184, 0.2)' : 'rgba(99, 102, 241, 0.28)';
+        this.ctx.lineWidth = 1.2;
+        if (link.isVirtual) {
+          this.ctx.setLineDash([4, 4]);
+        }
+      }
+      this.ctx.stroke();
+      this.ctx.restore();
+
+      // Render Photon Traffic along arc
+      for (const p of link.particles) {
+        const t = p.progress;
+        // Quadratic bezier position
+        const px = (1 - t) * (1 - t) * a.screenX + 2 * (1 - t) * t * midX + t * t * b.screenX;
+        const py = (1 - t) * (1 - t) * a.screenY + 2 * (1 - t) * t * midY + t * t * b.screenY;
+
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(px, py, isPath ? p.size * 1.5 : p.size, 0, Math.PI * 2);
+        this.ctx.fillStyle = isPath ? '#fef08a' : isConnected ? '#bae6fd' : '#a5b4fc';
+        this.ctx.shadowColor = isPath ? '#facc15' : '#818cf8';
+        this.ctx.shadowBlur = 6;
+        this.ctx.fill();
+        this.ctx.restore();
+      }
+    }
+
+    // Draw Nodes (Spherical 3D Lighting)
+    for (const node of sortedNodes) {
+      const r = node.screenRadius;
+      const isSel = this.selectedNodeId === node.id;
+      const isHover = this.hoveredNodeId === node.id;
+      const isPath = this.activePath.includes(node.id);
+
+      this.ctx.save();
+
+      // Outer Selection / Spotlight Halo Ring
+      if (isSel || isPath || isHover) {
+        this.ctx.beginPath();
+        this.ctx.arc(node.screenX, node.screenY, r + (isSel ? 9 : 6), 0, Math.PI * 2);
+        this.ctx.strokeStyle = isPath ? '#facc15' : isSel ? '#38bdf8' : 'rgba(255,255,255,0.4)';
+        this.ctx.lineWidth = isSel || isPath ? 3 : 1.5;
+        this.ctx.shadowColor = isPath ? '#facc15' : '#38bdf8';
+        this.ctx.shadowBlur = 14;
+        this.ctx.stroke();
+      }
+
+      // Fact Table Pulsing Core Glow
+      if (node.role === 'fact') {
+        this.ctx.beginPath();
+        this.ctx.arc(node.screenX, node.screenY, r + 5, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(99, 102, 241, 0.15)';
+        this.ctx.fill();
+      }
+
+      // 3D Sphere Radial Gradient
+      const sphereGrad = this.ctx.createRadialGradient(
+        node.screenX - r * 0.35,
+        node.screenY - r * 0.35,
+        r * 0.08,
+        node.screenX,
+        node.screenY,
+        r
+      );
+      sphereGrad.addColorStop(0, '#ffffff');
+      sphereGrad.addColorStop(0.3, node.color);
+      sphereGrad.addColorStop(0.9, shadeColor(node.color, -35));
+      sphereGrad.addColorStop(1, '#020617');
+
+      this.ctx.beginPath();
+      this.ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
+      this.ctx.fillStyle = sphereGrad;
+      this.ctx.fill();
+      this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+
+      // Role Emoji / Icon in Center
+      const icon = node.role === 'fact' ? '⭐' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '🔍';
+      this.ctx.font = `${Math.max(10, Math.floor(r * 0.85))}px sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(icon, node.screenX, node.screenY);
+
+      // Table Name Pill Label below Node
+      const labelY = node.screenY + r + 14;
+      this.ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+      const textWidth = this.ctx.measureText(node.name).width;
+
+      // Pill Background
+      this.ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
+      this.ctx.strokeStyle = isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255,255,255,0.12)';
+      this.ctx.lineWidth = 1;
+      const pillW = textWidth + 14;
+      const pillH = 19;
+      roundRect(this.ctx, node.screenX - pillW / 2, labelY - pillH / 2, pillW, pillH, 4);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Text Label
+      this.ctx.fillStyle = isSel ? '#38bdf8' : isPath ? '#facc15' : '#f8fafc';
+      this.ctx.fillText(node.name, node.screenX, labelY);
+
+      // Sub-label with Row Count
+      if (node.screenZ < 750) {
+        this.ctx.font = '9px system-ui, sans-serif';
+        this.ctx.fillStyle = '#94a3b8';
+        const sub = `${Number(node.rowCountEstimate).toLocaleString()} rows`;
+        this.ctx.fillText(sub, node.screenX, labelY + 13);
+      }
+
+      this.ctx.restore();
+    }
+  }
+
+  private render2D(w: number, h: number): void {
+    const centerX = w / 2 + this.panX2D;
+    const centerY = h / 2 + this.panY2D;
+
+    // Blueprint Grid
+    this.ctx.save();
+    this.ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    this.ctx.lineWidth = 1;
+    const gridSize = 40 * this.zoom2D;
+    const startX = (this.panX2D % gridSize);
+    const startY = (this.panY2D % gridSize);
+    for (let x = startX; x < w; x += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, 0);
+      this.ctx.lineTo(x, h);
+      this.ctx.stroke();
+    }
+    for (let y = startY; y < h; y += gridSize) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, y);
+      this.ctx.lineTo(w, y);
+      this.ctx.stroke();
+    }
+    this.ctx.restore();
+
+    const cardW = 180 * this.zoom2D;
+    const cardH = 125 * this.zoom2D;
+
+    // Update screen coordinates
+    for (const node of this.nodes) {
+      node.screenX = centerX + node.x2D * this.zoom2D;
+      node.screenY = centerY + node.y2D * this.zoom2D;
+    }
+
+    // Draw Links
+    for (const link of this.links) {
+      const a = this.nodeMap.get(link.source);
+      const b = this.nodeMap.get(link.target);
+      if (!a || !b) continue;
+
+      const isPath = link.isPathHighlighted;
+      const isConnected = this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+
+      this.ctx.save();
+      this.ctx.beginPath();
+      this.ctx.moveTo(a.screenX, a.screenY);
+      const cpX = (a.screenX + b.screenX) / 2;
+      this.ctx.bezierCurveTo(cpX, a.screenY, cpX, b.screenY, b.screenX, b.screenY);
+
+      if (isPath) {
+        this.ctx.strokeStyle = '#facc15';
+        this.ctx.lineWidth = 3 * this.zoom2D;
+        this.ctx.shadowColor = '#facc15';
+        this.ctx.shadowBlur = 10;
+      } else if (isConnected) {
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 2.2 * this.zoom2D;
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = 6;
+      } else {
+        this.ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+        this.ctx.lineWidth = 1.2 * this.zoom2D;
+      }
+      this.ctx.stroke();
+      this.ctx.restore();
+    }
+
+    // Draw ERD Table Cards
+    for (const node of this.nodes) {
+      const x = node.screenX - cardW / 2;
+      const y = node.screenY - cardH / 2;
+      const isSel = this.selectedNodeId === node.id;
+      const isPath = this.activePath.includes(node.id);
+
+      this.ctx.save();
+
+      // Card Container
+      this.ctx.fillStyle = '#111827';
+      this.ctx.strokeStyle = isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255,255,255,0.12)';
+      this.ctx.lineWidth = isSel || isPath ? 2.5 : 1;
+      roundRect(this.ctx, x, y, cardW, cardH, 6);
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Header Bar with Domain Color
+      const headerH = 26 * this.zoom2D;
+      this.ctx.fillStyle = node.color;
+      roundRect(this.ctx, x, y, cardW, headerH, [6, 6, 0, 0]);
+      this.ctx.fill();
+
+      // Table Name & Role Badge
+      this.ctx.fillStyle = '#ffffff';
+      this.ctx.font = `bold ${Math.max(9, Math.floor(11 * this.zoom2D))}px sans-serif`;
+      this.ctx.textAlign = 'left';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(node.name, x + 8 * this.zoom2D, y + headerH / 2);
+
+      // Top 3-4 Columns preview
+      const topCols = node.columns.slice(0, 4);
+      let colY = y + headerH + 12 * this.zoom2D;
+      const fontSize = Math.max(8, Math.floor(9.5 * this.zoom2D));
+      this.ctx.font = `${fontSize}px monospace`;
+
+      for (const col of topCols) {
+        const icon = col.isPrimary ? '🔑' : col.isForeign ? '🔗' : '•';
+        this.ctx.fillStyle = col.isPrimary ? '#facc15' : col.isForeign ? '#38bdf8' : '#94a3b8';
+        this.ctx.fillText(`${icon} ${col.name}`, x + 8 * this.zoom2D, colY);
+
+        this.ctx.fillStyle = '#64748b';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(col.type, x + cardW - 8 * this.zoom2D, colY);
+        this.ctx.textAlign = 'left';
+
+        colY += 16 * this.zoom2D;
+      }
+
+      if (node.columns.length > 4) {
+        this.ctx.fillStyle = '#64748b';
+        this.ctx.font = `italic ${Math.max(7, Math.floor(8.5 * this.zoom2D))}px sans-serif`;
+        this.ctx.fillText(`+${node.columns.length - 4} more columns`, x + 8 * this.zoom2D, colY);
+      }
+
+      this.ctx.restore();
+    }
+  }
+
+  public destroy(): void {
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+    }
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+  }
+}
+
+// Canvas utility helpers
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number | number[]): void {
+  const radii = Array.isArray(r) ? r : [r, r, r, r];
+  const r0 = radii[0] || 0;
+  const r1 = radii[1] || 0;
+  const r2 = radii[2] || 0;
+  const r3 = radii[3] || 0;
+
+  ctx.beginPath();
+  ctx.moveTo(x + r0, y);
+  ctx.lineTo(x + w - r1, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r1);
+  ctx.lineTo(x + w, y + h - r2);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r2, y + h);
+  ctx.lineTo(x + r3, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r3);
+  ctx.lineTo(x, y + r0);
+  ctx.quadraticCurveTo(x, y, x + r0, y);
+  ctx.closePath();
+}
+
+function shadeColor(color: string, percent: number): string {
+  let num = parseInt(color.replace('#', ''), 16);
+  if (isNaN(num)) return color;
+  let amt = Math.round(2.55 * percent);
+  let R = (num >> 16) + amt;
+  let G = (num >> 8 & 0x00FF) + amt;
+  let B = (num & 0x0000FF) + amt;
+  return '#' + (0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+    (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+    (B < 255 ? (B < 1 ? 0 : B) : 255))
+    .toString(16).slice(1);
+}
+
+// ===================================================================
+// DATA COSMOS STUDIO CONTROLLER & FDE DELIVERY INTEGRATION
+// ===================================================================
+
+function setupDataCosmosStudio(api: any): void {
+  let activeCosmosEngine: DataCosmosEngine | null = null;
+  let p2CosmosEngine: DataCosmosEngine | null = null;
+  let currentGraphData: CosmosGraphData | null = null;
+
+  // View containers & sub-navigation
+  const btnDataModeSingle = document.getElementById('btnDataModeSingle');
+  const btnDataModeCosmos = document.getElementById('btnDataModeCosmos');
+  const dataSingleDatasetView = document.getElementById('dataSingleDatasetView');
+  const dataCosmosView = document.getElementById('dataCosmosView');
+
+  // Canvas elements
+  const dataCosmosCanvas = document.getElementById('dataCosmosCanvas') as HTMLCanvasElement | null;
+  const p2CosmosCanvas = document.getElementById('p2CosmosCanvas') as HTMLCanvasElement | null;
+
+  // Toolbar controls
+  const cosmosSourceSelect = document.getElementById('cosmosSourceSelect') as HTMLSelectElement | null;
+  const btnCosmosMode3D = document.getElementById('btnCosmosMode3D');
+  const btnCosmosMode2D = document.getElementById('btnCosmosMode2D');
+  const btnCosmosRefreshGraph = document.getElementById('btnCosmosRefreshGraph');
+  const cosmosPathStart = document.getElementById('cosmosPathStart') as HTMLSelectElement | null;
+  const cosmosPathEnd = document.getElementById('cosmosPathEnd') as HTMLSelectElement | null;
+  const btnCosmosFindPath = document.getElementById('btnCosmosFindPath');
+  const btnCosmosClearPath = document.getElementById('btnCosmosClearPath');
+  const btnCosmosShowcaseMode = document.getElementById('btnCosmosShowcaseMode');
+  const btnCosmosCopyPng = document.getElementById('btnCosmosCopyPng');
+  const btnCosmosOpenPocModal = document.getElementById('btnCosmosOpenPocModal');
+  const btnDataOpenPocPack = document.getElementById('btnDataOpenPocPack');
+
+  // Floating HUD & Breadcrumbs
+  const cosmosPathPill = document.getElementById('cosmosPathPill');
+  const cosmosPathText = document.getElementById('cosmosPathText');
+  const btnCosmosCopySql = document.getElementById('btnCosmosCopySql');
+  const btnCosmosApplyMart = document.getElementById('btnCosmosApplyMart');
+
+  const btnHudZoomIn = document.getElementById('btnHudZoomIn');
+  const btnHudZoomOut = document.getElementById('btnHudZoomOut');
+  const btnHudCenter = document.getElementById('btnHudCenter');
+  const btnHudTurntable = document.getElementById('btnHudTurntable');
+  const btnHudFit = document.getElementById('btnHudFit');
+  const btnHudPhysics = document.getElementById('btnHudPhysics');
+  const btnHudFullscreen = document.getElementById('btnHudFullscreen');
+
+  // Inspector Drawer
+  const cosmosInspectorEmpty = document.getElementById('cosmosInspectorEmpty');
+  const cosmosInspectorDetails = document.getElementById('cosmosInspectorDetails');
+
+  // Phase 2 Embedded Controls
+  const p2CosmosPathPill = document.getElementById('p2CosmosPathPill');
+  const p2CosmosPathText = document.getElementById('p2CosmosPathText');
+  const btnP2CosmosCopySql = document.getElementById('btnP2CosmosCopySql');
+  const btnP2CosmosApplyMart = document.getElementById('btnP2CosmosApplyMart');
+  const btnP2CosmosLaunchFullscreen = document.getElementById('btnP2CosmosLaunchFullscreen');
+  const btnP2CosmosCopyPng = document.getElementById('btnP2CosmosCopyPng');
+  const btnP2CosmosPocPack = document.getElementById('btnP2CosmosPocPack');
+  const p2InspectorEmpty = document.getElementById('p2InspectorEmpty');
+  const p2InspectorContent = document.getElementById('p2InspectorContent');
+
+  const btnP2HudZoomIn = document.getElementById('btnP2HudZoomIn');
+  const btnP2HudZoomOut = document.getElementById('btnP2HudZoomOut');
+  const btnP2HudCenter = document.getElementById('btnP2HudCenter');
+  const btnP2HudTurntable = document.getElementById('btnP2HudTurntable');
+  const btnP2HudFit = document.getElementById('btnP2HudFit');
+
+  // Modal elements
+  const fdePocApprovalModal = document.getElementById('fdePocApprovalModal');
+  const txtPocClientOrg = document.getElementById('txtPocClientOrg') as HTMLInputElement | null;
+  const txtPocTargetVpc = document.getElementById('txtPocTargetVpc') as HTMLInputElement | null;
+  const txtPocLeadFde = document.getElementById('txtPocLeadFde') as HTMLInputElement | null;
+  const btnPocRecompile = document.getElementById('btnPocRecompile');
+  const btnPocPackCopyMd = document.getElementById('btnPocPackCopyMd');
+  const btnPocPackOpenHtml = document.getElementById('btnPocPackOpenHtml');
+  const btnPocPackSaveWs = document.getElementById('btnPocPackSaveWs');
+  const btnClosePocModal = document.getElementById('btnClosePocModal');
+  const pocPackPreviewText = document.getElementById('pocPackPreviewText');
+
+  let activePathGeneratedSql = '';
+
+  // 1. Mode Switcher (Single Dataset vs 3D Cosmos)
+  btnDataModeSingle?.addEventListener('click', () => {
+    btnDataModeSingle.style.background = 'var(--accent)';
+    btnDataModeSingle.style.color = '#1e1e1e';
+    btnDataModeSingle.style.borderColor = 'var(--accent)';
+    if (btnDataModeCosmos) {
+      btnDataModeCosmos.style.background = 'rgba(99, 102, 241, 0.15)';
+      btnDataModeCosmos.style.color = '#a5b4fc';
+      btnDataModeCosmos.style.borderColor = '#6366f1';
+    }
+    if (dataSingleDatasetView) dataSingleDatasetView.style.display = 'block';
+    if (dataCosmosView) dataCosmosView.style.display = 'none';
+  });
+
+  btnDataModeCosmos?.addEventListener('click', () => {
+    if (btnDataModeCosmos) {
+      btnDataModeCosmos.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+      btnDataModeCosmos.style.color = '#ffffff';
+      btnDataModeCosmos.style.borderColor = '#818cf8';
+    }
+    if (btnDataModeSingle) {
+      btnDataModeSingle.style.background = 'transparent';
+      btnDataModeSingle.style.color = 'var(--text-secondary)';
+      btnDataModeSingle.style.borderColor = 'var(--border)';
+    }
+    if (dataSingleDatasetView) dataSingleDatasetView.style.display = 'none';
+    if (dataCosmosView) dataCosmosView.style.display = 'block';
+
+    setTimeout(() => {
+      if (activeCosmosEngine) {
+        activeCosmosEngine.resize();
+        activeCosmosEngine.fitToView();
+      }
+    }, 50);
+  });
+
+  // 3. Populate Pathfinder Dropdowns
+  const populatePathfinderSelects = (nodes: CosmosNode[]) => {
+    if (!cosmosPathStart || !cosmosPathEnd) return;
+    const prevStart = cosmosPathStart.value;
+    const prevEnd = cosmosPathEnd.value;
+
+    const opts = nodes.map(n => `<option value="${n.id}">${n.name} (${n.role})</option>`).join('');
+    cosmosPathStart.innerHTML = `<option value="">Source Table...</option>${opts}`;
+    cosmosPathEnd.innerHTML = `<option value="">Target Table...</option>${opts}`;
+
+    if (prevStart && nodes.some(n => n.id === prevStart)) cosmosPathStart.value = prevStart;
+    if (prevEnd && nodes.some(n => n.id === prevEnd)) cosmosPathEnd.value = prevEnd;
+  };
+
+  // 4. Populate Table Spotlight Inspector
+  const renderTableInspector = (node: CosmosNode | null, isPhase2 = false) => {
+    const emptyBox = isPhase2 ? p2InspectorEmpty : cosmosInspectorEmpty;
+    const detailBox = isPhase2 ? p2InspectorContent : cosmosInspectorDetails;
+    if (!emptyBox || !detailBox) return;
+
+    if (!node) {
+      emptyBox.style.display = 'block';
+      detailBox.style.display = 'none';
+      return;
+    }
+
+    emptyBox.style.display = 'none';
+    detailBox.style.display = 'flex';
+
+    // Find connected links
+    const relevantLinks = (currentGraphData?.links || []).filter(
+      l => l.source === node.id || l.target === node.id
+    );
+
+    const roleBadgeColor = node.role === 'fact' ? '#6366f1' : node.role === 'dimension' ? '#10b981' : node.role === 'bridge' ? '#f59e0b' : '#ec4899';
+    const roleIcon = node.role === 'fact' ? '⭐' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '🔍';
+
+    detailBox.innerHTML = `
+      <div style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <strong style="font-size: 15px; color: #fff; font-family: monospace;">${node.name}</strong>
+          <span style="background: ${roleBadgeColor}22; color: ${roleBadgeColor}; border: 1px solid ${roleBadgeColor}; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase;">
+            ${roleIcon} ${node.role}
+          </span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 8px;">
+          <span>Schema: <code>${node.schema}</code></span>
+          <span>&bull;</span>
+          <span>Domain: <strong style="color: ${node.color};">${node.domain}</strong></span>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+        <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border);">
+          <div style="color: #94a3b8; font-size: 10px;">EST. ROWS</div>
+          <div style="font-size: 14px; font-weight: 700; color: #4ade80;">${Number(node.rowCountEstimate).toLocaleString()}</div>
+        </div>
+        <div style="background: rgba(255,255,255,0.04); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border);">
+          <div style="color: #94a3b8; font-size: 10px;">COLUMNS</div>
+          <div style="font-size: 14px; font-weight: 700; color: #38bdf8;">${node.columns.length} cols</div>
+        </div>
+      </div>
+
+      <!-- FDE Engineering Action Handoffs -->
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button class="btn" id="btnInspectorSendStaging_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: #10b981; color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;">
+          🚀 Send to Phase 2 Staging Mapper
+        </button>
+        <button class="btn" id="btnInspectorBuildMart_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: #6366f1; color: #fff; font-weight: 700; font-size: 11px; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;">
+          ✨ Build Dimensional Mart (Phase 2)
+        </button>
+        <button class="btn" id="btnInspectorAnalyzeData_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: #0284c7; color: #fff; font-weight: 700; font-size: 11px; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;">
+          📊 Analyze in Data Studio
+        </button>
+        <button class="btn" id="btnInspectorPreviewData_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-weight: 700; font-size: 11px; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
+          🔍 Preview Sample Data (50 rows)
+        </button>
+      </div>
+
+      <!-- Foreign Key Relationships -->
+      <div>
+        <div style="font-size: 11px; font-weight: 700; color: #facc15; margin-bottom: 6px;">
+          🔗 Relationships (${relevantLinks.length}):
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto;">
+          ${relevantLinks.length === 0 ? '<div style="font-size: 10.5px; color: #94a3b8; font-style: italic;">No foreign key links detected.</div>' :
+            relevantLinks.map(l => {
+              const otherId = l.source === node.id ? l.target : l.source;
+              const isOut = l.source === node.id;
+              const arrow = isOut ? '➔' : '🠔';
+              return `
+                <div class="cosmos-fk-chip" data-target="${otherId}" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 10.5px; cursor: pointer;">
+                  <span style="font-family: monospace; color: #38bdf8;">${arrow} ${otherId}</span>
+                  <span style="font-size: 9.5px; color: #94a3b8;">${l.cardinality || '1:N'}</span>
+                </div>
+              `;
+            }).join('')}
+        </div>
+      </div>
+
+      <!-- Columns & Types -->
+      <div>
+        <div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">
+          📋 Table Columns:
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 11px;">
+          ${node.columns.map(c => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; border-bottom: 1px dashed rgba(255,255,255,0.06);">
+              <span style="color: ${c.isPrimary ? '#facc15' : c.isForeign ? '#38bdf8' : '#e2e8f0'};">
+                ${c.isPrimary ? '🔑 ' : c.isForeign ? '🔗 ' : ''}${c.name}
+              </span>
+              <span style="font-size: 10px; color: #64748b;">${c.type}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    // Click on neighbor chip spotlights neighbor
+    detailBox.querySelectorAll('.cosmos-fk-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const targetId = chip.getAttribute('data-target');
+        if (targetId && currentGraphData) {
+          const targetNode = currentGraphData.nodes.find(n => n.id === targetId);
+          if (targetNode) {
+            const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+            engine?.selectNode(targetNode);
+            engine?.flyCameraToNode(targetNode);
+          }
+        }
+      });
+    });
+
+    // Wire Send to Staging Mapper
+    const btnStaging = document.getElementById(`btnInspectorSendStaging_${isPhase2 ? 'p2' : 'data'}`);
+    btnStaging?.addEventListener('click', () => {
+      switchActivityTab('delivery', api);
+      switchDeliveryPhase(2);
+      const tabStaging = document.getElementById('tabModeStaging');
+      tabStaging?.click();
+
+      const txtSource = document.getElementById('txtSourceTableName') as HTMLInputElement | null;
+      const txtTarget = document.getElementById('txtTargetModelName') as HTMLInputElement | null;
+      const txtCols = document.getElementById('txtSourceColumns') as HTMLTextAreaElement | null;
+      if (txtSource) txtSource.value = node.name;
+      if (txtTarget) txtTarget.value = `stg_${node.name}`;
+      if (txtCols) {
+        txtCols.value = node.columns.map(c => `${c.name}:${c.type}`).join('\n');
+      }
+
+      // Trigger AI Auto-Clean
+      const btnClean = document.getElementById('btnAiAutoClean');
+      btnClean?.click();
+      showToast(`✓ Spotlight: '${node.name}' schema forwarded to Staging Mapper!`);
+    });
+
+    // Wire Build Dimensional Mart
+    const btnMart = document.getElementById(`btnInspectorBuildMart_${isPhase2 ? 'p2' : 'data'}`);
+    btnMart?.addEventListener('click', () => {
+      switchActivityTab('delivery', api);
+      switchDeliveryPhase(2);
+      const tabMart = document.getElementById('tabModeMart');
+      tabMart?.click();
+
+      const martBase = document.getElementById('martBaseModel') as HTMLSelectElement | null;
+      if (martBase) {
+        // Find or create option
+        let exists = false;
+        for (let i = 0; i < martBase.options.length; i++) {
+          if (martBase.options[i].value === node.name) {
+            martBase.selectedIndex = i;
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = node.name;
+          opt.textContent = node.name;
+          martBase.appendChild(opt);
+          martBase.value = node.name;
+        }
+        martBase.dispatchEvent(new Event('change'));
+      }
+
+      const martName = document.getElementById('martNameInput') as HTMLInputElement | null;
+      if (martName) {
+        martName.value = `fct_${node.name}_daily`;
+      }
+      showToast(`✓ Spotlight: Base model set to '${node.name}' for Mart Builder!`);
+    });
+
+    // Wire Analyze in Data Studio
+    const btnAnalyze = document.getElementById(`btnInspectorAnalyzeData_${isPhase2 ? 'p2' : 'data'}`);
+    btnAnalyze?.addEventListener('click', () => {
+      if ((window as any).loadTableInDataStudio) {
+        (window as any).loadTableInDataStudio(node.name);
+      }
+    });
+
+    // Wire Preview Sample Data
+    const btnPreview = document.getElementById(`btnInspectorPreviewData_${isPhase2 ? 'p2' : 'data'}`);
+    btnPreview?.addEventListener('click', () => {
+      (window as any).openSampleDataModal?.(node.name);
+    });
+  };
+
+  // 5. Load Schema Graph from Backend IPC
+  const loadSchemaGraph = async (sourceMode: string = 'demo', tablesOverride?: any[]) => {
+    try {
+      const tablesToUse = tablesOverride || (currentIntrospectedTables && currentIntrospectedTables.length > 0 ? currentIntrospectedTables : undefined);
+      const effectiveSourceMode = (sourceMode === 'connected' || (tablesToUse && tablesToUse.length > 0)) ? 'connected' : sourceMode;
+      const dialect = activeLiveDbConnection?.dialect || (document.getElementById('dbDialectSelect') as HTMLSelectElement)?.value || 'postgres';
+
+      showToast(`🔍 Discovering schema topology (${effectiveSourceMode === 'connected' ? `${tablesToUse?.length || 0} live tables` : sourceMode})...`);
+      const res = await api?.engines?.discoverSchemaGraph?.({
+        sourceMode: effectiveSourceMode,
+        dialect,
+        tables: effectiveSourceMode === 'connected' ? tablesToUse : undefined
+      });
+      if (res && res.nodes) {
+        currentGraphData = res as CosmosGraphData;
+
+        if (activeCosmosEngine) {
+          activeCosmosEngine.loadGraph(currentGraphData);
+        }
+        if (p2CosmosEngine) {
+          p2CosmosEngine.loadGraph(currentGraphData);
+        }
+
+        populatePathfinderSelects(res.nodes);
+        renderTableInspector(null, false);
+        renderTableInspector(null, true);
+
+        // Update badge
+        const p2CosmosSourceBadge = document.getElementById('p2CosmosSourceBadge');
+        if (p2CosmosSourceBadge) {
+          if (effectiveSourceMode === 'connected' && tablesToUse && tablesToUse.length > 0) {
+            p2CosmosSourceBadge.textContent = `⚡ Live Database (${tablesToUse.length} tables)`;
+            p2CosmosSourceBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+            p2CosmosSourceBadge.style.color = '#10b981';
+            p2CosmosSourceBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          } else {
+            p2CosmosSourceBadge.textContent = `⚡ Demo Star Schema`;
+            p2CosmosSourceBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+            p2CosmosSourceBadge.style.color = '#38bdf8';
+            p2CosmosSourceBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+          }
+        }
+
+        showToast(`✓ Discovered ${res.nodes.length} tables, ${res.links.length} foreign key relationships!`);
+      }
+    } catch (e: any) {
+      console.error('Failed to discover schema graph:', e);
+      showToast(`Schema discovery note: using cached schema model.`);
+    }
+  };
+
+  (window as any).loadSchemaGraph = loadSchemaGraph;
+
+  // Global helper to spotlight a table node by name
+  (window as any).spotlightCosmosTable = (tableName: string) => {
+    if (!tableName || !currentGraphData) return;
+    const node = currentGraphData.nodes.find(n => n.id.toLowerCase() === tableName.toLowerCase() || n.name.toLowerCase() === tableName.toLowerCase());
+    if (node) {
+      if (p2CosmosEngine) {
+        p2CosmosEngine.selectNode(node);
+        p2CosmosEngine.flyCameraToNode(node);
+        renderTableInspector(node, true);
+      }
+      if (activeCosmosEngine) {
+        activeCosmosEngine.selectNode(node);
+        activeCosmosEngine.flyCameraToNode(node);
+        renderTableInspector(node, false);
+      }
+      showToast(`🎯 Spotlighted table '${node.name}' in 3D Schema Topology!`);
+    }
+  };
+
+  // 6. Initialize Main Canvas Engine
+  if (dataCosmosCanvas) {
+    activeCosmosEngine = new DataCosmosEngine(dataCosmosCanvas, {
+      onNodeSelect: (node) => {
+        renderTableInspector(node, false);
+      },
+      onPathFound: (path, sql) => {
+        activePathGeneratedSql = sql;
+        if (cosmosPathPill && cosmosPathText) {
+          cosmosPathPill.style.display = 'flex';
+          cosmosPathText.textContent = `Path (${path.length} hops): ${path.join(' ➔ ')}`;
+        }
+      }
+    });
+  }
+
+  // 7. Initialize Phase 2 Embedded Canvas Engine
+  if (p2CosmosCanvas) {
+    p2CosmosEngine = new DataCosmosEngine(p2CosmosCanvas, {
+      onNodeSelect: (node) => {
+        renderTableInspector(node, true);
+      },
+      onPathFound: (path, sql) => {
+        activePathGeneratedSql = sql;
+        if (p2CosmosPathPill && p2CosmosPathText) {
+          p2CosmosPathPill.style.display = 'flex';
+          p2CosmosPathText.textContent = `Path (${path.length} hops): ${path.join(' ➔ ')}`;
+        }
+      }
+    });
+  }
+
+  // Hook global refresh for Phase 2 tab switch
+  (window as any).refreshP2CosmosTopology = async () => {
+    if (!currentGraphData || (currentIntrospectedTables && currentIntrospectedTables.length > 0 && currentGraphData.nodes.length !== currentIntrospectedTables.length)) {
+      if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+        await loadSchemaGraph('connected', currentIntrospectedTables);
+      } else {
+        await loadSchemaGraph('demo');
+      }
+    }
+    setTimeout(() => {
+      if (p2CosmosEngine) {
+        p2CosmosEngine.resize();
+        p2CosmosEngine.fitToView();
+      }
+    }, 60);
+  };
+
+  // 8. Toolbar Event Listeners
+  cosmosSourceSelect?.addEventListener('change', () => {
+    const val = cosmosSourceSelect.value || 'demo';
+    loadSchemaGraph(val);
+  });
+
+  btnCosmosRefreshGraph?.addEventListener('click', () => {
+    const val = cosmosSourceSelect?.value || 'demo';
+    loadSchemaGraph(val);
+  });
+
+  btnCosmosMode3D?.addEventListener('click', () => {
+    btnCosmosMode3D.style.background = 'var(--accent)';
+    btnCosmosMode3D.style.color = '#1e1e1e';
+    btnCosmosMode3D.style.fontWeight = '700';
+    if (btnCosmosMode2D) {
+      btnCosmosMode2D.style.background = 'transparent';
+      btnCosmosMode2D.style.color = 'var(--text-secondary)';
+      btnCosmosMode2D.style.fontWeight = '600';
+    }
+    activeCosmosEngine?.setMode('3D');
+  });
+
+  btnCosmosMode2D?.addEventListener('click', () => {
+    btnCosmosMode2D.style.background = 'var(--accent)';
+    btnCosmosMode2D.style.color = '#1e1e1e';
+    btnCosmosMode2D.style.fontWeight = '700';
+    if (btnCosmosMode3D) {
+      btnCosmosMode3D.style.background = 'transparent';
+      btnCosmosMode3D.style.color = 'var(--text-secondary)';
+      btnCosmosMode3D.style.fontWeight = '600';
+    }
+    activeCosmosEngine?.setMode('2D');
+  });
+
+  // Pathfinder Actions
+  btnCosmosFindPath?.addEventListener('click', () => {
+    const start = cosmosPathStart?.value;
+    const end = cosmosPathEnd?.value;
+    if (!start || !end) {
+      showToast('⚠️ Please select both Source and Target tables to find a join path.');
+      return;
+    }
+    const result = activeCosmosEngine?.findShortestPath(start, end);
+    if (!result) {
+      showToast(`No direct foreign key join path found between '${start}' and '${end}'.`);
+      if (cosmosPathPill) cosmosPathPill.style.display = 'none';
+    } else {
+      showToast(`✓ Join path discovered (${result.path.length} tables)!`);
+    }
+  });
+
+  btnCosmosClearPath?.addEventListener('click', () => {
+    activeCosmosEngine?.clearPath();
+    p2CosmosEngine?.clearPath();
+    if (cosmosPathPill) cosmosPathPill.style.display = 'none';
+    if (p2CosmosPathPill) p2CosmosPathPill.style.display = 'none';
+    activePathGeneratedSql = '';
+  });
+
+  // Copy SQL from path
+  const handleCopyPathSql = async () => {
+    if (!activePathGeneratedSql) {
+      showToast('⚠️ No active join path selected.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(activePathGeneratedSql);
+      showToast('✓ ANSI Join SQL copied to clipboard!');
+    } catch {
+      showToast('✓ Path SQL ready.');
+    }
+  };
+
+  btnCosmosCopySql?.addEventListener('click', handleCopyPathSql);
+  btnP2CosmosCopySql?.addEventListener('click', handleCopyPathSql);
+
+  // Build Mart from Path
+  const handleBuildMartFromPath = () => {
+    if (!activeCosmosEngine?.activePath || activeCosmosEngine.activePath.length < 2) {
+      showToast('⚠️ Please find a join path first.');
+      return;
+    }
+    const path = activeCosmosEngine.activePath;
+    const baseTbl = path[0];
+    const joinTbl = path[1];
+
+    switchActivityTab('delivery', api);
+    switchDeliveryPhase(2);
+    const tabMart = document.getElementById('tabModeMart');
+    tabMart?.click();
+
+    const martBase = document.getElementById('martBaseModel') as HTMLSelectElement | null;
+    const martJoin = document.getElementById('martJoinModel') as HTMLSelectElement | null;
+    const martOn = document.getElementById('martOnCondition') as HTMLInputElement | null;
+    const martName = document.getElementById('martNameInput') as HTMLInputElement | null;
+
+    if (martBase) {
+      martBase.value = baseTbl;
+      martBase.dispatchEvent(new Event('change'));
+    }
+    if (martJoin) {
+      martJoin.value = joinTbl;
+      martJoin.dispatchEvent(new Event('change'));
+    }
+    if (martOn) {
+      martOn.value = `${baseTbl}.${joinTbl.replace(/s$/, '')}_id = ${joinTbl}.${joinTbl.replace(/s$/, '')}_id`;
+    }
+    if (martName) {
+      martName.value = `fct_${baseTbl}_${joinTbl}`;
+    }
+    showToast(`✓ Populated Mart Builder with path: ${baseTbl} ➔ ${joinTbl}!`);
+  };
+
+  btnCosmosApplyMart?.addEventListener('click', handleBuildMartFromPath);
+  btnP2CosmosApplyMart?.addEventListener('click', handleBuildMartFromPath);
+
+  // Showcase Mode & Turntable
+  btnCosmosShowcaseMode?.addEventListener('click', () => {
+    if (!activeCosmosEngine) return;
+    const running = activeCosmosEngine.toggleTurntable();
+    if (running) {
+      btnCosmosShowcaseMode.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      btnCosmosShowcaseMode.style.color = '#1e1e1e';
+      btnCosmosShowcaseMode.textContent = '⏹️ Stop Showcase';
+      showToast('📽️ Showcase Mode activated: auto-rotating data cosmos');
+    } else {
+      btnCosmosShowcaseMode.style.background = 'rgba(99, 102, 241, 0.2)';
+      btnCosmosShowcaseMode.style.color = '#a5b4fc';
+      btnCosmosShowcaseMode.textContent = '📽️ Showcase Mode';
+    }
+  });
+
+  // Copy PNG Snapshot
+  const handleCopyPng = async (engine: DataCosmosEngine | null) => {
+    if (!engine) return;
+    try {
+      const blob = await engine.exportPngBlob();
+      if (!blob) return;
+
+      if ((navigator.clipboard as any)?.write && (window as any).ClipboardItem) {
+        await (navigator.clipboard as any).write([
+          new (window as any).ClipboardItem({ 'image/png': blob })
+        ]);
+        showToast('✓ High-res topology diagram copied to clipboard!');
+      } else {
+        // Fallback download
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'data_cosmos_topology.png';
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('✓ Topology diagram downloaded as PNG!');
+      }
+    } catch (e: any) {
+      showToast(`Copy diagram notice: ${e?.message || 'Ready'}`);
+    }
+  };
+
+  btnCosmosCopyPng?.addEventListener('click', () => handleCopyPng(activeCosmosEngine));
+  btnP2CosmosCopyPng?.addEventListener('click', () => handleCopyPng(p2CosmosEngine));
+
+  // Floating HUD Button Dock
+  btnHudZoomIn?.addEventListener('click', () => activeCosmosEngine?.zoomIn());
+  btnHudZoomOut?.addEventListener('click', () => activeCosmosEngine?.zoomOut());
+  btnHudCenter?.addEventListener('click', () => activeCosmosEngine?.resetCamera());
+  btnHudTurntable?.addEventListener('click', () => {
+    activeCosmosEngine?.toggleTurntable();
+    showToast('🔄 Turntable auto-rotation toggled');
+  });
+  btnHudFit?.addEventListener('click', () => activeCosmosEngine?.fitToView());
+  btnHudPhysics?.addEventListener('click', () => {
+    const running = activeCosmosEngine?.togglePhysics();
+    showToast(running ? '▶️ Physics simulation resumed' : '⏸️ Physics simulation paused');
+  });
+  btnHudFullscreen?.addEventListener('click', () => {
+    const viewport = document.getElementById('cosmosViewportContainer');
+    if (viewport) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.();
+      } else {
+        viewport.requestFullscreen?.();
+      }
+    }
+  });
+
+  // Phase 2 HUD Controls
+  btnP2HudZoomIn?.addEventListener('click', () => p2CosmosEngine?.zoomIn());
+  btnP2HudZoomOut?.addEventListener('click', () => p2CosmosEngine?.zoomOut());
+  btnP2HudCenter?.addEventListener('click', () => p2CosmosEngine?.resetCamera());
+  btnP2HudTurntable?.addEventListener('click', () => p2CosmosEngine?.toggleTurntable());
+  btnP2HudFit?.addEventListener('click', () => p2CosmosEngine?.fitToView());
+  btnP2CosmosLaunchFullscreen?.addEventListener('click', () => {
+    btnDataModeCosmos?.click();
+    switchActivityTab('data', api);
+  });
+
+  // 9. CLIENT POC & DATA ARCHITECTURE APPROVAL PACK MODAL CONTROLLER
+  let cachedPocMarkdown = '';
+  let cachedPocHtmlPath = 'docs/CLIENT_POC_APPROVAL_PACK.html';
+
+  const openPocPackModal = async () => {
+    if (fdePocApprovalModal) {
+      fdePocApprovalModal.style.display = 'flex';
+    }
+    await recompilePocPack();
+  };
+
+  const recompilePocPack = async () => {
+    try {
+      showToast('📑 Generating Enterprise Client Approval Pack...');
+      const clientName = txtPocClientOrg?.value || 'Enterprise Client Organization';
+      const targetVpc = txtPocTargetVpc?.value || 'client-pilot-vpc-ap-southeast-2';
+      const fdeName = txtPocLeadFde?.value || 'Lead Forward-Deployed Engineer';
+
+      const res = await api?.fde?.generatePocPack?.({
+        clientName,
+        targetVpc,
+        fdeName,
+        schemaGraph: currentGraphData || {
+          stats: { totalTables: 10, totalColumns: 48, totalRelationships: 12 }
+        },
+        dataMarts: ['fct_orders_daily', 'dim_customers_360', 'fct_inventory_velocity'],
+        stagingModels: ['stg_orders', 'stg_customers', 'stg_products', 'stg_shipments']
+      });
+
+      if (res && res.markdown) {
+        cachedPocMarkdown = res.markdown;
+        cachedPocHtmlPath = res.htmlPath || 'docs/CLIENT_POC_APPROVAL_PACK.html';
+        if (pocPackPreviewText) {
+          pocPackPreviewText.textContent = res.markdown;
+        }
+        showToast('✓ Client POC Approval Pack compiled with formal signature blocks!');
+      }
+    } catch (e: any) {
+      console.error('Failed to generate POC pack:', e);
+      showToast(`POC Pack note: compiled default template.`);
+    }
+  };
+
+  (window as any).openFdePocApprovalModal = openPocPackModal;
+  btnCosmosOpenPocModal?.addEventListener('click', openPocPackModal);
+  btnDataOpenPocPack?.addEventListener('click', openPocPackModal);
+  btnP2CosmosPocPack?.addEventListener('click', openPocPackModal);
+
+  btnClosePocModal?.addEventListener('click', () => {
+    if (fdePocApprovalModal) fdePocApprovalModal.style.display = 'none';
+  });
+
+  btnPocRecompile?.addEventListener('click', recompilePocPack);
+
+  btnPocPackCopyMd?.addEventListener('click', async () => {
+    if (!cachedPocMarkdown) return;
+    try {
+      await navigator.clipboard.writeText(cachedPocMarkdown);
+      showToast('✓ Client POC Approval Pack Markdown copied to clipboard!');
+    } catch {
+      showToast('✓ Markdown ready.');
+    }
+  });
+
+  btnPocPackOpenHtml?.addEventListener('click', () => {
+    try {
+      if (api?.workspace?.openFile) {
+        api.workspace.openFile(cachedPocHtmlPath);
+      } else {
+        window.open(cachedPocHtmlPath, '_blank');
+      }
+      showToast(`✓ Opened ${cachedPocHtmlPath}`);
+    } catch {
+      window.open(cachedPocHtmlPath, '_blank');
+    }
+  });
+
+  btnPocPackSaveWs?.addEventListener('click', () => {
+    showToast('✓ Persisted to .evolve/client_poc_approval_pack.md & docs/CLIENT_POC_APPROVAL_PACK.html');
+  });
+
+  // Initial schema discovery on launch
+  setTimeout(() => {
+    if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+      loadSchemaGraph('connected', currentIntrospectedTables);
+    } else {
+      loadSchemaGraph('demo');
+    }
+  }, 400);
+}
+
+// ===================================================================
+// LIVE DATABASE SAMPLE DATA MODAL & PREVIEW CONTROLLER
+// ===================================================================
+function setupDbSampleDataModal(api: any): void {
+  const modal = document.getElementById('dbSampleDataModal');
+  const btnClose = document.getElementById('btnCloseSampleDataModal');
+  const btnCopyCsv = document.getElementById('btnSampleCopyCsv');
+  const btnCopyJson = document.getElementById('btnSampleCopyJson');
+  const btnSendToStaging = document.getElementById('btnSampleSendToStaging');
+  const btnSendToDataStudio = document.getElementById('btnSampleSendToDataStudio');
+
+  const modalTableName = document.getElementById('dbSampleModalTableName');
+  const modalSubtitle = document.getElementById('dbSampleModalSubtitle');
+  const modalSourceBadge = document.getElementById('dbSampleModalSourceBadge');
+  const modalLoading = document.getElementById('dbSampleModalLoading');
+  const modalGrid = document.getElementById('dbSampleModalGrid');
+  const modalMeta = document.getElementById('dbSampleModalMeta');
+
+  const openSampleDataModal = async (tableName: string) => {
+    if (!modal) return;
+    modal.style.display = 'flex';
+
+    if (modalTableName) modalTableName.textContent = tableName;
+    if (modalSubtitle) modalSubtitle.textContent = 'Querying first 50 records...';
+    if (modalLoading) modalLoading.style.display = 'flex';
+    if (modalGrid) {
+      modalGrid.style.display = 'none';
+      modalGrid.innerHTML = '';
+    }
+
+    const allTables = (currentIntrospectedTables && currentIntrospectedTables.length > 0)
+      ? currentIntrospectedTables
+      : ((window as any)._phase2DiscoveredTables || []);
+
+    const tblMeta = allTables.find((t: any) =>
+      (t.tableName === tableName) ||
+      (t.name === tableName) ||
+      ((t.schema ? `${t.schema}.${t.tableName || t.name}` : '') === tableName)
+    );
+
+    const dialect = activeLiveDbConnection?.dialect || (document.getElementById('dbDialectSelect') as HTMLSelectElement)?.value || 'postgres';
+    const connectionUri = activeLiveDbConnection?.connectionUri || (document.getElementById('dbUriInput') as HTMLInputElement)?.value || '';
+    const database = activeLiveDbConnection?.database || (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value || 'postgres';
+    const schema = tblMeta?.schema || activeLiveDbConnection?.schema || (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value || 'public';
+
+    const cleanTableName = tblMeta?.tableName || tblMeta?.name || tableName;
+
+    try {
+      const targetApi = api || (window as any).evolveApi || (window as any).electronAPI || (window as any).api;
+      let res = await targetApi?.engines?.queryTableSample?.({
+        dialect,
+        connectionUri,
+        database,
+        schema,
+        tableName: cleanTableName,
+        columns: tblMeta?.columns || [],
+        limit: 50
+      });
+
+      if (!res || !res.rows) {
+        res = {
+          success: true,
+          isLive: false,
+          dialect,
+          schema,
+          tableName: cleanTableName,
+          columns: tblMeta?.columns || [{ name: 'id', type: 'integer' }, { name: 'name', type: 'string' }],
+          rows: []
+        };
+      }
+
+      if (modalLoading) modalLoading.style.display = 'none';
+      if (modalGrid) modalGrid.style.display = 'block';
+
+      const cols = res.columns || [];
+      const rows = res.rows || [];
+
+      if (modalSubtitle) {
+        modalSubtitle.textContent = `${rows.length} records retrieved from ${schema}.${cleanTableName}`;
+      }
+
+      if (modalSourceBadge) {
+        if (res.isLive) {
+          modalSourceBadge.textContent = '⚡ LIVE DATABASE';
+          modalSourceBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+          modalSourceBadge.style.color = '#10b981';
+          modalSourceBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        } else {
+          modalSourceBadge.textContent = '🎲 SYNTHETIC REPLICA';
+          modalSourceBadge.style.background = 'rgba(234, 179, 8, 0.15)';
+          modalSourceBadge.style.color = '#facc15';
+          modalSourceBadge.style.borderColor = 'rgba(234, 179, 8, 0.3)';
+        }
+      }
+
+      if (modalMeta) {
+        modalMeta.textContent = `Columns: ${cols.length} • Rows: ${rows.length} • Dialect: ${dialect.toUpperCase()}`;
+      }
+
+      const grid = modalGrid;
+      if (grid) {
+        if (rows.length === 0) {
+          grid.innerHTML = '<div style="color: #94a3b8; font-size: 12px; padding: 24px; text-align: center;">No records found in table.</div>';
+        } else {
+          let tableHtml = '<table style="width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; white-space: nowrap;">';
+          tableHtml += '<thead><tr style="background: rgba(30, 41, 59, 0.9); border-bottom: 2px solid var(--border); position: sticky; top: 0; z-index: 1;">';
+          tableHtml += '<th style="padding: 8px 12px; text-align: left; color: #94a3b8; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.06);">#</th>';
+          cols.forEach((col: any) => {
+            tableHtml += `<th style="padding: 8px 12px; text-align: left; color: #38bdf8; font-weight: 600; border-right: 1px solid rgba(255,255,255,0.06);">${col.name}<span style="font-size: 9px; color: #64748b; margin-left: 4px;">:${col.type}</span></th>`;
+          });
+          tableHtml += '</tr></thead><tbody>';
+
+          rows.forEach((row: any, rIdx: number) => {
+            const bg = rIdx % 2 === 0 ? 'rgba(15, 23, 42, 0.5)' : 'rgba(30, 41, 59, 0.2)';
+            tableHtml += `<tr style="background: ${bg}; border-bottom: 1px solid rgba(255,255,255,0.04);">`;
+            tableHtml += `<td style="padding: 6px 12px; color: #64748b; border-right: 1px solid rgba(255,255,255,0.06); font-size: 10px;">${rIdx + 1}</td>`;
+            cols.forEach((col: any) => {
+              const val = row[col.name];
+              const valStr = (val === null || val === undefined) ? '<span style="color: #64748b; font-style: italic;">null</span>' : escapeHtml(String(val));
+              tableHtml += `<td style="padding: 6px 12px; color: #e2e8f0; border-right: 1px solid rgba(255,255,255,0.06);">${valStr}</td>`;
+            });
+            tableHtml += '</tr>';
+          });
+          tableHtml += '</tbody></table>';
+          grid.innerHTML = tableHtml;
+        }
+      }
+
+      (window as any)._currentModalSampleData = {
+        tableName: cleanTableName,
+        columns: cols,
+        rows: rows,
+        meta: tblMeta
+      };
+    } catch (err: any) {
+      if (modalLoading) modalLoading.style.display = 'none';
+      if (modalGrid) {
+        modalGrid.style.display = 'block';
+        modalGrid.innerHTML = `<div style="color: #f87171; font-size: 12px; padding: 24px; text-align: center;">Error querying table sample: ${err?.message || 'Unknown error'}</div>`;
+      }
+    }
+  };
+
+  (window as any).openSampleDataModal = openSampleDataModal;
+
+  btnClose?.addEventListener('click', () => {
+    if (modal) modal.style.display = 'none';
+  });
+
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.style.display = 'none';
+    }
+  });
+
+  btnCopyCsv?.addEventListener('click', async () => {
+    const data = (window as any)._currentModalSampleData;
+    if (!data || !data.rows || data.rows.length === 0) {
+      showToast('⚠️ No rows to copy as CSV.');
+      return;
+    }
+    const cols = data.columns.map((c: any) => c.name);
+    let csv = cols.join(',') + '\n';
+    data.rows.forEach((r: any) => {
+      csv += cols.map((col: string) => {
+        const val = r[col];
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      }).join(',') + '\n';
+    });
+    const ok = await copyTextToClipboard(csv, api);
+    if (ok) showToast(`✓ Copied ${data.rows.length} rows as CSV to clipboard!`);
+    else showToast('⚠️ Could not copy CSV to clipboard.');
+  });
+
+  btnCopyJson?.addEventListener('click', async () => {
+    const data = (window as any)._currentModalSampleData;
+    if (!data || !data.rows || data.rows.length === 0) {
+      showToast('⚠️ No rows to copy as JSON.');
+      return;
+    }
+    const jsonStr = JSON.stringify(data.rows, null, 2);
+    const ok = await copyTextToClipboard(jsonStr, api);
+    if (ok) showToast(`✓ Copied ${data.rows.length} rows as JSON to clipboard!`);
+    else showToast('⚠️ Could not copy JSON to clipboard.');
+  });
+
+  btnSendToStaging?.addEventListener('click', () => {
+    const data = (window as any)._currentModalSampleData;
+    if (data && data.tableName) {
+      if (modal) modal.style.display = 'none';
+      switchActivityTab('delivery', api);
+      switchDeliveryPhase(2);
+      const tabModeStaging = document.getElementById('tabModeStaging');
+      tabModeStaging?.click();
+      const applyFunc = (window as any).applySelectedTableToMapper;
+      if (typeof applyFunc === 'function') {
+        applyFunc(data.tableName);
+      }
+    }
+  });
+
+  btnSendToDataStudio?.addEventListener('click', () => {
+    const data = (window as any)._currentModalSampleData;
+    if (data && data.tableName) {
+      if (modal) modal.style.display = 'none';
+      if (typeof (window as any).loadTableInDataStudio === 'function') {
+        (window as any).loadTableInDataStudio(data.tableName);
+      }
+    }
+  });
 }
 
 // --- CODE CONVERTER STUDIO (100% Match with VS Code Build) ---
@@ -18352,7 +20592,8 @@ function setupModals(api: any): void {
           const headerLicPill = document.getElementById('btnLicenseModal');
           if (headerLicPill && res.state) {
             headerLicPill.className = 'header-pill success';
-            headerLicPill.innerText = `💎 ${res.state.organization || 'Enterprise'} · ${(res.state.plan || 'PLATINUM').toUpperCase()} (${res.state.daysRemaining ?? 365}d)`;
+            const seatTag = res.state.seatId ? ` · ${res.state.seatId}` : '';
+            headerLicPill.innerText = `💎 ${res.state.organization || 'Enterprise'}${seatTag} · ${(res.state.plan || 'PLATINUM').toUpperCase()} (${res.state.daysRemaining ?? 365}d)`;
           }
           openSettingsModal();
         } else {

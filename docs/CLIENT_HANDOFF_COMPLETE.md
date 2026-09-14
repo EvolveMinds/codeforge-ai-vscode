@@ -1,5 +1,5 @@
 # 📦 Client Pilot Engagement — Complete Engagement Handoff Bundle
-> **Generated on:** 2026-09-13  
+> **Generated on:** 2026-09-14  
 > **Prepared by:** Forward Deployed Engineering Studio (Evolve AI)  
 
 ---
@@ -15,17 +15,17 @@
 
 ## 1. Executive Problem Reframing & Economic Boundaries (Phase 1)
 
-* **Original Client Request:** "Automate client manual workflow and data operations"
-* **Identified Failure Modes:** Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.
-* **Agreed Production Target (Observation-to-Spec / O2S):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.
-* **Explicit Out-of-Scope Boundaries:** `No direct production write access without cryptographically signed audit log`, `No ungrounded responses or unverified external API mutations`
+* **Original Client Request:** "Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules."
+* **Identified Failure Modes:** LLMs perform stochastic reasoning and suffer from arithmetic hallucinations; direct auto-reconciliation without deterministic tolerance checks causes un-auditable ledger drift.
+* **Agreed Production Target (Observation-to-Spec / O2S):** Hybrid Financial Reconciliation Engine: Deterministic SQL tolerance matching first, with LLM parsing used solely for unstructured PDF statement extraction.
+* **Explicit Out-of-Scope Boundaries:** `No un-audited ledger posting without deterministic tolerance verification`, `No automated currency conversions without verified FX feed timestamp`, `No processing of unredacted account numbers`
 
 ### Controller's Three Numbers & Economic ROI (Phase 1)
-* **Monthly Volume:** `0 tasks/mo`
-* **Handle Time / Latency:** `0 min/task`
-* **Fully-Burdened Wage:** `$0/hr`
-* **Projected Monthly Savings:** `$0.0k / month`
-* **Annual Capacity Reclaimed:** `0 labor hours/year`
+* **Monthly Volume:** `5,000 tasks/mo`
+* **Handle Time / Latency:** `20 min/task`
+* **Fully-Burdened Wage:** `$55/hr`
+* **Projected Monthly Savings:** `$64.2k / month`
+* **Annual Capacity Reclaimed:** `14,000 labor hours/year`
 
 
 ---
@@ -223,10 +223,10 @@ Configure all secrets under GitHub Actions / GitLab CI pipeline settings before 
 ---
 
 ### [0:00 - 1:00] Slide 1: The Business Problem & The Controller's 3 Numbers
-* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Automate our manual workflow with AI'*.
+* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules.'*.
 * Most AI vendors would build a generic chatbot that hallucinates numbers. Instead, we started by **refusing that ask** and calculating your exact economics with your Controller.
-* You process **0 tasks a month**, taking **15 minutes each**, at an average cost of **$35/hr**.
-* By implementing deterministic automation with zero hallucinations, this system reclaims **0 hours/month** and delivers **$0.0k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
+* You process **5,000 tasks a month**, taking **20 minutes each**, at an average cost of **$55/hr**.
+* By implementing deterministic automation with zero hallucinations, this system reclaims **1,167 hours/month** and delivers **$64.2k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
 
 ---
 

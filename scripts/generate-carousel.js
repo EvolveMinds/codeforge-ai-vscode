@@ -484,7 +484,7 @@ const htmlContent = `<!DOCTYPE html>
       <div>
         <div class="top-bar">
           <div class="brand-pill">
-            <span>⚡ EVOLVE AI ENTERPRISE · v2.20.0</span>
+            <span>⚡ EVOLVE AI ENTERPRISE · v2.21.0</span>
           </div>
           <div class="status-indicator">
             <span class="pulse-dot"></span>
@@ -517,15 +517,15 @@ const htmlContent = `<!DOCTYPE html>
             </div>
             <div class="hero-feat-item">
               <span class="hero-feat-icon">🔄</span>
-              <span>Phase 5: Oracle/T-SQL Transpiler</span>
+              <span>Oracle/T-SQL Transpiler &amp; 26-Lang Modernizer</span>
             </div>
             <div class="hero-feat-item">
-              <span class="hero-feat-icon">☁️</span>
-              <span>Phase 6: Multi-Cloud DevOps Hub</span>
+              <span class="hero-feat-icon">📊</span>
+              <span>Executive Reporting &amp; Sandboxed Dashboards</span>
             </div>
             <div class="hero-feat-item">
               <span class="hero-feat-icon">🔒</span>
-              <span>Ed25519 Hardware-Bound Offline Licensing</span>
+              <span>Corporate Domain Bound Ed25519 Licensing</span>
             </div>
           </div>
         </div>

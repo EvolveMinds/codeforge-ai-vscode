@@ -7,10 +7,10 @@
 ---
 
 ### [0:00 - 1:00] Slide 1: The Business Problem & The Controller's 3 Numbers
-* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Automate our manual workflow with AI'*.
+* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules.'*.
 * Most AI vendors would build a generic chatbot that hallucinates numbers. Instead, we started by **refusing that ask** and calculating your exact economics with your Controller.
-* You process **0 tasks a month**, taking **15 minutes each**, at an average cost of **$35/hr**.
-* By implementing deterministic automation with zero hallucinations, this system reclaims **0 hours/month** and delivers **$0.0k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
+* You process **5,000 tasks a month**, taking **20 minutes each**, at an average cost of **$55/hr**.
+* By implementing deterministic automation with zero hallucinations, this system reclaims **1,167 hours/month** and delivers **$64.2k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
 
 ---
 

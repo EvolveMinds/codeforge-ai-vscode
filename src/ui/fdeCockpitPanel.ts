@@ -269,6 +269,59 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'startTrial': {
+        try {
+          const trialKey = LicenseGenerator.generateTrialKey('VS Code FDE Community User', 30);
+          if (this._svc?.license) {
+            await this._svc.license.activateLicense(trialKey);
+          }
+          if (this._vsCtx?.secrets) {
+            await this._vsCtx.secrets.store('evolve.enterprise.licenseKey', trialKey);
+          }
+          vscode.window.showInformationMessage(
+            `⚡ 30-Day Enterprise Trial Activated!\nTrial License: ${trialKey.slice(0, 24)}... (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Client POC Pack.`,
+            'Launch Desktop Edition',
+            'Copy Full Key'
+          ).then(async (choice) => {
+            if (choice === 'Launch Desktop Edition') {
+              vscode.commands.executeCommand('aiForge.fde.launchDesktop');
+            } else if (choice === 'Copy Full Key') {
+              await vscode.env.clipboard.writeText(trialKey);
+              vscode.window.showInformationMessage('✓ 30-Day Enterprise Trial Key copied to clipboard!');
+            }
+          });
+          this._update();
+        } catch (err: any) {
+          vscode.window.showErrorMessage(`Trial activation error: ${err?.message || err}`);
+        }
+        break;
+      }
+
+      case 'enterLicenseKey': {
+        const key = await vscode.window.showInputBox({
+          prompt: 'Enter your Evolve AI Enterprise License Key (EM-ENT-V1...)',
+          placeHolder: 'EM-ENT-V1.ey...',
+          ignoreFocusOut: true,
+        });
+        if (key) {
+          const trimmed = key.trim();
+          const res = LicenseValidator.verify(trimmed);
+          if (res.valid && res.payload) {
+            if (this._svc?.license) {
+              await this._svc.license.activateLicense(trimmed);
+            }
+            if (this._vsCtx?.secrets) {
+              await this._vsCtx.secrets.store('evolve.enterprise.licenseKey', trimmed);
+            }
+            vscode.window.showInformationMessage(`✓ Enterprise License Verified for ${res.payload.organization} (Plan: ${res.payload.plan})!`);
+            this._update();
+          } else {
+            vscode.window.showErrorMessage(`Invalid license key: ${res.error || 'Verification failed'}`);
+          }
+        }
+        break;
+      }
+
       case 'createProject': {
         const name = msg.projectName || 'New Client Engagement';
         const vpc = msg.targetVpc || 'gcp-firebase';
@@ -3401,6 +3454,29 @@ Output ONLY the message without markdown code fences.`;
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn-quick" style="background: var(--accent); color: #fff;" onclick="toggleDbConnectModal()">🔌 Connect Live DB / Warehouse</button>
             <button class="btn-quick" onclick="pickSchemaFile()">📁 Browse CSV / Schema</button>
+          </div>
+        </div>
+
+        <!-- 3D DATA COSMOS & CLIENT POC PACK ENTERPRISE PROMOTION -->
+        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(236, 72, 153, 0.12)); border: 1.5px solid #6366f1; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 26px;">🌐</span>
+              <div>
+                <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  3D Data Cosmos &amp; Client POC Approval Pack
+                  <span style="background: #f59e0b; color: #1e1e1e; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 8px;">ENTERPRISE / DESKTOP</span>
+                </div>
+                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 3px;">
+                  Interactive 3D cross-table schema topology, multi-touch navigation, multi-hop join pathfinding, and formal client sign-off approval dossiers.
+                </div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button class="btn-quick" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'startTrial' })">⚡ Start 30-Day Trial</button>
+              <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'enterLicenseKey' })">🔑 Enter Key</button>
+              <button class="btn-quick" style="background: #6366f1; color: #fff; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'launchDesktopStudio' })">🖥️ Launch Desktop</button>
+            </div>
           </div>
         </div>
 

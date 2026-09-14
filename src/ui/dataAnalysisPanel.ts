@@ -68,7 +68,10 @@ export type PanelMessage =
   | { type: 'editTheme' }
   | { type: 'switchModel' }
   | { type: 'analyze' }
-  | { type: 'cancelAnalyze' };
+  | { type: 'cancelAnalyze' }
+  | { type: 'startTrial' }
+  | { type: 'enterLicense' }
+  | { type: 'launchDesktop' };
 
 /** Data-prep steps as collected by the panel. */
 export interface PanelPrep {
@@ -435,6 +438,35 @@ export class DataAnalysisPanel {
         </div>
         <div class="model-summary" id="modelsummary">${escHtml(this._verdict?.summary ?? 'Select an AI provider & model to power your data analysis.')}</div>
         <div class="model-rec" id="modelrec" style="${this._verdict?.recommendation ? '' : 'display:none;'}">${escHtml(this._verdict?.recommendation ?? '')}</div>
+      </div>
+
+      <!-- 3D DATA COSMOS & CROSS-TABLE RELATIONAL INTELLIGENCE (ENTERPRISE PROMPT) -->
+      <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(236, 72, 153, 0.12)); border: 1.5px solid #6366f1; border-radius: 10px; padding: 16px 20px; margin-bottom: 22px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="font-size: 32px;">🌐</div>
+            <div>
+              <div style="font-size: 14px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+                3D Data Cosmos &amp; Cross-Table Relational Intelligence
+                <span style="background: #f59e0b; color: #1e1e1e; font-size: 9.5px; font-weight: 800; padding: 2px 7px; border-radius: 10px; text-transform: uppercase;">ENTERPRISE / DESKTOP</span>
+              </div>
+              <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px; max-width: 650px; line-height: 1.45;">
+                Multi-table star-schema clustering, touchscreen multi-touch navigation (pinch zoom, orbit), Dijkstra multi-hop SQL join pathfinding, and formal Client POC approval dossiers.
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button class="mini" id="btnStartTrialPromo" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 7px 14px; cursor: pointer;">
+              ⚡ Start 30-Day Evaluation Trial
+            </button>
+            <button class="mini" id="btnEnterLicensePromo" style="padding: 7px 12px; cursor: pointer;">
+              🔑 Enter License Key
+            </button>
+            <button class="mini" id="btnLaunchDesktopPromo" style="background: rgba(99, 102, 241, 0.25); color: #a5b4fc; border-color: #6366f1; padding: 7px 12px; cursor: pointer;">
+              🖥️ Launch Desktop
+            </button>
+          </div>
+        </div>
       </div>
 
       <h2>1 · Choose your data source</h2>
@@ -851,6 +883,9 @@ export class DataAnalysisPanel {
         document.getElementById('switchmodel').onclick = () => post({ type:'switchModel' });
         document.getElementById('go').onclick = () => post({ type:'analyze' });
         document.getElementById('cancel').onclick = () => post({ type:'cancelAnalyze' });
+        document.getElementById('btnStartTrialPromo')?.addEventListener('click', () => post({ type:'startTrial' }));
+        document.getElementById('btnEnterLicensePromo')?.addEventListener('click', () => post({ type:'enterLicense' }));
+        document.getElementById('btnLaunchDesktopPromo')?.addEventListener('click', () => post({ type:'launchDesktop' }));
 
         let elapsedSecs = 0;
         function setGenerating(on){

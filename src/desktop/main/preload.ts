@@ -161,7 +161,9 @@ const desktopApi = {
     cleanTemporaryFiles: (files?: string[]) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.CLEAN_TEMPORARY_FILES, files),
     savePreflightReport: (report: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.SAVE_PREFLIGHT_REPORT, report),
     generateRunbooks: (state: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, state),
-    analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req)
+    analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req),
+    discoverSchemaGraph: (opts?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DISCOVER_SCHEMA_GRAPH, opts),
+    queryTableSample: (opts: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.QUERY_TABLE_SAMPLE, opts)
   },
 
   // --- FDE ENGAGEMENT CONTEXT & DISCOVERY ---
@@ -170,6 +172,7 @@ const desktopApi = {
     saveDiscovery: (discoveryData: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY, discoveryData),
     calculateRoi: (params: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, params),
     generateTopology: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, req),
+    generatePocPack: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GENERATE_POC_PACK, data),
     evaluateRuleVsModel: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.EVALUATE_RULE_VS_MODEL, req),
     scaffoldLadderLevel: (req: { level: number; config?: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SCAFFOLD_LADDER_LEVEL, req),
     scaffoldMcpToolServer: (req?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SCAFFOLD_MCP_TOOL_SERVER, req),
