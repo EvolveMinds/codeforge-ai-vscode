@@ -4160,7 +4160,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 export const server = new Server(
-  { name: 'evolve-fde-mcp-server', version: '2.21.0' },
+  { name: 'evolve-fde-mcp-server', version: '2.22.0' },
   { capabilities: { tools: {} } }
 );
 
@@ -4241,7 +4241,7 @@ export async function startMcpServer() {
           type: 'rule_engine',
           latencyMs: 1,
           message: 'Local Rule Engine & Invariant Subsystem Ready (Zero Network Latency)',
-          details: { version: '2.21.0', mode: 'Air-Gapped In-Memory Deterministic' }
+          details: { version: '2.22.0', mode: 'Air-Gapped In-Memory Deterministic' }
         };
       }
 
@@ -4978,7 +4978,7 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
         tokenDiff,
         auditSignature: sig,
         timestamp: new Date().toISOString(),
-        verifiedBy: 'Evolve AI Groundedness Gate v2.21.0',
+        verifiedBy: 'Evolve AI Groundedness Gate v2.22.0',
         message: isGrounded
           ? `✓ Citation Grounded: ${groundednessScorePct}% entity grounding against handbook (Threshold: ${minThreshold}%)`
           : `❌ Groundedness Violation: Claim contains ${hallucinationScorePct}% ungrounded assertions not in handbook (Threshold: ${minThreshold}%, unverified: ${ungroundedWords.slice(0, 5).join(', ')})`

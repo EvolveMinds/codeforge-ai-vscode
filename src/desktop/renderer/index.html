@@ -728,7 +728,7 @@
       <!-- Version & Updates Status Pill -->
       <div class="header-pill" id="btnHeaderVersionUpdate" title="Click to view Version Details & Check Updates" style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; border: 1px solid var(--border); background: var(--card-bg);">
         <span id="headerUpdateDot" style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
-        <span id="headerVersionLabel" style="color: var(--accent); font-weight: 700;">v2.21.0</span>
+        <span id="headerVersionLabel" style="color: var(--accent); font-weight: 700;">v2.22.0</span>
         <span id="headerUpdateStatusLabel" style="font-size: 10px; opacity: 0.85; color: var(--text-secondary);">Up to date</span>
       </div>
 
@@ -2210,8 +2210,39 @@
                     </div>
                   </div>
 
+                  <!-- Table Search, Filter & Quick-Jump Toolbar (Phase 2) -->
+                  <div style="margin-top: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; z-index: 20;">
+                    <!-- Autocomplete Search Input -->
+                    <div style="position: relative; flex: 1 1 280px; max-width: 440px;">
+                      <div style="position: relative; display: flex; align-items: center;">
+                        <span style="position: absolute; left: 10px; font-size: 12px; color: #94a3b8; pointer-events: none;">🔍</span>
+                        <input type="text" id="p2CosmosSearchInput" placeholder="Search tables or columns (e.g. orders, cust, id) [Ctrl+F]..." autocomplete="off" style="width: 100%; padding: 6px 30px 6px 30px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11.5px; outline: none;" />
+                        <button id="btnP2CosmosClearSearch" style="display: none; position: absolute; right: 8px; background: none; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 2px;" title="Clear search">✕</button>
+                      </div>
+                      <!-- Floating Autocomplete / Quick-Jump Dropdown -->
+                      <div id="p2CosmosSearchResults" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #0f172a; border: 1px solid #38bdf8; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.85); z-index: 9999; max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+
+                    <!-- Role Filter Pills -->
+                    <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                      <span style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Filter:</span>
+                      <button class="btn-quick active p2-filter-pill" data-role="all" id="btnP2FilterAll" style="padding: 3px 9px; font-size: 11px; margin: 0; background: var(--accent); color: #1e1e1e; font-weight: 700;">All (<span id="p2CountAll">0</span>)</button>
+                      <button class="btn-quick p2-filter-pill" data-role="fact" id="btnP2FilterFacts" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #a5b4fc; border-color: rgba(99,102,241,0.4);">⭐ Facts (<span id="p2CountFacts">0</span>)</button>
+                      <button class="btn-quick p2-filter-pill" data-role="dimension" id="btnP2FilterDims" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #6ee7b7; border-color: rgba(16,185,129,0.4);">🗃️ Dimensions (<span id="p2CountDims">0</span>)</button>
+                      <button class="btn-quick p2-filter-pill" data-role="bridge" id="btnP2FilterBridges" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #fcd34d; border-color: rgba(245,158,11,0.4);">🔗 Bridges (<span id="p2CountBridges">0</span>)</button>
+                    </div>
+
+                    <!-- Quick Jump Table Select -->
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <label for="p2CosmosQuickJump" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Jump to:</label>
+                      <select id="p2CosmosQuickJump" style="padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; max-width: 170px;">
+                        <option value="">Select table...</option>
+                      </select>
+                    </div>
+                  </div>
+
                   <!-- Embedded Cosmos Viewport & Controls inside Phase 2 -->
-                  <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 310px; gap: 12px; align-items: stretch;">
+                  <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 340px; gap: 12px; align-items: stretch;">
                     <!-- Canvas Box -->
                     <div id="p2CosmosCanvasBox" style="position: relative; height: 560px; background: #090d16; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
                       <canvas id="p2CosmosCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
@@ -2227,6 +2258,18 @@
                         <div style="display: flex; gap: 6px; flex-shrink: 0;">
                           <button class="btn-quick" id="btnP2CosmosCopySql" style="padding: 2px 8px; font-size: 10.5px; margin: 0;">📋 Copy SQL</button>
                           <button class="btn" id="btnP2CosmosApplyMart" style="background: #eab308; color: #1e1e1e; font-weight: 700; padding: 2px 10px; font-size: 10.5px; margin: 0; border: none; border-radius: 4px; cursor: pointer;">✨ Build Mart from Path</button>
+                        </div>
+                      </div>
+
+                      <!-- Floating Relationship Focus Pill -->
+                      <div id="p2CosmosRelPill" style="display: none; position: absolute; bottom: 12px; left: 12px; right: 80px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); border: 1px solid #38bdf8; border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #38bdf8; align-items: center; justify-content: space-between; gap: 8px; z-index: 15; box-shadow: 0 8px 24px rgba(0,0,0,0.6);">
+                        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                          <span style="font-size: 13px;">🔗</span>
+                          <span id="p2CosmosRelText" style="font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f8fafc;"></span>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                          <button class="btn-quick" id="btnP2CosmosCopyRelSql" style="padding: 2px 8px; font-size: 10.5px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4);" title="Copy SQL JOIN query">📋 Copy SQL</button>
+                          <button class="btn-quick" id="btnP2CosmosExitRelFocus" style="padding: 2px 8px; font-size: 10.5px; margin: 0; color: #94a3b8;" title="Exit relationship isolation mode">✕ Exit Focus</button>
                         </div>
                       </div>
 
@@ -5414,8 +5457,39 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
               </div>
             </div>
 
+            <!-- Table Search, Filter & Quick-Jump Toolbar (Data Analysis Studio) -->
+            <div style="margin-bottom: 12px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; z-index: 20; position: relative;">
+              <!-- Autocomplete Search Input -->
+              <div style="position: relative; flex: 1 1 300px; max-width: 480px;">
+                <div style="position: relative; display: flex; align-items: center;">
+                  <span style="position: absolute; left: 10px; font-size: 12px; color: #94a3b8; pointer-events: none;">🔍</span>
+                  <input type="text" id="cosmosSearchInput" placeholder="Search tables or columns (e.g. orders, cust, id) [Ctrl+F]..." autocomplete="off" style="width: 100%; padding: 6px 30px 6px 30px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; outline: none; transition: border-color 0.2s;" />
+                  <button id="btnCosmosClearSearch" style="display: none; position: absolute; right: 8px; background: none; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 2px;" title="Clear search">✕</button>
+                </div>
+                <!-- Floating Autocomplete / Quick-Jump Dropdown -->
+                <div id="cosmosSearchResults" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #0f172a; border: 1px solid #38bdf8; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.85); z-index: 9999; max-height: 300px; overflow-y: auto;"></div>
+              </div>
+
+              <!-- Role Filter Pills -->
+              <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                <span style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Filter:</span>
+                <button class="btn-quick active data-filter-pill" data-role="all" id="btnDataFilterAll" style="padding: 3px 9px; font-size: 11px; margin: 0; background: var(--accent); color: #1e1e1e; font-weight: 700;">All (<span id="dataCountAll">0</span>)</button>
+                <button class="btn-quick data-filter-pill" data-role="fact" id="btnDataFilterFacts" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #a5b4fc; border-color: rgba(99,102,241,0.4);">⭐ Facts (<span id="dataCountFacts">0</span>)</button>
+                <button class="btn-quick data-filter-pill" data-role="dimension" id="btnDataFilterDims" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #6ee7b7; border-color: rgba(16,185,129,0.4);">🗃️ Dimensions (<span id="dataCountDims">0</span>)</button>
+                <button class="btn-quick data-filter-pill" data-role="bridge" id="btnDataFilterBridges" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #fcd34d; border-color: rgba(245,158,11,0.4);">🔗 Bridges (<span id="dataCountBridges">0</span>)</button>
+              </div>
+
+              <!-- Quick Jump Table Select -->
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <label for="cosmosQuickJump" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Jump to:</label>
+                <select id="cosmosQuickJump" style="padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11.5px; max-width: 180px;">
+                  <option value="">Select table...</option>
+                </select>
+              </div>
+            </div>
+
             <!-- Cosmos Viewport & Inspector Flex Container -->
-            <div style="display: grid; grid-template-columns: 1fr 320px; gap: 14px; align-items: stretch;">
+            <div style="display: grid; grid-template-columns: 1fr 340px; gap: 14px; align-items: stretch;">
               <!-- 3D/2D Canvas Viewport -->
               <div id="cosmosViewportContainer" style="position: relative; height: 620px; min-height: 500px; background: #090d16; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
                 <canvas id="dataCosmosCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
@@ -5432,6 +5506,18 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   <div style="display: flex; gap: 6px; flex-shrink: 0;">
                     <button class="btn-quick" id="btnCosmosCopySql" style="padding: 3px 9px; font-size: 11px; margin: 0;">📋 Copy SQL</button>
                     <button class="btn" id="btnCosmosApplyMart" style="background: #eab308; color: #1e1e1e; font-weight: 700; padding: 3px 12px; font-size: 11px; margin: 0; border: none; border-radius: 4px; cursor: pointer;">✨ Build Mart from Path</button>
+                  </div>
+                </div>
+
+                <!-- Floating Relationship Focus Pill -->
+                <div id="cosmosRelPill" style="display: none; position: absolute; bottom: 14px; left: 14px; right: 90px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); border: 1px solid #38bdf8; border-radius: 8px; padding: 9px 14px; font-size: 12px; color: #38bdf8; align-items: center; justify-content: space-between; gap: 10px; z-index: 15; box-shadow: 0 10px 25px rgba(0,0,0,0.6);">
+                  <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                    <span style="font-size: 14px;">🔗</span>
+                    <span id="cosmosRelText" style="font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f8fafc;"></span>
+                  </div>
+                  <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                    <button class="btn-quick" id="btnCosmosCopyRelSql" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4);" title="Copy SQL JOIN query">📋 Copy SQL</button>
+                    <button class="btn-quick" id="btnCosmosExitRelFocus" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #94a3b8;" title="Exit relationship isolation mode">✕ Exit Focus</button>
                   </div>
                 </div>
 
@@ -6716,7 +6802,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
             <div>
               <div style="font-size: 10px; color: var(--text-muted);">INSTALLED VERSION</div>
-              <div id="lblCurrentAppVersion" style="font-size: 14px; font-weight: 800; color: var(--accent);">v2.21.0</div>
+              <div id="lblCurrentAppVersion" style="font-size: 14px; font-weight: 800; color: var(--accent);">v2.22.0</div>
             </div>
             <div>
               <div style="font-size: 10px; color: var(--text-muted);">DISTRIBUTION FORMAT</div>

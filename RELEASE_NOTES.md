@@ -1,5 +1,27 @@
 # Evolve AI — Release Notes
 
+## Version 2.22.0 — September 15, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Evolve AI version 2.22.0 delivers major enterprise architecture and schema exploration advancements to the **Enterprise Edition**:
+* **2D Technical ERD & Celestial 3D Orbit Dual Mode**: Seamless 1-click toggling with responsive 20x14 dynamic grid layout and bounding-box auto-fit zoom for massive enterprise schemas (265+ tables).
+* **Column-to-Column Relational Linking**: Exact cubic bezier curves connecting the specific source column pin to the target column pin (`[PK]` to `[FK]`) with illuminated terminal socket pins and dynamic column elevation.
+* **Canvas Line Hit-Testing & Hover Tooltips**: Instant detection along bezier curves within 14px, displaying join formulas and cardinality (`orders.order_id = order_items.order_id (1:N)`).
+* **Table & Link Isolation Mode**: Click any connection line to dim unrelated tables to 0.04 blueprint ghost opacity and spotlight joined entities with radiant halos, floating canvas HUD, and animated photon particles.
+* **Dedicated "🔗 Relationship Deep-Dive & Join Inspector"**: Side-by-side visual column bridge, referential integrity badges, auto-generated ANSI SQL join queries, and 1-click handoffs to Preview Joined Data, Build Dimensional Mart, and Data Studio.
+* **Universal Live Database Connection Modal (`#modalLiveDbConnect`)**: Instant connectivity to PostgreSQL, Snowflake, BigQuery, MySQL, and SQLite with 1-click config auto-detection and bidirectional Live DB vs. Demo Star Schema switching.
+* **Table Search, Filter & Quick-Jump Toolbar**: Live autocomplete search across tables, schemas, domains, and columns, with 1-click role filter pills (`Facts`, `Dims`, `Bridges`).
+* **Standalone Windows Executable**: Fresh standalone portable binary `evolve-ai-enterprise-portable-2.22.0-win32-x64.exe` for air-gapped enterprise distribution.
+
+---
+
 ## Version 2.21.0 — September 13, 2026
 
 **Publisher:** `codeforge-ai`  

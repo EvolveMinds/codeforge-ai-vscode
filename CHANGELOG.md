@@ -2,6 +2,38 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.22.0] — 2026-09-15
+
+### 2D Technical ERD & Column-to-Column Relational Linking, Canvas Line Hit-Testing, Table Isolation Mode, Universal Live DB Introspection & Relationship Deep-Dive Inspector
+* **2D Technical ERD & Celestial 3D Orbit Dual Topology**:
+  * **Interactive Mode Switcher**: Added seamless 1-click toggling between 3D Celestial Orbit Topology and 2D Technical ERD in Phase 2 Step 2B Subpanel 3 and Data Analysis Studio.
+  * **Dynamic 2D Grid Layout Engine (`layout2DNodes`)**: Intelligently arranges massive schemas (e.g. 265 tables) into a balanced 20-column by 14-row grid with 250px x 175px cell pitch and clean gutters for relational bezier routing.
+  * **Auto-Fit Panoramic Camera (`fitToView`)**: Computes exact 2D bounding boxes and auto-scales canvas zoom to fit all enterprise tables with smooth navigation.
+* **Column-to-Column Relational Linking with Physical Socket Pins**:
+  * **Pin-to-Pin Cubic Bezier Curves (`getLink2DPoints`)**: Connections link directly from the exact vertical row coordinate of the primary/referenced column to the target foreign key column.
+  * **Terminal Socket Indicators**: Features golden amber (`#facc15` for PK) and electric cyan (`#38bdf8` for FK) circular socket pins with glow halos.
+  * **Dynamic Column Pin Elevation (`getCardVisibleColumns`)**: Automatically elevates foreign key columns positioned below visible card rows into the visible slice during hover or relationship inspection, guaranteeing visible anchor docking.
+* **Canvas Line Hit-Testing & Hover Feedback**:
+  * **Cubic Bezier Distance Sampling (`hitTestLink`)**: Samples 16 parametric points along connection curves and midpoint join badges for responsive selection within 14px threshold.
+  * **Interactive Hover Tooltips**: Line illuminates to 2.4px with a cyan shadow blur, pointer cursor, and floating midpoint pill badge showing `🔗 orders.order_id = order_items.order_id (1:N)`.
+* **Table & Link Isolation Mode**:
+  * **Blueprint Ghost Dimming**: Clicking any connection line dims unrelated tables to 0.04 opacity and non-selected links to 0.02, eliminating diagram noise while preserving spatial orientation.
+  * **Electric Gradient Beam & Halos**: The active join illuminates as an electric gradient stream (`#facc15` to `#38bdf8`) with flowing photon particles and glowing halos around both tables.
+  * **Floating Canvas HUD Banner**: Displays join condition, cardinality badge, `📋 Copy SQL`, and `✕ Exit Focus` (also dismissible via `Escape` key or clicking canvas background).
+* **Dedicated "🔗 Relationship Deep-Dive & Join Inspector"**:
+  * **Side-by-Side Visual Column Bridge**: Compares source table column `[PK]` with target table column `[FK]`, data types, and referential integrity status.
+  * **Auto-Generated ANSI SQL Join Query**: Ready-to-run ANSI SQL query with 1-click clipboard copy (`📋 Copy SQL`).
+  * **1-Click Engineering Handoffs**: Direct actions to `🔍 Preview Joined Data (50 rows)`, `🚀 Build Mart with this Join (Phase 2)`, and `📊 Analyze Joined Data in Studio`.
+  * **Interactive Relationship Chips**: Clicking any foreign key pill in the table spotlight inspector triggers column-to-column link selection and enters isolation mode.
+* **Universal Live Database Connection Modal (`#modalLiveDbConnect`) & Source Switching**:
+  * Connects to **PostgreSQL**, **Snowflake**, **Google BigQuery**, **MySQL**, and **SQLite** with 1-click environment auto-detection (`.env`, `dbt_project.yml`, `prisma`, Supabase).
+  * Real-time connection ping, live schema introspection, and bi-directional switching between Live Database and Demo Star Schema.
+* **Table Search, Filter & Quick-Jump Toolbar**:
+  * Real-time search with instant autocomplete dropdown across table names, schemas, domains, and column names.
+  * Quick role filter pills: `All`, `⭐ Facts`, `🗃️ Dims`, and `🔗 Bridges`.
+* **Packaging & Desktop Executable**:
+  * Packaged standalone Windows desktop executable `evolve-ai-enterprise-portable-2.22.0-win32-x64.exe` for private enterprise distribution.
+
 ## [2.21.0] — 2026-09-13
 
 ### Data Analysis & Executive Reporting Studio, Multi-Seat License Claim Ledger & Packaging

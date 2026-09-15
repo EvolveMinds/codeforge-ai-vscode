@@ -124,4 +124,172 @@ suite('FDE Suite — 3D Data Cosmos & Schema Topology', () => {
     assert.ok(pack.targetVpc.includes('vpc'));
     assert.strictEqual(pack.status, 'PENDING EXECUTIVE APPROVAL & SIGN-OFF');
   });
+
+  test('filters tables by name, schema, column name, and role', () => {
+    interface TestNode {
+      id: string;
+      name: string;
+      schema: string;
+      role: 'fact' | 'dimension' | 'bridge';
+      domain: string;
+      columns: Array<{ name: string; type: string; isPrimary?: boolean; isForeign?: boolean }>;
+    }
+
+    const testNodes: TestNode[] = [
+      {
+        id: 'orders',
+        name: 'orders',
+        schema: 'public',
+        role: 'fact',
+        domain: 'Sales',
+        columns: [
+          { name: 'order_id', type: 'integer', isPrimary: true },
+          { name: 'customer_id', type: 'integer', isForeign: true },
+          { name: 'total_amount', type: 'numeric' }
+        ]
+      },
+      {
+        id: 'customers',
+        name: 'customers',
+        schema: 'public',
+        role: 'dimension',
+        domain: 'Customers',
+        columns: [
+          { name: 'customer_id', type: 'integer', isPrimary: true },
+          { name: 'email', type: 'varchar' },
+          { name: 'full_name', type: 'varchar' }
+        ]
+      },
+      {
+        id: 'shipments',
+        name: 'shipments',
+        schema: 'logistics',
+        role: 'dimension',
+        domain: 'Operations',
+        columns: [
+          { name: 'shipment_id', type: 'integer', isPrimary: true },
+          { name: 'tracking_number', type: 'varchar' },
+          { name: 'carrier', type: 'varchar' }
+        ]
+      }
+    ];
+
+    const matchesFilter = (node: TestNode, query: string, role: string): boolean => {
+      if (role !== 'all' && node.role !== role) return false;
+      if (!query.trim()) return true;
+      const q = query.toLowerCase().trim();
+      if (node.name.toLowerCase().includes(q)) return true;
+      if (node.id.toLowerCase().includes(q)) return true;
+      if (node.schema.toLowerCase().includes(q)) return true;
+      if (node.columns.some(c => c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q))) return true;
+      return false;
+    };
+
+    // 1. Filter by table name
+    const orderMatches = testNodes.filter(n => matchesFilter(n, 'order', 'all'));
+    assert.strictEqual(orderMatches.length, 1);
+    assert.strictEqual(orderMatches[0].name, 'orders');
+
+    // 2. Filter by column name (tracking_number -> shipments)
+    const trackingMatches = testNodes.filter(n => matchesFilter(n, 'tracking_number', 'all'));
+    assert.strictEqual(trackingMatches.length, 1);
+    assert.strictEqual(trackingMatches[0].name, 'shipments');
+
+    // 3. Filter by schema (logistics -> shipments)
+    const schemaMatches = testNodes.filter(n => matchesFilter(n, 'logistics', 'all'));
+    assert.strictEqual(schemaMatches.length, 1);
+    assert.strictEqual(schemaMatches[0].name, 'shipments');
+
+    // 4. Filter by role
+    const factMatches = testNodes.filter(n => matchesFilter(n, '', 'fact'));
+    assert.strictEqual(factMatches.length, 1);
+    assert.strictEqual(factMatches[0].name, 'orders');
+
+    const dimMatches = testNodes.filter(n => matchesFilter(n, '', 'dimension'));
+    assert.strictEqual(dimMatches.length, 2);
+  });
+
+  test('generates valid CREATE TABLE DDL SQL for schema spotlight', () => {
+    const node = {
+      name: 'orders',
+      schema: 'public',
+      columns: [
+        { name: 'order_id', type: 'integer', isPrimary: true },
+        { name: 'customer_id', type: 'integer' },
+        { name: 'order_date', type: 'timestamp' }
+      ]
+    };
+
+    const colLines = node.columns.map(c => {
+      let line = `  ${c.name} ${c.type.toUpperCase()}`;
+      if (c.isPrimary) line += ' PRIMARY KEY';
+      return line;
+    });
+    const ddl = `CREATE TABLE ${node.schema}.${node.name} (\n${colLines.join(',\n')}\n);`;
+
+    assert.ok(ddl.includes('CREATE TABLE public.orders'));
+    assert.ok(ddl.includes('order_id INTEGER PRIMARY KEY'));
+    assert.ok(ddl.includes('order_date TIMESTAMP'));
+  });
+
+  test('generates ANSI SQL join query for column-to-column foreign key relationship', () => {
+    const link = {
+      source: 'orders',
+      target: 'order_items',
+      sourceCol: 'order_id',
+      targetCol: 'order_id',
+      cardinality: '1:N'
+    };
+
+    const sourceTable = {
+      name: 'orders',
+      schema: 'public',
+      columns: ['order_id', 'customer_id', 'order_date', 'total_amount']
+    };
+
+    const targetTable = {
+      name: 'order_items',
+      schema: 'public',
+      columns: ['item_id', 'order_id', 'product_id', 'quantity']
+    };
+
+    const joinSql = `SELECT s.${link.sourceCol}, ${sourceTable.columns.map(c => `s.${c}`).join(', ')}, ${targetTable.columns.map(c => `t.${c}`).join(', ')} FROM ${sourceTable.schema}.${sourceTable.name} s INNER JOIN ${targetTable.schema}.${targetTable.name} t ON s.${link.sourceCol} = t.${link.targetCol};`;
+
+    assert.ok(joinSql.includes('FROM public.orders s'));
+    assert.ok(joinSql.includes('INNER JOIN public.order_items t ON s.order_id = t.order_id'));
+    assert.ok(joinSql.includes('s.customer_id'));
+    assert.ok(joinSql.includes('t.quantity'));
+  });
+
+  test('resolves visible columns and prioritizes linked foreign key column in card view', () => {
+    const node = {
+      id: 'orders',
+      name: 'orders',
+      columns: [
+        { name: 'order_id', type: 'integer', isPrimary: true },
+        { name: 'order_date', type: 'timestamp' },
+        { name: 'status', type: 'string' },
+        { name: 'notes', type: 'text' },
+        { name: 'customer_id', type: 'integer', isForeign: true },
+        { name: 'tracking_number', type: 'varchar' }
+      ]
+    };
+
+    const getCardVisibleColumns = (n: typeof node, linkedCol: string | null) => {
+      const cols = [...n.columns];
+      if (linkedCol) {
+        const idx = cols.findIndex(c => c.name.toLowerCase() === linkedCol.toLowerCase());
+        if (idx > 3) {
+          const [moved] = cols.splice(idx, 1);
+          cols.splice(1, 0, moved); // Elevated right below primary key
+        }
+      }
+      return cols.slice(0, 6);
+    };
+
+    // When customer_id (index 4) is the active link, it should be prioritized to index 1
+    const visibleWithLink = getCardVisibleColumns(node, 'customer_id');
+    assert.strictEqual(visibleWithLink[1].name, 'customer_id');
+    assert.strictEqual(visibleWithLink[0].name, 'order_id');
+  });
 });

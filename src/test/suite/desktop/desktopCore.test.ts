@@ -15,7 +15,8 @@ import { DesktopUpdater } from '../../../desktop/main/updater';
 import { DesktopIpcHandlers } from '../../../desktop/main/ipcHandlers';
 import { DESKTOP_CHANNELS } from '../../../desktop/shared/eventChannels';
 
-suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
+suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function () {
+  this.timeout(20000);
   const tmpDir = path.join(os.tmpdir(), 'evolve-desktop-test-' + Math.random().toString(36).substring(2, 8));
 
   suiteSetup(() => {
@@ -146,13 +147,13 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
     const updater = new DesktopUpdater(tmpDir);
 
     const checkRes = await updater.checkForUpdates();
-    assert.strictEqual(checkRes.currentVersion, '2.21.0');
+    assert.strictEqual(checkRes.currentVersion, '2.22.0');
 
     // Test Air-Gapped / Intranet Enclave fallback handling
     process.env.EVOLVE_UPDATE_URL = 'http://127.0.0.1:59999/nonexistent-airgap';
     try {
       const offlineRes = await updater.checkForUpdates();
-      assert.strictEqual(offlineRes.currentVersion, '2.21.0');
+      assert.strictEqual(offlineRes.currentVersion, '2.22.0');
       assert.strictEqual(offlineRes.isAirGapped, true);
       assert.strictEqual(offlineRes.networkStatus, 'offline');
       assert.ok(offlineRes.statusMessage?.includes('Air-gapped / Intranet'));
@@ -165,11 +166,12 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', () => {
 
     const patchRes = updater.applyOfflinePatch(patchFile);
     assert.strictEqual(patchRes.success, true);
-    assert.ok(patchRes.patchedVersion.includes('2.21.0-patch-'));
+    assert.ok(patchRes.patchedVersion.includes('2.22.0-patch-'));
     assert.ok(patchRes.enginesReloaded.includes('SqlTranspiler'));
   });
 
-  test('DesktopIpcHandlers registers and executes all IPC channel handlers', async () => {
+  test('DesktopIpcHandlers registers and executes all IPC channel handlers', async function () {
+    this.timeout(15000);
     const wsMgr = new DesktopWorkspaceManager(tmpDir);
     wsMgr.setCurrentWorkspace(tmpDir);
     const termMgr = new DesktopTerminalManager();

@@ -180,7 +180,7 @@ const briefHtml = `<!DOCTYPE html>
   <header>
     <div>
       <div class="brand-sub">Technical Architecture Brief</div>
-      <div class="brand-title">Evolve AI Enterprise Edition · v2.21.0</div>
+      <div class="brand-title">Evolve AI Enterprise Edition · v2.22.0</div>
     </div>
     <div class="doc-meta">
       <strong>Evolve Mind Solutions Pty Ltd</strong><br>
@@ -250,7 +250,7 @@ const briefHtml = `<!DOCTYPE html>
       <div class="brand-title">System Topology &amp; Air-Gapped Trust Model</div>
     </div>
     <div class="doc-meta">
-      <strong>Evolve AI Enterprise v2.21.0</strong><br>
+      <strong>Evolve AI Enterprise v2.22.0</strong><br>
       Classification: Commercial In Confidence
     </div>
   </header>
@@ -261,7 +261,7 @@ const briefHtml = `<!DOCTYPE html>
 │                        CLIENT AIR-GAPPED VPC / ENCLAVE HOST                           │
 │                                                                                        │
 │   ┌────────────────────────────────────────────────────────────────────────────────┐   │
-│   │           Evolve AI Enterprise Standalone Studio (.exe v2.21.0)               │   │
+│   │           Evolve AI Enterprise Standalone Studio (.exe v2.22.0)               │   │
 │   │                                                                                │   │
 │   │   [7-DB Introspector]   [Oracle/T-SQL Transpiler]   [Multi-Cloud DevOps Hub]   │   │
 │   │            │                       │                          │                │   │
@@ -300,7 +300,7 @@ const briefHtml = `<!DOCTYPE html>
       <div class="brand-title">Enterprise Security &amp; Pilot Evaluation Protocol</div>
     </div>
     <div class="doc-meta">
-      <strong>Evolve AI Enterprise v2.21.0</strong><br>
+      <strong>Evolve AI Enterprise v2.22.0</strong><br>
       Classification: Commercial In Confidence
     </div>
   </header>
@@ -344,7 +344,7 @@ const briefHtml = `<!DOCTYPE html>
   <h2>4. 90-Day Enterprise Pilot Evaluation Protocol</h2>
   <p>For organizations evaluating Evolve AI Enterprise during our limited pilot cohort:</p>
   <ul>
-    <li><strong>Step 1: Download the Portable Studio</strong> — Download <code>evolve-ai-enterprise-portable-2.21.0-win32-x64.exe</code> (74.7 MB) from <a href="https://www.evolveminds.com.au/products/evolve-ai/download/">evolveminds.com.au/products/evolve-ai/download/</a>. Launch immediately without installation.</li>
+    <li><strong>Step 1: Download the Portable Studio</strong> — Download <code>evolve-ai-enterprise-portable-2.22.0-win32-x64.exe</code> (74.7 MB) from <a href="https://www.evolveminds.com.au/products/evolve-ai/download/">evolveminds.com.au/products/evolve-ai/download/</a>. Launch immediately without installation.</li>
     <li><strong>Step 2: Instant Evaluation or License Key</strong> — Evaluate immediately using the in-memory <strong>30-Day Air-Gapped Platinum Trial</strong>, or paste your team's signed Ed25519 pilot key (<code>EM-ENT-V1...</code>) for 90-day multi-seat coverage.</li>
     <li><strong>Step 3: Test on Your Infrastructure</strong> — Introspect your databases, transpile legacy Oracle/T-SQL queries into Snowflake or BigQuery dbt marts, and scaffold multi-cloud Terraform pipelines.</li>
   </ul>

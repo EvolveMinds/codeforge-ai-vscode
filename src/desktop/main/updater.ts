@@ -25,7 +25,7 @@ type ReleaseFetchResult = ReleaseFetchSuccess | ReleaseFetchOffline;
 export class DesktopUpdater {
   private _storageDir: string;
   private _templatesDir: string;
-  private _currentVersion = '2.21.0';
+  private _currentVersion = '2.22.0';
 
   constructor(customStorageDir?: string, customVersion?: string) {
     this._storageDir = customStorageDir || path.join(os.homedir(), '.evolve');

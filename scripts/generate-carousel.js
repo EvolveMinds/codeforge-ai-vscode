@@ -484,7 +484,7 @@ const htmlContent = `<!DOCTYPE html>
       <div>
         <div class="top-bar">
           <div class="brand-pill">
-            <span>⚡ EVOLVE AI ENTERPRISE · v2.21.0</span>
+            <span>⚡ EVOLVE AI ENTERPRISE · v2.22.0</span>
           </div>
           <div class="status-indicator">
             <span class="pulse-dot"></span>

@@ -13280,7 +13280,7 @@ export class GroundedPolicyRag {
     showToast('🔌 Scaffolding MCP Tool Server & Protocol Handlers in src/mcp/...');
     let code = `// Model Context Protocol Server (Evolve AI FDE)
 import { Server } from '@modelcontextprotocol/sdk/server';
-export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.21.0' });`;
+export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.22.0' });`;
     if (api?.fde?.scaffoldMcpToolServer) {
       const res = await api.fde.scaffoldMcpToolServer();
       if (res && res.code) code = res.code;
@@ -14471,7 +14471,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.21.0' });`
           tokenDiff,
           auditSignature: isGrounded ? 'ed25519_sig_demo_' + Date.now().toString(36) : null,
           timestamp: new Date().toISOString(),
-          verifiedBy: 'Evolve AI Groundedness Gate v2.21.0'
+          verifiedBy: 'Evolve AI Groundedness Gate v2.22.0'
         };
       }
 
@@ -16525,6 +16525,8 @@ class DataCosmosEngine {
   public nodeMap: Map<string, CosmosNode> = new Map();
   public selectedNodeId: string | null = null;
   public hoveredNodeId: string | null = null;
+  public selectedLink: CosmosLink | null = null;
+  public hoveredLink: CosmosLink | null = null;
   public activePath: string[] = [];
 
   public mode: '3D' | '2D' = '3D';
@@ -16548,6 +16550,12 @@ class DataCosmosEngine {
   public targetZoom2D = 1.0;
   public panX2D = 0;
   public panY2D = 0;
+  public targetPanX2D = 0;
+  public targetPanY2D = 0;
+
+  // Search & Filter State
+  public searchQuery = '';
+  public roleFilter = 'all';
 
   // Multi-Touch & Pointer Tracking
   private activePointers = new Map<number, {
@@ -16567,12 +16575,14 @@ class DataCosmosEngine {
 
   // Callbacks
   public onNodeSelect?: (node: CosmosNode | null) => void;
+  public onLinkSelect?: (link: CosmosLink | null) => void;
   public onPathFound?: (path: string[], sql: string) => void;
 
   constructor(
     canvas: HTMLCanvasElement,
     options?: {
       onNodeSelect?: (node: CosmosNode | null) => void;
+      onLinkSelect?: (link: CosmosLink | null) => void;
       onPathFound?: (path: string[], sql: string) => void;
     }
   ) {
@@ -16583,6 +16593,7 @@ class DataCosmosEngine {
     }
     this.ctx = context;
     this.onNodeSelect = options?.onNodeSelect;
+    this.onLinkSelect = options?.onLinkSelect;
     this.onPathFound = options?.onPathFound;
 
     this.initEvents();
@@ -16665,6 +16676,8 @@ class DataCosmosEngine {
 
     this.activePath = [];
     this.selectedNodeId = null;
+    this.selectedLink = null;
+    this.hoveredLink = null;
     this.fitToView();
   }
 
@@ -16699,6 +16712,100 @@ class DataCosmosEngine {
     const next = this.mode === '3D' ? '2D' : '3D';
     this.setMode(next);
     return next;
+  }
+
+  public getCardVisibleColumns(node: CosmosNode): Array<{ name: string; type: string; isPrimary?: boolean; isForeign?: boolean; isNullable?: boolean }> {
+    const cols = [...(node.columns || [])];
+    if (cols.length <= 4) return cols;
+
+    // If this node is involved in selectedLink or hoveredLink, ensure the linked column is visible
+    const activeLink = this.selectedLink || this.hoveredLink;
+    let targetColName: string | null = null;
+    if (activeLink) {
+      if (activeLink.source === node.id) targetColName = activeLink.sourceCol;
+      else if (activeLink.target === node.id) targetColName = activeLink.targetCol;
+    }
+
+    if (targetColName) {
+      const idx = cols.findIndex(c => c.name.toLowerCase() === targetColName!.toLowerCase());
+      if (idx > 3) {
+        const [movedCol] = cols.splice(idx, 1);
+        cols.splice(1, 0, movedCol);
+      }
+    }
+
+    const maxVisible = (activeLink && (activeLink.source === node.id || activeLink.target === node.id)) ? 6 : 4;
+    return cols.slice(0, Math.min(cols.length, maxVisible));
+  }
+
+  public getCardHeight(node: CosmosNode): number {
+    const visibleCols = this.getCardVisibleColumns(node);
+    const headerH = 26 * this.zoom2D;
+    const hasMore = (node.columns || []).length > visibleCols.length;
+    return headerH + (12 + visibleCols.length * 16 + (hasMore ? 18 : 6)) * this.zoom2D;
+  }
+
+  public getLink2DPoints(link: CosmosLink): {
+    srcX: number;
+    srcY: number;
+    tgtX: number;
+    tgtY: number;
+    cp1X: number;
+    cp1Y: number;
+    cp2X: number;
+    cp2Y: number;
+    midX: number;
+    midY: number;
+    a: CosmosNode;
+    b: CosmosNode;
+  } | null {
+    const a = this.nodeMap.get(link.source);
+    const b = this.nodeMap.get(link.target);
+    if (!a || !b) return null;
+
+    const cardW = 180 * this.zoom2D;
+    const headerH = 26 * this.zoom2D;
+    const rowH = 16 * this.zoom2D;
+
+    // Resolve source column Y on node A
+    const aCols = this.getCardVisibleColumns(a);
+    const srcColLower = (link.sourceCol || '').toLowerCase();
+    let srcIdx = aCols.findIndex(c => c.name.toLowerCase() === srcColLower);
+    if (srcIdx === -1) srcIdx = 0;
+    const srcColY = (a.screenY - this.getCardHeight(a) / 2) + headerH + 12 * this.zoom2D + srcIdx * rowH;
+
+    // Resolve target column Y on node B
+    const bCols = this.getCardVisibleColumns(b);
+    const tgtColLower = (link.targetCol || '').toLowerCase();
+    let tgtIdx = bCols.findIndex(c => c.name.toLowerCase() === tgtColLower);
+    if (tgtIdx === -1) tgtIdx = 0;
+    const tgtColY = (b.screenY - this.getCardHeight(b) / 2) + headerH + 12 * this.zoom2D + tgtIdx * rowH;
+
+    // Connect from right of A to left of B if B is to right of A, or vice versa
+    const isTargetToRight = b.screenX >= a.screenX;
+    const srcX = isTargetToRight ? a.screenX + cardW / 2 : a.screenX - cardW / 2;
+    const tgtX = isTargetToRight ? b.screenX - cardW / 2 : b.screenX + cardW / 2;
+
+    const dx = Math.abs(tgtX - srcX);
+    const offset = Math.max(45 * this.zoom2D, dx * 0.45);
+    const cp1X = isTargetToRight ? srcX + offset : srcX - offset;
+    const cp1Y = srcColY;
+    const cp2X = isTargetToRight ? tgtX - offset : tgtX + offset;
+    const cp2Y = tgtColY;
+
+    // Midpoint at t = 0.5
+    const t = 0.5;
+    const midX = (1 - t) * (1 - t) * (1 - t) * srcX + 3 * (1 - t) * (1 - t) * t * cp1X + 3 * (1 - t) * t * t * cp2X + t * t * t * tgtX;
+    const midY = (1 - t) * (1 - t) * (1 - t) * srcColY + 3 * (1 - t) * (1 - t) * t * cp1Y + 3 * (1 - t) * t * t * cp2Y + t * t * t * tgtColY;
+
+    return {
+      srcX, srcY: srcColY,
+      tgtX, tgtY: tgtColY,
+      cp1X, cp1Y,
+      cp2X, cp2Y,
+      midX, midY,
+      a, b
+    };
   }
 
   private initEvents(): void {
@@ -16746,7 +16853,15 @@ class DataCosmosEngine {
         const newHover = hit ? hit.id : null;
         if (newHover !== this.hoveredNodeId) {
           this.hoveredNodeId = newHover;
-          this.canvas.style.cursor = hit ? 'pointer' : 'grab';
+        }
+
+        if (hit) {
+          this.hoveredLink = null;
+          this.canvas.style.cursor = 'pointer';
+        } else {
+          const hitLink = this.hitTestLink(e.clientX, e.clientY);
+          this.hoveredLink = hitLink;
+          this.canvas.style.cursor = hitLink ? 'pointer' : 'grab';
         }
         return;
       }
@@ -16775,6 +16890,8 @@ class DataCosmosEngine {
           } else {
             this.panX2D += dx;
             this.panY2D += dy;
+            this.targetPanX2D = this.panX2D;
+            this.targetPanY2D = this.panY2D;
           }
         }
       } else if (this.activePointers.size === 2) {
@@ -16796,6 +16913,8 @@ class DataCosmosEngine {
           const midDy = ((p1.y + p2.y) - (p1.lastY + p2.lastY)) * 0.5;
           this.panX2D += midDx;
           this.panY2D += midDy;
+          this.targetPanX2D = this.panX2D;
+          this.targetPanY2D = this.panY2D;
         }
       }
     });
@@ -16813,11 +16932,25 @@ class DataCosmosEngine {
           const isDoubleTap = (now - this.lastTapTime < 350);
           this.lastTapTime = now;
 
-          if (isDoubleTap && hit) {
-            // Double-tap: fly camera to focus on node
-            this.flyCameraToNode(hit);
+          if (hit) {
+            if (isDoubleTap) {
+              this.flyCameraToNode(hit);
+            } else {
+              this.selectNode(hit);
+            }
           } else {
-            this.selectNode(hit);
+            // Check if a link was clicked
+            const hitLink = this.hitTestLink(p.startX, p.startY);
+            if (hitLink) {
+              this.selectLink(hitLink);
+            } else {
+              // Clicked on blank canvas -> deselect
+              if (this.selectedLink) {
+                this.selectLink(null);
+              } else if (this.selectedNodeId) {
+                this.selectNode(null);
+              }
+            }
           }
         }
       }
@@ -16866,10 +16999,10 @@ class DataCosmosEngine {
         }
       }
     } else {
-      // In 2D, check card bounding boxes
+      // In 2D, check card bounding boxes with exact card heights
       const cardW = 180 * this.zoom2D;
-      const cardH = 120 * this.zoom2D;
       for (const n of this.nodes) {
+        const cardH = this.getCardHeight(n);
         const left = n.screenX - cardW / 2;
         const top = n.screenY - cardH / 2;
         if (x >= left && x <= left + cardW && y >= top && y <= top + cardH) {
@@ -16880,10 +17013,112 @@ class DataCosmosEngine {
     return null;
   }
 
+  public hitTestLink(clientX: number, clientY: number): CosmosLink | null {
+    const rect = this.canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    if (this.mode === '2D') {
+      for (const link of this.links) {
+        const pts = this.getLink2DPoints(link);
+        if (!pts) continue;
+
+        // 1. Check midpoint badge bounds
+        const distMid = Math.hypot(x - pts.midX, y - pts.midY);
+        if (distMid <= 30 * Math.max(1, this.zoom2D)) {
+          return link;
+        }
+
+        // 2. Check 16 sampled points along the cubic bezier
+        let minDist = Infinity;
+        for (let i = 0; i <= 16; i++) {
+          const t = i / 16;
+          const px = (1 - t) * (1 - t) * (1 - t) * pts.srcX + 3 * (1 - t) * (1 - t) * t * pts.cp1X + 3 * (1 - t) * t * t * pts.cp2X + t * t * t * pts.tgtX;
+          const py = (1 - t) * (1 - t) * (1 - t) * pts.srcY + 3 * (1 - t) * (1 - t) * t * pts.cp1Y + 3 * (1 - t) * t * t * pts.cp2Y + t * t * t * pts.tgtY;
+          const d = Math.hypot(x - px, y - py);
+          if (d < minDist) minDist = d;
+        }
+
+        if (minDist <= 14 * Math.max(1, this.zoom2D * 0.8)) {
+          return link;
+        }
+      }
+    } else {
+      // 3D Mode
+      for (const link of this.links) {
+        const a = this.nodeMap.get(link.source);
+        const b = this.nodeMap.get(link.target);
+        if (!a || !b) continue;
+        const midX = (a.screenX + b.screenX) / 2;
+        const midY = (a.screenY + b.screenY) / 2 - 12;
+
+        let minDist = Infinity;
+        for (let i = 0; i <= 10; i++) {
+          const t = i / 10;
+          const px = (1 - t) * (1 - t) * a.screenX + 2 * (1 - t) * t * midX + t * t * b.screenX;
+          const py = (1 - t) * (1 - t) * a.screenY + 2 * (1 - t) * t * midY + t * t * b.screenY;
+          const d = Math.hypot(x - px, y - py);
+          if (d < minDist) minDist = d;
+        }
+        if (minDist <= 16) {
+          return link;
+        }
+      }
+    }
+    return null;
+  }
+
   public selectNode(node: CosmosNode | null): void {
     this.selectedNodeId = node ? node.id : null;
+    if (this.selectedLink) {
+      this.selectedLink = null;
+      if (this.onLinkSelect) {
+        this.onLinkSelect(null);
+      }
+    }
     if (this.onNodeSelect) {
       this.onNodeSelect(node);
+    }
+  }
+
+  public selectLink(link: CosmosLink | null): void {
+    this.selectedLink = link;
+    if (link) {
+      this.selectedNodeId = link.source;
+      this.focusOnLink(link);
+    }
+    if (this.onLinkSelect) {
+      this.onLinkSelect(link);
+    }
+  }
+
+  public focusOnLink(link: CosmosLink): void {
+    const a = this.nodeMap.get(link.source);
+    const b = this.nodeMap.get(link.target);
+    if (!a || !b) return;
+
+    if (this.mode === '2D') {
+      const midX = (a.x2D + b.x2D) / 2;
+      const midY = (a.y2D + b.y2D) / 2;
+      const spanX = Math.abs(b.x2D - a.x2D) + 380;
+      const spanY = Math.abs(b.y2D - a.y2D) + 260;
+      const dpr = window.devicePixelRatio || 1;
+      const canvasW = (this.canvas.width / dpr) || 900;
+      const canvasH = (this.canvas.height / dpr) || 560;
+      const fitZoom = Math.min(canvasW / Math.max(spanX, 100), canvasH / Math.max(spanY, 100)) * 0.88;
+      this.targetZoom2D = Math.max(0.4, Math.min(1.4, fitZoom));
+      this.targetPanX2D = -midX;
+      this.targetPanY2D = -midY;
+    } else {
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      const midZ = (a.z + b.z) / 2;
+      const r = Math.hypot(midX, midY, midZ) || 1;
+      this.targetTheta = Math.atan2(midX, midZ);
+      this.targetPhi = Math.asin(-midY / r);
+      this.targetR = 460;
+      this.panX = 0;
+      this.panY = 0;
     }
   }
 
@@ -16897,11 +17132,34 @@ class DataCosmosEngine {
       this.panX = 0;
       this.panY = 0;
     } else {
-      this.panX2D = -node.x2D;
-      this.panY2D = -node.y2D;
+      this.targetPanX2D = -node.x2D;
+      this.targetPanY2D = -node.y2D;
       this.targetZoom2D = 1.3;
     }
     this.selectNode(node);
+  }
+
+  public matchesFilter(node: CosmosNode): boolean {
+    if (this.roleFilter && this.roleFilter !== 'all' && node.role !== this.roleFilter) {
+      return false;
+    }
+    if (!this.searchQuery) {
+      return true;
+    }
+    const q = this.searchQuery.toLowerCase().trim();
+    if (node.name.toLowerCase().includes(q)) return true;
+    if (node.id.toLowerCase().includes(q)) return true;
+    if (node.schema && node.schema.toLowerCase().includes(q)) return true;
+    if (node.domain && node.domain.toLowerCase().includes(q)) return true;
+    if (node.columns && node.columns.some(c => c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q))) return true;
+    return false;
+  }
+
+  public setFilter(query: string, role: string = 'all'): { matched: CosmosNode[]; total: number } {
+    this.searchQuery = (query || '').trim();
+    this.roleFilter = role || 'all';
+    const matched = this.nodes.filter(n => this.matchesFilter(n));
+    return { matched, total: this.nodes.length };
   }
 
   public findShortestPath(startId: string, endId: string): { path: string[]; sql: string } | null {
@@ -17039,6 +17297,8 @@ class DataCosmosEngine {
     if (this.mode === '2D') {
       this.panX2D = 0;
       this.panY2D = 0;
+      this.targetPanX2D = 0;
+      this.targetPanY2D = 0;
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       for (const n of this.nodes) {
         if (n.x2D < minX) minX = n.x2D;
@@ -17089,6 +17349,8 @@ class DataCosmosEngine {
     this.theta += (this.targetTheta - this.theta) * 0.12;
     this.phi += (this.targetPhi - this.phi) * 0.12;
     this.zoom2D += (this.targetZoom2D - this.zoom2D) * 0.14;
+    this.panX2D += (this.targetPanX2D - this.panX2D) * 0.16;
+    this.panY2D += (this.targetPanY2D - this.panY2D) * 0.16;
 
     // Turntable rotation
     if (this.isTurntable && this.activePointers.size === 0) {
@@ -17267,16 +17529,29 @@ class DataCosmosEngine {
     // Depth sort links & nodes
     const sortedNodes = [...this.nodes].sort((a, b) => b.screenZ - a.screenZ);
 
+    const isRelFocus = this.selectedLink !== null;
+    const activeRel = this.selectedLink;
+    const isFilterActive = !isRelFocus && (!!this.searchQuery || (this.roleFilter && this.roleFilter !== 'all'));
+
     // Draw Links & Photon Traffic
     for (const link of this.links) {
       const a = this.nodeMap.get(link.source);
       const b = this.nodeMap.get(link.target);
       if (!a || !b) continue;
 
+      const isSelectedLink = activeRel === link || (activeRel && ((activeRel.source === link.source && activeRel.target === link.target) || (activeRel.source === link.target && activeRel.target === link.source)));
+      const isConnected = !isRelFocus && this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+      const isHovered = this.hoveredLink === link;
       const isPath = link.isPathHighlighted;
-      const isConnected = this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+      const aMatches = !isFilterActive || this.matchesFilter(a);
+      const bMatches = !isFilterActive || this.matchesFilter(b);
 
       this.ctx.save();
+      if (isRelFocus) {
+        this.ctx.globalAlpha = isSelectedLink ? 1.0 : 0.02;
+      } else if (isFilterActive && !aMatches && !bMatches) {
+        this.ctx.globalAlpha = 0.08;
+      }
       this.ctx.beginPath();
       this.ctx.moveTo(a.screenX, a.screenY);
 
@@ -17285,14 +17560,19 @@ class DataCosmosEngine {
       const midY = (a.screenY + b.screenY) / 2 - 12;
       this.ctx.quadraticCurveTo(midX, midY, b.screenX, b.screenY);
 
-      if (isPath) {
+      if (isSelectedLink) {
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 4.0;
+        this.ctx.shadowColor = 'rgba(56, 189, 248, 0.9)';
+        this.ctx.shadowBlur = 18;
+      } else if (isPath) {
         this.ctx.strokeStyle = '#facc15';
         this.ctx.lineWidth = 3.5;
         this.ctx.shadowColor = 'rgba(250, 204, 21, 0.75)';
         this.ctx.shadowBlur = 12;
-      } else if (isConnected) {
+      } else if (isConnected || isHovered) {
         this.ctx.strokeStyle = '#38bdf8';
-        this.ctx.lineWidth = 2.4;
+        this.ctx.lineWidth = 2.6;
         this.ctx.shadowColor = 'rgba(56, 189, 248, 0.6)';
         this.ctx.shadowBlur = 8;
       } else {
@@ -17308,17 +17588,45 @@ class DataCosmosEngine {
       // Render Photon Traffic along arc
       for (const p of link.particles) {
         const t = p.progress;
-        // Quadratic bezier position
         const px = (1 - t) * (1 - t) * a.screenX + 2 * (1 - t) * t * midX + t * t * b.screenX;
         const py = (1 - t) * (1 - t) * a.screenY + 2 * (1 - t) * t * midY + t * t * b.screenY;
 
         this.ctx.save();
+        if (isRelFocus) {
+          this.ctx.globalAlpha = isSelectedLink ? 1.0 : 0.02;
+        } else if (isFilterActive && !aMatches && !bMatches) {
+          this.ctx.globalAlpha = 0.08;
+        }
         this.ctx.beginPath();
-        this.ctx.arc(px, py, isPath ? p.size * 1.5 : p.size, 0, Math.PI * 2);
-        this.ctx.fillStyle = isPath ? '#fef08a' : isConnected ? '#bae6fd' : '#a5b4fc';
-        this.ctx.shadowColor = isPath ? '#facc15' : '#818cf8';
-        this.ctx.shadowBlur = 6;
+        this.ctx.arc(px, py, isSelectedLink ? p.size * 1.8 : isPath ? p.size * 1.5 : p.size, 0, Math.PI * 2);
+        this.ctx.fillStyle = isSelectedLink ? '#38bdf8' : isPath ? '#fef08a' : isConnected ? '#bae6fd' : '#a5b4fc';
+        this.ctx.shadowColor = isSelectedLink ? '#38bdf8' : isPath ? '#facc15' : '#818cf8';
+        this.ctx.shadowBlur = isSelectedLink ? 10 : 6;
         this.ctx.fill();
+        this.ctx.restore();
+      }
+
+      // Midpoint badge for selected or hovered link in 3D
+      if (isSelectedLink || isHovered) {
+        this.ctx.save();
+        const badgeText = `${link.source}.${link.sourceCol} = ${link.target}.${link.targetCol} (${link.cardinality || '1:N'})`;
+        this.ctx.font = 'bold 11px system-ui, -apple-system, monospace';
+        const tw = this.ctx.measureText(badgeText).width;
+        const bw = tw + 18;
+        const bh = 22;
+        this.ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
+        this.ctx.shadowBlur = 12;
+        roundRect(this.ctx, midX - bw / 2, midY - bh / 2, bw, bh, 6);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#38bdf8';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(badgeText, midX, midY);
         this.ctx.restore();
       }
     }
@@ -17326,19 +17634,42 @@ class DataCosmosEngine {
     // Draw Nodes (Spherical 3D Lighting)
     for (const node of sortedNodes) {
       const r = node.screenRadius;
+      const isLinkedSource = isRelFocus && activeRel!.source === node.id;
+      const isLinkedTarget = isRelFocus && activeRel!.target === node.id;
+      const isInRelFocus = isLinkedSource || isLinkedTarget;
+
       const isSel = this.selectedNodeId === node.id;
       const isHover = this.hoveredNodeId === node.id;
       const isPath = this.activePath.includes(node.id);
+      const matches = !isFilterActive || this.matchesFilter(node);
 
       this.ctx.save();
+      if (isRelFocus) {
+        this.ctx.globalAlpha = isInRelFocus ? 1.0 : 0.05;
+      } else if (isFilterActive && !matches) {
+        this.ctx.globalAlpha = 0.12;
+      } else {
+        this.ctx.globalAlpha = 1.0;
+      }
+
+      // If active filter and node matches, draw extra search highlight ring
+      if (isFilterActive && matches && !isSel && !isPath) {
+        this.ctx.beginPath();
+        this.ctx.arc(node.screenX, node.screenY, r + 7, 0, Math.PI * 2);
+        this.ctx.strokeStyle = '#38bdf8';
+        this.ctx.lineWidth = 2.5;
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = 14;
+        this.ctx.stroke();
+      }
 
       // Outer Selection / Spotlight Halo Ring
-      if (isSel || isPath || isHover) {
+      if (isInRelFocus || isSel || isPath || isHover) {
         this.ctx.beginPath();
-        this.ctx.arc(node.screenX, node.screenY, r + (isSel ? 9 : 6), 0, Math.PI * 2);
-        this.ctx.strokeStyle = isPath ? '#facc15' : isSel ? '#38bdf8' : 'rgba(255,255,255,0.4)';
-        this.ctx.lineWidth = isSel || isPath ? 3 : 1.5;
-        this.ctx.shadowColor = isPath ? '#facc15' : '#38bdf8';
+        this.ctx.arc(node.screenX, node.screenY, r + (isInRelFocus ? 10 : isSel ? 9 : 6), 0, Math.PI * 2);
+        this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isPath ? '#facc15' : isSel ? '#38bdf8' : 'rgba(255,255,255,0.4)';
+        this.ctx.lineWidth = isInRelFocus || isSel || isPath ? 3 : 1.5;
+        this.ctx.shadowColor = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isPath ? '#facc15' : '#38bdf8';
         this.ctx.shadowBlur = 14;
         this.ctx.stroke();
       }
@@ -17387,7 +17718,7 @@ class DataCosmosEngine {
 
       // Pill Background
       this.ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
-      this.ctx.strokeStyle = isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255,255,255,0.12)';
+      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255,255,255,0.12)';
       this.ctx.lineWidth = 1;
       const pillW = textWidth + 14;
       const pillH = 19;
@@ -17396,7 +17727,7 @@ class DataCosmosEngine {
       this.ctx.stroke();
 
       // Text Label
-      this.ctx.fillStyle = isSel ? '#38bdf8' : isPath ? '#facc15' : '#f8fafc';
+      this.ctx.fillStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : '#f8fafc';
       this.ctx.fillText(node.name, node.screenX, labelY);
 
       // Sub-label with Row Count
@@ -17437,7 +17768,6 @@ class DataCosmosEngine {
     this.ctx.restore();
 
     const cardW = 180 * this.zoom2D;
-    const cardH = 125 * this.zoom2D;
 
     // Update screen coordinates
     for (const node of this.nodes) {
@@ -17445,52 +17775,165 @@ class DataCosmosEngine {
       node.screenY = centerY + node.y2D * this.zoom2D;
     }
 
+    const isRelFocus = this.selectedLink !== null;
+    const activeRel = this.selectedLink;
+    const isFilterActive = !isRelFocus && (!!this.searchQuery || (this.roleFilter && this.roleFilter !== 'all'));
+
     // Draw Links
     for (const link of this.links) {
       const a = this.nodeMap.get(link.source);
       const b = this.nodeMap.get(link.target);
       if (!a || !b) continue;
 
+      const isSelectedLink = activeRel === link || (activeRel && ((activeRel.source === link.source && activeRel.target === link.target) || (activeRel.source === link.target && activeRel.target === link.source)));
+      const isConnected = !isRelFocus && this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+      const isHovered = this.hoveredLink === link;
       const isPath = link.isPathHighlighted;
-      const isConnected = this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+      const aMatches = !isFilterActive || this.matchesFilter(a);
+      const bMatches = !isFilterActive || this.matchesFilter(b);
 
       this.ctx.save();
-      this.ctx.beginPath();
-      this.ctx.moveTo(a.screenX, a.screenY);
-      const cpX = (a.screenX + b.screenX) / 2;
-      this.ctx.bezierCurveTo(cpX, a.screenY, cpX, b.screenY, b.screenX, b.screenY);
+      if (isRelFocus) {
+        this.ctx.globalAlpha = isSelectedLink ? 1.0 : 0.02;
+      } else if (isFilterActive && !aMatches && !bMatches) {
+        this.ctx.globalAlpha = 0.08;
+      }
 
-      if (isPath) {
+      const pts = this.getLink2DPoints(link);
+      if (!pts) {
+        this.ctx.restore();
+        continue;
+      }
+      const { srcX, srcY, tgtX, tgtY, cp1X, cp1Y, cp2X, cp2Y, midX, midY } = pts;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(srcX, srcY);
+      this.ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, tgtX, tgtY);
+
+      if (isSelectedLink) {
+        // Vibrant electric cyber beam
+        const grad = this.ctx.createLinearGradient(srcX, srcY, tgtX, tgtY);
+        grad.addColorStop(0, '#facc15'); // PK anchor
+        grad.addColorStop(1, '#38bdf8'); // FK anchor
+        this.ctx.strokeStyle = grad;
+        this.ctx.lineWidth = 3.5 * this.zoom2D;
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = 16;
+      } else if (isPath) {
         this.ctx.strokeStyle = '#facc15';
         this.ctx.lineWidth = 3 * this.zoom2D;
         this.ctx.shadowColor = '#facc15';
         this.ctx.shadowBlur = 10;
-      } else if (isConnected) {
+      } else if (isConnected || isHovered) {
         this.ctx.strokeStyle = '#38bdf8';
-        this.ctx.lineWidth = 2.2 * this.zoom2D;
+        this.ctx.lineWidth = 2.4 * this.zoom2D;
         this.ctx.shadowColor = '#38bdf8';
-        this.ctx.shadowBlur = 6;
+        this.ctx.shadowBlur = 8;
       } else {
-        this.ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+        this.ctx.strokeStyle = 'rgba(148, 163, 184, 0.28)';
         this.ctx.lineWidth = 1.2 * this.zoom2D;
       }
       this.ctx.stroke();
+
+      // Draw Terminal Socket Pins (Anchor Points)
+      if (isSelectedLink || isConnected || isHovered) {
+        const pinR = Math.max(3, 4.5 * this.zoom2D);
+        // Source pin
+        this.ctx.beginPath();
+        this.ctx.arc(srcX, srcY, pinR, 0, Math.PI * 2);
+        this.ctx.fillStyle = '#facc15';
+        this.ctx.shadowColor = '#facc15';
+        this.ctx.shadowBlur = 8;
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.stroke();
+
+        // Target pin
+        this.ctx.beginPath();
+        this.ctx.arc(tgtX, tgtY, pinR, 0, Math.PI * 2);
+        this.ctx.fillStyle = '#38bdf8';
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = 8;
+        this.ctx.fill();
+        this.ctx.strokeStyle = '#ffffff';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.stroke();
+      }
+
+      // Render Photon particles along cubic bezier
+      for (const p of link.particles) {
+        const t = p.progress;
+        const px = (1 - t) * (1 - t) * (1 - t) * srcX + 3 * (1 - t) * (1 - t) * t * cp1X + 3 * (1 - t) * t * t * cp2X + t * t * t * tgtX;
+        const py = (1 - t) * (1 - t) * (1 - t) * srcY + 3 * (1 - t) * (1 - t) * t * cp1Y + 3 * (1 - t) * t * t * cp2Y + t * t * t * tgtY;
+
+        this.ctx.beginPath();
+        this.ctx.arc(px, py, (isSelectedLink ? p.size * 1.6 : p.size) * Math.max(0.7, this.zoom2D), 0, Math.PI * 2);
+        this.ctx.fillStyle = isSelectedLink ? '#38bdf8' : isPath ? '#fef08a' : isConnected ? '#bae6fd' : '#a5b4fc';
+        this.ctx.shadowColor = isSelectedLink ? '#38bdf8' : isPath ? '#facc15' : '#818cf8';
+        this.ctx.shadowBlur = 6;
+        this.ctx.fill();
+      }
+
+      // Midpoint join badge for selected or hovered link
+      if (isSelectedLink || isHovered) {
+        const badgeText = `🔗 ${link.source}.${link.sourceCol} = ${link.target}.${link.targetCol} (${link.cardinality || '1:N'})`;
+        const fontSize = Math.max(9, Math.floor(10.5 * this.zoom2D));
+        this.ctx.font = `bold ${fontSize}px system-ui, -apple-system, monospace`;
+        const tw = this.ctx.measureText(badgeText).width;
+        const bw = tw + 18 * this.zoom2D;
+        const bh = 22 * this.zoom2D;
+        this.ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+        this.ctx.strokeStyle = isSelectedLink ? '#38bdf8' : 'rgba(56, 189, 248, 0.6)';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = isSelectedLink ? 14 : 8;
+        roundRect(this.ctx, midX - bw / 2, midY - bh / 2, bw, bh, 5 * this.zoom2D);
+        this.ctx.fill();
+        this.ctx.stroke();
+
+        this.ctx.fillStyle = '#38bdf8';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(badgeText, midX, midY);
+      }
+
       this.ctx.restore();
     }
 
     // Draw ERD Table Cards
     for (const node of this.nodes) {
-      const x = node.screenX - cardW / 2;
-      const y = node.screenY - cardH / 2;
+      const isLinkedSource = isRelFocus && activeRel!.source === node.id;
+      const isLinkedTarget = isRelFocus && activeRel!.target === node.id;
+      const isInRelFocus = isLinkedSource || isLinkedTarget;
+
       const isSel = this.selectedNodeId === node.id;
       const isPath = this.activePath.includes(node.id);
+      const matches = !isFilterActive || this.matchesFilter(node);
+      const isFilterMatch = isFilterActive && matches;
 
       this.ctx.save();
+      if (isRelFocus) {
+        this.ctx.globalAlpha = isInRelFocus ? 1.0 : 0.04;
+      } else if (isFilterActive && !matches) {
+        this.ctx.globalAlpha = 0.12;
+      } else {
+        this.ctx.globalAlpha = 1.0;
+      }
+
+      const visibleCols = this.getCardVisibleColumns(node);
+      const cardH = this.getCardHeight(node);
+      const x = node.screenX - cardW / 2;
+      const y = node.screenY - cardH / 2;
 
       // Card Container
       this.ctx.fillStyle = '#111827';
-      this.ctx.strokeStyle = isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255,255,255,0.12)';
-      this.ctx.lineWidth = isSel || isPath ? 2.5 : 1;
+      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : isFilterMatch ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+      this.ctx.lineWidth = isInRelFocus ? 3 : (isSel || isPath || isFilterMatch ? 2.5 : 1);
+      if ((isFilterMatch || isInRelFocus) && !isSel && !isPath) {
+        this.ctx.shadowColor = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : '#38bdf8';
+        this.ctx.shadowBlur = isInRelFocus ? 16 : 10;
+      }
       roundRect(this.ctx, x, y, cardW, cardH, 6);
       this.ctx.fill();
       this.ctx.stroke();
@@ -17508,29 +17951,45 @@ class DataCosmosEngine {
       this.ctx.textBaseline = 'middle';
       this.ctx.fillText(node.name, x + 8 * this.zoom2D, y + headerH / 2);
 
-      // Top 3-4 Columns preview
-      const topCols = node.columns.slice(0, 4);
+      // Render Columns
       let colY = y + headerH + 12 * this.zoom2D;
       const fontSize = Math.max(8, Math.floor(9.5 * this.zoom2D));
       this.ctx.font = `${fontSize}px monospace`;
 
-      for (const col of topCols) {
+      for (const col of visibleCols) {
+        const isSourceColLinked = (isRelFocus && isLinkedSource && col.name.toLowerCase() === activeRel!.sourceCol.toLowerCase()) ||
+          (this.hoveredLink && this.hoveredLink.source === node.id && col.name.toLowerCase() === this.hoveredLink.sourceCol.toLowerCase());
+        const isTargetColLinked = (isRelFocus && isLinkedTarget && col.name.toLowerCase() === activeRel!.targetCol.toLowerCase()) ||
+          (this.hoveredLink && this.hoveredLink.target === node.id && col.name.toLowerCase() === this.hoveredLink.targetCol.toLowerCase());
+        const isColLinked = isSourceColLinked || isTargetColLinked;
+
+        // Draw highlighted glowing pill background behind the linked column
+        if (isColLinked) {
+          this.ctx.fillStyle = isSourceColLinked ? 'rgba(250, 204, 21, 0.22)' : 'rgba(56, 189, 248, 0.22)';
+          this.ctx.strokeStyle = isSourceColLinked ? '#facc15' : '#38bdf8';
+          this.ctx.lineWidth = 1;
+          roundRect(this.ctx, x + 4 * this.zoom2D, colY - 9 * this.zoom2D, cardW - 8 * this.zoom2D, 15 * this.zoom2D, 3);
+          this.ctx.fill();
+          this.ctx.stroke();
+        }
+
         const icon = col.isPrimary ? '🔑' : col.isForeign ? '🔗' : '•';
-        this.ctx.fillStyle = col.isPrimary ? '#facc15' : col.isForeign ? '#38bdf8' : '#94a3b8';
+        this.ctx.fillStyle = isColLinked ? '#ffffff' : (col.isPrimary ? '#facc15' : col.isForeign ? '#38bdf8' : '#94a3b8');
         this.ctx.fillText(`${icon} ${col.name}`, x + 8 * this.zoom2D, colY);
 
-        this.ctx.fillStyle = '#64748b';
+        this.ctx.fillStyle = isColLinked ? (isSourceColLinked ? '#facc15' : '#38bdf8') : '#64748b';
         this.ctx.textAlign = 'right';
-        this.ctx.fillText(col.type, x + cardW - 8 * this.zoom2D, colY);
+        const typeText = isColLinked ? `${col.type} ${isSourceColLinked ? '[PK]' : '[FK]'}` : col.type;
+        this.ctx.fillText(typeText, x + cardW - 8 * this.zoom2D, colY);
         this.ctx.textAlign = 'left';
 
         colY += 16 * this.zoom2D;
       }
 
-      if (node.columns.length > 4) {
+      if (node.columns.length > visibleCols.length) {
         this.ctx.fillStyle = '#64748b';
         this.ctx.font = `italic ${Math.max(7, Math.floor(8.5 * this.zoom2D))}px sans-serif`;
-        this.ctx.fillText(`+${node.columns.length - 4} more columns`, x + 8 * this.zoom2D, colY);
+        this.ctx.fillText(`+${node.columns.length - visibleCols.length} more columns`, x + 8 * this.zoom2D, colY);
       }
 
       this.ctx.restore();
@@ -17722,6 +18181,212 @@ function setupDataCosmosStudio(api: any): void {
     if (prevEnd && nodes.some(n => n.id === prevEnd)) cosmosPathEnd.value = prevEnd;
   };
 
+  // Helper: Highlight matching query substring
+  const highlightMatch = (text: string, query: string): string => {
+    if (!query || !text) return escapeHtml(text || '');
+    const q = query.trim().toLowerCase();
+    const idx = text.toLowerCase().indexOf(q);
+    if (idx === -1) return escapeHtml(text);
+    const before = escapeHtml(text.substring(0, idx));
+    const matched = escapeHtml(text.substring(idx, idx + q.length));
+    const after = escapeHtml(text.substring(idx + q.length));
+    return `${before}<span style="background: rgba(56, 189, 248, 0.35); color: #38bdf8; font-weight: 700; border-radius: 2px; padding: 0 2px;">${matched}</span>${after}`;
+  };
+
+  // 3b. Populate Quick Jump Table Selects & Role Counts
+  const populateQuickJumpSelects = (nodes: CosmosNode[]) => {
+    const p2Jump = document.getElementById('p2CosmosQuickJump') as HTMLSelectElement | null;
+    const dataJump = document.getElementById('cosmosQuickJump') as HTMLSelectElement | null;
+
+    const sorted = [...nodes].sort((a, b) => a.name.localeCompare(b.name));
+    const opts = sorted.map(n => {
+      const roleIcon = n.role === 'fact' ? '⭐' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '•';
+      return `<option value="${n.id}">${roleIcon} ${n.name} (${n.columns.length} cols)</option>`;
+    }).join('');
+
+    if (p2Jump) p2Jump.innerHTML = `<option value="">Jump to table (${nodes.length})...</option>${opts}`;
+    if (dataJump) dataJump.innerHTML = `<option value="">Jump to table (${nodes.length})...</option>${opts}`;
+
+    // Update Counts on Filter Pills
+    const factCount = nodes.filter(n => n.role === 'fact').length;
+    const dimCount = nodes.filter(n => n.role === 'dimension').length;
+    const bridgeCount = nodes.filter(n => n.role === 'bridge').length;
+
+    const setCounts = (allId: string, factsId: string, dimsId: string, bridgesId: string) => {
+      const elAll = document.getElementById(allId);
+      const elFacts = document.getElementById(factsId);
+      const elDims = document.getElementById(dimsId);
+      const elBridges = document.getElementById(bridgesId);
+      if (elAll) elAll.textContent = String(nodes.length);
+      if (elFacts) elFacts.textContent = String(factCount);
+      if (elDims) elDims.textContent = String(dimCount);
+      if (elBridges) elBridges.textContent = String(bridgeCount);
+    };
+
+    setCounts('p2CountAll', 'p2CountFacts', 'p2CountDims', 'p2CountBridges');
+    setCounts('dataCountAll', 'dataCountFacts', 'dataCountDims', 'dataCountBridges');
+  };
+
+  // Helper: Generate CREATE TABLE DDL SQL
+  const generateTableDdl = (node: CosmosNode): string => {
+    const colLines = node.columns.map(c => {
+      let line = `  ${c.name} ${c.type.toUpperCase()}`;
+      if (c.isPrimary) line += ' PRIMARY KEY';
+      return line;
+    });
+    return `-- Schema DDL: ${node.schema ? `${node.schema}.` : ''}${node.name}\n-- Generated by EvolveAI Schema Topology Engine\nCREATE TABLE ${node.schema ? `${node.schema}.` : ''}${node.name} (\n${colLines.join(',\n')}\n);`;
+  };
+
+  // 3c. Render Searchable Table Directory in Inspector
+  const renderTableDirectory = (isPhase2: boolean, searchQuery: string = '', roleFilter: string = 'all', sortMode: string = 'name') => {
+    const emptyBox = isPhase2 ? p2InspectorEmpty : cosmosInspectorEmpty;
+    if (!emptyBox || !currentGraphData) return;
+
+    let nodes = [...currentGraphData.nodes];
+
+    // Filter by role
+    if (roleFilter !== 'all') {
+      nodes = nodes.filter(n => n.role === roleFilter);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      nodes = nodes.filter(n =>
+        n.name.toLowerCase().includes(q) ||
+        n.id.toLowerCase().includes(q) ||
+        (n.schema && n.schema.toLowerCase().includes(q)) ||
+        (n.columns && n.columns.some(c => c.name.toLowerCase().includes(q)))
+      );
+    }
+
+    // Sort nodes
+    if (sortMode === 'rows') {
+      nodes.sort((a, b) => (b.rowCountEstimate || 0) - (a.rowCountEstimate || 0));
+    } else if (sortMode === 'cols') {
+      nodes.sort((a, b) => (b.columns?.length || 0) - (a.columns?.length || 0));
+    } else if (sortMode === 'fks') {
+      const countFks = (id: string) => (currentGraphData?.links || []).filter(l => l.source === id || l.target === id).length;
+      nodes.sort((a, b) => countFks(b.id) - countFks(a.id));
+    } else {
+      nodes.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    const totalCount = currentGraphData.nodes.length;
+    const isLive = ((currentGraphData.stats as any)?.sourceMode === 'connected') ||
+      (currentIntrospectedTables && currentIntrospectedTables.length > 0);
+
+    emptyBox.style.display = 'block';
+    emptyBox.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 0;">
+        <!-- Directory Header -->
+        <div style="border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span style="font-size: 14px;">📋</span>
+              <strong style="font-size: 13px; color: #fff;">Table Directory</strong>
+              <span style="font-size: 10px; padding: 1px 6px; border-radius: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-weight: 700;">
+                ${nodes.length}${nodes.length !== totalCount ? ` / ${totalCount}` : ''}
+              </span>
+            </div>
+            <span style="font-size: 9.5px; color: ${isLive ? '#10b981' : '#38bdf8'}; font-weight: 600;">
+              ${isLive ? '⚡ Live DB' : '⭐ Demo'}
+            </span>
+          </div>
+          <div style="font-size: 10.5px; color: #94a3b8;">
+            Select any table below or tap nodes on canvas to inspect schema and records.
+          </div>
+        </div>
+
+        <!-- Inline Sort & Mini-Search -->
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <input type="text" class="directoryQuickSearchInput" placeholder="Quick filter list..." value="${escapeHtml(searchQuery)}" style="flex: 1; padding: 4px 6px; font-size: 11px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;" />
+          <select class="directorySortSelect" style="padding: 4px 6px; font-size: 10.5px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+            <option value="name" ${sortMode === 'name' ? 'selected' : ''}>A-Z</option>
+            <option value="rows" ${sortMode === 'rows' ? 'selected' : ''}>Rows ↓</option>
+            <option value="cols" ${sortMode === 'cols' ? 'selected' : ''}>Cols ↓</option>
+            <option value="fks" ${sortMode === 'fks' ? 'selected' : ''}>FKs ↓</option>
+          </select>
+        </div>
+
+        <!-- Table Cards List -->
+        <div class="directoryCardsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 440px; overflow-y: auto; padding-right: 2px;">
+          ${nodes.length === 0 ? `
+            <div style="padding: 24px 12px; text-align: center; color: #94a3b8; font-size: 11.5px;">
+              No tables match the current filter.
+            </div>
+          ` : nodes.map(n => {
+            const roleBadgeColor = n.role === 'fact' ? '#6366f1' : n.role === 'dimension' ? '#10b981' : n.role === 'bridge' ? '#f59e0b' : '#ec4899';
+            const roleIcon = n.role === 'fact' ? '⭐' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '🔍';
+            const fkCount = (currentGraphData?.links || []).filter(l => l.source === n.id || l.target === n.id).length;
+            return `
+              <div class="cosmos-directory-card" data-id="${n.id}" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.15s; position: relative;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                    <span style="font-size: 12px;">${roleIcon}</span>
+                    <strong style="color: #fff; font-family: monospace; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(n.name)}</strong>
+                  </div>
+                  <span style="font-size: 9px; padding: 1px 5px; border-radius: 8px; background: ${roleBadgeColor}22; color: ${roleBadgeColor}; border: 1px solid ${roleBadgeColor}44; text-transform: uppercase; font-weight: 700;">
+                    ${n.role}
+                  </span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 10px; color: #94a3b8;">
+                  <span style="color: #4ade80;">📊 ${Number(n.rowCountEstimate).toLocaleString()} rows</span>
+                  <span>&bull;</span>
+                  <span style="color: #38bdf8;">📋 ${n.columns.length} cols</span>
+                  <span>&bull;</span>
+                  <span style="color: #facc15;">🔗 ${fkCount} FKs</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    // Wire Card Click & Hover
+    emptyBox.querySelectorAll('.cosmos-directory-card').forEach(card => {
+      const nId = card.getAttribute('data-id');
+      const node = currentGraphData?.nodes.find(n => n.id === nId);
+      if (!node) return;
+
+      card.addEventListener('mouseenter', () => {
+        (card as HTMLElement).style.background = 'rgba(56, 189, 248, 0.12)';
+        (card as HTMLElement).style.borderColor = '#38bdf8';
+        const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+        if (engine) engine.hoveredNodeId = node.id;
+      });
+
+      card.addEventListener('mouseleave', () => {
+        (card as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
+        (card as HTMLElement).style.borderColor = 'var(--border)';
+        const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+        if (engine && engine.hoveredNodeId === node.id) engine.hoveredNodeId = null;
+      });
+
+      card.addEventListener('click', () => {
+        const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+        engine?.selectNode(node);
+        engine?.flyCameraToNode(node);
+        renderTableInspector(node, isPhase2);
+        showToast(`🎯 Spotlighted table '${node.name}' (${Number(node.rowCountEstimate).toLocaleString()} rows)`);
+      });
+    });
+
+    // Wire Inline Search & Sort
+    const quickInput = emptyBox.querySelector('.directoryQuickSearchInput') as HTMLInputElement | null;
+    quickInput?.addEventListener('input', () => {
+      const q = quickInput.value;
+      renderTableDirectory(isPhase2, q, roleFilter, sortMode);
+    });
+
+    const sortSelect = emptyBox.querySelector('.directorySortSelect') as HTMLSelectElement | null;
+    sortSelect?.addEventListener('change', () => {
+      const s = sortSelect.value;
+      renderTableDirectory(isPhase2, searchQuery, roleFilter, s);
+    });
+  };
+
   // 4. Populate Table Spotlight Inspector
   const renderTableInspector = (node: CosmosNode | null, isPhase2 = false) => {
     const emptyBox = isPhase2 ? p2InspectorEmpty : cosmosInspectorEmpty;
@@ -17731,6 +18396,7 @@ function setupDataCosmosStudio(api: any): void {
     if (!node) {
       emptyBox.style.display = 'block';
       detailBox.style.display = 'none';
+      renderTableDirectory(isPhase2);
       return;
     }
 
@@ -17748,17 +18414,30 @@ function setupDataCosmosStudio(api: any): void {
       (currentIntrospectedTables && currentIntrospectedTables.some((t: any) => (t.tableName || t.name || '').toLowerCase() === node.name.toLowerCase()));
 
     detailBox.innerHTML = `
+      <!-- Navigation Header: Back to Directory & Quick Switch -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+        <button class="btn-quick btnInspectorBackToDir" style="padding: 3px 8px; font-size: 10.5px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4); display: flex; align-items: center; gap: 4px; font-weight: 600;" title="Back to table directory">
+          ⬅ All Tables (${currentGraphData?.nodes.length || 0})
+        </button>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span style="font-size: 10px; color: #94a3b8; font-weight: 600;">Jump:</span>
+          <select class="inspectorTableJumpSelect" style="padding: 2px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px; max-width: 140px;">
+            ${(currentGraphData?.nodes || []).map(n => `<option value="${n.id}" ${n.id === node.id ? 'selected' : ''}>${n.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+
       <div style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <strong style="font-size: 15px; color: #fff; font-family: monospace;">${node.name}</strong>
+          <strong style="font-size: 15px; color: #fff; font-family: monospace;">${escapeHtml(node.name)}</strong>
           <span style="background: ${roleBadgeColor}22; color: ${roleBadgeColor}; border: 1px solid ${roleBadgeColor}; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase;">
             ${roleIcon} ${node.role}
           </span>
         </div>
         <div style="font-size: 11px; color: #94a3b8; display: flex; gap: 8px;">
-          <span>Schema: <code>${node.schema}</code></span>
+          <span>Schema: <code>${escapeHtml(node.schema)}</code></span>
           <span>&bull;</span>
-          <span>Domain: <strong style="color: ${node.color};">${node.domain}</strong></span>
+          <span>Domain: <strong style="color: ${node.color};">${escapeHtml(node.domain)}</strong></span>
         </div>
         <div style="margin-top: 6px; display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(255,255,255,0.06); font-size: 10.5px;">
           <span>Source: <strong style="color: ${isLiveTable ? '#10b981' : '#38bdf8'};">${isLiveTable ? '⚡ Live Database' : '⚡ Demo Star Schema'}</strong></span>
@@ -17794,6 +18473,9 @@ function setupDataCosmosStudio(api: any): void {
         <button class="btn" id="btnInspectorPreviewData_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-weight: 700; font-size: 11px; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
           🔍 Preview Sample Data (50 rows)
         </button>
+        <button class="btn-quick" id="btnInspectorCopyDdl_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; padding: 5px 10px; font-size: 10.5px; margin: 0; color: #94a3b8; border-color: rgba(255,255,255,0.1);" title="Copy CREATE TABLE DDL SQL">
+          📋 Copy Table Schema DDL
+        </button>
       </div>
 
       <!-- Foreign Key Relationships -->
@@ -17808,44 +18490,84 @@ function setupDataCosmosStudio(api: any): void {
               const isOut = l.source === node.id;
               const arrow = isOut ? '➔' : '🠔';
               return `
-                <div class="cosmos-fk-chip" data-target="${otherId}" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 10.5px; cursor: pointer;">
-                  <span style="font-family: monospace; color: #38bdf8;">${arrow} ${otherId}</span>
-                  <span style="font-size: 9.5px; color: #94a3b8;">${l.cardinality || '1:N'}</span>
+                <div class="cosmos-fk-chip" data-source="${l.source}" data-target="${l.target}" data-target-table="${otherId}" style="display: flex; flex-direction: column; gap: 2px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 10.5px; cursor: pointer; transition: all 0.15s;" title="Click to inspect relationship and isolate join mapping">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-family: monospace; color: #38bdf8; font-weight: 600;">${arrow} ${otherId}</span>
+                    <span style="font-size: 9.5px; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 1px 6px; border-radius: 8px;">${l.cardinality || '1:N'}</span>
+                  </div>
+                  <div style="font-size: 10px; color: #94a3b8; font-family: monospace; display: flex; align-items: center; gap: 4px;">
+                    <span>${l.sourceCol}</span>
+                    <span style="color: #64748b;">=</span>
+                    <span>${l.targetCol}</span>
+                  </div>
                 </div>
               `;
             }).join('')}
         </div>
       </div>
 
-      <!-- Columns & Types -->
+      <!-- Columns & Types with Search Filter -->
       <div>
-        <div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-bottom: 6px;">
-          📋 Table Columns:
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="font-size: 11px; font-weight: 700; color: #94a3b8;">
+            📋 Columns (<span class="colCountSpan">${node.columns.length}</span>):
+          </div>
+          <input type="text" class="inspectorColSearchInput" placeholder="Filter columns..." style="padding: 2px 6px; font-size: 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; width: 110px;" />
         </div>
-        <div style="display: flex; flex-direction: column; gap: 3px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 11px;">
+        <div class="inspectorColList" style="display: flex; flex-direction: column; gap: 3px; max-height: 180px; overflow-y: auto; font-family: monospace; font-size: 11px;">
           ${node.columns.map(c => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; border-bottom: 1px dashed rgba(255,255,255,0.06);">
+            <div class="inspector-col-row" data-col="${escapeHtml(c.name.toLowerCase())}" data-type="${escapeHtml(c.type.toLowerCase())}" style="display: flex; justify-content: space-between; align-items: center; padding: 2px 4px; border-bottom: 1px dashed rgba(255,255,255,0.06);">
               <span style="color: ${c.isPrimary ? '#facc15' : c.isForeign ? '#38bdf8' : '#e2e8f0'};">
-                ${c.isPrimary ? '🔑 ' : c.isForeign ? '🔗 ' : ''}${c.name}
+                ${c.isPrimary ? '🔑 ' : c.isForeign ? '🔗 ' : ''}${escapeHtml(c.name)}
               </span>
-              <span style="font-size: 10px; color: #64748b;">${c.type}</span>
+              <span style="font-size: 10px; color: #64748b;">${escapeHtml(c.type)}</span>
             </div>
           `).join('')}
         </div>
       </div>
     `;
 
-    // Click on neighbor chip spotlights neighbor
+    // Wire Back to Directory button
+    detailBox.querySelector('.btnInspectorBackToDir')?.addEventListener('click', () => {
+      const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+      engine?.selectNode(null);
+      renderTableInspector(null, isPhase2);
+    });
+
+    // Wire Jump Select
+    const jumpSelect = detailBox.querySelector('.inspectorTableJumpSelect') as HTMLSelectElement | null;
+    jumpSelect?.addEventListener('change', () => {
+      if (jumpSelect.value) {
+        (window as any).spotlightCosmosTable(jumpSelect.value);
+      }
+    });
+
+    // Wire Column Search Filter
+    const colInput = detailBox.querySelector('.inspectorColSearchInput') as HTMLInputElement | null;
+    colInput?.addEventListener('input', () => {
+      const q = colInput.value.toLowerCase().trim();
+      const rows = detailBox.querySelectorAll('.inspector-col-row');
+      let visibleCount = 0;
+      rows.forEach(r => {
+        const colName = r.getAttribute('data-col') || '';
+        const colType = r.getAttribute('data-type') || '';
+        const match = !q || colName.includes(q) || colType.includes(q);
+        (r as HTMLElement).style.display = match ? 'flex' : 'none';
+        if (match) visibleCount++;
+      });
+      const countSpan = detailBox.querySelector('.colCountSpan');
+      if (countSpan) countSpan.textContent = q ? `${visibleCount} / ${node.columns.length}` : `${node.columns.length}`;
+    });
+
+    // Wire Click on relationship chip selects link and enters isolation mode
     detailBox.querySelectorAll('.cosmos-fk-chip').forEach(chip => {
       chip.addEventListener('click', () => {
-        const targetId = chip.getAttribute('data-target');
-        if (targetId && currentGraphData) {
-          const targetNode = currentGraphData.nodes.find(n => n.id === targetId);
-          if (targetNode) {
-            const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
-            engine?.selectNode(targetNode);
-            engine?.flyCameraToNode(targetNode);
-          }
+        const src = chip.getAttribute('data-source');
+        const tgt = chip.getAttribute('data-target');
+        const link = (currentGraphData?.links || []).find(l => (l.source === src && l.target === tgt) || (l.source === tgt && l.target === src));
+        if (link) {
+          const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+          engine?.selectLink(link);
         }
       });
     });
@@ -17942,6 +18664,430 @@ function setupDataCosmosStudio(api: any): void {
     btnPreview?.addEventListener('click', () => {
       (window as any).openSampleDataModal?.(node.name, node);
     });
+
+    // Wire Copy Table DDL SQL
+    const btnDdl = document.getElementById(`btnInspectorCopyDdl_${isPhase2 ? 'p2' : 'data'}`);
+    btnDdl?.addEventListener('click', async () => {
+      try {
+        const ddl = generateTableDdl(node);
+        await navigator.clipboard.writeText(ddl);
+        showToast(`✓ Copied '${node.name}' DDL SQL schema to clipboard!`);
+      } catch (err) {
+        showToast(`✓ Schema: ${node.name} (${node.columns.length} columns)`);
+      }
+    });
+  };
+
+  // 4c. Render Relationship Deep-Dive & Join Inspector
+  const renderRelationshipInspector = (link: CosmosLink | null, isPhase2 = false) => {
+    const emptyBox = isPhase2 ? p2InspectorEmpty : cosmosInspectorEmpty;
+    const detailBox = isPhase2 ? p2InspectorContent : cosmosInspectorDetails;
+    const relPill = document.getElementById(isPhase2 ? 'p2CosmosRelPill' : 'cosmosRelPill');
+    const relText = document.getElementById(isPhase2 ? 'p2CosmosRelText' : 'cosmosRelText');
+    if (!emptyBox || !detailBox) return;
+
+    if (!link || !currentGraphData) {
+      if (relPill) relPill.style.display = 'none';
+      renderTableInspector(null, isPhase2);
+      return;
+    }
+
+    const sourceNode = currentGraphData.nodes.find(n => n.id === link.source);
+    const targetNode = currentGraphData.nodes.find(n => n.id === link.target);
+    if (!sourceNode || !targetNode) {
+      renderTableInspector(null, isPhase2);
+      return;
+    }
+
+    emptyBox.style.display = 'none';
+    detailBox.style.display = 'flex';
+
+    // Update Floating Canvas Pill
+    if (relPill && relText) {
+      relPill.style.display = 'flex';
+      relText.textContent = `${sourceNode.name}.${link.sourceCol} ➔ ${targetNode.name}.${link.targetCol} (${link.cardinality || '1:N'})`;
+    }
+
+    const srcCol = sourceNode.columns.find(c => c.name.toLowerCase() === (link.sourceCol || '').toLowerCase());
+    const tgtCol = targetNode.columns.find(c => c.name.toLowerCase() === (link.targetCol || '').toLowerCase());
+    const cardinality = link.cardinality || '1:N';
+    const cardinalityLabel = cardinality === '1:1' ? 'One-to-One (1:1)' : cardinality === 'N:1' ? 'Many-to-One (N:1)' : 'One-to-Many (1:N)';
+
+    // Generate ANSI SQL Join Query
+    const joinSql = `-- Foreign Key Relational Join\n-- Generated by EvolveAI Schema Topology Engine\nSELECT\n  s.${link.sourceCol},\n  ${sourceNode.columns.slice(0, 3).map(c => `s.${c.name}`).join(', ')},\n  ${targetNode.columns.slice(0, 3).map(c => `t.${c.name}`).join(', ')}\nFROM ${sourceNode.schema || 'public'}.${sourceNode.name} s\nINNER JOIN ${targetNode.schema || 'public'}.${targetNode.name} t\n  ON s.${link.sourceCol} = t.${link.targetCol}\nLIMIT 50;`;
+
+    detailBox.innerHTML = `
+      <!-- Navigation Header: Back to Source Table & Exit Focus -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+        <button class="btn-quick btnRelBackToTable" style="padding: 3px 8px; font-size: 10.5px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4); display: flex; align-items: center; gap: 4px; font-weight: 600;" title="Back to table spotlight">
+          ⬅ Back to ${escapeHtml(sourceNode.name)}
+        </button>
+        <button class="btn-quick btnRelExitFocus" style="padding: 3px 8px; font-size: 10.5px; margin: 0; color: #94a3b8;" title="Exit isolation mode">
+          ✕ Exit Focus
+        </button>
+      </div>
+
+      <!-- Relationship Title & Subtitle -->
+      <div style="border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <div style="font-size: 10px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px;">
+          🔗 Foreign Key Relationship
+        </div>
+        <strong style="font-size: 14px; color: #fff; font-family: monospace; display: block; word-break: break-all;">
+          ${escapeHtml(sourceNode.name)} ➔ ${escapeHtml(targetNode.name)}
+        </strong>
+        <div style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
+          <span style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 1px 7px; border-radius: 10px; font-size: 9.5px; font-weight: 700;">
+            ${cardinalityLabel}
+          </span>
+          <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 1px 7px; border-radius: 10px; font-size: 9.5px; font-weight: 700;">
+            ✓ Referential FK Enforced
+          </span>
+        </div>
+      </div>
+
+      <!-- Visual Column-to-Column Mapping Bridge Card -->
+      <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">
+          Mapped Join Condition
+        </div>
+
+        <!-- Two Columns Comparison -->
+        <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center;">
+          <!-- Left Table / Source Key -->
+          <div style="background: rgba(250, 204, 21, 0.08); border: 1px solid rgba(250, 204, 21, 0.3); border-radius: 6px; padding: 6px 8px;">
+            <div style="font-size: 9.5px; color: #facc15; font-weight: 700; text-transform: uppercase;">
+              ${sourceNode.role.toUpperCase()}
+            </div>
+            <div style="font-weight: 700; font-size: 11.5px; color: #fff; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${escapeHtml(sourceNode.name)}
+            </div>
+            <div style="margin-top: 4px; font-size: 10.5px; font-family: monospace; color: #facc15; font-weight: 600;">
+              🔑 ${escapeHtml(link.sourceCol)}
+            </div>
+            <div style="font-size: 9.5px; color: #94a3b8;">
+              ${escapeHtml(srcCol?.type || 'integer')}
+            </div>
+          </div>
+
+          <!-- Middle Connector Arrow -->
+          <div style="text-align: center;">
+            <div style="font-size: 16px; color: #38bdf8;">➔</div>
+            <div style="font-size: 9px; color: #94a3b8; font-weight: 700;">EQUALS</div>
+          </div>
+
+          <!-- Right Table / Target Foreign Key -->
+          <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 6px 8px;">
+            <div style="font-size: 9.5px; color: #38bdf8; font-weight: 700; text-transform: uppercase;">
+              ${targetNode.role.toUpperCase()}
+            </div>
+            <div style="font-weight: 700; font-size: 11.5px; color: #fff; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+              ${escapeHtml(targetNode.name)}
+            </div>
+            <div style="margin-top: 4px; font-size: 10.5px; font-family: monospace; color: #38bdf8; font-weight: 600;">
+              🔗 ${escapeHtml(link.targetCol)}
+            </div>
+            <div style="font-size: 9.5px; color: #94a3b8;">
+              ${escapeHtml(tgtCol?.type || 'integer')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated Join SQL Preview & Copy -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 10.5px; font-weight: 700; color: #94a3b8;">ANSI SQL Join Query:</span>
+          <button class="btn-quick btnRelCopySql" style="padding: 2px 7px; font-size: 10px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4);" title="Copy join SQL query">
+            📋 Copy SQL
+          </button>
+        </div>
+        <pre style="background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 10px; color: #e2e8f0; max-height: 100px; overflow: auto; margin: 0;">${escapeHtml(joinSql)}</pre>
+      </div>
+
+      <!-- Action Handoffs for Engineers -->
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button class="btn btnRelPreviewJoinedData" style="width: 100%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); font-weight: 700; font-size: 11px; padding: 6px 10px; border-radius: 4px; cursor: pointer;">
+          🔍 Preview Joined Data (50 rows)
+        </button>
+        <button class="btn btnRelBuildMart" style="width: 100%; background: #6366f1; color: #fff; font-weight: 700; font-size: 11px; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;">
+          🚀 Build Mart with this Join (Phase 2)
+        </button>
+        <button class="btn btnRelAnalyzeData" style="width: 100%; background: #0284c7; color: #fff; font-weight: 700; font-size: 11px; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;">
+          📊 Analyze Joined Data in Studio
+        </button>
+      </div>
+    `;
+
+    // Wire Back to Table button
+    detailBox.querySelector('.btnRelBackToTable')?.addEventListener('click', () => {
+      const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+      if (engine) {
+        engine.selectedLink = null;
+        engine.selectNode(sourceNode);
+        engine.flyCameraToNode(sourceNode);
+      }
+      renderTableInspector(sourceNode, isPhase2);
+    });
+
+    // Wire Exit Focus button
+    detailBox.querySelector('.btnRelExitFocus')?.addEventListener('click', () => {
+      const engine = isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+      engine?.selectLink(null);
+    });
+
+    // Wire Copy SQL button
+    detailBox.querySelector('.btnRelCopySql')?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(joinSql);
+        showToast(`✓ Copied JOIN SQL between '${sourceNode.name}' and '${targetNode.name}' to clipboard!`);
+      } catch {
+        showToast(`✓ Join SQL generated (${sourceNode.name} = ${targetNode.name})`);
+      }
+    });
+
+    // Wire Preview Joined Data button
+    detailBox.querySelector('.btnRelPreviewJoinedData')?.addEventListener('click', () => {
+      (window as any).openSampleDataModal?.(sourceNode.name, sourceNode);
+    });
+
+    // Wire Build Mart with this Join button
+    detailBox.querySelector('.btnRelBuildMart')?.addEventListener('click', () => {
+      switchActivityTab('delivery', api);
+      switchDeliveryPhase(2);
+      const tabMart = document.getElementById('tabModeMart');
+      tabMart?.click();
+
+      const martBase = document.getElementById('martBaseModel') as HTMLSelectElement | null;
+      if (martBase) {
+        let exists = false;
+        for (let i = 0; i < martBase.options.length; i++) {
+          if (martBase.options[i].value === sourceNode.name) {
+            martBase.selectedIndex = i;
+            exists = true;
+            break;
+          }
+        }
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = sourceNode.name;
+          opt.textContent = sourceNode.name;
+          martBase.appendChild(opt);
+          martBase.value = sourceNode.name;
+        }
+        martBase.dispatchEvent(new Event('change'));
+      }
+
+      const martName = document.getElementById('martNameInput') as HTMLInputElement | null;
+      if (martName) {
+        martName.value = `fct_${sourceNode.name}_${targetNode.name}_join`;
+      }
+      showToast(`✓ Configured Mart Builder with join: ${sourceNode.name}.${link.sourceCol} = ${targetNode.name}.${link.targetCol}!`);
+    });
+
+    // Wire Analyze Joined Data
+    detailBox.querySelector('.btnRelAnalyzeData')?.addEventListener('click', () => {
+      if ((window as any).loadTableInDataStudio) {
+        (window as any).loadTableInDataStudio(sourceNode.name);
+      }
+    });
+  };
+
+  // 4b. Wire Instant Search, Autocomplete & Role Filters
+  const setupCosmosSearch = (isPhase2: boolean) => {
+    const input = document.getElementById(isPhase2 ? 'p2CosmosSearchInput' : 'cosmosSearchInput') as HTMLInputElement | null;
+    const clearBtn = document.getElementById(isPhase2 ? 'btnP2CosmosClearSearch' : 'btnCosmosClearSearch');
+    const resultsBox = document.getElementById(isPhase2 ? 'p2CosmosSearchResults' : 'cosmosSearchResults');
+    const quickJump = document.getElementById(isPhase2 ? 'p2CosmosQuickJump' : 'cosmosQuickJump') as HTMLSelectElement | null;
+    const pillAll = document.getElementById(isPhase2 ? 'btnP2FilterAll' : 'btnDataFilterAll');
+    const pillFacts = document.getElementById(isPhase2 ? 'btnP2FilterFacts' : 'btnDataFilterFacts');
+    const pillDims = document.getElementById(isPhase2 ? 'btnP2FilterDims' : 'btnDataFilterDims');
+    const pillBridges = document.getElementById(isPhase2 ? 'btnP2FilterBridges' : 'btnDataFilterBridges');
+
+    let activeRole = 'all';
+    let activeIndex = -1;
+
+    const getEngine = () => isPhase2 ? p2CosmosEngine : activeCosmosEngine;
+
+    const executeFilter = (query: string, role: string) => {
+      const engine = getEngine();
+      if (!engine || !currentGraphData) return [];
+      const { matched } = engine.setFilter(query, role);
+      renderTableDirectory(isPhase2, query, role);
+      return matched;
+    };
+
+    const showDropdown = (matched: CosmosNode[], q: string) => {
+      if (!resultsBox) return;
+      if (!q.trim() && activeRole === 'all') {
+        resultsBox.style.display = 'none';
+        return;
+      }
+
+      if (matched.length === 0) {
+        resultsBox.innerHTML = `
+          <div style="padding: 12px; text-align: center; color: #94a3b8; font-size: 11.5px;">
+            <span style="font-size: 18px; display: block; margin-bottom: 4px;">🔍</span>
+            No tables found matching "<strong>${escapeHtml(q)}</strong>"
+          </div>
+        `;
+        resultsBox.style.display = 'block';
+        return;
+      }
+
+      const qLower = q.toLowerCase().trim();
+      resultsBox.innerHTML = `
+        <div style="padding: 6px 10px; font-size: 10px; font-weight: 700; color: #94a3b8; border-bottom: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.5); display: flex; justify-content: space-between; align-items: center;">
+          <span>MATCHING TABLES (${matched.length} of ${currentGraphData?.nodes.length || 0})</span>
+          <span style="color: #38bdf8; font-size: 9.5px;">Press ↵ to jump to first</span>
+        </div>
+        <div style="max-height: 250px; overflow-y: auto;">
+          ${matched.map((m, idx) => {
+            const roleIcon = m.role === 'fact' ? '⭐' : m.role === 'dimension' ? '🗃️' : m.role === 'bridge' ? '🔗' : '🔍';
+            const roleBadgeColor = m.role === 'fact' ? '#6366f1' : m.role === 'dimension' ? '#10b981' : m.role === 'bridge' ? '#f59e0b' : '#ec4899';
+            const matchedCol = qLower ? m.columns.find(c => c.name.toLowerCase().includes(qLower)) : undefined;
+            return `
+              <div class="cosmos-search-item" data-id="${m.id}" data-idx="${idx}" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s;">
+                <div style="overflow: hidden; padding-right: 8px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 12px;">${roleIcon}</span>
+                    <strong style="color: #fff; font-family: monospace; font-size: 12px;">${highlightMatch(m.name, q)}</strong>
+                    <span style="font-size: 9.5px; padding: 1px 5px; border-radius: 6px; background: ${roleBadgeColor}22; color: ${roleBadgeColor}; border: 1px solid ${roleBadgeColor}44;">${m.role}</span>
+                  </div>
+                  <div style="font-size: 10px; color: #94a3b8; margin-top: 2px;">
+                    Schema: <code>${escapeHtml(m.schema)}</code> &bull; Domain: <span style="color: ${m.color};">${escapeHtml(m.domain)}</span>
+                    ${matchedCol ? ` &bull; <span style="color: #facc15;">Col: <code>${highlightMatch(matchedCol.name, q)}</code> (${escapeHtml(matchedCol.type)})</span>` : ''}
+                  </div>
+                </div>
+                <div style="text-align: right; font-size: 10px; color: #94a3b8; flex-shrink: 0;">
+                  <div style="color: #4ade80; font-weight: 700;">${Number(m.rowCountEstimate).toLocaleString()} rows</div>
+                  <div style="color: #38bdf8;">${m.columns.length} cols</div>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      resultsBox.style.display = 'block';
+
+      // Wire clicks on items
+      resultsBox.querySelectorAll('.cosmos-search-item').forEach(item => {
+        item.addEventListener('mouseenter', () => {
+          (item as HTMLElement).style.background = 'rgba(56, 189, 248, 0.15)';
+        });
+        item.addEventListener('mouseleave', () => {
+          (item as HTMLElement).style.background = 'transparent';
+        });
+        item.addEventListener('click', () => {
+          const id = item.getAttribute('data-id');
+          if (id) {
+            (window as any).spotlightCosmosTable(id);
+            resultsBox.style.display = 'none';
+          }
+        });
+      });
+    };
+
+    input?.addEventListener('input', () => {
+      const q = input.value;
+      if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+      const matched = executeFilter(q, activeRole) || [];
+      showDropdown(matched, q);
+      activeIndex = -1;
+    });
+
+    input?.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (resultsBox) resultsBox.style.display = 'none';
+        input.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const items = resultsBox?.querySelectorAll('.cosmos-search-item');
+        if (items && items.length > 0) {
+          const targetIdx = activeIndex >= 0 && activeIndex < items.length ? activeIndex : 0;
+          const targetItem = items[targetIdx];
+          const id = targetItem?.getAttribute('data-id');
+          if (id) {
+            (window as any).spotlightCosmosTable(id);
+            if (resultsBox) resultsBox.style.display = 'none';
+            input.blur();
+          }
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const items = resultsBox?.querySelectorAll('.cosmos-search-item');
+        if (items && items.length > 0) {
+          activeIndex = Math.min(items.length - 1, activeIndex + 1);
+          items.forEach((it, idx) => {
+            (it as HTMLElement).style.background = idx === activeIndex ? 'rgba(56, 189, 248, 0.25)' : 'transparent';
+            if (idx === activeIndex) it.scrollIntoView({ block: 'nearest' });
+          });
+        }
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = resultsBox?.querySelectorAll('.cosmos-search-item');
+        if (items && items.length > 0) {
+          activeIndex = Math.max(0, activeIndex - 1);
+          items.forEach((it, idx) => {
+            (it as HTMLElement).style.background = idx === activeIndex ? 'rgba(56, 189, 248, 0.25)' : 'transparent';
+            if (idx === activeIndex) it.scrollIntoView({ block: 'nearest' });
+          });
+        }
+      }
+    });
+
+    clearBtn?.addEventListener('click', () => {
+      if (input) input.value = '';
+      if (clearBtn) clearBtn.style.display = 'none';
+      if (resultsBox) resultsBox.style.display = 'none';
+      executeFilter('', activeRole);
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e: MouseEvent) => {
+      if (resultsBox && !resultsBox.contains(e.target as Node) && e.target !== input) {
+        resultsBox.style.display = 'none';
+      }
+    });
+
+    // Wire Role filter pills
+    const updatePills = (role: string) => {
+      activeRole = role;
+      const pills = [
+        { el: pillAll, role: 'all' },
+        { el: pillFacts, role: 'fact' },
+        { el: pillDims, role: 'dimension' },
+        { el: pillBridges, role: 'bridge' }
+      ];
+      pills.forEach(p => {
+        if (!p.el) return;
+        if (p.role === role) {
+          p.el.style.background = 'var(--accent)';
+          p.el.style.color = '#1e1e1e';
+          p.el.style.fontWeight = '700';
+        } else {
+          p.el.style.background = 'transparent';
+          p.el.style.color = p.role === 'fact' ? '#a5b4fc' : p.role === 'dimension' ? '#6ee7b7' : p.role === 'bridge' ? '#fcd34d' : 'var(--text-secondary)';
+          p.el.style.fontWeight = '600';
+        }
+      });
+      const matched = executeFilter(input?.value || '', role) || [];
+      if (input?.value.trim()) {
+        showDropdown(matched, input.value);
+      }
+    };
+
+    pillAll?.addEventListener('click', () => updatePills('all'));
+    pillFacts?.addEventListener('click', () => updatePills('fact'));
+    pillDims?.addEventListener('click', () => updatePills('dimension'));
+    pillBridges?.addEventListener('click', () => updatePills('bridge'));
+
+    // Wire Quick Jump
+    quickJump?.addEventListener('change', () => {
+      const val = quickJump.value;
+      if (val) {
+        (window as any).spotlightCosmosTable(val);
+      }
+    });
   };
 
   // 5. Load Schema Graph from Backend IPC
@@ -17991,6 +19137,7 @@ function setupDataCosmosStudio(api: any): void {
         }
 
         populatePathfinderSelects(res.nodes);
+        populateQuickJumpSelects(res.nodes);
         renderTableInspector(null, false);
         renderTableInspector(null, true);
 
@@ -18060,6 +19207,9 @@ function setupDataCosmosStudio(api: any): void {
       onNodeSelect: (node) => {
         renderTableInspector(node, false);
       },
+      onLinkSelect: (link) => {
+        renderRelationshipInspector(link, false);
+      },
       onPathFound: (path, sql) => {
         activePathGeneratedSql = sql;
         if (cosmosPathPill && cosmosPathText) {
@@ -18076,6 +19226,9 @@ function setupDataCosmosStudio(api: any): void {
       onNodeSelect: (node) => {
         renderTableInspector(node, true);
       },
+      onLinkSelect: (link) => {
+        renderRelationshipInspector(link, true);
+      },
       onPathFound: (path, sql) => {
         activePathGeneratedSql = sql;
         if (p2CosmosPathPill && p2CosmosPathText) {
@@ -18085,6 +19238,80 @@ function setupDataCosmosStudio(api: any): void {
       }
     });
   }
+
+  // Wire Floating Relationship Banner buttons
+  document.getElementById('btnP2CosmosExitRelFocus')?.addEventListener('click', () => {
+    p2CosmosEngine?.selectLink(null);
+  });
+  document.getElementById('btnCosmosExitRelFocus')?.addEventListener('click', () => {
+    activeCosmosEngine?.selectLink(null);
+  });
+
+  document.getElementById('btnP2CosmosCopyRelSql')?.addEventListener('click', async () => {
+    const link = p2CosmosEngine?.selectedLink;
+    if (link && currentGraphData) {
+      const srcNode = currentGraphData.nodes.find(n => n.id === link.source);
+      const tgtNode = currentGraphData.nodes.find(n => n.id === link.target);
+      const sql = `-- Foreign Key Relational Join\nSELECT s.*, t.* FROM ${srcNode?.schema || 'public'}.${link.source} s JOIN ${tgtNode?.schema || 'public'}.${link.target} t ON s.${link.sourceCol} = t.${link.targetCol};`;
+      try {
+        await navigator.clipboard.writeText(sql);
+        showToast(`✓ Copied JOIN SQL (${link.source} = ${link.target}) to clipboard!`);
+      } catch {
+        showToast(`✓ Join: ${link.source}.${link.sourceCol} = ${link.target}.${link.targetCol}`);
+      }
+    }
+  });
+
+  document.getElementById('btnCosmosCopyRelSql')?.addEventListener('click', async () => {
+    const link = activeCosmosEngine?.selectedLink;
+    if (link && currentGraphData) {
+      const srcNode = currentGraphData.nodes.find(n => n.id === link.source);
+      const tgtNode = currentGraphData.nodes.find(n => n.id === link.target);
+      const sql = `-- Foreign Key Relational Join\nSELECT s.*, t.* FROM ${srcNode?.schema || 'public'}.${link.source} s JOIN ${tgtNode?.schema || 'public'}.${link.target} t ON s.${link.sourceCol} = t.${link.targetCol};`;
+      try {
+        await navigator.clipboard.writeText(sql);
+        showToast(`✓ Copied JOIN SQL (${link.source} = ${link.target}) to clipboard!`);
+      } catch {
+        showToast(`✓ Join: ${link.source}.${link.sourceCol} = ${link.target}.${link.targetCol}`);
+      }
+    }
+  });
+
+  // Initialize Search & Filter Controllers
+  setupCosmosSearch(true);  // Phase 2
+  setupCosmosSearch(false); // Data Analysis Studio
+
+  // Global Quick-Search Keyboard Shortcut (Ctrl+F / Cmd+F / '/') and Escape to Exit Focus
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      if (p2CosmosEngine?.selectedLink) {
+        p2CosmosEngine.selectLink(null);
+      }
+      if (activeCosmosEngine?.selectedLink) {
+        activeCosmosEngine.selectLink(null);
+      }
+      return;
+    }
+
+    const isSearchKey = (e.key === 'f' && (e.ctrlKey || e.metaKey)) ||
+      (e.key === '/' && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA');
+    if (isSearchKey) {
+      const subpanelCosmos = document.getElementById('subpanelCosmosView');
+      const dataCosmos = document.getElementById('dataCosmosView');
+      const isP2Visible = subpanelCosmos && subpanelCosmos.style.display !== 'none';
+      const isDataCosmosVisible = dataCosmos && dataCosmos.style.display !== 'none';
+      if (isP2Visible || isDataCosmosVisible) {
+        e.preventDefault();
+        const targetInput = isP2Visible
+          ? document.getElementById('p2CosmosSearchInput') as HTMLInputElement | null
+          : document.getElementById('cosmosSearchInput') as HTMLInputElement | null;
+        if (targetInput) {
+          targetInput.focus();
+          targetInput.select();
+        }
+      }
+    }
+  });
 
   // Hook global refresh for Phase 2 tab switch
   (window as any).refreshP2CosmosTopology = async () => {
@@ -21220,7 +22447,7 @@ function setupModals(api: any): void {
   const headerVersionLabel = document.getElementById('headerVersionLabel');
   const headerUpdateStatusLabel = document.getElementById('headerUpdateStatusLabel');
 
-  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.21.0') => {
+  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.22.0') => {
     if (headerVersionLabel) headerVersionLabel.innerText = version.startsWith('v') ? version : `v${version}`;
     if (!headerUpdateDot || !headerUpdateStatusLabel) return;
 
@@ -21284,18 +22511,18 @@ function setupModals(api: any): void {
         if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
         showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.21.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.22.0');
         if (updateCheckStatus) {
           updateCheckStatus.style.background = 'rgba(16, 185, 129, 0.15)';
           updateCheckStatus.style.color = '#34d399';
           updateCheckStatus.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.21.0'}).</span>`;
+          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.22.0'}).</span>`;
         }
         if (updateDownloadArea) updateDownloadArea.style.display = 'none';
-        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.21.0'}).`);
+        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.22.0'}).`);
       }
     } catch (err: any) {
-      setHeaderVersionPillState('air-gapped', '2.21.0');
+      setHeaderVersionPillState('air-gapped', '2.22.0');
       if (updateCheckStatus) {
         updateCheckStatus.style.background = 'rgba(100, 116, 139, 0.15)';
         updateCheckStatus.style.color = '#94a3b8';
@@ -21316,10 +22543,10 @@ function setupModals(api: any): void {
       } else if (res?.updateAvailable) {
         setHeaderVersionPillState('update-available', res.currentVersion);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.21.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.22.0');
       }
     } catch {
-      setHeaderVersionPillState('air-gapped', '2.21.0');
+      setHeaderVersionPillState('air-gapped', '2.22.0');
     }
   }, 2500);
 
