@@ -122,26 +122,26 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     futureDate.setDate(futureDate.getDate() + 60);
 
     const payload: EnterpriseLicensePayload = {
-      organization: 'Commonwealth Bank of Australia',
-      licenseId: 'EM-LIC-CBA-001',
+      organization: 'Acme Financial Corporation',
+      licenseId: 'EM-LIC-ACME-001',
       plan: 'enterprise_platinum',
       maxSeats: 50,
       issuedAt: new Date().toISOString(),
       expiresAt: futureDate.toISOString(),
       features: ['load_testing', 'siem_logging'],
-      contactEmail: 'sarah.jenkins@cba.com.au',
-      allowedEmailDomains: ['cba.com.au', 'commbank.com.au'],
+      contactEmail: 'admin@acme-financial.example.com',
+      allowedEmailDomains: ['acme-financial.example.com', 'acme-corp.example.com'],
     };
 
     const token = LicenseGenerator.sign(payload);
 
     // 1. Authorized corporate email should succeed
-    const validResult = LicenseValidator.verify(token, 'engineer@cba.com.au');
+    const validResult = LicenseValidator.verify(token, 'engineer@acme-financial.example.com');
     assert.strictEqual(validResult.valid, true, 'Matching corporate email must validate');
     assert.strictEqual(validResult.status, 'active');
 
     // 2. Secondary authorized domain should also succeed
-    const subDomainResult = LicenseValidator.verify(token, 'lead@commbank.com.au');
+    const subDomainResult = LicenseValidator.verify(token, 'lead@acme-corp.example.com');
     assert.strictEqual(subDomainResult.valid, true, 'Secondary corporate domain must validate');
 
     // 3. Unauthorized external email (e.g. Gmail) should fail with unauthorized_domain status
@@ -156,20 +156,20 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     futureDate.setDate(futureDate.getDate() + 30);
 
     const payload: EnterpriseLicensePayload = {
-      organization: 'Westpac Banking Corp',
-      licenseId: 'EM-LIC-WBC-001',
+      organization: 'Pacific Enterprise Holdings',
+      licenseId: 'EM-LIC-PEH-001',
       plan: 'enterprise_standard',
       maxSeats: 10,
       issuedAt: new Date().toISOString(),
       expiresAt: futureDate.toISOString(),
       features: ['load_testing'],
-      contactEmail: 'procurement@westpac.com.au',
-      // No explicit allowedEmailDomains — should fallback to westpac.com.au
+      contactEmail: 'procurement@pacific-holdings.example.com',
+      // No explicit allowedEmailDomains — should fallback to pacific-holdings.example.com
     };
 
     const token = LicenseGenerator.sign(payload);
 
-    const matchResult = LicenseValidator.verify(token, 'dev.lead@westpac.com.au');
+    const matchResult = LicenseValidator.verify(token, 'dev.lead@pacific-holdings.example.com');
     assert.strictEqual(matchResult.valid, true, 'Fallback to contactEmail domain must succeed for matching email');
 
     const mismatchResult = LicenseValidator.verify(token, 'attacker@external.com');

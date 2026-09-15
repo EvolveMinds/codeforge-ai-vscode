@@ -37,7 +37,7 @@ export interface EnterpriseLicensePayload {
   features: EnterpriseFeature[];
   /** Optional customer support contact email */
   contactEmail?: string;
-  /** Allowed corporate email domains (e.g. ["cba.com.au", "commbank.com.au"]) */
+  /** Allowed corporate email domains (e.g. ["example.com", "enterprise.example.com"]) */
   allowedEmailDomains?: string[];
   /** Optional hardware fingerprint for node-locking */
   hardwareFingerprint?: string;

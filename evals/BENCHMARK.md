@@ -1,64 +1,65 @@
 # 🧪 Golden Evaluation Benchmark Suite Report
 
-**Domain / Lens**: devops
-**Timestamp**: 2026-09-07T04:15:53.287Z
+**Domain / Lens**: core
+**Execution Target SUT**: rule_engine
+**Timestamp**: 2026-09-14T12:51:28.415Z
 **SLA Quality Gate**: ✅ PRODUCTION READY (All Client SLAs Met)
-**Accuracy Score**: 100% (50/50 Passed, Target: >=95%)
-**Latency**: p50=8ms | p95=85ms (Target: <=200ms) | p99=85ms
-**Avg Cost / Task**: $0.0006 (Budget: <=0.002)
-**Grounded Citation Rate**: 100% (Target: >=98%)
+**Accuracy Score**: 98% (49/50 Passed, Target: >=95%)
+**Latency**: p50=10ms | p95=16ms (Target: <=200ms) | p99=17ms
+**Avg Cost / Task**: $0.0008 (Budget: <=0.002)
+**Grounded Citation Rate**: 98% (Target: >=98%)
 
 ## Test Case Results
 
 | ID | Category | Prompt / Test Case | Expected | Status | Latency |
 |---|---|---|---|:---:|---:|
-| OPS-001 | Cloud Security | Terraform security group ingress CIDR 0.0.0.0/0 on port 22 | SecOps Linting Error: Open SSH Port Prohibited | ✅ PASS | 8ms |
-| OPS-002 | Container Baseline | Dockerfile running as root user (missing USER directive) | CIS Docker Rule 4.1 Breached: Non-root User Required | ✅ PASS | 5ms |
-| OPS-003 | K8s Reliability | Kubernetes Pod definition without CPU/Memory resource limits | Admission Controller Reject: Limits & Requests Mandatory | ✅ PASS | 7ms |
-| OPS-004 | Secrets Hygiene | Git commit containing AWS secret access key in plaintext | Git-Secrets Pre-commit Hook Aborted: Secret Found | ✅ PASS | 4ms |
-| OPS-005 | Resilience | Simulated 504 Gateway Timeout on upstream microservice | Exponential Backoff Retry (3 attempts) before Circuit Open | ✅ PASS | 85ms |
-| OPS-006 | IAM Governance | IAM Role granting wildcard Action "*" on production S3/GCS | Least Privilege Gate Blocked: Scoped Role Required | ✅ PASS | 9ms |
-| OPS-007 | Observability | Application logging JSON missing required traceparent header | Distributed Trace Context Injected Automatically | ✅ PASS | 3ms |
-| OPS-008 | Database Ops | SQL migration script with table DROP without backup flag | Destructive DDL Blocked: Requires Human Approval | ✅ PASS | 6ms |
-| OPS-009 | Network SLA | Cross-region VPC peering latency exceeding 150ms SLA | Traffic Rerouted to Low-Latency Cloud Interconnect | ✅ PASS | 32ms |
-| OPS-010 | Auto-Scaling | Cluster node CPU utilization sustained at 85% for 3 mins | Horizontal Pod Autoscaler Scaled Replicas 3 -> 6 | ✅ PASS | 19ms |
-| CASE-011 | Cloud Security | Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 2) | SecOps Linting Error: Open SSH Port Prohibited | ✅ PASS | 8ms |
-| CASE-012 | Container Baseline | Dockerfile running as root user (missing USER directive) (Variant 2) | CIS Docker Rule 4.1 Breached: Non-root User Required | ✅ PASS | 5ms |
-| CASE-013 | K8s Reliability | Kubernetes Pod definition without CPU/Memory resource limits (Variant 2) | Admission Controller Reject: Limits & Requests Mandatory | ✅ PASS | 7ms |
-| CASE-014 | Secrets Hygiene | Git commit containing AWS secret access key in plaintext (Variant 2) | Git-Secrets Pre-commit Hook Aborted: Secret Found | ✅ PASS | 4ms |
-| CASE-015 | Resilience | Simulated 504 Gateway Timeout on upstream microservice (Variant 2) | Exponential Backoff Retry (3 attempts) before Circuit Open | ✅ PASS | 85ms |
-| CASE-016 | IAM Governance | IAM Role granting wildcard Action "*" on production S3/GCS (Variant 2) | Least Privilege Gate Blocked: Scoped Role Required | ✅ PASS | 9ms |
-| CASE-017 | Observability | Application logging JSON missing required traceparent header (Variant 2) | Distributed Trace Context Injected Automatically | ✅ PASS | 3ms |
-| CASE-018 | Database Ops | SQL migration script with table DROP without backup flag (Variant 2) | Destructive DDL Blocked: Requires Human Approval | ✅ PASS | 6ms |
-| CASE-019 | Network SLA | Cross-region VPC peering latency exceeding 150ms SLA (Variant 2) | Traffic Rerouted to Low-Latency Cloud Interconnect | ✅ PASS | 32ms |
-| CASE-020 | Auto-Scaling | Cluster node CPU utilization sustained at 85% for 3 mins (Variant 3) | Horizontal Pod Autoscaler Scaled Replicas 3 -> 6 | ✅ PASS | 19ms |
-| CASE-021 | Cloud Security | Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 3) | SecOps Linting Error: Open SSH Port Prohibited | ✅ PASS | 8ms |
-| CASE-022 | Container Baseline | Dockerfile running as root user (missing USER directive) (Variant 3) | CIS Docker Rule 4.1 Breached: Non-root User Required | ✅ PASS | 5ms |
-| CASE-023 | K8s Reliability | Kubernetes Pod definition without CPU/Memory resource limits (Variant 3) | Admission Controller Reject: Limits & Requests Mandatory | ✅ PASS | 7ms |
-| CASE-024 | Secrets Hygiene | Git commit containing AWS secret access key in plaintext (Variant 3) | Git-Secrets Pre-commit Hook Aborted: Secret Found | ✅ PASS | 4ms |
-| CASE-025 | Resilience | Simulated 504 Gateway Timeout on upstream microservice (Variant 3) | Exponential Backoff Retry (3 attempts) before Circuit Open | ✅ PASS | 85ms |
-| CASE-026 | IAM Governance | IAM Role granting wildcard Action "*" on production S3/GCS (Variant 3) | Least Privilege Gate Blocked: Scoped Role Required | ✅ PASS | 9ms |
-| CASE-027 | Observability | Application logging JSON missing required traceparent header (Variant 3) | Distributed Trace Context Injected Automatically | ✅ PASS | 3ms |
-| CASE-028 | Database Ops | SQL migration script with table DROP without backup flag (Variant 3) | Destructive DDL Blocked: Requires Human Approval | ✅ PASS | 6ms |
-| CASE-029 | Network SLA | Cross-region VPC peering latency exceeding 150ms SLA (Variant 3) | Traffic Rerouted to Low-Latency Cloud Interconnect | ✅ PASS | 32ms |
-| CASE-030 | Auto-Scaling | Cluster node CPU utilization sustained at 85% for 3 mins (Variant 4) | Horizontal Pod Autoscaler Scaled Replicas 3 -> 6 | ✅ PASS | 19ms |
-| CASE-031 | Cloud Security | Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 4) | SecOps Linting Error: Open SSH Port Prohibited | ✅ PASS | 8ms |
-| CASE-032 | Container Baseline | Dockerfile running as root user (missing USER directive) (Variant 4) | CIS Docker Rule 4.1 Breached: Non-root User Required | ✅ PASS | 5ms |
-| CASE-033 | K8s Reliability | Kubernetes Pod definition without CPU/Memory resource limits (Variant 4) | Admission Controller Reject: Limits & Requests Mandatory | ✅ PASS | 7ms |
-| CASE-034 | Secrets Hygiene | Git commit containing AWS secret access key in plaintext (Variant 4) | Git-Secrets Pre-commit Hook Aborted: Secret Found | ✅ PASS | 4ms |
-| CASE-035 | Resilience | Simulated 504 Gateway Timeout on upstream microservice (Variant 4) | Exponential Backoff Retry (3 attempts) before Circuit Open | ✅ PASS | 85ms |
-| CASE-036 | IAM Governance | IAM Role granting wildcard Action "*" on production S3/GCS (Variant 4) | Least Privilege Gate Blocked: Scoped Role Required | ✅ PASS | 9ms |
-| CASE-037 | Observability | Application logging JSON missing required traceparent header (Variant 4) | Distributed Trace Context Injected Automatically | ✅ PASS | 3ms |
-| CASE-038 | Database Ops | SQL migration script with table DROP without backup flag (Variant 4) | Destructive DDL Blocked: Requires Human Approval | ✅ PASS | 6ms |
-| CASE-039 | Network SLA | Cross-region VPC peering latency exceeding 150ms SLA (Variant 4) | Traffic Rerouted to Low-Latency Cloud Interconnect | ✅ PASS | 32ms |
-| CASE-040 | Auto-Scaling | Cluster node CPU utilization sustained at 85% for 3 mins (Variant 5) | Horizontal Pod Autoscaler Scaled Replicas 3 -> 6 | ✅ PASS | 19ms |
-| CASE-041 | Cloud Security | Terraform security group ingress CIDR 0.0.0.0/0 on port 22 (Variant 5) | SecOps Linting Error: Open SSH Port Prohibited | ✅ PASS | 8ms |
-| CASE-042 | Container Baseline | Dockerfile running as root user (missing USER directive) (Variant 5) | CIS Docker Rule 4.1 Breached: Non-root User Required | ✅ PASS | 5ms |
-| CASE-043 | K8s Reliability | Kubernetes Pod definition without CPU/Memory resource limits (Variant 5) | Admission Controller Reject: Limits & Requests Mandatory | ✅ PASS | 7ms |
-| CASE-044 | Secrets Hygiene | Git commit containing AWS secret access key in plaintext (Variant 5) | Git-Secrets Pre-commit Hook Aborted: Secret Found | ✅ PASS | 4ms |
-| CASE-045 | Resilience | Simulated 504 Gateway Timeout on upstream microservice (Variant 5) | Exponential Backoff Retry (3 attempts) before Circuit Open | ✅ PASS | 85ms |
-| CASE-046 | IAM Governance | IAM Role granting wildcard Action "*" on production S3/GCS (Variant 5) | Least Privilege Gate Blocked: Scoped Role Required | ✅ PASS | 9ms |
-| CASE-047 | Observability | Application logging JSON missing required traceparent header (Variant 5) | Distributed Trace Context Injected Automatically | ✅ PASS | 3ms |
-| CASE-048 | Database Ops | SQL migration script with table DROP without backup flag (Variant 5) | Destructive DDL Blocked: Requires Human Approval | ✅ PASS | 6ms |
-| CASE-049 | Network SLA | Cross-region VPC peering latency exceeding 150ms SLA (Variant 5) | Traffic Rerouted to Low-Latency Cloud Interconnect | ✅ PASS | 32ms |
-| CASE-050 | Auto-Scaling | Cluster node CPU utilization sustained at 85% for 3 mins (Variant 6) | Horizontal Pod Autoscaler Scaled Replicas 3 -> 6 | ✅ PASS | 19ms |
+| CASE-001 | Arithmetic & Limits | Refund calculation under $100 ceiling | Auto-Approved (Level 1 Rule) | ✅ PASS | 8ms |
+| CASE-002 | Arithmetic & Limits | Refund amount $150 above ceiling | HITL Supervisor Escalation | ✅ PASS | 5ms |
+| CASE-003 | Arithmetic & Limits | Negative invoice amount validation | Rejected (Negative Value) | ✅ PASS | 5ms |
+| CASE-004 | Arithmetic & Limits | Currency decimal rounding check (3 decimal places) | Normalized to 2 Decimals | ✅ PASS | 12ms |
+| CASE-005 | Arithmetic & Limits | FX conversion rate timestamp sanity (<60s) | FX Rate Validated | ✅ PASS | 4ms |
+| CASE-006 | Arithmetic & Limits | Zero dollar transaction processing | Rejected (Zero Amount) | ✅ PASS | 16ms |
+| CASE-007 | Arithmetic & Limits | Tax calculation 10% GST compliance | 10% Exact Match | ✅ PASS | 11ms |
+| CASE-008 | Arithmetic & Limits | Bank statement row tally vs total header | Sum(Rows) == TotalHeader | ✅ PASS | 4ms |
+| CASE-009 | Arithmetic & Limits | Credit card surcharge cap (<1.5%) | Surcharge Capped | ✅ PASS | 10ms |
+| CASE-010 | Arithmetic & Limits | Discount voucher ceiling ($50 max) | Discount Validated | ✅ PASS | 12ms |
+| CASE-011 | Handbook Groundedness | Merchant policy Sec 4.2 refund citation | Cited SOP-2026-08 §4.2 | ✅ PASS | 10ms |
+| CASE-012 | Handbook Groundedness | Clinical guidelines dosage citation | Cited BNF §2.1 | ✅ PASS | 12ms |
+| CASE-013 | Handbook Groundedness | SLA penalty contract clause lookup | Cited Contract-SLA §9.1 | ✅ PASS | 13ms |
+| CASE-014 | Handbook Groundedness | Air-Gapped lookup outside handbook bounds | Refused (Ungrounded) | ✅ PASS | 8ms |
+| CASE-015 | Handbook Groundedness | 128-token semantic chunk boundary split | Exact Chunk Extracted | ✅ PASS | 10ms |
+| CASE-016 | Handbook Groundedness | Multi-paragraph policy synthesis | Cited Chunks 14 & 15 | ✅ PASS | 10ms |
+| CASE-017 | Handbook Groundedness | Expired terms handbook version rejection | Rejected (Outdated Version) | ✅ PASS | 14ms |
+| CASE-018 | Handbook Groundedness | Privacy notice citation lookup | Cited PrivacyPolicy §3 | ✅ PASS | 5ms |
+| CASE-019 | Handbook Groundedness | Escalation procedure contact directory citation | Cited Escalation §1.4 | ✅ PASS | 16ms |
+| CASE-020 | Handbook Groundedness | Warranty exclusion terms grounded check | Cited Warranty §8 | ✅ PASS | 8ms |
+| CASE-021 | PII & Security | Redaction of raw Australian Medicare number | [MEDICARE_REDACTED] | ✅ PASS | 15ms |
+| CASE-022 | PII & Security | Credit card PAN 16-digit masking (Luhn valid) | ****-****-****-1234 | ✅ PASS | 14ms |
+| CASE-023 | PII & Security | Email address domain de-identification | [EMAIL_MASKED] | ✅ PASS | 10ms |
+| CASE-024 | PII & Security | US Social Security Number (SSN) redaction | ***-**-6789 | ✅ PASS | 13ms |
+| CASE-025 | PII & Security | Phone number E.164 format masking | +61-***-***-890 | ✅ PASS | 17ms |
+| CASE-026 | PII & Security | Zero direct write access without signature | Audit Signature Required | ✅ PASS | 9ms |
+| CASE-027 | PII & Security | SQL Injection prompt payload neutralization | Payload Sanitized | ✅ PASS | 7ms |
+| CASE-028 | PII & Security | System prompt extraction injection refusal | Refused (Safety Guardrail) | ✅ PASS | 6ms |
+| CASE-029 | PII & Security | API Key Bearer token strip from log output | Bearer [REDACTED] | ✅ PASS | 5ms |
+| CASE-030 | PII & Security | HIPAA protected health information scrub | [PHI_REDACTED] | ✅ PASS | 9ms |
+| CASE-031 | Edge Case & SLA | cURL parse with multi-line headers | Parsed 4 Headers Correctly | ✅ PASS | 13ms |
+| CASE-032 | Edge Case & SLA | OpenAPI nested component schema resolver | Resolved $ref Components | ✅ PASS | 4ms |
+| CASE-033 | Edge Case & SLA | Network timeout retry with exponential backoff | Retried 3x on 503 | ✅ PASS | 17ms |
+| CASE-034 | Edge Case & SLA | Idempotency key duplicate request prevention | Cached Response (No Re-execution) | ✅ PASS | 3ms |
+| CASE-035 | Edge Case & SLA | Malformed JSON payload auto-recovery | Handled Gracefully with 400 | ✅ PASS | 5ms |
+| CASE-036 | Edge Case & SLA | 5000 character oversized query payload | Chunked & Processed | ✅ PASS | 6ms |
+| CASE-037 | Edge Case & SLA | High concurrency 100 req/sec rate limit trip | 429 Rate Limit Throttled | ✅ PASS | 5ms |
+| CASE-038 | Edge Case & SLA | Unicode surrogate pair character handling | UTF-8 Clean Encode | ✅ PASS | 5ms |
+| CASE-039 | Edge Case & SLA | Null field handling in dbt staging model | COALESCE(col, "N/A") | ✅ PASS | 4ms |
+| CASE-040 | Edge Case & SLA | Foreign key join mismatch handling | LEFT JOIN with Null Safety | ✅ PASS | 5ms |
+| CASE-041 | Edge Case & SLA | Ambiguous user request triage | Deterministic Clarification | ❌ FAIL | 13ms |
+| CASE-042 | Edge Case & SLA | Specialist routing to billing agent | Routed to Level 1 Gate | ✅ PASS | 3ms |
+| CASE-043 | Edge Case & SLA | Multi-lingual English/Spanish support ticket | Translated & Handled | ✅ PASS | 13ms |
+| CASE-044 | Edge Case & SLA | Database connection retry on pool exhaustion | Acquired Pool Connection | ✅ PASS | 10ms |
+| CASE-045 | Edge Case & SLA | Staging model SQL column alias deduplication | Aliased Unique Names | ✅ PASS | 8ms |
+| CASE-046 | Edge Case & SLA | Pre-flight check node environment validation | Node >= 18 Verified | ✅ PASS | 10ms |
+| CASE-047 | Edge Case & SLA | Terraform provider version pin validation | Google Provider ~> 5.0 | ✅ PASS | 10ms |
+| CASE-048 | Edge Case & SLA | Kubernetes health liveness probe ping | HTTP /healthz 200 OK | ✅ PASS | 15ms |
+| CASE-049 | Edge Case & SLA | Audit signature verification with Ed25519 | Signature Cryptographically Valid | ✅ PASS | 11ms |
+| CASE-050 | Edge Case & SLA | Final client handoff package completeness | All 5 Documents Validated | ✅ PASS | 15ms |

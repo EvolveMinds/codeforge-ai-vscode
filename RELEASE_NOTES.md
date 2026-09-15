@@ -37,9 +37,9 @@ Evolve AI version 2.21.0 expands the Enterprise Edition with the **Data Analysis
 
 ### Highlights & Summary
 
-Evolve AI version 2.20.0 introduces clear tier alignment between the **Free Community Edition** on the VS Code Marketplace and the **Enterprise Edition (Limited Pilot)**, alongside a complete **High-DPI Display Scale & Zoom Manager**, **Ed25519 Commercial Licensing Engine**, and an **Updates & Version Management Hub**.
+Evolve AI version 2.20.0 introduces clear tier alignment between the **Free Community Edition** on the VS Code Marketplace and the **Enterprise Edition**, alongside a complete **High-DPI Display Scale & Zoom Manager**, **Ed25519 Commercial Licensing Engine**, and an **Updates & Version Management Hub**.
 
-> 🔒 **Limited Pilot Status**: The Enterprise Edition is currently in an invite-only **Limited Pilot** with **5 selected enterprise partner organizations** to rigorously evaluate production migration engines in real-world environments prior to broader commercial availability and pricing.
+> 🔒 **Enterprise Evaluation Status**: The Enterprise Edition is available for 30-day technical evaluation and commercial licensing to rigorously evaluate production migration engines in real-world environments.
 
 ---
 
@@ -49,7 +49,7 @@ The Free VS Code Community Edition focuses on the core frontline delivery toolki
 * **Step 2: Client API Studio**: Resilient TypeScript and Python SDK generator with exponential backoff, jitter, and rate-limiting circuit breakers.
 * **Step 3: Pre-Flight Health Auditor**: Offline secret leak detection, dangling backup cleaner, and multi-cloud deployment scaffolding (Firebase, Cloud Run, Kubernetes, Docker, Terraform).
 * **Step 4: Client IT Handoff & Runbook Factory**: Comprehensive documentation compiler generating `ARCHITECTURE.md` with rendered Mermaid diagrams, `DEPLOYMENT_RUNBOOK.md`, `DATA_DICTIONARY.md`, and `ENVIRONMENT_CATALOG.md`.
-* **Clear Tier Distinction & Limited Pilot**: In-app comparison modals and guidance distinguishing the Community Edition from the invite-only 5-partner Enterprise Limited Pilot.
+* **Clear Tier Distinction**: In-app comparison modals and guidance distinguishing the Community Edition from the commercial Enterprise Edition.
 
 ---
 

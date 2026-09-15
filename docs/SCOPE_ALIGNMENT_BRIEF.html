@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Project Scope Alignment Memo — Client Executive Sponsor</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 40px; margin: 0; line-height: 1.6; }
+    .container { max-width: 900px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 36px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+    .header { border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+    h1 { color: #38bdf8; margin: 0 0 8px 0; font-size: 24px; }
+    .badge { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid #38bdf8; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .section { margin-bottom: 28px; }
+    h2 { color: #93c5fd; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 6px; margin-top: 24px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0; }
+    .kpi-card { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; text-align: center; }
+    .kpi-val { font-size: 24px; font-weight: 800; color: #4ade80; margin: 6px 0; }
+    .kpi-lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+    .box-quote { background: #0f172a; border-left: 4px solid #38bdf8; padding: 12px 16px; border-radius: 4px; margin: 12px 0; font-size: 13px; color: #cbd5e1; }
+    .box-floor { background: #0f172a; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin: 12px 0; font-size: 13px; color: #cbd5e1; }
+    .box-goal { background: #0f172a; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 4px; margin: 12px 0; font-size: 13px; color: #cbd5e1; }
+    ul { padding-left: 20px; }
+    li { margin-bottom: 6px; font-size: 13px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    th, td { border: 1px solid #334155; padding: 10px 14px; text-align: left; }
+    th { background: #0f172a; color: #38bdf8; font-weight: 700; }
+    .print-btn { background: #38bdf8; color: #0f172a; font-weight: 700; border: none; padding: 8px 18px; border-radius: 6px; cursor: pointer; float: right; }
+    @media print { .print-btn { display: none; } body { background: #fff; color: #000; padding: 0; } .container { border: none; box-shadow: none; padding: 0; background: #fff; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+    <div class="header">
+      <div>
+        <h1>Project Scope &amp; Technical Alignment Memorandum</h1>
+        <div style="font-size: 12px; color: #94a3b8;">Client: <strong>Client Executive Sponsor</strong> &bull; Prepared by Forward Deployed Engineering Team &bull; Date: 2026-09-14</div>
+      </div>
+      <span class="badge">MEDIUM STANDARD</span>
+    </div>
+
+    <div class="section">
+      <h2>1. Executive Summary &amp; Raw Client Request</h2>
+      <div style="font-size: 11px; font-weight: 700; color: #38bdf8; margin-top: 8px;">ORIGINAL UNFILTERED ASK:</div>
+      <div class="box-quote">"Automate client manual workflow and data operations with AI."</div>
+    </div>
+
+    <div class="section">
+      <h2>2. Gemba Deconstruction &amp; Ground-Truth Observations</h2>
+      <div style="font-size: 11px; font-weight: 700; color: #f59e0b; margin-top: 8px;">FLOOR OBSERVATIONS &amp; SHADOW WORKAROUNDS:</div>
+      <div class="box-floor" style="white-space: pre-wrap;">Observed manual shadow IT and variance between declared SOPs and actual operational execution.</div>
+      
+      <div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-top: 10px;">KEY INQUIRY PROBES EXAMINED:</div>
+      <ul>
+        <li><strong>[Shadow IT]</strong> What manual workarounds, personal spreadsheets, or unofficial channels bypass the official system?</li><li><strong>[Failure Mode]</strong> What is the absolute worst-case outcome if this automated workflow executes incorrect actions?</li><li><strong>[Exception Iceberg]</strong> What proportion of inputs do not follow the declared standard process, and who handles them today?</li><li><strong>[Regulatory Gate]</strong> What compliance frameworks, audit log requirements, or legal constraints govern this workflow?</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>3. Observation-to-Spec (O2S) &amp; Agreed Production Target</h2>
+      <div style="font-size: 11px; font-weight: 700; color: #10b981; margin-top: 8px;">AGREED PRODUCTION TARGET:</div>
+      <div class="box-goal">Deterministic staging models, compiled SQL tolerance matching (<5ms), and an air-gapped policy RAG copilot with 1-click human supervisor approval.</div>
+
+      <div style="font-size: 11px; font-weight: 700; color: #e5b567; margin-top: 14px;">EXPLICIT OUT-OF-SCOPE BOUNDARY LOCKS:</div>
+      <ul>
+        <li>🔒 <strong>No direct production write access without cryptographically signed audit log</strong></li><li>🔒 <strong>No ungrounded responses or unverified external API mutations</strong></li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>4. The Controller's Economic ROI &amp; Capacity Impact</h2>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-lbl">Projected Monthly Savings</div>
+          <div class="kpi-val">$61.2k / mo</div>
+          <div style="font-size: 11px; color: #94a3b8;">$734k annual run-rate</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Labor Hours Reclaimed</div>
+          <div class="kpi-val">1,750 hrs</div>
+          <div style="font-size: 11px; color: #94a3b8;">10.9 FTE Capacity Unlocked</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-lbl">Hallucination / Error Drop</div>
+          <div class="kpi-val" style="color: #38bdf8;">0.0% SLA</div>
+          <div style="font-size: 11px; color: #94a3b8;">100% Compiled SQL Rules</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>5. Stakeholder Alignment &amp; Sign-Off</h2>
+      <table>
+        <tr>
+          <th>Stakeholder Role</th>
+          <th>Name / Title</th>
+          <th>Signature Status</th>
+          <th>Date</th>
+        </tr>
+        <tr>
+          <td><strong>Business Unit Executive Sponsor</strong></td>
+          <td>Client Executive Sponsor Lead</td>
+          <td>_______________________</td>
+          <td>____/____/2026</td>
+        </tr>
+        <tr>
+          <td><strong>Finance / Controller Representative</strong></td>
+          <td>Corporate Controller</td>
+          <td>_______________________</td>
+          <td>____/____/2026</td>
+        </tr>
+        <tr>
+          <td><strong>Lead Forward Deployed Engineer</strong></td>
+          <td>Evolve AI Delivery Team</td>
+          <td><strong style="color: #4ade80;">[DIGITALLY VERIFIED]</strong></td>
+          <td>2026-09-14</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

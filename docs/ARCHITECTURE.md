@@ -9,17 +9,17 @@
 
 ## 1. Executive Problem Reframing & Economic Boundaries (Phase 1)
 
-* **Original Client Request:** "Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules."
-* **Identified Failure Modes:** LLMs perform stochastic reasoning and suffer from arithmetic hallucinations; direct auto-reconciliation without deterministic tolerance checks causes un-auditable ledger drift.
-* **Agreed Production Target (Observation-to-Spec / O2S):** Hybrid Financial Reconciliation Engine: Deterministic SQL tolerance matching first, with LLM parsing used solely for unstructured PDF statement extraction.
-* **Explicit Out-of-Scope Boundaries:** `No un-audited ledger posting without deterministic tolerance verification`, `No automated currency conversions without verified FX feed timestamp`, `No processing of unredacted account numbers`
+* **Original Client Request:** "Automate client manual workflow and data operations"
+* **Identified Failure Modes:** Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.
+* **Agreed Production Target (Observation-to-Spec / O2S):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.
+* **Explicit Out-of-Scope Boundaries:** `No direct production write access without cryptographically signed audit log`, `No ungrounded responses or unverified external API mutations`
 
 ### Controller's Three Numbers & Economic ROI (Phase 1)
-* **Monthly Volume:** `5,000 tasks/mo`
-* **Handle Time / Latency:** `20 min/task`
-* **Fully-Burdened Wage:** `$55/hr`
-* **Projected Monthly Savings:** `$64.2k / month`
-* **Annual Capacity Reclaimed:** `14,000 labor hours/year`
+* **Monthly Volume:** `0 tasks/mo`
+* **Handle Time / Latency:** `0 min/task`
+* **Fully-Burdened Wage:** `$0/hr`
+* **Projected Monthly Savings:** `$0.0k / month`
+* **Annual Capacity Reclaimed:** `0 labor hours/year`
 
 
 ---
@@ -74,9 +74,9 @@ graph TD
 
 ## 3. AI Solutioning Architecture & Decision Gates (Phase 3)
 
-* **Architecture Capability Target:** **Level 1: Deterministic Rule Engine & Compiled SQL**
+* **Architecture Capability Target:** **Level 3: Air-Gapped Grounded Policy RAG**
 * **Hallucination SLA:** **0.0% Hallucinations** (Deterministic SQL & TypeScript rule evaluation for all mathematical/boundary operations).
-* **Decision Gate Rationale:** Pure Rule Engine & SQL (<5ms latency, compiled deterministic execution).
+* **Decision Gate Rationale:** Air-gapped Grounded Retrieval-Augmented Generation (RAG). Ingests enterprise handbooks, standard operating procedures (SOPs), clinical guidelines, and contracts into 128-token semantic chunks. Strictly enforces that every generated claim contains a 100% verified citation, signed with an Ed25519 cryptographic audit receipt..
 * **RAG Vector Architecture:** Deterministic rule-first gating.
 * **Model Context Protocol (MCP):** Air-gapped internal functions.
 
@@ -85,8 +85,8 @@ graph TD
 
 ## 4. Reliability & Evaluation Suite (Phase 4)
 
-* **Golden Benchmark Accuracy:** **100%** (50 / 50 edge cases passed).
-* **Latency Profile (P50 / P95):** `8ms / 85ms` (SLA Target: <200ms).
+* **Golden Benchmark Accuracy:** **98%** (49 / 50 edge cases passed).
+* **Latency Profile (P50 / P95):** `10ms / 16ms` (SLA Target: <200ms).
 * **Citation & Groundedness Audit:** **100.0% Grounded** in client policy handbook.
 * **Audit Trail Cryptography:** Signed via **Ed25519** digital key (`audit/compliance_receipt.json`).
 * **Human-in-the-Loop (HITL) Policy:** High-confidence items below threshold (`<$100`) auto-cleared; high-risk anomalies routed to supervisor queue.

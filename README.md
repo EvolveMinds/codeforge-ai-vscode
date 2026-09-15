@@ -16,17 +16,17 @@
 > 
 > The Community Edition provides core AI assistance, local offline LLM execution, and our foundational 4-step Forward-Deployed Engineers delivery studio with limited features.
 > 
-> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Enterprise Edition (Limited Pilot)** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
+> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Enterprise Edition** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
 > 
-> > 🔒 **Limited Pilot Program**: The Enterprise Edition is currently in an invite-only **Limited Pilot** with **5 selected enterprise partners** (including major Australian banking, mining, and healthcare institutions) to validate real-world production workloads before general commercial availability and public pricing.
+> > 🔒 **Enterprise Evaluation Program**: The Enterprise Edition is available for 30-day technical validation and commercial licensing to evaluate production migration engines in enterprise environments.
 > 
-> 🔗 **[Explore Enterprise Limited Pilot](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Pilot Onboarding](https://www.evolveminds.com.au/contact/)**
+> 🔗 **[Explore Enterprise Edition](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Enterprise Licensing](https://www.evolveminds.com.au/contact/)**
 
-### 📊 Edition Comparison Matrix: Free Community vs. Enterprise (Limited Pilot)
+### 📊 Edition Comparison Matrix: Free Community vs. Enterprise Edition
 
-| Capability & Feature Area | Free Community Edition (VS Marketplace) | Enterprise Edition (Limited Pilot) |
+| Capability & Feature Area | Free Community Edition (VS Marketplace) | Enterprise Edition |
 | :--- | :---: | :---: |
-| **Price & Licensing** | **Free & Open Source** (MIT) | **Limited Pilot (5 Initial Partners)** / Commercial |
+| **Price & Licensing** | **Free & Open Source** (MIT) | **Enterprise Evaluation (30 Days)** / Commercial |
 | **Runtime Environment** | VS Code Extension Only | **Zero-Install Standalone Desktop App (.exe)** + Enterprise VS Code Extension |
 | **Air-Gapped & Security Enclave** | Basic local mode | **100% Air-Gapped Enclave**, Ed25519 Cryptographic Hardware Machine-Bound Licensing, Offline Patch (.zip) Loader |
 | **Telemetry & Outbound Network** | Zero telemetry | **Zero external telemetry**, strict air-gap compliance guarantee |

@@ -7,7 +7,7 @@
  *
  * Usage:
  *   node scripts/generate-license.js --org="Acme Financial" --plan="enterprise_platinum" --seats=50 --days=365
- *   npm run license:generate -- --org="ANZ Banking Group" --days=90 --seats=20
+ *   npm run license:generate -- --org="Acme Financial" --days=90 --seats=20
  */
 
 const { LicenseGenerator } = require('../out/enterprise/license/licenseGenerator');

@@ -7,10 +7,10 @@
 ---
 
 ### [0:00 - 1:00] Slide 1: The Business Problem & The Controller's 3 Numbers
-* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Use an LLM to automatically read bank statements and match invoices directly to general ledger entries without rules.'*.
+* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Automate our manual workflow with AI'*.
 * Most AI vendors would build a generic chatbot that hallucinates numbers. Instead, we started by **refusing that ask** and calculating your exact economics with your Controller.
-* You process **5,000 tasks a month**, taking **20 minutes each**, at an average cost of **$55/hr**.
-* By implementing deterministic automation with zero hallucinations, this system reclaims **1,167 hours/month** and delivers **$64.2k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
+* You process **0 tasks a month**, taking **15 minutes each**, at an average cost of **$35/hr**.
+* By implementing deterministic automation with zero hallucinations, this system reclaims **0 hours/month** and delivers **$0.0k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
 
 ---
 
@@ -23,7 +23,7 @@
 ---
 
 ### [2:00 - 3:00] Slide 3: Deterministic AI Solutioning (FDE Capability Ladder)
-* **Speaker:** "Now let's look at the AI layer. We deliberately selected **Level 1: Deterministic Rule Engine & Compiled SQL** from the FDE capability ladder.
+* **Speaker:** "Now let's look at the AI layer. We deliberately selected **Level 3: Air-Gapped Grounded Policy RAG** from the FDE capability ladder.
 * Why? Because arithmetic and financial rules cannot tolerate a 2% hallucination rate.
 * Any task requiring strict math runs through compiled SQL and deterministic code in under 10 milliseconds.
 * Where unstructured policy interpretation is needed, our air-gapped RAG pipeline retrieves exact citations from your handbook with 128-token chunk precision."
@@ -32,7 +32,7 @@
 
 ### [3:00 - 4:00] Slide 4: Proof of Reliability — 50-Case Golden Benchmark
 * **Speaker:** "Before touching any production traffic, we proved reliability against a rigorous 50-case edge-case golden evaluation suite.
-* The system scored **100% accuracy**, with a P50 latency of **8 milliseconds**.
+* The system scored **98% accuracy**, with a P50 latency of **10 milliseconds**.
 * Every single output has a cryptographic audit trail signed via Ed25519 digital keys.
 * For high-risk edge cases or requests over the automated limit, transactions are routed cleanly to your Human-in-the-Loop supervisor queue for one-click approval."
 

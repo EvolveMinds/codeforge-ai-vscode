@@ -3,17 +3,15 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    actor FinOps as Financial Operations
-    participant Hook as Real-time Statement Ingest
-    participant Parser as Deterministic Parser + OCR
-    participant Matcher as SQL Tolerance Matching Engine
-    actor Human as Controller Approval Gate (HITL)
-    participant ERP as Core General Ledger
+    actor Operator as Business Operator / User
+    participant Ingest as Secure API / Webhook Gateway
+    participant Agent as Evolve AI Production System
+    actor Supervisor as Human-in-the-Loop (HITL) Gate
+    participant Target as Production DB / Warehouse
     
-    Hook->>Parser: Ingest bank statement
-    Parser->>Matcher: Structured normalized lines
-    Matcher->>Matcher: 100% Deterministic match (zero drift)
-    Matcher->>Human: Review flagged edge-case variance
-    Human->>ERP: 1-Click Signed Batch Posting
-    ERP-->>FinOps: Cryptographic audit log created
+    Operator->>Ingest: Submit task payload
+    Ingest->>Agent: Parse & execute deterministic pipeline
+    Agent->>Supervisor: Structured draft & audit proposal
+    Supervisor->>Target: Verified 1-Click Execution
+    Target-->>Operator: Cryptographically signed confirmation
 ```

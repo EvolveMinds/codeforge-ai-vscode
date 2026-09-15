@@ -225,11 +225,11 @@ It’s the plumbing:
 ❌ Hundreds of legacy Oracle & T-SQL stored procedures that need manual rewrites.
 ❌ No automated air-gapped licensing for defense/banking enclaves.
 
-Today, we're announcing the **Evolve AI Enterprise Edition — Limited Pilot Program**. 🚀
+Today, we're announcing the **Evolve AI Enterprise Edition — Evaluation & Commercial Program**. 🚀
 
-We are opening up access to an exclusive cohort of **5 selected enterprise partners** (forward-deployed engineering teams, banks, resources, and regulated defense enclaves) to test-drive the full enterprise suite in live client environments before broader commercial release.
+We are opening up access to enterprise teams (forward-deployed engineering teams, banks, resources, and regulated defense enclaves) to test-drive the full enterprise suite in live client environments.
 
-Here is what our 5 Pilot Partners get access to on Day 1:
+Here is what enterprise teams get access to on Day 1:
 
 1️⃣ **Zero-Install Standalone Desktop Studio (.exe)**
 Runs straight from an encrypted thumb drive or client folder. Zero administrator rights required. Zero corporate proxy blockage.

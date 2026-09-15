@@ -519,7 +519,7 @@
         <div style="padding: 16px 20px; max-height: 72vh; overflow-y: auto;">
           <!-- Informational Banner -->
           <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 11.5px; color: #cbd5e1; line-height: 1.5;">
-            <strong style="color: #38bdf8;">Limited Pilot Program:</strong> Access is currently allocated to an exclusive cohort of <b>5 selected enterprise partners</b> on request. Fill out your organization details below to request a pilot license key (<code>EM-ENT-V1.*</code>) or <code>license.json</code> file configured for your air-gapped workstations.
+            <strong style="color: #38bdf8;">Enterprise Evaluation Program:</strong> Enterprise evaluation licenses are available on request for technical validation and internal testing. Fill out your organization details below to request an evaluation license key (<code>EM-ENT-V1.*</code>) or <code>license.json</code> file configured for your air-gapped workstations.
           </div>
 
           <!-- Form Grid Row 1 -->
@@ -660,9 +660,9 @@
           <p>This End User License Agreement (&quot;EULA&quot;) is a legal contract between Evolve Mind Solutions Pty Ltd (ABN 41 672 546 217, Level 1, 63-73 Ann Street, Surry Hills NSW 2010, Australia) (&quot;Licensor&quot;) and your enterprise or organisation (&quot;Licensee&quot;). By activating, copying, or executing the software, Licensee agrees to be bound by these terms.</p>
           
           <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. LICENSE GRANTS &amp; EVALUATION PILOTS</h4>
-          <p><strong>2.1 Enterprise Limited Pilot:</strong> Grants a non-exclusive, non-transferable, revocable license strictly for internal evaluation by selected pilot partners (CBA, ANZ, BHP, Defence, Sonic Healthcare, and approved trials) for a period not exceeding <strong>thirty (30) days</strong>.</p>
+          <p><strong>2.1 Enterprise Evaluation &amp; Pilot:</strong> Grants a non-exclusive, non-transferable, revocable license strictly for internal evaluation, operational testing, and technical validation by Authorized Users for an evaluation period not exceeding <strong>thirty (30) days</strong> unless extended in writing by Licensor.</p>
           <p><strong>2.2 Commercial Licenses:</strong> Available as Seat-Based or Enterprise Site Licenses. Organization / Team licenses cover all developer workstations within Licensee&apos;s organisation without requiring individual machine IDs.</p>
-          <p><strong>2.3 Air-Gapped Enclave Licenses:</strong> Where requested for classified defense or banking enclaves, the cryptographic token is bound to host CPU/motherboard hardware entropy.</p>
+          <p><strong>2.3 Air-Gapped Enclave Licenses:</strong> Where requested for classified defense, sovereign, or air-gapped enclaves, the cryptographic token is bound to host CPU/motherboard hardware entropy.</p>
 
           <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">3. 100% CUSTOMER CODE OWNERSHIP</h4>
           <p>Licensee retains sole, exclusive, and unencumbered ownership of all Customer Code, transpiled SQL, synthetic data, tests, and models generated or refactored with the software. Licensor asserts zero copyright or licensing interest in your outputs.</p>
@@ -2182,12 +2182,27 @@
                 <div id="subpanelCosmosView" style="display: none;">
                   <div class="ai-copilot-banner" style="border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08);">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="ai-pill" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid #6366f1;">🌐 3D Schema Topology</span>
-                        <span style="font-size: 11.5px;">Holistic cross-table relationships, star-schema clustering, and multi-hop join path generation.</span>
-                        <span id="p2CosmosSourceBadge" style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">⚡ Demo Star Schema</span>
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="ai-pill" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid #6366f1;">🌐 3D / 2D Schema Topology</span>
+                        <span style="font-size: 11.5px;">Cross-table relationships, star-schema clustering, and multi-hop join path generation.</span>
+                        <span id="p2CosmosSourceBadge" style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); cursor: pointer;" title="Click to toggle between Demo Star Schema and Connected Live Database">⚡ Demo Star Schema</span>
                       </div>
-                      <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <!-- Data Source Switcher -->
+                        <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border);">
+                          <label style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;" for="p2CosmosSourceSelect">Source:</label>
+                          <select id="p2CosmosSourceSelect" style="padding: 2px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="demo" selected>⚡ Demo Star Schema</option>
+                            <option value="connected">🔌 Live Connected DB</option>
+                            <option value="workspace">📁 Workspace Files</option>
+                          </select>
+                        </div>
+                        <button class="btn-quick" id="btnP2ConnectLiveDb" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-weight: 700; padding: 4px 10px; font-size: 11px;" title="Connect and introspect live database">🔌 Connect Live DB</button>
+                        <button class="btn-quick" id="btnP2RefreshGraph" style="padding: 4px 8px; font-size: 11px; margin: 0;" title="Reload schema and reset coordinates">🔄 Refresh</button>
+                        <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+                          <button id="btnP2CosmosMode3D" type="button" class="btn-quick active" style="padding: 4px 10px; font-size: 11px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" title="Switch to 3D Celestial Orbit Topology">🌐 3D Cosmos</button>
+                          <button id="btnP2CosmosMode2D" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 600; border-radius: 4px;" title="Switch to 2D Technical ERD Layout">📐 2D Technical ERD</button>
+                        </div>
                         <button class="btn-quick" id="btnP2CosmosLaunchFullscreen" style="background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 4px 10px; font-size: 11px;">📽️ Client Showcase Mode</button>
                         <button class="btn-quick" id="btnP2CosmosCopyPng" style="padding: 4px 10px; font-size: 11px;">📸 Copy Diagram PNG</button>
                         <button class="btn-quick" id="btnP2CosmosPocPack" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border-color: #eab308; padding: 4px 10px; font-size: 11px;">📑 Client POC Approval Pack</button>
@@ -2217,6 +2232,7 @@
 
                       <!-- Floating Touch HUD -->
                       <div style="position: absolute; bottom: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 10;">
+                        <button class="btn-quick" id="btnP2HudToggle2D" style="padding: 6px 10px; font-size: 11px; font-weight: 700; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Toggle 2D Technical ERD / 3D Cosmos Mode">2D/3D</button>
                         <button class="btn-quick" id="btnP2HudZoomIn" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom In">➕</button>
                         <button class="btn-quick" id="btnP2HudZoomOut" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom Out">➖</button>
                         <button class="btn-quick" id="btnP2HudCenter" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Center View">🎯</button>
@@ -5359,6 +5375,10 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   </button>
                 </div>
 
+                <button class="btn-quick" id="btnDataCosmosConnectDb" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-weight: 700; padding: 4px 10px; font-size: 11px; margin: 0;" title="Connect and introspect live database">
+                  🔌 Connect Live DB
+                </button>
+
                 <button class="btn-quick" id="btnCosmosRefreshGraph" style="padding: 4px 8px; font-size: 11px; margin: 0;" title="Reload schema and reset node coordinates">
                   🔄 Refresh Topology
                 </button>
@@ -5417,6 +5437,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
                 <!-- Floating Touch HUD Button Dock -->
                 <div style="position: absolute; bottom: 14px; right: 14px; display: flex; flex-direction: column; gap: 6px; z-index: 10;">
+                  <button class="btn-quick" id="btnHudToggle2D" style="padding: 7px 11px; font-size: 11px; font-weight: 700; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Toggle 2D Technical ERD / 3D Cosmos Mode">2D/3D</button>
                   <button class="btn-quick" id="btnHudZoomIn" style="padding: 7px 11px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom In">➕</button>
                   <button class="btn-quick" id="btnHudZoomOut" style="padding: 7px 11px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom Out">➖</button>
                   <button class="btn-quick" id="btnHudCenter" style="padding: 7px 11px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Center View">🎯</button>
@@ -6745,6 +6766,9 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
           <div id="patchResultBox" style="display: none; margin-top: 10px; font-size: 11.5px; padding: 10px 12px; border-radius: 6px;"></div>
         </div>
       </div>
+    </div>
+  </div>
+
   <!-- Live Database Sample Data Preview Modal -->
   <div id="dbSampleDataModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;">
     <div style="background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; width: 90vw; max-width: 1100px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); overflow: hidden;">
@@ -6753,10 +6777,12 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
         <div style="display: flex; align-items: center; gap: 10px;">
           <span style="font-size: 20px;">🔍</span>
           <div>
-            <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <span>Table Data Preview:</span>
               <span id="dbSampleModalTableName" style="color: #38bdf8; font-family: monospace;">--</span>
               <span id="dbSampleModalSourceBadge" style="font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">⚡ LIVE DATABASE</span>
+              <button class="btn-quick" id="btnSampleModalToggleLive" style="font-size: 10.5px; padding: 2px 8px; margin: 0; background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Switch between live database query and mock demo replica">🔄 Switch Live/Demo</button>
+              <button class="btn-quick" id="btnSampleModalConnectDb" style="font-size: 10.5px; padding: 2px 8px; margin: 0; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); color: #10b981;" title="Connect or switch live database connection">🔌 Connect Live DB</button>
             </div>
             <div id="dbSampleModalSubtitle" style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Displaying first 50 records</div>
           </div>
@@ -6783,6 +6809,89 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
       <div style="padding: 10px 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); background: rgba(30, 41, 59, 0.4); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #94a3b8;">
         <div id="dbSampleModalMeta">Columns: 0 &bull; Rows: 0</div>
         <div>Credentials encrypted via OS Vault &bull; Read-only query limit 50</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Universal Live Database Connection & Introspection Modal -->
+  <div id="modalLiveDbConnect" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 100000; justify-content: center; align-items: center;">
+    <div style="background: #0f172a; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 12px; width: 90vw; max-width: 720px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85); overflow: hidden;">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(30, 41, 59, 0.6);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🔌</span>
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: #fff;">Connect Live Database / Warehouse</div>
+            <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Load real schemas and live table data directly into 2D/3D ERD &amp; Data Studio</div>
+          </div>
+        </div>
+        <button id="btnCloseLiveDbModal" style="background: transparent; border: none; color: #94a3b8; font-size: 20px; cursor: pointer; padding: 4px 8px;" title="Close Modal">&times;</button>
+      </div>
+
+      <!-- Form Body -->
+      <div style="flex: 1; overflow-y: auto; padding: 20px; background: #090d16; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Engine & Connection URI -->
+        <div style="display: grid; grid-template-columns: 1fr 1.8fr; gap: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbDialectSelect">Database Engine / Dialect</label>
+            <select id="modalDbDialectSelect" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+              <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+              <option value="snowflake">Snowflake Data Cloud</option>
+              <option value="bigquery">Google BigQuery</option>
+              <option value="mysql">MySQL / MariaDB / Aurora</option>
+              <option value="sqlite">SQLite Local Database (.db)</option>
+            </select>
+          </div>
+          <div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1;" for="modalDbUriInput">Connection URI / Host String</label>
+              <button class="btn-quick" id="btnModalToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin: 0;">👁️ Show/Hide</button>
+            </div>
+            <input type="password" id="modalDbUriInput" value="postgresql://postgres:postgres@localhost:5432/postgres" placeholder="postgresql://user:password@host:5432/dbname" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-family: monospace; font-size: 11.5px;">
+          </div>
+        </div>
+
+        <!-- Database ID, Schema ID, Vault Policy -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px;">
+          <div>
+            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbProjectIdInput">Database / Project ID</label>
+            <input type="text" id="modalDbProjectIdInput" value="postgres" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbSchemaIdInput">Schema / Dataset ID</label>
+            <input type="text" id="modalDbSchemaIdInput" value="public" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+          </div>
+          <div>
+            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbVaultPolicy">Credential Vault Policy</label>
+            <select id="modalDbVaultPolicy" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+              <option value="session" selected>Session Only (In-Memory)</option>
+              <option value="keyring">Encrypt at Rest (OS Keyring)</option>
+              <option value="air-gap">Air-Gapped Temporary</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Quick Help / Presets Box -->
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="color: #38bdf8; font-weight: 600;">💡 Tip:</span> You can scan workspace configuration files (<code>.env</code>, <code>dbt_project.yml</code>, Prisma, Supabase) with 1 click.
+          </div>
+          <button class="btn-quick" id="btnModalAutoDetectDb" style="padding: 3px 10px; font-size: 11px; margin: 0; background: rgba(56, 189, 248, 0.15); border-color: #38bdf8; color: #38bdf8;">⚡ Auto-Detect</button>
+        </div>
+
+        <!-- Status / Result Box -->
+        <div id="modalDbResultBox" style="display: none; font-size: 11.5px; padding: 10px 12px; border-radius: 6px;"></div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div style="padding: 12px 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); background: rgba(30, 41, 59, 0.5); display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn-quick" id="btnModalTestDbPing" style="padding: 6px 12px; font-size: 11.5px; margin: 0;">🔌 Test Connection</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-quick" id="btnModalCancelDb" style="padding: 6px 14px; font-size: 11.5px; margin: 0;">Cancel</button>
+          <button class="btn" id="btnModalExecuteIntrospect" style="background: #10b981; color: #1e1e1e; font-weight: 700; padding: 6px 18px; font-size: 11.5px; border-radius: 4px; cursor: pointer;">
+            🚀 Connect &amp; Load Schema
+          </button>
+        </div>
       </div>
     </div>
   </div>
