@@ -1313,6 +1313,7 @@
                         <div style="display: flex; gap: 4px;">
                           <button class="btn-quick" id="btnFdeAiFirstPrinciples" style="font-size: 10px; padding: 2px 8px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);" aria-label="Deconstruct Assumptions">✨ Deconstruct Assumptions</button>
                           <button class="btn-quick" id="btnFdeAiDraftRisk" style="font-size: 10px; padding: 2px 8px; color: var(--error); border-color: rgba(244, 71, 71, 0.4);" aria-label="AI Risk Audit">✨ AI Risk Audit</button>
+                          <button type="button" class="btn-quick" id="btnFdeAddInvariant" style="font-size: 10px; padding: 2px 8px; background: var(--bg-primary); border-color: #f87171; color: #f87171; font-weight: 700;" aria-label="+ Add Invariant">+ Add Invariant</button>
                         </div>
                       </div>
 
@@ -1321,9 +1322,10 @@
                         <table style="width: 100%; border-collapse: collapse; font-size: 11px; background: var(--bg-primary); border-radius: 4px; overflow: hidden;">
                           <thead>
                             <tr style="background: rgba(0,0,0,0.3); color: #94a3b8; text-align: left; border-bottom: 1px solid var(--border);">
-                              <th style="padding: 6px 8px; width: 32%;">Naive Client Assumption</th>
-                              <th style="padding: 6px 8px; width: 34%;">Fundamental Physics / Legal Constraint</th>
-                              <th style="padding: 6px 8px; width: 34%;">Hard Invariant (Engineering Rule)</th>
+                              <th style="padding: 6px 8px; width: 30%;">Naive Client Assumption</th>
+                              <th style="padding: 6px 8px; width: 33%;">Fundamental Physics / Legal Constraint</th>
+                              <th style="padding: 6px 8px; width: 33%;">Hard Invariant (Engineering Rule)</th>
+                              <th style="padding: 6px 8px; width: 4%; text-align: center;">✕</th>
                             </tr>
                           </thead>
                           <tbody id="fdeInvariantsTableBody">
@@ -1544,13 +1546,21 @@
                       <span style="font-size: 11px; color: var(--text-secondary);">Interactive Mermaid sequence topology contrasting legacy manual bottlenecks against the proposed FDE AI system. Editable for custom projects.</span>
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                      <select id="selFdeTopologyTemplate" class="select-fde" style="padding: 4px 8px; font-size: 10.5px; background: rgba(30, 41, 59, 0.95); color: #38bdf8; border: 1px solid #0284c7; border-radius: 4px; font-weight: 700; cursor: pointer;" aria-label="Showcase Architecture Templates">
-                        <option value="" disabled>🎭 Select Showcase Template...</option>
-                        <option value="enterprise-ai" selected>🤖 Enterprise AI Core &amp; HITL Gate</option>
-                        <option value="legacy-silo">⏳ Legacy Manual Silo &amp; Bottlenecks</option>
-                        <option value="streaming-fraud">⚡ Real-Time Streaming &amp; Fraud</option>
-                        <option value="hipaa-vault">🏥 Healthcare HIPAA De-ID Vault</option>
-                        <option value="fin-settlement">📈 Financial Trade Settlement</option>
+                      <select id="selFdeTopologyTemplate" class="select-fde" style="padding: 4px 8px; font-size: 10.5px; background: rgba(30, 41, 59, 0.95); color: #38bdf8; border: 1px solid #0284c7; border-radius: 4px; font-weight: 700; cursor: pointer;" aria-label="Architecture Templates">
+                        <option value="" disabled>🎭 Select Architecture Template...</option>
+                        <optgroup label="📋 Engagement Archetypes">
+                          <option value="support-copilot">🎧 Support Operations Co-Pilot</option>
+                          <option value="fin-reconcile">💰 Financial Core Reconciliation</option>
+                          <option value="health-records">🏥 Healthcare Clinical Records</option>
+                          <option value="supply-chain">📦 Supply Chain Exception Tracker</option>
+                        </optgroup>
+                        <optgroup label="🏛️ Architecture Showcases">
+                          <option value="enterprise-ai" selected>🤖 Enterprise AI Core &amp; HITL Gate</option>
+                          <option value="legacy-silo">⏳ Legacy Manual Silo &amp; Bottlenecks</option>
+                          <option value="streaming-fraud">⚡ Real-Time Streaming &amp; Fraud</option>
+                          <option value="hipaa-vault">🏥 Healthcare HIPAA De-ID Vault</option>
+                          <option value="fin-settlement">📈 Financial Trade Settlement</option>
+                        </optgroup>
                         <option value="custom" disabled hidden>✏️ Custom / Modified Architecture</option>
                         <option value="__reload__">↺ Reload Clean Preset</option>
                       </select>
@@ -2056,13 +2066,132 @@
                 <div id="p2StepBPanel" role="tabpanel" aria-labelledby="btnP2StepB" hidden>
                 <!-- Submode Tabs -->
                 <div class="code-tabs">
-                  <div class="code-tab active" id="tabModeStaging">1. Staging Schema Mapper</div>
-                  <div class="code-tab" id="tabModeMart">2. 🗄️ Cross-Model / Mart Join Builder</div>
-                  <div class="code-tab" id="tabModeCosmos">3. 🌐 3D/2D Schema Topology &amp; Client Showcase</div>
+                  <div class="code-tab active" id="tabModeCosmos">1. 🌐 3D/2D Schema Topology &amp; Client Showcase</div>
+                  <div class="code-tab" id="tabModeStaging">2. Staging Schema Mapper</div>
+                  <div class="code-tab" id="tabModeMart">3. 🗄️ Cross-Model / Mart Join Builder</div>
                 </div>
 
-                <!-- SUBPANEL A: STAGING SCHEMA MAPPER -->
-                <div id="subpanelStagingView" style="display: block;">
+                <!-- SUBPANEL 1: 3D/2D SCHEMA TOPOLOGY & CLIENT SHOWCASE -->
+                <div id="subpanelCosmosView" style="display: block;">
+                  <div class="ai-copilot-banner" style="border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span class="ai-pill" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid #6366f1;">🌐 3D / 2D Schema Topology</span>
+                        <span style="font-size: 11.5px;">Cross-table relationships, star-schema clustering, and multi-hop join path generation.</span>
+                        <span id="p2CosmosSourceBadge" style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); cursor: pointer;" title="Click to toggle between Demo Star Schema and Connected Live Database">⚡ Demo Star Schema</span>
+                      </div>
+                      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <!-- Data Source Switcher -->
+                        <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border);">
+                          <label style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;" for="p2CosmosSourceSelect">Source:</label>
+                          <select id="p2CosmosSourceSelect" style="padding: 2px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <option value="demo" selected>⚡ Demo Star Schema</option>
+                            <option value="connected">🔌 Live Connected DB</option>
+                            <option value="workspace">📁 Workspace Files</option>
+                          </select>
+                        </div>
+                        <button class="btn-quick" id="btnP2ConnectLiveDb" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-weight: 700; padding: 4px 10px; font-size: 11px;" title="Connect and introspect live database">🔌 Connect Live DB</button>
+                        <button class="btn-quick" id="btnP2RefreshGraph" style="padding: 4px 8px; font-size: 11px; margin: 0;" title="Reload schema and reset coordinates">🔄 Refresh</button>
+                        <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+                          <button id="btnP2CosmosMode3D" type="button" class="btn-quick active" style="padding: 4px 10px; font-size: 11px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" title="Switch to 3D Celestial Orbit Topology">🌐 3D Cosmos</button>
+                          <button id="btnP2CosmosMode2D" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 600; border-radius: 4px;" title="Switch to 2D Technical ERD Layout">📐 2D Technical ERD</button>
+                        </div>
+                        <button class="btn-quick" id="btnP2CosmosLaunchFullscreen" style="background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 4px 10px; font-size: 11px;">📽️ Client Showcase Mode</button>
+                        <button class="btn-quick" id="btnP2CosmosCopyPng" style="padding: 4px 10px; font-size: 11px;">📸 Copy Diagram PNG</button>
+                        <button class="btn-quick" id="btnP2CosmosPocPack" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border-color: #eab308; padding: 4px 10px; font-size: 11px;">📑 Client POC Approval Pack</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Table Search, Filter & Quick-Jump Toolbar (Phase 2) -->
+                  <div style="margin-top: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; z-index: 20;">
+                    <!-- Autocomplete Search Input -->
+                    <div style="position: relative; flex: 1 1 280px; max-width: 440px;">
+                      <div style="position: relative; display: flex; align-items: center;">
+                        <span style="position: absolute; left: 10px; font-size: 12px; color: #94a3b8; pointer-events: none;">🔍</span>
+                        <input type="text" id="p2CosmosSearchInput" placeholder="Search tables or columns (e.g. orders, cust, id) [Ctrl+F]..." autocomplete="off" style="width: 100%; padding: 6px 30px 6px 30px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11.5px; outline: none;" />
+                        <button id="btnP2CosmosClearSearch" style="display: none; position: absolute; right: 8px; background: none; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 2px;" title="Clear search">✕</button>
+                      </div>
+                      <!-- Floating Autocomplete / Quick-Jump Dropdown -->
+                      <div id="p2CosmosSearchResults" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #0f172a; border: 1px solid #38bdf8; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.85); z-index: 9999; max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+
+                    <!-- Role Filter Pills -->
+                    <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                      <span style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Filter:</span>
+                      <button class="btn-quick active p2-filter-pill" data-role="all" id="btnP2FilterAll" style="padding: 3px 9px; font-size: 11px; margin: 0; background: #0284c7; color: #ffffff; font-weight: 700;">All (<span id="p2CountAll">0</span>)</button>
+                      <button class="btn-quick p2-filter-pill" data-role="fact" id="btnP2FilterFacts" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #60a5fa; border-color: rgba(59,130,246,0.45);">⚡ Facts (<span id="p2CountFacts">0</span>)</button>
+                      <button class="btn-quick p2-filter-pill" data-role="dimension" id="btnP2FilterDims" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #34d399; border-color: rgba(16,185,129,0.45);">🗃️ Dimensions (<span id="p2CountDims">0</span>)</button>
+                      <button class="btn-quick p2-filter-pill" data-role="bridge" id="btnP2FilterBridges" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #c084fc; border-color: rgba(139,92,246,0.45);">🔗 Bridges (<span id="p2CountBridges">0</span>)</button>
+                    </div>
+
+                    <!-- Quick Jump Table Select -->
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <label for="p2CosmosQuickJump" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Jump to:</label>
+                      <select id="p2CosmosQuickJump" style="padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; max-width: 170px;">
+                        <option value="">Select table...</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <!-- Embedded Cosmos Viewport & Controls inside Phase 2 -->
+                  <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 340px; gap: 12px; align-items: stretch;">
+                    <!-- Canvas Box -->
+                    <div id="p2CosmosCanvasBox" style="position: relative; height: 560px; background: #0f172a; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; overflow: hidden; touch-action: none;">
+                      <canvas id="p2CosmosCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
+                      
+                      <!-- Floating Touch Hint -->
+                      <div style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 4px 12px; font-size: 10.5px; color: #94a3b8; pointer-events: none;">
+                        💡 Multi-touch: 1-finger orbit &bull; 2-finger pinch zoom &bull; 2-finger pan &bull; Tap node to spotlight
+                      </div>
+
+                      <!-- Floating Pathfinder Breadcrumb -->
+                      <div id="p2CosmosPathPill" style="display: none; position: absolute; bottom: 12px; left: 12px; right: 80px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); border: 1px solid #eab308; border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #facc15; align-items: center; justify-content: space-between; gap: 8px;">
+                        <div id="p2CosmosPathText" style="font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                          <button class="btn-quick" id="btnP2CosmosCopySql" style="padding: 2px 8px; font-size: 10.5px; margin: 0;">📋 Copy SQL</button>
+                          <button class="btn" id="btnP2CosmosApplyMart" style="background: #eab308; color: #1e1e1e; font-weight: 700; padding: 2px 10px; font-size: 10.5px; margin: 0; border: none; border-radius: 4px; cursor: pointer;">✨ Build Mart from Path</button>
+                        </div>
+                      </div>
+
+                      <!-- Floating Relationship Focus Pill -->
+                      <div id="p2CosmosRelPill" style="display: none; position: absolute; bottom: 12px; left: 12px; right: 80px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); border: 1px solid #38bdf8; border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #38bdf8; align-items: center; justify-content: space-between; gap: 8px; z-index: 15; box-shadow: 0 8px 24px rgba(0,0,0,0.6);">
+                        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                          <span style="font-size: 13px;">🔗</span>
+                          <span id="p2CosmosRelText" style="font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f8fafc;"></span>
+                        </div>
+                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                          <button class="btn-quick" id="btnP2CosmosCopyRelSql" style="padding: 2px 8px; font-size: 10.5px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4);" title="Copy SQL JOIN query">📋 Copy SQL</button>
+                          <button class="btn-quick" id="btnP2CosmosExitRelFocus" style="padding: 2px 8px; font-size: 10.5px; margin: 0; color: #94a3b8;" title="Exit relationship isolation mode">✕ Exit Focus</button>
+                        </div>
+                      </div>
+
+                      <!-- Floating Touch HUD -->
+                      <div style="position: absolute; bottom: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 10;">
+                        <button class="btn-quick" id="btnP2HudToggle2D" style="padding: 6px 10px; font-size: 11px; font-weight: 700; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Toggle 2D Technical ERD / 3D Cosmos Mode">2D/3D</button>
+                        <button class="btn-quick" id="btnP2HudZoomIn" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom In">➕</button>
+                        <button class="btn-quick" id="btnP2HudZoomOut" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom Out">➖</button>
+                        <button class="btn-quick" id="btnP2HudCenter" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Center View">🎯</button>
+                        <button class="btn-quick" id="btnP2HudTurntable" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Auto-Rotate">🔄</button>
+                        <button class="btn-quick" id="btnP2HudFit" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Fit All Tables">⛶</button>
+                      </div>
+                    </div>
+
+                    <!-- Right Inspector Panel inside Phase 2 -->
+                    <div id="p2CosmosInspector" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; max-height: 560px; overflow-y: auto;">
+                      <div id="p2InspectorEmpty" style="color: var(--text-secondary); font-size: 11.5px; text-align: center; margin: auto; padding: 20px;">
+                        <span style="font-size: 28px; display: block; margin-bottom: 8px;">🌐</span>
+                        Tap or click any table node in the 3D topology canvas to spotlight its foreign key relationships and schema details.
+                      </div>
+                      <div id="p2InspectorContent" style="display: none; flex-direction: column; gap: 10px;">
+                        <!-- Content populated dynamically -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SUBPANEL 2: STAGING SCHEMA MAPPER -->
+                <div id="subpanelStagingView" style="display: none;">
                   <div class="ai-copilot-banner">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                       <div style="display: flex; align-items: center; gap: 8px;">
@@ -2145,7 +2274,7 @@
                   </div>
                 </div>
 
-                <!-- SUBPANEL B: MART JOIN BUILDER -->
+                <!-- SUBPANEL 3: CROSS-MODEL / MART JOIN BUILDER -->
                 <div id="subpanelMartView" style="display: none;">
                   <div class="ai-copilot-banner green">
                     <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -2301,124 +2430,6 @@
                   </div>
                 </div>
 
-                <!-- SUBPANEL C: 3D/2D SCHEMA TOPOLOGY & CLIENT SHOWCASE -->
-                <div id="subpanelCosmosView" style="display: none;">
-                  <div class="ai-copilot-banner" style="border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span class="ai-pill" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid #6366f1;">🌐 3D / 2D Schema Topology</span>
-                        <span style="font-size: 11.5px;">Cross-table relationships, star-schema clustering, and multi-hop join path generation.</span>
-                        <span id="p2CosmosSourceBadge" style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); cursor: pointer;" title="Click to toggle between Demo Star Schema and Connected Live Database">⚡ Demo Star Schema</span>
-                      </div>
-                      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                        <!-- Data Source Switcher -->
-                        <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border);">
-                          <label style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;" for="p2CosmosSourceSelect">Source:</label>
-                          <select id="p2CosmosSourceSelect" style="padding: 2px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
-                            <option value="demo" selected>⚡ Demo Star Schema</option>
-                            <option value="connected">🔌 Live Connected DB</option>
-                            <option value="workspace">📁 Workspace Files</option>
-                          </select>
-                        </div>
-                        <button class="btn-quick" id="btnP2ConnectLiveDb" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-weight: 700; padding: 4px 10px; font-size: 11px;" title="Connect and introspect live database">🔌 Connect Live DB</button>
-                        <button class="btn-quick" id="btnP2RefreshGraph" style="padding: 4px 8px; font-size: 11px; margin: 0;" title="Reload schema and reset coordinates">🔄 Refresh</button>
-                        <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
-                          <button id="btnP2CosmosMode3D" type="button" class="btn-quick active" style="padding: 4px 10px; font-size: 11px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" title="Switch to 3D Celestial Orbit Topology">🌐 3D Cosmos</button>
-                          <button id="btnP2CosmosMode2D" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 600; border-radius: 4px;" title="Switch to 2D Technical ERD Layout">📐 2D Technical ERD</button>
-                        </div>
-                        <button class="btn-quick" id="btnP2CosmosLaunchFullscreen" style="background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 4px 10px; font-size: 11px;">📽️ Client Showcase Mode</button>
-                        <button class="btn-quick" id="btnP2CosmosCopyPng" style="padding: 4px 10px; font-size: 11px;">📸 Copy Diagram PNG</button>
-                        <button class="btn-quick" id="btnP2CosmosPocPack" style="background: rgba(234, 179, 8, 0.2); color: #facc15; border-color: #eab308; padding: 4px 10px; font-size: 11px;">📑 Client POC Approval Pack</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Table Search, Filter & Quick-Jump Toolbar (Phase 2) -->
-                  <div style="margin-top: 10px; background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; z-index: 20;">
-                    <!-- Autocomplete Search Input -->
-                    <div style="position: relative; flex: 1 1 280px; max-width: 440px;">
-                      <div style="position: relative; display: flex; align-items: center;">
-                        <span style="position: absolute; left: 10px; font-size: 12px; color: #94a3b8; pointer-events: none;">🔍</span>
-                        <input type="text" id="p2CosmosSearchInput" placeholder="Search tables or columns (e.g. orders, cust, id) [Ctrl+F]..." autocomplete="off" style="width: 100%; padding: 6px 30px 6px 30px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11.5px; outline: none;" />
-                        <button id="btnP2CosmosClearSearch" style="display: none; position: absolute; right: 8px; background: none; border: none; color: #94a3b8; font-size: 12px; cursor: pointer; padding: 2px;" title="Clear search">✕</button>
-                      </div>
-                      <!-- Floating Autocomplete / Quick-Jump Dropdown -->
-                      <div id="p2CosmosSearchResults" style="display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: #0f172a; border: 1px solid #38bdf8; border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.85); z-index: 9999; max-height: 300px; overflow-y: auto;"></div>
-                    </div>
-
-                    <!-- Role Filter Pills -->
-                    <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
-                      <span style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Filter:</span>
-                      <button class="btn-quick active p2-filter-pill" data-role="all" id="btnP2FilterAll" style="padding: 3px 9px; font-size: 11px; margin: 0; background: #0284c7; color: #ffffff; font-weight: 700;">All (<span id="p2CountAll">0</span>)</button>
-                      <button class="btn-quick p2-filter-pill" data-role="fact" id="btnP2FilterFacts" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #60a5fa; border-color: rgba(59,130,246,0.45);">⚡ Facts (<span id="p2CountFacts">0</span>)</button>
-                      <button class="btn-quick p2-filter-pill" data-role="dimension" id="btnP2FilterDims" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #34d399; border-color: rgba(16,185,129,0.45);">🗃️ Dimensions (<span id="p2CountDims">0</span>)</button>
-                      <button class="btn-quick p2-filter-pill" data-role="bridge" id="btnP2FilterBridges" style="padding: 3px 9px; font-size: 11px; margin: 0; color: #c084fc; border-color: rgba(139,92,246,0.45);">🔗 Bridges (<span id="p2CountBridges">0</span>)</button>
-                    </div>
-
-                    <!-- Quick Jump Table Select -->
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                      <label for="p2CosmosQuickJump" style="font-size: 11px; color: #94a3b8; font-weight: 600;">Jump to:</label>
-                      <select id="p2CosmosQuickJump" style="padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 11px; max-width: 170px;">
-                        <option value="">Select table...</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <!-- Embedded Cosmos Viewport & Controls inside Phase 2 -->
-                  <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 340px; gap: 12px; align-items: stretch;">
-                    <!-- Canvas Box -->
-                    <div id="p2CosmosCanvasBox" style="position: relative; height: 560px; background: #0f172a; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 8px; overflow: hidden; touch-action: none;">
-                      <canvas id="p2CosmosCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
-                      
-                      <!-- Floating Touch Hint -->
-                      <div style="position: absolute; top: 10px; left: 10px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 4px 12px; font-size: 10.5px; color: #94a3b8; pointer-events: none;">
-                        💡 Multi-touch: 1-finger orbit &bull; 2-finger pinch zoom &bull; 2-finger pan &bull; Tap node to spotlight
-                      </div>
-
-                      <!-- Floating Pathfinder Breadcrumb -->
-                      <div id="p2CosmosPathPill" style="display: none; position: absolute; bottom: 12px; left: 12px; right: 80px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px); border: 1px solid #eab308; border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #facc15; align-items: center; justify-content: space-between; gap: 8px;">
-                        <div id="p2CosmosPathText" style="font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
-                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
-                          <button class="btn-quick" id="btnP2CosmosCopySql" style="padding: 2px 8px; font-size: 10.5px; margin: 0;">📋 Copy SQL</button>
-                          <button class="btn" id="btnP2CosmosApplyMart" style="background: #eab308; color: #1e1e1e; font-weight: 700; padding: 2px 10px; font-size: 10.5px; margin: 0; border: none; border-radius: 4px; cursor: pointer;">✨ Build Mart from Path</button>
-                        </div>
-                      </div>
-
-                      <!-- Floating Relationship Focus Pill -->
-                      <div id="p2CosmosRelPill" style="display: none; position: absolute; bottom: 12px; left: 12px; right: 80px; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); border: 1px solid #38bdf8; border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #38bdf8; align-items: center; justify-content: space-between; gap: 8px; z-index: 15; box-shadow: 0 8px 24px rgba(0,0,0,0.6);">
-                        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-                          <span style="font-size: 13px;">🔗</span>
-                          <span id="p2CosmosRelText" style="font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f8fafc;"></span>
-                        </div>
-                        <div style="display: flex; gap: 6px; flex-shrink: 0;">
-                          <button class="btn-quick" id="btnP2CosmosCopyRelSql" style="padding: 2px 8px; font-size: 10.5px; margin: 0; color: #38bdf8; border-color: rgba(56,189,248,0.4);" title="Copy SQL JOIN query">📋 Copy SQL</button>
-                          <button class="btn-quick" id="btnP2CosmosExitRelFocus" style="padding: 2px 8px; font-size: 10.5px; margin: 0; color: #94a3b8;" title="Exit relationship isolation mode">✕ Exit Focus</button>
-                        </div>
-                      </div>
-
-                      <!-- Floating Touch HUD -->
-                      <div style="position: absolute; bottom: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; z-index: 10;">
-                        <button class="btn-quick" id="btnP2HudToggle2D" style="padding: 6px 10px; font-size: 11px; font-weight: 700; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Toggle 2D Technical ERD / 3D Cosmos Mode">2D/3D</button>
-                        <button class="btn-quick" id="btnP2HudZoomIn" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom In">➕</button>
-                        <button class="btn-quick" id="btnP2HudZoomOut" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Zoom Out">➖</button>
-                        <button class="btn-quick" id="btnP2HudCenter" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Center View">🎯</button>
-                        <button class="btn-quick" id="btnP2HudTurntable" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Auto-Rotate">🔄</button>
-                        <button class="btn-quick" id="btnP2HudFit" style="padding: 6px 10px; font-size: 13px; margin: 0; background: rgba(15,23,42,0.85); border-color: rgba(255,255,255,0.2);" title="Fit All Tables">⛶</button>
-                      </div>
-                    </div>
-
-                    <!-- Right Inspector Panel inside Phase 2 -->
-                    <div id="p2CosmosInspector" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; max-height: 560px; overflow-y: auto;">
-                      <div id="p2InspectorEmpty" style="color: var(--text-secondary); font-size: 11.5px; text-align: center; margin: auto; padding: 20px;">
-                        <span style="font-size: 28px; display: block; margin-bottom: 8px;">🌐</span>
-                        Tap or click any table node in the 3D topology canvas to spotlight its foreign key relationships and schema details.
-                      </div>
-                      <div id="p2InspectorContent" style="display: none; flex-direction: column; gap: 10px;">
-                        <!-- Content populated dynamically -->
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
                 </div>
 

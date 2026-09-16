@@ -3688,13 +3688,13 @@ Output ONLY the message without markdown code fences.`;
 
         <!-- Section Mode Tabs -->
         <div class="code-tabs" style="margin-bottom: 16px;">
-          <div class="code-tab active" id="tabPhase1Staging" onclick="switchPhase1Mode('staging')">1. Staging Schema Mapper</div>
-          <div class="code-tab" id="tabPhase1Mart" onclick="switchPhase1Mode('mart')">2. 🔀 Cross-Model / Mart Join Builder</div>
-          <div class="code-tab" id="tabPhase1Cosmos" onclick="switchPhase1Mode('cosmos')">3. 🌐 3D Schema Topology</div>
+          <div class="code-tab active" id="tabPhase1Cosmos" onclick="switchPhase1Mode('cosmos')">1. 🌐 3D/2D Schema Topology &amp; Client Showcase</div>
+          <div class="code-tab" id="tabPhase1Staging" onclick="switchPhase1Mode('staging')">2. Staging Schema Mapper</div>
+          <div class="code-tab" id="tabPhase1Mart" onclick="switchPhase1Mode('mart')">3. 🗄️ Cross-Model / Mart Join Builder</div>
         </div>
 
         <!-- SUB-PANEL A: STAGING MAPPER -->
-        <div id="subpanelStaging">
+        <div id="subpanelStaging" style="display: none;">
           <!-- AI Staging Schema Copilot Bar -->
           <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
@@ -3938,8 +3938,8 @@ Output ONLY the message without markdown code fences.`;
           </div>
         </div>
 
-        <!-- SUB-PANEL C: 3D SCHEMA TOPOLOGY & CELESTIAL ORBIT (COMMUNITY EDITION) -->
-        <div id="subpanelCosmos" style="display: none;">
+        <!-- SUB-PANEL 1: 3D SCHEMA TOPOLOGY & CELESTIAL ORBIT (COMMUNITY EDITION) -->
+        <div id="subpanelCosmos" style="display: block;">
           <!-- Toolbar & Controls -->
           <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
             <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -5613,6 +5613,12 @@ Output ONLY the message without markdown code fences.`;
           else card.classList.remove('active');
         }
       });
+      if (p === 1) {
+        const tabCosmos = document.getElementById('tabPhase1Cosmos');
+        if (tabCosmos && tabCosmos.classList.contains('active')) {
+          initOrResizeCosmosEngine();
+        }
+      }
       vscode.postMessage({ command: 'setActivePhase', phase: p });
     }
 
@@ -5624,14 +5630,13 @@ Output ONLY the message without markdown code fences.`;
       const tabMart = document.getElementById('tabPhase1Mart');
       const tabCosmos = document.getElementById('tabPhase1Cosmos');
 
-      if (mode === 'cosmos') {
-        if (subStaging) subStaging.style.display = 'none';
+      if (mode === 'staging') {
+        if (subStaging) subStaging.style.display = 'block';
         if (subMart) subMart.style.display = 'none';
-        if (subCosmos) subCosmos.style.display = 'block';
-        if (tabStaging) tabStaging.className = 'code-tab';
+        if (subCosmos) subCosmos.style.display = 'none';
+        if (tabStaging) tabStaging.className = 'code-tab active';
         if (tabMart) tabMart.className = 'code-tab';
-        if (tabCosmos) tabCosmos.className = 'code-tab active';
-        initOrResizeCosmosEngine();
+        if (tabCosmos) tabCosmos.className = 'code-tab';
       } else if (mode === 'mart') {
         if (subStaging) subStaging.style.display = 'none';
         if (subMart) subMart.style.display = 'block';
@@ -5641,12 +5646,13 @@ Output ONLY the message without markdown code fences.`;
         if (tabCosmos) tabCosmos.className = 'code-tab';
         refreshMartModelOptions();
       } else {
-        if (subStaging) subStaging.style.display = 'block';
+        if (subStaging) subStaging.style.display = 'none';
         if (subMart) subMart.style.display = 'none';
-        if (subCosmos) subCosmos.style.display = 'none';
-        if (tabStaging) tabStaging.className = 'code-tab active';
+        if (subCosmos) subCosmos.style.display = 'block';
+        if (tabStaging) tabStaging.className = 'code-tab';
         if (tabMart) tabMart.className = 'code-tab';
-        if (tabCosmos) tabCosmos.className = 'code-tab';
+        if (tabCosmos) tabCosmos.className = 'code-tab active';
+        initOrResizeCosmosEngine();
       }
     }
 

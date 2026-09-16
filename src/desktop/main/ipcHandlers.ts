@@ -95,6 +95,14 @@ const DEFAULT_ROI_ASSUMPTIONS = {
  * assumptions) rather than re-deriving a different number from a bare 70%, which
  * is how this document previously came to disagree with the on-screen figure.
  */
+const ARCHETYPE_NAMES: Record<string, string> = {
+  'support-copilot': 'Support Operations Copilot (Tier 1-2 Deflection)',
+  'fin-reconcile': 'Financial Ledger & Payment Reconciliation',
+  'health-records': 'Clinical Records & Diagnostic Intake Extraction',
+  'supply-chain': 'Supply Chain Disruption & ASN Routing Agent',
+  'custom': 'Custom Engagement'
+};
+
 function buildScopeMarkdown(clientName: string, data: any): string {
   const n = data?.controllersThreeNumbers || {};
   const vol = n.volume || 0;
@@ -103,19 +111,73 @@ function buildScopeMarkdown(clientName: string, data: any): string {
   const a = data?.roiAssumptions || {};
   const ratio = (a.automationRatioPct ?? DEFAULT_ROI_ASSUMPTIONS.automationRatioPct) / 100;
   const loaded = a.loadedCostMultiplier ?? DEFAULT_ROI_ASSUMPTIONS.loadedCostMultiplier;
-  const band = a.confidenceBandPct ?? DEFAULT_ROI_ASSUMPTIONS.confidenceBandPct;
+  const band = (a.confidenceBandPct ?? DEFAULT_ROI_ASSUMPTIONS.confidenceBandPct) / 100;
+  const productiveHours = a.productiveHoursPerMonth ?? DEFAULT_ROI_ASSUMPTIONS.productiveHoursPerMonth;
 
-  const reclaimed = Math.round((vol * mins / 60) * ratio);
-  const monthly = Math.round(reclaimed * wage * loaded);
-  const low = Math.round(monthly * (1 - band / 100));
-  const high = Math.round(monthly * (1 + band / 100));
+  // Labour capacity savings
+  const totalHours = (vol * mins) / 60;
+  const reclaimed = Math.round(totalHours * ratio);
+  const loadedHourlyCost = wage * loaded;
+  const labourMonthly = Math.round(reclaimed * loadedHourlyCost);
+  const fteCapacity = productiveHours > 0 ? (reclaimed / productiveHours).toFixed(1) : '0.0';
+
+  // Error / rework savings
+  const baseErr = a.baselineErrorRatePct ?? DEFAULT_ROI_ASSUMPTIONS.baselineErrorRatePct;
+  const resErr = a.residualErrorRatePct ?? DEFAULT_ROI_ASSUMPTIONS.residualErrorRatePct;
+  const reworkCost = a.reworkCostPerError ?? DEFAULT_ROI_ASSUMPTIONS.reworkCostPerError;
+
+  const errorKnown = baseErr > 0;
+  const errorsAvoidedPerMonth = errorKnown ? Math.max(0, (vol * (baseErr - resErr)) / 100) : 0;
+  const reworkMonthly = Math.round(errorsAvoidedPerMonth * reworkCost);
+  const errorReductionPct = errorKnown ? Math.max(0, Math.round(((baseErr - resErr) / baseErr) * 100)) : 0;
+
+  const expectedMonthly = labourMonthly + reworkMonthly;
+  const low = Math.round(expectedMonthly * (1 - band));
+  const high = Math.round(expectedMonthly * (1 + band));
+
+  const archKey = data?.archetype || 'custom';
+  const archLabel = ARCHETYPE_NAMES[archKey] || archKey;
+
+  // Inquiry Probes section
+  let probesSection = '';
+  if (Array.isArray(data?.inquiryProbes) && data.inquiryProbes.length > 0) {
+    const probeLines = data.inquiryProbes.map((p: any) => {
+      if (typeof p === 'string') {
+        return `- [x] ${p}`;
+      }
+      const cat = p.category ? `**[${p.category}]** ` : '';
+      const check = p.checked !== false ? 'x' : ' ';
+      return `- [${check}] ${cat}${p.question || ''}`;
+    }).join('\n');
+    probesSection = `\n### Diagnostic Gemba Inquiry Probes\n${probeLines}\n`;
+  }
+
+  // First-Principles Invariant Gates section
+  let invariantsSection = '';
+  if (Array.isArray(data?.firstPrinciplesDeconstruction) && data.firstPrinciplesDeconstruction.length > 0) {
+    const rows = data.firstPrinciplesDeconstruction.map((inv: any) => {
+      const aText = (inv.assumption || '').replace(/\|/g, '\\|');
+      const pText = (inv.physics || '').replace(/\|/g, '\\|');
+      const iText = (inv.invariant || '').replace(/\|/g, '\\|');
+      return `| ${aText} | ${pText} | ${iText} |`;
+    }).join('\n');
+    invariantsSection = `\n### First-Principles Invariant Gates\n| Naive Client Assumption | Fundamental Physics / Constraint | Hard Invariant |\n| :--- | :--- | :--- |\n${rows}\n`;
+  }
 
   const locks = Array.isArray(data?.outOfScope) && data.outOfScope.length > 0
     ? data.outOfScope.map((r: string) => `- [x] **LOCKED**: ${r}`).join('\n')
     : '- _No custom boundaries defined._';
 
+  let errorMetricsBlock = '';
+  if (errorKnown) {
+    errorMetricsBlock = `\n* **Baseline Error Rate**: ${baseErr}%
+* **Residual Error Rate**: ${resErr}% (-${errorReductionPct}% error reduction)
+* **Downstream Rework Savings**: $${reworkMonthly.toLocaleString()}/mo (${Math.round(errorsAvoidedPerMonth).toLocaleString()} errors avoided @ $${reworkCost}/error)`;
+  }
+
   return `# Discovery Scope Boundaries & Controller's ROI Summary
 **Client Engagement**: ${clientName}
+**Engagement Archetype**: ${archLabel}
 **Updated**: ${new Date().toISOString()}
 
 ---
@@ -126,7 +188,7 @@ function buildScopeMarkdown(clientName: string, data: any): string {
 * **Floor Observations & Shadow IT**: ${data?.floorObservations || 'Direct operator shadow IT and manual workarounds'}
 * **Operational Risk & Failure Modes**: ${data?.riskAnalysis || 'Pending risk analysis'}
 * **Agreed Production Target**: ${data?.reframedProblem || 'Pending reframed goal'}
-
+${probesSection}${invariantsSection}
 ---
 
 ## 2. Dynamic Out-of-Scope Boundary Locks
@@ -138,10 +200,11 @@ ${locks}
 * **Monthly Workflow Volume**: ${vol.toLocaleString()} units/mo
 * **Average Handle Time**: ${mins} mins
 * **Operator Hourly Wage**: $${wage}/hr
+* **Reclaimed Labor Capacity**: ${reclaimed.toLocaleString()} hrs/mo (~${fteCapacity} FTEs)${errorMetricsBlock}
 
-**Estimated monthly saving: $${low.toLocaleString()} - $${high.toLocaleString()}** (expected $${monthly.toLocaleString()})
+**Estimated monthly saving: $${low.toLocaleString()} - $${high.toLocaleString()}** (expected $${expectedMonthly.toLocaleString()}/mo / $${(expectedMonthly * 12).toLocaleString()}/yr)
 
-Basis: ${reclaimed.toLocaleString()} hrs/mo reclaimed at ${Math.round(ratio * 100)}% automation, costed at $${wage}/hr x ${loaded} loaded multiplier, with a +/-${band}% confidence band. These are estimates built on the assumptions above, not measured results.
+Basis: ${reclaimed.toLocaleString()} hrs/mo reclaimed at ${Math.round(ratio * 100)}% automation, costed at $${wage}/hr x ${loaded} loaded multiplier ($${loadedHourlyCost.toFixed(2)}/hr loaded)${errorKnown ? `, plus $${reworkMonthly.toLocaleString()}/mo error rework avoided` : ''}, with a +/-${Math.round(band * 100)}% confidence band. These are estimates built on the assumptions above, not measured results.
 `;
 }
 

@@ -118,6 +118,14 @@ export interface FdeDiscoveryState {
   customFutureDiagram?: string;
   customLegacyDiagram?: string;
   activeTopologyTemplate?: string;
+  roiAssumptions?: {
+    automationRatioPct?: number;
+    loadedCostMultiplier?: number;
+    productiveHoursPerMonth?: number;
+    baselineErrorRatePct?: number;
+    residualErrorRatePct?: number;
+    reworkCostPerError?: number;
+  };
 }
 
 export interface FdeAiSolutionState {

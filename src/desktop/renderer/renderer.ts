@@ -2315,11 +2315,13 @@ function setupPhase1Discovery(api: any): void {
   const btnAddInquiryProbe = document.getElementById('btnFdeAddInquiryProbe');
   const lblProbesCount = document.getElementById('lblProbesCount');
   const invariantsTableBody = document.getElementById('fdeInvariantsTableBody');
+  const btnAddInvariant = document.getElementById('btnFdeAddInvariant');
   const linkedArtifactsContainer = document.getElementById('fdeLinkedArtifactsList');
 
   const rulesListContainer = document.getElementById('fdeScopeRulesList');
   const btnAddScopeRule = document.getElementById('btnFdeAddScopeRule');
 
+  let goToStep: (step: number) => void;
   let currentDeliveryStandard: 'simple' | 'medium' | 'advanced' = 'medium';
 
   let currentInquiryProbes: Array<{ category: string; question: string; checked: boolean }> = [
@@ -2475,21 +2477,84 @@ function setupPhase1Discovery(api: any): void {
     invariantsTableBody.innerHTML = '';
 
     if (currentInvariants.length === 0) {
-      invariantsTableBody.innerHTML = '<tr><td colspan="3" style="padding: 8px; text-align: center; color: var(--text-secondary); font-style: italic;">No invariants defined. Click "✨ Deconstruct Assumptions" to analyze.</td></tr>';
+      invariantsTableBody.innerHTML = '<tr><td colspan="4" style="padding: 8px; text-align: center; color: var(--text-secondary); font-style: italic;">No invariants defined. Click "+ Add Invariant" or "✨ Deconstruct Assumptions".</td></tr>';
       return;
     }
 
-    currentInvariants.forEach((inv) => {
+    currentInvariants.forEach((inv, idx) => {
       const tr = document.createElement('tr');
       tr.style.cssText = 'border-bottom: 1px solid var(--border);';
-      tr.innerHTML = `
-        <td style="padding: 6px 8px; color: #f87171; font-weight: 600;">"${inv.assumption}"</td>
-        <td style="padding: 6px 8px; color: #cbd5e1;">${inv.physics}</td>
-        <td style="padding: 6px 8px; color: #4ade80; font-weight: 700;">🔒 ${inv.invariant}</td>
-      `;
+
+      const tdAssump = document.createElement('td');
+      tdAssump.style.cssText = 'padding: 4px 6px;';
+      const inpAssump = document.createElement('input');
+      inpAssump.type = 'text';
+      inpAssump.value = inv.assumption;
+      inpAssump.placeholder = 'Naive assumption...';
+      inpAssump.style.cssText = 'width: 100%; box-sizing: border-box; background: transparent; border: none; color: #f87171; font-size: 11px; font-weight: 600; outline: none; padding: 2px 4px;';
+      inpAssump.addEventListener('input', () => {
+        currentInvariants[idx].assumption = inpAssump.value;
+        markScopeDirty();
+      });
+      tdAssump.appendChild(inpAssump);
+
+      const tdPhysics = document.createElement('td');
+      tdPhysics.style.cssText = 'padding: 4px 6px;';
+      const inpPhysics = document.createElement('input');
+      inpPhysics.type = 'text';
+      inpPhysics.value = inv.physics;
+      inpPhysics.placeholder = 'Physics / legal constraint...';
+      inpPhysics.style.cssText = 'width: 100%; box-sizing: border-box; background: transparent; border: none; color: #cbd5e1; font-size: 11px; outline: none; padding: 2px 4px;';
+      inpPhysics.addEventListener('input', () => {
+        currentInvariants[idx].physics = inpPhysics.value;
+        markScopeDirty();
+      });
+      tdPhysics.appendChild(inpPhysics);
+
+      const tdInv = document.createElement('td');
+      tdInv.style.cssText = 'padding: 4px 6px;';
+      const inpInv = document.createElement('input');
+      inpInv.type = 'text';
+      inpInv.value = inv.invariant;
+      inpInv.placeholder = 'Hard invariant gate...';
+      inpInv.style.cssText = 'width: 100%; box-sizing: border-box; background: transparent; border: none; color: #4ade80; font-size: 11px; font-weight: 700; outline: none; padding: 2px 4px;';
+      inpInv.addEventListener('input', () => {
+        currentInvariants[idx].invariant = inpInv.value;
+        markScopeDirty();
+      });
+      tdInv.appendChild(inpInv);
+
+      const tdDel = document.createElement('td');
+      tdDel.style.cssText = 'padding: 4px 4px; text-align: center;';
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.innerText = '✕';
+      delBtn.title = 'Remove invariant';
+      delBtn.style.cssText = 'background: transparent; border: none; color: var(--error); cursor: pointer; font-size: 11px; padding: 0 4px; opacity: 0.8;';
+      delBtn.addEventListener('click', () => {
+        currentInvariants.splice(idx, 1);
+        renderInvariants();
+        markScopeDirty();
+      });
+      tdDel.appendChild(delBtn);
+
+      tr.appendChild(tdAssump);
+      tr.appendChild(tdPhysics);
+      tr.appendChild(tdInv);
+      tr.appendChild(tdDel);
       invariantsTableBody.appendChild(tr);
     });
   };
+
+  btnAddInvariant?.addEventListener('click', () => {
+    currentInvariants.push({ assumption: '', physics: '', invariant: '' });
+    renderInvariants();
+    markScopeDirty();
+    const inputs = invariantsTableBody?.querySelectorAll('input[type="text"]');
+    if (inputs && inputs.length > 0) {
+      (inputs[inputs.length - 3] as HTMLInputElement)?.focus();
+    }
+  });
 
   const renderLinkedArtifacts = () => {
     if (!linkedArtifactsContainer) return;
@@ -2497,7 +2562,19 @@ function setupPhase1Discovery(api: any): void {
 
     currentLinkedArtifacts.forEach((art) => {
       const item = document.createElement('div');
-      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px;';
+      item.style.cssText = 'display: flex; align-items: center; justify-content: space-between; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; cursor: pointer; transition: background 0.15s ease;';
+      item.title = `Click to navigate to ${art.path}`;
+      item.addEventListener('mouseenter', () => { item.style.background = 'rgba(56, 189, 248, 0.08)'; });
+      item.addEventListener('mouseleave', () => { item.style.background = 'var(--bg-primary)'; });
+      item.addEventListener('click', () => {
+        if (art.type === 'roi' && typeof goToStep === 'function') {
+          goToStep(2);
+        } else if (art.type === 'diagram' && typeof goToStep === 'function') {
+          goToStep(3);
+        } else if (art.path && api?.fde?.revealPath) {
+          api.fde.revealPath(art.path);
+        }
+      });
 
       const icon = art.type === 'roi' ? '💰' : art.type === 'diagram' ? '🔄' : art.type === 'model' ? '🔌' : '📖';
       const statusColor = art.status === 'Synchronized' ? '#4ade80' : art.status === 'Linked' ? '#38bdf8' : '#e5b567';
@@ -2636,6 +2713,9 @@ function setupPhase1Discovery(api: any): void {
     volume?: number;
     handleTime?: number;
     wage?: number;
+    baselineError?: number;
+    residualError?: number;
+    reworkCost?: number;
     probes?: Array<{ category: string; question: string; checked: boolean }>;
     observations?: string;
     invariants?: Array<{ assumption: string; physics: string; invariant: string }>;
@@ -2652,6 +2732,9 @@ function setupPhase1Discovery(api: any): void {
       volume: 0,
       handleTime: 0,
       wage: 0,
+      baselineError: 0,
+      residualError: 0,
+      reworkCost: 0,
       probes: [
         { category: 'Shadow IT', question: 'What manual workarounds, personal spreadsheets, or unofficial channels bypass the official system?', checked: true },
         { category: 'Failure Mode', question: 'What is the absolute worst-case outcome if this automated workflow executes incorrect actions?', checked: true },
@@ -2691,6 +2774,9 @@ function setupPhase1Discovery(api: any): void {
       volume: 10000,
       handleTime: 15,
       wage: 35,
+      baselineError: 18,
+      residualError: 2,
+      reworkCost: 12,
       probes: [
         { category: 'Failure Mode', question: 'How do you prevent adversarial customers from using prompt injection to extract refunds or concessions?', checked: true },
         { category: 'Shadow IT', question: 'What undocumented canned responses, macro shortcuts, or team Slack channels do support agents rely on?', checked: true },
@@ -2734,6 +2820,9 @@ function setupPhase1Discovery(api: any): void {
       volume: 5000,
       handleTime: 20,
       wage: 55,
+      baselineError: 14,
+      residualError: 1,
+      reworkCost: 45,
       probes: [
         { category: 'Shadow IT', question: 'What offline Excel spreadsheet, sticky notes, or shared folders do clerks check before clicking pay?', checked: true },
         { category: 'Failure Mode', question: 'If a payment executes to a fraudulent IBAN or duplicate invoice, what is the recovery SLA and who is personally liable?', checked: true },
@@ -2777,6 +2866,9 @@ function setupPhase1Discovery(api: any): void {
       volume: 8000,
       handleTime: 12,
       wage: 45,
+      baselineError: 22,
+      residualError: 3,
+      reworkCost: 25,
       probes: [
         { category: 'Regulatory Gate', question: 'What HIPAA / regional health data residency laws restrict sending patient identifiers to external cloud APIs?', checked: true },
         { category: 'Failure Mode', question: 'If an AI dosage or clinical policy citation is ungrounded, what is the clinical liability and patient safety protocol?', checked: true },
@@ -2820,6 +2912,9 @@ function setupPhase1Discovery(api: any): void {
       volume: 12000,
       handleTime: 18,
       wage: 40,
+      baselineError: 16,
+      residualError: 2,
+      reworkCost: 30,
       probes: [
         { category: 'Data Physics', question: 'How fragile are heterogeneous carrier EDI (214/315) and webhook payloads across different logistics providers?', checked: true },
         { category: 'Failure Mode', question: 'If a shipment delay is miscalculated, what is the contractual SLA penalty or factory shutdown cost?', checked: true },
@@ -3079,6 +3174,129 @@ function setupPhase1Discovery(api: any): void {
 
   // --- Showcase Architecture Templates ---
   const topologyPresets: Record<string, { name: string; future: string; legacy: string }> = {
+    'support-copilot': {
+      name: 'Support Operations Co-Pilot',
+      future: `sequenceDiagram
+    autonumber
+    actor User as Customer / User
+    participant Hook as Webhook & Event Ingest
+    participant Router as Rule vs Model Gate
+    participant RAG as Hybrid Policy RAG (128-tok)
+    participant Copilot as Evolve AI Copilot
+    actor Human as Human Supervisor (HITL)
+    participant Core as Production API / DB
+    
+    User->>Hook: Submit messy request
+    Hook->>Router: Real-time event payload
+    alt Deterministic Query
+        Router->>Core: Instant Rule Engine execution (<50ms)
+    else Complex Semantic Triage
+        Router->>RAG: Retrieve grounded policy chunks
+        RAG->>Copilot: Enriched context with citations
+        Copilot->>Human: Draft recommendation & confidence
+        Human->>Core: 1-Click Approval Gate
+    end
+    Core-->>User: Verified resolution with audit trail`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor User as Customer / User
+    participant Queue as Unsorted Ticket Queue
+    participant Agent as Manual Human Operator
+    participant DB as Legacy Slow DB / Spreadsheets
+    
+    User->>Queue: Submit messy request
+    Note over Queue,Agent: Backlog delay (avg 4-18 hrs)
+    Agent->>Queue: Pick unassigned ticket
+    Agent->>DB: Manual copy-paste SQL lookup
+    Note over Agent: High fatigue, 22% human error rate
+    Agent->>User: Manual resolution email`
+    },
+    'fin-reconcile': {
+      name: 'Financial Core Reconciliation',
+      future: `sequenceDiagram
+    autonumber
+    actor FinOps as Financial Operations
+    participant Hook as Real-time Statement Ingest
+    participant Parser as Deterministic Parser + OCR
+    participant Matcher as SQL Tolerance Matching Engine
+    actor Human as Controller Approval Gate (HITL)
+    participant ERP as Core General Ledger
+    
+    Hook->>Parser: Ingest bank statement
+    Parser->>Matcher: Structured normalized lines
+    Matcher->>Matcher: 100% Deterministic match (zero drift)
+    Matcher->>Human: Review flagged edge-case variance
+    Human->>ERP: 1-Click Signed Batch Posting
+    ERP-->>FinOps: Cryptographic audit log created`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor FinOps as Financial Operations
+    participant Bank as Banking / Card Portal
+    participant Excel as Manual Excel Sheet
+    participant ERP as Core General Ledger
+    
+    FinOps->>Bank: Download unstructured PDF / CSV
+    FinOps->>Excel: Manual row-by-row matching
+    Note over Excel: Prone to transposition errors
+    FinOps->>ERP: Manual posting without audit trail
+    ERP-->>FinOps: Unreconciled variances`
+    },
+    'health-records': {
+      name: 'Healthcare Clinical Records',
+      future: `sequenceDiagram
+    autonumber
+    actor Clinician as Medical Staff
+    participant PII as Redaction & De-ID Stage
+    participant RAG as Air-Gapped Hospital Policy RAG
+    participant Copilot as Clinical Documentation Assistant
+    actor Doctor as Attending Physician (HITL)
+    participant EHR as Secure EHR Store
+    
+    Clinician->>PII: Submit clinical query
+    PII->>RAG: De-identified prompt with citations
+    RAG->>Copilot: Grounded guidance from hospital handbook
+    Copilot->>Doctor: Draft clinical summary with source links
+    Doctor->>EHR: 1-Click Approved Entry
+    EHR-->>Clinician: Audit logged & compliant entry`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor Clinician as Medical Staff
+    participant EHR as Electronic Health Record
+    participant PDF as Unindexed Clinical Guidelines
+    
+    Clinician->>EHR: Manual patient file lookup
+    Clinician->>PDF: Manual policy searching
+    Note over Clinician,PDF: 35 mins per patient record
+    Clinician->>EHR: Manual notes typing`
+    },
+    'supply-chain': {
+      name: 'Supply Chain Exception Tracker',
+      future: `sequenceDiagram
+    autonumber
+    actor Carrier as Logistics Provider
+    participant Ingest as Webhook / EDI Ingest
+    participant Rule as SLA & Delay Scoring Engine
+    participant Copilot as Evolve AI Supply Chain Copilot
+    actor Human as Procurement Manager (HITL)
+    participant ERP as SAP / Oracle ERP
+    
+    Carrier->>Ingest: Real-time telemetry / EDI webhook
+    Ingest->>Rule: Auto-score delay impact & contract SLA
+    Rule->>Copilot: Enrich with inventory buffer data
+    Copilot->>Human: Draft mitigation & supplier re-route
+    Human->>ERP: 1-Click PO reschedule & vendor notice
+    ERP-->>Carrier: Updated ETA committed to ledger`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor Planner as Supply Chain Planner
+    participant Carrier as Carrier Portal / Emails
+    participant ERP as SAP / Oracle ERP
+    
+    Carrier->>Planner: Unstructured delay notification email
+    Planner->>ERP: Manual PO lookup & status update
+    Note over Planner,ERP: Delayed reaction (avg 24-48 hrs)
+    Planner->>Carrier: Manual escalation email`
+    },
     'enterprise-ai': {
       name: 'Enterprise AI Core & HITL Gate',
       future: `sequenceDiagram
@@ -3233,6 +3451,10 @@ function setupPhase1Discovery(api: any): void {
   };
 
   const presetDisplayLabels: Record<string, string> = {
+    'support-copilot': '🎧 Support Operations Co-Pilot',
+    'fin-reconcile': '💰 Financial Core Reconciliation',
+    'health-records': '🏥 Healthcare Clinical Records',
+    'supply-chain': '📦 Supply Chain Exception Tracker',
     'enterprise-ai': '🤖 Enterprise AI Core & HITL Gate',
     'legacy-silo': '⏳ Legacy Manual Silo & Bottlenecks',
     'streaming-fraud': '⚡ Real-Time Streaming & Fraud Engine',
@@ -4751,7 +4973,7 @@ function setupPhase1Discovery(api: any): void {
   renderedPane?.addEventListener('pointerup', endDrag);
   renderedPane?.addEventListener('pointercancel', endDrag);
 
-  selArchetype?.addEventListener('change', () => {
+  selArchetype?.addEventListener('change', async () => {
     const key = selArchetype.value;
     const arch = archetypes[key];
     if (arch) {
@@ -4778,9 +5000,13 @@ function setupPhase1Discovery(api: any): void {
       }
 
       setThreeNumbers(arch.volume ?? 0, arch.handleTime ?? 0, arch.wage ?? 0);
+      if (numBaselineError) numBaselineError.value = String(arch.baselineError ?? 0);
+      if (numResidualError) numResidualError.value = String(arch.residualError ?? 0);
+      if (numReworkCost) numReworkCost.value = String(arch.reworkCost ?? 0);
 
-      renderTopology(key);
-      computeRoi();
+      await renderTopology(key);
+      await computeRoi();
+      markScopeDirty();
       showToast(`🎯 Loaded Archetype: ${selArchetype.options[selArchetype.selectedIndex].text}`);
     }
   });
@@ -4946,7 +5172,8 @@ function setupPhase1Discovery(api: any): void {
         volume: vol,
         handleTimeMins: time,
         hourlyWage: wage
-      }
+      },
+      roiAssumptions: readAssumptions()
     };
 
     if (!api?.fde?.saveDiscovery) return;
@@ -5211,6 +5438,7 @@ function setupPhase1Discovery(api: any): void {
       const res = await api.fde.aiAnalyzeRawAsk({ rawAsk: raw, archetype: selArchetype?.value });
       if (txtRisk && res.operationalRisks) {
         txtRisk.value = res.operationalRisks;
+        markScopeDirty();
         showToast('✓ Operational risks & fallacies audited!');
       }
     }
@@ -5223,6 +5451,7 @@ function setupPhase1Discovery(api: any): void {
       const res = await api.fde.aiAnalyzeRawAsk({ rawAsk: raw, archetype: selArchetype?.value });
       if (txtReframed && res.reframedGoal) {
         txtReframed.value = res.reframedGoal;
+        markScopeDirty();
         showToast('✓ Production goal reframed!');
       }
     }
@@ -5240,6 +5469,7 @@ function setupPhase1Discovery(api: any): void {
           }
         });
         renderScopeRules();
+        markScopeDirty();
         showToast(`✓ Injected ${res.outOfScopeRules.length} explicit boundary locks!`);
       }
     }
@@ -5323,7 +5553,8 @@ function setupPhase1Discovery(api: any): void {
         linkedArtifacts: currentLinkedArtifacts,
         customFutureDiagram: cachedDiagrams.futureDiagram,
         customLegacyDiagram: cachedDiagrams.legacyDiagram,
-        controllersThreeNumbers: { volume: vol, handleTimeMins: time, hourlyWage: wage }
+        controllersThreeNumbers: { volume: vol, handleTimeMins: time, hourlyWage: wage },
+        roiAssumptions: readAssumptions()
       }
     };
 
@@ -5370,6 +5601,15 @@ function setupPhase1Discovery(api: any): void {
         }
         if (d.controllersThreeNumbers) {
           setThreeNumbers(d.controllersThreeNumbers.volume || 0, d.controllersThreeNumbers.handleTimeMins || 0, d.controllersThreeNumbers.hourlyWage || 0);
+          computeRoi();
+        }
+        if (d.roiAssumptions) {
+          if (numAutomationRatio && d.roiAssumptions.automationRatioPct !== undefined) numAutomationRatio.value = String(d.roiAssumptions.automationRatioPct);
+          if (numLoadedMultiplier && d.roiAssumptions.loadedCostMultiplier !== undefined) numLoadedMultiplier.value = String(d.roiAssumptions.loadedCostMultiplier);
+          if (numProductiveHours && d.roiAssumptions.productiveHoursPerMonth !== undefined) numProductiveHours.value = String(d.roiAssumptions.productiveHoursPerMonth);
+          if (numBaselineError && d.roiAssumptions.baselineErrorRatePct !== undefined) numBaselineError.value = String(d.roiAssumptions.baselineErrorRatePct);
+          if (numResidualError && d.roiAssumptions.residualErrorRatePct !== undefined) numResidualError.value = String(d.roiAssumptions.residualErrorRatePct);
+          if (numReworkCost && d.roiAssumptions.reworkCostPerError !== undefined) numReworkCost.value = String(d.roiAssumptions.reworkCostPerError);
           computeRoi();
         }
         if (d.customFutureDiagram) cachedDiagrams.futureDiagram = d.customFutureDiagram;
@@ -5424,7 +5664,8 @@ function setupPhase1Discovery(api: any): void {
         linkedArtifacts: currentLinkedArtifacts,
         customFutureDiagram: cachedDiagrams.futureDiagram,
         customLegacyDiagram: cachedDiagrams.legacyDiagram,
-        controllersThreeNumbers: { volume: vol, handleTimeMins: time, hourlyWage: wage }
+        controllersThreeNumbers: { volume: vol, handleTimeMins: time, hourlyWage: wage },
+        roiAssumptions: readAssumptions()
       }
     };
 
@@ -5498,6 +5739,15 @@ function setupPhase1Discovery(api: any): void {
           if (state.discovery.controllersThreeNumbers) {
             setThreeNumbers(state.discovery.controllersThreeNumbers.volume ?? 0, state.discovery.controllersThreeNumbers.handleTimeMins ?? 0, state.discovery.controllersThreeNumbers.hourlyWage ?? 0);
             hasLoadedSavedNumbers = true;
+          }
+          if (state.discovery.roiAssumptions) {
+            const ra = state.discovery.roiAssumptions;
+            if (numAutomationRatio && ra.automationRatioPct !== undefined) numAutomationRatio.value = String(ra.automationRatioPct);
+            if (numLoadedMultiplier && ra.loadedCostMultiplier !== undefined) numLoadedMultiplier.value = String(ra.loadedCostMultiplier);
+            if (numProductiveHours && ra.productiveHoursPerMonth !== undefined) numProductiveHours.value = String(ra.productiveHoursPerMonth);
+            if (numBaselineError && ra.baselineErrorRatePct !== undefined) numBaselineError.value = String(ra.baselineErrorRatePct);
+            if (numResidualError && ra.residualErrorRatePct !== undefined) numResidualError.value = String(ra.residualErrorRatePct);
+            if (numReworkCost && ra.reworkCostPerError !== undefined) numReworkCost.value = String(ra.reworkCostPerError);
           }
         }
       } catch (err) {
@@ -5584,7 +5834,7 @@ function setupPhase1Discovery(api: any): void {
     if (next) next.textContent = currentDiscoveryStep === 3 ? 'Review →' : 'Next →';
   }
 
-  const goToStep = (step: number) => {
+  goToStep = (step: number) => {
     currentDiscoveryStep = Math.min(3, Math.max(1, step));
     for (let i = 1; i <= 3; i++) {
       const panel = document.getElementById(stepPanels[i]);
@@ -6918,6 +7168,12 @@ function setupDeliveryStudio(api: any): void {
     if (b) b.hidden = currentP2Step !== 2;
     refreshP2Rail();
     updateP2Lineage();
+    if (currentP2Step === 2) {
+      const tabModeCosmos = document.getElementById('tabModeCosmos');
+      if (tabModeCosmos && tabModeCosmos.classList.contains('active')) {
+        (window as any).refreshP2CosmosTopology?.();
+      }
+    }
   };
 
   document.getElementById('btnP2StepA')?.addEventListener('click', () => goToP2Step(1));
