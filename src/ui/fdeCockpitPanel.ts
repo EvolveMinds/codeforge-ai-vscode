@@ -3539,6 +3539,7 @@ Output ONLY the message without markdown code fences.`;
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <button class="btn-quick" style="background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="switchPhase1Mode('cosmos')">🌐 Open 3D Topology View</button>
+              <button class="btn-quick" style="border-color: rgba(56, 189, 248, 0.6); color: #38bdf8; font-weight: 700; padding: 5px 12px;" onclick="openEnterpriseModal()">⚖️ Compare Editions</button>
               <button class="btn-quick" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'startTrial' })">⚡ Enterprise Trial</button>
               <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'enterLicenseKey' })">🔑 Enter Key</button>
               <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'launchDesktopStudio' })">🖥️ Desktop App</button>
@@ -8594,6 +8595,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     try { window.openEnterpriseModal = openEnterpriseModal; } catch(e) {}
+    try { window.openCompareEditionsModal = openEnterpriseModal; } catch(e) {}
     try { window.closeEnterpriseModal = closeEnterpriseModal; } catch(e) {}
 
     // =========================================================================
@@ -9756,82 +9758,88 @@ Output ONLY the message without markdown code fences.`;
 </script>
 
 <!-- Enterprise Feature Comparison Modal -->
-<div id="enterpriseModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
-  <div style="background: var(--card-bg, #18181b); border: 1px solid var(--border, #27272a); border-radius: 12px; max-width: 820px; width: 92%; max-height: 88vh; overflow-y: auto; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7); color: var(--fg, #f4f4f5);">
+<div id="enterpriseModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 99999; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+  <div style="background: var(--card-bg, #18181b); border: 1px solid var(--border, #27272a); border-radius: 12px; max-width: 800px; width: 92%; max-height: 88vh; overflow-y: auto; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.8); color: var(--fg, #f4f4f5);">
+    <!-- Modal Header -->
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border, #27272a); padding-bottom: 12px;">
       <div style="display: flex; align-items: center; gap: 10px;">
         <span style="font-size: 26px;">💎</span>
         <div>
-          <h2 style="margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 8px;">Evolve AI Enterprise Edition <span style="font-size: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase;">Enterprise Trial</span></h2>
-          <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">Zero-Install Desktop Studio • Air-Gapped Security • Enterprise Migration Engines</div>
+          <h2 style="margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 8px;">
+            Evolve AI: Community vs. Enterprise Edition
+            <span style="font-size: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 8px; border-radius: 12px; font-weight: 700; text-transform: uppercase;">Edition Overview</span>
+          </h2>
+          <div style="font-size: 12px; color: #38bdf8; font-weight: 600;">Zero-Install Desktop Studio • Air-Gapped Security • Enterprise Migration Suites</div>
         </div>
       </div>
       <button class="btn-quick" onclick="closeEnterpriseModal()" style="padding: 4px 10px; font-size: 14px; cursor: pointer;">✕</button>
     </div>
 
-    <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 10px 14px; border-radius: 4px; margin-bottom: 16px; font-size: 12px; line-height: 1.5; color: var(--fg, #e4e4e7);">
-      <strong style="color: #38bdf8;">📢 Enterprise Edition:</strong> The Enterprise Edition is available for 30-day technical evaluation and commercial licensing to validate production migration engines in your enterprise environment.
+    <!-- Official Company Website Link Card -->
+    <div style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(99, 102, 241, 0.12)); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 14px 18px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="flex: 1; min-width: 260px;">
+        <div style="font-size: 13px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+          <span>🌐 Comprehensive Comparison on Official Website</span>
+        </div>
+        <div style="font-size: 12px; color: #e4e4e7; margin-top: 3px; line-height: 1.45;">
+          For our comprehensive 25+ feature comparison matrix, live architecture diagrams, SLA guarantees, and enterprise procurement details, please visit our official product page at <strong>evolveminds.com.au</strong>.
+        </div>
+      </div>
+      <button class="btn-primary" style="margin: 0; padding: 6px 16px; font-size: 12px; background: linear-gradient(135deg, #0284c7, #6366f1); border: 1px solid #38bdf8; font-weight: 700; white-space: nowrap; cursor: pointer;" onclick="openExternalUrl('https://www.evolveminds.com.au/products/evolve-ai/')">🌐 View Full Details on Website ↗</button>
     </div>
 
-    <p style="font-size: 13px; color: var(--fg, #e4e4e7); line-height: 1.5; margin-bottom: 16px;">
-      The <b>Free Community Edition</b> on the VS Code Marketplace includes our foundational 4-step delivery studio. The <b>Paid Enterprise Edition</b> delivers full commercial autonomy, bank-grade air-gapped security, automated database migration suites, and a zero-install standalone desktop executable.
-    </p>
-
-    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; text-align: left;">
+    <!-- High-Level Concise Comparison Table -->
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 18px; text-align: left;">
       <thead>
         <tr style="border-bottom: 2px solid var(--border, #27272a); background: var(--card-alt, #111);">
-          <th style="padding: 10px 12px;">Capability / Module</th>
-          <th style="padding: 10px 12px; text-align: center;">Free Community (Marketplace)</th>
-          <th style="padding: 10px 12px; text-align: center; color: #38bdf8;">Enterprise Edition <span style="font-size: 9.5px; background: rgba(56,189,248,0.2); padding: 1px 6px; border-radius: 4px; font-weight: 700; border: 1px solid rgba(56,189,248,0.4);">Commercial &amp; Trial</span></th>
+          <th style="padding: 10px 12px;">Capability / Dimension</th>
+          <th style="padding: 10px 12px; text-align: center; width: 35%;">Free Community (Marketplace)</th>
+          <th style="padding: 10px 12px; text-align: center; width: 40%; color: #38bdf8;">Enterprise Edition <span style="font-size: 9.5px; background: rgba(56,189,248,0.2); padding: 1px 6px; border-radius: 4px; font-weight: 700; border: 1px solid rgba(56,189,248,0.4);">Desktop &amp; Trial</span></th>
         </tr>
       </thead>
       <tbody>
         <tr style="border-bottom: 1px solid var(--border, #27272a);">
           <td style="padding: 10px 12px;"><b>Distribution Format</b></td>
-          <td style="padding: 10px 12px; text-align: center; opacity: 0.8;">VS Code Extension Only</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">Standalone .exe (Zero Install) + Extension</td>
+          <td style="padding: 10px 12px; text-align: center; opacity: 0.85;">VS Code Extension (.vsix)</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">Standalone Portable .exe (Zero Install) + Extension</td>
         </tr>
         <tr style="border-bottom: 1px solid var(--border, #27272a);">
-          <td style="padding: 10px 12px;"><b>Air-Gapped &amp; Enclave Licensing</b></td>
-          <td style="padding: 10px 12px; text-align: center; opacity: 0.8;">Basic Offline Mode</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">Hardware Ed25519 Cryptographic Keys</td>
+          <td style="padding: 10px 12px;"><b>Schema Topology &amp; Visual ERD</b></td>
+          <td style="padding: 10px 12px; text-align: center; opacity: 0.85;">Basic 3D Celestial Orbit (Table-level lines)</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">Dual 2D Technical ERD &amp; 3D Orbit + Exact Column Socket Pins</td>
         </tr>
         <tr style="border-bottom: 1px solid var(--border, #27272a);">
-          <td style="padding: 10px 12px;"><b>Phase 1–4: Core FDE Delivery Studio</b></td>
-          <td style="padding: 10px 12px; text-align: center; color: #22c55e;">✓ Included</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Included + Custom Client Rules</td>
+          <td style="padding: 10px 12px;"><b>Core FDE Studio (Phases 1–4)</b></td>
+          <td style="padding: 10px 12px; text-align: center; color: #22c55e;">✓ Included (7-Engine DB Introspection, Staging, SDK, Runbooks)</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Included + Executive Reporting &amp; Boardroom Studio</td>
         </tr>
         <tr style="border-bottom: 1px solid var(--border, #27272a);">
-          <td style="padding: 10px 12px;"><b>Phase 5: Enterprise Migration Suite</b><br><span style="font-size: 11px; opacity: 0.75;">Oracle/T-SQL to BigQuery Transpiler, Automated RLS, Reverse ETL, Synthetic Data, Mock Servers</span></td>
-          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Locked</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Fully Unlocked</td>
+          <td style="padding: 10px 12px;"><b>Phase 5: Enterprise Migration Suite</b></td>
+          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Enterprise Only</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Oracle/T-SQL Transpiler, RLS, Reverse ETL, Synthetic Data</td>
         </tr>
         <tr style="border-bottom: 1px solid var(--border, #27272a);">
-          <td style="padding: 10px 12px;"><b>Phase 6: DevOps, Cloud Infra &amp; CI/CD Hub</b><br><span style="font-size: 11px; opacity: 0.75;">Terraform HCL, GPU Kubernetes, Docker Compose, Multi-CI/CD Pipelines</span></td>
-          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Locked</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Fully Unlocked</td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border, #27272a);">
-          <td style="padding: 10px 12px;"><b>Automated PII Masking &amp; SIEM Forwarder</b><br><span style="font-size: 11px; opacity: 0.75;">Splunk, Datadog, Sentinel &amp; Local Audit Trails</span></td>
-          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Locked</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Fully Unlocked</td>
+          <td style="padding: 10px 12px;"><b>Phase 6: Multi-Cloud DevOps Hub</b></td>
+          <td style="padding: 10px 12px; text-align: center; color: #f87171;">❌ Enterprise Only</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #22c55e;">✓ Terraform HCL (GCP/AWS/Azure), GPU K8s &amp; CI/CD Pipelines</td>
         </tr>
         <tr>
-          <td style="padding: 10px 12px;"><b>Enterprise Support &amp; SLA</b></td>
-          <td style="padding: 10px 12px; text-align: center; opacity: 0.8;">Community GitHub</td>
-          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #38bdf8;">Priority SLA &amp; Direct Architecture Advisory</td>
+          <td style="padding: 10px 12px;"><b>Security &amp; Licensing</b></td>
+          <td style="padding: 10px 12px; text-align: center; opacity: 0.85;">MIT Open Source • Zero Telemetry</td>
+          <td style="padding: 10px 12px; text-align: center; font-weight: 700; color: #38bdf8;">Hardware Ed25519 Offline Licensing • Priority SLA Advisory</td>
         </tr>
       </tbody>
     </table>
 
-    <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
-      <div>
-        <div style="font-weight: 700; color: #fff; font-size: 13px;">Enterprise Edition — Commercial &amp; Evaluation Licenses</div>
-        <div style="color: var(--fg, #a1a1aa); font-size: 12px; margin-top: 3px;">Available for 30-day technical validation and commercial licensing. Contact us to enquire about enterprise licenses or download the standalone desktop evaluator.</div>
+    <!-- Action Dock -->
+    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border, #27272a); border-radius: 8px; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+      <div style="font-size: 12px; color: var(--fg, #a1a1aa);">
+        Ready to evaluate the Enterprise standalone desktop or require custom procurement?
       </div>
-      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-        <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 8px 16px; font-size: 12px; background: #c4562b; color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px;">Download Desktop App (.exe) ↗</button>
-        <button class="btn btn-secondary" onclick="toggleRoadmap(); closeEnterpriseModal();" style="padding: 8px 16px; font-size: 12px;">View FDE Playbook</button>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <button class="btn-primary" onclick="openExternalUrl('https://www.evolveminds.com.au/products/evolve-ai/')" style="margin: 0; padding: 6px 14px; font-size: 11.5px; background: linear-gradient(135deg, #0284c7, #6366f1); border: 1px solid #38bdf8; font-weight: 700; cursor: pointer;">🌐 Full Details on EvolveMinds.com.au ↗</button>
+        <button class="btn-quick" onclick="vscode.postMessage({ command: 'startTrial' }); closeEnterpriseModal();" style="margin: 0; padding: 6px 12px; font-size: 11.5px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; font-weight: 700; cursor: pointer;">⚡ Request Enterprise Trial</button>
+        <button class="btn-quick" onclick="closeEnterpriseModal()" style="margin: 0; padding: 6px 12px; font-size: 11.5px; cursor: pointer;">✕ Close</button>
       </div>
     </div>
   </div>
