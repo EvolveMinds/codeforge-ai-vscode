@@ -70,7 +70,7 @@ const execFileAsync = promisify(execFile);
  * be able to defend each number line-by-line in front of a client's controller.
  * Nothing here is a hidden constant baked into a headline figure.
  */
-const DEFAULT_ROI_ASSUMPTIONS = {
+export const DEFAULT_ROI_ASSUMPTIONS = {
   /** Share of manual handling time the solution realistically absorbs. */
   automationRatioPct: 70,
   /** Wage -> true employer cost (super/payroll tax/benefits/overheads). */
@@ -95,7 +95,7 @@ const DEFAULT_ROI_ASSUMPTIONS = {
  * assumptions) rather than re-deriving a different number from a bare 70%, which
  * is how this document previously came to disagree with the on-screen figure.
  */
-const ARCHETYPE_NAMES: Record<string, string> = {
+export const ARCHETYPE_NAMES: Record<string, string> = {
   'support-copilot': 'Support Operations Copilot (Tier 1-2 Deflection)',
   'fin-reconcile': 'Financial Ledger & Payment Reconciliation',
   'health-records': 'Clinical Records & Diagnostic Intake Extraction',
@@ -103,7 +103,7 @@ const ARCHETYPE_NAMES: Record<string, string> = {
   'custom': 'Custom Engagement'
 };
 
-function buildScopeMarkdown(clientName: string, data: any): string {
+export function buildScopeMarkdown(clientName: string, data: any): string {
   const n = data?.controllersThreeNumbers || {};
   const vol = n.volume || 0;
   const mins = n.handleTimeMins || 0;
