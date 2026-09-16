@@ -1960,17 +1960,95 @@ function escSvg(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Renders the parsed diagram to standalone SVG markup. */
-function renderSequenceSvg(src: string): { svg: string; errors: string[] } {
+interface SeqRenderOptions {
+  mode?: 'future' | 'legacy';
+  activeStep?: number;
+  photonRatio?: number;
+}
+
+function getParticipantRoleMeta(p: SeqParticipant) {
+  const lbl = (p.label || '').toLowerCase();
+  const id = (p.id || '').toLowerCase();
+  const s = lbl + ' ' + id;
+
+  if (p.isActor || /(user|client|customer|person|human|operator|analyst|trader|doctor|patient|staff)/i.test(s)) {
+    return {
+      role: 'ACTOR',
+      icon: '👤',
+      badge: 'USER / OPERATOR',
+      color: '#34d399',
+      border: '#10b981',
+      gradId: 'sq-grad-actor',
+      glowId: 'glow-emerald'
+    };
+  }
+  if (/(ai|llm|copilot|model|agent|gpt|claude|gemini|deepseek|rag|reasoning)/i.test(s)) {
+    return {
+      role: 'AI_CORE',
+      icon: '⚡',
+      badge: 'FDE AI CORE',
+      color: '#c084fc',
+      border: '#a855f7',
+      gradId: 'sq-grad-ai',
+      glowId: 'glow-violet'
+    };
+  }
+  if (/(hitl|gate|approval|supervisor|reviewer|compliance|audit|signoff|checker)/i.test(s)) {
+    return {
+      role: 'HITL',
+      icon: '👁️',
+      badge: 'HITL AUDIT GATE',
+      color: '#fbbf24',
+      border: '#f59e0b',
+      gradId: 'sq-grad-hitl',
+      glowId: 'glow-amber'
+    };
+  }
+  if (/(gateway|api|waf|proxy|ingress|router|loadbalancer|firewall)/i.test(s)) {
+    return {
+      role: 'GATEWAY',
+      icon: '🛡️',
+      badge: 'SECURITY GATEWAY',
+      color: '#38bdf8',
+      border: '#0284c7',
+      gradId: 'sq-grad-gw',
+      glowId: 'glow-cyan'
+    };
+  }
+  if (/(db|database|warehouse|lake|postgres|oracle|sql|redis|s3|storage|vault|store|table|as400)/i.test(s)) {
+    return {
+      role: 'DATABASE',
+      icon: '🗄️',
+      badge: 'DATA VAULT / STORE',
+      color: '#818cf8',
+      border: '#6366f1',
+      gradId: 'sq-grad-db',
+      glowId: 'glow-indigo'
+    };
+  }
+  return {
+    role: 'SYSTEM',
+    icon: '🖥️',
+    badge: 'ENTERPRISE SYSTEM',
+    color: '#94a3b8',
+    border: '#475569',
+    gradId: 'sq-grad-sys',
+    glowId: 'glow-cyan'
+  };
+}
+
+/** Renders the parsed diagram to futuristic, interactive standalone SVG markup. */
+function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: string; errors: string[] } {
   const d = parseSequenceDiagram(src);
   if (!d.participants.length) {
     return { svg: '', errors: d.errors.length ? d.errors : ['Nothing to draw.'] };
   }
 
-  const CHAR_W = 6.6, PAD = 14, MIN_BOX = 116, GAP = 34;
-  const TOP = 14, BOX_H = 40, ROW_H = 46, NOTE_H = 34;
+  const isLegacyMode = options?.mode === 'legacy';
+  const CHAR_W = 7.0, PAD = 18, MIN_BOX = 138, GAP = 36;
+  const TOP = 34, BOX_H = 46, ROW_H = 50, NOTE_H = 34;
 
-  let cursor = 20;
+  let cursor = 24;
   const widths: number[] = [];
   d.participants.forEach((p, i) => {
     const w = Math.max(MIN_BOX, p.label.length * CHAR_W + PAD * 2);
@@ -1978,11 +2056,12 @@ function renderSequenceSvg(src: string): { svg: string; errors: string[] } {
     p.x = cursor + w / 2;
     cursor += w + GAP;
   });
-  const width = Math.max(cursor + 6, 420);
+  const width = Math.max(cursor + 14, 520);
 
-  let y = TOP + BOX_H + 26;
+  let y = TOP + BOX_H + 30;
   const body: string[] = [];
   let seq = 0;
+  let msgIdx = -1;
   const blockStack: Array<{ y: number; label: string; text: string }> = [];
 
   for (const msg of d.messages) {
@@ -1991,14 +2070,14 @@ function renderSequenceSvg(src: string): { svg: string; errors: string[] } {
         const open = blockStack.pop();
         if (open) {
           body.push(
-            '<rect x="8" y="' + (open.y - 16) + '" width="' + (width - 16) + '" height="' + (y - open.y + 22) + '" rx="4" fill="none" stroke="var(--border)" stroke-dasharray="4 3"/>' +
-            '<text x="16" y="' + (open.y - 4) + '" class="sq-block">' + escSvg(open.label.toUpperCase()) + ' ' + escSvg(open.text) + '</text>'
+            '<rect x="12" y="' + (open.y - 18) + '" width="' + (width - 24) + '" height="' + (y - open.y + 24) + '" rx="6" fill="rgba(15, 23, 42, 0.45)" stroke="rgba(56, 189, 248, 0.35)" stroke-dasharray="5 4"/>' +
+            '<text x="20" y="' + (open.y - 5) + '" fill="#38bdf8" font-size="10" font-weight="700" font-family="\'Segoe UI\', monospace">' + escSvg(open.label.toUpperCase()) + ' ' + escSvg(open.text) + '</text>'
           );
         }
-        y += 10;
+        y += 12;
       } else {
         blockStack.push({ y, label: msg.blockLabel || '', text: msg.text });
-        y += 22;
+        y += 24;
       }
       continue;
     }
@@ -2013,10 +2092,12 @@ function renderSequenceSvg(src: string): { svg: string; errors: string[] } {
       const nw = Math.max(x2 - x1 + 120, msg.text.length * CHAR_W + 28);
       const nx = Math.max(6, (x1 + x2) / 2 - nw / 2);
       body.push(
-        '<rect x="' + nx + '" y="' + (y - 12) + '" width="' + nw + '" height="' + NOTE_H + '" rx="3" class="sq-note"/>' +
-        '<text x="' + (nx + nw / 2) + '" y="' + (y + 9) + '" class="sq-note-text" text-anchor="middle">' + escSvg(msg.text) + '</text>'
+        '<g class="sq-note-group">' +
+        '<rect x="' + nx + '" y="' + (y - 12) + '" width="' + nw + '" height="' + NOTE_H + '" rx="5" fill="rgba(30, 41, 59, 0.85)" stroke="#f59e0b" stroke-width="1.2" filter="url(#glow-amber)"/>' +
+        '<text x="' + (nx + nw / 2) + '" y="' + (y + 9) + '" fill="#fef3c7" font-size="11" font-weight="600" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(msg.text) + '</text>' +
+        '</g>'
       );
-      y += NOTE_H + 12;
+      y += NOTE_H + 14;
       continue;
     }
 
@@ -2024,58 +2105,179 @@ function renderSequenceSvg(src: string): { svg: string; errors: string[] } {
     const to = d.participants.find(p => p.id === msg.to);
     if (!from || !to) continue;
     seq++;
-    const label = (d.autonumber ? seq + '. ' : '') + msg.text;
-    const dash = msg.dashed ? ' stroke-dasharray="5 4"' : '';
+    msgIdx++;
+
+    const isBottleneck = isLegacyMode || /(delay|manual|silo|excel|csv|wait|unvalidated|phone|4hr|slow|error|fail|paper|fax)/i.test(msg.text);
+    const stroke = isBottleneck ? '#ef4444' : (msg.dashed ? '#10b981' : '#38bdf8');
+    const glow = isBottleneck ? 'glow-crimson' : (msg.dashed ? 'glow-emerald' : 'glow-cyan');
+    const badgeBg = isBottleneck ? '#450a0a' : '#0f172a';
+    const isActiveStep = options?.activeStep === seq - 1;
+    const dash = msg.dashed ? ' stroke-dasharray="6 4"' : '';
+
+    let mainText = msg.text;
+    let tag = '';
+    const tagM = msg.text.match(/\(([^)]+)\)|\[([^\]]+)\]/);
+    if (tagM) {
+      tag = tagM[1] || tagM[2];
+      mainText = msg.text.replace(tagM[0], '').trim();
+    }
+    const label = (d.autonumber ? seq + '. ' : '') + mainText;
+
+    const actionsW = 86, actionsH = 18;
+    const actionsY = y - 28;
+
+    let stepMarkup = '<g class="sq-msg-group" data-msg-idx="' + msgIdx + '" data-from="' + escSvg(msg.from || '') + '" data-to="' + escSvg(msg.to || '') + '" data-dashed="' + !!msg.dashed + '" style="cursor: pointer;">';
 
     if (msg.self) {
       const x = from.x;
-      body.push(
-        '<path d="M ' + x + ' ' + y + ' L ' + (x + 44) + ' ' + y + ' L ' + (x + 44) + ' ' + (y + 22) + ' L ' + (x + 6) + ' ' + (y + 22) + '" fill="none" class="sq-line"' + dash + '/>' +
-        '<path d="M ' + (x + 6) + ' ' + (y + 22) + ' l 8 -4 l 0 8 z" class="sq-head"/>' +
-        '<text x="' + (x + 52) + '" y="' + (y + 4) + '" class="sq-msg">' + escSvg(label) + '</text>'
-      );
-      y += 40;
+      const actionsX = x + 30;
+      stepMarkup +=
+        '<path d="M ' + x + ' ' + y + ' L ' + (x + 48) + ' ' + y + ' L ' + (x + 48) + ' ' + (y + 24) + ' L ' + (x + 8) + ' ' + (y + 24) + '" fill="none" stroke="' + stroke + '" stroke-width="' + (isActiveStep ? '2.5' : '1.8') + '"' + dash + ' filter="url(#' + glow + ')"/>' +
+        '<polygon points="' + (x + 8) + ',' + (y + 24) + ' ' + (x + 16) + ',' + (y + 20) + ' ' + (x + 16) + ',' + (y + 28) + '" fill="' + stroke + '"/>' +
+        '<circle cx="' + (x + 6) + '" cy="' + y + '" r="8" fill="' + badgeBg + '" stroke="' + stroke + '" stroke-width="1.2"/>' +
+        '<text x="' + (x + 6) + '" y="' + (y + 3) + '" text-anchor="middle" fill="' + stroke + '" font-size="8" font-weight="700" font-family="monospace">' + seq + '</text>' +
+        '<text x="' + (x + 58) + '" y="' + (y + 6) + '" fill="#f8fafc" font-size="11" font-weight="600" font-family="\'Segoe UI\', sans-serif">' + escSvg(label) + '</text>';
+
+      if (tag) {
+        stepMarkup +=
+          '<g transform="translate(' + (x + 58) + ', ' + (y + 12) + ')">' +
+          '<rect width="' + Math.min(130, tag.length * 6 + 12) + '" height="14" rx="3" fill="' + (isBottleneck ? 'rgba(239,68,68,0.2)' : 'rgba(56,189,248,0.2)') + '" stroke="' + stroke + '" stroke-width="0.8"/>' +
+          '<text x="6" y="10" fill="' + stroke + '" font-size="8.5" font-weight="700" font-family="\'Segoe UI\', sans-serif">' + escSvg(tag) + '</text>' +
+          '</g>';
+      }
+
+      stepMarkup +=
+        '<g class="sq-msg-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
+        '<rect width="' + actionsW + '" height="' + actionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
+        '<g class="sq-btn sq-btn-msg-reply" data-msg-idx="' + msgIdx + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="10">⇄</text></g>' +
+        '<g class="sq-btn sq-btn-msg-edit" data-msg-idx="' + msgIdx + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
+        '<g class="sq-btn sq-btn-msg-up" data-msg-idx="' + msgIdx + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▲</text></g>' +
+        '<g class="sq-btn sq-btn-msg-down" data-msg-idx="' + msgIdx + '" transform="translate(52, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▼</text></g>' +
+        '<g class="sq-btn sq-btn-msg-del danger" data-msg-idx="' + msgIdx + '" transform="translate(68, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#ef4444" font-size="10">✕</text></g>' +
+        '</g>';
+
+      y += 46;
     } else {
       const dir = to.x > from.x ? 1 : -1;
-      const x1 = from.x + 4 * dir, x2 = to.x - 7 * dir;
-      body.push(
-        '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" class="sq-line"' + dash + '/>' +
-        '<path d="M ' + x2 + ' ' + y + ' l ' + (-8 * dir) + ' -4 l 0 8 z" class="sq-head"/>' +
-        '<text x="' + ((x1 + x2) / 2) + '" y="' + (y - 7) + '" class="sq-msg" text-anchor="middle">' + escSvg(label) + '</text>'
-      );
-      y += ROW_H;
+      const x1 = from.x + 6 * dir, x2 = to.x - 8 * dir;
+      const midX = (x1 + x2) / 2;
+      const badgeX = x1 + 8 * dir;
+      const actionsX = midX - actionsW / 2;
+
+      stepMarkup +=
+        '<line x1="' + x1 + '" y1="' + y + '" x2="' + x2 + '" y2="' + y + '" stroke="' + stroke + '" stroke-width="' + (isActiveStep ? '2.5' : '1.8') + '"' + dash + ' filter="url(#' + glow + ')"/>' +
+        '<polygon points="' + x2 + ',' + y + ' ' + (x2 - 9 * dir) + ',' + (y - 4) + ' ' + (x2 - 9 * dir) + ',' + (y + 4) + '" fill="' + stroke + '"/>' +
+        '<circle cx="' + badgeX + '" cy="' + y + '" r="8" fill="' + badgeBg + '" stroke="' + stroke + '" stroke-width="1.2"/>' +
+        '<text x="' + badgeX + '" y="' + (y + 3) + '" text-anchor="middle" fill="' + stroke + '" font-size="8" font-weight="700" font-family="monospace">' + seq + '</text>';
+
+      if (isActiveStep) {
+        const ratio = Math.max(0, Math.min(1, options?.photonRatio ?? 0.5));
+        const px = x1 + (x2 - x1) * ratio;
+        stepMarkup +=
+          '<circle cx="' + px + '" cy="' + y + '" r="5" fill="#ffffff" stroke="' + stroke + '" stroke-width="2" filter="url(#' + glow + ')"/>' +
+          '<circle cx="' + px + '" cy="' + y + '" r="11" fill="' + stroke + '" opacity="0.3" filter="url(#' + glow + ')"/>';
+      }
+
+      if (tag) {
+        const tagW = Math.min(140, tag.length * 6.2 + 12);
+        stepMarkup +=
+          '<text x="' + midX + '" y="' + (y - 12) + '" fill="#f8fafc" font-size="11" font-weight="600" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(label) + '</text>' +
+          '<g transform="translate(' + (midX - tagW / 2) + ', ' + (y + 4) + ')">' +
+          '<rect width="' + tagW + '" height="13" rx="3" fill="' + (isBottleneck ? 'rgba(239,68,68,0.2)' : 'rgba(56,189,248,0.2)') + '" stroke="' + stroke + '" stroke-width="0.8"/>' +
+          '<text x="' + (tagW / 2) + '" y="9.5" fill="' + stroke + '" font-size="8" font-weight="700" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(tag) + '</text>' +
+          '</g>';
+      } else {
+        stepMarkup +=
+          '<text x="' + midX + '" y="' + (y - 6) + '" fill="#f8fafc" font-size="11" font-weight="600" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(label) + '</text>';
+      }
+
+      stepMarkup +=
+        '<g class="sq-msg-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
+        '<rect width="' + actionsW + '" height="' + actionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
+        '<g class="sq-btn sq-btn-msg-reply" data-msg-idx="' + msgIdx + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="10">⇄</text></g>' +
+        '<g class="sq-btn sq-btn-msg-edit" data-msg-idx="' + msgIdx + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
+        '<g class="sq-btn sq-btn-msg-up" data-msg-idx="' + msgIdx + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▲</text></g>' +
+        '<g class="sq-btn sq-btn-msg-down" data-msg-idx="' + msgIdx + '" transform="translate(52, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▼</text></g>' +
+        '<g class="sq-btn sq-btn-msg-del danger" data-msg-idx="' + msgIdx + '" transform="translate(68, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#ef4444" font-size="10">✕</text></g>' +
+        '</g>';
+
+      y += ROW_H + (tag ? 6 : 0);
     }
+
+    stepMarkup += '</g>';
+    body.push(stepMarkup);
   }
 
-  const height = y + 30;
+  const height = y + BOX_H + 34;
 
   const heads: string[] = [];
   d.participants.forEach((p, i) => {
+    const meta = getParticipantRoleMeta(p);
     const w = widths[i], x = p.x - w / 2;
-    heads.push('<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 8) + '" class="sq-lifeline"/>');
-    [TOP, height - BOX_H - 8].forEach(by => {
+
+    heads.push(
+      '<g class="sq-lifeline-group">' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 10) + '" stroke="' + meta.color + '" stroke-width="3" stroke-opacity="0.12"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 10) + '" stroke="' + meta.color + '" stroke-width="1.4" stroke-opacity="0.45" stroke-dasharray="5 4"/>' +
+      '</g>'
+    );
+
+    const partActionsW = 86, partActionsH = 18;
+    [TOP, height - BOX_H - 10].forEach((by, posIdx) => {
+      const actionsY = posIdx === 0 ? by - 22 : by + BOX_H + 4;
+      const actionsX = p.x - partActionsW / 2;
+
       heads.push(
-        '<rect x="' + x + '" y="' + by + '" width="' + w + '" height="' + BOX_H + '" rx="' + (p.isActor ? 18 : 4) + '" class="' + (p.isActor ? 'sq-actor' : 'sq-part') + '"/>' +
-        '<text x="' + p.x + '" y="' + (by + BOX_H / 2 + 4) + '" class="sq-part-text" text-anchor="middle">' + escSvg(p.label) + '</text>'
+        '<g class="sq-part-group" data-part-idx="' + i + '" data-part-id="' + escSvg(p.id) + '" style="cursor: pointer;">' +
+        '<rect x="' + x + '" y="' + by + '" width="' + w + '" height="' + BOX_H + '" rx="8" fill="url(#' + meta.gradId + ')" stroke="' + meta.border + '" stroke-width="1.5" filter="url(#' + meta.glowId + ')" class="sq-part-card"/>' +
+        '<rect x="' + (x + 6) + '" y="' + (by + 5) + '" width="' + (w - 12) + '" height="13" rx="3" fill="rgba(0,0,0,0.3)"/>' +
+        '<text x="' + p.x + '" y="' + (by + 14.5) + '" text-anchor="middle" fill="' + meta.color + '" font-size="8" font-weight="700" letter-spacing="0.5" font-family="\'Segoe UI\', monospace">' + meta.icon + ' ' + meta.badge + '</text>' +
+        '<text x="' + p.x + '" y="' + (by + 34) + '" text-anchor="middle" fill="#ffffff" font-size="11.5" font-weight="700" font-family="\'Segoe UI\', sans-serif">' + escSvg(p.label) + '</text>' +
+        '<g class="sq-part-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
+        '<rect width="' + partActionsW + '" height="' + partActionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
+        '<g class="sq-btn sq-btn-part-left" data-part-idx="' + i + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">◀</text></g>' +
+        '<g class="sq-btn sq-btn-part-edit" data-part-idx="' + i + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
+        '<g class="sq-btn sq-btn-part-role" data-part-idx="' + i + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#34d399" font-size="9">' + (p.isActor ? '🖥️' : '👤') + '</text></g>' +
+        '<g class="sq-btn sq-btn-part-del danger" data-part-idx="' + i + '" transform="translate(52, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#ef4444" font-size="10">✕</text></g>' +
+        '<g class="sq-btn sq-btn-part-right" data-part-idx="' + i + '" transform="translate(68, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▶</text></g>' +
+        '</g>' +
+        '</g>'
       );
     });
   });
 
+  const defs =
+    '<defs>' +
+    '<filter id="glow-cyan" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-emerald" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-violet" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-amber" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-crimson" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-indigo" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#064e3b"/><stop offset="100%" stop-color="#022c22"/></linearGradient>' +
+    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b0764"/><stop offset="100%" stop-color="#1e1b4b"/></linearGradient>' +
+    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#78350f"/><stop offset="100%" stop-color="#451a03"/></linearGradient>' +
+    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0c4a6e"/><stop offset="100%" stop-color="#082f49"/></linearGradient>' +
+    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#312e81"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
+    '<pattern id="sq-cyber-grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(56, 189, 248, 0.04)" stroke-width="1"/></pattern>' +
+    '</defs>';
+
   const style = '<style>' +
-    '.sq-part{fill:var(--card-bg);stroke:var(--accent);stroke-width:1.2}' +
-    '.sq-actor{fill:var(--bg-tertiary);stroke:var(--success);stroke-width:1.2}' +
-    '.sq-part-text{fill:var(--text-primary);font:600 11px var(--font-sans)}' +
-    '.sq-lifeline{stroke:var(--border);stroke-width:1;stroke-dasharray:3 4}' +
-    '.sq-line{stroke:var(--accent);stroke-width:1.4}' +
-    '.sq-head{fill:var(--accent)}' +
-    '.sq-msg{fill:var(--text-secondary);font:11px var(--font-sans)}' +
-    '.sq-note{fill:var(--warn-bg);stroke:var(--warn);stroke-width:1}' +
-    '.sq-note-text{fill:var(--text-primary);font:11px var(--font-sans)}' +
-    '.sq-block{fill:var(--text-muted);font:600 10px var(--font-sans)}' +
+    '.sq-action-group{opacity:0;pointer-events:none;transition:opacity 0.18s ease-in-out;}' +
+    '.sq-part-group:hover .sq-action-group,.sq-msg-group:hover .sq-action-group{opacity:1 !important;pointer-events:auto !important;}' +
+    '.sq-part-card{transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1);}' +
+    '.sq-part-group:hover .sq-part-card{stroke-width:2.2px;filter:drop-shadow(0 0 8px currentColor);}' +
+    '.sq-msg-group:hover line,.sq-msg-group:hover path{stroke-width:2.5px !important;}' +
+    '.sq-btn{cursor:pointer;}' +
+    '.sq-btn:hover rect{fill:rgba(56, 189, 248, 0.35);}' +
+    '.sq-btn.danger:hover rect{fill:rgba(239, 68, 68, 0.45);}' +
     '</style>';
 
-  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-label="Workflow sequence diagram">' +
-    style + heads.join('') + body.join('') + '</svg>';
+  const background = '<rect width="' + width + '" height="' + height + '" fill="url(#sq-cyber-grid)"/>';
+
+  const svg = '<svg id="fdeTopologySvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-label="Futuristic Workflow Topology">' +
+    defs + style + background + heads.join('') + body.join('') + '</svg>';
 
   return { svg, errors: d.errors };
 }
@@ -2807,7 +3009,16 @@ function setupPhase1Discovery(api: any): void {
   const diagramStatus = document.getElementById('fdeDiagramStatus');
   const btnExportSvg = document.getElementById('btnFdeExportDiagramSvg');
 
-  const paintDiagram = () => {
+  let canvasZoom = 1.0;
+  const applyZoom = () => {
+    const svgEl = renderedPane?.querySelector('svg');
+    if (svgEl) {
+      svgEl.style.transform = `scale(${canvasZoom})`;
+      svgEl.style.transformOrigin = 'top left';
+    }
+  };
+
+  const paintDiagram = (renderOpts?: SeqRenderOptions) => {
     if (!renderedPane) return;
     const src = topologyContainer?.value || '';
     if (!src.trim()) {
@@ -2815,7 +3026,7 @@ function setupPhase1Discovery(api: any): void {
       if (diagramStatus) diagramStatus.textContent = '';
       return;
     }
-    const { svg, errors } = renderSequenceSvg(src);
+    const { svg, errors } = renderSequenceSvg(src, { mode: currentDiagramMode, ...renderOpts });
     if (!svg) {
       renderedPane.innerHTML = '<div style="color: var(--warn); font-size: 11.5px; padding: 16px;">Could not render this diagram.<br><span style="color: var(--text-secondary);">' +
         errors.map(e => e.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>') + '</span></div>';
@@ -2823,6 +3034,8 @@ function setupPhase1Discovery(api: any): void {
       return;
     }
     renderedPane.innerHTML = svg;
+    applyZoom();
+
     // Parse problems are surfaced, never swallowed - a half-drawn diagram that
     // silently dropped a step would mislead the client reading it.
     if (diagramStatus) {
@@ -3472,6 +3685,717 @@ function setupPhase1Discovery(api: any): void {
       showToast('📋 Copied Mermaid sequence diagram to clipboard');
     }
   });
+
+  // --- Showcase Architecture Templates ---
+  const topologyPresets: Record<string, { name: string; future: string; legacy: string }> = {
+    'enterprise-ai': {
+      name: 'Enterprise AI Core & HITL Gate',
+      future: `sequenceDiagram
+    autonumber
+    actor User as Customer / Analyst
+    participant GW as API Gateway & WAF
+    participant AICore as FDE GenAI Reasoning Core
+    actor HITL as Human-in-the-Loop Auditor
+    participant FastDB as Vector & Relational Store
+    User->>GW: Submit authenticated request (⚡ <120ms)
+    GW->>AICore: Forward sanitized schema payload
+    AICore->>FastDB: Vector search & ground truth retrieval
+    FastDB-->>AICore: Return verified contextual chunks
+    AICore->>HITL: Flag low-confidence edge case for audit
+    HITL-->>AICore: 1-click cryptographic signoff
+    AICore->>FastDB: Atomic state mutation & audit write
+    AICore-->>GW: Synthesized resolution (🔒 Signed)
+    GW-->>User: Instant verified response (⚡ 450ms)`,
+      legacy: `sequenceDiagram
+    actor User as Customer / Analyst
+    participant Desk as Tier 1 Helpdesk
+    participant Manual as Spreadsheet Silo
+    participant Approver as Senior Manager
+    participant LegacyDB as Core AS400 DB
+    User->>Desk: Submit support / claim ticket
+    Desk->>Manual: Copy data to unvalidated Excel (⚠️ 4hr delay)
+    Manual-->>Desk: Manual lookup & cross-checks
+    Desk->>Approver: Email approval request (⚠️ 24hr SLA)
+    Approver-->>Desk: Reply approval with signed PDF
+    Desk->>LegacyDB: Batch upload nightly CSV
+    LegacyDB-->>User: Issue paper statement (⚠️ 3-5 days)`
+    },
+    'legacy-silo': {
+      name: 'Legacy Manual Silo & Bottlenecks',
+      future: `sequenceDiagram
+    autonumber
+    actor Operator as Field Operator
+    participant EdgeApp as Mobile Edge Client
+    participant AICore as Auto-Extraction & Validation Core
+    actor Reviewer as Quality Assurance Gate
+    participant ERP as Enterprise SAP / ERP
+    Operator->>EdgeApp: Snap invoice / receipt photo (⚡ Instant)
+    EdgeApp->>AICore: Upload OCR image payload
+    AICore->>AICore: Multi-modal document parsing & tax check
+    AICore->>Reviewer: Exception routing on 99.8% confidence
+    Reviewer-->>AICore: Approve batch anomaly
+    AICore->>ERP: Post journal entry via authenticated REST API
+    ERP-->>Operator: Confirmed transaction receipt (⚡ <1.5s)`,
+      legacy: `sequenceDiagram
+    actor Operator as Field Operator
+    participant Mail as Courier & Physical Mail
+    participant Clerk as Data Entry Clerk
+    participant Excel as Shared Network Spreadsheet
+    participant Manager as Department Head
+    participant ERP as Mainframe Terminal
+    Operator->>Mail: Send paper receipts via weekly courier (⚠️ 5-7 days)
+    Mail-->>Clerk: Box delivered to processing centre
+    Clerk->>Excel: Retype numbers into spreadsheet (⚠️ Manual typo risk)
+    Excel-->>Clerk: Calculate totals without validation
+    Clerk->>Manager: Walk printed invoice folder for signoff (⚠️ 48hr wait)
+    Manager-->>Clerk: Wet signature on paper slip
+    Clerk->>ERP: Manually punch green-screen keys
+    ERP-->>Operator: Monthly payroll reimbursement (⚠️ 30 days)`
+    },
+    'streaming-fraud': {
+      name: 'Real-Time Streaming & Fraud Engine',
+      future: `sequenceDiagram
+    autonumber
+    actor Cardholder as Merchant POS / Cardholder
+    participant EdgeIngress as Ingress Kafka Stream
+    participant FraudAI as Real-Time ML Fraud Engine
+    participant RedisCache as Low-Latency Feature Store
+    participant LedgerSink as Event Lakehouse & Ledger
+    Cardholder->>EdgeIngress: Swipe transaction packet (⚡ <15ms)
+    EdgeIngress->>FraudAI: Push event to real-time consumer group
+    FraudAI->>RedisCache: Fetch 30-day cardholder behavior profile
+    RedisCache-->>FraudAI: Return sub-millisecond tensor vector
+    FraudAI->>FraudAI: Run XGBoost & Isolation Forest model (<8ms)
+    FraudAI->>LedgerSink: Publish immutable audit record (🔒 Signed)
+    FraudAI-->>Cardholder: Authorize & clear payment (⚡ Total 35ms)`,
+      legacy: `sequenceDiagram
+    actor Cardholder as Merchant POS / Cardholder
+    participant BatchLog as Local POS Disk Log
+    participant SFTP as Midnight SFTP Transfer
+    participant ETL as Nightly Batch ETL Job
+    participant Analyst as Fraud Investigation Analyst
+    Cardholder->>BatchLog: Record swipe to offline disk
+    BatchLog->>SFTP: Transmit flat file at midnight (⚠️ 12hr batch delay)
+    SFTP->>ETL: Trigger 6-hour batch SQL join
+    ETL-->>Analyst: Produce next-day suspicious activity report
+    Analyst->>Analyst: Review flagged transactions (⚠️ 24hr post-incident)
+    Analyst-->>Cardholder: Outbound telephone call to victim (⚠️ Too late)`
+    },
+    'hipaa-vault': {
+      name: 'Healthcare HIPAA De-ID Vault',
+      future: `sequenceDiagram
+    autonumber
+    actor Clinician as Treating Physician
+    participant SafeVault as HIPAA De-ID Gateway
+    participant ClinicalAI as Medical Synthesis LLM
+    actor EthicsBoard as Institutional Review Auditor
+    participant ResearchLake as FHIR Research Store
+    Clinician->>SafeVault: Ingest EHR note & clinical observations
+    SafeVault->>SafeVault: Cryptographic PHI pseudonymization & zero-leak tokenization
+    SafeVault->>ClinicalAI: Transmit de-identified clinical tokens
+    ClinicalAI->>ClinicalAI: Differential diagnosis & trial eligibility matching
+    ClinicalAI->>EthicsBoard: Audit log of synthesized recommendation
+    EthicsBoard-->>ClinicalAI: Automated policy clearance (✓ Policy Passed)
+    ClinicalAI->>ResearchLake: Sink anonymized cohort profile
+    ClinicalAI-->>Clinician: Precision clinical trial recommendation (⚡ <600ms)`,
+      legacy: `sequenceDiagram
+    actor Clinician as Treating Physician
+    participant RecordsRoom as Medical Records Archive
+    participant Redactor as Manual Medical Records Clerk
+    participant FaxMachine as Analog Fax Machine
+    Clinician->>RecordsRoom: Request patient history paper file
+    RecordsRoom-->>Clinician: Folder retrieved from physical basement (⚠️ 2-3 days)
+    Clinician->>Redactor: Submit for clinical research anonymization
+    Redactor->>Redactor: Black marker pen over printed pages (⚠️ Error prone)
+    Redactor->>FaxMachine: Fax 40 pages to trial coordinator (⚠️ Unencrypted)
+    FaxMachine-->>Clinician: Wait for trial coordinator callback (⚠️ 2 weeks)`
+    },
+    'fin-settlement': {
+      name: 'Financial Trade Settlement & Clearing',
+      future: `sequenceDiagram
+    autonumber
+    actor Broker as Institutional Broker
+    participant FIXGw as FIX Protocol Ingress Gateway
+    participant MatchCore as Real-Time Matching Engine
+    actor Compliance as Automated Compliance & AML Gate
+    participant DLTStore as Atomic DvP Custody Ledger
+    Broker->>FIXGw: Submit block trade execution order (⚡ FIX 4.4)
+    FIXGw->>MatchCore: Validate counterparty routing & market depth
+    MatchCore->>Compliance: Pre-settlement sanction & margin check
+    Compliance-->>MatchCore: Instant programmatic green-light (⚡ 2ms)
+    MatchCore->>DLTStore: Atomic Delivery-vs-Payment (DvP) settlement
+    DLTStore-->>Broker: Cryptographic clearing confirmation (🔒 T+0 Instant)`,
+      legacy: `sequenceDiagram
+    actor Broker as Institutional Broker
+    participant PhoneVoice as Phone & Voice Recording Desk
+    participant ExcelMatch as Middle-Office Reconciliation Sheet
+    participant DualSigner as Senior Operations Officer
+    participant Custodian as External Custodian Bank
+    Broker->>PhoneVoice: Call execution trader to confirm fill
+    PhoneVoice->>ExcelMatch: Manual entry into end-of-day spreadsheet (⚠️ 6hr delay)
+    ExcelMatch-->>ExcelMatch: Run VBA macros to detect trade breaks
+    ExcelMatch->>DualSigner: Email discrepancy log for four-eyes signoff
+    DualSigner-->>ExcelMatch: Approve wire transfers via token fob (⚠️ EOD deadline)
+    ExcelMatch->>Custodian: Transmit batch SWIFT MT541 instruction (⚠️ T+2 Settlement)
+    Custodian-->>Broker: Final clearing notice arrives two days later`
+    }
+  };
+
+  const selTopologyTemplate = document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement | null;
+  selTopologyTemplate?.addEventListener('change', () => {
+    const key = selTopologyTemplate.value;
+    const tpl = topologyPresets[key];
+    if (tpl) {
+      const before = topologyContainer?.value || '';
+      diagramUndoStack.push({ mode: currentDiagramMode, source: before });
+      refreshUndoState();
+
+      cachedDiagrams.futureDiagram = tpl.future;
+      cachedDiagrams.legacyDiagram = tpl.legacy;
+      if (topologyContainer) {
+        topologyContainer.value = currentDiagramMode === 'future' ? tpl.future : tpl.legacy;
+      }
+      paintDiagram();
+      paintCompare();
+      renderArrangePanel();
+      markScopeDirty();
+      showToast(`🎭 Loaded Showcase: ${tpl.name}`);
+      selTopologyTemplate.value = '';
+    }
+  });
+
+  // --- Step-by-Step Flow Simulation Player ---
+  const btnAnimateFlow = document.getElementById('btnFdeAnimateFlow');
+  let isAnimatingFlow = false;
+  let flowTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const stopFlowAnimation = () => {
+    if (flowTimer) { clearTimeout(flowTimer); flowTimer = null; }
+    isAnimatingFlow = false;
+    if (btnAnimateFlow) {
+      btnAnimateFlow.textContent = '▶ Animate Flow';
+      btnAnimateFlow.style.borderColor = '#06b6d4';
+      btnAnimateFlow.style.color = '#22d3ee';
+    }
+    paintDiagram();
+  };
+
+  const startFlowAnimation = () => {
+    const src = topologyContainer?.value || '';
+    const d = parseSequenceDiagram(src);
+    const msgCount = d.messages.filter(m => m.kind === 'msg').length;
+    if (!msgCount) {
+      showToast('No message steps to animate.');
+      return;
+    }
+    isAnimatingFlow = true;
+    if (btnAnimateFlow) {
+      btnAnimateFlow.textContent = '⏹ Stop Flow';
+      btnAnimateFlow.style.borderColor = '#f59e0b';
+      btnAnimateFlow.style.color = '#fbbf24';
+    }
+
+    let curStep = 0;
+    let animFrames = 0;
+    const runFrame = () => {
+      if (!isAnimatingFlow) return;
+      animFrames++;
+      const ratio = (animFrames % 10) / 10;
+      paintDiagram({ activeStep: curStep, photonRatio: ratio });
+
+      if (animFrames % 10 === 0) {
+        curStep++;
+        if (curStep >= msgCount) {
+          showToast('✅ Workflow simulation complete');
+          stopFlowAnimation();
+          return;
+        }
+      }
+      flowTimer = setTimeout(runFrame, 90);
+    };
+    runFrame();
+  };
+
+  btnAnimateFlow?.addEventListener('click', () => {
+    if (isAnimatingFlow) {
+      stopFlowAnimation();
+      showToast('Simulation stopped');
+    } else {
+      startFlowAnimation();
+    }
+  });
+
+  // --- Canvas Zoom HUD ---
+  document.getElementById('btnFdeZoomIn')?.addEventListener('click', () => {
+    canvasZoom = Math.min(2.0, +(canvasZoom + 0.15).toFixed(2));
+    applyZoom();
+  });
+  document.getElementById('btnFdeZoomOut')?.addEventListener('click', () => {
+    canvasZoom = Math.max(0.5, +(canvasZoom - 0.15).toFixed(2));
+    applyZoom();
+  });
+  document.getElementById('btnFdeZoomReset')?.addEventListener('click', () => {
+    canvasZoom = 1.0;
+    applyZoom();
+  });
+
+  // --- Floating Inline Quick-Editor ---
+  const inlineEditor = document.getElementById('fdeTopologyInlineEditor');
+  const inlineEditorTitle = document.getElementById('fdeInlineEditorTitle');
+  const inlineEditorBody = document.getElementById('fdeInlineEditorBody');
+  const inlineEditorClose = document.getElementById('btnFdeInlineEditorClose');
+
+  const closeInlineEditor = () => {
+    if (inlineEditor) {
+      inlineEditor.hidden = true;
+      inlineEditor.style.display = 'none';
+    }
+  };
+  inlineEditorClose?.addEventListener('click', closeInlineEditor);
+
+  const openInlineEditor = (
+    mode: 'edit-part' | 'edit-msg' | 'add-part' | 'add-msg',
+    data: any,
+    clientX?: number,
+    clientY?: number
+  ) => {
+    if (!inlineEditor || !inlineEditorTitle || !inlineEditorBody || !renderedPane) return;
+
+    const rect = renderedPane.getBoundingClientRect();
+    inlineEditor.hidden = false;
+    inlineEditor.style.display = 'block';
+    if (clientX !== undefined && clientY !== undefined) {
+      let x = clientX - rect.left + 10;
+      let y = clientY - rect.top + 10;
+      if (x + 290 > rect.width) x = Math.max(10, rect.width - 300);
+      if (y + 260 > rect.height) y = Math.max(10, rect.height - 270);
+      inlineEditor.style.left = `${Math.max(10, x)}px`;
+      inlineEditor.style.top = `${Math.max(10, y)}px`;
+    } else {
+      inlineEditor.style.left = '20px';
+      inlineEditor.style.top = '20px';
+    }
+
+    const lines = getDiagramLines();
+    const pIdx = participantIndices(lines);
+    const parts = pIdx.map(i => parseParticipant(lines[i])!);
+    const mIdx = messageIndices(lines);
+    const msgs = mIdx.map(i => parseMessage(lines[i])!);
+
+    if (mode === 'edit-part') {
+      const n = data.n;
+      if (n < 0 || n >= parts.length) return;
+      const p = parts[n];
+      inlineEditorTitle.textContent = `Edit Node: ${p.label}`;
+      inlineEditorBody.innerHTML = `
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">Node Label / System Name</label>
+          <input type="text" id="txtInlinePartLabel" value="${escSvg(p.label)}" style="width: 100%; box-sizing: border-box; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+        </div>
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">Type / Role</label>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" class="btn-quick ${p.keyword === 'participant' ? 'active' : ''}" id="btnInlineRoleSys" style="flex: 1; font-size: 10px; padding: 3px 6px;">🖥️ System</button>
+            <button type="button" class="btn-quick ${p.keyword === 'actor' ? 'active' : ''}" id="btnInlineRoleActor" style="flex: 1; font-size: 10px; padding: 3px 6px;">👤 Person</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 4px; justify-content: space-between; align-items: center; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 8px;">
+          <button type="button" class="btn-quick" id="btnInlinePartLeft" style="font-size: 10px; padding: 3px 6px;">◀ Left</button>
+          <button type="button" class="btn-quick" id="btnInlinePartRight" style="font-size: 10px; padding: 3px 6px;">Right ▶</button>
+          <button type="button" class="btn-quick" id="btnInlinePartDel" style="font-size: 10px; padding: 3px 6px; border-color: var(--error); color: var(--error);">✕ Del</button>
+          <button type="button" class="btn-quick active" id="btnInlinePartSave" style="font-size: 10px; padding: 3px 8px; border-color: #38bdf8; color: #38bdf8; font-weight: 700;">Save</button>
+        </div>
+      `;
+
+      let selectedActor = p.keyword === 'actor';
+      const bSys = document.getElementById('btnInlineRoleSys');
+      const bActor = document.getElementById('btnInlineRoleActor');
+      bSys?.addEventListener('click', () => { selectedActor = false; bSys.classList.add('active'); bActor?.classList.remove('active'); });
+      bActor?.addEventListener('click', () => { selectedActor = true; bActor.classList.add('active'); bSys?.classList.remove('active'); });
+
+      document.getElementById('btnInlinePartLeft')?.addEventListener('click', () => { moveRow('participant', n, n - 1); closeInlineEditor(); });
+      document.getElementById('btnInlinePartRight')?.addEventListener('click', () => { moveRow('participant', n, n + 1); closeInlineEditor(); });
+      document.getElementById('btnInlinePartDel')?.addEventListener('click', () => { removeParticipant(n); closeInlineEditor(); });
+      document.getElementById('btnInlinePartSave')?.addEventListener('click', () => {
+        const txt = (document.getElementById('txtInlinePartLabel') as HTMLInputElement)?.value || '';
+        renameParticipant(n, txt);
+        if (selectedActor !== (p.keyword === 'actor')) setParticipantKind(n, selectedActor);
+        closeInlineEditor();
+      });
+    } else if (mode === 'edit-msg') {
+      const n = data.n;
+      if (n < 0 || n >= msgs.length) return;
+      const m = msgs[n];
+      inlineEditorTitle.textContent = `Edit Step #${n + 1}`;
+      let isDashed = m.arrow.indexOf('--') === 0;
+
+      const fromOptions = parts.map(p => `<option value="${p.id}" ${p.id === m.from ? 'selected' : ''}>${escSvg(p.label)}</option>`).join('');
+      const toOptions = parts.map(p => `<option value="${p.id}" ${p.id === m.to ? 'selected' : ''}>${escSvg(p.label)}</option>`).join('');
+
+      inlineEditorBody.innerHTML = `
+        <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 8px;">
+          <select id="selInlineFrom" style="flex: 1; min-width: 0; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 4px; font-size: 10px;">${fromOptions}</select>
+          <button type="button" id="btnInlineArrow" style="background: none; border: 1px solid var(--border); border-radius: 4px; color: #38bdf8; font-size: 11px; padding: 2px 6px; cursor: pointer;">${isDashed ? '⇢ Reply' : '→ Request'}</button>
+          <select id="selInlineTo" style="flex: 1; min-width: 0; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 4px; font-size: 10px;">${toOptions}</select>
+        </div>
+        <div style="margin-bottom: 6px;">
+          <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">Step Description &amp; Latency</label>
+          <input type="text" id="txtInlineMsgText" value="${escSvg(m.text)}" style="width: 100%; box-sizing: border-box; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+        </div>
+        <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
+          <span style="font-size: 9px; color: #64748b; align-self: center;">Tags:</span>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (⚡ <120ms)" style="font-size: 9px; padding: 1px 4px;">⚡ &lt;120ms</button>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (🔒 Signed)" style="font-size: 9px; padding: 1px 4px;">🔒 Signed</button>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (⚠️ 4hr delay)" style="font-size: 9px; padding: 1px 4px;">⚠️ Delay</button>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (✓ Validated)" style="font-size: 9px; padding: 1px 4px;">✓ Valid</button>
+        </div>
+        <div style="display: flex; gap: 4px; justify-content: space-between; align-items: center; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 8px;">
+          <button type="button" class="btn-quick" id="btnInlineMsgUp" style="font-size: 10px; padding: 3px 6px;">▲ Up</button>
+          <button type="button" class="btn-quick" id="btnInlineMsgDown" style="font-size: 10px; padding: 3px 6px;">Down ▼</button>
+          <button type="button" class="btn-quick" id="btnInlineMsgDel" style="font-size: 10px; padding: 3px 6px; border-color: var(--error); color: var(--error);">✕ Del</button>
+          <button type="button" class="btn-quick active" id="btnInlineMsgSave" style="font-size: 10px; padding: 3px 8px; border-color: #38bdf8; color: #38bdf8; font-weight: 700;">Save</button>
+        </div>
+      `;
+
+      const bArrow = document.getElementById('btnInlineArrow');
+      bArrow?.addEventListener('click', () => {
+        isDashed = !isDashed;
+        bArrow.textContent = isDashed ? '⇢ Reply' : '→ Request';
+      });
+
+      const txtBox = document.getElementById('txtInlineMsgText') as HTMLInputElement | null;
+      inlineEditorBody.querySelectorAll('.btn-tag').forEach(tb => {
+        tb.addEventListener('click', () => {
+          if (txtBox) {
+            const tagStr = (tb as HTMLElement).dataset.tag || '';
+            txtBox.value = txtBox.value.replace(/\s*\([^)]+\)/g, '') + tagStr;
+          }
+        });
+      });
+
+      document.getElementById('btnInlineMsgUp')?.addEventListener('click', () => { moveRow('message', n, n - 1); closeInlineEditor(); });
+      document.getElementById('btnInlineMsgDown')?.addEventListener('click', () => { moveRow('message', n, n + 1); closeInlineEditor(); });
+      document.getElementById('btnInlineMsgDel')?.addEventListener('click', () => { removeStep(n); closeInlineEditor(); });
+      document.getElementById('btnInlineMsgSave')?.addEventListener('click', () => {
+        const fromVal = (document.getElementById('selInlineFrom') as HTMLSelectElement)?.value;
+        const toVal = (document.getElementById('selInlineTo') as HTMLSelectElement)?.value;
+        const txtVal = txtBox?.value || '';
+        editStep(n, { from: fromVal, to: toVal, arrow: isDashed ? '-->>' : '->>', text: txtVal });
+        closeInlineEditor();
+      });
+    } else if (mode === 'add-part') {
+      inlineEditorTitle.textContent = '+ Add Participant / System';
+      inlineEditorBody.innerHTML = `
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">Name of System or Person</label>
+          <input type="text" id="txtInlineNewPart" placeholder="e.g. GenAI Reasoning Core" style="width: 100%; box-sizing: border-box; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+        </div>
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">Type</label>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" class="btn-quick active" id="btnInlineNewSys" style="flex: 1; font-size: 10px; padding: 3px 6px;">🖥️ System</button>
+            <button type="button" class="btn-quick" id="btnInlineNewActor" style="flex: 1; font-size: 10px; padding: 3px 6px;">👤 Person</button>
+          </div>
+        </div>
+        <div style="display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap;">
+          <span style="font-size: 9px; color: #64748b; align-self: center;">Presets:</span>
+          <button type="button" class="btn-quick btn-preset-name" data-name="GenAI Core" style="font-size: 9px; padding: 1px 4px;">⚡ AI Core</button>
+          <button type="button" class="btn-quick btn-preset-name" data-name="API Gateway" style="font-size: 9px; padding: 1px 4px;">🛡️ Gateway</button>
+          <button type="button" class="btn-quick btn-preset-name" data-name="HITL Auditor" data-actor="true" style="font-size: 9px; padding: 1px 4px;">👁️ HITL Gate</button>
+          <button type="button" class="btn-quick btn-preset-name" data-name="Vector Store" style="font-size: 9px; padding: 1px 4px;">🗄️ Database</button>
+        </div>
+        <div style="display: flex; gap: 6px; justify-content: flex-end; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 8px;">
+          <button type="button" class="btn-quick" id="btnInlineCancel" style="font-size: 10px; padding: 3px 8px;">Cancel</button>
+          <button type="button" class="btn-quick active" id="btnInlineDoAddPart" style="font-size: 10px; padding: 3px 10px; border-color: #38bdf8; color: #38bdf8; font-weight: 700;">+ Add Node</button>
+        </div>
+      `;
+
+      let isActor = false;
+      const bSys = document.getElementById('btnInlineNewSys');
+      const bActor = document.getElementById('btnInlineNewActor');
+      const txtInp = document.getElementById('txtInlineNewPart') as HTMLInputElement | null;
+      bSys?.addEventListener('click', () => { isActor = false; bSys.classList.add('active'); bActor?.classList.remove('active'); });
+      bActor?.addEventListener('click', () => { isActor = true; bActor.classList.add('active'); bSys?.classList.remove('active'); });
+
+      inlineEditorBody.querySelectorAll('.btn-preset-name').forEach(b => {
+        b.addEventListener('click', () => {
+          if (txtInp) txtInp.value = (b as HTMLElement).dataset.name || '';
+          if ((b as HTMLElement).dataset.actor === 'true') {
+            isActor = true; bActor?.classList.add('active'); bSys?.classList.remove('active');
+          }
+        });
+      });
+
+      document.getElementById('btnInlineCancel')?.addEventListener('click', closeInlineEditor);
+      document.getElementById('btnInlineDoAddPart')?.addEventListener('click', () => {
+        const val = txtInp?.value || '';
+        if (!val.trim()) { showToast('Enter a name first.'); return; }
+        addParticipant(val, isActor);
+        closeInlineEditor();
+      });
+    } else if (mode === 'add-msg') {
+      inlineEditorTitle.textContent = '+ Add Workflow Step';
+      let isDashed = false;
+      const fromOptions = parts.map(p => `<option value="${p.id}">${escSvg(p.label)}</option>`).join('');
+      const toOptions = parts.map((p, i) => `<option value="${p.id}" ${i === 1 ? 'selected' : ''}>${escSvg(p.label)}</option>`).join('');
+
+      inlineEditorBody.innerHTML = `
+        <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 8px;">
+          <select id="selInlineAddFrom" style="flex: 1; min-width: 0; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 4px; font-size: 10px;">${fromOptions}</select>
+          <button type="button" id="btnInlineAddArrow" style="background: none; border: 1px solid var(--border); border-radius: 4px; color: #38bdf8; font-size: 11px; padding: 2px 6px; cursor: pointer;">→ Request</button>
+          <select id="selInlineAddTo" style="flex: 1; min-width: 0; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 4px; font-size: 10px;">${toOptions}</select>
+        </div>
+        <div style="margin-bottom: 6px;">
+          <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 3px;">What happens at this step</label>
+          <input type="text" id="txtInlineNewMsg" placeholder="e.g. Synthesize recommendations" style="width: 100%; box-sizing: border-box; background: var(--bg-input); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+        </div>
+        <div style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
+          <span style="font-size: 9px; color: #64748b; align-self: center;">Tags:</span>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (⚡ <120ms)" style="font-size: 9px; padding: 1px 4px;">⚡ &lt;120ms</button>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (🔒 Signed)" style="font-size: 9px; padding: 1px 4px;">🔒 Signed</button>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (⚠️ 4hr delay)" style="font-size: 9px; padding: 1px 4px;">⚠️ Delay</button>
+          <button type="button" class="btn-quick btn-tag" data-tag=" (✓ Validated)" style="font-size: 9px; padding: 1px 4px;">✓ Valid</button>
+        </div>
+        <div style="display: flex; gap: 6px; justify-content: flex-end; border-top: 1px solid rgba(56, 189, 248, 0.2); padding-top: 8px;">
+          <button type="button" class="btn-quick" id="btnInlineCancel" style="font-size: 10px; padding: 3px 8px;">Cancel</button>
+          <button type="button" class="btn-quick active" id="btnInlineDoAddStep" style="font-size: 10px; padding: 3px 10px; border-color: #10b981; color: #10b981; font-weight: 700;">+ Add Step</button>
+        </div>
+      `;
+
+      const bArrow = document.getElementById('btnInlineAddArrow');
+      bArrow?.addEventListener('click', () => {
+        isDashed = !isDashed;
+        bArrow.textContent = isDashed ? '⇢ Reply' : '→ Request';
+      });
+
+      const txtInp = document.getElementById('txtInlineNewMsg') as HTMLInputElement | null;
+      inlineEditorBody.querySelectorAll('.btn-tag').forEach(tb => {
+        tb.addEventListener('click', () => {
+          if (txtInp) {
+            const tagStr = (tb as HTMLElement).dataset.tag || '';
+            txtInp.value = txtInp.value.replace(/\s*\([^)]+\)/g, '') + tagStr;
+          }
+        });
+      });
+
+      document.getElementById('btnInlineCancel')?.addEventListener('click', closeInlineEditor);
+      document.getElementById('btnInlineDoAddStep')?.addEventListener('click', () => {
+        const fromVal = (document.getElementById('selInlineAddFrom') as HTMLSelectElement)?.value || '';
+        const toVal = (document.getElementById('selInlineAddTo') as HTMLSelectElement)?.value || '';
+        const desc = txtInp?.value || '';
+        if (!desc.trim()) { showToast('Describe what happens.'); return; }
+        addStep(fromVal, toVal, desc, isDashed);
+        closeInlineEditor();
+      });
+    }
+  };
+
+  // --- Canvas Quick Add buttons ---
+  document.getElementById('btnFdeCanvasAddParticipant')?.addEventListener('click', (e) => {
+    openInlineEditor('add-part', {}, (e as MouseEvent).clientX, (e as MouseEvent).clientY);
+  });
+  document.getElementById('btnFdeCanvasAddStep')?.addEventListener('click', (e) => {
+    openInlineEditor('add-msg', {}, (e as MouseEvent).clientX, (e as MouseEvent).clientY);
+  });
+
+  // --- Delegated On-Canvas Click Handlers ---
+  renderedPane?.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement | SVGElement | null;
+    if (!target) return;
+
+    // Participant buttons
+    const btnPartDel = target.closest('.sq-btn-part-del') as SVGElement | null;
+    if (btnPartDel) {
+      e.stopPropagation();
+      const n = parseInt(btnPartDel.dataset.partIdx || '-1', 10);
+      if (n >= 0) removeParticipant(n);
+      return;
+    }
+    const btnPartLeft = target.closest('.sq-btn-part-left') as SVGElement | null;
+    if (btnPartLeft) {
+      e.stopPropagation();
+      const n = parseInt(btnPartLeft.dataset.partIdx || '-1', 10);
+      if (n >= 0) moveRow('participant', n, n - 1);
+      return;
+    }
+    const btnPartRight = target.closest('.sq-btn-part-right') as SVGElement | null;
+    if (btnPartRight) {
+      e.stopPropagation();
+      const n = parseInt(btnPartRight.dataset.partIdx || '-1', 10);
+      if (n >= 0) moveRow('participant', n, n + 1);
+      return;
+    }
+    const btnPartRole = target.closest('.sq-btn-part-role') as SVGElement | null;
+    if (btnPartRole) {
+      e.stopPropagation();
+      const n = parseInt(btnPartRole.dataset.partIdx || '-1', 10);
+      if (n >= 0) {
+        const lines = getDiagramLines();
+        const idx = participantIndices(lines);
+        const p = parseParticipant(lines[idx[n]])!;
+        setParticipantKind(n, p.keyword !== 'actor');
+      }
+      return;
+    }
+    const btnPartEdit = target.closest('.sq-btn-part-edit') as SVGElement | null;
+    if (btnPartEdit) {
+      e.stopPropagation();
+      const n = parseInt(btnPartEdit.dataset.partIdx || '-1', 10);
+      if (n >= 0) openInlineEditor('edit-part', { n }, e.clientX, e.clientY);
+      return;
+    }
+
+    // Step buttons
+    const btnMsgDel = target.closest('.sq-btn-msg-del') as SVGElement | null;
+    if (btnMsgDel) {
+      e.stopPropagation();
+      const n = parseInt(btnMsgDel.dataset.msgIdx || '-1', 10);
+      if (n >= 0) removeStep(n);
+      return;
+    }
+    const btnMsgUp = target.closest('.sq-btn-msg-up') as SVGElement | null;
+    if (btnMsgUp) {
+      e.stopPropagation();
+      const n = parseInt(btnMsgUp.dataset.msgIdx || '-1', 10);
+      if (n >= 0) moveRow('message', n, n - 1);
+      return;
+    }
+    const btnMsgDown = target.closest('.sq-btn-msg-down') as SVGElement | null;
+    if (btnMsgDown) {
+      e.stopPropagation();
+      const n = parseInt(btnMsgDown.dataset.msgIdx || '-1', 10);
+      if (n >= 0) moveRow('message', n, n + 1);
+      return;
+    }
+    const btnMsgReply = target.closest('.sq-btn-msg-reply') as SVGElement | null;
+    if (btnMsgReply) {
+      e.stopPropagation();
+      const n = parseInt(btnMsgReply.dataset.msgIdx || '-1', 10);
+      if (n >= 0) {
+        const lines = getDiagramLines();
+        const idx = messageIndices(lines);
+        const m = parseMessage(lines[idx[n]])!;
+        editStep(n, { arrow: m.arrow.indexOf('--') === 0 ? '->>' : '-->>' });
+      }
+      return;
+    }
+    const btnMsgEdit = target.closest('.sq-btn-msg-edit') as SVGElement | null;
+    if (btnMsgEdit) {
+      e.stopPropagation();
+      const n = parseInt(btnMsgEdit.dataset.msgIdx || '-1', 10);
+      if (n >= 0) openInlineEditor('edit-msg', { n }, e.clientX, e.clientY);
+      return;
+    }
+
+    // Direct card click
+    const partGroup = target.closest('.sq-part-group') as SVGElement | null;
+    if (partGroup) {
+      const n = parseInt(partGroup.dataset.partIdx || '-1', 10);
+      if (n >= 0) openInlineEditor('edit-part', { n }, e.clientX, e.clientY);
+      return;
+    }
+
+    // Direct message click
+    const msgGroup = target.closest('.sq-msg-group') as SVGElement | null;
+    if (msgGroup) {
+      const n = parseInt(msgGroup.dataset.msgIdx || '-1', 10);
+      if (n >= 0) openInlineEditor('edit-msg', { n }, e.clientX, e.clientY);
+      return;
+    }
+  });
+
+  // --- Delegated On-Canvas Drag-and-Drop ---
+  let dragKind: 'part' | 'msg' | null = null;
+  let dragFromIdx = -1;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let isDraggingOnCanvas = false;
+
+  renderedPane?.addEventListener('pointerdown', (e: PointerEvent) => {
+    const target = e.target as HTMLElement | SVGElement | null;
+    if (!target || target.closest('.sq-btn')) return;
+
+    const part = target.closest('.sq-part-group') as SVGElement | null;
+    if (part) {
+      dragKind = 'part';
+      dragFromIdx = parseInt(part.dataset.partIdx || '-1', 10);
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      isDraggingOnCanvas = false;
+      return;
+    }
+
+    const msg = target.closest('.sq-msg-group') as SVGElement | null;
+    if (msg) {
+      dragKind = 'msg';
+      dragFromIdx = parseInt(msg.dataset.msgIdx || '-1', 10);
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      isDraggingOnCanvas = false;
+      return;
+    }
+  });
+
+  renderedPane?.addEventListener('pointermove', (e: PointerEvent) => {
+    if (!dragKind || dragFromIdx < 0) return;
+    const dx = Math.abs(e.clientX - dragStartX);
+    const dy = Math.abs(e.clientY - dragStartY);
+    if (!isDraggingOnCanvas && (dx > 6 || dy > 6)) {
+      isDraggingOnCanvas = true;
+    }
+    if (isDraggingOnCanvas) {
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (dragKind === 'part') {
+        const hoverPart = target?.closest('.sq-part-group') as SVGElement | null;
+        renderedPane?.querySelectorAll('.sq-part-card').forEach(c => (c as SVGElement).style.stroke = '');
+        if (hoverPart) {
+          const rect = hoverPart.querySelector('.sq-part-card') as SVGElement | null;
+          if (rect) rect.style.stroke = '#38bdf8';
+        }
+      } else if (dragKind === 'msg') {
+        const hoverMsg = target?.closest('.sq-msg-group') as SVGElement | null;
+        renderedPane?.querySelectorAll('.sq-msg-group line, .sq-msg-group path').forEach(l => (l as SVGElement).style.strokeWidth = '');
+        if (hoverMsg) {
+          hoverMsg.querySelectorAll('line, path').forEach(l => (l as SVGElement).style.strokeWidth = '3.5px');
+        }
+      }
+    }
+  });
+
+  const endDrag = (e: PointerEvent) => {
+    if (!dragKind || dragFromIdx < 0) {
+      dragKind = null;
+      dragFromIdx = -1;
+      isDraggingOnCanvas = false;
+      return;
+    }
+    if (isDraggingOnCanvas) {
+      const target = document.elementFromPoint(e.clientX, e.clientY);
+      if (dragKind === 'part') {
+        const hoverPart = target?.closest('.sq-part-group') as SVGElement | null;
+        if (hoverPart) {
+          const toIdx = parseInt(hoverPart.dataset.partIdx || '-1', 10);
+          if (toIdx >= 0 && toIdx !== dragFromIdx) {
+            moveRow('participant', dragFromIdx, toIdx);
+          }
+        }
+      } else if (dragKind === 'msg') {
+        const hoverMsg = target?.closest('.sq-msg-group') as SVGElement | null;
+        if (hoverMsg) {
+          const toIdx = parseInt(hoverMsg.dataset.msgIdx || '-1', 10);
+          if (toIdx >= 0 && toIdx !== dragFromIdx) {
+            moveRow('message', dragFromIdx, toIdx);
+          }
+        }
+      }
+    }
+    dragKind = null;
+    dragFromIdx = -1;
+    isDraggingOnCanvas = false;
+  };
+
+  renderedPane?.addEventListener('pointerup', endDrag);
+  renderedPane?.addEventListener('pointercancel', endDrag);
 
   selArchetype?.addEventListener('change', () => {
     const key = selArchetype.value;
