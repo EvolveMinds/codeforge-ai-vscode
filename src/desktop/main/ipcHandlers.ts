@@ -2927,15 +2927,16 @@ Key Structural Insights:
           role = 'bridge';
         }
 
-        // Domain classification & color coding
+        // Domain classification & professional color coding
         let domain = 'Core';
-        let color = '#a855f7'; // Purple default
-        if (/order|sale|invoice|item/i.test(tName)) { domain = 'Sales'; color = '#6366f1'; }
-        else if (/cust|user|account|client|lead/i.test(tName)) { domain = 'CRM'; color = '#38bdf8'; }
+        let color = '#3b82f6'; // Modern Royal Azure default
+        if (/order|sale|invoice|item/i.test(tName)) { domain = 'Sales'; color = '#2563eb'; }
+        else if (/cust|user|account|client|lead/i.test(tName)) { domain = 'CRM'; color = '#0ea5e9'; }
         else if (/prod|category|catalog|sku/i.test(tName)) { domain = 'Catalog'; color = '#10b981'; }
         else if (/pay|bill|transact|fee|ledger/i.test(tName)) { domain = 'Finance'; color = '#f59e0b'; }
-        else if (/ship|address|carrier|deliver/i.test(tName)) { domain = 'Logistics'; color = '#ec4899'; }
-        else if (/inventory|warehouse|stock/i.test(tName)) { domain = 'Operations'; color = '#14b8a6'; }
+        else if (/ship|address|carrier|deliver/i.test(tName)) { domain = 'Logistics'; color = '#0284c7'; }
+        else if (/inventory|warehouse|stock/i.test(tName)) { domain = 'Operations'; color = '#0d9488'; }
+        else if (/review|feedback|rating/i.test(tName)) { domain = 'Quality'; color = '#8b5cf6'; }
 
         // Row count estimation
         const rowEstimate = role === 'fact' ? Math.floor(45000 + Math.random() * 150000) :

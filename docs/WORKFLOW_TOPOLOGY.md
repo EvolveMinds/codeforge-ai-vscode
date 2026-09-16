@@ -3,15 +3,17 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Broker as Institutional Broker
-    participant FIXGw as FIX Protocol Ingress Gateway
-    participant MatchCore as Real-Time Matching Engine
-    actor Compliance as Automated Compliance & AML Gate
-    participant DLTStore as Atomic DvP Custody Ledger
-    Broker->>FIXGw: Submit block trade execution order (⚡ FIX 4.4)
-    FIXGw->>MatchCore: Validate counterparty routing & market depth
-    MatchCore->>Compliance: Pre-settlement sanction & margin check
-    Compliance-->>MatchCore: Instant programmatic green-light (⚡ 2ms)
-    MatchCore->>DLTStore: Atomic Delivery-vs-Payment (DvP) settlement
-    DLTStore-->>Broker: Cryptographic clearing confirmation (🔒 T+0 Instant)
+    actor Operator as Field Operator
+    participant EdgeApp as Mobile Edge Client
+    participant AICore as Auto-Extraction & Validation Core
+    actor Reviewer as Quality Assurance Gate
+    participant ERP as Enterprise SAP / ERP
+    participant VectorStore as Vector Store
+    Operator->>EdgeApp: Snap invoice / receipt photo (⚡ Instant)
+    EdgeApp->>AICore: Upload OCR image payload
+    AICore->>AICore: Multi-modal document parsing & tax check
+    AICore->>Reviewer: Exception routing on 99.8% confidence
+    Reviewer-->>AICore: Approve batch anomaly
+    AICore->>ERP: Post journal entry via authenticated REST API
+    ERP-->>Operator: Confirmed transaction receipt (⚡ <1.5s)
 ```

@@ -1976,10 +1976,10 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'ACTOR',
       icon: '👤',
       badge: 'USER / OPERATOR',
-      color: '#34d399',
-      border: '#10b981',
+      color: '#38bdf8',
+      border: '#0284c7',
       gradId: 'sq-grad-actor',
-      glowId: 'glow-emerald'
+      glowId: 'glow-cyan'
     };
   }
   if (/(ai|llm|copilot|model|agent|gpt|claude|gemini|deepseek|rag|reasoning)/i.test(s)) {
@@ -1988,7 +1988,7 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       icon: '⚡',
       badge: 'FDE AI CORE',
       color: '#c084fc',
-      border: '#a855f7',
+      border: '#8b5cf6',
       gradId: 'sq-grad-ai',
       glowId: 'glow-violet'
     };
@@ -1999,7 +1999,7 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       icon: '👁️',
       badge: 'HITL AUDIT GATE',
       color: '#fbbf24',
-      border: '#f59e0b',
+      border: '#d97706',
       gradId: 'sq-grad-hitl',
       glowId: 'glow-amber'
     };
@@ -2009,10 +2009,10 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'GATEWAY',
       icon: '🛡️',
       badge: 'SECURITY GATEWAY',
-      color: '#38bdf8',
-      border: '#0284c7',
+      color: '#34d399',
+      border: '#059669',
       gradId: 'sq-grad-gw',
-      glowId: 'glow-cyan'
+      glowId: 'glow-emerald'
     };
   }
   if (/(db|database|warehouse|lake|postgres|oracle|sql|redis|s3|storage|vault|store|table|as400)/i.test(s)) {
@@ -2021,7 +2021,7 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       icon: '🗄️',
       badge: 'DATA VAULT / STORE',
       color: '#818cf8',
-      border: '#6366f1',
+      border: '#4f46e5',
       gradId: 'sq-grad-db',
       glowId: 'glow-indigo'
     };
@@ -2030,7 +2030,7 @@ function getParticipantRoleMeta(p: SeqParticipant) {
     role: 'SYSTEM',
     icon: '🖥️',
     badge: 'ENTERPRISE SYSTEM',
-    color: '#94a3b8',
+    color: '#cbd5e1',
     border: '#475569',
     gradId: 'sq-grad-sys',
     glowId: 'glow-cyan'
@@ -2217,8 +2217,8 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
     heads.push(
       '<g class="sq-lifeline-group">' +
-      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="3" stroke-opacity="0.12"/>' +
-      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="1.4" stroke-opacity="0.45" stroke-dasharray="5 4"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="2" stroke-opacity="0.08"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="1.2" stroke-opacity="0.32" stroke-dasharray="4 4"/>' +
       '</g>'
     );
 
@@ -2229,10 +2229,11 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
       heads.push(
         '<g class="sq-part-group" data-part-idx="' + i + '" data-part-id="' + escSvg(p.id) + '" style="cursor: pointer;">' +
-        '<rect x="' + x + '" y="' + by + '" width="' + w + '" height="' + BOX_H + '" rx="8" fill="url(#' + meta.gradId + ')" stroke="' + meta.border + '" stroke-width="1.5" filter="url(#' + meta.glowId + ')" class="sq-part-card"/>' +
-        '<rect x="' + (x + 6) + '" y="' + (by + 5) + '" width="' + (w - 12) + '" height="13" rx="3" fill="rgba(0,0,0,0.3)"/>' +
-        '<text x="' + p.x + '" y="' + (by + 14.5) + '" text-anchor="middle" fill="' + meta.color + '" font-size="8" font-weight="700" letter-spacing="0.5" font-family="\'Segoe UI\', monospace">' + meta.icon + ' ' + meta.badge + '</text>' +
-        '<text x="' + p.x + '" y="' + (by + 34) + '" text-anchor="middle" fill="#ffffff" font-size="11.5" font-weight="700" font-family="\'Segoe UI\', sans-serif">' + escSvg(p.label) + '</text>' +
+        '<rect x="' + x + '" y="' + by + '" width="' + w + '" height="' + BOX_H + '" rx="8" fill="url(#' + meta.gradId + ')" stroke="' + meta.border + '" stroke-width="1.3" filter="url(#' + meta.glowId + ')" class="sq-part-card"/>' +
+        '<line x1="' + (x + 8) + '" y1="' + (by + 1.5) + '" x2="' + (x + w - 8) + '" y2="' + (by + 1.5) + '" stroke="' + meta.color + '" stroke-width="2.5" stroke-linecap="round"/>' +
+        '<rect x="' + (x + 8) + '" y="' + (by + 6) + '" width="' + (w - 16) + '" height="13" rx="3" fill="rgba(0,0,0,0.45)" stroke="' + meta.color + '" stroke-opacity="0.25" stroke-width="0.8"/>' +
+        '<text x="' + p.x + '" y="' + (by + 15.5) + '" text-anchor="middle" fill="' + meta.color + '" font-size="8" font-weight="700" letter-spacing="0.6" font-family="\'Segoe UI\', monospace">' + meta.icon + ' ' + meta.badge + '</text>' +
+        '<text x="' + p.x + '" y="' + (by + 35) + '" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700" font-family="\'Segoe UI\', -apple-system, sans-serif">' + escSvg(p.label) + '</text>' +
         '<g class="sq-part-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
         '<rect width="' + partActionsW + '" height="' + partActionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
         '<g class="sq-btn sq-btn-part-left" data-part-idx="' + i + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">◀</text></g>' +
@@ -2248,26 +2249,26 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
   const defs =
     '<defs>' +
-    '<filter id="glow-cyan" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-emerald" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-violet" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-amber" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-crimson" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-indigo" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#064e3b"/><stop offset="100%" stop-color="#022c22"/></linearGradient>' +
-    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3b0764"/><stop offset="100%" stop-color="#1e1b4b"/></linearGradient>' +
-    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#78350f"/><stop offset="100%" stop-color="#451a03"/></linearGradient>' +
-    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0c4a6e"/><stop offset="100%" stop-color="#082f49"/></linearGradient>' +
-    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#312e81"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
-    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1e293b"/><stop offset="100%" stop-color="#0f172a"/></linearGradient>' +
-    '<pattern id="sq-cyber-grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(56, 189, 248, 0.04)" stroke-width="1"/></pattern>' +
+    '<filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-violet" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-crimson" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-indigo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#0c253d"/><stop offset="100%" stop-color="#071320"/></linearGradient>' +
+    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#24133f"/><stop offset="100%" stop-color="#0f071f"/></linearGradient>' +
+    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2c1e08"/><stop offset="100%" stop-color="#120c03"/></linearGradient>' +
+    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#092823"/><stop offset="100%" stop-color="#04120f"/></linearGradient>' +
+    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#151d42"/><stop offset="100%" stop-color="#080b1e"/></linearGradient>' +
+    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1b2332"/><stop offset="100%" stop-color="#0c1119"/></linearGradient>' +
+    '<pattern id="sq-cyber-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(148, 163, 184, 0.05)" stroke-width="1"/></pattern>' +
     '</defs>';
 
   const style = '<style>' +
     '.sq-action-group{opacity:0;pointer-events:none;transition:opacity 0.18s ease-in-out;}' +
     '.sq-part-group:hover .sq-action-group,.sq-msg-group:hover .sq-action-group{opacity:1 !important;pointer-events:auto !important;}' +
     '.sq-part-card{transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1);}' +
-    '.sq-part-group:hover .sq-part-card{stroke-width:2.2px;filter:drop-shadow(0 0 8px currentColor);}' +
+    '.sq-part-group:hover .sq-part-card{stroke-width:2px;stroke:#38bdf8 !important;filter:drop-shadow(0 4px 14px rgba(56, 189, 248, 0.35));}' +
     '.sq-msg-group:hover line,.sq-msg-group:hover path{stroke-width:2.5px !important;}' +
     '.sq-btn{cursor:pointer;}' +
     '.sq-btn:hover rect{fill:rgba(56, 189, 248, 0.35);}' +
@@ -3094,9 +3095,9 @@ function setupPhase1Discovery(api: any): void {
     el.textContent = isFuture
       ? '\u25cf Editing: Future State (proposed workflow)'
       : '\u25cf Editing: Current State (today\u2019s workflow)';
-    el.style.color = isFuture ? 'var(--success)' : 'var(--error)';
-    el.style.borderColor = isFuture ? 'var(--success)' : 'var(--error)';
-    el.style.background = isFuture ? 'rgba(137, 209, 133, 0.12)' : 'rgba(241, 76, 76, 0.12)';
+    el.style.color = isFuture ? '#38bdf8' : '#fbbf24';
+    el.style.borderColor = isFuture ? 'rgba(56, 189, 248, 0.4)' : 'rgba(251, 191, 36, 0.4)';
+    el.style.background = isFuture ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
   };
 
   const setTopologyView = (mode: 'diagram' | 'source' | 'compare' | 'arrange') => {
@@ -19049,12 +19050,12 @@ class DataCosmosEngine {
       // Fact Table Pulsing Core Glow
       if (node.role === 'fact') {
         this.ctx.beginPath();
-        this.ctx.arc(node.screenX, node.screenY, r + 5, 0, Math.PI * 2);
-        this.ctx.fillStyle = 'rgba(99, 102, 241, 0.15)';
+        this.ctx.arc(node.screenX, node.screenY, r + 6, 0, Math.PI * 2);
+        this.ctx.fillStyle = 'rgba(37, 99, 235, 0.22)';
         this.ctx.fill();
       }
 
-      // 3D Sphere Radial Gradient
+      // 3D Sphere Radial Gradient with Specular Highlight
       const sphereGrad = this.ctx.createRadialGradient(
         node.screenX - r * 0.35,
         node.screenY - r * 0.35,
@@ -19063,21 +19064,21 @@ class DataCosmosEngine {
         node.screenY,
         r
       );
-      sphereGrad.addColorStop(0, '#ffffff');
-      sphereGrad.addColorStop(0.3, node.color);
-      sphereGrad.addColorStop(0.9, shadeColor(node.color, -35));
+      sphereGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+      sphereGrad.addColorStop(0.28, node.color);
+      sphereGrad.addColorStop(0.85, shadeColor(node.color, -45));
       sphereGrad.addColorStop(1, '#020617');
 
       this.ctx.beginPath();
       this.ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
       this.ctx.fillStyle = sphereGrad;
       this.ctx.fill();
-      this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       this.ctx.lineWidth = 1;
       this.ctx.stroke();
 
-      // Role Emoji / Icon in Center
-      const icon = node.role === 'fact' ? '⭐' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '🔍';
+      // Role Icon in Center (Refined glyphs)
+      const icon = node.role === 'fact' ? '⚡' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '◈';
       this.ctx.font = `${Math.max(10, Math.floor(r * 0.85))}px sans-serif`;
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
@@ -19089,8 +19090,8 @@ class DataCosmosEngine {
       const textWidth = this.ctx.measureText(node.name).width;
 
       // Pill Background
-      this.ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
-      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255,255,255,0.12)';
+      this.ctx.fillStyle = 'rgba(8, 13, 24, 0.92)';
+      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255, 255, 255, 0.15)';
       this.ctx.lineWidth = 1;
       const pillW = textWidth + 14;
       const pillH = 19;
@@ -19309,8 +19310,8 @@ class DataCosmosEngine {
       const x = node.screenX - cardW / 2;
       const y = node.screenY - cardH / 2;
 
-      // Card Container
-      this.ctx.fillStyle = '#111827';
+      // Card Container - Sleek Titanium Slate Glass
+      this.ctx.fillStyle = '#0b1120';
       this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isConnectedToSel ? 'rgba(56, 189, 248, 0.75)' : isPath ? '#facc15' : isFilterMatch ? '#38bdf8' : 'rgba(255,255,255,0.12)';
       this.ctx.lineWidth = isInRelFocus ? 3 : (isSel || isPath || isFilterMatch ? 2.5 : isConnectedToSel ? 2 : 1);
       if (isSel) {
@@ -19327,18 +19328,51 @@ class DataCosmosEngine {
       this.ctx.fill();
       this.ctx.stroke();
 
-      // Header Bar with Domain Color
+      // Header Bar: Sleek Dark Slate with Top Jewel Accent Stripe
       const headerH = 26 * this.zoom2D;
-      this.ctx.fillStyle = node.color;
+      this.ctx.fillStyle = 'rgba(20, 29, 47, 0.95)';
       roundRect(this.ctx, x, y, cardW, headerH, [6, 6, 0, 0]);
       this.ctx.fill();
 
-      // Table Name & Role Badge
-      this.ctx.fillStyle = '#ffffff';
-      this.ctx.font = `bold ${Math.max(9, Math.floor(11 * this.zoom2D))}px sans-serif`;
+      // Top Jewel Accent Line in Domain Color
+      const accentH = Math.max(2.5, 3 * this.zoom2D);
+      this.ctx.fillStyle = node.color;
+      roundRect(this.ctx, x, y, cardW, accentH, [6, 6, 0, 0]);
+      this.ctx.fill();
+
+      // Header Bottom Divider Line
+      this.ctx.beginPath();
+      this.ctx.moveTo(x, y + headerH);
+      this.ctx.lineTo(x + cardW, y + headerH);
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+
+      // Table Name & Right-Aligned Domain/Role Micro-Capsule
+      this.ctx.fillStyle = '#f8fafc';
+      this.ctx.font = `bold ${Math.max(9, Math.floor(11 * this.zoom2D))}px system-ui, -apple-system, sans-serif`;
       this.ctx.textAlign = 'left';
       this.ctx.textBaseline = 'middle';
-      this.ctx.fillText(node.name, x + 8 * this.zoom2D, y + headerH / 2);
+      this.ctx.fillText(node.name, x + 8 * this.zoom2D, y + headerH / 2 + 1);
+
+      // Micro-capsule pill for role/domain on right
+      const roleText = (node.domain || node.role || 'TABLE').toUpperCase();
+      this.ctx.font = `700 ${Math.max(7, Math.floor(8 * this.zoom2D))}px monospace`;
+      const roleTextW = this.ctx.measureText(roleText).width;
+      const badgeW = roleTextW + 8 * this.zoom2D;
+      const badgeH = 14 * this.zoom2D;
+      const badgeX = x + cardW - badgeW - 6 * this.zoom2D;
+      const badgeY = y + (headerH - badgeH) / 2 + 1;
+      this.ctx.fillStyle = `${node.color}22`;
+      this.ctx.strokeStyle = `${node.color}66`;
+      this.ctx.lineWidth = 1;
+      roundRect(this.ctx, badgeX, badgeY, badgeW, badgeH, 3);
+      this.ctx.fill();
+      this.ctx.stroke();
+      this.ctx.fillStyle = node.color;
+      this.ctx.textAlign = 'center';
+      this.ctx.fillText(roleText, badgeX + badgeW / 2, badgeY + badgeH / 2);
+      this.ctx.textAlign = 'left';
 
       // Render Columns
       let colY = y + headerH + 12 * this.zoom2D;
@@ -19589,7 +19623,7 @@ function setupDataCosmosStudio(api: any): void {
 
     const sorted = [...nodes].sort((a, b) => a.name.localeCompare(b.name));
     const opts = sorted.map(n => {
-      const roleIcon = n.role === 'fact' ? '⭐' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '•';
+      const roleIcon = n.role === 'fact' ? '⚡' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '•';
       return `<option value="${n.id}">${roleIcon} ${n.name} (${n.columns.length} cols)</option>`;
     }).join('');
 
@@ -19679,7 +19713,7 @@ function setupDataCosmosStudio(api: any): void {
               </span>
             </div>
             <span style="font-size: 9.5px; color: ${isLive ? '#10b981' : '#38bdf8'}; font-weight: 600;">
-              ${isLive ? '⚡ Live DB' : '⭐ Demo'}
+              ${isLive ? '⚡ Live DB' : '📦 Archetype'}
             </span>
           </div>
           <div style="font-size: 10.5px; color: #94a3b8;">
@@ -19705,8 +19739,8 @@ function setupDataCosmosStudio(api: any): void {
               No tables match the current filter.
             </div>
           ` : nodes.map(n => {
-            const roleBadgeColor = n.role === 'fact' ? '#6366f1' : n.role === 'dimension' ? '#10b981' : n.role === 'bridge' ? '#f59e0b' : '#ec4899';
-            const roleIcon = n.role === 'fact' ? '⭐' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '🔍';
+            const roleBadgeColor = n.role === 'fact' ? '#3b82f6' : n.role === 'dimension' ? '#10b981' : n.role === 'bridge' ? '#8b5cf6' : '#0ea5e9';
+            const roleIcon = n.role === 'fact' ? '⚡' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '◈';
             const fkCount = (currentGraphData?.links || []).filter(l => l.source === n.id || l.target === n.id).length;
             return `
               <div class="cosmos-directory-card" data-id="${n.id}" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.15s; position: relative;">
@@ -19797,8 +19831,8 @@ function setupDataCosmosStudio(api: any): void {
       l => l.source === node.id || l.target === node.id
     );
 
-    const roleBadgeColor = node.role === 'fact' ? '#6366f1' : node.role === 'dimension' ? '#10b981' : node.role === 'bridge' ? '#f59e0b' : '#ec4899';
-    const roleIcon = node.role === 'fact' ? '⭐' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '🔍';
+    const roleBadgeColor = node.role === 'fact' ? '#3b82f6' : node.role === 'dimension' ? '#10b981' : node.role === 'bridge' ? '#8b5cf6' : '#0ea5e9';
+    const roleIcon = node.role === 'fact' ? '⚡' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '◈';
     const isLiveTable = ((currentGraphData?.stats as any)?.sourceMode === 'connected') ||
       (currentIntrospectedTables && currentIntrospectedTables.some((t: any) => (t.tableName || t.name || '').toLowerCase() === node.name.toLowerCase()));
 
@@ -20331,8 +20365,8 @@ function setupDataCosmosStudio(api: any): void {
         </div>
         <div style="max-height: 250px; overflow-y: auto;">
           ${matched.map((m, idx) => {
-            const roleIcon = m.role === 'fact' ? '⭐' : m.role === 'dimension' ? '🗃️' : m.role === 'bridge' ? '🔗' : '🔍';
-            const roleBadgeColor = m.role === 'fact' ? '#6366f1' : m.role === 'dimension' ? '#10b981' : m.role === 'bridge' ? '#f59e0b' : '#ec4899';
+            const roleIcon = m.role === 'fact' ? '⚡' : m.role === 'dimension' ? '🗃️' : m.role === 'bridge' ? '🔗' : '◈';
+            const roleBadgeColor = m.role === 'fact' ? '#3b82f6' : m.role === 'dimension' ? '#10b981' : m.role === 'bridge' ? '#8b5cf6' : '#0ea5e9';
             const matchedCol = qLower ? m.columns.find(c => c.name.toLowerCase().includes(qLower)) : undefined;
             return `
               <div class="cosmos-search-item" data-id="${m.id}" data-idx="${idx}" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s;">
@@ -20455,7 +20489,7 @@ function setupDataCosmosStudio(api: any): void {
           p.el.style.fontWeight = '700';
         } else {
           p.el.style.background = 'transparent';
-          p.el.style.color = p.role === 'fact' ? '#a5b4fc' : p.role === 'dimension' ? '#6ee7b7' : p.role === 'bridge' ? '#fcd34d' : 'var(--text-secondary)';
+          p.el.style.color = p.role === 'fact' ? '#60a5fa' : p.role === 'dimension' ? '#34d399' : p.role === 'bridge' ? '#c084fc' : 'var(--text-secondary)';
           p.el.style.fontWeight = '600';
         }
       });

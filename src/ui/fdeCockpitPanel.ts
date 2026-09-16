@@ -3952,7 +3952,7 @@ Output ONLY the message without markdown code fences.`;
               <!-- Role Filter Pills -->
               <div style="display: flex; gap: 4px;">
                 <button class="btn-quick" id="filterCosmosAll" style="font-size: 10.5px; padding: 2px 8px; margin: 0; background: var(--accent); color: #fff; border-color: var(--accent);" onclick="filterCosmosRole('all')">All</button>
-                <button class="btn-quick" id="filterCosmosFact" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('fact')">⭐ Facts</button>
+                <button class="btn-quick" id="filterCosmosFact" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('fact')">⚡ Facts</button>
                 <button class="btn-quick" id="filterCosmosDim" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('dimension')">🗃️ Dimensions</button>
                 <button class="btn-quick" id="filterCosmosBridge" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('bridge')">🔗 Bridges</button>
               </div>
@@ -9109,8 +9109,8 @@ Output ONLY the message without markdown code fences.`;
           this.ctx.lineWidth = 1;
           this.ctx.stroke();
 
-          // Role Icon in center
-          const icon = node.role === 'fact' ? '⭐' : node.role === 'dimension' ? '🗃️' : '🔗';
+          // Role Icon in center (professional glyphs)
+          const icon = node.role === 'fact' ? '⚡' : node.role === 'dimension' ? '🗃️' : '🔗';
           this.ctx.font = Math.max(10, Math.floor(r * 0.85)) + 'px sans-serif';
           this.ctx.textAlign = 'center';
           this.ctx.textBaseline = 'middle';
@@ -9201,7 +9201,7 @@ Output ONLY the message without markdown code fences.`;
           tableName: 'addresses',
           schema: 'public',
           role: 'dimension',
-          color: '#ec4899',
+          color: '#0284c7',
           columns: [
             { name: 'address_id', type: 'integer', isPrimaryKey: true },
             { name: 'customer_id', type: 'integer', isForeign: true },
@@ -9257,7 +9257,7 @@ Output ONLY the message without markdown code fences.`;
           tableName: 'shipments',
           schema: 'public',
           role: 'dimension',
-          color: '#ec4899',
+          color: '#0284c7',
           columns: [
             { name: 'shipment_id', type: 'integer', isPrimaryKey: true },
             { name: 'order_id', type: 'integer', isForeign: true },
@@ -9327,9 +9327,9 @@ Output ONLY the message without markdown code fences.`;
         // Color coding
         let color = t.color;
         if (!color) {
-          if (role === 'fact') color = '#6366f1';
+          if (role === 'fact') color = '#2563eb';
           else if (role === 'bridge') color = '#8b5cf6';
-          else color = '#38bdf8';
+          else color = '#0ea5e9';
         }
 
         const rowCount = t.rowCountEstimate || (role === 'fact' ? 45000 : role === 'bridge' ? 12000 : 3500);
@@ -9443,7 +9443,7 @@ Output ONLY the message without markdown code fences.`;
       const select = document.getElementById('cosmosQuickJumpSelect');
       if (select) {
         select.innerHTML = '<option value="">-- Jump to table (' + graph.nodes.length + ') --</option>' +
-          graph.nodes.map(n => '<option value="' + n.id + '">' + (n.role === 'fact' ? '⭐ ' : n.role === 'bridge' ? '🔗 ' : '🗃️ ') + n.name + '</option>').join('');
+          graph.nodes.map(n => '<option value="' + n.id + '">' + (n.role === 'fact' ? '⚡ ' : n.role === 'bridge' ? '🔗 ' : '🗃️ ') + n.name + '</option>').join('');
       }
 
       const statsEl = document.getElementById('cosmosCanvasStats');
