@@ -43,6 +43,7 @@ let activeLiveDbConnection: {
   database: string;
   schema: string;
   vaultPolicy: string;
+  securityMode?: string;
 } | null = null;
 let activeDeployProvider = 'gcp-firebase';
 
@@ -93,6 +94,204 @@ async function copyTextToClipboard(text: string, api?: any): Promise<boolean> {
     if (ok) return true;
   } catch {}
   return false;
+}
+
+// --- ENTERPRISE DATABASE HELPERS (Oracle, Teradata, DB2 & Security Modes) ---
+function bindEnterpriseSecurityUi(
+  modeSelectId: string,
+  badgeId: string,
+  fieldsId: string,
+  lbl1Id: string,
+  input1Id: string,
+  lbl2Id: string,
+  input2Id: string
+) {
+  const modeSelect = document.getElementById(modeSelectId) as HTMLSelectElement | null;
+  const badge = document.getElementById(badgeId);
+  const fields = document.getElementById(fieldsId);
+  const lbl1 = document.getElementById(lbl1Id);
+  const input1 = document.getElementById(input1Id) as HTMLInputElement | null;
+  const lbl2 = document.getElementById(lbl2Id);
+  const input2 = document.getElementById(input2Id) as HTMLInputElement | null;
+
+  if (!modeSelect) return;
+
+  const updateUi = () => {
+    const mode = modeSelect.value;
+    if (mode === 'standard') {
+      if (fields) fields.style.display = 'none';
+      if (badge) {
+        badge.innerText = 'Standard URI';
+        badge.style.color = '#38bdf8';
+        badge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+      }
+    } else {
+      if (fields) fields.style.display = 'grid';
+      if (mode === 'oracle_tns') {
+        if (badge) { badge.innerText = 'Oracle TNS'; badge.style.color = '#f59e0b'; }
+        if (lbl1) lbl1.innerText = 'TNS Network Service Name / Alias';
+        if (input1) input1.placeholder = 'e.g. EDW_PROD.WORLD or ORCLPDB1';
+        if (lbl2) lbl2.innerText = 'TNS_ADMIN Directory Path';
+        if (input2) input2.placeholder = 'e.g. /opt/oracle/network/admin';
+      } else if (mode === 'oracle_wallet') {
+        if (badge) { badge.innerText = 'Oracle TCPS / Wallet'; badge.style.color = '#10b981'; }
+        if (lbl1) lbl1.innerText = 'Oracle Wallet Directory (cwallet.sso)';
+        if (input1) input1.placeholder = 'e.g. /etc/oracle/wallets/edw_prod';
+        if (lbl2) lbl2.innerText = 'Mutual TLS Port (TCPS)';
+        if (input2) input2.placeholder = 'Default TCPS Port 2484';
+      } else if (mode === 'teradata_cop') {
+        if (badge) { badge.innerText = 'Teradata COP / LDAP'; badge.style.color = '#f59e0b'; }
+        if (lbl1) lbl1.innerText = 'Authentication Mechanism (logmech)';
+        if (input1) input1.placeholder = 'LDAP, KRB5, TD2, or JWT';
+        if (lbl2) lbl2.innerText = 'Teradata Account Priority String';
+        if (input2) input2.placeholder = 'e.g. $M$EDW_PRIORITY or $L$BATCH';
+      } else if (mode === 'teradata_wallet') {
+        if (badge) { badge.innerText = 'Teradata tdwallet'; badge.style.color = '#10b981'; }
+        if (lbl1) lbl1.innerText = 'Teradata Wallet Encrypted Alias';
+        if (input1) input1.placeholder = 'e.g. $tdwallet(edw_prod_password)';
+        if (lbl2) lbl2.innerText = 'TDPID / COP Cluster Group';
+        if (input2) input2.placeholder = 'e.g. edwcop1.corp.internal';
+      } else if (mode === 'db2_ssl_truststore') {
+        if (badge) { badge.innerText = 'DB2 SSL TrustStore'; badge.style.color = '#10b981'; }
+        if (lbl1) lbl1.innerText = 'SSL TrustStore Certificate Path';
+        if (input1) input1.placeholder = 'e.g. /var/security/db2_ssl_cert.arm';
+        if (lbl2) lbl2.innerText = 'DRDA SSL Protocol Port';
+        if (input2) input2.placeholder = 'Default SSL Port 50001';
+      } else if (mode === 'db2_mainframe') {
+        if (badge) { badge.innerText = 'DB2 z/OS Mainframe'; badge.style.color = '#a855f7'; }
+        if (lbl1) lbl1.innerText = 'z/OS Subsystem Location Name';
+        if (input1) input1.placeholder = 'e.g. LOCATION=DSNA (Port 446)';
+        if (lbl2) lbl2.innerText = 'Package Collection ID';
+        if (input2) input2.placeholder = 'e.g. NULLID or PROD_MAINFRAME';
+      } else if (mode === 'corporate_dsn') {
+        if (badge) { badge.innerText = 'Corporate ODBC DSN'; badge.style.color = '#38bdf8'; }
+        if (lbl1) lbl1.innerText = 'System / User ODBC DSN Name';
+        if (input1) input1.placeholder = 'e.g. DSN=CORP_EDW_PROD';
+        if (lbl2) lbl2.innerText = 'ODBC Driver / INI Path (Optional)';
+        if (input2) input2.placeholder = 'e.g. /etc/odbc.ini or System Default';
+      } else if (mode === 'ssh_bastion') {
+        if (badge) { badge.innerText = 'SSH Bastion Jump'; badge.style.color = '#ec4899'; }
+        if (lbl1) lbl1.innerText = 'SSH Bastion Host (user@bastion:port)';
+        if (input1) input1.placeholder = 'e.g. dev_sec@bastion.corp.internal:22';
+        if (lbl2) lbl2.innerText = 'SSH Private Key Path / Agent';
+        if (input2) input2.placeholder = 'e.g. ~/.ssh/id_rsa_edw or ssh-agent';
+      }
+    }
+  };
+
+  modeSelect.addEventListener('change', updateUi);
+  updateUi();
+}
+
+function buildDbOptionsFromInputs(
+  dialectId: string,
+  uriId: string,
+  projectId: string,
+  schemaId: string,
+  modeId?: string,
+  param1Id?: string,
+  param2Id?: string
+) {
+  const dialect = (document.getElementById(dialectId) as HTMLSelectElement)?.value || 'postgres';
+  const uri = (document.getElementById(uriId) as HTMLInputElement)?.value?.trim() || '';
+  const database = (document.getElementById(projectId) as HTMLInputElement)?.value?.trim() || 'postgres';
+  const schema = (document.getElementById(schemaId) as HTMLInputElement)?.value?.trim() || 'public';
+  const securityMode = modeId ? ((document.getElementById(modeId) as HTMLSelectElement)?.value || 'standard') : 'standard';
+  const entParam1 = param1Id ? ((document.getElementById(param1Id) as HTMLInputElement)?.value?.trim() || '') : '';
+  const entParam2 = param2Id ? ((document.getElementById(param2Id) as HTMLInputElement)?.value?.trim() || '') : '';
+
+  const options: any = {
+    dialect,
+    connectionUri: uri || undefined,
+    database: database || undefined,
+    schema: schema || undefined,
+    securityMode,
+  };
+
+  if (securityMode === 'oracle_tns') {
+    options.tnsAlias = entParam1;
+    options.tnsAdmin = entParam2;
+  } else if (securityMode === 'oracle_wallet') {
+    options.walletPath = entParam1;
+  } else if (securityMode === 'teradata_cop') {
+    options.authMechanism = entParam1 || 'LDAP';
+    options.accountString = entParam2;
+    options.copDiscovery = true;
+  } else if (securityMode === 'teradata_wallet') {
+    options.tdwalletAlias = entParam1;
+  } else if (securityMode === 'db2_ssl_truststore') {
+    options.db2SslTrustStore = entParam1;
+  } else if (securityMode === 'db2_mainframe') {
+    options.db2Platform = 'zos';
+    options.db2SubsystemLocation = entParam1;
+  } else if (securityMode === 'corporate_dsn') {
+    options.odbcDsn = entParam1;
+  } else if (securityMode === 'ssh_bastion') {
+    options.sshBastionHost = entParam1;
+  }
+
+  return options;
+}
+
+function handleDialectSelectChange(
+  dialectSelectId: string,
+  uriInputId: string,
+  modeSelectId?: string
+) {
+  const select = document.getElementById(dialectSelectId) as HTMLSelectElement | null;
+  const uriInput = document.getElementById(uriInputId) as HTMLInputElement | null;
+  const modeSelect = modeSelectId ? (document.getElementById(modeSelectId) as HTMLSelectElement | null) : null;
+  if (!select || !uriInput) return;
+
+  select.addEventListener('change', () => {
+    const val = select.value;
+    if (val === 'oracle') {
+      uriInput.placeholder = 'oracle://username:password@localhost:1521/ORCLPDB1';
+      if (!uriInput.value || uriInput.value.startsWith('postgresql:') || uriInput.value.startsWith('mysql:')) {
+        uriInput.value = 'oracle://system:manager@localhost:1521/ORCLPDB1';
+      }
+      if (modeSelect && modeSelect.value === 'standard') {
+        modeSelect.value = 'oracle_tns';
+        modeSelect.dispatchEvent(new Event('change'));
+      }
+    } else if (val === 'teradata') {
+      uriInput.placeholder = 'teradata://username:password@localhost:1025/edw_db';
+      if (!uriInput.value || uriInput.value.startsWith('postgresql:') || uriInput.value.startsWith('oracle:')) {
+        uriInput.value = 'teradata://dbc:dbc@localhost:1025/edw_db';
+      }
+      if (modeSelect && modeSelect.value === 'standard') {
+        modeSelect.value = 'teradata_cop';
+        modeSelect.dispatchEvent(new Event('change'));
+      }
+    } else if (val === 'db2') {
+      uriInput.placeholder = 'db2://username:password@localhost:50000/sample';
+      if (!uriInput.value || uriInput.value.startsWith('postgresql:') || uriInput.value.startsWith('oracle:')) {
+        uriInput.value = 'db2://db2inst1:password@localhost:50000/sample';
+      }
+      if (modeSelect && modeSelect.value === 'standard') {
+        modeSelect.value = 'db2_ssl_truststore';
+        modeSelect.dispatchEvent(new Event('change'));
+      }
+    } else if (val === 'snowflake') {
+      uriInput.placeholder = 'snowflake://username:password@account/db/schema?warehouse=wh';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    } else if (val === 'bigquery') {
+      uriInput.placeholder = 'bigquery://project-id/dataset_id';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    } else if (val === 'mysql') {
+      uriInput.placeholder = 'mysql://root:password@localhost:3306/db_name';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    } else if (val === 'sqlite') {
+      uriInput.placeholder = 'sqlite:///path/to/database.db';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    } else if (val === 'sqlserver') {
+      uriInput.placeholder = 'sqlserver://sa:Password123@localhost:1433/database_name';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    } else if (val === 'databricks') {
+      uriInput.placeholder = 'databricks://token@host:443/sql/1.0/endpoints/id';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    }
+  });
 }
 
 // --- ENTERPRISE CRYPTOGRAPHIC LICENSE GATE ---
@@ -4654,23 +4853,24 @@ function setupDeliveryStudio(api: any): void {
 
   (window as any).applySelectedTableToMapper = applySelectedTableToMapper;
 
-  document.getElementById('btnExecuteIntrospect')?.addEventListener('click', async () => {
-    const dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement).value;
-    const uri = (document.getElementById('dbUriInput') as HTMLInputElement).value;
-    const schema = (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value || 'public';
-    const database = (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value || 'postgres';
+  // Initialize Enterprise Security Mode & Dialect Change Handling for Phase 2
+  bindEnterpriseSecurityUi('dbSecurityMode', 'dbSecurityModeBadge', 'dbEnterpriseFields', 'lblEntParam1', 'dbEntParam1', 'lblEntParam2', 'dbEntParam2');
+  handleDialectSelectChange('dbDialectSelect', 'dbUriInput', 'dbSecurityMode');
 
-    if (!uri) {
+  document.getElementById('btnExecuteIntrospect')?.addEventListener('click', async () => {
+    const opts = buildDbOptionsFromInputs('dbDialectSelect', 'dbUriInput', 'dbProjectIdInput', 'dbSchemaIdInput', 'dbSecurityMode', 'dbEntParam1', 'dbEntParam2');
+
+    if (!opts.connectionUri && opts.securityMode === 'standard') {
       showToast('⚠️ Please enter database connection URI.');
       return;
     }
-    showToast(`🔌 Introspecting ${dialect.toUpperCase()} database schema...`);
+    showToast(`🔌 Introspecting ${opts.dialect.toUpperCase()} database schema...`);
     if (api?.engines) {
-      const res = await api.engines.introspectDb({ dialect, connectionUri: uri, schema, database });
+      const res = await api.engines.introspectDb(opts);
       if (res && res.tables && res.tables.length > 0) {
-        populateDiscoveredTables(res.tables, dialect);
+        populateDiscoveredTables(res.tables, opts.dialect);
         applySelectedTableToMapper(res.tables[0].tableName || res.tables[0].name);
-        showToast(`✓ Discovered ${res.tables.length} tables from ${dialect.toUpperCase()}!`);
+        showToast(`✓ Discovered ${res.tables.length} tables from ${opts.dialect.toUpperCase()}!`);
       } else {
         showToast(`⚠️ ${res?.error || res?.message || 'No tables discovered.'}`);
       }
@@ -4710,6 +4910,7 @@ function setupDeliveryStudio(api: any): void {
       if (detected && detected.found) {
         if (detected.dialect) {
           (document.getElementById('dbDialectSelect') as HTMLSelectElement).value = detected.dialect;
+          (document.getElementById('dbDialectSelect') as HTMLSelectElement).dispatchEvent(new Event('change'));
         }
         if (detected.connectionUri) {
           (document.getElementById('dbUriInput') as HTMLInputElement).value = detected.connectionUri;
@@ -4728,18 +4929,15 @@ function setupDeliveryStudio(api: any): void {
   });
 
   document.getElementById('btnTestDbPing')?.addEventListener('click', async () => {
-    const dialect = (document.getElementById('dbDialectSelect') as HTMLSelectElement).value;
-    const uri = (document.getElementById('dbUriInput') as HTMLInputElement).value;
-    const schema = (document.getElementById('dbSchemaIdInput') as HTMLInputElement)?.value || 'public';
-    const database = (document.getElementById('dbProjectIdInput') as HTMLInputElement)?.value || 'postgres';
+    const opts = buildDbOptionsFromInputs('dbDialectSelect', 'dbUriInput', 'dbProjectIdInput', 'dbSchemaIdInput', 'dbSecurityMode', 'dbEntParam1', 'dbEntParam2');
 
-    if (!uri) {
+    if (!opts.connectionUri && opts.securityMode === 'standard') {
       showToast('⚠️ Please enter database connection URI.');
       return;
     }
-    showToast(`🔌 Testing connection to ${dialect.toUpperCase()} database...`);
+    showToast(`🔌 Testing connection to ${opts.dialect.toUpperCase()} database...`);
     if (api?.engines?.testDb) {
-      const res = await api.engines.testDb({ dialect, connectionUri: uri, schema, database });
+      const res = await api.engines.testDb(opts);
       if (res && res.success) {
         showToast(`✓ ${res.message || 'Connection successful!'}`);
       } else {
@@ -15791,20 +15989,21 @@ function setupDataAnalysisStudio(api: any): void {
     }
   });
 
+  // Initialize Enterprise Security Mode & Dialect Change Handling for Data Studio
+  bindEnterpriseSecurityUi('dataDbSecurityMode', 'dataDbSecurityModeBadge', 'dataDbEnterpriseFields', 'dataLblEntParam1', 'dataDbEntParam1', 'dataLblEntParam2', 'dataDbEntParam2');
+  handleDialectSelectChange('dataDbDialectSelect', 'dataDbUriInput', 'dataDbSecurityMode');
+
   // Test Connection
   btnDataTestDbPing?.addEventListener('click', async () => {
-    const dialect = dataDbDialectSelect?.value || 'postgres';
-    const uri = dataDbUriInput?.value || '';
-    const schema = dataDbSchemaIdInput?.value || 'public';
-    const database = dataDbProjectIdInput?.value || 'postgres';
+    const opts = buildDbOptionsFromInputs('dataDbDialectSelect', 'dataDbUriInput', 'dataDbProjectIdInput', 'dataDbSchemaIdInput', 'dataDbSecurityMode', 'dataDbEntParam1', 'dataDbEntParam2');
 
-    if (!uri) {
+    if (!opts.connectionUri && opts.securityMode === 'standard') {
       showToast('⚠️ Please enter database connection URI.');
       return;
     }
-    showToast(`🔌 Testing connection to ${dialect.toUpperCase()} database...`);
+    showToast(`🔌 Testing connection to ${opts.dialect.toUpperCase()} database...`);
     if (api?.engines?.testDb) {
-      const res = await api.engines.testDb({ dialect, connectionUri: uri, schema, database });
+      const res = await api.engines.testDb(opts);
       if (res && res.success) {
         showToast(`✓ ${res.message || 'Connection successful!'}`);
       } else {
@@ -15819,7 +16018,10 @@ function setupDataAnalysisStudio(api: any): void {
     if (api?.engines?.detectDb) {
       const detected = await api.engines.detectDb();
       if (detected && detected.found) {
-        if (detected.dialect && dataDbDialectSelect) dataDbDialectSelect.value = detected.dialect;
+        if (detected.dialect && dataDbDialectSelect) {
+          dataDbDialectSelect.value = detected.dialect;
+          dataDbDialectSelect.dispatchEvent(new Event('change'));
+        }
         if (detected.connectionUri && dataDbUriInput) dataDbUriInput.value = detected.connectionUri;
         if (detected.database && dataDbProjectIdInput) dataDbProjectIdInput.value = detected.database;
         if (detected.schema && dataDbSchemaIdInput) dataDbSchemaIdInput.value = detected.schema;
@@ -15838,26 +16040,23 @@ function setupDataAnalysisStudio(api: any): void {
 
   // Connect & Fetch Tables
   btnDataExecuteIntrospect?.addEventListener('click', async () => {
-    const dialect = dataDbDialectSelect?.value || 'postgres';
-    const uri = dataDbUriInput?.value || '';
-    const schema = dataDbSchemaIdInput?.value || 'public';
-    const database = dataDbProjectIdInput?.value || 'postgres';
+    const opts = buildDbOptionsFromInputs('dataDbDialectSelect', 'dataDbUriInput', 'dataDbProjectIdInput', 'dataDbSchemaIdInput', 'dataDbSecurityMode', 'dataDbEntParam1', 'dataDbEntParam2');
 
-    if (!uri) {
+    if (!opts.connectionUri && opts.securityMode === 'standard') {
       showToast('⚠️ Please enter database connection URI.');
       return;
     }
-    showToast(`🔌 Introspecting ${dialect.toUpperCase()} database schema...`);
+    showToast(`🔌 Introspecting ${opts.dialect.toUpperCase()} database schema...`);
     if (api?.engines) {
-      const res = await api.engines.introspectDb({ dialect, connectionUri: uri, schema, database });
+      const res = await api.engines.introspectDb(opts);
       if (res && res.tables && res.tables.length > 0) {
         (window as any)._phase2DiscoveredTables = res.tables;
-        populateDataDiscoveredTables(res.tables, dialect);
+        populateDataDiscoveredTables(res.tables, opts.dialect);
         if (typeof (window as any).populateDiscoveredTables === 'function') {
-          (window as any).populateDiscoveredTables(res.tables, dialect);
+          (window as any).populateDiscoveredTables(res.tables, opts.dialect);
         }
         loadTableForAnalysis(res.tables[0].tableName || res.tables[0].name);
-        showToast(`✓ Discovered ${res.tables.length} tables from ${dialect.toUpperCase()}!`);
+        showToast(`✓ Discovered ${res.tables.length} tables from ${opts.dialect.toUpperCase()}!`);
       } else {
         showToast(`⚠️ ${res?.error || res?.message || 'No tables discovered.'}`);
       }
@@ -20002,6 +20201,10 @@ function setupLiveDbConnectModal(api: any): void {
   const btnExecute = document.getElementById('btnModalExecuteIntrospect');
   const resultBox = document.getElementById('modalDbResultBox');
 
+  // Initialize Enterprise Security Mode & Dialect Change Handling for Universal Modal
+  bindEnterpriseSecurityUi('modalDbSecurityMode', 'modalDbSecurityModeBadge', 'modalDbEnterpriseFields', 'modalLblEntParam1', 'modalDbEntParam1', 'modalLblEntParam2', 'modalDbEntParam2');
+  handleDialectSelectChange('modalDbDialectSelect', 'modalDbUriInput', 'modalDbSecurityMode');
+
   const openModal = () => {
     const modal = getModal();
     if (!modal) return;
@@ -20011,6 +20214,11 @@ function setupLiveDbConnectModal(api: any): void {
       if (dbInput) dbInput.value = activeLiveDbConnection.database;
       if (schemaInput) schemaInput.value = activeLiveDbConnection.schema;
       if (vaultSelect) vaultSelect.value = activeLiveDbConnection.vaultPolicy || 'session';
+      const modalSecMode = document.getElementById('modalDbSecurityMode') as HTMLSelectElement | null;
+      if (modalSecMode && activeLiveDbConnection.securityMode) {
+        modalSecMode.value = activeLiveDbConnection.securityMode;
+        modalSecMode.dispatchEvent(new Event('change'));
+      }
     } else {
       const drawerUri = (document.getElementById('dbUriInput') as HTMLInputElement)?.value;
       if (drawerUri && uriInput) uriInput.value = drawerUri;
@@ -20054,7 +20262,10 @@ function setupLiveDbConnectModal(api: any): void {
     if (api?.engines?.detectDb) {
       const detected = await api.engines.detectDb();
       if (detected && detected.found) {
-        if (detected.dialect && dialectSelect) dialectSelect.value = detected.dialect;
+        if (detected.dialect && dialectSelect) {
+          dialectSelect.value = detected.dialect;
+          dialectSelect.dispatchEvent(new Event('change'));
+        }
         if (detected.connectionUri && uriInput) uriInput.value = detected.connectionUri;
         if (detected.database && dbInput) dbInput.value = detected.database;
         if (detected.schema && schemaInput) schemaInput.value = detected.schema;
@@ -20073,16 +20284,13 @@ function setupLiveDbConnectModal(api: any): void {
   });
 
   btnTestPing?.addEventListener('click', async () => {
-    const dialect = dialectSelect?.value || 'postgres';
-    const uri = uriInput?.value || '';
-    const schema = schemaInput?.value || 'public';
-    const database = dbInput?.value || 'postgres';
+    const opts = buildDbOptionsFromInputs('modalDbDialectSelect', 'modalDbUriInput', 'modalDbProjectIdInput', 'modalDbSchemaIdInput', 'modalDbSecurityMode', 'modalDbEntParam1', 'modalDbEntParam2');
 
-    if (!uri) {
+    if (!opts.connectionUri && opts.securityMode === 'standard') {
       showToast('⚠️ Please enter connection URI.');
       return;
     }
-    showToast(`🔌 Testing ping to ${dialect.toUpperCase()} database...`);
+    showToast(`🔌 Testing ping to ${opts.dialect.toUpperCase()} database...`);
     if (resultBox) {
       resultBox.style.display = 'block';
       resultBox.style.background = 'rgba(56, 189, 248, 0.15)';
@@ -20092,7 +20300,7 @@ function setupLiveDbConnectModal(api: any): void {
     }
     try {
       if (api?.engines?.testDb) {
-        const res = await api.engines.testDb({ dialect, connectionUri: uri, schema, database });
+        const res = await api.engines.testDb(opts);
         if (resultBox) {
           if (res && res.success) {
             resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -20128,13 +20336,10 @@ function setupLiveDbConnectModal(api: any): void {
   });
 
   btnExecute?.addEventListener('click', async () => {
-    const dialect = dialectSelect?.value || 'postgres';
-    const uri = uriInput?.value || '';
-    const schema = schemaInput?.value || 'public';
-    const database = dbInput?.value || 'postgres';
+    const opts = buildDbOptionsFromInputs('modalDbDialectSelect', 'modalDbUriInput', 'modalDbProjectIdInput', 'modalDbSchemaIdInput', 'modalDbSecurityMode', 'modalDbEntParam1', 'modalDbEntParam2');
     const vaultPolicy = vaultSelect?.value || 'session';
 
-    if (!uri) {
+    if (!opts.connectionUri && opts.securityMode === 'standard') {
       showToast('⚠️ Please enter database connection URI.');
       return;
     }
@@ -20144,31 +20349,32 @@ function setupLiveDbConnectModal(api: any): void {
       resultBox.style.background = 'rgba(56, 189, 248, 0.15)';
       resultBox.style.border = '1px solid #38bdf8';
       resultBox.style.color = '#38bdf8';
-      resultBox.innerHTML = `<span>⏳ Introspecting tables and foreign key relationships from ${dialect.toUpperCase()}...</span>`;
+      resultBox.innerHTML = `<span>⏳ Introspecting tables and foreign key relationships from ${opts.dialect.toUpperCase()}...</span>`;
     }
 
     try {
-      showToast(`🔌 Introspecting ${dialect.toUpperCase()} database schema...`);
-      const res = await api?.engines?.introspectDb?.({ dialect, connectionUri: uri, schema, database });
+      showToast(`🔌 Introspecting ${opts.dialect.toUpperCase()} database schema...`);
+      const res = await api?.engines?.introspectDb?.(opts);
       if (res && res.tables && res.tables.length > 0) {
         const drawerUri = document.getElementById('dbUriInput') as HTMLInputElement | null;
-        if (drawerUri) drawerUri.value = uri;
+        if (drawerUri && opts.connectionUri) drawerUri.value = opts.connectionUri;
         const drawerDialect = document.getElementById('dbDialectSelect') as HTMLSelectElement | null;
-        if (drawerDialect) drawerDialect.value = dialect;
+        if (drawerDialect) drawerDialect.value = opts.dialect;
         const drawerDb = document.getElementById('dbProjectIdInput') as HTMLInputElement | null;
-        if (drawerDb) drawerDb.value = database;
+        if (drawerDb && opts.database) drawerDb.value = opts.database;
         const drawerSchema = document.getElementById('dbSchemaIdInput') as HTMLInputElement | null;
-        if (drawerSchema) drawerSchema.value = schema;
+        if (drawerSchema && opts.schema) drawerSchema.value = opts.schema;
 
-        (window as any).populateDiscoveredTables?.(res.tables, dialect);
-        (window as any).populateDataDiscoveredTables?.(res.tables, dialect);
+        (window as any).populateDiscoveredTables?.(res.tables, opts.dialect);
+        (window as any).populateDataDiscoveredTables?.(res.tables, opts.dialect);
 
         activeLiveDbConnection = {
-          dialect,
-          connectionUri: uri,
-          database,
-          schema,
-          vaultPolicy
+          dialect: opts.dialect,
+          connectionUri: opts.connectionUri || '',
+          database: opts.database || 'postgres',
+          schema: opts.schema || 'public',
+          vaultPolicy,
+          securityMode: opts.securityMode
         };
 
         const p2CosmosSourceSelect = document.getElementById('p2CosmosSourceSelect') as HTMLSelectElement | null;
@@ -20179,7 +20385,7 @@ function setupLiveDbConnectModal(api: any): void {
         (window as any).loadSchemaGraph?.('connected', res.tables);
 
         closeModal();
-        showToast(`✓ Connected to ${dialect.toUpperCase()}! Loaded ${res.tables.length} live tables into 2D/3D ERD.`);
+        showToast(`✓ Connected to ${opts.dialect.toUpperCase()}! Loaded ${res.tables.length} live tables into 2D/3D ERD.`);
       } else {
         if (resultBox) {
           resultBox.style.background = 'rgba(239, 68, 68, 0.15)';

@@ -2231,8 +2231,8 @@
     "desktop:start": "npx electron out/desktop/main/main.js",
     "desktop:build:win": "npx electron-builder --win",
     "desktop:build:portable": "npx electron-builder --win portable",
-    "desktop:build:all": "npx electron-builder --win --mac --linux",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "test:fde": "mocha --ui tdd out/test/suite/fde/*.test.js"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",

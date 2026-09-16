@@ -1756,9 +1756,13 @@
                       <label style="font-size: 11px; font-weight: bold;" for="dbDialectSelect">Database Engine / Dialect</label>
                       <select id="dbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
                         <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                        <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                        <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+                        <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
                         <option value="snowflake">Snowflake Data Cloud</option>
                         <option value="bigquery">Google BigQuery</option>
                         <option value="mysql">MySQL / Aurora</option>
+                        <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
                         <option value="sqlite">SQLite Local .db</option>
                       </select>
                     </div>
@@ -1768,6 +1772,37 @@
                         <button class="btn-quick" id="btnToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
                       </div>
                       <input type="password" id="dbUriInput" value="postgresql://username:password@host:5432/pilot_db" placeholder="postgresql://user:password@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+                    </div>
+                  </div>
+
+                  <!-- Enterprise Security & Advanced Connection Mode -->
+                  <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label style="font-size: 11px; font-weight: bold; color: var(--accent);" for="dbSecurityMode">🛡️ Enterprise Security &amp; Connection Mode</label>
+                      <span id="dbSecurityModeBadge" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">Standard URI</span>
+                    </div>
+                    <select id="dbSecurityMode" style="width: 100%; font-size: 11.5px; margin-bottom: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
+                      <option value="standard" selected>Standard Direct Connection String (URI / Host:Port)</option>
+                      <option value="oracle_tns">Oracle TNS Names (tnsnames.ora / SCAN Listener / TNS_ADMIN)</option>
+                      <option value="oracle_wallet">Oracle Auto-Login Wallet / Mutual TLS (TCPS Port 2484 / cwallet.sso)</option>
+                      <option value="teradata_cop">Teradata COP Discovery (cop=on / LDAP / Kerberos KRB5 / TD2)</option>
+                      <option value="teradata_wallet">Teradata Secure Wallet ($tdwallet encrypted password alias)</option>
+                      <option value="db2_ssl_truststore">IBM DB2 SSL/TLS (Armored TrustStore / DRDA SSL Port 50001)</option>
+                      <option value="db2_mainframe">IBM DB2 for z/OS Mainframe (Subsystem Location / DRDA Port 446)</option>
+                      <option value="corporate_dsn">Corporate System / User ODBC DSN (IT Pre-Provisioned)</option>
+                      <option value="ssh_bastion">Air-Gapped SSH Bastion Jump Host (Subnet Port-Forwarding)</option>
+                    </select>
+
+                    <!-- Dynamic Enterprise Security Parameters Drawer -->
+                    <div id="dbEnterpriseFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px;">
+                      <div>
+                        <label style="font-size: 10px; font-weight: bold;" id="lblEntParam1">Enterprise Parameter 1</label>
+                        <input type="text" id="dbEntParam1" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
+                      </div>
+                      <div>
+                        <label style="font-size: 10px; font-weight: bold;" id="lblEntParam2">Enterprise Parameter 2</label>
+                        <input type="text" id="dbEntParam2" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
+                      </div>
                     </div>
                   </div>
 
@@ -5202,6 +5237,9 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <label style="font-size: 11px; font-weight: bold;" for="dataDbDialectSelect">Database Engine / Dialect</label>
                 <select id="dataDbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
                   <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                  <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                  <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+                  <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
                   <option value="snowflake">Snowflake Data Cloud</option>
                   <option value="bigquery">Google BigQuery</option>
                   <option value="databricks">Databricks Lakehouse / SQL</option>
@@ -5216,6 +5254,37 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   <button class="btn-quick" id="btnDataToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
                 </div>
                 <input type="password" id="dataDbUriInput" value="postgresql://username:password@host:5432/pilot_db" placeholder="postgresql://user:password@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+              </div>
+            </div>
+
+            <!-- Enterprise Security & Advanced Connection Mode (Data Studio) -->
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label style="font-size: 11px; font-weight: bold; color: var(--accent);" for="dataDbSecurityMode">🛡️ Enterprise Security &amp; Connection Mode</label>
+                <span id="dataDbSecurityModeBadge" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">Standard URI</span>
+              </div>
+              <select id="dataDbSecurityMode" style="width: 100%; font-size: 11.5px; margin-bottom: 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
+                <option value="standard" selected>Standard Direct Connection String (URI / Host:Port)</option>
+                <option value="oracle_tns">Oracle TNS Names (tnsnames.ora / SCAN Listener / TNS_ADMIN)</option>
+                <option value="oracle_wallet">Oracle Auto-Login Wallet / Mutual TLS (TCPS Port 2484 / cwallet.sso)</option>
+                <option value="teradata_cop">Teradata COP Discovery (cop=on / LDAP / Kerberos KRB5 / TD2)</option>
+                <option value="teradata_wallet">Teradata Secure Wallet ($tdwallet encrypted password alias)</option>
+                <option value="db2_ssl_truststore">IBM DB2 SSL/TLS (Armored TrustStore / DRDA SSL Port 50001)</option>
+                <option value="db2_mainframe">IBM DB2 for z/OS Mainframe (Subsystem Location / DRDA Port 446)</option>
+                <option value="corporate_dsn">Corporate System / User ODBC DSN (IT Pre-Provisioned)</option>
+                <option value="ssh_bastion">Air-Gapped SSH Bastion Jump Host (Subnet Port-Forwarding)</option>
+              </select>
+
+              <!-- Dynamic Enterprise Security Parameters Drawer -->
+              <div id="dataDbEnterpriseFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px;">
+                <div>
+                  <label style="font-size: 10px; font-weight: bold;" id="dataLblEntParam1">Enterprise Parameter 1</label>
+                  <input type="text" id="dataDbEntParam1" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
+                </div>
+                <div>
+                  <label style="font-size: 10px; font-weight: bold;" id="dataLblEntParam2">Enterprise Parameter 2</label>
+                  <input type="text" id="dataDbEntParam2" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
+                </div>
               </div>
             </div>
 
@@ -6922,9 +6991,14 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
             <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbDialectSelect">Database Engine / Dialect</label>
             <select id="modalDbDialectSelect" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
               <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+              <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+              <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+              <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
               <option value="snowflake">Snowflake Data Cloud</option>
               <option value="bigquery">Google BigQuery</option>
+              <option value="databricks">Databricks Lakehouse / SQL</option>
               <option value="mysql">MySQL / MariaDB / Aurora</option>
+              <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
               <option value="sqlite">SQLite Local Database (.db)</option>
             </select>
           </div>
@@ -6934,6 +7008,37 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
               <button class="btn-quick" id="btnModalToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin: 0;">👁️ Show/Hide</button>
             </div>
             <input type="password" id="modalDbUriInput" value="postgresql://postgres:postgres@localhost:5432/postgres" placeholder="postgresql://user:password@host:5432/dbname" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-family: monospace; font-size: 11.5px;">
+          </div>
+        </div>
+
+        <!-- Enterprise Security & Advanced Connection Mode (Universal Modal) -->
+        <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 6px; padding: 10px 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="font-size: 11px; font-weight: bold; color: #38bdf8;" for="modalDbSecurityMode">🛡️ Enterprise Security &amp; Connection Mode</label>
+            <span id="modalDbSecurityModeBadge" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">Standard URI</span>
+          </div>
+          <select id="modalDbSecurityMode" style="width: 100%; font-size: 11.5px; margin-bottom: 8px; background: #1e293b; color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 6px 10px;">
+            <option value="standard" selected>Standard Direct Connection String (URI / Host:Port)</option>
+            <option value="oracle_tns">Oracle TNS Names (tnsnames.ora / SCAN Listener / TNS_ADMIN)</option>
+            <option value="oracle_wallet">Oracle Auto-Login Wallet / Mutual TLS (TCPS Port 2484 / cwallet.sso)</option>
+            <option value="teradata_cop">Teradata COP Discovery (cop=on / LDAP / Kerberos KRB5 / TD2)</option>
+            <option value="teradata_wallet">Teradata Secure Wallet ($tdwallet encrypted password alias)</option>
+            <option value="db2_ssl_truststore">IBM DB2 SSL/TLS (Armored TrustStore / DRDA SSL Port 50001)</option>
+            <option value="db2_mainframe">IBM DB2 for z/OS Mainframe (Subsystem Location / DRDA Port 446)</option>
+            <option value="corporate_dsn">Corporate System / User ODBC DSN (IT Pre-Provisioned)</option>
+            <option value="ssh_bastion">Air-Gapped SSH Bastion Jump Host (Subnet Port-Forwarding)</option>
+          </select>
+
+          <!-- Dynamic Enterprise Security Parameters Drawer -->
+          <div id="modalDbEnterpriseFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 8px;">
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #cbd5e1;" id="modalLblEntParam1">Enterprise Parameter 1</label>
+              <input type="text" id="modalDbEntParam1" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: #1e293b; color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 6px 10px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #cbd5e1;" id="modalLblEntParam2">Enterprise Parameter 2</label>
+              <input type="text" id="modalDbEntParam2" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: #1e293b; color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 6px 10px;">
+            </div>
           </div>
         </div>
 

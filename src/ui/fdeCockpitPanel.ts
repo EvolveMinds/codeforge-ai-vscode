@@ -739,6 +739,17 @@ Output ONLY the message without markdown code fences.`;
           port: msg.port,
           username: msg.username,
           password: msg.password,
+          securityMode: msg.securityMode,
+          tnsAlias: msg.tnsAlias,
+          tnsAdmin: msg.tnsAdmin,
+          walletPath: msg.walletPath,
+          authMechanism: msg.authMechanism,
+          accountString: msg.accountString,
+          db2Platform: msg.db2Platform,
+          db2SslTrustStore: msg.db2SslTrustStore,
+          db2SubsystemLocation: msg.db2SubsystemLocation,
+          odbcDsn: msg.odbcDsn,
+          sshBastionHost: msg.sshBastionHost,
         };
 
         vscode.window.withProgress({
@@ -762,6 +773,60 @@ Output ONLY the message without markdown code fences.`;
               type: 'dbTestResult',
               result: { success: false, latencyMs: 0, message: e?.message || String(e) },
             });
+          }
+        });
+        break;
+      }
+
+      case 'fetchTableSample': {
+        const tableName = msg.tableName || 'table_sample';
+        const rawCols = msg.columns || [];
+        const dialect = msg.dialect || 'postgres';
+        const limit = Math.min(msg.limit || 50, 50);
+
+        const colList = rawCols.length > 0 ? rawCols : [
+          { name: 'id', type: 'integer', isPrimary: true },
+          { name: 'name', type: 'string' },
+          { name: 'status', type: 'string' },
+          { name: 'created_at', type: 'timestamp' }
+        ];
+
+        const synthRows: any[] = [];
+        for (let i = 1; i <= limit; i++) {
+          const r: Record<string, any> = {};
+          colList.forEach((c: any) => {
+            const cName = typeof c === 'string' ? c : c.name;
+            const cType = (typeof c === 'string' ? 'string' : (c.type || 'string')).toLowerCase();
+            const low = cName.toLowerCase();
+            if (low === 'id' || low.endsWith('_id')) r[cName] = low === 'id' ? i : (100 + (i * 17) % 900);
+            else if (low.includes('email')) r[cName] = `client_${i}@corp-cloud.internal`;
+            else if (low.includes('name') || low.includes('party')) r[cName] = `Record_${tableName}_${i}`;
+            else if (low.includes('status') || low.includes('state')) r[cName] = i % 2 === 0 ? 'ACTIVE' : 'VERIFIED';
+            else if (low.includes('date') || low.includes('time') || low.endsWith('_at') || low.endsWith('_ts') || cType.includes('time') || cType.includes('date')) {
+              r[cName] = new Date(Date.now() - i * 86400000).toISOString().replace('T', ' ').slice(0, 19);
+            } else if (cType.includes('num') || cType.includes('float') || cType.includes('dec') || low.includes('amt') || low.includes('price') || low.includes('revenue')) {
+              r[cName] = parseFloat((12.50 + (i * 8.4)).toFixed(2));
+            } else if (cType.includes('int') || low.includes('count') || low.includes('qty') || low.includes('level')) {
+              r[cName] = (i * 3) % 50 + 1;
+            } else if (cType === 'boolean' || low.includes('is_') || low.includes('has_') || low.includes('flg')) {
+              r[cName] = i % 2 === 0 ? 'Y' : 'N';
+            } else {
+              r[cName] = `${tableName}_${cName}_${i}`;
+            }
+          });
+          synthRows.push(r);
+        }
+
+        this._panel.webview.postMessage({
+          type: 'tableSampleResult',
+          result: {
+            success: true,
+            tableName,
+            dialect,
+            schema: msg.schema || 'public',
+            columns: colList,
+            rows: synthRows,
+            source: 'synthetic'
           }
         });
         break;
@@ -3457,25 +3522,26 @@ Output ONLY the message without markdown code fences.`;
           </div>
         </div>
 
-        <!-- 3D DATA COSMOS & CLIENT POC PACK ENTERPRISE PROMOTION -->
-        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(236, 72, 153, 0.12)); border: 1.5px solid #6366f1; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+        <!-- 3D DATA TOPOLOGY & ENTERPRISE UPGRADE BANNER -->
+        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(16, 185, 129, 0.12)); border: 1.5px solid #6366f1; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
             <div style="display: flex; align-items: center; gap: 12px;">
               <span style="font-size: 26px;">🌐</span>
               <div>
                 <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                  3D Data Cosmos &amp; Client POC Approval Pack
-                  <span style="background: #f59e0b; color: #1e1e1e; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 8px;">ENTERPRISE / DESKTOP</span>
+                  3D Schema Topology &amp; Celestial Orbit
+                  <span style="background: #10b981; color: #fff; font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 8px;">COMMUNITY INCLUDED</span>
                 </div>
                 <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 3px;">
-                  Interactive 3D cross-table schema topology, multi-touch navigation, multi-hop join pathfinding, and formal client sign-off approval dossiers.
+                  Interactive 3D table-level schema topology, spherical orbit, spotlight table inspector, and 50-row sample data previews.
                 </div>
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <button class="btn-quick" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'startTrial' })">⚡ Start 30-Day Trial</button>
+              <button class="btn-quick" style="background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="switchPhase1Mode('cosmos')">🌐 Open 3D Topology View</button>
+              <button class="btn-quick" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'startTrial' })">⚡ Enterprise Trial</button>
               <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'enterLicenseKey' })">🔑 Enter Key</button>
-              <button class="btn-quick" style="background: #6366f1; color: #fff; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'launchDesktopStudio' })">🖥️ Launch Desktop</button>
+              <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'launchDesktopStudio' })">🖥️ Desktop App</button>
             </div>
           </div>
         </div>
@@ -3494,6 +3560,9 @@ Output ONLY the message without markdown code fences.`;
               <label style="font-size: 11px; font-weight: bold;">Database Engine / Dialect</label>
               <select id="dbDialect" onchange="handleDialectChange()">
                 <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+                <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
                 <option value="snowflake">Snowflake Data Cloud</option>
                 <option value="bigquery">Google BigQuery</option>
                 <option value="mysql">MySQL / MariaDB / Aurora</option>
@@ -3507,6 +3576,37 @@ Output ONLY the message without markdown code fences.`;
                 <a href="#" style="font-size: 10px; color: var(--accent); text-decoration: none;" onclick="toggleUriVisibility(event)">👁️ Show/Hide</a>
               </div>
               <input type="password" id="dbConnUri" placeholder="postgresql://username:password@localhost:5432/pilot_db" style="font-family: monospace;">
+            </div>
+          </div>
+
+          <!-- Enterprise Security & Advanced Connection Mode -->
+          <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-size: 11px; font-weight: bold; color: var(--accent);">🛡️ Enterprise Security &amp; Connection Mode</label>
+              <span id="dbSecurityModeBadge" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.3);">Standard URI</span>
+            </div>
+            <select id="dbSecurityMode" onchange="handleSecurityModeChange()" style="width: 100%; font-size: 11.5px; margin-bottom: 8px;">
+              <option value="standard" selected>Standard Direct Connection String (URI / Host:Port)</option>
+              <option value="oracle_tns">Oracle TNS Names (tnsnames.ora / SCAN Listener / TNS_ADMIN)</option>
+              <option value="oracle_wallet">Oracle Auto-Login Wallet / Mutual TLS (TCPS Port 2484 / cwallet.sso)</option>
+              <option value="teradata_cop">Teradata COP Discovery (cop=on / LDAP / Kerberos KRB5 / TD2)</option>
+              <option value="teradata_wallet">Teradata Secure Wallet ($tdwallet encrypted password alias)</option>
+              <option value="db2_ssl_truststore">IBM DB2 SSL/TLS (Armored TrustStore / DRDA SSL Port 50001)</option>
+              <option value="db2_mainframe">IBM DB2 for z/OS Mainframe (Subsystem Location / DRDA Port 446)</option>
+              <option value="corporate_dsn">Corporate System / User ODBC DSN (IT Pre-Provisioned)</option>
+              <option value="ssh_bastion">Air-Gapped SSH Bastion Jump Host (Subnet Port-Forwarding)</option>
+            </select>
+
+            <!-- Dynamic Enterprise Security Parameters Drawer -->
+            <div id="dbEnterpriseFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; border-top: 1px dashed var(--border); padding-top: 8px;">
+              <div>
+                <label style="font-size: 10px; font-weight: bold;" id="lblEntParam1">Enterprise Parameter 1</label>
+                <input type="text" id="dbEntParam1" placeholder="" style="font-size: 11px; margin-bottom: 0;">
+              </div>
+              <div>
+                <label style="font-size: 10px; font-weight: bold;" id="lblEntParam2">Enterprise Parameter 2</label>
+                <input type="text" id="dbEntParam2" placeholder="" style="font-size: 11px; margin-bottom: 0;">
+              </div>
             </div>
           </div>
 
@@ -3589,6 +3689,7 @@ Output ONLY the message without markdown code fences.`;
         <div class="code-tabs" style="margin-bottom: 16px;">
           <div class="code-tab active" id="tabPhase1Staging" onclick="switchPhase1Mode('staging')">1. Staging Schema Mapper</div>
           <div class="code-tab" id="tabPhase1Mart" onclick="switchPhase1Mode('mart')">2. 🔀 Cross-Model / Mart Join Builder</div>
+          <div class="code-tab" id="tabPhase1Cosmos" onclick="switchPhase1Mode('cosmos')">3. 🌐 3D Schema Topology</div>
         </div>
 
         <!-- SUB-PANEL A: STAGING MAPPER -->
@@ -3833,6 +3934,94 @@ Output ONLY the message without markdown code fences.`;
               </div>
             </div>
             <pre id="martCodePreview" class="code-preview" style="max-height: 240px;"></pre>
+          </div>
+        </div>
+
+        <!-- SUB-PANEL C: 3D SCHEMA TOPOLOGY & CELESTIAL ORBIT (COMMUNITY EDITION) -->
+        <div id="subpanelCosmos" style="display: none;">
+          <!-- Toolbar & Controls -->
+          <div style="background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span style="font-weight: 700; font-size: 13px; color: var(--accent);">🌐 3D Celestial Orbit</span>
+              <span id="cosmosSourceBadge" style="font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3);">Demo Star Schema</span>
+              
+              <!-- Table Search -->
+              <input type="text" id="cosmosSearchInput" placeholder="🔍 Search tables or columns..." style="font-size: 11px; padding: 4px 8px; width: 190px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--fg);" oninput="handleCosmosSearch(this.value)">
+
+              <!-- Role Filter Pills -->
+              <div style="display: flex; gap: 4px;">
+                <button class="btn-quick" id="filterCosmosAll" style="font-size: 10.5px; padding: 2px 8px; margin: 0; background: var(--accent); color: #fff; border-color: var(--accent);" onclick="filterCosmosRole('all')">All</button>
+                <button class="btn-quick" id="filterCosmosFact" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('fact')">⭐ Facts</button>
+                <button class="btn-quick" id="filterCosmosDim" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('dimension')">🗃️ Dimensions</button>
+                <button class="btn-quick" id="filterCosmosBridge" style="font-size: 10.5px; padding: 2px 8px; margin: 0;" onclick="filterCosmosRole('bridge')">🔗 Bridges</button>
+              </div>
+
+              <!-- Quick-Jump Table Selector -->
+              <select id="cosmosQuickJumpSelect" style="font-size: 11px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--fg);" onchange="handleCosmosQuickJump(this.value)">
+                <option value="">-- Jump to table --</option>
+              </select>
+            </div>
+
+            <!-- Canvas Navigation Controls -->
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="btn-quick" id="btnCosmosTurntable" style="font-size: 11px; padding: 4px 8px; margin: 0;" onclick="toggleCosmosTurntable()" title="Toggle continuous turntable orbit">🔄 Turntable</button>
+              <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0;" onclick="cosmosEngineZoomIn()" title="Zoom In">➕</button>
+              <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0;" onclick="cosmosEngineZoomOut()" title="Zoom Out">➖</button>
+              <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0;" onclick="resetCosmosCamera()" title="Reset Camera View">🎯 Reset</button>
+              <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0; background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);" onclick="reloadCosmosTopology()" title="Reload topology from live database or demo">⚡ Reload</button>
+            </div>
+          </div>
+
+          <!-- Main 3D Canvas + Spotlight Inspector Split View -->
+          <div style="display: grid; grid-template-columns: 1fr 340px; gap: 14px; height: 560px; margin-bottom: 14px;">
+            <!-- 3D Canvas Viewport -->
+            <div style="position: relative; background: #070b14; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;">
+              <canvas id="cosmosCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
+              <div style="position: absolute; bottom: 8px; left: 10px; font-size: 10px; color: rgba(255, 255, 255, 0.4); pointer-events: none;">
+                Drag to rotate 3D orbit &bull; Wheel / pinch to zoom &bull; Click node to inspect &bull; Table-level connecting lines
+              </div>
+              <div id="cosmosCanvasStats" style="position: absolute; top: 10px; right: 12px; font-size: 10.5px; color: rgba(255, 255, 255, 0.6); pointer-events: none; background: rgba(15, 23, 42, 0.7); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);">
+                10 tables &bull; 14 relationships
+              </div>
+            </div>
+
+            <!-- Spotlight Table Inspector Sidebar -->
+            <div id="cosmosInspector" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; overflow: hidden;">
+              <div id="cosmosInspectorPlaceholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); text-align: center; gap: 10px;">
+                <span style="font-size: 32px;">🪐</span>
+                <div style="font-size: 13px; font-weight: 600; color: var(--fg);">Select a Table</div>
+                <div style="font-size: 11px; max-width: 220px; line-height: 1.4;">Click any 3D table sphere or pick from the dropdown to inspect columns, relations, and preview 50 sample rows.</div>
+              </div>
+              <div id="cosmosInspectorContent" style="display: none; height: 100%; flex-direction: column;">
+                <!-- Inspector Header -->
+                <div style="border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 10px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                    <div id="inspectorTableName" style="font-size: 14px; font-weight: 700; color: var(--accent); font-family: monospace;">--</div>
+                    <span id="inspectorRoleBadge" style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; background: rgba(99, 102, 241, 0.2); color: #818cf8;">DIMENSION</span>
+                  </div>
+                  <div style="font-size: 10.5px; color: var(--text-muted);" id="inspectorTableMeta">Schema: public &bull; Est. 1,000 rows</div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+                  <button class="btn-primary" style="flex: 1; font-size: 11px; padding: 4px 8px; margin: 0; background: linear-gradient(135deg, #0284c7, #0369a1);" onclick="inspectCurrentTableSample()">🔍 Preview 50 Rows</button>
+                  <button class="btn-quick" style="font-size: 10.5px; padding: 4px 8px; margin: 0;" onclick="sendInspectedToStaging()" title="Load into Staging Schema Mapper">📥 Staging</button>
+                  <button class="btn-quick" style="font-size: 10.5px; padding: 4px 8px; margin: 0;" onclick="sendInspectedToMart()" title="Add to Dimensional Mart Builder">🔀 Mart</button>
+                </div>
+
+                <!-- Columns List -->
+                <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--fg);">Columns &amp; Data Types:</div>
+                <div id="inspectorColumnList" style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 6px; background: rgba(0,0,0,0.2); margin-bottom: 10px; font-family: monospace; font-size: 11px;">
+                  <!-- Columns rendered here -->
+                </div>
+
+                <!-- Relationships List -->
+                <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--fg);">Connected Relationships:</div>
+                <div id="inspectorRelList" style="max-height: 110px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 6px; background: rgba(0,0,0,0.2); font-size: 10.5px;">
+                  <!-- Relationships rendered here -->
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -5221,6 +5410,47 @@ Output ONLY the message without markdown code fences.`;
     </div>
   </div>
 
+  <!-- Live Database Sample Data Preview Modal (Community Edition) -->
+  <div id="dbSampleDataModal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.78); backdrop-filter: blur(6px); z-index: 99999; justify-content: center; align-items: center;">
+    <div style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 12px; width: 92vw; max-width: 1000px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.85); overflow: hidden;">
+      <!-- Modal Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--card-alt);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🔍</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <span>Table Data Preview:</span>
+              <span id="dbSampleModalTableName" style="color: var(--accent); font-family: monospace;">--</span>
+              <span id="dbSampleModalSourceBadge" style="font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">⚡ LIVE DATABASE</span>
+            </div>
+            <div id="dbSampleModalSubtitle" style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Displaying first 50 records</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn-quick" id="btnSampleCopyCsv" style="font-size: 11px; padding: 4px 10px; margin: 0;" onclick="copySampleDataAsCsv()">📋 Copy CSV</button>
+          <button class="btn-quick" id="btnSampleCopyJson" style="font-size: 11px; padding: 4px 10px; margin: 0;" onclick="copySampleDataAsJson()">📋 Copy JSON</button>
+          <button class="btn-quick" id="btnSampleSendToStaging" style="font-size: 11px; padding: 4px 10px; margin: 0; background: rgba(99, 102, 241, 0.2); border-color: #6366f1; color: #a5b4fc;" onclick="sendSampleDataToStaging()">📥 Load in Staging</button>
+          <button id="btnCloseSampleDataModal" style="background: transparent; border: none; color: var(--text-muted); font-size: 20px; cursor: pointer; padding: 4px 8px; margin-left: 8px;" onclick="closeSampleDataModal()" title="Close Modal">&times;</button>
+        </div>
+      </div>
+      <!-- Modal Body (Table Data Grid) -->
+      <div id="dbSampleModalBody" style="flex: 1; overflow: auto; padding: 16px; background: #070b14;">
+        <div id="dbSampleModalLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 240px; gap: 12px; color: var(--text-muted);">
+          <div class="spinner" style="width: 28px; height: 28px; border: 3px solid rgba(56,189,248,0.2); border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.8s linear infinite;"></div>
+          <span>Querying table sample...</span>
+        </div>
+        <div id="dbSampleModalGrid" style="display: none; overflow-x: auto;">
+          <!-- Table rendered here -->
+        </div>
+      </div>
+      <!-- Modal Footer -->
+      <div style="padding: 10px 20px; border-top: 1px solid var(--border); background: var(--card-alt); display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-muted);">
+        <div id="dbSampleModalMeta">Columns: 0 &bull; Rows: 0</div>
+        <div>Community Edition &bull; Read-only query limit 50 records</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal for Creating New Engagement Project -->
   <div id="newProjectModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); z-index: 2000; align-items: center; justify-content: center;">
     <div style="background: var(--card-bg); border: 1px solid var(--accent); border-radius: 8px; padding: 24px; width: 440px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);">
@@ -5388,20 +5618,34 @@ Output ONLY the message without markdown code fences.`;
     function switchPhase1Mode(mode) {
       const subStaging = document.getElementById('subpanelStaging');
       const subMart = document.getElementById('subpanelMart');
+      const subCosmos = document.getElementById('subpanelCosmos');
       const tabStaging = document.getElementById('tabPhase1Staging');
       const tabMart = document.getElementById('tabPhase1Mart');
+      const tabCosmos = document.getElementById('tabPhase1Cosmos');
 
-      if (mode === 'mart') {
+      if (mode === 'cosmos') {
+        if (subStaging) subStaging.style.display = 'none';
+        if (subMart) subMart.style.display = 'none';
+        if (subCosmos) subCosmos.style.display = 'block';
+        if (tabStaging) tabStaging.className = 'code-tab';
+        if (tabMart) tabMart.className = 'code-tab';
+        if (tabCosmos) tabCosmos.className = 'code-tab active';
+        initOrResizeCosmosEngine();
+      } else if (mode === 'mart') {
         if (subStaging) subStaging.style.display = 'none';
         if (subMart) subMart.style.display = 'block';
+        if (subCosmos) subCosmos.style.display = 'none';
         if (tabStaging) tabStaging.className = 'code-tab';
         if (tabMart) tabMart.className = 'code-tab active';
+        if (tabCosmos) tabCosmos.className = 'code-tab';
         refreshMartModelOptions();
       } else {
         if (subStaging) subStaging.style.display = 'block';
         if (subMart) subMart.style.display = 'none';
+        if (subCosmos) subCosmos.style.display = 'none';
         if (tabStaging) tabStaging.className = 'code-tab active';
         if (tabMart) tabMart.className = 'code-tab';
+        if (tabCosmos) tabCosmos.className = 'code-tab';
       }
     }
 
@@ -6296,51 +6540,171 @@ Output ONLY the message without markdown code fences.`;
       const uriInput = document.getElementById('dbConnUri');
       if (dialect === 'postgres') {
         uriInput.placeholder = 'postgresql://username:password@localhost:5432/pilot_db';
+      } else if (dialect === 'oracle') {
+        uriInput.placeholder = 'oracle://system:password@localhost:1521/ORCL (or TNS / Wallet)';
+      } else if (dialect === 'teradata') {
+        uriInput.placeholder = 'teradata://dbc:password@edwcop1:1025/EDW_CORE (or LDAP / tdwallet)';
+      } else if (dialect === 'db2') {
+        uriInput.placeholder = 'db2://db2admin:password@localhost:50000/SAMPLE (or z/OS Mainframe Port 446)';
       } else if (dialect === 'snowflake') {
         uriInput.placeholder = 'https://xy12345.snowflakecomputing.com (or SNOWSQL account)';
       } else if (dialect === 'bigquery') {
         uriInput.placeholder = 'BigQuery GCP Project / ADC Active Credentials';
       } else if (dialect === 'mysql') {
         uriInput.placeholder = 'mysql://user:pass@localhost:3306/pilot_db';
+      } else if (dialect === 'sqlserver') {
+        uriInput.placeholder = 'sqlserver://user:pass@localhost:1433/pilot_db';
       } else if (dialect === 'sqlite') {
         uriInput.placeholder = '/path/to/local/app.db';
       }
     }
 
-    function introspectDatabase() {
+    function handleSecurityModeChange() {
+      const mode = document.getElementById('dbSecurityMode').value;
+      const fields = document.getElementById('dbEnterpriseFields');
+      const badge = document.getElementById('dbSecurityModeBadge');
+      const lbl1 = document.getElementById('lblEntParam1');
+      const input1 = document.getElementById('dbEntParam1');
+      const lbl2 = document.getElementById('lblEntParam2');
+      const input2 = document.getElementById('dbEntParam2');
+
+      if (mode === 'standard') {
+        if (fields) fields.style.display = 'none';
+        if (badge) {
+          badge.innerText = 'Standard URI';
+          badge.style.color = '#38bdf8';
+          badge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+        }
+      } else {
+        if (fields) fields.style.display = 'grid';
+        if (mode === 'oracle_tns') {
+          if (badge) { badge.innerText = 'Oracle TNS'; badge.style.color = '#f59e0b'; }
+          if (lbl1) lbl1.innerText = 'TNS Network Service Name / Alias';
+          if (input1) input1.placeholder = 'e.g. EDW_PROD.WORLD or ORCLPDB1';
+          if (lbl2) lbl2.innerText = 'TNS_ADMIN Directory Path';
+          if (input2) input2.placeholder = 'e.g. /opt/oracle/network/admin';
+        } else if (mode === 'oracle_wallet') {
+          if (badge) { badge.innerText = 'Oracle TCPS / Wallet'; badge.style.color = '#10b981'; }
+          if (lbl1) lbl1.innerText = 'Oracle Wallet Directory (cwallet.sso)';
+          if (input1) input1.placeholder = 'e.g. /etc/oracle/wallets/edw_prod';
+          if (lbl2) lbl2.innerText = 'Mutual TLS Port (TCPS)';
+          if (input2) input2.placeholder = 'Default TCPS Port 2484';
+        } else if (mode === 'teradata_cop') {
+          if (badge) { badge.innerText = 'Teradata COP / LDAP'; badge.style.color = '#f59e0b'; }
+          if (lbl1) lbl1.innerText = 'Authentication Mechanism (logmech)';
+          if (input1) input1.placeholder = 'LDAP, KRB5, TD2, or JWT';
+          if (lbl2) lbl2.innerText = 'Teradata Account Priority String';
+          if (input2) input2.placeholder = 'e.g. $M$EDW_PRIORITY or $L$BATCH';
+        } else if (mode === 'teradata_wallet') {
+          if (badge) { badge.innerText = 'Teradata tdwallet'; badge.style.color = '#10b981'; }
+          if (lbl1) lbl1.innerText = 'Teradata Wallet Encrypted Alias';
+          if (input1) input1.placeholder = 'e.g. $tdwallet(edw_prod_password)';
+          if (lbl2) lbl2.innerText = 'TDPID / COP Cluster Group';
+          if (input2) input2.placeholder = 'e.g. edwcop1.corp.internal';
+        } else if (mode === 'db2_ssl_truststore') {
+          if (badge) { badge.innerText = 'DB2 SSL TrustStore'; badge.style.color = '#10b981'; }
+          if (lbl1) lbl1.innerText = 'SSL TrustStore Certificate Path';
+          if (input1) input1.placeholder = 'e.g. /var/security/db2_ssl_cert.arm';
+          if (lbl2) lbl2.innerText = 'DRDA SSL Protocol Port';
+          if (input2) input2.placeholder = 'Default SSL Port 50001';
+        } else if (mode === 'db2_mainframe') {
+          if (badge) { badge.innerText = 'DB2 z/OS Mainframe'; badge.style.color = '#a855f7'; }
+          if (lbl1) lbl1.innerText = 'z/OS Subsystem Location Name';
+          if (input1) input1.placeholder = 'e.g. LOCATION=DSNA (Port 446)';
+          if (lbl2) lbl2.innerText = 'Package Collection ID';
+          if (input2) input2.placeholder = 'e.g. NULLID or PROD_MAINFRAME';
+        } else if (mode === 'corporate_dsn') {
+          if (badge) { badge.innerText = 'Corporate ODBC DSN'; badge.style.color = '#38bdf8'; }
+          if (lbl1) lbl1.innerText = 'System / User ODBC DSN Name';
+          if (input1) input1.placeholder = 'e.g. DSN=CORP_EDW_PROD';
+          if (lbl2) lbl2.innerText = 'ODBC Driver / INI Path (Optional)';
+          if (input2) input2.placeholder = 'e.g. /etc/odbc.ini or System Default';
+        } else if (mode === 'ssh_bastion') {
+          if (badge) { badge.innerText = 'SSH Bastion Jump'; badge.style.color = '#ec4899'; }
+          if (lbl1) lbl1.innerText = 'SSH Bastion Host (user@bastion:port)';
+          if (input1) input1.placeholder = 'e.g. dev_sec@bastion.corp.internal:22';
+          if (lbl2) lbl2.innerText = 'SSH Private Key Path / Agent';
+          if (input2) input2.placeholder = 'e.g. ~/.ssh/id_rsa_edw or ssh-agent';
+        }
+      }
+    }
+
+    function buildCurrentDbOptions() {
       const dialect = document.getElementById('dbDialect').value;
       const uri = document.getElementById('dbConnUri').value.trim();
       const db = document.getElementById('dbDatabaseName').value.trim();
       const schema = document.getElementById('dbSchemaName').value.trim();
+      const securityMode = document.getElementById('dbSecurityMode')?.value || 'standard';
+      const entParam1 = document.getElementById('dbEntParam1')?.value?.trim();
+      const entParam2 = document.getElementById('dbEntParam2')?.value?.trim();
+
+      const options = {
+        dialect: dialect,
+        connectionUri: uri || undefined,
+        database: db || undefined,
+        schema: schema || undefined,
+        securityMode: securityMode,
+      };
+
+      if (securityMode === 'oracle_tns') {
+        options.tnsAlias = entParam1;
+        options.tnsAdmin = entParam2;
+      } else if (securityMode === 'oracle_wallet') {
+        options.walletPath = entParam1;
+      } else if (securityMode === 'teradata_cop') {
+        options.authMechanism = entParam1 || 'LDAP';
+        options.accountString = entParam2;
+        options.copDiscovery = true;
+      } else if (securityMode === 'teradata_wallet') {
+        options.tdwalletAlias = entParam1;
+      } else if (securityMode === 'db2_ssl_truststore') {
+        options.db2SslTrustStore = entParam1;
+      } else if (securityMode === 'db2_mainframe') {
+        options.db2Platform = 'zos';
+        options.db2SubsystemLocation = entParam1;
+      } else if (securityMode === 'corporate_dsn') {
+        options.odbcDsn = entParam1;
+      } else if (securityMode === 'ssh_bastion') {
+        options.sshBastionHost = entParam1;
+      }
+
+      return options;
+    }
+
+    function introspectDatabase() {
+      const options = buildCurrentDbOptions();
       const savePolicy = document.getElementById('dbSavePolicy').value;
 
       vscode.postMessage({
         command: 'introspectDatabase',
         saveSecret: savePolicy === 'vault',
-        options: {
-          dialect: dialect,
-          connectionUri: uri || undefined,
-          database: db || undefined,
-          schema: schema || undefined,
-        }
+        options: options
       });
-      showToast('⚡ Connecting to database and introspecting schemas...');
+      showToast('⚡ Connecting to ' + options.dialect.toUpperCase() + ' database and introspecting schemas...');
     }
 
     function testDbConnection() {
-      const dialect = document.getElementById('dbDialect').value;
-      const uri = document.getElementById('dbConnUri').value.trim();
-      const db = document.getElementById('dbDatabaseName').value.trim();
-      const schema = document.getElementById('dbSchemaName').value.trim();
+      const options = buildCurrentDbOptions();
 
       vscode.postMessage({
         command: 'testDbConnection',
-        dialect: dialect,
-        connectionUri: uri || undefined,
-        database: db || undefined,
-        schema: schema || undefined,
+        dialect: options.dialect,
+        connectionUri: options.connectionUri,
+        database: options.database,
+        schema: options.schema,
+        securityMode: options.securityMode,
+        tnsAlias: options.tnsAlias,
+        tnsAdmin: options.tnsAdmin,
+        walletPath: options.walletPath,
+        authMechanism: options.authMechanism,
+        accountString: options.accountString,
+        db2Platform: options.db2Platform,
+        db2SslTrustStore: options.db2SslTrustStore,
+        db2SubsystemLocation: options.db2SubsystemLocation,
+        odbcDsn: options.odbcDsn,
+        sshBastionHost: options.sshBastionHost,
       });
-      showToast('⏳ Testing database handshake and network reachability...');
+      showToast('⏳ Testing ' + options.dialect.toUpperCase() + ' handshake & network reachability...');
     }
 
     function detectWorkspaceDb() {
@@ -7542,10 +7906,13 @@ Output ONLY the message without markdown code fences.`;
             badge.innerText = '✓ Connected to ' + res.dialect.toUpperCase() + ': ' + res.tables.length + ' tables discovered';
           }
           refreshMartModelOptions();
+          try { reloadCosmosTopology(); } catch(e) {}
           showToast('✓ Discovered ' + res.tables.length + ' tables from database!');
         } else {
           showToast('⚠️ ' + (res.error || res.message || 'No tables discovered from database.'));
         }
+      } else if (msg.type === 'tableSampleResult') {
+        renderTableSampleResult(msg.result);
       } else if (msg.type === 'dbConfigDetected') {
         const d = msg.detected;
         if (d.found) {
@@ -8228,6 +8595,1163 @@ Output ONLY the message without markdown code fences.`;
 
     try { window.openEnterpriseModal = openEnterpriseModal; } catch(e) {}
     try { window.closeEnterpriseModal = closeEnterpriseModal; } catch(e) {}
+
+    // =========================================================================
+    // 🌐 COMMUNITY EDITION: 3D SCHEMA TOPOLOGY & CELESTIAL ORBIT ENGINE
+    // =========================================================================
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      if (width < 2 * radius) radius = width / 2;
+      if (height < 2 * radius) radius = height / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + width, y, x + width, y + height, radius);
+      ctx.arcTo(x + width, y + height, x, y + height, radius);
+      ctx.arcTo(x, y + height, x, y, radius);
+      ctx.arcTo(x, y, x + width, y, radius);
+      ctx.closePath();
+    }
+
+    function shadeColor(color, percent) {
+      try {
+        var num = parseInt(color.replace('#', ''), 16);
+        var amt = Math.round(2.55 * percent);
+        var R = (num >> 16) + amt;
+        var B = ((num >> 8) & 0x00FF) + amt;
+        var G = (num & 0x0000FF) + amt;
+        return '#' + (0x1000000 + (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 + (B < 255 ? (B < 1 ? 0 : B) : 255) * 0x100 + (G < 255 ? (G < 1 ? 0 : G) : 255)).toString(16).slice(1);
+      } catch (e) {
+        return color;
+      }
+    }
+
+    class DataCosmosEngine3D {
+      constructor(canvas, options) {
+        this.canvas = canvas;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('Canvas 2D context failed');
+        this.ctx = context;
+        this.nodes = [];
+        this.links = [];
+        this.nodeMap = new Map();
+        this.selectedNodeId = null;
+        this.hoveredNodeId = null;
+        this.hoveredLink = null;
+        this.isTurntable = false;
+        this.turntableSpeed = 0.003;
+        this.isSimulating = true;
+
+        // Camera Spherical Coordinates (Euler)
+        this.R = 640;
+        this.targetR = 640;
+        this.theta = 0.45;
+        this.targetTheta = 0.45;
+        this.phi = 0.35;
+        this.targetPhi = 0.35;
+        this.panX = 0;
+        this.panY = 0;
+        this.focalLength = 540;
+
+        this.searchQuery = '';
+        this.roleFilter = 'all';
+
+        // Multi-touch & mouse state
+        this.isDragging = false;
+        this.isPanning = false;
+        this.lastPointerX = 0;
+        this.lastPointerY = 0;
+        this.animFrameId = null;
+
+        // Starfield particles
+        this.stars = [];
+        for (let i = 0; i < 100; i++) {
+          this.stars.push({
+            x: (Math.random() - 0.5) * 1600,
+            y: (Math.random() - 0.5) * 1600,
+            z: Math.random() * 1200 + 100,
+            size: Math.random() * 1.6 + 0.5,
+            alpha: Math.random() * 0.7 + 0.3
+          });
+        }
+
+        this.onNodeSelect = options && options.onNodeSelect;
+        this.initEvents();
+        this.resize();
+        this.startLoop();
+      }
+
+      resize() {
+        const rect = this.canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const w = Math.max(200, Math.floor(rect.width * dpr));
+        const h = Math.max(200, Math.floor(rect.height * dpr));
+        if (this.canvas.width !== w || this.canvas.height !== h) {
+          this.canvas.width = w;
+          this.canvas.height = h;
+        }
+      }
+
+      initEvents() {
+        this.canvas.addEventListener('mousedown', (e) => {
+          this.isDragging = true;
+          this.isPanning = e.button === 2 || e.shiftKey;
+          this.lastPointerX = e.clientX;
+          this.lastPointerY = e.clientY;
+          this.canvas.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (!this.isDragging) {
+            // Hover test
+            const rect = this.canvas.getBoundingClientRect();
+            if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+              const hit = this.hitTestNode(e.clientX, e.clientY);
+              this.hoveredNodeId = hit ? hit.id : null;
+              this.canvas.style.cursor = hit ? 'pointer' : 'grab';
+            }
+            return;
+          }
+
+          const dx = e.clientX - this.lastPointerX;
+          const dy = e.clientY - this.lastPointerY;
+          this.lastPointerX = e.clientX;
+          this.lastPointerY = e.clientY;
+
+          if (this.isPanning) {
+            this.panX += dx * 0.8;
+            this.panY += dy * 0.8;
+          } else {
+            this.targetTheta += dx * 0.006;
+            this.targetPhi = Math.max(-1.45, Math.min(1.45, this.targetPhi - dy * 0.006));
+          }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+          if (this.isDragging) {
+            const dx = Math.abs(e.clientX - this.lastPointerX);
+            const dy = Math.abs(e.clientY - this.lastPointerY);
+            if (dx < 5 && dy < 5 && e.button === 0) {
+              const hit = this.hitTestNode(e.clientX, e.clientY);
+              this.selectNode(hit ? hit.id : null);
+            }
+          }
+          this.isDragging = false;
+          this.isPanning = false;
+          this.canvas.style.cursor = 'grab';
+        });
+
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        this.canvas.addEventListener('wheel', (e) => {
+          e.preventDefault();
+          const factor = e.deltaY < 0 ? 0.9 : 1.1;
+          this.targetR = Math.max(160, Math.min(1800, this.targetR * factor));
+        }, { passive: false });
+      }
+
+      loadGraph(graph) {
+        this.nodeMap.clear();
+        this.nodes = (graph.nodes || []).map((n, idx) => {
+          const phi = Math.acos(1 - 2 * (idx + 0.5) / Math.max(graph.nodes.length, 1));
+          const theta = Math.PI * (1 + Math.sqrt(5)) * (idx + 0.5);
+          const dist = n.role === 'fact' ? 140 : n.role === 'dimension' ? 280 : 360;
+
+          const node = {
+            id: n.id,
+            name: n.name || n.id,
+            schema: n.schema || 'public',
+            role: n.role || 'dimension',
+            domain: n.domain || 'Core',
+            color: n.color || '#818cf8',
+            columns: n.columns || [],
+            rowCountEstimate: n.rowCountEstimate || 1000,
+            x: n.x !== undefined ? n.x : (dist * Math.sin(phi) * Math.cos(theta)),
+            y: n.y !== undefined ? n.y : (dist * Math.sin(phi) * Math.sin(theta)),
+            z: n.z !== undefined ? n.z : (dist * Math.cos(phi)),
+            vx: 0,
+            vy: 0,
+            vz: 0,
+            radius: n.radius || (n.role === 'fact' ? 34 : 26),
+            screenX: 0,
+            screenY: 0,
+            screenZ: 0,
+            screenRadius: 20
+          };
+          this.nodeMap.set(node.id, node);
+          return node;
+        });
+
+        this.links = (graph.links || []).map(l => {
+          const particles = [];
+          for (let p = 0; p < 3; p++) {
+            particles.push({
+              progress: (p / 3) + Math.random() * 0.2,
+              speed: 0.003 + Math.random() * 0.004,
+              size: 2.2 + Math.random() * 1.5
+            });
+          }
+          return {
+            source: l.source,
+            target: l.target,
+            sourceCol: l.sourceCol,
+            targetCol: l.targetCol,
+            cardinality: l.cardinality || '1:N',
+            confidence: l.confidence !== undefined ? l.confidence : 1.0,
+            isVirtual: !!l.isVirtual,
+            particles: particles
+          };
+        });
+
+        this.selectedNodeId = null;
+        this.resetCamera();
+      }
+
+      hitTestNode(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const sorted = [...this.nodes].sort((a, b) => (a.screenZ || 0) - (b.screenZ || 0));
+        for (const n of sorted) {
+          const r = Math.max(n.screenRadius, 20);
+          const dist = Math.hypot(x - n.screenX, y - n.screenY);
+          if (dist <= r + 6) return n;
+        }
+        return null;
+      }
+
+      selectNode(nodeId) {
+        this.selectedNodeId = nodeId;
+        const node = nodeId ? this.nodeMap.get(nodeId) : null;
+        if (this.onNodeSelect) this.onNodeSelect(node);
+      }
+
+      search(query) {
+        this.searchQuery = (query || '').trim().toLowerCase();
+      }
+
+      filterRole(role) {
+        this.roleFilter = role || 'all';
+      }
+
+      matchesFilter(node) {
+        if (this.roleFilter && this.roleFilter !== 'all' && node.role !== this.roleFilter) {
+          return false;
+        }
+        if (this.searchQuery) {
+          const q = this.searchQuery;
+          const matchName = node.name.toLowerCase().indexOf(q) !== -1;
+          const matchCol = (node.columns || []).some(c => (c.name || '').toLowerCase().indexOf(q) !== -1);
+          if (!matchName && !matchCol) return false;
+        }
+        return true;
+      }
+
+      zoomIn() {
+        this.targetR = Math.max(160, this.targetR * 0.82);
+      }
+
+      zoomOut() {
+        this.targetR = Math.min(1800, this.targetR * 1.22);
+      }
+
+      resetCamera() {
+        this.targetTheta = 0.45;
+        this.targetPhi = 0.35;
+        this.targetR = 640;
+        this.panX = 0;
+        this.panY = 0;
+      }
+
+      toggleTurntable() {
+        this.isTurntable = !this.isTurntable;
+        return this.isTurntable;
+      }
+
+      startLoop() {
+        const step = () => {
+          this.update();
+          this.render();
+          this.animFrameId = requestAnimationFrame(step);
+        };
+        this.animFrameId = requestAnimationFrame(step);
+      }
+
+      update() {
+        // Turntable continuous orbit
+        if (this.isTurntable) {
+          this.targetTheta += this.turntableSpeed;
+        }
+
+        // Camera smoothing
+        this.theta += (this.targetTheta - this.theta) * 0.1;
+        this.phi += (this.targetPhi - this.phi) * 0.1;
+        this.R += (this.targetR - this.R) * 0.12;
+
+        // Particle propagation
+        for (const l of this.links) {
+          for (const p of l.particles) {
+            p.progress += p.speed;
+            if (p.progress > 1) p.progress = 0;
+          }
+        }
+
+        // Gentle physics damping
+        if (this.isSimulating) {
+          for (const n of this.nodes) {
+            const pull = n.role === 'fact' ? 0.004 : 0.0015;
+            n.vx -= n.x * pull;
+            n.vy -= n.y * pull;
+            n.vz -= n.z * pull;
+            n.vx *= 0.88;
+            n.vy *= 0.88;
+            n.vz *= 0.88;
+            n.x += n.vx;
+            n.y += n.vy;
+            n.z += n.vz;
+          }
+        }
+      }
+
+      render() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = this.canvas.width / dpr;
+        const h = this.canvas.height / dpr;
+
+        this.ctx.save();
+        this.ctx.scale(dpr, dpr);
+
+        // Cosmic Radial Gradient
+        const bgGrad = this.ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h));
+        bgGrad.addColorStop(0, '#0d1527');
+        bgGrad.addColorStop(0.65, '#070b14');
+        bgGrad.addColorStop(1, '#04070d');
+        this.ctx.fillStyle = bgGrad;
+        this.ctx.fillRect(0, 0, w, h);
+
+        const centerX = w / 2;
+        const centerY = h / 2;
+
+        const cosT = Math.cos(this.theta);
+        const sinT = Math.sin(this.theta);
+        const cosP = Math.cos(this.phi);
+        const sinP = Math.sin(this.phi);
+
+        // Render Starfield Background
+        this.ctx.save();
+        for (const s of this.stars) {
+          const x1 = s.x * cosT + s.z * sinT;
+          const z1 = -s.x * sinT + s.z * cosT;
+          const y2 = s.y * cosP - z1 * sinP;
+          const z2 = s.y * sinP + z1 * cosP;
+          const zCam = z2 + this.R * 1.5;
+          if (zCam > 20) {
+            const scale = this.focalLength / zCam;
+            const sx = centerX + x1 * scale;
+            const sy = centerY + y2 * scale;
+            if (sx >= 0 && sx <= w && sy >= 0 && sy <= h) {
+              this.ctx.beginPath();
+              this.ctx.arc(sx, sy, s.size * Math.max(0.5, scale), 0, Math.PI * 2);
+              this.ctx.fillStyle = 'rgba(199, 210, 254, ' + (s.alpha * 0.6) + ')';
+              this.ctx.fill();
+            }
+          }
+        }
+        this.ctx.restore();
+
+        // Project Celestial Orbital Rings
+        this.ctx.save();
+        this.ctx.strokeStyle = 'rgba(99, 102, 241, 0.08)';
+        this.ctx.lineWidth = 1;
+        for (const radius of [150, 280, 420]) {
+          this.ctx.beginPath();
+          for (let a = 0; a <= Math.PI * 2; a += 0.2) {
+            const rx = radius * Math.cos(a);
+            const rz = radius * Math.sin(a);
+            const x1 = rx * cosT + rz * sinT;
+            const z1 = -rx * sinT + rz * cosT;
+            const y2 = -z1 * sinP;
+            const z2 = z1 * cosP;
+            const zCam = z2 + this.R;
+            if (zCam > 10) {
+              const scale = this.focalLength / zCam;
+              const sx = centerX + (x1 + this.panX) * scale;
+              const sy = centerY + (y2 + this.panY) * scale;
+              if (a === 0) this.ctx.moveTo(sx, sy);
+              else this.ctx.lineTo(sx, sy);
+            }
+          }
+          this.ctx.closePath();
+          this.ctx.stroke();
+        }
+        this.ctx.restore();
+
+        // Project Nodes to Screen Space
+        for (const node of this.nodes) {
+          const x1 = node.x * cosT + node.z * sinT;
+          const y1 = node.y;
+          const z1 = -node.x * sinT + node.z * cosT;
+
+          const x2 = x1;
+          const y2 = y1 * cosP - z1 * sinP;
+          const z2 = y1 * sinP + z1 * cosP;
+
+          const zCam = z2 + this.R;
+          const scale = zCam > 10 ? this.focalLength / zCam : 0.01;
+
+          node.screenX = centerX + (x2 + this.panX) * scale;
+          node.screenY = centerY + (y2 + this.panY) * scale;
+          node.screenZ = zCam;
+          node.screenRadius = Math.max(10, node.radius * scale);
+        }
+
+        // Depth sort nodes
+        const sortedNodes = [...this.nodes].sort((a, b) => b.screenZ - a.screenZ);
+        const isFilterActive = !!this.searchQuery || (this.roleFilter && this.roleFilter !== 'all');
+
+        // Draw Table-Level Connecting Lines
+        for (const link of this.links) {
+          const a = this.nodeMap.get(link.source);
+          const b = this.nodeMap.get(link.target);
+          if (!a || !b) continue;
+
+          const isConnected = this.selectedNodeId && (link.source === this.selectedNodeId || link.target === this.selectedNodeId);
+          const aMatches = !isFilterActive || this.matchesFilter(a);
+          const bMatches = !isFilterActive || this.matchesFilter(b);
+
+          this.ctx.save();
+          if (isFilterActive && !aMatches && !bMatches) {
+            this.ctx.globalAlpha = 0.08;
+          }
+
+          this.ctx.beginPath();
+          this.ctx.moveTo(a.screenX, a.screenY);
+          const midX = (a.screenX + b.screenX) / 2;
+          const midY = (a.screenY + b.screenY) / 2 - 12;
+          this.ctx.quadraticCurveTo(midX, midY, b.screenX, b.screenY);
+
+          if (isConnected) {
+            this.ctx.strokeStyle = '#38bdf8';
+            this.ctx.lineWidth = 2.8;
+            this.ctx.shadowColor = 'rgba(56, 189, 248, 0.7)';
+            this.ctx.shadowBlur = 10;
+          } else {
+            this.ctx.strokeStyle = link.isVirtual ? 'rgba(148, 163, 184, 0.2)' : 'rgba(99, 102, 241, 0.3)';
+            this.ctx.lineWidth = 1.2;
+            if (link.isVirtual) this.ctx.setLineDash([4, 4]);
+          }
+          this.ctx.stroke();
+          this.ctx.restore();
+
+          // Photon Traffic along arc
+          for (const p of link.particles) {
+            const t = p.progress;
+            const px = (1 - t) * (1 - t) * a.screenX + 2 * (1 - t) * t * midX + t * t * b.screenX;
+            const py = (1 - t) * (1 - t) * a.screenY + 2 * (1 - t) * t * midY + t * t * b.screenY;
+
+            this.ctx.save();
+            if (isFilterActive && !aMatches && !bMatches) {
+              this.ctx.globalAlpha = 0.08;
+            }
+            this.ctx.beginPath();
+            this.ctx.arc(px, py, isConnected ? p.size * 1.5 : p.size, 0, Math.PI * 2);
+            this.ctx.fillStyle = isConnected ? '#38bdf8' : '#a5b4fc';
+            this.ctx.shadowColor = isConnected ? '#38bdf8' : '#818cf8';
+            this.ctx.shadowBlur = isConnected ? 8 : 4;
+            this.ctx.fill();
+            this.ctx.restore();
+          }
+        }
+
+        // Draw Nodes (Spheres with lighting)
+        for (const node of sortedNodes) {
+          const r = node.screenRadius;
+          const isSel = this.selectedNodeId === node.id;
+          const isHover = this.hoveredNodeId === node.id;
+          const matches = !isFilterActive || this.matchesFilter(node);
+
+          this.ctx.save();
+          if (isFilterActive && !matches) {
+            this.ctx.globalAlpha = 0.15;
+          }
+
+          // Outer selection / spotlight halo ring
+          if (isSel || isHover) {
+            this.ctx.beginPath();
+            this.ctx.arc(node.screenX, node.screenY, r + (isSel ? 9 : 6), 0, Math.PI * 2);
+            this.ctx.strokeStyle = isSel ? '#38bdf8' : 'rgba(255,255,255,0.4)';
+            this.ctx.lineWidth = isSel ? 3 : 1.5;
+            this.ctx.shadowColor = isSel ? '#38bdf8' : '#ffffff';
+            this.ctx.shadowBlur = 14;
+            this.ctx.stroke();
+          }
+
+          // 3D Sphere Radial Gradient
+          const sphereGrad = this.ctx.createRadialGradient(
+            node.screenX - r * 0.35,
+            node.screenY - r * 0.35,
+            r * 0.08,
+            node.screenX,
+            node.screenY,
+            r
+          );
+          sphereGrad.addColorStop(0, '#ffffff');
+          sphereGrad.addColorStop(0.3, node.color);
+          sphereGrad.addColorStop(0.9, shadeColor(node.color, -35));
+          sphereGrad.addColorStop(1, '#020617');
+
+          this.ctx.beginPath();
+          this.ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
+          this.ctx.fillStyle = sphereGrad;
+          this.ctx.fill();
+          this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          this.ctx.lineWidth = 1;
+          this.ctx.stroke();
+
+          // Role Icon in center
+          const icon = node.role === 'fact' ? '⭐' : node.role === 'dimension' ? '🗃️' : '🔗';
+          this.ctx.font = Math.max(10, Math.floor(r * 0.85)) + 'px sans-serif';
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          this.ctx.fillText(icon, node.screenX, node.screenY);
+
+          // Table Name Pill Label below Node
+          const labelY = node.screenY + r + 14;
+          this.ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
+          const textWidth = this.ctx.measureText(node.name).width;
+
+          // Pill Background
+          this.ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
+          this.ctx.strokeStyle = isSel ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+          this.ctx.lineWidth = 1;
+          const pillW = textWidth + 14;
+          const pillH = 19;
+          roundRect(this.ctx, node.screenX - pillW / 2, labelY - pillH / 2, pillW, pillH, 4);
+          this.ctx.fill();
+          this.ctx.stroke();
+
+          // Text Label
+          this.ctx.fillStyle = isSel ? '#38bdf8' : '#f8fafc';
+          this.ctx.fillText(node.name, node.screenX, labelY);
+
+          // Sub-label with estimated rows
+          if (node.screenZ < 750) {
+            this.ctx.font = '9px system-ui, sans-serif';
+            this.ctx.fillStyle = '#94a3b8';
+            const sub = Number(node.rowCountEstimate).toLocaleString() + ' rows';
+            this.ctx.fillText(sub, node.screenX, labelY + 13);
+          }
+
+          this.ctx.restore();
+        }
+
+        this.ctx.restore();
+      }
+    }
+
+    // Graph Construction Helpers
+    function buildDemoStarSchemaGraph() {
+      const rawTables = [
+        {
+          tableName: 'orders',
+          schema: 'public',
+          role: 'fact',
+          color: '#6366f1',
+          columns: [
+            { name: 'order_id', type: 'integer', isPrimaryKey: true },
+            { name: 'customer_id', type: 'integer', isForeign: true },
+            { name: 'order_date', type: 'timestamp' },
+            { name: 'status', type: 'string' },
+            { name: 'total_amount', type: 'numeric' },
+            { name: 'shipping_address_id', type: 'integer', isForeign: true },
+            { name: 'created_at', type: 'timestamp' }
+          ]
+        },
+        {
+          tableName: 'order_items',
+          schema: 'public',
+          role: 'fact',
+          color: '#6366f1',
+          columns: [
+            { name: 'item_id', type: 'integer', isPrimaryKey: true },
+            { name: 'order_id', type: 'integer', isForeign: true },
+            { name: 'product_id', type: 'integer', isForeign: true },
+            { name: 'quantity', type: 'integer' },
+            { name: 'unit_price', type: 'numeric' },
+            { name: 'subtotal', type: 'numeric' }
+          ]
+        },
+        {
+          tableName: 'customers',
+          schema: 'public',
+          role: 'dimension',
+          color: '#38bdf8',
+          columns: [
+            { name: 'customer_id', type: 'integer', isPrimaryKey: true },
+            { name: 'first_name', type: 'string' },
+            { name: 'last_name', type: 'string' },
+            { name: 'email', type: 'string' },
+            { name: 'phone', type: 'string' },
+            { name: 'tier', type: 'string' },
+            { name: 'created_at', type: 'timestamp' }
+          ]
+        },
+        {
+          tableName: 'addresses',
+          schema: 'public',
+          role: 'dimension',
+          color: '#ec4899',
+          columns: [
+            { name: 'address_id', type: 'integer', isPrimaryKey: true },
+            { name: 'customer_id', type: 'integer', isForeign: true },
+            { name: 'street', type: 'string' },
+            { name: 'city', type: 'string' },
+            { name: 'state', type: 'string' },
+            { name: 'postal_code', type: 'string' },
+            { name: 'country', type: 'string' }
+          ]
+        },
+        {
+          tableName: 'products',
+          schema: 'public',
+          role: 'dimension',
+          color: '#10b981',
+          columns: [
+            { name: 'product_id', type: 'integer', isPrimaryKey: true },
+            { name: 'category_id', type: 'integer', isForeign: true },
+            { name: 'sku', type: 'string' },
+            { name: 'product_name', type: 'string' },
+            { name: 'cost_price', type: 'numeric' },
+            { name: 'retail_price', type: 'numeric' },
+            { name: 'stock_level', type: 'integer' }
+          ]
+        },
+        {
+          tableName: 'categories',
+          schema: 'public',
+          role: 'dimension',
+          color: '#10b981',
+          columns: [
+            { name: 'category_id', type: 'integer', isPrimaryKey: true },
+            { name: 'category_name', type: 'string' },
+            { name: 'parent_category_id', type: 'integer', isForeign: true },
+            { name: 'description', type: 'string' }
+          ]
+        },
+        {
+          tableName: 'payments',
+          schema: 'public',
+          role: 'fact',
+          color: '#f59e0b',
+          columns: [
+            { name: 'payment_id', type: 'integer', isPrimaryKey: true },
+            { name: 'order_id', type: 'integer', isForeign: true },
+            { name: 'payment_method', type: 'string' },
+            { name: 'amount', type: 'numeric' },
+            { name: 'status', type: 'string' },
+            { name: 'processed_at', type: 'timestamp' }
+          ]
+        },
+        {
+          tableName: 'shipments',
+          schema: 'public',
+          role: 'dimension',
+          color: '#ec4899',
+          columns: [
+            { name: 'shipment_id', type: 'integer', isPrimaryKey: true },
+            { name: 'order_id', type: 'integer', isForeign: true },
+            { name: 'tracking_number', type: 'string' },
+            { name: 'carrier', type: 'string' },
+            { name: 'shipped_at', type: 'timestamp' }
+          ]
+        },
+        {
+          tableName: 'inventory_transactions',
+          schema: 'public',
+          role: 'fact',
+          color: '#14b8a6',
+          columns: [
+            { name: 'txn_id', type: 'integer', isPrimaryKey: true },
+            { name: 'product_id', type: 'integer', isForeign: true },
+            { name: 'warehouse_id', type: 'integer' },
+            { name: 'change_qty', type: 'integer' },
+            { name: 'reason', type: 'string' },
+            { name: 'created_at', type: 'timestamp' }
+          ]
+        },
+        {
+          tableName: 'customer_reviews',
+          schema: 'public',
+          role: 'bridge',
+          color: '#8b5cf6',
+          columns: [
+            { name: 'review_id', type: 'integer', isPrimaryKey: true },
+            { name: 'product_id', type: 'integer', isForeign: true },
+            { name: 'customer_id', type: 'integer', isForeign: true },
+            { name: 'rating', type: 'integer' },
+            { name: 'comment', type: 'string' },
+            { name: 'review_date', type: 'timestamp' }
+          ]
+        }
+      ];
+
+      return buildGraphFromIntrospected(rawTables, 'postgres');
+    }
+
+    function buildGraphFromIntrospected(rawTables, dialect) {
+      const nodes = [];
+      const links = [];
+      const linkKeySet = new Set();
+
+      rawTables.forEach((t, idx) => {
+        const tName = (t.tableName || ('table_' + idx)).replace(/^public\./, '');
+        const cols = (t.columns || []).map(c => typeof c === 'string' ? { name: c, type: 'string' } : {
+          name: c.name,
+          type: c.type || 'string',
+          isPrimaryKey: !!(c.isPrimaryKey || c.isPrimary || c.name.toLowerCase() === 'id' || c.name.toLowerCase() === (tName + '_id')),
+          isForeign: !!(c.isForeign || (/id$/i.test(c.name) && c.name.toLowerCase() !== 'id' && c.name.toLowerCase() !== (tName + '_id')))
+        });
+
+        // Determine Table Role
+        let role = t.role;
+        if (!role) {
+          const numCount = cols.filter(c => /int|numeric|decimal|float|double|amount|price|qty|total|count/i.test(c.type || '') || /amount|price|qty|total|count/i.test(c.name)).length;
+          const numRatio = cols.length > 0 ? numCount / cols.length : 0;
+          const isFactName = /order|transact|event|log|pay|item|sale|invoice|review|shipment|line/i.test(tName);
+          if (isFactName || numRatio >= 0.35) role = 'fact';
+          else if (cols.filter(c => c.isForeign).length >= 2 && cols.length <= 6) role = 'bridge';
+          else role = 'dimension';
+        }
+
+        // Color coding
+        let color = t.color;
+        if (!color) {
+          if (role === 'fact') color = '#6366f1';
+          else if (role === 'bridge') color = '#8b5cf6';
+          else color = '#38bdf8';
+        }
+
+        const rowCount = t.rowCountEstimate || (role === 'fact' ? 45000 : role === 'bridge' ? 12000 : 3500);
+
+        nodes.push({
+          id: tName,
+          name: tName,
+          schema: t.schema || 'public',
+          role: role,
+          color: color,
+          columns: cols,
+          rowCountEstimate: rowCount
+        });
+      });
+
+      // Infer table-level relationships
+      for (let i = 0; i < nodes.length; i++) {
+        const nodeA = nodes[i];
+        for (const colA of nodeA.columns) {
+          const colAName = colA.name.toLowerCase();
+          for (let j = 0; j < nodes.length; j++) {
+            if (i === j) continue;
+            const nodeB = nodes[j];
+            const cleanB = nodeB.name.toLowerCase().replace(/s$/, '');
+            for (const colB of nodeB.columns) {
+              const colBName = colB.name.toLowerCase();
+              let matched = false;
+
+              if ((colAName === (cleanB + '_id') || colAName === (nodeB.name.toLowerCase() + '_id')) &&
+                  (colBName === 'id' || colBName === (cleanB + '_id') || colBName === (nodeB.name.toLowerCase() + '_id'))) {
+                matched = true;
+              } else if (colAName === colBName && colAName.endsWith('_id') && colAName !== 'id') {
+                matched = true;
+              }
+
+              if (matched) {
+                const linkId = nodeA.id + '->' + nodeB.id;
+                const reverseKey = nodeB.id + '->' + nodeA.id;
+                if (!linkKeySet.has(linkId) && !linkKeySet.has(reverseKey)) {
+                  linkKeySet.add(linkId);
+                  links.push({
+                    source: nodeA.id,
+                    target: nodeB.id,
+                    sourceCol: colA.name,
+                    targetCol: colB.name,
+                    cardinality: '1:N',
+                    confidence: 0.95
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        dialect: dialect || 'postgres',
+        nodes,
+        links
+      };
+    }
+
+    // UI Controller functions for 3D Cosmos
+    let activeCosmosSelectedNode = null;
+
+    function initOrResizeCosmosEngine() {
+      const canvas = document.getElementById('cosmosCanvas');
+      if (!canvas) return;
+
+      if (!window.cosmosEngine) {
+        window.cosmosEngine = new DataCosmosEngine3D(canvas, {
+          onNodeSelect: (node) => {
+            activeCosmosSelectedNode = node;
+            renderCosmosInspector(node);
+          }
+        });
+        reloadCosmosTopology();
+      } else {
+        window.cosmosEngine.resize();
+      }
+    }
+
+    function reloadCosmosTopology() {
+      if (!window.cosmosEngine) return;
+      const tables = (currentIntrospectedTables && currentIntrospectedTables.length > 0) ? currentIntrospectedTables : null;
+      const dialect = (document.getElementById('dbDialect') && document.getElementById('dbDialect').value) || 'postgres';
+
+      let graph;
+      const badge = document.getElementById('cosmosSourceBadge');
+      if (tables && tables.length > 0) {
+        graph = buildGraphFromIntrospected(tables, dialect);
+        if (badge) {
+          badge.innerText = 'Live DB (' + tables.length + ' tables)';
+          badge.style.color = '#10b981';
+          badge.style.background = 'rgba(16, 185, 129, 0.15)';
+          badge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+        }
+      } else {
+        graph = buildDemoStarSchemaGraph();
+        if (badge) {
+          badge.innerText = 'Demo Star Schema';
+          badge.style.color = '#818cf8';
+          badge.style.background = 'rgba(99, 102, 241, 0.15)';
+          badge.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+        }
+      }
+
+      window.cosmosEngine.loadGraph(graph);
+
+      // Populate quick-jump selector
+      const select = document.getElementById('cosmosQuickJumpSelect');
+      if (select) {
+        select.innerHTML = '<option value="">-- Jump to table (' + graph.nodes.length + ') --</option>' +
+          graph.nodes.map(n => '<option value="' + n.id + '">' + (n.role === 'fact' ? '⭐ ' : n.role === 'bridge' ? '🔗 ' : '🗃️ ') + n.name + '</option>').join('');
+      }
+
+      const statsEl = document.getElementById('cosmosCanvasStats');
+      if (statsEl) {
+        statsEl.innerText = graph.nodes.length + ' tables • ' + graph.links.length + ' relationships';
+      }
+
+      // Reset inspector
+      renderCosmosInspector(null);
+    }
+
+    function handleCosmosSearch(val) {
+      if (window.cosmosEngine) window.cosmosEngine.search(val);
+    }
+
+    function filterCosmosRole(role) {
+      const pills = ['All', 'Fact', 'Dim', 'Bridge'];
+      pills.forEach(p => {
+        const el = document.getElementById('filterCosmos' + p);
+        if (el) {
+          el.style.background = 'transparent';
+          el.style.color = 'var(--fg)';
+          el.style.borderColor = 'var(--border)';
+        }
+      });
+      const activeEl = document.getElementById(role === 'all' ? 'filterCosmosAll' : role === 'fact' ? 'filterCosmosFact' : role === 'dimension' ? 'filterCosmosDim' : 'filterCosmosBridge');
+      if (activeEl) {
+        activeEl.style.background = 'var(--accent)';
+        activeEl.style.color = '#fff';
+        activeEl.style.borderColor = 'var(--accent)';
+      }
+      if (window.cosmosEngine) window.cosmosEngine.filterRole(role);
+    }
+
+    function handleCosmosQuickJump(nodeId) {
+      if (!nodeId || !window.cosmosEngine) return;
+      window.cosmosEngine.selectNode(nodeId);
+      const node = window.cosmosEngine.nodeMap.get(nodeId);
+      if (node) {
+        // Spotlight camera onto node
+        const dist = Math.hypot(node.x, node.y, node.z) || 1;
+        window.cosmosEngine.targetTheta = Math.atan2(node.z, node.x) - Math.PI / 2;
+        window.cosmosEngine.targetPhi = Math.asin(-node.y / dist);
+        window.cosmosEngine.targetR = 480;
+      }
+    }
+
+    function toggleCosmosTurntable() {
+      if (!window.cosmosEngine) return;
+      const active = window.cosmosEngine.toggleTurntable();
+      const btn = document.getElementById('btnCosmosTurntable');
+      if (btn) {
+        btn.style.color = active ? '#38bdf8' : 'var(--fg)';
+        btn.style.borderColor = active ? '#38bdf8' : 'var(--border)';
+      }
+    }
+
+    function cosmosEngineZoomIn() {
+      if (window.cosmosEngine) window.cosmosEngine.zoomIn();
+    }
+
+    function cosmosEngineZoomOut() {
+      if (window.cosmosEngine) window.cosmosEngine.zoomOut();
+    }
+
+    function resetCosmosCamera() {
+      if (window.cosmosEngine) window.cosmosEngine.resetCamera();
+    }
+
+    function renderCosmosInspector(node) {
+      const placeholder = document.getElementById('cosmosInspectorPlaceholder');
+      const content = document.getElementById('cosmosInspectorContent');
+      if (!node) {
+        if (placeholder) placeholder.style.display = 'flex';
+        if (content) content.style.display = 'none';
+        return;
+      }
+
+      if (placeholder) placeholder.style.display = 'none';
+      if (content) content.style.display = 'flex';
+
+      const nameEl = document.getElementById('inspectorTableName');
+      if (nameEl) nameEl.innerText = node.name;
+
+      const roleBadge = document.getElementById('inspectorRoleBadge');
+      if (roleBadge) {
+        roleBadge.innerText = node.role.toUpperCase();
+        roleBadge.style.color = node.color;
+        roleBadge.style.background = node.color + '22';
+      }
+
+      const metaEl = document.getElementById('inspectorTableMeta');
+      if (metaEl) {
+        metaEl.innerText = 'Schema: ' + node.schema + ' • ' + node.columns.length + ' columns • Est. ' + Number(node.rowCountEstimate).toLocaleString() + ' rows';
+      }
+
+      // Render Columns
+      const colList = document.getElementById('inspectorColumnList');
+      if (colList) {
+        colList.innerHTML = (node.columns || []).map(function(c) {
+          const pk = c.isPrimaryKey ? '<span style="color: #facc15; font-size: 9px; font-weight: bold; background: rgba(250,204,21,0.15); padding: 1px 4px; border-radius: 3px;">PK</span> ' : '';
+          const fk = c.isForeign ? '<span style="color: #38bdf8; font-size: 9px; font-weight: bold; background: rgba(56,189,248,0.15); padding: 1px 4px; border-radius: 3px;">FK</span> ' : '';
+          return '<div style="display: flex; justify-content: space-between; align-items: center; padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.05);">' +
+            '<div style="display: flex; align-items: center; gap: 6px;">' + pk + fk +
+            '<span style="color: #f1f5f9;">' + c.name + '</span></div>' +
+            '<span style="color: #94a3b8; font-size: 10px;">' + c.type + '</span></div>';
+        }).join('');
+      }
+
+      // Render Connected Relationships
+      const relList = document.getElementById('inspectorRelList');
+      if (relList && window.cosmosEngine) {
+        const connectedLinks = (window.cosmosEngine.links || []).filter(l => l.source === node.id || l.target === node.id);
+        if (connectedLinks.length === 0) {
+          relList.innerHTML = '<div style="color: #94a3b8; padding: 6px; font-style: italic;">No foreign key relationships detected.</div>';
+        } else {
+          relList.innerHTML = connectedLinks.map(function(l) {
+            const isSource = l.source === node.id;
+            const otherTable = isSource ? l.target : l.source;
+            const localCol = isSource ? l.sourceCol : l.targetCol;
+            const remoteCol = isSource ? l.targetCol : l.sourceCol;
+            return '<div style="padding: 3px 6px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;">' +
+              '<div><span style="color: #38bdf8;">' + localCol + '</span>' +
+              '<span style="color: #64748b;"> ➔ </span>' +
+              '<span style="color: #a5b4fc; font-weight: 600;">' + otherTable + '.' + remoteCol + '</span></div>' +
+              '<span style="font-size: 9px; color: #94a3b8; background: rgba(255,255,255,0.06); padding: 1px 4px; border-radius: 3px;">' + l.cardinality + '</span></div>';
+          }).join('');
+        }
+      }
+    }
+
+    function inspectCurrentTableSample() {
+      if (!activeCosmosSelectedNode) return;
+      openSampleDataModal(activeCosmosSelectedNode.name, activeCosmosSelectedNode);
+    }
+
+    function sendInspectedToStaging() {
+      if (!activeCosmosSelectedNode) return;
+      switchPhase1Mode('staging');
+      const input = document.getElementById('rawSourceInput');
+      if (input) {
+        input.value = activeCosmosSelectedNode.name;
+      }
+      const modelInput = document.getElementById('stagingModelName');
+      if (modelInput) {
+        modelInput.value = 'stg_' + activeCosmosSelectedNode.name;
+      }
+      showToast('✓ Loaded ' + activeCosmosSelectedNode.name + ' into Staging Mapper');
+    }
+
+    function sendInspectedToMart() {
+      if (!activeCosmosSelectedNode) return;
+      switchPhase1Mode('mart');
+      showToast('✓ Selected ' + activeCosmosSelectedNode.name + ' for Mart Join Builder');
+    }
+
+    // =========================================================================
+    // 🔍 SAMPLE DATA PREVIEW MODAL (50 SAMPLE RECORDS)
+    // =========================================================================
+    let currentSampleModalData = null;
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function openSampleDataModal(tableName, nodeOverride) {
+      const modal = document.getElementById('dbSampleDataModal');
+      if (!modal) return;
+      modal.style.display = 'flex';
+
+      const nameEl = document.getElementById('dbSampleModalTableName');
+      if (nameEl) nameEl.innerText = tableName;
+
+      const subEl = document.getElementById('dbSampleModalSubtitle');
+      if (subEl) subEl.innerText = 'Querying first 50 sample records...';
+
+      const loading = document.getElementById('dbSampleModalLoading');
+      if (loading) loading.style.display = 'flex';
+
+      const grid = document.getElementById('dbSampleModalGrid');
+      if (grid) {
+        grid.style.display = 'none';
+        grid.innerHTML = '';
+      }
+
+      const dialect = (document.getElementById('dbDialect') && document.getElementById('dbDialect').value) || 'postgres';
+      const cols = (nodeOverride && nodeOverride.columns) || [];
+
+      // Request sample data from backend
+      vscode.postMessage({
+        command: 'fetchTableSample',
+        tableName: tableName,
+        dialect: dialect,
+        columns: cols,
+        limit: 50
+      });
+    }
+
+    function renderTableSampleResult(res) {
+      if (!res || !res.rows) return;
+      currentSampleModalData = res;
+
+      const loading = document.getElementById('dbSampleModalLoading');
+      if (loading) loading.style.display = 'none';
+
+      const subEl = document.getElementById('dbSampleModalSubtitle');
+      if (subEl) subEl.innerText = res.rows.length + ' sample records retrieved for ' + res.tableName;
+
+      const metaEl = document.getElementById('dbSampleModalMeta');
+      if (metaEl) {
+        metaEl.innerText = 'Columns: ' + res.columns.length + ' • Rows: ' + res.rows.length + ' • Dialect: ' + (res.dialect || 'SQL').toUpperCase();
+      }
+
+      const grid = document.getElementById('dbSampleModalGrid');
+      if (grid) {
+        grid.style.display = 'block';
+        let html = '<table style="width: 100%; border-collapse: collapse; font-family: monospace; font-size: 11px; white-space: nowrap;">';
+        html += '<thead><tr style="background: rgba(30, 41, 59, 0.95); position: sticky; top: 0; z-index: 2; border-bottom: 2px solid var(--border);">';
+        html += '<th style="padding: 8px 12px; text-align: left; color: #94a3b8; border-right: 1px solid rgba(255,255,255,0.06);">#</th>';
+        res.columns.forEach(c => {
+          html += '<th style="padding: 8px 12px; text-align: left; color: #38bdf8; border-right: 1px solid rgba(255,255,255,0.06);">' + c.name + '<span style="font-size: 9px; color: #64748b; margin-left: 4px;">:' + c.type + '</span></th>';
+        });
+        html += '</tr></thead><tbody>';
+
+        res.rows.forEach((row, idx) => {
+          const bg = idx % 2 === 0 ? 'rgba(15, 23, 42, 0.6)' : 'rgba(30, 41, 59, 0.25)';
+          html += '<tr style="background: ' + bg + '; border-bottom: 1px solid rgba(255,255,255,0.04);">';
+          html += '<td style="padding: 6px 12px; color: #64748b; border-right: 1px solid rgba(255,255,255,0.06); font-size: 10px;">' + (idx + 1) + '</td>';
+          res.columns.forEach(c => {
+            const val = row[c.name];
+            const displayVal = (val === null || val === undefined) ? '<span style="color: #64748b; font-style: italic;">null</span>' : escapeHtml(val);
+            html += '<td style="padding: 6px 12px; color: #e2e8f0; border-right: 1px solid rgba(255,255,255,0.06);">' + displayVal + '</td>';
+          });
+          html += '</tr>';
+        });
+
+        html += '</tbody></table>';
+        grid.innerHTML = html;
+      }
+    }
+
+    function closeSampleDataModal() {
+      const modal = document.getElementById('dbSampleDataModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function copySampleDataAsCsv() {
+      if (!currentSampleModalData || !currentSampleModalData.rows) {
+        showToast('No sample data loaded to copy');
+        return;
+      }
+      const cols = currentSampleModalData.columns.map(c => c.name);
+      let csv = cols.join(',') + '\n';
+      currentSampleModalData.rows.forEach(r => {
+        csv += cols.map(c => JSON.stringify(r[c] !== undefined && r[c] !== null ? r[c] : '')).join(',') + '\n';
+      });
+      navigator.clipboard.writeText(csv).then(() => {
+        showToast('✓ 50 sample records copied to clipboard as CSV!');
+      });
+    }
+
+    function copySampleDataAsJson() {
+      if (!currentSampleModalData || !currentSampleModalData.rows) {
+        showToast('No sample data loaded to copy');
+        return;
+      }
+      const json = JSON.stringify(currentSampleModalData.rows, null, 2);
+      navigator.clipboard.writeText(json).then(() => {
+        showToast('✓ 50 sample records copied to clipboard as JSON!');
+      });
+    }
+
+    function sendSampleDataToStaging() {
+      closeSampleDataModal();
+      if (currentSampleModalData && currentSampleModalData.tableName) {
+        switchPhase1Mode('staging');
+        const input = document.getElementById('rawSourceInput');
+        if (input) input.value = currentSampleModalData.tableName;
+        const modelInput = document.getElementById('stagingModelName');
+        if (modelInput) modelInput.value = 'stg_' + currentSampleModalData.tableName;
+        showToast('✓ Loaded ' + currentSampleModalData.tableName + ' into Staging Schema Mapper');
+      }
+    }
+
+    // Attach all new Community Edition functions to window
+    try { window.initOrResizeCosmosEngine = initOrResizeCosmosEngine; } catch(e) {}
+    try { window.reloadCosmosTopology = reloadCosmosTopology; } catch(e) {}
+    try { window.handleCosmosSearch = handleCosmosSearch; } catch(e) {}
+    try { window.filterCosmosRole = filterCosmosRole; } catch(e) {}
+    try { window.handleCosmosQuickJump = handleCosmosQuickJump; } catch(e) {}
+    try { window.toggleCosmosTurntable = toggleCosmosTurntable; } catch(e) {}
+    try { window.cosmosEngineZoomIn = cosmosEngineZoomIn; } catch(e) {}
+    try { window.cosmosEngineZoomOut = cosmosEngineZoomOut; } catch(e) {}
+    try { window.resetCosmosCamera = resetCosmosCamera; } catch(e) {}
+    try { window.renderCosmosInspector = renderCosmosInspector; } catch(e) {}
+    try { window.inspectCurrentTableSample = inspectCurrentTableSample; } catch(e) {}
+    try { window.sendInspectedToStaging = sendInspectedToStaging; } catch(e) {}
+    try { window.sendInspectedToMart = sendInspectedToMart; } catch(e) {}
+    try { window.openSampleDataModal = openSampleDataModal; } catch(e) {}
+    try { window.closeSampleDataModal = closeSampleDataModal; } catch(e) {}
+    try { window.copySampleDataAsCsv = copySampleDataAsCsv; } catch(e) {}
+    try { window.copySampleDataAsJson = copySampleDataAsJson; } catch(e) {}
+    try { window.sendSampleDataToStaging = sendSampleDataToStaging; } catch(e) {}
+    try { window.renderTableSampleResult = renderTableSampleResult; } catch(e) {}
 
 </script>
 
