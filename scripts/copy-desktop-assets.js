@@ -32,18 +32,18 @@ function copyRecursive(src, dest) {
 copyRecursive(srcDir, outDir);
 console.log('✓ Desktop renderer assets synced to out/desktop/renderer/');
 
-// Also sync full out/desktop to VS Code installed extension directory if present
+// Also sync full out/ directory to VS Code installed extension directories if present
 try {
   const os = require('os');
   const extensionsDir = path.join(os.homedir(), '.vscode', 'extensions');
   if (fs.existsSync(extensionsDir)) {
-    const extDirs = fs.readdirSync(extensionsDir).filter(d => d.startsWith('codeforge-ai.evolve-ai-'));
+    const extDirs = fs.readdirSync(extensionsDir).filter(d => d.includes('evolve-ai'));
+    const sourceOut = path.join(__dirname, '..', 'out');
     for (const extDir of extDirs) {
-      const targetDesktop = path.join(extensionsDir, extDir, 'out', 'desktop');
-      const sourceDesktop = path.join(__dirname, '..', 'out', 'desktop');
-      if (fs.existsSync(sourceDesktop)) {
-        copyRecursive(sourceDesktop, targetDesktop);
-        console.log(`✓ Synchronized out/desktop to VS Code extension: ${extDir}`);
+      const targetOut = path.join(extensionsDir, extDir, 'out');
+      if (fs.existsSync(sourceOut)) {
+        copyRecursive(sourceOut, targetOut);
+        console.log(`✓ Synchronized full out/ to VS Code extension: ${extDir}`);
       }
     }
   }

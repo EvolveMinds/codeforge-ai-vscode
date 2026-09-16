@@ -9700,9 +9700,9 @@ Output ONLY the message without markdown code fences.`;
         return;
       }
       const cols = currentSampleModalData.columns.map(c => c.name);
-      let csv = cols.join(',') + '\n';
+      let csv = cols.join(',') + String.fromCharCode(10);
       currentSampleModalData.rows.forEach(r => {
-        csv += cols.map(c => JSON.stringify(r[c] !== undefined && r[c] !== null ? r[c] : '')).join(',') + '\n';
+        csv += cols.map(c => JSON.stringify(r[c] !== undefined && r[c] !== null ? r[c] : '')).join(',') + String.fromCharCode(10);
       });
       navigator.clipboard.writeText(csv).then(() => {
         showToast('✓ 50 sample records copied to clipboard as CSV!');
