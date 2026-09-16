@@ -2108,9 +2108,9 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
     msgIdx++;
 
     const isBottleneck = isLegacyMode || /(delay|manual|silo|excel|csv|wait|unvalidated|phone|4hr|slow|error|fail|paper|fax)/i.test(msg.text);
-    const stroke = isBottleneck ? '#ef4444' : (msg.dashed ? '#10b981' : '#38bdf8');
+    const stroke = isBottleneck ? '#fb7185' : (msg.dashed ? '#34d399' : '#38bdf8');
     const glow = isBottleneck ? 'glow-crimson' : (msg.dashed ? 'glow-emerald' : 'glow-cyan');
-    const badgeBg = isBottleneck ? '#450a0a' : '#0f172a';
+    const badgeBg = isBottleneck ? '#3b1c24' : '#1e293b';
     const isActiveStep = options?.activeStep === seq - 1;
     const dash = msg.dashed ? ' stroke-dasharray="6 4"' : '';
 
@@ -2141,14 +2141,14 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
       if (tag) {
         stepMarkup +=
           '<g transform="translate(' + (x + 58) + ', ' + (y + 12) + ')">' +
-          '<rect width="' + Math.min(130, tag.length * 6 + 12) + '" height="14" rx="3" fill="' + (isBottleneck ? 'rgba(239,68,68,0.2)' : 'rgba(56,189,248,0.2)') + '" stroke="' + stroke + '" stroke-width="0.8"/>' +
+          '<rect width="' + Math.min(130, tag.length * 6 + 12) + '" height="14" rx="3" fill="' + (isBottleneck ? 'rgba(251,113,133,0.18)' : 'rgba(56,189,248,0.18)') + '" stroke="' + stroke + '" stroke-width="0.8"/>' +
           '<text x="6" y="10" fill="' + stroke + '" font-size="8.5" font-weight="700" font-family="\'Segoe UI\', sans-serif">' + escSvg(tag) + '</text>' +
           '</g>';
       }
 
       stepMarkup +=
         '<g class="sq-msg-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
-        '<rect width="' + actionsW + '" height="' + actionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
+        '<rect width="' + actionsW + '" height="' + actionsH + '" rx="4" fill="rgba(30, 41, 59, 0.95)" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1"/>' +
         '<g class="sq-btn sq-btn-msg-reply" data-msg-idx="' + msgIdx + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="10">⇄</text></g>' +
         '<g class="sq-btn sq-btn-msg-edit" data-msg-idx="' + msgIdx + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
         '<g class="sq-btn sq-btn-msg-up" data-msg-idx="' + msgIdx + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▲</text></g>' +
@@ -2183,7 +2183,7 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
         stepMarkup +=
           '<text x="' + midX + '" y="' + (y - 12) + '" fill="#f8fafc" font-size="11" font-weight="600" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(label) + '</text>' +
           '<g transform="translate(' + (midX - tagW / 2) + ', ' + (y + 4) + ')">' +
-          '<rect width="' + tagW + '" height="13" rx="3" fill="' + (isBottleneck ? 'rgba(239,68,68,0.2)' : 'rgba(56,189,248,0.2)') + '" stroke="' + stroke + '" stroke-width="0.8"/>' +
+          '<rect width="' + tagW + '" height="13" rx="3" fill="' + (isBottleneck ? 'rgba(251,113,133,0.18)' : 'rgba(56,189,248,0.18)') + '" stroke="' + stroke + '" stroke-width="0.8"/>' +
           '<text x="' + (tagW / 2) + '" y="9.5" fill="' + stroke + '" font-size="8" font-weight="700" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(tag) + '</text>' +
           '</g>';
       } else {
@@ -2193,7 +2193,7 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
       stepMarkup +=
         '<g class="sq-msg-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
-        '<rect width="' + actionsW + '" height="' + actionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
+        '<rect width="' + actionsW + '" height="' + actionsH + '" rx="4" fill="rgba(30, 41, 59, 0.95)" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1"/>' +
         '<g class="sq-btn sq-btn-msg-reply" data-msg-idx="' + msgIdx + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="10">⇄</text></g>' +
         '<g class="sq-btn sq-btn-msg-edit" data-msg-idx="' + msgIdx + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
         '<g class="sq-btn sq-btn-msg-up" data-msg-idx="' + msgIdx + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▲</text></g>' +
@@ -2217,8 +2217,8 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
     heads.push(
       '<g class="sq-lifeline-group">' +
-      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="2" stroke-opacity="0.08"/>' +
-      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="1.2" stroke-opacity="0.32" stroke-dasharray="4 4"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="2" stroke-opacity="0.06"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="1.2" stroke-opacity="0.25" stroke-dasharray="4 4"/>' +
       '</g>'
     );
 
@@ -2231,11 +2231,11 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
         '<g class="sq-part-group" data-part-idx="' + i + '" data-part-id="' + escSvg(p.id) + '" style="cursor: pointer;">' +
         '<rect x="' + x + '" y="' + by + '" width="' + w + '" height="' + BOX_H + '" rx="8" fill="url(#' + meta.gradId + ')" stroke="' + meta.border + '" stroke-width="1.3" filter="url(#' + meta.glowId + ')" class="sq-part-card"/>' +
         '<line x1="' + (x + 8) + '" y1="' + (by + 1.5) + '" x2="' + (x + w - 8) + '" y2="' + (by + 1.5) + '" stroke="' + meta.color + '" stroke-width="2.5" stroke-linecap="round"/>' +
-        '<rect x="' + (x + 8) + '" y="' + (by + 6) + '" width="' + (w - 16) + '" height="13" rx="3" fill="rgba(0,0,0,0.45)" stroke="' + meta.color + '" stroke-opacity="0.25" stroke-width="0.8"/>' +
+        '<rect x="' + (x + 8) + '" y="' + (by + 6) + '" width="' + (w - 16) + '" height="13" rx="3" fill="rgba(15, 23, 42, 0.45)" stroke="' + meta.color + '" stroke-opacity="0.35" stroke-width="0.8"/>' +
         '<text x="' + p.x + '" y="' + (by + 15.5) + '" text-anchor="middle" fill="' + meta.color + '" font-size="8" font-weight="700" letter-spacing="0.6" font-family="\'Segoe UI\', monospace">' + meta.icon + ' ' + meta.badge + '</text>' +
         '<text x="' + p.x + '" y="' + (by + 35) + '" text-anchor="middle" fill="#f8fafc" font-size="12" font-weight="700" font-family="\'Segoe UI\', -apple-system, sans-serif">' + escSvg(p.label) + '</text>' +
         '<g class="sq-part-actions sq-action-group" transform="translate(' + actionsX + ', ' + actionsY + ')">' +
-        '<rect width="' + partActionsW + '" height="' + partActionsH + '" rx="4" fill="rgba(15, 23, 42, 0.95)" stroke="#38bdf8" stroke-width="1"/>' +
+        '<rect width="' + partActionsW + '" height="' + partActionsH + '" rx="4" fill="rgba(30, 41, 59, 0.95)" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1"/>' +
         '<g class="sq-btn sq-btn-part-left" data-part-idx="' + i + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">◀</text></g>' +
         '<g class="sq-btn sq-btn-part-edit" data-part-idx="' + i + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
         '<g class="sq-btn sq-btn-part-role" data-part-idx="' + i + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#34d399" font-size="9">' + (p.isActor ? '🖥️' : '👤') + '</text></g>' +
@@ -2249,19 +2249,19 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
   const defs =
     '<defs>' +
-    '<filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-violet" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-crimson" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-indigo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.0" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#0c253d"/><stop offset="100%" stop-color="#071320"/></linearGradient>' +
-    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#24133f"/><stop offset="100%" stop-color="#0f071f"/></linearGradient>' +
-    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2c1e08"/><stop offset="100%" stop-color="#120c03"/></linearGradient>' +
-    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#092823"/><stop offset="100%" stop-color="#04120f"/></linearGradient>' +
-    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#151d42"/><stop offset="100%" stop-color="#080b1e"/></linearGradient>' +
-    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1b2332"/><stop offset="100%" stop-color="#0c1119"/></linearGradient>' +
-    '<pattern id="sq-cyber-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(148, 163, 184, 0.05)" stroke-width="1"/></pattern>' +
+    '<filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-violet" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-crimson" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-indigo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1e3a5f"/><stop offset="100%" stop-color="#11253d"/></linearGradient>' +
+    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2d1f4d"/><stop offset="100%" stop-color="#1a122e"/></linearGradient>' +
+    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#3d2e14"/><stop offset="100%" stop-color="#241b0b"/></linearGradient>' +
+    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#153e32"/><stop offset="100%" stop-color="#0d261f"/></linearGradient>' +
+    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#252d59"/><stop offset="100%" stop-color="#141836"/></linearGradient>' +
+    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="100%" stop-color="#1e293b"/></linearGradient>' +
+    '<pattern id="sq-cyber-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(148, 163, 184, 0.08)" stroke-width="1"/></pattern>' +
     '</defs>';
 
   const style = '<style>' +
@@ -18826,11 +18826,11 @@ class DataCosmosEngine {
     this.ctx.save();
     this.ctx.scale(dpr, dpr);
 
-    // Deep Cosmic Background Gradient
-    const bgGrad = this.ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h));
-    bgGrad.addColorStop(0, '#0d1527');
-    bgGrad.addColorStop(0.65, '#070b14');
-    bgGrad.addColorStop(1, '#04070d');
+    // Pleasant, Luminous Executive Slate Background
+    const bgGrad = this.ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h));
+    bgGrad.addColorStop(0, '#1e293b');    // Warm, luminous slate-800 center
+    bgGrad.addColorStop(0.6, '#141d2e');  // Calm deep slate
+    bgGrad.addColorStop(1, '#0f172a');    // Elegant slate perimeter (never pitch black)
     this.ctx.fillStyle = bgGrad;
     this.ctx.fillRect(0, 0, w, h);
 
@@ -19055,7 +19055,7 @@ class DataCosmosEngine {
         this.ctx.fill();
       }
 
-      // 3D Sphere Radial Gradient with Specular Highlight
+      // 3D Sphere Radial Gradient: Luminous, pleasant, gemstone pearl shading
       const sphereGrad = this.ctx.createRadialGradient(
         node.screenX - r * 0.35,
         node.screenY - r * 0.35,
@@ -19064,16 +19064,16 @@ class DataCosmosEngine {
         node.screenY,
         r
       );
-      sphereGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-      sphereGrad.addColorStop(0.28, node.color);
-      sphereGrad.addColorStop(0.85, shadeColor(node.color, -45));
-      sphereGrad.addColorStop(1, '#020617');
+      sphereGrad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+      sphereGrad.addColorStop(0.25, shadeColor(node.color, 18));
+      sphereGrad.addColorStop(0.7, node.color);
+      sphereGrad.addColorStop(1, shadeColor(node.color, -22));
 
       this.ctx.beginPath();
       this.ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
       this.ctx.fillStyle = sphereGrad;
       this.ctx.fill();
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
       this.ctx.lineWidth = 1;
       this.ctx.stroke();
 
@@ -19089,9 +19089,9 @@ class DataCosmosEngine {
       this.ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
       const textWidth = this.ctx.measureText(node.name).width;
 
-      // Pill Background
-      this.ctx.fillStyle = 'rgba(8, 13, 24, 0.92)';
-      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(255, 255, 255, 0.15)';
+      // Pill Background - Pleasant Slate Glass
+      this.ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
+      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : 'rgba(148, 163, 184, 0.28)';
       this.ctx.lineWidth = 1;
       const pillW = textWidth + 14;
       const pillH = 19;
@@ -19310,9 +19310,9 @@ class DataCosmosEngine {
       const x = node.screenX - cardW / 2;
       const y = node.screenY - cardH / 2;
 
-      // Card Container - Sleek Titanium Slate Glass
-      this.ctx.fillStyle = '#0b1120';
-      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isConnectedToSel ? 'rgba(56, 189, 248, 0.75)' : isPath ? '#facc15' : isFilterMatch ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+      // Card Container - Pleasant Rich Slate Glass
+      this.ctx.fillStyle = '#182234';
+      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isConnectedToSel ? 'rgba(56, 189, 248, 0.75)' : isPath ? '#facc15' : isFilterMatch ? '#38bdf8' : 'rgba(148, 163, 184, 0.25)';
       this.ctx.lineWidth = isInRelFocus ? 3 : (isSel || isPath || isFilterMatch ? 2.5 : isConnectedToSel ? 2 : 1);
       if (isSel) {
         this.ctx.shadowColor = '#38bdf8';
@@ -19328,9 +19328,9 @@ class DataCosmosEngine {
       this.ctx.fill();
       this.ctx.stroke();
 
-      // Header Bar: Sleek Dark Slate with Top Jewel Accent Stripe
+      // Header Bar: Pleasant Slate with Top Jewel Accent Stripe
       const headerH = 26 * this.zoom2D;
-      this.ctx.fillStyle = 'rgba(20, 29, 47, 0.95)';
+      this.ctx.fillStyle = '#1e293b';
       roundRect(this.ctx, x, y, cardW, headerH, [6, 6, 0, 0]);
       this.ctx.fill();
 
@@ -19344,7 +19344,7 @@ class DataCosmosEngine {
       this.ctx.beginPath();
       this.ctx.moveTo(x, y + headerH);
       this.ctx.lineTo(x + cardW, y + headerH);
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      this.ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
       this.ctx.lineWidth = 1;
       this.ctx.stroke();
 
@@ -19363,8 +19363,8 @@ class DataCosmosEngine {
       const badgeH = 14 * this.zoom2D;
       const badgeX = x + cardW - badgeW - 6 * this.zoom2D;
       const badgeY = y + (headerH - badgeH) / 2 + 1;
-      this.ctx.fillStyle = `${node.color}22`;
-      this.ctx.strokeStyle = `${node.color}66`;
+      this.ctx.fillStyle = `${node.color}1c`;
+      this.ctx.strokeStyle = `${node.color}50`;
       this.ctx.lineWidth = 1;
       roundRect(this.ctx, badgeX, badgeY, badgeW, badgeH, 3);
       this.ctx.fill();
@@ -19397,10 +19397,10 @@ class DataCosmosEngine {
         }
 
         const icon = col.isPrimary ? '🔑' : col.isForeign ? '🔗' : '•';
-        this.ctx.fillStyle = isColLinked ? '#ffffff' : (col.isPrimary ? '#facc15' : col.isForeign ? '#38bdf8' : '#94a3b8');
+        this.ctx.fillStyle = isColLinked ? '#ffffff' : (col.isPrimary ? '#fbbf24' : col.isForeign ? '#60a5fa' : '#e2e8f0');
         this.ctx.fillText(`${icon} ${col.name}`, x + 8 * this.zoom2D, colY);
 
-        this.ctx.fillStyle = isColLinked ? (isSourceColLinked ? '#facc15' : '#38bdf8') : '#64748b';
+        this.ctx.fillStyle = isColLinked ? (isSourceColLinked ? '#fbbf24' : '#60a5fa') : '#94a3b8';
         this.ctx.textAlign = 'right';
         const typeText = isColLinked ? `${col.type} ${isSourceColLinked ? '[PK]' : '[FK]'}` : col.type;
         this.ctx.fillText(typeText, x + cardW - 8 * this.zoom2D, colY);
@@ -19410,7 +19410,7 @@ class DataCosmosEngine {
       }
 
       if (node.columns.length > visibleCols.length) {
-        this.ctx.fillStyle = '#64748b';
+        this.ctx.fillStyle = '#94a3b8';
         this.ctx.font = `italic ${Math.max(7, Math.floor(8.5 * this.zoom2D))}px sans-serif`;
         this.ctx.fillText(`+${node.columns.length - visibleCols.length} more columns`, x + 8 * this.zoom2D, colY);
       }

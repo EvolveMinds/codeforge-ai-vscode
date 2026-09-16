@@ -8922,11 +8922,11 @@ Output ONLY the message without markdown code fences.`;
         this.ctx.save();
         this.ctx.scale(dpr, dpr);
 
-        // Cosmic Radial Gradient
-        const bgGrad = this.ctx.createRadialGradient(w / 2, h / 2, 40, w / 2, h / 2, Math.max(w, h));
-        bgGrad.addColorStop(0, '#0d1527');
-        bgGrad.addColorStop(0.65, '#070b14');
-        bgGrad.addColorStop(1, '#04070d');
+        // Pleasant, Luminous Executive Slate Background
+        const bgGrad = this.ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h));
+        bgGrad.addColorStop(0, '#1e293b');    // Warm, luminous slate-800 center
+        bgGrad.addColorStop(0.6, '#141d2e');  // Calm deep slate
+        bgGrad.addColorStop(1, '#0f172a');    // Elegant slate perimeter (never pitch black)
         this.ctx.fillStyle = bgGrad;
         this.ctx.fillRect(0, 0, w, h);
 
@@ -9087,7 +9087,7 @@ Output ONLY the message without markdown code fences.`;
             this.ctx.stroke();
           }
 
-          // 3D Sphere Radial Gradient
+          // 3D Sphere Radial Gradient: Luminous, pleasant, gemstone pearl shading
           const sphereGrad = this.ctx.createRadialGradient(
             node.screenX - r * 0.35,
             node.screenY - r * 0.35,
@@ -9096,16 +9096,16 @@ Output ONLY the message without markdown code fences.`;
             node.screenY,
             r
           );
-          sphereGrad.addColorStop(0, '#ffffff');
-          sphereGrad.addColorStop(0.3, node.color);
-          sphereGrad.addColorStop(0.9, shadeColor(node.color, -35));
-          sphereGrad.addColorStop(1, '#020617');
+          sphereGrad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+          sphereGrad.addColorStop(0.25, shadeColor(node.color, 18));
+          sphereGrad.addColorStop(0.7, node.color);
+          sphereGrad.addColorStop(1, shadeColor(node.color, -22));
 
           this.ctx.beginPath();
           this.ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
           this.ctx.fillStyle = sphereGrad;
           this.ctx.fill();
-          this.ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
           this.ctx.lineWidth = 1;
           this.ctx.stroke();
 
@@ -9121,9 +9121,9 @@ Output ONLY the message without markdown code fences.`;
           this.ctx.font = 'bold 11px system-ui, -apple-system, sans-serif';
           const textWidth = this.ctx.measureText(node.name).width;
 
-          // Pill Background
-          this.ctx.fillStyle = 'rgba(11, 15, 25, 0.88)';
-          this.ctx.strokeStyle = isSel ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+          // Pill Background - Pleasant Slate Glass
+          this.ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
+          this.ctx.strokeStyle = isSel ? '#38bdf8' : 'rgba(148, 163, 184, 0.28)';
           this.ctx.lineWidth = 1;
           const pillW = textWidth + 14;
           const pillH = 19;
