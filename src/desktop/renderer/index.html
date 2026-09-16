@@ -4976,25 +4976,498 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 </div>
 <!-- 5D: ENTERPRISE SUITE & COMPLIANCE ENGINES -->
                 <div id="p5StepDPanel" role="tabpanel" aria-labelledby="btnP5StepD" style="display: none;">
-                <!-- Complete Enterprise Commercial Suite Modules -->
-                <div style="background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                      <span>💎</span> Section 5D: Enterprise Commercial Suite &amp; Compliance Engines
+                  <!-- Complete Enterprise Commercial Suite Modules -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--accent); border-radius: 8px; padding: 14px 16px; margin-top: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <div style="font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                        <span>💎</span> Section 5D: Enterprise Commercial Suite &amp; Compliance Engines
+                      </div>
+                      <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); font-size: 9.5px;">SOC2 / HIPAA AIR-GAPPED</span>
                     </div>
-                    <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); font-size: 9.5px;">SOC2 / HIPAA AIR-GAPPED</span>
+
+                    <!-- 8 Commercial Module Switcher Tabs -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px;" id="entModuleButtonsGrid">
+                      <button class="btn-quick active ent-mod-btn" id="btnRunTranspileSql" style="font-size: 10.5px; padding: 7px 6px; border-color: var(--accent); background: rgba(56, 189, 248, 0.15); color: #fff; font-weight: 600;" aria-label="SQL Transpiler">🔄 SQL Transpiler</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunPiiMasking" style="font-size: 10.5px; padding: 7px 6px;" aria-label="PII Masking Engine">🎭 PII Masking Engine</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunReverseEtl" style="font-size: 10.5px; padding: 7px 6px;" aria-label="Reverse ETL Worker">⚡ Reverse ETL Worker</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunRls" style="font-size: 10.5px; padding: 7px 6px;" aria-label="RLS Policies">🔐 RLS Policies</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunSynthetic" style="font-size: 10.5px; padding: 7px 6px;" aria-label="Synthetic Data">🌱 Synthetic Data</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunMockServer" style="font-size: 10.5px; padding: 7px 6px;" aria-label="Mock API Server">📡 Mock API Server</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunLoadTest" style="font-size: 10.5px; padding: 7px 6px;" aria-label="SLA Load Testing">⚡ SLA Load Testing</button>
+                      <button class="btn-quick ent-mod-btn" id="btnRunDataQuality" style="font-size: 10.5px; padding: 7px 6px;" aria-label="Data Quality Gates">🧪 Data Quality Gates</button>
+                    </div>
+
+                    <!-- Workstation Container for the 8 Enterprise Modules -->
+                    <div id="entModulesWorkspace" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+
+                      <!-- MODULE 1: SQL TRANSPILER -->
+                      <div id="entPaneSql" class="ent-mod-pane">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>🔄</span> Enterprise Cross-Dialect SQL Transpiler
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Migrate legacy Oracle and T-SQL queries into Cloud Warehouses with automated AST function mapping, data type conversions, and dbt configs.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: var(--accent); font-size: 9.5px;">AST ENGINE</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Source Dialect</label>
+                            <select id="selSqlSourceDialect" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="oracle" selected>Oracle PL/SQL</option>
+                              <option value="tsql">T-SQL (SQL Server)</option>
+                              <option value="postgres">PostgreSQL</option>
+                              <option value="snowflake">Snowflake</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target Warehouse</label>
+                            <select id="selSqlTargetDialect" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="bigquery" selected>Google BigQuery</option>
+                              <option value="postgres">PostgreSQL / Supabase</option>
+                              <option value="snowflake">Snowflake</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target dbt Model Name</label>
+                            <input type="text" id="txtSqlModelName" value="stg_orders_transpiled" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <label style="font-size: 10.5px; color: #fff; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 5px;">
+                              <input type="checkbox" id="chkSqlDbtConfig" checked style="margin: 0;"> Wrap in dbt config()
+                            </label>
+                          </div>
+                        </div>
+
+                        <div style="margin-bottom: 10px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <label style="font-size: 10px; color: var(--text-secondary);">Source Legacy SQL Query</label>
+                            <button class="btn-quick" id="btnSqlLoadSample" style="padding: 1px 6px; font-size: 9.5px;">↺ Load Sample</button>
+                          </div>
+                          <textarea id="txtSqlSourceQuery" rows="4" style="width: 100%; background: #0c1119; border: 1px solid var(--border); color: #85e89d; font-family: monospace; font-size: 11px; border-radius: 4px; padding: 8px; box-sizing: border-box; resize: vertical;">SELECT 
+  NVL(order_id, 0) AS order_id,
+  NVL(customer_id, -1) AS customer_id,
+  CAST(order_total AS NUMBER(12,2)) AS order_amount,
+  VARCHAR2(status) AS order_status,
+  SYSDATE AS extracted_at
+FROM legacy_orders
+WHERE order_date >= SYSDATE - 30;</textarea>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteSqlTranspile" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Transpile SQL Query</button>
+                            <button class="btn-quick" id="btnCopyTranspiledSql" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveTranspiledSql" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to models/</button>
+                          </div>
+                          <div id="sqlStatsPills" style="display: flex; gap: 6px; font-size: 10px;">
+                            <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success);">Score: 100% Ready</span>
+                            <span class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: var(--accent);">AST: NVL → COALESCE</span>
+                          </div>
+                        </div>
+
+                        <div id="sqlTranspileResultBox">
+                          <pre class="code-preview" id="sqlTranspileCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">-- Click "⚡ Transpile SQL Query" to translate AST syntax</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 2: PII MASKING ENGINE -->
+                      <div id="entPanePii" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>🎭</span> Zero-Trust PII / PHI Sanitization &amp; Compliance Suite
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Automated cryptographic SHA-256 tokenization, partial masking rules, dbt staging views, and compliance audit reports.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 9.5px;">SOC2 / HIPAA</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target Staging Model</label>
+                            <input type="text" id="txtPiiModelName" value="stg_customers_sanitized" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Source Raw Table</label>
+                            <input type="text" id="txtPiiSourceTable" value="raw_customers" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Regulatory Profile</label>
+                            <select id="selPiiPreset" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="hipaa" selected>Healthcare HIPAA (PHI Redaction)</option>
+                              <option value="pci">FinTech PCI-DSS (PAN/CVV Masking)</option>
+                              <option value="soc2">Enterprise SOC2 Type II (Tokenization)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <!-- Interactive Masking Rules Matrix -->
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; margin-bottom: 10px;">
+                          <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 6px;">Configured Column Masking Rules:</div>
+                          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 10.5px;">
+                            <div style="background: var(--card-bg); padding: 5px 8px; border-radius: 3px; border: 1px solid var(--border);"><strong style="color: var(--accent);">email</strong>: HMAC SHA-256 Tokenization</div>
+                            <div style="background: var(--card-bg); padding: 5px 8px; border-radius: 3px; border: 1px solid var(--border);"><strong style="color: var(--accent);">phone</strong>: Partial Redact (***-***-1234)</div>
+                            <div style="background: var(--card-bg); padding: 5px 8px; border-radius: 3px; border: 1px solid var(--border);"><strong style="color: var(--accent);">ssn</strong>: Partial Redact (***-**-1234)</div>
+                            <div style="background: var(--card-bg); padding: 5px 8px; border-radius: 3px; border: 1px solid var(--border);"><strong style="color: var(--accent);">credit_card</strong>: Full Redact ([REDACTED])</div>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecutePiiMasking" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Generate PII Masking Suite</button>
+                            <button class="btn-quick" id="btnCopyPiiCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSavePiiSuite" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to Workspace</button>
+                          </div>
+                          <!-- Subtabs -->
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnPiiTabStaging" style="font-size: 9.5px; padding: 2px 8px;">Staging View (.sql)</button>
+                            <button class="btn-quick" id="btnPiiTabMacro" style="font-size: 9.5px; padding: 2px 8px;">dbt Macro (.sql)</button>
+                            <button class="btn-quick" id="btnPiiTabPython" style="font-size: 9.5px; padding: 2px 8px;">Python Script (.py)</button>
+                            <button class="btn-quick" id="btnPiiTabAudit" style="font-size: 9.5px; padding: 2px 8px;">Audit Memo (.md)</button>
+                          </div>
+                        </div>
+
+                        <div id="piiResultBox">
+                          <pre class="code-preview" id="piiCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">-- Click "⚡ Generate PII Masking Suite" to generate zero-trust artifacts</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 3: REVERSE ETL WORKER -->
+                      <div id="entPaneReverseEtl" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>⚡</span> High-Throughput Reverse ETL Sync Worker
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Sync aggregated warehouse marts to business SaaS applications with SHA-256 idempotency deduplication and rate-limiting.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; font-size: 9.5px;">IDEMPOTENT WORKER</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Sync Name</label>
+                            <input type="text" id="txtReverseEtlSyncName" value="sync_orders_to_salesforce" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Source Warehouse Mart</label>
+                            <input type="text" id="txtReverseEtlSource" value="fct_orders_mart" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Destination App</label>
+                            <select id="selReverseEtlSink" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="salesforce" selected>Salesforce CRM</option>
+                              <option value="hubspot">HubSpot</option>
+                              <option value="stripe">Stripe</option>
+                              <option value="webhook">Custom Webhook</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Batch Size / Rate Limit</label>
+                            <div style="display: flex; gap: 4px;">
+                              <input type="number" id="numReverseEtlBatch" value="100" title="Batch Size" style="width: 50%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <input type="number" id="numReverseEtlRate" value="50" title="Rate Limit / sec" style="width: 50%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteReverseEtl" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Scaffold Sync Worker</button>
+                            <button class="btn-quick" id="btnCopyReverseEtlCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveReverseEtl" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to src/sync/</button>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnRetlTabPy" style="font-size: 9.5px; padding: 2px 8px;">Python Worker (.py)</button>
+                            <button class="btn-quick" id="btnRetlTabTs" style="font-size: 9.5px; padding: 2px 8px;">TypeScript Worker (.ts)</button>
+                            <button class="btn-quick" id="btnRetlTabDocker" style="font-size: 9.5px; padding: 2px 8px;">Docker Compose (.yml)</button>
+                          </div>
+                        </div>
+
+                        <div id="reverseEtlResultBox">
+                          <pre class="code-preview" id="reverseEtlCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;"># Click "⚡ Scaffold Sync Worker" to generate idempotent worker code</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 4: RLS POLICIES -->
+                      <div id="entPaneRls" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>🔐</span> Zero-Trust Row-Level Security Policies
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Cryptographic tenant isolation policies enforcing hard multi-tenant boundaries at the database engine level.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 9.5px;">ZERO-TRUST RLS</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target Table</label>
+                            <input type="text" id="txtRlsTableName" value="client_invoices" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Tenant Isolation Column</label>
+                            <input type="text" id="txtRlsTenantCol" value="org_id" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target Database Engine</label>
+                            <select id="selRlsEngine" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="postgres" selected>PostgreSQL / Supabase</option>
+                              <option value="snowflake">Snowflake (Row Access)</option>
+                              <option value="bigquery">Google BigQuery (Row Filter)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteRls" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Generate RLS Policies</button>
+                            <button class="btn-quick" id="btnCopyRlsCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveRls" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to security/</button>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnRlsTabDdl" style="font-size: 9.5px; padding: 2px 8px;">RLS Policy DDL (.sql)</button>
+                            <button class="btn-quick" id="btnRlsTabTest" style="font-size: 9.5px; padding: 2px 8px;">Verification Query (.sql)</button>
+                            <button class="btn-quick" id="btnRlsTabDoc" style="font-size: 9.5px; padding: 2px 8px;">Architecture Spec (.md)</button>
+                          </div>
+                        </div>
+
+                        <div id="rlsResultBox">
+                          <pre class="code-preview" id="rlsCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">-- Click "⚡ Generate RLS Policies" to generate zero-trust policies</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 5: SYNTHETIC DATA -->
+                      <div id="entPaneSynthetic" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>🌱</span> Air-Gapped Golden Synthetic Dataset Generator
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Produce relationally linked mock customers, invoices, events, and DDL SQL seeds with zero production PII exposure.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 9.5px;">AIR-GAPPED SEEDS</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Row Count (Records)</label>
+                            <input type="number" id="numSyntheticRows" value="100" min="10" max="5000" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Domain Context</label>
+                            <select id="selSyntheticDomain" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="Healthcare" selected>Healthcare (HIPAA De-ID)</option>
+                              <option value="FinTech">FinTech &amp; Banking</option>
+                              <option value="Retail">E-Commerce &amp; Retail</option>
+                              <option value="SupplyChain">Supply Chain &amp; Logistics</option>
+                            </select>
+                          </div>
+                          <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <div style="font-size: 10.5px; color: var(--text-secondary);">
+                              Includes: <strong>Customers CSV</strong> + <strong>Invoices CSV</strong> (2x rows) + <strong>Events JSON</strong> + <strong>Seed DDL</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteSynthetic" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Generate Golden Dataset</button>
+                            <button class="btn-quick" id="btnCopySyntheticCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveSynthetic" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to seeds/</button>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnSynthTabCust" style="font-size: 9.5px; padding: 2px 8px;">mock_customers.csv</button>
+                            <button class="btn-quick" id="btnSynthTabInv" style="font-size: 9.5px; padding: 2px 8px;">mock_invoices.csv</button>
+                            <button class="btn-quick" id="btnSynthTabEvents" style="font-size: 9.5px; padding: 2px 8px;">mock_events.json</button>
+                            <button class="btn-quick" id="btnSynthTabDdl" style="font-size: 9.5px; padding: 2px 8px;">seed_ddl.sql</button>
+                          </div>
+                        </div>
+
+                        <div id="syntheticResultBox">
+                          <pre class="code-preview" id="syntheticCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">-- Click "⚡ Generate Golden Dataset" to synthesize mock fixtures</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 6: MOCK API SERVER -->
+                      <div id="entPaneMock" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>📡</span> Zero-Dependency Mock REST API Server
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Spin up a standalone mock server with artificial latency injection to unblock client integration without external dependencies.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: var(--accent); font-size: 9.5px;">STANDALONE HTTP</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Server Port</label>
+                            <input type="number" id="numMockPort" value="9090" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Artificial Latency (ms)</label>
+                            <input type="number" id="numMockLatency" value="80" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Sample Endpoints</label>
+                            <input type="text" id="txtMockEndpoints" value="/api/v1/invoices, /api/v1/customers" readonly style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: var(--text-secondary); border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteMockServer" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Scaffold Mock Server</button>
+                            <button class="btn-quick" id="btnCopyMockCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveMockServer" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to scripts/</button>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnMockTabNode" style="font-size: 9.5px; padding: 2px 8px;">Node.js (scripts/mock_api_server.js)</button>
+                            <button class="btn-quick" id="btnMockTabPy" style="font-size: 9.5px; padding: 2px 8px;">Python (scripts/mock_api_server.py)</button>
+                            <button class="btn-quick" id="btnMockTabSh" style="font-size: 9.5px; padding: 2px 8px;">Shell Runner (.sh)</button>
+                          </div>
+                        </div>
+
+                        <div id="mockServerResultBox">
+                          <pre class="code-preview" id="mockServerCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">// Click "⚡ Scaffold Mock Server" to generate zero-dependency server code</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 7: SLA LOAD TESTING -->
+                      <div id="entPaneLoadTest" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>⚡</span> Multi-Protocol Distributed SLA Load Testing (k6 &amp; Locust)
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Stress-test pilot services under heavy concurrency with automated SLA gates (p95, p99, error rate thresholds).
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; font-size: 9.5px;">k6 &amp; LOCUST</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target Service Endpoint</label>
+                            <input type="text" id="loadTestUrl" value="http://localhost:8080/api/v1/orders" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Virtual Users (Concurrency)</label>
+                            <input type="number" id="loadTestVirtualUsers" value="250" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Ramp Profile</label>
+                            <select id="loadTestProfile" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="spike" selected>Spike Test (0 → 250 → 0 in 2m)</option>
+                              <option value="stress">Stress Test (Constant 250 for 5m)</option>
+                              <option value="soak">Soak Test (Long-Running 30m)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">SLA Latency Gate</label>
+                            <select id="loadTestSla" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="strict" selected>Strict SLA (p95 &lt; 150ms, p99 &lt; 300ms, err &lt; 0.5%)</option>
+                              <option value="standard">Standard SLA (p95 &lt; 500ms, err &lt; 1.0%)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteLoadTest" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Generate Load Test Suite</button>
+                            <button class="btn-quick" id="btnCopyLoadTestCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveLoadTest" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to tests/load/</button>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnLoadTabK6" style="font-size: 9.5px; padding: 2px 8px;">k6 Script (.js)</button>
+                            <button class="btn-quick" id="btnLoadTabLocust" style="font-size: 9.5px; padding: 2px 8px;">Locust Script (.py)</button>
+                            <button class="btn-quick" id="btnLoadTabSh" style="font-size: 9.5px; padding: 2px 8px;">Shell Runner (.sh)</button>
+                            <button class="btn-quick" id="btnLoadTabPs" style="font-size: 9.5px; padding: 2px 8px;">PowerShell (.ps1)</button>
+                          </div>
+                        </div>
+
+                        <div id="loadTestResultBox">
+                          <pre class="code-preview" id="loadTestCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">// Click "⚡ Generate Load Test Suite" to build k6 &amp; Locust suites</pre>
+                        </div>
+                      </div>
+
+                      <!-- MODULE 8: DATA QUALITY GATES -->
+                      <div id="entPaneDataQuality" class="ent-mod-pane" style="display: none;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                          <div>
+                            <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                              <span>🧪</span> Enterprise Data Quality &amp; Schema Drift Gates
+                            </h4>
+                            <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
+                              Emit Great Expectations v3 JSON suites, Soda Core checks, and dbt schema assertions with automated CI/CD gating.
+                            </div>
+                          </div>
+                          <span class="brand-pill" style="background: rgba(137, 209, 133, 0.15); color: var(--success); font-size: 9.5px;">GREAT EXPECTATIONS</span>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px;">
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Target Model Name</label>
+                            <input type="text" id="dqModelName" value="fct_orders_mart" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Freshness SLA (Hours)</label>
+                            <input type="number" id="numDqFreshness" value="24" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Criticality Level</label>
+                            <select id="selDqCriticality" style="width: 100%; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; border-radius: 4px; padding: 4px 6px; font-size: 11px;">
+                              <option value="P0_CRITICAL" selected>P0_CRITICAL (Block CI/CD Pipeline)</option>
+                              <option value="P1_HIGH">P1_HIGH (Alert on Failure)</option>
+                              <option value="P2_MEDIUM">P2_MEDIUM (Log Discrepancy)</option>
+                            </select>
+                          </div>
+                          <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <label style="font-size: 10.5px; color: #fff; display: flex; align-items: center; gap: 6px; cursor: pointer; margin-bottom: 5px;">
+                              <input type="checkbox" id="chkDqStrictOrder" checked style="margin: 0;"> Strict schema drift gate
+                            </label>
+                          </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnExecuteDataQuality" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 12px; font-size: 11px;">⚡ Generate Quality Suite</button>
+                            <button class="btn-quick" id="btnCopyDataQualityCode" style="padding: 5px 10px; font-size: 11px;">📋 Copy</button>
+                            <button class="btn-quick" id="btnSaveDataQuality" style="padding: 5px 10px; font-size: 11px; color: var(--success); border-color: var(--success);">💾 Save to tests/</button>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick active" id="btnDqTabGe" style="font-size: 9.5px; padding: 2px 8px;">Great Expectations (.json)</button>
+                            <button class="btn-quick" id="btnDqTabSoda" style="font-size: 9.5px; padding: 2px 8px;">Soda Core (.yml)</button>
+                            <button class="btn-quick" id="btnDqTabDbt" style="font-size: 9.5px; padding: 2px 8px;">dbt Tests (.yml)</button>
+                            <button class="btn-quick" id="btnDqTabCi" style="font-size: 9.5px; padding: 2px 8px;">CI Runner (.sh)</button>
+                          </div>
+                        </div>
+
+                        <div id="dqResultBox">
+                          <pre class="code-preview" id="dqCodePreview" style="max-height: 240px; overflow: auto; background: #0c1119; border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: monospace; font-size: 11px; color: #d4d4d4; margin: 0;">-- Click "⚡ Generate Quality Suite" to build Great Expectations &amp; Soda gates</pre>
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
-                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                    <button class="btn-quick" id="btnRunTranspileSql" style="font-size: 10.5px; padding: 5px;" aria-label="SQL Transpiler">🔄 SQL Transpiler</button>
-                    <button class="btn-quick" id="btnRunPiiMasking" style="font-size: 10.5px; padding: 5px;" aria-label="PII Masking Engine">🎭 PII Masking Engine</button>
-                    <button class="btn-quick" id="btnRunReverseEtl" style="font-size: 10.5px; padding: 5px;" aria-label="Reverse ETL Worker">⚡ Reverse ETL Worker</button>
-                    <button class="btn-quick" id="btnRunRls" style="font-size: 10.5px; padding: 5px;" aria-label="RLS Policies">🔐 RLS Policies</button>
-                    <button class="btn-quick" id="btnRunSynthetic" style="font-size: 10.5px; padding: 5px;" aria-label="Synthetic Data">🌱 Synthetic Data</button>
-                    <button class="btn-quick" id="btnRunMockServer" style="font-size: 10.5px; padding: 5px;" aria-label="Mock API Server">🎭 Mock API Server</button>
-                    <button class="btn-quick" id="btnRunLoadTest" style="font-size: 10.5px; padding: 5px;" aria-label="SLA Load Testing">⚡ SLA Load Testing</button>
-                    <button class="btn-quick" id="btnRunDataQuality" style="font-size: 10.5px; padding: 5px;" aria-label="Data Quality Gates">🧪 Data Quality Gates</button>
-                  </div>
-                </div>
                 </div>
               </div>
 
