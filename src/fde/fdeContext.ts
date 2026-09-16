@@ -117,6 +117,7 @@ export interface FdeDiscoveryState {
   };
   customFutureDiagram?: string;
   customLegacyDiagram?: string;
+  activeTopologyTemplate?: string;
 }
 
 export interface FdeAiSolutionState {

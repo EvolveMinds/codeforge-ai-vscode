@@ -3153,7 +3153,8 @@ Key Structural Insights:
       add(stateFile, stateJson, 'Engagement state the Studio reloads on next open');
       add(scopeFile, buildScopeMarkdown(data?.clientName || 'Client Pilot Engagement', data), 'Client-readable scope and ROI summary');
       if (data?.customFutureDiagram) {
-        add(topoFile, '# Workflow Topology Architecture\n\n```mermaid\n' + data.customFutureDiagram + '\n```\n', 'Proposed workflow diagram as Mermaid');
+        const tplNote = data.activeTopologyTemplate ? `\n> **Active Architecture Preset**: \`${data.activeTopologyTemplate}\`\n\n` : '\n\n';
+        add(topoFile, '# Workflow Topology Architecture' + tplNote + '```mermaid\n' + data.customFutureDiagram + '\n```\n', 'Proposed workflow diagram as Mermaid');
       }
 
       let writable = true;
@@ -3221,7 +3222,8 @@ Key Structural Insights:
         writtenPaths.push(path.join(docsDir, 'SCOPE_BOUNDARIES.md'));
 
         if (data.customFutureDiagram) {
-          const topoMd = '# 🗺️ Workflow Topology Architecture\n\n```mermaid\n' + data.customFutureDiagram + '\n```\n';
+          const tplNote = data.activeTopologyTemplate ? `\n> **Active Architecture Preset**: \`${data.activeTopologyTemplate}\`\n\n` : '\n\n';
+          const topoMd = '# 🗺️ Workflow Topology Architecture' + tplNote + '```mermaid\n' + data.customFutureDiagram + '\n```\n';
           fs.writeFileSync(path.join(docsDir, 'WORKFLOW_TOPOLOGY.md'), topoMd, 'utf-8');
           writtenPaths.push(path.join(docsDir, 'WORKFLOW_TOPOLOGY.md'));
         }
@@ -5929,7 +5931,7 @@ Approved economic projections based on verifiable operational telemetry:
 ---
 
 ## 6. Current vs Future State Workflow Topology
-
+${disc.activeTopologyTemplate ? `\n> **Active Architecture Preset**: \`${disc.activeTopologyTemplate}\`\n` : ''}
 ### Proposed Production Architecture:
 \`\`\`mermaid
 ${disc.customFutureDiagram || `sequenceDiagram

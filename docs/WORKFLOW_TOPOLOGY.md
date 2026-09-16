@@ -3,17 +3,15 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Operator as Field Operator
-    participant EdgeApp as Mobile Edge Client
-    participant AICore as Auto-Extraction & Validation Core
-    actor Reviewer as Quality Assurance Gate
-    participant ERP as Enterprise SAP / ERP
-    participant VectorStore as Vector Store
-    Operator->>EdgeApp: Snap invoice / receipt photo (⚡ Instant)
-    EdgeApp->>AICore: Upload OCR image payload
-    AICore->>AICore: Multi-modal document parsing & tax check
-    AICore->>Reviewer: Exception routing on 99.8% confidence
-    Reviewer-->>AICore: Approve batch anomaly
-    AICore->>ERP: Post journal entry via authenticated REST API
-    ERP-->>Operator: Confirmed transaction receipt (⚡ <1.5s)
+    actor Operator as Business Operator / User
+    participant Ingest as Secure API / Webhook Gateway
+    participant Agent as Evolve AI Production System
+    actor Supervisor as Human-in-the-Loop (HITL) Gate
+    participant Target as Production DB / Warehouse
+    
+    Operator->>Ingest: Submit task payload
+    Ingest->>Agent: Parse & execute deterministic pipeline
+    Agent->>Supervisor: Structured draft & audit proposal
+    Supervisor->>Target: Verified 1-Click Execution
+    Target-->>Operator: Cryptographically signed confirmation
 ```

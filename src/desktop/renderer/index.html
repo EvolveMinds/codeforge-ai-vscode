@@ -1532,19 +1532,27 @@
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <div>
-                      <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                        <span>🗺️</span> 3. Current vs Future State Workflow Topology
-                      </span>
+                      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                          <span>🗺️</span> 3. Current vs Future State Workflow Topology
+                        </span>
+                        <span id="fdeActiveTemplatePill" style="display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; padding: 2px 10px; border-radius: 12px; background: rgba(56, 189, 248, 0.14); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; transition: all 0.2s ease;" title="Active Architecture Template">
+                          <span style="opacity: 0.75; font-weight: 500;">Active Architecture:</span>
+                          <span id="fdeActiveTemplateName">🤖 Enterprise AI Core &amp; HITL Gate</span>
+                        </span>
+                      </div>
                       <span style="font-size: 11px; color: var(--text-secondary);">Interactive Mermaid sequence topology contrasting legacy manual bottlenecks against the proposed FDE AI system. Editable for custom projects.</span>
                     </div>
                     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                      <select id="selFdeTopologyTemplate" class="select-fde" style="padding: 4px 8px; font-size: 10.5px; background: rgba(30, 41, 59, 0.9); color: #38bdf8; border: 1px solid #0284c7; border-radius: 4px; font-weight: 600; cursor: pointer;" aria-label="Showcase Architecture Templates">
-                        <option value="" disabled selected>🎭 Showcase Templates...</option>
-                        <option value="enterprise-ai">🤖 Enterprise AI Core &amp; HITL Gate</option>
+                      <select id="selFdeTopologyTemplate" class="select-fde" style="padding: 4px 8px; font-size: 10.5px; background: rgba(30, 41, 59, 0.95); color: #38bdf8; border: 1px solid #0284c7; border-radius: 4px; font-weight: 700; cursor: pointer;" aria-label="Showcase Architecture Templates">
+                        <option value="" disabled>🎭 Select Showcase Template...</option>
+                        <option value="enterprise-ai" selected>🤖 Enterprise AI Core &amp; HITL Gate</option>
                         <option value="legacy-silo">⏳ Legacy Manual Silo &amp; Bottlenecks</option>
                         <option value="streaming-fraud">⚡ Real-Time Streaming &amp; Fraud</option>
                         <option value="hipaa-vault">🏥 Healthcare HIPAA De-ID Vault</option>
                         <option value="fin-settlement">📈 Financial Trade Settlement</option>
+                        <option value="custom" disabled hidden>✏️ Custom / Modified Architecture</option>
+                        <option value="__reload__">↺ Reload Clean Preset</option>
                       </select>
                       <button class="btn-quick" id="btnFdeAnimateFlow" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(16, 185, 129, 0.25)); border: 1px solid #06b6d4; color: #22d3ee; font-weight: 700;" aria-label="Animate Step Flow">▶ Animate Flow</button>
                       <button class="btn-quick" id="btnFdeAiGenTopology" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700;" aria-label="AI Synthesize Topology">✨ AI Synthesize Topology</button>
@@ -1570,6 +1578,7 @@
                     <button role="tab" id="btnFdeViewArrange" aria-selected="false" aria-controls="fdeTopologyArrange" class="btn-quick" style="font-size: 10.5px;" aria-label="Rearrange participants and steps by dragging">☰ Arrange</button>
                     <button role="tab" id="btnFdeViewSource" aria-selected="false" aria-controls="fdeTopologyPreviewContainer" class="btn-quick" style="font-size: 10.5px;" aria-label="Show and edit Mermaid source">✎ Source</button>
                     <span id="fdeEditingBanner" aria-live="polite" style="font-size: 10px; font-weight: 700; color: var(--success); background: rgba(137, 209, 133, 0.12); border: 1px solid var(--success); padding: 2px 8px; border-radius: 10px; align-self: center; margin-left: 6px;">● Editing: Future State (proposed workflow)</span>
+                    <span id="fdeTemplateStatusSubPill" style="font-size: 10px; font-weight: 600; color: #94a3b8; background: rgba(30, 41, 59, 0.85); border: 1px solid rgba(148, 163, 184, 0.25); padding: 2px 8px; border-radius: 10px; align-self: center; margin-left: 6px;">Arch: 🤖 Enterprise AI Core &amp; HITL Gate</span>
                     <span id="fdeDiagramStatus" aria-live="polite" style="font-size: 10.5px; color: var(--text-secondary); align-self: center; margin-left: 6px;"></span>
                   </div>
 
@@ -1592,8 +1601,12 @@
 
                       <button class="btn-quick" id="btnFdeCanvasAddParticipant" style="font-size: 10.5px; border-color: #38bdf8; color: #38bdf8; font-weight: 600;" aria-label="Add a new participant or system to the canvas">+ System / Actor</button>
                       <button class="btn-quick" id="btnFdeCanvasAddStep" style="font-size: 10.5px; border-color: #10b981; color: #10b981; font-weight: 600;" aria-label="Add a new message step to the canvas">+ Step Flow</button>
+                      <span id="fdeCanvasDockArchTag" style="font-size: 10px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 4px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;" title="Currently loaded architecture topology">
+                        <span style="opacity: 0.75; font-size: 9px; text-transform: uppercase;">Topology:</span>
+                        <span id="fdeCanvasDockArchName">🤖 Enterprise AI Core</span>
+                      </span>
                       <span style="font-size: 10px; color: #94a3b8; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px;">
-                        <span>💡</span> Click to edit inline &bull; Drag to reorder &bull; Space+drag / ✋ to pan &bull; Ctrl+wheel to zoom
+                        <span>💡</span> Click to edit &bull; Drag to reorder &bull; Space+drag to pan
                       </span>
                     </div>
 

@@ -33,7 +33,7 @@
     <div class="header">
       <div>
         <h1>Project Scope &amp; Technical Alignment Memorandum</h1>
-        <div style="font-size: 12px; color: #94a3b8;">Client: <strong>Client Executive Sponsor</strong> &bull; Prepared by Forward Deployed Engineering Team &bull; Date: 2026-09-14</div>
+        <div style="font-size: 12px; color: #94a3b8;">Client: <strong>Client Executive Sponsor</strong> &bull; Prepared by Forward Deployed Engineering Team &bull; Date: 2026-09-16</div>
       </div>
       <span class="badge">MEDIUM STANDARD</span>
     </div>
@@ -41,28 +41,31 @@
     <div class="section">
       <h2>1. Executive Summary &amp; Raw Client Request</h2>
       <div style="font-size: 11px; font-weight: 700; color: #38bdf8; margin-top: 8px;">ORIGINAL UNFILTERED ASK:</div>
-      <div class="box-quote">"Automate client manual workflow and data operations with AI."</div>
+      <div class="box-quote">"Build an AI that automates all customer support tickets and refunds so we do not need human agents."</div>
     </div>
 
     <div class="section">
       <h2>2. Gemba Deconstruction &amp; Ground-Truth Observations</h2>
       <div style="font-size: 11px; font-weight: 700; color: #f59e0b; margin-top: 8px;">FLOOR OBSERVATIONS &amp; SHADOW WORKAROUNDS:</div>
-      <div class="box-floor" style="white-space: pre-wrap;">Observed manual shadow IT and variance between declared SOPs and actual operational execution.</div>
+      <div class="box-floor" style="white-space: pre-wrap;">• Shadow IT: Agents keep 40+ personal text snippets in Notepad and message colleagues in Slack for policy interpretations.
+• Process Reality: 65% of tickets are repetitive status queries ("Where is my order?"), while agents spend 12 mins researching complex exceptions.
+• Risk Observed: Customers frequently paste aggressive prompts attempting to trigger auto-replies with discount codes.</div>
       
       <div style="font-size: 11px; font-weight: 700; color: #94a3b8; margin-top: 10px;">KEY INQUIRY PROBES EXAMINED:</div>
       <ul>
-        <li><strong>[Shadow IT]</strong> What manual workarounds, personal spreadsheets, or unofficial channels bypass the official system?</li><li><strong>[Failure Mode]</strong> What is the absolute worst-case outcome if this automated workflow executes incorrect actions?</li><li><strong>[Exception Iceberg]</strong> What proportion of inputs do not follow the declared standard process, and who handles them today?</li><li><strong>[Regulatory Gate]</strong> What compliance frameworks, audit log requirements, or legal constraints govern this workflow?</li>
+        <li><strong>[Failure Mode]</strong> How do you prevent adversarial customers from using prompt injection in inbound emails to extract concessions or refunds?</li><li><strong>[Shadow IT]</strong> What undocumented canned responses, macro shortcuts, or team Slack channels do support agents rely on?</li><li><strong>[Regulatory Gate]</strong> Who has authority to grant SLA credits or policy exceptions, and what threshold requires supervisor sign-off?</li>
       </ul>
     </div>
 
     <div class="section">
       <h2>3. Observation-to-Spec (O2S) &amp; Agreed Production Target</h2>
       <div style="font-size: 11px; font-weight: 700; color: #10b981; margin-top: 8px;">AGREED PRODUCTION TARGET:</div>
-      <div class="box-goal">Deterministic staging models, compiled SQL tolerance matching (<5ms), and an air-gapped policy RAG copilot with 1-click human supervisor approval.</div>
+      <div class="box-goal">Reframed Production Architecture (Semantic Router & Grounded Copilot):
+Deploy a fast sub-30ms semantic classifier to fast-route routine queries to deterministic rule engines (<50ms). Route complex queries to an air-gapped knowledge RAG copilot that drafts grounded responses for 1-click human agent approval.</div>
 
       <div style="font-size: 11px; font-weight: 700; color: #e5b567; margin-top: 14px;">EXPLICIT OUT-OF-SCOPE BOUNDARY LOCKS:</div>
       <ul>
-        <li>🔒 <strong>No direct production write access without cryptographically signed audit log</strong></li><li>🔒 <strong>No ungrounded responses or unverified external API mutations</strong></li>
+        <li>🔒 <strong>No autonomous customer email dispatch without human agent 1-click confirmation</strong></li><li>🔒 <strong>No execution of refund promises or SLA modifications without supervisor approval</strong></li><li>🔒 <strong>No processing of unverified attachments or embedded prompt injection vectors</strong></li><li>🔒 <strong>No direct production database mutations from customer-provided inputs</strong></li>
       </ul>
     </div>
 
@@ -71,13 +74,13 @@
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-lbl">Projected Monthly Savings</div>
-          <div class="kpi-val">$61.2k / mo</div>
-          <div style="font-size: 11px; color: #94a3b8;">$734k annual run-rate</div>
+          <div class="kpi-val">$86.2k / mo</div>
+          <div style="font-size: 11px; color: #94a3b8;">$1034k annual run-rate</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-lbl">Labor Hours Reclaimed</div>
-          <div class="kpi-val">1,750 hrs</div>
-          <div style="font-size: 11px; color: #94a3b8;">10.9 FTE Capacity Unlocked</div>
+          <div class="kpi-val">3,080 hrs</div>
+          <div style="font-size: 11px; color: #94a3b8;">19.3 FTE Capacity Unlocked</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-lbl">Hallucination / Error Drop</div>
@@ -112,7 +115,7 @@
           <td><strong>Lead Forward Deployed Engineer</strong></td>
           <td>Evolve AI Delivery Team</td>
           <td><strong style="color: #4ade80;">[DIGITALLY VERIFIED]</strong></td>
-          <td>2026-09-14</td>
+          <td>2026-09-16</td>
         </tr>
       </table>
     </div>

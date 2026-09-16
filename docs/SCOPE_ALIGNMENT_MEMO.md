@@ -2,7 +2,7 @@
 
 **To:** Client Executive Sponsor Leadership & Business Stakeholders  
 **From:** Forward Deployed Engineering (FDE) Team — Evolve AI  
-**Date:** 2026-09-14  
+**Date:** 2026-09-16  
 **Status:** ✅ **Aligned & Formally Scoped**  
 **Delivery Standard:** `MEDIUM STANDARD`  
 **Version:** `v1.0 (Production Discovery Baseline)`  
@@ -12,7 +12,7 @@
 ## 1. Executive Summary & Raw Request
 
 During initial discovery, the unfiltered operational request presented was:
-> *"Automate client manual workflow and data operations with AI."*
+> *"Build an AI that automates all customer support tickets and refunds so we do not need human agents."*
 
 ---
 
@@ -21,13 +21,14 @@ During initial discovery, the unfiltered operational request presented was:
 Direct floor shadowing and operational inspection revealed the operational baseline:
 
 ### Key Inquiries & Probing Answers:
-- [x] **[Shadow IT]** What manual workarounds, personal spreadsheets, or unofficial channels bypass the official system?
-- [x] **[Failure Mode]** What is the absolute worst-case outcome if this automated workflow executes incorrect actions?
-- [x] **[Exception Iceberg]** What proportion of inputs do not follow the declared standard process, and who handles them today?
-- [x] **[Regulatory Gate]** What compliance frameworks, audit log requirements, or legal constraints govern this workflow?
+- [x] **[Failure Mode]** How do you prevent adversarial customers from using prompt injection in inbound emails to extract concessions or refunds?
+- [x] **[Shadow IT]** What undocumented canned responses, macro shortcuts, or team Slack channels do support agents rely on?
+- [x] **[Regulatory Gate]** Who has authority to grant SLA credits or policy exceptions, and what threshold requires supervisor sign-off?
 
 ### Floor Reality & Shadow Workarounds:
-> Observed manual workarounds, offline cross-referencing, and significant variance between declared SOPs and ground reality.
+> • Shadow IT: Agents keep 40+ personal text snippets in Notepad and message colleagues in Slack for policy interpretations.
+• Process Reality: 65% of tickets are repetitive status queries ("Where is my order?"), while agents spend 12 mins researching complex exceptions.
+• Risk Observed: Customers frequently paste aggressive prompts attempting to trigger auto-replies with discount codes.
 
 ---
 
@@ -36,31 +37,42 @@ Direct floor shadowing and operational inspection revealed the operational basel
 To eliminate probabilistic risk, customer assumptions were deconstructed down to fundamental data physics and legal invariants:
 
 ### Invariant Gate 1:
-* **Client Assumption:** *"Full autonomous automation can replace human operators on Day 1"*
-* **Underlying Constraint / Physics:** Edge-case entropy and real-world variance make unconstrained end-to-end automation brittle
-* **Hard Engineering Invariant:** 🔒 **Deterministic core for repeatable rules + Human-in-the-Loop approval gate for variance exceptions**
+* **Client Assumption:** *"LLM can read emails and autonomously send replies to customers"*
+* **Underlying Constraint / Physics:** Untrusted user input can contain prompt injection attacks and hallucinate legally binding promises
+* **Hard Engineering Invariant:** 🔒 **Zero autonomous dispatch: human agent 1-click confirmation required for all customer communications**
 
 ### Invariant Gate 2:
-* **Client Assumption:** *"Probabilistic AI outputs can directly mutate operational databases"*
-* **Underlying Constraint / Physics:** AI hallucination rate > 0% creates creeping data corruption without cryptographically verified provenance
-* **Hard Engineering Invariant:** 🔒 **Zero direct database writes from generative models without schema validation and signed audit trails**
+* **Client Assumption:** *"Use large LLM for every inbound ticket triage"*
+* **Underlying Constraint / Physics:** Large LLMs incur 1500ms latency and high compute cost for trivial status lookups
+* **Hard Engineering Invariant:** 🔒 **Sub-30ms deterministic intent router; routine status routed to compiled DB lookup (<10ms)**
+
+### Invariant Gate 3:
+* **Client Assumption:** *"Copilot can draft answers from open web or arbitrary training weights"*
+* **Underlying Constraint / Physics:** Generates outdated return policies and incorrect SLA commitments
+* **Hard Engineering Invariant:** 🔒 **Strict grounding: copilot answers only from versioned, approved support knowledge base**
 
 
 ### Identified Operational Risks & Fallacies:
-Direct generative hallucinations, unverified database mutations, and lack of verifiable audit trails.
+CRITICAL CUSTOMER EXPERIENCE & SECURITY RISKS:
+1. Prompt Injection from Untrusted Emails: Customers or external parties embedding adversarial prompts to manipulate ticket resolutions.
+2. Hallucinated Commitments: LLM promising customer refunds, SLA guarantees, or policy exceptions not authorized by corporate guidelines.
+3. Repetitive Triage Latency: Running heavy LLM generation on routine status queries instead of fast sub-30ms intent classifiers.
 
 ---
 
 ## 4. Observation-to-Spec (O2S): Agreed Production Target
 
 ### Reframed Production Target:
-Implement deterministic staging models, compiled SQL tolerance matching (<5ms), and an air-gapped policy RAG copilot with 1-click human supervisor approval.
+Reframed Production Architecture (Semantic Router & Grounded Copilot):
+Deploy a fast sub-30ms semantic classifier to fast-route routine queries to deterministic rule engines (<50ms). Route complex queries to an air-gapped knowledge RAG copilot that drafts grounded responses for 1-click human agent approval.
 
 ### Explicit Out-of-Scope Boundary Locks:
 To guarantee 100% production reliability and zero hallucination drift, the following boundaries are contractually locked:
 
-- [x] 🔒 **No direct production write access without cryptographically signed audit log**
-- [x] 🔒 **No ungrounded responses or unverified external API mutations**
+- [x] 🔒 **No autonomous customer email dispatch without human agent 1-click confirmation**
+- [x] 🔒 **No execution of refund promises or SLA modifications without supervisor approval**
+- [x] 🔒 **No processing of unverified attachments or embedded prompt injection vectors**
+- [x] 🔒 **No direct production database mutations from customer-provided inputs**
 
 ---
 
@@ -70,10 +82,10 @@ Approved economic projections based on verifiable operational telemetry:
 
 | Metric | Baseline | Proposed AI System | Impact / Benefit |
 | :--- | :---: | :---: | :--- |
-| **Monthly Task Volume** | 10,000 | 10,000 | 100% automated intake |
-| **Average Handle Time** | 15 mins | <10ms (SQL) / <2 mins (HITL) | **85%+ speedup** |
-| **Monthly Labor Reclaimed** | 2,500 hrs | 750 hrs | **1,750 hours/mo unlocked** |
-| **Projected Cost Reduction** | Baseline Cost | Optimized Cost | **$61.2k / month ($734k/yr)** |
+| **Monthly Task Volume** | 22,000 | 22,000 | 100% automated intake |
+| **Average Handle Time** | 12 mins | <10ms (SQL) / <2 mins (HITL) | **85%+ speedup** |
+| **Monthly Labor Reclaimed** | 4,400 hrs | 1,320 hrs | **3,080 hours/mo unlocked** |
+| **Projected Cost Reduction** | Baseline Cost | Optimized Cost | **$86.2k / month ($1034k/yr)** |
 | **Hallucination Rate** | 22% (Human Fatigue) | **0.0%** (Compiled SQL Rules) | **Zero balance drift** |
 
 ---
@@ -84,17 +96,23 @@ Approved economic projections based on verifiable operational telemetry:
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Operator as Business Operator / User
-    participant Ingest as Secure API / Webhook Gateway
-    participant Agent as Evolve AI Production System
+    actor User as Business Operator / User
+    participant Gateway as Secure Ingest & Webhook Gateway
+    participant Staging as Deterministic Schema Staging & Rule Gate
+    participant AI as Evolve AI Copilot (Air-Gapped)
     actor Supervisor as Human-in-the-Loop (HITL) Gate
-    participant Target as Production DB / Warehouse
+    participant ProdDB as Production Warehouse & Signed Audit Log
     
-    Operator->>Ingest: Submit task payload
-    Ingest->>Agent: Parse & execute deterministic pipeline
-    Agent->>Supervisor: Structured draft & audit proposal
-    Supervisor->>Target: Verified 1-Click Execution
-    Target-->>Operator: Cryptographically signed confirmation
+    User->>Gateway: Submit structured request payload
+    Gateway->>Staging: Normalize & execute compiled SQL validation (<10ms)
+    alt High-Confidence Deterministic Operation
+        Staging->>ProdDB: Instant verified commit with audit trail
+    else Requires Policy Interpretation or Exceeds Threshold
+        Staging->>AI: Enrich with 128-token grounded handbook context
+        AI->>Supervisor: Draft verified recommendation with citations
+        Supervisor->>ProdDB: 1-Click Cryptographically Signed Approval
+    end
+    ProdDB-->>User: Verified execution receipt generated
 ```
 
 ---
@@ -105,4 +123,4 @@ sequenceDiagram
 | :--- | :--- | :---: | :---: |
 | **Client Business Sponsor / VP** | `________________________` | `__________________` | `____/____/2026` |
 | **Client Controller / CFO Rep** | `________________________` | `__________________` | `____/____/2026` |
-| **Lead Forward Deployed Engineer** | `Evolve AI Delivery Team` | `[VERIFIED FDE SEAL]` | `2026-09-14` |
+| **Lead Forward Deployed Engineer** | `Evolve AI Delivery Team` | `[VERIFIED FDE SEAL]` | `2026-09-16` |

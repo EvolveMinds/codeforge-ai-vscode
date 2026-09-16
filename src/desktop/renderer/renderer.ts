@@ -1964,6 +1964,7 @@ interface SeqRenderOptions {
   mode?: 'future' | 'legacy';
   activeStep?: number;
   photonRatio?: number;
+  architectureTitle?: string;
 }
 
 function getParticipantRoleMeta(p: SeqParticipant) {
@@ -2277,8 +2278,19 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
   const background = '<rect width="' + width + '" height="' + height + '" fill="url(#sq-cyber-grid)"/>';
 
+  let archBadgeSvg = '';
+  if (options?.architectureTitle) {
+    const titleText = options.architectureTitle;
+    const badgeW = Math.max(160, titleText.length * 6.8 + 24);
+    archBadgeSvg =
+      '<g class="sq-arch-watermark" style="user-select: none; pointer-events: none;">' +
+      '<rect x="' + (width - badgeW - 14) + '" y="8" width="' + badgeW + '" height="20" rx="4" fill="rgba(30, 41, 59, 0.85)" stroke="rgba(148, 163, 184, 0.3)" stroke-width="1"/>' +
+      '<text x="' + (width - 22) + '" y="22" text-anchor="end" fill="#94a3b8" font-size="9.5" font-weight="700" font-family="\'Segoe UI\', sans-serif" letter-spacing="0.5">◈ ' + escSvg(titleText.toUpperCase()) + '</text>' +
+      '</g>';
+  }
+
   const svg = '<svg id="fdeTopologySvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + width + ' ' + height + '" width="' + width + '" height="' + height + '" role="img" aria-label="Futuristic Workflow Topology">' +
-    defs + style + background + heads.join('') + body.join('') + '</svg>';
+    defs + style + background + archBadgeSvg + heads.join('') + body.join('') + '</svg>';
 
   return { svg, errors: d.errors };
 }
@@ -2998,6 +3010,11 @@ function setupPhase1Discovery(api: any): void {
           ? (res.futureDiagram || '// Proposed Future AI Workflow Sequence Diagram') 
           : (res.legacyDiagram || '// Legacy Bottleneck Sequence Diagram');
       }
+      const det = detectTopologyPreset(cachedDiagrams.futureDiagram, cachedDiagrams.legacyDiagram);
+      activeTopologyPresetKey = det.key;
+      activeTopologyPresetName = det.name;
+      activeTopologyPresetModified = det.isModified;
+      updateActiveTemplateUI();
       paintDiagram();
       paintCompare();
     }
@@ -3060,6 +3077,251 @@ function setupPhase1Discovery(api: any): void {
     renderedPane.scrollTop = 0;
   };
 
+  // --- Showcase Architecture Templates ---
+  const topologyPresets: Record<string, { name: string; future: string; legacy: string }> = {
+    'enterprise-ai': {
+      name: 'Enterprise AI Core & HITL Gate',
+      future: `sequenceDiagram
+    autonumber
+    actor User as Customer / Analyst
+    participant GW as API Gateway & WAF
+    participant AICore as FDE GenAI Reasoning Core
+    actor HITL as Human-in-the-Loop Auditor
+    participant FastDB as Vector & Relational Store
+    User->>GW: Submit authenticated request (⚡ <120ms)
+    GW->>AICore: Forward sanitized schema payload
+    AICore->>FastDB: Vector search & ground truth retrieval
+    FastDB-->>AICore: Return verified contextual chunks
+    AICore->>HITL: Flag low-confidence edge case for audit
+    HITL-->>AICore: 1-click cryptographic signoff
+    AICore->>FastDB: Atomic state mutation & audit write
+    AICore-->>GW: Synthesized resolution (🔒 Signed)
+    GW-->>User: Instant verified response (⚡ 450ms)`,
+      legacy: `sequenceDiagram
+    actor User as Customer / Analyst
+    participant Desk as Tier 1 Helpdesk
+    participant Manual as Spreadsheet Silo
+    participant Approver as Senior Manager
+    participant LegacyDB as Core AS400 DB
+    User->>Desk: Submit support / claim ticket
+    Desk->>Manual: Copy data to unvalidated Excel (⚠️ 4hr delay)
+    Manual-->>Desk: Manual lookup & cross-checks
+    Desk->>Approver: Email approval request (⚠️ 24hr SLA)
+    Approver-->>Desk: Reply approval with signed PDF
+    Desk->>LegacyDB: Batch upload nightly CSV
+    LegacyDB-->>User: Issue paper statement (⚠️ 3-5 days)`
+    },
+    'legacy-silo': {
+      name: 'Legacy Manual Silo & Bottlenecks',
+      future: `sequenceDiagram
+    autonumber
+    actor Operator as Field Operator
+    participant EdgeApp as Mobile Edge Client
+    participant AICore as Auto-Extraction & Validation Core
+    actor Reviewer as Quality Assurance Gate
+    participant ERP as Enterprise SAP / ERP
+    Operator->>EdgeApp: Snap invoice / receipt photo (⚡ Instant)
+    EdgeApp->>AICore: Upload OCR image payload
+    AICore->>AICore: Multi-modal document parsing & tax check
+    AICore->>Reviewer: Exception routing on 99.8% confidence
+    Reviewer-->>AICore: Approve batch anomaly
+    AICore->>ERP: Post journal entry via authenticated REST API
+    ERP-->>Operator: Confirmed transaction receipt (⚡ <1.5s)`,
+      legacy: `sequenceDiagram
+    actor Operator as Field Operator
+    participant Mail as Courier & Physical Mail
+    participant Clerk as Data Entry Clerk
+    participant Excel as Shared Network Spreadsheet
+    participant Manager as Department Head
+    participant ERP as Mainframe Terminal
+    Operator->>Mail: Send paper receipts via weekly courier (⚠️ 5-7 days)
+    Mail-->>Clerk: Box delivered to processing centre
+    Clerk->>Excel: Retype numbers into spreadsheet (⚠️ Manual typo risk)
+    Excel-->>Clerk: Calculate totals without validation
+    Clerk->>Manager: Walk printed invoice folder for signoff (⚠️ 48hr wait)
+    Manager-->>Clerk: Wet signature on paper slip
+    Clerk->>ERP: Manually punch green-screen keys
+    ERP-->>Operator: Monthly payroll reimbursement (⚠️ 30 days)`
+    },
+    'streaming-fraud': {
+      name: 'Real-Time Streaming & Fraud Engine',
+      future: `sequenceDiagram
+    autonumber
+    actor Cardholder as Merchant POS / Cardholder
+    participant EdgeIngress as Ingress Kafka Stream
+    participant FraudAI as Real-Time ML Fraud Engine
+    participant RedisCache as Low-Latency Feature Store
+    participant LedgerSink as Event Lakehouse & Ledger
+    Cardholder->>EdgeIngress: Swipe transaction packet (⚡ <15ms)
+    EdgeIngress->>FraudAI: Push event to real-time consumer group
+    FraudAI->>RedisCache: Fetch 30-day cardholder behavior profile
+    RedisCache-->>FraudAI: Return sub-millisecond tensor vector
+    FraudAI->>FraudAI: Run XGBoost & Isolation Forest model (<8ms)
+    FraudAI->>LedgerSink: Publish immutable audit record (🔒 Signed)
+    FraudAI-->>Cardholder: Authorize & clear payment (⚡ Total 35ms)`,
+      legacy: `sequenceDiagram
+    actor Cardholder as Merchant POS / Cardholder
+    participant BatchLog as Local POS Disk Log
+    participant SFTP as Midnight SFTP Transfer
+    participant ETL as Nightly Batch ETL Job
+    participant Analyst as Fraud Investigation Analyst
+    Cardholder->>BatchLog: Record swipe to offline disk
+    BatchLog->>SFTP: Transmit flat file at midnight (⚠️ 12hr batch delay)
+    SFTP->>ETL: Trigger 6-hour batch SQL join
+    ETL-->>Analyst: Produce next-day suspicious activity report
+    Analyst->>Analyst: Review flagged transactions (⚠️ 24hr post-incident)
+    Analyst-->>Cardholder: Outbound telephone call to victim (⚠️ Too late)`
+    },
+    'hipaa-vault': {
+      name: 'Healthcare HIPAA De-ID Vault',
+      future: `sequenceDiagram
+    autonumber
+    actor Clinician as Treating Physician
+    participant SafeVault as HIPAA De-ID Gateway
+    participant ClinicalAI as Medical Synthesis LLM
+    actor EthicsBoard as Institutional Review Auditor
+    participant ResearchLake as FHIR Research Store
+    Clinician->>SafeVault: Ingest EHR note & clinical observations
+    SafeVault->>SafeVault: Cryptographic PHI pseudonymization & zero-leak tokenization
+    SafeVault->>ClinicalAI: Transmit de-identified clinical tokens
+    ClinicalAI->>ClinicalAI: Differential diagnosis & trial eligibility matching
+    ClinicalAI->>EthicsBoard: Audit log of synthesized recommendation
+    EthicsBoard-->>ClinicalAI: Automated policy clearance (✓ Policy Passed)
+    ClinicalAI->>ResearchLake: Sink anonymized cohort profile
+    ClinicalAI-->>Clinician: Precision clinical trial recommendation (⚡ <600ms)`,
+      legacy: `sequenceDiagram
+    actor Clinician as Treating Physician
+    participant RecordsRoom as Medical Records Archive
+    participant Redactor as Manual Medical Records Clerk
+    participant FaxMachine as Analog Fax Machine
+    Clinician->>RecordsRoom: Request patient history paper file
+    RecordsRoom-->>Clinician: Folder retrieved from physical basement (⚠️ 2-3 days)
+    Clinician->>Redactor: Submit for clinical research anonymization
+    Redactor->>Redactor: Black marker pen over printed pages (⚠️ Error prone)
+    Redactor->>FaxMachine: Fax 40 pages to trial coordinator (⚠️ Unencrypted)
+    FaxMachine-->>Clinician: Wait for trial coordinator callback (⚠️ 2 weeks)`
+    },
+    'fin-settlement': {
+      name: 'Financial Trade Settlement & Clearing',
+      future: `sequenceDiagram
+    autonumber
+    actor Broker as Institutional Broker
+    participant FIXGw as FIX Protocol Ingress Gateway
+    participant MatchCore as Real-Time Matching Engine
+    actor Compliance as Automated Compliance & AML Gate
+    participant DLTStore as Atomic DvP Custody Ledger
+    Broker->>FIXGw: Submit block trade execution order (⚡ FIX 4.4)
+    FIXGw->>MatchCore: Validate counterparty routing & market depth
+    MatchCore->>Compliance: Pre-settlement sanction & margin check
+    Compliance-->>MatchCore: Instant programmatic green-light (⚡ 2ms)
+    MatchCore->>DLTStore: Atomic Delivery-vs-Payment (DvP) settlement
+    DLTStore-->>Broker: Cryptographic clearing confirmation (🔒 T+0 Instant)`,
+      legacy: `sequenceDiagram
+    actor Broker as Institutional Broker
+    participant PhoneVoice as Phone & Voice Recording Desk
+    participant ExcelMatch as Middle-Office Reconciliation Sheet
+    participant DualSigner as Senior Operations Officer
+    participant Custodian as External Custodian Bank
+    Broker->>PhoneVoice: Call execution trader to confirm fill
+    PhoneVoice->>ExcelMatch: Manual entry into end-of-day spreadsheet (⚠️ 6hr delay)
+    ExcelMatch-->>ExcelMatch: Run VBA macros to detect trade breaks
+    ExcelMatch->>DualSigner: Email discrepancy log for four-eyes signoff
+    DualSigner-->>ExcelMatch: Approve wire transfers via token fob (⚠️ EOD deadline)
+    ExcelMatch->>Custodian: Transmit batch SWIFT MT541 instruction (⚠️ T+2 Settlement)
+    Custodian-->>Broker: Final clearing notice arrives two days later`
+    }
+  };
+
+  const presetDisplayLabels: Record<string, string> = {
+    'enterprise-ai': '🤖 Enterprise AI Core & HITL Gate',
+    'legacy-silo': '⏳ Legacy Manual Silo & Bottlenecks',
+    'streaming-fraud': '⚡ Real-Time Streaming & Fraud Engine',
+    'hipaa-vault': '🏥 Healthcare HIPAA De-ID Vault',
+    'fin-settlement': '📈 Financial Trade Settlement & Clearing'
+  };
+
+  let activeTopologyPresetKey: string = 'enterprise-ai';
+  let activeTopologyPresetName: string = '🤖 Enterprise AI Core & HITL Gate';
+  let activeTopologyPresetModified: boolean = false;
+
+  const updateActiveTemplateUI = () => {
+    const badge = document.getElementById('fdeActiveTemplatePill');
+    const nameEl = document.getElementById('fdeActiveTemplateName');
+    const subPill = document.getElementById('fdeTemplateStatusSubPill');
+    const dockName = document.getElementById('fdeCanvasDockArchName');
+    const sel = document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement | null;
+
+    const baseName = presetDisplayLabels[activeTopologyPresetKey] || activeTopologyPresetName || '🤖 Enterprise AI Core & HITL Gate';
+    const displayName = activeTopologyPresetModified ? `${baseName} (Modified)` : baseName;
+
+    if (nameEl) nameEl.textContent = displayName;
+    if (badge) {
+      badge.style.display = 'inline-flex';
+      if (activeTopologyPresetModified) {
+        badge.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+        badge.style.background = 'rgba(251, 191, 36, 0.12)';
+        badge.style.color = '#fbbf24';
+      } else {
+        badge.style.borderColor = '#0284c7';
+        badge.style.background = 'rgba(56, 189, 248, 0.14)';
+        badge.style.color = '#38bdf8';
+      }
+    }
+    if (subPill) {
+      subPill.textContent = `Arch: ${displayName}`;
+      subPill.style.display = 'inline-block';
+    }
+    if (dockName) {
+      const short = baseName.replace(/^[^\s]+\s+/, '').split('&')[0].trim();
+      dockName.textContent = activeTopologyPresetModified ? `${short}*` : short;
+    }
+    if (sel) {
+      if (activeTopologyPresetModified) {
+        sel.value = 'custom';
+      } else if (activeTopologyPresetKey && topologyPresets[activeTopologyPresetKey]) {
+        sel.value = activeTopologyPresetKey;
+      }
+    }
+  };
+
+  const checkDiagramModification = () => {
+    const tpl = topologyPresets[activeTopologyPresetKey];
+    if (!tpl) {
+      activeTopologyPresetModified = true;
+      updateActiveTemplateUI();
+      return;
+    }
+    const clean = (s?: string) => (s || '').replace(/\r\n/g, '\n').trim();
+    const curFuture = clean(cachedDiagrams.futureDiagram);
+    const curLegacy = clean(cachedDiagrams.legacyDiagram);
+    const origFuture = clean(tpl.future);
+    const origLegacy = clean(tpl.legacy);
+
+    activeTopologyPresetModified = (curFuture !== origFuture || curLegacy !== origLegacy);
+    updateActiveTemplateUI();
+  };
+
+  const detectTopologyPreset = (futureStr?: string, legacyStr?: string): { key: string; name: string; isModified: boolean } => {
+    if (!futureStr && !legacyStr) {
+      return { key: 'enterprise-ai', name: presetDisplayLabels['enterprise-ai'], isModified: false };
+    }
+    const clean = (s?: string) => (s || '').replace(/\r\n/g, '\n').trim();
+    for (const [key, preset] of Object.entries(topologyPresets)) {
+      if (clean(preset.future) === clean(futureStr) && clean(preset.legacy) === clean(legacyStr)) {
+        return { key, name: presetDisplayLabels[key] || preset.name, isModified: false };
+      }
+    }
+    for (const [key, preset] of Object.entries(topologyPresets)) {
+      if (clean(preset.future) === clean(futureStr)) {
+        return { key, name: presetDisplayLabels[key] || preset.name, isModified: false };
+      }
+    }
+    if (activeTopologyPresetKey && topologyPresets[activeTopologyPresetKey]) {
+      return { key: activeTopologyPresetKey, name: presetDisplayLabels[activeTopologyPresetKey] || topologyPresets[activeTopologyPresetKey].name, isModified: true };
+    }
+    return { key: 'custom', name: '✏️ Custom Architecture', isModified: true };
+  };
+
   const paintDiagram = (renderOpts?: SeqRenderOptions) => {
     if (!renderedPane) return;
     const src = topologyContainer?.value || '';
@@ -3068,7 +3330,8 @@ function setupPhase1Discovery(api: any): void {
       if (diagramStatus) diagramStatus.textContent = '';
       return;
     }
-    const { svg, errors } = renderSequenceSvg(src, { mode: currentDiagramMode, ...renderOpts });
+    const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+    const { svg, errors } = renderSequenceSvg(src, { mode: currentDiagramMode, architectureTitle: archTitle, ...renderOpts });
     if (!svg) {
       renderedPane.innerHTML = '<div style="color: var(--warn); font-size: 11.5px; padding: 16px;">Could not render this diagram.<br><span style="color: var(--text-secondary);">' +
         errors.map(e => e.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>') + '</span></div>';
@@ -3090,14 +3353,16 @@ function setupPhase1Discovery(api: any): void {
   /** Says plainly which of the two diagrams the editing controls are acting on. */
   const updateEditingBanner = () => {
     const el = document.getElementById('fdeEditingBanner');
-    if (!el) return;
-    const isFuture = currentDiagramMode === 'future';
-    el.textContent = isFuture
-      ? '\u25cf Editing: Future State (proposed workflow)'
-      : '\u25cf Editing: Current State (today\u2019s workflow)';
-    el.style.color = isFuture ? '#38bdf8' : '#fbbf24';
-    el.style.borderColor = isFuture ? 'rgba(56, 189, 248, 0.4)' : 'rgba(251, 191, 36, 0.4)';
-    el.style.background = isFuture ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
+    if (el) {
+      const isFuture = currentDiagramMode === 'future';
+      el.textContent = isFuture
+        ? '\u25cf Editing: Future State (proposed workflow)'
+        : '\u25cf Editing: Current State (today\u2019s workflow)';
+      el.style.color = isFuture ? '#38bdf8' : '#fbbf24';
+      el.style.borderColor = isFuture ? 'rgba(56, 189, 248, 0.4)' : 'rgba(251, 191, 36, 0.4)';
+      el.style.background = isFuture ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
+    }
+    updateActiveTemplateUI();
   };
 
   const setTopologyView = (mode: 'diagram' | 'source' | 'compare' | 'arrange') => {
@@ -3147,8 +3412,9 @@ function setupPhase1Discovery(api: any): void {
    * audience has to mentally align.
    */
   const buildComparisonSvg = (): string | null => {
-    const legacy = renderSequenceSvg(cachedDiagrams.legacyDiagram || '');
-    const future = renderSequenceSvg(cachedDiagrams.futureDiagram || '');
+    const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+    const legacy = renderSequenceSvg(cachedDiagrams.legacyDiagram || '', { mode: 'legacy', architectureTitle: archTitle });
+    const future = renderSequenceSvg(cachedDiagrams.futureDiagram || '', { mode: 'future', architectureTitle: archTitle });
     if (!legacy.svg || !future.svg) return null;
 
     const dims = (svg: string) => {
@@ -3175,7 +3441,8 @@ function setupPhase1Discovery(api: any): void {
 
   const exportOne = (which: 'legacy' | 'future') => {
     const src = (which === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
-    const { svg } = renderSequenceSvg(src);
+    const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+    const { svg } = renderSequenceSvg(src, { mode: which, architectureTitle: archTitle });
     if (!svg) { showToast('\u26a0\ufe0f That diagram is empty \u2014 nothing to export.'); return; }
     downloadSvg(standaloneSvg(svg), which === 'future' ? 'future-state-workflow.svg' : 'current-state-workflow.svg');
   };
@@ -3199,8 +3466,8 @@ function setupPhase1Discovery(api: any): void {
   document.getElementById('btnExportFutureSvg')?.addEventListener('click', () => { exportOne('future'); closeExportMenu(); });
   document.getElementById('btnExportBothSvg')?.addEventListener('click', () => {
     const svg = buildComparisonSvg();
-    if (!svg) { showToast('\u26a0\ufe0f Both diagrams are needed for a comparison export.'); return; }
-    downloadSvg(svg, 'workflow-current-vs-future.svg');
+    if (!svg) { showToast('\u26a0\ufe0f Diagrams are not ready to export.'); return; }
+    downloadSvg(svg, 'current-vs-future-workflow-comparison.svg');
     closeExportMenu();
   });
 
@@ -3217,7 +3484,8 @@ function setupPhase1Discovery(api: any): void {
       el.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 18px; text-align: center;">' + emptyMsg + '</div>';
       return;
     }
-    const { svg, errors } = renderSequenceSvg(src);
+    const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+    const { svg, errors } = renderSequenceSvg(src, { architectureTitle: archTitle });
     el.innerHTML = svg || ('<div style="color: var(--warn); font-size: 11px; padding: 14px;">Could not render: ' +
       errors.map(e => e.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('; ') + '</div>');
   };
@@ -3300,6 +3568,7 @@ function setupPhase1Discovery(api: any): void {
       paintDiagram();
       paintCompare();
       markScopeDirty();
+      checkDiagramModification();
       if (txtInstruction) txtInstruction.value = '';
 
       if (res.warning) showToast(res.warning);
@@ -3328,6 +3597,7 @@ function setupPhase1Discovery(api: any): void {
     paintDiagram();
     paintCompare();
     markScopeDirty();
+    checkDiagramModification();
     showToast('Reverted the last diagram change.');
   });
 
@@ -3390,6 +3660,7 @@ function setupPhase1Discovery(api: any): void {
     paintCompare();
     renderArrangePanel();
     markScopeDirty();
+    checkDiagramModification();
     if (toastMsg) showToast(toastMsg);
   };
 
@@ -3718,6 +3989,7 @@ function setupPhase1Discovery(api: any): void {
     paintDiagram();
     paintCompare();
     renderArrangePanel();
+    checkDiagramModification();
   });
 
   btnCopyDiagram?.addEventListener('click', () => {
@@ -3728,164 +4000,36 @@ function setupPhase1Discovery(api: any): void {
     }
   });
 
-  // --- Showcase Architecture Templates ---
-  const topologyPresets: Record<string, { name: string; future: string; legacy: string }> = {
-    'enterprise-ai': {
-      name: 'Enterprise AI Core & HITL Gate',
-      future: `sequenceDiagram
-    autonumber
-    actor User as Customer / Analyst
-    participant GW as API Gateway & WAF
-    participant AICore as FDE GenAI Reasoning Core
-    actor HITL as Human-in-the-Loop Auditor
-    participant FastDB as Vector & Relational Store
-    User->>GW: Submit authenticated request (⚡ <120ms)
-    GW->>AICore: Forward sanitized schema payload
-    AICore->>FastDB: Vector search & ground truth retrieval
-    FastDB-->>AICore: Return verified contextual chunks
-    AICore->>HITL: Flag low-confidence edge case for audit
-    HITL-->>AICore: 1-click cryptographic signoff
-    AICore->>FastDB: Atomic state mutation & audit write
-    AICore-->>GW: Synthesized resolution (🔒 Signed)
-    GW-->>User: Instant verified response (⚡ 450ms)`,
-      legacy: `sequenceDiagram
-    actor User as Customer / Analyst
-    participant Desk as Tier 1 Helpdesk
-    participant Manual as Spreadsheet Silo
-    participant Approver as Senior Manager
-    participant LegacyDB as Core AS400 DB
-    User->>Desk: Submit support / claim ticket
-    Desk->>Manual: Copy data to unvalidated Excel (⚠️ 4hr delay)
-    Manual-->>Desk: Manual lookup & cross-checks
-    Desk->>Approver: Email approval request (⚠️ 24hr SLA)
-    Approver-->>Desk: Reply approval with signed PDF
-    Desk->>LegacyDB: Batch upload nightly CSV
-    LegacyDB-->>User: Issue paper statement (⚠️ 3-5 days)`
-    },
-    'legacy-silo': {
-      name: 'Legacy Manual Silo & Bottlenecks',
-      future: `sequenceDiagram
-    autonumber
-    actor Operator as Field Operator
-    participant EdgeApp as Mobile Edge Client
-    participant AICore as Auto-Extraction & Validation Core
-    actor Reviewer as Quality Assurance Gate
-    participant ERP as Enterprise SAP / ERP
-    Operator->>EdgeApp: Snap invoice / receipt photo (⚡ Instant)
-    EdgeApp->>AICore: Upload OCR image payload
-    AICore->>AICore: Multi-modal document parsing & tax check
-    AICore->>Reviewer: Exception routing on 99.8% confidence
-    Reviewer-->>AICore: Approve batch anomaly
-    AICore->>ERP: Post journal entry via authenticated REST API
-    ERP-->>Operator: Confirmed transaction receipt (⚡ <1.5s)`,
-      legacy: `sequenceDiagram
-    actor Operator as Field Operator
-    participant Mail as Courier & Physical Mail
-    participant Clerk as Data Entry Clerk
-    participant Excel as Shared Network Spreadsheet
-    participant Manager as Department Head
-    participant ERP as Mainframe Terminal
-    Operator->>Mail: Send paper receipts via weekly courier (⚠️ 5-7 days)
-    Mail-->>Clerk: Box delivered to processing centre
-    Clerk->>Excel: Retype numbers into spreadsheet (⚠️ Manual typo risk)
-    Excel-->>Clerk: Calculate totals without validation
-    Clerk->>Manager: Walk printed invoice folder for signoff (⚠️ 48hr wait)
-    Manager-->>Clerk: Wet signature on paper slip
-    Clerk->>ERP: Manually punch green-screen keys
-    ERP-->>Operator: Monthly payroll reimbursement (⚠️ 30 days)`
-    },
-    'streaming-fraud': {
-      name: 'Real-Time Streaming & Fraud Engine',
-      future: `sequenceDiagram
-    autonumber
-    actor Cardholder as Merchant POS / Cardholder
-    participant EdgeIngress as Ingress Kafka Stream
-    participant FraudAI as Real-Time ML Fraud Engine
-    participant RedisCache as Low-Latency Feature Store
-    participant LedgerSink as Event Lakehouse & Ledger
-    Cardholder->>EdgeIngress: Swipe transaction packet (⚡ <15ms)
-    EdgeIngress->>FraudAI: Push event to real-time consumer group
-    FraudAI->>RedisCache: Fetch 30-day cardholder behavior profile
-    RedisCache-->>FraudAI: Return sub-millisecond tensor vector
-    FraudAI->>FraudAI: Run XGBoost & Isolation Forest model (<8ms)
-    FraudAI->>LedgerSink: Publish immutable audit record (🔒 Signed)
-    FraudAI-->>Cardholder: Authorize & clear payment (⚡ Total 35ms)`,
-      legacy: `sequenceDiagram
-    actor Cardholder as Merchant POS / Cardholder
-    participant BatchLog as Local POS Disk Log
-    participant SFTP as Midnight SFTP Transfer
-    participant ETL as Nightly Batch ETL Job
-    participant Analyst as Fraud Investigation Analyst
-    Cardholder->>BatchLog: Record swipe to offline disk
-    BatchLog->>SFTP: Transmit flat file at midnight (⚠️ 12hr batch delay)
-    SFTP->>ETL: Trigger 6-hour batch SQL join
-    ETL-->>Analyst: Produce next-day suspicious activity report
-    Analyst->>Analyst: Review flagged transactions (⚠️ 24hr post-incident)
-    Analyst-->>Cardholder: Outbound telephone call to victim (⚠️ Too late)`
-    },
-    'hipaa-vault': {
-      name: 'Healthcare HIPAA De-ID Vault',
-      future: `sequenceDiagram
-    autonumber
-    actor Clinician as Treating Physician
-    participant SafeVault as HIPAA De-ID Gateway
-    participant ClinicalAI as Medical Synthesis LLM
-    actor EthicsBoard as Institutional Review Auditor
-    participant ResearchLake as FHIR Research Store
-    Clinician->>SafeVault: Ingest EHR note & clinical observations
-    SafeVault->>SafeVault: Cryptographic PHI pseudonymization & zero-leak tokenization
-    SafeVault->>ClinicalAI: Transmit de-identified clinical tokens
-    ClinicalAI->>ClinicalAI: Differential diagnosis & trial eligibility matching
-    ClinicalAI->>EthicsBoard: Audit log of synthesized recommendation
-    EthicsBoard-->>ClinicalAI: Automated policy clearance (✓ Policy Passed)
-    ClinicalAI->>ResearchLake: Sink anonymized cohort profile
-    ClinicalAI-->>Clinician: Precision clinical trial recommendation (⚡ <600ms)`,
-      legacy: `sequenceDiagram
-    actor Clinician as Treating Physician
-    participant RecordsRoom as Medical Records Archive
-    participant Redactor as Manual Medical Records Clerk
-    participant FaxMachine as Analog Fax Machine
-    Clinician->>RecordsRoom: Request patient history paper file
-    RecordsRoom-->>Clinician: Folder retrieved from physical basement (⚠️ 2-3 days)
-    Clinician->>Redactor: Submit for clinical research anonymization
-    Redactor->>Redactor: Black marker pen over printed pages (⚠️ Error prone)
-    Redactor->>FaxMachine: Fax 40 pages to trial coordinator (⚠️ Unencrypted)
-    FaxMachine-->>Clinician: Wait for trial coordinator callback (⚠️ 2 weeks)`
-    },
-    'fin-settlement': {
-      name: 'Financial Trade Settlement & Clearing',
-      future: `sequenceDiagram
-    autonumber
-    actor Broker as Institutional Broker
-    participant FIXGw as FIX Protocol Ingress Gateway
-    participant MatchCore as Real-Time Matching Engine
-    actor Compliance as Automated Compliance & AML Gate
-    participant DLTStore as Atomic DvP Custody Ledger
-    Broker->>FIXGw: Submit block trade execution order (⚡ FIX 4.4)
-    FIXGw->>MatchCore: Validate counterparty routing & market depth
-    MatchCore->>Compliance: Pre-settlement sanction & margin check
-    Compliance-->>MatchCore: Instant programmatic green-light (⚡ 2ms)
-    MatchCore->>DLTStore: Atomic Delivery-vs-Payment (DvP) settlement
-    DLTStore-->>Broker: Cryptographic clearing confirmation (🔒 T+0 Instant)`,
-      legacy: `sequenceDiagram
-    actor Broker as Institutional Broker
-    participant PhoneVoice as Phone & Voice Recording Desk
-    participant ExcelMatch as Middle-Office Reconciliation Sheet
-    participant DualSigner as Senior Operations Officer
-    participant Custodian as External Custodian Bank
-    Broker->>PhoneVoice: Call execution trader to confirm fill
-    PhoneVoice->>ExcelMatch: Manual entry into end-of-day spreadsheet (⚠️ 6hr delay)
-    ExcelMatch-->>ExcelMatch: Run VBA macros to detect trade breaks
-    ExcelMatch->>DualSigner: Email discrepancy log for four-eyes signoff
-    DualSigner-->>ExcelMatch: Approve wire transfers via token fob (⚠️ EOD deadline)
-    ExcelMatch->>Custodian: Transmit batch SWIFT MT541 instruction (⚠️ T+2 Settlement)
-    Custodian-->>Broker: Final clearing notice arrives two days later`
-    }
-  };
-
   const selTopologyTemplate = document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement | null;
   selTopologyTemplate?.addEventListener('change', () => {
     const key = selTopologyTemplate.value;
+    if (key === '__reload__') {
+      const currentKey = (activeTopologyPresetKey && topologyPresets[activeTopologyPresetKey]) ? activeTopologyPresetKey : 'enterprise-ai';
+      const tpl = topologyPresets[currentKey];
+      if (tpl) {
+        const before = topologyContainer?.value || '';
+        diagramUndoStack.push({ mode: currentDiagramMode, source: before });
+        refreshUndoState();
+
+        cachedDiagrams.futureDiagram = tpl.future;
+        cachedDiagrams.legacyDiagram = tpl.legacy;
+        if (topologyContainer) {
+          topologyContainer.value = currentDiagramMode === 'future' ? tpl.future : tpl.legacy;
+        }
+        activeTopologyPresetKey = currentKey;
+        activeTopologyPresetName = presetDisplayLabels[currentKey] || tpl.name;
+        activeTopologyPresetModified = false;
+        paintDiagram();
+        fitToView();
+        paintCompare();
+        renderArrangePanel();
+        markScopeDirty();
+        updateActiveTemplateUI();
+        showToast(`↺ Reloaded Clean Preset: ${activeTopologyPresetName}`);
+      }
+      return;
+    }
+
     const tpl = topologyPresets[key];
     if (tpl) {
       const before = topologyContainer?.value || '';
@@ -3897,13 +4041,16 @@ function setupPhase1Discovery(api: any): void {
       if (topologyContainer) {
         topologyContainer.value = currentDiagramMode === 'future' ? tpl.future : tpl.legacy;
       }
+      activeTopologyPresetKey = key;
+      activeTopologyPresetName = presetDisplayLabels[key] || tpl.name;
+      activeTopologyPresetModified = false;
       paintDiagram();
       fitToView();
       paintCompare();
       renderArrangePanel();
       markScopeDirty();
-      showToast(`🎭 Loaded Showcase: ${tpl.name}`);
-      selTopologyTemplate.value = '';
+      updateActiveTemplateUI();
+      showToast(`🎭 Loaded Showcase: ${activeTopologyPresetName}`);
     }
   });
 
@@ -4790,6 +4937,7 @@ function setupPhase1Discovery(api: any): void {
       riskAnalysis,
       reframedProblem: reframedGoal,
       archetype,
+      activeTopologyTemplate: activeTopologyPresetKey,
       outOfScope,
       linkedArtifacts: currentLinkedArtifacts,
       customFutureDiagram: cachedDiagrams.futureDiagram,
@@ -5000,6 +5148,13 @@ function setupPhase1Discovery(api: any): void {
           if (topologyContainer) {
             topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
           }
+          activeTopologyPresetKey = 'custom';
+          activeTopologyPresetName = '✨ AI Synthesized Topology';
+          activeTopologyPresetModified = false;
+          paintDiagram();
+          fitToView();
+          paintCompare();
+          updateActiveTemplateUI();
         }
         markScopeDirty();
         showToast('✓ AI Scope Reframed! Gemba observations, invariant gates, O2S spec & topology generated.');
@@ -5101,6 +5256,13 @@ function setupPhase1Discovery(api: any): void {
       if (topologyContainer) {
         topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
       }
+      activeTopologyPresetKey = 'custom';
+      activeTopologyPresetName = '✨ AI Synthesized Topology';
+      activeTopologyPresetModified = false;
+      paintDiagram();
+      fitToView();
+      paintCompare();
+      updateActiveTemplateUI();
       showToast('✓ Custom sequence topology synthesized!');
     }
   });
@@ -5156,6 +5318,7 @@ function setupPhase1Discovery(api: any): void {
         riskAnalysis,
         reframedProblem: reframedGoal,
         archetype,
+        activeTopologyTemplate: activeTopologyPresetKey,
         outOfScope,
         linkedArtifacts: currentLinkedArtifacts,
         customFutureDiagram: cachedDiagrams.futureDiagram,
@@ -5209,6 +5372,26 @@ function setupPhase1Discovery(api: any): void {
           setThreeNumbers(d.controllersThreeNumbers.volume || 0, d.controllersThreeNumbers.handleTimeMins || 0, d.controllersThreeNumbers.hourlyWage || 0);
           computeRoi();
         }
+        if (d.customFutureDiagram) cachedDiagrams.futureDiagram = d.customFutureDiagram;
+        if (d.customLegacyDiagram) cachedDiagrams.legacyDiagram = d.customLegacyDiagram;
+        if (d.activeTopologyTemplate) {
+          activeTopologyPresetKey = d.activeTopologyTemplate;
+          activeTopologyPresetName = presetDisplayLabels[d.activeTopologyTemplate] || (topologyPresets[d.activeTopologyTemplate]?.name || 'Custom Architecture');
+          checkDiagramModification();
+        } else if (d.customFutureDiagram || d.customLegacyDiagram) {
+          const det = detectTopologyPreset(d.customFutureDiagram, d.customLegacyDiagram);
+          activeTopologyPresetKey = det.key;
+          activeTopologyPresetName = det.name;
+          activeTopologyPresetModified = det.isModified;
+        }
+        if (topologyContainer) {
+          topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+        }
+        updateActiveTemplateUI();
+        paintDiagram();
+        fitToView();
+        paintCompare();
+
         if (badgeVersion && res.version) {
           badgeVersion.innerText = `${res.version.versionTag} (Restored)`;
         }
@@ -5236,6 +5419,7 @@ function setupPhase1Discovery(api: any): void {
         riskAnalysis,
         reframedProblem: reframedGoal,
         archetype,
+        activeTopologyTemplate: activeTopologyPresetKey,
         outOfScope,
         linkedArtifacts: currentLinkedArtifacts,
         customFutureDiagram: cachedDiagrams.futureDiagram,
@@ -5307,6 +5491,10 @@ function setupPhase1Discovery(api: any): void {
           }
           if (state.discovery.customFutureDiagram) cachedDiagrams.futureDiagram = state.discovery.customFutureDiagram;
           if (state.discovery.customLegacyDiagram) cachedDiagrams.legacyDiagram = state.discovery.customLegacyDiagram;
+          if (state.discovery.activeTopologyTemplate) {
+            activeTopologyPresetKey = state.discovery.activeTopologyTemplate;
+            activeTopologyPresetName = presetDisplayLabels[activeTopologyPresetKey] || (topologyPresets[activeTopologyPresetKey]?.name || 'Custom Architecture');
+          }
           if (state.discovery.controllersThreeNumbers) {
             setThreeNumbers(state.discovery.controllersThreeNumbers.volume ?? 0, state.discovery.controllersThreeNumbers.handleTimeMins ?? 0, state.discovery.controllersThreeNumbers.hourlyWage ?? 0);
             hasLoadedSavedNumbers = true;
@@ -5329,8 +5517,27 @@ function setupPhase1Discovery(api: any): void {
     }
     renderScopeRules();
     computeRoi();
-    const initialArch = selArchetype?.value || 'custom';
-    renderTopology(initialArch);
+
+    const hasCustomDiagrams = !!(cachedDiagrams.futureDiagram || cachedDiagrams.legacyDiagram);
+    if (!hasCustomDiagrams) {
+      const initialArch = selArchetype?.value || 'custom';
+      await renderTopology(initialArch);
+    } else {
+      if (!activeTopologyPresetKey) {
+        const det = detectTopologyPreset(cachedDiagrams.futureDiagram, cachedDiagrams.legacyDiagram);
+        activeTopologyPresetKey = det.key;
+        activeTopologyPresetName = det.name;
+        activeTopologyPresetModified = det.isModified;
+      } else {
+        checkDiagramModification();
+      }
+      if (topologyContainer) {
+        topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+      }
+      paintDiagram();
+      paintCompare();
+      updateActiveTemplateUI();
+    }
     setTopologyView('diagram');
     updateEditingBanner();
     await refreshVersionHistory();
