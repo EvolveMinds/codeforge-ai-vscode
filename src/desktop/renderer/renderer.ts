@@ -2208,7 +2208,7 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
     body.push(stepMarkup);
   }
 
-  const height = y + BOX_H + 34;
+  const height = y + BOX_H + 52;
 
   const heads: string[] = [];
   d.participants.forEach((p, i) => {
@@ -2217,13 +2217,13 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
     heads.push(
       '<g class="sq-lifeline-group">' +
-      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 10) + '" stroke="' + meta.color + '" stroke-width="3" stroke-opacity="0.12"/>' +
-      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 10) + '" stroke="' + meta.color + '" stroke-width="1.4" stroke-opacity="0.45" stroke-dasharray="5 4"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="3" stroke-opacity="0.12"/>' +
+      '<line x1="' + p.x + '" y1="' + (TOP + BOX_H) + '" x2="' + p.x + '" y2="' + (height - BOX_H - 26) + '" stroke="' + meta.color + '" stroke-width="1.4" stroke-opacity="0.45" stroke-dasharray="5 4"/>' +
       '</g>'
     );
 
     const partActionsW = 86, partActionsH = 18;
-    [TOP, height - BOX_H - 10].forEach((by, posIdx) => {
+    [TOP, height - BOX_H - 26].forEach((by, posIdx) => {
       const actionsY = posIdx === 0 ? by - 22 : by + BOX_H + 4;
       const actionsX = p.x - partActionsW / 2;
 
@@ -3011,11 +3011,52 @@ function setupPhase1Discovery(api: any): void {
 
   let canvasZoom = 1.0;
   const applyZoom = () => {
-    const svgEl = renderedPane?.querySelector('svg');
-    if (svgEl) {
-      svgEl.style.transform = `scale(${canvasZoom})`;
-      svgEl.style.transformOrigin = 'top left';
+    const svgEl = renderedPane?.querySelector('svg#fdeTopologySvg') as SVGSVGElement | null;
+    const zoomPill = document.getElementById('fdeZoomLevelPill');
+    if (zoomPill) {
+      zoomPill.textContent = `${Math.round(canvasZoom * 100)}%`;
     }
+    if (!svgEl) return;
+    const vb = svgEl.viewBox?.baseVal;
+    const nw = (vb && vb.width > 0) ? vb.width : (parseFloat(svgEl.getAttribute('width') || '800') || 800);
+    const nh = (vb && vb.height > 0) ? vb.height : (parseFloat(svgEl.getAttribute('height') || '500') || 500);
+    const scaledW = Math.round(nw * canvasZoom);
+    const scaledH = Math.round(nh * canvasZoom);
+    svgEl.style.width = `${scaledW}px`;
+    svgEl.style.height = `${scaledH}px`;
+    svgEl.style.minWidth = `${scaledW}px`;
+    svgEl.style.minHeight = `${scaledH}px`;
+    svgEl.style.maxWidth = 'none';
+    svgEl.style.maxHeight = 'none';
+    svgEl.style.display = 'block';
+    if (renderedPane && scaledW < renderedPane.clientWidth) {
+      svgEl.style.marginLeft = 'auto';
+      svgEl.style.marginRight = 'auto';
+    } else if (svgEl) {
+      svgEl.style.marginLeft = '0';
+      svgEl.style.marginRight = '0';
+    }
+  };
+
+  const fitToView = () => {
+    if (!renderedPane) return;
+    const svgEl = renderedPane.querySelector('svg#fdeTopologySvg') as SVGSVGElement | null;
+    if (!svgEl) return;
+    const vb = svgEl.viewBox?.baseVal;
+    const nw = (vb && vb.width > 0) ? vb.width : (parseFloat(svgEl.getAttribute('width') || '800') || 800);
+    const nh = (vb && vb.height > 0) ? vb.height : (parseFloat(svgEl.getAttribute('height') || '500') || 500);
+
+    const availW = Math.max(120, renderedPane.clientWidth - 36);
+    const availH = Math.max(120, renderedPane.clientHeight - 36);
+
+    const scaleX = availW / nw;
+    const scaleY = availH / nh;
+    const bestFit = Math.min(scaleX, scaleY) * 0.96;
+
+    canvasZoom = Math.max(0.35, Math.min(1.25, +(bestFit).toFixed(2)));
+    applyZoom();
+    renderedPane.scrollLeft = 0;
+    renderedPane.scrollTop = 0;
   };
 
   const paintDiagram = (renderOpts?: SeqRenderOptions) => {
@@ -3075,7 +3116,7 @@ function setupPhase1Discovery(api: any): void {
     btnViewDiagram?.setAttribute('aria-selected', String(mode === 'diagram'));
     btnViewSource?.setAttribute('aria-selected', String(mode === 'source'));
     cmpBtn?.setAttribute('aria-selected', String(mode === 'compare'));
-    if (mode === 'diagram') paintDiagram();
+    if (mode === 'diagram') { paintDiagram(); fitToView(); }
     if (mode === 'compare') paintCompare();
     if (mode === 'arrange') renderArrangePanel();
   };
@@ -3856,6 +3897,7 @@ function setupPhase1Discovery(api: any): void {
         topologyContainer.value = currentDiagramMode === 'future' ? tpl.future : tpl.legacy;
       }
       paintDiagram();
+      fitToView();
       paintCompare();
       renderArrangePanel();
       markScopeDirty();
@@ -3925,19 +3967,142 @@ function setupPhase1Discovery(api: any): void {
     }
   });
 
-  // --- Canvas Zoom HUD ---
+  // --- Canvas HUD Controls & Mode Handling ---
+  let currentInteractionMode: 'select' | 'pan' = 'select';
+  let isSpacePressed = false;
+  let isPanDragging = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let panScrollLeft = 0;
+  let panScrollTop = 0;
+  let didDragOnCanvas = false;
+
+  const btnModeSelect = document.getElementById('btnFdeModeSelect');
+  const btnModePan = document.getElementById('btnFdeModePan');
+
+  const isPanningActive = () => currentInteractionMode === 'pan' || isSpacePressed;
+
+  const updateCanvasCursor = () => {
+    if (!renderedPane) return;
+    if (isPanningActive()) {
+      renderedPane.style.cursor = isPanDragging ? 'grabbing' : 'grab';
+    } else {
+      renderedPane.style.cursor = 'default';
+    }
+  };
+
+  const setInteractionMode = (mode: 'select' | 'pan') => {
+    currentInteractionMode = mode;
+    if (btnModeSelect) {
+      btnModeSelect.classList.toggle('active', mode === 'select');
+      btnModeSelect.style.background = mode === 'select' ? 'rgba(56, 189, 248, 0.25)' : 'transparent';
+      btnModeSelect.style.color = mode === 'select' ? '#38bdf8' : '#94a3b8';
+    }
+    if (btnModePan) {
+      btnModePan.classList.toggle('active', mode === 'pan');
+      btnModePan.style.background = mode === 'pan' ? 'rgba(56, 189, 248, 0.25)' : 'transparent';
+      btnModePan.style.color = mode === 'pan' ? '#38bdf8' : '#94a3b8';
+    }
+    updateCanvasCursor();
+  };
+
+  btnModeSelect?.addEventListener('click', () => setInteractionMode('select'));
+  btnModePan?.addEventListener('click', () => setInteractionMode('pan'));
+
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    const targetTag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+    if (targetTag === 'input' || targetTag === 'textarea' || targetTag === 'select') return;
+    if (e.code === 'Space' && !isSpacePressed) {
+      isSpacePressed = true;
+      updateCanvasCursor();
+    }
+  });
+
+  window.addEventListener('keyup', (e: KeyboardEvent) => {
+    if (e.code === 'Space' && isSpacePressed) {
+      isSpacePressed = false;
+      updateCanvasCursor();
+    }
+  });
+
   document.getElementById('btnFdeZoomIn')?.addEventListener('click', () => {
-    canvasZoom = Math.min(2.0, +(canvasZoom + 0.15).toFixed(2));
+    canvasZoom = Math.min(2.5, +(canvasZoom + 0.15).toFixed(2));
     applyZoom();
   });
   document.getElementById('btnFdeZoomOut')?.addEventListener('click', () => {
-    canvasZoom = Math.max(0.5, +(canvasZoom - 0.15).toFixed(2));
+    canvasZoom = Math.max(0.35, +(canvasZoom - 0.15).toFixed(2));
     applyZoom();
   });
   document.getElementById('btnFdeZoomReset')?.addEventListener('click', () => {
+    fitToView();
+    showToast('⛶ Fitted workflow to viewport');
+  });
+  document.getElementById('fdeZoomLevelPill')?.addEventListener('click', () => {
     canvasZoom = 1.0;
     applyZoom();
+    showToast('🔍 Zoom reset to 100%');
   });
+  document.getElementById('btnFdeCenterView')?.addEventListener('click', () => {
+    if (!renderedPane) return;
+    const maxScrollX = Math.max(0, renderedPane.scrollWidth - renderedPane.clientWidth);
+    const maxScrollY = Math.max(0, renderedPane.scrollHeight - renderedPane.clientHeight);
+    renderedPane.scrollTo({
+      left: Math.round(maxScrollX / 2),
+      top: Math.round(maxScrollY / 2),
+      behavior: 'smooth'
+    });
+    showToast('🎯 View centered');
+  });
+
+  let isCanvasExpanded = false;
+  const btnExpandCanvas = document.getElementById('btnFdeExpandCanvas');
+  btnExpandCanvas?.addEventListener('click', () => {
+    if (!renderedPane) return;
+    isCanvasExpanded = !isCanvasExpanded;
+    if (isCanvasExpanded) {
+      renderedPane.style.maxHeight = 'calc(100vh - 220px)';
+      if (btnExpandCanvas) {
+        btnExpandCanvas.textContent = '🗗 Collapse';
+        btnExpandCanvas.title = 'Restore standard canvas height';
+        btnExpandCanvas.classList.add('active');
+        btnExpandCanvas.style.borderColor = '#38bdf8';
+        btnExpandCanvas.style.color = '#38bdf8';
+      }
+    } else {
+      renderedPane.style.maxHeight = '520px';
+      if (btnExpandCanvas) {
+        btnExpandCanvas.textContent = '🗖 Expand';
+        btnExpandCanvas.title = 'Expand canvas height for presentations';
+        btnExpandCanvas.classList.remove('active');
+        btnExpandCanvas.style.borderColor = '';
+        btnExpandCanvas.style.color = '';
+      }
+    }
+    setTimeout(() => {
+      fitToView();
+    }, 270);
+  });
+
+  renderedPane?.addEventListener('wheel', (e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const oldZoom = canvasZoom;
+      const delta = e.deltaY < 0 ? 0.12 : -0.12;
+      const newZoom = Math.max(0.35, Math.min(2.5, +(oldZoom + delta).toFixed(2)));
+      if (newZoom === oldZoom) return;
+
+      const rect = renderedPane.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left + renderedPane.scrollLeft;
+      const pointerY = e.clientY - rect.top + renderedPane.scrollTop;
+
+      canvasZoom = newZoom;
+      applyZoom();
+
+      const ratio = newZoom / oldZoom;
+      renderedPane.scrollLeft = Math.round(pointerX * ratio - (e.clientX - rect.left));
+      renderedPane.scrollTop = Math.round(pointerY * ratio - (e.clientY - rect.top));
+    }
+  }, { passive: false });
 
   // --- Floating Inline Quick-Editor ---
   const inlineEditor = document.getElementById('fdeTopologyInlineEditor');
@@ -4200,6 +4365,7 @@ function setupPhase1Discovery(api: any): void {
 
   // --- Delegated On-Canvas Click Handlers ---
   renderedPane?.addEventListener('click', (e: MouseEvent) => {
+    if (currentInteractionMode === 'pan' || didDragOnCanvas) return;
     const target = e.target as HTMLElement | SVGElement | null;
     if (!target) return;
 
@@ -4313,7 +4479,24 @@ function setupPhase1Discovery(api: any): void {
 
   renderedPane?.addEventListener('pointerdown', (e: PointerEvent) => {
     const target = e.target as HTMLElement | SVGElement | null;
-    if (!target || target.closest('.sq-btn')) return;
+    if (!target) return;
+    didDragOnCanvas = false;
+
+    const isOverElement = target.closest('.sq-part-group') || target.closest('.sq-msg-group') || target.closest('.sq-btn') || target.closest('#fdeTopologyInlineEditor');
+    
+    if (e.button === 1 || isPanningActive() || !isOverElement) {
+      isPanDragging = true;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      panScrollLeft = renderedPane.scrollLeft;
+      panScrollTop = renderedPane.scrollTop;
+      renderedPane.style.cursor = 'grabbing';
+      try { renderedPane.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault();
+      return;
+    }
+
+    if (target.closest('.sq-btn')) return;
 
     const part = target.closest('.sq-part-group') as SVGElement | null;
     if (part) {
@@ -4337,11 +4520,23 @@ function setupPhase1Discovery(api: any): void {
   });
 
   renderedPane?.addEventListener('pointermove', (e: PointerEvent) => {
+    if (isPanDragging && renderedPane) {
+      const dx = e.clientX - panStartX;
+      const dy = e.clientY - panStartY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        didDragOnCanvas = true;
+      }
+      renderedPane.scrollLeft = panScrollLeft - dx;
+      renderedPane.scrollTop = panScrollTop - dy;
+      return;
+    }
+
     if (!dragKind || dragFromIdx < 0) return;
     const dx = Math.abs(e.clientX - dragStartX);
     const dy = Math.abs(e.clientY - dragStartY);
     if (!isDraggingOnCanvas && (dx > 6 || dy > 6)) {
       isDraggingOnCanvas = true;
+      didDragOnCanvas = true;
     }
     if (isDraggingOnCanvas) {
       const target = document.elementFromPoint(e.clientX, e.clientY);
@@ -4363,10 +4558,18 @@ function setupPhase1Discovery(api: any): void {
   });
 
   const endDrag = (e: PointerEvent) => {
+    if (isPanDragging) {
+      isPanDragging = false;
+      try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
+      updateCanvasCursor();
+      setTimeout(() => { didDragOnCanvas = false; }, 60);
+      return;
+    }
     if (!dragKind || dragFromIdx < 0) {
       dragKind = null;
       dragFromIdx = -1;
       isDraggingOnCanvas = false;
+      setTimeout(() => { didDragOnCanvas = false; }, 60);
       return;
     }
     if (isDraggingOnCanvas) {
@@ -4389,9 +4592,12 @@ function setupPhase1Discovery(api: any): void {
         }
       }
     }
+    renderedPane?.querySelectorAll('.sq-part-card').forEach(c => (c as SVGElement).style.stroke = '');
+    renderedPane?.querySelectorAll('.sq-msg-group line, .sq-msg-group path').forEach(l => (l as SVGElement).style.strokeWidth = '');
     dragKind = null;
     dragFromIdx = -1;
     isDraggingOnCanvas = false;
+    setTimeout(() => { didDragOnCanvas = false; }, 60);
   };
 
   renderedPane?.addEventListener('pointerup', endDrag);
@@ -5179,7 +5385,7 @@ function setupPhase1Discovery(api: any): void {
     refreshStepRail();
     // Repaint the diagram when arriving at step 3 - SVG laid out while hidden
     // measures wrong, so it must be drawn once the panel is actually visible.
-    if (currentDiscoveryStep === 3) { paintDiagram(); paintCompare(); }
+    if (currentDiscoveryStep === 3) { paintDiagram(); fitToView(); paintCompare(); }
     const card = document.getElementById('phase1Card');
     if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };

@@ -1582,23 +1582,62 @@
                   </div>
 
                   <!-- Direct On-Canvas Controls Dock -->
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 8px; background: rgba(15, 23, 42, 0.65); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 5px; font-size: 11px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 4px 8px; background: rgba(15, 23, 42, 0.75); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; font-size: 11px; flex-wrap: wrap; gap: 6px;">
                     <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                      <!-- Mode toggles: Select vs Pan -->
+                      <div style="display: inline-flex; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; overflow: hidden; background: rgba(15, 23, 42, 0.8);">
+                        <button type="button" class="btn-quick active" id="btnFdeModeSelect" title="Select &amp; Edit Mode (Click nodes to edit, drag to reorder)" style="font-size: 10px; padding: 3px 8px; border: none; border-radius: 0;">👆 Select</button>
+                        <button type="button" class="btn-quick" id="btnFdeModePan" title="Pan Canvas (Click and drag canvas to move view around)" style="font-size: 10px; padding: 3px 8px; border: none; border-radius: 0; border-left: 1px solid rgba(56, 189, 248, 0.3);">✋ Pan</button>
+                      </div>
+
                       <button class="btn-quick" id="btnFdeCanvasAddParticipant" style="font-size: 10.5px; border-color: #38bdf8; color: #38bdf8; font-weight: 600;" aria-label="Add a new participant or system to the canvas">+ System / Actor</button>
                       <button class="btn-quick" id="btnFdeCanvasAddStep" style="font-size: 10.5px; border-color: #10b981; color: #10b981; font-weight: 600;" aria-label="Add a new message step to the canvas">+ Step Flow</button>
-                      <span style="font-size: 10px; color: #94a3b8; margin-left: 6px; display: inline-flex; align-items: center; gap: 4px;">
-                        <span>💡</span> Click any node or laser beam to edit inline &bull; Drag to reorder &bull; Hover for quick actions
+                      <span style="font-size: 10px; color: #94a3b8; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                        <span>💡</span> Click to edit inline &bull; Drag to reorder &bull; Space+drag / ✋ to pan &bull; Ctrl+wheel to zoom
                       </span>
                     </div>
+
                     <div style="display: flex; gap: 4px; align-items: center;">
-                      <button class="btn-quick" id="btnFdeZoomIn" title="Zoom In" style="font-size: 10px; padding: 2px 7px;">🔍+</button>
-                      <button class="btn-quick" id="btnFdeZoomOut" title="Zoom Out" style="font-size: 10px; padding: 2px 7px;">🔍-</button>
-                      <button class="btn-quick" id="btnFdeZoomReset" title="Fit to View" style="font-size: 10px; padding: 2px 7px;">⛶ Fit</button>
+                      <button class="btn-quick" id="btnFdeZoomOut" title="Zoom Out (or Ctrl+Wheel Down)" style="font-size: 10px; padding: 2px 7px;">🔍−</button>
+                      <span id="fdeZoomLevelPill" title="Current Zoom (Click to reset to 100%)" style="font-size: 10px; font-weight: 700; color: #38bdf8; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 4px; padding: 2px 6px; cursor: pointer; min-width: 36px; text-align: center; user-select: none;">100%</span>
+                      <button class="btn-quick" id="btnFdeZoomIn" title="Zoom In (or Ctrl+Wheel Up)" style="font-size: 10px; padding: 2px 7px;">🔍+</button>
+                      <button class="btn-quick" id="btnFdeZoomReset" title="Fit whole workflow into viewport" style="font-size: 10.5px; padding: 2px 8px; border-color: #06b6d4; color: #22d3ee; font-weight: 600;">⛶ Fit View</button>
+                      <button class="btn-quick" id="btnFdeCenterView" title="Center workflow in viewport" style="font-size: 10px; padding: 2px 7px;">🎯 Center</button>
+                      <button class="btn-quick" id="btnFdeExpandCanvas" title="Expand canvas height for presentations" style="font-size: 10px; padding: 2px 8px;">🗖 Expand</button>
                     </div>
                   </div>
 
                   <div style="position: relative; width: 100%;">
-                    <div id="fdeTopologyRendered" role="tabpanel" aria-labelledby="btnFdeViewDiagram" style="width: 100%; box-sizing: border-box; background: radial-gradient(ellipse at 50% 0%, #0d1527 0%, #070b14 75%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 14px; overflow: auto; max-height: 520px; min-height: 240px; position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.5);"></div>
+                    <style>
+                      #fdeTopologyRendered::-webkit-scrollbar,
+                      #fdeCompareLegacy::-webkit-scrollbar,
+                      #fdeCompareFuture::-webkit-scrollbar {
+                        width: 9px;
+                        height: 9px;
+                      }
+                      #fdeTopologyRendered::-webkit-scrollbar-track,
+                      #fdeCompareLegacy::-webkit-scrollbar-track,
+                      #fdeCompareFuture::-webkit-scrollbar-track {
+                        background: #080d1a;
+                        border-radius: 4px;
+                      }
+                      #fdeTopologyRendered::-webkit-scrollbar-thumb,
+                      #fdeCompareLegacy::-webkit-scrollbar-thumb,
+                      #fdeCompareFuture::-webkit-scrollbar-thumb {
+                        background: rgba(56, 189, 248, 0.45);
+                        border: 2px solid #080d1a;
+                        border-radius: 4px;
+                      }
+                      #fdeTopologyRendered::-webkit-scrollbar-thumb:hover,
+                      #fdeCompareLegacy::-webkit-scrollbar-thumb:hover,
+                      #fdeCompareFuture::-webkit-scrollbar-thumb:hover {
+                        background: rgba(56, 189, 248, 0.85);
+                      }
+                      #fdeTopologyRendered::-webkit-scrollbar-corner {
+                        background: #080d1a;
+                      }
+                    </style>
+                    <div id="fdeTopologyRendered" role="tabpanel" aria-labelledby="btnFdeViewDiagram" style="width: 100%; box-sizing: border-box; background: radial-gradient(ellipse at 50% 0%, #0d1527 0%, #070b14 75%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 14px; overflow: auto; max-height: 520px; min-height: 240px; position: relative; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); scrollbar-color: rgba(56, 189, 248, 0.45) #080d1a; scrollbar-width: thin; transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; -webkit-user-select: none; touch-action: none;"></div>
 
                     <!-- Floating Inline Quick-Editor Popover -->
                     <div id="fdeTopologyInlineEditor" hidden style="position: absolute; display: none; z-index: 1000; background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8; border-radius: 8px; padding: 12px; box-shadow: 0 12px 30px rgba(0,0,0,0.7), 0 0 15px rgba(56, 189, 248, 0.3); backdrop-filter: blur(8px); width: 280px; max-width: 90vw; color: #f8fafc;">
