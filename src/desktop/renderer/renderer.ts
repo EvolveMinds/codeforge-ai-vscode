@@ -16848,6 +16848,20 @@ class DataCosmosEngine {
 
     this.layout2DNodes();
 
+    // Synchronize 3D and 2D coordinates back to caller's graph.nodes
+    if (graph.nodes) {
+      graph.nodes.forEach(gn => {
+        const internal = this.nodeMap.get(gn.id);
+        if (internal) {
+          gn.x = internal.x;
+          gn.y = internal.y;
+          gn.z = internal.z;
+          gn.x2D = internal.x2D;
+          gn.y2D = internal.y2D;
+        }
+      });
+    }
+
     this.links = (graph.links || []).map(l => {
       // Setup 2-3 photon particles per link
       const particleCount = l.confidence && l.confidence > 0.8 ? 3 : 2;
@@ -17268,7 +17282,8 @@ class DataCosmosEngine {
   }
 
   public selectNode(node: CosmosNode | null): void {
-    this.selectedNodeId = node ? node.id : null;
+    const targetNode = node ? (this.nodeMap.get(node.id) || node) : null;
+    this.selectedNodeId = targetNode ? targetNode.id : null;
     if (this.selectedLink) {
       this.selectedLink = null;
       if (this.onLinkSelect) {
@@ -17276,7 +17291,7 @@ class DataCosmosEngine {
       }
     }
     if (this.onNodeSelect) {
-      this.onNodeSelect(node);
+      this.onNodeSelect(targetNode);
     }
   }
 
@@ -17297,21 +17312,32 @@ class DataCosmosEngine {
     if (!a || !b) return;
 
     if (this.mode === '2D') {
-      const midX = (a.x2D + b.x2D) / 2;
-      const midY = (a.y2D + b.y2D) / 2;
-      const spanX = Math.abs(b.x2D - a.x2D) + 380;
-      const spanY = Math.abs(b.y2D - a.y2D) + 260;
+      const ax = typeof a.x2D === 'number' && !isNaN(a.x2D) ? a.x2D : 0;
+      const ay = typeof a.y2D === 'number' && !isNaN(a.y2D) ? a.y2D : 0;
+      const bx = typeof b.x2D === 'number' && !isNaN(b.x2D) ? b.x2D : 0;
+      const by = typeof b.y2D === 'number' && !isNaN(b.y2D) ? b.y2D : 0;
+      const midX = (ax + bx) / 2;
+      const midY = (ay + by) / 2;
+      const spanX = Math.abs(bx - ax) + 380;
+      const spanH = Math.abs(by - ay) + 260;
       const dpr = window.devicePixelRatio || 1;
       const canvasW = (this.canvas.width / dpr) || 900;
       const canvasH = (this.canvas.height / dpr) || 560;
-      const fitZoom = Math.min(canvasW / Math.max(spanX, 100), canvasH / Math.max(spanY, 100)) * 0.88;
-      this.targetZoom2D = Math.max(0.4, Math.min(1.4, fitZoom));
-      this.targetPanX2D = -midX;
-      this.targetPanY2D = -midY;
+      const fitZoom = Math.min(canvasW / Math.max(spanX, 100), canvasH / Math.max(spanH, 100)) * 0.88;
+      const zoom = Math.max(0.4, Math.min(1.4, fitZoom));
+      this.targetZoom2D = zoom;
+      this.targetPanX2D = -midX * zoom;
+      this.targetPanY2D = -midY * zoom;
     } else {
-      const midX = (a.x + b.x) / 2;
-      const midY = (a.y + b.y) / 2;
-      const midZ = (a.z + b.z) / 2;
+      const ax = typeof a.x === 'number' && !isNaN(a.x) ? a.x : 0;
+      const ay = typeof a.y === 'number' && !isNaN(a.y) ? a.y : 0;
+      const az = typeof a.z === 'number' && !isNaN(a.z) ? a.z : 0;
+      const bx = typeof b.x === 'number' && !isNaN(b.x) ? b.x : 0;
+      const by = typeof b.y === 'number' && !isNaN(b.y) ? b.y : 0;
+      const bz = typeof b.z === 'number' && !isNaN(b.z) ? b.z : 0;
+      const midX = (ax + bx) / 2;
+      const midY = (ay + by) / 2;
+      const midZ = (az + bz) / 2;
       const r = Math.hypot(midX, midY, midZ) || 1;
       this.targetTheta = Math.atan2(midX, midZ);
       this.targetPhi = Math.asin(-midY / r);
@@ -17322,20 +17348,29 @@ class DataCosmosEngine {
   }
 
   public flyCameraToNode(node: CosmosNode): void {
+    const targetNode = this.nodeMap.get(node.id) || node;
     if (this.mode === '3D') {
-      // Calculate target theta and phi towards node
-      const r = Math.hypot(node.x, node.y, node.z) || 1;
-      this.targetTheta = Math.atan2(node.x, node.z);
-      this.targetPhi = Math.asin(-node.y / r);
+      const nx = typeof targetNode.x === 'number' && !isNaN(targetNode.x) ? targetNode.x : 0;
+      const ny = typeof targetNode.y === 'number' && !isNaN(targetNode.y) ? targetNode.y : 0;
+      const nz = typeof targetNode.z === 'number' && !isNaN(targetNode.z) ? targetNode.z : 0;
+      const r = Math.hypot(nx, ny, nz) || 1;
+      this.targetTheta = Math.atan2(nx, nz);
+      this.targetPhi = Math.asin(-ny / r);
       this.targetR = 380;
       this.panX = 0;
       this.panY = 0;
     } else {
-      this.targetPanX2D = -node.x2D;
-      this.targetPanY2D = -node.y2D;
-      this.targetZoom2D = 1.3;
+      const nx = typeof targetNode.x2D === 'number' && !isNaN(targetNode.x2D) ? targetNode.x2D : 0;
+      const ny = typeof targetNode.y2D === 'number' && !isNaN(targetNode.y2D) ? targetNode.y2D : 0;
+      // In 2D mode, smoothly pan to center the table on screen
+      // Keep a balanced zoom so user can clearly see the spotlighted table AND its relationships!
+      const currentZoom = (typeof this.zoom2D === 'number' && !isNaN(this.zoom2D) && this.zoom2D > 0) ? this.zoom2D : 1.0;
+      const zoom = Math.max(0.65, Math.min(1.15, currentZoom));
+      this.targetZoom2D = zoom;
+      this.targetPanX2D = -nx * zoom;
+      this.targetPanY2D = -ny * zoom;
     }
-    this.selectNode(node);
+    this.selectNode(targetNode);
   }
 
   public matchesFilter(node: CosmosNode): boolean {
@@ -17494,10 +17529,6 @@ class DataCosmosEngine {
     if (this.nodes.length === 0) return;
 
     if (this.mode === '2D') {
-      this.panX2D = 0;
-      this.panY2D = 0;
-      this.targetPanX2D = 0;
-      this.targetPanY2D = 0;
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
       for (const n of this.nodes) {
         if (n.x2D < minX) minX = n.x2D;
@@ -17512,6 +17543,12 @@ class DataCosmosEngine {
       const canvasH = (this.canvas.height / dpr) || this.canvas.clientHeight || 560;
       const fitZoom = Math.min(canvasW / Math.max(spanW, 100), canvasH / Math.max(spanH, 100)) * 0.92;
       this.targetZoom2D = Math.max(0.06, Math.min(1.2, fitZoom));
+      const midX = (minX + maxX) / 2;
+      const midY = (minY + maxY) / 2;
+      this.targetPanX2D = -midX * this.targetZoom2D;
+      this.targetPanY2D = -midY * this.targetZoom2D;
+      this.panX2D = this.targetPanX2D;
+      this.panY2D = this.targetPanY2D;
       return;
     }
 
@@ -17543,13 +17580,19 @@ class DataCosmosEngine {
   }
 
   private updateState(): void {
-    // Smooth camera lerp
-    this.R += (this.targetR - this.R) * 0.12;
-    this.theta += (this.targetTheta - this.theta) * 0.12;
-    this.phi += (this.targetPhi - this.phi) * 0.12;
-    this.zoom2D += (this.targetZoom2D - this.zoom2D) * 0.14;
-    this.panX2D += (this.targetPanX2D - this.panX2D) * 0.16;
-    this.panY2D += (this.targetPanY2D - this.panY2D) * 0.16;
+    // Smooth camera lerp with NaN guards
+    if (!isNaN(this.targetR) && isFinite(this.targetR)) this.R += (this.targetR - this.R) * 0.12;
+    if (!isNaN(this.targetTheta) && isFinite(this.targetTheta)) this.theta += (this.targetTheta - this.theta) * 0.12;
+    if (!isNaN(this.targetPhi) && isFinite(this.targetPhi)) this.phi += (this.targetPhi - this.phi) * 0.12;
+    if (!isNaN(this.targetZoom2D) && isFinite(this.targetZoom2D) && this.targetZoom2D > 0) {
+      this.zoom2D += (this.targetZoom2D - this.zoom2D) * 0.14;
+    }
+    if (!isNaN(this.targetPanX2D) && isFinite(this.targetPanX2D)) {
+      this.panX2D += (this.targetPanX2D - this.panX2D) * 0.16;
+    }
+    if (!isNaN(this.targetPanY2D) && isFinite(this.targetPanY2D)) {
+      this.panY2D += (this.targetPanY2D - this.panY2D) * 0.16;
+    }
 
     // Turntable rotation
     if (this.isTurntable && this.activePointers.size === 0) {
@@ -17942,6 +17985,10 @@ class DataCosmosEngine {
   }
 
   private render2D(w: number, h: number): void {
+    if (isNaN(this.panX2D) || !isFinite(this.panX2D)) this.panX2D = 0;
+    if (isNaN(this.panY2D) || !isFinite(this.panY2D)) this.panY2D = 0;
+    if (isNaN(this.zoom2D) || !isFinite(this.zoom2D) || this.zoom2D <= 0) this.zoom2D = 1.0;
+
     const centerX = w / 2 + this.panX2D;
     const centerY = h / 2 + this.panY2D;
 
@@ -17996,6 +18043,10 @@ class DataCosmosEngine {
         this.ctx.globalAlpha = isSelectedLink ? 1.0 : 0.02;
       } else if (isFilterActive && !aMatches && !bMatches) {
         this.ctx.globalAlpha = 0.08;
+      } else if (this.selectedNodeId) {
+        this.ctx.globalAlpha = isConnected ? 1.0 : 0.28;
+      } else {
+        this.ctx.globalAlpha = 1.0;
       }
 
       const pts = this.getLink2DPoints(link);
@@ -18107,6 +18158,7 @@ class DataCosmosEngine {
       const isInRelFocus = isLinkedSource || isLinkedTarget;
 
       const isSel = this.selectedNodeId === node.id;
+      const isConnectedToSel = !isRelFocus && !!this.selectedNodeId && this.links.some(l => (l.source === this.selectedNodeId && l.target === node.id) || (l.target === this.selectedNodeId && l.source === node.id));
       const isPath = this.activePath.includes(node.id);
       const matches = !isFilterActive || this.matchesFilter(node);
       const isFilterMatch = isFilterActive && matches;
@@ -18116,6 +18168,8 @@ class DataCosmosEngine {
         this.ctx.globalAlpha = isInRelFocus ? 1.0 : 0.04;
       } else if (isFilterActive && !matches) {
         this.ctx.globalAlpha = 0.12;
+      } else if (this.selectedNodeId) {
+        this.ctx.globalAlpha = (isSel || isConnectedToSel) ? 1.0 : 0.45;
       } else {
         this.ctx.globalAlpha = 1.0;
       }
@@ -18127,9 +18181,15 @@ class DataCosmosEngine {
 
       // Card Container
       this.ctx.fillStyle = '#111827';
-      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isPath ? '#facc15' : isFilterMatch ? '#38bdf8' : 'rgba(255,255,255,0.12)';
-      this.ctx.lineWidth = isInRelFocus ? 3 : (isSel || isPath || isFilterMatch ? 2.5 : 1);
-      if ((isFilterMatch || isInRelFocus) && !isSel && !isPath) {
+      this.ctx.strokeStyle = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : isSel ? '#38bdf8' : isConnectedToSel ? 'rgba(56, 189, 248, 0.75)' : isPath ? '#facc15' : isFilterMatch ? '#38bdf8' : 'rgba(255,255,255,0.12)';
+      this.ctx.lineWidth = isInRelFocus ? 3 : (isSel || isPath || isFilterMatch ? 2.5 : isConnectedToSel ? 2 : 1);
+      if (isSel) {
+        this.ctx.shadowColor = '#38bdf8';
+        this.ctx.shadowBlur = 18;
+      } else if (isConnectedToSel) {
+        this.ctx.shadowColor = 'rgba(56, 189, 248, 0.4)';
+        this.ctx.shadowBlur = 10;
+      } else if ((isFilterMatch || isInRelFocus) && !isPath) {
         this.ctx.shadowColor = isInRelFocus ? (isLinkedSource ? '#facc15' : '#38bdf8') : '#38bdf8';
         this.ctx.shadowBlur = isInRelFocus ? 16 : 10;
       }
