@@ -18058,12 +18058,23 @@ class SingleDataset3DEngine {
     return this.filterOutliersOnly;
   }
 
+  public zoomIn() {
+    this.R = Math.max(120, this.R - 40);
+    this.draw();
+  }
+
+  public zoomOut() {
+    this.R = Math.min(800, this.R + 40);
+    this.draw();
+  }
+
   public resetView() {
     this.theta = 0.5;
     this.phi = 0.35;
     this.R = 320;
     this.isTurntable = true;
     this.filterOutliersOnly = false;
+    this.draw();
   }
 
   public resize() {
@@ -18180,8 +18191,73 @@ class SingleDataset3DEngine {
       };
     };
 
-    // Draw 3D Boundary Wireframe
-    ctx.strokeStyle = '#1e293b';
+    // 1. Perspective Floor Grid (at Ground Plane Y = 100)
+    const floorY = 100;
+    ctx.lineWidth = 1;
+    for (let gx = -100; gx <= 100; gx += 25) {
+      const p1 = project(gx, floorY, -100);
+      const p2 = project(gx, floorY, 100);
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.moveTo(p1.sx, p1.sy);
+        ctx.lineTo(p2.sx, p2.sy);
+        ctx.strokeStyle = gx === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.1)';
+        ctx.stroke();
+      }
+    }
+    for (let gz = -100; gz <= 100; gz += 25) {
+      const p1 = project(-100, floorY, gz);
+      const p2 = project(100, floorY, gz);
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.moveTo(p1.sx, p1.sy);
+        ctx.lineTo(p2.sx, p2.sy);
+        ctx.strokeStyle = gz === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.1)';
+        ctx.stroke();
+      }
+    }
+
+    // 2. Origin & 3D Axes with Labels
+    const origin = project(-100, floorY, -100);
+    const axisX = project(-40, floorY, -100);
+    const axisY = project(-100, floorY - 60, -100);
+    const axisZ = project(-100, floorY, -40);
+    if (origin && axisX) {
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(axisX.sx, axisX.sy);
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#ef4444';
+      ctx.font = '10px monospace';
+      ctx.fillText(`X: ${this.axisLabels.x}`, axisX.sx + 4, axisX.sy);
+    }
+    if (origin && axisY) {
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(axisY.sx, axisY.sy);
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#10b981';
+      ctx.font = '10px monospace';
+      ctx.fillText(`Y: ${this.axisLabels.y}`, axisY.sx + 4, axisY.sy - 4);
+    }
+    if (origin && axisZ) {
+      ctx.beginPath();
+      ctx.moveTo(origin.sx, origin.sy);
+      ctx.lineTo(axisZ.sx, axisZ.sy);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = '10px monospace';
+      ctx.fillText(`Z: ${this.axisLabels.z}`, axisZ.sx + 4, axisZ.sy);
+    }
+
+    // 3. Draw 3D Boundary Wireframe
+    ctx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
     ctx.lineWidth = 1;
     const box = [-100, 100];
     for (const bx of box) {
@@ -18197,7 +18273,7 @@ class SingleDataset3DEngine {
       }
     }
 
-    // Project Points
+    // 4. Project Points
     this.renderedNodes = [];
     for (const p of this.points) {
       if (this.filterOutliersOnly && !p.isOutlier) continue;
@@ -18211,7 +18287,27 @@ class SingleDataset3DEngine {
     // Depth sort (painter's algorithm)
     this.renderedNodes.sort((a, b) => b.sz - a.sz);
 
-    // Draw Nodes
+    // 5. Draw Drop-lines from Nodes to Floor Plane for 3D Depth
+    for (const n of this.renderedNodes) {
+      const p = n.p;
+      const ground = project(p.x, floorY, p.z);
+      if (ground) {
+        ctx.beginPath();
+        ctx.moveTo(n.sx, n.sy);
+        ctx.lineTo(ground.sx, ground.sy);
+        ctx.strokeStyle = p.isOutlier ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(ground.sx, ground.sy, Math.max(1.5, n.sr * 0.4), 0, Math.PI * 2);
+        ctx.fillStyle = p.isOutlier ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.2)';
+        ctx.fill();
+      }
+    }
+
+    // 6. Draw Nodes
     const now = Date.now();
     for (const n of this.renderedNodes) {
       const p = n.p;
@@ -18229,7 +18325,7 @@ class SingleDataset3DEngine {
 
       ctx.beginPath();
       ctx.arc(n.sx, n.sy, isHov ? n.sr + 4 : n.sr, 0, Math.PI * 2);
-      ctx.fillStyle = p.isOutlier ? '#ef4444' : p.color;
+      ctx.fillStyle = p.isOutlier ? '#ef4444' : (p.color || '#38bdf8');
       ctx.fill();
       ctx.strokeStyle = isHov ? '#ffffff' : 'rgba(0,0,0,0.6)';
       ctx.lineWidth = isHov ? 2.5 : 1;
@@ -18642,6 +18738,8 @@ function setupDataAnalysisStudio(api: any): void {
   const btnSingle3DTurntable = document.getElementById('btnSingle3DTurntable');
   const btnSingle3DOutliersOnly = document.getElementById('btnSingle3DOutliersOnly');
   const btnSingle3DReset = document.getElementById('btnSingle3DReset');
+  const btnSingle3DZoomIn = document.getElementById('btnSingle3DZoomIn');
+  const btnSingle3DZoomOut = document.getElementById('btnSingle3DZoomOut');
   const dataTargetKpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
   const dataFocusPresets = document.querySelectorAll<HTMLButtonElement>('.data-focus-preset');
   const dataSourceEditorPanel = document.getElementById('dataSourceEditorPanel');
@@ -18654,9 +18752,14 @@ function setupDataAnalysisStudio(api: any): void {
   const btnDataCopyScriptOnly = document.getElementById('btnDataCopyScriptOnly');
   const dataAnalysisSourceEditor = document.getElementById('dataAnalysisSourceEditor') as HTMLTextAreaElement;
   const btnDataApplyEdits = document.getElementById('btnDataApplyEdits');
+  const btnDataRevertEdits = document.getElementById('btnDataRevertEdits');
+  const dataEditorDocTitle = document.getElementById('dataEditorDocTitle');
+  const dataEditorLangBadge = document.getElementById('dataEditorLangBadge');
+  const dataEditorStats = document.getElementById('dataEditorStats');
   const dataDeliverableFormatBadge = document.getElementById('dataDeliverableFormatBadge');
 
   let currentDeliverableContent = '';
+  let originalDeliverableContent = '';
   let currentDeliverableType = 'insights';
   let currentDeliverableSourceTitle = 'Active Dataset';
   let currentViewMode: 'preview' | '3d' | 'source' = 'preview';
@@ -18676,54 +18779,160 @@ function setupDataAnalysisStudio(api: any): void {
     });
   });
 
-  // Helper to format text/markdown into structured HTML cards
-  const formatTextDeliverableToHtml = (raw: string, type: string): string => {
+  // Helper to format table cells and inline markdown text
+  const formatCellContent = (cell: string): string => {
+    let c = (cell || '').trim();
+    if (!c) return '&mdash;';
+
+    // Status Badges
+    c = c.replace(/🔴\s*CRITICAL/gi, '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">🔴 CRITICAL</span>');
+    c = c.replace(/🟡\s*MODERATE/gi, '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">🟡 MODERATE</span>');
+    c = c.replace(/🟢\s*NORMAL/gi, '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">🟢 NORMAL</span>');
+    c = c.replace(/\[HIGH PRIORITY\]/gi, '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">HIGH PRIORITY</span>');
+    c = c.replace(/\[MEDIUM PRIORITY\]/gi, '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">MEDIUM PRIORITY</span>');
+    c = c.replace(/\[STRATEGIC\]/gi, '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">STRATEGIC</span>');
+    c = c.replace(/\[PRIMARY CHOKEPOINT\]/gi, '<span style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">PRIMARY CHOKEPOINT</span>');
+
+    // Bold / italic / code
+    c = c.replace(/\*\*([^*]+)\*\*/g, '<strong style="color: #fff;">$1</strong>');
+    c = c.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    c = c.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-family: monospace; color: #9cdcfe; font-size: 11px;">$1</code>');
+
+    return c;
+  };
+
+  // Markdown Parser fallback for edited/arbitrary deliverables
+  const renderMarkdownToExecutiveHtml = (raw: string): string => {
     if (!raw) return '<div style="color: var(--text-secondary); font-style: italic;">No deliverable output.</div>';
 
     const lines = raw.split('\n');
     let html = '';
     let inTable = false;
-    let tableRows: string[] = [];
+    let tableHeaders: string[] = [];
+    let tableRows: string[][] = [];
 
     const flushTable = () => {
-      if (tableRows.length > 0) {
-        html += `<table style="width: 100%; border-collapse: collapse; margin: 12px 0; background: rgba(0,0,0,0.25); border-radius: 6px; overflow: hidden; border: 1px solid var(--border);">
-          <thead>
-            <tr style="background: rgba(255,255,255,0.04); text-align: left; font-size: 11px; text-transform: uppercase; color: var(--accent);">
-              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Attribute</th>
-              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Type</th>
-              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Nullability</th>
-              <th style="padding: 8px 12px; border-bottom: 1px solid var(--border);">Cardinality</th>
-            </tr>
-          </thead>
-          <tbody>${tableRows.join('')}</tbody>
-        </table>`;
-        tableRows = [];
+      if (tableHeaders.length > 0) {
+        html += `<div style="overflow-x: auto; margin: 14px 0;">
+          <table style="width: 100%; border-collapse: collapse; background: rgba(0,0,0,0.25); border-radius: 8px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="background: rgba(255,255,255,0.04); font-size: 11px; text-transform: uppercase; color: #38bdf8; letter-spacing: 0.5px;">
+                ${tableHeaders.map(h => `<th style="padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-weight: 700;">${h}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows.map((row, rIdx) => `
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.04); ${rIdx % 2 === 1 ? 'background: rgba(255,255,255,0.015);' : ''}">
+                  ${row.map((cell, cIdx) => `<td style="padding: 9px 12px; ${cIdx === 0 ? 'font-weight: 600; color: #fff;' : 'color: #cbd5e1;'}">${formatCellContent(cell)}</td>`).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
       }
+      tableHeaders = [];
+      tableRows = [];
       inTable = false;
     };
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
+
       if (!trimmed) {
         if (inTable) flushTable();
         continue;
       }
 
-      // Title Banner e.g. [Evolve Data Intelligence Insights]
-      if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-        if (inTable) flushTable();
-        const titleText = trimmed.slice(1, -1);
-        html += `<div style="font-size: 14.5px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 18px;">${type === 'profile' ? '📋' : '💬'}</span>
+      // Markdown Table Line
+      if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+        const parts = trimmed.split('|').slice(1, -1).map(s => s.trim());
+        if (!inTable) {
+          if (i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && lines[i + 1].includes('---')) {
+            inTable = true;
+            tableHeaders = parts;
+            i++; // skip separator
+            continue;
+          }
+        } else {
+          tableRows.push(parts);
+          continue;
+        }
+      }
+
+      if (inTable) flushTable();
+
+      // H1 Header or Bracketed Title Banner
+      if (trimmed.startsWith('# ') || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        const titleText = trimmed.startsWith('# ') ? trimmed.slice(2).trim() : trimmed.slice(1, -1).trim();
+        html += `<div style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">📊</span>
           <span>${titleText}</span>
         </div>`;
         continue;
       }
 
-      // Target Source Bullet
+      // H2 Header
+      if (trimmed.startsWith('## ')) {
+        const secText = trimmed.slice(3).trim();
+        html += `<div style="font-size: 13.5px; font-weight: 700; color: #38bdf8; margin: 18px 0 8px 0; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 6px;">
+          <span>●</span>
+          <span>${secText}</span>
+        </div>`;
+        continue;
+      }
+
+      // H3 Header
+      if (trimmed.startsWith('### ')) {
+        const subText = trimmed.slice(4).trim();
+        html += `<div style="font-size: 12.5px; font-weight: 700; color: #c084fc; margin: 12px 0 6px 0;">
+          ${subText}
+        </div>`;
+        continue;
+      }
+
+      // Blockquotes (> Quote)
+      if (trimmed.startsWith('>')) {
+        const quoteText = trimmed.replace(/^>\s*/, '');
+        html += `<div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; border-radius: 0 6px 6px 0; padding: 10px 14px; margin: 8px 0; font-size: 12px; color: #e2e8f0; line-height: 1.5;">
+          ${formatCellContent(quoteText)}
+        </div>`;
+        continue;
+      }
+
+      // Metadata line: Target Source: ... | Records: ... | KPI Focus: ...
+      if (trimmed.startsWith('Target Source:') && trimmed.includes('|')) {
+        html += `<div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; font-size: 12px; color: #e2e8f0;">
+          🎯 <strong>${trimmed}</strong>
+        </div>`;
+        continue;
+      }
+
+      // Structured Bullets: - **Key**: Value
+      if (trimmed.startsWith('- **') && trimmed.includes('**:')) {
+        const match = trimmed.match(/-\s*\*\*([^*]+)\*\*:(.*)/);
+        if (match) {
+          const key = match[1].trim();
+          const val = match[2].trim();
+          html += `<div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; font-size: 12px; line-height: 1.5;">
+            <strong style="color: #38bdf8;">${key}:</strong> <span style="color: #e2e8f0;">${formatCellContent(val)}</span>
+          </div>`;
+          continue;
+        }
+      }
+
+      // Generic Bullets (- Item or • Item or * Item)
+      if (trimmed.startsWith('- ') || trimmed.startsWith('• ') || trimmed.startsWith('* ')) {
+        const text = trimmed.replace(/^[-•*]\s*/, '');
+        html += `<div style="padding: 4px 0 4px 16px; font-size: 12px; position: relative; color: #cbd5e1; line-height: 1.5;">
+          <span style="position: absolute; left: 2px; color: #38bdf8;">&bull;</span>
+          ${formatCellContent(text)}
+        </div>`;
+        continue;
+      }
+
+      // Legacy bullet patterns
       if (trimmed.startsWith('• Target Source:') || trimmed.startsWith('• Target:')) {
-        if (inTable) flushTable();
         const content = trimmed.replace(/^• Target( Source)?:/, '').trim();
         html += `<div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
           <strong style="color: #38bdf8;">🎯 Target Asset:</strong> <span style="color: #fff; font-weight: 600;">${content}</span>
@@ -18731,9 +18940,7 @@ function setupDataAnalysisStudio(api: any): void {
         continue;
       }
 
-      // Discovered Columns Bullet
       if (trimmed.startsWith('• Discovered Columns:')) {
-        if (inTable) flushTable();
         const colList = trimmed.replace('• Discovered Columns:', '').trim().split(',').map(s => s.trim()).filter(Boolean);
         html += `<div style="margin-bottom: 12px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">Introspected Schema Columns (${colList.length}):</div>
@@ -18744,9 +18951,7 @@ function setupDataAnalysisStudio(api: any): void {
         continue;
       }
 
-      // Structural Integrity Bullet
       if (trimmed.startsWith('• Structural Integrity:')) {
-        if (inTable) flushTable();
         const content = trimmed.replace('• Structural Integrity:', '').trim();
         html += `<div style="background: rgba(137, 209, 133, 0.08); border: 1px solid rgba(137, 209, 133, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
           <strong style="color: #89d185;">✅ Structural Integrity:</strong> <span style="color: #e2e8f0;">${content}</span>
@@ -18754,9 +18959,7 @@ function setupDataAnalysisStudio(api: any): void {
         continue;
       }
 
-      // Analytical Takeaway Bullet
       if (trimmed.startsWith('• Analytical Takeaway:')) {
-        if (inTable) flushTable();
         const content = trimmed.replace('• Analytical Takeaway:', '').trim();
         html += `<div style="background: rgba(234, 179, 8, 0.08); border: 1px solid rgba(234, 179, 8, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
           <strong style="color: #fde047;">💡 Analytical Takeaway:</strong> <span style="color: #e2e8f0;">${content}</span>
@@ -18764,9 +18967,7 @@ function setupDataAnalysisStudio(api: any): void {
         continue;
       }
 
-      // Next Step Recommendation Bullet
       if (trimmed.startsWith('• Next Step Recommendation:')) {
-        if (inTable) flushTable();
         const content = trimmed.replace('• Next Step Recommendation:', '').trim();
         html += `<div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 6px; padding: 10px 14px; margin-bottom: 10px; font-size: 12.5px;">
           <strong style="color: #c084fc;">🚀 Next Step Recommendation:</strong> <span style="color: #e2e8f0;">${content}</span>
@@ -18774,56 +18975,393 @@ function setupDataAnalysisStudio(api: any): void {
         continue;
       }
 
-      // Column Level Profiles in 'profile'
-      if (trimmed.startsWith('Column Level Profiles:')) {
-        if (inTable) flushTable();
-        html += `<div style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 6px 0;">📋 Column Level Schema &amp; Profiling</div>`;
-        inTable = true;
-        continue;
-      }
-
-      // Table Row inside Column Level Profiles
-      if (inTable && trimmed.startsWith('-')) {
-        const parts = trimmed.substring(1).split('|');
-        const colPart = (parts[0] || '').split(':');
-        const colName = (colPart[0] || '').trim();
-        const colType = (colPart[2] || colPart[1] || 'STRING').replace('Type:', '').trim();
-        const nulls = (parts[1] || '').replace('Nulls:', '').trim() || '0.0%';
-        const card = (parts[2] || '').replace('Cardinality:', '').trim() || 'Normal';
-
-        tableRows.push(`<tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <td style="padding: 7px 12px; font-family: var(--font-mono); color: #fff; font-size: 11.5px;">${colName}</td>
-          <td style="padding: 7px 12px; color: #ce9178; font-size: 11.5px; font-weight: 600;">${colType}</td>
-          <td style="padding: 7px 12px; color: #89d185; font-size: 11.5px;">${nulls}</td>
-          <td style="padding: 7px 12px; color: #9cdcfe; font-size: 11.5px;">${card}</td>
-        </tr>`);
-        continue;
-      }
-
-      // Key Structural Insights Section
-      if (trimmed.startsWith('Key Structural Insights:')) {
-        if (inTable) flushTable();
-        html += `<div style="font-size: 13px; font-weight: 700; color: var(--accent); margin: 16px 0 8px 0;">🔍 Key Structural Insights</div>`;
-        continue;
-      }
-
-      // Generic Bullets
-      if (trimmed.startsWith('•')) {
-        if (inTable) flushTable();
-        html += `<div style="padding: 4px 0 4px 14px; font-size: 12px; position: relative;">
-          <span style="position: absolute; left: 0; color: var(--accent);">&bull;</span>
-          ${trimmed.substring(1).trim()}
-        </div>`;
-        continue;
-      }
-
       // Regular text
-      if (inTable) flushTable();
-      html += `<div style="margin-bottom: 6px; font-size: 12px; color: #cbd5e1;">${trimmed}</div>`;
+      html += `<div style="margin-bottom: 6px; font-size: 12px; color: #cbd5e1; line-height: 1.5;">${formatCellContent(trimmed)}</div>`;
     }
 
     if (inTable) flushTable();
     return html;
+  };
+
+  // Executive Visual Dashboard Builder for Data Science Results
+  const renderDataScienceExecutiveDashboard = (res: any): string => {
+    if (!res) return '<div style="color: var(--text-secondary); padding: 20px;">No diagnostic telemetry available.</div>';
+
+    const kpiStats = res.targetKpiStats || {};
+    const meanStr = Number(kpiStats.mean || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const medianStr = Number(kpiStats.median || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const stdDevStr = Number(kpiStats.stdDev || 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const minStr = Number(kpiStats.min ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const maxStr = Number(kpiStats.max ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 });
+    const totalRecs = Number(res.totalRecords || 0).toLocaleString();
+
+    const chokepoint = res.bottlenecks?.dominantChokepoint;
+    const hasChokepoint = Boolean(chokepoint);
+    const chokepointShare = res.bottlenecks?.chokepointSharePercent || 0;
+
+    const pareto = res.pareto || {};
+    const outliers = res.outliers || {};
+    const drivers = res.keyDrivers?.drivers || [];
+    const stages = res.bottlenecks?.stages || [];
+    const cohorts = res.cohorts?.cohorts || [];
+    const actions = res.prescriptiveActions || [];
+    const viz = res.visualizations || {};
+
+    let html = `
+      <div class="ds-executive-dashboard" style="display: flex; flex-direction: column; gap: 18px; color: #f1f5f9;">
+
+        <!-- 1. Executive Telemetry Header -->
+        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.6) 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="font-size: 26px; background: rgba(56, 189, 248, 0.15); width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.3);">🧠</div>
+            <div>
+              <div style="font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.3px;">
+                Autonomous Data Scientist Diagnostic Report
+              </div>
+              <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
+                Target Source: <strong style="color: #38bdf8;">${res.datasetTitle || 'Active Dataset'}</strong> &bull; Sample: <strong style="color: #fff;">${totalRecs}</strong> records &bull; KPI: <strong style="color: #fbbf24;">${res.targetKpiName || 'Target'}</strong> (${res.targetKpiUnit || 'units'})
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 600;">
+              ✓ Senior DS Model Active
+            </span>
+            <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 600;">
+              Zero Telemetry Leakage
+            </span>
+          </div>
+        </div>
+
+        <!-- 2. Four Headline Metric KPI Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+          <!-- KPI 1 -->
+          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Target KPI Mean</span>
+              <span style="font-size: 14px;">🎯</span>
+            </div>
+            <div style="font-size: 22px; font-weight: 700; color: #38bdf8;">${meanStr} <span style="font-size: 12px; font-weight: 500; color: #94a3b8;">${res.targetKpiUnit || ''}</span></div>
+            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
+              Median: <strong style="color: #e2e8f0;">${medianStr}</strong> &bull; &plusmn;${stdDevStr} &bull; [${minStr} &rarr; ${maxStr}]
+            </div>
+          </div>
+
+          <!-- KPI 2 -->
+          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid ${hasChokepoint ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Primary Chokepoint</span>
+              <span style="font-size: 14px;">⏱️</span>
+            </div>
+            <div style="font-size: 18px; font-weight: 700; color: ${hasChokepoint ? '#f87171' : '#34d399'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${chokepoint?.stageName || 'Balanced Stages'}">
+              ${chokepoint?.stageName || 'Balanced Pipeline'}
+            </div>
+            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+              ${hasChokepoint ? `<span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 10px;">${chokepointShare}% LATENCY</span>` : ''}
+              <span>${hasChokepoint ? `Avg: ${chokepoint?.avgDurationHours}h` : 'No single chokepoint'}</span>
+            </div>
+          </div>
+
+          <!-- KPI 3 -->
+          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Pareto 80/20 Leverage</span>
+              <span style="font-size: 14px;">⚖️</span>
+            </div>
+            <div style="font-size: 22px; font-weight: 700; color: #f59e0b;">
+              ${pareto.topPercentile || 20}% <span style="font-size: 14px; color: #94a3b8;">&rarr;</span> ${pareto.capturedImpactPercent || 80}%
+            </div>
+            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
+              ${pareto.isParetoConfirmed ? '⚡ Confirmed 80/20 Concentration' : 'Uniform Volume Dispersion'}
+            </div>
+          </div>
+
+          <!-- KPI 4 -->
+          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid ${outliers.severeCount > 0 ? 'rgba(244, 63, 94, 0.3)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; padding: 14px 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Outlier Exposure</span>
+              <span style="font-size: 14px;">🚨</span>
+            </div>
+            <div style="font-size: 22px; font-weight: 700; color: ${outliers.severeCount > 0 ? '#fb7185' : '#34d399'};">
+              ${outliers.severeCount || 0} <span style="font-size: 12px; font-weight: 500; color: #94a3b8;">(${outliers.outlierPercentage || 0}%)</span>
+            </div>
+            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
+              Risk Seg: <strong style="color: #e2e8f0;">${outliers.highestRiskSegment || 'General'}</strong> &bull; ${outliers.impactPercentageOfTotal || 0}% Impact
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Pre-rendered 2D Visual Analytics Charts (Waterfall & Tornado) -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px;">
+          <!-- Chart 1: Waterfall -->
+          <div style="background: #0d1117; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-size: 12.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                <span>📊</span> <span>Operational Cycle Latency Waterfall</span>
+              </div>
+              <span style="font-size: 10.5px; color: #94a3b8;">Cumulative Stage Chokepoints</span>
+            </div>
+            <div style="width: 100%; overflow-x: auto;">
+              ${viz.waterfallSvg || '<div style="color: #64748b; font-size: 11.5px; padding: 30px; text-align: center;">Waterfall chart renders when stage columns exist.</div>'}
+            </div>
+          </div>
+
+          <!-- Chart 2: Tornado -->
+          <div style="background: #0d1117; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-size: 12.5px; font-weight: 700; color: #c084fc; display: flex; align-items: center; gap: 6px;">
+                <span>🌪️</span> <span>Multivariate Key Driver Elasticity Tornado</span>
+              </div>
+              <span style="font-size: 10.5px; color: #94a3b8;">Feature Correlation &amp; Weight</span>
+            </div>
+            <div style="width: 100%; overflow-x: auto;">
+              ${viz.tornadoSvg || '<div style="color: #64748b; font-size: 11.5px; padding: 30px; text-align: center;">Tornado chart renders when numeric drivers exist.</div>'}
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Process Bottleneck & Latency Diagnostics Section -->
+        ${stages.length > 0 ? `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
+          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            <span>⏱️</span> <span>Process Bottleneck &amp; Stage Latency Diagnostics</span>
+          </div>
+          ${res.bottlenecks?.narrative ? `
+          <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
+            <strong>💡 Data Scientist Takeaway:</strong> ${res.bottlenecks.narrative}
+          </div>` : ''}
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                  <th style="padding: 8px 10px;">Process Stage</th>
+                  <th style="padding: 8px 10px;">Records</th>
+                  <th style="padding: 8px 10px;">Avg Duration</th>
+                  <th style="padding: 8px 10px;">P90 Latency</th>
+                  <th style="padding: 8px 10px;">Share of Latency</th>
+                  <th style="padding: 8px 10px;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${stages.map((st: any) => {
+                  const isChoke = st.isPrimaryBottleneck;
+                  const sevColor = st.severity === 'critical' ? '#ef4444' : st.severity === 'moderate' ? '#f59e0b' : '#10b981';
+                  return `
+                  <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04); ${isChoke ? 'background: rgba(239, 68, 68, 0.08);' : ''}">
+                    <td style="padding: 9px 10px; font-weight: 600; color: ${isChoke ? '#fca5a5' : '#fff'};">
+                      ${isChoke ? '🔴 ' : '● '}${st.stageName}
+                    </td>
+                    <td style="padding: 9px 10px; color: #94a3b8;">${st.count}</td>
+                    <td style="padding: 9px 10px; color: #e2e8f0; font-family: monospace;">${st.avgDurationHours} hrs</td>
+                    <td style="padding: 9px 10px; color: #e2e8f0; font-family: monospace;">${st.p90DurationHours} hrs</td>
+                    <td style="padding: 9px 10px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; min-width: 60px;">
+                          <div style="width: ${Math.min(100, st.pctOfTotalLatency)}%; height: 100%; background: ${sevColor};"></div>
+                        </div>
+                        <span style="font-size: 11px; font-weight: 700; color: ${sevColor}; min-width: 38px;">${st.pctOfTotalLatency}%</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 10px;">
+                      <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${isChoke ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}; color: ${sevColor}; border: 1px solid ${isChoke ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'};">
+                        ${isChoke ? 'PRIMARY CHOKEPOINT' : st.severity.toUpperCase()}
+                      </span>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <!-- 5. Multivariate Key Driver Impact Section -->
+        ${drivers.length > 0 ? `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
+          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            <span>🌪️</span> <span>Multivariate Key Drivers &amp; Elasticity Impact</span>
+          </div>
+          ${res.keyDrivers?.narrative ? `
+          <div style="background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
+            <strong>💡 Driver Summary:</strong> ${res.keyDrivers.narrative}
+          </div>` : ''}
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                  <th style="padding: 8px 10px;">Predictor Feature</th>
+                  <th style="padding: 8px 10px;">Relationship</th>
+                  <th style="padding: 8px 10px;">Correlation (r)</th>
+                  <th style="padding: 8px 10px; width: 140px;">Relative Weight</th>
+                  <th style="padding: 8px 10px;">Elasticity / Impact Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${drivers.map((d: any) => {
+                  const isPos = d.direction === 'positive';
+                  const dirColor = isPos ? '#38bdf8' : '#f59e0b';
+                  return `
+                  <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                    <td style="padding: 9px 10px; font-family: monospace; font-weight: 600; color: #fff;">${d.featureName}</td>
+                    <td style="padding: 9px 10px;">
+                      <span style="font-size: 10.5px; font-weight: 700; color: ${dirColor}; background: ${isPos ? 'rgba(56,189,248,0.1)' : 'rgba(245,158,11,0.1)'}; padding: 2px 6px; border-radius: 4px;">
+                        ${isPos ? '🔼 Positive' : '🔽 Inverse'}
+                      </span>
+                    </td>
+                    <td style="padding: 9px 10px; font-family: monospace; color: #e2e8f0;">${d.correlation > 0 ? '+' : ''}${d.correlation}</td>
+                    <td style="padding: 9px 10px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                          <div style="width: ${d.importanceWeight}%; height: 100%; background: #a855f7;"></div>
+                        </div>
+                        <span style="font-size: 10.5px; color: #c084fc; font-weight: 600;">${d.importanceWeight}%</span>
+                      </div>
+                    </td>
+                    <td style="padding: 9px 10px; color: #cbd5e1; font-size: 11.5px;">${d.elasticityDescription}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <!-- 6. Severe Outlier Anomaly Isolation -->
+        ${outliers.records && outliers.records.length > 0 ? `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
+          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span>🚨</span> <span>Severe Outliers &amp; Root Cause Isolation</span>
+            </div>
+            <span style="font-size: 11px; color: #fb7185; background: rgba(244, 63, 94, 0.15); padding: 2px 8px; border-radius: 4px; font-weight: 600;">
+              ${outliers.severeCount} Critical Anomalies
+            </span>
+          </div>
+          ${outliers.narrative ? `
+          <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
+            ${outliers.narrative}
+          </div>` : ''}
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                  <th style="padding: 8px 10px;">ID / Record</th>
+                  <th style="padding: 8px 10px;">Category</th>
+                  <th style="padding: 8px 10px;">Target Value</th>
+                  <th style="padding: 8px 10px;">Z-Score</th>
+                  <th style="padding: 8px 10px;">Severity</th>
+                  <th style="padding: 8px 10px;">Root Cause Insight</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${outliers.records.slice(0, 8).map((o: any) => `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                  <td style="padding: 8px 10px; font-family: monospace; color: #fff; font-weight: 600;">${o.id || o.primaryLabel}</td>
+                  <td style="padding: 8px 10px; color: #94a3b8;">${o.category || 'N/A'}</td>
+                  <td style="padding: 8px 10px; color: #fb7185; font-weight: 700; font-family: monospace;">${o.targetValue}</td>
+                  <td style="padding: 8px 10px; font-family: monospace; color: #f59e0b;">+${o.zScore} &sigma;</td>
+                  <td style="padding: 8px 10px;">
+                    <span style="background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700;">
+                      ${o.severityScore}/100
+                    </span>
+                  </td>
+                  <td style="padding: 8px 10px; color: #cbd5e1; font-size: 11.5px;">${o.rootCauseInsight}</td>
+                </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <!-- 7. Cohort & Segment Performance Benchmarking -->
+        ${cohorts.length > 0 ? `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
+          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+            <span>👥</span> <span>Cohort &amp; Segment Performance Benchmarking (${res.cohorts?.dimensionName || 'Segment'})</span>
+          </div>
+          ${res.cohorts?.narrative ? `
+          <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
+            ${res.cohorts.narrative}
+          </div>` : ''}
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                  <th style="padding: 8px 10px;">Cohort Name</th>
+                  <th style="padding: 8px 10px;">Sample Size</th>
+                  <th style="padding: 8px 10px;">Target Mean</th>
+                  <th style="padding: 8px 10px;">Outlier Rate</th>
+                  <th style="padding: 8px 10px;">Grade</th>
+                  <th style="padding: 8px 10px;">Gap Analysis</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cohorts.map((c: any) => {
+                  const gradeColor = c.performanceGrade === 'A' ? '#10b981' : c.performanceGrade === 'B' ? '#38bdf8' : c.performanceGrade === 'C' ? '#f59e0b' : '#ef4444';
+                  return `
+                  <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                    <td style="padding: 8px 10px; font-weight: 600; color: #fff;">${c.cohortName}</td>
+                    <td style="padding: 8px 10px; color: #94a3b8;">${c.recordCount} (${c.pctOfTotal}%)</td>
+                    <td style="padding: 8px 10px; font-family: monospace; color: #e2e8f0;">${c.targetMean}</td>
+                    <td style="padding: 8px 10px; color: ${c.outlierRate > 10 ? '#fb7185' : '#94a3b8'}; font-weight: 600;">${c.outlierRate}%</td>
+                    <td style="padding: 8px 10px;">
+                      <span style="font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.06); color: ${gradeColor}; border: 1px solid ${gradeColor}; padding: 2px 7px; border-radius: 4px;">
+                        ${c.performanceGrade}
+                      </span>
+                    </td>
+                    <td style="padding: 8px 10px; color: #cbd5e1; font-size: 11.5px;">${c.gapAnalysis}</td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+
+        <!-- 8. Prescriptive Strategic Action Plan -->
+        ${actions.length > 0 ? `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
+          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+            <span>🚀</span> <span>Prescriptive Strategic Action Plan &amp; ROI</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${actions.map((act: any) => {
+              const isHigh = act.priority === 'HIGH';
+              const pColor = isHigh ? '#ef4444' : act.priority === 'MEDIUM' ? '#f59e0b' : '#38bdf8';
+              return `
+              <div style="background: rgba(0,0,0,0.3); border: 1px solid ${isHigh ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.07)'}; border-radius: 6px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 260px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <span style="font-size: 10px; font-weight: 800; background: ${pColor}22; color: ${pColor}; border: 1px solid ${pColor}55; padding: 2px 7px; border-radius: 4px;">
+                      [${act.priority} PRIORITY]
+                    </span>
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">${act.category}</span>
+                  </div>
+                  <div style="font-size: 12.5px; color: #f1f5f9; line-height: 1.5;">
+                    ${act.action}
+                  </div>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #34d399; font-weight: 600; white-space: nowrap;">
+                  💰 ${act.expectedRoi}
+                </div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+      </div>
+    `;
+    return html;
+  };
+
+  // Helper to format text/markdown into structured HTML cards
+  const formatTextDeliverableToHtml = (raw: string, type: string): string => {
+    if (!raw) return '<div style="color: var(--text-secondary); font-style: italic;">No deliverable output.</div>';
+
+    if (activeDataScienceResult && (type === 'insights' || type === 'profile')) {
+      const isUnedited = raw === currentDeliverableContent || raw === originalDeliverableContent || raw.trim() === (currentDeliverableContent || '').trim();
+      if (isUnedited) {
+        return renderDataScienceExecutiveDashboard(activeDataScienceResult);
+      }
+    }
+
+    return renderMarkdownToExecutiveHtml(raw);
   };
 
   // Update Visual Preview Panel
@@ -18854,6 +19392,35 @@ function setupDataAnalysisStudio(api: any): void {
       if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'none';
     }
   };
+
+  // Update line and character count stats in Studio Live Editor
+  const updateEditorStats = () => {
+    if (dataEditorStats && dataAnalysisSourceEditor) {
+      const text = dataAnalysisSourceEditor.value || '';
+      const lineCount = text ? text.split('\n').length : 0;
+      const charCount = text.length;
+      dataEditorStats.innerText = `Lines: ${lineCount} • Chars: ${charCount}`;
+    }
+  };
+
+  dataAnalysisSourceEditor?.addEventListener('input', updateEditorStats);
+
+  // Tab support (2 spaces) and Ctrl+Enter / Cmd+Enter shortcut in source editor
+  dataAnalysisSourceEditor?.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      btnDataApplyEdits?.click();
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = dataAnalysisSourceEditor.selectionStart;
+      const end = dataAnalysisSourceEditor.selectionEnd;
+      dataAnalysisSourceEditor.value = dataAnalysisSourceEditor.value.substring(0, start) + '  ' + dataAnalysisSourceEditor.value.substring(end);
+      dataAnalysisSourceEditor.selectionStart = dataAnalysisSourceEditor.selectionEnd = start + 2;
+      updateEditorStats();
+    }
+  });
 
   // Switch between Visual Preview, 3D Data Manifold, and Code/Edit tabs
   const switchViewMode = (mode: 'preview' | '3d' | 'source') => {
@@ -18932,6 +19499,7 @@ function setupDataAnalysisStudio(api: any): void {
       }
       if (dataAnalysisSourceEditor) {
         dataAnalysisSourceEditor.value = currentDeliverableContent;
+        updateEditorStats();
         dataAnalysisSourceEditor.focus();
       }
     }
@@ -18942,6 +19510,14 @@ function setupDataAnalysisStudio(api: any): void {
   btnDataViewSource?.addEventListener('click', () => switchViewMode('source'));
 
   // 3D HUD Controls
+  btnSingle3DZoomIn?.addEventListener('click', () => {
+    activeSingle3DEngine?.zoomIn();
+  });
+
+  btnSingle3DZoomOut?.addEventListener('click', () => {
+    activeSingle3DEngine?.zoomOut();
+  });
+
   btnSingle3DTurntable?.addEventListener('click', () => {
     if (activeSingle3DEngine) {
       const running = activeSingle3DEngine.toggleTurntable();
@@ -18975,12 +19551,23 @@ function setupDataAnalysisStudio(api: any): void {
   btnDataCopyDeliverable?.addEventListener('click', handleCopyDeliverable);
   btnDataCopyScriptOnly?.addEventListener('click', handleCopyDeliverable);
 
+  // Revert Edits
+  btnDataRevertEdits?.addEventListener('click', () => {
+    if (dataAnalysisSourceEditor && originalDeliverableContent) {
+      dataAnalysisSourceEditor.value = originalDeliverableContent;
+      currentDeliverableContent = originalDeliverableContent;
+      updateEditorStats();
+      showToast('↺ Reverted deliverable to original generated content.');
+    }
+  });
+
   // Apply Edits
   btnDataApplyEdits?.addEventListener('click', () => {
     if (dataAnalysisSourceEditor) {
       currentDeliverableContent = dataAnalysisSourceEditor.value;
       updateVisualPreview(currentDeliverableType, currentDeliverableContent);
-      showToast('✓ Applied edits to visual preview!');
+      switchViewMode('preview');
+      showToast('✓ Applied edits to Visual Dashboard!');
     }
   });
 
@@ -19073,6 +19660,7 @@ function setupDataAnalysisStudio(api: any): void {
 
       if (resultsBox && res?.summary) {
         currentDeliverableContent = res.summary;
+        originalDeliverableContent = res.summary;
         currentDeliverableType = currentSelectedDeliverable;
         currentDeliverableSourceTitle = res.datasetTitle || (activeAnalysisDbTable ? `${activeAnalysisDbTable.dialect?.toUpperCase()}: ${activeAnalysisDbTable.schema}.${activeAnalysisDbTable.tableName}` : (filePath ? filePath.split(/[\\/]/).pop() : 'Active Dataset'));
         activeDataScienceResult = res.analysisResult;
@@ -19104,8 +19692,23 @@ function setupDataAnalysisStudio(api: any): void {
           dataDeliverableFormatBadge.innerText = currentDeliverableType === 'report' ? '.HTML' : currentDeliverableType === 'notebook' ? '.PY' : currentDeliverableType === 'insights' ? '.MD' : '.TXT';
         }
 
+        // Update Studio Editor Document Header
+        if (dataEditorDocTitle) {
+          if (currentDeliverableType === 'report') dataEditorDocTitle.innerText = 'executive_report.html';
+          else if (currentDeliverableType === 'notebook') dataEditorDocTitle.innerText = 'data_analysis_script.py';
+          else if (currentDeliverableType === 'profile') dataEditorDocTitle.innerText = 'schema_profiling.txt';
+          else dataEditorDocTitle.innerText = 'data_scientist_insights.md';
+        }
+        if (dataEditorLangBadge) {
+          if (currentDeliverableType === 'report') dataEditorLangBadge.innerText = 'HTML';
+          else if (currentDeliverableType === 'notebook') dataEditorLangBadge.innerText = 'PYTHON';
+          else if (currentDeliverableType === 'profile') dataEditorLangBadge.innerText = 'TEXT';
+          else dataEditorLangBadge.innerText = 'MARKDOWN';
+        }
+
         if (dataAnalysisSourceEditor) {
           dataAnalysisSourceEditor.value = currentDeliverableContent;
+          updateEditorStats();
         }
 
         // Populate Target KPI select if empty

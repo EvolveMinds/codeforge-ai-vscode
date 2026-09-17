@@ -5994,14 +5994,14 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <!-- View Mode Switcher -->
                 <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid var(--border);">
-                  <button id="btnDataViewPreview" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" aria-label="Visual Preview">
-                    👁️ Visual Preview
+                  <button id="btnDataViewPreview" type="button" class="btn-quick" style="padding: 4px 12px; font-size: 11.5px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" aria-label="Visual Dashboard">
+                    📊 Visual Dashboard
                   </button>
-                  <button id="btnDataView3DManifold" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="3D Data Manifold">
+                  <button id="btnDataView3DManifold" type="button" class="btn-quick" style="padding: 4px 12px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="3D Data Manifold">
                     🌐 3D Data Manifold
                   </button>
-                  <button id="btnDataViewSource" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="Code & Edit">
-                    📝 Code &amp; Edit
+                  <button id="btnDataViewSource" type="button" class="btn-quick" style="padding: 4px 12px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="Source & Edit">
+                    📝 Source &amp; Edit
                   </button>
                 </div>
 
@@ -6026,11 +6026,11 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <span>🖥️ Interactive HTML Document View (Sandboxed Canvas):</span>
                   <span style="font-size: 11px; color: var(--accent);">Tip: Click '🌐 Open in Browser' to view full-screen or print as PDF</span>
                 </div>
-                <iframe id="dataReportIframe" sandbox="allow-scripts allow-same-origin" style="width: 100%; height: 560px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: #1e1e1e; box-sizing: border-box;"></iframe>
+                <iframe id="dataReportIframe" sandbox="allow-scripts allow-same-origin" style="width: 100%; height: 580px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: #1e1e1e; box-sizing: border-box;"></iframe>
               </div>
 
               <!-- Formatted Insights / Profiling Cards Container -->
-              <div id="dataFormattedCardContainer" style="display: none; width: 100%; max-height: 560px; overflow-y: auto; padding-right: 4px;">
+              <div id="dataFormattedCardContainer" style="display: none; width: 100%; max-height: 600px; overflow-y: auto; padding-right: 6px;">
                 <div id="dataFormattedCardContent" style="font-size: 12.5px; line-height: 1.6; color: #e2e8f0;"></div>
               </div>
 
@@ -6040,7 +6040,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <span>🐍 Python Analysis Script (Jupyter / PySpark / SQLAlchemy Ready):</span>
                   <span style="font-size: 11px; color: #4ec9b0;">Ready for Jupyter Notebook or .py Execution</span>
                 </div>
-                <pre id="dataNotebookCodeBlock" style="margin: 0; padding: 16px; background: #111317; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; color: #9cdcfe; max-height: 520px; overflow: auto; white-space: pre;"></pre>
+                <pre id="dataNotebookCodeBlock" style="margin: 0; padding: 16px; background: #111317; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; color: #9cdcfe; max-height: 540px; overflow: auto; white-space: pre;"></pre>
               </div>
             </div>
 
@@ -6050,32 +6050,48 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 <div style="color: var(--text-secondary);">
                   🌐 <strong>Autonomous 3D Data Manifold:</strong> Multi-dimensional projection of records. Pulsing neon beacons spotlight severe outliers.
                 </div>
-                <div style="display: flex; gap: 6px; align-items: center;">
+                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                  <button type="button" class="btn-quick" id="btnSingle3DZoomIn" style="padding: 3px 8px; font-size: 11px;">➕ Zoom In</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DZoomOut" style="padding: 3px 8px; font-size: 11px;">➖ Zoom Out</button>
                   <button type="button" class="btn-quick" id="btnSingle3DTurntable" style="padding: 3px 8px; font-size: 11px;">🔄 Auto-Rotate</button>
                   <button type="button" class="btn-quick" id="btnSingle3DOutliersOnly" style="padding: 3px 8px; font-size: 11px; color: #f87171; border-color: rgba(239,68,68,0.4);">🚨 Outliers Only</button>
                   <button type="button" class="btn-quick" id="btnSingle3DReset" style="padding: 3px 8px; font-size: 11px;">🎯 Reset</button>
                 </div>
               </div>
-              <div style="position: relative; width: 100%; height: 560px; background: #070a0f; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
+              <div style="position: relative; width: 100%; height: 580px; background: #070a0f; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
                 <canvas id="dataSingle3DCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
-                <div id="dataSingle3DTooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #f8fafc; pointer-events: none; z-index: 99; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-width: 300px;"></div>
+                <div id="dataSingle3DTooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #f8fafc; pointer-events: none; z-index: 99; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-width: 320px;"></div>
                 <div style="position: absolute; bottom: 10px; left: 14px; font-size: 11px; color: #94a3b8; pointer-events: none; background: rgba(15,23,42,0.85); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
                   <span id="dataSingle3DAxisInfo">1-Finger / Drag: Orbit &bull; Scroll / Pinch: Zoom &bull; Hover point for Data Scientist Root Cause Card</span>
                 </div>
               </div>
             </div>
 
-            <!-- Panel 3: Source Code & Live Editor -->
+            <!-- Panel 3: Source Code & Studio Live Editor -->
             <div id="dataSourceEditorPanel" style="display: none; width: 100%;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px;">
-                <span style="color: var(--text-secondary);">
-                  ✏️ <strong>Live Source Editor:</strong> You can edit the deliverable below. Changes apply instantly to preview and export.
-                </span>
-                <button id="btnDataApplyEdits" type="button" class="btn-quick" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border-color: rgba(78, 201, 176, 0.4); padding: 3px 10px; font-size: 11px; font-weight: 600;">
-                  ✓ Apply Edits to Preview
-                </button>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 14px;">📝</span>
+                  <span id="dataEditorDocTitle" style="font-weight: 700; color: #fff;">deliverable.md</span>
+                  <span id="dataEditorLangBadge" class="brand-pill" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35);">MARKDOWN</span>
+                  <span id="dataEditorStats" style="color: var(--text-secondary); font-size: 11px; margin-left: 6px;">Lines: 0 &bull; Chars: 0</span>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button id="btnDataRevertEdits" type="button" class="btn-quick" style="padding: 3px 10px; font-size: 11px; color: #fbbf24; border-color: rgba(245,158,11,0.4);" title="Revert to original generated deliverable">
+                    ↺ Revert
+                  </button>
+                  <button id="btnDataApplyEdits" type="button" class="btn-quick" style="background: rgba(78, 201, 176, 0.2); color: #4ec9b0; border-color: rgba(78, 201, 176, 0.5); padding: 4px 12px; font-size: 11.5px; font-weight: 700;">
+                    ✓ Apply to Visual Dashboard
+                  </button>
+                </div>
               </div>
-              <textarea id="dataAnalysisSourceEditor" rows="22" spellcheck="false" style="width: 100%; box-sizing: border-box; font-family: var(--font-mono, monospace); font-size: 12px; line-height: 1.5; background: #111317; color: #e2e8f0; border: 1px solid var(--border); border-radius: 8px; padding: 14px; resize: vertical;"></textarea>
+              <div style="position: relative; width: 100%;">
+                <textarea id="dataAnalysisSourceEditor" rows="24" spellcheck="false" style="width: 100%; box-sizing: border-box; font-family: 'Cascadia Code', 'Fira Code', Consolas, Menlo, monospace; font-size: 12.5px; line-height: 1.6; background: #0d1117; color: #e2e8f0; border: 1px solid #30363d; border-radius: 8px; padding: 16px; resize: vertical; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); outline: none;" placeholder="Edit deliverable content..."></textarea>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 10.5px; color: var(--text-secondary); padding: 0 4px;">
+                <span>💡 Tip: Press <kbd style="background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); color: #fff;">Ctrl</kbd> + <kbd style="background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); color: #fff;">Enter</kbd> to instantly apply changes and switch to Visual Dashboard.</span>
+                <span>UTF-8 &bull; Tab: 2 Spaces</span>
+              </div>
             </div>
 
             <!-- Deliverable Footer Note -->

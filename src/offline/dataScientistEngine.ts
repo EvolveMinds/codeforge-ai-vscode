@@ -169,6 +169,14 @@ export interface DataScienceAnalysisResult {
     columns: string[];
     matrix: number[][];
   };
+
+  // 8. Pre-rendered 2D Visualizations (SVG & HTML)
+  visualizations?: {
+    waterfallSvg: string;
+    tornadoSvg: string;
+    paretoSvg: string;
+    correlationHtml: string;
+  };
 }
 
 export class DataScientistEngine {
@@ -227,6 +235,12 @@ export class DataScientistEngine {
     // 10. Compute Full Bivariate Correlation Matrix
     const correlationMatrix = this._computeCorrelationMatrix(rows, semanticRoles.numericCols);
 
+    // 11. Pre-render 2D SVG Visualizations for Visual Preview & HTML Report
+    const waterfallSvg = this._renderWaterfallSvg(bottleneckAnalysis.stages);
+    const tornadoSvg = this._renderTornadoSvg(keyDriverAnalysis.drivers);
+    const paretoSvg = this._renderParetoSvg(pareto, targetStats);
+    const correlationHtml = this._renderCorrelationMatrixHtml(correlationMatrix);
+
     return {
       datasetTitle,
       totalRecords: rows.length,
@@ -244,7 +258,13 @@ export class DataScientistEngine {
       prescriptiveActions,
       points3D,
       axisLabels3D,
-      correlationMatrix
+      correlationMatrix,
+      visualizations: {
+        waterfallSvg,
+        tornadoSvg,
+        paretoSvg,
+        correlationHtml
+      }
     };
   }
 
@@ -1489,18 +1509,28 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
 
   private static _generate3DCoordinates(rows: DataRecord[], roles: any, outlierRecords: OutlierRecord[], bottleneckAnalysis: any) {
     const targetKpi = roles.targetKpi;
-    const secondaryCol = roles.numericCols.find((c: string) => c !== targetKpi) || targetKpi;
-    const tertiaryCol = roles.numericCols.filter((c: string) => c !== targetKpi && c !== secondaryCol)[0] || roles.numericCols[0] || targetKpi;
+    let secondaryCol = roles.numericCols.find((c: string) => c !== targetKpi);
+    let tertiaryCol = roles.numericCols.filter((c: string) => c !== targetKpi && c !== secondaryCol)[0];
+
+    const hasSecondaryNumeric = !!secondaryCol;
+    const hasTertiaryNumeric = !!tertiaryCol;
+
+    if (!secondaryCol) secondaryCol = targetKpi;
+    if (!tertiaryCol) tertiaryCol = secondaryCol;
 
     const xVals = rows.map(r => Number(r[targetKpi]) || 0);
-    const yVals = rows.map(r => Number(r[secondaryCol]) || 0);
-    const zVals = rows.map(r => Number(r[tertiaryCol]) || 0);
+    const yVals = rows.map((r, i) => hasSecondaryNumeric ? (Number(r[secondaryCol]) || 0) : (i / Math.max(1, rows.length - 1)) * 100);
+    const zVals = rows.map((r, i) => {
+      if (hasTertiaryNumeric) return Number(r[tertiaryCol]) || 0;
+      const cat = String(r[roles.categoryCol] || r[roles.stageCol] || `Cluster ${(i % 4) + 1}`);
+      return (Math.abs(this._hashString(cat)) % 100);
+    });
 
     const xStats = this._computeNumericStats(xVals);
     const yStats = this._computeNumericStats(yVals);
     const zStats = this._computeNumericStats(zVals);
 
-    const palette = ['#38bdf8', '#4ec9b0', '#a78bfa', '#f472b6', '#fbbf24', '#34d399'];
+    const palette = ['#38bdf8', '#4ec9b0', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa'];
     const outlierIdSet = new Set(outlierRecords.map(o => String(o.id)));
 
     const points3D: Point3D[] = [];
@@ -1511,13 +1541,22 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
       const id = roles.idCol && r[roles.idCol] !== undefined ? r[roles.idCol] : (r['id'] || i + 1);
       const label = roles.labelCol && r[roles.labelCol] !== undefined ? String(r[roles.labelCol]) : String(r['name'] || r['title'] || `Record #${id}`);
       const rx = Number(r[targetKpi]) || 0;
-      const ry = Number(r[secondaryCol]) || 0;
-      const rz = Number(r[tertiaryCol]) || 0;
+      const ry = yVals[i];
+      const rz = zVals[i];
 
-      // Normalize -80 to 80 for 3D space
-      const nx = xStats.max > xStats.min ? ((rx - xStats.min) / (xStats.max - xStats.min) * 160) - 80 : 0;
-      const ny = yStats.max > yStats.min ? ((ry - yStats.min) / (yStats.max - yStats.min) * 160) - 80 : 0;
-      const nz = zStats.max > zStats.min ? ((rz - zStats.min) / (zStats.max - zStats.min) * 160) - 80 : 0;
+      // Normalize -80 to 80 for 3D space with deterministic dispersion jitter
+      let nx = xStats.max > xStats.min ? ((rx - xStats.min) / (xStats.max - xStats.min) * 160) - 80 : 0;
+      let ny = yStats.max > yStats.min ? ((ry - yStats.min) / (yStats.max - yStats.min) * 160) - 80 : 0;
+      let nz = zStats.max > zStats.min ? ((rz - zStats.min) / (zStats.max - zStats.min) * 160) - 80 : 0;
+
+      // Add slight deterministic spatial jitter so points with identical values don't completely overlap
+      const jitterX = Math.sin(i * 13.7 + rx) * 3.5;
+      const jitterY = Math.cos(i * 19.3 + ry) * 3.5;
+      const jitterZ = Math.sin(i * 29.1 + rz) * 3.5;
+
+      nx = Math.max(-85, Math.min(85, nx + jitterX));
+      ny = Math.max(-85, Math.min(85, ny + jitterY));
+      nz = Math.max(-85, Math.min(85, nz + jitterZ));
 
       const isOutlier = outlierIdSet.has(String(id));
       const cat = String(r[roles.categoryCol] || 'Group A');
@@ -1544,8 +1583,8 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
           title: String(label + (cat ? ` (${cat})` : '')),
           metrics: {
             [targetKpi]: rx.toFixed(1),
-            [secondaryCol]: ry.toFixed(1),
-            [tertiaryCol]: rz.toFixed(1)
+            [hasSecondaryNumeric ? secondaryCol : 'Cohort Rank']: ry.toFixed(1),
+            [hasTertiaryNumeric ? tertiaryCol : 'Category Hash']: rz.toFixed(1)
           },
           rootCause: isOutlier
             ? `Severe statistical outlier: Deviates significantly from cluster centroid in ${cat}. Driven by spike in ${targetKpi}.`
@@ -1560,8 +1599,8 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
       points3D,
       axisLabels3D: {
         x: targetKpi,
-        y: secondaryCol,
-        z: tertiaryCol
+        y: hasSecondaryNumeric ? secondaryCol : (roles.categoryCol || 'Cohort Spread'),
+        z: hasTertiaryNumeric ? tertiaryCol : (roles.stageCol || 'Cluster Depth')
       }
     };
   }
