@@ -1025,9 +1025,15 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
       targetKpi = cols[0] || 'amount';
     }
 
-    // Identify stage column
+    // Identify ID and Label columns
+    const idCol = cols.find(c => /^(id|_id|order_id|user_id|customer_id|transaction_id|item_id|sku)$/i.test(c) || /_id$/i.test(c));
+    const labelCol = cols.find(c => /^(name|title|label|description|order_id|code|id)$/i.test(c)) || idCol;
+
+    // Identify stage columns: support both wide format (multiple numeric stage duration columns) and long format (categorical stage column)
     const stageKeywords = ['stage', 'status', 'step', 'state', 'phase', 'process_step'];
-    stageCol = cols.find(c => stageKeywords.some(kw => c.toLowerCase().includes(kw)));
+    const wideStageCols = numericCols.filter(c => c !== targetKpi && stageKeywords.some(kw => c.toLowerCase().includes(kw)));
+    const categoricalStageCol = cols.find(c => !numericCols.includes(c) && stageKeywords.some(kw => c.toLowerCase().includes(kw)));
+    stageCol = categoricalStageCol || (wideStageCols.length > 0 ? wideStageCols[0] : undefined);
 
     // Identify category column
     const categoryKeywords = ['category', 'region', 'segment', 'tier', 'channel', 'supplier', 'vendor', 'type', 'department'];
@@ -1040,6 +1046,10 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
     return {
       targetKpi,
       stageCol,
+      categoricalStageCol,
+      wideStageCols,
+      idCol,
+      labelCol,
       categoryCol,
       timeCol,
       numericCols
@@ -1087,68 +1097,120 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
   }
 
   private static _analyzeBottlenecks(rows: DataRecord[], roles: any) {
-    if (!roles.stageCol) {
+    // Mode A: Wide format stage duration columns (e.g. warehouse_stage, transit_stage, customs_stage)
+    if (roles.wideStageCols && roles.wideStageCols.length > 1) {
+      let totalDurationSum = 0;
+      const stages: BottleneckStage[] = [];
+
+      for (const col of roles.wideStageCols) {
+        const vals = rows.map(r => Number(r[col])).filter(v => !isNaN(v));
+        const stats = this._computeNumericStats(vals);
+        totalDurationSum += stats.mean;
+        stages.push({
+          stageName: col,
+          count: vals.length,
+          avgDurationHours: stats.mean,
+          medianDurationHours: stats.median,
+          p90DurationHours: this._percentile([...vals].sort((a, b) => a - b), 90),
+          pctOfTotalLatency: 0,
+          dropOffRate: 0,
+          isPrimaryBottleneck: false,
+          severity: 'normal'
+        });
+      }
+
+      stages.sort((a, b) => b.avgDurationHours - a.avgDurationHours);
+
+      stages.forEach(s => {
+        s.pctOfTotalLatency = totalDurationSum > 0 ? (s.avgDurationHours / totalDurationSum) * 100 : 0;
+        if (s.pctOfTotalLatency > 40 || s.avgDurationHours > 24) s.severity = 'critical';
+        else if (s.pctOfTotalLatency > 20) s.severity = 'moderate';
+      });
+
+      if (stages.length > 0) {
+        stages[0].isPrimaryBottleneck = true;
+      }
+
+      const dominant = stages[0];
+      const chokepointShare = dominant ? Math.round(dominant.pctOfTotalLatency) : 0;
+      const narrative = dominant
+        ? `Severe operational chokepoint detected at stage "${dominant.stageName}". This stage accounts for ${chokepointShare}% of total cycle duration (mean ${dominant.avgDurationHours.toFixed(1)} hrs vs baseline). Remediating friction here yields the highest operational ROI.`
+        : 'Process latency is uniformly distributed across all introspected stages with no single dominant chokepoint.';
+
       return {
-        hasStageData: false,
-        stages: [],
-        totalCycleDurationHours: 0,
-        chokepointSharePercent: 0,
-        narrative: 'No discrete stage/step column was found in the dataset. Process distribution is evaluated parametrically across percentiles.'
+        hasStageData: true,
+        stages,
+        dominantChokepoint: dominant,
+        totalCycleDurationHours: totalDurationSum,
+        chokepointSharePercent: chokepointShare,
+        narrative
       };
     }
 
-    const stageMap = new Map<string, number[]>();
-    for (const r of rows) {
-      const stageName = String(r[roles.stageCol] || 'Unknown');
-      const val = Number(r[roles.targetKpi]) || 0;
-      if (!stageMap.has(stageName)) stageMap.set(stageName, []);
-      stageMap.get(stageName)!.push(val);
-    }
+    // Mode B: Long format categorical stage column (e.g. stage = 'Packaging')
+    if (roles.categoricalStageCol || roles.stageCol) {
+      const colName = roles.categoricalStageCol || roles.stageCol;
+      const stageMap = new Map<string, number[]>();
+      for (const r of rows) {
+        const stageName = String(r[colName] || 'Unknown');
+        const val = Number(r[roles.targetKpi]) || 0;
+        if (!stageMap.has(stageName)) stageMap.set(stageName, []);
+        stageMap.get(stageName)!.push(val);
+      }
 
-    let totalDurationSum = 0;
-    const stages: BottleneckStage[] = [];
+      let totalDurationSum = 0;
+      const stages: BottleneckStage[] = [];
 
-    stageMap.forEach((vals, name) => {
-      const stats = this._computeNumericStats(vals);
-      totalDurationSum += stats.sum;
-      stages.push({
-        stageName: name,
-        count: vals.length,
-        avgDurationHours: stats.mean,
-        medianDurationHours: stats.median,
-        p90DurationHours: this._percentile([...vals].sort((a,b)=>a-b), 90),
-        pctOfTotalLatency: 0, // Calculated next
-        dropOffRate: 0,
-        isPrimaryBottleneck: false,
-        severity: 'normal'
+      stageMap.forEach((vals, name) => {
+        const stats = this._computeNumericStats(vals);
+        totalDurationSum += stats.sum;
+        stages.push({
+          stageName: name,
+          count: vals.length,
+          avgDurationHours: stats.mean,
+          medianDurationHours: stats.median,
+          p90DurationHours: this._percentile([...vals].sort((a,b)=>a-b), 90),
+          pctOfTotalLatency: 0, // Calculated next
+          dropOffRate: 0,
+          isPrimaryBottleneck: false,
+          severity: 'normal'
+        });
       });
-    });
 
-    stages.sort((a, b) => b.avgDurationHours - a.avgDurationHours);
+      stages.sort((a, b) => b.avgDurationHours - a.avgDurationHours);
 
-    stages.forEach(s => {
-      s.pctOfTotalLatency = totalDurationSum > 0 ? (s.avgDurationHours * s.count / totalDurationSum) * 100 : 0;
-      if (s.pctOfTotalLatency > 40 || s.avgDurationHours > 24) s.severity = 'critical';
-      else if (s.pctOfTotalLatency > 20) s.severity = 'moderate';
-    });
+      stages.forEach(s => {
+        s.pctOfTotalLatency = totalDurationSum > 0 ? (s.avgDurationHours * s.count / totalDurationSum) * 100 : 0;
+        if (s.pctOfTotalLatency > 40 || s.avgDurationHours > 24) s.severity = 'critical';
+        else if (s.pctOfTotalLatency > 20) s.severity = 'moderate';
+      });
 
-    if (stages.length > 0) {
-      stages[0].isPrimaryBottleneck = true;
+      if (stages.length > 0) {
+        stages[0].isPrimaryBottleneck = true;
+      }
+
+      const dominant = stages[0];
+      const chokepointShare = dominant ? Math.round(dominant.pctOfTotalLatency) : 0;
+      const narrative = dominant
+        ? `Severe operational chokepoint detected at stage "${dominant.stageName}". This stage accounts for ${chokepointShare}% of total cycle duration (mean ${dominant.avgDurationHours.toFixed(1)} hrs vs baseline). Remediating friction here yields the highest operational ROI.`
+        : 'Process latency is uniformly distributed across all introspected stages with no single dominant chokepoint.';
+
+      return {
+        hasStageData: true,
+        stages,
+        dominantChokepoint: dominant,
+        totalCycleDurationHours: totalDurationSum,
+        chokepointSharePercent: chokepointShare,
+        narrative
+      };
     }
-
-    const dominant = stages[0];
-    const chokepointShare = dominant ? Math.round(dominant.pctOfTotalLatency) : 0;
-    const narrative = dominant
-      ? `Severe operational chokepoint detected at stage "${dominant.stageName}". This stage accounts for ${chokepointShare}% of total cycle duration (mean ${dominant.avgDurationHours.toFixed(1)} hrs vs baseline). Remediating friction here yields the highest operational ROI.`
-      : 'Process latency is uniformly distributed across all introspected stages with no single dominant chokepoint.';
 
     return {
-      hasStageData: true,
-      stages,
-      dominantChokepoint: dominant,
-      totalCycleDurationHours: totalDurationSum,
-      chokepointSharePercent: chokepointShare,
-      narrative
+      hasStageData: false,
+      stages: [],
+      totalCycleDurationHours: 0,
+      chokepointSharePercent: 0,
+      narrative: 'No discrete stage/step column was found in the dataset. Process distribution is evaluated parametrically across percentiles.'
     };
   }
 
@@ -1269,9 +1331,12 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
         const cat = String(r[roles.categoryCol] || 'Standard Segment');
         segmentOutlierMap.set(cat, (segmentOutlierMap.get(cat) || 0) + 1);
 
+        const recId = roles.idCol && r[roles.idCol] !== undefined ? r[roles.idCol] : (r['id'] || idx + 1);
+        const labelVal = roles.labelCol && r[roles.labelCol] !== undefined ? String(r[roles.labelCol]) : String(r['name'] || r['title'] || r['id'] || `Record #${idx + 1}`);
+
         outlierRecords.push({
-          id: r['id'] || idx + 1,
-          primaryLabel: String(r['name'] || r['title'] || r['id'] || `Record #${idx + 1}`),
+          id: recId,
+          primaryLabel: labelVal,
           category: cat,
           targetValue: v,
           zScore: z,
@@ -1443,7 +1508,8 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
 
     for (let i = 0; i < maxPoints; i++) {
       const r = rows[i];
-      const id = r['id'] || i + 1;
+      const id = roles.idCol && r[roles.idCol] !== undefined ? r[roles.idCol] : (r['id'] || i + 1);
+      const label = roles.labelCol && r[roles.labelCol] !== undefined ? String(r[roles.labelCol]) : String(r['name'] || r['title'] || `Record #${id}`);
       const rx = Number(r[targetKpi]) || 0;
       const ry = Number(r[secondaryCol]) || 0;
       const rz = Number(r[tertiaryCol]) || 0;
@@ -1462,7 +1528,7 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
 
       points3D.push({
         id,
-        label: String(r['name'] || r['title'] || `Record #${id}`),
+        label,
         category: cat,
         x: nx,
         y: ny,
@@ -1475,7 +1541,7 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
         severityScore: isOutlier ? 85 : 10,
         color: isOutlier ? '#ef4444' : palette[colorIdx],
         diagnosticCard: {
-          title: String(r['name'] || `Entity #${id} (${cat})`),
+          title: String(label + (cat ? ` (${cat})` : '')),
           metrics: {
             [targetKpi]: rx.toFixed(1),
             [secondaryCol]: ry.toFixed(1),

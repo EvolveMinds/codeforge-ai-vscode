@@ -18519,6 +18519,18 @@ function setupDataAnalysisStudio(api: any): void {
     }
     renderColumnsPreview(tbl);
 
+    // Populate Target KPI select with loaded table columns
+    const kpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
+    if (kpiSelect) {
+      const cols = tbl.columns || [];
+      kpiSelect.innerHTML = '<option value="">Auto-Detect Primary KPI</option>' +
+        cols.map((c: any) => {
+          const colName = typeof c === 'string' ? c : c.name;
+          const colType = typeof c === 'string' ? '' : (c.type ? ` (${c.type})` : '');
+          return `<option value="${colName}">${colName}${colType}</option>`;
+        }).join('');
+    }
+
     const dropZone = document.getElementById('dataDropZone');
     if (dropZone) {
       dropZone.innerHTML = `
@@ -18591,6 +18603,10 @@ function setupDataAnalysisStudio(api: any): void {
           dropZone.style.borderColor = '';
           dropZone.style.background = '';
         }
+        const kpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
+        if (kpiSelect) {
+          kpiSelect.innerHTML = '<option value="">Auto-Detect Primary KPI</option>';
+        }
         showToast(`✓ Loaded dataset: ${filePath.split(/[\\/]/).pop()}`);
       }
     }
@@ -18614,11 +18630,20 @@ function setupDataAnalysisStudio(api: any): void {
   const dataDeliverableTitle = document.getElementById('dataDeliverableTitle');
   const dataDeliverableSourceBadge = document.getElementById('dataDeliverableSourceBadge');
   const btnDataViewPreview = document.getElementById('btnDataViewPreview');
+  const btnDataView3DManifold = document.getElementById('btnDataView3DManifold');
   const btnDataViewSource = document.getElementById('btnDataViewSource');
   const btnDataCopyDeliverable = document.getElementById('btnDataCopyDeliverable');
   const btnDataOpenBrowser = document.getElementById('btnDataOpenBrowser');
   const btnDataExportFile = document.getElementById('btnDataExportFile');
   const dataVisualPreviewPanel = document.getElementById('dataVisualPreviewPanel');
+  const dataSingle3DPanel = document.getElementById('dataSingle3DPanel');
+  const dataSingle3DCanvas = document.getElementById('dataSingle3DCanvas') as HTMLCanvasElement;
+  const dataSingle3DTooltip = document.getElementById('dataSingle3DTooltip');
+  const btnSingle3DTurntable = document.getElementById('btnSingle3DTurntable');
+  const btnSingle3DOutliersOnly = document.getElementById('btnSingle3DOutliersOnly');
+  const btnSingle3DReset = document.getElementById('btnSingle3DReset');
+  const dataTargetKpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
+  const dataFocusPresets = document.querySelectorAll<HTMLButtonElement>('.data-focus-preset');
   const dataSourceEditorPanel = document.getElementById('dataSourceEditorPanel');
   const dataHtmlIframeContainer = document.getElementById('dataHtmlIframeContainer');
   const dataReportIframe = document.getElementById('dataReportIframe') as HTMLIFrameElement;
@@ -18634,7 +18659,22 @@ function setupDataAnalysisStudio(api: any): void {
   let currentDeliverableContent = '';
   let currentDeliverableType = 'insights';
   let currentDeliverableSourceTitle = 'Active Dataset';
-  let currentViewMode: 'preview' | 'source' = 'preview';
+  let currentViewMode: 'preview' | '3d' | 'source' = 'preview';
+  let activeSingle3DEngine: SingleDataset3DEngine | null = null;
+  let activeDataScienceResult: any = null;
+
+  // Wire Data Scientist Focus Presets
+  dataFocusPresets.forEach(preset => {
+    preset.addEventListener('click', () => {
+      const focusText = preset.getAttribute('data-focus') || '';
+      const input = document.getElementById('txtDataFocus') as HTMLInputElement;
+      if (input) {
+        input.value = focusText;
+        input.focus();
+        showToast(`⚡ Analytical focus set: ${preset.textContent?.trim()}`);
+      }
+    });
+  });
 
   // Helper to format text/markdown into structured HTML cards
   const formatTextDeliverableToHtml = (raw: string, type: string): string => {
@@ -18815,8 +18855,8 @@ function setupDataAnalysisStudio(api: any): void {
     }
   };
 
-  // Switch between Visual Preview and Code/Edit tabs
-  const switchViewMode = (mode: 'preview' | 'source') => {
+  // Switch between Visual Preview, 3D Data Manifold, and Code/Edit tabs
+  const switchViewMode = (mode: 'preview' | '3d' | 'source') => {
     currentViewMode = mode;
     if (mode === 'preview') {
       if (dataAnalysisSourceEditor && dataAnalysisSourceEditor.value !== currentDeliverableContent) {
@@ -18824,20 +18864,57 @@ function setupDataAnalysisStudio(api: any): void {
         updateVisualPreview(currentDeliverableType, currentDeliverableContent);
       }
       if (dataVisualPreviewPanel) dataVisualPreviewPanel.style.display = 'block';
+      if (dataSingle3DPanel) dataSingle3DPanel.style.display = 'none';
       if (dataSourceEditorPanel) dataSourceEditorPanel.style.display = 'none';
+
       if (btnDataViewPreview) {
         btnDataViewPreview.style.background = 'var(--accent)';
         btnDataViewPreview.style.color = '#1e1e1e';
         btnDataViewPreview.style.fontWeight = '700';
+      }
+      if (btnDataView3DManifold) {
+        btnDataView3DManifold.style.background = 'transparent';
+        btnDataView3DManifold.style.color = 'var(--text-secondary)';
+        btnDataView3DManifold.style.fontWeight = '500';
       }
       if (btnDataViewSource) {
         btnDataViewSource.style.background = 'transparent';
         btnDataViewSource.style.color = 'var(--text-secondary)';
         btnDataViewSource.style.fontWeight = '500';
       }
+    } else if (mode === '3d') {
+      if (dataVisualPreviewPanel) dataVisualPreviewPanel.style.display = 'none';
+      if (dataSingle3DPanel) dataSingle3DPanel.style.display = 'block';
+      if (dataSourceEditorPanel) dataSourceEditorPanel.style.display = 'none';
+
+      if (btnDataView3DManifold) {
+        btnDataView3DManifold.style.background = 'var(--accent)';
+        btnDataView3DManifold.style.color = '#1e1e1e';
+        btnDataView3DManifold.style.fontWeight = '700';
+      }
+      if (btnDataViewPreview) {
+        btnDataViewPreview.style.background = 'transparent';
+        btnDataViewPreview.style.color = 'var(--text-secondary)';
+        btnDataViewPreview.style.fontWeight = '500';
+      }
+      if (btnDataViewSource) {
+        btnDataViewSource.style.background = 'transparent';
+        btnDataViewSource.style.color = 'var(--text-secondary)';
+        btnDataViewSource.style.fontWeight = '500';
+      }
+
+      if (activeSingle3DEngine) {
+        activeSingle3DEngine.resize();
+        activeSingle3DEngine.draw();
+      } else if (dataSingle3DCanvas && activeDataScienceResult?.points3D) {
+        activeSingle3DEngine = new SingleDataset3DEngine(dataSingle3DCanvas, dataSingle3DTooltip);
+        activeSingle3DEngine.setData(activeDataScienceResult.points3D, activeDataScienceResult.axisLabels3D);
+      }
     } else {
       if (dataVisualPreviewPanel) dataVisualPreviewPanel.style.display = 'none';
+      if (dataSingle3DPanel) dataSingle3DPanel.style.display = 'none';
       if (dataSourceEditorPanel) dataSourceEditorPanel.style.display = 'block';
+
       if (btnDataViewSource) {
         btnDataViewSource.style.background = 'var(--accent)';
         btnDataViewSource.style.color = '#1e1e1e';
@@ -18848,6 +18925,11 @@ function setupDataAnalysisStudio(api: any): void {
         btnDataViewPreview.style.color = 'var(--text-secondary)';
         btnDataViewPreview.style.fontWeight = '500';
       }
+      if (btnDataView3DManifold) {
+        btnDataView3DManifold.style.background = 'transparent';
+        btnDataView3DManifold.style.color = 'var(--text-secondary)';
+        btnDataView3DManifold.style.fontWeight = '500';
+      }
       if (dataAnalysisSourceEditor) {
         dataAnalysisSourceEditor.value = currentDeliverableContent;
         dataAnalysisSourceEditor.focus();
@@ -18856,7 +18938,29 @@ function setupDataAnalysisStudio(api: any): void {
   };
 
   btnDataViewPreview?.addEventListener('click', () => switchViewMode('preview'));
+  btnDataView3DManifold?.addEventListener('click', () => switchViewMode('3d'));
   btnDataViewSource?.addEventListener('click', () => switchViewMode('source'));
+
+  // 3D HUD Controls
+  btnSingle3DTurntable?.addEventListener('click', () => {
+    if (activeSingle3DEngine) {
+      const running = activeSingle3DEngine.toggleTurntable();
+      btnSingle3DTurntable.style.background = running ? 'rgba(56, 189, 248, 0.2)' : '';
+      btnSingle3DTurntable.style.borderColor = running ? '#38bdf8' : '';
+    }
+  });
+
+  btnSingle3DOutliersOnly?.addEventListener('click', () => {
+    if (activeSingle3DEngine) {
+      const filterOnly = activeSingle3DEngine.toggleOutliersOnly();
+      btnSingle3DOutliersOnly.style.background = filterOnly ? 'rgba(239, 68, 68, 0.3)' : '';
+      btnSingle3DOutliersOnly.style.borderColor = filterOnly ? '#ef4444' : '';
+    }
+  });
+
+  btnSingle3DReset?.addEventListener('click', () => {
+    activeSingle3DEngine?.resetView();
+  });
 
   // Copy Deliverable
   const handleCopyDeliverable = async () => {
@@ -18948,6 +19052,7 @@ function setupDataAnalysisStudio(api: any): void {
 
   btnExecute?.addEventListener('click', async () => {
     const focusInput = (document.getElementById('txtDataFocus') as HTMLInputElement).value;
+    const targetKpi = dataTargetKpiSelect?.value || undefined;
 
     showToast('⚡ Analysing dataset...');
     if (api?.engines) {
@@ -18959,8 +19064,10 @@ function setupDataAnalysisStudio(api: any): void {
         filePath,
         deliverable: currentSelectedDeliverable,
         focus: focusInput || 'General distribution and statistical anomalies',
+        targetKpi,
         options: {
-          dbTable: activeAnalysisDbTable
+          dbTable: activeAnalysisDbTable,
+          targetKpi
         }
       });
 
@@ -18968,6 +19075,7 @@ function setupDataAnalysisStudio(api: any): void {
         currentDeliverableContent = res.summary;
         currentDeliverableType = currentSelectedDeliverable;
         currentDeliverableSourceTitle = res.datasetTitle || (activeAnalysisDbTable ? `${activeAnalysisDbTable.dialect?.toUpperCase()}: ${activeAnalysisDbTable.schema}.${activeAnalysisDbTable.tableName}` : (filePath ? filePath.split(/[\\/]/).pop() : 'Active Dataset'));
+        activeDataScienceResult = res.analysisResult;
 
         resultsBox.style.display = 'block';
 
@@ -18998,6 +19106,22 @@ function setupDataAnalysisStudio(api: any): void {
 
         if (dataAnalysisSourceEditor) {
           dataAnalysisSourceEditor.value = currentDeliverableContent;
+        }
+
+        // Populate Target KPI select if empty
+        if (dataTargetKpiSelect && dataTargetKpiSelect.options.length <= 1 && res.columns) {
+          const currentVal = dataTargetKpiSelect.value;
+          dataTargetKpiSelect.innerHTML = '<option value="">Auto-Detect Primary KPI</option>' +
+            res.columns.map((c: string) => `<option value="${c}">${c}</option>`).join('');
+          if (currentVal) dataTargetKpiSelect.value = currentVal;
+        }
+
+        // Initialize 3D Engine with returned multi-dimensional coordinates
+        if (dataSingle3DCanvas && res.analysisResult?.points3D) {
+          if (!activeSingle3DEngine) {
+            activeSingle3DEngine = new SingleDataset3DEngine(dataSingle3DCanvas, dataSingle3DTooltip);
+          }
+          activeSingle3DEngine.setData(res.analysisResult.points3D, res.analysisResult.axisLabels3D);
         }
 
         // Render visual preview and activate preview tab

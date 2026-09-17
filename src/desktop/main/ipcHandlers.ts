@@ -2603,7 +2603,7 @@ export async function executeTask() {
     ipc.handle(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, async (_: any, req: { filePath: string; deliverable: string; focus?: string; options?: any }) => {
       const { filePath, deliverable, focus = 'General statistical diagnostics & bottlenecks', options } = req;
       const dbTable = options?.dbTable;
-      const requestedTargetKpi = options?.targetKpi;
+      const requestedTargetKpi = options?.targetKpi || (req as any).targetKpi;
       
       let sampleRows = 0;
       let columns: string[] = [];
