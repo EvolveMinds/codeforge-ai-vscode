@@ -146,4 +146,78 @@ suite('Autonomous Data Scientist & Statistical Intelligence Engine Suite', () =>
     assert.ok(profile.includes('PARAMETRIC & NON-PARAMETRIC DISPERSION'));
   });
 
+  test('Focus Mode: Process Bottlenecks & Velocity Chokepoints produces specialized intelligence', () => {
+    const res = DataScientistEngine.analyze(sampleSupplyChainRecords, columns, {
+      targetKpi: 'total_delay_hrs',
+      focus: 'Process Bottlenecks & Velocity Chokepoints'
+    });
+
+    assert.strictEqual(res.focusMode, 'bottlenecks');
+    assert.strictEqual(res.focusBadge, '⏱️ Bottleneck Focus');
+    assert.strictEqual(res.focusKpis.length, 4);
+    assert.strictEqual(res.focusKpis[0].id, 'kpi_primary_chokepoint');
+    assert.strictEqual(res.axisLabels3D.x, 'Stage Sequence Rank');
+    assert.strictEqual(res.axisLabels3D.y, 'Stage Latency Duration');
+    assert.strictEqual(res.axisLabels3D.z, 'Cycle Delay Impact');
+    assert.ok(res.prescriptiveActions[0].category.toLowerCase().includes('bottleneck') || res.prescriptiveActions[0].category.toLowerCase().includes('velocity') || res.prescriptiveActions[0].category.toLowerCase().includes('latency'));
+
+    const md = DataScientistEngine.generateExecutiveInsightsMarkdown(res);
+    assert.ok(md.includes('## 2. Process Bottleneck & Friction Diagnostics'));
+  });
+
+  test('Focus Mode: Multivariate Key Drivers & Root Cause Analysis produces specialized intelligence', () => {
+    const res = DataScientistEngine.analyze(sampleSupplyChainRecords, columns, {
+      targetKpi: 'total_delay_hrs',
+      focus: 'Multivariate Key Drivers & Root Cause Analysis'
+    });
+
+    assert.strictEqual(res.focusMode, 'drivers');
+    assert.strictEqual(res.focusBadge, '🎯 Key Driver Focus');
+    assert.strictEqual(res.focusKpis.length, 4);
+    assert.strictEqual(res.focusKpis[0].id, 'kpi_positive_catalyst');
+    assert.strictEqual(res.axisLabels3D.x, 'total_delay_hrs');
+    assert.ok(res.prescriptiveActions[0].category.toLowerCase().includes('driver') || res.prescriptiveActions[0].category.toLowerCase().includes('root cause') || res.prescriptiveActions[0].category.toLowerCase().includes('catalyst'));
+
+    const md = DataScientistEngine.generateExecutiveInsightsMarkdown(res);
+    assert.ok(md.includes('## 2. Multivariate Key Driver Analysis'));
+  });
+
+  test('Focus Mode: Pareto 80/20 Leverage & Outlier Risk Exposure produces specialized intelligence', () => {
+    const res = DataScientistEngine.analyze(sampleSupplyChainRecords, columns, {
+      targetKpi: 'total_delay_hrs',
+      focus: 'Pareto 80/20 Leverage & Outlier Risk Exposure'
+    });
+
+    assert.strictEqual(res.focusMode, 'outliers');
+    assert.strictEqual(res.focusBadge, '🚨 Outlier & Pareto Focus');
+    assert.strictEqual(res.focusKpis.length, 4);
+    assert.strictEqual(res.focusKpis[0].id, 'kpi_pareto_leverage');
+    assert.strictEqual(res.axisLabels3D.x, 'total_delay_hrs');
+    assert.strictEqual(res.axisLabels3D.y, 'Z-Score Anomaly Deviation');
+    assert.strictEqual(res.axisLabels3D.z, 'Segment Risk Factor');
+    assert.ok(res.prescriptiveActions[0].category.toLowerCase().includes('outlier') || res.prescriptiveActions[0].category.toLowerCase().includes('risk') || res.prescriptiveActions[0].category.toLowerCase().includes('anomaly'));
+
+    const md = DataScientistEngine.generateExecutiveInsightsMarkdown(res);
+    assert.ok(md.includes('## 2. Pareto 80/20 & Outlier Risk Analysis'));
+  });
+
+  test('Focus Mode: Cohort & Segment Performance Gap Analysis produces specialized intelligence', () => {
+    const res = DataScientistEngine.analyze(sampleSupplyChainRecords, columns, {
+      targetKpi: 'total_delay_hrs',
+      focus: 'Cohort & Segment Performance Gap Analysis'
+    });
+
+    assert.strictEqual(res.focusMode, 'cohorts');
+    assert.strictEqual(res.focusBadge, '📊 Cohort Focus');
+    assert.strictEqual(res.focusKpis.length, 4);
+    assert.strictEqual(res.focusKpis[0].id, 'kpi_best_cohort');
+    assert.strictEqual(res.axisLabels3D.x, 'Cohort / Segment Index');
+    assert.strictEqual(res.axisLabels3D.y, 'total_delay_hrs');
+    assert.strictEqual(res.axisLabels3D.z, 'Cohort Outlier Rate');
+    assert.ok(res.prescriptiveActions[0].category.toLowerCase().includes('cohort') || res.prescriptiveActions[0].category.toLowerCase().includes('segment') || res.prescriptiveActions[0].category.toLowerCase().includes('benchmarking'));
+
+    const md = DataScientistEngine.generateExecutiveInsightsMarkdown(res);
+    assert.ok(md.includes('## 2. Cohort & Segment Performance Benchmarking'));
+  });
+
 });

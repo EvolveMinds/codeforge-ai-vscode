@@ -18766,9 +18766,15 @@ function setupDataAnalysisStudio(api: any): void {
   let activeSingle3DEngine: SingleDataset3DEngine | null = null;
   let activeDataScienceResult: any = null;
 
-  // Wire Data Scientist Focus Presets
+  // Wire Data Scientist Focus Presets with visual selection state
   dataFocusPresets.forEach(preset => {
     preset.addEventListener('click', () => {
+      dataFocusPresets.forEach(p => {
+        (p as HTMLElement).style.boxShadow = 'none';
+        (p as HTMLElement).style.outline = 'none';
+      });
+      (preset as HTMLElement).style.boxShadow = '0 0 12px rgba(56, 189, 248, 0.6)';
+      (preset as HTMLElement).style.outline = '1px solid #38bdf8';
       const focusText = preset.getAttribute('data-focus') || '';
       const input = document.getElementById('txtDataFocus') as HTMLInputElement;
       if (input) {
@@ -19007,331 +19013,445 @@ function setupDataAnalysisStudio(api: any): void {
     const actions = res.prescriptiveActions || [];
     const viz = res.visualizations || {};
 
-    let html = `
-      <div class="ds-executive-dashboard" style="display: flex; flex-direction: column; gap: 18px; color: #f1f5f9;">
+    const focusMode = res.focusMode || 'general';
+    const focusTitle = res.focusTitle || 'Autonomous Data Scientist Diagnostic Report';
+    const focusBadge = res.focusBadge || '🧠 Senior DS Model Active';
+    const focusSummary = res.focusSummary || 'Executive multi-dimensional statistical diagnostics.';
 
-        <!-- 1. Executive Telemetry Header -->
-        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.6) 100%); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <div style="font-size: 26px; background: rgba(56, 189, 248, 0.15); width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(56, 189, 248, 0.3);">🧠</div>
-            <div>
-              <div style="font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.3px;">
-                Autonomous Data Scientist Diagnostic Report
-              </div>
-              <div style="font-size: 11.5px; color: #94a3b8; margin-top: 2px;">
-                Target Source: <strong style="color: #38bdf8;">${res.datasetTitle || 'Active Dataset'}</strong> &bull; Sample: <strong style="color: #fff;">${totalRecs}</strong> records &bull; KPI: <strong style="color: #fbbf24;">${res.targetKpiName || 'Target'}</strong> (${res.targetKpiUnit || 'units'})
-              </div>
-            </div>
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <span style="font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 600;">
-              ✓ Senior DS Model Active
-            </span>
-            <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 600;">
-              Zero Telemetry Leakage
-            </span>
-          </div>
-        </div>
+    const themeColor = focusMode === 'bottlenecks' ? '#f87171'
+      : focusMode === 'drivers' ? '#c084fc'
+      : focusMode === 'outliers' ? '#fbbf24'
+      : focusMode === 'cohorts' ? '#34d399'
+      : '#38bdf8';
+    const themeBorder = focusMode === 'bottlenecks' ? 'rgba(239, 68, 68, 0.4)'
+      : focusMode === 'drivers' ? 'rgba(168, 85, 247, 0.4)'
+      : focusMode === 'outliers' ? 'rgba(245, 158, 11, 0.4)'
+      : focusMode === 'cohorts' ? 'rgba(16, 185, 129, 0.4)'
+      : 'rgba(56, 189, 248, 0.35)';
+    const themeIcon = focusMode === 'bottlenecks' ? '⏱️'
+      : focusMode === 'drivers' ? '🎯'
+      : focusMode === 'outliers' ? '🚨'
+      : focusMode === 'cohorts' ? '📊'
+      : '🧠';
 
-        <!-- 2. Four Headline Metric KPI Cards -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
-          <!-- KPI 1 -->
-          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Target KPI Mean</span>
-              <span style="font-size: 14px;">🎯</span>
-            </div>
-            <div style="font-size: 22px; font-weight: 700; color: #38bdf8;">${meanStr} <span style="font-size: 12px; font-weight: 500; color: #94a3b8;">${res.targetKpiUnit || ''}</span></div>
-            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
-              Median: <strong style="color: #e2e8f0;">${medianStr}</strong> &bull; &plusmn;${stdDevStr} &bull; [${minStr} &rarr; ${maxStr}]
-            </div>
-          </div>
+    const focusKpis: any[] = Array.isArray(res.focusKpis) && res.focusKpis.length > 0 ? res.focusKpis : [
+      {
+        id: 'kpi_mean',
+        label: 'Target KPI Mean',
+        value: meanStr,
+        unit: res.targetKpiUnit,
+        subtext: `Median: ${medianStr} • ±${stdDevStr} • [${minStr} → ${maxStr}]`,
+        icon: '🎯',
+        color: '#38bdf8'
+      },
+      {
+        id: 'kpi_chokepoint',
+        label: 'Primary Chokepoint',
+        value: chokepoint?.stageName || 'Balanced Pipeline',
+        subtext: hasChokepoint ? `${chokepointShare}% latency • avg ${chokepoint?.avgDurationHours}h` : 'No single chokepoint',
+        icon: '⏱️',
+        color: hasChokepoint ? '#f87171' : '#34d399',
+        badge: hasChokepoint ? `${chokepointShare}% LATENCY` : undefined
+      },
+      {
+        id: 'kpi_pareto',
+        label: 'Pareto 80/20 Leverage',
+        value: `${pareto.topPercentile || 20}% → ${pareto.capturedImpactPercent || 80}%`,
+        subtext: pareto.isParetoConfirmed ? 'Confirmed 80/20 Concentration' : 'Uniform Volume Dispersion',
+        icon: '⚖️',
+        color: '#f59e0b'
+      },
+      {
+        id: 'kpi_outlier',
+        label: 'Outlier Exposure',
+        value: `${outliers.severeCount || 0} (${outliers.outlierPercentage || 0}%)`,
+        subtext: `Risk Seg: ${outliers.highestRiskSegment || 'General'} • ${outliers.impactPercentageOfTotal || 0}% Impact`,
+        icon: '🚨',
+        color: outliers.severeCount > 0 ? '#fb7185' : '#34d399'
+      }
+    ];
 
-          <!-- KPI 2 -->
-          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid ${hasChokepoint ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Primary Chokepoint</span>
-              <span style="font-size: 14px;">⏱️</span>
-            </div>
-            <div style="font-size: 18px; font-weight: 700; color: ${hasChokepoint ? '#f87171' : '#34d399'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${chokepoint?.stageName || 'Balanced Stages'}">
-              ${chokepoint?.stageName || 'Balanced Pipeline'}
-            </div>
-            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
-              ${hasChokepoint ? `<span style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 10px;">${chokepointShare}% LATENCY</span>` : ''}
-              <span>${hasChokepoint ? `Avg: ${chokepoint?.avgDurationHours}h` : 'No single chokepoint'}</span>
-            </div>
-          </div>
+    // 2D Visual Analytics Charts Tailoring
+    let chart1Title = 'Operational Cycle Latency Waterfall';
+    let chart1Icon = '📊';
+    let chart1Color = '#38bdf8';
+    let chart1Subtitle = 'Cumulative Stage Chokepoints';
+    let chart1Svg = viz.waterfallSvg || '<div style="color: #64748b; font-size: 11.5px; padding: 30px; text-align: center;">Waterfall chart renders when stage columns exist.</div>';
 
-          <!-- KPI 3 -->
-          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Pareto 80/20 Leverage</span>
-              <span style="font-size: 14px;">⚖️</span>
-            </div>
-            <div style="font-size: 22px; font-weight: 700; color: #f59e0b;">
-              ${pareto.topPercentile || 20}% <span style="font-size: 14px; color: #94a3b8;">&rarr;</span> ${pareto.capturedImpactPercent || 80}%
-            </div>
-            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
-              ${pareto.isParetoConfirmed ? '⚡ Confirmed 80/20 Concentration' : 'Uniform Volume Dispersion'}
-            </div>
-          </div>
+    let chart2Title = 'Multivariate Key Driver Elasticity Tornado';
+    let chart2Icon = '🌪️';
+    let chart2Color = '#c084fc';
+    let chart2Subtitle = 'Feature Correlation & Weight';
+    let chart2Svg = viz.tornadoSvg || '<div style="color: #64748b; font-size: 11.5px; padding: 30px; text-align: center;">Tornado chart renders when numeric drivers exist.</div>';
 
-          <!-- KPI 4 -->
-          <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid ${outliers.severeCount > 0 ? 'rgba(244, 63, 94, 0.3)' : 'rgba(255, 255, 255, 0.08)'}; border-radius: 8px; padding: 14px 16px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">Outlier Exposure</span>
-              <span style="font-size: 14px;">🚨</span>
-            </div>
-            <div style="font-size: 22px; font-weight: 700; color: ${outliers.severeCount > 0 ? '#fb7185' : '#34d399'};">
-              ${outliers.severeCount || 0} <span style="font-size: 12px; font-weight: 500; color: #94a3b8;">(${outliers.outlierPercentage || 0}%)</span>
-            </div>
-            <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
-              Risk Seg: <strong style="color: #e2e8f0;">${outliers.highestRiskSegment || 'General'}</strong> &bull; ${outliers.impactPercentageOfTotal || 0}% Impact
-            </div>
-          </div>
-        </div>
+    if (focusMode === 'drivers') {
+      chart1Title = 'Multivariate Key Driver Elasticity Tornado';
+      chart1Icon = '🌪️';
+      chart1Color = '#c084fc';
+      chart1Subtitle = 'Ranked Feature Correlation & Weights';
+      chart1Svg = viz.tornadoSvg || chart1Svg;
 
-        <!-- 3. Pre-rendered 2D Visual Analytics Charts (Waterfall & Tornado) -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px;">
-          <!-- Chart 1: Waterfall -->
-          <div style="background: #0d1117; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <div style="font-size: 12.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
-                <span>📊</span> <span>Operational Cycle Latency Waterfall</span>
-              </div>
-              <span style="font-size: 10.5px; color: #94a3b8;">Cumulative Stage Chokepoints</span>
-            </div>
-            <div style="width: 100%; overflow-x: auto;">
-              ${viz.waterfallSvg || '<div style="color: #64748b; font-size: 11.5px; padding: 30px; text-align: center;">Waterfall chart renders when stage columns exist.</div>'}
-            </div>
-          </div>
+      chart2Title = 'Pairwise Bivariate Correlation Heatmap';
+      chart2Icon = '🔗';
+      chart2Color = '#38bdf8';
+      chart2Subtitle = 'Pearson r Multivariable Matrix';
+      chart2Svg = viz.correlationHtml || chart2Svg;
+    } else if (focusMode === 'outliers') {
+      chart1Title = 'Pareto 80/20 Cumulative Distribution';
+      chart1Icon = '📈';
+      chart1Color = '#f59e0b';
+      chart1Subtitle = 'Volume Concentration & Inflection Curve';
+      chart1Svg = viz.paretoSvg || chart1Svg;
 
-          <!-- Chart 2: Tornado -->
-          <div style="background: #0d1117; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-              <div style="font-size: 12.5px; font-weight: 700; color: #c084fc; display: flex; align-items: center; gap: 6px;">
-                <span>🌪️</span> <span>Multivariate Key Driver Elasticity Tornado</span>
-              </div>
-              <span style="font-size: 10.5px; color: #94a3b8;">Feature Correlation &amp; Weight</span>
-            </div>
-            <div style="width: 100%; overflow-x: auto;">
-              ${viz.tornadoSvg || '<div style="color: #64748b; font-size: 11.5px; padding: 30px; text-align: center;">Tornado chart renders when numeric drivers exist.</div>'}
-            </div>
-          </div>
-        </div>
+      chart2Title = 'Key Driver Impact & Anomaly Correlates';
+      chart2Icon = '🌪️';
+      chart2Color = '#c084fc';
+      chart2Subtitle = 'Elasticity Driving Extreme Values';
+      chart2Svg = viz.tornadoSvg || chart2Svg;
+    } else if (focusMode === 'cohorts') {
+      chart1Title = `Cohort Performance Benchmark (${res.cohorts?.dimensionName || 'Segment'})`;
+      chart1Icon = '👥';
+      chart1Color = '#34d399';
+      chart1Subtitle = 'Cross-Segment Mean & Performance Grade';
+      chart1Svg = viz.cohortSvg || chart1Svg;
 
-        <!-- 4. Process Bottleneck & Latency Diagnostics Section -->
-        ${stages.length > 0 ? `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
-          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+      chart2Title = 'Pareto 80/20 Cumulative Distribution';
+      chart2Icon = '📈';
+      chart2Color = '#f59e0b';
+      chart2Subtitle = 'Concentration Across Entities';
+      chart2Svg = viz.paretoSvg || chart2Svg;
+    }
+
+    // Diagnostic Tables
+    const isBottleneckActive = focusMode === 'bottlenecks';
+    const isDriversActive = focusMode === 'drivers';
+    const isOutliersActive = focusMode === 'outliers';
+    const isCohortsActive = focusMode === 'cohorts';
+
+    const bottleneckTableHtml = stages.length > 0 ? `
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid ${isBottleneckActive ? themeBorder : 'rgba(255, 255, 255, 0.08)'}; ${isBottleneckActive ? `box-shadow: 0 0 16px ${themeColor}1a;` : ''} border-radius: 8px; padding: 16px 18px;">
+        <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <span>⏱️</span> <span>Process Bottleneck &amp; Stage Latency Diagnostics</span>
           </div>
-          ${res.bottlenecks?.narrative ? `
-          <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
-            <strong>💡 Data Scientist Takeaway:</strong> ${res.bottlenecks.narrative}
-          </div>` : ''}
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-              <thead>
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
-                  <th style="padding: 8px 10px;">Process Stage</th>
-                  <th style="padding: 8px 10px;">Records</th>
-                  <th style="padding: 8px 10px;">Avg Duration</th>
-                  <th style="padding: 8px 10px;">P90 Latency</th>
-                  <th style="padding: 8px 10px;">Share of Latency</th>
-                  <th style="padding: 8px 10px;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${stages.map((st: any) => {
-                  const isChoke = st.isPrimaryBottleneck;
-                  const sevColor = st.severity === 'critical' ? '#ef4444' : st.severity === 'moderate' ? '#f59e0b' : '#10b981';
-                  return `
-                  <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04); ${isChoke ? 'background: rgba(239, 68, 68, 0.08);' : ''}">
-                    <td style="padding: 9px 10px; font-weight: 600; color: ${isChoke ? '#fca5a5' : '#fff'};">
-                      ${isChoke ? '🔴 ' : '● '}${st.stageName}
-                    </td>
-                    <td style="padding: 9px 10px; color: #94a3b8;">${st.count}</td>
-                    <td style="padding: 9px 10px; color: #e2e8f0; font-family: monospace;">${st.avgDurationHours} hrs</td>
-                    <td style="padding: 9px 10px; color: #e2e8f0; font-family: monospace;">${st.p90DurationHours} hrs</td>
-                    <td style="padding: 9px 10px;">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; min-width: 60px;">
-                          <div style="width: ${Math.min(100, st.pctOfTotalLatency)}%; height: 100%; background: ${sevColor};"></div>
-                        </div>
-                        <span style="font-size: 11px; font-weight: 700; color: ${sevColor}; min-width: 38px;">${st.pctOfTotalLatency}%</span>
-                      </div>
-                    </td>
-                    <td style="padding: 9px 10px;">
-                      <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${isChoke ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}; color: ${sevColor}; border: 1px solid ${isChoke ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'};">
-                        ${isChoke ? 'PRIMARY CHOKEPOINT' : st.severity.toUpperCase()}
-                      </span>
-                    </td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
+          ${isBottleneckActive ? `<span style="font-size: 10px; font-weight: 800; background: ${themeColor}22; color: ${themeColor}; border: 1px solid ${themeBorder}; padding: 2px 7px; border-radius: 4px;">★ ACTIVE FOCUS DOMAIN</span>` : ''}
+        </div>
+        ${res.bottlenecks?.narrative ? `
+        <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
+          <strong>💡 Data Scientist Takeaway:</strong> ${res.bottlenecks.narrative}
         </div>` : ''}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                <th style="padding: 8px 10px;">Process Stage</th>
+                <th style="padding: 8px 10px;">Records</th>
+                <th style="padding: 8px 10px;">Avg Duration</th>
+                <th style="padding: 8px 10px;">P90 Latency</th>
+                <th style="padding: 8px 10px;">Share of Latency</th>
+                <th style="padding: 8px 10px;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stages.map((st: any) => {
+                const isChoke = st.isPrimaryBottleneck;
+                const sevColor = st.severity === 'critical' ? '#ef4444' : st.severity === 'moderate' ? '#f59e0b' : '#10b981';
+                return `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04); ${isChoke ? 'background: rgba(239, 68, 68, 0.08);' : ''}">
+                  <td style="padding: 9px 10px; font-weight: 600; color: ${isChoke ? '#fca5a5' : '#fff'};">
+                    ${isChoke ? '🔴 ' : '● '}${st.stageName}
+                  </td>
+                  <td style="padding: 9px 10px; color: #94a3b8;">${st.count}</td>
+                  <td style="padding: 9px 10px; color: #e2e8f0; font-family: monospace;">${st.avgDurationHours} hrs</td>
+                  <td style="padding: 9px 10px; color: #e2e8f0; font-family: monospace;">${st.p90DurationHours} hrs</td>
+                  <td style="padding: 9px 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; min-width: 60px;">
+                        <div style="width: ${Math.min(100, st.pctOfTotalLatency)}%; height: 100%; background: ${sevColor};"></div>
+                      </div>
+                      <span style="font-size: 11px; font-weight: 700; color: ${sevColor}; min-width: 38px;">${st.pctOfTotalLatency}%</span>
+                    </div>
+                  </td>
+                  <td style="padding: 9px 10px;">
+                    <span style="font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: ${isChoke ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.06)'}; color: ${sevColor}; border: 1px solid ${isChoke ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.1)'};">
+                      ${isChoke ? 'PRIMARY CHOKEPOINT' : st.severity.toUpperCase()}
+                    </span>
+                  </td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : '';
 
-        <!-- 5. Multivariate Key Driver Impact Section -->
-        ${drivers.length > 0 ? `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
-          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+    const driversTableHtml = drivers.length > 0 ? `
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid ${isDriversActive ? themeBorder : 'rgba(255, 255, 255, 0.08)'}; ${isDriversActive ? `box-shadow: 0 0 16px ${themeColor}1a;` : ''} border-radius: 8px; padding: 16px 18px;">
+        <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <span>🌪️</span> <span>Multivariate Key Drivers &amp; Elasticity Impact</span>
           </div>
-          ${res.keyDrivers?.narrative ? `
-          <div style="background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
-            <strong>💡 Driver Summary:</strong> ${res.keyDrivers.narrative}
-          </div>` : ''}
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-              <thead>
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
-                  <th style="padding: 8px 10px;">Predictor Feature</th>
-                  <th style="padding: 8px 10px;">Relationship</th>
-                  <th style="padding: 8px 10px;">Correlation (r)</th>
-                  <th style="padding: 8px 10px; width: 140px;">Relative Weight</th>
-                  <th style="padding: 8px 10px;">Elasticity / Impact Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${drivers.map((d: any) => {
-                  const isPos = d.direction === 'positive';
-                  const dirColor = isPos ? '#38bdf8' : '#f59e0b';
-                  return `
-                  <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-                    <td style="padding: 9px 10px; font-family: monospace; font-weight: 600; color: #fff;">${d.featureName}</td>
-                    <td style="padding: 9px 10px;">
-                      <span style="font-size: 10.5px; font-weight: 700; color: ${dirColor}; background: ${isPos ? 'rgba(56,189,248,0.1)' : 'rgba(245,158,11,0.1)'}; padding: 2px 6px; border-radius: 4px;">
-                        ${isPos ? '🔼 Positive' : '🔽 Inverse'}
-                      </span>
-                    </td>
-                    <td style="padding: 9px 10px; font-family: monospace; color: #e2e8f0;">${d.correlation > 0 ? '+' : ''}${d.correlation}</td>
-                    <td style="padding: 9px 10px;">
-                      <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
-                          <div style="width: ${d.importanceWeight}%; height: 100%; background: #a855f7;"></div>
-                        </div>
-                        <span style="font-size: 10.5px; color: #c084fc; font-weight: 600;">${d.importanceWeight}%</span>
-                      </div>
-                    </td>
-                    <td style="padding: 9px 10px; color: #cbd5e1; font-size: 11.5px;">${d.elasticityDescription}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
+          ${isDriversActive ? `<span style="font-size: 10px; font-weight: 800; background: ${themeColor}22; color: ${themeColor}; border: 1px solid ${themeBorder}; padding: 2px 7px; border-radius: 4px;">★ ACTIVE FOCUS DOMAIN</span>` : ''}
+        </div>
+        ${res.keyDrivers?.narrative ? `
+        <div style="background: rgba(168, 85, 247, 0.08); border-left: 3px solid #a855f7; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 12px; color: #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
+          <strong>💡 Driver Summary:</strong> ${res.keyDrivers.narrative}
         </div>` : ''}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                <th style="padding: 8px 10px;">Predictor Feature</th>
+                <th style="padding: 8px 10px;">Relationship</th>
+                <th style="padding: 8px 10px;">Correlation (r)</th>
+                <th style="padding: 8px 10px; width: 140px;">Relative Weight</th>
+                <th style="padding: 8px 10px;">Elasticity / Impact Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${drivers.map((d: any) => {
+                const isPos = d.direction === 'positive';
+                const dirColor = isPos ? '#38bdf8' : '#f59e0b';
+                return `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                  <td style="padding: 9px 10px; font-family: monospace; font-weight: 600; color: #fff;">${d.featureName}</td>
+                  <td style="padding: 9px 10px;">
+                    <span style="font-size: 10.5px; font-weight: 700; color: ${dirColor}; background: ${isPos ? 'rgba(56,189,248,0.1)' : 'rgba(245,158,11,0.1)'}; padding: 2px 6px; border-radius: 4px;">
+                      ${isPos ? '🔼 Positive' : '🔽 Inverse'}
+                    </span>
+                  </td>
+                  <td style="padding: 9px 10px; font-family: monospace; color: #e2e8f0;">${d.correlation > 0 ? '+' : ''}${d.correlation}</td>
+                  <td style="padding: 9px 10px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${d.importanceWeight}%; height: 100%; background: #a855f7;"></div>
+                      </div>
+                      <span style="font-size: 10.5px; color: #c084fc; font-weight: 600;">${d.importanceWeight}%</span>
+                    </div>
+                  </td>
+                  <td style="padding: 9px 10px; color: #cbd5e1; font-size: 11.5px;">${d.elasticityDescription}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : '';
 
-        <!-- 6. Severe Outlier Anomaly Isolation -->
-        ${outliers.records && outliers.records.length > 0 ? `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
-          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span>🚨</span> <span>Severe Outliers &amp; Root Cause Isolation</span>
-            </div>
+    const outliersTableHtml = (outliers.records && outliers.records.length > 0) ? `
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid ${isOutliersActive ? themeBorder : 'rgba(255, 255, 255, 0.08)'}; ${isOutliersActive ? `box-shadow: 0 0 16px ${themeColor}1a;` : ''} border-radius: 8px; padding: 16px 18px;">
+        <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>🚨</span> <span>Severe Outliers &amp; Root Cause Isolation</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            ${isOutliersActive ? `<span style="font-size: 10px; font-weight: 800; background: ${themeColor}22; color: ${themeColor}; border: 1px solid ${themeBorder}; padding: 2px 7px; border-radius: 4px;">★ ACTIVE FOCUS DOMAIN</span>` : ''}
             <span style="font-size: 11px; color: #fb7185; background: rgba(244, 63, 94, 0.15); padding: 2px 8px; border-radius: 4px; font-weight: 600;">
               ${outliers.severeCount} Critical Anomalies
             </span>
           </div>
-          ${outliers.narrative ? `
-          <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
-            ${outliers.narrative}
-          </div>` : ''}
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-              <thead>
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
-                  <th style="padding: 8px 10px;">ID / Record</th>
-                  <th style="padding: 8px 10px;">Category</th>
-                  <th style="padding: 8px 10px;">Target Value</th>
-                  <th style="padding: 8px 10px;">Z-Score</th>
-                  <th style="padding: 8px 10px;">Severity</th>
-                  <th style="padding: 8px 10px;">Root Cause Insight</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${outliers.records.slice(0, 8).map((o: any) => `
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-                  <td style="padding: 8px 10px; font-family: monospace; color: #fff; font-weight: 600;">${o.id || o.primaryLabel}</td>
-                  <td style="padding: 8px 10px; color: #94a3b8;">${o.category || 'N/A'}</td>
-                  <td style="padding: 8px 10px; color: #fb7185; font-weight: 700; font-family: monospace;">${o.targetValue}</td>
-                  <td style="padding: 8px 10px; font-family: monospace; color: #f59e0b;">+${o.zScore} &sigma;</td>
-                  <td style="padding: 8px 10px;">
-                    <span style="background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700;">
-                      ${o.severityScore}/100
-                    </span>
-                  </td>
-                  <td style="padding: 8px 10px; color: #cbd5e1; font-size: 11.5px;">${o.rootCauseInsight}</td>
-                </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>
+        </div>
+        ${outliers.narrative ? `
+        <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
+          ${outliers.narrative}
         </div>` : ''}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                <th style="padding: 8px 10px;">ID / Record</th>
+                <th style="padding: 8px 10px;">Category</th>
+                <th style="padding: 8px 10px;">Target Value</th>
+                <th style="padding: 8px 10px;">Z-Score</th>
+                <th style="padding: 8px 10px;">Severity</th>
+                <th style="padding: 8px 10px;">Root Cause Insight</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${outliers.records.slice(0, 8).map((o: any) => `
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                <td style="padding: 8px 10px; font-family: monospace; color: #fff; font-weight: 600;">${o.id || o.primaryLabel}</td>
+                <td style="padding: 8px 10px; color: #94a3b8;">${o.category || 'N/A'}</td>
+                <td style="padding: 8px 10px; color: #fb7185; font-weight: 700; font-family: monospace;">${o.targetValue}</td>
+                <td style="padding: 8px 10px; font-family: monospace; color: #f59e0b;">+${o.zScore} &sigma;</td>
+                <td style="padding: 8px 10px;">
+                  <span style="background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700;">
+                    ${o.severityScore}/100
+                  </span>
+                </td>
+                <td style="padding: 8px 10px; color: #cbd5e1; font-size: 11.5px;">${o.rootCauseInsight}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : '';
 
-        <!-- 7. Cohort & Segment Performance Benchmarking -->
-        ${cohorts.length > 0 ? `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
-          <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+    const cohortsTableHtml = cohorts.length > 0 ? `
+      <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid ${isCohortsActive ? themeBorder : 'rgba(255, 255, 255, 0.08)'}; ${isCohortsActive ? `box-shadow: 0 0 16px ${themeColor}1a;` : ''} border-radius: 8px; padding: 16px 18px;">
+        <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
             <span>👥</span> <span>Cohort &amp; Segment Performance Benchmarking (${res.cohorts?.dimensionName || 'Segment'})</span>
           </div>
-          ${res.cohorts?.narrative ? `
-          <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
-            ${res.cohorts.narrative}
-          </div>` : ''}
-          <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
-              <thead>
-                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
-                  <th style="padding: 8px 10px;">Cohort Name</th>
-                  <th style="padding: 8px 10px;">Sample Size</th>
-                  <th style="padding: 8px 10px;">Target Mean</th>
-                  <th style="padding: 8px 10px;">Outlier Rate</th>
-                  <th style="padding: 8px 10px;">Grade</th>
-                  <th style="padding: 8px 10px;">Gap Analysis</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${cohorts.map((c: any) => {
-                  const gradeColor = c.performanceGrade === 'A' ? '#10b981' : c.performanceGrade === 'B' ? '#38bdf8' : c.performanceGrade === 'C' ? '#f59e0b' : '#ef4444';
-                  return `
-                  <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
-                    <td style="padding: 8px 10px; font-weight: 600; color: #fff;">${c.cohortName}</td>
-                    <td style="padding: 8px 10px; color: #94a3b8;">${c.recordCount} (${c.pctOfTotal}%)</td>
-                    <td style="padding: 8px 10px; font-family: monospace; color: #e2e8f0;">${c.targetMean}</td>
-                    <td style="padding: 8px 10px; color: ${c.outlierRate > 10 ? '#fb7185' : '#94a3b8'}; font-weight: 600;">${c.outlierRate}%</td>
-                    <td style="padding: 8px 10px;">
-                      <span style="font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.06); color: ${gradeColor}; border: 1px solid ${gradeColor}; padding: 2px 7px; border-radius: 4px;">
-                        ${c.performanceGrade}
-                      </span>
-                    </td>
-                    <td style="padding: 8px 10px; color: #cbd5e1; font-size: 11.5px;">${c.gapAnalysis}</td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
+          ${isCohortsActive ? `<span style="font-size: 10px; font-weight: 800; background: ${themeColor}22; color: ${themeColor}; border: 1px solid ${themeBorder}; padding: 2px 7px; border-radius: 4px;">★ ACTIVE FOCUS DOMAIN</span>` : ''}
+        </div>
+        ${res.cohorts?.narrative ? `
+        <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 12px;">
+          ${res.cohorts.narrative}
         </div>` : ''}
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); color: #94a3b8; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.5px;">
+                <th style="padding: 8px 10px;">Cohort Name</th>
+                <th style="padding: 8px 10px;">Sample Size</th>
+                <th style="padding: 8px 10px;">Target Mean</th>
+                <th style="padding: 8px 10px;">Outlier Rate</th>
+                <th style="padding: 8px 10px;">Grade</th>
+                <th style="padding: 8px 10px;">Gap Analysis</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${cohorts.map((c: any) => {
+                const gradeColor = c.performanceGrade === 'A' ? '#10b981' : c.performanceGrade === 'B' ? '#38bdf8' : c.performanceGrade === 'C' ? '#f59e0b' : '#ef4444';
+                return `
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.04);">
+                  <td style="padding: 8px 10px; font-weight: 600; color: #fff;">${c.cohortName}</td>
+                  <td style="padding: 8px 10px; color: #94a3b8;">${c.recordCount} (${c.pctOfTotal}%)</td>
+                  <td style="padding: 8px 10px; font-family: monospace; color: #e2e8f0;">${c.targetMean}</td>
+                  <td style="padding: 8px 10px; color: ${c.outlierRate > 10 ? '#fb7185' : '#94a3b8'}; font-weight: 600;">${c.outlierRate}%</td>
+                  <td style="padding: 8px 10px;">
+                    <span style="font-size: 11px; font-weight: 800; background: rgba(255,255,255,0.06); color: ${gradeColor}; border: 1px solid ${gradeColor}; padding: 2px 7px; border-radius: 4px;">
+                      ${c.performanceGrade}
+                    </span>
+                  </td>
+                  <td style="padding: 8px 10px; color: #cbd5e1; font-size: 11.5px;">${c.gapAnalysis}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>` : '';
 
-        <!-- 8. Prescriptive Strategic Action Plan -->
+    // Order tables dynamically based on focus
+    let tableSections: string[] = [];
+    if (focusMode === 'bottlenecks') {
+      tableSections = [bottleneckTableHtml, driversTableHtml, outliersTableHtml, cohortsTableHtml];
+    } else if (focusMode === 'drivers') {
+      tableSections = [driversTableHtml, bottleneckTableHtml, outliersTableHtml, cohortsTableHtml];
+    } else if (focusMode === 'outliers') {
+      tableSections = [outliersTableHtml, bottleneckTableHtml, driversTableHtml, cohortsTableHtml];
+    } else if (focusMode === 'cohorts') {
+      tableSections = [cohortsTableHtml, outliersTableHtml, driversTableHtml, bottleneckTableHtml];
+    } else {
+      tableSections = [bottleneckTableHtml, driversTableHtml, outliersTableHtml, cohortsTableHtml];
+    }
+    const renderedTablesHtml = tableSections.filter(Boolean).join('\n');
+
+    let html = `
+      <div class="ds-executive-dashboard" style="display: flex; flex-direction: column; gap: 18px; color: #f1f5f9;">
+
+        <!-- 1. Executive Focus Telemetry Header Banner -->
+        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.75) 100%); border: 1px solid ${themeBorder}; border-radius: 10px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px; box-shadow: 0 4px 22px rgba(0,0,0,0.45);">
+          <div style="display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 300px;">
+            <div style="font-size: 26px; background: ${themeColor}1a; width: 44px; height: 44px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid ${themeBorder}; flex-shrink: 0;">
+              ${themeIcon}
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 10.5px; font-weight: 800; background: ${themeColor}22; color: ${themeColor}; border: 1px solid ${themeBorder}; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  ${focusBadge}
+                </span>
+                <span style="font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.3px;">
+                  ${focusTitle}
+                </span>
+              </div>
+              <div style="font-size: 12px; color: #e2e8f0; margin-top: 6px; line-height: 1.45; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px; border-left: 3px solid ${themeColor};">
+                <strong>💡 Focus Mission:</strong> ${focusSummary}
+              </div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 6px;">
+                Target Asset: <strong style="color: #38bdf8;">${res.datasetTitle || 'Active Dataset'}</strong> &bull; Analyzed: <strong style="color: #fff;">${totalRecs}</strong> records &bull; Optimized Metric: <strong style="color: #fbbf24;">${res.targetKpiName || 'Target'}</strong> (${res.targetKpiUnit || 'units'})
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 600;">
+              ✓ Air-Gapped Local Model
+            </span>
+            <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 4px 10px; border-radius: 6px; font-weight: 600;">
+              Zero Cloud Leakage
+            </span>
+          </div>
+        </div>
+
+        <!-- 2. Four Specialized Headline Metric KPI Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+          ${focusKpis.map((k: any) => `
+            <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-top: 3px solid ${k.color}; border-radius: 8px; padding: 14px 16px; box-shadow: 0 4px 14px rgba(0,0,0,0.25);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 0.5px;">${k.label}</span>
+                <span style="font-size: 14px;">${k.icon}</span>
+              </div>
+              <div style="font-size: 21px; font-weight: 700; color: ${k.color}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${k.value}">
+                ${k.value}${k.unit ? `<span style="font-size: 12px; font-weight: 500; color: #94a3b8; margin-left: 4px;">${k.unit}</span>` : ''}
+              </div>
+              <div style="font-size: 10.5px; color: #94a3b8; margin-top: 5px; display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${k.badge ? `<span style="background: ${k.badgeColor || k.color}22; color: ${k.badgeColor || k.color}; border: 1px solid ${k.badgeColor || k.color}55; padding: 1px 6px; border-radius: 3px; font-weight: 700; font-size: 9.5px; flex-shrink: 0;">${k.badge}</span>` : ''}
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${k.subtext}">${k.subtext}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <!-- 3. Pre-rendered 2D Visual Analytics Charts (Focus-Prioritized) -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 14px;">
+          <!-- Chart 1 -->
+          <div style="background: #0d1117; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-size: 12.5px; font-weight: 700; color: ${chart1Color}; display: flex; align-items: center; gap: 6px;">
+                <span>${chart1Icon}</span> <span>${chart1Title}</span>
+              </div>
+              <span style="font-size: 10.5px; color: #94a3b8;">${chart1Subtitle}</span>
+            </div>
+            <div style="width: 100%; overflow-x: auto;">
+              ${chart1Svg}
+            </div>
+          </div>
+
+          <!-- Chart 2 -->
+          <div style="background: #0d1117; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="font-size: 12.5px; font-weight: 700; color: ${chart2Color}; display: flex; align-items: center; gap: 6px;">
+                <span>${chart2Icon}</span> <span>${chart2Title}</span>
+              </div>
+              <span style="font-size: 10.5px; color: #94a3b8;">${chart2Subtitle}</span>
+            </div>
+            <div style="width: 100%; overflow-x: auto;">
+              ${chart2Svg}
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Reordered Diagnostic Tables (Focus-First) -->
+        ${renderedTablesHtml}
+
+        <!-- 5. Prescriptive Strategic Action Plan -->
         ${actions.length > 0 ? `
         <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 16px 18px;">
           <div style="font-size: 13.5px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-            <span>🚀</span> <span>Prescriptive Strategic Action Plan &amp; ROI</span>
+            <span>🚀</span> <span>Prescriptive Strategic Action Plan &amp; ROI (Prioritized by Focus)</span>
           </div>
           <div style="display: flex; flex-direction: column; gap: 10px;">
-            ${actions.map((act: any) => {
+            ${actions.map((act: any, idx: number) => {
               const isHigh = act.priority === 'HIGH';
               const pColor = isHigh ? '#ef4444' : act.priority === 'MEDIUM' ? '#f59e0b' : '#38bdf8';
+              const isPrimaryFocus = idx === 0;
               return `
-              <div style="background: rgba(0,0,0,0.3); border: 1px solid ${isHigh ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.07)'}; border-radius: 6px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+              <div style="background: rgba(0,0,0,0.3); border: 1px solid ${isPrimaryFocus ? themeBorder : isHigh ? 'rgba(239, 68, 68, 0.35)' : 'rgba(255, 255, 255, 0.07)'}; ${isPrimaryFocus ? `box-shadow: 0 0 12px ${themeColor}1a;` : ''} border-radius: 6px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 260px;">
                   <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                     <span style="font-size: 10px; font-weight: 800; background: ${pColor}22; color: ${pColor}; border: 1px solid ${pColor}55; padding: 2px 7px; border-radius: 4px;">
                       [${act.priority} PRIORITY]
                     </span>
                     <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">${act.category}</span>
+                    ${isPrimaryFocus ? `<span style="font-size: 9.5px; font-weight: 800; color: ${themeColor}; background: ${themeColor}22; padding: 1px 6px; border-radius: 3px;">PRIMARY RECOMMENDATION</span>` : ''}
                   </div>
                   <div style="font-size: 12.5px; color: #f1f5f9; line-height: 1.5;">
                     ${act.action}

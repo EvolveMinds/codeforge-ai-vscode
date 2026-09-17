@@ -89,6 +89,21 @@ export interface Point3D {
   };
 }
 
+export type AnalysisFocusMode = 'bottlenecks' | 'drivers' | 'outliers' | 'cohorts' | 'general';
+
+export interface FocusKpiItem {
+  id: string;
+  label: string;
+  value: string;
+  unit?: string;
+  subtext: string;
+  icon: string;
+  color: string;
+  badge?: string;
+  badgeColor?: string;
+  borderColor?: string;
+}
+
 export interface DataScienceAnalysisResult {
   datasetTitle: string;
   totalRecords: number;
@@ -97,6 +112,13 @@ export interface DataScienceAnalysisResult {
   targetKpiUnit: string;
   stageColumnName?: string;
   categoryColumnName?: string;
+
+  // Focus Intelligence Metadata & Dynamic Hero KPIs
+  focusMode: AnalysisFocusMode;
+  focusTitle: string;
+  focusBadge: string;
+  focusSummary: string;
+  focusKpis: FocusKpiItem[];
   
   // Statistical Core
   targetKpiStats: {
@@ -175,11 +197,369 @@ export interface DataScienceAnalysisResult {
     waterfallSvg: string;
     tornadoSvg: string;
     paretoSvg: string;
+    cohortSvg?: string;
     correlationHtml: string;
   };
 }
 
 export class DataScientistEngine {
+  /**
+   * Normalize an incoming user focus instruction or preset string into one of the 4 specialized modes
+   */
+  public static normalizeFocusMode(focusText?: string): AnalysisFocusMode {
+    if (!focusText || typeof focusText !== 'string') return 'general';
+    const lower = focusText.toLowerCase().trim();
+    if (lower === 'general' || lower === 'all' || lower.startsWith('general')) {
+      return 'general';
+    }
+
+    if (
+      lower.includes('bottleneck') ||
+      lower.includes('delay') ||
+      lower.includes('latency') ||
+      lower.includes('stage') ||
+      lower.includes('chokepoint') ||
+      lower.includes('cycle') ||
+      lower.includes('queue') ||
+      lower.includes('velocity')
+    ) {
+      return 'bottlenecks';
+    }
+
+    if (
+      lower.includes('driver') ||
+      lower.includes('correlation') ||
+      lower.includes('elasticity') ||
+      lower.includes('regression') ||
+      lower.includes('feature') ||
+      lower.includes('root cause') ||
+      lower.includes('multivariate') ||
+      lower.includes('impact')
+    ) {
+      return 'drivers';
+    }
+
+    if (
+      lower.includes('outlier') ||
+      lower.includes('pareto') ||
+      lower.includes('80/20') ||
+      lower.includes('anomaly') ||
+      lower.includes('risk') ||
+      lower.includes('leakage') ||
+      lower.includes('tukey') ||
+      lower.includes('z-score')
+    ) {
+      return 'outliers';
+    }
+
+    if (
+      lower.includes('cohort') ||
+      lower.includes('segment') ||
+      lower.includes('group') ||
+      lower.includes('category') ||
+      lower.includes('cluster') ||
+      lower.includes('benchmark') ||
+      lower.includes('gap analysis')
+    ) {
+      return 'cohorts';
+    }
+
+    return 'general';
+  }
+
+  /**
+   * Produce 4 specialized Headline Metric KPI Cards and contextual focus briefing
+   */
+  private static _generateFocusIntelligence(params: {
+    focusMode: AnalysisFocusMode;
+    targetKpi: string;
+    unit: string;
+    targetStats: any;
+    bottlenecks: any;
+    keyDrivers: any;
+    pareto: ParetoAnalysis;
+    outliers: any;
+    cohorts: any;
+  }): {
+    focusTitle: string;
+    focusBadge: string;
+    focusSummary: string;
+    focusKpis: FocusKpiItem[];
+  } {
+    const { focusMode, targetKpi, unit, targetStats, bottlenecks, keyDrivers, pareto, outliers, cohorts } = params;
+    const dominant = bottlenecks.dominantChokepoint;
+
+    if (focusMode === 'bottlenecks') {
+      const fastestStage = bottlenecks.stages.length > 0 ? bottlenecks.stages[bottlenecks.stages.length - 1] : null;
+      const degradationRatio = (dominant && fastestStage && fastestStage.avgDurationHours > 0)
+        ? (dominant.avgDurationHours / fastestStage.avgDurationHours)
+        : (dominant ? (dominant.pctOfTotalLatency / 20) : 1);
+
+      const focusTitle = 'Process Velocity & Bottleneck Remediation';
+      const focusBadge = '⏱️ Bottleneck Focus';
+      const focusSummary = dominant
+        ? `Primary operational chokepoint detected at stage "${dominant.stageName}", consuming ${bottlenecks.chokepointSharePercent}% of total cycle duration with mean latency of ${dominant.avgDurationHours.toFixed(1)} hrs. Eliminating handoff friction here delivers the highest operational velocity gain.`
+        : 'Process latency is uniformly distributed across introspected stages with no single dominant chokepoint.';
+
+      const focusKpis: FocusKpiItem[] = [
+        {
+          id: 'kpi_primary_chokepoint',
+          label: 'Primary Chokepoint',
+          value: dominant ? dominant.stageName : 'Balanced Pipeline',
+          subtext: dominant ? `${bottlenecks.chokepointSharePercent}% of latency • avg ${dominant.avgDurationHours.toFixed(1)}h` : 'No single bottleneck',
+          icon: '⏱️',
+          color: dominant ? '#f87171' : '#34d399',
+          badge: dominant ? `${bottlenecks.chokepointSharePercent}% SHARE` : 'BALANCED',
+          badgeColor: '#ef4444'
+        },
+        {
+          id: 'kpi_p90_latency',
+          label: 'Max Stage P90 Latency',
+          value: dominant ? `${dominant.p90DurationHours.toFixed(1)}h` : `${targetStats.p75.toFixed(1)}h`,
+          subtext: dominant ? `Tail latency bound (P90) in ${dominant.stageName}` : 'Normal distribution tail',
+          icon: '⏳',
+          color: '#fbbf24',
+          badge: 'P90 TAIL',
+          badgeColor: '#f59e0b'
+        },
+        {
+          id: 'kpi_velocity_gap',
+          label: 'Velocity Degradation Ratio',
+          value: `${Math.max(1, degradationRatio).toFixed(1)}x Gap`,
+          subtext: fastestStage ? `Slowest stage vs fastest stage (${fastestStage.stageName})` : 'Velocity gap vs baseline',
+          icon: '📉',
+          color: degradationRatio > 3 ? '#ef4444' : '#38bdf8',
+          badge: degradationRatio > 3 ? 'HIGH SPREAD' : 'OPTIMAL',
+          badgeColor: degradationRatio > 3 ? '#ef4444' : '#38bdf8'
+        },
+        {
+          id: 'kpi_cycle_mean',
+          label: 'Overall Process Mean',
+          value: `${targetStats.mean.toLocaleString(undefined, { maximumFractionDigits: 1 })}`,
+          unit: unit,
+          subtext: `Median: ${targetStats.median.toFixed(1)}${unit} • ±${targetStats.stdDev.toFixed(1)} std dev`,
+          icon: '🎯',
+          color: '#38bdf8',
+          badge: 'MEAN LATENCY'
+        }
+      ];
+
+      return { focusTitle, focusBadge, focusSummary, focusKpis };
+    }
+
+    if (focusMode === 'drivers') {
+      const topPos = keyDrivers.topPositiveDriver;
+      const topNeg = keyDrivers.topNegativeDriver;
+      const secondary = keyDrivers.drivers && keyDrivers.drivers[1];
+
+      const focusTitle = 'Multivariate Key Driver & Feature Elasticity Analysis';
+      const focusBadge = '🎯 Key Driver Focus';
+      const focusSummary = `Multivariate features account for ~${keyDrivers.totalVarianceExplained}% of variance in ${targetKpi}. Primary positive catalyst is "${topPos ? topPos.featureName : 'N/A'}" (r = ${topPos ? '+' + topPos.correlation.toFixed(2) : '0.00'}), while "${topNeg ? topNeg.featureName : (secondary ? secondary.featureName : 'N/A')}" acts as the primary inverse drag.`;
+
+      const focusKpis: FocusKpiItem[] = [
+        {
+          id: 'kpi_positive_catalyst',
+          label: 'Top Positive Catalyst',
+          value: topPos ? topPos.featureName : 'None Identified',
+          subtext: topPos ? `Pearson r = +${topPos.correlation.toFixed(2)} (${topPos.importanceWeight.toFixed(0)}% weight)` : 'No positive correlation',
+          icon: '🚀',
+          color: '#34d399',
+          badge: topPos ? `+${topPos.correlation.toFixed(2)} r` : 'N/A',
+          badgeColor: '#10b981'
+        },
+        {
+          id: 'kpi_drag_factor',
+          label: 'Strongest Drag Factor',
+          value: topNeg ? topNeg.featureName : (secondary ? secondary.featureName : 'None Identified'),
+          subtext: topNeg ? `Pearson r = ${topNeg.correlation.toFixed(2)} (${topNeg.importanceWeight.toFixed(0)}% drag)` : (secondary ? `Secondary driver (r = ${secondary.correlation >= 0 ? '+' : ''}${secondary.correlation.toFixed(2)})` : 'No negative drag'),
+          icon: topNeg ? '⚠️' : '🔍',
+          color: topNeg ? '#f87171' : '#c084fc',
+          badge: topNeg ? `${topNeg.correlation.toFixed(2)} r` : (secondary ? `r = ${secondary.correlation.toFixed(2)}` : 'STABLE'),
+          badgeColor: topNeg ? '#ef4444' : '#a855f7'
+        },
+        {
+          id: 'kpi_variance_explained',
+          label: 'Variance Explained (R²)',
+          value: `${keyDrivers.totalVarianceExplained}%`,
+          subtext: 'Multivariate regression explanation power',
+          icon: '📈',
+          color: '#c084fc',
+          badge: keyDrivers.totalVarianceExplained >= 70 ? 'STRONG MODEL' : 'MODERATE',
+          badgeColor: '#a855f7'
+        },
+        {
+          id: 'kpi_elasticity',
+          label: 'Primary Elasticity',
+          value: topPos ? topPos.elasticityDescription : 'Uniform Sensitivity',
+          subtext: `Directional sensitivity of ${targetKpi}`,
+          icon: '🎛️',
+          color: '#38bdf8',
+          badge: 'ELASTICITY'
+        }
+      ];
+
+      return { focusTitle, focusBadge, focusSummary, focusKpis };
+    }
+
+    if (focusMode === 'outliers') {
+      let maxZ = 0;
+      if (outliers.records && outliers.records.length > 0) {
+        outliers.records.forEach((o: any) => {
+          if (Math.abs(o.zScore) > maxZ) maxZ = Math.abs(o.zScore);
+        });
+      }
+
+      const focusTitle = 'Pareto 80/20 Concentration & Anomaly Risk Exposure';
+      const focusBadge = '🚨 Outlier & Pareto Focus';
+      const focusSummary = `${pareto.summaryText} Isolated ${outliers.severeCount} high-leverage outliers driving ${outliers.impactPercentageOfTotal}% of total ${targetKpi} variance. Highest risk concentration in segment "${outliers.highestRiskSegment}".`;
+
+      const focusKpis: FocusKpiItem[] = [
+        {
+          id: 'kpi_pareto_leverage',
+          label: 'Pareto 80/20 Leverage',
+          value: `${pareto.topPercentile}% → ${pareto.capturedImpactPercent}%`,
+          subtext: pareto.isParetoConfirmed ? 'Confirmed 80/20 Concentration Rule' : 'Uniform volume dispersion',
+          icon: '⚖️',
+          color: '#f59e0b',
+          badge: pareto.isParetoConfirmed ? '80/20 CONFIRMED' : 'DISPERSED',
+          badgeColor: '#f59e0b'
+        },
+        {
+          id: 'kpi_outlier_count',
+          label: 'Severe Outlier Volume',
+          value: `${outliers.severeCount} records`,
+          subtext: `${outliers.outlierPercentage}% of dataset volume (Tukey IQR fence)`,
+          icon: '🚨',
+          color: outliers.severeCount > 0 ? '#fb7185' : '#34d399',
+          badge: outliers.severeCount > 0 ? 'CRITICAL RISK' : 'CLEAN',
+          badgeColor: outliers.severeCount > 0 ? '#ef4444' : '#10b981'
+        },
+        {
+          id: 'kpi_variance_at_risk',
+          label: 'Variance at Risk Exposure',
+          value: `$${outliers.totalImpactValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
+          subtext: `${outliers.impactPercentageOfTotal}% of total variance in ${targetKpi}`,
+          icon: '💸',
+          color: '#f87171',
+          badge: `${outliers.impactPercentageOfTotal}% IMPACT`,
+          badgeColor: '#ef4444'
+        },
+        {
+          id: 'kpi_max_zscore',
+          label: 'Peak Z-Score Anomaly',
+          value: `+${maxZ.toFixed(1)}σ`,
+          subtext: `Extreme deviation in segment "${outliers.highestRiskSegment}"`,
+          icon: '⚡',
+          color: '#fbbf24',
+          badge: 'EXTREME TAIL',
+          badgeColor: '#f59e0b'
+        }
+      ];
+
+      return { focusTitle, focusBadge, focusSummary, focusKpis };
+    }
+
+    if (focusMode === 'cohorts') {
+      const best = cohorts.bestCohort;
+      const worst = cohorts.worstCohort;
+      const spread = (best && worst && best.targetMean > 0) ? (worst.targetMean / best.targetMean) : 1;
+
+      const focusTitle = 'Cohort & Cross-Segment Performance Gap Diagnostics';
+      const focusBadge = '📊 Cohort Focus';
+      const focusSummary = cohorts.hasCohorts
+        ? `Observed performance dispersion across dimension "${cohorts.dimensionName}". Top performer "${best?.cohortName}" achieves optimal consistency, while "${worst?.cohortName}" exhibits severe variance spread.`
+        : 'Uniform distribution across all categorical groupings with minimal variance gap.';
+
+      const focusKpis: FocusKpiItem[] = [
+        {
+          id: 'kpi_best_cohort',
+          label: 'Benchmark Cohort (Grade A)',
+          value: best ? best.cohortName : 'General Cohort',
+          subtext: best ? `Mean: ${best.targetMean.toFixed(1)}${unit} • Outliers: ${best.outlierRate}%` : 'Optimal baseline',
+          icon: '🏆',
+          color: '#34d399',
+          badge: 'GRADE A BENCHMARK',
+          badgeColor: '#10b981'
+        },
+        {
+          id: 'kpi_worst_cohort',
+          label: 'Highest Friction Cohort',
+          value: worst ? worst.cohortName : 'None',
+          subtext: worst ? `Mean: ${worst.targetMean.toFixed(1)}${unit} • Outliers: ${worst.outlierRate}%` : 'Consistent performance',
+          icon: '⚠️',
+          color: worst && worst.performanceGrade !== 'A' ? '#f87171' : '#38bdf8',
+          badge: worst ? `GRADE ${worst.performanceGrade}` : 'BALANCED',
+          badgeColor: '#ef4444'
+        },
+        {
+          id: 'kpi_cohort_spread',
+          label: 'Cross-Cohort Spread',
+          value: `${Math.max(1, spread).toFixed(1)}x Spread`,
+          subtext: `Mean performance gap across "${cohorts.dimensionName}"`,
+          icon: '📊',
+          color: spread > 2 ? '#fbbf24' : '#38bdf8',
+          badge: spread > 2 ? 'WIDE GAP' : 'TIGHT CLUSTER',
+          badgeColor: spread > 2 ? '#fbbf24' : '#38bdf8'
+        },
+        {
+          id: 'kpi_cohort_count',
+          label: 'Cohort Entities Audited',
+          value: `${cohorts.cohorts.length} Cohorts`,
+          subtext: `Categorical dimension: "${cohorts.dimensionName}"`,
+          icon: '👥',
+          color: '#38bdf8',
+          badge: 'ACTIVE DIMENSION'
+        }
+      ];
+
+      return { focusTitle, focusBadge, focusSummary, focusKpis };
+    }
+
+    // Default / General
+    const focusTitle = 'Comprehensive Statistical Intelligence & Anomaly Audit';
+    const focusBadge = '🧠 Executive Intelligence';
+    const focusSummary = `Autonomous multi-dimensional audit introspecting bottlenecks, multivariate drivers, Pareto concentration, and segment performance.`;
+
+    const focusKpis: FocusKpiItem[] = [
+      {
+        id: 'kpi_target_mean',
+        label: 'Target KPI Mean',
+        value: `${targetStats.mean.toLocaleString(undefined, { maximumFractionDigits: 1 })}`,
+        unit: unit,
+        subtext: `Median: ${targetStats.median.toFixed(1)}${unit} • ±${targetStats.stdDev.toFixed(1)}`,
+        icon: '🎯',
+        color: '#38bdf8'
+      },
+      {
+        id: 'kpi_primary_chokepoint',
+        label: 'Primary Chokepoint',
+        value: dominant ? dominant.stageName : 'Balanced Pipeline',
+        subtext: dominant ? `${bottlenecks.chokepointSharePercent}% latency • ${dominant.avgDurationHours.toFixed(1)}h avg` : 'No single chokepoint',
+        icon: '⏱️',
+        color: dominant ? '#f87171' : '#34d399',
+        badge: dominant ? `${bottlenecks.chokepointSharePercent}% LATENCY` : undefined
+      },
+      {
+        id: 'kpi_pareto_leverage',
+        label: 'Pareto 80/20 Leverage',
+        value: `${pareto.topPercentile}% → ${pareto.capturedImpactPercent}%`,
+        subtext: pareto.isParetoConfirmed ? 'Confirmed 80/20 Concentration' : 'Uniform Volume Dispersion',
+        icon: '⚖️',
+        color: '#f59e0b'
+      },
+      {
+        id: 'kpi_outlier_exposure',
+        label: 'Outlier Exposure',
+        value: `${outliers.severeCount} records`,
+        subtext: `Risk Seg: ${outliers.highestRiskSegment || 'General'} • ${outliers.impactPercentageOfTotal}% Impact`,
+        icon: '🚨',
+        color: outliers.severeCount > 0 ? '#fb7185' : '#34d399'
+      }
+    ];
+
+    return { focusTitle, focusBadge, focusSummary, focusKpis };
+  }
+
   /**
    * Main entry point: Autonomous Data Science Analysis
    */
@@ -193,7 +573,8 @@ export class DataScientistEngine {
     }
   ): DataScienceAnalysisResult {
     const datasetTitle = options?.datasetTitle || 'Active Dataset';
-    const focus = options?.focus || 'General statistical diagnostics & bottlenecks';
+    const focus = options?.focus;
+    const focusMode = this.normalizeFocusMode(focus);
 
     // 1. Sanitize & Ensure usable rows
     const rows = this._sanitizeRows(rawRows, columnNames);
@@ -202,6 +583,7 @@ export class DataScientistEngine {
     // 2. Identify Semantic Roles of Columns
     const semanticRoles = this._inferSemanticRoles(rows, cols, options?.targetKpi);
     const targetKpi = semanticRoles.targetKpi;
+    const unit = this._inferUnit(targetKpi);
 
     // 3. Compute Target KPI Statistics
     const targetStats = this._computeNumericStats(rows.map(r => Number(r[targetKpi])).filter(v => !isNaN(v)));
@@ -218,7 +600,20 @@ export class DataScientistEngine {
     // 7. Cohort & Segment Performance Diagnostics
     const cohortAnalysis = this._analyzeCohorts(rows, semanticRoles, targetKpi);
 
-    // 8. Formulate Prescriptive Recommendations
+    // 8. Focus Intelligence Metadata & Dynamic Headline KPIs
+    const { focusTitle, focusBadge, focusSummary, focusKpis } = this._generateFocusIntelligence({
+      focusMode,
+      targetKpi,
+      unit,
+      targetStats,
+      bottlenecks: bottleneckAnalysis,
+      keyDrivers: keyDriverAnalysis,
+      pareto,
+      outliers,
+      cohorts: cohortAnalysis
+    });
+
+    // 9. Formulate Prescriptive Recommendations (prioritized by focusMode)
     const prescriptiveActions = this._generatePrescriptiveActions({
       bottlenecks: bottleneckAnalysis,
       keyDrivers: keyDriverAnalysis,
@@ -226,19 +621,28 @@ export class DataScientistEngine {
       pareto,
       cohorts: cohortAnalysis,
       targetKpi,
-      focus
+      focusMode
     });
 
-    // 9. Generate 3D Projection Manifold
-    const { points3D, axisLabels3D } = this._generate3DCoordinates(rows, semanticRoles, outliers.records, bottleneckAnalysis);
+    // 10. Generate 3D Projection Manifold (aligned with focusMode)
+    const { points3D, axisLabels3D } = this._generate3DCoordinates(
+      rows,
+      semanticRoles,
+      outliers.records,
+      bottleneckAnalysis,
+      focusMode,
+      keyDriverAnalysis,
+      cohortAnalysis
+    );
 
-    // 10. Compute Full Bivariate Correlation Matrix
+    // 11. Compute Full Bivariate Correlation Matrix
     const correlationMatrix = this._computeCorrelationMatrix(rows, semanticRoles.numericCols);
 
-    // 11. Pre-render 2D SVG Visualizations for Visual Preview & HTML Report
+    // 12. Pre-render 2D SVG Visualizations for Visual Preview & HTML Report
     const waterfallSvg = this._renderWaterfallSvg(bottleneckAnalysis.stages);
     const tornadoSvg = this._renderTornadoSvg(keyDriverAnalysis.drivers);
     const paretoSvg = this._renderParetoSvg(pareto, targetStats);
+    const cohortSvg = this._renderCohortSvg(cohortAnalysis.cohorts, cohortAnalysis.dimensionName);
     const correlationHtml = this._renderCorrelationMatrixHtml(correlationMatrix);
 
     return {
@@ -246,9 +650,14 @@ export class DataScientistEngine {
       totalRecords: rows.length,
       totalColumns: cols.length,
       targetKpiName: targetKpi,
-      targetKpiUnit: this._inferUnit(targetKpi),
+      targetKpiUnit: unit,
       stageColumnName: semanticRoles.stageCol,
       categoryColumnName: semanticRoles.categoryCol,
+      focusMode,
+      focusTitle,
+      focusBadge,
+      focusSummary,
+      focusKpis,
       targetKpiStats: targetStats,
       bottlenecks: bottleneckAnalysis,
       keyDrivers: keyDriverAnalysis,
@@ -263,6 +672,7 @@ export class DataScientistEngine {
         waterfallSvg,
         tornadoSvg,
         paretoSvg,
+        cohortSvg,
         correlationHtml
       }
     };
@@ -369,37 +779,39 @@ export class DataScientistEngine {
     </div>
   </div>
 
-  <!-- Headline Data Scientist KPIs -->
+  <!-- Active Focus Banner -->
+  <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.7) 100%); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 10px; padding: 14px 18px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 18px rgba(0,0,0,0.35);">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="font-size: 24px;">${p.focusBadge.split(' ')[0] || '⚡'}</div>
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 10px; font-weight: 800; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; text-transform: uppercase;">${p.focusBadge}</span>
+          <strong style="color: #fff; font-size: 14px;">${p.focusTitle}</strong>
+        </div>
+        <div style="font-size: 12px; color: #cbd5e1; margin-top: 4px;">
+          ${p.focusSummary}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Headline Data Scientist Focus KPIs -->
   <div class="kpi-grid">
-    <div class="kpi-card accent">
-      <div class="kpi-label">Analyzed Target Metric</div>
-      <div class="kpi-val">${p.targetKpiStats.mean.toLocaleString(undefined, { maximumFractionDigits: 1 })}${p.targetKpiUnit}</div>
-      <div class="kpi-sub">Mean baseline (Median: ${p.targetKpiStats.median.toLocaleString(undefined, { maximumFractionDigits: 1 })}${p.targetKpiUnit})</div>
-    </div>
-    <div class="kpi-card danger">
-      <div class="kpi-label">Dominant Bottleneck / Friction</div>
-      <div class="kpi-val" style="color: #f87171; font-size: 18px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
-        ${primaryBottleneck ? primaryBottleneck.stageName : 'Normal Spread'}
+    ${p.focusKpis.map(k => `
+      <div class="kpi-card" style="border-top: 3px solid ${k.color};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span class="kpi-label">${k.label}</span>
+          <span style="font-size: 13px;">${k.icon}</span>
+        </div>
+        <div class="kpi-val" style="color: ${k.color}; font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${k.value}">
+          ${k.value}${k.unit ? ' ' + k.unit : ''}
+        </div>
+        <div class="kpi-sub" style="display: flex; align-items: center; gap: 6px; margin-top: 4px;">
+          ${k.badge ? `<span style="background: ${k.badgeColor || k.color}22; color: ${k.badgeColor || k.color}; border: 1px solid ${k.badgeColor || k.color}55; padding: 1px 5px; border-radius: 3px; font-weight: 700; font-size: 9.5px;">${k.badge}</span>` : ''}
+          <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${k.subtext}</span>
+        </div>
       </div>
-      <div class="kpi-sub">${p.bottlenecks.chokepointSharePercent}% of total latency cycle</div>
-    </div>
-    <div class="kpi-card warn">
-      <div class="kpi-label">Pareto 80/20 Leverage</div>
-      <div class="kpi-val" style="color: #fbbf24;">Top ${p.pareto.topPercentile}%</div>
-      <div class="kpi-sub">Controls ${p.pareto.capturedImpactPercent}% of total metric volume</div>
-    </div>
-    <div class="kpi-card danger">
-      <div class="kpi-label">Severe Outlier Risk Exposure</div>
-      <div class="kpi-val" style="color: #ef4444;">${p.outliers.severeCount} records</div>
-      <div class="kpi-sub">${p.outliers.impactPercentageOfTotal}% of total variance ($${p.outliers.totalImpactValue.toLocaleString(undefined, { maximumFractionDigits: 0 })})</div>
-    </div>
-    <div class="kpi-card success">
-      <div class="kpi-label">Primary Positive Driver</div>
-      <div class="kpi-val" style="color: #34d399; font-size: 18px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
-        ${p.keyDrivers.topPositiveDriver ? p.keyDrivers.topPositiveDriver.featureName : 'Uniform'}
-      </div>
-      <div class="kpi-sub">r = ${p.keyDrivers.topPositiveDriver ? (p.keyDrivers.topPositiveDriver.correlation >= 0 ? '+' : '') + p.keyDrivers.topPositiveDriver.correlation.toFixed(2) : '0.00'} (${p.keyDrivers.totalVarianceExplained}% variance explained)</div>
-    </div>
+    `).join('')}
   </div>
 
   <!-- SECTION 1: BOTTLENECKS & KEY DRIVERS 2D VISUALS -->
@@ -791,6 +1203,7 @@ export class DataScientistEngine {
 # AUTONOMOUS DATA SCIENTIST & STATISTICAL INTELLIGENCE PIPELINE
 # Target Dataset: ${p.datasetTitle}
 # Primary Target KPI: ${p.targetKpiName}
+# Active Focus: ${p.focusBadge} — ${p.focusTitle}
 # Generated by Evolve AI Enterprise Autonomous Data Engine
 # ==============================================================================
 
@@ -893,46 +1306,70 @@ print("\\n✓ Autonomous Data Scientist exploratory analysis completed successfu
    */
   public static generateExecutiveInsightsMarkdown(analysis: DataScienceAnalysisResult): string {
     const p = analysis;
-    return `# 📊 Executive Data Scientist Briefing: ${p.datasetTitle}
+    const banner = `# 📊 Executive Data Scientist Briefing: ${p.datasetTitle}
+*Analytical Focus: ${p.focusBadge} — ${p.focusTitle}*
 *Generated by Evolve AI Autonomous Data Engine*
 
-## 1. Executive Headline Metrics
-- **Target Optimization Metric**: \`${p.targetKpiName}\` (Mean: **${p.targetKpiStats.mean.toLocaleString(undefined, { maximumFractionDigits: 1 })}${p.targetKpiUnit}**, Median: **${p.targetKpiStats.median.toLocaleString(undefined, { maximumFractionDigits: 1 })}${p.targetKpiUnit}**)
-- **Dominant Bottleneck**: **${p.bottlenecks.dominantChokepoint ? p.bottlenecks.dominantChokepoint.stageName : 'Balanced Process'}** (Drives **${p.bottlenecks.chokepointSharePercent}%** of total process latency).
-- **Pareto Concentration**: Top **${p.pareto.topPercentile}%** of entities account for **${p.pareto.capturedImpactPercent}%** of total volume.
-- **Outlier Risk Exposure**: **${p.outliers.severeCount}** severe anomaly records representing **$${p.outliers.totalImpactValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}** in financial/operational variance.
+> **Executive Focal Mission**: ${p.focusSummary}
 
----
+## 1. Executive Headline Metrics (${p.focusBadge})
+${p.focusKpis.map(k => `- **${k.label}**: **${k.value}${k.unit ? ' ' + k.unit : ''}** — *${k.subtext}* ${k.badge ? `\`[${k.badge}]\`` : ''}`).join('\n')}
+`;
 
-## 2. Process Bottleneck & Friction Diagnostics
+    // Reorderable Diagnostic Sections
+    const bottleneckSection = `## Process Bottleneck & Friction Diagnostics
 ${p.bottlenecks.narrative}
 
 ${p.bottlenecks.stages.length > 0 ? `
 | Stage / Status | Record Volume | Mean Duration (Hrs) | Median Duration (Hrs) | % Total Latency | Severity |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 ${p.bottlenecks.stages.map(s => `| **${s.stageName}** | ${s.count} | ${s.avgDurationHours.toFixed(1)}h | ${s.medianDurationHours.toFixed(1)}h | ${s.pctOfTotalLatency.toFixed(1)}% | ${s.isPrimaryBottleneck ? '🔴 CHOKEPOINT' : s.severity.toUpperCase()} |`).join('\n')}
-` : ''}
+` : ''}`;
 
----
-
-## 3. Multivariate Key Driver Analysis
+    const driverSection = `## Multivariate Key Driver Analysis
 ${p.keyDrivers.narrative}
 
 | Rank | Feature Name | Pearson Correlation (r) | Impact Direction | Variance Explained Weight |
 | :--- | :--- | :--- | :--- | :--- |
-${p.keyDrivers.drivers.map((d, i) => `| #${i + 1} | \`${d.featureName}\` | **${d.correlation >= 0 ? '+' : ''}${d.correlation.toFixed(2)}** | ${d.direction === 'positive' ? '🟢 Positive Catalyst' : '🔴 Drag Factor'} | ${d.importanceWeight.toFixed(1)}% |`).join('\n')}
+${p.keyDrivers.drivers.map((d, i) => `| #${i + 1} | \`${d.featureName}\` | **${d.correlation >= 0 ? '+' : ''}${d.correlation.toFixed(2)}** | ${d.direction === 'positive' ? '🟢 Positive Catalyst' : '🔴 Drag Factor'} | ${d.importanceWeight.toFixed(1)}% |`).join('\n')}`;
 
----
-
-## 4. Pareto 80/20 & Outlier Risk Analysis
+    const outlierSection = `## Pareto 80/20 & Outlier Risk Analysis
 - **Pareto Verification**: ${p.pareto.summaryText}
 - **Outlier Risk Summary**: ${p.outliers.narrative}
 - **Concentration Zone**: Outlier distortion is most severe in cohort/category: **${p.outliers.highestRiskSegment}**.
+${p.outliers.records.length > 0 ? `
+| Top Outlier Record | Segment | Value | Z-Score | Severity | Root Cause Insight |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+${p.outliers.records.slice(0, 5).map(o => `| \`${o.primaryLabel || o.id}\` | ${o.category} | **${o.targetValue.toFixed(1)}** | +${o.zScore.toFixed(2)}σ | ${o.severityScore}/100 | ${o.rootCauseInsight} |`).join('\n')}
+` : ''}`;
 
----
+    const cohortSection = `## Cohort & Segment Performance Benchmarking (${p.cohorts.dimensionName})
+${p.cohorts.narrative}
 
-## 5. Prescriptive Strategic Action Plan
-${p.prescriptiveActions.map((act, i) => `
+${p.cohorts.cohorts.length > 0 ? `
+| Cohort Name | Record Count | % of Total | Target Mean | Outlier Rate | Grade | Gap Analysis |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+${p.cohorts.cohorts.map(c => `| **${c.cohortName}** | ${c.recordCount} | ${c.pctOfTotal}% | **${c.targetMean.toFixed(1)}** | ${c.outlierRate}% | \`GRADE ${c.performanceGrade}\` | ${c.gapAnalysis} |`).join('\n')}
+` : ''}`;
+
+    let orderedSections: string[] = [];
+    if (p.focusMode === 'bottlenecks') {
+      orderedSections = [bottleneckSection, driverSection, outlierSection, cohortSection];
+    } else if (p.focusMode === 'drivers') {
+      orderedSections = [driverSection, bottleneckSection, outlierSection, cohortSection];
+    } else if (p.focusMode === 'outliers') {
+      orderedSections = [outlierSection, bottleneckSection, driverSection, cohortSection];
+    } else if (p.focusMode === 'cohorts') {
+      orderedSections = [cohortSection, outlierSection, driverSection, bottleneckSection];
+    } else {
+      orderedSections = [bottleneckSection, driverSection, outlierSection, cohortSection];
+    }
+
+    const numberedSections = orderedSections.map((sec, idx) => {
+      return sec.replace(/^## /, `## ${idx + 2}. `);
+    });
+
+    return `${banner}\n---\n\n${numberedSections.join('\n\n---\n\n')}\n\n---\n\n## 6. Prescriptive Strategic Action Plan\n${p.prescriptiveActions.map((act, i) => `
 ### ${i + 1}. [${act.priority} PRIORITY] ${act.category}
 - **Recommended Intervention**: ${act.action}
 - **Projected Business Impact / ROI**: **${act.expectedRoi}**
@@ -1454,102 +1891,236 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
     };
   }
 
-  private static _generatePrescriptiveActions(context: any) {
-    const actions: Array<{
-      category: 'Bottleneck Remediation' | 'Outlier Containment' | 'Driver Optimization' | 'Cohort Lift';
-      action: string;
-      expectedRoi: string;
-      priority: 'HIGH' | 'MEDIUM' | 'STRATEGIC';
-    }> = [];
+  private static _generatePrescriptiveActions(context: {
+    bottlenecks: any;
+    keyDrivers: any;
+    outliers: any;
+    pareto: any;
+    cohorts: any;
+    targetKpi: string;
+    focusMode: AnalysisFocusMode;
+  }) {
+    const focusMode = context.focusMode;
+    let bottleneckAct: any = null;
+    let outlierAct: any = null;
+    let driverAct: any = null;
+    let cohortAct: any = null;
 
     // 1. Bottleneck Action
     if (context.bottlenecks.dominantChokepoint) {
       const b = context.bottlenecks.dominantChokepoint;
-      actions.push({
+      bottleneckAct = {
         category: 'Bottleneck Remediation',
         action: `Enforce a strict 24-hour SLA cap on Stage "${b.stageName}". Automate handoff verification to eliminate the ${context.bottlenecks.chokepointSharePercent}% cycle chokepoint.`,
         expectedRoi: `Reclaim an estimated ${(b.avgDurationHours * 0.6).toFixed(1)} hours per unit process cycle`,
-        priority: 'HIGH'
-      });
+        priority: focusMode === 'bottlenecks' ? 'HIGH' : 'MEDIUM'
+      };
     }
 
     // 2. Outlier Containment Action
     if (context.outliers.severeCount > 0) {
-      actions.push({
+      outlierAct = {
         category: 'Outlier Containment',
-        action: `Audit and isolate the top ${context.outliers.severeCount} statistical outliers concentrated in "${context.outliers.highestRiskSegment}". Introduce circuit-breaker thresholds.`,
+        action: `Audit and isolate the top ${context.outliers.severeCount} statistical outliers concentrated in "${context.outliers.highestRiskSegment}". Introduce automated circuit-breaker thresholds.`,
         expectedRoi: `Prevent $${(context.outliers.totalImpactValue * 0.75).toLocaleString(undefined, { maximumFractionDigits: 0 })} in recurring variance loss`,
-        priority: 'HIGH'
-      });
+        priority: focusMode === 'outliers' ? 'HIGH' : 'MEDIUM'
+      };
     }
 
     // 3. Driver Optimization Action
     if (context.keyDrivers.topPositiveDriver) {
       const d = context.keyDrivers.topPositiveDriver;
-      actions.push({
+      driverAct = {
         category: 'Driver Optimization',
-        action: `Scale allocation toward "${d.featureName}" (correlation: +${d.correlation.toFixed(2)}). It represents the primary lever driving positive variance.`,
+        action: `Scale operational allocation toward "${d.featureName}" (correlation: +${d.correlation.toFixed(2)}). It represents the primary lever driving positive variance in ${context.targetKpi}.`,
         expectedRoi: `Projected +18% to +24% efficiency lift across target KPI`,
-        priority: 'MEDIUM'
-      });
+        priority: focusMode === 'drivers' ? 'HIGH' : 'MEDIUM'
+      };
     }
 
     // 4. Cohort Gap Action
     if (context.cohorts.worstCohort) {
-      actions.push({
+      const worst = context.cohorts.worstCohort;
+      const best = context.cohorts.bestCohort;
+      cohortAct = {
         category: 'Cohort Lift',
-        action: `Benchmark underperforming cohort "${context.cohorts.worstCohort.cohortName}" against best practice guidelines from top performers.`,
-        expectedRoi: `Standardize operating variance within 1.2σ of fleet average`,
-        priority: 'STRATEGIC'
-      });
+        action: `Transfer operational playbooks from top-tier "${best ? best.cohortName : 'Benchmark'}" to underperforming cohort "${worst.cohortName}". Standardize SLA and quality gates.`,
+        expectedRoi: `Standardize cross-cohort operating variance within 1.2σ of fleet average`,
+        priority: focusMode === 'cohorts' ? 'HIGH' : 'STRATEGIC'
+      };
     }
 
-    return actions;
+    // Reorder prioritized actions according to focusMode
+    const ordered: any[] = [];
+    if (focusMode === 'bottlenecks') {
+      if (bottleneckAct) ordered.push(bottleneckAct);
+      if (outlierAct) ordered.push(outlierAct);
+      if (driverAct) ordered.push(driverAct);
+      if (cohortAct) ordered.push(cohortAct);
+    } else if (focusMode === 'drivers') {
+      if (driverAct) ordered.push(driverAct);
+      if (bottleneckAct) ordered.push(bottleneckAct);
+      if (cohortAct) ordered.push(cohortAct);
+      if (outlierAct) ordered.push(outlierAct);
+    } else if (focusMode === 'outliers') {
+      if (outlierAct) ordered.push(outlierAct);
+      if (bottleneckAct) ordered.push(bottleneckAct);
+      if (driverAct) ordered.push(driverAct);
+      if (cohortAct) ordered.push(cohortAct);
+    } else if (focusMode === 'cohorts') {
+      if (cohortAct) ordered.push(cohortAct);
+      if (outlierAct) ordered.push(outlierAct);
+      if (driverAct) ordered.push(driverAct);
+      if (bottleneckAct) ordered.push(bottleneckAct);
+    } else {
+      // General
+      if (bottleneckAct) ordered.push(bottleneckAct);
+      if (outlierAct) ordered.push(outlierAct);
+      if (driverAct) ordered.push(driverAct);
+      if (cohortAct) ordered.push(cohortAct);
+    }
+
+    return ordered;
   }
 
-  private static _generate3DCoordinates(rows: DataRecord[], roles: any, outlierRecords: OutlierRecord[], bottleneckAnalysis: any) {
+  private static _generate3DCoordinates(
+    rows: DataRecord[],
+    roles: any,
+    outlierRecords: OutlierRecord[],
+    bottleneckAnalysis: any,
+    focusMode: AnalysisFocusMode = 'general',
+    keyDriverAnalysis?: any,
+    cohortAnalysis?: any
+  ) {
     const targetKpi = roles.targetKpi;
-    let secondaryCol = roles.numericCols.find((c: string) => c !== targetKpi);
-    let tertiaryCol = roles.numericCols.filter((c: string) => c !== targetKpi && c !== secondaryCol)[0];
+    const outlierIdSet = new Set(outlierRecords.map(o => String(o.id)));
+    const palette = ['#38bdf8', '#4ec9b0', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa'];
+    const maxPoints = Math.min(rows.length, 300);
 
-    const hasSecondaryNumeric = !!secondaryCol;
-    const hasTertiaryNumeric = !!tertiaryCol;
+    let xLabel = targetKpi;
+    let yLabel = roles.categoryCol || 'Cohort Spread';
+    let zLabel = roles.stageCol || 'Cluster Depth';
 
-    if (!secondaryCol) secondaryCol = targetKpi;
-    if (!tertiaryCol) tertiaryCol = secondaryCol;
+    let xVals: number[] = [];
+    let yVals: number[] = [];
+    let zVals: number[] = [];
 
-    const xVals = rows.map(r => Number(r[targetKpi]) || 0);
-    const yVals = rows.map((r, i) => hasSecondaryNumeric ? (Number(r[secondaryCol]) || 0) : (i / Math.max(1, rows.length - 1)) * 100);
-    const zVals = rows.map((r, i) => {
-      if (hasTertiaryNumeric) return Number(r[tertiaryCol]) || 0;
-      const cat = String(r[roles.categoryCol] || r[roles.stageCol] || `Cluster ${(i % 4) + 1}`);
-      return (Math.abs(this._hashString(cat)) % 100);
-    });
+    const dominantChokepointName = bottleneckAnalysis.dominantChokepoint?.stageName;
+
+    if (focusMode === 'bottlenecks') {
+      xLabel = 'Stage Sequence Rank';
+      yLabel = 'Stage Latency Duration';
+      zLabel = 'Cycle Delay Impact';
+
+      const stageOrderMap = new Map<string, number>();
+      bottleneckAnalysis.stages.forEach((st: any, idx: number) => {
+        stageOrderMap.set(st.stageName, idx + 1);
+      });
+
+      xVals = rows.map(r => {
+        const stName = String(r[roles.stageCol] || r[roles.categoricalStageCol] || '');
+        return stageOrderMap.get(stName) || 1;
+      });
+      yVals = rows.map(r => {
+        const stName = String(r[roles.stageCol] || r[roles.categoricalStageCol] || '');
+        const st = bottleneckAnalysis.stages.find((s: any) => s.stageName === stName);
+        return st ? st.avgDurationHours : (Number(r[targetKpi]) || 0);
+      });
+      zVals = rows.map(r => Number(r[targetKpi]) || 0);
+
+    } else if (focusMode === 'drivers') {
+      const topPos = keyDriverAnalysis?.topPositiveDriver?.featureName;
+      const topNeg = keyDriverAnalysis?.topNegativeDriver?.featureName;
+      const secondNumeric = roles.numericCols.find((c: string) => c !== targetKpi);
+      const thirdNumeric = roles.numericCols.filter((c: string) => c !== targetKpi && c !== (topPos || secondNumeric))[0];
+
+      const driverY = topPos || secondNumeric || targetKpi;
+      const driverZ = topNeg || thirdNumeric || driverY;
+
+      xLabel = targetKpi;
+      yLabel = driverY;
+      zLabel = driverZ;
+
+      xVals = rows.map(r => Number(r[targetKpi]) || 0);
+      yVals = rows.map(r => Number(r[driverY]) || 0);
+      zVals = rows.map(r => Number(r[driverZ]) || 0);
+
+    } else if (focusMode === 'outliers') {
+      xLabel = targetKpi;
+      yLabel = 'Z-Score Anomaly Deviation';
+      zLabel = 'Segment Risk Factor';
+
+      xVals = rows.map(r => Number(r[targetKpi]) || 0);
+      const targetStats = this._computeNumericStats(xVals);
+      yVals = rows.map(r => {
+        const v = Number(r[targetKpi]) || 0;
+        return targetStats.stdDev > 0 ? Math.abs((v - targetStats.mean) / targetStats.stdDev) : 0;
+      });
+      zVals = rows.map((r, idx) => {
+        const cat = String(r[roles.categoryCol] || `Cluster ${(idx % 4) + 1}`);
+        return (Math.abs(this._hashString(cat)) % 100);
+      });
+
+    } else if (focusMode === 'cohorts') {
+      xLabel = 'Cohort / Segment Index';
+      yLabel = targetKpi;
+      zLabel = 'Cohort Outlier Rate';
+
+      const cohortNameMap = new Map<string, { idx: number; outlierRate: number }>();
+      cohortAnalysis?.cohorts?.forEach((c: any, i: number) => {
+        cohortNameMap.set(c.cohortName, { idx: i + 1, outlierRate: c.outlierRate });
+      });
+
+      xVals = rows.map(r => {
+        const cat = String(r[roles.categoryCol] || 'General');
+        return cohortNameMap.get(cat)?.idx || 1;
+      });
+      yVals = rows.map(r => Number(r[targetKpi]) || 0);
+      zVals = rows.map(r => {
+        const cat = String(r[roles.categoryCol] || 'General');
+        return cohortNameMap.get(cat)?.outlierRate || 0;
+      });
+
+    } else {
+      // General
+      let secondaryCol = roles.numericCols.find((c: string) => c !== targetKpi);
+      let tertiaryCol = roles.numericCols.filter((c: string) => c !== targetKpi && c !== secondaryCol)[0];
+      const hasSecondaryNumeric = !!secondaryCol;
+      const hasTertiaryNumeric = !!tertiaryCol;
+      if (!secondaryCol) secondaryCol = targetKpi;
+      if (!tertiaryCol) tertiaryCol = secondaryCol;
+
+      xLabel = targetKpi;
+      yLabel = hasSecondaryNumeric ? secondaryCol : (roles.categoryCol || 'Cohort Spread');
+      zLabel = hasTertiaryNumeric ? tertiaryCol : (roles.stageCol || 'Cluster Depth');
+
+      xVals = rows.map(r => Number(r[targetKpi]) || 0);
+      yVals = rows.map((r, i) => hasSecondaryNumeric ? (Number(r[secondaryCol]) || 0) : (i / Math.max(1, rows.length - 1)) * 100);
+      zVals = rows.map((r, i) => {
+        if (hasTertiaryNumeric) return Number(r[tertiaryCol]) || 0;
+        const cat = String(r[roles.categoryCol] || r[roles.stageCol] || `Cluster ${(i % 4) + 1}`);
+        return (Math.abs(this._hashString(cat)) % 100);
+      });
+    }
 
     const xStats = this._computeNumericStats(xVals);
     const yStats = this._computeNumericStats(yVals);
     const zStats = this._computeNumericStats(zVals);
 
-    const palette = ['#38bdf8', '#4ec9b0', '#a78bfa', '#f472b6', '#fbbf24', '#34d399', '#60a5fa'];
-    const outlierIdSet = new Set(outlierRecords.map(o => String(o.id)));
-
     const points3D: Point3D[] = [];
-    const maxPoints = Math.min(rows.length, 300);
 
     for (let i = 0; i < maxPoints; i++) {
       const r = rows[i];
       const id = roles.idCol && r[roles.idCol] !== undefined ? r[roles.idCol] : (r['id'] || i + 1);
       const label = roles.labelCol && r[roles.labelCol] !== undefined ? String(r[roles.labelCol]) : String(r['name'] || r['title'] || `Record #${id}`);
-      const rx = Number(r[targetKpi]) || 0;
-      const ry = yVals[i];
-      const rz = zVals[i];
+      const rx = xVals[i] ?? 0;
+      const ry = yVals[i] ?? 0;
+      const rz = zVals[i] ?? 0;
 
-      // Normalize -80 to 80 for 3D space with deterministic dispersion jitter
       let nx = xStats.max > xStats.min ? ((rx - xStats.min) / (xStats.max - xStats.min) * 160) - 80 : 0;
       let ny = yStats.max > yStats.min ? ((ry - yStats.min) / (yStats.max - yStats.min) * 160) - 80 : 0;
       let nz = zStats.max > zStats.min ? ((rz - zStats.min) / (zStats.max - zStats.min) * 160) - 80 : 0;
 
-      // Add slight deterministic spatial jitter so points with identical values don't completely overlap
       const jitterX = Math.sin(i * 13.7 + rx) * 3.5;
       const jitterY = Math.cos(i * 19.3 + ry) * 3.5;
       const jitterZ = Math.sin(i * 29.1 + rz) * 3.5;
@@ -1560,10 +2131,42 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
 
       const isOutlier = outlierIdSet.has(String(id));
       const cat = String(r[roles.categoryCol] || 'Group A');
-      const stage = String(r[roles.stageCol] || 'Normal');
-      const isBottleneck = stage === bottleneckAnalysis.dominantChokepoint?.stageName;
+      const stage = String(r[roles.stageCol] || r[roles.categoricalStageCol] || 'Normal');
+      const isBottleneck = Boolean(dominantChokepointName && stage === dominantChokepointName);
 
-      const colorIdx = Math.abs(this._hashString(cat)) % palette.length;
+      let ptColor = palette[Math.abs(this._hashString(cat)) % palette.length];
+      let severity = 10;
+
+      if (focusMode === 'bottlenecks') {
+        if (isBottleneck) {
+          ptColor = '#ef4444';
+          severity = 95;
+        } else {
+          ptColor = '#38bdf8';
+          severity = 20;
+        }
+      } else if (focusMode === 'outliers') {
+        if (isOutlier) {
+          ptColor = '#f43f5e';
+          severity = 99;
+        } else {
+          ptColor = '#64748b';
+          severity = 5;
+        }
+      } else if (focusMode === 'drivers') {
+        const normY = yStats.max > yStats.min ? (ry - yStats.min) / (yStats.max - yStats.min) : 0.5;
+        ptColor = normY > 0.7 ? '#10b981' : normY > 0.4 ? '#38bdf8' : '#a855f7';
+        severity = isOutlier ? 80 : 15;
+      } else if (focusMode === 'cohorts') {
+        const catIdx = Math.abs(this._hashString(cat)) % palette.length;
+        ptColor = palette[catIdx];
+        severity = isOutlier ? 70 : 10;
+      } else {
+        if (isOutlier) {
+          ptColor = '#ef4444';
+          severity = 85;
+        }
+      }
 
       points3D.push({
         id,
@@ -1577,19 +2180,21 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
         rawZ: rz,
         isOutlier,
         isBottleneck,
-        severityScore: isOutlier ? 85 : 10,
-        color: isOutlier ? '#ef4444' : palette[colorIdx],
+        severityScore: severity,
+        color: ptColor,
         diagnosticCard: {
           title: String(label + (cat ? ` (${cat})` : '')),
           metrics: {
-            [targetKpi]: rx.toFixed(1),
-            [hasSecondaryNumeric ? secondaryCol : 'Cohort Rank']: ry.toFixed(1),
-            [hasTertiaryNumeric ? tertiaryCol : 'Category Hash']: rz.toFixed(1)
+            [xLabel]: rx.toFixed(1),
+            [yLabel]: ry.toFixed(1),
+            [zLabel]: rz.toFixed(1)
           },
           rootCause: isOutlier
-            ? `Severe statistical outlier: Deviates significantly from cluster centroid in ${cat}. Driven by spike in ${targetKpi}.`
+            ? `Severe statistical outlier: Exceeds Tukey fence in ${cat} with extreme deviation in ${targetKpi}.`
             : isBottleneck
-            ? `Bottleneck stage member (${stage}): Experiencing friction and high latency spread.`
+            ? `Bottleneck stage member (${stage}): Responsible for acute cycle delay and friction.`
+            : focusMode === 'cohorts'
+            ? `Cohort member of "${cat}": Operating within standard segment distribution.`
             : `Normal cluster operating parameter in cohort ${cat}.`
         }
       });
@@ -1598,9 +2203,9 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
     return {
       points3D,
       axisLabels3D: {
-        x: targetKpi,
-        y: hasSecondaryNumeric ? secondaryCol : (roles.categoryCol || 'Cohort Spread'),
-        z: hasTertiaryNumeric ? tertiaryCol : (roles.stageCol || 'Cluster Depth')
+        x: xLabel,
+        y: yLabel,
+        z: zLabel
       }
     };
   }
@@ -1784,6 +2389,44 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
           </tbody>
         </table>
       </div>
+    `;
+  }
+
+  private static _renderCohortSvg(cohorts: CohortMetric[], dimensionName: string): string {
+    if (!cohorts || cohorts.length === 0) {
+      return '<div style="font-size:12px;color:#94a3b8;padding:20px;text-align:center;">No discrete cohort data found for segment benchmarking.</div>';
+    }
+
+    const width = 540;
+    const height = 220;
+    const items = cohorts.slice(0, 6);
+    const barHeight = Math.min(24, Math.floor(150 / items.length));
+    const maxVal = Math.max(...items.map(c => c.targetMean), 1);
+
+    const rowsSvg = items.map((c, idx) => {
+      const y = 30 + idx * (barHeight + 7);
+      const barWidth = Math.max(8, Math.min(280, (c.targetMean / maxVal) * 280));
+      const gradeColor = c.performanceGrade === 'A' ? '#10b981' : c.performanceGrade === 'B' ? '#38bdf8' : c.performanceGrade === 'C' ? '#f59e0b' : '#ef4444';
+      const label = c.cohortName.length > 16 ? c.cohortName.slice(0, 14) + '..' : c.cohortName;
+
+      return `
+        <g>
+          <text x="10" y="${y + barHeight - 7}" fill="#cbd5e1" font-size="11" font-family="sans-serif">${label}</text>
+          <rect x="130" y="${y}" width="${barWidth}" height="${barHeight}" fill="${gradeColor}" rx="3" opacity="0.85"/>
+          <text x="${140 + barWidth}" y="${y + barHeight - 7}" fill="#fff" font-size="10.5" font-weight="bold" font-family="sans-serif">${c.targetMean.toFixed(1)} (${c.recordCount} recs)</text>
+          <rect x="${width - 70}" y="${y}" width="55" height="${barHeight}" fill="rgba(255,255,255,0.06)" stroke="${gradeColor}" rx="3"/>
+          <text x="${width - 42}" y="${y + barHeight - 7}" fill="${gradeColor}" font-size="10" font-weight="bold" text-anchor="middle" font-family="sans-serif">GRADE ${c.performanceGrade}</text>
+        </g>
+      `;
+    }).join('');
+
+    return `
+      <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}" style="background: #090d16; border-radius: 6px; border: 1px solid #1e293b;">
+        <text x="10" y="20" fill="#94a3b8" font-size="10" font-weight="bold" text-transform="uppercase" letter-spacing="0.5">Cohort (${dimensionName})</text>
+        <text x="130" y="20" fill="#94a3b8" font-size="10" font-weight="bold" text-transform="uppercase" letter-spacing="0.5">Target Mean Performance</text>
+        <text x="${width - 42}" y="20" fill="#94a3b8" font-size="10" font-weight="bold" text-anchor="middle" text-transform="uppercase" letter-spacing="0.5">Grade</text>
+        ${rowsSvg}
+      </svg>
     `;
   }
 }
