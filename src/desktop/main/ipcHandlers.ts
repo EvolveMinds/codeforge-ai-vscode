@@ -48,6 +48,7 @@ import { ApiConnectorGenerator } from '../../fde/apiConnectorGen';
 import { DeployScriptScaffolder } from '../../deployment/deployScriptScaffolder';
 import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
+import { DataScientistEngine } from '../../offline/dataScientistEngine';
 import {
   LANGUAGES,
   languageById,
@@ -1889,61 +1890,138 @@ End Function
       });
 
       // 2. Probe LM Studio
-      const isLmStudioRunning = await new Promise<boolean>((resolve) => {
+      const lmStudioInfo = await new Promise<{ running: boolean; models: string[] }>((resolve) => {
         const req = http.get({ host: '127.0.0.1', port: 1234, path: '/v1/models', timeout: 1500 }, (res) => {
-          resolve(res.statusCode === 200);
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => {
+            if (res.statusCode === 200) {
+              try {
+                const parsed = JSON.parse(body);
+                const models = (parsed.data || []).map((m: any) => m.id || m.name);
+                resolve({ running: true, models });
+              } catch {
+                resolve({ running: true, models: [] });
+              }
+            } else {
+              resolve({ running: false, models: [] });
+            }
+          });
         });
-        req.on('error', () => resolve(false));
-        req.on('timeout', () => { req.destroy(); resolve(false); });
+        req.on('error', () => resolve({ running: false, models: [] }));
+        req.on('timeout', () => { req.destroy(); resolve({ running: false, models: [] }); });
       });
 
       // 3. Probe vLLM
-      const isVllmRunning = await new Promise<boolean>((resolve) => {
+      const vllmInfo = await new Promise<{ running: boolean; models: string[] }>((resolve) => {
         const req = http.get({ host: '127.0.0.1', port: 8000, path: '/v1/models', timeout: 1500 }, (res) => {
-          resolve(res.statusCode === 200);
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => {
+            if (res.statusCode === 200) {
+              try {
+                const parsed = JSON.parse(body);
+                const models = (parsed.data || []).map((m: any) => m.id || m.name);
+                resolve({ running: true, models });
+              } catch {
+                resolve({ running: true, models: [] });
+              }
+            } else {
+              resolve({ running: false, models: [] });
+            }
+          });
         });
-        req.on('error', () => resolve(false));
-        req.on('timeout', () => { req.destroy(); resolve(false); });
+        req.on('error', () => resolve({ running: false, models: [] }));
+        req.on('timeout', () => { req.destroy(); resolve({ running: false, models: [] }); });
       });
 
       const isOllamaRunning = ollamaModels.length > 0;
+      const isLmStudioRunning = lmStudioInfo.running;
+      const isVllmRunning = vllmInfo.running;
 
-      // Full model catalogue matching VS Code
+      // Full model catalogue matching major frontier & local ecosystems
       const catalogue = [
-        // --- LOCAL OLLAMA / ON-PREMISE MODELS ---
-        { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'Recommended', context: '32k', mode: 'Local Offline', description: 'Fast, high-precision coding model optimized for code transformations and migrations.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:7b') || m.includes('qwen2.5-coder')) },
-        { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'High Accuracy', context: '32k', mode: 'Local Offline', description: 'Mid-sized coding model with superior reasoning and SQL/dbt schema generation.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:14b')) },
-        { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', provider: 'ollama', providerLabel: 'Ollama (Local)', category: 'local', isCoding: true, icon: '🦙', badge: 'Frontier Coding', context: '32k', mode: 'Local Offline', description: 'Frontier-grade coding performance requiring ~20GB VRAM / RAM.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:32b')) },
-        { id: 'gemma4:e4b', name: 'Gemma 4 e4b', provider: 'gemma4', providerLabel: 'Google Gemma 4', category: 'local', isCoding: true, icon: '🤖', badge: 'Multimodal', context: '32k', mode: 'Local Edge', description: 'Google\'s newest open multimodal coding and reasoning engine.', isInstalled: ollamaModels.some(m => m.startsWith('gemma4') || m.startsWith('gemma:')) },
-        { id: 'gemma4:27b', name: 'Gemma 4 27B', provider: 'gemma4', providerLabel: 'Google Gemma 4', category: 'local', isCoding: false, icon: '🤖', badge: 'Heavyweight', context: '32k', mode: 'Local Edge', description: 'Heavyweight multimodal architecture for complex system design and reasoning.', isInstalled: ollamaModels.some(m => m.startsWith('gemma4:27b')) },
-        { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', provider: 'glm', providerLabel: 'GLM / CodeGeeX', category: 'local', isCoding: true, icon: '💻', badge: 'Polyglot', context: '128k', mode: 'Local Offline', description: 'Specialized polyglot code conversion and architectural mapping model.', isInstalled: ollamaModels.some(m => m.startsWith('codegeex4')) },
-        { id: 'glm4:9b', name: 'GLM-4 9B', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: false, icon: '💻', badge: 'Reasoning', context: '128k', mode: 'Local Offline', description: 'General multilingual reasoning and enterprise documentation generator.', isInstalled: ollamaModels.some(m => m.startsWith('glm4')) },
+        // --- 1. LOCAL OLLAMA / ON-PREMISE MODELS ---
+        // Alibaba Qwen Coder Series
+        { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'ollama', providerLabel: 'Alibaba Qwen', category: 'local', isCoding: true, icon: '🦙', badge: 'Recommended', context: '32k', mode: 'Local Offline', description: 'Fast, high-precision coding model optimized for SQL, Python, TypeScript migrations.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:7b') || m.includes('qwen2.5-coder')) },
+        { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', provider: 'ollama', providerLabel: 'Alibaba Qwen', category: 'local', isCoding: true, icon: '🦙', badge: 'High Accuracy', context: '32k', mode: 'Local Offline', description: 'Mid-sized coding model with superior reasoning and SQL/dbt schema generation.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:14b')) },
+        { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', provider: 'ollama', providerLabel: 'Alibaba Qwen', category: 'local', isCoding: true, icon: '🦙', badge: 'Frontier Coding', context: '32k', mode: 'Local Offline', description: 'Frontier-grade coding performance requiring ~20GB VRAM / RAM.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5-coder:32b')) },
+        { id: 'qwen2.5:72b', name: 'Qwen 2.5 72B Instruct', provider: 'ollama', providerLabel: 'Alibaba Qwen', category: 'local', isCoding: false, icon: '🦙', badge: 'Heavyweight', context: '128k', mode: 'Local Offline', description: 'Heavyweight 72B foundation model matching top proprietary systems.', isInstalled: ollamaModels.some(m => m.startsWith('qwen2.5:72b')) },
+
+        // Google Gemma Series
+        { id: 'gemma4:e4b', name: 'Gemma 4 e4b', provider: 'gemma4', providerLabel: 'Google Gemma', category: 'local', isCoding: true, icon: '🤖', badge: 'Multimodal', context: '32k', mode: 'Local Edge', description: 'Google\'s newest open multimodal coding and reasoning engine.', isInstalled: ollamaModels.some(m => m.startsWith('gemma4') || m.startsWith('gemma:')) },
+        { id: 'gemma2:27b', name: 'Gemma 2 27B', provider: 'gemma4', providerLabel: 'Google Gemma', category: 'local', isCoding: false, icon: '🤖', badge: '27B Heavyweight', context: '32k', mode: 'Local Edge', description: 'Google\'s high-capacity open model with exceptional reasoning capabilities.', isInstalled: ollamaModels.some(m => m.startsWith('gemma2:27b') || m.startsWith('gemma:27b')) },
+        { id: 'gemma2:9b', name: 'Gemma 2 9B', provider: 'gemma4', providerLabel: 'Google Gemma', category: 'local', isCoding: true, icon: '🤖', badge: 'Fast 9B', context: '32k', mode: 'Local Edge', description: 'Balanced 9B parameter model offering best-in-class performance per watt.', isInstalled: ollamaModels.some(m => m.startsWith('gemma2:9b') || m.startsWith('gemma:9b')) },
+
+        // GLM & CodeGeeX Series
+        { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: true, icon: '💻', badge: 'Polyglot 26-Lang', context: '128k', mode: 'Local Offline', description: 'Specialized polyglot code conversion and architectural mapping across 26 languages.', isInstalled: ollamaModels.some(m => m.startsWith('codegeex4')) },
+        { id: 'glm4:9b', name: 'GLM-4 9B', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: false, icon: '💻', badge: 'Bilingual 128k', context: '128k', mode: 'Local Offline', description: 'General multilingual reasoning and enterprise documentation generator.', isInstalled: ollamaModels.some(m => m.startsWith('glm4')) },
         { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', provider: 'colibri', providerLabel: 'Colibri Local', category: 'local', isCoding: true, icon: '🚀', badge: 'Frontier MoE', context: '128k', mode: 'On-Premise Server', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise compute.', isInstalled: false },
-        { id: 'llama3.3:70b', name: 'Llama 3.3 70B', provider: 'ollama', providerLabel: 'Meta LLaMA', category: 'local', isCoding: false, icon: '🦙', badge: 'Meta Flagship', context: '128k', mode: 'Local Offline', description: 'Meta\'s premier open-source reasoning model for enterprise workflows.', isInstalled: ollamaModels.some(m => m.startsWith('llama3.3')) },
-        { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B', provider: 'ollama', providerLabel: 'DeepSeek', category: 'local', isCoding: true, icon: '🧠', badge: 'Reasoning MoE', context: '64k', mode: 'Local Offline', description: 'Chain-of-thought mathematical and algorithmic coding reasoner.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1')) },
-        { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B', provider: 'ollama', providerLabel: 'DeepSeek', category: 'local', isCoding: true, icon: '🧠', badge: 'Coding Specialist', context: '64k', mode: 'Local Offline', description: 'Advanced polyglot code completion and transpilation model.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-coder-v2')) },
-        { id: 'lmstudio-local', name: 'LM Studio Local Server', provider: 'lmstudio', providerLabel: 'LM Studio (Port 1234)', category: 'local', isCoding: false, icon: '🖥️', badge: isLmStudioRunning ? 'Active' : 'Offline', context: 'Variable', mode: 'Local Server', description: 'Connects to any model currently loaded in LM Studio via OpenAI-compatible endpoint.', isInstalled: isLmStudioRunning },
-        { id: 'vllm-local', name: 'vLLM / Triton Server', provider: 'vllm', providerLabel: 'vLLM (Port 8000)', category: 'local', isCoding: false, icon: '⚡', badge: isVllmRunning ? 'Active' : 'Offline', context: 'Variable', mode: 'Air-Gapped Cluster', description: 'Air-gapped high-throughput inference engine for private enterprise deployments.', isInstalled: isVllmRunning },
+
+        // DeepSeek Local Series
+        { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B (Reasoning)', provider: 'deepseek', providerLabel: 'DeepSeek Local', category: 'local', isCoding: true, icon: '🧠', badge: 'Reasoning CoT', context: '64k', mode: 'Local Offline', description: 'Distilled chain-of-thought mathematical and algorithmic coding reasoner.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1:7b') || m === 'deepseek-r1') },
+        { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B (Llama Distill)', provider: 'deepseek', providerLabel: 'DeepSeek Local', category: 'local', isCoding: true, icon: '🧠', badge: 'Llama Distill', context: '64k', mode: 'Local Offline', description: 'Llama-distilled 8B model with step-by-step algorithmic decomposition.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1:8b')) },
+        { id: 'deepseek-r1:14b', name: 'DeepSeek R1 14B (Qwen Distill)', provider: 'deepseek', providerLabel: 'DeepSeek Local', category: 'local', isCoding: true, icon: '🧠', badge: '14B Reasoning', context: '64k', mode: 'Local Offline', description: 'Mid-sized distilled reasoner offering exceptional balance of speed and depth.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1:14b')) },
+        { id: 'deepseek-r1:32b', name: 'DeepSeek R1 32B (Frontier Distill)', provider: 'deepseek', providerLabel: 'DeepSeek Local', category: 'local', isCoding: true, icon: '🧠', badge: '32B Frontier', context: '64k', mode: 'Local Offline', description: 'Workstation-grade reasoning matching top proprietary closed models.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1:32b')) },
+        { id: 'deepseek-r1:70b', name: 'DeepSeek R1 70B (Heavyweight)', provider: 'deepseek', providerLabel: 'DeepSeek Local', category: 'local', isCoding: true, icon: '🧠', badge: '70B Flagship', context: '64k', mode: 'Local Offline', description: 'Heavyweight distilled reasoning powerhouse for complex system architectures.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-r1:70b')) },
+        { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B', provider: 'deepseek', providerLabel: 'DeepSeek Local', category: 'local', isCoding: true, icon: '🧠', badge: '338 Languages', context: '64k', mode: 'Local Offline', description: 'MoE coding powerhouse with 338 programming language support and deep syntax understanding.', isInstalled: ollamaModels.some(m => m.startsWith('deepseek-coder-v2')) },
+
+        // Meta LLaMA Series
+        { id: 'llama3.3:70b', name: 'Llama 3.3 70B Instruct', provider: 'ollama', providerLabel: 'Meta LLaMA', category: 'local', isCoding: false, icon: '🦙', badge: 'Meta Flagship', context: '128k', mode: 'Local Offline', description: 'Meta\'s premier open-source reasoning model for enterprise workflows.', isInstalled: ollamaModels.some(m => m.startsWith('llama3.3')) },
+        { id: 'llama3.1:8b', name: 'Llama 3.1 8B Instruct', provider: 'ollama', providerLabel: 'Meta LLaMA', category: 'local', isCoding: false, icon: '🦙', badge: '8B Fast', context: '128k', mode: 'Local Offline', description: 'Fast, lightweight foundation model for everyday prompts and summaries.', isInstalled: ollamaModels.some(m => m.startsWith('llama3.1')) },
+
+        // Mistral & Microsoft
+        { id: 'codestral:22b', name: 'Mistral Codestral 22B', provider: 'ollama', providerLabel: 'Mistral AI', category: 'local', isCoding: true, icon: '🌪️', badge: 'Code Specialist', context: '32k', mode: 'Local Offline', description: 'Mistral\'s dedicated coding model fluent in 80+ programming languages.', isInstalled: ollamaModels.some(m => m.startsWith('codestral')) },
+        { id: 'phi4:14b', name: 'Microsoft Phi-4 14B', provider: 'ollama', providerLabel: 'Microsoft', category: 'local', isCoding: true, icon: '🔬', badge: 'High Reasoning', context: '16k', mode: 'Local Offline', description: 'Microsoft\'s state-of-the-art compact reasoning model for complex logic.', isInstalled: ollamaModels.some(m => m.startsWith('phi4')) },
+
+        // Local Server Probers & Offline Engine
+        { id: 'lmstudio-local', name: 'LM Studio Local Server', provider: 'lmstudio', providerLabel: 'LM Studio (Port 1234)', category: 'local', isCoding: false, icon: '🖥️', badge: isLmStudioRunning ? `Active (${lmStudioInfo.models.length || 1} Loaded)` : 'Offline', context: 'Dynamic', mode: 'Local Server', description: 'Connects to any model currently loaded in LM Studio via local OpenAI-compatible endpoint.', isInstalled: isLmStudioRunning },
+        { id: 'vllm-local', name: 'vLLM / Triton Cluster', provider: 'vllm', providerLabel: 'vLLM (Port 8000)', category: 'local', isCoding: false, icon: '⚡', badge: isVllmRunning ? `Active (${vllmInfo.models.length || 1} Served)` : 'Offline', context: 'Dynamic', mode: 'Air-Gapped Cluster', description: 'Air-gapped high-throughput inference engine for private enterprise deployments.', isInstalled: isVllmRunning },
         { id: 'offline-engine', name: 'Offline Deterministic Engine', provider: 'offline', providerLabel: 'Evolve Built-in', category: 'local', isCoding: true, icon: '⚙️', badge: 'Instant AST', context: 'Unlimited', mode: 'Zero-Latency', description: 'Built-in AST, transpilers, and heuristic algorithms. Zero setup, 100% offline.', isInstalled: true },
 
-        // --- CLOUD FLAGSHIPS ---
-        { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'State-of-the-Art', context: '200k', mode: 'Cloud API', description: 'Anthropic\'s most advanced hybrid reasoning and code generation model.', isInstalled: true },
+        // --- 2. CLOUD FLAGSHIPS ---
+        // Google Gemini Family
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Leaderboard #1 for massive codebases, multi-file repositories & complex data marts.', isInstalled: true },
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Ultra Fast', context: '1M', mode: 'Cloud API', description: 'Ultra-fast structured extraction, schema mapping & instant code conversions.', isInstalled: true },
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: false, icon: '✨', badge: 'Next-Gen Omni', context: '1M', mode: 'Cloud API', description: 'Next-generation multimodal model for code and structured documentation.', isInstalled: true },
+        { id: 'gemini-2.0-flash-thinking-exp', name: 'Gemini 2.0 Flash Thinking', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Reasoning CoT', context: '1M', mode: 'Cloud API', description: 'Built-in chain-of-thought reasoning for complex algorithms and math.', isInstalled: true },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '2M Context', context: '2M', mode: 'Cloud API', description: 'Long-context workhorse for entire repository ingestion and legacy migrations.', isInstalled: true },
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'High Throughput', context: '1M', mode: 'Cloud API', description: 'High throughput, cost-efficient intelligence for routine conversions.', isInstalled: true },
+
+        // Anthropic Claude Family
+        { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'State-of-the-Art', context: '200k', mode: 'Cloud API', description: 'Anthropic\'s most advanced hybrid reasoning and architectural code generation model.', isInstalled: true },
         { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Leaderboard #1', context: '200k', mode: 'Cloud API', description: 'Benchmark-leading coding, architectural planning, and data pipeline assistant.', isInstalled: true },
         { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Ultra Fast', context: '200k', mode: 'Cloud API', description: 'High speed and low latency for quick code edits and lightweight queries.', isInstalled: true },
-        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Deep reasoning across massive codebases and enterprise data catalogs.', isInstalled: true },
-        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Fast & Smart', context: '1M', mode: 'Cloud API', description: 'High throughput, low-latency reasoning and schema generation.', isInstalled: true },
-        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: false, icon: '✨', badge: 'Multimodal', context: '1M', mode: 'Cloud API', description: 'Next-generation multimodal model for code and structured documentation.', isInstalled: true },
+        { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: false, icon: '☁️', badge: 'Deep Synthesis', context: '200k', mode: 'Cloud API', description: 'Deep analytical synthesis for enterprise code analysis and legacy modernization.', isInstalled: true },
+
+        // OpenAI Family
         { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Omni Flagship', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s flagship multimodal intelligence engine with strong coding capabilities.', isInstalled: true },
         { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Lightweight', context: '128k', mode: 'Cloud API', description: 'Cost-efficient and fast model for day-to-day coding and refactoring tasks.', isInstalled: true },
-        { id: 'o3-mini', name: 'o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Reasoning', context: '128k', mode: 'Cloud API', description: 'High-speed reasoning model tailored for science, math, and complex algorithms.', isInstalled: true },
+        { id: 'o1', name: 'OpenAI o1', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Deep Reasoning', context: '200k', mode: 'Cloud API', description: 'Flagship reasoning engine with deep reflection for complex architectural problems.', isInstalled: true },
+        { id: 'o1-mini', name: 'OpenAI o1-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Fast Reasoning', context: '128k', mode: 'Cloud API', description: 'High-speed reasoning model tailored for math, code, and STEM tasks.', isInstalled: true },
+        { id: 'o3-mini', name: 'OpenAI o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Frontier Coding', context: '200k', mode: 'Cloud API', description: 'High-speed reasoning model tailored for science, math, and complex algorithms.', isInstalled: true },
+        { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Frontier Research', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s massive frontier scaling research model with expansive world knowledge.', isInstalled: true },
+
+        // GLM (Zhipu AI / Z.ai Cloud) Family
+        { id: 'glm-4-plus', name: 'GLM-4-Plus', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Frontier Flagship', context: '128k', mode: 'Cloud API', description: 'Zhipu\'s premier foundation flagship with high-level reasoning and bilingual mastery.', isInstalled: true },
+        { id: 'glm-4.6', name: 'GLM-4.6', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Cloud Flagship', context: '128k', mode: 'Cloud API', description: 'Flagship multilingual coding model with deep enterprise schema knowledge.', isInstalled: true },
+        { id: 'glm-4-air', name: 'GLM-4-Air', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'High Speed', context: '128k', mode: 'Cloud API', description: 'High-throughput, cost-efficient inference for batch transformations.', isInstalled: true },
+        { id: 'glm-4-flash', name: 'GLM-4-Flash', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Zero Latency', context: '128k', mode: 'Cloud API', description: 'Ultra-fast, zero-latency cloud tier for instant code syntax validation.', isInstalled: true },
+        { id: 'glm-4-long', name: 'GLM-4-Long', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Massive 1M-token context for enterprise documentation and full repo analysis.', isInstalled: true },
+
+        // DeepSeek Cloud Family
+        { id: 'deepseek-chat', name: 'DeepSeek-V3 (671B MoE)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: '671B Flagship', context: '64k', mode: 'Cloud API', description: '671B MoE frontier flagship model matching top proprietary intelligence at extreme efficiency.', isInstalled: true },
+        { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (671B CoT)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'SOTA Reasoning', context: '64k', mode: 'Cloud API', description: 'Frontier 671B reasoning model featuring native step-by-step chain-of-thought verification.', isInstalled: true },
+        { id: 'deepseek-coder-v2:236b', name: 'DeepSeek Coder V2 236B', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: '236B MoE', context: '128k', mode: 'Cloud API', description: 'Massive 236B parameter MoE coding engine for complex repository transformations.', isInstalled: true },
+
+        // Groq & Open Cloud APIs
         { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq Fast)', provider: 'openai', providerLabel: 'Groq / LPU Cloud', category: 'cloud', isCoding: true, icon: '⚡', badge: '500 tok/s', context: '128k', mode: 'Groq LPU', description: 'Ultra-high-speed inference powered by Groq LPUs for instant answers.', isInstalled: true },
-        { id: 'glm-4.6', name: 'GLM-4.6 (Z.ai)', provider: 'zai', providerLabel: 'Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Flagship Cloud', context: '128k', mode: 'Cloud API', description: 'Flagship multilingual coding model with deep enterprise knowledge.', isInstalled: true },
         { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'huggingface', providerLabel: 'Hugging Face Hub', category: 'cloud', isCoding: true, icon: '🤗', badge: 'HF Hosted', context: '32k', mode: 'Inference API', description: 'Hosted inference via Hugging Face Serverless Inference API.', isInstalled: true }
       ];
 
-      // Add any additional models pulled in Ollama that are not in the catalogue
+      // Dynamically register any models pulled in Ollama that are not already in the catalogue
       for (const oModel of ollamaModels) {
-        if (!catalogue.some(c => c.id === oModel)) {
+        if (!catalogue.some(c => c.id === oModel || c.id === `ollama:${oModel}`)) {
           catalogue.unshift({
             id: oModel,
             name: oModel,
@@ -1952,10 +2030,50 @@ End Function
             category: 'local',
             isCoding: oModel.includes('coder') || oModel.includes('code'),
             icon: '🦙',
-            badge: 'Installed',
+            badge: 'Installed (Ollama)',
             context: '32k',
             mode: 'Local Offline',
             description: `Locally installed model discovered on your active Ollama server.`,
+            isInstalled: true
+          });
+        }
+      }
+
+      // Dynamically register models actively loaded in LM Studio
+      for (const lmModel of lmStudioInfo.models) {
+        if (!catalogue.some(c => c.id === lmModel || c.id === `lmstudio:${lmModel}`)) {
+          catalogue.unshift({
+            id: `lmstudio:${lmModel}`,
+            name: `LM Studio · ${lmModel}`,
+            provider: 'lmstudio',
+            providerLabel: 'LM Studio (Port 1234)',
+            category: 'local',
+            isCoding: lmModel.toLowerCase().includes('code') || lmModel.toLowerCase().includes('coder'),
+            icon: '🖥️',
+            badge: 'Active (LM Studio)',
+            context: 'Dynamic',
+            mode: 'Local Server',
+            description: `Model "${lmModel}" actively served on your local LM Studio endpoint.`,
+            isInstalled: true
+          });
+        }
+      }
+
+      // Dynamically register models actively served in vLLM
+      for (const vModel of vllmInfo.models) {
+        if (!catalogue.some(c => c.id === vModel || c.id === `vllm:${vModel}`)) {
+          catalogue.unshift({
+            id: `vllm:${vModel}`,
+            name: `vLLM · ${vModel}`,
+            provider: 'vllm',
+            providerLabel: 'vLLM Engine (Port 8000)',
+            category: 'local',
+            isCoding: vModel.toLowerCase().includes('code'),
+            icon: '⚡',
+            badge: 'Active (vLLM)',
+            context: 'Dynamic',
+            mode: 'PagedAttention Cluster',
+            description: `Model "${vModel}" served on your high-throughput vLLM cluster.`,
             isInstalled: true
           });
         }
@@ -2481,285 +2599,101 @@ export async function executeTask() {
       return await helperQueryTableSample(opts);
     });
 
-    // --- REAL DATA ANALYSIS PIPELINE RUNNER ---
+    // --- REAL DATA ANALYSIS PIPELINE RUNNER (AUTONOMOUS DATA SCIENTIST ENGINE) ---
     ipc.handle(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, async (_: any, req: { filePath: string; deliverable: string; focus?: string; options?: any }) => {
-      const { filePath, deliverable, focus = 'Exploratory data analysis', options } = req;
+      const { filePath, deliverable, focus = 'General statistical diagnostics & bottlenecks', options } = req;
       const dbTable = options?.dbTable;
+      const requestedTargetKpi = options?.targetKpi;
       
       let sampleRows = 0;
       let columns: string[] = [];
-      let columnTypesMap = new Map<string, string>();
       let datasetTitle = '';
       let summary = '';
-      let sampleResult: any = null;
+      let rawDataRecords: Array<Record<string, any>> = [];
 
       if (dbTable) {
         const dialect = (dbTable.dialect || 'postgres').toLowerCase();
         const tableName = dbTable.tableName || 'active_table';
         const schema = dbTable.schema || 'public';
-        datasetTitle = `${dialect.toUpperCase()} Live DB Table: ${schema}.${tableName}`;
+        datasetTitle = `${dialect.toUpperCase()} Live DB: ${schema}.${tableName}`;
 
         // Fetch real or authentic synthetic sample records
-        sampleResult = await helperQueryTableSample({
+        const sampleResult = await helperQueryTableSample({
           dialect,
           connectionUri: dbTable.connectionUri,
           database: dbTable.database,
           schema,
           tableName,
           columns: dbTable.columns,
-          limit: 50
+          limit: 100
         });
 
-        sampleRows = sampleResult?.source === 'live' ? 148500 : 28500;
+        if (sampleResult?.rows && sampleResult.rows.length > 0) {
+          rawDataRecords = sampleResult.rows;
+        }
 
         if (Array.isArray(dbTable.columns) && dbTable.columns.length > 0) {
-          dbTable.columns.forEach((c: any) => {
-            const name = typeof c === 'string' ? c : c.name;
-            const type = typeof c === 'string' ? 'string' : (c.type || 'string');
-            if (name) {
-              columns.push(name);
-              columnTypesMap.set(name, type);
-            }
-          });
+          columns = dbTable.columns.map((c: any) => typeof c === 'string' ? c : c.name).filter(Boolean);
         } else if (sampleResult?.columns) {
-          sampleResult.columns.forEach((c: any) => {
-            columns.push(c.name);
-            columnTypesMap.set(c.name, c.type || 'string');
-          });
+          columns = sampleResult.columns.map((c: any) => c.name);
         }
       } else {
         try {
           if (filePath && fs.existsSync(filePath)) {
             const raw = fs.readFileSync(filePath, 'utf8');
-            const lines = raw.split('\n').filter(Boolean);
-            sampleRows = lines.length > 1 ? lines.length - 1 : lines.length;
-            if (lines.length > 0) {
-              columns = lines[0].split(',').map(c => c.replace(/["']/g, '').trim());
+            const ext = path.extname(filePath).toLowerCase();
+            if (ext === '.json') {
+              try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                  rawDataRecords = parsed.slice(0, 5000);
+                  if (rawDataRecords.length > 0) {
+                    columns = Object.keys(rawDataRecords[0]);
+                  }
+                }
+              } catch {}
+            } else {
+              // CSV / TSV
+              const lines = raw.split(/\r?\n/).filter(Boolean);
+              if (lines.length > 0) {
+                const delimiter = lines[0].includes('\t') ? '\t' : ',';
+                columns = lines[0].split(delimiter).map(c => c.replace(/["']/g, '').trim());
+                for (let i = 1; i < Math.min(lines.length, 5000); i++) {
+                  const parts = lines[i].split(delimiter);
+                  const record: Record<string, any> = {};
+                  columns.forEach((col, idx) => {
+                    const rawVal = parts[idx] ? parts[idx].replace(/["']/g, '').trim() : '';
+                    const numVal = Number(rawVal);
+                    record[col] = (!isNaN(numVal) && rawVal !== '') ? numVal : rawVal;
+                  });
+                  rawDataRecords.push(record);
+                }
+              }
             }
           }
         } catch {}
         datasetTitle = path.basename(filePath || 'Active Dataset');
       }
 
-      if (columns.length === 0) {
-        columns = ['id', 'created_at', 'category', 'status', 'amount'];
-        sampleRows = 14250;
-      }
+      // Run Autonomous Data Scientist Engine
+      const analysisResult = DataScientistEngine.analyze(rawDataRecords, columns, {
+        targetKpi: requestedTargetKpi,
+        focus,
+        datasetTitle
+      });
+
+      sampleRows = analysisResult.totalRecords;
+      columns = columns.length > 0 ? columns : Object.keys(analysisResult.targetKpiStats);
 
       if (deliverable === 'report') {
-        summary = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Evolve AI Data Report — ${datasetTitle}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #181a1f; color: #e2e8f0; padding: 28px; margin: 0; line-height: 1.5; }
-    .header-bar { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid #2d3139; padding-bottom: 18px; margin-bottom: 22px; flex-wrap: wrap; gap: 14px; }
-    h1 { color: #fff; margin: 0 0 6px 0; font-size: 22px; display: flex; align-items: center; gap: 8px; }
-    .sub-meta { color: #94a3b8; font-size: 13px; margin: 0; }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 10.5px; font-weight: 700; margin-left: 8px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); text-transform: uppercase; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 20px 0 26px 0; }
-    .kpi-card { background: #21242b; border: 1px solid #2d3139; border-radius: 8px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-    .kpi-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #94a3b8; letter-spacing: 0.5px; }
-    .kpi-val { font-size: 24px; font-weight: 800; color: #fff; margin-top: 6px; }
-    .section-title { font-size: 15px; font-weight: 700; color: #4ec9b0; margin: 26px 0 12px 0; display: flex; align-items: center; gap: 6px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 8px; background: #21242b; border-radius: 8px; overflow: hidden; border: 1px solid #2d3139; }
-    th, td { border-bottom: 1px solid #2d3139; padding: 10px 14px; text-align: left; font-size: 12px; }
-    th { background: #1c1e24; color: #4ec9b0; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-    tr:hover { background: rgba(255,255,255,0.02); }
-    .code-pill { font-family: "SFMono-Regular", Consolas, Menlo, monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #9cdcfe; font-size: 11.5px; }
-    .recommendation-box { background: rgba(56, 189, 248, 0.06); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 16px; margin-top: 10px; }
-    .recommendation-box li { margin-bottom: 8px; font-size: 12.5px; color: #cbd5e1; }
-    .print-btn { background: #21242b; color: #4ec9b0; border: 1px solid #4ec9b0; border-radius: 6px; padding: 6px 14px; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .print-btn:hover { background: #4ec9b0; color: #181a1f; }
-    @media print {
-      body { background: #fff !important; color: #1e293b !important; padding: 0 !important; }
-      .header-bar { border-bottom-color: #cbd5e1 !important; }
-      h1 { color: #0f172a !important; }
-      .kpi-card { background: #f8fafc !important; border-color: #e2e8f0 !important; box-shadow: none !important; }
-      .kpi-val { color: #0f172a !important; }
-      table { background: #fff !important; border-color: #cbd5e1 !important; }
-      th { background: #f1f5f9 !important; color: #0f172a !important; }
-      th, td { border-color: #e2e8f0 !important; color: #1e293b !important; }
-      .code-pill { background: #f1f5f9 !important; color: #0f172a !important; }
-      .recommendation-box { background: #f8fafc !important; border-color: #cbd5e1 !important; }
-      .recommendation-box li { color: #334155 !important; }
-      .print-btn { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="header-bar">
-    <div>
-      <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: #4ec9b0; font-weight: 700; margin-bottom: 4px;">
-        EVOLVE AI ENTERPRISE STUDIO &bull; AUTONOMOUS DATA ENGINE
-      </div>
-      <h1>📊 Executive Data Intelligence Report ${dbTable ? '<span class="badge">LIVE DATABASE</span>' : '<span class="badge">LOCAL DATASET</span>'}</h1>
-      <p class="sub-meta">Target Asset: <strong style="color: #fff;">${datasetTitle}</strong> &bull; Focus Scope: <em style="color: #38bdf8;">"${focus}"</em></p>
-    </div>
-    <div style="text-align: right;">
-      <button onclick="window.print()" class="print-btn" type="button">🖨️ Print / Save PDF</button>
-      <div style="font-size: 11px; color: #64748b; margin-top: 6px;">Generated ${new Date().toLocaleDateString()} &bull; Air-Gapped Verification</div>
-    </div>
-  </div>
-  
-  <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">Total Volume Records</div><div class="kpi-val">${sampleRows.toLocaleString()}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Introspected Attributes</div><div class="kpi-val">${columns.length}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Schema Completeness</div><div class="kpi-val" style="color: #89d185;">99.8%</div></div>
-    <div class="kpi-card"><div class="kpi-label">Structural Quality Gate</div><div class="kpi-val" style="color: #4ec9b0;">PASSED</div></div>
-  </div>
-
-  <div class="section-title">📋 Column Schema &amp; Profiling Summary</div>
-  <table>
-    <thead><tr><th>Column Name</th><th>Type Classification</th><th>Nullability</th><th>Estimated Distinct Cardinality</th></tr></thead>
-    <tbody>
-      ${columns.map(c => {
-        const t = columnTypesMap.get(c) || (c.includes('amount') || c.includes('id') || c.includes('qty') ? 'NUMERIC' : 'VARCHAR');
-        return `<tr><td><span class="code-pill">${c}</span></td><td><span style="color: #ce9178; font-weight: 600;">${t.toUpperCase()}</span></td><td><span style="color: #89d185;">Non-Null</span></td><td>${Math.min(sampleRows, 150)}</td></tr>`;
-      }).join('')}
-    </tbody>
-  </table>
-
-  ${sampleResult && sampleResult.rows && sampleResult.rows.length > 0 ? `
-  <div class="section-title">🔍 Live Data Sample (${sampleResult.source === 'live' ? 'Live Connected DB Query' : 'Authentic Synthesized Sample'})</div>
-  <div style="overflow-x: auto;">
-    <table>
-      <thead><tr>${columns.slice(0, 8).map(c => `<th>${c}</th>`).join('')}</tr></thead>
-      <tbody>
-        ${sampleResult.rows.slice(0, 10).map((r: any) => `<tr>${columns.slice(0, 8).map(c => `<td>${r[c] !== undefined ? String(r[c]) : '<span style="color:#64748b;">null</span>'}</td>`).join('')}</tr>`).join('')}
-      </tbody>
-    </table>
-  </div>` : ''}
-
-  ${dbTable ? `
-  <div class="section-title">⚡ Runnable SQL Query for Live Database</div>
-  <pre style="background: #1c1e24; border: 1px solid #2d3139; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; color: #facc15; overflow-x: auto; margin: 8px 0 16px 0;">-- Target: ${datasetTitle}
-SELECT ${columns.slice(0, 8).map(c => `"${c}"`).join(', ')}
-FROM "${dbTable.schema || 'public'}"."${dbTable.tableName}"
-LIMIT 100;</pre>` : ''}
-
-  <div class="section-title">💡 Analytical &amp; Engineering Recommendations</div>
-  <div class="recommendation-box">
-    <ul style="margin: 0; padding-left: 20px;">
-      <li>Target Focus: <em>"${focus}"</em> is strongly correlated with primary attributes: <code>${columns.slice(0, 4).join(', ')}</code>.</li>
-      ${dbTable ? `<li>Database connection verified on <strong>${dbTable.dialect?.toUpperCase()}</strong>. Schema is eligible for direct dbt staging or PySpark ETL pipeline materialization.</li>` : '<li>Clean delimiter and encoding verified. Ready for downstream model feature engineering.</li>'}
-      <li>Zero critical structural anomalies detected across all introspected attributes.</li>
-      <li>Ready for stakeholder distribution and executive dashboard integration.</li>
-    </ul>
-  </div>
-</body>
-</html>`;
+        summary = DataScientistEngine.generateExecutiveHtmlReport(analysisResult);
       } else if (deliverable === 'notebook') {
-        let loadCode = '';
-        if (dbTable) {
-          const dialect = (dbTable.dialect || 'postgres').toLowerCase();
-          const tbl = dbTable.tableName || 'table';
-          const schema = dbTable.schema || 'public';
-          const uri = dbTable.connectionUri || '';
-
-          if (dialect === 'bigquery') {
-            loadCode = `# Connect to Google BigQuery
-from google.cloud import bigquery
-client = bigquery.Client(project="${dbTable.database || 'active-project'}")
-query = """
-SELECT *
-FROM \`${dbTable.database || 'active-project'}.${schema}.${tbl}\`
-LIMIT 10000
-"""
-df = client.query(query).to_dataframe()
-print(f"Loaded {len(df):,} rows from BigQuery: {schema}.{tbl}")`;
-          } else if (dialect === 'snowflake') {
-            loadCode = `# Connect to Snowflake Data Cloud
-import snowflake.connector
-ctx = snowflake.connector.connect(
-    account="<SNOWFLAKE_ACCOUNT>",
-    user="<USERNAME>",
-    password="<PASSWORD>",
-    database="${dbTable.database || 'ANALYTICS'}",
-    schema="${schema}"
-)
-df = pd.read_sql("SELECT * FROM ${tbl} LIMIT 10000", ctx)
-print(f"Loaded {len(df):,} rows from Snowflake: {schema}.{tbl}")`;
-          } else if (dialect === 'sqlite') {
-            loadCode = `# Connect to SQLite local database
-import sqlite3
-conn = sqlite3.connect(r"${uri || 'database.db'}")
-df = pd.read_sql("SELECT * FROM ${tbl} LIMIT 10000", conn)
-print(f"Loaded {len(df):,} rows from SQLite: {tbl}")`;
-          } else {
-            loadCode = `# Connect to ${dialect.toUpperCase()} database via SQLAlchemy
-from sqlalchemy import create_engine
-engine = create_engine(r"${uri || 'postgresql://user:password@localhost:5432/db'}")
-df = pd.read_sql("SELECT * FROM ${schema}.${tbl} LIMIT 10000", engine)
-print(f"Loaded {len(df):,} rows from ${dialect.toUpperCase()}: ${schema}.${tbl}")`;
-          }
-        } else {
-          loadCode = `# 1. Load Dataset
-df = pd.read_csv(r"${filePath || 'data.csv'}")
-print(f"Loaded {len(df):,} rows and {len(df.columns)} columns.")`;
-        }
-
-        summary = `# Jupyter Notebook Data Analysis: ${datasetTitle}
-# Generated by Evolve AI Autonomous Data Engine
-
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-# 1. Acquire Data Source
-${loadCode}
-
-# 2. Summary Statistics & Null Checks
-print("--- DATASET INFO ---")
-print(df.info())
-print("\n--- SUMMARY STATISTICS ---")
-print(df.describe(include='all'))
-print("\n--- NULL VALUE COUNTS ---")
-print(df.isnull().sum())
-
-# 3. Focus-Targeted Exploratory Analysis: ${focus}
-numeric_cols = df.select_dtypes(include=[np.number]).columns
-if len(numeric_cols) > 1:
-    print("\n--- CORRELATION MATRIX ---")
-    corr = df[numeric_cols].corr()
-    print(corr)
-
-# 4. Distribution Plotting
-plt.figure(figsize=(10, 5))
-if len(numeric_cols) > 0:
-    df[numeric_cols[0]].hist(bins=30, color='#4ec9b0', edgecolor='#1e1e1e')
-    plt.title(f"Distribution of {numeric_cols[0]} — Focus: ${focus}")
-    plt.xlabel(numeric_cols[0])
-    plt.ylabel("Frequency")
-    plt.tight_layout()
-    plt.show()
-`;
+        summary = DataScientistEngine.generatePythonDataScienceScript(analysisResult, filePath);
       } else if (deliverable === 'profile') {
-        summary = `[Evolve Data Profiling Summary]
-• Target: ${datasetTitle}
-• Total Discovered Features: ${columns.length} columns
-• Estimated Volume: ${sampleRows.toLocaleString()} rows
-• Focus Area: ${focus}
-
-Column Level Profiles:
-${columns.map(c => `  - ${c.padEnd(20)} : Type: ${(columnTypesMap.get(c) || 'VARCHAR').toUpperCase().padEnd(10)} | Nulls: 0.0% | Cardinality: High`).join('\n')}
-
-Key Structural Insights:
-• Primary Key / Identifiers: ${columns.filter(c => c.toLowerCase().includes('id')).join(', ') || columns[0] || 'id'}
-• Fact / Measure Columns: ${columns.filter(c => c.toLowerCase().includes('amt') || c.toLowerCase().includes('amount') || c.toLowerCase().includes('total') || c.toLowerCase().includes('price') || c.toLowerCase().includes('qty')).join(', ') || 'amount'}
-• Partition / Timestamp: ${columns.filter(c => c.toLowerCase().includes('time') || c.toLowerCase().includes('date') || c.toLowerCase().includes('created')).join(', ') || 'created_at'}
-• Recommended Index: B-Tree on (${columns.filter(c => c.toLowerCase().includes('id'))[0] || columns[0] || 'id'}) for downstream aggregations.`;
+        summary = DataScientistEngine.generateStatisticalProfile(analysisResult);
       } else {
-        summary = `[Evolve Data Intelligence Insights]
-• Target Source: ${datasetTitle} (${sampleRows.toLocaleString()} records, ${columns.length} columns)
-• Focus Topic: ${focus}
-• Discovered Columns: ${columns.join(', ')}
-• Structural Integrity: High uniformity across schema (0 null anomalies detected)
-• Analytical Takeaway: Key dimensions (${columns.filter(c => !c.toLowerCase().includes('amt') && !c.toLowerCase().includes('total')).slice(0, 3).join(', ')}) provide robust grouping attributes for ${focus}.
-• Next Step Recommendation: ${dbTable ? `Run staging transformation in Phase 2 Semantic Mapper or export to dbt mart.` : `Export to HTML report or Jupyter notebook script for stakeholder distribution.`}`;
+        // insights
+        summary = DataScientistEngine.generateExecutiveInsightsMarkdown(analysisResult);
       }
 
       return {
@@ -2769,7 +2703,8 @@ Key Structural Insights:
         rows: sampleRows,
         columns,
         datasetTitle,
-        focus
+        focus,
+        analysisResult
       };
     });
 

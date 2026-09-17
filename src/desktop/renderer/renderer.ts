@@ -18009,6 +18009,239 @@ interface ActiveDbTableSource {
   connectionUri?: string;
 }
 
+// --- SINGLE DATASET 3D MANIFOLD & ANOMALY SPACE ENGINE ---
+class SingleDataset3DEngine {
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private points: any[] = [];
+  private axisLabels: { x: string; y: string; z: string } = { x: 'X', y: 'Y', z: 'Z' };
+  private tooltipEl: HTMLElement | null;
+  
+  private theta = 0.5;
+  private phi = 0.35;
+  private R = 320;
+  private isTurntable = true;
+  private filterOutliersOnly = false;
+  private isDragging = false;
+  private lastMouseX = 0;
+  private lastMouseY = 0;
+  private hoveredPoint: any = null;
+  private animId: number | null = null;
+  private renderedNodes: Array<{ p: any; sx: number; sy: number; sz: number; sr: number }> = [];
+
+  constructor(canvas: HTMLCanvasElement, tooltipEl: HTMLElement | null) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d')!;
+    this.tooltipEl = tooltipEl;
+    this.initEvents();
+    this.resize();
+    this.startLoop();
+  }
+
+  public setData(points: any[], axisLabels?: { x: string; y: string; z: string }) {
+    this.points = points || [];
+    if (axisLabels) this.axisLabels = axisLabels;
+    const axisInfoEl = document.getElementById('dataSingle3DAxisInfo');
+    if (axisInfoEl && axisLabels) {
+      axisInfoEl.innerHTML = `Axes: <strong>X</strong>: ${axisLabels.x} &bull; <strong>Y</strong>: ${axisLabels.y} &bull; <strong>Z</strong>: ${axisLabels.z} | Drag: Orbit &bull; Wheel: Zoom &bull; Hover for Root Cause Card`;
+    }
+    this.draw();
+  }
+
+  public toggleTurntable(): boolean {
+    this.isTurntable = !this.isTurntable;
+    return this.isTurntable;
+  }
+
+  public toggleOutliersOnly(): boolean {
+    this.filterOutliersOnly = !this.filterOutliersOnly;
+    return this.filterOutliersOnly;
+  }
+
+  public resetView() {
+    this.theta = 0.5;
+    this.phi = 0.35;
+    this.R = 320;
+    this.isTurntable = true;
+    this.filterOutliersOnly = false;
+  }
+
+  public resize() {
+    const width = this.canvas.clientWidth || 800;
+    const height = this.canvas.clientHeight || 560;
+    this.canvas.width = width * window.devicePixelRatio;
+    this.canvas.height = height * window.devicePixelRatio;
+    if ((this.ctx as any).resetTransform) {
+      (this.ctx as any).resetTransform();
+    }
+    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+
+  private initEvents() {
+    this.canvas.addEventListener('mousedown', (e) => {
+      this.isDragging = true;
+      this.lastMouseX = e.clientX;
+      this.lastMouseY = e.clientY;
+    });
+
+    window.addEventListener('mouseup', () => {
+      this.isDragging = false;
+    });
+
+    this.canvas.addEventListener('mousemove', (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      if (this.isDragging) {
+        const dx = e.clientX - this.lastMouseX;
+        const dy = e.clientY - this.lastMouseY;
+        this.theta += dx * 0.01;
+        this.phi = Math.max(-1.4, Math.min(1.4, this.phi + dy * 0.01));
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        this.isTurntable = false;
+      }
+
+      // Hit test
+      this.hoveredPoint = null;
+      for (let i = this.renderedNodes.length - 1; i >= 0; i--) {
+        const n = this.renderedNodes[i];
+        const dist = Math.hypot(n.sx - mx, n.sy - my);
+        if (dist < n.sr + 6) {
+          this.hoveredPoint = n.p;
+          break;
+        }
+      }
+
+      if (this.hoveredPoint && this.tooltipEl) {
+        this.tooltipEl.style.display = 'block';
+        this.tooltipEl.style.left = `${Math.min(rect.width - 320, mx + 15)}px`;
+        this.tooltipEl.style.top = `${Math.min(rect.height - 180, my + 15)}px`;
+        const d = this.hoveredPoint.diagnosticCard;
+        const metricsHtml = d && d.metrics ? Object.entries(d.metrics).map(([k, v]) => `<div>${k}: <strong style="color:#fff;">${v}</strong></div>`).join('') : '';
+        this.tooltipEl.innerHTML = `
+          <div style="font-weight:700; color:#38bdf8; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <span>${this.hoveredPoint.isOutlier ? '🚨 SEVERE OUTLIER' : '●'}</span>
+            <span>${d ? d.title : this.hoveredPoint.label}</span>
+          </div>
+          <div style="font-size:11px; color:#cbd5e1; margin-bottom:6px; line-height:1.4;">
+            <strong>Root Cause:</strong> ${d ? d.rootCause : 'Normal dispersion'}
+          </div>
+          <div style="font-size:10px; color:#94a3b8; border-top:1px solid #334155; padding-top:4px;">
+            ${metricsHtml}
+          </div>
+        `;
+      } else if (this.tooltipEl) {
+        this.tooltipEl.style.display = 'none';
+      }
+    });
+
+    this.canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      this.R = Math.max(120, Math.min(800, this.R + e.deltaY * 0.5));
+    }, { passive: false });
+  }
+
+  private startLoop() {
+    const loop = () => {
+      this.draw();
+      this.animId = requestAnimationFrame(loop);
+    };
+    loop();
+  }
+
+  public draw() {
+    const width = this.canvas.clientWidth || 800;
+    const height = this.canvas.clientHeight || 560;
+    const ctx = this.ctx;
+
+    if (this.isTurntable) {
+      this.theta += 0.005;
+    }
+
+    ctx.fillStyle = '#070a0f';
+    ctx.fillRect(0, 0, width, height);
+
+    const cosT = Math.cos(this.theta), sinT = Math.sin(this.theta);
+    const cosP = Math.cos(this.phi), sinP = Math.sin(this.phi);
+
+    const project = (x: number, y: number, z: number) => {
+      const x1 = x * cosT - z * sinT;
+      const z1 = x * sinT + z * cosT;
+      const y2 = y * cosP - z1 * sinP;
+      const z2 = y * sinP + z1 * cosP + this.R;
+      if (z2 <= 20) return null;
+      const f = 400;
+      return {
+        sx: (x1 * f) / z2 + width / 2,
+        sy: (y2 * f) / z2 + height / 2,
+        sz: z2
+      };
+    };
+
+    // Draw 3D Boundary Wireframe
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    const box = [-100, 100];
+    for (const bx of box) {
+      for (const by of box) {
+        const p1 = project(bx, by, -100);
+        const p2 = project(bx, by, 100);
+        if (p1 && p2) {
+          ctx.beginPath();
+          ctx.moveTo(p1.sx, p1.sy);
+          ctx.lineTo(p2.sx, p2.sy);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Project Points
+    this.renderedNodes = [];
+    for (const p of this.points) {
+      if (this.filterOutliersOnly && !p.isOutlier) continue;
+      const proj = project(p.x, -p.y, p.z);
+      if (proj) {
+        const sr = Math.max(3, (p.isOutlier ? 8 : 4.5) * (400 / proj.sz));
+        this.renderedNodes.push({ p, sx: proj.sx, sy: proj.sy, sz: proj.sz, sr });
+      }
+    }
+
+    // Depth sort (painter's algorithm)
+    this.renderedNodes.sort((a, b) => b.sz - a.sz);
+
+    // Draw Nodes
+    const now = Date.now();
+    for (const n of this.renderedNodes) {
+      const p = n.p;
+      const isHov = this.hoveredPoint === p;
+
+      if (p.isOutlier) {
+        // Pulsing warning ring
+        const pulse = (Math.sin(now * 0.005 + p.x) + 1) * 0.5;
+        ctx.beginPath();
+        ctx.arc(n.sx, n.sy, n.sr + 4 + pulse * 6, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(239, 68, 68, ${0.3 + pulse * 0.4})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(n.sx, n.sy, isHov ? n.sr + 4 : n.sr, 0, Math.PI * 2);
+      ctx.fillStyle = p.isOutlier ? '#ef4444' : p.color;
+      ctx.fill();
+      ctx.strokeStyle = isHov ? '#ffffff' : 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = isHov ? 2.5 : 1;
+      ctx.stroke();
+    }
+  }
+
+  public destroy() {
+    if (this.animId) cancelAnimationFrame(this.animId);
+  }
+}
+
 let activeAnalysisDbTable: ActiveDbTableSource | null = null;
 let currentDataStudioIntrospectedTables: any[] = [];
 
@@ -23149,30 +23382,52 @@ function updateConverterModelFit(modelId: string, toLang: string = 'typescript')
   if (lblModelName) {
     if (cleanId.includes('claude-3-7-sonnet')) {
       lblModelName.innerText = 'anthropic (cloud) - claude-3-7-sonnet';
+    } else if (cleanId.includes('claude-3-5-sonnet')) {
+      lblModelName.innerText = 'anthropic (cloud) - claude-3-5-sonnet';
+    } else if (cleanId.includes('claude-3-5-haiku')) {
+      lblModelName.innerText = 'anthropic (cloud) - claude-3-5-haiku';
+    } else if (cleanId.includes('claude-3-opus')) {
+      lblModelName.innerText = 'anthropic (cloud) - claude-3-opus';
     } else if (cleanId.includes('gemini-2.5-pro')) {
       lblModelName.innerText = 'google gemini (cloud) - gemini-2.5-pro';
     } else if (cleanId.includes('gemini-2.5-flash')) {
       lblModelName.innerText = 'google gemini (cloud) - gemini-2.5-flash';
+    } else if (cleanId.includes('gemini-2.0')) {
+      lblModelName.innerText = `google gemini (cloud) - ${cleanId}`;
+    } else if (cleanId.includes('gemini-1.5')) {
+      lblModelName.innerText = `google gemini (cloud) - ${cleanId}`;
     } else if (cleanId.includes('gpt-4o')) {
-      lblModelName.innerText = 'openai (cloud) - gpt-4o';
+      lblModelName.innerText = `openai (cloud) - ${cleanId}`;
+    } else if (cleanId.includes('o1') || cleanId.includes('o3')) {
+      lblModelName.innerText = `openai (cloud) - ${cleanId}`;
+    } else if (cleanId.includes('gpt-4.5')) {
+      lblModelName.innerText = 'openai (cloud) - gpt-4.5-preview';
     } else if (cleanId.includes('groq') || cleanId.includes('versatile')) {
       lblModelName.innerText = 'groq lpu (cloud) - llama-3.3-70b-versatile';
+    } else if (cleanId.includes('glm-4') || cleanId.includes('zai')) {
+      lblModelName.innerText = `glm / z.ai - ${cleanId}`;
     } else if (cleanId.includes('codegeex')) {
       lblModelName.innerText = 'glm / z.ai - codegeex4-all-9b';
-    } else if (cleanId.includes('deepseek-r1')) {
-      lblModelName.innerText = 'deepseek (local) - deepseek-r1:7b';
-    } else if (cleanId.includes('deepseek-coder')) {
-      lblModelName.innerText = 'deepseek (local) - deepseek-coder-v2:16b';
-    } else if (cleanId.includes('gemma4')) {
-      lblModelName.innerText = 'google gemma (local) - gemma4:e4b';
+    } else if (cleanId.includes('colibri')) {
+      lblModelName.innerText = 'colibri on-premise - glm-5.2 (744b moe)';
+    } else if (cleanId.includes('deepseek-r1') || cleanId.includes('deepseek-reasoner')) {
+      lblModelName.innerText = `deepseek - ${cleanId}`;
+    } else if (cleanId.includes('deepseek-coder') || cleanId.includes('deepseek-chat') || cleanId.includes('deepseek-v3')) {
+      lblModelName.innerText = `deepseek - ${cleanId}`;
+    } else if (cleanId.includes('gemma4') || cleanId.includes('gemma2')) {
+      lblModelName.innerText = `google gemma (local) - ${cleanId}`;
+    } else if (cleanId.includes('lmstudio')) {
+      lblModelName.innerText = `lm studio (port 1234) - ${cleanId}`;
+    } else if (cleanId.includes('vllm')) {
+      lblModelName.innerText = `vllm cluster (port 8000) - ${cleanId}`;
     } else if (cleanId.includes('offline')) {
       lblModelName.innerText = 'offline built-in - deterministic ast engine';
     } else {
-      lblModelName.innerText = `ollama (local) - ${cleanId}`;
+      lblModelName.innerText = `local / provider - ${cleanId}`;
     }
   }
 
-  if (cleanId.includes('claude-3-7-sonnet')) {
+  if (cleanId.includes('claude-3-7') || cleanId.includes('claude-3-5')) {
     if (lblRecBadge) {
       lblRecBadge.innerText = '⭐ TOP RECOMMENDATION · FRONTIER POLYGLOT';
       lblRecBadge.style.color = '#e5b567';
@@ -23185,7 +23440,7 @@ function updateConverterModelFit(modelId: string, toLang: string = 'typescript')
     if (lblFitBadge) {
       lblFitBadge.innerHTML = `✓ <strong>Optimal Polyglot Fit:</strong> Hybrid reasoning handles deep AST mapping and edge cases seamlessly.`;
     }
-  } else if (cleanId.includes('gemini-2.5-pro')) {
+  } else if (cleanId.includes('gemini-2.5-pro') || cleanId.includes('gemini-1.5-pro')) {
     if (lblRecBadge) {
       lblRecBadge.innerText = '⭐ TOP RECOMMENDATION · MASSIVE REPOSITORIES';
       lblRecBadge.style.color = 'var(--accent)';
@@ -23193,12 +23448,38 @@ function updateConverterModelFit(modelId: string, toLang: string = 'typescript')
       lblRecBadge.style.background = 'rgba(78, 201, 176, 0.15)';
     }
     if (lblModelDetail) {
-      lblModelDetail.innerText = `1,000,000 token context window. Ingests full multi-file workspaces and entire dependency graphs in a single conversion pass.`;
+      lblModelDetail.innerText = `1M - 2M token context window. Ingests full multi-file workspaces and entire dependency graphs in a single conversion pass.`;
     }
     if (lblFitBadge) {
-      lblFitBadge.innerHTML = `✓ <strong>1M Context Window:</strong> Perfect for converting multi-module enterprise codebases with shared headers.`;
+      lblFitBadge.innerHTML = `✓ <strong>1M+ Context Window:</strong> Perfect for converting multi-module enterprise codebases with shared headers.`;
     }
-  } else if (cleanId.includes('codegeex')) {
+  } else if (cleanId.includes('o1') || cleanId.includes('o3')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '🧠 DEEP REASONING · COMPLEX ALGORITHMS';
+      lblRecBadge.style.color = '#e5b567';
+      lblRecBadge.style.borderColor = '#e5b567';
+      lblRecBadge.style.background = 'rgba(229, 181, 103, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `Autonomous chain-of-thought reflection for difficult algorithmic translations, type systems, and concurrency models to ${toLangUpper}.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Deep Algorithmic Verification:</strong> Mathematical reflection verifies invariance across translations.`;
+    }
+  } else if (cleanId.includes('deepseek-r1') || cleanId.includes('deepseek-reasoner')) {
+    if (lblRecBadge) {
+      lblRecBadge.innerText = '🧠 REASONING & ALGORITHMIC FIT';
+      lblRecBadge.style.color = '#e5b567';
+      lblRecBadge.style.borderColor = '#e5b567';
+      lblRecBadge.style.background = 'rgba(229, 181, 103, 0.15)';
+    }
+    if (lblModelDetail) {
+      lblModelDetail.innerText = `Step-by-step chain-of-thought verification for complex data structures, algorithms, and SQL dialect translations.`;
+    }
+    if (lblFitBadge) {
+      lblFitBadge.innerHTML = `✓ <strong>Deep Reasoning:</strong> Validates semantic equivalence between source logic and target ${toLangUpper}.`;
+    }
+  } else if (cleanId.includes('codegeex') || cleanId.includes('glm')) {
     if (lblRecBadge) {
       lblRecBadge.innerText = '✓ SPECIALIZED 26-LANGUAGE POLYGLOT';
       lblRecBadge.style.color = 'var(--success)';
@@ -23223,19 +23504,6 @@ function updateConverterModelFit(modelId: string, toLang: string = 'typescript')
     }
     if (lblFitBadge) {
       lblFitBadge.innerHTML = `✓ <strong>Comfortable Local Fit:</strong> Air-gapped offline conversion without sending code to cloud endpoints.`;
-    }
-  } else if (cleanId.includes('deepseek')) {
-    if (lblRecBadge) {
-      lblRecBadge.innerText = '🧠 REASONING & ALGORITHMIC FIT';
-      lblRecBadge.style.color = '#e5b567';
-      lblRecBadge.style.borderColor = '#e5b567';
-      lblRecBadge.style.background = 'rgba(229, 181, 103, 0.15)';
-    }
-    if (lblModelDetail) {
-      lblModelDetail.innerText = `Step-by-step chain-of-thought verification for complex data structures, algorithms, and SQL dialect translations.`;
-    }
-    if (lblFitBadge) {
-      lblFitBadge.innerHTML = `✓ <strong>Deep Reasoning:</strong> Validates semantic equivalence between source logic and target ${toLangUpper}.`;
     }
   } else {
     if (lblRecBadge) {
@@ -23557,36 +23825,132 @@ function formatMarkdownToHtml(markdown: string): string {
   return finalHtml;
 }
 
-// --- HARDWARE SIZER STUDIO (100% Correct Data Mapping) ---
-const LOCAL_SPECS = [
-  { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', family: 'Alibaba / Ollama', icon: '🦙', minRamGb: 8, reqVramGb: 5.0, diskGb: 4.7, context: '32k', description: 'Premier 7B coding model with 92%+ pass rate. Highly optimized for SQL, Python, TypeScript migrations.', pullCommand: 'qwen2.5-coder:7b' },
-  { id: 'gemma4:e4b', name: 'Gemma 4 e4b (Multimodal)', family: 'Google Gemma', icon: '🤖', minRamGb: 8, reqVramGb: 4.5, diskGb: 4.2, context: '32k', description: 'Google\'s newest open multimodal architecture for edge devices with exceptional efficiency.', pullCommand: 'gemma4:e4b' },
-  { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', family: 'Z.ai / GLM', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.8, context: '128k', description: 'Specialized polyglot conversion model capable of mapping complex architectures across 26 languages.', pullCommand: 'codegeex4-all-9b' },
-  { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B (Reasoning)', family: 'DeepSeek', icon: '🧠', minRamGb: 8, reqVramGb: 5.5, diskGb: 4.8, context: '64k', description: 'Distilled reasoning engine with step-by-step algorithmic decomposition for complex transformations.', pullCommand: 'deepseek-r1:7b' },
-  { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', family: 'Alibaba / Ollama', icon: '🦙', minRamGb: 16, reqVramGb: 9.5, diskGb: 9.0, context: '32k', description: 'High-capability coding model matching GPT-4 on code refactoring and data engineering tasks.', pullCommand: 'qwen2.5-coder:14b' },
-  { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B', family: 'DeepSeek', icon: '🧠', minRamGb: 16, reqVramGb: 11.0, diskGb: 9.5, context: '64k', description: 'MoE coding powerhouse with 338 programming language support and deep syntax understanding.', pullCommand: 'deepseek-coder-v2:16b' },
-  { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', family: 'Alibaba / Ollama', icon: '🦙', minRamGb: 32, reqVramGb: 20.0, diskGb: 19.5, context: '32k', description: 'Frontier-grade open coding model for full-repository modernization and zero-shot architecture design.', pullCommand: 'qwen2.5-coder:32b' },
-  { id: 'llama3.3:70b', name: 'Llama 3.3 70B Instruct', family: 'Meta LLaMA', icon: '🦙', minRamGb: 64, reqVramGb: 42.0, diskGb: 40.0, context: '128k', description: 'Meta\'s flagship open foundation model for enterprise-grade reasoning and documentation synthesis.', pullCommand: 'llama3.3:70b' },
-  { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', family: 'Colibri Local', icon: '🚀', minRamGb: 32, reqVramGb: 24.0, diskGb: 372.0, context: '128k', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise on-premise infrastructure.' },
-  { id: 'lmstudio-local', name: 'LM Studio Local Server (Port 1234)', family: 'LM Studio', icon: '🖥️', minRamGb: 8, reqVramGb: 4.0, diskGb: 0, context: 'Dynamic', description: 'Connects dynamically to any model currently loaded in LM Studio via local OpenAI-compatible endpoint.' },
-  { id: 'vllm-local', name: 'vLLM / Triton Cluster (Port 8000)', family: 'vLLM Engine', icon: '⚡', minRamGb: 16, reqVramGb: 8.0, diskGb: 0, context: 'Dynamic', description: 'Air-gapped high-throughput inference engine with PagedAttention for private enterprise clusters.' },
-  { id: 'offline-engine', name: 'Offline Deterministic Engine', family: 'Evolve Built-in', icon: '⚙️', minRamGb: 2, reqVramGb: 0, diskGb: 0, context: 'Unlimited', description: 'Built-in deterministic AST transformations, transpilers, and pattern heuristics. Instant and 100% offline.' }
+// --- HARDWARE SIZER STUDIO (Comprehensive Frontier & Local AI Model Ecosystem) ---
+interface CustomAiModel {
+  id: string;
+  name: string;
+  category?: 'local' | 'cloud';
+  family?: string;
+  provider?: string;
+  provFamily?: string;
+  icon: string;
+  context: string;
+  minRamGb?: number;
+  reqVramGb?: number;
+  diskGb?: number;
+  description?: string;
+  strength?: string;
+  badge: string;
+  latency?: string;
+  pullCommand?: string;
+  isCustom?: boolean;
+}
+
+function getStoredCustomModels(): CustomAiModel[] {
+  try {
+    const raw = localStorage.getItem('evolve_custom_ai_models');
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return [];
+}
+
+function saveCustomModelToStorage(model: CustomAiModel): void {
+  const list = getStoredCustomModels().filter(m => m.id !== model.id);
+  list.unshift(model);
+  localStorage.setItem('evolve_custom_ai_models', JSON.stringify(list));
+}
+
+function deleteStoredCustomModel(modelId: string): void {
+  const list = getStoredCustomModels().filter(m => m.id !== modelId);
+  localStorage.setItem('evolve_custom_ai_models', JSON.stringify(list));
+}
+
+const LOCAL_SPECS: CustomAiModel[] = [
+  // --- Alibaba Qwen Coder & Foundation Series ---
+  { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', family: 'Alibaba Qwen', provider: 'Ollama', provFamily: 'qwen', icon: '🦙', minRamGb: 8, reqVramGb: 5.0, diskGb: 4.7, context: '32k', badge: 'Recommended', description: 'Premier 7B coding model with 92%+ pass rate. Highly optimized for SQL, Python, TypeScript migrations.', pullCommand: 'qwen2.5-coder:7b' },
+  { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', family: 'Alibaba Qwen', provider: 'Ollama', provFamily: 'qwen', icon: '🦙', minRamGb: 16, reqVramGb: 9.5, diskGb: 9.0, context: '32k', badge: 'High Accuracy', description: 'High-capability coding model matching GPT-4 on code refactoring and data engineering tasks.', pullCommand: 'qwen2.5-coder:14b' },
+  { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', family: 'Alibaba Qwen', provider: 'Ollama', provFamily: 'qwen', icon: '🦙', minRamGb: 32, reqVramGb: 20.0, diskGb: 19.5, context: '32k', badge: 'Frontier Coding', description: 'Frontier-grade open coding model for full-repository modernization and zero-shot architecture design.', pullCommand: 'qwen2.5-coder:32b' },
+  { id: 'qwen2.5:72b', name: 'Qwen 2.5 72B Instruct', family: 'Alibaba Qwen', provider: 'Ollama', provFamily: 'qwen', icon: '🦙', minRamGb: 64, reqVramGb: 44.0, diskGb: 41.0, context: '128k', badge: '72B Heavyweight', description: 'Heavyweight 72B open foundation model matching frontier closed models in polyglot reasoning.', pullCommand: 'qwen2.5:72b' },
+
+  // --- Google Gemma Series ---
+  { id: 'gemma4:e4b', name: 'Gemma 4 e4b (Multimodal)', family: 'Google Gemma', provider: 'Ollama', provFamily: 'google', icon: '🤖', minRamGb: 8, reqVramGb: 4.5, diskGb: 4.2, context: '32k', badge: 'Edge Multimodal', description: 'Google\'s newest open multimodal architecture for edge devices with exceptional efficiency.', pullCommand: 'gemma4:e4b' },
+  { id: 'gemma2:27b', name: 'Gemma 2 27B Instruct', family: 'Google Gemma', provider: 'Ollama', provFamily: 'google', icon: '🤖', minRamGb: 32, reqVramGb: 18.0, diskGb: 16.5, context: '32k', badge: '27B Heavyweight', description: 'Google\'s high-capacity open model with exceptional reasoning and architectural synthesis.', pullCommand: 'gemma2:27b' },
+  { id: 'gemma2:9b', name: 'Gemma 2 9B Instruct', family: 'Google Gemma', provider: 'Ollama', provFamily: 'google', icon: '🤖', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.5, context: '32k', badge: 'Fast 9B', description: 'Balanced 9B parameter model offering best-in-class performance per watt for local coding.', pullCommand: 'gemma2:9b' },
+
+  // --- GLM (Zhipu / Z.ai) Series ---
+  { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', family: 'GLM / Z.ai', provider: 'Ollama', provFamily: 'glm', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.8, context: '128k', badge: 'Polyglot 26-Lang', description: 'Specialized polyglot conversion model capable of mapping complex architectures across 26 languages.', pullCommand: 'codegeex4-all-9b' },
+  { id: 'glm4:9b', name: 'GLM-4 9B', family: 'GLM / Z.ai', provider: 'Ollama', provFamily: 'glm', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.5, context: '128k', badge: 'Bilingual 128k', description: 'General multilingual reasoning and enterprise documentation generator with 128k context.', pullCommand: 'glm4:9b' },
+  { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', family: 'Colibri Local', provider: 'Colibri Local', provFamily: 'glm', icon: '🚀', minRamGb: 32, reqVramGb: 24.0, diskGb: 372.0, context: '128k', badge: '744B Frontier MoE', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise on-premise infrastructure.' },
+
+  // --- DeepSeek Local Reasoning & Coding Series ---
+  { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B (Reasoning)', family: 'DeepSeek', provider: 'Ollama', provFamily: 'deepseek', icon: '🧠', minRamGb: 8, reqVramGb: 5.5, diskGb: 4.8, context: '64k', badge: 'Reasoning CoT', description: 'Distilled reasoning engine with step-by-step algorithmic decomposition for complex transformations.', pullCommand: 'deepseek-r1:7b' },
+  { id: 'deepseek-r1:8b', name: 'DeepSeek R1 8B (Llama Distill)', family: 'DeepSeek', provider: 'Ollama', provFamily: 'deepseek', icon: '🧠', minRamGb: 10, reqVramGb: 6.0, diskGb: 5.2, context: '64k', badge: 'Llama Distill', description: 'Llama-distilled 8B model with step-by-step algorithmic decomposition and logic verification.', pullCommand: 'deepseek-r1:8b' },
+  { id: 'deepseek-r1:14b', name: 'DeepSeek R1 14B (Qwen Distill)', family: 'DeepSeek', provider: 'Ollama', provFamily: 'deepseek', icon: '🧠', minRamGb: 16, reqVramGb: 9.5, diskGb: 9.0, context: '64k', badge: '14B Reasoning', description: 'Mid-sized distilled reasoning powerhouse balancing high throughput and deep mathematical precision.', pullCommand: 'deepseek-r1:14b' },
+  { id: 'deepseek-r1:32b', name: 'DeepSeek R1 32B (Frontier Distill)', family: 'DeepSeek', provider: 'Ollama', provFamily: 'deepseek', icon: '🧠', minRamGb: 32, reqVramGb: 20.0, diskGb: 19.5, context: '64k', badge: '32B Frontier', description: 'Workstation-grade reasoning matching top proprietary closed models on coding benchmarks.', pullCommand: 'deepseek-r1:32b' },
+  { id: 'deepseek-r1:70b', name: 'DeepSeek R1 70B (Heavyweight)', family: 'DeepSeek', provider: 'Ollama', provFamily: 'deepseek', icon: '🧠', minRamGb: 64, reqVramGb: 42.0, diskGb: 40.0, context: '64k', badge: '70B Flagship', description: 'Heavyweight distilled reasoning powerhouse for massive enterprise code transformations.', pullCommand: 'deepseek-r1:70b' },
+  { id: 'deepseek-coder-v2:16b', name: 'DeepSeek Coder V2 16B', family: 'DeepSeek', provider: 'Ollama', provFamily: 'deepseek', icon: '🧠', minRamGb: 16, reqVramGb: 11.0, diskGb: 9.5, context: '64k', badge: '338 Languages', description: 'MoE coding powerhouse with 338 programming language support and deep syntax understanding.', pullCommand: 'deepseek-coder-v2:16b' },
+
+  // --- Meta LLaMA Series ---
+  { id: 'llama3.3:70b', name: 'Llama 3.3 70B Instruct', family: 'Meta LLaMA', provider: 'Ollama', provFamily: 'meta', icon: '🦙', minRamGb: 64, reqVramGb: 42.0, diskGb: 40.0, context: '128k', badge: 'Meta Flagship', description: 'Meta\'s flagship open foundation model for enterprise-grade reasoning and documentation synthesis.', pullCommand: 'llama3.3:70b' },
+  { id: 'llama3.1:8b', name: 'Llama 3.1 8B Instruct', family: 'Meta LLaMA', provider: 'Ollama', provFamily: 'meta', icon: '🦙', minRamGb: 10, reqVramGb: 6.0, diskGb: 4.8, context: '128k', badge: '8B Fast', description: 'Fast, lightweight foundation model for everyday code completions, docstrings, and quick scripts.', pullCommand: 'llama3.1:8b' },
+
+  // --- Mistral & Microsoft ---
+  { id: 'codestral:22b', name: 'Mistral Codestral 22B', family: 'Mistral AI', provider: 'Ollama', provFamily: 'mistral_ms', icon: '🌪️', minRamGb: 24, reqVramGb: 14.0, diskGb: 13.5, context: '32k', badge: 'Code Specialist', description: 'Mistral\'s dedicated coding specialist fluent in 80+ programming languages with fill-in-the-middle support.', pullCommand: 'codestral:22b' },
+  { id: 'phi4:14b', name: 'Microsoft Phi-4 14B', family: 'Microsoft', provider: 'Ollama', provFamily: 'mistral_ms', icon: '🔬', minRamGb: 16, reqVramGb: 10.0, diskGb: 9.1, context: '16k', badge: 'High Reasoning', description: 'Microsoft\'s state-of-the-art compact reasoning model with superior mathematical and logical reasoning.', pullCommand: 'phi4:14b' },
+
+  // --- Local Server Probers & Offline Engine ---
+  { id: 'lmstudio-local', name: 'LM Studio Local Server (Port 1234)', family: 'LM Studio', provider: 'LM Studio', provFamily: 'server', icon: '🖥️', minRamGb: 8, reqVramGb: 4.0, diskGb: 0, context: 'Dynamic', badge: 'Port 1234', description: 'Connects dynamically to any model currently loaded in LM Studio via local OpenAI-compatible endpoint.' },
+  { id: 'vllm-local', name: 'vLLM / Triton Cluster (Port 8000)', family: 'vLLM Engine', provider: 'vLLM', provFamily: 'server', icon: '⚡', minRamGb: 16, reqVramGb: 8.0, diskGb: 0, context: 'Dynamic', badge: 'Port 8000', description: 'Air-gapped high-throughput inference engine with PagedAttention for private enterprise clusters.' },
+  { id: 'offline-engine', name: 'Offline Deterministic Engine', family: 'Evolve Built-in', provider: 'Built-in', provFamily: 'server', icon: '⚙️', minRamGb: 2, reqVramGb: 0, diskGb: 0, context: 'Unlimited', badge: '100% Offline', description: 'Built-in deterministic AST transformations, transpilers, and pattern heuristics. Instant and 100% offline.' }
 ];
 
-const CLOUD_SPECS = [
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google Gemini', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'Leaderboard #1 for massive codebases, multi-file repos & complex data marts', badge: '1M Context' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google Gemini', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast (~120 tok/s)', strength: 'High-speed structured extraction, schema mapping & instant code conversions', badge: 'Low Latency' },
-  { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'Anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fast (~65 tok/s)', strength: 'State-of-the-art hybrid reasoning & complex algorithmic pipeline synthesis', badge: 'State-of-the-Art' },
-  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Instant (~140 tok/s)', strength: 'Ultra-fast refactoring, unit test generation & quick markdown documentation', badge: 'Speed Leader' },
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', icon: '🌐', context: '128,000 Tokens', latency: 'Fast (~80 tok/s)', strength: 'Omni flagship intelligence for cross-stack conversions & system architecture', badge: 'Flagship Omni' },
-  { id: 'llama-3.3-70b-versatile', name: 'Groq LPU — Llama 3.3 70B', provider: 'Groq Cloud', icon: '⚡', context: '128,000 Tokens', latency: 'Extreme (~500 tok/s)', strength: 'Sub-second real-time inference on Groq Language Processing Units', badge: '500 tok/s' },
-  { id: 'glm-4.6', name: 'GLM-4.6', provider: 'Z.ai Cloud', icon: '💻', context: '128,000 Tokens', latency: 'Fast (~55 tok/s)', strength: 'Flagship multilingual reasoning & enterprise schema modernization', badge: 'Cloud Flagship' },
-  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'Hugging Face Hub', icon: '🤗', context: '32,000 Tokens', latency: 'Fast (~40 tok/s)', strength: 'Serverless hosted inference on Hugging Face open model infrastructure', badge: 'Serverless API' }
+const CLOUD_SPECS: CustomAiModel[] = [
+  // --- Google Gemini Family ---
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'Leaderboard #1 for massive codebases, multi-file repos & complex data marts', badge: '1M Context' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast (~120 tok/s)', strength: 'High-speed structured extraction, schema mapping & instant code conversions', badge: 'Low Latency' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~100 tok/s)', strength: 'Next-generation multimodal model for code and structured documentation', badge: 'Next-Gen Omni' },
+  { id: 'gemini-2.0-flash-thinking-exp', name: 'Gemini 2.0 Flash Thinking', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~50 tok/s)', strength: 'Built-in chain-of-thought reasoning for complex algorithms, math, and data migrations', badge: 'Reasoning CoT' },
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '2,000,000 Tokens', latency: 'Balanced (~35 tok/s)', strength: 'Long-context workhorse for entire repository ingestion and legacy migrations', badge: '2M Context' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast (~110 tok/s)', strength: 'High throughput, cost-efficient intelligence for routine transformations', badge: 'High Throughput' },
+
+  // --- Anthropic Claude Family ---
+  { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fast (~65 tok/s)', strength: 'State-of-the-art hybrid reasoning & complex algorithmic pipeline synthesis', badge: 'State-of-the-Art' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fast (~70 tok/s)', strength: 'Benchmark leader for architectural refactoring & cross-language migration', badge: 'Leaderboard #1' },
+  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Instant (~140 tok/s)', strength: 'Ultra-fast refactoring, unit test generation & quick markdown documentation', badge: 'Speed Leader' },
+  { id: 'claude-3-opus', name: 'Claude 3 Opus', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Steady (~30 tok/s)', strength: 'Deep analytical synthesis for legacy enterprise migrations & full audits', badge: 'Deep Synthesis' },
+
+  // --- OpenAI Family ---
+  { id: 'gpt-4o', name: 'GPT-4o', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '128,000 Tokens', latency: 'Fast (~80 tok/s)', strength: 'Omni flagship intelligence for cross-stack conversions & system architecture', badge: 'Flagship Omni' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '128,000 Tokens', latency: 'Instant (~125 tok/s)', strength: 'Cost-efficient and fast model for day-to-day coding and refactoring tasks', badge: 'Lightweight' },
+  { id: 'o1', name: 'OpenAI o1', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🧠', context: '200,000 Tokens', latency: 'Reasoning (~40 tok/s)', strength: 'Flagship reasoning engine with deep reflection for complex architectural problems', badge: 'Deep Reasoning' },
+  { id: 'o1-mini', name: 'OpenAI o1-mini', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🧠', context: '128,000 Tokens', latency: 'Fast (~85 tok/s)', strength: 'High-speed reasoning model tailored for STEM, math, and code tasks', badge: 'Fast Reasoning' },
+  { id: 'o3-mini', name: 'OpenAI o3-mini', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🧠', context: '200,000 Tokens', latency: 'Ultra Fast (~100 tok/s)', strength: 'High-speed reasoning model tailored for science, math, and complex algorithms', badge: 'Frontier Coding' },
+  { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '128,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'OpenAI\'s massive frontier scaling research model with expansive syntax knowledge', badge: 'Frontier Research' },
+
+  // --- GLM (Zhipu AI / Z.ai Cloud) Family ---
+  { id: 'glm-4-plus', name: 'GLM-4-Plus', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Fast (~50 tok/s)', strength: 'Zhipu\'s premier foundation flagship with high-level reasoning and bilingual mastery', badge: 'Frontier Flagship' },
+  { id: 'glm-4.6', name: 'GLM-4.6', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Fast (~55 tok/s)', strength: 'Flagship multilingual reasoning & enterprise schema modernization', badge: 'Cloud Flagship' },
+  { id: 'glm-4-air', name: 'GLM-4-Air', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Ultra Fast (~95 tok/s)', strength: 'High-throughput, cost-efficient inference for batch code transformations', badge: 'High Speed' },
+  { id: 'glm-4-flash', name: 'GLM-4-Flash', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Instant (~130 tok/s)', strength: 'Ultra-fast zero-latency cloud tier for instant syntax and lint validation', badge: 'Zero Latency' },
+  { id: 'glm-4-long', name: 'GLM-4-Long', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '1,000,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'Massive 1M-token context for enterprise documentation and full repo analysis', badge: '1M Context' },
+
+  // --- DeepSeek Cloud Family ---
+  { id: 'deepseek-chat', name: 'DeepSeek-V3 (671B MoE)', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '64,000 Tokens', latency: 'Fast (~60 tok/s)', strength: '671B MoE frontier flagship matching top proprietary intelligence at extreme efficiency', badge: '671B Flagship' },
+  { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (671B CoT)', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '64,000 Tokens', latency: 'Reasoning (~40 tok/s)', strength: 'Frontier 671B reasoning model featuring native step-by-step chain-of-thought verification', badge: 'SOTA Reasoning' },
+  { id: 'deepseek-coder-v2:236b', name: 'DeepSeek Coder V2 236B', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '128,000 Tokens', latency: 'Fast (~50 tok/s)', strength: 'Massive 236B parameter MoE coding engine for complex repository transformations', badge: '236B MoE' },
+
+  // --- Groq & Open Cloud APIs ---
+  { id: 'llama-3.3-70b-versatile', name: 'Groq LPU — Llama 3.3 70B', family: 'Groq Cloud', provider: 'Groq Cloud', provFamily: 'open', icon: '⚡', context: '128,000 Tokens', latency: 'Extreme (~500 tok/s)', strength: 'Sub-second real-time inference on Groq Language Processing Units', badge: '500 tok/s' },
+  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', family: 'Hugging Face Hub', provider: 'Hugging Face Hub', provFamily: 'open', icon: '🤗', context: '32,000 Tokens', latency: 'Fast (~40 tok/s)', strength: 'Serverless hosted inference on Hugging Face open model infrastructure', badge: 'Serverless API' }
 ];
 
 let lastHwProfile: any = null;
 let lastInstalledLocalModels: string[] = [];
-let currentHwFilter = 'all';
+let currentHwFilter = 'all'; // 'all' | 'compatible' | 'installed'
+let currentLocalProvFilter = 'all'; // 'all' | 'deepseek' | 'google' | 'glm' | 'qwen' | 'meta' | 'mistral_ms' | 'server'
+let currentLocalSearchQuery = '';
+let currentCloudProvFilter = 'all'; // 'all' | 'google' | 'anthropic' | 'openai' | 'glm' | 'deepseek' | 'open'
+let currentCloudSearchQuery = '';
 
 function setupHardwareStudio(api: any): void {
   const btnInspect = document.getElementById('btnRunHwInspect');
@@ -23602,7 +23966,118 @@ function setupHardwareStudio(api: any): void {
     }, 100);
   });
 
-  // Filter Buttons
+  // Custom Model Registration Dialog Wiring
+  const btnOpenCustomModal = document.getElementById('btnHwOpenAddCustom');
+  const modalAddCustom = document.getElementById('modalAddCustomModel');
+  const btnCloseCustomModal = document.getElementById('btnCloseCustomModelModal');
+  const btnCancelCustom = document.getElementById('btnCancelCustomModel');
+  const btnSaveCustom = document.getElementById('btnSaveCustomModel');
+  const selCustomCat = document.getElementById('selCustomModelCat') as HTMLSelectElement;
+  const rowLocalSpecs = document.getElementById('rowCustomLocalSpecs');
+
+  btnOpenCustomModal?.addEventListener('click', () => {
+    if (modalAddCustom) modalAddCustom.style.display = 'flex';
+  });
+
+  const closeCustomModal = () => {
+    if (modalAddCustom) modalAddCustom.style.display = 'none';
+  };
+
+  btnCloseCustomModal?.addEventListener('click', closeCustomModal);
+  btnCancelCustom?.addEventListener('click', closeCustomModal);
+
+  selCustomCat?.addEventListener('change', () => {
+    if (rowLocalSpecs) {
+      rowLocalSpecs.style.display = selCustomCat.value === 'local' ? 'grid' : 'none';
+    }
+  });
+
+  btnSaveCustom?.addEventListener('click', () => {
+    const txtId = document.getElementById('txtCustomModelId') as HTMLInputElement;
+    const txtName = document.getElementById('txtCustomModelName') as HTMLInputElement;
+    const selProv = document.getElementById('selCustomModelProvider') as HTMLSelectElement;
+    const txtContext = document.getElementById('txtCustomModelContext') as HTMLInputElement;
+    const numRam = document.getElementById('numCustomMinRam') as HTMLInputElement;
+    const numVram = document.getElementById('numCustomReqVram') as HTMLInputElement;
+    const txtDesc = document.getElementById('txtCustomModelDesc') as HTMLInputElement;
+
+    const idVal = (txtId?.value || '').trim();
+    const nameVal = (txtName?.value || '').trim();
+    if (!idVal || !nameVal) {
+      showToast('⚠️ Please provide both Model ID and Display Name.');
+      return;
+    }
+
+    const catVal = (selCustomCat?.value || 'cloud') as 'local' | 'cloud';
+    const provVal = selProv?.value || 'custom';
+    const contextVal = (txtContext?.value || '128k').trim();
+    const descVal = (txtDesc?.value || `Custom registered ${catVal} AI model: ${idVal}`).trim();
+
+    const provLabelMap: Record<string, { label: string; icon: string }> = {
+      google: { label: 'Google Gemini', icon: '✨' },
+      anthropic: { label: 'Anthropic Claude', icon: '☁️' },
+      openai: { label: 'OpenAI', icon: '🌐' },
+      glm: { label: 'GLM / Z.ai', icon: '💻' },
+      deepseek: { label: 'DeepSeek', icon: '🧠' },
+      ollama: { label: 'Ollama (Local)', icon: '🦙' },
+      lmstudio: { label: 'LM Studio (Port 1234)', icon: '🖥️' },
+      vllm: { label: 'vLLM Engine (Port 8000)', icon: '⚡' },
+      custom: { label: 'Custom / Private Endpoint', icon: '⚡' }
+    };
+
+    const provMeta = provLabelMap[provVal] || { label: 'Custom Endpoint', icon: '⚡' };
+
+    const newCustomModel: CustomAiModel = {
+      id: idVal,
+      name: nameVal,
+      category: catVal,
+      family: provMeta.label,
+      provider: provMeta.label,
+      provFamily: provVal,
+      icon: provMeta.icon,
+      context: contextVal,
+      minRamGb: catVal === 'local' ? (parseFloat(numRam?.value) || 16) : undefined,
+      reqVramGb: catVal === 'local' ? (parseFloat(numVram?.value) || 8) : undefined,
+      diskGb: 0,
+      description: descVal,
+      strength: descVal,
+      badge: 'Custom Model',
+      latency: catVal === 'cloud' ? 'Variable' : undefined,
+      pullCommand: catVal === 'local' && provVal === 'ollama' ? idVal : undefined,
+      isCustom: true
+    };
+
+    saveCustomModelToStorage(newCustomModel);
+    closeCustomModal();
+    showToast(`✓ Registered new AI model "${nameVal}" (${idVal})`);
+
+    // Reset inputs
+    if (txtId) txtId.value = '';
+    if (txtName) txtName.value = '';
+    if (txtDesc) txtDesc.value = '';
+
+    // Re-render
+    if (lastHwProfile) renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+    renderCloudModelsGrid(api);
+  });
+
+  // Local Models Search Input
+  const txtLocalSearch = document.getElementById('hwLocalSearch') as HTMLInputElement;
+  txtLocalSearch?.addEventListener('input', () => {
+    currentLocalSearchQuery = txtLocalSearch.value.trim().toLowerCase();
+    if (lastHwProfile) {
+      renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+    }
+  });
+
+  // Cloud Models Search Input
+  const txtCloudSearch = document.getElementById('hwCloudSearch') as HTMLInputElement;
+  txtCloudSearch?.addEventListener('input', () => {
+    currentCloudSearchQuery = txtCloudSearch.value.trim().toLowerCase();
+    renderCloudModelsGrid(api);
+  });
+
+  // Hardware Compatibility Filter Buttons
   const filterBtns = document.querySelectorAll('.hw-filter-btn');
   filterBtns.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -23623,6 +24098,48 @@ function setupHardwareStudio(api: any): void {
       }
     });
   });
+
+  // Local Provider Family Filter Chips
+  const localProvBtns = document.querySelectorAll('.hw-local-prov-btn');
+  localProvBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      localProvBtns.forEach(b => {
+        b.classList.remove('active');
+        (b as HTMLElement).style.color = '';
+        (b as HTMLElement).style.borderColor = '';
+        (b as HTMLElement).style.fontWeight = '';
+      });
+      btn.classList.add('active');
+      (btn as HTMLElement).style.color = 'var(--accent)';
+      (btn as HTMLElement).style.borderColor = 'var(--accent)';
+      (btn as HTMLElement).style.fontWeight = '700';
+
+      currentLocalProvFilter = btn.getAttribute('data-prov') || 'all';
+      if (lastHwProfile) {
+        renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+      }
+    });
+  });
+
+  // Cloud Provider Filter Tabs
+  const cloudProvBtns = document.querySelectorAll('.hw-cloud-prov-btn');
+  cloudProvBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      cloudProvBtns.forEach(b => {
+        b.classList.remove('active');
+        (b as HTMLElement).style.color = '';
+        (b as HTMLElement).style.borderColor = '';
+        (b as HTMLElement).style.fontWeight = '';
+      });
+      btn.classList.add('active');
+      (btn as HTMLElement).style.color = 'var(--accent)';
+      (btn as HTMLElement).style.borderColor = 'var(--accent)';
+      (btn as HTMLElement).style.fontWeight = '700';
+
+      currentCloudProvFilter = btn.getAttribute('data-cloudprov') || 'all';
+      renderCloudModelsGrid(api);
+    });
+  });
 }
 
 function renderLocalModelsMatrix(api: any, profile: any, installedModels: string[]): void {
@@ -23633,22 +24150,54 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
   const ramGb = profile.ramGb || 16;
   const vramGb = profile.gpu?.vramGb || 0;
 
-  if (cntEl) cntEl.innerText = `${LOCAL_SPECS.length}`;
+  // Merge built-in local specs and custom local models
+  const customLocal = getStoredCustomModels().filter(m => m.category === 'local');
+  const allSpecs: CustomAiModel[] = [...LOCAL_SPECS, ...customLocal];
 
-  const renderedCards = LOCAL_SPECS.map(spec => {
+  // Apply Provider Filter
+  let filtered = allSpecs.filter(spec => {
+    if (currentLocalProvFilter === 'all') return true;
+    if (currentLocalProvFilter === 'deepseek') return spec.provFamily === 'deepseek' || spec.id.includes('deepseek');
+    if (currentLocalProvFilter === 'google') return spec.provFamily === 'google' || spec.id.includes('gemma');
+    if (currentLocalProvFilter === 'glm') return spec.provFamily === 'glm' || spec.id.includes('glm') || spec.id.includes('codegeex');
+    if (currentLocalProvFilter === 'qwen') return spec.provFamily === 'qwen' || spec.id.includes('qwen');
+    if (currentLocalProvFilter === 'meta') return spec.provFamily === 'meta' || spec.id.includes('llama');
+    if (currentLocalProvFilter === 'mistral_ms') return spec.provFamily === 'mistral_ms' || spec.id.includes('codestral') || spec.id.includes('phi');
+    if (currentLocalProvFilter === 'server') return spec.provFamily === 'server' || spec.id.includes('lmstudio') || spec.id.includes('vllm') || spec.id.includes('offline');
+    return spec.provFamily === currentLocalProvFilter;
+  });
+
+  // Apply Search Query
+  if (currentLocalSearchQuery) {
+    const q = currentLocalSearchQuery;
+    filtered = filtered.filter(s =>
+      s.name.toLowerCase().includes(q) ||
+      s.id.toLowerCase().includes(q) ||
+      (s.family || '').toLowerCase().includes(q) ||
+      (s.description || '').toLowerCase().includes(q) ||
+      (s.pullCommand && s.pullCommand.toLowerCase().includes(q))
+    );
+  }
+
+  if (cntEl) cntEl.innerText = `${filtered.length}`;
+
+  const renderedCards = filtered.map(spec => {
     // 1. Evaluate Installation State
     let isInstalled = false;
     if (spec.id === 'offline-engine') {
       isInstalled = true;
-    } else if (spec.id === 'lmstudio-local') {
+    } else if (spec.id === 'lmstudio-local' || spec.id.startsWith('lmstudio')) {
       isInstalled = installedModels.some(m => m.includes('lmstudio'));
-    } else if (spec.id === 'vllm-local') {
+    } else if (spec.id === 'vllm-local' || spec.id.startsWith('vllm')) {
       isInstalled = installedModels.some(m => m.includes('vllm'));
     } else {
       isInstalled = installedModels.some(m => m === spec.id || m.startsWith(spec.id.split(':')[0]) || m.includes(spec.id));
     }
 
     // 2. Evaluate Hardware Compatibility Rating
+    const reqMinRam = spec.minRamGb || 16;
+    const reqVram = spec.reqVramGb || 8;
+
     let compTier: 'optimal' | 'compatible' | 'cpu' | 'insufficient' = 'optimal';
     let compBadge = '';
     let compDesc = '';
@@ -23657,25 +24206,25 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
       compTier = 'optimal';
       compBadge = '<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 100% Instant (Built-in)</span>';
       compDesc = 'Runs with 0 dependencies and 0 local hardware constraints.';
-    } else if (vramGb >= spec.reqVramGb && vramGb > 0) {
+    } else if (vramGb >= reqVram && vramGb > 0) {
       compTier = 'optimal';
-      compBadge = `<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 Optimal GPU Fit (${Math.round(spec.reqVramGb)}GB / ${vramGb}GB VRAM · ~60+ tok/s)</span>`;
+      compBadge = `<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 Optimal GPU Fit (${Math.round(reqVram)}GB / ${vramGb}GB VRAM · ~60+ tok/s)</span>`;
       compDesc = `Full model weights fit comfortably into your ${profile.gpu?.name || 'GPU'} VRAM for lightning-fast hardware-accelerated inference.`;
-    } else if (ramGb >= spec.minRamGb && (vramGb + ramGb >= spec.reqVramGb + 4)) {
+    } else if (ramGb >= reqMinRam && (vramGb + ramGb >= reqVram + 4)) {
       compTier = 'compatible';
       compBadge = `<span style="background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟡 Compatible (CPU/GPU Hybrid · ~25-35 tok/s)</span>`;
       compDesc = `Runs smoothly using GPU offloading combined with system RAM. Excellent balance of capability and response speed.`;
-    } else if (ramGb >= spec.minRamGb) {
+    } else if (ramGb >= reqMinRam) {
       compTier = 'cpu';
       compBadge = `<span style="background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟠 CPU Inferences (~10-18 tok/s)</span>`;
       compDesc = `Exceeds dedicated VRAM but runs comfortably on your ${profile.cpu?.cores || 8}-core CPU compute.`;
     } else {
       compTier = 'insufficient';
-      compBadge = `<span style="background: rgba(241, 76, 76, 0.15); color: var(--error); border: 1px solid var(--error); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🔴 Exceeds Machine Specs (Requires ${spec.minRamGb}GB RAM / ${spec.reqVramGb}GB VRAM)</span>`;
+      compBadge = `<span style="background: rgba(241, 76, 76, 0.15); color: var(--error); border: 1px solid var(--error); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🔴 Exceeds Machine Specs (Requires ${reqMinRam}GB RAM / ${reqVram}GB VRAM)</span>`;
       compDesc = `Model size exceeds local memory limits. Recommended to use the serverless Cloud Flagship equivalent instead.`;
     }
 
-    // Filter check
+    // Hardware Filter check
     if (currentHwFilter === 'compatible' && compTier === 'insufficient') return '';
     if (currentHwFilter === 'installed' && !isInstalled) return '';
 
@@ -23699,29 +24248,40 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
         </button>
       `;
     } else {
-      actionBtnHtml = `<span style="font-size: 11px; color: var(--text-muted);">Server Cluster</span>`;
+      actionBtnHtml = `
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <span style="font-size: 11px; color: var(--text-muted);">Server Cluster</span>
+          <button class="btn btn-hw-activate" data-model="${spec.id}" data-name="${spec.name}" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Connect</button>
+        </div>
+      `;
     }
+
+    const deleteBtnHtml = spec.isCustom ? `
+      <button class="btn-quick btn-del-custom-model" data-delid="${spec.id}" title="Remove custom model" style="border: none; color: var(--error); padding: 3px 6px; font-size: 12px; cursor: pointer;">🗑️</button>
+    ` : '';
 
     return `
       <div class="content-card" style="margin-bottom: 0; padding: 12px 16px; background: var(--bg-primary); border: 1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
         <div style="flex: 1 1 auto;">
-          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap;">
             <span style="font-size: 14px; font-weight: 700; color: ${isActive ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
               <span>${spec.icon}</span> ${spec.name}
             </span>
             <span style="font-size: 10px; color: var(--text-secondary); background: var(--card-bg); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border);">${spec.family}</span>
             ${compBadge}
+            ${spec.isCustom ? '<span style="background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); font-size: 9.5px; padding: 1px 5px; border-radius: 4px; font-weight: bold;">CUSTOM</span>' : ''}
           </div>
           <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 6px;">${spec.description}</div>
-          <div style="font-size: 10.5px; color: var(--text-muted); display: flex; gap: 14px;">
-            <span>Min RAM: <strong style="color: #e2e8f0;">${spec.minRamGb} GB</strong></span>
-            <span>Target VRAM: <strong style="color: #e2e8f0;">${spec.reqVramGb} GB</strong></span>
-            <span>Disk Footprint: <strong style="color: #e2e8f0;">${spec.diskGb > 0 ? spec.diskGb + ' GB' : 'N/A'}</strong></span>
+          <div style="font-size: 10.5px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap;">
+            <span>Min RAM: <strong style="color: #e2e8f0;">${reqMinRam} GB</strong></span>
+            <span>Target VRAM: <strong style="color: #e2e8f0;">${reqVram} GB</strong></span>
+            <span>Disk Footprint: <strong style="color: #e2e8f0;">${(spec.diskGb && spec.diskGb > 0) ? spec.diskGb + ' GB' : 'Dynamic / Varies'}</strong></span>
             <span>Context Limit: <strong style="color: #e2e8f0;">${spec.context}</strong></span>
           </div>
         </div>
-        <div style="flex: 0 0 auto; text-align: right;">
+        <div style="flex: 0 0 auto; text-align: right; display: flex; align-items: center; gap: 8px;">
           ${actionBtnHtml}
+          ${deleteBtnHtml}
         </div>
       </div>
     `;
@@ -23729,7 +24289,7 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
 
   container.innerHTML = renderedCards || `
     <div style="padding: 24px; text-align: center; color: var(--text-secondary); font-size: 12px;">
-      No local models match the selected filter.
+      No local models match the selected filter or search term.
     </div>
   `;
 
@@ -23796,14 +24356,61 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
       }
     });
   });
+
+  // Wire Delete Custom Model Buttons
+  container.querySelectorAll('.btn-del-custom-model').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const delId = btn.getAttribute('data-delid');
+      if (delId && confirm(`Remove custom model "${delId}"?`)) {
+        deleteStoredCustomModel(delId);
+        showToast(`🗑️ Removed custom model: ${delId}`);
+        renderLocalModelsMatrix(api, profile, installedModels);
+      }
+    });
+  });
 }
 
 function renderCloudModelsGrid(api: any): void {
   const grid = document.getElementById('hwCloudModelsGrid');
+  const cntEl = document.getElementById('cntHwCloudModels');
   if (!grid) return;
 
-  grid.innerHTML = CLOUD_SPECS.map(c => {
+  // Merge built-in cloud specs and custom cloud models
+  const customCloud = getStoredCustomModels().filter(m => m.category === 'cloud');
+  const allSpecs: CustomAiModel[] = [...CLOUD_SPECS, ...customCloud];
+
+  // Apply Provider Filter
+  let filtered = allSpecs.filter(c => {
+    if (currentCloudProvFilter === 'all') return true;
+    if (currentCloudProvFilter === 'google') return c.provFamily === 'google' || c.id.includes('gemini');
+    if (currentCloudProvFilter === 'anthropic') return c.provFamily === 'anthropic' || c.id.includes('claude');
+    if (currentCloudProvFilter === 'openai') return c.provFamily === 'openai' || c.id.includes('gpt') || c.id.includes('o1') || c.id.includes('o3');
+    if (currentCloudProvFilter === 'glm') return c.provFamily === 'glm' || c.id.includes('glm');
+    if (currentCloudProvFilter === 'deepseek') return c.provFamily === 'deepseek' || c.id.includes('deepseek');
+    if (currentCloudProvFilter === 'open') return c.provFamily === 'open' || c.id.includes('llama') || c.id.includes('groq') || c.id.includes('qwen') || c.id.includes('hf');
+    return c.provFamily === currentCloudProvFilter;
+  });
+
+  // Apply Search Query
+  if (currentCloudSearchQuery) {
+    const q = currentCloudSearchQuery;
+    filtered = filtered.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.id.toLowerCase().includes(q) ||
+      (c.provider || '').toLowerCase().includes(q) ||
+      (c.strength && c.strength.toLowerCase().includes(q))
+    );
+  }
+
+  if (cntEl) cntEl.innerText = `${filtered.length}`;
+
+  grid.innerHTML = filtered.map(c => {
     const isActive = activeSelectedModel === c.id;
+    const deleteBtn = c.isCustom ? `
+      <button class="btn-quick btn-del-custom-cloud" data-delid="${c.id}" title="Remove custom model" style="border: none; color: var(--error); padding: 2px 5px; font-size: 11px; cursor: pointer;">🗑️</button>
+    ` : '';
+
     return `
       <div style="background: var(--bg-primary); border: 1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between;">
         <div>
@@ -23811,10 +24418,13 @@ function renderCloudModelsGrid(api: any): void {
             <div style="font-weight: 700; font-size: 13.5px; color: ${isActive ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
               <span>${c.icon}</span> ${c.name}
             </div>
-            <span style="background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">${c.badge}</span>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <span style="background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600;">${c.badge}</span>
+              ${deleteBtn}
+            </div>
           </div>
           <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 6px;">Provider: <strong>${c.provider}</strong> · Context: <strong>${c.context}</strong></div>
-          <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">${c.strength}</div>
+          <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 10px;">${c.strength || c.description}</div>
         </div>
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border); padding-top: 8px; margin-top: 6px;">
           <span style="font-size: 10.5px; color: var(--success); font-weight: 600;">⚡ Zero Local RAM</span>
@@ -23825,7 +24435,11 @@ function renderCloudModelsGrid(api: any): void {
         </div>
       </div>
     `;
-  }).join('');
+  }).join('') || `
+    <div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--text-secondary); font-size: 12px;">
+      No cloud models match the selected provider filter or search term.
+    </div>
+  `;
 
   grid.querySelectorAll('.btn-cloud-activate').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -23849,6 +24463,18 @@ function renderCloudModelsGrid(api: any): void {
       updateConverterModelFit(activeSelectedModel, currentConverterTarget);
 
       showToast(`✓ Switched active AI Engine to: ${modelName} (${provider})`);
+    });
+  });
+
+  grid.querySelectorAll('.btn-del-custom-cloud').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const delId = btn.getAttribute('data-delid');
+      if (delId && confirm(`Remove custom model "${delId}"?`)) {
+        deleteStoredCustomModel(delId);
+        showToast(`🗑️ Removed custom model: ${delId}`);
+        renderCloudModelsGrid(api);
+      }
     });
   });
 }
@@ -23911,7 +24537,7 @@ async function runHardwareInspect(api: any): Promise<void> {
       }
     }
 
-    // Fetch installed models from Ollama
+    // Fetch installed models from Ollama & local servers
     try {
       if (api?.ai) {
         const res = await api.ai.getModels();

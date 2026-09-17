@@ -12,6 +12,9 @@ import { DbtSynchronizer } from './dbtSynchronizer';
 import { InfraLinters } from './infraLinters';
 import { CodeModernizer } from './codeModernizer';
 import { AirGapModeManager } from './airGapMode';
+import { DataScientistEngine } from './dataScientistEngine';
+
+export { DataScientistEngine };
 
 export function registerOfflineSuite(vsCtx: vscode.ExtensionContext, svc: IServices): void {
   // 1. Air-Gapped Mode Manager

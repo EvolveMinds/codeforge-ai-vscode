@@ -5938,8 +5938,39 @@ WHERE order_date >= SYSDATE - 30;</textarea>
             <button data-d="profile" class="deliverable-pill" aria-label="Profiling summary">📋 Profiling summary</button>
           </div>
 
-          <div style="margin: 10px 0 16px 0;">
-            <input type="text" id="txtDataFocus" placeholder="Optional: what should the analysis focus on? e.g. 'revenue trends by region'" style="width: 100%; box-sizing: border-box; padding: 10px 14px; font-size: 12.5px; border-radius: 6px; background: var(--card-bg); color: var(--fg); border: 1px solid var(--border);" aria-label="Optional: what should the analysis focus on? e.g. 'revenue trends by region'">
+          <!-- Data Scientist Analytical Focus Presets -->
+          <div style="margin: 14px 0 8px 0;">
+            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">
+              ⚡ Autonomous Data Scientist Focus Presets:
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+              <button type="button" class="btn-quick data-focus-preset" data-focus="Process Bottlenecks &amp; Velocity Chokepoints" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-color: rgba(239,68,68,0.4); color: #f87171;">
+                ⏱️ Find Bottlenecks &amp; Delays
+              </button>
+              <button type="button" class="btn-quick data-focus-preset" data-focus="Multivariate Key Drivers &amp; Root Cause Analysis" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-color: rgba(56,189,248,0.4); color: #38bdf8;">
+                🎯 Key Driver Analysis
+              </button>
+              <button type="button" class="btn-quick data-focus-preset" data-focus="Pareto 80/20 Leverage &amp; Outlier Risk Exposure" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-color: rgba(245,158,11,0.4); color: #fbbf24;">
+                🚨 Outlier Risk (Pareto 80/20)
+              </button>
+              <button type="button" class="btn-quick data-focus-preset" data-focus="Cohort &amp; Segment Performance Gap Analysis" style="padding: 4px 10px; font-size: 11px; font-weight: 600; border-color: rgba(16,185,129,0.4); color: #34d399;">
+                📊 Segment &amp; Cohort Diagnostics
+              </button>
+            </div>
+          </div>
+
+          <!-- Target KPI Selector & Focus Input -->
+          <div style="display: grid; grid-template-columns: 220px 1fr; gap: 10px; margin: 10px 0 16px 0;">
+            <div>
+              <label for="dataTargetKpiSelect" style="display: block; font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Target Metric / KPI</label>
+              <select id="dataTargetKpiSelect" style="width: 100%; box-sizing: border-box; padding: 9px 10px; font-size: 12px; border-radius: 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border);">
+                <option value="">Auto-Detect Primary KPI</option>
+              </select>
+            </div>
+            <div>
+              <label for="txtDataFocus" style="display: block; font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Custom Hypothesis / Question</label>
+              <input type="text" id="txtDataFocus" placeholder="e.g. 'what drives delivery delays across regions?'" style="width: 100%; box-sizing: border-box; padding: 9px 14px; font-size: 12.5px; border-radius: 6px; background: var(--card-bg); color: var(--fg); border: 1px solid var(--border);" aria-label="e.g. 'what drives delivery delays across regions?'">
+            </div>
           </div>
 
           <button class="btn-analyse" id="btnExecuteDataAnalysis" aria-label="Analyse">Analyse &rarr;</button>
@@ -5965,6 +5996,9 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 <div style="display: inline-flex; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid var(--border);">
                   <button id="btnDataViewPreview" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 4px;" aria-label="Visual Preview">
                     👁️ Visual Preview
+                  </button>
+                  <button id="btnDataView3DManifold" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="3D Data Manifold">
+                    🌐 3D Data Manifold
                   </button>
                   <button id="btnDataViewSource" type="button" class="btn-quick" style="padding: 4px 10px; font-size: 11.5px; margin: 0; border: none; background: transparent; color: var(--text-secondary); font-weight: 500; border-radius: 4px;" aria-label="Code & Edit">
                     📝 Code &amp; Edit
@@ -6010,7 +6044,28 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               </div>
             </div>
 
-            <!-- Panel 2: Source Code & Live Editor -->
+            <!-- Panel 2: Live 3D Data Manifold & Anomaly Space -->
+            <div id="dataSingle3DPanel" style="display: none; width: 100%;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px; flex-wrap: wrap; gap: 8px;">
+                <div style="color: var(--text-secondary);">
+                  🌐 <strong>Autonomous 3D Data Manifold:</strong> Multi-dimensional projection of records. Pulsing neon beacons spotlight severe outliers.
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <button type="button" class="btn-quick" id="btnSingle3DTurntable" style="padding: 3px 8px; font-size: 11px;">🔄 Auto-Rotate</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DOutliersOnly" style="padding: 3px 8px; font-size: 11px; color: #f87171; border-color: rgba(239,68,68,0.4);">🚨 Outliers Only</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DReset" style="padding: 3px 8px; font-size: 11px;">🎯 Reset</button>
+                </div>
+              </div>
+              <div style="position: relative; width: 100%; height: 560px; background: #070a0f; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
+                <canvas id="dataSingle3DCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
+                <div id="dataSingle3DTooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #f8fafc; pointer-events: none; z-index: 99; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-width: 300px;"></div>
+                <div style="position: absolute; bottom: 10px; left: 14px; font-size: 11px; color: #94a3b8; pointer-events: none; background: rgba(15,23,42,0.85); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                  <span id="dataSingle3DAxisInfo">1-Finger / Drag: Orbit &bull; Scroll / Pinch: Zoom &bull; Hover point for Data Scientist Root Cause Card</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Panel 3: Source Code & Live Editor -->
             <div id="dataSourceEditorPanel" style="display: none; width: 100%;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px;">
                 <span style="color: var(--text-secondary);">
@@ -6565,14 +6620,17 @@ WHERE order_date >= SYSDATE - 30;</textarea>
         <!-- =================================================================== -->
         <section id="pane-hardware" class="phase-pane" style="display: none;">
           <div class="content-card">
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
               <div>
                 <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 6px;">
                   <span>🤖</span> Local AI Hardware Sizer &amp; Model Engine Prober
                 </h3>
                 <p class="desc" style="margin: 4px 0 0 0;">Inspects host RAM, GPU VRAM, CPU cores, and probes active Ollama (11434), LM Studio (1234), and vLLM (8000) servers.</p>
               </div>
-              <button class="btn" id="btnRunHwInspect" style="background: var(--accent); color: #1e1e1e; font-weight: 700; white-space: nowrap;" aria-label="Re-Scan System Hardware">🔍 Re-Scan System Hardware</button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <button class="btn-quick" id="btnHwOpenAddCustom" style="background: rgba(78, 201, 176, 0.12); color: var(--accent); border-color: var(--accent); font-weight: 700; font-size: 11.5px; padding: 5px 12px;" aria-label="Add Custom Model">+ Add Custom Model</button>
+                <button class="btn" id="btnRunHwInspect" style="background: var(--accent); color: #1e1e1e; font-weight: 700; white-space: nowrap; font-size: 11.5px; padding: 6px 14px;" aria-label="Re-Scan System Hardware">🔍 Re-Scan System Hardware</button>
+              </div>
             </div>
 
             <!-- 4 Hardware Cards (Exact 1:1 Match with Screenshot 2) -->
@@ -6617,7 +6675,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
 
             <!-- SECTION 1: LOCAL AI MODELS MATRIX WITH HARDWARE COMPATIBILITY & 1-CLICK AUTO-INSTALL -->
             <div style="margin-bottom: 24px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                 <div>
                   <h4 style="margin: 0; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 6px;">
                     <span>🖥️</span> Local On-Premise AI Models &amp; Hardware Compatibility Matrix
@@ -6626,11 +6684,26 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                     Evaluated against your active host GPU VRAM and System RAM. Compatible models can be installed with 1 click.
                   </div>
                 </div>
-                <div style="display: flex; gap: 6px;">
-                  <button class="btn-quick hw-filter-btn active" data-hwfilter="all" style="font-size: 11px; font-weight: 700; color: var(--accent); border-color: var(--accent);" aria-label="All Local ( 12 )">All Local (<span id="cntHwLocalModels">12</span>)</button>
-                  <button class="btn-quick hw-filter-btn" data-hwfilter="compatible" style="font-size: 11px;" aria-label="Compatible Only">🟢 Compatible Only</button>
-                  <button class="btn-quick hw-filter-btn" data-hwfilter="installed" style="font-size: 11px;" aria-label="Installed">✓ Installed</button>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <input type="text" id="hwLocalSearch" placeholder="🔍 Search local models..." style="font-size: 11px; padding: 4px 8px; width: 180px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff;">
+                  <div style="display: flex; gap: 4px;">
+                    <button class="btn-quick hw-filter-btn active" data-hwfilter="all" style="font-size: 10.5px; font-weight: 700; color: var(--accent); border-color: var(--accent);" aria-label="All Local">All Specs (<span id="cntHwLocalModels">16</span>)</button>
+                    <button class="btn-quick hw-filter-btn" data-hwfilter="compatible" style="font-size: 10.5px;" aria-label="Compatible Only">🟢 Compatible Only</button>
+                    <button class="btn-quick hw-filter-btn" data-hwfilter="installed" style="font-size: 10.5px;" aria-label="Installed">✓ Installed</button>
+                  </div>
                 </div>
+              </div>
+
+              <!-- Provider Family Filter Chips for Local Models -->
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px;" id="hwLocalProviderFilterBar">
+                <button class="btn-quick hw-local-prov-btn active" data-prov="all" style="font-size: 10.5px; font-weight: 700; color: var(--accent); border-color: var(--accent);">All Providers</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="deepseek" style="font-size: 10.5px;">🧠 DeepSeek</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="google" style="font-size: 10.5px;">🤖 Google Gemma</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="glm" style="font-size: 10.5px;">💻 GLM / Z.ai</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="qwen" style="font-size: 10.5px;">🦙 Alibaba Qwen</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="meta" style="font-size: 10.5px;">🦙 Meta LLaMA</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="mistral_ms" style="font-size: 10.5px;">🌪️ Mistral &amp; MS</button>
+                <button class="btn-quick hw-local-prov-btn" data-prov="server" style="font-size: 10.5px;">🖥️ Servers (LM Studio / vLLM)</button>
               </div>
 
               <!-- Local Models Container -->
@@ -6641,7 +6714,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
 
             <!-- SECTION 2: ZERO-HARDWARE ONLINE CLOUD ALTERNATIVES -->
             <div style="background: rgba(30, 30, 30, 0.6); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <div>
                   <h4 style="margin: 0; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 6px;">
                     <span>☁️</span> Zero-Hardware Cloud Flagships &amp; Serverless AI Alternatives
@@ -6650,7 +6723,21 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                     Zero local RAM or GPU required. Complex multi-file reasoning and 1M+ token contexts execute in the cloud with zero host machine load.
                   </div>
                 </div>
-                <button class="btn-quick" id="btnHwOpenCloudKeys" style="font-size: 11px; color: var(--accent); border-color: var(--accent);" aria-label="Manage API Keys">⚙️ Manage API Keys</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="hwCloudSearch" placeholder="🔍 Search cloud models..." style="font-size: 11px; padding: 4px 8px; width: 170px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff;">
+                  <button class="btn-quick" id="btnHwOpenCloudKeys" style="font-size: 11px; color: var(--accent); border-color: var(--accent);" aria-label="Manage API Keys">⚙️ Manage API Keys</button>
+                </div>
+              </div>
+
+              <!-- Provider Filter Tabs for Cloud Models -->
+              <div style="display: flex; gap: 6px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px;" id="hwCloudProviderFilterBar">
+                <button class="btn-quick hw-cloud-prov-btn active" data-cloudprov="all" style="font-size: 10.5px; font-weight: 700; color: var(--accent); border-color: var(--accent);">All Cloud (<span id="cntHwCloudModels">22</span>)</button>
+                <button class="btn-quick hw-cloud-prov-btn" data-cloudprov="google" style="font-size: 10.5px;">✨ Google Gemini</button>
+                <button class="btn-quick hw-cloud-prov-btn" data-cloudprov="anthropic" style="font-size: 10.5px;">☁️ Anthropic Claude</button>
+                <button class="btn-quick hw-cloud-prov-btn" data-cloudprov="openai" style="font-size: 10.5px;">🌐 OpenAI</button>
+                <button class="btn-quick hw-cloud-prov-btn" data-cloudprov="glm" style="font-size: 10.5px;">💻 GLM / Z.ai</button>
+                <button class="btn-quick hw-cloud-prov-btn" data-cloudprov="deepseek" style="font-size: 10.5px;">🧠 DeepSeek Cloud</button>
+                <button class="btn-quick hw-cloud-prov-btn" data-cloudprov="open" style="font-size: 10.5px;">⚡ Groq &amp; Open APIs</button>
               </div>
 
               <!-- Cloud Models Grid -->
@@ -7655,6 +7742,115 @@ WHERE order_date >= SYSDATE - 30;</textarea>
             🚀 Connect &amp; Load Schema
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Universal AI Model Engine Picker -->
+  <div id="modalAiProvider" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); z-index: 9998; align-items: center; justify-content: center;">
+    <div style="background: #18181b; border: 1px solid var(--border); border-radius: 8px; width: 680px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 16px 40px rgba(0,0,0,0.85); overflow: hidden;">
+      <div style="padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: rgba(24, 24, 27, 0.95);">
+        <div>
+          <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+            <span>🤖</span> Active AI Engine &amp; Model Selector
+          </h3>
+          <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 3px;">
+            Switch active inference engine across Google, Anthropic, OpenAI, GLM, DeepSeek, and local hardware runtimes.
+          </div>
+        </div>
+        <button class="btn-quick" id="btnCloseAiProviderModal" style="border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 4px 8px;">✕</button>
+      </div>
+
+      <div style="padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--bg-primary); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-quick model-cat-tab active" data-cat="all" style="font-size: 11px; font-weight: 700; color: var(--accent); border-color: var(--accent);">All (<span id="cntAllModels">0</span>)</button>
+          <button class="btn-quick model-cat-tab" data-cat="cloud" style="font-size: 11px;">☁️ Cloud Flagships</button>
+          <button class="btn-quick model-cat-tab" data-cat="local" style="font-size: 11px;">🖥️ Local / On-Prem</button>
+          <button class="btn-quick model-cat-tab" data-cat="coding" style="font-size: 11px;">💻 Coding Specialists</button>
+        </div>
+        <input type="text" id="txtSearchAiModels" placeholder="🔍 Filter models by name, provider, tag..." style="flex: 1 1 200px; max-width: 260px; font-size: 11px; padding: 5px 10px; background: #121214; border: 1px solid var(--border); border-radius: 4px; color: #fff;">
+      </div>
+
+      <div id="aiModelListContainer" style="padding: 14px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; flex: 1 1 auto;">
+        <!-- Dynamically rendered via renderer.ts setupModals -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Custom Model / Dynamic Endpoint -->
+  <div id="modalAddCustomModel" style="display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: #18181b; border: 1px solid var(--accent); border-radius: 8px; width: 540px; max-width: 92vw; padding: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.85);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>⚡</span> Add Custom Model / Dynamic Endpoint
+        </h3>
+        <button class="btn-quick" id="btnCloseCustomModelModal" style="border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
+      </div>
+      <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 14px 0; line-height: 1.45;">
+        Add any newly released frontier model, custom fine-tune, or private local endpoint. It will be immediately registered into the hardware matrix and model engine picker.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+        <div>
+          <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">MODEL ID / TAG *</label>
+          <input type="text" id="txtCustomModelId" placeholder="e.g. gemini-3.0-ultra, claude-4-sonnet, deepseek-v4, custom-llama:latest" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">DISPLAY NAME *</label>
+            <input type="text" id="txtCustomModelName" placeholder="e.g. Gemini 3.0 Ultra" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+          </div>
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">CATEGORY *</label>
+            <select id="selCustomModelCat" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+              <option value="cloud">Cloud Flagship / Serverless API</option>
+              <option value="local">Local / Ollama / On-Premise</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">PROVIDER FAMILY *</label>
+            <select id="selCustomModelProvider" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+              <option value="google">Google Gemini</option>
+              <option value="anthropic">Anthropic Claude</option>
+              <option value="openai">OpenAI</option>
+              <option value="glm">GLM / Z.ai</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="ollama">Ollama / Local</option>
+              <option value="lmstudio">LM Studio (Port 1234)</option>
+              <option value="vllm">vLLM Cluster (Port 8000)</option>
+              <option value="custom">Custom / Other Provider</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">CONTEXT LIMIT</label>
+            <input type="text" id="txtCustomModelContext" placeholder="e.g. 128k, 200k, 1M" value="128k" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+          </div>
+        </div>
+
+        <div id="rowCustomLocalSpecs" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">MIN RAM (GB)</label>
+            <input type="number" id="numCustomMinRam" value="16" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+          </div>
+          <div>
+            <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">TARGET VRAM (GB)</label>
+            <input type="number" id="numCustomReqVram" value="8" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;">DESCRIPTION / CAPABILITY STRENGTH</label>
+          <input type="text" id="txtCustomModelDesc" placeholder="e.g. Next-generation reasoning and massive architectural synthesis." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 12px;">
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
+        <button class="btn-quick" id="btnCancelCustomModel" style="padding: 6px 14px; font-size: 11.5px;">Cancel</button>
+        <button class="btn" id="btnSaveCustomModel" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 18px; font-size: 11.5px;">💾 Register Model</button>
       </div>
     </div>
   </div>
