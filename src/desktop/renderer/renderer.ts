@@ -1967,117 +1967,6 @@ interface SeqRenderOptions {
   architectureTitle?: string;
 }
 
-/*
- * Diagram palette — restrained slate structure, one accent, signal-only colour.
- *
- * Every diagram surface (sequence topology, 3D cosmos, 2D ERD) draws from this
- * table and nothing else. The previous scheme gave each of six roles and seven
- * business domains its own fully-saturated hue, so nothing receded and nothing
- * read as important. Here structural nodes are slate, the ONE accent (teal) marks
- * the AI core, and amber/red are spent only where they carry real signal: a human
- * approval gate and a bottleneck. Adding a hue to this table is a deliberate act
- * — if everything is coloured, the colour stops meaning anything.
- */
-const DIAGRAM_PALETTE = {
-  /** The single accent. Reserved for the AI core and for selection/hover. */
-  accent: '#0891b2',
-  accentSoft: '#22a7c4',
-  /** Structural neutrals — the default for anything that is not signal. */
-  slate: '#475569',
-  slateLight: '#64748b',
-  slateText: '#cbd5e1',
-  /** Signal only. Never decorative. */
-  gate: '#b45309',
-  danger: '#b91c1c'
-} as const;
-
-/**
- * Badge/label colour for a schema table role. Must stay in step with the node
- * colours assigned in ipcHandlers' graph builder, so that the legend, the filter
- * pills, the inspector and the spheres themselves all say the same thing. This
- * previously existed as the same ternary copy-pasted at four call sites, which is
- * how the legend and the canvas drifted apart in the first place.
- */
-function roleBadgeColorFor(role: string | undefined): string {
-  return role === 'fact' ? '#22a7c4'
-    : role === 'bridge' ? '#94a3b8'
-    : role === 'lookup' ? '#8b97a6'
-    : '#cbd5e1';
-}
-
-/**
- * Inline SVG glyph for a table role, for HTML surfaces (inspector, legend, lists).
- *
- * Replaces the ⚡/🗃️/🔗 emoji: those render as full-colour vendor artwork that
- * ignores the palette, shift shape between Windows/macOS/Linux, and look informal
- * in a client-facing export. `currentColor` makes these inherit whatever the
- * surrounding label is already using.
- */
-function roleGlyphSvg(role: string | undefined, size = 12): string {
-  const paths: Record<string, string> = {
-    // Star-schema centre: a four-point star.
-    fact: '<path d="M8 1.6l1.7 4.7L14.4 8l-4.7 1.7L8 14.4l-1.7-4.7L1.6 8l4.7-1.7z"/>',
-    // Dimension: a stacked table/card.
-    dimension: '<path d="M2.4 3.2h11.2v9.6H2.4z" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2.4 6.4h11.2" stroke="currentColor" stroke-width="1.4"/>',
-    // Bridge: a link between two nodes.
-    bridge: '<path d="M6.2 9.8a2.6 2.6 0 010-3.6l1.6-1.6a2.6 2.6 0 013.6 3.6l-.6.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M9.8 6.2a2.6 2.6 0 010 3.6l-1.6 1.6a2.6 2.6 0 01-3.6-3.6l.6-.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>',
-    lookup: '<path d="M8 2.6l5.4 5.4L8 13.4 2.6 8z"/>'
-  };
-  const key = role && paths[role] ? role : 'lookup';
-  return '<svg viewBox="0 0 16 16" width="' + size + '" height="' + size +
-    '" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;flex:none;">' +
-    paths[key] + '</svg>';
-}
-
-/**
- * Canvas equivalent of {@link roleGlyphSvg} — canvas cannot host an <svg> node, so
- * the same four marks are stroked directly into the 2D context.
- */
-function drawRoleGlyph(ctx: CanvasRenderingContext2D, role: string | undefined, cx: number, cy: number, size: number, color: string): void {
-  const s = size / 2;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  ctx.lineWidth = Math.max(1, size * 0.1);
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  if (role === 'fact') {
-    for (let i = 0; i < 8; i++) {
-      const ang = (Math.PI / 4) * i - Math.PI / 2;
-      const rad = i % 2 === 0 ? s : s * 0.38;
-      const px = Math.cos(ang) * rad;
-      const py = Math.sin(ang) * rad;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-  } else if (role === 'bridge') {
-    ctx.moveTo(-s * 0.75, s * 0.45);
-    ctx.lineTo(s * 0.75, -s * 0.45);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(-s * 0.75, s * 0.45, s * 0.3, 0, Math.PI * 2);
-    ctx.arc(s * 0.75, -s * 0.45, s * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (role === 'dimension') {
-    ctx.rect(-s * 0.85, -s * 0.7, s * 1.7, s * 1.4);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-s * 0.85, -s * 0.2);
-    ctx.lineTo(s * 0.85, -s * 0.2);
-    ctx.stroke();
-  } else {
-    ctx.moveTo(0, -s * 0.85);
-    ctx.lineTo(s * 0.85, 0);
-    ctx.lineTo(0, s * 0.85);
-    ctx.lineTo(-s * 0.85, 0);
-    ctx.closePath();
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
 function getParticipantRoleMeta(p: SeqParticipant) {
   const lbl = (p.label || '').toLowerCase();
   const id = (p.id || '').toLowerCase();
@@ -2088,10 +1977,10 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'ACTOR',
       icon: '👤',
       badge: 'USER / OPERATOR',
-      color: DIAGRAM_PALETTE.slateText,
-      border: DIAGRAM_PALETTE.slate,
+      color: '#38bdf8',
+      border: '#0284c7',
       gradId: 'sq-grad-actor',
-      glowId: 'glow-neutral'
+      glowId: 'glow-cyan'
     };
   }
   if (/(ai|llm|copilot|model|agent|gpt|claude|gemini|deepseek|rag|reasoning)/i.test(s)) {
@@ -2099,10 +1988,10 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'AI_CORE',
       icon: '⚡',
       badge: 'FDE AI CORE',
-      color: DIAGRAM_PALETTE.accentSoft,
-      border: DIAGRAM_PALETTE.accent,
+      color: '#c084fc',
+      border: '#8b5cf6',
       gradId: 'sq-grad-ai',
-      glowId: 'glow-accent'
+      glowId: 'glow-violet'
     };
   }
   if (/(hitl|gate|approval|supervisor|reviewer|compliance|audit|signoff|checker)/i.test(s)) {
@@ -2110,10 +1999,10 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'HITL',
       icon: '👁️',
       badge: 'HITL AUDIT GATE',
-      color: '#d69a4a',
-      border: DIAGRAM_PALETTE.gate,
+      color: '#fbbf24',
+      border: '#d97706',
       gradId: 'sq-grad-hitl',
-      glowId: 'glow-gate'
+      glowId: 'glow-amber'
     };
   }
   if (/(gateway|api|waf|proxy|ingress|router|loadbalancer|firewall)/i.test(s)) {
@@ -2121,10 +2010,10 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'GATEWAY',
       icon: '🛡️',
       badge: 'SECURITY GATEWAY',
-      color: DIAGRAM_PALETTE.slateText,
-      border: DIAGRAM_PALETTE.slate,
+      color: '#34d399',
+      border: '#059669',
       gradId: 'sq-grad-gw',
-      glowId: 'glow-neutral'
+      glowId: 'glow-emerald'
     };
   }
   if (/(db|database|warehouse|lake|postgres|oracle|sql|redis|s3|storage|vault|store|table|as400)/i.test(s)) {
@@ -2132,20 +2021,20 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       role: 'DATABASE',
       icon: '🗄️',
       badge: 'DATA VAULT / STORE',
-      color: DIAGRAM_PALETTE.slateText,
-      border: DIAGRAM_PALETTE.slate,
+      color: '#818cf8',
+      border: '#4f46e5',
       gradId: 'sq-grad-db',
-      glowId: 'glow-neutral'
+      glowId: 'glow-indigo'
     };
   }
   return {
     role: 'SYSTEM',
     icon: '🖥️',
     badge: 'ENTERPRISE SYSTEM',
-    color: DIAGRAM_PALETTE.slateText,
-    border: DIAGRAM_PALETTE.slate,
+    color: '#cbd5e1',
+    border: '#475569',
     gradId: 'sq-grad-sys',
-    glowId: 'glow-neutral'
+    glowId: 'glow-cyan'
   };
 }
 
@@ -2205,7 +2094,7 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
       const nx = Math.max(6, (x1 + x2) / 2 - nw / 2);
       body.push(
         '<g class="sq-note-group">' +
-        '<rect x="' + nx + '" y="' + (y - 12) + '" width="' + nw + '" height="' + NOTE_H + '" rx="5" fill="rgba(28, 36, 46, 0.88)" stroke="' + DIAGRAM_PALETTE.gate + '" stroke-width="1.2" filter="url(#glow-gate)"/>' +
+        '<rect x="' + nx + '" y="' + (y - 12) + '" width="' + nw + '" height="' + NOTE_H + '" rx="5" fill="rgba(30, 41, 59, 0.85)" stroke="#f59e0b" stroke-width="1.2" filter="url(#glow-amber)"/>' +
         '<text x="' + (nx + nw / 2) + '" y="' + (y + 9) + '" fill="#fef3c7" font-size="11" font-weight="600" font-family="\'Segoe UI\', sans-serif" text-anchor="middle">' + escSvg(msg.text) + '</text>' +
         '</g>'
       );
@@ -2220,12 +2109,9 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
     msgIdx++;
 
     const isBottleneck = isLegacyMode || /(delay|manual|silo|excel|csv|wait|unvalidated|phone|4hr|slow|error|fail|paper|fax)/i.test(msg.text);
-    // Arrows carry the flow, not the emphasis: normal traffic is neutral slate and
-    // a dashed return is the same hue one step lighter. Red is spent only on a real
-    // bottleneck, which is the one thing the client is meant to notice.
-    const stroke = isBottleneck ? DIAGRAM_PALETTE.danger : (msg.dashed ? DIAGRAM_PALETTE.slateLight : DIAGRAM_PALETTE.slate);
-    const glow = isBottleneck ? 'glow-crimson' : 'glow-neutral';
-    const badgeBg = isBottleneck ? '#33191c' : '#1c242e';
+    const stroke = isBottleneck ? '#fb7185' : (msg.dashed ? '#34d399' : '#38bdf8');
+    const glow = isBottleneck ? 'glow-crimson' : (msg.dashed ? 'glow-emerald' : 'glow-cyan');
+    const badgeBg = isBottleneck ? '#3b1c24' : '#1e293b';
     const isActiveStep = options?.activeStep === seq - 1;
     const dash = msg.dashed ? ' stroke-dasharray="6 4"' : '';
 
@@ -2353,7 +2239,7 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
         '<rect width="' + partActionsW + '" height="' + partActionsH + '" rx="4" fill="rgba(30, 41, 59, 0.95)" stroke="rgba(148, 163, 184, 0.35)" stroke-width="1"/>' +
         '<g class="sq-btn sq-btn-part-left" data-part-idx="' + i + '" transform="translate(4, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">◀</text></g>' +
         '<g class="sq-btn sq-btn-part-edit" data-part-idx="' + i + '" transform="translate(20, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#38bdf8" font-size="9">✎</text></g>' +
-        '<g class="sq-btn sq-btn-part-role" data-part-idx="' + i + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="' + DIAGRAM_PALETTE.slateText + '" font-size="9">' + (p.isActor ? '🖥️' : '👤') + '</text></g>' +
+        '<g class="sq-btn sq-btn-part-role" data-part-idx="' + i + '" transform="translate(36, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#34d399" font-size="9">' + (p.isActor ? '🖥️' : '👤') + '</text></g>' +
         '<g class="sq-btn sq-btn-part-del danger" data-part-idx="' + i + '" transform="translate(52, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#ef4444" font-size="10">✕</text></g>' +
         '<g class="sq-btn sq-btn-part-right" data-part-idx="' + i + '" transform="translate(68, 2)"><rect width="14" height="14" rx="2" fill="transparent"/><text x="7" y="10" text-anchor="middle" fill="#94a3b8" font-size="9">▶</text></g>' +
         '</g>' +
@@ -2364,25 +2250,18 @@ function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: stri
 
   const defs =
     '<defs>' +
-    // Legacy hue-named filters are kept as aliases of the neutral glow so any
-    // stale glowId reference degrades to "no colour" rather than a broken filter.
-    '<filter id="glow-neutral" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-accent" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-gate" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-violet" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-crimson" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    '<filter id="glow-indigo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
-    // Node fills: near-uniform slate. Only the AI core is tinted, so the eye
-    // lands on it first without any element having to shout.
-    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#28323f"/><stop offset="100%" stop-color="#1c242e"/></linearGradient>' +
-    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#123c47"/><stop offset="100%" stop-color="#0c2a33"/></linearGradient>' +
-    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#3a2c1a"/><stop offset="100%" stop-color="#261d11"/></linearGradient>' +
-    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#28323f"/><stop offset="100%" stop-color="#1c242e"/></linearGradient>' +
-    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#28323f"/><stop offset="100%" stop-color="#1c242e"/></linearGradient>' +
-    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#28323f"/><stop offset="100%" stop-color="#1c242e"/></linearGradient>' +
+    '<filter id="glow-cyan" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-violet" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-amber" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-crimson" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<filter id="glow-indigo" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+    '<linearGradient id="sq-grad-actor" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#1e3a5f"/><stop offset="100%" stop-color="#11253d"/></linearGradient>' +
+    '<linearGradient id="sq-grad-ai" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#2d1f4d"/><stop offset="100%" stop-color="#1a122e"/></linearGradient>' +
+    '<linearGradient id="sq-grad-hitl" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#3d2e14"/><stop offset="100%" stop-color="#241b0b"/></linearGradient>' +
+    '<linearGradient id="sq-grad-gw" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#153e32"/><stop offset="100%" stop-color="#0d261f"/></linearGradient>' +
+    '<linearGradient id="sq-grad-db" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#252d59"/><stop offset="100%" stop-color="#141836"/></linearGradient>' +
+    '<linearGradient id="sq-grad-sys" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="100%" stop-color="#1e293b"/></linearGradient>' +
     '<pattern id="sq-cyber-grid" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(148, 163, 184, 0.08)" stroke-width="1"/></pattern>' +
     '</defs>';
 
@@ -15747,7 +15626,7 @@ export class GroundedPolicyRag {
     showToast('🔌 Scaffolding MCP Tool Server & Protocol Handlers in src/mcp/...');
     let code = `// Model Context Protocol Server (Evolve AI FDE)
 import { Server } from '@modelcontextprotocol/sdk/server';
-export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.22.0' });`;
+export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`;
     if (api?.fde?.scaffoldMcpToolServer) {
       const res = await api.fde.scaffoldMcpToolServer();
       if (res && res.code) code = res.code;
@@ -16938,7 +16817,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.22.0' });`
           tokenDiff,
           auditSignature: isGrounded ? 'ed25519_sig_demo_' + Date.now().toString(36) : null,
           timestamp: new Date().toISOString(),
-          verifiedBy: 'Evolve AI Groundedness Gate v2.22.0'
+          verifiedBy: 'Evolve AI Groundedness Gate v2.23.0'
         };
       }
 
@@ -20185,23 +20064,15 @@ class DataCosmosEngine {
         this.ctx.stroke();
       }
 
-      // Fact tables sit at the centre of the schema, so they get a faint lift off
-      // the background — matched to the accent rather than a separate blue.
+      // Fact Table Pulsing Core Glow
       if (node.role === 'fact') {
         this.ctx.beginPath();
         this.ctx.arc(node.screenX, node.screenY, r + 6, 0, Math.PI * 2);
-        this.ctx.fillStyle = 'rgba(14, 116, 144, 0.16)';
+        this.ctx.fillStyle = 'rgba(37, 99, 235, 0.22)';
         this.ctx.fill();
       }
 
-      /*
-       * Sphere shading: matte, not gloss.
-       *
-       * The highlight used to open at 96% white, which blew out the node's own
-       * colour into a glassy bauble and made ten tables look like a bag of
-       * marbles. A 30% highlight still reads as a lit sphere while letting the
-       * base colour — now the role colour — actually show.
-       */
+      // 3D Sphere Radial Gradient: Luminous, pleasant, gemstone pearl shading
       const sphereGrad = this.ctx.createRadialGradient(
         node.screenX - r * 0.35,
         node.screenY - r * 0.35,
@@ -20210,22 +20081,25 @@ class DataCosmosEngine {
         node.screenY,
         r
       );
-      sphereGrad.addColorStop(0, 'rgba(226, 232, 240, 0.30)');
-      sphereGrad.addColorStop(0.3, shadeColor(node.color, 10));
-      sphereGrad.addColorStop(0.75, node.color);
-      sphereGrad.addColorStop(1, shadeColor(node.color, -20));
+      sphereGrad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+      sphereGrad.addColorStop(0.25, shadeColor(node.color, 18));
+      sphereGrad.addColorStop(0.7, node.color);
+      sphereGrad.addColorStop(1, shadeColor(node.color, -22));
 
       this.ctx.beginPath();
       this.ctx.arc(node.screenX, node.screenY, r, 0, Math.PI * 2);
       this.ctx.fillStyle = sphereGrad;
       this.ctx.fill();
-      this.ctx.strokeStyle = 'rgba(203, 213, 225, 0.22)';
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
       this.ctx.lineWidth = 1;
       this.ctx.stroke();
 
-      // Role glyph in centre — vector, so it stays on-palette and identical on
-      // every OS (emoji here rendered as vendor artwork that ignored the theme).
-      drawRoleGlyph(this.ctx, node.role, node.screenX, node.screenY, Math.max(9, r * 0.8), 'rgba(241, 245, 249, 0.92)');
+      // Role Icon in Center (Refined glyphs)
+      const icon = node.role === 'fact' ? '⚡' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '◈';
+      this.ctx.font = `${Math.max(10, Math.floor(r * 0.85))}px sans-serif`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText(icon, node.screenX, node.screenY);
 
       // Table Name Pill Label below Node
       const labelY = node.screenY + r + 14;
@@ -20766,10 +20640,8 @@ function setupDataCosmosStudio(api: any): void {
 
     const sorted = [...nodes].sort((a, b) => a.name.localeCompare(b.name));
     const opts = sorted.map(n => {
-      // A native <option> renders text only — inline SVG would leak as raw markup
-      // here, so this surface uses a plain typographic mark instead of a glyph.
-      const roleMark = n.role === 'fact' ? '◆' : n.role === 'bridge' ? '⇄' : n.role === 'dimension' ? '▤' : '◇';
-      return `<option value="${n.id}">${roleMark} ${n.name} (${n.columns.length} cols)</option>`;
+      const roleIcon = n.role === 'fact' ? '⚡' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '•';
+      return `<option value="${n.id}">${roleIcon} ${n.name} (${n.columns.length} cols)</option>`;
     }).join('');
 
     if (p2Jump) p2Jump.innerHTML = `<option value="">Jump to table (${nodes.length})...</option>${opts}`;
@@ -20884,8 +20756,8 @@ function setupDataCosmosStudio(api: any): void {
               No tables match the current filter.
             </div>
           ` : nodes.map(n => {
-            const roleBadgeColor = roleBadgeColorFor(n.role);
-            const roleIcon = roleGlyphSvg(n.role, 11);
+            const roleBadgeColor = n.role === 'fact' ? '#3b82f6' : n.role === 'dimension' ? '#10b981' : n.role === 'bridge' ? '#8b5cf6' : '#0ea5e9';
+            const roleIcon = n.role === 'fact' ? '⚡' : n.role === 'dimension' ? '🗃️' : n.role === 'bridge' ? '🔗' : '◈';
             const fkCount = (currentGraphData?.links || []).filter(l => l.source === n.id || l.target === n.id).length;
             return `
               <div class="cosmos-directory-card" data-id="${n.id}" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.15s; position: relative;">
@@ -20976,8 +20848,8 @@ function setupDataCosmosStudio(api: any): void {
       l => l.source === node.id || l.target === node.id
     );
 
-    const roleBadgeColor = roleBadgeColorFor(node.role);
-    const roleIcon = roleGlyphSvg(node.role, 11);
+    const roleBadgeColor = node.role === 'fact' ? '#3b82f6' : node.role === 'dimension' ? '#10b981' : node.role === 'bridge' ? '#8b5cf6' : '#0ea5e9';
+    const roleIcon = node.role === 'fact' ? '⚡' : node.role === 'dimension' ? '🗃️' : node.role === 'bridge' ? '🔗' : '◈';
     const isLiveTable = ((currentGraphData?.stats as any)?.sourceMode === 'connected') ||
       (currentIntrospectedTables && currentIntrospectedTables.some((t: any) => (t.tableName || t.name || '').toLowerCase() === node.name.toLowerCase()));
 
@@ -21510,8 +21382,8 @@ function setupDataCosmosStudio(api: any): void {
         </div>
         <div style="max-height: 250px; overflow-y: auto;">
           ${matched.map((m, idx) => {
-            const roleIcon = roleGlyphSvg(m.role, 11);
-            const roleBadgeColor = roleBadgeColorFor(m.role);
+            const roleIcon = m.role === 'fact' ? '⚡' : m.role === 'dimension' ? '🗃️' : m.role === 'bridge' ? '🔗' : '◈';
+            const roleBadgeColor = m.role === 'fact' ? '#3b82f6' : m.role === 'dimension' ? '#10b981' : m.role === 'bridge' ? '#8b5cf6' : '#0ea5e9';
             const matchedCol = qLower ? m.columns.find(c => c.name.toLowerCase().includes(qLower)) : undefined;
             return `
               <div class="cosmos-search-item" data-id="${m.id}" data-idx="${idx}" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.15s;">
@@ -21634,7 +21506,7 @@ function setupDataCosmosStudio(api: any): void {
           p.el.style.fontWeight = '700';
         } else {
           p.el.style.background = 'transparent';
-          p.el.style.color = p.role ? roleBadgeColorFor(p.role) : 'var(--text-secondary)';
+          p.el.style.color = p.role === 'fact' ? '#60a5fa' : p.role === 'dimension' ? '#34d399' : p.role === 'bridge' ? '#c084fc' : 'var(--text-secondary)';
           p.el.style.fontWeight = '600';
         }
       });
@@ -25022,7 +24894,7 @@ function setupModals(api: any): void {
   const headerVersionLabel = document.getElementById('headerVersionLabel');
   const headerUpdateStatusLabel = document.getElementById('headerUpdateStatusLabel');
 
-  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.22.0') => {
+  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.23.0') => {
     if (headerVersionLabel) headerVersionLabel.innerText = version.startsWith('v') ? version : `v${version}`;
     if (!headerUpdateDot || !headerUpdateStatusLabel) return;
 
@@ -25086,18 +24958,18 @@ function setupModals(api: any): void {
         if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
         showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.22.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.23.0');
         if (updateCheckStatus) {
           updateCheckStatus.style.background = 'rgba(16, 185, 129, 0.15)';
           updateCheckStatus.style.color = '#34d399';
           updateCheckStatus.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.22.0'}).</span>`;
+          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.23.0'}).</span>`;
         }
         if (updateDownloadArea) updateDownloadArea.style.display = 'none';
-        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.22.0'}).`);
+        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.23.0'}).`);
       }
     } catch (err: any) {
-      setHeaderVersionPillState('air-gapped', '2.22.0');
+      setHeaderVersionPillState('air-gapped', '2.23.0');
       if (updateCheckStatus) {
         updateCheckStatus.style.background = 'rgba(100, 116, 139, 0.15)';
         updateCheckStatus.style.color = '#94a3b8';
@@ -25118,10 +24990,10 @@ function setupModals(api: any): void {
       } else if (res?.updateAvailable) {
         setHeaderVersionPillState('update-available', res.currentVersion);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.22.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.23.0');
       }
     } catch {
-      setHeaderVersionPillState('air-gapped', '2.22.0');
+      setHeaderVersionPillState('air-gapped', '2.23.0');
     }
   }, 2500);
 

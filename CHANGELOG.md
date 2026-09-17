@@ -2,6 +2,28 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.23.0] — 2026-09-17
+
+### Section 5D: Enterprise Commercial Suite & Compliance Engines, Phase 1 Ground-Truth Discovery & Interactive Sequence Topology Studio
+* **Section 5D: Enterprise Commercial Suite Workstation**:
+  * **Interactive SQL Transpiler Workstation**: Converts legacy Oracle PL/SQL (`NVL`, `DECODE`, `(+)` outer joins, `ROWNUM`, `SYSDATE`, `VARCHAR2`) and SQL Server T-SQL (`ISNULL`, `GETDATE`, `TOP`, `STRING_AGG`, bracket identifiers) into idiomatic Snowflake and Google BigQuery SQL with dbt headers and dialect syntax AST mapping.
+  * **Enterprise PII Masking & Tokenization Engine**: Automatic scanning and deterministic anonymization for sensitive fields (Credit Card / PCI-DSS, SSN, Tax ID, Email, Phone, IBAN) with HMAC-SHA256 pseudonymization, regex redaction, differential privacy noise, and zero raw leak guarantees.
+  * **Reverse ETL Sync Worker**: Automated CDC change-capture worker configuration generating resilient sync streams into Salesforce, HubSpot, Zendesk, and Snowflake with batching, payload field mapping, rate-limit backoff, and idempotent replay controls.
+  * **Dynamic Row-Level Security (RLS) Policy Generator**: Multi-tenant database isolation policies for PostgreSQL (`CREATE POLICY ... USING (tenant_id = current_setting(...))`), Snowflake (`CREATE MASKING POLICY`), and BigQuery (`CREATE ROW ACCESS POLICY`) with RBAC roles and session variable enforcement.
+  * **Synthetic Data & Edge Case Generator**: Deterministic mock dataset generator maintaining cross-table relational foreign-key consistency while injecting edge cases (null boundaries, non-ASCII Unicode, negative prices, leap-year timestamps) for robust staging testing.
+  * **Mock API Sandbox Server**: Standalone Node.js Express and Python FastAPI mock servers compiled directly from OpenAPI/Swagger schemas with simulated latency, dynamic route mocks, and error injection modes (429 Rate Limited, 500 Server Error, 504 Gateway Timeout).
+  * **SLA Load Testing & Stress Engine**: Generates k6 and Locust performance test scripts with strict concurrency ramps, target virtual users, latency SLA thresholds (p95 < 250ms, p99 < 500ms), breaking-point benchmarks, and error rate tracking.
+  * **Data Quality Gates & Schema Drift Detection**: Enterprise Great Expectations JSON test suites, Soda Core YAML checks, dbt schema tests, and CI/CD quality gate runners to halt deployment pipelines upon schema or volume drift.
+* **Phase 1: Ground-Truth Discovery & Interactive Sequence Topology Studio**:
+  * **4 Enterprise Archetypes**: Built-in architecture blueprints for Support Operations Copilot, Document Extraction & Financial Reconciliation, Legacy System Migration / SQL Modernization, and Real-time Fraud & Anomaly Detection.
+  * **Gemba Probes & Observation-to-Spec (O2S)**: Floor observation logging, shadow IT auditing, operational failure mode analysis, and agreed target specification framing.
+  * **First-Principles Invariant Gates**: Defensible boundary gates preventing prompt injection, unbounded financial execution, ungrounded drafting, and unauthorized writes.
+  * **The Controller's 3 Numbers (Financial ROI)**: Monthly volume, average handle time, and loaded labor wage metrics with automated ROI bounds, FTE equivalents, and sensitivity bands.
+  * **Interactive Sequence Topology Studio**: Real-time editable SVG/Mermaid sequence diagram canvas with preset switching, zoom/pan navigation, component inspection, and SVG/PNG vector exports.
+  * **Client POC Approval Pack**: Instant executive sign-off pack with verifiable SHA-256 digital seals and scope boundary locks.
+* **Packaging & Desktop Executable**:
+  * Packaged standalone Windows desktop executable `evolve-ai-enterprise-portable-2.23.0-win32-x64.exe` for private enterprise distribution.
+
 ## [2.22.0] — 2026-09-15
 
 ### 2D Technical ERD & Column-to-Column Relational Linking, Canvas Line Hit-Testing, Table Isolation Mode, Universal Live DB Introspection & Relationship Deep-Dive Inspector

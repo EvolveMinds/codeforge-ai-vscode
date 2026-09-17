@@ -9,17 +9,17 @@
 
 ## 1. Executive Problem Reframing & Economic Boundaries (Phase 1)
 
-* **Original Client Request:** "Automate client manual workflow and data operations"
-* **Identified Failure Modes:** Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.
-* **Agreed Production Target (Observation-to-Spec / O2S):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.
-* **Explicit Out-of-Scope Boundaries:** `No direct production write access without cryptographically signed audit log`, `No ungrounded responses or unverified external API mutations`
+* **Original Client Request:** "Build an AI that automates all customer support tickets and refunds so we do not need human agents."
+* **Identified Failure Modes:** Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.
+* **Agreed Production Target (Observation-to-Spec / O2S):** Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.
+* **Explicit Out-of-Scope Boundaries:** `No automated refunds > $100 without Human-in-the-Loop gate`, `No direct external customer email dispatch in pilot phase`, `No DB write access without cryptographically signed audit logging`, `No ungrounded responses (must cite handbook)`
 
 ### Controller's Three Numbers & Economic ROI (Phase 1)
-* **Monthly Volume:** `0 tasks/mo`
-* **Handle Time / Latency:** `0 min/task`
-* **Fully-Burdened Wage:** `$0/hr`
-* **Projected Monthly Savings:** `$0.0k / month`
-* **Annual Capacity Reclaimed:** `0 labor hours/year`
+* **Monthly Volume:** `10,000 tasks/mo`
+* **Handle Time / Latency:** `15 min/task`
+* **Fully-Burdened Wage:** `$35/hr`
+* **Projected Monthly Savings:** `$61.2k / month`
+* **Annual Capacity Reclaimed:** `21,000 labor hours/year`
 
 
 ---

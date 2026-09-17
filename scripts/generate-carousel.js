@@ -484,7 +484,7 @@ const htmlContent = `<!DOCTYPE html>
       <div>
         <div class="top-bar">
           <div class="brand-pill">
-            <span>⚡ EVOLVE AI FORWARD DEPLOYED ENGINEERS DELIVERY STUDIO · v2.22.0</span>
+            <span>⚡ EVOLVE AI FORWARD DEPLOYED ENGINEERS DELIVERY STUDIO · v2.23.0</span>
           </div>
           <div class="status-indicator">
             <span class="pulse-dot"></span>
@@ -1010,7 +1010,7 @@ const htmlContent = `<!DOCTYPE html>
             <div class="action-badge">2</div>
             <div class="action-text">
               <h4>Download the Portable Studio (.exe)</h4>
-              <p>Visit <strong>evolveminds.com.au/products/evolve-ai/</strong> to download the zero-install Windows desktop executable (v2.22.0) with an instant evaluation mode.</p>
+              <p>Visit <strong>evolveminds.com.au/products/evolve-ai/</strong> to download the zero-install Windows desktop executable (v2.23.0) with an instant evaluation mode.</p>
             </div>
           </div>
 

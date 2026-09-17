@@ -8,7 +8,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 export const server = new Server(
-  { name: 'evolve-fde-mcp-server', version: '2.22.0' },
+  { name: 'evolve-fde-mcp-server', version: '2.23.0' },
   { capabilities: { tools: {} } }
 );
 

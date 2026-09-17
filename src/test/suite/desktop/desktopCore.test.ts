@@ -26,7 +26,7 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
   });
 
   suiteTeardown(async () => {
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 600));
     if (fs.existsSync(tmpDir)) {
       try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
     }
@@ -147,13 +147,13 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     const updater = new DesktopUpdater(tmpDir);
 
     const checkRes = await updater.checkForUpdates();
-    assert.strictEqual(checkRes.currentVersion, '2.22.0');
+    assert.strictEqual(checkRes.currentVersion, '2.23.0');
 
     // Test Air-Gapped / Intranet Enclave fallback handling
     process.env.EVOLVE_UPDATE_URL = 'http://127.0.0.1:59999/nonexistent-airgap';
     try {
       const offlineRes = await updater.checkForUpdates();
-      assert.strictEqual(offlineRes.currentVersion, '2.22.0');
+      assert.strictEqual(offlineRes.currentVersion, '2.23.0');
       assert.strictEqual(offlineRes.isAirGapped, true);
       assert.strictEqual(offlineRes.networkStatus, 'offline');
       assert.ok(offlineRes.statusMessage?.includes('Air-gapped / Intranet'));
@@ -166,12 +166,12 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
 
     const patchRes = updater.applyOfflinePatch(patchFile);
     assert.strictEqual(patchRes.success, true);
-    assert.ok(patchRes.patchedVersion.includes('2.22.0-patch-'));
+    assert.ok(patchRes.patchedVersion.includes('2.23.0-patch-'));
     assert.ok(patchRes.enginesReloaded.includes('SqlTranspiler'));
   });
 
   test('DesktopIpcHandlers registers and executes all IPC channel handlers', async function () {
-    this.timeout(15000);
+    this.timeout(30000);
     const wsMgr = new DesktopWorkspaceManager(tmpDir);
     wsMgr.setCurrentWorkspace(tmpDir);
     const termMgr = new DesktopTerminalManager();

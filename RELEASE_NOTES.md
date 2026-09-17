@@ -1,5 +1,30 @@
 # Evolve AI — Release Notes
 
+## Version 2.23.0 — September 17, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Evolve AI version 2.23.0 delivers the full **Section 5D Commercial Suite & Compliance Engines**, complete **Phase 1 Ground-Truth Discovery & Interactive Sequence Topology Studio**, and refreshed enterprise packaging:
+* **Interactive SQL Transpiler**: Bi-directional migration of legacy Oracle PL/SQL and SQL Server T-SQL to Snowflake and Google BigQuery with automated dbt headers and dialect AST syntax mapping.
+* **Enterprise PII Masking & Tokenization**: Differential privacy, HMAC-SHA256 pseudonymization, and PCI-DSS / GDPR regex redaction with zero raw data leakage.
+* **Reverse ETL Sync Engine**: CDC change-capture worker configuration with automated sync streams into Salesforce, HubSpot, Zendesk, and Snowflake.
+* **Dynamic Row-Level Security (RLS)**: PostgreSQL, Snowflake, and BigQuery tenant-isolation security policy generator with RBAC rules and session attributes.
+* **Synthetic Data & Edge Case Generator**: Referentially intact mock datasets with injected edge cases (nulls, boundary spikes, unicode, leap years).
+* **Mock API Sandbox Server**: Standalone Node.js Express and Python FastAPI mock servers generated from OpenAPI specs with latency simulation and fault injection.
+* **SLA Load Testing & Stress Engine**: k6 and Locust load testing scripts with virtual user ramps and SLA compliance thresholds.
+* **Data Quality Gates & Schema Drift Detection**: Automated Great Expectations, Soda Core, and dbt test suites with CI/CD exit codes.
+* **Phase 1 Ground-Truth Discovery & O2S**: 4 Enterprise Archetypes, Gemba Inquiry Probes, First-Principles Invariant Gates, and The Controller's 3 Numbers (Financial ROI).
+* **Interactive Sequence Topology Studio**: Real-time editable SVG/Mermaid sequence diagram canvas with preset switching, zoom/pan navigation, and vector exports.
+* **Standalone Windows Executable**: Fresh standalone portable binary `evolve-ai-enterprise-portable-2.23.0-win32-x64.exe` for air-gapped enterprise distribution.
+
+---
+
 ## Version 2.22.0 — September 15, 2026
 
 **Publisher:** `codeforge-ai`  

@@ -3,7 +3,7 @@
 > **Confidential & Executive Briefing Document**  
 > **Prepared by:** Evolve Mind Solutions Pty Ltd • Sydney, Australia  
 > **Target Audience:** Chief Technology Officers (CTOs), VP of Engineering, Heads of Data Engineering, Enterprise Solutions Architects, and InfoSec Officers.  
-> **Version:** 2.22.0 • 100% Air-Gapped / Zero Telemetry Guarantee
+> **Version:** 2.23.0 • 100% Air-Gapped / Zero Telemetry Guarantee
 
 ---
 
@@ -109,7 +109,7 @@ Unlike cloud-dependent AI developer tools that route code and database metadata 
 
 ### Step 1: Launch the Portable Desktop Studio (60 Seconds)
 1. Download the standalone Windows executable:  
-   `evolve-ai-enterprise-portable-2.22.0-win32-x64.exe` (74.7 MB) from `https://www.evolveminds.com.au/products/evolve-ai/download/`.
+   `evolve-ai-enterprise-portable-2.23.0-win32-x64.exe` from `https://www.evolveminds.com.au/products/evolve-ai/download/`.
 2. Double-click to launch. No installer, no administrative privileges, and no VS Code required.
 
 ### Step 2: Activate Your Enterprise License
