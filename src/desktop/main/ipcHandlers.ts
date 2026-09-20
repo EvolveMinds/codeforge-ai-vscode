@@ -431,14 +431,21 @@ export class DesktopIpcHandlers {
       return null;
     });
 
-    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.OPEN_FILE_DIALOG, async () => {
+    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.OPEN_FILE_DIALOG, async (_: any, opts?: any) => {
       if (dialog && typeof (dialog as any).showOpenDialog === 'function') {
+        const ws = workspaceMgr.getCurrentWorkspace();
+        const defaultPath = opts?.defaultPath || (ws ? ws.path : undefined);
+        const filters = opts?.filters && Array.isArray(opts.filters) && opts.filters.length > 0
+          ? opts.filters
+          : [
+              { name: 'Documents & Data', extensions: ['md', 'txt', 'json', 'csv', 'tsv', 'parquet', 'xlsx', 'sql', 'yaml', 'yml', 'pdf', 'docx', 'db'] },
+              { name: 'All Files', extensions: ['*'] }
+            ];
         const res = await (dialog as any).showOpenDialog({
           properties: ['openFile'],
-          filters: [
-            { name: 'Data Files', extensions: ['csv', 'tsv', 'parquet', 'xlsx', 'json', 'sql', 'db'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
+          title: opts?.title || 'Open File',
+          defaultPath,
+          filters
         });
         if (!res.canceled && res.filePaths.length > 0) {
           return res.filePaths[0];
@@ -2674,6 +2681,19 @@ export async function executeTask() {
             source = 'live';
           } else if (queryRes.error) {
             error = queryRes.error;
+          }
+        } catch (e: any) {
+          error = e?.message;
+        }
+      }
+
+      // 1b. Attempt Live HTTP Query if ClickHouse
+      if ((dialect === 'clickhouse' || opts?.connectionUri?.includes('clickhouse') || opts?.database?.includes('clickhouse')) && opts?.connectionUri) {
+        try {
+          const chRows = await DbIntrospector.queryClickHouseTableSample(opts.connectionUri, tableName, limit);
+          if (chRows && chRows.length > 0) {
+            rows = chRows;
+            source = 'live';
           }
         } catch (e: any) {
           error = e?.message;

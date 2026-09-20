@@ -4285,6 +4285,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                           <option value="workspace_doc">📁 Workspace File (docs/ARCHITECTURE.md)</option>
                         </select>
                         <button class="btn-quick" id="btnLoadCustomHandbookFile" style="font-size: 9.5px; padding: 2px 6px;" title="Load any file from workspace">📂 Load Workspace File</button>
+                        <input type="file" id="filePickerGroundedHandbook" style="display: none;" accept=".md,.txt,.json,.csv,.sql,.yaml,.yml,.docx,.pdf,*">
                       </div>
                     </div>
                     <textarea id="txtGroundedHandbookSource" rows="2" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--card-bg); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace;">Refunds strictly under $100 require no manager override. Any transaction of $100 or above mandates supervisor escalation.</textarea>

@@ -1916,26 +1916,26 @@ function setupWorkspace(api: any): void {
   });
 
   btnTreeNewFile?.addEventListener('click', async () => {
-    const name = prompt('Enter new file name (e.g. models/stg_orders.sql):');
+    const name = await showPromptModal('Create New File', 'Enter new file name or relative path (e.g. models/stg_orders.sql):', '', 'models/stg_orders.sql');
     if (name && api?.workspace) {
       const ws = await api.workspace.getCurrent();
       if (ws) {
-        const fullPath = ws.path + '/' + name;
+        const fullPath = ws.path + '/' + name.trim();
         await api.workspace.createFile(fullPath, '');
-        showToast(`✓ Created file: ${name}`);
+        showToast(`✓ Created file: ${name.trim()}`);
         renderFileTree(api);
       }
     }
   });
 
   btnTreeNewFolder?.addEventListener('click', async () => {
-    const name = prompt('Enter new folder name (e.g. models/marts):');
+    const name = await showPromptModal('Create New Folder', 'Enter new folder name or relative path (e.g. models/marts):', '', 'models/marts');
     if (name && api?.workspace) {
       const ws = await api.workspace.getCurrent();
       if (ws) {
-        const fullPath = ws.path + '/' + name;
+        const fullPath = ws.path + '/' + name.trim();
         await api.workspace.createDir(fullPath);
-        showToast(`✓ Created folder: ${name}`);
+        showToast(`✓ Created folder: ${name.trim()}`);
         renderFileTree(api);
       }
     }
@@ -2228,6 +2228,122 @@ function showToast(message: string): void {
 
   setTimeout(() => { toast.remove(); }, 3500);
 }
+
+/**
+ * Robust utility to extract string content from workspace.readFile return values.
+ * In Evolve AI Desktop, readFile returns a FileOpenResult object { path, content, ... }
+ * but may also return raw strings or stubs.
+ */
+function extractFileContent(fileData: any): string {
+  if (!fileData) return '';
+  if (typeof fileData === 'string') return fileData;
+  if (typeof fileData === 'object' && fileData !== null && 'content' in fileData && typeof fileData.content === 'string') {
+    return fileData.content;
+  }
+  return String(fileData || '');
+}
+
+/**
+ * Enterprise non-blocking modal prompt dialog for desktop environments where
+ * synchronous window.prompt() is unsupported or prohibited by Electron.
+ */
+function showPromptModal(title: string, message: string, defaultValue = '', placeholder = ''): Promise<string | null> {
+  return new Promise((resolve) => {
+    const existing = document.getElementById('evolveCustomPromptModal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'evolveCustomPromptModal';
+    overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.68); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100000; animation: fadeIn 0.15s ease;';
+
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'background: #181b20; border: 1px solid #334155; border-radius: 8px; padding: 20px; width: 460px; max-width: 90vw; box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65); display: flex; flex-direction: column; gap: 14px; font-family: inherit; color: #f1f5f9;';
+
+    const titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size: 14px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;';
+    titleEl.innerText = title;
+
+    const msgEl = document.createElement('div');
+    msgEl.style.cssText = 'font-size: 12px; color: #94a3b8; line-height: 1.4;';
+    msgEl.innerText = message;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = defaultValue;
+    if (placeholder) input.placeholder = placeholder;
+    input.style.cssText = 'background: #0f172a; border: 1px solid #475569; border-radius: 5px; color: #f8fafc; font-size: 12.5px; padding: 8px 10px; outline: none; transition: border-color 0.15s ease; width: 100%; box-sizing: border-box;';
+    input.addEventListener('focus', () => { input.style.borderColor = '#38bdf8'; });
+    input.addEventListener('blur', () => { input.style.borderColor = '#475569'; });
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px;';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.innerText = 'Cancel';
+    btnCancel.className = 'btn-quick';
+    btnCancel.style.cssText = 'padding: 6px 14px; font-size: 12px; border-radius: 4px; cursor: pointer;';
+
+    const btnOk = document.createElement('button');
+    btnOk.innerText = 'Confirm';
+    btnOk.className = 'btn';
+    btnOk.style.cssText = 'background: #38bdf8; color: #0f172a; font-weight: 700; padding: 6px 16px; font-size: 12px; border-radius: 4px; cursor: pointer; border: none;';
+
+    const cleanup = () => {
+      window.removeEventListener('keydown', onKey);
+      overlay.remove();
+    };
+
+    const confirm = () => {
+      const val = input.value;
+      cleanup();
+      resolve(val);
+    };
+
+    const cancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirm();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancel();
+      }
+    };
+
+    btnOk.addEventListener('click', confirm);
+    btnCancel.addEventListener('click', cancel);
+    window.addEventListener('keydown', onKey);
+
+    btnRow.appendChild(btnCancel);
+    btnRow.appendChild(btnOk);
+
+    dialog.appendChild(titleEl);
+    dialog.appendChild(msgEl);
+    dialog.appendChild(input);
+    dialog.appendChild(btnRow);
+    overlay.appendChild(dialog);
+
+    document.body.appendChild(overlay);
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 50);
+  });
+}
+
+// Ensure synchronous window.prompt calls never crash with "Error: prompt() is not supported."
+try {
+  if (typeof window !== 'undefined') {
+    (window as any).prompt = (_msg?: string, _default?: string): string | null => {
+      console.warn('[EvolveAI] Deprecated synchronous window.prompt called. Defaulting without throw. Use showPromptModal() for modal prompts.');
+      return _default !== undefined ? _default : null;
+    };
+  }
+} catch (_) {}
 
 /**
  * Navigation is deliberately NOT blocked — a real engagement is non-linear and an
@@ -6226,7 +6342,7 @@ function setupPhase1Discovery(api: any): void {
   };
 
   btnSnapshotVersion?.addEventListener('click', async () => {
-    const note = prompt('Enter a note for this scope version snapshot (e.g., "Post-CFO alignment on $100 ceiling"):', 'Baseline technical discovery review');
+    const note = await showPromptModal('Snapshot Scope Version', 'Enter a note for this scope version snapshot (e.g., "Post-CFO alignment on $100 ceiling"):', 'Baseline technical discovery review', 'Enter note...');
     if (note === null) return;
     const rawAsk = txtRawAsk?.value || '';
     const riskAnalysis = txtRisk?.value || '';
@@ -6750,7 +6866,8 @@ function setupDeliveryStudio(api: any): void {
           txtTargetOutputPath.value = `models/staging/stg_${fileName.replace(/\.[^/.]+$/, '').toLowerCase()}.sql`;
         }
 
-        const content = await api.workspace.readFile(filePath);
+        const fileRes = await api.workspace.readFile(filePath);
+        const content = extractFileContent(fileRes);
         if (content) {
           const lines = content.split('\n').filter((l: string) => l.trim().length > 0);
           if (lines.length > 0) {
@@ -7763,7 +7880,8 @@ function setupDeliveryStudio(api: any): void {
     if (api?.workspace) {
       const ws = await api.workspace.getCurrent();
       if (ws) {
-        const content = await api.workspace.readFile(ws.path + '/' + outputPath);
+        const res = await api.workspace.readFile(ws.path + '/' + outputPath);
+        const content = extractFileContent(res);
         if (content) {
           showToast(`Opened ${outputPath}`);
         }
@@ -12997,7 +13115,8 @@ export class SwarmOrchestrator {
         const archPath = ws.path + '/docs/ARCHITECTURE.md';
         let existing = '';
         try {
-          existing = await api.workspace.readFile(archPath);
+          const res = await api.workspace.readFile(archPath);
+          existing = extractFileContent(res);
         } catch (_) {
           existing = '';
         }
@@ -15861,7 +15980,10 @@ export class SovereignSwarmOrchestrator {
       } else if (targetMode === 'architecture_md') {
         const archPath = ws.path + '/docs/ARCHITECTURE.md';
         let existing = '';
-        try { existing = await api.workspace.readFile(archPath); } catch (_) { existing = ''; }
+        try {
+          const res = await api.workspace.readFile(archPath);
+          existing = extractFileContent(res);
+        } catch (_) { existing = ''; }
         const newContent = existing ? existing.trimEnd() + '\n\n---\n\n' + mdContent : `# Architecture Specifications\n\n${mdContent}`;
         await api.workspace.writeFile(archPath, newContent);
         showToast('✓ Appended Decision Gate ADR to docs/ARCHITECTURE.md!');
@@ -15869,7 +15991,10 @@ export class SovereignSwarmOrchestrator {
         // docs/DECISION_LOG.md
         const logPath = ws.path + '/docs/DECISION_LOG.md';
         let existing = '';
-        try { existing = await api.workspace.readFile(logPath); } catch (_) { existing = ''; }
+        try {
+          const res = await api.workspace.readFile(logPath);
+          existing = extractFileContent(res);
+        } catch (_) { existing = ''; }
         const header = `## ADR: Decision Gate — ${activeGateState.paradigm}`;
         let newContent = '';
         if (existing.includes(header)) {
@@ -19147,13 +19272,16 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
         let content = '';
         if ((api as any)?.workspace?.readFile) {
           try {
-            content = await (api as any).workspace.readFile(archPath);
+            const res = await (api as any).workspace.readFile(archPath);
+            content = extractFileContent(res);
+            if (!content || content.startsWith('// [Error Opening File]')) throw new Error('not found');
           } catch (_) {
             const readmePath = ws ? `${ws.path}/README.md` : 'README.md';
-            content = await (api as any).workspace.readFile(readmePath);
+            const res = await (api as any).workspace.readFile(readmePath);
+            content = extractFileContent(res);
           }
         }
-        if (content) {
+        if (content && !content.startsWith('// [Error Opening File]')) {
           const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
           const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
           if (txtSource) txtSource.value = content.slice(0, 3000);
@@ -19175,26 +19303,76 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
   document.getElementById('btnLoadCustomHandbookFile')?.addEventListener('click', async () => {
     try {
       const ws = await (api as any)?.workspace?.getCurrent?.();
-      const userPath = prompt('Enter relative or absolute workspace document path to load:', 'docs/ARCHITECTURE.md');
-      if (!userPath) return;
+      let selectedPath: string | null = null;
+      let directContent: string | null = null;
 
-      const targetPath = ws && !userPath.startsWith('/') && !userPath.includes(':')
-        ? `${ws.path}/${userPath}`
-        : userPath;
-
-      let content = '';
-      if ((api as any)?.workspace?.readFile) {
-        content = await (api as any).workspace.readFile(targetPath);
-      }
-      if (content) {
-        const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
-        if (txtSource) txtSource.value = content.slice(0, 4000);
-        const selPreset = document.getElementById('selGroundedHandbookPreset') as HTMLSelectElement;
-        if (selPreset) selPreset.value = 'workspace_doc';
-        resetGroundedUiState();
-        showToast(`📖 Loaded custom workspace file: ${userPath}`);
+      // 1. Primary: Native Electron Open File Dialog
+      if ((api as any)?.workspace?.openFileDialog) {
+        selectedPath = await (api as any).workspace.openFileDialog({
+          title: 'Select Reference Policy or Workspace Document',
+          defaultPath: ws?.path,
+          filters: [
+            { name: 'Policy & Governance Documents (*.md, *.txt, *.json, *.csv, *.yaml, *.sql, *.pdf)', extensions: ['md', 'txt', 'json', 'csv', 'sql', 'yaml', 'yml', 'pdf', 'docx', 'tsv'] },
+            { name: 'All Files (*.*)', extensions: ['*'] }
+          ]
+        });
+        if (!selectedPath) return; // User canceled dialog
       } else {
-        showToast(`⚠️ Could not read file or file is empty: ${userPath}`);
+        // 2. Fallback: Hidden file input for web/headless view
+        const filePicker = document.getElementById('filePickerGroundedHandbook') as HTMLInputElement;
+        if (filePicker) {
+          const pickedFile = await new Promise<File | null>((resolve) => {
+            const onFilePicked = (evt: Event) => {
+              filePicker.removeEventListener('change', onFilePicked);
+              const files = (evt.target as HTMLInputElement).files;
+              resolve(files && files[0] ? files[0] : null);
+            };
+            filePicker.addEventListener('change', onFilePicked, { once: true });
+            filePicker.value = '';
+            filePicker.click();
+          });
+
+          if (pickedFile) {
+            selectedPath = pickedFile.name;
+            directContent = await pickedFile.text();
+          } else {
+            return;
+          }
+        } else {
+          // 3. Last resort fallback: async modal prompt
+          selectedPath = await showPromptModal('Load Workspace Document', 'Enter relative or absolute workspace document path to load:', 'docs/ARCHITECTURE.md', 'docs/ARCHITECTURE.md');
+          if (!selectedPath) return;
+        }
+      }
+
+      let content = directContent || '';
+      if (!content && selectedPath && (api as any)?.workspace?.readFile) {
+        const targetPath = ws && !selectedPath.startsWith('/') && !selectedPath.includes(':')
+          ? `${ws.path}/${selectedPath}`
+          : selectedPath;
+        const fileRes = await (api as any).workspace.readFile(targetPath);
+        content = extractFileContent(fileRes);
+      }
+
+      if (content && !content.startsWith('// [Error Opening File]')) {
+        const txtSource = document.getElementById('txtGroundedHandbookSource') as HTMLTextAreaElement;
+        if (txtSource) txtSource.value = content.slice(0, 5000);
+        const fileName = (selectedPath || 'workspace_doc').split(/[\\/]/).pop() || selectedPath || 'workspace_doc';
+        const selPreset = document.getElementById('selGroundedHandbookPreset') as HTMLSelectElement;
+        if (selPreset) {
+          let optWorkspace = selPreset.querySelector('option[value="workspace_doc"]') as HTMLOptionElement;
+          if (!optWorkspace) {
+            optWorkspace = document.createElement('option');
+            optWorkspace.value = 'workspace_doc';
+            selPreset.appendChild(optWorkspace);
+          }
+          optWorkspace.text = `📁 ${fileName}`;
+          selPreset.value = 'workspace_doc';
+        }
+        resetGroundedUiState();
+        showToast(`📖 Loaded workspace policy: ${fileName} (${content.length.toLocaleString()} characters)`);
+      } else {
+        showToast(`⚠️ Could not read file or file is empty: ${selectedPath}`);
       }
     } catch (err: any) {
       showToast(`⚠️ Error loading workspace file: ${err.message || err}`);

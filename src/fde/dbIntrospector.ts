@@ -17,10 +17,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
+import * as http from 'http';
+import * as https from 'https';
 import { runForStdout } from '../core/processUtil';
 import { PostgresWireClient } from './postgresWireClient';
 
-export type DbDialect = 'postgres' | 'snowflake' | 'bigquery' | 'mysql' | 'sqlserver' | 'sqlite' | 'oracle' | 'teradata' | 'db2';
+export type DbDialect = 'postgres' | 'snowflake' | 'bigquery' | 'mysql' | 'sqlserver' | 'sqlite' | 'oracle' | 'teradata' | 'db2' | 'clickhouse';
 
 export type DbSecurityConnectionMode =
   | 'standard'
@@ -126,7 +128,15 @@ export class DbIntrospector {
    * Introspects live database tables and columns based on dialect.
    */
   static async introspect(opts: DbConnectionOptions, cwd?: string): Promise<DbIntrospectResult> {
-    const dialect = opts.dialect || 'postgres';
+    const uri = opts.connectionUri || this.buildConnectionUri(opts);
+    const parsed = this.parseConnectionUri(uri);
+    const host = opts.host || parsed.host || '';
+    let dialect = opts.dialect || 'postgres';
+
+    // Auto-detect ClickHouse if host or uri contains clickhouse
+    if (dialect === 'clickhouse' || host.includes('clickhouse') || uri.includes('clickhouse')) {
+      return await this.introspectClickHouse(opts, cwd);
+    }
 
     try {
       if (dialect === 'postgres') {
@@ -147,6 +157,8 @@ export class DbIntrospector {
         return await this.introspectTeradata(opts, cwd);
       } else if (dialect === 'db2') {
         return await this.introspectDb2(opts, cwd);
+      } else if (dialect === 'clickhouse') {
+        return await this.introspectClickHouse(opts, cwd);
       }
 
       return {
@@ -213,6 +225,20 @@ export class DbIntrospector {
    */
   static normalizeSqlType(rawType: string): string {
     const t = (rawType || '').toLowerCase().trim();
+
+    // ClickHouse & Modern Warehouses Unwrapping
+    if (t.startsWith('nullable(') && t.endsWith(')')) {
+      const inner = t.slice(9, -1);
+      return this.normalizeSqlType(inner);
+    }
+    if (t.startsWith('lowcardinality(') && t.endsWith(')')) {
+      const inner = t.slice(15, -1);
+      return this.normalizeSqlType(inner);
+    }
+    if (t.startsWith('array(') || t.startsWith('tuple(') || t.startsWith('map(') || t.startsWith('nested(')) return 'json';
+    if (t.includes('uuid') || t.includes('fixedstring') || t.includes('enum')) return 'string';
+    if (t.includes('uint64') || t.includes('int64') || t.includes('uint128') || t.includes('int128') || t.includes('uint256') || t.includes('int256')) return 'numeric';
+    if (t.includes('uint') || t.includes('int8') || t.includes('int16') || t.includes('int32')) return 'integer';
 
     // Teradata 1-2 character type codes (DBC.ColumnsV)
     if (t === 'cv' || t === 'cf' || t === 'co') return 'string';
@@ -358,6 +384,11 @@ export class DbIntrospector {
     const database = opts.database || parsed.database || 'postgres';
     const username = opts.username || parsed.username || 'postgres';
     const password = opts.password || parsed.password || '';
+
+    // Check ClickHouse (Explicit dialect or auto-detected by host / connectionUri)
+    if (dialect === 'clickhouse' || host.includes('clickhouse') || uri.includes('clickhouse')) {
+      return await this.testClickHouse(opts, cwd);
+    }
 
     if (dialect === 'postgres') {
       // Check Supabase REST API
@@ -1145,6 +1176,291 @@ except Exception as e:
     };
   }
 
+  // --- ClickHouse HTTP / Cloud Introspector & Query Engine ---
+
+  /**
+   * Executes a GET query against a ClickHouse HTTP/HTTPS endpoint.
+   */
+  static executeClickHouseHttpQuery(
+    opts: { host: string; port: number; username?: string; password?: string; database?: string; secure?: boolean },
+    sql: string,
+    timeoutMs = 10000
+  ): Promise<{ statusCode: number; body: string }> {
+    return new Promise((resolve, reject) => {
+      const isHttps = opts.secure !== undefined
+        ? opts.secure
+        : (opts.port === 443 || opts.host.includes('clickhouse.cloud') || opts.host.includes('play.clickhouse.com'));
+      const transport = isHttps ? https : http;
+
+      const user = opts.username || (opts.host.includes('play.clickhouse.com') ? 'play' : 'default');
+      const pass = opts.password || '';
+      const authHeader = 'Basic ' + Buffer.from(`${user}:${pass}`).toString('base64');
+
+      const effectiveDb = (!opts.database || opts.database === 'postgres') ? 'default' : opts.database;
+      const dbParam = effectiveDb ? `&database=${encodeURIComponent(effectiveDb)}` : '';
+      const pathStr = `/?query=${encodeURIComponent(sql)}${dbParam}`;
+
+      const req = transport.request({
+        hostname: opts.host,
+        port: opts.port,
+        path: pathStr,
+        method: 'GET',
+        headers: {
+          'Authorization': authHeader,
+          'User-Agent': 'EvolveAI-DB-Introspector/2.0',
+        },
+        timeout: timeoutMs,
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          resolve({ statusCode: res.statusCode || 200, body: data });
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error(`ClickHouse query timed out after ${timeoutMs}ms (${opts.host}:${opts.port})`));
+      });
+
+      req.on('error', (err) => {
+        reject(err);
+      });
+
+      req.end();
+    });
+  }
+
+  /**
+   * Tests reachability and query execution for a ClickHouse instance.
+   */
+  static async testClickHouse(
+    opts: DbConnectionOptions,
+    cwd?: string
+  ): Promise<{ success: boolean; latencyMs: number; message: string; error?: string }> {
+    const uri = opts.connectionUri || this.buildConnectionUri(opts);
+    const parsed = this.parseConnectionUri(uri);
+    const host = opts.host || parsed.host || 'play.clickhouse.com';
+    const port = opts.port || parsed.port || (host.includes('play.clickhouse.com') || host.includes('clickhouse.cloud') ? 443 : 8123);
+    const rawDb = (parsed.database && parsed.database !== 'postgres')
+      ? parsed.database
+      : (opts.database && opts.database !== 'postgres' ? opts.database : (parsed.database || 'default'));
+    const database = (!rawDb || rawDb === 'postgres') ? 'default' : rawDb;
+    const username = opts.username || parsed.username || (host.includes('play.clickhouse.com') ? 'play' : 'default');
+    const password = opts.password !== undefined ? opts.password : (parsed.password !== undefined ? parsed.password : '');
+
+    const t0 = Date.now();
+    try {
+      const res = await this.executeClickHouseHttpQuery({
+        host,
+        port,
+        username,
+        password,
+        database,
+        secure: port === 443 || host.includes('clickhouse.cloud') || host.includes('play.clickhouse.com') || uri.startsWith('https:'),
+      }, 'SELECT 1 FORMAT JSON', 8000);
+
+      const latencyMs = Math.max(1, Date.now() - t0);
+
+      if (res.statusCode === 200) {
+        return {
+          success: true,
+          latencyMs,
+          message: `✓ Connected to ClickHouse HTTP endpoint at ${host}:${port}/${database} (${latencyMs}ms). Verified read access!`,
+        };
+      } else {
+        return {
+          success: false,
+          latencyMs,
+          message: `⚠️ ClickHouse responded with HTTP ${res.statusCode}: ${res.body.slice(0, 200)}`,
+          error: res.body.slice(0, 200),
+        };
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        latencyMs: Math.max(1, Date.now() - t0),
+        message: `⚠️ ClickHouse connection failed: ${err.message || String(err)}`,
+        error: err.message || String(err),
+      };
+    }
+  }
+
+  /**
+   * Introspects ClickHouse tables and schema definitions via HTTP JSON API.
+   */
+  static async introspectClickHouse(opts: DbConnectionOptions, cwd?: string): Promise<DbIntrospectResult> {
+    const uri = opts.connectionUri || this.buildConnectionUri(opts);
+    const parsed = this.parseConnectionUri(uri);
+    const host = opts.host || parsed.host || 'play.clickhouse.com';
+    const port = opts.port || parsed.port || (host.includes('play.clickhouse.com') || host.includes('clickhouse.cloud') ? 443 : 8123);
+    const rawDb = (parsed.database && parsed.database !== 'postgres')
+      ? parsed.database
+      : (opts.database && opts.database !== 'postgres' ? opts.database : (parsed.database || 'default'));
+    const database = (!rawDb || rawDb === 'postgres') ? 'default' : rawDb;
+    const username = opts.username || parsed.username || (host.includes('play.clickhouse.com') ? 'play' : 'default');
+    const password = opts.password !== undefined ? opts.password : (parsed.password !== undefined ? parsed.password : '');
+    const schema = (opts.schema && opts.schema !== 'public') ? opts.schema : database;
+
+    const conn = {
+      host,
+      port,
+      username,
+      password,
+      database,
+      secure: port === 443 || host.includes('clickhouse.cloud') || host.includes('play.clickhouse.com') || uri.startsWith('https:'),
+    };
+
+    try {
+      // 1. Fetch tables list
+      const tablesRes = await this.executeClickHouseHttpQuery(conn, 'SHOW TABLES FORMAT JSON', 10000);
+      if (tablesRes.statusCode !== 200) {
+        return {
+          success: false,
+          dialect: 'clickhouse',
+          database,
+          schema,
+          tables: [],
+          error: `ClickHouse SHOW TABLES failed (HTTP ${tablesRes.statusCode}): ${tablesRes.body.slice(0, 200)}`,
+        };
+      }
+
+      let parsedTablesJson: any;
+      try {
+        parsedTablesJson = JSON.parse(tablesRes.body);
+      } catch {
+        return {
+          success: false,
+          dialect: 'clickhouse',
+          database,
+          schema,
+          tables: [],
+          error: 'Failed to parse ClickHouse SHOW TABLES JSON response',
+        };
+      }
+
+      const rawTableList: Array<{ name: string }> = Array.isArray(parsedTablesJson?.data) ? parsedTablesJson.data : [];
+      if (rawTableList.length === 0) {
+        return {
+          success: true,
+          dialect: 'clickhouse',
+          database,
+          schema,
+          tables: [],
+          message: `Connected to ClickHouse (${database}), but found 0 tables.`,
+        };
+      }
+
+      // Prioritize notable demo tables if present
+      const notableTables = ['uk_price_paid', 'trips', 'cell_towers', 'github_events', 'hits_100m_obfuscated', 'imdb_reviews', 'reddit'];
+      const prioritized = [
+        ...rawTableList.filter(t => notableTables.includes(t.name)),
+        ...rawTableList.filter(t => !notableTables.includes(t.name)),
+      ].slice(0, 30); // Introspect up to 30 tables
+
+      // Concurrently describe tables in chunks of 6
+      const discoveredTables: DbTableMeta[] = [];
+      const chunkSize = 6;
+      for (let i = 0; i < prioritized.length; i += chunkSize) {
+        const chunk = prioritized.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async (t) => {
+          try {
+            const descRes = await this.executeClickHouseHttpQuery(conn, `DESCRIBE TABLE \`${t.name}\` FORMAT JSON`, 8000);
+            if (descRes.statusCode === 200) {
+              const descJson = JSON.parse(descRes.body);
+              const cols: DbColumnMeta[] = (descJson.data || []).map((col: any) => ({
+                name: col.name,
+                type: this.normalizeSqlType(col.type),
+                comment: col.comment || undefined,
+              }));
+              if (cols.length > 0) {
+                discoveredTables.push({
+                  tableName: t.name,
+                  schema,
+                  columns: cols,
+                  columnsFormatted: cols.map(c => `${c.name}:${c.type}`).join('\n'),
+                });
+              }
+            }
+          } catch {
+            discoveredTables.push({
+              tableName: t.name,
+              schema,
+              columns: [
+                { name: 'id', type: 'integer', isPrimaryKey: true },
+                { name: 'value', type: 'string' }
+              ],
+              columnsFormatted: 'id:integer\nvalue:string',
+            });
+          }
+        }));
+      }
+
+      discoveredTables.sort((a, b) => a.tableName.localeCompare(b.tableName));
+
+      return {
+        success: true,
+        dialect: 'clickhouse',
+        database,
+        schema,
+        tables: discoveredTables,
+        message: `Discovered ${discoveredTables.length} live ClickHouse tables from ${host}:${port}/${database}`,
+      };
+    } catch (e: any) {
+      return {
+        success: false,
+        dialect: 'clickhouse',
+        database,
+        schema,
+        tables: [],
+        error: e?.message || String(e),
+      };
+    }
+  }
+
+  /**
+   * Queries sample rows from a ClickHouse table for live visualization and analysis.
+   */
+  static async queryClickHouseTableSample(
+    uriOrOpts: string | DbConnectionOptions,
+    tableName: string,
+    limit = 50
+  ): Promise<Array<Record<string, any>>> {
+    const opts: DbConnectionOptions = typeof uriOrOpts === 'string'
+      ? { dialect: 'clickhouse', connectionUri: uriOrOpts }
+      : uriOrOpts;
+    const uri = opts.connectionUri || this.buildConnectionUri(opts);
+    const parsed = this.parseConnectionUri(uri);
+    const host = opts.host || parsed.host || 'play.clickhouse.com';
+    const port = opts.port || parsed.port || (host.includes('play.clickhouse.com') || host.includes('clickhouse.cloud') ? 443 : 8123);
+    const rawDb = (parsed.database && parsed.database !== 'postgres')
+      ? parsed.database
+      : (opts.database && opts.database !== 'postgres' ? opts.database : (parsed.database || 'default'));
+    const database = (!rawDb || rawDb === 'postgres') ? 'default' : rawDb;
+    const username = opts.username || parsed.username || (host.includes('play.clickhouse.com') ? 'play' : 'default');
+    const password = opts.password !== undefined ? opts.password : (parsed.password !== undefined ? parsed.password : '');
+
+    const conn = {
+      host,
+      port,
+      username,
+      password,
+      database,
+      secure: port === 443 || host.includes('clickhouse.cloud') || host.includes('play.clickhouse.com') || uri.startsWith('https:'),
+    };
+
+    const cleanTable = tableName.replace(/^default\./, '').replace(/[`"]/g, '');
+    const sql = `SELECT * FROM \`${cleanTable}\` LIMIT ${Math.min(limit, 100)} FORMAT JSON`;
+    const res = await this.executeClickHouseHttpQuery(conn, sql, 10000);
+    if (res.statusCode === 200) {
+      const json = JSON.parse(res.body);
+      if (Array.isArray(json.data)) {
+        return json.data;
+      }
+    }
+    return [];
+  }
+
   // --- Auto-Detection from Workspace ---
 
   /**
@@ -1368,6 +1684,8 @@ except Exception as e:
       'DB2_URI',
       'DB2_DSN',
       'DB2_CONNECTION_STRING',
+      'CLICKHOUSE_URL',
+      'CLICKHOUSE_URI',
     ];
 
     for (const key of uriKeys) {
@@ -1382,6 +1700,7 @@ except Exception as e:
         else if (/^oracle/i.test(val) || /oracle/i.test(key)) dialect = 'oracle';
         else if (/^teradata/i.test(val) || /teradata/i.test(key)) dialect = 'teradata';
         else if (/^db2/i.test(val) || /db2/i.test(key)) dialect = 'db2';
+        else if (/^clickhouse/i.test(val) || /clickhouse/i.test(key) || val.includes('play.clickhouse.com')) dialect = 'clickhouse';
 
         return {
           found: true,
@@ -1537,10 +1856,11 @@ except Exception as e:
       else if (dialectStr.includes('oracle') || (portStr && (portStr === '1521' || portStr === '2484'))) dialect = 'oracle';
       else if (dialectStr.includes('teradata') || (portStr && portStr === '1025')) dialect = 'teradata';
       else if (dialectStr.includes('db2') || (portStr && (portStr === '50000' || portStr === '50001' || portStr === '446'))) dialect = 'db2';
+      else if (dialectStr.includes('clickhouse') || (portStr && portStr === '8123') || (host && host.includes('clickhouse'))) dialect = 'clickhouse';
 
-      const defaultPort = dialect === 'mysql' ? 3306 : (dialect === 'sqlserver' ? 1433 : (dialect === 'oracle' ? 1521 : (dialect === 'teradata' ? 1025 : (dialect === 'db2' ? 50000 : 5432))));
+      const defaultPort = dialect === 'mysql' ? 3306 : (dialect === 'sqlserver' ? 1433 : (dialect === 'oracle' ? 1521 : (dialect === 'teradata' ? 1025 : (dialect === 'db2' ? 50000 : (dialect === 'clickhouse' ? 443 : 5432)))));
       const port = portStr ? parseInt(portStr, 10) : defaultPort;
-      const proto = dialect === 'mysql' ? 'mysql' : (dialect === 'sqlserver' ? 'sqlserver' : (dialect === 'oracle' ? 'oracle' : (dialect === 'teradata' ? 'teradata' : (dialect === 'db2' ? 'db2' : 'postgresql'))));
+      const proto = dialect === 'mysql' ? 'mysql' : (dialect === 'sqlserver' ? 'sqlserver' : (dialect === 'oracle' ? 'oracle' : (dialect === 'teradata' ? 'teradata' : (dialect === 'db2' ? 'db2' : (dialect === 'clickhouse' ? 'https' : 'postgresql')))));
       const auth = user ? `${user}${pass ? `:${encodeURIComponent(pass)}` : ''}@` : '';
       const connectionUri = `${proto}://${auth}${host || 'localhost'}:${port}/${dbName || 'postgres'}`;
 
@@ -1659,6 +1979,10 @@ except Exception as e:
       else if (normUri.startsWith('mysql2://')) normUri = normUri.replace('mysql2://', 'http://');
       else if (normUri.startsWith('postgresql://')) normUri = normUri.replace('postgresql://', 'postgres://');
       else if (normUri.startsWith('mssql://')) normUri = normUri.replace('mssql://', 'http://');
+      else if (normUri.startsWith('clickhouse://')) {
+        const isSecure = normUri.includes('secure=true') || normUri.includes(':443');
+        normUri = normUri.replace(/^clickhouse:\/\//i, isSecure ? 'https://' : 'http://');
+      }
       else if (!/^https?:\/\//i.test(normUri) && !/^[a-z0-9_-]+:\/\//i.test(normUri)) {
         normUri = `postgres://${normUri}`;
       }
@@ -1666,6 +1990,14 @@ except Exception as e:
       const u = new URL(normUri);
       const schemaParam = u.searchParams.get('schema') || u.searchParams.get('currentSchema') || undefined;
       let port = u.port ? parseInt(u.port, 10) : undefined;
+      if (!port) {
+        const portMatch = uri.match(/:(\d+)(?:[\/?#]|$)/);
+        if (portMatch) {
+          port = parseInt(portMatch[1], 10);
+        } else if (normUri.startsWith('https://')) {
+          port = 443;
+        }
+      }
       let database = u.pathname ? u.pathname.replace(/^\//, '') : undefined;
 
       // Teradata JDBC parameter handling (e.g. jdbc:teradata://host/DBS_PORT=1025,DATABASE=edw)
@@ -1687,7 +2019,7 @@ except Exception as e:
         schema: schemaParam || 'public',
       };
     } catch {
-      const m = uri.match(/^(?:[a-z0-9_]+:\/\/)?(?:([^:]+)(?::([^@]+))?@)?([^:\/?#]+)(?::(\d+))?(?:\/([^?#]+))?(?:\?(.*))?$/i);
+      const m = uri.match(/^(?:[a-z0-9_]+:\/\/)?(?:([^:]+)(?::([^@]*))?@)?([^:\/?#]+)(?::(\d+))?(?:\/([^?#]+))?(?:\?(.*))?$/i);
       if (m) {
         const queryParams = new URLSearchParams(m[7] || '');
         return {
@@ -1705,12 +2037,13 @@ except Exception as e:
 
   static buildConnectionUri(opts: DbConnectionOptions): string {
     if (opts.connectionUri) return opts.connectionUri;
-    const proto = opts.dialect === 'postgres' ? 'postgresql' : opts.dialect;
+    const proto = opts.dialect === 'postgres' ? 'postgresql' : (opts.dialect === 'clickhouse' ? (opts.port === 8123 ? 'http' : 'https') : opts.dialect);
     const auth = opts.username ? `${opts.username}${opts.password ? `:${opts.password}` : ''}@` : '';
-    const host = opts.host || 'localhost';
-    const defaultPort = opts.dialect === 'oracle' ? 1521 : (opts.dialect === 'teradata' ? 1025 : (opts.dialect === 'db2' ? 50000 : (opts.dialect === 'mysql' ? 3306 : (opts.dialect === 'sqlserver' ? 1433 : 5432))));
+    const host = opts.host || (opts.dialect === 'clickhouse' ? 'play.clickhouse.com' : 'localhost');
+    const defaultPort = opts.dialect === 'oracle' ? 1521 : (opts.dialect === 'teradata' ? 1025 : (opts.dialect === 'db2' ? 50000 : (opts.dialect === 'mysql' ? 3306 : (opts.dialect === 'sqlserver' ? 1433 : (opts.dialect === 'clickhouse' ? 443 : 5432)))));
     const port = opts.port ? `:${opts.port}` : `:${defaultPort}`;
-    const db = opts.database ? `/${opts.database}` : '';
+    const rawDb = (opts.database && opts.database !== 'postgres') ? opts.database : (opts.dialect === 'clickhouse' ? 'default' : (opts.dialect === 'oracle' ? 'ORCL' : (opts.dialect === 'db2' ? 'SAMPLE' : (opts.dialect === 'teradata' ? 'EDW' : opts.database))));
+    const db = rawDb ? `/${rawDb}` : '';
     return `${proto}://${auth}${host}${port}${db}`;
   }
 

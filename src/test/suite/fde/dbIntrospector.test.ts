@@ -374,4 +374,41 @@ suite('FDE Suite — DbIntrospector', () => {
     assert.ok(res.message || res.error);
     assert.strictEqual(typeof res.latencyMs, 'number');
   });
+
+  // --- CLICKHOUSE TESTS ---
+  test('normalizes ClickHouse types (UInt*, Nullable, LowCardinality, Enum, Array, Map)', () => {
+    assert.strictEqual(DbIntrospector.normalizeSqlType('UInt32'), 'integer');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('UInt8'), 'integer');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('UInt64'), 'numeric');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('Float64'), 'numeric');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('Nullable(UInt32)'), 'integer');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('LowCardinality(String)'), 'string');
+    assert.strictEqual(DbIntrospector.normalizeSqlType("Enum8('other' = 0, 'flat' = 4)"), 'string');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('FixedString(25)'), 'string');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('DateTime'), 'timestamp');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('Date'), 'timestamp');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('Array(String)'), 'json');
+    assert.strictEqual(DbIntrospector.normalizeSqlType('Map(String, UInt32)'), 'json');
+  });
+
+  test('parses ClickHouse connection URIs and auto-detects from play.clickhouse.com', () => {
+    const uri = 'clickhouse://play:@play.clickhouse.com:443/default?secure=true';
+    const parsed = DbIntrospector.parseConnectionUri(uri);
+    assert.strictEqual(parsed.host, 'play.clickhouse.com');
+    assert.strictEqual(parsed.port, 443);
+    assert.strictEqual(parsed.database, 'default');
+    assert.strictEqual(parsed.username, 'play');
+  });
+
+  test('detects ClickHouse from .env environment variables', () => {
+    const envSample = `
+      CLICKHOUSE_URL=https://play:@play.clickhouse.com:443/default
+    `;
+    const detected = DbIntrospector.parseEnvForDb(envSample);
+    assert.strictEqual(detected.found, true);
+    assert.strictEqual(detected.dialect, 'clickhouse');
+    assert.strictEqual(detected.host, 'play.clickhouse.com');
+    assert.strictEqual(detected.port, 443);
+    assert.strictEqual(detected.database, 'default');
+  });
 });
