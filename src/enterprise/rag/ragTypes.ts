@@ -15,11 +15,23 @@ export type RagLanguage = 'python' | 'typescript';
 
 export type DistanceMetric = 'cosine' | 'l2' | 'dot';
 
+export type RagArchitectureType = 
+  | 'naive' 
+  | 'multimodal' 
+  | 'hyde' 
+  | 'corrective' 
+  | 'graph' 
+  | 'hybrid' 
+  | 'adaptive' 
+  | 'agentic';
+
 export interface RagPipelineOptions {
   /** Target service or domain name (e.g. "CustomerSupportRAG", "DocIntel") */
   serviceName: string;
   /** Primary programming language for the scaffolded pipeline */
   language: RagLanguage;
+  /** Canonical RAG architecture paradigm (defaults to 'hybrid' if enableHybridSearch is true, else 'naive') */
+  architecture?: RagArchitectureType;
   /** Vector database engine */
   vectorStore: VectorStoreProvider;
   /** Embedding model provider */
@@ -48,6 +60,22 @@ export interface RagPipelineOptions {
   collectionName?: string;
   /** Database connection string or host URL */
   databaseUri?: string;
+  /** Architecture Specific: Sparse engine for Hybrid RAG */
+  sparseEngine?: 'bm25' | 'sqlite_fts5' | 'splade';
+  /** Architecture Specific: Graph database engine for Graph RAG */
+  graphEngine?: 'neo4j' | 'kuzu' | 'networkx';
+  /** Architecture Specific: Evaluator confidence threshold for Corrective RAG (CRAG) */
+  evaluatorThreshold?: number;
+  /** Architecture Specific: External fallback search provider for CRAG */
+  fallbackSearchProvider?: 'tavily' | 'bing' | 'internal_web';
+  /** Architecture Specific: Drafting model name for HyDE */
+  hypotheticalModel?: string;
+  /** Architecture Specific: Query router strategy for Adaptive RAG */
+  routerStrategy?: 'heuristic' | 'semantic' | 'llm_classifier';
+  /** Architecture Specific: Tool registry for Agentic RAG */
+  agentTools?: string[];
+  /** Architecture Specific: Maximum iteration step budget for Agentic RAG */
+  maxAgentSteps?: number;
 }
 
 export interface ScaffoldedRagFiles {

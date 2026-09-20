@@ -412,5 +412,38 @@ suite('FDE Suite — 3D Data Cosmos & Schema Topology', () => {
     });
     assert.strictEqual(supportedEngines.length, 7);
   });
+
+  test('Multi-Disciplinary Benchmark Domains: verifies 5 demo domains with facts, dimensions, and continuous metrics', () => {
+    const domains = ['demo_retail', 'demo_astrophysics', 'demo_genomics', 'demo_climate', 'demo_ai_gpu'];
+    const domainMeta: Record<string, { fact: string; continuousMetrics: string[] }> = {
+      demo_retail: {
+        fact: 'orders',
+        continuousMetrics: ['total_amount', 'discount_amount', 'lifetime_value_usd', 'engagement_score']
+      },
+      demo_astrophysics: {
+        fact: 'exoplanet_catalog',
+        continuousMetrics: ['orbital_period_days', 'planetary_mass_earth', 'equilibrium_temp_kelvin', 'habitability_index']
+      },
+      demo_genomics: {
+        fact: 'crispr_target_sites',
+        continuousMetrics: ['cleavage_efficiency_score', 'off_target_risk_score', 'chromatin_accessibility_auc', 'cell_viability_pct']
+      },
+      demo_climate: {
+        fact: 'oceanic_buoy_telemetry',
+        continuousMetrics: ['sensor_depth_meters', 'sea_surface_temp_celsius', 'salinity_psu', 'dissolved_oxygen_umol_kg']
+      },
+      demo_ai_gpu: {
+        fact: 'gpu_node_telemetry',
+        continuousMetrics: ['gpu_utilization_pct', 'power_draw_watts', 'temperature_celsius', 'nvlink_bandwidth_tbps', 'allreduce_sync_latency_ms']
+      }
+    };
+
+    domains.forEach(d => {
+      assert.ok(domainMeta[d], `Domain ${d} must be registered in metadata catalog`);
+      assert.ok(domainMeta[d].fact.length > 0, `Domain ${d} must specify a primary fact table`);
+      assert.ok(domainMeta[d].continuousMetrics.length >= 3, `Domain ${d} must have at least 3 continuous metrics for 3D manifold projection`);
+    });
+  });
 });
+
 

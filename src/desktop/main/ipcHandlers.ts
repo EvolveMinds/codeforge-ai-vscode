@@ -260,8 +260,11 @@ export class DesktopIpcHandlers {
     // --- SYSTEM & OS CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.SYSTEM.OPEN_EXTERNAL, async (_: any, url: string) => {
       if (shell && url && typeof url === 'string') {
-        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:')) {
+        if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:') || url.startsWith('file://')) {
           await shell.openExternal(url);
+          return true;
+        } else if (fs.existsSync(url)) {
+          await shell.openPath(url);
           return true;
         }
       }
@@ -274,6 +277,130 @@ export class DesktopIpcHandlers {
         return true;
       }
       return false;
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.SYSTEM.SAVE_PDF, async (_: any, opts: { html: string; filename?: string; defaultPath?: string }) => {
+      let tempPath: string | null = null;
+      let win: any = null;
+      try {
+        if (!electronModule?.BrowserWindow) {
+          return { success: false, error: 'Electron BrowserWindow unavailable' };
+        }
+
+        const os = require('os');
+        tempPath = path.join(os.tmpdir(), `evolve_pdf_${Date.now()}_${Math.random().toString(36).slice(2)}.html`);
+        fs.writeFileSync(tempPath, opts?.html || '', 'utf8');
+
+        win = new electronModule.BrowserWindow({
+          show: false,
+          width: 1200,
+          height: 800,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        });
+
+        await win.loadFile(tempPath);
+        await new Promise(r => setTimeout(r, 600));
+
+        const pdfBuffer = await win.webContents.printToPDF({
+          printBackground: true,
+          landscape: false,
+          pageSize: 'A4',
+          preferCSSPageSize: true,
+          margins: { marginType: 'default' }
+        });
+
+        win.destroy();
+        win = null;
+
+        const ws = workspaceMgr.getCurrentWorkspace();
+        const defaultFilename = opts?.defaultPath || opts?.filename || `evolve_report_${Date.now()}.pdf`;
+        let targetPath: string | undefined;
+
+        if (dialog && typeof (dialog as any).showSaveDialog === 'function') {
+          const res = await (dialog as any).showSaveDialog({
+            title: 'Save Deliverable as PDF',
+            defaultPath: ws && !path.isAbsolute(defaultFilename) ? path.join(ws.path, defaultFilename) : defaultFilename,
+            filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
+          });
+          if (res.canceled || !res.filePath) {
+            return { canceled: true };
+          }
+          targetPath = res.filePath;
+        } else if (ws) {
+          targetPath = path.isAbsolute(defaultFilename) ? defaultFilename : path.join(ws.path, defaultFilename);
+        }
+
+        if (targetPath) {
+          fs.writeFileSync(targetPath, pdfBuffer);
+          return { success: true, filePath: targetPath };
+        }
+        return { success: false, error: 'No file path chosen' };
+      } catch (err: any) {
+        return { success: false, error: err?.message || String(err) };
+      } finally {
+        if (win && !win.isDestroyed()) {
+          try { win.destroy(); } catch {}
+        }
+        if (tempPath && fs.existsSync(tempPath)) {
+          try { fs.unlinkSync(tempPath); } catch {}
+        }
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.SYSTEM.PRINT_HTML, async (_: any, opts: { html: string; title?: string }) => {
+      let tempPath: string | null = null;
+      let win: any = null;
+      try {
+        if (!electronModule?.BrowserWindow) {
+          return { success: false, error: 'Electron BrowserWindow unavailable' };
+        }
+
+        const os = require('os');
+        tempPath = path.join(os.tmpdir(), `evolve_print_${Date.now()}_${Math.random().toString(36).slice(2)}.html`);
+        fs.writeFileSync(tempPath, opts?.html || '', 'utf8');
+
+        win = new electronModule.BrowserWindow({
+          width: 1100,
+          height: 850,
+          title: opts?.title || 'Evolve AI — Print Deliverable',
+          show: true,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true
+          }
+        });
+
+        await win.loadFile(tempPath);
+        win.focus();
+        await new Promise(r => setTimeout(r, 600));
+
+        win.webContents.print({
+          silent: false,
+          printBackground: true
+        }, () => {
+          try {
+            if (win && !win.isDestroyed()) {
+              win.close();
+            }
+          } catch {}
+          if (tempPath && fs.existsSync(tempPath)) {
+            try { fs.unlinkSync(tempPath); } catch {}
+          }
+        });
+
+        return { success: true };
+      } catch (err: any) {
+        if (win && !win.isDestroyed()) {
+          try { win.close(); } catch {}
+        }
+        if (tempPath && fs.existsSync(tempPath)) {
+          try { fs.unlinkSync(tempPath); } catch {}
+        }
+        return { success: false, error: err?.message || String(err) };
+      }
     });
 
     // --- WORKSPACE CHANNELS ---
@@ -2509,7 +2636,7 @@ export async function executeTask() {
           const parsed = DbIntrospector.parseConnectionUri(opts.connectionUri);
           const host = parsed.host || 'localhost';
           const port = parsed.port || 5432;
-          const database = opts.database || parsed.database || 'postgres';
+          const database = (parsed.database && parsed.database !== 'postgres') ? parsed.database : (opts.database || parsed.database || 'postgres');
           const user = parsed.username || 'postgres';
           const password = parsed.password || '';
 
@@ -2537,43 +2664,165 @@ export async function executeTask() {
 
       // 2. Synthetic sample generation matching exact table columns and types
       if (rows.length === 0) {
-        const rawCols = Array.isArray(opts?.columns) ? opts.columns : [];
-        const colNames = rawCols.map((c: any) => typeof c === 'string' ? c : c.name).filter(Boolean);
-        if (colNames.length === 0) {
-          colNames.push('id', 'name', 'status', 'created_at', 'amount');
+        // First, check if a matching pre-computed benchmark dataset exists in demo_data/
+        const ws = workspaceMgr.getCurrentWorkspace();
+        const cwd = ws ? ws.path : process.cwd();
+        const cleanT = tableName.toLowerCase().replace(/^(public|astrophysics|genomics|climate|ai_fleet)\./, '');
+        const candidateFiles = [
+          `${cleanT}.csv`,
+          `${cleanT.replace(/s$/, '')}.csv`,
+          `${cleanT}_astrophysics.csv`,
+          `${cleanT}_telemetry.csv`,
+          `exoplanet_${cleanT}.csv`,
+          `crispr_${cleanT}.csv`,
+          `oceanic_${cleanT}.csv`,
+          `cloud_${cleanT}.csv`,
+          `global_${cleanT}.csv`
+        ];
+
+        let matchedCsvPath: string | null = null;
+        for (const cand of candidateFiles) {
+          const p = path.join(cwd, 'demo_data', cand);
+          if (fs.existsSync(p)) {
+            matchedCsvPath = p;
+            break;
+          }
         }
 
-        for (let i = 1; i <= Math.min(limit, 25); i++) {
-          const row: Record<string, any> = {};
-          colNames.forEach((cName: string) => {
-            const low = cName.toLowerCase();
-            const colObj = rawCols.find((c: any) => (typeof c === 'object' && c.name === cName));
-            const colType = (colObj?.type || 'string').toLowerCase();
-
-            if (low === 'id' || low.endsWith('_id')) {
-              row[cName] = low === 'id' ? i : Math.floor(100 + (i * 37) % 900);
-            } else if (low.includes('email')) {
-              row[cName] = `user_${i}@client-cloud.internal`;
-            } else if (low.includes('name')) {
-              const names = ['Acme Group', 'Global Logistics', 'Nexus Data', 'Apex Retail', 'Starlight Corp', 'Vanguard Systems'];
-              row[cName] = names[(i - 1) % names.length];
-            } else if (low.includes('status') || low.includes('state')) {
-              const statuses = ['active', 'verified', 'pending', 'processing', 'completed'];
-              row[cName] = statuses[(i - 1) % statuses.length];
-            } else if (low.includes('date') || low.includes('time') || low.endsWith('_at') || colType.includes('time') || colType.includes('date')) {
-              const d = new Date(Date.now() - i * 86400000 * 2);
-              row[cName] = d.toISOString().replace('T', ' ').slice(0, 19);
-            } else if (low.includes('amount') || low.includes('price') || low.includes('cost') || low.includes('total') || colType.includes('numeric') || colType.includes('float') || colType.includes('decimal')) {
-              row[cName] = parseFloat((((i * 47.8) % 1200) + 14.50).toFixed(2));
-            } else if (low.includes('qty') || low.includes('quantity') || low.includes('count') || colType.includes('int')) {
-              row[cName] = (i * 3) % 25 + 1;
-            } else if (low.includes('is_') || low.includes('has_') || colType === 'boolean') {
-              row[cName] = i % 3 !== 0;
-            } else {
-              row[cName] = `${tableName}_val_${i}`;
+        if (matchedCsvPath) {
+          try {
+            const raw = fs.readFileSync(matchedCsvPath, 'utf8');
+            const lines = raw.split(/\r?\n/).filter(Boolean);
+            if (lines.length > 1) {
+              const headers = lines[0].split(',').map(c => c.replace(/["']/g, '').trim());
+              for (let i = 1; i < Math.min(lines.length, limit + 1); i++) {
+                const parts = lines[i].split(',');
+                const rec: Record<string, any> = {};
+                headers.forEach((h, hIdx) => {
+                  const v = parts[hIdx] ? parts[hIdx].replace(/["']/g, '').trim() : '';
+                  const num = Number(v);
+                  rec[h] = (!isNaN(num) && v !== '') ? num : v;
+                });
+                rows.push(rec);
+              }
             }
-          });
-          rows.push(row);
+          } catch {}
+        }
+
+        // If no CSV matched or rows still empty, generate realistic, continuous physical/domain data
+        if (rows.length === 0) {
+          const rawCols = Array.isArray(opts?.columns) ? opts.columns : [];
+          const colNames = rawCols.map((c: any) => typeof c === 'string' ? c : c.name).filter(Boolean);
+          if (colNames.length === 0) {
+            colNames.push('id', 'name', 'status', 'created_at', 'amount');
+          }
+
+          for (let i = 1; i <= Math.min(limit, 100); i++) {
+            const row: Record<string, any> = {};
+            const isOutlier = i === 12 || i === 47 || i === 88;
+
+            colNames.forEach((cName: string) => {
+              const low = cName.toLowerCase();
+              const colObj = rawCols.find((c: any) => (typeof c === 'object' && c.name === cName));
+              const colType = (colObj?.type || 'string').toLowerCase();
+
+              // 1. Primary & Foreign Keys
+              if (low === 'id' || low.endsWith('_id')) {
+                row[cName] = low === 'id' ? i : Math.floor(100 + (i * 37) % 900);
+              }
+              // 2. Continuous Domain Physics & Metrics:
+              // Astrophysics:
+              else if (low.includes('orbital_period')) {
+                row[cName] = isOutlier ? (i === 12 ? 0.79 : 4200.0) : parseFloat((Math.pow(10, (i / 100) * 3.2 - 0.3)).toFixed(2));
+              } else if (low.includes('semi_major_axis')) {
+                const p = Number(row['orbital_period_days']) || Math.pow(10, (i / 100) * 3.2 - 0.3);
+                row[cName] = isOutlier ? (i === 12 ? 0.015 : 5.25) : parseFloat((Math.pow(p / 365.25, 2/3)).toFixed(3));
+              } else if (low.includes('equilibrium_temp') || low.includes('surface_temp')) {
+                const a = Number(row['semi_major_axis_au']) || 1.0;
+                row[cName] = isOutlier ? (i === 12 ? 2850.0 : 48.0) : parseFloat((278 / Math.sqrt(Math.max(a, 0.02))).toFixed(1));
+              } else if (low.includes('planet_mass') || low.includes('stellar_mass')) {
+                row[cName] = isOutlier ? (i === 12 ? 420.5 : 1850.0) : parseFloat((0.4 + Math.pow(i / 100, 2) * 50).toFixed(2));
+              } else if (low.includes('planet_radius') || low.includes('stellar_radius')) {
+                row[cName] = isOutlier ? (i === 12 ? 16.8 : 14.2) : parseFloat((0.8 + Math.pow(i / 100, 1.2) * 8.5).toFixed(2));
+              } else if (low.includes('habitability')) {
+                row[cName] = isOutlier ? (i === 47 ? 0.94 : 0.01) : parseFloat((Math.max(0, Math.sin(i * 0.15) * 0.8)).toFixed(2));
+              } else if (low.includes('spectroscopy') || low.includes('snr')) {
+                row[cName] = parseFloat((25.0 + ((i * 17) % 65)).toFixed(1));
+              }
+              // Genomics & CRISPR:
+              else if (low.includes('cleavage_efficiency')) {
+                row[cName] = isOutlier ? (i === 15 ? 94.5 : 12.3) : parseFloat((25 + 70 / (1 + Math.exp(-(i - 50) / 12))).toFixed(1));
+              } else if (low.includes('off_target_risk')) {
+                row[cName] = isOutlier ? (i === 15 ? 88.7 : 2.1) : parseFloat((5 + 75 * Math.pow((100 - i) / 100, 1.8)).toFixed(1));
+              } else if (low.includes('chromatin_accessibility')) {
+                row[cName] = isOutlier ? 0.94 : parseFloat((0.15 + (i / 100) * 0.8).toFixed(3));
+              } else if (low.includes('gc_content')) {
+                row[cName] = parseFloat((40 + ((i * 7) % 30)).toFixed(1));
+              } else if (low.includes('viability')) {
+                row[cName] = isOutlier ? (i === 15 ? 28.4 : 96.8) : parseFloat((60 + 38 * (i / 100)).toFixed(1));
+              }
+              // Oceanic Climate:
+              else if (low.includes('sensor_depth') || low.includes('depth_meters')) {
+                row[cName] = parseFloat((5 + Math.pow(i / 100, 2) * 1500).toFixed(1));
+              } else if (low.includes('sea_surface_temp') || low.includes('temp_celsius') || low.includes('water_temp')) {
+                const depth = Number(row['sensor_depth_meters']) || 10;
+                row[cName] = isOutlier ? 32.8 : parseFloat((26 * Math.exp(-depth / 350) + 2.1).toFixed(2));
+              } else if (low.includes('salinity')) {
+                row[cName] = isOutlier ? 37.8 : parseFloat((33.2 + (i / 100) * 2.2).toFixed(2));
+              } else if (low.includes('dissolved_oxygen')) {
+                row[cName] = isOutlier ? 11.2 : parseFloat((60 + ((i * 13) % 180)).toFixed(1));
+              } else if (low.includes('wave_height')) {
+                row[cName] = isOutlier ? 14.8 : parseFloat((0.8 + ((i * 3.7) % 6.5)).toFixed(2));
+              } else if (low.includes('carbon_flux')) {
+                row[cName] = parseFloat((-5 + ((i * 9.3) % 15)).toFixed(2));
+              }
+              // Cloud AI Clusters & GPU Telemetry:
+              else if (low.includes('gpu_utilization') || low.includes('utilization_pct')) {
+                row[cName] = isOutlier ? 99.8 : parseFloat((60 + 39 * (i / 100)).toFixed(1));
+              } else if (low.includes('power_draw') || low.includes('watts')) {
+                const u = Number(row['gpu_utilization_pct']) || 75;
+                row[cName] = isOutlier ? 698.5 : parseFloat((220 + 460 * Math.pow(u / 100, 1.4)).toFixed(1));
+              } else if (low.includes('nvlink_bandwidth') || low.includes('bandwidth_tbps')) {
+                row[cName] = isOutlier ? 0.12 : parseFloat((2.2 + ((i * 5.3) % 1.0)).toFixed(2));
+              } else if (low.includes('allreduce') || low.includes('sync_latency')) {
+                row[cName] = isOutlier ? 48.2 : parseFloat((1.2 + Math.pow(i / 100, 2) * 12).toFixed(2));
+              } else if (low.includes('clock_mhz')) {
+                row[cName] = isOutlier ? 810 : Math.round(1750 + ((i * 19) % 250));
+              } else if (low.includes('memory_used')) {
+                row[cName] = parseFloat((65 + ((i * 7) % 14)).toFixed(1));
+              }
+              // Retail, CRM & Logistics:
+              else if (low.includes('lifetime_value') || low.includes('ltv')) {
+                row[cName] = isOutlier ? 14850.0 : parseFloat((150 + 4800 * Math.pow(i / 100, 1.8)).toFixed(2));
+              } else if (low.includes('engagement_score')) {
+                row[cName] = parseFloat((20 + 78 * Math.pow(i / 100, 0.8)).toFixed(1));
+              } else if (low.includes('orders_count')) {
+                row[cName] = 1 + Math.floor((i * 29) % 50);
+              } else if (low.includes('transit_duration') || low.includes('duration_hours')) {
+                row[cName] = isOutlier ? 412.0 : parseFloat((18 + ((i * 47) % 220)).toFixed(1));
+              } else if (low.includes('freight_cost') || low.includes('amount') || low.includes('price') || low.includes('cost') || low.includes('total') || colType.includes('numeric') || colType.includes('float') || colType.includes('decimal')) {
+                row[cName] = isOutlier ? 28500.0 : parseFloat((((i * 47.8) % 1200) + 14.50).toFixed(2));
+              } else if (low.includes('qty') || low.includes('quantity') || low.includes('count') || colType.includes('int')) {
+                row[cName] = (i * 3) % 25 + 1;
+              } else if (low.includes('date') || low.includes('time') || low.endsWith('_at') || colType.includes('time') || colType.includes('date')) {
+                const d = new Date(Date.now() - i * 86400000 * 2);
+                row[cName] = d.toISOString().replace('T', ' ').slice(0, 19);
+              } else if (low.includes('email')) {
+                row[cName] = `user_${i}@client-cloud.internal`;
+              } else if (low.includes('name')) {
+                const names = ['Acme Corp', 'Kepler Systems', 'BioGene Dynamics', 'Oceanic Grid', 'DeepScale AI', 'Vanguard Prime'];
+                row[cName] = names[(i - 1) % names.length];
+              } else if (low.includes('status') || low.includes('state') || low.includes('tier')) {
+                const statuses = ['Active', 'Tier-1 Optimal', 'Verified', 'Processing', 'Elevated'];
+                row[cName] = statuses[(i - 1) % statuses.length];
+              } else if (low.includes('is_') || low.includes('has_') || colType === 'boolean') {
+                row[cName] = i % 3 !== 0;
+              } else {
+                row[cName] = `${tableName}_val_${i}`;
+              }
+            });
+            rows.push(row);
+          }
         }
       }
 
@@ -2599,6 +2848,71 @@ export async function executeTask() {
       return await helperQueryTableSample(opts);
     });
 
+    // --- AUTONOMOUS AI QUESTION FRAMING LAYER ---
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.FRAME_HYPOTHESIS_QUESTIONS, async (_: any, req: { filePath?: string; dbTable?: any; records?: any[]; columns?: string[]; roughInput?: string }) => {
+      let rawDataRecords: Array<Record<string, any>> = req?.records || [];
+      let columns: string[] = req?.columns || [];
+
+      if (rawDataRecords.length === 0) {
+        if (req?.dbTable) {
+          const dialect = (req.dbTable.dialect || 'postgres').toLowerCase();
+          const tableName = req.dbTable.tableName || 'active_table';
+          const schema = req.dbTable.schema || 'public';
+          const sampleResult = await helperQueryTableSample({
+            dialect,
+            connectionUri: req.dbTable.connectionUri,
+            database: req.dbTable.database,
+            schema,
+            tableName,
+            columns: req.dbTable.columns,
+            limit: 50
+          });
+          if (sampleResult?.rows && sampleResult.rows.length > 0) {
+            rawDataRecords = sampleResult.rows;
+          }
+          if (Array.isArray(req.dbTable.columns) && req.dbTable.columns.length > 0) {
+            columns = req.dbTable.columns.map((c: any) => typeof c === 'string' ? c : c.name).filter(Boolean);
+          } else if (sampleResult?.columns) {
+            columns = sampleResult.columns.map((c: any) => c.name);
+          }
+        } else if (req?.filePath && fs.existsSync(req.filePath)) {
+          try {
+            const raw = fs.readFileSync(req.filePath, 'utf8');
+            const ext = path.extname(req.filePath).toLowerCase();
+            if (ext === '.json') {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                rawDataRecords = parsed.slice(0, 500);
+                if (rawDataRecords.length > 0) columns = Object.keys(rawDataRecords[0]);
+              }
+            } else {
+              const lines = raw.split(/\r?\n/).filter(Boolean);
+              if (lines.length > 0) {
+                const delimiter = lines[0].includes('\t') ? '\t' : ',';
+                columns = lines[0].split(delimiter).map(c => c.replace(/["']/g, '').trim());
+                for (let i = 1; i < Math.min(lines.length, 500); i++) {
+                  const parts = lines[i].split(delimiter);
+                  const record: Record<string, any> = {};
+                  columns.forEach((col, idx) => {
+                    const rawVal = parts[idx] ? parts[idx].replace(/["']/g, '').trim() : '';
+                    const numVal = Number(rawVal);
+                    record[col] = (!isNaN(numVal) && rawVal !== '') ? numVal : rawVal;
+                  });
+                  rawDataRecords.push(record);
+                }
+              }
+            }
+          } catch {}
+        }
+      }
+
+      const suggestions = DataScientistEngine.generateFramedQuestions(rawDataRecords, columns, req?.roughInput);
+      return {
+        success: true,
+        suggestions
+      };
+    });
+
     // --- REAL DATA ANALYSIS PIPELINE RUNNER (AUTONOMOUS DATA SCIENTIST ENGINE) ---
     ipc.handle(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, async (_: any, req: { filePath: string; deliverable: string; focus?: string; options?: any }) => {
       const { filePath, deliverable, focus = 'General statistical diagnostics & bottlenecks', options } = req;
@@ -2615,7 +2929,8 @@ export async function executeTask() {
         const dialect = (dbTable.dialect || 'postgres').toLowerCase();
         const tableName = dbTable.tableName || 'active_table';
         const schema = dbTable.schema || 'public';
-        datasetTitle = `${dialect.toUpperCase()} Live DB: ${schema}.${tableName}`;
+        const isDemo = !dbTable.connectionUri || dbTable.connectionUri === 'demo';
+        datasetTitle = isDemo ? `Demo Star Schema: ${schema}.${tableName}` : `${dialect.toUpperCase()} Live DB: ${schema}.${tableName}`;
 
         // Fetch real or authentic synthetic sample records
         const sampleResult = await helperQueryTableSample({
@@ -2769,133 +3084,426 @@ export async function executeTask() {
         } catch {}
       }
 
-      // If still no tables, generate rich, realistic enterprise star schema
+      // If still no tables, generate rich, realistic enterprise star schema based on sourceMode
       if (rawTables.length === 0) {
-        rawTables = [
-          {
-            tableName: 'orders',
-            schema: 'public',
-            columns: [
-              { name: 'order_id', type: 'integer', isPrimary: true },
-              { name: 'customer_id', type: 'integer', isForeign: true },
-              { name: 'order_date', type: 'timestamp' },
-              { name: 'status', type: 'string' },
-              { name: 'total_amount', type: 'numeric' },
-              { name: 'discount_amount', type: 'numeric' },
-              { name: 'shipping_address_id', type: 'integer', isForeign: true },
-              { name: 'created_at', type: 'timestamp' }
-            ]
-          },
-          {
-            tableName: 'order_items',
-            schema: 'public',
-            columns: [
-              { name: 'item_id', type: 'integer', isPrimary: true },
-              { name: 'order_id', type: 'integer', isForeign: true },
-              { name: 'product_id', type: 'integer', isForeign: true },
-              { name: 'quantity', type: 'integer' },
-              { name: 'unit_price', type: 'numeric' },
-              { name: 'subtotal', type: 'numeric' }
-            ]
-          },
-          {
-            tableName: 'customers',
-            schema: 'public',
-            columns: [
-              { name: 'customer_id', type: 'integer', isPrimary: true },
-              { name: 'first_name', type: 'string' },
-              { name: 'last_name', type: 'string' },
-              { name: 'email', type: 'string' },
-              { name: 'phone', type: 'string' },
-              { name: 'tier', type: 'string' },
-              { name: 'created_at', type: 'timestamp' }
-            ]
-          },
-          {
-            tableName: 'addresses',
-            schema: 'public',
-            columns: [
-              { name: 'address_id', type: 'integer', isPrimary: true },
-              { name: 'customer_id', type: 'integer', isForeign: true },
-              { name: 'street', type: 'string' },
-              { name: 'city', type: 'string' },
-              { name: 'state', type: 'string' },
-              { name: 'postal_code', type: 'string' },
-              { name: 'country', type: 'string' }
-            ]
-          },
-          {
-            tableName: 'products',
-            schema: 'public',
-            columns: [
-              { name: 'product_id', type: 'integer', isPrimary: true },
-              { name: 'category_id', type: 'integer', isForeign: true },
-              { name: 'sku', type: 'string' },
-              { name: 'product_name', type: 'string' },
-              { name: 'cost_price', type: 'numeric' },
-              { name: 'retail_price', type: 'numeric' },
-              { name: 'stock_level', type: 'integer' }
-            ]
-          },
-          {
-            tableName: 'categories',
-            schema: 'public',
-            columns: [
-              { name: 'category_id', type: 'integer', isPrimary: true },
-              { name: 'category_name', type: 'string' },
-              { name: 'parent_category_id', type: 'integer', isForeign: true },
-              { name: 'description', type: 'string' }
-            ]
-          },
-          {
-            tableName: 'payments',
-            schema: 'public',
-            columns: [
-              { name: 'payment_id', type: 'integer', isPrimary: true },
-              { name: 'order_id', type: 'integer', isForeign: true },
-              { name: 'payment_method', type: 'string' },
-              { name: 'amount', type: 'numeric' },
-              { name: 'status', type: 'string' },
-              { name: 'processed_at', type: 'timestamp' }
-            ]
-          },
-          {
-            tableName: 'shipments',
-            schema: 'public',
-            columns: [
-              { name: 'shipment_id', type: 'integer', isPrimary: true },
-              { name: 'order_id', type: 'integer', isForeign: true },
-              { name: 'tracking_number', type: 'string' },
-              { name: 'carrier', type: 'string' },
-              { name: 'shipped_at', type: 'timestamp' },
-              { name: 'delivered_at', type: 'timestamp' }
-            ]
-          },
-          {
-            tableName: 'inventory_transactions',
-            schema: 'public',
-            columns: [
-              { name: 'txn_id', type: 'integer', isPrimary: true },
-              { name: 'product_id', type: 'integer', isForeign: true },
-              { name: 'warehouse_id', type: 'integer' },
-              { name: 'change_qty', type: 'integer' },
-              { name: 'reason', type: 'string' },
-              { name: 'created_at', type: 'timestamp' }
-            ]
-          },
-          {
-            tableName: 'customer_reviews',
-            schema: 'public',
-            columns: [
-              { name: 'review_id', type: 'integer', isPrimary: true },
-              { name: 'product_id', type: 'integer', isForeign: true },
-              { name: 'customer_id', type: 'integer', isForeign: true },
-              { name: 'rating', type: 'integer' },
-              { name: 'comment', type: 'string' },
-              { name: 'review_date', type: 'timestamp' }
-            ]
-          }
-        ];
+        const mode = (opts?.sourceMode || 'demo').toLowerCase();
+        if (mode === 'demo_astrophysics') {
+          rawTables = [
+            {
+              tableName: 'exoplanets',
+              schema: 'astrophysics',
+              columns: [
+                { name: 'planet_id', type: 'integer', isPrimary: true },
+                { name: 'system_id', type: 'integer', isForeign: true },
+                { name: 'planet_name', type: 'string' },
+                { name: 'discovery_method', type: 'string' },
+                { name: 'orbital_period_days', type: 'numeric' },
+                { name: 'semi_major_axis_au', type: 'numeric' },
+                { name: 'equilibrium_temp_kelvin', type: 'numeric' },
+                { name: 'planet_mass_earth', type: 'numeric' },
+                { name: 'planet_radius_earth', type: 'numeric' },
+                { name: 'stellar_luminosity_solar', type: 'numeric' },
+                { name: 'habitability_score', type: 'numeric' },
+                { name: 'spectroscopy_snr', type: 'numeric' },
+                { name: 'observed_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'stellar_systems',
+              schema: 'astrophysics',
+              columns: [
+                { name: 'system_id', type: 'integer', isPrimary: true },
+                { name: 'star_name', type: 'string' },
+                { name: 'spectral_class', type: 'string' },
+                { name: 'stellar_mass_solar', type: 'numeric' },
+                { name: 'stellar_radius_solar', type: 'numeric' },
+                { name: 'surface_temp_kelvin', type: 'numeric' },
+                { name: 'metallicity_fe_h', type: 'numeric' },
+                { name: 'distance_light_years', type: 'numeric' }
+              ]
+            },
+            {
+              tableName: 'orbital_telemetry',
+              schema: 'astrophysics',
+              columns: [
+                { name: 'telemetry_id', type: 'integer', isPrimary: true },
+                { name: 'planet_id', type: 'integer', isForeign: true },
+                { name: 'inclination_deg', type: 'numeric' },
+                { name: 'eccentricity', type: 'numeric' },
+                { name: 'transit_duration_hours', type: 'numeric' },
+                { name: 'radial_velocity_semi_amplitude', type: 'numeric' },
+                { name: 'epoch_bjd', type: 'numeric' }
+              ]
+            },
+            {
+              tableName: 'atmospheric_spectroscopy',
+              schema: 'astrophysics',
+              columns: [
+                { name: 'spectrum_id', type: 'integer', isPrimary: true },
+                { name: 'planet_id', type: 'integer', isForeign: true },
+                { name: 'chemical_species', type: 'string' },
+                { name: 'absorption_depth_ppm', type: 'numeric' },
+                { name: 'signal_noise_ratio', type: 'numeric' },
+                { name: 'telescope_facility', type: 'string' },
+                { name: 'analyzed_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'habitability_assessments',
+              schema: 'astrophysics',
+              columns: [
+                { name: 'assessment_id', type: 'integer', isPrimary: true },
+                { name: 'planet_id', type: 'integer', isForeign: true },
+                { name: 'habitable_zone_status', type: 'string' },
+                { name: 'surface_pressure_bar', type: 'numeric' },
+                { name: 'runaway_greenhouse_risk', type: 'numeric' },
+                { name: 'confidence_score', type: 'numeric' }
+              ]
+            }
+          ];
+        } else if (mode === 'demo_genomics') {
+          rawTables = [
+            {
+              tableName: 'crispr_gene_targets',
+              schema: 'genomics',
+              columns: [
+                { name: 'target_id', type: 'integer', isPrimary: true },
+                { name: 'gene_id', type: 'integer', isForeign: true },
+                { name: 'assay_id', type: 'integer', isForeign: true },
+                { name: 'target_sequence', type: 'string' },
+                { name: 'cleavage_efficiency_pct', type: 'numeric' },
+                { name: 'off_target_risk_score', type: 'numeric' },
+                { name: 'chromatin_accessibility_auc', type: 'numeric' },
+                { name: 'gc_content_pct', type: 'numeric' },
+                { name: 'microhomology_score', type: 'numeric' },
+                { name: 'cell_viability_pct', type: 'numeric' },
+                { name: 'transfection_efficiency_pct', type: 'numeric' },
+                { name: 'created_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'target_genes',
+              schema: 'genomics',
+              columns: [
+                { name: 'gene_id', type: 'integer', isPrimary: true },
+                { name: 'gene_symbol', type: 'string' },
+                { name: 'chromosome', type: 'string' },
+                { name: 'start_position', type: 'integer' },
+                { name: 'end_position', type: 'integer' },
+                { name: 'strand', type: 'string' },
+                { name: 'pathway_name', type: 'string' },
+                { name: 'disease_association', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'cellular_assays',
+              schema: 'genomics',
+              columns: [
+                { name: 'assay_id', type: 'integer', isPrimary: true },
+                { name: 'cell_line', type: 'string' },
+                { name: 'tissue_origin', type: 'string' },
+                { name: 'transfection_method', type: 'string' },
+                { name: 'incubation_hours', type: 'numeric' },
+                { name: 'cas_enzyme_variant', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'off_target_loci',
+              schema: 'genomics',
+              columns: [
+                { name: 'locus_id', type: 'integer', isPrimary: true },
+                { name: 'target_id', type: 'integer', isForeign: true },
+                { name: 'mismatch_count', type: 'integer' },
+                { name: 'cleavage_frequency_pct', type: 'numeric' },
+                { name: 'genomic_region', type: 'string' },
+                { name: 'mutation_risk_tier', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'clinical_cohort_trials',
+              schema: 'genomics',
+              columns: [
+                { name: 'trial_id', type: 'integer', isPrimary: true },
+                { name: 'target_id', type: 'integer', isForeign: true },
+                { name: 'phase', type: 'string' },
+                { name: 'patient_cohort_size', type: 'integer' },
+                { name: 'efficacy_rate_pct', type: 'numeric' },
+                { name: 'safety_grade', type: 'string' }
+              ]
+            }
+          ];
+        } else if (mode === 'demo_climate') {
+          rawTables = [
+            {
+              tableName: 'oceanic_buoy_telemetry',
+              schema: 'climate',
+              columns: [
+                { name: 'telemetry_id', type: 'integer', isPrimary: true },
+                { name: 'station_id', type: 'integer', isForeign: true },
+                { name: 'sensor_depth_meters', type: 'numeric' },
+                { name: 'sea_surface_temp_celsius', type: 'numeric' },
+                { name: 'salinity_psu', type: 'numeric' },
+                { name: 'dissolved_oxygen_umol_kg', type: 'numeric' },
+                { name: 'wave_height_meters', type: 'numeric' },
+                { name: 'atmospheric_pressure_hpa', type: 'numeric' },
+                { name: 'carbon_flux_mmol_m2', type: 'numeric' },
+                { name: 'recorded_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'monitoring_stations',
+              schema: 'climate',
+              columns: [
+                { name: 'station_id', type: 'integer', isPrimary: true },
+                { name: 'station_code', type: 'string' },
+                { name: 'ocean_basin', type: 'string' },
+                { name: 'latitude', type: 'numeric' },
+                { name: 'longitude', type: 'numeric' },
+                { name: 'platform_type', type: 'string' },
+                { name: 'deployed_year', type: 'integer' }
+              ]
+            },
+            {
+              tableName: 'atmospheric_flux',
+              schema: 'climate',
+              columns: [
+                { name: 'flux_id', type: 'integer', isPrimary: true },
+                { name: 'station_id', type: 'integer', isForeign: true },
+                { name: 'wind_speed_knots', type: 'numeric' },
+                { name: 'air_temperature_c', type: 'numeric' },
+                { name: 'humidity_pct', type: 'numeric' },
+                { name: 'solar_irradiance_wm2', type: 'numeric' }
+              ]
+            },
+            {
+              tableName: 'glacier_mass_balance',
+              schema: 'climate',
+              columns: [
+                { name: 'glacier_id', type: 'integer', isPrimary: true },
+                { name: 'station_id', type: 'integer', isForeign: true },
+                { name: 'region_code', type: 'string' },
+                { name: 'mass_loss_gigatons', type: 'numeric' },
+                { name: 'equilibrium_line_altitude_m', type: 'numeric' },
+                { name: 'albedo_index', type: 'numeric' },
+                { name: 'survey_year', type: 'integer' }
+              ]
+            },
+            {
+              tableName: 'extreme_weather_events',
+              schema: 'climate',
+              columns: [
+                { name: 'event_id', type: 'integer', isPrimary: true },
+                { name: 'station_id', type: 'integer', isForeign: true },
+                { name: 'event_type', type: 'string' },
+                { name: 'peak_anomaly_temp_c', type: 'numeric' },
+                { name: 'duration_days', type: 'numeric' },
+                { name: 'severity_category', type: 'string' }
+              ]
+            }
+          ];
+        } else if (mode === 'demo_ai_gpu') {
+          rawTables = [
+            {
+              tableName: 'gpu_node_telemetry',
+              schema: 'ai_fleet',
+              columns: [
+                { name: 'telemetry_id', type: 'integer', isPrimary: true },
+                { name: 'node_id', type: 'integer', isForeign: true },
+                { name: 'job_id', type: 'integer', isForeign: true },
+                { name: 'gpu_utilization_pct', type: 'numeric' },
+                { name: 'power_draw_watts', type: 'numeric' },
+                { name: 'temperature_celsius', type: 'numeric' },
+                { name: 'nvlink_bandwidth_tbps', type: 'numeric' },
+                { name: 'allreduce_sync_latency_ms', type: 'numeric' },
+                { name: 'sm_clock_mhz', type: 'numeric' },
+                { name: 'memory_used_gb', type: 'numeric' },
+                { name: 'timestamp', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'ai_cluster_nodes',
+              schema: 'ai_fleet',
+              columns: [
+                { name: 'node_id', type: 'integer', isPrimary: true },
+                { name: 'node_name', type: 'string' },
+                { name: 'rack_id', type: 'string' },
+                { name: 'server_model', type: 'string' },
+                { name: 'gpu_count', type: 'integer' },
+                { name: 'pcie_generation', type: 'string' },
+                { name: 'nic_speed_gbps', type: 'integer' },
+                { name: 'datacenter_zone', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'model_training_jobs',
+              schema: 'ai_fleet',
+              columns: [
+                { name: 'job_id', type: 'integer', isPrimary: true },
+                { name: 'model_name', type: 'string' },
+                { name: 'parameter_size_billion', type: 'numeric' },
+                { name: 'batch_size_per_gpu', type: 'integer' },
+                { name: 'optimizer', type: 'string' },
+                { name: 'precision_format', type: 'string' },
+                { name: 'status', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'gradient_sync_stages',
+              schema: 'ai_fleet',
+              columns: [
+                { name: 'stage_id', type: 'integer', isPrimary: true },
+                { name: 'job_id', type: 'integer', isForeign: true },
+                { name: 'node_id', type: 'integer', isForeign: true },
+                { name: 'stage_name', type: 'string' },
+                { name: 'sync_duration_ms', type: 'numeric' },
+                { name: 'bytes_transferred_mb', type: 'numeric' },
+                { name: 'straggler_flag', type: 'boolean' }
+              ]
+            },
+            {
+              tableName: 'hardware_fault_incidents',
+              schema: 'ai_fleet',
+              columns: [
+                { name: 'fault_id', type: 'integer', isPrimary: true },
+                { name: 'node_id', type: 'integer', isForeign: true },
+                { name: 'fault_type', type: 'string' },
+                { name: 'throttle_reason', type: 'string' },
+                { name: 'down_time_minutes', type: 'numeric' },
+                { name: 'remediation_action', type: 'string' }
+              ]
+            }
+          ];
+        } else {
+          // Default Retail & Commerce Star Schema
+          rawTables = [
+            {
+              tableName: 'orders',
+              schema: 'public',
+              columns: [
+                { name: 'order_id', type: 'integer', isPrimary: true },
+                { name: 'customer_id', type: 'integer', isForeign: true },
+                { name: 'order_date', type: 'timestamp' },
+                { name: 'status', type: 'string' },
+                { name: 'total_amount', type: 'numeric' },
+                { name: 'discount_amount', type: 'numeric' },
+                { name: 'shipping_address_id', type: 'integer', isForeign: true },
+                { name: 'created_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'order_items',
+              schema: 'public',
+              columns: [
+                { name: 'item_id', type: 'integer', isPrimary: true },
+                { name: 'order_id', type: 'integer', isForeign: true },
+                { name: 'product_id', type: 'integer', isForeign: true },
+                { name: 'quantity', type: 'integer' },
+                { name: 'unit_price', type: 'numeric' },
+                { name: 'subtotal', type: 'numeric' }
+              ]
+            },
+            {
+              tableName: 'customers',
+              schema: 'public',
+              columns: [
+                { name: 'customer_id', type: 'integer', isPrimary: true },
+                { name: 'first_name', type: 'string' },
+                { name: 'last_name', type: 'string' },
+                { name: 'email', type: 'string' },
+                { name: 'phone', type: 'string' },
+                { name: 'tier', type: 'string' },
+                { name: 'lifetime_value_usd', type: 'numeric' },
+                { name: 'engagement_score', type: 'numeric' },
+                { name: 'orders_count', type: 'integer' },
+                { name: 'created_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'addresses',
+              schema: 'public',
+              columns: [
+                { name: 'address_id', type: 'integer', isPrimary: true },
+                { name: 'customer_id', type: 'integer', isForeign: true },
+                { name: 'street', type: 'string' },
+                { name: 'city', type: 'string' },
+                { name: 'state', type: 'string' },
+                { name: 'postal_code', type: 'string' },
+                { name: 'country', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'products',
+              schema: 'public',
+              columns: [
+                { name: 'product_id', type: 'integer', isPrimary: true },
+                { name: 'category_id', type: 'integer', isForeign: true },
+                { name: 'sku', type: 'string' },
+                { name: 'product_name', type: 'string' },
+                { name: 'cost_price', type: 'numeric' },
+                { name: 'retail_price', type: 'numeric' },
+                { name: 'stock_level', type: 'integer' }
+              ]
+            },
+            {
+              tableName: 'categories',
+              schema: 'public',
+              columns: [
+                { name: 'category_id', type: 'integer', isPrimary: true },
+                { name: 'category_name', type: 'string' },
+                { name: 'parent_category_id', type: 'integer', isForeign: true },
+                { name: 'description', type: 'string' }
+              ]
+            },
+            {
+              tableName: 'payments',
+              schema: 'public',
+              columns: [
+                { name: 'payment_id', type: 'integer', isPrimary: true },
+                { name: 'order_id', type: 'integer', isForeign: true },
+                { name: 'payment_method', type: 'string' },
+                { name: 'amount', type: 'numeric' },
+                { name: 'status', type: 'string' },
+                { name: 'processed_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'shipments',
+              schema: 'public',
+              columns: [
+                { name: 'shipment_id', type: 'integer', isPrimary: true },
+                { name: 'order_id', type: 'integer', isForeign: true },
+                { name: 'tracking_number', type: 'string' },
+                { name: 'carrier', type: 'string' },
+                { name: 'shipped_at', type: 'timestamp' },
+                { name: 'delivered_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'inventory_transactions',
+              schema: 'public',
+              columns: [
+                { name: 'txn_id', type: 'integer', isPrimary: true },
+                { name: 'product_id', type: 'integer', isForeign: true },
+                { name: 'warehouse_id', type: 'integer' },
+                { name: 'change_qty', type: 'integer' },
+                { name: 'reason', type: 'string' },
+                { name: 'created_at', type: 'timestamp' }
+              ]
+            },
+            {
+              tableName: 'customer_reviews',
+              schema: 'public',
+              columns: [
+                { name: 'review_id', type: 'integer', isPrimary: true },
+                { name: 'product_id', type: 'integer', isForeign: true },
+                { name: 'customer_id', type: 'integer', isForeign: true },
+                { name: 'rating', type: 'integer' },
+                { name: 'comment', type: 'string' },
+                { name: 'review_date', type: 'timestamp' }
+              ]
+            }
+          ];
+        }
       }
 
       // Transform rawTables into CosmosNodes
@@ -2925,16 +3533,42 @@ export async function executeTask() {
           role = 'bridge';
         }
 
-        // Domain classification & professional color coding
+        // Domain classification & professional color coding across all domains
         let domain = 'Core';
-        let color = '#3b82f6'; // Modern Royal Azure default
-        if (/order|sale|invoice|item/i.test(tName)) { domain = 'Sales'; color = '#2563eb'; }
-        else if (/cust|user|account|client|lead/i.test(tName)) { domain = 'CRM'; color = '#0ea5e9'; }
-        else if (/prod|category|catalog|sku/i.test(tName)) { domain = 'Catalog'; color = '#10b981'; }
-        else if (/pay|bill|transact|fee|ledger/i.test(tName)) { domain = 'Finance'; color = '#f59e0b'; }
-        else if (/ship|address|carrier|deliver/i.test(tName)) { domain = 'Logistics'; color = '#0284c7'; }
-        else if (/inventory|warehouse|stock/i.test(tName)) { domain = 'Operations'; color = '#0d9488'; }
-        else if (/review|feedback|rating/i.test(tName)) { domain = 'Quality'; color = '#8b5cf6'; }
+        let color = '#3b82f6';
+        if (/exoplanet|stellar|orbit|spectro|habitab/i.test(tName)) {
+          if (/exoplanet/i.test(tName)) { domain = 'Exoplanet Dynamics'; color = '#8b5cf6'; }
+          else if (/stellar/i.test(tName)) { domain = 'Stellar Physics'; color = '#f59e0b'; }
+          else if (/spectro/i.test(tName)) { domain = 'Spectroscopy'; color = '#ec4899'; }
+          else if (/orbit/i.test(tName)) { domain = 'Astrometry'; color = '#38bdf8'; }
+          else { domain = 'Astrobiology'; color = '#10b981'; }
+        } else if (/crispr|gene|assay|locus|clinical|trial/i.test(tName)) {
+          if (/crispr|target/i.test(tName)) { domain = 'Gene Editing'; color = '#ec4899'; }
+          else if (/gene/i.test(tName)) { domain = 'Genomic Map'; color = '#14b8a6'; }
+          else if (/assay/i.test(tName)) { domain = 'Cellular Assay'; color = '#3b82f6'; }
+          else if (/locus/i.test(tName)) { domain = 'Off-Target Risk'; color = '#ef4444'; }
+          else { domain = 'Clinical Trials'; color = '#f59e0b'; }
+        } else if (/buoy|station|flux|glacier|weather|ocean/i.test(tName)) {
+          if (/buoy|ocean/i.test(tName)) { domain = 'Oceanography'; color = '#0284c7'; }
+          else if (/station/i.test(tName)) { domain = 'Observatory Grid'; color = '#0ea5e9'; }
+          else if (/flux/i.test(tName)) { domain = 'Atmospheric Flux'; color = '#38bdf8'; }
+          else if (/glacier/i.test(tName)) { domain = 'Cryosphere'; color = '#a855f7'; }
+          else { domain = 'Extreme Weather'; color = '#ef4444'; }
+        } else if (/gpu|node|cluster|model|training|sync|fault/i.test(tName)) {
+          if (/gpu|telemetry/i.test(tName)) { domain = 'GPU Telemetry'; color = '#10b981'; }
+          else if (/cluster|node/i.test(tName)) { domain = 'Cluster Topology'; color = '#6366f1'; }
+          else if (/model|training/i.test(tName)) { domain = 'Model Training'; color = '#38bdf8'; }
+          else if (/sync|stage/i.test(tName)) { domain = 'Interconnect Fabric'; color = '#f59e0b'; }
+          else { domain = 'Fault Diagnostics'; color = '#ef4444'; }
+        } else {
+          if (/order|sale|invoice|item/i.test(tName)) { domain = 'Sales'; color = '#2563eb'; }
+          else if (/cust|user|account|client|lead/i.test(tName)) { domain = 'CRM'; color = '#0ea5e9'; }
+          else if (/prod|category|catalog|sku/i.test(tName)) { domain = 'Catalog'; color = '#10b981'; }
+          else if (/pay|bill|transact|fee|ledger/i.test(tName)) { domain = 'Finance'; color = '#f59e0b'; }
+          else if (/ship|address|carrier|deliver/i.test(tName)) { domain = 'Logistics'; color = '#0284c7'; }
+          else if (/inventory|warehouse|stock/i.test(tName)) { domain = 'Operations'; color = '#0d9488'; }
+          else if (/review|feedback|rating/i.test(tName)) { domain = 'Quality'; color = '#8b5cf6'; }
+        }
 
         // Row count estimation
         const rowEstimate = role === 'fact' ? Math.floor(45000 + Math.random() * 150000) :

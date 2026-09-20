@@ -2929,7 +2929,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     /* Inputs & Form Controls */
-    input[type="text"], select, textarea {
+    input[type="text"], input[type="password"], input[type="number"], select, textarea {
       width: 100%;
       padding: 8px 12px;
       background: var(--bg);
@@ -2945,7 +2945,7 @@ Output ONLY the message without markdown code fences.`;
       font-size: 12px;
       resize: vertical;
     }
-    input[type="text"]:focus, select:focus, textarea:focus {
+    input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
       outline: 1px solid var(--accent);
       border-color: var(--accent);
     }
@@ -3129,6 +3129,7 @@ Output ONLY the message without markdown code fences.`;
       </div>
     </div>
     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+      <button class="btn btn-secondary" onclick="toggleDbConnectModal()" style="padding: 5px 12px; font-size: 12px; background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Connect Live Database (PostgreSQL, MySQL, Snowflake, BigQuery, etc.)">🔌 Connect Live DB</button>
       <button class="btn btn-secondary" onclick="toggleRoadmap()" style="padding: 5px 12px; font-size: 12px;">🗺️ Roadmap &amp; Playbook</button>
       <button class="btn btn-primary" onclick="openEnterpriseModal()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Compare Community Free vs. Paid Enterprise Edition (Limited Pilot)">💎 Enterprise <span style="background: rgba(255,255,255,0.25); font-size: 9.5px; padding: 1px 6px; border-radius: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;">Limited Pilot</span></button>
       <button class="btn btn-primary" onclick="downloadDesktopStudio()" style="padding: 5px 12px; font-size: 12px; background: linear-gradient(135deg, #c4562b 0%, #a8481f 100%); color: #fff; border: none; font-weight: 700; cursor: pointer; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px;" title="Download Evolve AI Enterprise Desktop Edition from Company Website">🖥️ Desktop App ↗</button>
@@ -3556,28 +3557,95 @@ Output ONLY the message without markdown code fences.`;
             <button class="btn-quick" style="margin-bottom: 0;" onclick="toggleDbConnectModal()">✕ Close</button>
           </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 10px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Database Engine / Dialect</label>
-              <select id="dbDialect" onchange="handleDialectChange()">
-                <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
-                <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
-                <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
-                <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
-                <option value="snowflake">Snowflake Data Cloud</option>
-                <option value="bigquery">Google BigQuery</option>
-                <option value="mysql">MySQL / MariaDB / Aurora</option>
-                <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
-                <option value="sqlite">SQLite (Local .db File)</option>
-              </select>
+          <!-- Input Mode Switcher & Quick Presets -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: inline-flex; gap: 4px; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid var(--border);">
+              <button type="button" class="btn-quick active" id="btnDbModeParams" onclick="setDbInputMode('params')" style="padding: 4px 12px; font-size: 11px; margin: 0; background: var(--accent); color: #1e1e1e; font-weight: 700; border: none; border-radius: 4px;" title="Enter Host, Port, Username, and Password individually">
+                📋 Host, Port, User &amp; Password
+              </button>
+              <button type="button" class="btn-quick" id="btnDbModeUri" onclick="setDbInputMode('uri')" style="padding: 4px 12px; font-size: 11px; margin: 0; background: transparent; color: var(--fg); font-weight: 600; border: none; border-radius: 4px;" title="Enter or paste full connection string URI">
+                🔗 Connection URI String
+              </button>
             </div>
-            <div>
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <label style="font-size: 11px; font-weight: bold;">Connection URI / Host String (Masked)</label>
-                <a href="#" style="font-size: 10px; color: var(--accent); text-decoration: none;" onclick="toggleUriVisibility(event)">👁️ Show/Hide</a>
+            <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span style="font-size: 10.5px; opacity: 0.8; font-weight: 600;">1-Click Demo:</span>
+              <button type="button" class="btn-quick" onclick="applyDbPreset('ensembl')" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
+              <button type="button" class="btn-quick" onclick="applyDbPreset('rnacentral')" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
+              <button type="button" class="btn-quick" onclick="applyDbPreset('local')" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: var(--fg); border: 1px solid var(--border);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
+            </div>
+          </div>
+
+          <!-- Section 1: Individual Host, Port, User & Password (Default View) -->
+          <div id="dbSectionParams" style="display: block;">
+            <!-- Row 1: Engine, Host, Port -->
+            <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.8fr; gap: 12px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Database Engine / Dialect</label>
+                <select id="dbDialect" onchange="handleDialectChange()">
+                  <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                  <option value="mysql">MySQL / MariaDB / Aurora</option>
+                  <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                  <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
+                  <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+                  <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
+                  <option value="snowflake">Snowflake Data Cloud</option>
+                  <option value="bigquery">Google BigQuery</option>
+                  <option value="sqlite">SQLite (Local .db File)</option>
+                </select>
               </div>
-              <input type="password" id="dbConnUri" placeholder="postgresql://username:password@localhost:5432/pilot_db" style="font-family: monospace;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Host / Server Address</label>
+                <input type="text" id="dbHostInput" value="localhost" placeholder="e.g. localhost, ep-xyz.neon.tech, or ensembldb.ensembl.org" style="font-family: monospace; font-size: 11.5px;">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Port</label>
+                <input type="number" id="dbPortInput" value="5432" placeholder="5432" style="font-family: monospace; font-size: 11.5px;">
+              </div>
             </div>
+
+            <!-- Row 2: Database Name, Username, Password (Masked with toggle), Schema -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px;">
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Database / Project ID</label>
+                <input type="text" id="dbDatabaseName" placeholder="e.g. postgres, pfmegrnargs" value="${state.activeDbConnection?.database || 'postgres'}">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Username / User</label>
+                <input type="text" id="dbUserInput" placeholder="e.g. postgres, reader, anonymous" value="postgres">
+              </div>
+              <div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="font-size: 11px; font-weight: bold;">Password</label>
+                  <a href="#" id="btnToggleMaskPassword" style="font-size: 10px; color: var(--accent); text-decoration: none;" onclick="togglePasswordVisibility(event)">👁️ Show</a>
+                </div>
+                <input type="password" id="dbPasswordInput" placeholder="Enter password..." value="">
+              </div>
+              <div>
+                <label style="font-size: 11px; font-weight: bold;">Schema / Dataset ID</label>
+                <input type="text" id="dbSchemaName" placeholder="public, rnacen, or dataset_name" value="${state.activeDbConnection?.schema || 'public'}">
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Connection URI String (Auto-synced with parameters above) -->
+          <div id="dbSectionUri" style="display: none; margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-size: 11px; font-weight: bold;">Connection URI / Host String (Auto-synced with parameters above)</label>
+              <a href="#" id="btnToggleMaskUri" style="font-size: 10px; color: var(--accent); text-decoration: none;" onclick="toggleUriVisibility(event)">👁️ Show/Hide</a>
+            </div>
+            <input type="password" id="dbConnUri" value="postgresql://postgres@localhost:5432/postgres" placeholder="postgresql://username:password@localhost:5432/pilot_db" style="font-family: monospace; font-size: 11.5px;">
+            <div style="font-size: 10.5px; opacity: 0.8; margin-top: 4px;">
+              💡 Format: <code style="color: var(--accent);">dialect://username:password@hostname:port/database</code> &bull; Pasting a URI here immediately updates Host, Port, User, Password, and Database!
+            </div>
+          </div>
+
+          <!-- Credential Vault Policy -->
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+            <label style="font-size: 11px; font-weight: bold;">Credential Vault Policy:</label>
+            <select id="dbSavePolicy" style="padding: 4px 10px; font-size: 11.5px; width: auto; margin-bottom: 0;">
+              <option value="session" selected>Session Only (In-Memory)</option>
+              <option value="vault">Save to OS Vault (vscode.SecretStorage)</option>
+            </select>
           </div>
 
           <!-- Enterprise Security & Advanced Connection Mode -->
@@ -3608,24 +3676,6 @@ Output ONLY the message without markdown code fences.`;
                 <label style="font-size: 10px; font-weight: bold;" id="lblEntParam2">Enterprise Parameter 2</label>
                 <input type="text" id="dbEntParam2" placeholder="" style="font-size: 11px; margin-bottom: 0;">
               </div>
-            </div>
-          </div>
-
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px;">
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Database / Project ID</label>
-              <input type="text" id="dbDatabaseName" placeholder="pilot_db or gcp-project-id" value="${state.activeDbConnection?.database || ''}">
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Schema / Dataset ID</label>
-              <input type="text" id="dbSchemaName" placeholder="public, raw, or dataset_name" value="${state.activeDbConnection?.schema || 'public'}">
-            </div>
-            <div>
-              <label style="font-size: 11px; font-weight: bold;">Credential Vault Policy</label>
-              <select id="dbSavePolicy">
-                <option value="session" selected>Session Only (In-Memory)</option>
-                <option value="vault">Save to OS Vault (vscode.SecretStorage)</option>
-              </select>
             </div>
           </div>
 
@@ -3970,6 +4020,7 @@ Output ONLY the message without markdown code fences.`;
               <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0;" onclick="cosmosEngineZoomOut()" title="Zoom Out">➖</button>
               <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0;" onclick="resetCosmosCamera()" title="Reset Camera View">🎯 Reset</button>
               <button class="btn-quick" style="font-size: 11px; padding: 4px 8px; margin: 0; background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3);" onclick="reloadCosmosTopology()" title="Reload topology from live database or demo">⚡ Reload</button>
+              <button class="btn-quick" style="font-size: 11px; padding: 4px 10px; margin: 0; background: var(--accent); color: #fff; font-weight: 700; border: none; border-radius: 4px;" onclick="toggleDbConnectModal()" title="Connect to Live Database or Demo Presets">🔌 Connect Live DB</button>
             </div>
           </div>
 
@@ -6524,6 +6575,10 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function toggleDbConnectModal() {
+      const phase1 = document.getElementById('phase1');
+      if (phase1 && (phase1.style.display === 'none' || window.getComputedStyle(phase1).display === 'none')) {
+        setPhase(1);
+      }
       const box = document.getElementById('dbConnectBox');
       if (box) {
         const isHidden = box.style.display === 'none' || box.style.display === '' || window.getComputedStyle(box).display === 'none';
@@ -6534,36 +6589,330 @@ Output ONLY the message without markdown code fences.`;
       }
     }
 
-    function toggleUriVisibility(e) {
-      if (e) e.preventDefault();
-      const input = document.getElementById('dbConnUri');
-      if (input) {
-        input.type = input.type === 'password' ? 'text' : 'password';
+    function constructUriFromParams(dialect, host, port, database, username, password) {
+      const scheme = dialect === 'postgres' ? 'postgresql' : dialect;
+      if (dialect === 'sqlite') {
+        return 'sqlite:///' + (database || host || 'app.db');
+      }
+      if (dialect === 'bigquery') {
+        return 'bigquery://' + (host || 'project') + '/' + (database || 'dataset');
+      }
+
+      let creds = '';
+      if (username) {
+        creds = encodeURIComponent(username);
+        if (password) {
+          creds += ':' + encodeURIComponent(password);
+        }
+        creds += '@';
+      }
+
+      const portPart = port ? (':' + port) : '';
+      const dbPart = database ? ('/' + database) : '';
+      return scheme + '://' + creds + (host || 'localhost') + portPart + dbPart;
+    }
+
+    function parseUriIntoParams(uriStr) {
+      const trimmed = (uriStr || '').trim();
+      if (!trimmed) return {};
+
+      try {
+        const schemeSplit = trimmed.split('://');
+        if (schemeSplit.length < 2) return {};
+        let dialect = schemeSplit[0].toLowerCase();
+        if (dialect === 'postgresql') dialect = 'postgres';
+
+        let rest = schemeSplit.slice(1).join('://');
+        let rawQuery = '';
+        const qIdx = rest.indexOf('?');
+        if (qIdx !== -1) {
+          rawQuery = rest.substring(qIdx + 1);
+          rest = rest.substring(0, qIdx);
+        }
+
+        let username;
+        let password;
+        const atIdx = rest.lastIndexOf('@');
+        if (atIdx !== -1) {
+          const userinfo = rest.substring(0, atIdx);
+          rest = rest.substring(atIdx + 1);
+          const colonIdx = userinfo.indexOf(':');
+          if (colonIdx !== -1) {
+            username = decodeURIComponent(userinfo.substring(0, colonIdx));
+            password = decodeURIComponent(userinfo.substring(colonIdx + 1));
+          } else {
+            username = decodeURIComponent(userinfo);
+          }
+        }
+
+        let database;
+        const slashIdx = rest.indexOf('/');
+        if (slashIdx !== -1) {
+          database = decodeURIComponent(rest.substring(slashIdx + 1));
+          rest = rest.substring(0, slashIdx);
+        }
+
+        let host = rest;
+        let port;
+        const portColonIdx = rest.lastIndexOf(':');
+        if (portColonIdx !== -1) {
+          const pStr = rest.substring(portColonIdx + 1);
+          if (/^[0-9]+$/.test(pStr)) {
+            port = parseInt(pStr, 10);
+            host = rest.substring(0, portColonIdx);
+          }
+        }
+
+        let schema;
+        if (rawQuery) {
+          const params = new URLSearchParams(rawQuery);
+          schema = params.get('currentSchema') || params.get('schema') || params.get('search_path') || undefined;
+        }
+
+        return {
+          dialect: dialect || undefined,
+          username: username || undefined,
+          password: password || undefined,
+          host: host || undefined,
+          port: port || undefined,
+          database: database || undefined,
+          schema: schema || undefined,
+        };
+      } catch (err) {
+        return {};
       }
     }
 
-    function handleDialectChange() {
-      const dialect = document.getElementById('dbDialect').value;
-      const uriInput = document.getElementById('dbConnUri');
-      if (dialect === 'postgres') {
-        uriInput.placeholder = 'postgresql://username:password@localhost:5432/pilot_db';
-      } else if (dialect === 'oracle') {
-        uriInput.placeholder = 'oracle://system:password@localhost:1521/ORCL (or TNS / Wallet)';
-      } else if (dialect === 'teradata') {
-        uriInput.placeholder = 'teradata://dbc:password@edwcop1:1025/EDW_CORE (or LDAP / tdwallet)';
-      } else if (dialect === 'db2') {
-        uriInput.placeholder = 'db2://db2admin:password@localhost:50000/SAMPLE (or z/OS Mainframe Port 446)';
-      } else if (dialect === 'snowflake') {
-        uriInput.placeholder = 'https://xy12345.snowflakecomputing.com (or SNOWSQL account)';
-      } else if (dialect === 'bigquery') {
-        uriInput.placeholder = 'BigQuery GCP Project / ADC Active Credentials';
-      } else if (dialect === 'mysql') {
-        uriInput.placeholder = 'mysql://user:pass@localhost:3306/pilot_db';
-      } else if (dialect === 'sqlserver') {
-        uriInput.placeholder = 'sqlserver://user:pass@localhost:1433/pilot_db';
-      } else if (dialect === 'sqlite') {
-        uriInput.placeholder = '/path/to/local/app.db';
+    function toggleUriVisibility(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('dbConnUri');
+      const btn = document.getElementById('btnToggleMaskUri');
+      if (input) {
+        const isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+        if (btn) btn.textContent = isPass ? '🙈 Hide' : '👁️ Show/Hide';
       }
+    }
+
+    function togglePasswordVisibility(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById('dbPasswordInput');
+      const btn = document.getElementById('btnToggleMaskPassword');
+      if (input) {
+        const isPass = input.type === 'password';
+        input.type = isPass ? 'text' : 'password';
+        if (btn) btn.textContent = isPass ? '🙈 Hide' : '👁️ Show';
+      }
+    }
+
+    function setDbInputMode(mode) {
+      const btnModeParams = document.getElementById('btnDbModeParams');
+      const btnModeUri = document.getElementById('btnDbModeUri');
+      const sectionParams = document.getElementById('dbSectionParams');
+      const sectionUri = document.getElementById('dbSectionUri');
+
+      if (mode === 'params') {
+        if (sectionParams) sectionParams.style.display = 'block';
+        if (sectionUri) sectionUri.style.display = 'none';
+        if (btnModeParams) {
+          btnModeParams.classList.add('active');
+          btnModeParams.style.background = 'var(--accent)';
+          btnModeParams.style.color = '#1e1e1e';
+          btnModeParams.style.fontWeight = '700';
+        }
+        if (btnModeUri) {
+          btnModeUri.classList.remove('active');
+          btnModeUri.style.background = 'transparent';
+          btnModeUri.style.color = 'var(--fg)';
+          btnModeUri.style.fontWeight = '600';
+        }
+      } else {
+        if (sectionParams) sectionParams.style.display = 'none';
+        if (sectionUri) sectionUri.style.display = 'block';
+        if (btnModeUri) {
+          btnModeUri.classList.add('active');
+          btnModeUri.style.background = 'var(--accent)';
+          btnModeUri.style.color = '#1e1e1e';
+          btnModeUri.style.fontWeight = '700';
+        }
+        if (btnModeParams) {
+          btnModeParams.classList.remove('active');
+          btnModeParams.style.background = 'transparent';
+          btnModeParams.style.color = 'var(--fg)';
+          btnModeParams.style.fontWeight = '600';
+        }
+      }
+    }
+
+    function applyDbPreset(preset) {
+      const dialectSelect = document.getElementById('dbDialect');
+      const hostInput = document.getElementById('dbHostInput');
+      const portInput = document.getElementById('dbPortInput');
+      const dbInput = document.getElementById('dbDatabaseName');
+      const userInput = document.getElementById('dbUserInput');
+      const passInput = document.getElementById('dbPasswordInput');
+      const schemaInput = document.getElementById('dbSchemaName');
+      const uriInput = document.getElementById('dbConnUri');
+
+      if (preset === 'rnacentral') {
+        if (dialectSelect) dialectSelect.value = 'postgres';
+        if (hostInput) hostInput.value = 'hh-pgsql-public.ebi.ac.uk';
+        if (portInput) portInput.value = '5432';
+        if (dbInput) dbInput.value = 'pfmegrnargs';
+        if (userInput) userInput.value = 'reader';
+        if (passInput) passInput.value = 'NWDMCE5xdipIjRrp';
+        if (schemaInput) schemaInput.value = 'rnacen';
+        if (uriInput) uriInput.value = 'postgresql://reader:NWDMCE5xdipIjRrp@hh-pgsql-public.ebi.ac.uk:5432/pfmegrnargs';
+        showToast('🔬 Loaded Public RNAcentral PostgreSQL (EBI) preset! Click "Connect & Fetch Tables" to introspect.');
+      } else if (preset === 'ensembl') {
+        if (dialectSelect) dialectSelect.value = 'mysql';
+        if (hostInput) hostInput.value = 'ensembldb.ensembl.org';
+        if (portInput) portInput.value = '3306';
+        if (dbInput) dbInput.value = 'homo_sapiens_core_110_38';
+        if (userInput) userInput.value = 'anonymous';
+        if (passInput) passInput.value = '';
+        if (schemaInput) schemaInput.value = 'homo_sapiens_core_110_38';
+        if (uriInput) uriInput.value = 'mysql://anonymous@ensembldb.ensembl.org:3306/homo_sapiens_core_110_38';
+        showToast('🧬 Loaded Public Ensembl Human Genome MySQL preset! Click "Connect & Fetch Tables" to introspect.');
+      } else if (preset === 'local') {
+        if (dialectSelect) dialectSelect.value = 'postgres';
+        if (hostInput) hostInput.value = 'localhost';
+        if (portInput) portInput.value = '5432';
+        if (dbInput) dbInput.value = 'postgres';
+        if (userInput) userInput.value = 'postgres';
+        if (passInput) passInput.value = '';
+        if (schemaInput) schemaInput.value = 'public';
+        if (uriInput) uriInput.value = 'postgresql://postgres@localhost:5432/postgres';
+        showToast('💻 Loaded Localhost PostgreSQL (5432) preset!');
+      }
+      handleDialectChange(true);
+    }
+
+    let isDbSyncing = false;
+    function syncParamsToUri() {
+      if (isDbSyncing) return;
+      isDbSyncing = true;
+      try {
+        const dialect = document.getElementById('dbDialect')?.value || 'postgres';
+        const host = document.getElementById('dbHostInput')?.value?.trim() || 'localhost';
+        const portStr = document.getElementById('dbPortInput')?.value?.trim();
+        const port = portStr ? parseInt(portStr, 10) : undefined;
+        const database = document.getElementById('dbDatabaseName')?.value?.trim() || 'postgres';
+        const username = document.getElementById('dbUserInput')?.value?.trim() || '';
+        const password = document.getElementById('dbPasswordInput')?.value || '';
+        const uriInput = document.getElementById('dbConnUri');
+        if (uriInput) {
+          uriInput.value = constructUriFromParams(dialect, host, port, database, username, password);
+        }
+      } finally {
+        isDbSyncing = false;
+      }
+    }
+
+    function syncUriToParams() {
+      if (isDbSyncing) return;
+      isDbSyncing = true;
+      try {
+        const uriInput = document.getElementById('dbConnUri');
+        if (!uriInput) return;
+        const parsed = parseUriIntoParams(uriInput.value);
+        const dialectSelect = document.getElementById('dbDialect');
+        if (parsed.dialect && dialectSelect) {
+          const hasOption = Array.from(dialectSelect.options).some(o => o.value === parsed.dialect);
+          if (hasOption) dialectSelect.value = parsed.dialect;
+        }
+        if (parsed.host !== undefined) {
+          const el = document.getElementById('dbHostInput');
+          if (el) el.value = parsed.host;
+        }
+        if (parsed.port !== undefined) {
+          const el = document.getElementById('dbPortInput');
+          if (el) el.value = String(parsed.port);
+        }
+        if (parsed.database !== undefined) {
+          const el = document.getElementById('dbDatabaseName');
+          if (el) el.value = parsed.database;
+        }
+        if (parsed.username !== undefined) {
+          const el = document.getElementById('dbUserInput');
+          if (el) el.value = parsed.username;
+        }
+        if (parsed.password !== undefined) {
+          const el = document.getElementById('dbPasswordInput');
+          if (el) el.value = parsed.password;
+        }
+        if (parsed.schema !== undefined) {
+          const el = document.getElementById('dbSchemaName');
+          if (el) el.value = parsed.schema;
+        }
+      } finally {
+        isDbSyncing = false;
+      }
+    }
+
+    function setupDbConnectionSync() {
+      ['dbHostInput', 'dbPortInput', 'dbDatabaseName', 'dbUserInput', 'dbPasswordInput'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener('input', syncParamsToUri);
+          el.addEventListener('change', syncParamsToUri);
+        }
+      });
+      const uriEl = document.getElementById('dbConnUri');
+      if (uriEl) {
+        uriEl.addEventListener('input', syncUriToParams);
+        uriEl.addEventListener('change', syncUriToParams);
+      }
+    }
+
+    function handleDialectChange(skipPortUpdate) {
+      const dialect = document.getElementById('dbDialect')?.value || 'postgres';
+      const uriInput = document.getElementById('dbConnUri');
+      const portInput = document.getElementById('dbPortInput');
+
+      const defaultPorts = {
+        postgres: 5432,
+        mysql: 3306,
+        oracle: 1521,
+        sqlserver: 1433,
+        teradata: 1025,
+        db2: 50000,
+        snowflake: 443,
+        bigquery: 443,
+        sqlite: 0
+      };
+
+      if (!skipPortUpdate && portInput) {
+        const currentPort = parseInt(portInput.value, 10);
+        const knownDefaults = [5432, 3306, 1521, 1433, 1025, 50000, 443, 0];
+        if (!currentPort || knownDefaults.includes(currentPort)) {
+          portInput.value = String(defaultPorts[dialect] || 5432);
+        }
+      }
+
+      if (uriInput) {
+        if (dialect === 'postgres') {
+          uriInput.placeholder = 'postgresql://username:password@localhost:5432/pilot_db';
+        } else if (dialect === 'oracle') {
+          uriInput.placeholder = 'oracle://system:password@localhost:1521/ORCL (or TNS / Wallet)';
+        } else if (dialect === 'teradata') {
+          uriInput.placeholder = 'teradata://dbc:password@edwcop1:1025/EDW_CORE (or LDAP / tdwallet)';
+        } else if (dialect === 'db2') {
+          uriInput.placeholder = 'db2://db2admin:password@localhost:50000/SAMPLE (or z/OS Mainframe Port 446)';
+        } else if (dialect === 'snowflake') {
+          uriInput.placeholder = 'https://xy12345.snowflakecomputing.com (or SNOWSQL account)';
+        } else if (dialect === 'bigquery') {
+          uriInput.placeholder = 'BigQuery GCP Project / ADC Active Credentials';
+        } else if (dialect === 'mysql') {
+          uriInput.placeholder = 'mysql://user:pass@localhost:3306/pilot_db';
+        } else if (dialect === 'sqlserver') {
+          uriInput.placeholder = 'sqlserver://user:pass@localhost:1433/pilot_db';
+        } else if (dialect === 'sqlite') {
+          uriInput.placeholder = '/path/to/local/app.db';
+        }
+      }
+
+      syncParamsToUri();
     }
 
     function handleSecurityModeChange() {
@@ -6637,17 +6986,32 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function buildCurrentDbOptions() {
-      const dialect = document.getElementById('dbDialect').value;
-      const uri = document.getElementById('dbConnUri').value.trim();
-      const db = document.getElementById('dbDatabaseName').value.trim();
-      const schema = document.getElementById('dbSchemaName').value.trim();
+      const dialect = document.getElementById('dbDialect')?.value || 'postgres';
+      let uri = document.getElementById('dbConnUri')?.value?.trim() || '';
+      const db = document.getElementById('dbDatabaseName')?.value?.trim() || '';
+      const schema = document.getElementById('dbSchemaName')?.value?.trim() || '';
+      const host = document.getElementById('dbHostInput')?.value?.trim() || '';
+      const portStr = document.getElementById('dbPortInput')?.value?.trim() || '';
+      const port = portStr ? parseInt(portStr, 10) : undefined;
+      const username = document.getElementById('dbUserInput')?.value?.trim() || '';
+      const password = document.getElementById('dbPasswordInput')?.value || '';
       const securityMode = document.getElementById('dbSecurityMode')?.value || 'standard';
       const entParam1 = document.getElementById('dbEntParam1')?.value?.trim();
       const entParam2 = document.getElementById('dbEntParam2')?.value?.trim();
 
+      if (!uri && host) {
+        uri = constructUriFromParams(dialect, host, port, db, username, password);
+        const uriEl = document.getElementById('dbConnUri');
+        if (uriEl) uriEl.value = uri;
+      }
+
       const options = {
         dialect: dialect,
         connectionUri: uri || undefined,
+        host: host || undefined,
+        port: port || undefined,
+        username: username || undefined,
+        password: password || undefined,
         database: db || undefined,
         schema: schema || undefined,
         securityMode: securityMode,
@@ -6697,6 +7061,10 @@ Output ONLY the message without markdown code fences.`;
         command: 'testDbConnection',
         dialect: options.dialect,
         connectionUri: options.connectionUri,
+        host: options.host,
+        port: options.port,
+        username: options.username,
+        password: options.password,
         database: options.database,
         schema: options.schema,
         securityMode: options.securityMode,
@@ -6721,6 +7089,10 @@ Output ONLY the message without markdown code fences.`;
 
     function wipeDbSecrets() {
       vscode.postMessage({ command: 'wipeDbSecrets' });
+      const uriEl = document.getElementById('dbConnUri');
+      if (uriEl) uriEl.value = '';
+      const passEl = document.getElementById('dbPasswordInput');
+      if (passEl) passEl.value = '';
     }
 
     function filterDiscoveredTables() {
@@ -7927,9 +8299,22 @@ Output ONLY the message without markdown code fences.`;
             document.getElementById('dbDialect').value = d.dialect;
             handleDialectChange();
           }
-          if (d.connectionUri) document.getElementById('dbConnUri').value = d.connectionUri;
+          if (d.host) document.getElementById('dbHostInput').value = d.host;
+          if (d.port) document.getElementById('dbPortInput').value = d.port;
           if (d.database) document.getElementById('dbDatabaseName').value = d.database;
+          if (d.username) document.getElementById('dbUserInput').value = d.username;
+          if (d.password) document.getElementById('dbPasswordInput').value = d.password;
           if (d.schema) document.getElementById('dbSchemaName').value = d.schema;
+          if (d.connectionUri) {
+            document.getElementById('dbConnUri').value = d.connectionUri;
+            const parsed = parseUriIntoParams(d.connectionUri);
+            if (parsed.host && !d.host) document.getElementById('dbHostInput').value = parsed.host;
+            if (parsed.port && !d.port) document.getElementById('dbPortInput').value = String(parsed.port);
+            if (parsed.username && !d.username) document.getElementById('dbUserInput').value = parsed.username;
+            if (parsed.password && !d.password) document.getElementById('dbPasswordInput').value = parsed.password;
+            if (parsed.database && !d.database) document.getElementById('dbDatabaseName').value = parsed.database;
+            if (parsed.schema && !d.schema) document.getElementById('dbSchemaName').value = parsed.schema;
+          }
           showToast('✓ Auto-populated ' + (d.dialect ? d.dialect.toUpperCase() : 'DB') + ' connection from ' + d.sourceFile);
         } else {
           showToast('⚠️ No database connection settings found in workspace .env or config files.');
@@ -7943,6 +8328,8 @@ Output ONLY the message without markdown code fences.`;
         }
       } else if (msg.type === 'dbSecretsWiped') {
         document.getElementById('dbConnUri').value = '';
+        const passEl = document.getElementById('dbPasswordInput');
+        if (passEl) passEl.value = '';
         showToast('✓ Stored credentials purged from OS vault.');
       } else if (msg.type === 'curlParsed') {
         const p = msg.parsed;
@@ -8369,11 +8756,16 @@ Output ONLY the message without markdown code fences.`;
     try { window.switchDocTab = switchDocTab; } catch(e) {}
     try { window.toggleDbConnectModal = toggleDbConnectModal; } catch(e) {}
     try { window.toggleUriVisibility = toggleUriVisibility; } catch(e) {}
+    try { window.togglePasswordVisibility = togglePasswordVisibility; } catch(e) {}
+    try { window.setDbInputMode = setDbInputMode; } catch(e) {}
+    try { window.applyDbPreset = applyDbPreset; } catch(e) {}
+    try { window.setupDbConnectionSync = setupDbConnectionSync; } catch(e) {}
     try { window.handleDialectChange = handleDialectChange; } catch(e) {}
     try { window.introspectDatabase = introspectDatabase; } catch(e) {}
     try { window.testDbConnection = testDbConnection; } catch(e) {}
     try { window.detectWorkspaceDb = detectWorkspaceDb; } catch(e) {}
     try { window.wipeDbSecrets = wipeDbSecrets; } catch(e) {}
+    try { setupDbConnectionSync(); } catch(e) {}
     try { window.filterDiscoveredTables = filterDiscoveredTables; } catch(e) {}
     try { window.applySelectedDbTable = applySelectedDbTable; } catch(e) {}
     try { window.pickSchemaFile = pickSchemaFile; } catch(e) {}

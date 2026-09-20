@@ -11,7 +11,7 @@ let currentActiveSessionId: string | null = null;
 let currentActiveDeliveryPhase = 1;
 let currentActiveTab = 'delivery';
 let currentSelectedLanguage = 'python';
-let currentSelectedDeliverable = 'chat';
+let currentSelectedDeliverable = 'insights';
 let activeSelectedModel = 'qwen2.5-coder:7b';
 let currentConverterTarget = 'typescript';
 
@@ -183,6 +183,72 @@ function bindEnterpriseSecurityUi(
   updateUi();
 }
 
+function constructUriFromParams(
+  dialect: string,
+  host: string,
+  port?: number | string,
+  database?: string,
+  username?: string,
+  password?: string
+): string {
+  const scheme = dialect === 'postgres' ? 'postgresql' : dialect;
+  if (dialect === 'sqlite') {
+    return `sqlite:///${database || host || 'app.db'}`;
+  }
+  if (dialect === 'bigquery') {
+    return `bigquery://${host || 'project'}/${database || 'dataset'}`;
+  }
+
+  let creds = '';
+  if (username) {
+    creds = encodeURIComponent(username);
+    if (password) {
+      creds += `:${encodeURIComponent(password)}`;
+    }
+    creds += '@';
+  }
+
+  const portPart = port ? `:${port}` : '';
+  const dbPart = database ? `/${database}` : '';
+  return `${scheme}://${creds}${host || 'localhost'}${portPart}${dbPart}`;
+}
+
+function parseUriIntoParams(uriStr: string): {
+  dialect?: string;
+  username?: string;
+  password?: string;
+  host?: string;
+  port?: number;
+  database?: string;
+  schema?: string;
+} {
+  const trimmed = (uriStr || '').trim();
+  if (!trimmed) return {};
+
+  const match = trimmed.match(/^([a-z0-9_-]+):\/\/(?:([^:@]+)(?::([^@]+))?@)?([^:\/\?#]+)?(?::(\d+))?(?:\/([^?#]*))?(?:\?(.*))?$/i);
+  if (!match) return {};
+
+  const [, rawScheme, rawUser, rawPass, rawHost, rawPort, rawDb, rawQuery] = match;
+  let dialect = (rawScheme || '').toLowerCase();
+  if (dialect === 'postgresql') dialect = 'postgres';
+
+  let schema: string | undefined;
+  if (rawQuery) {
+    const qMatch = rawQuery.match(/(?:currentSchema|schema|search_path)=([^&]+)/i);
+    if (qMatch) schema = decodeURIComponent(qMatch[1]);
+  }
+
+  return {
+    dialect,
+    username: rawUser ? decodeURIComponent(rawUser) : undefined,
+    password: rawPass ? decodeURIComponent(rawPass) : undefined,
+    host: rawHost || undefined,
+    port: rawPort ? parseInt(rawPort, 10) : undefined,
+    database: rawDb ? decodeURIComponent(rawDb) : undefined,
+    schema,
+  };
+}
+
 function buildDbOptionsFromInputs(
   dialectId: string,
   uriId: string,
@@ -192,17 +258,44 @@ function buildDbOptionsFromInputs(
   param1Id?: string,
   param2Id?: string
 ) {
+  let prefix: '' | 'data' | 'modal' = '';
+  if (uriId.startsWith('data')) prefix = 'data';
+  else if (uriId.startsWith('modal')) prefix = 'modal';
+
+  const p = prefix ? prefix : '';
+  const hostId = p ? `${p}DbHostInput` : 'dbHostInput';
+  const portId = p ? `${p}DbPortInput` : 'dbPortInput';
+  const userId = p ? `${p}DbUserInput` : 'dbUserInput';
+  const passId = p ? `${p}DbPasswordInput` : 'dbPasswordInput';
+
   const dialect = (document.getElementById(dialectId) as HTMLSelectElement)?.value || 'postgres';
-  const uri = (document.getElementById(uriId) as HTMLInputElement)?.value?.trim() || '';
+  let uri = (document.getElementById(uriId) as HTMLInputElement)?.value?.trim() || '';
   const database = (document.getElementById(projectId) as HTMLInputElement)?.value?.trim() || 'postgres';
   const schema = (document.getElementById(schemaId) as HTMLInputElement)?.value?.trim() || 'public';
   const securityMode = modeId ? ((document.getElementById(modeId) as HTMLSelectElement)?.value || 'standard') : 'standard';
   const entParam1 = param1Id ? ((document.getElementById(param1Id) as HTMLInputElement)?.value?.trim() || '') : '';
   const entParam2 = param2Id ? ((document.getElementById(param2Id) as HTMLInputElement)?.value?.trim() || '') : '';
 
+  const host = (document.getElementById(hostId) as HTMLInputElement)?.value?.trim();
+  const portStr = (document.getElementById(portId) as HTMLInputElement)?.value?.trim();
+  const port = portStr ? parseInt(portStr, 10) : undefined;
+  const username = (document.getElementById(userId) as HTMLInputElement)?.value?.trim();
+  const password = (document.getElementById(passId) as HTMLInputElement)?.value;
+
+  // If URI is empty or was not set, but host is present, construct URI
+  if (!uri && host) {
+    uri = constructUriFromParams(dialect, host, port, database, username, password);
+    const uriEl = document.getElementById(uriId) as HTMLInputElement | null;
+    if (uriEl) uriEl.value = uri;
+  }
+
   const options: any = {
     dialect,
     connectionUri: uri || undefined,
+    host: host || undefined,
+    port: port || undefined,
+    username: username || undefined,
+    password: password || undefined,
     database: database || undefined,
     schema: schema || undefined,
     securityMode,
@@ -294,6 +387,219 @@ function handleDialectSelectChange(
   });
 }
 
+function applyDbPreset(prefix: '' | 'data' | 'modal', preset: string) {
+  const p = prefix ? prefix : '';
+  const dialectSelect = document.getElementById(p ? `${p}DbDialectSelect` : 'dbDialectSelect') as HTMLSelectElement | null;
+  const hostInput = document.getElementById(p ? `${p}DbHostInput` : 'dbHostInput') as HTMLInputElement | null;
+  const portInput = document.getElementById(p ? `${p}DbPortInput` : 'dbPortInput') as HTMLInputElement | null;
+  const dbInput = document.getElementById(p ? `${p}DbProjectIdInput` : 'dbProjectIdInput') as HTMLInputElement | null;
+  const userInput = document.getElementById(p ? `${p}DbUserInput` : 'dbUserInput') as HTMLInputElement | null;
+  const passInput = document.getElementById(p ? `${p}DbPasswordInput` : 'dbPasswordInput') as HTMLInputElement | null;
+  const schemaInput = document.getElementById(p ? `${p}DbSchemaIdInput` : 'dbSchemaIdInput') as HTMLInputElement | null;
+  const uriInput = document.getElementById(p ? `${p}DbUriInput` : 'dbUriInput') as HTMLInputElement | null;
+
+  if (preset === 'rnacentral') {
+    if (dialectSelect) dialectSelect.value = 'postgres';
+    if (hostInput) hostInput.value = 'hh-pgsql-public.ebi.ac.uk';
+    if (portInput) portInput.value = '5432';
+    if (dbInput) dbInput.value = 'pfmegrnargs';
+    if (userInput) userInput.value = 'reader';
+    if (passInput) passInput.value = 'NWDMCE5xdipIjRrp';
+    if (schemaInput) schemaInput.value = 'rnacen';
+    if (uriInput) uriInput.value = 'postgresql://reader:NWDMCE5xdipIjRrp@hh-pgsql-public.ebi.ac.uk:5432/pfmegrnargs';
+    showToast('🔬 Loaded Public RNAcentral PostgreSQL (EBI) preset! Click "Connect & Fetch Tables" to introspect.');
+  } else if (preset === 'ensembl') {
+    if (dialectSelect) dialectSelect.value = 'mysql';
+    if (hostInput) hostInput.value = 'ensembldb.ensembl.org';
+    if (portInput) portInput.value = '3306';
+    if (dbInput) dbInput.value = 'homo_sapiens_core_110_38';
+    if (userInput) userInput.value = 'anonymous';
+    if (passInput) passInput.value = '';
+    if (schemaInput) schemaInput.value = 'homo_sapiens_core_110_38';
+    if (uriInput) uriInput.value = 'mysql://anonymous@ensembldb.ensembl.org:3306/homo_sapiens_core_110_38';
+    showToast('🧬 Loaded Public Ensembl Human Genome MySQL preset!');
+  } else if (preset === 'local') {
+    if (dialectSelect) dialectSelect.value = 'postgres';
+    if (hostInput) hostInput.value = 'localhost';
+    if (portInput) portInput.value = '5432';
+    if (dbInput) dbInput.value = 'postgres';
+    if (userInput) userInput.value = 'postgres';
+    if (passInput) passInput.value = '';
+    if (schemaInput) schemaInput.value = 'public';
+    if (uriInput) uriInput.value = 'postgresql://postgres@localhost:5432/postgres';
+    showToast('💻 Loaded Localhost PostgreSQL (5432) preset!');
+  }
+}
+
+function setupDbPresets(): void {
+  document.querySelectorAll<HTMLButtonElement>('.db-quick-preset').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const prefix = (btn.getAttribute('data-prefix') || '') as '' | 'data' | 'modal';
+      const preset = btn.getAttribute('data-preset') || '';
+      applyDbPreset(prefix, preset);
+    });
+  });
+}
+
+function setupDbConnectionSync(prefix: '' | 'data' | 'modal'): void {
+  const p = prefix ? prefix : '';
+  const cap = prefix ? prefix.charAt(0).toUpperCase() + prefix.slice(1) : '';
+
+  const dialectSelect = document.getElementById(p ? `${p}DbDialectSelect` : 'dbDialectSelect') as HTMLSelectElement | null;
+  const hostInput = document.getElementById(p ? `${p}DbHostInput` : 'dbHostInput') as HTMLInputElement | null;
+  const portInput = document.getElementById(p ? `${p}DbPortInput` : 'dbPortInput') as HTMLInputElement | null;
+  const dbInput = document.getElementById(p ? `${p}DbProjectIdInput` : 'dbProjectIdInput') as HTMLInputElement | null;
+  const userInput = document.getElementById(p ? `${p}DbUserInput` : 'dbUserInput') as HTMLInputElement | null;
+  const passInput = document.getElementById(p ? `${p}DbPasswordInput` : 'dbPasswordInput') as HTMLInputElement | null;
+  const schemaInput = document.getElementById(p ? `${p}DbSchemaIdInput` : 'dbSchemaIdInput') as HTMLInputElement | null;
+  const uriInput = document.getElementById(p ? `${p}DbUriInput` : 'dbUriInput') as HTMLInputElement | null;
+
+  const btnModeParams = document.getElementById(p ? `btn${cap}DbModeParams` : 'btnDbModeParams');
+  const btnModeUri = document.getElementById(p ? `btn${cap}DbModeUri` : 'btnDbModeUri');
+  const sectionParams = document.getElementById(p ? `${p}DbSectionParams` : 'dbSectionParams');
+  const sectionUri = document.getElementById(p ? `${p}DbSectionUri` : 'dbSectionUri');
+
+  const btnToggleMaskPassword = document.getElementById(p ? `btn${cap}ToggleMaskPassword` : 'btnToggleMaskPassword');
+  const btnToggleMaskUri = document.getElementById(p ? `btn${cap}ToggleMaskUri` : 'btnToggleMaskUri');
+
+  let isSyncing = false;
+
+  // 1. Mode Switcher (Host/Port/User/Pass vs URI String)
+  const setMode = (mode: 'params' | 'uri') => {
+    if (mode === 'params') {
+      if (sectionParams) sectionParams.style.display = 'block';
+      if (sectionUri) sectionUri.style.display = 'none';
+      if (btnModeParams) {
+        btnModeParams.classList.add('active');
+        btnModeParams.style.background = prefix === 'modal' ? '#38bdf8' : 'var(--accent)';
+        btnModeParams.style.color = '#1e1e1e';
+        btnModeParams.style.fontWeight = '700';
+      }
+      if (btnModeUri) {
+        btnModeUri.classList.remove('active');
+        btnModeUri.style.background = 'transparent';
+        btnModeUri.style.color = 'var(--text-secondary, #94a3b8)';
+        btnModeUri.style.fontWeight = '600';
+      }
+    } else {
+      if (sectionParams) sectionParams.style.display = 'none';
+      if (sectionUri) sectionUri.style.display = 'block';
+      if (btnModeUri) {
+        btnModeUri.classList.add('active');
+        btnModeUri.style.background = prefix === 'modal' ? '#38bdf8' : 'var(--accent)';
+        btnModeUri.style.color = '#1e1e1e';
+        btnModeUri.style.fontWeight = '700';
+      }
+      if (btnModeParams) {
+        btnModeParams.classList.remove('active');
+        btnModeParams.style.background = 'transparent';
+        btnModeParams.style.color = 'var(--text-secondary, #94a3b8)';
+        btnModeParams.style.fontWeight = '600';
+      }
+    }
+  };
+
+  btnModeParams?.addEventListener('click', () => setMode('params'));
+  btnModeUri?.addEventListener('click', () => setMode('uri'));
+
+  // 2. Password show/hide
+  btnToggleMaskPassword?.addEventListener('click', () => {
+    if (passInput) {
+      const isPass = passInput.type === 'password';
+      passInput.type = isPass ? 'text' : 'password';
+      btnToggleMaskPassword.textContent = isPass ? '🙈 Hide' : '👁️ Show';
+    }
+  });
+
+  // 3. URI show/hide
+  btnToggleMaskUri?.addEventListener('click', () => {
+    if (uriInput) {
+      const isPass = uriInput.type === 'password';
+      uriInput.type = isPass ? 'text' : 'password';
+      btnToggleMaskUri.textContent = isPass ? '🙈 Hide' : '👁️ Show';
+    }
+  });
+
+  // 4. Bi-directional Sync: Parameters -> URI
+  const syncParamsToUri = () => {
+    if (isSyncing || !uriInput) return;
+    isSyncing = true;
+    try {
+      const dialect = dialectSelect?.value || 'postgres';
+      const host = hostInput?.value?.trim() || 'localhost';
+      const port = portInput?.value ? parseInt(portInput.value, 10) : undefined;
+      const database = dbInput?.value?.trim() || 'postgres';
+      const username = userInput?.value?.trim() || '';
+      const password = passInput?.value || '';
+      uriInput.value = constructUriFromParams(dialect, host, port, database, username, password);
+    } finally {
+      isSyncing = false;
+    }
+  };
+
+  // 5. Bi-directional Sync: URI -> Parameters
+  const syncUriToParams = () => {
+    if (isSyncing || !uriInput) return;
+    isSyncing = true;
+    try {
+      const parsed = parseUriIntoParams(uriInput.value);
+      if (parsed.dialect && dialectSelect) {
+        const hasOption = Array.from(dialectSelect.options).some(o => o.value === parsed.dialect);
+        if (hasOption) dialectSelect.value = parsed.dialect;
+      }
+      if (parsed.host !== undefined && hostInput) hostInput.value = parsed.host;
+      if (parsed.port !== undefined && portInput) portInput.value = String(parsed.port);
+      if (parsed.database !== undefined && dbInput) dbInput.value = parsed.database;
+      if (parsed.username !== undefined && userInput) userInput.value = parsed.username;
+      if (parsed.password !== undefined && passInput) passInput.value = parsed.password;
+      if (parsed.schema !== undefined && schemaInput) schemaInput.value = parsed.schema;
+    } finally {
+      isSyncing = false;
+    }
+  };
+
+  hostInput?.addEventListener('input', syncParamsToUri);
+  portInput?.addEventListener('input', syncParamsToUri);
+  dbInput?.addEventListener('input', syncParamsToUri);
+  userInput?.addEventListener('input', syncParamsToUri);
+  passInput?.addEventListener('input', syncParamsToUri);
+  uriInput?.addEventListener('input', syncUriToParams);
+
+  // 6. Dialect default port updates
+  const getDefaultPortForDialect = (d: string): number => {
+    switch (d) {
+      case 'postgres': return 5432;
+      case 'mysql': return 3306;
+      case 'oracle': return 1521;
+      case 'sqlserver': return 1433;
+      case 'teradata': return 1025;
+      case 'db2': return 50000;
+      case 'snowflake': return 443;
+      case 'bigquery': return 443;
+      default: return 5432;
+    }
+  };
+
+  dialectSelect?.addEventListener('change', () => {
+    if (portInput) {
+      const defPort = getDefaultPortForDialect(dialectSelect.value);
+      const knownPorts = ['5432', '3306', '1521', '1433', '1025', '50000', '443'];
+      if (!portInput.value || knownPorts.includes(portInput.value)) {
+        portInput.value = String(defPort);
+      }
+    }
+    syncParamsToUri();
+  });
+
+  // Initial sync from existing inputs
+  if (uriInput?.value && (!hostInput?.value || hostInput.value === 'localhost')) {
+    syncUriToParams();
+  } else {
+    syncParamsToUri();
+  }
+}
+
 // --- ENTERPRISE CRYPTOGRAPHIC LICENSE GATE ---
 async function setupLicenseGate(api: any): Promise<boolean> {
   const gateOverlay = document.getElementById('licenseGateOverlay');
@@ -383,16 +689,47 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     // Valid and active license exists! Un-gate and open application fully
     if (gateOverlay) gateOverlay.style.display = 'none';
   } else {
-    // Unlicensed / Expired / First launch! Keep application gated
-    if (gateOverlay) gateOverlay.style.display = 'flex';
-    if (msgBox) {
-      msgBox.style.display = 'block';
-      msgBox.style.background = 'rgba(239, 68, 68, 0.12)';
-      msgBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
-      msgBox.style.color = '#fca5a5';
-      msgBox.innerHTML = '<strong>🔒 Standalone Workstation Locked:</strong> A valid cryptographically signed enterprise license is required. Please paste your license token below to unlock the application.';
+    // Unlicensed / Expired / First launch!
+    let isCommunitySaved = false;
+    try { isCommunitySaved = localStorage.getItem('evolve_community_mode') === 'true'; } catch {}
+    if (isCommunitySaved) {
+      if (gateOverlay) gateOverlay.style.display = 'none';
+      (window as any)._isCommunityMode = true;
+      if (headerLicPill) {
+        headerLicPill.className = 'header-pill info';
+        headerLicPill.innerText = '⚪ Community Mode (Phases 1–4 Free)';
+      }
+    } else {
+      if (gateOverlay) gateOverlay.style.display = 'flex';
+      if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.style.background = 'rgba(239, 68, 68, 0.12)';
+        msgBox.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+        msgBox.style.color = '#fca5a5';
+        msgBox.innerHTML = '<strong>🔒 Standalone Workstation Locked:</strong> A valid cryptographically signed enterprise license is required, or click <strong>Continue with Free Community Edition</strong> below.';
+      }
     }
   }
+
+  // Free Community Edition Bypass Button
+  const btnGateCommunityMode = document.getElementById('btnGateCommunityMode');
+  btnGateCommunityMode?.addEventListener('click', () => {
+    if (gateOverlay) {
+      gateOverlay.style.opacity = '0';
+      gateOverlay.style.transition = 'opacity 0.25s ease';
+      setTimeout(() => {
+        gateOverlay.style.display = 'none';
+        gateOverlay.style.opacity = '1';
+      }, 250);
+    }
+    (window as any)._isCommunityMode = true;
+    try { localStorage.setItem('evolve_community_mode', 'true'); } catch {}
+    if (headerLicPill) {
+      headerLicPill.className = 'header-pill info';
+      headerLicPill.innerText = '⚪ Community Mode (Phases 1–4 Free)';
+    }
+    showToast('✓ Welcome to Evolve AI Free Community Edition (Phases 1–4 Unlocked)!');
+  });
 
   // 3. Copy hardware fingerprint
   btnCopyHw?.addEventListener('click', async () => {
@@ -758,6 +1095,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { setupModals(api); } catch (e) { console.error('setupModals failed', e); }
   try { setupDbSampleDataModal(api); } catch (e) { console.error('setupDbSampleDataModal failed', e); }
   try { setupLiveDbConnectModal(api); } catch (e) { console.error('setupLiveDbConnectModal failed', e); }
+  document.getElementById('btnHeaderConnectDb')?.addEventListener('click', () => {
+    (window as any).openLiveDbConnectModal?.();
+  });
 
   // Auto-scan hardware, branches & workspace on startup
   if (api) {
@@ -1450,8 +1790,8 @@ function setupWorkspace(api: any): void {
   const openFolderHandler = async () => {
     if (api?.license) {
       const state = await api.license.getState();
-      if (!state?.isLicensed) {
-        showToast('⚠️ Valid Enterprise License required before opening workspace.');
+      if (!state?.isLicensed && !(window as any)._isCommunityMode) {
+        showToast('⚠️ Valid Enterprise License or Community Mode required before opening workspace.');
         const gate = document.getElementById('licenseGateOverlay');
         if (gate) {
           gate.style.display = 'flex';
@@ -6017,24 +6357,6 @@ function setupDeliveryStudio(api: any): void {
     if (dbConnectDrawer) dbConnectDrawer.style.display = 'none';
   });
 
-  btnToggleMaskUri?.addEventListener('click', () => {
-    if (dbUriInput) {
-      dbUriInput.type = dbUriInput.type === 'password' ? 'text' : 'password';
-    }
-  });
-
-  btnTestDbPing?.addEventListener('click', () => {
-    showToast('🔌 Testing connection to database host...');
-    setTimeout(() => {
-      showToast('✓ [200 OK] Ping 18ms | SSL Authenticated | Database: postgres');
-    }, 400);
-  });
-
-  btnWipeDbCreds?.addEventListener('click', () => {
-    if (dbUriInput) dbUriInput.value = '';
-    showToast('🗑️ Database credentials wiped from session vault.');
-  });
-
   btnPickSchemaFile?.addEventListener('click', async () => {
     if (api?.workspace) {
       const filePath = await api.workspace.openFileDialog();
@@ -6444,12 +6766,14 @@ function setupDeliveryStudio(api: any): void {
   // Initialize Enterprise Security Mode & Dialect Change Handling for Phase 2
   bindEnterpriseSecurityUi('dbSecurityMode', 'dbSecurityModeBadge', 'dbEnterpriseFields', 'lblEntParam1', 'dbEntParam1', 'lblEntParam2', 'dbEntParam2');
   handleDialectSelectChange('dbDialectSelect', 'dbUriInput', 'dbSecurityMode');
+  setupDbConnectionSync('');
+  setupDbPresets();
 
   document.getElementById('btnExecuteIntrospect')?.addEventListener('click', async () => {
     const opts = buildDbOptionsFromInputs('dbDialectSelect', 'dbUriInput', 'dbProjectIdInput', 'dbSchemaIdInput', 'dbSecurityMode', 'dbEntParam1', 'dbEntParam2');
 
     if (!opts.connectionUri && opts.securityMode === 'standard') {
-      showToast('⚠️ Please enter database connection URI.');
+      showToast('⚠️ Please enter database connection URI or host parameters.');
       return;
     }
     showToast(`🔌 Introspecting ${opts.dialect.toUpperCase()} database schema...`);
@@ -6500,14 +6824,26 @@ function setupDeliveryStudio(api: any): void {
           (document.getElementById('dbDialectSelect') as HTMLSelectElement).value = detected.dialect;
           (document.getElementById('dbDialectSelect') as HTMLSelectElement).dispatchEvent(new Event('change'));
         }
-        if (detected.connectionUri) {
-          (document.getElementById('dbUriInput') as HTMLInputElement).value = detected.connectionUri;
+        if (detected.host) {
+          (document.getElementById('dbHostInput') as HTMLInputElement).value = detected.host;
+        }
+        if (detected.port) {
+          (document.getElementById('dbPortInput') as HTMLInputElement).value = String(detected.port);
+        }
+        if (detected.username) {
+          (document.getElementById('dbUserInput') as HTMLInputElement).value = detected.username;
+        }
+        if (detected.password) {
+          (document.getElementById('dbPasswordInput') as HTMLInputElement).value = detected.password;
         }
         if (detected.database) {
           (document.getElementById('dbProjectIdInput') as HTMLInputElement).value = detected.database;
         }
         if (detected.schema) {
           (document.getElementById('dbSchemaIdInput') as HTMLInputElement).value = detected.schema;
+        }
+        if (detected.connectionUri) {
+          (document.getElementById('dbUriInput') as HTMLInputElement).value = detected.connectionUri;
         }
         showToast(`✓ Auto-detected ${detected.dialect?.toUpperCase() || 'DB'} connection from ${detected.sourceFile || '.env'}!`);
       } else {
@@ -6520,7 +6856,7 @@ function setupDeliveryStudio(api: any): void {
     const opts = buildDbOptionsFromInputs('dbDialectSelect', 'dbUriInput', 'dbProjectIdInput', 'dbSchemaIdInput', 'dbSecurityMode', 'dbEntParam1', 'dbEntParam2');
 
     if (!opts.connectionUri && opts.securityMode === 'standard') {
-      showToast('⚠️ Please enter database connection URI.');
+      showToast('⚠️ Please enter database connection URI or host parameters.');
       return;
     }
     showToast(`🔌 Testing connection to ${opts.dialect.toUpperCase()} database...`);
@@ -6535,8 +6871,12 @@ function setupDeliveryStudio(api: any): void {
   });
 
   document.getElementById('btnWipeDbCreds')?.addEventListener('click', () => {
-    const uriInput = document.getElementById('dbUriInput') as HTMLInputElement;
+    const uriInput = document.getElementById('dbUriInput') as HTMLInputElement | null;
     if (uriInput) uriInput.value = '';
+    const passInput = document.getElementById('dbPasswordInput') as HTMLInputElement | null;
+    if (passInput) passInput.value = '';
+    const userInput = document.getElementById('dbUserInput') as HTMLInputElement | null;
+    if (userInput) userInput.value = '';
     showToast('🗑️ Cleared database connection credentials from memory.');
   });
 
@@ -12550,6 +12890,9 @@ export class SwarmOrchestrator {
     updateLadderAiChips();
     updateLadderUndoButton();
     syncActiveTargetBadge(committedProjectTargetLevel);
+
+    const boxRagBridge = document.getElementById('boxLadderLevel3RagBridge');
+    if (boxRagBridge) boxRagBridge.style.display = level === 3 ? 'block' : 'none';
   };
 
   // =========================================================================
@@ -15596,32 +15939,1034 @@ export class SovereignSwarmOrchestrator {
     refreshP3Rail();
   });
 
-  // 3C. Scaffold Air-Gapped Policy RAG
-  document.getElementById('btnScaffoldRagPolicy')?.addEventListener('click', async () => {
+  // =========================================================================
+  // 3C. ENTERPRISE RAG ARCHITECTURE MATRIX, ADVISOR & SCAFFOLDER (8 CANONICAL PATTERNS)
+  // =========================================================================
+
+  interface RagArchDefinition {
+    id: string;
+    num: string;
+    name: string;
+    subtitle: string;
+    icon: string;
+    badge: string;
+    latency: string;
+    cost: string;
+    sla: string;
+    indexComplexity: string;
+    elevatorPitch: string;
+    whenToUse: string[];
+    watchOut: string[];
+    mermaidFlow: string;
+    stages: Array<{ name: string; type: 'input' | 'process' | 'branch' | 'eval' | 'output'; detail: string }>;
+    codePreviewTs: string;
+    codePreviewPy: string;
+    dynamicParamHtml: string;
+  }
+
+  const RAG_ARCHITECTURES: Record<string, RagArchDefinition> = {
+    naive: {
+      id: 'naive',
+      num: '01',
+      name: 'Naive RAG',
+      subtitle: 'Retrieve once, then generate.',
+      icon: '📄',
+      badge: 'Single-Pass Baseline',
+      latency: '< 60ms',
+      cost: '~$0.0005 / query',
+      sla: '92% Static Fact Recall',
+      indexComplexity: 'Low (Single HNSW Vector Index)',
+      elevatorPitch: 'Naive RAG is our baseline single-pass pipeline. It chunks documents, computes dense embeddings, stores them in vector space, and injects top-k nearest neighbors directly into the prompt. It provides minimal latency and low token costs for clean, static document collections.',
+      whenToUse: [
+        'Simple question-answering over homogeneous, well-edited documents.',
+        'Knowledge bases where user query vocabulary closely mirrors document text.',
+        'High-throughput internal FAQ lookups where sub-100ms latency is paramount.'
+      ],
+      watchOut: [
+        'Retrieval misses and semantic drift carry directly into the generated answer.',
+        'Fails completely on exact alphanumeric codes, part numbers, and SKU lookups.',
+        'Zero multi-hop reasoning: cannot synthesize facts split across disconnected documents.'
+      ],
+      mermaidFlow: `flowchart TD
+  subgraph Indexing ["Indexing Phase"]
+    D["Raw Documents"] --> C["Token Chunks (128-512)"]
+    C --> E["Embeddings Model"]
+    E --> V[("HNSW Vector Store")]
+  end
+  subgraph Query ["Query & Generation"]
+    Q["User Query"] --> QE["Embed Query Vector"]
+    QE --> VS["Vector Cosine Search (Top-K)"]
+    V -.-> VS
+    VS --> SYN["Query + Retrieved Chunks -> LLM"]
+    SYN --> ANS["Grounded Answer with Citations"]
+  end`,
+      stages: [
+        { name: 'Document Ingestion', type: 'process', detail: 'Recursive chunking (128 tokens) with SHA-256 deduplication' },
+        { name: 'Embedding Compute', type: 'process', detail: 'Local Ollama / TEI dense vector generation (768d)' },
+        { name: 'Vector Cosine Search', type: 'process', detail: 'HNSW index lookup with minimum score thresholding (0.75)' },
+        { name: 'Single-Pass Synthesis', type: 'output', detail: 'Prompt injection defense + grounded citation markers' }
+      ],
+      codePreviewTs: `// 01 Naive RAG: Single-Pass Embed -> Top-K Search -> Synthesize
+export class NaiveRagPipeline {
+  constructor(private store: PgVectorStore, private embedder: EmbeddingClient) {}
+
+  async query(userQuery: string, topK = 5): Promise<RagResult> {
+    const queryVec = await this.embedder.getEmbedding(userQuery);
+    const matches = await this.store.searchSimilarity(queryVec, topK);
+    const context = matches.map(m => m.content).join('\\n\\n---\\n\\n');
+    return { query: userQuery, context, sources: matches };
+  }
+}`,
+      codePreviewPy: `# 01 Naive RAG: Single-Pass Embed -> Top-K Search -> Synthesize
+class NaiveRagPipeline:
+    def __init__(self, vector_store, embedding_client):
+        self.store = vector_store
+        self.embedder = embedding_client
+
+    def query(self, user_query: str, top_k: int = 5):
+        query_vec = self.embedder.get_embedding(user_query)
+        matches = self.store.search_similarity(query_vec, top_k=top_k)
+        context = "\\n\\n---\\n\\n".join([m["content"] for m in matches])
+        return {"query": user_query, "context": context, "sources": matches}`,
+      dynamicParamHtml: `
+        <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.4;">
+          <strong>Naive RAG Parameters:</strong> Standard single-pass vector search. Requires only vector store engine and token chunk size.
+        </div>
+      `
+    },
+
+    multimodal: {
+      id: 'multimodal',
+      num: '02',
+      name: 'Multimodal RAG',
+      subtitle: 'Retrieve across text, images, audio and video.',
+      icon: '🖼️',
+      badge: 'Vision & Cross-Modal',
+      latency: '250ms – 600ms',
+      cost: '~$0.004 / query',
+      sla: '96% Visual Grounding',
+      indexComplexity: 'High (ColPali / CLIP Multi-Modal Encoders)',
+      elevatorPitch: 'Multimodal RAG enables unified retrieval across engineering blueprints, architectural diagrams, PDF charts, audio transcripts, and video walkthroughs. It preserves layout spatial geometry through ColPali or CLIP embeddings, routing rich mixed evidence to vision-capable frontier models.',
+      whenToUse: [
+        'Technical manuals containing circuit schematics, engineering diagrams, and architecture maps.',
+        'Financial balance sheets and invoices where tables, graphs, and layout carry critical semantic meaning.',
+        'Field engineering operations analyzing site inspection photos alongside equipment spec sheets.'
+      ],
+      watchOut: [
+        'Modality alignment: must strictly match embedding model dimension and tokenizer with generator vision encoder.',
+        'Substantially higher token bandwidth when transmitting visual patch tokens to multimodal LLMs.',
+        'High memory footprint for vector storage of multi-vector patch representations.'
+      ],
+      mermaidFlow: `flowchart TD
+  TXT["Text Documents"] & IMG["Schematics & Diagrams"] & AUD["Audio & Video Recordings"] --> INGEST["Cross-Modal Ingestion & Description"]
+  INGEST --> ENC["ColPali / CLIP Vision-Language Encoder"]
+  ENC --> VSTORE[("Multi-Modal Vector Store")]
+  Q["Multimodal Query (Text + Image)"] --> QENC["Encode Query Modality"]
+  QENC --> VSTORE
+  VSTORE --> RET["Retrieve Mixed Modality Evidence"]
+  RET --> MLLM["Multimodal LLM (Gemini 2.0 / GPT-4o)"]
+  MLLM --> ANS["Grounded Visual & Textual Answer"]`,
+      stages: [
+        { name: 'Multimodal Asset Ingress', type: 'input', detail: 'Extract PDF pages, raster images, and audio tracks' },
+        { name: 'ColPali / CLIP Encoding', type: 'process', detail: 'Compute multi-vector patch embeddings preserving geometry' },
+        { name: 'Cross-Modal Search', type: 'process', detail: 'Retrieve aligned image patches alongside textual paragraphs' },
+        { name: 'Multimodal Model Synthesis', type: 'output', detail: 'Inject image tokens + text context into Vision LLM' }
+      ],
+      codePreviewTs: `// 02 Multimodal RAG: Cross-Modal Ingestion & Visual Patch Retrieval
+export class MultimodalRagPipeline {
+  constructor(private visionStore: PgVectorStore, private colpaliEmbedder: ColPaliClient) {}
+
+  async queryWithImage(textPrompt: string, imageBuffer?: Buffer): Promise<MultimodalResult> {
+    const queryEmb = await this.colpaliEmbedder.embedMultiModal({ text: textPrompt, image: imageBuffer });
+    const visualEvidence = await this.visionStore.searchMultiVector(queryEmb, 5);
+    return { textPrompt, visualEvidence, model: 'gemini-2.0-flash' };
+  }
+}`,
+      codePreviewPy: `# 02 Multimodal RAG: Cross-Modal Ingestion & Visual Patch Retrieval
+class MultimodalRagPipeline:
+    def __init__(self, vector_store, colpali_client):
+        self.store = vector_store
+        self.colpali = colpali_client
+
+    def query_multimodal(self, prompt: str, image_bytes: bytes = None):
+        emb = self.colpali.embed_query(prompt, image=image_bytes)
+        evidence = self.store.search_similarity(emb, top_k=5)
+        return {"prompt": prompt, "evidence": evidence}`,
+      dynamicParamHtml: `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Vision Encoder</label>
+            <select id="selRagVisionModel" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+              <option value="colpali-v1.2" selected>ColPali v1.2 (PaliGemma Multi-Vector)</option>
+              <option value="clip-vit-base">OpenAI CLIP ViT-B/32 (Unified Text/Image)</option>
+              <option value="nomic-vision">Nomic Embed Vision v1.5</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Multimodal LLM</label>
+            <select id="selRagVisionLlm" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+              <option value="gemini-2.5-flash" selected>Google Gemini 2.5 Flash</option>
+              <option value="gpt-4o">OpenAI GPT-4o</option>
+              <option value="claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+            </select>
+          </div>
+        </div>
+      `
+    },
+
+    hyde: {
+      id: 'hyde',
+      num: '03',
+      name: 'HyDE',
+      subtitle: 'Use a hypothetical document to guide retrieval.',
+      icon: '💡',
+      badge: 'Zero Vocabulary Mismatch',
+      latency: '180ms – 320ms',
+      cost: '~$0.0015 / query',
+      sla: '98% Keyword Drift Mitigation',
+      indexComplexity: 'Low (Reuses existing Vector Store)',
+      elevatorPitch: 'HyDE (Hypothetical Document Embeddings) solves the asymmetric query-to-document vocabulary mismatch. When a user asks an informal question, an LLM synthesizes a hypothetical draft answer; we embed that draft to probe document-to-document space, and synthesize the final answer strictly from verified source chunks.',
+      whenToUse: [
+        'User queries are brief, vague, or phrased informally compared to technical enterprise manuals.',
+        'Zero-shot domain search where relevance training labels do not exist.',
+        'Search across dense legal policies, codebases, or clinical medical protocols.'
+      ],
+      watchOut: [
+        'The generated hypothetical draft is an embedding probe, NOT factual evidence—never pass it to final generation.',
+        'Adds one small LLM generation call before vector retrieval (adding 100-200ms latency).',
+        'If the LLM generates a completely erroneous topic, retrieval searches the wrong vector neighborhood.'
+      ],
+      mermaidFlow: `flowchart TD
+  Q["User Informal Query"] --> HYP["LLM Synthesizes Hypothetical Draft Document"]
+  HYP --> PROBE["Embed Draft as Document-Space Probe"]
+  PROBE --> CORPUS["Dense Vector Search in Real Enterprise Corpus"]
+  CORPUS --> REAL["Retrieve Verified Real Evidence Chunks"]
+  Q & REAL --> SYN["Final Grounded LLM Synthesis"]
+  SYN --> ANS["Verified Factual Answer (Zero Hallucination)"]`,
+      stages: [
+        { name: 'Hypothetical Generation', type: 'process', detail: 'Fast draft generation (Gemini 2.0 Flash / GPT-4o-mini)' },
+        { name: 'Draft Vectorization', type: 'process', detail: 'Embed hypothetical answer in document embedding space' },
+        { name: 'Real Corpus Search', type: 'process', detail: 'Dense retrieval in real enterprise corpus using draft probe' },
+        { name: 'Grounding Verification', type: 'output', detail: 'Generate factual answer strictly from real evidence' }
+      ],
+      codePreviewTs: `// 03 HyDE: Hypothetical Document Embeddings Search Probe
+export class HydeRagPipeline {
+  constructor(private store: PgVectorStore, private embedder: EmbeddingClient, private llm: LlmClient) {}
+
+  async query(userQuery: string): Promise<RagResult> {
+    // 1. Synthesize hypothetical draft (used only as probe)
+    const draft = await this.llm.complete(\`Write a technical passage answering: \${userQuery}\`);
+    // 2. Embed draft into document-to-document vector space
+    const draftVec = await this.embedder.getEmbedding(draft);
+    // 3. Search real corpus
+    const realChunks = await this.store.searchSimilarity(draftVec, 5);
+    // 4. Ground final answer on real chunks only
+    return this.synthesizeAnswer(userQuery, realChunks);
+  }
+}`,
+      codePreviewPy: `# 03 HyDE: Hypothetical Document Embeddings Search Probe
+class HydeRagPipeline:
+    def __init__(self, vector_store, embedding_client, llm_client):
+        self.store = vector_store
+        self.embedder = embedding_client
+        self.llm = llm_client
+
+    def query(self, user_query: str):
+        draft = self.llm.complete(f"Write a technical passage answering: {user_query}")
+        draft_vec = self.embedder.get_embedding(draft)
+        real_chunks = self.store.search_similarity(draft_vec, top_k=5)
+        return self.synthesize(user_query, real_chunks)`,
+      dynamicParamHtml: `
+        <div>
+          <label style="font-size: 10px; font-weight: bold;">Drafting LLM Model (Zero-Shot Probe)</label>
+          <select id="selRagHydeModel" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+            <option value="gemini-2.0-flash" selected>Google Gemini 2.0 Flash (&lt;100ms)</option>
+            <option value="gpt-4o-mini">OpenAI GPT-4o-mini</option>
+            <option value="qwen-2.5-coder-7b">Qwen 2.5 Coder 7B (Offline / Local)</option>
+          </select>
+        </div>
+      `
+    },
+
+    corrective: {
+      id: 'corrective',
+      num: '04',
+      name: 'Corrective RAG (CRAG)',
+      subtitle: 'Evaluate evidence before using it.',
+      icon: '🛡️',
+      badge: 'Evaluator & Fallback Gate',
+      latency: '180ms – 450ms',
+      cost: '~$0.002 / query',
+      sla: '99.5% Grounded Precision',
+      indexComplexity: 'Medium (Vector Store + Evaluator Classifier)',
+      elevatorPitch: 'Corrective RAG (CRAG) guarantees factual grounding by placing an automated evaluator between retrieval and synthesis. If retrieved passages meet our confidence threshold, we use them; if evidence is weak or ambiguous, CRAG triggers fallback web search and knowledge refinement to eliminate hallucinations.',
+      whenToUse: [
+        'Corpora with incomplete, noisy, or frequently outdated internal documentation.',
+        'High-stakes compliance and legal Q&A where irrelevant evidence cannot be allowed in context.',
+        'Workloads requiring seamless fallback from private internal enclaves to public regulatory docs.'
+      ],
+      watchOut: [
+        'The evaluation and grading step adds 100–250ms latency before generation begins.',
+        'External fallback web search requires configured egress proxies or search API keys (Tavily/Bing).',
+        'Strict confidence thresholds can trigger excessive fallback searches if set too aggressively.'
+      ],
+      mermaidFlow: `flowchart TD
+  Q["User Query"] --> RET["Initial Vector Retrieval"]
+  RET --> EVAL{"Evaluate Evidence Quality (Confidence Score)"}
+  EVAL -- "High Quality (>= 0.75)" --> KEEP["Keep & Filter Relevant Passages"]
+  EVAL -- "Weak / Ambiguous (< 0.75)" --> FALLBACK["Query Expansion -> Web / External Search"]
+  FALLBACK --> REFINE["Knowledge Strip & Refinement"]
+  KEEP --> SYN["Contextual LLM Synthesis"]
+  REFINE --> SYN
+  SYN --> ANS["Verified Grounded Answer"]`,
+      stages: [
+        { name: 'Initial Vector Retrieval', type: 'process', detail: 'Fetch candidate chunks from internal vector store' },
+        { name: 'Evidence Evaluator', type: 'eval', detail: 'Compute relevance confidence score (GOOD vs WEAK_MIXED)' },
+        { name: 'External Fallback Branch', type: 'branch', detail: 'Trigger Tavily/Bing search and strip irrelevant tokens' },
+        { name: 'Grounded Answer Generation', type: 'output', detail: 'Synthesize answer with strict provenance citations' }
+      ],
+      codePreviewTs: `// 04 Corrective RAG: Evidence Evaluation with Automated Fallback
+export class CorrectiveRagPipeline {
+  constructor(private store: PgVectorStore, private evaluator: EvaluatorModel, private webSearch: SearchProvider) {}
+
+  async query(userQuery: string): Promise<RagResult> {
+    const internalSources = await this.store.query(userQuery, 5);
+    const evaluation = await this.evaluator.gradeEvidence(userQuery, internalSources);
+
+    if (evaluation.status === 'GOOD') {
+      return this.synthesize(userQuery, internalSources);
+    } else {
+      const fallbackEvidence = await this.webSearch.search(evaluation.expandedQuery);
+      return this.synthesize(userQuery, [...internalSources, ...fallbackEvidence]);
+    }
+  }
+}`,
+      codePreviewPy: `# 04 Corrective RAG: Evidence Evaluation with Automated Fallback
+class CorrectiveRagPipeline:
+    def __init__(self, vector_store, evaluator, search_client):
+        self.store = vector_store
+        self.evaluator = evaluator
+        self.search = search_client
+
+    def query(self, user_query: str):
+        sources = self.store.query(user_query, top_k=5)
+        grade = self.evaluator.grade(user_query, sources)
+        if grade == "GOOD":
+            return self.synthesize(user_query, sources)
+        fallback = self.search.search(user_query)
+        return self.synthesize(user_query, sources + fallback)`,
+      dynamicParamHtml: `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Evaluator Threshold</label>
+            <input type="number" id="txtRagCragThreshold" value="0.75" step="0.05" min="0.5" max="0.95" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Fallback Provider</label>
+            <select id="selRagCragFallback" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+              <option value="tavily" selected>Tavily Search API (AI Native)</option>
+              <option value="bing">Azure Bing Web Search</option>
+              <option value="internal_mock">Air-Gapped Secondary Mirror</option>
+            </select>
+          </div>
+        </div>
+      `
+    },
+
+    graph: {
+      id: 'graph',
+      num: '05',
+      name: 'Graph RAG',
+      subtitle: 'Retrieve connected facts and graph summaries.',
+      icon: '🕸️',
+      badge: 'Knowledge Graph & Themes',
+      latency: '350ms – 1.2s',
+      cost: '~$0.008 / query',
+      sla: '99% Relational Completeness',
+      indexComplexity: 'Very High (LLM Entity Extraction & Communities)',
+      elevatorPitch: 'Graph RAG transforms fragmented enterprise text into an interconnected knowledge graph of entities and relationships. By building hierarchical community summaries, Graph RAG excels at answering holistic, thematic questions ("What are the top risk patterns across all vendors?") where isolated vector chunks fail.',
+      whenToUse: [
+        'Global thematic inquiries and holistic corpus summarization across thousands of documents.',
+        'Multi-hop entity traversals (e.g. tracking corporate ownership, supply chain cascades, fraud networks).',
+        'Enterprise data ecosystems with dense inter-entity relationships and cross-references.'
+      ],
+      watchOut: [
+        'High indexing computation: requires running LLM entity-extraction prompts over every chunk.',
+        'Graph schema maintenance and entity deduplication require continuous governance.',
+        'Higher query latency when traversing multi-hop community clusters.'
+      ],
+      mermaidFlow: `flowchart TD
+  subgraph GraphIndexing ["Graph Pre-Computation"]
+    DOCS["Enterprise Text"] --> EXTRACT["LLM Entity & Relationship Extraction"]
+    EXTRACT --> GRAPH[("Knowledge Graph (Neo4j / NetworkX)")]
+    GRAPH --> COMM["Hierarchical Community Detection & Summaries"]
+  end
+  subgraph GraphQuery ["Relational Query Traversal"]
+    Q["Complex Thematic / Multi-Hop Query"] --> MATCH["Entity Linking & Community Selection"]
+    COMM -.-> MATCH
+    MATCH --> TRAV["Traverse Graph Context + Local Neighbors"]
+    TRAV --> LLM["LLM Graph-Grounded Synthesis"]
+    LLM --> ANS["Holistic Thematic Answer"]
+  end`,
+      stages: [
+        { name: 'Entity Extraction', type: 'process', detail: 'LLM extracts nodes (entities) and edges (relations) per chunk' },
+        { name: 'Community Summarization', type: 'process', detail: 'Leiden algorithm clusters entities and generates hierarchical summaries' },
+        { name: 'Graph Traversal', type: 'process', detail: 'Identify query focal nodes and traverse multi-hop neighborhood' },
+        { name: 'Community-Aware Synthesis', type: 'output', detail: 'Synthesize global summary with graph provenance edges' }
+      ],
+      codePreviewTs: `// 05 Graph RAG: Knowledge Graph Traversal & Community Summaries
+export class GraphRagPipeline {
+  constructor(private graphStore: Neo4jGraphStore, private vectorStore: PgVectorStore) {}
+
+  async queryThematic(userQuery: string): Promise<GraphRagResult> {
+    const entities = await this.extractFocalEntities(userQuery);
+    const subgraphs = await this.graphStore.traverseCommunities(entities, { maxHops: 2 });
+    const localChunks = await this.vectorStore.searchSimilarity(userQuery, 3);
+    return this.synthesize({ userQuery, subgraphs, localChunks });
+  }
+}`,
+      codePreviewPy: `# 05 Graph RAG: Knowledge Graph Traversal & Community Summaries
+class GraphRagPipeline:
+    def __init__(self, graph_db, vector_db):
+        self.graph = graph_db
+        self.vector = vector_db
+
+    def query_thematic(self, query: str):
+        entities = self.extract_entities(query)
+        subgraph = self.graph.traverse(entities, max_hops=2)
+        chunks = self.vector.search(query, top_k=3)
+        return self.synthesize(query, subgraph, chunks)`,
+      dynamicParamHtml: `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Graph Database Engine</label>
+            <select id="selRagGraphEngine" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+              <option value="neo4j" selected>Neo4j Enterprise (Cypher / APOC)</option>
+              <option value="kuzu">Kùzu DB (Embedded In-Process Graph)</option>
+              <option value="networkx">NetworkX Air-Gapped Python Graph</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Max Graph Hops</label>
+            <input type="number" id="txtRagGraphHops" value="2" min="1" max="4" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+          </div>
+        </div>
+      `
+    },
+
+    hybrid: {
+      id: 'hybrid',
+      num: '06',
+      name: 'Hybrid RAG',
+      subtitle: 'Combine exact keywords with semantic meaning.',
+      icon: '🔀',
+      badge: 'Production Gold Standard',
+      latency: '< 120ms',
+      cost: '~$0.001 / query',
+      sla: '99.8% Technical Code Precision',
+      indexComplexity: 'Medium (BM25 + Dense Vector Index)',
+      elevatorPitch: 'Hybrid RAG fuses sparse BM25 lexical keyword search with dense HNSW vector embeddings using Reciprocal Rank Fusion (RRF). It guarantees that exact part numbers, contract clauses, and product codes are never lost to semantic embedding drift, while preserving natural language comprehension.',
+      whenToUse: [
+        'Queries mixing product IDs, error codes, legal statute numbers, and natural language.',
+        'Enterprise search across contracts, financial reports, technical documentation, and ERP catalogs.',
+        'Default production architecture for tier-1 enterprise deployments requiring predictable precision.'
+      ],
+      watchOut: [
+        'Requires tuning the RRF constant (standard k=60) or setting linear score interpolation weights.',
+        'Best paired with a cross-encoder reranker (e.g. BGE-Reranker / Cohere) before prompt injection.',
+        'Must maintain both full-text inverted indices (BM25/FTS) and vector indices in tandem.'
+      ],
+      mermaidFlow: `flowchart TD
+  Q["User Query (Exact Codes + Semantics)"] --> BM25["BM25 Lexical Search (Exact Keywords)"]
+  Q --> VEC["HNSW Dense Vector Search (Semantic Meaning)"]
+  BM25 --> FUSE["Reciprocal Rank Fusion (RRF k=60)"]
+  VEC --> FUSE
+  FUSE --> RERANK["Cross-Encoder Reranker (Top-K Refinement)"]
+  RERANK --> PROMPT["Context Assembly + Provenance Tagging"]
+  PROMPT --> LLM["LLM Grounded Synthesis"]
+  LLM --> ANS["High-Precision Enterprise Answer"]`,
+      stages: [
+        { name: 'Dual Ingress Dispatch', type: 'input', detail: 'Parallel execution against BM25 inverted index and HNSW vector index' },
+        { name: 'BM25 Keyword Matching', type: 'process', detail: 'Extracts exact alphanumeric codes, SKUs, and statute citations' },
+        { name: 'Dense Semantic Search', type: 'process', detail: 'Captures conceptual semantics across 768d embedding space' },
+        { name: 'Reciprocal Rank Fusion (RRF)', type: 'process', detail: 'Combines rankings: score = 1 / (60 + rank_bm25) + 1 / (60 + rank_vec)' },
+        { name: 'Cross-Encoder Synthesis', type: 'output', detail: 'Reranks top 5 passages for LLM answer synthesis' }
+      ],
+      codePreviewTs: `// 06 Hybrid RAG: BM25 Exact Keywords + Dense Vectors + RRF
+export class HybridRagPipeline {
+  constructor(private vectorStore: PgVectorStore, private ftsIndex: SqliteFtsIndex) {}
+
+  async query(userQuery: string, topK = 5): Promise<RagResult> {
+    const [vecResults, bm25Results] = await Promise.all([
+      this.vectorStore.searchSimilarity(userQuery, 10),
+      this.ftsIndex.searchBm25(userQuery, 10)
+    ]);
+    const fused = this.reciprocalRankFusion(vecResults, bm25Results, 60);
+    return this.synthesize(userQuery, fused.slice(0, topK));
+  }
+}`,
+      codePreviewPy: `# 06 Hybrid RAG: BM25 Exact Keywords + Dense Vectors + RRF
+class HybridRagPipeline:
+    def __init__(self, vector_store, fts_store):
+        self.vector = vector_store
+        self.fts = fts_store
+
+    def query(self, query: str, top_k: int = 5):
+        vec_matches = self.vector.search(query, top_k=10)
+        bm25_matches = self.fts.search_bm25(query, top_k=10)
+        fused = self.rrf_fuse(vec_matches, bm25_matches, k=60)
+        return self.synthesize(query, fused[:top_k])`,
+      dynamicParamHtml: `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Sparse Lexical Engine</label>
+            <select id="selRagSparseEngine" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+              <option value="bm25" selected>BM25 Ranker (Okapi Standard)</option>
+              <option value="sqlite_fts5">SQLite FTS5 (Zero-Dependency Air-Gapped)</option>
+              <option value="pg_trgm">PostgreSQL pg_trgm Trigram Matching</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">RRF Constant (k)</label>
+            <input type="number" id="txtRagRrfConstant" value="60" min="10" max="100" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+          </div>
+        </div>
+      `
+    },
+
+    adaptive: {
+      id: 'adaptive',
+      num: '07',
+      name: 'Adaptive RAG',
+      subtitle: 'Choose the retrieval effort for each question.',
+      icon: '🚦',
+      badge: 'Dynamic Complexity Routing',
+      latency: '20ms – 600ms (Dynamic)',
+      cost: '~$0.0008 / query (Blended)',
+      sla: '99% Latency-Optimized Recall',
+      indexComplexity: 'Medium (Router Classifier + Multi-Tier Retrieval)',
+      elevatorPitch: 'Adaptive RAG dynamically routes incoming queries by analyzing linguistic complexity and factual ambiguity. Simple greetings and conversational queries skip retrieval for instantaneous response; standard queries execute single-pass retrieval; complex multi-hop queries invoke iterative retrieval.',
+      whenToUse: [
+        'Mixed enterprise workloads where 30% of traffic is conversational FAQ, 50% is factual policy, and 20% is deep research.',
+        'Cost and latency optimization: prevents paying expensive retrieval overhead on simple questions.',
+        'Customer-facing chatbots requiring conversational responsiveness alongside strict policy grounding.'
+      ],
+      watchOut: [
+        'Misclassification risks: bad routing can skip retrieval on subtle questions that need factual grounding.',
+        'Requires periodic calibration of complexity boundary thresholds.',
+        'Router model itself must be extremely fast (<20ms, e.g. small SLM or logistic classifier).'
+      ],
+      mermaidFlow: `flowchart TD
+  Q["Incoming User Query"] --> ROUTER{"Complexity Router (SLM / Heuristic)"}
+  ROUTER -- "Level A: Chitchat / In-Weights" --> NO_RET["No Retrieval (Direct Low-Latency Response <25ms)"]
+  ROUTER -- "Level B: Single Fact Lookup" --> SINGLE["Single-Pass Vector Search (<120ms)"]
+  ROUTER -- "Level C: Multi-Hop Analytical" --> ITER["Iterative Multi-Step Retrieval Loop (<800ms)"]
+  NO_RET --> RESP["Unified Client Response"]
+  SINGLE --> RESP
+  ITER --> RESP`,
+      stages: [
+        { name: 'Complexity Classifier', type: 'eval', detail: 'Evaluate question difficulty, ambiguity, and factual reliance (<15ms)' },
+        { name: 'Route A: Direct Generation', type: 'branch', detail: 'Zero retrieval for conversational greeting & general knowledge' },
+        { name: 'Route B: Standard Retrieval', type: 'branch', detail: 'Single HNSW vector search for straightforward policy fact' },
+        { name: 'Route C: Iterative Retrieval', type: 'branch', detail: 'Multi-hop iterative retrieval for cross-document analysis' }
+      ],
+      codePreviewTs: `// 07 Adaptive RAG: Dynamic Complexity Routing
+export class AdaptiveRagPipeline {
+  constructor(private router: ComplexityClassifier, private standardRag: HybridRagPipeline) {}
+
+  async query(userQuery: string): Promise<AdaptiveResult> {
+    const tier = await this.router.classify(userQuery);
+    switch (tier) {
+      case 'NO_RETRIEVAL':
+        return { answer: await this.directComplete(userQuery), tier };
+      case 'SINGLE_STEP':
+        return { ...(await this.standardRag.query(userQuery)), tier };
+      case 'ITERATIVE':
+        return { ...(await this.iterativeDeepRetrieval(userQuery)), tier };
+    }
+  }
+}`,
+      codePreviewPy: `# 07 Adaptive RAG: Dynamic Complexity Routing
+class AdaptiveRagPipeline:
+    def __init__(self, router, standard_rag):
+        self.router = router
+        self.rag = standard_rag
+
+    def query(self, query: str):
+        tier = self.router.classify(query)
+        if tier == "NO_RETRIEVAL":
+            return {"answer": self.direct(query), "tier": tier}
+        elif tier == "SINGLE_STEP":
+            return {**self.rag.query(query), "tier": tier}
+        else:
+            return {**self.iterative_query(query), "tier": tier}`,
+      dynamicParamHtml: `
+        <div>
+          <label style="font-size: 10px; font-weight: bold;">Routing Strategy</label>
+          <select id="selRagAdaptiveStrategy" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+            <option value="heuristic" selected>Deterministic Linguistic Heuristics (&lt;2ms)</option>
+            <option value="semantic">Semantic Cosine Intent Classifier (&lt;15ms)</option>
+            <option value="slm">Small Language Model Classifier (Qwen 2.5 0.5B)</option>
+          </select>
+        </div>
+      `
+    },
+
+    agentic: {
+      id: 'agentic',
+      num: '08',
+      name: 'Agentic RAG',
+      subtitle: 'Plan, retrieve, inspect — and repeat when needed.',
+      icon: '🐝',
+      badge: 'ReAct & Tool Loops',
+      latency: '1.2s – 4.5s',
+      cost: '~$0.02 / query',
+      sla: '99.9% Deep Audit Precision',
+      indexComplexity: 'High (Tool Registry + Multi-Turn Agent Loop)',
+      elevatorPitch: 'Agentic RAG models the retrieval process as an autonomous agent equipped with tools: Vector Search, Text-to-SQL databases, and enterprise REST APIs. The agent plans its investigation, queries evidence, inspects intermediate results, and iteratively gathers facts until confidence thresholds are satisfied.',
+      whenToUse: [
+        'Multi-step questions requiring cross-table relational SQL + unstructured PDF docs + real-time API state.',
+        'Financial auditing, fraud investigations, and complex insurance claims adjudication.',
+        'High-value enterprise reasoning where complete answers require iterative validation loops.'
+      ],
+      watchOut: [
+        'Must enforce strict execution guardrails: maximum step limits, token budgets, and timeout limits.',
+        'Higher latency (1.5s - 4.5s) due to multiple sequential tool invocation turns.',
+        'All tool actions must be sandboxed with read-only permissions and immutable audit logging.'
+      ],
+      mermaidFlow: `flowchart TD
+  Q["Complex User Goal"] --> PLAN["Autonomous Agent Planner (Decompose Task)"]
+  PLAN --> DISPATCH{"Dispatch Specialized Tool"}
+  DISPATCH -- "Unstructured Policy" --> VEC["Vector Search Engine"]
+  DISPATCH -- "Transactional Ledger" --> SQL["Live Database Introspector & SQL Runner"]
+  DISPATCH -- "External State" --> API["Enterprise REST API Gateway (MCP)"]
+  VEC & SQL & API --> INSPECT{"Inspect Intermediate Evidence"}
+  INSPECT -- "More Evidence Needed (Within Step Limit)" --> PLAN
+  INSPECT -- "Sufficient Evidence Gathered" --> SYN["Synthesize Audited Final Answer with Traces"]`,
+      stages: [
+        { name: 'Plan & Decompose', type: 'process', detail: 'Break complex inquiry into sub-goals and select target tool' },
+        { name: 'Tool Dispatch (MCP)', type: 'branch', detail: 'Invoke Vector Store, Analytical SQL, or Enterprise REST API' },
+        { name: 'Evidence Self-Reflection', type: 'eval', detail: 'Inspect returned payload against confidence and completeness criteria' },
+        { name: 'Loop / Final Synthesis', type: 'output', detail: 'Iterate if incomplete; assemble multi-source citation audit trail' }
+      ],
+      codePreviewTs: `// 08 Agentic RAG: ReAct Tool Loop with Vector + SQL + MCP
+export class AgenticRagPipeline {
+  constructor(private tools: ToolRegistry, private agentLlm: LlmClient) {}
+
+  async execute(goal: string, maxSteps = 4): Promise<AgenticResult> {
+    let step = 0;
+    const history: ToolExecution[] = [];
+    while (step++ < maxSteps) {
+      const decision = await this.agentLlm.decideNextAction(goal, history);
+      if (decision.type === 'FINISH') return { answer: decision.answer, history };
+      const output = await this.tools.execute(decision.toolName, decision.args);
+      history.push({ step, tool: decision.toolName, output });
+    }
+    return { answer: 'Step limit reached', history };
+  }
+}`,
+      codePreviewPy: `# 08 Agentic RAG: ReAct Tool Loop with Vector + SQL + MCP
+class AgenticRagPipeline:
+    def __init__(self, tool_registry, agent_llm):
+        self.tools = tool_registry
+        self.llm = agent_llm
+
+    def execute(self, goal: str, max_steps: int = 4):
+        history = []
+        for step in range(max_steps):
+            decision = self.llm.decide(goal, history)
+            if decision["action"] == "FINISH":
+                return {"answer": decision["answer"], "history": history}
+            out = self.tools.invoke(decision["tool"], decision["args"])
+            history.append({"step": step + 1, "tool": decision["tool"], "output": out})
+        return {"answer": "Exhausted step budget", "history": history}`,
+      dynamicParamHtml: `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Max Agent Steps</label>
+            <input type="number" id="txtRagAgentSteps" value="3" min="1" max="6" style="width: 100%; margin-top: 2px; padding: 3px 5px; background: #0c0c0c; color: #fff; border: 1px solid var(--border); border-radius: 3px; font-size: 10.5px;">
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: bold;">Tool Integrations</label>
+            <div style="font-size: 9.5px; color: #cbd5e1; margin-top: 4px; display: flex; gap: 6px;">
+              <label><input type="checkbox" checked disabled> Vector</label>
+              <label><input type="checkbox" checked disabled> SQL</label>
+              <label><input type="checkbox" checked disabled> MCP</label>
+            </div>
+          </div>
+        </div>
+      `
+    }
+  };
+
+  let selectedRagArchKey = 'hybrid';
+  let activeRagViewMode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code' = 'visual';
+
+  const renderRagArchitectureUi = (archKey: string) => {
+    const arch = RAG_ARCHITECTURES[archKey] || RAG_ARCHITECTURES['hybrid'];
+    selectedRagArchKey = arch.id;
+
+    // Update active card styling
+    document.querySelectorAll<HTMLElement>('.rag-arch-card').forEach(c => {
+      const isAct = c.getAttribute('data-arch') === arch.id;
+      c.classList.toggle('active', isAct);
+      c.style.borderColor = isAct ? 'var(--accent)' : 'var(--border)';
+      c.style.background = isAct ? 'rgba(78, 201, 176, 0.12)' : 'var(--card-bg)';
+    });
+
+    // Update header labels
+    const lblActiveTag = document.getElementById('lblActiveRagArchTag');
+    if (lblActiveTag) lblActiveTag.textContent = `Active: ${arch.num} ${arch.name} (${arch.badge})`;
+
+    const lblConfigTitle = document.getElementById('lblConfigTitle');
+    if (lblConfigTitle) lblConfigTitle.textContent = `${arch.num} ${arch.name} Pipeline Configuration`;
+
+    const btnScaffold = document.getElementById('btnScaffoldRagPolicy') as HTMLButtonElement | null;
+    if (btnScaffold) btnScaffold.textContent = `🚀 Scaffold ${arch.name} Pipeline`;
+
+    // 1. Render Visual Pipeline Flow
+    const visualBox = document.getElementById('ragVisualFlowDisplay');
+    if (visualBox) {
+      let flowHtml = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 14px;">${arch.icon}</span>
+            <strong style="color: #fff; font-size: 11.5px;">${arch.num} ${arch.name}: Pipeline Topology</strong>
+            <span style="font-size: 9.5px; background: rgba(78,201,176,0.15); color: var(--accent); padding: 1px 6px; border-radius: 3px;">${arch.badge}</span>
+          </div>
+          <div style="font-size: 10px; color: var(--text-secondary);">
+            Latency: <span style="color: #4ade80; font-weight: bold;">${arch.latency}</span> · SLA: <span style="color: #38bdf8;">${arch.sla}</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+      `;
+
+      arch.stages.forEach((st, idx) => {
+        const borderCol = st.type === 'output' ? 'rgba(74, 222, 128, 0.4)' : st.type === 'eval' ? 'rgba(234, 179, 8, 0.4)' : st.type === 'branch' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)';
+        const bgCol = st.type === 'output' ? 'rgba(74, 222, 128, 0.08)' : st.type === 'eval' ? 'rgba(234, 179, 8, 0.08)' : st.type === 'branch' ? 'rgba(56, 189, 248, 0.08)' : 'rgba(0,0,0,0.3)';
+        const badgeCol = st.type === 'output' ? '#4ade80' : st.type === 'eval' ? '#eab308' : st.type === 'branch' ? '#38bdf8' : '#94a3b8';
+
+        flowHtml += `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div style="width: 20px; height: 20px; border-radius: 50%; background: ${bgCol}; border: 1px solid ${borderCol}; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 700; color: ${badgeCol}; flex-shrink: 0;">
+              ${idx + 1}
+            </div>
+            <div style="flex: 1; background: ${bgCol}; border: 1px solid ${borderCol}; border-radius: 5px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <span style="font-size: 11px; font-weight: 700; color: #fff;">${escapeHtml(st.name)}</span>
+                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 1px;">${escapeHtml(st.detail)}</div>
+              </div>
+              <span style="font-size: 9px; text-transform: uppercase; color: ${badgeCol}; font-weight: 700; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">
+                ${st.type}
+              </span>
+            </div>
+          </div>
+        `;
+        if (idx < arch.stages.length - 1) {
+          flowHtml += `<div style="text-align: center; color: var(--text-muted); font-size: 10px; line-height: 10px; margin-left: 9px;">▼</div>`;
+        }
+      });
+      flowHtml += '</div>';
+      visualBox.innerHTML = flowHtml;
+    }
+
+    // 2. Render Mermaid Code
+    const preMermaid = document.getElementById('preRagMermaidCode');
+    if (preMermaid) preMermaid.textContent = arch.mermaidFlow;
+
+    // 3. Render Client Solutioning Narrative & Pitch
+    const pitchBox = document.getElementById('ragPitchDisplay');
+    if (pitchBox) {
+      pitchBox.innerHTML = `
+        <div style="margin-bottom: 12px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 10px 12px;">
+          <div style="font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+            <span>💼</span> Client Executive Solutioning Pitch (For VP of Eng / Chief Data Officer):
+          </div>
+          <p style="font-size: 11px; color: #cbd5e1; margin: 0; line-height: 1.5; font-style: italic;">
+            "${escapeHtml(arch.elevatorPitch)}"
+          </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div style="background: rgba(74, 222, 128, 0.06); border: 1px solid rgba(74, 222, 128, 0.25); border-radius: 6px; padding: 10px;">
+            <div style="font-size: 11px; font-weight: 700; color: #4ade80; margin-bottom: 6px;">
+              ✓ When to USE (${arch.name}):
+            </div>
+            <ul style="margin: 0; padding-left: 16px; font-size: 10.5px; color: #cbd5e1; line-height: 1.45;">
+              ${arch.whenToUse.map(u => `<li>${escapeHtml(u)}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div style="background: rgba(248, 113, 113, 0.06); border: 1px solid rgba(248, 113, 113, 0.25); border-radius: 6px; padding: 10px;">
+            <div style="font-size: 11px; font-weight: 700; color: #f87171; margin-bottom: 6px;">
+              ⚠️ WATCH OUT / Production Risks &amp; Trade-Offs:
+            </div>
+            <ul style="margin: 0; padding-left: 16px; font-size: 10.5px; color: #cbd5e1; line-height: 1.45;">
+              ${arch.watchOut.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `;
+    }
+
+    // 4. Render 8-Way Trade-Off Matrix Table
+    const matrixBox = document.getElementById('ragMatrixDisplay');
+    if (matrixBox) {
+      let matHtml = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+          <thead>
+            <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border);">
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">#</th>
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">Architecture</th>
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">Core Mechanism</th>
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">Latency SLA</th>
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">Cost / Query</th>
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">Index Overhead</th>
+              <th style="padding: 6px 8px; text-align: left; color: #fff;">Primary Defense</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      Object.values(RAG_ARCHITECTURES).forEach(a => {
+        const isSelected = a.id === arch.id;
+        matHtml += `
+          <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); background: ${isSelected ? 'rgba(78, 201, 176, 0.12)' : 'transparent'};">
+            <td style="padding: 6px 8px; font-weight: 700; color: ${isSelected ? 'var(--accent)' : '#94a3b8'};">${a.num}</td>
+            <td style="padding: 6px 8px; font-weight: 700; color: ${isSelected ? 'var(--accent)' : '#fff'};">${a.icon} ${escapeHtml(a.name)}</td>
+            <td style="padding: 6px 8px; color: #cbd5e1;">${escapeHtml(a.subtitle)}</td>
+            <td style="padding: 6px 8px; color: #4ade80;">${a.latency}</td>
+            <td style="padding: 6px 8px; color: #38bdf8;">${a.cost}</td>
+            <td style="padding: 6px 8px; color: #cbd5e1;">${escapeHtml(a.indexComplexity)}</td>
+            <td style="padding: 6px 8px; color: #eab308;">${escapeHtml(a.sla)}</td>
+          </tr>
+        `;
+      });
+      matHtml += '</tbody></table>';
+      matrixBox.innerHTML = matHtml;
+    }
+
+    // 5. Render Code Preview
+    const codeBox = document.getElementById('ragCodeDisplay');
+    const selLang = (document.getElementById('selRagLanguage') as HTMLSelectElement)?.value || 'typescript';
+    if (codeBox) {
+      codeBox.textContent = selLang === 'python' ? arch.codePreviewPy : arch.codePreviewTs;
+    }
+
+    // 6. Render Dynamic Parameters Box
+    const dynBox = document.getElementById('boxRagDynamicParams');
+    if (dynBox) dynBox.innerHTML = arch.dynamicParamHtml;
+  };
+
+  const setRagViewMode = (mode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code') => {
+    activeRagViewMode = mode;
+    const vVisual = document.getElementById('ragVisualFlowDisplay');
+    const vMermaid = document.getElementById('ragMermaidDisplay');
+    const vPitch = document.getElementById('ragPitchDisplay');
+    const vMatrix = document.getElementById('ragMatrixDisplay');
+    const vCode = document.getElementById('ragCodeDisplay');
+    const hint = document.getElementById('lblRagViewModeHint');
+
+    if (vVisual) vVisual.style.display = mode === 'visual' ? 'block' : 'none';
+    if (vMermaid) vMermaid.style.display = mode === 'mermaid' ? 'block' : 'none';
+    if (vPitch) vPitch.style.display = mode === 'pitch' ? 'block' : 'none';
+    if (vMatrix) vMatrix.style.display = mode === 'matrix' ? 'block' : 'none';
+    if (vCode) vCode.style.display = mode === 'code' ? 'block' : 'none';
+
+    document.getElementById('btnRagViewVisual')?.classList.toggle('active', mode === 'visual');
+    document.getElementById('btnRagViewMermaid')?.classList.toggle('active', mode === 'mermaid');
+    document.getElementById('btnRagViewPitch')?.classList.toggle('active', mode === 'pitch');
+    document.getElementById('btnRagViewMatrix')?.classList.toggle('active', mode === 'matrix');
+    document.getElementById('btnRagViewCode')?.classList.toggle('active', mode === 'code');
+
+    if (hint) {
+      switch (mode) {
+        case 'visual': hint.textContent = 'Interactive stage pipeline flow'; break;
+        case 'mermaid': hint.textContent = 'Renderable Mermaid syntax (copyable for client slide decks)'; break;
+        case 'pitch': hint.textContent = 'Client executive solutioning narrative & trade-offs'; break;
+        case 'matrix': hint.textContent = '8-way comparative SLA, cost, and complexity matrix'; break;
+        case 'code': hint.textContent = 'Production code contract preview'; break;
+      }
+    }
+  };
+
+  // Wire View Mode buttons
+  document.getElementById('btnRagViewVisual')?.addEventListener('click', () => setRagViewMode('visual'));
+  document.getElementById('btnRagViewMermaid')?.addEventListener('click', () => setRagViewMode('mermaid'));
+  document.getElementById('btnRagViewPitch')?.addEventListener('click', () => setRagViewMode('pitch'));
+  document.getElementById('btnRagViewMatrix')?.addEventListener('click', () => setRagViewMode('matrix'));
+  document.getElementById('btnRagViewCode')?.addEventListener('click', () => setRagViewMode('code'));
+
+  // Wire Language selector
+  document.getElementById('selRagLanguage')?.addEventListener('change', () => {
+    renderRagArchitectureUi(selectedRagArchKey);
+  });
+
+  // Wire 8 Architecture Card Click Events
+  document.querySelectorAll<HTMLElement>('.rag-arch-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const arch = card.getAttribute('data-arch');
+      if (arch && RAG_ARCHITECTURES[arch]) {
+        renderRagArchitectureUi(arch);
+        // Also sync the failure mode dropdown if there is a match
+        const selFail = document.getElementById('selRagFailureMode') as HTMLSelectElement | null;
+        if (selFail) {
+          selFail.value = arch;
+          const recText = document.getElementById('lblRagRecommendationText');
+          if (recText) recText.textContent = `${RAG_ARCHITECTURES[arch].name} selected: ${RAG_ARCHITECTURES[arch].elevatorPitch}`;
+        }
+      }
+    });
+  });
+
+  // Wire Failure Mode Recommender Dropdown
+  document.getElementById('selRagFailureMode')?.addEventListener('change', (e) => {
+    const val = (e.target as HTMLSelectElement).value;
+    if (val && RAG_ARCHITECTURES[val]) {
+      renderRagArchitectureUi(val);
+      const recText = document.getElementById('lblRagRecommendationText');
+      if (recText) {
+        recText.textContent = `${RAG_ARCHITECTURES[val].name} recommended for this client symptom. ${RAG_ARCHITECTURES[val].elevatorPitch}`;
+      }
+      showToast(`🎯 Auto-selected ${RAG_ARCHITECTURES[val].name} based on client failure mode!`);
+    }
+  });
+
+  // Wire Copy Mermaid Button
+  document.getElementById('btnCopyRagMermaid')?.addEventListener('click', () => {
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey];
+    if (arch) {
+      navigator.clipboard.writeText(arch.mermaidFlow);
+      showToast(`📋 Copied ${arch.name} Mermaid diagram to clipboard!`);
+    }
+  });
+
+  // Wire Copy Pitch Button
+  document.getElementById('btnCopyRagPitch')?.addEventListener('click', () => {
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey];
+    if (arch) {
+      const md = `### 💼 Client Solutioning Narrative: ${arch.name}\n\n**Elevator Pitch:**\n"${arch.elevatorPitch}"\n\n**When to USE:**\n${arch.whenToUse.map(u => `- ${u}`).join('\n')}\n\n**WATCH OUT / Trade-Offs:**\n${arch.watchOut.map(w => `- ${w}`).join('\n')}`;
+      navigator.clipboard.writeText(md);
+      showToast(`📋 Copied ${arch.name} solutioning pitch to clipboard!`);
+    }
+  });
+
+  // Wire Export RAG ADR Button (Generates docs/architecture/rag_architecture_adr.md)
+  const exportRagAdrDoc = async () => {
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey] || RAG_ARCHITECTURES['hybrid'];
     const store = (document.getElementById('selRagStore') as HTMLSelectElement)?.value || 'pgvector';
     const chunkSize = (document.getElementById('selRagChunkSize') as HTMLSelectElement)?.value || '128';
-    showToast(`📚 Scaffolding Air-Gapped Policy RAG Pipeline (${store}, ${chunkSize} tokens)...`);
-    let code = `// Air-Gapped Policy RAG Pipeline (${store}, ${chunkSize} Tokens)
-import { VectorStore } from './vector_store';
-export class GroundedPolicyRag {
-  constructor(private store = '${store}', private maxTokens = ${chunkSize}) {}
-  async retrieve(query: string) { return this.store.query(query, { chunkSize: ${chunkSize} }); }
-}`;
+    const lang = (document.getElementById('selRagLanguage') as HTMLSelectElement)?.value || 'typescript';
+
+    const adrContent = `# Architectural Decision Record (ADR): RAG Architecture Selection
+**Document Ref:** ADR-RAG-001  
+**Status:** Approved for Client Pilot  
+**Date:** ${new Date().toISOString().split('T')[0]}  
+**Architecture Selected:** ${arch.num} ${arch.name}  
+**Primary Paradigm:** ${arch.badge}  
+
+---
+
+## 1. Context & Problem Framing
+The client workload demands grounded AI retrieval with predictable latency and verifiable provenance citations.
+- **Client Symptom / Failure Mode:** High precision required without semantic hallucination drift.
+- **Latency Budget:** ${arch.latency}
+- **Unit Cost Ceiling:** ${arch.cost}
+- **Required SLA:** ${arch.sla}
+- **Vector Database Engine:** ${store.toUpperCase()}
+- **Token Chunk Size:** ${chunkSize} tokens
+- **Target Implementation:** ${lang.toUpperCase()}
+
+---
+
+## 2. Decision
+We select **${arch.num} ${arch.name}** as the canonical retrieval architecture for this engagement.
+
+### Executive Architectural Justification:
+> "${arch.elevatorPitch}"
+
+---
+
+## 3. Visual Execution Pipeline (Mermaid)
+\`\`\`mermaid
+${arch.mermaidFlow}
+\`\`\`
+
+---
+
+## 4. Production Criteria & Trade-Offs
+
+### When to USE:
+${arch.whenToUse.map(u => `- ${u}`).join('\n')}
+
+### WATCH OUT / Guardrails & Invariants:
+${arch.watchOut.map(w => `- ${w}`).join('\n')}
+
+---
+
+## 5. Implementation Artifacts
+- Scaffolding target path: \`src/rag/\`
+- Pipeline file: \`src/rag/rag_pipeline.${lang === 'python' ? 'py' : 'ts'}\`
+- Verification suite: \`tests/test_rag_pipeline.${lang === 'python' ? 'py' : 'test.ts'}\`
+- Air-gapped orchestration: \`docker-compose.rag.yml\`
+`;
+
+    try {
+      if (api?.workspace?.writeFile) {
+        const ws = await api.workspace.getWorkspace();
+        if (ws?.path) {
+          const outDir = ws.path + '/docs/architecture';
+          try { await api.workspace.createDir(outDir); } catch (_) {}
+          const fullPath = `${outDir}/rag_architecture_adr.md`;
+          await api.workspace.writeFile(fullPath, adrContent);
+          showToast(`✓ Saved RAG ADR to docs/architecture/rag_architecture_adr.md!`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error writing RAG ADR:', e);
+    }
+
+    // Clipboard fallback
+    navigator.clipboard.writeText(adrContent);
+    showToast(`✓ Copied complete RAG Architectural Decision Record (ADR) to clipboard!`);
+  };
+
+  document.getElementById('btnExportRagAdrDoc')?.addEventListener('click', exportRagAdrDoc);
+  document.getElementById('btnExportRagAdrToWorkspace')?.addEventListener('click', exportRagAdrDoc);
+
+  // Wire Scaffold RAG Pipeline Button
+  document.getElementById('btnScaffoldRagPolicy')?.addEventListener('click', async () => {
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey] || RAG_ARCHITECTURES['hybrid'];
+    const store = (document.getElementById('selRagStore') as HTMLSelectElement)?.value || 'pgvector';
+    const chunkSize = (document.getElementById('selRagChunkSize') as HTMLSelectElement)?.value || '128';
+    const lang = (document.getElementById('selRagLanguage') as HTMLSelectElement)?.value || 'typescript';
+
+    showToast(`📚 Scaffolding ${arch.name} Pipeline (${store}, ${chunkSize} tokens, ${lang})...`);
+
+    let code = lang === 'python' ? arch.codePreviewPy : arch.codePreviewTs;
+
     if (api?.engines?.ragPipeline) {
-      const res = await api.engines.ragPipeline({ vectorDb: store, embedModel: 'nomic-embed-text:768', targetLanguage: 'typescript', chunking: { maxChunkSize: parseInt(chunkSize, 10), overlap: 32 } });
+      const res = await api.engines.ragPipeline({
+        architecture: arch.id,
+        vectorDb: store,
+        embedModel: 'nomic-embed-text:768',
+        targetLanguage: lang,
+        chunking: { maxChunkSize: parseInt(chunkSize, 10), overlap: 32 }
+      });
       if (res && res.pipelineCode) code = res.pipelineCode;
     }
+
     const ragBox = document.getElementById('p3RagResultBox');
     if (ragBox) {
       ragBox.style.display = 'block';
-      ragBox.innerText = code;
+      ragBox.innerText = `// Scaffolded ${arch.name} Stack in src/rag/\n// Vector Store: ${store.toUpperCase()} | Language: ${lang.toUpperCase()}\n\n` + code;
     }
-    showToast(`✓ Policy RAG Pipeline scaffolded in src/rag/`);
+    showToast(`✓ ${arch.name} scaffolded in src/rag/`);
     hasScaffoldedRagOrMcp = true;
     refreshP3Rail();
   });
 
-  // 3D. Scaffold MCP Server
+  // Wire Scaffold MCP Tool Server Button
   document.getElementById('btnScaffoldMcpServer')?.addEventListener('click', async () => {
     showToast('🔌 Scaffolding MCP Tool Server & Protocol Handlers in src/mcp/...');
     let code = `// Model Context Protocol Server (Evolve AI FDE)
@@ -15640,6 +16985,18 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     hasScaffoldedRagOrMcp = true;
     refreshP3Rail();
   });
+
+  // Wire Level 3 Bridge in 3A ("Architect RAG Pattern in 3C ->")
+  document.getElementById('btnLadderJumpToRagStudio')?.addEventListener('click', () => {
+    goToP3Step(3);
+    renderRagArchitectureUi('hybrid');
+    const card = document.getElementById('phase3Card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showToast('📚 Switched to Section 3C RAG Architecture Matrix!');
+  });
+
+  // Initialize Section 3C RAG Studio on load
+  renderRagArchitectureUi('hybrid');
 
   // --- Phase 3 Step Rail Navigation (3A -> 3B -> 3C) ---
   let currentP3Step = 1;
@@ -18307,6 +19664,42 @@ class SingleDataset3DEngine {
       }
     }
 
+    // 5b. Draw Topological Manifold Surface Contour Mesh (Connecting Nearest Neighbors in Continuous Space)
+    if (!this.filterOutliersOnly && this.renderedNodes.length > 3) {
+      const drawnLinks = new Set<string>();
+      for (let i = 0; i < this.renderedNodes.length; i++) {
+        const n1 = this.renderedNodes[i];
+        if (n1.p.isOutlier) continue; // Outlier beacons stand outside manifold sheet
+        let connections = 0;
+
+        for (let j = i + 1; j < this.renderedNodes.length && connections < 3; j++) {
+          const n2 = this.renderedNodes[j];
+          if (n2.p.isOutlier) continue;
+
+          // 3D Euclidean distance in normalized coordinate space
+          const dx = n1.p.x - n2.p.x;
+          const dy = n1.p.y - n2.p.y;
+          const dz = n1.p.z - n2.p.z;
+          const dist3D = Math.hypot(dx, dy, dz);
+
+          if (dist3D < 42) {
+            const linkKey = i < j ? `${i}_${j}` : `${j}_${i}`;
+            if (!drawnLinks.has(linkKey)) {
+              drawnLinks.add(linkKey);
+              connections++;
+              const alpha = Math.max(0.04, (1 - dist3D / 42) * 0.25);
+              ctx.beginPath();
+              ctx.moveTo(n1.sx, n1.sy);
+              ctx.lineTo(n2.sx, n2.sy);
+              ctx.strokeStyle = `rgba(56, 189, 248, ${alpha})`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
+        }
+      }
+    }
+
     // 6. Draw Nodes
     const now = Date.now();
     for (const n of this.renderedNodes) {
@@ -18337,6 +19730,482 @@ class SingleDataset3DEngine {
     if (this.animId) cancelAnimationFrame(this.animId);
   }
 }
+
+// Multi-Disciplinary Demo Domains for Offline Data Studio & 3D Celestial Cosmos
+const DEMO_DOMAINS: Record<string, { label: string; icon: string; factTable: string; targetKpi: string; tables: any[] }> = {
+  retail: {
+    label: 'Retail & Commerce',
+    icon: '🛍️',
+    factTable: 'orders',
+    targetKpi: 'total_amount',
+    tables: [
+      {
+        tableName: 'orders',
+        name: 'orders',
+        schema: 'public',
+        columns: [
+          { name: 'order_id', type: 'integer', isPrimary: true },
+          { name: 'customer_id', type: 'integer', isForeign: true },
+          { name: 'order_date', type: 'timestamp' },
+          { name: 'status', type: 'string' },
+          { name: 'total_amount', type: 'numeric' },
+          { name: 'discount_amount', type: 'numeric' },
+          { name: 'shipping_address_id', type: 'integer', isForeign: true },
+          { name: 'created_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'order_items',
+        name: 'order_items',
+        schema: 'public',
+        columns: [
+          { name: 'item_id', type: 'integer', isPrimary: true },
+          { name: 'order_id', type: 'integer', isForeign: true },
+          { name: 'product_id', type: 'integer', isForeign: true },
+          { name: 'quantity', type: 'integer' },
+          { name: 'unit_price', type: 'numeric' },
+          { name: 'subtotal', type: 'numeric' }
+        ]
+      },
+      {
+        tableName: 'customers',
+        name: 'customers',
+        schema: 'public',
+        columns: [
+          { name: 'customer_id', type: 'integer', isPrimary: true },
+          { name: 'first_name', type: 'string' },
+          { name: 'last_name', type: 'string' },
+          { name: 'email', type: 'string' },
+          { name: 'phone', type: 'string' },
+          { name: 'tier', type: 'string' },
+          { name: 'lifetime_value_usd', type: 'numeric' },
+          { name: 'engagement_score', type: 'numeric' },
+          { name: 'orders_count', type: 'integer' },
+          { name: 'created_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'addresses',
+        name: 'addresses',
+        schema: 'public',
+        columns: [
+          { name: 'address_id', type: 'integer', isPrimary: true },
+          { name: 'customer_id', type: 'integer', isForeign: true },
+          { name: 'street', type: 'string' },
+          { name: 'city', type: 'string' },
+          { name: 'state', type: 'string' },
+          { name: 'postal_code', type: 'string' },
+          { name: 'country', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'products',
+        name: 'products',
+        schema: 'public',
+        columns: [
+          { name: 'product_id', type: 'integer', isPrimary: true },
+          { name: 'category_id', type: 'integer', isForeign: true },
+          { name: 'sku', type: 'string' },
+          { name: 'product_name', type: 'string' },
+          { name: 'cost_price', type: 'numeric' },
+          { name: 'retail_price', type: 'numeric' },
+          { name: 'stock_level', type: 'integer' }
+        ]
+      },
+      {
+        tableName: 'categories',
+        name: 'categories',
+        schema: 'public',
+        columns: [
+          { name: 'category_id', type: 'integer', isPrimary: true },
+          { name: 'category_name', type: 'string' },
+          { name: 'parent_category_id', type: 'integer', isForeign: true },
+          { name: 'description', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'payments',
+        name: 'payments',
+        schema: 'public',
+        columns: [
+          { name: 'payment_id', type: 'integer', isPrimary: true },
+          { name: 'order_id', type: 'integer', isForeign: true },
+          { name: 'payment_method', type: 'string' },
+          { name: 'amount', type: 'numeric' },
+          { name: 'status', type: 'string' },
+          { name: 'processed_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'shipments',
+        name: 'shipments',
+        schema: 'public',
+        columns: [
+          { name: 'shipment_id', type: 'integer', isPrimary: true },
+          { name: 'order_id', type: 'integer', isForeign: true },
+          { name: 'tracking_number', type: 'string' },
+          { name: 'carrier', type: 'string' },
+          { name: 'shipped_at', type: 'timestamp' },
+          { name: 'delivered_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'inventory_transactions',
+        name: 'inventory_transactions',
+        schema: 'public',
+        columns: [
+          { name: 'txn_id', type: 'integer', isPrimary: true },
+          { name: 'product_id', type: 'integer', isForeign: true },
+          { name: 'warehouse_id', type: 'integer' },
+          { name: 'change_qty', type: 'integer' },
+          { name: 'reason', type: 'string' },
+          { name: 'created_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'customer_reviews',
+        name: 'customer_reviews',
+        schema: 'public',
+        columns: [
+          { name: 'review_id', type: 'integer', isPrimary: true },
+          { name: 'product_id', type: 'integer', isForeign: true },
+          { name: 'customer_id', type: 'integer', isForeign: true },
+          { name: 'rating', type: 'integer' },
+          { name: 'comment', type: 'string' },
+          { name: 'review_date', type: 'timestamp' }
+        ]
+      }
+    ]
+  },
+  astrophysics: {
+    label: 'Astrophysics & Space',
+    icon: '🔭',
+    factTable: 'exoplanets',
+    targetKpi: 'orbital_period_days',
+    tables: [
+      {
+        tableName: 'exoplanets',
+        name: 'exoplanets',
+        schema: 'astrophysics',
+        columns: [
+          { name: 'planet_id', type: 'integer', isPrimary: true },
+          { name: 'system_id', type: 'integer', isForeign: true },
+          { name: 'planet_name', type: 'string' },
+          { name: 'discovery_method', type: 'string' },
+          { name: 'orbital_period_days', type: 'numeric' },
+          { name: 'semi_major_axis_au', type: 'numeric' },
+          { name: 'equilibrium_temp_kelvin', type: 'numeric' },
+          { name: 'planet_mass_earth', type: 'numeric' },
+          { name: 'planet_radius_earth', type: 'numeric' },
+          { name: 'stellar_luminosity_solar', type: 'numeric' },
+          { name: 'habitability_score', type: 'numeric' },
+          { name: 'spectroscopy_snr', type: 'numeric' },
+          { name: 'observed_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'stellar_systems',
+        name: 'stellar_systems',
+        schema: 'astrophysics',
+        columns: [
+          { name: 'system_id', type: 'integer', isPrimary: true },
+          { name: 'star_name', type: 'string' },
+          { name: 'spectral_class', type: 'string' },
+          { name: 'stellar_mass_solar', type: 'numeric' },
+          { name: 'stellar_radius_solar', type: 'numeric' },
+          { name: 'surface_temp_kelvin', type: 'numeric' },
+          { name: 'metallicity_fe_h', type: 'numeric' },
+          { name: 'distance_light_years', type: 'numeric' }
+        ]
+      },
+      {
+        tableName: 'orbital_telemetry',
+        name: 'orbital_telemetry',
+        schema: 'astrophysics',
+        columns: [
+          { name: 'telemetry_id', type: 'integer', isPrimary: true },
+          { name: 'planet_id', type: 'integer', isForeign: true },
+          { name: 'inclination_deg', type: 'numeric' },
+          { name: 'eccentricity', type: 'numeric' },
+          { name: 'transit_duration_hours', type: 'numeric' },
+          { name: 'radial_velocity_semi_amplitude', type: 'numeric' },
+          { name: 'epoch_bjd', type: 'numeric' }
+        ]
+      },
+      {
+        tableName: 'atmospheric_spectroscopy',
+        name: 'atmospheric_spectroscopy',
+        schema: 'astrophysics',
+        columns: [
+          { name: 'spectrum_id', type: 'integer', isPrimary: true },
+          { name: 'planet_id', type: 'integer', isForeign: true },
+          { name: 'chemical_species', type: 'string' },
+          { name: 'absorption_depth_ppm', type: 'numeric' },
+          { name: 'signal_noise_ratio', type: 'numeric' },
+          { name: 'telescope_facility', type: 'string' },
+          { name: 'analyzed_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'habitability_assessments',
+        name: 'habitability_assessments',
+        schema: 'astrophysics',
+        columns: [
+          { name: 'assessment_id', type: 'integer', isPrimary: true },
+          { name: 'planet_id', type: 'integer', isForeign: true },
+          { name: 'habitable_zone_status', type: 'string' },
+          { name: 'surface_pressure_bar', type: 'numeric' },
+          { name: 'runaway_greenhouse_risk', type: 'numeric' },
+          { name: 'confidence_score', type: 'numeric' }
+        ]
+      }
+    ]
+  },
+  genomics: {
+    label: 'CRISPR & Genomics',
+    icon: '🧬',
+    factTable: 'crispr_gene_targets',
+    targetKpi: 'cleavage_efficiency_pct',
+    tables: [
+      {
+        tableName: 'crispr_gene_targets',
+        name: 'crispr_gene_targets',
+        schema: 'genomics',
+        columns: [
+          { name: 'target_id', type: 'integer', isPrimary: true },
+          { name: 'gene_id', type: 'integer', isForeign: true },
+          { name: 'assay_id', type: 'integer', isForeign: true },
+          { name: 'target_sequence', type: 'string' },
+          { name: 'cleavage_efficiency_pct', type: 'numeric' },
+          { name: 'off_target_risk_score', type: 'numeric' },
+          { name: 'chromatin_accessibility_auc', type: 'numeric' },
+          { name: 'gc_content_pct', type: 'numeric' },
+          { name: 'microhomology_score', type: 'numeric' },
+          { name: 'cell_viability_pct', type: 'numeric' },
+          { name: 'transfection_efficiency_pct', type: 'numeric' },
+          { name: 'created_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'target_genes',
+        name: 'target_genes',
+        schema: 'genomics',
+        columns: [
+          { name: 'gene_id', type: 'integer', isPrimary: true },
+          { name: 'gene_symbol', type: 'string' },
+          { name: 'chromosome', type: 'string' },
+          { name: 'start_position', type: 'integer' },
+          { name: 'end_position', type: 'integer' },
+          { name: 'strand', type: 'string' },
+          { name: 'pathway_name', type: 'string' },
+          { name: 'disease_association', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'cellular_assays',
+        name: 'cellular_assays',
+        schema: 'genomics',
+        columns: [
+          { name: 'assay_id', type: 'integer', isPrimary: true },
+          { name: 'cell_line', type: 'string' },
+          { name: 'tissue_origin', type: 'string' },
+          { name: 'transfection_method', type: 'string' },
+          { name: 'incubation_hours', type: 'numeric' },
+          { name: 'cas_enzyme_variant', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'off_target_loci',
+        name: 'off_target_loci',
+        schema: 'genomics',
+        columns: [
+          { name: 'locus_id', type: 'integer', isPrimary: true },
+          { name: 'target_id', type: 'integer', isForeign: true },
+          { name: 'mismatch_count', type: 'integer' },
+          { name: 'cleavage_frequency_pct', type: 'numeric' },
+          { name: 'genomic_region', type: 'string' },
+          { name: 'mutation_risk_tier', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'clinical_cohort_trials',
+        name: 'clinical_cohort_trials',
+        schema: 'genomics',
+        columns: [
+          { name: 'trial_id', type: 'integer', isPrimary: true },
+          { name: 'target_id', type: 'integer', isForeign: true },
+          { name: 'phase', type: 'string' },
+          { name: 'patient_cohort_size', type: 'integer' },
+          { name: 'efficacy_rate_pct', type: 'numeric' },
+          { name: 'safety_grade', type: 'string' }
+        ]
+      }
+    ]
+  },
+  climate: {
+    label: 'Oceanic Climate Array',
+    icon: '🌊',
+    factTable: 'oceanic_buoy_telemetry',
+    targetKpi: 'sea_surface_temp_celsius',
+    tables: [
+      {
+        tableName: 'oceanic_buoy_telemetry',
+        name: 'oceanic_buoy_telemetry',
+        schema: 'climate',
+        columns: [
+          { name: 'telemetry_id', type: 'integer', isPrimary: true },
+          { name: 'station_id', type: 'integer', isForeign: true },
+          { name: 'sensor_depth_meters', type: 'numeric' },
+          { name: 'sea_surface_temp_celsius', type: 'numeric' },
+          { name: 'salinity_psu', type: 'numeric' },
+          { name: 'dissolved_oxygen_umol_kg', type: 'numeric' },
+          { name: 'wave_height_meters', type: 'numeric' },
+          { name: 'atmospheric_pressure_hpa', type: 'numeric' },
+          { name: 'carbon_flux_mmol_m2', type: 'numeric' },
+          { name: 'recorded_at', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'monitoring_stations',
+        name: 'monitoring_stations',
+        schema: 'climate',
+        columns: [
+          { name: 'station_id', type: 'integer', isPrimary: true },
+          { name: 'station_code', type: 'string' },
+          { name: 'ocean_basin', type: 'string' },
+          { name: 'latitude', type: 'numeric' },
+          { name: 'longitude', type: 'numeric' },
+          { name: 'platform_type', type: 'string' },
+          { name: 'deployed_year', type: 'integer' }
+        ]
+      },
+      {
+        tableName: 'atmospheric_flux',
+        name: 'atmospheric_flux',
+        schema: 'climate',
+        columns: [
+          { name: 'flux_id', type: 'integer', isPrimary: true },
+          { name: 'station_id', type: 'integer', isForeign: true },
+          { name: 'wind_speed_knots', type: 'numeric' },
+          { name: 'air_temperature_c', type: 'numeric' },
+          { name: 'humidity_pct', type: 'numeric' },
+          { name: 'solar_irradiance_wm2', type: 'numeric' }
+        ]
+      },
+      {
+        tableName: 'glacier_mass_balance',
+        name: 'glacier_mass_balance',
+        schema: 'climate',
+        columns: [
+          { name: 'glacier_id', type: 'integer', isPrimary: true },
+          { name: 'station_id', type: 'integer', isForeign: true },
+          { name: 'region_code', type: 'string' },
+          { name: 'mass_loss_gigatons', type: 'numeric' },
+          { name: 'equilibrium_line_altitude_m', type: 'numeric' },
+          { name: 'albedo_index', type: 'numeric' },
+          { name: 'survey_year', type: 'integer' }
+        ]
+      },
+      {
+        tableName: 'extreme_weather_events',
+        name: 'extreme_weather_events',
+        schema: 'climate',
+        columns: [
+          { name: 'event_id', type: 'integer', isPrimary: true },
+          { name: 'station_id', type: 'integer', isForeign: true },
+          { name: 'event_type', type: 'string' },
+          { name: 'peak_anomaly_temp_c', type: 'numeric' },
+          { name: 'duration_days', type: 'numeric' },
+          { name: 'severity_category', type: 'string' }
+        ]
+      }
+    ]
+  },
+  ai_gpu: {
+    label: 'Cloud AI & GPU Fleet',
+    icon: '⚡',
+    factTable: 'gpu_node_telemetry',
+    targetKpi: 'gpu_utilization_pct',
+    tables: [
+      {
+        tableName: 'gpu_node_telemetry',
+        name: 'gpu_node_telemetry',
+        schema: 'ai_fleet',
+        columns: [
+          { name: 'telemetry_id', type: 'integer', isPrimary: true },
+          { name: 'node_id', type: 'integer', isForeign: true },
+          { name: 'job_id', type: 'integer', isForeign: true },
+          { name: 'gpu_utilization_pct', type: 'numeric' },
+          { name: 'power_draw_watts', type: 'numeric' },
+          { name: 'temperature_celsius', type: 'numeric' },
+          { name: 'nvlink_bandwidth_tbps', type: 'numeric' },
+          { name: 'allreduce_sync_latency_ms', type: 'numeric' },
+          { name: 'sm_clock_mhz', type: 'numeric' },
+          { name: 'memory_used_gb', type: 'numeric' },
+          { name: 'timestamp', type: 'timestamp' }
+        ]
+      },
+      {
+        tableName: 'ai_cluster_nodes',
+        name: 'ai_cluster_nodes',
+        schema: 'ai_fleet',
+        columns: [
+          { name: 'node_id', type: 'integer', isPrimary: true },
+          { name: 'node_name', type: 'string' },
+          { name: 'rack_id', type: 'string' },
+          { name: 'server_model', type: 'string' },
+          { name: 'gpu_count', type: 'integer' },
+          { name: 'pcie_generation', type: 'string' },
+          { name: 'nic_speed_gbps', type: 'integer' },
+          { name: 'datacenter_zone', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'model_training_jobs',
+        name: 'model_training_jobs',
+        schema: 'ai_fleet',
+        columns: [
+          { name: 'job_id', type: 'integer', isPrimary: true },
+          { name: 'model_name', type: 'string' },
+          { name: 'parameter_size_billion', type: 'numeric' },
+          { name: 'batch_size_per_gpu', type: 'integer' },
+          { name: 'optimizer', type: 'string' },
+          { name: 'precision_format', type: 'string' },
+          { name: 'status', type: 'string' }
+        ]
+      },
+      {
+        tableName: 'gradient_sync_stages',
+        name: 'gradient_sync_stages',
+        schema: 'ai_fleet',
+        columns: [
+          { name: 'stage_id', type: 'integer', isPrimary: true },
+          { name: 'job_id', type: 'integer', isForeign: true },
+          { name: 'node_id', type: 'integer', isForeign: true },
+          { name: 'stage_name', type: 'string' },
+          { name: 'sync_duration_ms', type: 'numeric' },
+          { name: 'bytes_transferred_mb', type: 'numeric' },
+          { name: 'straggler_flag', type: 'boolean' }
+        ]
+      },
+      {
+        tableName: 'hardware_fault_incidents',
+        name: 'hardware_fault_incidents',
+        schema: 'ai_fleet',
+        columns: [
+          { name: 'fault_id', type: 'integer', isPrimary: true },
+          { name: 'node_id', type: 'integer', isForeign: true },
+          { name: 'fault_type', type: 'string' },
+          { name: 'throttle_reason', type: 'string' },
+          { name: 'down_time_minutes', type: 'numeric' },
+          { name: 'remediation_action', type: 'string' }
+        ]
+      }
+    ]
+  }
+};
+
+const DEMO_STAR_SCHEMA_TABLES: any[] = DEMO_DOMAINS.retail.tables;
 
 let activeAnalysisDbTable: ActiveDbTableSource | null = null;
 let currentDataStudioIntrospectedTables: any[] = [];
@@ -18390,7 +20259,10 @@ function setupDataAnalysisStudio(api: any): void {
     if (dataDbTablesContainer) dataDbTablesContainer.style.display = 'block';
 
     if (dataDbConnectionStatusBadge) {
-      dataDbConnectionStatusBadge.innerText = `✓ Connected to ${dialectName.toUpperCase()}: ${tables.length} tables discovered`;
+      const isLive = !!(activeLiveDbConnection?.connectionUri || (dataDbUriInput && dataDbUriInput.value.trim()));
+      dataDbConnectionStatusBadge.innerText = isLive
+        ? `✓ Connected to ${dialectName.toUpperCase()}: ${tables.length} tables discovered`
+        : `⚡ Demo Star Schema: ${tables.length} tables available`;
     }
 
     if (dataDbTableSelect) {
@@ -18430,6 +20302,12 @@ function setupDataAnalysisStudio(api: any): void {
       if (currentDataStudioIntrospectedTables.length === 0 || currentDataStudioIntrospectedTables.length !== (window as any)._phase2DiscoveredTables.length) {
         populateDataDiscoveredTables((window as any)._phase2DiscoveredTables, dataDbDialectSelect?.value || 'postgres');
       }
+    } else if (currentGraphData?.nodes && currentGraphData.nodes.length > 0) {
+      if (currentDataStudioIntrospectedTables.length === 0) {
+        populateDataDiscoveredTables(currentGraphData.nodes, dataDbDialectSelect?.value || 'postgres');
+      }
+    } else if (currentDataStudioIntrospectedTables.length === 0) {
+      populateDataDiscoveredTables(DEMO_STAR_SCHEMA_TABLES, dataDbDialectSelect?.value || 'postgres');
     }
   };
 
@@ -18459,23 +20337,17 @@ function setupDataAnalysisStudio(api: any): void {
     if (dataDbConnectDrawer) dataDbConnectDrawer.style.display = 'none';
   });
 
-  // Toggle Password Masking
-  btnDataToggleMaskUri?.addEventListener('click', () => {
-    if (dataDbUriInput) {
-      dataDbUriInput.type = dataDbUriInput.type === 'password' ? 'text' : 'password';
-    }
-  });
-
   // Initialize Enterprise Security Mode & Dialect Change Handling for Data Studio
   bindEnterpriseSecurityUi('dataDbSecurityMode', 'dataDbSecurityModeBadge', 'dataDbEnterpriseFields', 'dataLblEntParam1', 'dataDbEntParam1', 'dataLblEntParam2', 'dataDbEntParam2');
   handleDialectSelectChange('dataDbDialectSelect', 'dataDbUriInput', 'dataDbSecurityMode');
+  setupDbConnectionSync('data');
 
   // Test Connection
   btnDataTestDbPing?.addEventListener('click', async () => {
     const opts = buildDbOptionsFromInputs('dataDbDialectSelect', 'dataDbUriInput', 'dataDbProjectIdInput', 'dataDbSchemaIdInput', 'dataDbSecurityMode', 'dataDbEntParam1', 'dataDbEntParam2');
 
     if (!opts.connectionUri && opts.securityMode === 'standard') {
-      showToast('⚠️ Please enter database connection URI.');
+      showToast('⚠️ Please enter database connection URI or host parameters.');
       return;
     }
     showToast(`🔌 Testing connection to ${opts.dialect.toUpperCase()} database...`);
@@ -18499,9 +20371,17 @@ function setupDataAnalysisStudio(api: any): void {
           dataDbDialectSelect.value = detected.dialect;
           dataDbDialectSelect.dispatchEvent(new Event('change'));
         }
-        if (detected.connectionUri && dataDbUriInput) dataDbUriInput.value = detected.connectionUri;
+        const hostEl = document.getElementById('dataDbHostInput') as HTMLInputElement | null;
+        if (detected.host && hostEl) hostEl.value = detected.host;
+        const portEl = document.getElementById('dataDbPortInput') as HTMLInputElement | null;
+        if (detected.port && portEl) portEl.value = String(detected.port);
+        const userEl = document.getElementById('dataDbUserInput') as HTMLInputElement | null;
+        if (detected.username && userEl) userEl.value = detected.username;
+        const passEl = document.getElementById('dataDbPasswordInput') as HTMLInputElement | null;
+        if (detected.password && passEl) passEl.value = detected.password;
         if (detected.database && dataDbProjectIdInput) dataDbProjectIdInput.value = detected.database;
         if (detected.schema && dataDbSchemaIdInput) dataDbSchemaIdInput.value = detected.schema;
+        if (detected.connectionUri && dataDbUriInput) dataDbUriInput.value = detected.connectionUri;
         showToast(`✓ Auto-detected ${detected.dialect?.toUpperCase() || 'DB'} connection from ${detected.sourceFile || '.env'}!`);
       } else {
         showToast('⚠️ No database connection parameters detected in project files.');
@@ -18512,6 +20392,10 @@ function setupDataAnalysisStudio(api: any): void {
   // Wipe Credentials
   btnDataWipeDbCreds?.addEventListener('click', () => {
     if (dataDbUriInput) dataDbUriInput.value = '';
+    const passEl = document.getElementById('dataDbPasswordInput') as HTMLInputElement | null;
+    if (passEl) passEl.value = '';
+    const userEl = document.getElementById('dataDbUserInput') as HTMLInputElement | null;
+    if (userEl) userEl.value = '';
     showToast('🗑️ Cleared database connection credentials from memory.');
   });
 
@@ -18520,7 +20404,7 @@ function setupDataAnalysisStudio(api: any): void {
     const opts = buildDbOptionsFromInputs('dataDbDialectSelect', 'dataDbUriInput', 'dataDbProjectIdInput', 'dataDbSchemaIdInput', 'dataDbSecurityMode', 'dataDbEntParam1', 'dataDbEntParam2');
 
     if (!opts.connectionUri && opts.securityMode === 'standard') {
-      showToast('⚠️ Please enter database connection URI.');
+      showToast('⚠️ Please enter database connection URI or host parameters.');
       return;
     }
     showToast(`🔌 Introspecting ${opts.dialect.toUpperCase()} database schema...`);
@@ -18575,70 +20459,108 @@ function setupDataAnalysisStudio(api: any): void {
   });
 
   // Load Table for Analysis Helper
-  const loadTableForAnalysis = (tblName?: string) => {
-    if (!tblName) {
+  const loadTableForAnalysis = (tblName?: string, tableObj?: any) => {
+    if (!tblName && !tableObj) {
       showToast('⚠️ Please select an introspected table first.');
       return;
     }
 
-    const allTables = (currentDataStudioIntrospectedTables && currentDataStudioIntrospectedTables.length > 0)
-      ? currentDataStudioIntrospectedTables
-      : currentIntrospectedTables;
+    const effectiveName = (tblName || tableObj?.tableName || tableObj?.name || tableObj?.id || '').trim();
 
-    const tbl = allTables.find(t => 
-      (t.tableName === tblName) || 
-      (t.name === tblName) || 
-      ((t.schema ? `${t.schema}.${t.tableName || t.name}` : '') === tblName)
-    );
+    // 1. Check direct table object override
+    let tbl = (tableObj && (tableObj.columns || tableObj.columnsFormatted)) ? tableObj : null;
+
+    // 2. Search across all known table registries: currentDataStudio, live introspected, phase2 discovered, graph nodes, and demo star schema
+    if (!tbl) {
+      const allTables = [
+        ...(currentDataStudioIntrospectedTables || []),
+        ...(currentIntrospectedTables || []),
+        ...((window as any)._phase2DiscoveredTables || []),
+        ...(currentGraphData?.nodes || []),
+        ...Object.values(DEMO_DOMAINS).flatMap((d: any) => d.tables),
+        ...DEMO_STAR_SCHEMA_TABLES
+      ];
+
+      tbl = allTables.find((t: any) => 
+        (t.tableName && t.tableName.toLowerCase() === effectiveName.toLowerCase()) || 
+        (t.name && t.name.toLowerCase() === effectiveName.toLowerCase()) || 
+        (t.id && t.id.toLowerCase() === effectiveName.toLowerCase()) || 
+        ((t.schema ? `${t.schema}.${t.tableName || t.name || t.id}` : '').toLowerCase() === effectiveName.toLowerCase())
+      );
+    }
+
     if (!tbl) {
       showToast('⚠️ Could not find table metadata.');
       return;
     }
 
+    // Ensure currentDataStudioIntrospectedTables is populated and dropdown displays full schema
+    if (!currentDataStudioIntrospectedTables || currentDataStudioIntrospectedTables.length === 0) {
+      const pool = (currentGraphData?.nodes && currentGraphData.nodes.length > 0)
+        ? currentGraphData.nodes
+        : DEMO_STAR_SCHEMA_TABLES;
+      populateDataDiscoveredTables(pool, dataDbDialectSelect?.value || 'postgres');
+    }
+
     const dialect = dataDbDialectSelect?.value || activeLiveDbConnection?.dialect || 'postgres';
-    const schema = dataDbSchemaIdInput?.value || tbl.schema || activeLiveDbConnection?.schema || 'public';
+    const schema = tbl.schema || dataDbSchemaIdInput?.value || activeLiveDbConnection?.schema || 'public';
     const database = dataDbProjectIdInput?.value || activeLiveDbConnection?.database || 'postgres';
     const uri = dataDbUriInput?.value || activeLiveDbConnection?.connectionUri || '';
+
+    const cleanTableName = tbl.tableName || tbl.name || tbl.id || effectiveName;
+    const columns = tbl.columns || [];
 
     activeAnalysisDbTable = {
       dialect,
       database,
       schema,
-      tableName: tbl.tableName || tbl.name,
-      columns: tbl.columns || [],
-      columnsFormatted: tbl.columnsFormatted || (tbl.columns ? tbl.columns.map((c: any) => `${c.name}:${c.type}`).join('\n') : ''),
+      tableName: cleanTableName,
+      columns,
+      columnsFormatted: tbl.columnsFormatted || (columns ? columns.map((c: any) => `${typeof c === 'string' ? c : c.name}:${typeof c === 'string' ? 'string' : (c.type || 'string')}`).join('\n') : ''),
       connectionUri: uri
     };
 
     if (dataDbTableSelect) {
-      dataDbTableSelect.value = tbl.tableName || tbl.name;
+      dataDbTableSelect.value = cleanTableName;
     }
     renderColumnsPreview(tbl);
 
-    // Populate Target KPI select with loaded table columns
+    // Populate Target KPI select with loaded table columns & auto-select primary numeric metric
     const kpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
     if (kpiSelect) {
-      const cols = tbl.columns || [];
+      let autoSelectedKpi = '';
+      columns.forEach((c: any) => {
+        const cName = typeof c === 'string' ? c : c.name;
+        const cType = typeof c === 'string' ? '' : (c.type || '').toLowerCase();
+        const isNumeric = cType.includes('num') || cType.includes('int') || cType.includes('float') || cType.includes('double') || cType.includes('decimal') || /amount|price|total|cost|quantity|qty|score|rating/i.test(cName);
+        if (isNumeric && !autoSelectedKpi && !cName.toLowerCase().endsWith('_id') && cName.toLowerCase() !== 'id') {
+          autoSelectedKpi = cName;
+        }
+      });
+
       kpiSelect.innerHTML = '<option value="">Auto-Detect Primary KPI</option>' +
-        cols.map((c: any) => {
+        columns.map((c: any) => {
           const colName = typeof c === 'string' ? c : c.name;
           const colType = typeof c === 'string' ? '' : (c.type ? ` (${c.type})` : '');
-          return `<option value="${colName}">${colName}${colType}</option>`;
+          const isSelected = colName === autoSelectedKpi ? ' selected' : '';
+          return `<option value="${colName}"${isSelected}>${colName}${colType}</option>`;
         }).join('');
     }
 
-    const dropZone = document.getElementById('dataDropZone');
+    const dropZone = document.getElementById('dataDropZone') || document.getElementById('dataStudioDropZone');
     if (dropZone) {
+      const isLiveTable = !!uri && uri !== 'demo';
+      const sourceBadgeLabel = isLiveTable ? `${dialect.toUpperCase()} LIVE DB` : 'DEMO STAR SCHEMA';
       dropZone.innerHTML = `
         <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 0;">
           <span style="font-size: 24px;">🗄️</span>
           <div style="text-align: left;">
             <div style="font-size: 13.5px; font-weight: 700; color: #fff;">
-              Connected Table: <span style="color: var(--accent); font-family: monospace;">${schema}.${tbl.tableName || tbl.name}</span>
-              <span class="brand-pill" style="margin-left: 8px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); font-size: 10px;">${dialect.toUpperCase()}</span>
+              Connected Table: <span style="color: var(--accent); font-family: monospace;">${schema}.${cleanTableName}</span>
+              <span class="brand-pill" style="margin-left: 8px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); font-size: 10px;">${sourceBadgeLabel}</span>
             </div>
             <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
-              ${(tbl.columns || []).length} columns loaded &middot; Live DB source ready for analysis deliverables
+              ${columns.length} columns loaded &middot; ${isLiveTable ? 'Live database' : 'Demo star schema'} source ready for analysis deliverables
             </div>
           </div>
         </div>
@@ -18658,16 +20580,16 @@ function setupDataAnalysisStudio(api: any): void {
       cardBrowse.style.background = '';
     }
 
-    showToast(`✓ Loaded ${tbl.tableName || tbl.name} (${(tbl.columns || []).length} columns) from ${dialect.toUpperCase()} for analysis!`);
+    showToast(`✓ Loaded ${cleanTableName} (${columns.length} columns) from ${uri ? dialect.toUpperCase() : 'Demo Star Schema'} for analysis!`);
   };
 
   // Expose global handoff for Phase 2 / Cosmos / Modals
-  (window as any).loadTableInDataStudio = (tableName: string) => {
+  (window as any).loadTableInDataStudio = (tableName: string, tableObj?: any) => {
     switchActivityTab('data', api);
     const btnDataModeSingle = document.getElementById('btnDataModeSingle');
     btnDataModeSingle?.click();
     syncFromPhase2Db();
-    loadTableForAnalysis(tableName);
+    loadTableForAnalysis(tableName, tableObj);
     document.getElementById('deliv')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
@@ -18675,6 +20597,65 @@ function setupDataAnalysisStudio(api: any): void {
   btnDataLoadTableForAnalysis?.addEventListener('click', () => {
     loadTableForAnalysis(dataDbTableSelect?.value);
     document.getElementById('deliv')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
+  // Wire Domain Benchmark Preset Switcher
+  const domainPills = document.querySelectorAll<HTMLElement>('.data-domain-pill');
+  domainPills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      domainPills.forEach(p => {
+        p.classList.remove('active');
+        p.style.background = 'transparent';
+        p.style.color = '#cbd5e1';
+        p.style.borderColor = 'var(--border)';
+      });
+      pill.classList.add('active');
+      pill.style.background = 'rgba(56, 189, 248, 0.2)';
+      pill.style.color = '#38bdf8';
+      pill.style.borderColor = '#38bdf8';
+
+      const domainKey = pill.getAttribute('data-domain') || 'retail';
+      const domainObj = DEMO_DOMAINS[domainKey] || DEMO_DOMAINS.retail;
+      if (domainObj) {
+        populateDataDiscoveredTables(domainObj.tables, domainObj.label);
+        loadTableForAnalysis(domainObj.factTable);
+        if (typeof (window as any).loadSchemaGraph === 'function') {
+          (window as any).loadSchemaGraph('demo_' + domainKey);
+        }
+        showToast(`✓ Switched to ${domainObj.icon} ${domainObj.label} (${domainObj.tables.length} tables)!`);
+      }
+    });
+  });
+
+  // Wire 1-Click Demo Star Schema Card
+  const cardDemoStarSchema = document.getElementById('cardDemoStarSchema');
+  cardDemoStarSchema?.addEventListener('click', () => {
+    [cardBrowse, cardConnectDb, cardDemoStarSchema].forEach(c => {
+      if (c) {
+        c.classList.remove('active');
+        c.style.borderColor = '';
+        c.style.background = '';
+      }
+    });
+    cardDemoStarSchema.classList.add('active');
+    cardDemoStarSchema.style.borderColor = '#6366f1';
+    cardDemoStarSchema.style.background = 'rgba(99, 102, 241, 0.1)';
+
+    if (dataDbConnectDrawer) dataDbConnectDrawer.style.display = 'block';
+    if (dataDbTablesContainer) dataDbTablesContainer.style.display = 'block';
+
+    const activeDomainKey = (document.querySelector('.data-domain-pill.active')?.getAttribute('data-domain')) || 'retail';
+    const domainObj = DEMO_DOMAINS[activeDomainKey] || DEMO_DOMAINS.retail;
+
+    populateDataDiscoveredTables(domainObj.tables, domainObj.label);
+    loadTableForAnalysis(domainObj.factTable);
+
+    if (typeof (window as any).loadSchemaGraph === 'function') {
+      (window as any).loadSchemaGraph('demo_' + activeDomainKey);
+    }
+
+    dataDbTablesContainer?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    showToast(`⚡ Loaded ${domainObj.icon} ${domainObj.label} demo tables! Select a table or deliverable below.`);
   });
 
   // Browse local file
@@ -18730,7 +20711,14 @@ function setupDataAnalysisStudio(api: any): void {
   const btnDataViewSource = document.getElementById('btnDataViewSource');
   const btnDataCopyDeliverable = document.getElementById('btnDataCopyDeliverable');
   const btnDataOpenBrowser = document.getElementById('btnDataOpenBrowser');
+  const btnDataPrintDeliverable = document.getElementById('btnDataPrintDeliverable');
   const btnDataExportFile = document.getElementById('btnDataExportFile');
+  const dataExportDropdownMenu = document.getElementById('dataExportDropdownMenu');
+  const btnExportOptionHtml = document.getElementById('btnExportOptionHtml');
+  const btnExportOptionPdf = document.getElementById('btnExportOptionPdf');
+  const btnExportOptionPrint = document.getElementById('btnExportOptionPrint');
+  const btnExportOptionSource = document.getElementById('btnExportOptionSource');
+  const exportSourceOptionLabel = document.getElementById('exportSourceOptionLabel');
   const dataVisualPreviewPanel = document.getElementById('dataVisualPreviewPanel');
   const dataSingle3DPanel = document.getElementById('dataSingle3DPanel');
   const dataSingle3DCanvas = document.getElementById('dataSingle3DCanvas') as HTMLCanvasElement;
@@ -18766,6 +20754,13 @@ function setupDataAnalysisStudio(api: any): void {
   let activeSingle3DEngine: SingleDataset3DEngine | null = null;
   let activeDataScienceResult: any = null;
 
+  // Initialize active deliverable from markup
+  const activePill = document.querySelector('.deliv .deliverable-pill.active') as HTMLElement;
+  if (activePill) {
+    currentSelectedDeliverable = activePill.getAttribute('data-d') || 'insights';
+    currentDeliverableType = currentSelectedDeliverable;
+  }
+
   // Wire Data Scientist Focus Presets with visual selection state
   dataFocusPresets.forEach(preset => {
     preset.addEventListener('click', () => {
@@ -18784,6 +20779,113 @@ function setupDataAnalysisStudio(api: any): void {
       }
     });
   });
+
+  // --- AI Hypothesis Framing & Suggestions Layer ---
+  const btnAiSuggestHypothesis = document.getElementById('btnAiSuggestHypothesis');
+  const btnAiRefineHypothesis = document.getElementById('btnAiRefineHypothesis');
+  const dataAiHypothesisSuggestions = document.getElementById('dataAiHypothesisSuggestions');
+  const hypothesisSuggestionsList = document.getElementById('hypothesisSuggestionsList');
+  const btnCloseHypothesisSuggestions = document.getElementById('btnCloseHypothesisSuggestions');
+  const txtDataFocus = document.getElementById('txtDataFocus') as HTMLInputElement;
+
+  if (btnCloseHypothesisSuggestions && dataAiHypothesisSuggestions) {
+    btnCloseHypothesisSuggestions.addEventListener('click', () => {
+      dataAiHypothesisSuggestions.style.display = 'none';
+    });
+  }
+
+  const renderHypothesisSuggestions = (suggestions: any[]) => {
+    if (!hypothesisSuggestionsList || !dataAiHypothesisSuggestions) return;
+    if (!suggestions || suggestions.length === 0) {
+      hypothesisSuggestionsList.innerHTML = '<div style="font-size: 11.5px; color: #94a3b8; padding: 6px;">No hypotheses generated. Select a dataset with columns first.</div>';
+      dataAiHypothesisSuggestions.style.display = 'block';
+      return;
+    }
+
+    hypothesisSuggestionsList.innerHTML = suggestions.map(s => `
+      <div class="hypothesis-suggestion-pill" data-question="${encodeURIComponent(s.question)}" style="background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; gap: 3px;" onmouseover="this.style.background='rgba(167, 139, 250, 0.12)'; this.style.borderColor='rgba(167, 139, 250, 0.4)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.04)'; this.style.borderColor='rgba(255, 255, 255, 0.08)';">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 10px; font-weight: 800; color: #a78bfa; text-transform: uppercase;">${s.badge}</span>
+          <span style="font-size: 10px; color: #64748b;">Click to adopt</span>
+        </div>
+        <div style="font-size: 12px; font-weight: 600; color: #fff;">${s.question}</div>
+        <div style="font-size: 10.5px; color: #94a3b8;">${s.rationale}</div>
+      </div>
+    `).join('');
+
+    dataAiHypothesisSuggestions.style.display = 'block';
+
+    hypothesisSuggestionsList.querySelectorAll<HTMLElement>('.hypothesis-suggestion-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const rawQ = pill.getAttribute('data-question') || '';
+        const q = decodeURIComponent(rawQ);
+        if (txtDataFocus) {
+          txtDataFocus.value = q;
+          txtDataFocus.focus();
+        }
+        // Deselect preset buttons visual highlight
+        dataFocusPresets.forEach(p => {
+          (p as HTMLElement).style.boxShadow = 'none';
+          (p as HTMLElement).style.outline = 'none';
+        });
+        dataAiHypothesisSuggestions.style.display = 'none';
+        showToast(`🎯 Adopted hypothesis: "${q}"`);
+      });
+    });
+  };
+
+  const getActiveDataStudioSource = () => {
+    const dropZone = document.getElementById('dataDropZone') || document.getElementById('dataStudioDropZone');
+    const selectedText = dropZone?.innerText || '';
+    const filePath = (!activeAnalysisDbTable && selectedText.includes('Selected: ')) ? selectedText.replace('📁 Selected: ', '').trim() : '';
+    return { filePath, dbTable: activeAnalysisDbTable };
+  };
+
+  if (btnAiSuggestHypothesis) {
+    btnAiSuggestHypothesis.addEventListener('click', async () => {
+      const origText = btnAiSuggestHypothesis.innerHTML;
+      btnAiSuggestHypothesis.innerHTML = '✨ Generating...';
+      try {
+        const { filePath, dbTable } = getActiveDataStudioSource();
+        const res = await (window as any).api?.engines?.frameHypothesisQuestions({ filePath, dbTable });
+        if (res && res.success && res.suggestions) {
+          renderHypothesisSuggestions(res.suggestions);
+        } else {
+          showToast('Could not generate hypotheses from the current asset.');
+        }
+      } catch (err: any) {
+        showToast(`AI Suggestion Error: ${err.message || err}`);
+      } finally {
+        btnAiSuggestHypothesis.innerHTML = origText;
+      }
+    });
+  }
+
+  if (btnAiRefineHypothesis) {
+    btnAiRefineHypothesis.addEventListener('click', async () => {
+      const inputVal = txtDataFocus?.value?.trim() || '';
+      if (!inputVal) {
+        showToast('Type a rough question first (e.g. "why delays") to refine with AI.');
+        txtDataFocus?.focus();
+        return;
+      }
+      const origText = btnAiRefineHypothesis.innerHTML;
+      btnAiRefineHypothesis.innerHTML = '✨ Refining...';
+      try {
+        const { filePath, dbTable } = getActiveDataStudioSource();
+        const res = await (window as any).api?.engines?.frameHypothesisQuestions({ filePath, dbTable, roughInput: inputVal });
+        if (res && res.success && res.suggestions) {
+          renderHypothesisSuggestions(res.suggestions);
+        } else {
+          showToast('Could not refine query into statistical hypotheses.');
+        }
+      } catch (err: any) {
+        showToast(`AI Refine Error: ${err.message || err}`);
+      } finally {
+        btnAiRefineHypothesis.innerHTML = origText;
+      }
+    });
+  }
 
   // Helper to format table cells and inline markdown text
   const formatCellContent = (cell: string): string => {
@@ -19381,6 +21483,47 @@ function setupDataAnalysisStudio(api: any): void {
           </div>
         </div>
 
+        ${res.customHypothesis ? `
+        <!-- Custom Hypothesis Evaluation & Direct Answer Hero Card -->
+        <div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%); border: 1px solid ${res.customHypothesis.verdictColor}66; border-radius: 10px; padding: 18px 20px; box-shadow: 0 6px 24px rgba(0,0,0,0.45);">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 10px;">
+            <div>
+              <div style="font-size: 10.5px; font-weight: 800; letter-spacing: 1px; color: ${res.customHypothesis.verdictColor}; text-transform: uppercase;">
+                🎯 Custom Hypothesis Evaluation &bull; Rigorous Statistical Test
+              </div>
+              <div style="font-size: 15px; font-weight: 700; color: #fff; margin-top: 4px;">
+                &ldquo;${res.customHypothesis.userQuestion}&rdquo;
+              </div>
+            </div>
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; border-radius: 6px; background: ${res.customHypothesis.verdictColor}22; border: 1px solid ${res.customHypothesis.verdictColor}55; color: ${res.customHypothesis.verdictColor}; font-weight: 800; font-size: 13px;">
+              <span>${res.customHypothesis.verdictBadge}</span>
+              <span>${res.customHypothesis.verdict}</span>
+            </div>
+          </div>
+          
+          <div style="background: rgba(0,0,0,0.3); border-left: 4px solid ${res.customHypothesis.verdictColor}; padding: 12px 16px; border-radius: 4px; margin-bottom: 14px; font-size: 13.5px; color: #f1f5f9; line-height: 1.6;">
+            <strong>Direct Answer:</strong> ${res.customHypothesis.directAnswer}
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 14px;">
+            ${(res.customHypothesis.evidenceMetrics || []).map((em: any) => `
+              <div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px 12px;">
+                <div style="font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">${em.label}</div>
+                <div style="font-size: 16px; font-weight: 800; color: ${em.color || '#38bdf8'}; margin: 4px 0 2px 0;">${em.value}</div>
+                ${em.subtext ? `<div style="font-size: 10.5px; color: #64748b;">${em.subtext}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 10px 14px; font-size: 11.5px; color: #94a3b8; display: flex; flex-wrap: wrap; gap: 16px;">
+            <div><strong style="color: #cbd5e1;">Test Applied:</strong> ${res.customHypothesis.hypothesisTest?.testName || 'Statistical Test'} (${res.customHypothesis.hypothesisTest?.testStatistic || 'N/A'})</div>
+            <div><strong style="color: #cbd5e1;">p-value:</strong> ${res.customHypothesis.hypothesisTest?.pValue < 0.001 ? '&lt; 0.001' : (res.customHypothesis.hypothesisTest?.pValue ?? 0).toFixed(4)} (<span style="color: ${res.customHypothesis.hypothesisTest?.significance === 'HIGH' ? '#10b981' : res.customHypothesis.hypothesisTest?.significance === 'MODERATE' ? '#f59e0b' : '#ef4444'}; font-weight: 700;">${res.customHypothesis.hypothesisTest?.significance || 'N/A'}</span>)</div>
+            ${res.customHypothesis.hypothesisTest?.effectSize ? `<div><strong style="color: #cbd5e1;">Effect Size:</strong> ${res.customHypothesis.hypothesisTest.effectSize}</div>` : ''}
+            <div style="width: 100%; margin-top: 4px;"><strong style="color: #38bdf8;">Prescriptive Next Step:</strong> ${res.customHypothesis.recommendedAction}</div>
+          </div>
+        </div>
+        ` : ''}
+
         <!-- 2. Four Specialized Headline Metric KPI Cards -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
           ${focusKpis.map((k: any) => `
@@ -19484,6 +21627,367 @@ function setupDataAnalysisStudio(api: any): void {
     return renderMarkdownToExecutiveHtml(raw);
   };
 
+  // HTML Escaper
+  const safeEscapeHtml = (str: string): string => {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  };
+
+  // Helper to wrap deliverable body HTML in a self-contained, publication-grade, responsive HTML document
+  const wrapInStandaloneHtmlDocument = (bodyHtml: string, title: string, subtitle?: string): string => {
+    // If the bodyHtml already contains <!DOCTYPE html> or <html> tag (e.g. generated by DataScientistEngine.generateExecutiveHtmlReport),
+    // ensure it has the print toolbar and print styles.
+    if (bodyHtml.includes('<!DOCTYPE html') || bodyHtml.includes('<html')) {
+      let html = bodyHtml;
+      if (!html.includes('window.print()')) {
+        const toolbar = `
+        <div class="no-print" style="position: sticky; top: 0; z-index: 1000; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(8px); border-bottom: 1px solid rgba(56, 189, 248, 0.25); padding: 10px 24px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 12px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+            <span>⚡</span> EVOLVE AI ENTERPRISE DATA INTELLIGENCE &bull; STANDALONE REPORT
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button onclick="try { if (window.parent && window.parent !== window) { window.parent.postMessage({ type: 'evolve:print-deliverable' }, '*'); } else { window.print(); } } catch(e) { window.print(); }" style="background: #38bdf8; color: #0b0f17; border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              🖨️ Print / Save as PDF
+            </button>
+          </div>
+        </div>`;
+        html = html.replace(/<body[^>]*>/i, (match) => `${match}\n${toolbar}`);
+      }
+      return html;
+    }
+
+    const timestamp = new Date().toLocaleString();
+    const safeTitle = title || 'Executive Data Intelligence Report';
+    const sub = subtitle || 'Autonomous Data Scientist Deliverable &bull; Local Air-Gapped Intelligence';
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${safeTitle}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0b0f19;
+      color: #f1f5f9;
+      margin: 0;
+      padding: 0;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .report-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 12px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .report-brand {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-action-print {
+      background: #38bdf8;
+      color: #0b0f19;
+      border: 1px solid #38bdf8;
+      border-radius: 6px;
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .btn-action-print:hover {
+      background: #7dd3fc;
+      transform: translateY(-1px);
+    }
+    .report-container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 32px 28px 60px 28px;
+    }
+    .report-header {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 20px;
+      margin-bottom: 26px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .report-title {
+      font-size: 24px;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0 0 6px 0;
+      letter-spacing: -0.4px;
+    }
+    .report-subtitle {
+      font-size: 13px;
+      color: #94a3b8;
+      margin: 0;
+    }
+    .badge-airgap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .report-content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+    }
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    th {
+      background: rgba(30, 41, 59, 0.8);
+      color: #94a3b8;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.5px;
+    }
+    tr:hover { background: rgba(255, 255, 255, 0.02); }
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* Print & PDF Styles: Crisp white layout, zero dark ink bleed, high contrast */
+    @media print {
+      .no-print { display: none !important; }
+      @page {
+        size: A4 portrait;
+        margin: 14mm 12mm;
+      }
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        padding: 0 !important;
+        font-size: 10.5pt !important;
+        line-height: 1.4 !important;
+      }
+      .report-container {
+        max-width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .report-header {
+        border-bottom: 2px solid #0f172a !important;
+        margin-bottom: 16px !important;
+        padding-bottom: 12px !important;
+      }
+      .report-title {
+        color: #0f172a !important;
+        font-size: 20pt !important;
+      }
+      .report-subtitle {
+        color: #475569 !important;
+        font-size: 10pt !important;
+      }
+      .badge-airgap {
+        background: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+      div, section, article {
+        background-color: transparent !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
+      }
+      div[style*="background: linear-gradient"],
+      div[style*="background: rgba"],
+      div[style*="background: #0d1117"],
+      div[style*="background: #0f172a"],
+      div[style*="background: #131926"],
+      div[style*="background: rgba(0,0,0"] {
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        color: #0f172a !important;
+      }
+      div[style*="color: #fff"],
+      div[style*="color: #f1f5f9"],
+      div[style*="color: #e2e8f0"],
+      strong[style*="color: #fff"] {
+        color: #0f172a !important;
+      }
+      table {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+      th {
+        background: #f8fafc !important;
+        color: #0f172a !important;
+        border-bottom: 2px solid #cbd5e1 !important;
+      }
+      td {
+        border-bottom: 1px solid #e2e8f0 !important;
+        color: #0f172a !important;
+      }
+      tr {
+        background: transparent !important;
+      }
+      table, tr, td, th {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+      }
+      .ds-executive-dashboard > div,
+      .report-content > div {
+        break-inside: avoid !important;
+        page-break-inside: avoid !important;
+        margin-bottom: 14px !important;
+      }
+      h1, h2, h3, h4 {
+        break-after: avoid !important;
+        page-break-after: avoid !important;
+        color: #0f172a !important;
+      }
+      svg text {
+        fill: #0f172a !important;
+      }
+      svg path, svg rect, svg line {
+        stroke: #475569 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-toolbar no-print">
+    <div class="report-brand">
+      <span>⚡</span> EVOLVE AI ENTERPRISE DATA SCIENTIST &bull; STANDALONE REPORT
+    </div>
+    <div style="display: flex; gap: 10px; align-items: center;">
+      <button onclick="try { if (window.parent && window.parent !== window) { window.parent.postMessage({ type: 'evolve:print-deliverable' }, '*'); } else { window.print(); } } catch(e) { window.print(); }" class="btn-action-print" type="button">
+        🖨️ Print / Save as PDF
+      </button>
+    </div>
+  </div>
+
+  <div class="report-container">
+    <div class="report-header">
+      <div>
+        <h1 class="report-title">${safeTitle}</h1>
+        <p class="report-subtitle">${sub} &bull; Generated: ${timestamp}</p>
+      </div>
+      <div>
+        <span class="badge-airgap">✓ 100% Air-Gapped Local Model</span>
+      </div>
+    </div>
+
+    <div class="report-content">
+      ${bodyHtml}
+    </div>
+  </div>
+</body>
+</html>`;
+  };
+
+  // Helper to retrieve exportable publication-grade HTML content for currently active deliverable
+  const getExportableHtmlContent = (): { html: string; title: string; filename: string } => {
+    const rawContent = dataAnalysisSourceEditor?.value || currentDeliverableContent;
+    const safeTitle = (currentDeliverableSourceTitle || 'dataset').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    const filename = `evolve_${currentDeliverableType}_${safeTitle}_${Date.now()}`;
+
+    let bodyHtml = '';
+    let docTitle = `Evolve AI Deliverable - ${currentDeliverableSourceTitle || 'Dataset Analysis'}`;
+
+    if (currentDeliverableType === 'report') {
+      if (rawContent.includes('<!DOCTYPE html') || rawContent.includes('<html')) {
+        return { html: wrapInStandaloneHtmlDocument(rawContent, docTitle), title: docTitle, filename: `${filename}.html` };
+      }
+      bodyHtml = rawContent;
+    } else if (currentDeliverableType === 'notebook') {
+      docTitle = `Python Data Analysis Script - ${currentDeliverableSourceTitle || 'Dataset'}`;
+      bodyHtml = `
+        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 20px; box-shadow: 0 4px 14px rgba(0,0,0,0.3);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+            <div style="font-size: 13px; font-weight: 700; color: #38bdf8;">🐍 Python Analysis &amp; Visualization Script</div>
+            <span style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-family: monospace;">Jupyter / PySpark</span>
+          </div>
+          <pre style="margin: 0; background: #070a0f; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 16px; overflow-x: auto; font-size: 12px; font-family: monospace; color: #9cdcfe; line-height: 1.5;"><code>${safeEscapeHtml(rawContent)}</code></pre>
+        </div>
+      `;
+    } else {
+      docTitle = currentDeliverableType === 'insights' 
+        ? `Executive Data Intelligence Insights - ${currentDeliverableSourceTitle || 'Dataset'}`
+        : `Schema & Column Profiling Matrix - ${currentDeliverableSourceTitle || 'Dataset'}`;
+      
+      const isUnedited = rawContent === originalDeliverableContent || rawContent.trim() === (originalDeliverableContent || '').trim();
+      if (activeDataScienceResult && (currentDeliverableType === 'insights' || currentDeliverableType === 'profile') && isUnedited) {
+        bodyHtml = renderDataScienceExecutiveDashboard(activeDataScienceResult);
+      } else {
+        bodyHtml = renderMarkdownToExecutiveHtml(rawContent);
+      }
+    }
+
+    const fullHtml = wrapInStandaloneHtmlDocument(bodyHtml, docTitle, `Asset Target: ${currentDeliverableSourceTitle || 'Active Dataset'}`);
+    return { html: fullHtml, title: docTitle, filename: `${filename}.html` };
+  };
+
+  // Direct click interceptor for iframe print buttons
+  const bindIframePrintButtons = () => {
+    try {
+      const doc = dataReportIframe?.contentDocument || dataReportIframe?.contentWindow?.document;
+      if (doc) {
+        const printBtns = doc.querySelectorAll<HTMLElement>('.print-btn, .btn-action-print, button[onclick*="print"]');
+        printBtns.forEach(btn => {
+          if (!btn.getAttribute('data-bound-print')) {
+            btn.setAttribute('data-bound-print', 'true');
+            btn.addEventListener('click', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handlePrintDeliverable();
+            });
+          }
+        });
+      }
+    } catch {}
+  };
+
+  dataReportIframe?.addEventListener('load', bindIframePrintButtons);
+
   // Update Visual Preview Panel
   const updateVisualPreview = (type: string, content: string) => {
     if (type === 'report') {
@@ -19492,6 +21996,8 @@ function setupDataAnalysisStudio(api: any): void {
       if (dataNotebookContainer) dataNotebookContainer.style.display = 'none';
       if (dataReportIframe) {
         dataReportIframe.srcdoc = content;
+        setTimeout(bindIframePrintButtons, 200);
+        setTimeout(bindIframePrintButtons, 600);
       }
       if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
     } else if (type === 'notebook') {
@@ -19501,7 +22007,7 @@ function setupDataAnalysisStudio(api: any): void {
       if (dataNotebookCodeBlock) {
         dataNotebookCodeBlock.textContent = content;
       }
-      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'none';
+      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
     } else {
       if (dataHtmlIframeContainer) dataHtmlIframeContainer.style.display = 'none';
       if (dataFormattedCardContainer) dataFormattedCardContainer.style.display = 'block';
@@ -19509,7 +22015,21 @@ function setupDataAnalysisStudio(api: any): void {
       if (dataFormattedCardContent) {
         dataFormattedCardContent.innerHTML = formatTextDeliverableToHtml(content, type);
       }
-      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'none';
+      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
+    }
+
+    if (exportSourceOptionLabel) {
+      if (type === 'notebook') {
+        exportSourceOptionLabel.innerText = 'Save Python Script (.py)';
+      } else if (type === 'insights') {
+        exportSourceOptionLabel.innerText = 'Save Markdown (.md)';
+      } else if (type === 'profile') {
+        exportSourceOptionLabel.innerText = 'Save Text Summary (.txt)';
+      } else if (type === 'report') {
+        exportSourceOptionLabel.innerText = 'Save Raw HTML (.html)';
+      } else {
+        exportSourceOptionLabel.innerText = 'Save Source File';
+      }
     }
   };
 
@@ -19691,46 +22211,182 @@ function setupDataAnalysisStudio(api: any): void {
     }
   });
 
-  // Open in Browser (HTML Report)
-  btnDataOpenBrowser?.addEventListener('click', () => {
-    const htmlContent = dataAnalysisSourceEditor?.value || currentDeliverableContent;
+  // Open in Browser (Standalone Styled HTML Report)
+  btnDataOpenBrowser?.addEventListener('click', async () => {
+    const { html, filename } = getExportableHtmlContent();
+    let opened = false;
     try {
-      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const opened = window.open(url, '_blank');
-      if (opened) {
-        showToast('✓ Opened HTML Report in new browser tab!');
-        return;
+      const win = window.open(url, '_blank');
+      if (win) {
+        opened = true;
+        showToast('✓ Opened Deliverable Report in new tab/window!');
       }
     } catch {}
 
-    try {
-      if (api?.system?.openExternal) {
-        const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        api.system.openExternal(url);
-        showToast('✓ Launched HTML Report in default browser!');
-        return;
-      }
-    } catch {}
-
-    showToast('⚠️ Use "Save Deliverable" to download and open the HTML file.');
+    if (!opened) {
+      try {
+        if (api?.workspace?.createFile) {
+          const res = await api.workspace.createFile(filename, html);
+          if (res?.path && api?.system?.openExternal) {
+            await api.system.openExternal(res.path);
+            showToast(`✓ Opened ${filename} in default system browser!`);
+            return;
+          }
+        }
+      } catch {}
+      showToast('⚠️ Use "Save Deliverable > Save as HTML" to download and open.');
+    }
   });
 
-  // Export Deliverable File
-  btnDataExportFile?.addEventListener('click', async () => {
+  // Toggle Save Deliverable Dropdown Menu
+  btnDataExportFile?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (dataExportDropdownMenu) {
+      const isHidden = dataExportDropdownMenu.style.display === 'none' || !dataExportDropdownMenu.style.display;
+      dataExportDropdownMenu.style.display = isHidden ? 'flex' : 'none';
+    }
+  });
+
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (dataExportDropdownMenu && dataExportDropdownMenu.style.display !== 'none') {
+      const target = e.target as Node;
+      if (!btnDataExportFile?.contains(target) && !dataExportDropdownMenu.contains(target)) {
+        dataExportDropdownMenu.style.display = 'none';
+      }
+    }
+  });
+
+  // Export Option 1: Save as HTML Report (Standalone, publication-grade, fully styled)
+  btnExportOptionHtml?.addEventListener('click', async () => {
+    if (dataExportDropdownMenu) dataExportDropdownMenu.style.display = 'none';
+    const { html, filename } = getExportableHtmlContent();
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast(`✓ Downloaded publication HTML report: ${filename}`);
+    } catch (err: any) {
+      showToast(`⚠️ HTML export failed: ${err.message}`);
+    }
+
+    try {
+      if (api?.workspace?.createFile) {
+        await api.workspace.createFile(filename, html);
+        showToast(`✓ Also saved ${filename} to workspace root!`);
+      }
+    } catch {}
+  });
+
+  // Export Option 2: Save as PDF (Direct PDF generation via Electron printToPDF)
+  btnExportOptionPdf?.addEventListener('click', async () => {
+    if (dataExportDropdownMenu) dataExportDropdownMenu.style.display = 'none';
+    const { html, title, filename } = getExportableHtmlContent();
+    const pdfFilename = filename.replace(/\.html$/i, '.pdf');
+    showToast('📄 Generating high-resolution PDF...');
+    try {
+      if (api?.system?.savePdf) {
+        const res = await api.system.savePdf({
+          html,
+          defaultPath: pdfFilename,
+          title
+        });
+        if (res?.success && res.filePath) {
+          showToast(`✓ PDF saved: ${res.filePath.split(/[\\/]/).pop()}`);
+          return;
+        } else if (res?.canceled) {
+          return;
+        } else if (res?.error) {
+          console.warn('[Export PDF] IPC error:', res.error);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Export PDF] Direct PDF generation error:', err);
+    }
+
+    // Fallback: Open print dialog where user can choose "Save as PDF"
+    try {
+      const printWin = window.open('', '_blank');
+      if (printWin) {
+        printWin.document.write(html);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(() => {
+          printWin.print();
+        }, 500);
+        showToast('✓ Opened Print dialog - select "Save as PDF" destination');
+        return;
+      }
+    } catch {}
+    showToast('⚠️ Could not generate PDF directly. Use "Print Deliverable" to print/save as PDF.');
+  });
+
+  // Shared Print Handler for both Print button & Dropdown Print option
+  const handlePrintDeliverable = async () => {
+    if (dataExportDropdownMenu) dataExportDropdownMenu.style.display = 'none';
+    const { html, title } = getExportableHtmlContent();
+    showToast('🖨️ Opening system print dialogue...');
+    try {
+      if (api?.system?.printHtml) {
+        const res = await api.system.printHtml({ html, title });
+        if (res?.success) return;
+        if (res?.error) {
+          console.warn('[Print Deliverable] Direct print error:', res.error);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Print Deliverable] Direct print error:', err);
+    }
+
+    // Fallback: Use Blob URL to open dedicated print preview window
+    try {
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const printWin = window.open(url, '_blank');
+      if (printWin) {
+        printWin.focus();
+        setTimeout(() => {
+          try { printWin.print(); } catch {}
+        }, 500);
+        return;
+      }
+    } catch {}
+    window.print();
+  };
+
+  btnExportOptionPrint?.addEventListener('click', handlePrintDeliverable);
+  btnDataPrintDeliverable?.addEventListener('click', handlePrintDeliverable);
+
+  // Cross-frame message listener for iframe buttons (e.g. print/save PDF inside sandboxed iframe)
+  window.addEventListener('message', (event) => {
+    if (event.data && (event.data.type === 'evolve:print-deliverable' || event.data.type === 'evolve:print')) {
+      handlePrintDeliverable();
+    } else if (event.data && (event.data.type === 'evolve:save-pdf' || event.data.type === 'evolve:pdf')) {
+      btnExportOptionPdf?.click();
+    }
+  });
+
+  // Export Option 3: Save Native Source File (.md, .py, .txt)
+  btnExportOptionSource?.addEventListener('click', async () => {
+    if (dataExportDropdownMenu) dataExportDropdownMenu.style.display = 'none';
     const contentToSave = dataAnalysisSourceEditor?.value || currentDeliverableContent;
-    let ext = 'html';
-    let mime = 'text/html';
+    let ext = 'md';
+    let mime = 'text/markdown';
     if (currentDeliverableType === 'notebook') {
       ext = 'py';
       mime = 'text/x-python';
-    } else if (currentDeliverableType === 'insights') {
-      ext = 'md';
-      mime = 'text/markdown';
     } else if (currentDeliverableType === 'profile') {
       ext = 'txt';
       mime = 'text/plain';
+    } else if (currentDeliverableType === 'report') {
+      ext = 'html';
+      mime = 'text/html';
     }
 
     const safeTitle = (currentDeliverableSourceTitle || 'dataset').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
@@ -19744,7 +22400,7 @@ function setupDataAnalysisStudio(api: any): void {
       a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-      showToast(`✓ Downloaded ${filename}!`);
+      showToast(`✓ Downloaded source file: ${filename}!`);
     } catch (err: any) {
       showToast(`⚠️ Download failed: ${err.message}`);
     }
@@ -21679,6 +24335,11 @@ function setupDataCosmosStudio(api: any): void {
     if (dataSingleDatasetView) dataSingleDatasetView.style.display = 'none';
     if (dataCosmosView) dataCosmosView.style.display = 'block';
 
+    if (!currentGraphData || !activeCosmosEngine || (activeCosmosEngine as any).nodes?.length === 0) {
+      const activeSource = cosmosSourceSelect?.value || p2CosmosSourceSelect?.value || 'demo_retail';
+      loadSchemaGraph(activeSource);
+    }
+
     setTimeout(() => {
       if (activeCosmosEngine) {
         activeCosmosEngine.resize();
@@ -22175,7 +24836,7 @@ function setupDataCosmosStudio(api: any): void {
     const btnAnalyze = document.getElementById(`btnInspectorAnalyzeData_${isPhase2 ? 'p2' : 'data'}`);
     btnAnalyze?.addEventListener('click', () => {
       if ((window as any).loadTableInDataStudio) {
-        (window as any).loadTableInDataStudio(node.name);
+        (window as any).loadTableInDataStudio(node.name, node);
       }
     });
 
@@ -22407,7 +25068,7 @@ function setupDataCosmosStudio(api: any): void {
     // Wire Analyze Joined Data
     detailBox.querySelector('.btnRelAnalyzeData')?.addEventListener('click', () => {
       if ((window as any).loadTableInDataStudio) {
-        (window as any).loadTableInDataStudio(sourceNode.name);
+        (window as any).loadTableInDataStudio(sourceNode.name, sourceNode);
       }
     });
   };
@@ -22611,10 +25272,11 @@ function setupDataCosmosStudio(api: any): void {
   };
 
   // 5. Load Schema Graph from Backend IPC
-  const loadSchemaGraph = async (sourceMode: string = 'demo', tablesOverride?: any[]) => {
+  const loadSchemaGraph = async (sourceMode: string = 'demo_retail', tablesOverride?: any[]) => {
     try {
       const isConnected = sourceMode === 'connected';
       const isWorkspace = sourceMode === 'workspace';
+      const isDomainDemo = sourceMode === 'demo' || sourceMode.startsWith('demo');
 
       let tablesToUse: any[] | undefined = undefined;
       let effectiveSourceMode = sourceMode;
@@ -22629,8 +25291,11 @@ function setupDataCosmosStudio(api: any): void {
       } else if (isWorkspace) {
         tablesToUse = undefined;
         effectiveSourceMode = 'workspace';
+      } else if (isDomainDemo) {
+        effectiveSourceMode = sourceMode === 'demo' ? 'demo_retail' : sourceMode;
+        tablesToUse = undefined;
       } else {
-        effectiveSourceMode = 'demo';
+        effectiveSourceMode = 'demo_retail';
         tablesToUse = undefined;
       }
 
@@ -22666,32 +25331,60 @@ function setupDataCosmosStudio(api: any): void {
         if (p2CosmosSourceSelect) p2CosmosSourceSelect.value = effectiveSourceMode;
         if (cosmosSourceSelect) cosmosSourceSelect.value = effectiveSourceMode;
 
-        // Update badge
-        const p2CosmosSourceBadge = document.getElementById('p2CosmosSourceBadge');
-        if (p2CosmosSourceBadge) {
+        // Update badge for both Phase 2 and Data Analysis Studio
+        const updateSourceBadge = (badgeEl: HTMLElement | null) => {
+          if (!badgeEl) return;
           if (effectiveSourceMode === 'connected' && tablesToUse && tablesToUse.length > 0) {
-            p2CosmosSourceBadge.textContent = `⚡ Live Database (${tablesToUse.length} tables)`;
-            p2CosmosSourceBadge.style.background = 'rgba(16, 185, 129, 0.15)';
-            p2CosmosSourceBadge.style.color = '#10b981';
-            p2CosmosSourceBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            badgeEl.textContent = `⚡ Live Database (${tablesToUse.length} tables)`;
+            badgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+            badgeEl.style.color = '#10b981';
+            badgeEl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
           } else if (effectiveSourceMode === 'workspace') {
-            p2CosmosSourceBadge.textContent = `📁 Workspace Files (${res.nodes.length} tables)`;
-            p2CosmosSourceBadge.style.background = 'rgba(234, 179, 8, 0.15)';
-            p2CosmosSourceBadge.style.color = '#facc15';
-            p2CosmosSourceBadge.style.borderColor = 'rgba(234, 179, 8, 0.3)';
+            badgeEl.textContent = `📁 Workspace Files (${res.nodes.length} tables)`;
+            badgeEl.style.background = 'rgba(234, 179, 8, 0.15)';
+            badgeEl.style.color = '#facc15';
+            badgeEl.style.borderColor = 'rgba(234, 179, 8, 0.3)';
           } else {
-            p2CosmosSourceBadge.textContent = `⚡ Demo Star Schema`;
-            p2CosmosSourceBadge.style.background = 'rgba(56, 189, 248, 0.15)';
-            p2CosmosSourceBadge.style.color = '#38bdf8';
-            p2CosmosSourceBadge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+            const domainKey = effectiveSourceMode.replace('demo_', '');
+            const domainObj = DEMO_DOMAINS[domainKey] || DEMO_DOMAINS.retail;
+            badgeEl.textContent = `${domainObj.icon} ${domainObj.label} (${res.nodes.length} tbls)`;
+            badgeEl.style.background = 'rgba(167, 139, 250, 0.15)';
+            badgeEl.style.color = '#a78bfa';
+            badgeEl.style.borderColor = 'rgba(167, 139, 250, 0.4)';
+          }
+        };
+        updateSourceBadge(document.getElementById('p2CosmosSourceBadge'));
+        updateSourceBadge(document.getElementById('cosmosSourceBadge'));
+
+        // Keep Data Studio introspected tables in sync with active topology
+        if (effectiveSourceMode.startsWith('demo_')) {
+          const domainKey = effectiveSourceMode.replace('demo_', '');
+          const domainObj = DEMO_DOMAINS[domainKey] || DEMO_DOMAINS.retail;
+          if (typeof (window as any).populateDataDiscoveredTables === 'function') {
+            (window as any).populateDataDiscoveredTables(domainObj.tables, domainObj.label);
+          }
+          // Also sync domain pills in Single Dataset Studio
+          const dataDomainPills = document.querySelectorAll<HTMLElement>('.data-domain-pill');
+          dataDomainPills.forEach(p => {
+            const isMatch = p.getAttribute('data-domain') === domainKey;
+            p.classList.toggle('active', isMatch);
+            p.style.background = isMatch ? 'rgba(56, 189, 248, 0.2)' : 'transparent';
+            p.style.color = isMatch ? '#38bdf8' : '#cbd5e1';
+            p.style.borderColor = isMatch ? '#38bdf8' : 'var(--border)';
+          });
+        } else if (res.nodes && res.nodes.length > 0) {
+          if (typeof (window as any).populateDataDiscoveredTables === 'function') {
+            (window as any).populateDataDiscoveredTables(res.nodes, effectiveSourceMode === 'connected' ? 'Live DB' : 'Workspace');
           }
         }
 
+        const domainKey = effectiveSourceMode.startsWith('demo_') ? effectiveSourceMode.replace('demo_', '') : 'retail';
+        const domainObj = DEMO_DOMAINS[domainKey] || DEMO_DOMAINS.retail;
         const toastMsg = effectiveSourceMode === 'connected'
           ? `✓ Loaded ${res.nodes.length} live database tables, ${res.links.length} foreign key relationships!`
           : effectiveSourceMode === 'workspace'
             ? `✓ Loaded ${res.nodes.length} workspace files, ${res.links.length} relationships!`
-            : `✓ Loaded Demo Star Schema (${res.nodes.length} tables, ${res.links.length} relationships)!`;
+            : `✓ Loaded ${domainObj.icon} ${domainObj.label} (${res.nodes.length} tables, ${res.links.length} relationships)!`;
         showToast(toastMsg);
       }
     } catch (e: any) {
@@ -22852,7 +25545,7 @@ function setupDataCosmosStudio(api: any): void {
 
   // 8. Toolbar Event Listeners
   p2CosmosSourceSelect?.addEventListener('change', () => {
-    const val = p2CosmosSourceSelect.value || 'demo';
+    const val = p2CosmosSourceSelect.value || 'demo_retail';
     if (val === 'connected' && (!currentIntrospectedTables || currentIntrospectedTables.length === 0)) {
       (window as any).openLiveDbConnectModal?.();
       return;
@@ -22861,7 +25554,7 @@ function setupDataCosmosStudio(api: any): void {
   });
 
   cosmosSourceSelect?.addEventListener('change', () => {
-    const val = cosmosSourceSelect.value || 'demo';
+    const val = cosmosSourceSelect.value || 'demo_retail';
     if (val === 'connected' && (!currentIntrospectedTables || currentIntrospectedTables.length === 0)) {
       (window as any).openLiveDbConnectModal?.();
       return;
@@ -22878,19 +25571,33 @@ function setupDataCosmosStudio(api: any): void {
   });
 
   btnP2RefreshGraph?.addEventListener('click', () => {
-    const val = p2CosmosSourceSelect?.value || 'demo';
+    const val = p2CosmosSourceSelect?.value || 'demo_retail';
     loadSchemaGraph(val);
   });
 
   btnCosmosRefreshGraph?.addEventListener('click', () => {
-    const val = cosmosSourceSelect?.value || 'demo';
+    const val = cosmosSourceSelect?.value || 'demo_retail';
     loadSchemaGraph(val);
   });
 
   p2CosmosSourceBadge?.addEventListener('click', () => {
     const isLive = p2CosmosSourceBadge.textContent?.includes('Live');
     if (isLive) {
-      loadSchemaGraph('demo');
+      loadSchemaGraph('demo_retail');
+    } else {
+      if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
+        loadSchemaGraph('connected', currentIntrospectedTables);
+      } else {
+        (window as any).openLiveDbConnectModal?.();
+      }
+    }
+  });
+
+  const cosmosSourceBadge = document.getElementById('cosmosSourceBadge');
+  cosmosSourceBadge?.addEventListener('click', () => {
+    const isLive = cosmosSourceBadge.textContent?.includes('Live');
+    if (isLive) {
+      loadSchemaGraph('demo_retail');
     } else {
       if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
         loadSchemaGraph('connected', currentIntrospectedTables);
@@ -23169,6 +25876,7 @@ function setupDataCosmosStudio(api: any): void {
   btnCosmosOpenPocModal?.addEventListener('click', openPocPackModal);
   btnDataOpenPocPack?.addEventListener('click', openPocPackModal);
   btnP2CosmosPocPack?.addEventListener('click', openPocPackModal);
+  document.getElementById('btnDataCosmosPocPack')?.addEventListener('click', openPocPackModal);
 
   btnClosePocModal?.addEventListener('click', () => {
     if (fdePocApprovalModal) fdePocApprovalModal.style.display = 'none';
@@ -23478,7 +26186,7 @@ function setupDbSampleDataModal(api: any): void {
       const modal = getModal();
       if (modal) modal.style.display = 'none';
       if (typeof (window as any).loadTableInDataStudio === 'function') {
-        (window as any).loadTableInDataStudio(data.tableName);
+        (window as any).loadTableInDataStudio(data.tableName, data.meta || data);
       }
     }
   });
@@ -23525,6 +26233,7 @@ function setupLiveDbConnectModal(api: any): void {
   // Initialize Enterprise Security Mode & Dialect Change Handling for Universal Modal
   bindEnterpriseSecurityUi('modalDbSecurityMode', 'modalDbSecurityModeBadge', 'modalDbEnterpriseFields', 'modalLblEntParam1', 'modalDbEntParam1', 'modalLblEntParam2', 'modalDbEntParam2');
   handleDialectSelectChange('modalDbDialectSelect', 'modalDbUriInput', 'modalDbSecurityMode');
+  setupDbConnectionSync('modal');
 
   const openModal = () => {
     const modal = getModal();
@@ -23540,9 +26249,29 @@ function setupLiveDbConnectModal(api: any): void {
         modalSecMode.value = activeLiveDbConnection.securityMode;
         modalSecMode.dispatchEvent(new Event('change'));
       }
+      const parsed = parseUriIntoParams(activeLiveDbConnection.connectionUri);
+      const hostEl = document.getElementById('modalDbHostInput') as HTMLInputElement | null;
+      if (hostEl && parsed.host) hostEl.value = parsed.host;
+      const portEl = document.getElementById('modalDbPortInput') as HTMLInputElement | null;
+      if (portEl && parsed.port) portEl.value = String(parsed.port);
+      const userEl = document.getElementById('modalDbUserInput') as HTMLInputElement | null;
+      if (userEl && parsed.username) userEl.value = parsed.username;
+      const passEl = document.getElementById('modalDbPasswordInput') as HTMLInputElement | null;
+      if (passEl && parsed.password) passEl.value = parsed.password;
     } else {
       const drawerUri = (document.getElementById('dbUriInput') as HTMLInputElement)?.value;
-      if (drawerUri && uriInput) uriInput.value = drawerUri;
+      if (drawerUri && uriInput) {
+        uriInput.value = drawerUri;
+        const parsed = parseUriIntoParams(drawerUri);
+        const hostEl = document.getElementById('modalDbHostInput') as HTMLInputElement | null;
+        if (hostEl && parsed.host) hostEl.value = parsed.host;
+        const portEl = document.getElementById('modalDbPortInput') as HTMLInputElement | null;
+        if (portEl && parsed.port) portEl.value = String(parsed.port);
+        const userEl = document.getElementById('modalDbUserInput') as HTMLInputElement | null;
+        if (userEl && parsed.username) userEl.value = parsed.username;
+        const passEl = document.getElementById('modalDbPasswordInput') as HTMLInputElement | null;
+        if (passEl && parsed.password) passEl.value = parsed.password;
+      }
     }
     if (resultBox) {
       resultBox.style.display = 'none';
@@ -23572,12 +26301,6 @@ function setupLiveDbConnectModal(api: any): void {
     }
   });
 
-  btnToggleMask?.addEventListener('click', () => {
-    if (uriInput) {
-      uriInput.type = uriInput.type === 'password' ? 'text' : 'password';
-    }
-  });
-
   btnAutoDetect?.addEventListener('click', async () => {
     showToast('⚡ Scanning workspace for .env, dbt, prisma & supabase configs...');
     if (api?.engines?.detectDb) {
@@ -23587,9 +26310,17 @@ function setupLiveDbConnectModal(api: any): void {
           dialectSelect.value = detected.dialect;
           dialectSelect.dispatchEvent(new Event('change'));
         }
-        if (detected.connectionUri && uriInput) uriInput.value = detected.connectionUri;
+        const hostEl = document.getElementById('modalDbHostInput') as HTMLInputElement | null;
+        if (detected.host && hostEl) hostEl.value = detected.host;
+        const portEl = document.getElementById('modalDbPortInput') as HTMLInputElement | null;
+        if (detected.port && portEl) portEl.value = String(detected.port);
+        const userEl = document.getElementById('modalDbUserInput') as HTMLInputElement | null;
+        if (detected.username && userEl) userEl.value = detected.username;
+        const passEl = document.getElementById('modalDbPasswordInput') as HTMLInputElement | null;
+        if (detected.password && passEl) passEl.value = detected.password;
         if (detected.database && dbInput) dbInput.value = detected.database;
         if (detected.schema && schemaInput) schemaInput.value = detected.schema;
+        if (detected.connectionUri && uriInput) uriInput.value = detected.connectionUri;
         if (resultBox) {
           resultBox.style.display = 'block';
           resultBox.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -23608,7 +26339,7 @@ function setupLiveDbConnectModal(api: any): void {
     const opts = buildDbOptionsFromInputs('modalDbDialectSelect', 'modalDbUriInput', 'modalDbProjectIdInput', 'modalDbSchemaIdInput', 'modalDbSecurityMode', 'modalDbEntParam1', 'modalDbEntParam2');
 
     if (!opts.connectionUri && opts.securityMode === 'standard') {
-      showToast('⚠️ Please enter connection URI.');
+      showToast('⚠️ Please enter connection URI or host parameters.');
       return;
     }
     showToast(`🔌 Testing ping to ${opts.dialect.toUpperCase()} database...`);
@@ -23661,7 +26392,7 @@ function setupLiveDbConnectModal(api: any): void {
     const vaultPolicy = vaultSelect?.value || 'session';
 
     if (!opts.connectionUri && opts.securityMode === 'standard') {
-      showToast('⚠️ Please enter database connection URI.');
+      showToast('⚠️ Please enter database connection URI or host parameters.');
       return;
     }
 
@@ -23685,6 +26416,14 @@ function setupLiveDbConnectModal(api: any): void {
         if (drawerDb && opts.database) drawerDb.value = opts.database;
         const drawerSchema = document.getElementById('dbSchemaIdInput') as HTMLInputElement | null;
         if (drawerSchema && opts.schema) drawerSchema.value = opts.schema;
+        const drawerHost = document.getElementById('dbHostInput') as HTMLInputElement | null;
+        if (drawerHost && opts.host) drawerHost.value = opts.host;
+        const drawerPort = document.getElementById('dbPortInput') as HTMLInputElement | null;
+        if (drawerPort && opts.port) drawerPort.value = String(opts.port);
+        const drawerUser = document.getElementById('dbUserInput') as HTMLInputElement | null;
+        if (drawerUser && opts.username) drawerUser.value = opts.username;
+        const drawerPass = document.getElementById('dbPasswordInput') as HTMLInputElement | null;
+        if (drawerPass && opts.password) drawerPass.value = opts.password;
 
         (window as any).populateDiscoveredTables?.(res.tables, opts.dialect);
         (window as any).populateDataDiscoveredTables?.(res.tables, opts.dialect);

@@ -162,6 +162,7 @@ const desktopApi = {
     savePreflightReport: (report: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.SAVE_PREFLIGHT_REPORT, report),
     generateRunbooks: (state: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS, state),
     analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req),
+    frameHypothesisQuestions: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.FRAME_HYPOTHESIS_QUESTIONS, req),
     discoverSchemaGraph: (opts?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DISCOVER_SCHEMA_GRAPH, opts),
     queryTableSample: (opts: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.QUERY_TABLE_SAMPLE, opts)
   },
@@ -224,7 +225,9 @@ const desktopApi = {
   // --- SYSTEM & OS UTILITIES ---
   system: {
     openExternal: (url: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.OPEN_EXTERNAL, url),
-    copyToClipboard: (text: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, text)
+    copyToClipboard: (text: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, text),
+    savePdf: (opts: { html: string; filename?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.SAVE_PDF, opts),
+    printHtml: (opts: { html: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.PRINT_HTML, opts)
   }
 };
 

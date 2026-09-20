@@ -220,4 +220,68 @@ suite('Autonomous Data Scientist & Statistical Intelligence Engine Suite', () =>
     assert.ok(md.includes('## 2. Cohort & Segment Performance Benchmarking'));
   });
 
+  test('AI Question Framer: generates 4-5 testable hypotheses from dataset schema', () => {
+    const suggestions = DataScientistEngine.generateFramedQuestions(sampleSupplyChainRecords, columns);
+    assert.ok(suggestions.length >= 4, 'Should generate at least 4 hypothesis suggestions');
+    for (const s of suggestions) {
+      assert.ok(s.id, 'Suggestion must have id');
+      assert.ok(s.badge, 'Suggestion must have badge');
+      assert.ok(s.question.endsWith('?'), 'Question must be formulated as a question ending in ?');
+      assert.ok(s.rationale.length > 10, 'Suggestion must have explanatory rationale');
+    }
+  });
+
+  test('AI Question Framer: refines rough user input into sharp hypotheses', () => {
+    const refined = DataScientistEngine.generateFramedQuestions(sampleSupplyChainRecords, columns, 'delays in North');
+    assert.ok(refined.length >= 1, 'Should generate refined suggestions for rough input');
+    const entitySuggestion = refined.find(r => r.question.includes('North'));
+    assert.ok(entitySuggestion, 'Should detect North entity and formulate tailored hypothesis');
+    assert.strictEqual(entitySuggestion.category, 'cohort');
+  });
+
+  test('Custom Hypothesis: evaluates correlation hypothesis with Pearson r, t-test & p-value', () => {
+    const res = DataScientistEngine.analyze(sampleSupplyChainRecords, columns, {
+      focus: 'Does freight_cost correlate with total_delay_hrs?'
+    });
+
+    assert.ok(res.customHypothesis, 'customHypothesis result should be populated');
+    assert.strictEqual(res.customHypothesis.intent, 'correlation');
+    assert.strictEqual(res.customHypothesis.verdict, 'CONFIRMED');
+    assert.ok(res.customHypothesis.hypothesisTest.pValue < 0.05, 'Correlation should be statistically significant');
+    assert.strictEqual(res.customHypothesis.hypothesisTest.significance, 'HIGH');
+    assert.ok(res.customHypothesis.directAnswer.length > 20);
+    assert.strictEqual(res.focusKpis[0].id, 'kpi_hypothesis_verdict');
+    assert.ok(res.focusKpis[0].value.includes('CONFIRMED'));
+    assert.strictEqual(res.axisLabels3D.x, 'freight_cost');
+    assert.strictEqual(res.axisLabels3D.y, 'total_delay_hrs');
+
+    // Deliverable verifications
+    const html = DataScientistEngine.generateExecutiveHtmlReport(res);
+    assert.ok(html.includes('Custom Hypothesis Evaluation'));
+    assert.ok(html.includes('CONFIRMED'));
+
+    const md = DataScientistEngine.generateExecutiveInsightsMarkdown(res);
+    assert.ok(md.includes('🎯 Custom Hypothesis Evaluation & Direct Answer'));
+    assert.ok(md.includes('CONFIRMED'));
+
+    const py = DataScientistEngine.generatePythonDataScienceScript(res);
+    assert.ok(py.includes('🎯 CUSTOM HYPOTHESIS TEST'));
+  });
+
+  test('Custom Hypothesis: evaluates cohort comparison hypothesis with Welch t-test & Cohen effect size', () => {
+    const res = DataScientistEngine.analyze(sampleSupplyChainRecords, columns, {
+      focus: 'Is total_delay_hrs significantly higher in North compared to South?'
+    });
+
+    assert.ok(res.customHypothesis, 'customHypothesis result should be populated');
+    assert.strictEqual(res.customHypothesis.intent, 'comparison');
+    assert.ok(res.customHypothesis.focalEntities.includes('North') || res.customHypothesis.focalEntities.includes('South'));
+    assert.ok(res.customHypothesis.evidenceMetrics.length >= 3);
+    assert.ok(res.customHypothesis.hypothesisTest.testName.includes('Welch') || res.customHypothesis.hypothesisTest.testName.includes('t-test'));
+    assert.ok(res.customHypothesis.directAnswer.length > 20);
+
+    const md = DataScientistEngine.generateExecutiveInsightsMarkdown(res);
+    assert.ok(md.includes('🎯 Custom Hypothesis Evaluation & Direct Answer'));
+  });
+
 });

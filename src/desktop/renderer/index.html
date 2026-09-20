@@ -390,6 +390,28 @@
       transition: color 0.15s ease;
     }
 
+    .btn-gate-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: rgba(34, 197, 94, 0.12);
+      color: #4ade80;
+      font-weight: 700;
+      font-size: 13px;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      border-radius: 8px;
+      padding: 11px 16px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-gate-secondary:hover {
+      background: rgba(34, 197, 94, 0.22);
+      border-color: rgba(34, 197, 94, 0.6);
+      color: #86efac;
+      transform: translateY(-1px);
+    }
+
     .btn-gate-buy {
       display: inline-flex;
       align-items: center;
@@ -484,6 +506,13 @@
         </button>
         <button id="btnGateBuyLicense" class="btn-gate-buy" type="button" style="flex: 1;">
           <span>💬</span> Request Pilot Access / Contact
+        </button>
+      </div>
+
+      <!-- Free Community Edition Option -->
+      <div style="margin-top: 12px;">
+        <button id="btnGateCommunityMode" class="btn-gate-secondary" type="button" style="width: 100%; box-shadow: 0 4px 14px rgba(34, 197, 94, 0.15);">
+          <span>🚀</span> Continue with Free Community Edition (Phases 1–4 Included)
         </button>
       </div>
 
@@ -805,6 +834,7 @@
         </div>
       </div>
 
+      <button class="btn-quick" id="btnHeaderConnectDb" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Connect to Live Database (PostgreSQL, MySQL, Snowflake, BigQuery, etc.)" aria-label="Connect Live Database">🔌 Live DB</button>
       <button class="btn-quick" id="btnOpenTerminal" title="Toggle Terminal Drawer" aria-label="Toggle Terminal Drawer">⚡ Terminal</button>
       <button class="header-pill success" id="btnLicenseModal" style="font-weight: 700;" aria-label="Enterprise Platinum">💎 Enterprise Platinum</button>
     </div>
@@ -1848,29 +1878,96 @@
                     <button class="btn-quick" id="btnCloseDbDrawer" aria-label="Close">✕ Close</button>
                   </div>
 
-                  <!-- Row 1: Engine & Connection URI with Show/Hide -->
-                  <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 10px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="dbDialectSelect">Database Engine / Dialect</label>
-                      <select id="dbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                        <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
-                        <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
-                        <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
-                        <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
-                        <option value="snowflake">Snowflake Data Cloud</option>
-                        <option value="bigquery">Google BigQuery</option>
-                        <option value="mysql">MySQL / Aurora</option>
-                        <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
-                        <option value="sqlite">SQLite Local .db</option>
-                      </select>
+                  <!-- Input Mode Switcher & Quick Presets -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: inline-flex; gap: 4px; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid var(--border);">
+                      <button type="button" class="btn-quick active" id="btnDbModeParams" style="padding: 4px 12px; font-size: 11px; margin: 0; background: var(--accent); color: #1e1e1e; font-weight: 700; border: none; border-radius: 4px;" title="Enter Host, Port, Username, and Password individually">
+                        📋 Host, Port, User &amp; Password
+                      </button>
+                      <button type="button" class="btn-quick" id="btnDbModeUri" style="padding: 4px 12px; font-size: 11px; margin: 0; background: transparent; color: var(--text-secondary); font-weight: 600; border: none; border-radius: 4px;" title="Enter or paste full connection string URI">
+                        🔗 Connection URI String
+                      </button>
                     </div>
-                    <div>
-                      <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <label style="font-size: 11px; font-weight: bold;" for="dbUriInput">Connection URI / Host String (Masked)</label>
-                        <button class="btn-quick" id="btnToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                      <span style="font-size: 10.5px; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
+                      <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
+                      <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="rnacentral" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
+                      <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="local" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid var(--border);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
+                    </div>
+                  </div>
+
+                  <!-- Section 1: Individual Host, Port, User & Password (Default View) -->
+                  <div id="dbSectionParams" style="display: block;">
+                    <!-- Row 1: Engine, Host, Port -->
+                    <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.8fr; gap: 12px; margin-bottom: 10px;">
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold;" for="dbDialectSelect">Database Engine / Dialect</label>
+                        <select id="dbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                          <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                          <option value="mysql">MySQL / MariaDB / Aurora</option>
+                          <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                          <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
+                          <option value="teradata">Teradata EDW &amp; GDW</option>
+                          <option value="db2">IBM DB2 (LUW / z/OS Mainframe)</option>
+                          <option value="snowflake">Snowflake Data Cloud</option>
+                          <option value="bigquery">Google BigQuery</option>
+                          <option value="sqlite">SQLite Local .db</option>
+                        </select>
                       </div>
-                      <input type="password" id="dbUriInput" value="postgresql://username:password@host:5432/pilot_db" placeholder="postgresql://user:password@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold;" for="dbHostInput">Host / Server Address</label>
+                        <input type="text" id="dbHostInput" value="localhost" placeholder="e.g. localhost, ep-xyz.neon.tech, or ensembldb.ensembl.org" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold;" for="dbPortInput">Port</label>
+                        <input type="number" id="dbPortInput" value="5432" placeholder="5432" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                      </div>
                     </div>
+
+                    <!-- Row 2: Database Name, Username, Password (Masked with toggle), Schema -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px;">
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold;" for="dbProjectIdInput">Database Name</label>
+                        <input type="text" id="dbProjectIdInput" value="postgres" placeholder="e.g. postgres, pfmegrnargs" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold;" for="dbUserInput">Username / User</label>
+                        <input type="text" id="dbUserInput" value="postgres" placeholder="e.g. postgres, reader, anonymous" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                          <label style="font-size: 11px; font-weight: bold;" for="dbPasswordInput">Password</label>
+                          <button type="button" class="btn-quick" id="btnToggleMaskPassword" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;">👁️ Show</button>
+                        </div>
+                        <input type="password" id="dbPasswordInput" value="" placeholder="Enter password..." style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                      </div>
+                      <div>
+                        <label style="font-size: 11px; font-weight: bold;" for="dbSchemaIdInput">Schema / Dataset</label>
+                        <input type="text" id="dbSchemaIdInput" value="public" placeholder="e.g. public, rnacen" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Section 2: Connection URI String (Toggleable, Auto-synced) -->
+                  <div id="dbSectionUri" style="display: none; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label style="font-size: 11px; font-weight: bold;" for="dbUriInput">Connection URI / Host String (Auto-synced with parameters above)</label>
+                      <button type="button" class="btn-quick" id="btnToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
+                    </div>
+                    <input type="password" id="dbUriInput" value="postgresql://postgres@localhost:5432/postgres" placeholder="postgresql://user:password@host:5432/database" style="width: 100%; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
+                      💡 Format: <code style="color: var(--accent);">dialect://username:password@hostname:port/database</code> &bull; Pasting a URI here immediately updates Host, Port, User, Password, and Database!
+                    </div>
+                  </div>
+
+                  <!-- Credential Vault Policy & Enterprise Mode -->
+                  <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                    <label style="font-size: 11px; font-weight: bold;" for="dbVaultPolicy">Credential Vault Policy:</label>
+                    <select id="dbVaultPolicy" style="padding: 4px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                      <option value="session" selected>Session Only (In-Memory)</option>
+                      <option value="keyring">Encrypt at Rest (OS Keyring)</option>
+                      <option value="air-gap">Air-Gapped Temporary</option>
+                    </select>
                   </div>
 
                   <!-- Enterprise Security & Advanced Connection Mode -->
@@ -1901,26 +1998,6 @@
                         <label style="font-size: 10px; font-weight: bold;" id="lblEntParam2">Enterprise Parameter 2</label>
                         <input type="text" id="dbEntParam2" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px;">
                       </div>
-                    </div>
-                  </div>
-
-                  <!-- Row 2: Database ID, Schema ID, Credential Policy (Exact match with Image 1) -->
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="dbProjectIdInput">Database / Project ID</label>
-                      <input type="text" id="dbProjectIdInput" value="postgres" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="dbSchemaIdInput">Schema / Dataset ID</label>
-                      <input type="text" id="dbSchemaIdInput" value="public" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                    </div>
-                    <div>
-                      <label style="font-size: 11px; font-weight: bold;" for="dbVaultPolicy">Credential Vault Policy</label>
-                      <select id="dbVaultPolicy" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                        <option value="session" selected>Session Only (In-Memory)</option>
-                        <option value="keyring">Encrypt at Rest (OS Keyring)</option>
-                        <option value="air-gap">Air-Gapped Temporary</option>
-                      </select>
                     </div>
                   </div>
 
@@ -2085,7 +2162,11 @@
                         <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border);">
                           <label style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;" for="p2CosmosSourceSelect">Source:</label>
                           <select id="p2CosmosSourceSelect" style="padding: 2px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
-                            <option value="demo" selected>⚡ Demo Star Schema</option>
+                            <option value="demo_retail" selected>⚡ Demo: 🛍️ Retail &amp; Commerce (10 tbls)</option>
+                            <option value="demo_astrophysics">⚡ Demo: 🔭 Astrophysics &amp; Space (5 tbls)</option>
+                            <option value="demo_genomics">⚡ Demo: 🧬 CRISPR &amp; Genomics (5 tbls)</option>
+                            <option value="demo_climate">⚡ Demo: 🌊 Oceanic Climate &amp; Earth (5 tbls)</option>
+                            <option value="demo_ai_gpu">⚡ Demo: ⚡ Cloud AI &amp; GPU Fleet (5 tbls)</option>
                             <option value="connected">🔌 Live Connected DB</option>
                             <option value="workspace">📁 Workspace Files</option>
                           </select>
@@ -2808,10 +2889,26 @@
                           <p style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5; margin: 0 0 10px 0;" id="lblLadderWhatItDoes">
                             Zero hallucination SLA. Compiled SQL rules and TypeScript validation gates for all financial calculations, boundary limits, and audit logs.
                           </p>
-                          <div style="font-size: 11.5px; font-weight: 700; color: #4ade80; margin-bottom: 6px;" id="lblLadderUseCasesHeader">💼 Production Use Cases:</div>
                           <ul style="font-size: 11.5px; color: #cbd5e1; line-height: 1.5; margin: 0 0 10px 0; padding-left: 18px;" id="lblLadderUseCases">
                             <!-- Populated by JS -->
                           </ul>
+
+                          <!-- Level 3 RAG Studio Bridge Callout -->
+                          <div id="boxLadderLevel3RagBridge" style="display: none; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; padding: 10px 12px; margin-top: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                              <div>
+                                <div style="font-size: 11px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                                  <span>⚡</span> Level 3 Architectural Spectrum: 8 Canonical RAG Patterns
+                                </div>
+                                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">
+                                  Explore Naive, Multimodal, HyDE, CRAG, GraphRAG, Hybrid, Adaptive, and Agentic RAG in Section 3C.
+                                </div>
+                              </div>
+                              <button class="btn" id="btnLadderJumpToRagStudio" style="font-size: 10.5px; padding: 4px 10px; background: #38bdf8; color: #0f172a; font-weight: 700; cursor: pointer; border: none; border-radius: 4px;" aria-label="Open 3C RAG Studio">
+                                Architect RAG Pattern in 3C →
+                              </button>
+                            </div>
+                          </div>
                         </div>
                         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
                           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -3522,49 +3619,280 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   </div>
                 </div>
 
-                <!-- 3C: AIR-GAPPED HYBRID POLICY RAG & MCP SCAFFOLDER -->
+                <!-- 3C: ENTERPRISE RAG ARCHITECTURE MATRIX, ADVISOR & SCAFFOLDER -->
                 <div id="p3StepCPanel" role="tabpanel" aria-labelledby="btnP3StepC" style="display: none;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                  <!-- RAG Scaffolder -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                      <span>📚</span> Air-Gapped Policy RAG Scaffolder
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-                      <div>
-                        <label style="font-size: 10.5px; font-weight: bold;" for="selRagStore">Vector Store</label>
-                        <select id="selRagStore" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
-                          <option value="pgvector" selected>PostgreSQL + pgvector</option>
-                          <option value="qdrant">Qdrant Vector Engine</option>
-                          <option value="chroma">ChromaDB Local</option>
-                          <option value="lancedb">LanceDB Embedded</option>
-                        </select>
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                    
+                    <!-- 3C Header & Actions Bar -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">📚</span>
+                        <div>
+                          <div style="display: flex; align-items: center; gap: 8px;">
+                            <strong style="font-size: 13.5px; color: #fff;">Section 3C: Enterprise RAG Architecture Matrix &amp; Scaffolder</strong>
+                            <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: var(--accent); font-size: 9.5px; border: 1px solid var(--accent);">8 Canonical Patterns</span>
+                            <span class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 9.5px; border: 1px solid rgba(56, 189, 248, 0.3);">Air-Gapped Ready</span>
+                          </div>
+                          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                            Diagnose client failure modes, defend architectural trade-offs, and scaffold production-grade RAG pipelines across the 8 canonical paradigms.
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label style="font-size: 10.5px; font-weight: bold;" for="selRagChunkSize">Chunk Window</label>
-                        <select id="selRagChunkSize" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
-                          <option value="128" selected>128 Tokens (FDE Standard)</option>
-                          <option value="256">256 Tokens</option>
-                          <option value="512">512 Tokens</option>
-                        </select>
+                      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn-quick" id="btnExportRagAdrDoc" style="font-size: 10px; padding: 3px 8px; color: var(--accent); border-color: var(--accent); cursor: pointer;" aria-label="Export RAG ADR Documentation">📖 Export RAG ADR</button>
+                        <button class="btn-quick" id="btnCopyRagMermaid" style="font-size: 10px; padding: 3px 8px; cursor: pointer;" title="Copy Mermaid Architecture Flow">📋 Copy Mermaid</button>
+                        <button class="btn-quick" id="btnCopyRagPitch" style="font-size: 10px; padding: 3px 8px; cursor: pointer;" title="Copy Client Solutioning Pitch">📋 Copy Pitch</button>
                       </div>
                     </div>
-                    <button class="btn" id="btnScaffoldRagPolicy" style="width: 100%; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Scaffold Policy RAG Pipeline">Scaffold Policy RAG Pipeline</button>
-                    <div id="p3RagResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;"></div>
-                  </div>
 
-                  <!-- MCP Scaffolder -->
-                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="font-weight: 700; color: #fff; font-size: 12.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                      <span>🔌</span> MCP (Model Context Protocol) Server
+                    <!-- Client Failure Mode & Workload Recommender -->
+                    <div style="background: linear-gradient(135deg, rgba(78, 201, 176, 0.08), rgba(56, 189, 248, 0.08)); border: 1px solid rgba(78, 201, 176, 0.35); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                          <span>🎯</span> Client Failure Mode &amp; Workload Recommender:
+                        </span>
+                        <span style="font-size: 10px; color: var(--text-secondary);">Select the client's symptom to automatically match the optimal RAG pattern</span>
+                      </div>
+                      <select id="selRagFailureMode" style="width: 100%; padding: 5px 8px; background: #0c0c0c; color: #fff; border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 4px; font-size: 11px; cursor: pointer;">
+                        <option value="">Choose client symptom, data challenge, or failure mode...</option>
+                        <option value="hybrid" selected>🔀 Exact part numbers, legal codes, SKUs, mixed keywords → 06 Hybrid RAG (BM25 + Vector + RRF)</option>
+                        <option value="hyde">💡 Questions don't resemble source document vocabulary → 03 HyDE (Hypothetical Document Embeddings)</option>
+                        <option value="graph">🕸️ High entity-relationship density, cross-document themes → 05 Graph RAG (Knowledge Graph + Summaries)</option>
+                        <option value="corrective">🛡️ High chance of weak or noisy internal retrievals → 04 Corrective RAG (CRAG - Confidence Evaluator &amp; Fallback)</option>
+                        <option value="multimodal">🖼️ Documents with diagrams, schematics, audio/video → 02 Multimodal RAG</option>
+                        <option value="adaptive">🚦 Mixed workloads: simple FAQs, policy lookups, complex research → 07 Adaptive RAG (Complexity Routing)</option>
+                        <option value="agentic">🐝 Multi-step questions requiring cross-table SQL + docs + APIs → 08 Agentic RAG (ReAct / Self-RAG Tool Loop)</option>
+                        <option value="naive">📄 Simple question over clean, homogeneous document collection → 01 Naive RAG (Single-Pass Embed &amp; Search)</option>
+                      </select>
+                      <div id="boxRagRecommendationAlert" style="display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 10.5px; color: #cbd5e1;">
+                        <span style="color: var(--accent); font-weight: 700;">💡 Recommendation:</span>
+                        <span id="lblRagRecommendationText">Hybrid RAG selected. Fuses sparse BM25 lexical keyword search with dense HNSW vector embeddings to prevent vocabulary drift on product codes.</span>
+                      </div>
                     </div>
-                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 10px 0;">
-                      Expose secure database introspections and enterprise APIs as standardized MCP tools.
-                    </p>
-                    <button class="btn" id="btnScaffoldMcpServer" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px;" aria-label="Scaffold MCP Tool Server">Scaffold MCP Tool Server</button>
-                    <div id="p3McpResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 11px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto;"></div>
+
+                    <!-- 8 Canonical RAG Architecture Cards Grid -->
+                    <div style="margin-bottom: 12px;">
+                      <div style="font-size: 11px; font-weight: 700; color: #fff; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>Select Architecture Paradigm:</span>
+                        <span style="font-size: 10px; color: var(--text-secondary);" id="lblActiveRagArchTag">Active: 06 Hybrid RAG</span>
+                      </div>
+                      <div id="ragArchitectureCardsGrid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                        <!-- 01 Naive RAG -->
+                        <div class="rag-arch-card" data-arch="naive" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(255,255,255,0.1); padding: 1px 5px; border-radius: 3px; color: #94a3b8;">01</span>
+                            <span style="font-size: 13px;">📄</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">Naive RAG</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Retrieve once, then generate.</div>
+                          <div style="font-size: 9px; color: #4ade80; margin-top: 4px;">&lt;60ms · Low Cost</div>
+                        </div>
+
+                        <!-- 02 Multimodal RAG -->
+                        <div class="rag-arch-card" data-arch="multimodal" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(56, 189, 248, 0.15); padding: 1px 5px; border-radius: 3px; color: #38bdf8;">02</span>
+                            <span style="font-size: 13px;">🖼️</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">Multimodal RAG</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Cross text, diagrams, audio, video.</div>
+                          <div style="font-size: 9px; color: #38bdf8; margin-top: 4px;">Vision &amp; ColPali Embeds</div>
+                        </div>
+
+                        <!-- 03 HyDE -->
+                        <div class="rag-arch-card" data-arch="hyde" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(234, 179, 8, 0.15); padding: 1px 5px; border-radius: 3px; color: #eab308;">03</span>
+                            <span style="font-size: 13px;">💡</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">HyDE</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Hypothetical doc guides retrieval.</div>
+                          <div style="font-size: 9px; color: #eab308; margin-top: 4px;">Zero Vocabulary Mismatch</div>
+                        </div>
+
+                        <!-- 04 Corrective RAG (CRAG) -->
+                        <div class="rag-arch-card" data-arch="corrective" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(74, 222, 128, 0.15); padding: 1px 5px; border-radius: 3px; color: #4ade80;">04</span>
+                            <span style="font-size: 13px;">🛡️</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">Corrective RAG</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Evaluate evidence before using it.</div>
+                          <div style="font-size: 9px; color: #4ade80; margin-top: 4px;">Evaluator &amp; Search Fallback</div>
+                        </div>
+
+                        <!-- 05 Graph RAG -->
+                        <div class="rag-arch-card" data-arch="graph" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(168, 85, 247, 0.15); padding: 1px 5px; border-radius: 3px; color: #c084fc;">05</span>
+                            <span style="font-size: 13px;">🕸️</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">Graph RAG</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Connected facts &amp; graph summaries.</div>
+                          <div style="font-size: 9px; color: #c084fc; margin-top: 4px;">Entity Knowledge Graphs</div>
+                        </div>
+
+                        <!-- 06 Hybrid RAG -->
+                        <div class="rag-arch-card active" data-arch="hybrid" style="background: rgba(78, 201, 176, 0.12); border: 1.5px solid var(--accent); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: var(--accent); padding: 1px 5px; border-radius: 3px; color: #1e1e1e;">06</span>
+                            <span style="font-size: 13px;">🔀</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: var(--accent);">Hybrid RAG</div>
+                          <div style="font-size: 9.5px; color: #cbd5e1; margin-top: 2px;">BM25 exact keywords + Vectors.</div>
+                          <div style="font-size: 9px; color: var(--accent); margin-top: 4px;">Enterprise Production Gold</div>
+                        </div>
+
+                        <!-- 07 Adaptive RAG -->
+                        <div class="rag-arch-card" data-arch="adaptive" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(59, 130, 246, 0.15); padding: 1px 5px; border-radius: 3px; color: #60a5fa;">07</span>
+                            <span style="font-size: 13px;">🚦</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">Adaptive RAG</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Dynamic complexity routing.</div>
+                          <div style="font-size: 9px; color: #60a5fa; margin-top: 4px;">Optimized Cost &amp; Latency</div>
+                        </div>
+
+                        <!-- 08 Agentic RAG -->
+                        <div class="rag-arch-card" data-arch="agentic" style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; cursor: pointer; transition: all 0.2s;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-size: 9px; font-weight: 700; background: rgba(244, 63, 94, 0.15); padding: 1px 5px; border-radius: 3px; color: #fb7185;">08</span>
+                            <span style="font-size: 13px;">🐝</span>
+                          </div>
+                          <div style="font-size: 11px; font-weight: 700; color: #fff;">Agentic RAG</div>
+                          <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">Plan, retrieve, inspect &amp; repeat.</div>
+                          <div style="font-size: 9px; color: #fb7185; margin-top: 4px;">Cross-Tool &amp; SQL Reasoning</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Multi-Modal View Selector Tabs -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                      <div style="display: flex; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
+                        <button class="btn-quick active" id="btnRagViewVisual" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">🎨 Visual Flow</button>
+                        <button class="btn-quick" id="btnRagViewMermaid" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">📐 Mermaid Flowchart</button>
+                        <button class="btn-quick" id="btnRagViewPitch" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">💼 Client Solutioning Narrative</button>
+                        <button class="btn-quick" id="btnRagViewMatrix" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">📊 8-Way Trade-Off Matrix</button>
+                        <button class="btn-quick" id="btnRagViewCode" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">💻 Code Contract</button>
+                      </div>
+                      <div style="font-size: 10px; color: var(--text-secondary);" id="lblRagViewModeHint">
+                        Interactive stage pipeline flow
+                      </div>
+                    </div>
+
+                    <!-- Multi-Modal Panels Container -->
+                    <!-- 1. Visual Flow Panel -->
+                    <div id="ragVisualFlowDisplay" style="background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; min-height: 180px; max-height: 280px; overflow-y: auto;">
+                      <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- 2. Mermaid Flowchart Panel -->
+                    <div id="ragMermaidDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; max-height: 280px; overflow-y: auto;">
+                      <pre id="preRagMermaidCode" style="margin: 0; font-family: Consolas, monospace; font-size: 10.5px; color: #9cdcfe; white-space: pre-wrap; line-height: 1.45;"></pre>
+                    </div>
+
+                    <!-- 3. Client Solutioning Narrative Panel -->
+                    <div id="ragPitchDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 12px; max-height: 320px; overflow-y: auto;">
+                      <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- 4. Trade-Off Matrix Panel -->
+                    <div id="ragMatrixDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; overflow-x: auto;">
+                      <!-- Populated dynamically with 8 architectures comparison -->
+                    </div>
+
+                    <!-- 5. Code Contract Panel -->
+                    <div id="ragCodeDisplay" style="display: none; background: #141414; padding: 12px; border-radius: 6px; font-family: Consolas, monospace; font-size: 10.5px; color: #9cdcfe; border: 1px solid var(--border); max-height: 280px; overflow-y: auto; white-space: pre-wrap;">
+                      <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- Bottom Row: Dynamic Parameters & Scaffolding + MCP Server -->
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-top: 10px;">
+                      
+                      <!-- Left Box: Architecture Configuration & Scaffolding -->
+                      <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                        <div style="font-weight: 700; color: #fff; font-size: 11.5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                          <span>⚙️</span> <span id="lblRagConfigTitle">06 Hybrid RAG Pipeline Configuration</span>
+                        </div>
+
+                        <!-- Core RAG Options Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                          <div>
+                            <label style="font-size: 10px; font-weight: bold;" for="selRagLanguage">Language</label>
+                            <select id="selRagLanguage" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                              <option value="typescript" selected>TypeScript (Node.js)</option>
+                              <option value="python">Python 3.11+</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; font-weight: bold;" for="selRagStore">Vector Store</label>
+                            <select id="selRagStore" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                              <option value="pgvector" selected>PostgreSQL + pgvector</option>
+                              <option value="qdrant">Qdrant Vector Engine</option>
+                              <option value="chroma">ChromaDB Local</option>
+                              <option value="lancedb">LanceDB Embedded</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; font-weight: bold;" for="selRagChunkSize">Chunk Window</label>
+                            <select id="selRagChunkSize" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                              <option value="128" selected>128 Tokens (FDE Standard)</option>
+                              <option value="256">256 Tokens</option>
+                              <option value="512">512 Tokens</option>
+                              <option value="800">800 Tokens</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <!-- Dynamic Architecture-Specific Parameters Box -->
+                        <div id="boxRagDynamicParams" style="background: rgba(255,255,255,0.03); border: 1px dashed rgba(255,255,255,0.12); border-radius: 4px; padding: 8px 10px; margin-bottom: 10px;">
+                          <!-- Injected per active architecture (e.g. BM25 engine for Hybrid, Graph store for Graph, etc.) -->
+                        </div>
+
+                        <!-- Scaffolding Buttons -->
+                        <div style="display: flex; gap: 8px;">
+                          <button class="btn" id="btnScaffoldRagPolicy" style="flex: 1; background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px; cursor: pointer;" aria-label="Scaffold Selected RAG Pipeline">
+                            🚀 Scaffold Hybrid RAG Pipeline
+                          </button>
+                          <button class="btn-quick" id="btnExportRagAdrToWorkspace" style="font-size: 10.5px; padding: 6px 12px; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Write full ADR documentation to docs/architecture/rag_architecture_adr.md">
+                            📖 Write ADR
+                          </button>
+                        </div>
+                        <div id="p3RagResultBox" style="display: none; margin-top: 10px; background: #181818; padding: 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 10.5px; border: 1px solid var(--border); max-height: 140px; overflow-y: auto; color: #4ade80;"></div>
+                      </div>
+
+                      <!-- Right Box: MCP Tool Server (Native Tool Provider for Agentic & Level 4) -->
+                      <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column;">
+                        <div style="font-weight: 700; color: #fff; font-size: 11.5px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <span>🔌</span> MCP (Model Context Protocol) Server
+                          </div>
+                          <span style="font-size: 9.5px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 1px 5px; border-radius: 3px;">Level 4 &amp; Agentic Link</span>
+                        </div>
+                        <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.4;">
+                          Expose secure database introspections and enterprise APIs as standardized Model Context Protocol tools. Directly callable by 08 Agentic RAG and Level 4 Tool Agents.
+                        </p>
+                        <div style="font-size: 10px; color: #cbd5e1; margin-bottom: 8px; background: #111; padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
+                          <div style="font-weight: 700; color: #38bdf8; margin-bottom: 3px;">Standardized MCP Tool Capabilities:</div>
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                            <div>• Introspect DB Schema</div>
+                            <div>• Execute Safe Analytical SQL</div>
+                            <div>• Vector Cosine Search</div>
+                            <div>• Enterprise REST Gateway</div>
+                          </div>
+                        </div>
+                        <div style="margin-top: auto;">
+                          <button class="btn" id="btnScaffoldMcpServer" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px; cursor: pointer;" aria-label="Scaffold MCP Tool Server">
+                            🔌 Scaffold MCP Tool Server &amp; Endpoints
+                          </button>
+                          <div id="p3McpResultBox" style="display: none; margin-top: 8px; background: #181818; padding: 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 10.5px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto; color: #4ade80;"></div>
+                        </div>
+                      </div>
+
+                    </div>
+
                   </div>
-                </div>
                 </div>
               </div>
 
@@ -5794,6 +6122,10 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <div class="t">▶️ Run a data pipeline</div>
               <div class="d">A saved multi-step analysis (evolve-data-pipeline.json)</div>
             </div>
+            <div class="sel-card" id="cardDemoStarSchema" style="cursor: pointer; border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.04);">
+              <div class="t" style="color: #a5b4fc;">⚡ Demo Multi-Domain Schemas</div>
+              <div class="d">🛍️ Retail (10 tbls), 🔭 Space, 🧬 CRISPR, 🌊 Climate, ⚡ GPU Fleet</div>
+            </div>
           </div>
 
           <!-- Live DB Connector Drawer for Data Analysis & Reporting Studio -->
@@ -5803,30 +6135,97 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <button class="btn-quick" id="btnDataCloseDbDrawer" aria-label="Close">✕ Close</button>
             </div>
 
-            <!-- Row 1: Engine & Connection URI with Show/Hide -->
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 12px; margin-bottom: 10px;">
-              <div>
-                <label style="font-size: 11px; font-weight: bold;" for="dataDbDialectSelect">Database Engine / Dialect</label>
-                <select id="dataDbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                  <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
-                  <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
-                  <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
-                  <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
-                  <option value="snowflake">Snowflake Data Cloud</option>
-                  <option value="bigquery">Google BigQuery</option>
-                  <option value="databricks">Databricks Lakehouse / SQL</option>
-                  <option value="mysql">MySQL / Aurora</option>
-                  <option value="sqlite">SQLite Local .db</option>
-                  <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
-                </select>
+            <!-- Input Mode Switcher & Quick Presets -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+              <div style="display: inline-flex; gap: 4px; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid var(--border);">
+                <button type="button" class="btn-quick active" id="btnDataDbModeParams" style="padding: 4px 12px; font-size: 11px; margin: 0; background: var(--accent); color: #1e1e1e; font-weight: 700; border: none; border-radius: 4px;" title="Enter Host, Port, Username, and Password individually">
+                  📋 Host, Port, User &amp; Password
+                </button>
+                <button type="button" class="btn-quick" id="btnDataDbModeUri" style="padding: 4px 12px; font-size: 11px; margin: 0; background: transparent; color: var(--text-secondary); font-weight: 600; border: none; border-radius: 4px;" title="Enter or paste full connection string URI">
+                  🔗 Connection URI String
+                </button>
               </div>
-              <div>
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <label style="font-size: 11px; font-weight: bold;" for="dataDbUriInput">Connection URI / Host String (Masked)</label>
-                  <button class="btn-quick" id="btnDataToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
+              <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span style="font-size: 10.5px; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
+                <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
+                <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="rnacentral" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
+                <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="local" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid var(--border);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
+              </div>
+            </div>
+
+            <!-- Section 1: Individual Host, Port, User & Password (Default View) -->
+            <div id="dataDbSectionParams" style="display: block;">
+              <!-- Row 1: Engine, Host, Port -->
+              <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.8fr; gap: 12px; margin-bottom: 10px;">
+                <div>
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbDialectSelect">Database Engine / Dialect</label>
+                  <select id="dataDbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                    <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                    <option value="mysql">MySQL / MariaDB / Aurora</option>
+                    <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                    <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
+                    <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+                    <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
+                    <option value="snowflake">Snowflake Data Cloud</option>
+                    <option value="bigquery">Google BigQuery</option>
+                    <option value="databricks">Databricks Lakehouse / SQL</option>
+                    <option value="sqlite">SQLite Local .db</option>
+                  </select>
                 </div>
-                <input type="password" id="dataDbUriInput" value="postgresql://username:password@host:5432/pilot_db" placeholder="postgresql://user:password@host:5432/pilot_db" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+                <div>
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbHostInput">Host / Server Address</label>
+                  <input type="text" id="dataDbHostInput" value="localhost" placeholder="e.g. localhost, ep-xyz.neon.tech, or ensembldb.ensembl.org" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbPortInput">Port</label>
+                  <input type="number" id="dataDbPortInput" value="5432" placeholder="5432" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;">
+                </div>
               </div>
+
+              <!-- Row 2: Database Name, Username, Password (Masked with toggle), Schema -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <div>
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbProjectIdInput">Database Name</label>
+                  <input type="text" id="dataDbProjectIdInput" value="postgres" placeholder="e.g. postgres, pfmegrnargs" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbUserInput">Username / User</label>
+                  <input type="text" id="dataDbUserInput" value="postgres" placeholder="e.g. postgres, reader, anonymous" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                </div>
+                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-size: 11px; font-weight: bold;" for="dataDbPasswordInput">Password</label>
+                    <button type="button" class="btn-quick" id="btnDataToggleMaskPassword" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;">👁️ Show</button>
+                  </div>
+                  <input type="password" id="dataDbPasswordInput" value="" placeholder="Enter password..." style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                </div>
+                <div>
+                  <label style="font-size: 11px; font-weight: bold;" for="dataDbSchemaIdInput">Schema / Dataset</label>
+                  <input type="text" id="dataDbSchemaIdInput" value="public" placeholder="e.g. public, rnacen" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Section 2: Connection URI String (Toggleable, Auto-synced) -->
+            <div id="dataDbSectionUri" style="display: none; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label style="font-size: 11px; font-weight: bold;" for="dataDbUriInput">Connection URI / Host String (Auto-synced with parameters above)</label>
+                <button type="button" class="btn-quick" id="btnDataToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin-bottom: 0;" aria-label="Show/Hide">👁️ Show/Hide</button>
+              </div>
+              <input type="password" id="dataDbUriInput" value="postgresql://postgres@localhost:5432/postgres" placeholder="postgresql://user:password@host:5432/database" style="width: 100%; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: monospace; font-size: 11.5px;" aria-label="postgresql://user:password@host:5432/pilot_db">
+              <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
+                💡 Format: <code style="color: var(--accent);">dialect://username:password@hostname:port/database</code> &bull; Pasting a URI here immediately updates Host, Port, User, Password, and Database!
+              </div>
+            </div>
+
+            <!-- Credential Vault Policy -->
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+              <label style="font-size: 11px; font-weight: bold;" for="dataDbVaultPolicy">Credential Vault Policy:</label>
+              <select id="dataDbVaultPolicy" style="padding: 4px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                <option value="session" selected>Session Only (In-Memory)</option>
+                <option value="keyring">Encrypt at Rest (OS Keyring)</option>
+                <option value="air-gap">Air-Gapped Temporary</option>
+              </select>
             </div>
 
             <!-- Enterprise Security & Advanced Connection Mode (Data Studio) -->
@@ -5860,26 +6259,6 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               </div>
             </div>
 
-            <!-- Row 2: Database ID, Schema ID, Credential Policy -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 12px; margin-bottom: 12px;">
-              <div>
-                <label style="font-size: 11px; font-weight: bold;" for="dataDbProjectIdInput">Database / Project ID</label>
-                <input type="text" id="dataDbProjectIdInput" value="postgres" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-              </div>
-              <div>
-                <label style="font-size: 11px; font-weight: bold;" for="dataDbSchemaIdInput">Schema / Dataset ID</label>
-                <input type="text" id="dataDbSchemaIdInput" value="public" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-              </div>
-              <div>
-                <label style="font-size: 11px; font-weight: bold;" for="dataDbVaultPolicy">Credential Vault Policy</label>
-                <select id="dataDbVaultPolicy" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                  <option value="session" selected>Session Only (In-Memory)</option>
-                  <option value="keyring">Encrypt at Rest (OS Keyring)</option>
-                  <option value="air-gap">Air-Gapped Temporary</option>
-                </select>
-              </div>
-            </div>
-
             <!-- Action Buttons Row -->
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 6px;">
               <button class="btn" id="btnDataExecuteIntrospect" style="background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px 16px; font-size: 11.5px; border-radius: 4px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;" aria-label="Connect & Fetch Tables">
@@ -5904,6 +6283,17 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 </div>
                 <input type="text" id="dataDbTableFilterInput" placeholder="🔍 Filter tables..." style="width: 180px; margin-bottom: 0; font-size: 11px; padding: 4px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px;" aria-label="🔍 Filter tables...">
               </div>
+
+              <!-- Domain Benchmark Presets -->
+              <div id="dataDomainPresetBar" style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; padding: 6px 10px; background: rgba(0,0,0,0.25); border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                <span style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;">Domain Preset:</span>
+                <button type="button" class="btn-quick data-domain-pill active" data-domain="retail" style="padding: 2px 8px; font-size: 10.5px; font-weight: 600; margin: 0; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: #38bdf8;" title="10-table Retail &amp; Supply Chain Star Schema">🛍️ Retail &amp; Supply Chain</button>
+                <button type="button" class="btn-quick data-domain-pill" data-domain="astrophysics" style="padding: 2px 8px; font-size: 10.5px; font-weight: 600; margin: 0; background: transparent; color: #cbd5e1; border-color: var(--border);" title="Exoplanets, Keplerian Mechanics &amp; Stellar Systems">🔭 Astrophysics &amp; Space</button>
+                <button type="button" class="btn-quick data-domain-pill" data-domain="genomics" style="padding: 2px 8px; font-size: 10.5px; font-weight: 600; margin: 0; background: transparent; color: #cbd5e1; border-color: var(--border);" title="CRISPR Cleavage, Off-Target Risk &amp; Cell Viability">🧬 CRISPR &amp; Genomics</button>
+                <button type="button" class="btn-quick data-domain-pill" data-domain="climate" style="padding: 2px 8px; font-size: 10.5px; font-weight: 600; margin: 0; background: transparent; color: #cbd5e1; border-color: var(--border);" title="Global Oceanic Buoy Telemetry, Thermoclines &amp; Hypoxia">🌊 Oceanic Climate Array</button>
+                <button type="button" class="btn-quick data-domain-pill" data-domain="ai_gpu" style="padding: 2px 8px; font-size: 10.5px; font-weight: 600; margin: 0; background: transparent; color: #cbd5e1; border-color: var(--border);" title="H100/A100 GPU Cluster Telemetry &amp; AllReduce Latency">⚡ Cloud AI &amp; GPU Fleet</button>
+              </div>
+
               <div style="display: flex; gap: 10px; align-items: center;">
                 <select id="dataDbTableSelect" style="flex: 1; margin-bottom: 0; padding: 7px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
                   <option value="">-- Choose an introspected table --</option>
@@ -5968,8 +6358,26 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               </select>
             </div>
             <div>
-              <label for="txtDataFocus" style="display: block; font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px;">Custom Hypothesis / Question</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label for="txtDataFocus" style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Custom Hypothesis / Question</label>
+                <div style="display: flex; gap: 6px;">
+                  <button type="button" id="btnAiSuggestHypothesis" class="btn-quick" style="padding: 2px 8px; font-size: 10px; font-weight: 700; color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.1); border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Scan schema and generate testable hypotheses">
+                    ✨ AI Suggest Questions
+                  </button>
+                  <button type="button" id="btnAiRefineHypothesis" class="btn-quick" style="padding: 2px 8px; font-size: 10px; font-weight: 700; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1); border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;" title="Refine typed question into a rigorous statistical hypothesis">
+                    ✨ Refine with AI
+                  </button>
+                </div>
+              </div>
               <input type="text" id="txtDataFocus" placeholder="e.g. 'what drives delivery delays across regions?'" style="width: 100%; box-sizing: border-box; padding: 9px 14px; font-size: 12.5px; border-radius: 6px; background: var(--card-bg); color: var(--fg); border: 1px solid var(--border);" aria-label="e.g. 'what drives delivery delays across regions?'">
+              <!-- AI Hypothesis Suggestions Dropdown Container -->
+              <div id="dataAiHypothesisSuggestions" style="display: none; margin-top: 8px; padding: 10px; background: #0f172a; border: 1px solid rgba(167, 139, 250, 0.35); border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,0.4);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 10px; font-weight: 800; color: #a78bfa; text-transform: uppercase; letter-spacing: 0.5px;">✨ Suggested Hypotheses (Click to Adopt)</span>
+                  <button type="button" id="btnCloseHypothesisSuggestions" style="background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 12px; padding: 0 4px;">&times;</button>
+                </div>
+                <div id="hypothesisSuggestionsList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+              </div>
             </div>
           </div>
 
@@ -6009,12 +6417,37 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 <button id="btnDataCopyDeliverable" type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Copy to Clipboard">
                   <span>📋</span> Copy
                 </button>
-                <button id="btnDataOpenBrowser" type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px; border-radius: 6px; display: none; align-items: center; gap: 5px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" aria-label="Open Full Report in Browser">
+                <button id="btnDataOpenBrowser" type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" aria-label="Open Full Report in Browser" title="Open complete interactive report in browser">
                   <span>🌐</span> Open in Browser
                 </button>
-                <button id="btnDataExportFile" type="button" class="btn" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 14px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Save Deliverable File">
-                  <span>💾</span> Save Deliverable
+                <button id="btnDataPrintDeliverable" type="button" class="btn btn-secondary" style="padding: 5px 12px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; color: #c084fc; border-color: rgba(192, 132, 252, 0.4);" aria-label="Print or Save as PDF" title="Print document or save as high-res PDF">
+                  <span>🖨️</span> Print / PDF
                 </button>
+                <div class="dropdown-wrapper" style="position: relative; display: inline-block;">
+                  <button id="btnDataExportFile" type="button" class="btn" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 5px 14px; font-size: 11.5px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" aria-label="Save Deliverable Options">
+                    <span>💾</span> Save Deliverable <span style="font-size: 9px; margin-left: 2px;">▼</span>
+                  </button>
+                  <div id="dataExportDropdownMenu" style="display: none; position: absolute; right: 0; top: calc(100% + 4px); background: #0f172a; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; box-shadow: 0 10px 28px rgba(0,0,0,0.65); z-index: 1000; min-width: 250px; padding: 6px 0;">
+                    <div style="padding: 6px 14px; font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.06);">Export &amp; Document Options</div>
+                    <button type="button" id="btnExportOptionHtml" class="btn-quick" style="width: 100%; text-align: left; background: transparent; border: none; padding: 8px 14px; color: #e2e8f0; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: 0;">
+                      <span style="font-size: 16px;">🌐</span>
+                      <div><strong style="color: #38bdf8;">Save as HTML Report</strong><div style="font-size: 10.5px; color: #94a3b8;">Formatted standalone report with CSS &amp; visuals</div></div>
+                    </button>
+                    <button type="button" id="btnExportOptionPdf" class="btn-quick" style="width: 100%; text-align: left; background: transparent; border: none; padding: 8px 14px; color: #e2e8f0; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: 0;">
+                      <span style="font-size: 16px;">📄</span>
+                      <div><strong style="color: #a78bfa;">Save as PDF</strong><div style="font-size: 10.5px; color: #94a3b8;">High-contrast executive PDF printout</div></div>
+                    </button>
+                    <button type="button" id="btnExportOptionPrint" class="btn-quick" style="width: 100%; text-align: left; background: transparent; border: none; padding: 8px 14px; color: #e2e8f0; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: 0;">
+                      <span style="font-size: 16px;">🖨️</span>
+                      <div><strong style="color: #34d399;">Print Deliverable</strong><div style="font-size: 10.5px; color: #94a3b8;">Open system print preview dialog</div></div>
+                    </button>
+                    <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0;"></div>
+                    <button type="button" id="btnExportOptionSource" class="btn-quick" style="width: 100%; text-align: left; background: transparent; border: none; padding: 8px 14px; color: #e2e8f0; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-radius: 0;">
+                      <span style="font-size: 16px;">📝</span>
+                      <div><strong id="exportSourceOptionLabel" style="color: #cbd5e1;">Save Source File (.md)</strong><div style="font-size: 10.5px; color: #94a3b8;">Raw source script / markdown for editing</div></div>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -6026,7 +6459,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <span>🖥️ Interactive HTML Document View (Sandboxed Canvas):</span>
                   <span style="font-size: 11px; color: var(--accent);">Tip: Click '🌐 Open in Browser' to view full-screen or print as PDF</span>
                 </div>
-                <iframe id="dataReportIframe" sandbox="allow-scripts allow-same-origin" style="width: 100%; height: 580px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: #1e1e1e; box-sizing: border-box;"></iframe>
+                <iframe id="dataReportIframe" sandbox="allow-scripts allow-same-origin allow-modals allow-popups" style="width: 100%; height: 580px; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; background: #1e1e1e; box-sizing: border-box;"></iframe>
               </div>
 
               <!-- Formatted Insights / Profiling Cards Container -->
@@ -6108,16 +6541,31 @@ WHERE order_date >= SYSDATE - 30;</textarea>
 
           <!-- 3D DATA COSMOS & CROSS-TABLE RELATIONAL INTELLIGENCE -->
           <div id="dataCosmosView" style="display: none;">
+            <!-- Copilot Banner matching Phase 2 -->
+            <div class="ai-copilot-banner" style="border-left-color: #6366f1; background: rgba(99, 102, 241, 0.08); margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <span class="ai-pill" style="background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid #6366f1;">🌐 3D / 2D Schema Topology</span>
+                  <span style="font-size: 11.5px;">Cross-table relationships, star-schema clustering, and multi-hop join path generation.</span>
+                  <span id="cosmosSourceBadge" style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: rgba(167, 139, 250, 0.15); color: #a78bfa; border: 1px solid rgba(167, 139, 250, 0.4); cursor: pointer;" title="Click to toggle between Demo Star Schema and Connected Live Database">🛍️ Retail &amp; Commerce (10 tbls)</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Cosmos Control Toolbar -->
             <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
               <!-- Left controls: Source & View Mode -->
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <div>
+                <div style="display: inline-flex; align-items: center; gap: 4px; background: rgba(0,0,0,0.35); padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border);">
                   <label style="font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase;" for="cosmosSourceSelect">Data Source:</label>
-                  <select id="cosmosSourceSelect" style="margin-left: 4px; padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                    <option value="demo" selected>Demo: Retail Orders Star Schema (10 Tables)</option>
-                    <option value="connected">Live Connected DB / Warehouse</option>
-                    <option value="workspace">Workspace Data Files (CSV / Parquet / JSON)</option>
+                  <select id="cosmosSourceSelect" style="padding: 2px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <option value="demo_retail" selected>⚡ Demo: 🛍️ Retail &amp; Commerce (10 tbls)</option>
+                    <option value="demo_astrophysics">⚡ Demo: 🔭 Astrophysics &amp; Space (5 tbls)</option>
+                    <option value="demo_genomics">⚡ Demo: 🧬 CRISPR &amp; Genomics (5 tbls)</option>
+                    <option value="demo_climate">⚡ Demo: 🌊 Oceanic Climate &amp; Earth (5 tbls)</option>
+                    <option value="demo_ai_gpu">⚡ Demo: ⚡ Cloud AI &amp; GPU Fleet (5 tbls)</option>
+                    <option value="connected">🔌 Live Connected DB</option>
+                    <option value="workspace">📁 Workspace Files</option>
                   </select>
                 </div>
 
@@ -7660,30 +8108,97 @@ WHERE order_date >= SYSDATE - 30;</textarea>
 
       <!-- Form Body -->
       <div style="flex: 1; overflow-y: auto; padding: 20px; background: #090d16; display: flex; flex-direction: column; gap: 14px;">
-        <!-- Engine & Connection URI -->
-        <div style="display: grid; grid-template-columns: 1fr 1.8fr; gap: 12px;">
-          <div>
-            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbDialectSelect">Database Engine / Dialect</label>
-            <select id="modalDbDialectSelect" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
-              <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
-              <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
-              <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
-              <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
-              <option value="snowflake">Snowflake Data Cloud</option>
-              <option value="bigquery">Google BigQuery</option>
-              <option value="databricks">Databricks Lakehouse / SQL</option>
-              <option value="mysql">MySQL / MariaDB / Aurora</option>
-              <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
-              <option value="sqlite">SQLite Local Database (.db)</option>
-            </select>
+        <!-- Input Mode Switcher & Quick Presets -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: inline-flex; gap: 4px; background: rgba(0,0,0,0.35); padding: 3px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.15);">
+            <button type="button" class="btn-quick active" id="btnModalDbModeParams" style="padding: 4px 12px; font-size: 11px; margin: 0; background: #38bdf8; color: #090d16; font-weight: 700; border: none; border-radius: 4px;" title="Enter Host, Port, Username, and Password individually">
+              📋 Host, Port, User &amp; Password
+            </button>
+            <button type="button" class="btn-quick" id="btnModalDbModeUri" style="padding: 4px 12px; font-size: 11px; margin: 0; background: transparent; color: #94a3b8; font-weight: 600; border: none; border-radius: 4px;" title="Enter or paste full connection string URI">
+              🔗 Connection URI String
+            </button>
           </div>
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1;" for="modalDbUriInput">Connection URI / Host String</label>
-              <button class="btn-quick" id="btnModalToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin: 0;">👁️ Show/Hide</button>
+          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 10.5px; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
+            <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
+            <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="rnacentral" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
+            <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="local" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
+          </div>
+        </div>
+
+        <!-- Section 1: Individual Host, Port, User & Password (Default View) -->
+        <div id="modalDbSectionParams" style="display: block;">
+          <!-- Row 1: Engine, Host, Port -->
+          <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.8fr; gap: 12px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbDialectSelect">Database Engine / Dialect</label>
+              <select id="modalDbDialectSelect" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+                <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                <option value="mysql">MySQL / MariaDB / Aurora</option>
+                <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
+                <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
+                <option value="teradata">Teradata EDW &amp; GDW (Vantage / Enterprise DW)</option>
+                <option value="db2">IBM DB2 (LUW / z/OS Mainframe / iSeries)</option>
+                <option value="snowflake">Snowflake Data Cloud</option>
+                <option value="bigquery">Google BigQuery</option>
+                <option value="databricks">Databricks Lakehouse / SQL</option>
+                <option value="sqlite">SQLite Local Database (.db)</option>
+              </select>
             </div>
-            <input type="password" id="modalDbUriInput" value="postgresql://postgres:postgres@localhost:5432/postgres" placeholder="postgresql://user:password@host:5432/dbname" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-family: monospace; font-size: 11.5px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbHostInput">Host / Server Address</label>
+              <input type="text" id="modalDbHostInput" value="localhost" placeholder="e.g. localhost, ep-xyz.neon.tech, or ensembldb.ensembl.org" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-family: monospace; font-size: 11.5px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbPortInput">Port</label>
+              <input type="number" id="modalDbPortInput" value="5432" placeholder="5432" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-family: monospace; font-size: 11.5px;">
+            </div>
           </div>
+
+          <!-- Row 2: Database Name, Username, Password (Masked with toggle), Schema -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr 1fr; gap: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbProjectIdInput">Database Name</label>
+              <input type="text" id="modalDbProjectIdInput" value="postgres" placeholder="e.g. postgres, pfmegrnargs" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbUserInput">Username / User</label>
+              <input type="text" id="modalDbUserInput" value="postgres" placeholder="e.g. postgres, reader, anonymous" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label style="font-size: 11px; font-weight: bold; color: #cbd5e1;" for="modalDbPasswordInput">Password</label>
+                <button type="button" class="btn-quick" id="btnModalToggleMaskPassword" style="padding: 1px 6px; font-size: 10px; margin: 0;">👁️ Show</button>
+              </div>
+              <input type="password" id="modalDbPasswordInput" value="" placeholder="Enter password..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbSchemaIdInput">Schema / Dataset</label>
+              <input type="text" id="modalDbSchemaIdInput" value="public" placeholder="e.g. public, rnacen" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Connection URI String (Toggleable, Auto-synced) -->
+        <div id="modalDbSectionUri" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1;" for="modalDbUriInput">Connection URI / Host String (Auto-synced with parameters above)</label>
+            <button type="button" class="btn-quick" id="btnModalToggleMaskUri" style="padding: 1px 6px; font-size: 10px; margin: 0;">👁️ Show/Hide</button>
+          </div>
+          <input type="password" id="modalDbUriInput" value="postgresql://postgres@localhost:5432/postgres" placeholder="postgresql://user:password@host:5432/dbname" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-family: monospace; font-size: 11.5px;">
+          <div style="font-size: 10.5px; color: #94a3b8; margin-top: 4px;">
+            💡 Format: <code style="color: #38bdf8;">dialect://username:password@hostname:port/database</code> &bull; Pasting a URI here immediately updates Host, Port, User, Password, and Database!
+          </div>
+        </div>
+
+        <!-- Credential Vault Policy -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <label style="font-size: 11px; font-weight: bold; color: #cbd5e1;" for="modalDbVaultPolicy">Credential Vault Policy:</label>
+          <select id="modalDbVaultPolicy" style="padding: 6px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
+            <option value="session" selected>Session Only (In-Memory)</option>
+            <option value="keyring">Encrypt at Rest (OS Keyring)</option>
+            <option value="air-gap">Air-Gapped Temporary</option>
+          </select>
         </div>
 
         <!-- Enterprise Security & Advanced Connection Mode (Universal Modal) -->
@@ -7714,26 +8229,6 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <label style="font-size: 10px; font-weight: bold; color: #cbd5e1;" id="modalLblEntParam2">Enterprise Parameter 2</label>
               <input type="text" id="modalDbEntParam2" placeholder="" style="width: 100%; box-sizing: border-box; font-size: 11px; margin-bottom: 0; background: #1e293b; color: #fff; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 6px 10px;">
             </div>
-          </div>
-        </div>
-
-        <!-- Database ID, Schema ID, Vault Policy -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px;">
-          <div>
-            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbProjectIdInput">Database / Project ID</label>
-            <input type="text" id="modalDbProjectIdInput" value="postgres" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
-          </div>
-          <div>
-            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbSchemaIdInput">Schema / Dataset ID</label>
-            <input type="text" id="modalDbSchemaIdInput" value="public" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
-          </div>
-          <div>
-            <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbVaultPolicy">Credential Vault Policy</label>
-            <select id="modalDbVaultPolicy" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
-              <option value="session" selected>Session Only (In-Memory)</option>
-              <option value="keyring">Encrypt at Rest (OS Keyring)</option>
-              <option value="air-gap">Air-Gapped Temporary</option>
-            </select>
           </div>
         </div>
 

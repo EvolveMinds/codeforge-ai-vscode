@@ -133,6 +133,7 @@ export const DESKTOP_CHANNELS = {
     SAVE_PREFLIGHT_REPORT: 'evolve:engines:save-preflight-report',
     GENERATE_RUNBOOKS: 'evolve:engines:generate-runbooks',
     ANALYZE_DATASET: 'evolve:engines:analyze-dataset',
+    FRAME_HYPOTHESIS_QUESTIONS: 'evolve:engines:frame-hypothesis-questions',
     DISCOVER_SCHEMA_GRAPH: 'evolve:engines:discover-schema-graph',
     QUERY_TABLE_SAMPLE: 'evolve:engines:query-table-sample'
   },
@@ -170,6 +171,8 @@ export const DESKTOP_CHANNELS = {
 
   SYSTEM: {
     OPEN_EXTERNAL: 'evolve:system:open-external',
-    COPY_TO_CLIPBOARD: 'evolve:system:copy-to-clipboard'
+    COPY_TO_CLIPBOARD: 'evolve:system:copy-to-clipboard',
+    SAVE_PDF: 'evolve:system:save-pdf',
+    PRINT_HTML: 'evolve:system:print-html'
   }
 } as const;

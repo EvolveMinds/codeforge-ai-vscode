@@ -96,4 +96,52 @@ suite('Enterprise Suite — Air-Gapped RAG & Vector Pipeline Scaffolder', () => 
     assert.ok(files.dockerComposeYaml.includes('qdrant/qdrant:latest'));
   });
 
+  test('scaffolds specialized hooks for canonical RAG architectures (HyDE, CRAG, Hybrid)', () => {
+    // 1. HyDE architecture
+    const hydeOpts: RagPipelineOptions = {
+      serviceName: 'HydeService',
+      language: 'typescript',
+      architecture: 'hyde',
+      vectorStore: 'pgvector',
+      embeddingProvider: 'ollama_local',
+      embeddingModel: 'nomic-embed-text',
+      embeddingDimensions: 768,
+      chunkSize: 256,
+      chunkOverlap: 32,
+      chunkingStrategy: 'recursive_character',
+      distanceMetric: 'cosine',
+      topK: 5,
+      similarityThreshold: 0.7,
+      enableHybridSearch: false,
+      enableGuardrails: true
+    };
+    const hydeFiles = RagPipelineScaffolder.scaffold(hydeOpts);
+    assert.ok(hydeFiles.retrieverPipelineCode.includes('generateHypotheticalDocument'));
+    assert.ok(hydeFiles.retrieverPipelineCode.includes('queryWithHyde'));
+    assert.ok(hydeFiles.readmeDoc.includes('**Canonical RAG Pattern**: `HYDE`'));
+
+    // 2. Corrective RAG (CRAG) architecture
+    const cragOpts: RagPipelineOptions = {
+      serviceName: 'CragService',
+      language: 'python',
+      architecture: 'corrective',
+      vectorStore: 'pgvector',
+      embeddingProvider: 'ollama_local',
+      embeddingModel: 'nomic-embed-text',
+      embeddingDimensions: 768,
+      chunkSize: 512,
+      chunkOverlap: 64,
+      chunkingStrategy: 'recursive_character',
+      distanceMetric: 'cosine',
+      topK: 5,
+      similarityThreshold: 0.75,
+      enableHybridSearch: false,
+      enableGuardrails: true
+    };
+    const cragFiles = RagPipelineScaffolder.scaffold(cragOpts);
+    assert.ok(cragFiles.retrieverPipelineCode.includes('evaluate_retrieval_confidence'));
+    assert.ok(cragFiles.retrieverPipelineCode.includes('fallback_external_search'));
+    assert.ok(cragFiles.readmeDoc.includes('**Canonical RAG Pattern**: `CORRECTIVE`'));
+  });
+
 });

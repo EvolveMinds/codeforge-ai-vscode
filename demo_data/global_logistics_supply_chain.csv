@@ -1,0 +1,101 @@
+shipment_id,origin_hub,destination_port,transport_mode,transit_duration_hours,cargo_weight_tonnes,freight_cost_usd,fuel_consumption_liters,customs_clearance_delay_hours,co2_emissions_kg,on_time_delivery_pct,risk_tier
+SHP-0001,Hamburg Mega Hub,New York Terminal,Air Cargo,24.3,4.8,25595.47,5170.2,3.9,13701,97,Moderate Tier
+SHP-0002,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,149.8,22.4,8585.55,5323,8.1,14372.1,95.5,Elevated Watch
+SHP-0003,Singapore Terminal,Sydney Harbor,Express Maritime,89.4,36.5,7540.87,3677.4,14.6,9929,92.4,Critical Route
+SHP-0004,Busan Harbor,Tokyo Sea Port,Ocean Freight,243.9,83.2,3808.2,6429.7,26,18003.2,83.1,Low Risk
+SHP-0005,Dubai Logistics City,Santos Hub,Air Cargo,35.5,4.7,25966.81,5427.7,6.7,14383.4,94.6,Moderate Tier
+SHP-0006,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,108.7,32.4,6452.7,4367.7,12.2,11792.8,95.6,Elevated Watch
+SHP-0007,Hamburg Mega Hub,New York Terminal,Express Maritime,80.4,41.2,5731.74,5925.3,20.3,15998.3,90.5,Critical Route
+SHP-0008,Rotterdam Gateway,Felixstowe Port,Ocean Freight,352.5,70.2,7401.75,9066,12.1,25384.8,90.1,Low Risk
+SHP-0009,Singapore Terminal,Sydney Harbor,Air Cargo,39.7,9.3,23652.53,5389.1,6.3,14281.1,96,Moderate Tier
+SHP-0010,Busan Harbor,Tokyo Sea Port,Intermodal Rail,143.4,28.6,5654.33,5324.2,11.4,14375.3,89.6,Elevated Watch
+SHP-0011,Dubai Logistics City,Santos Hub,Express Maritime,132.4,15.7,9378.36,5198.9,17.8,14037,89.2,Critical Route
+SHP-0012,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,345.4,73.2,7174.19,9376.6,19.4,26254.5,88.7,Low Risk
+SHP-0013,Hamburg Mega Hub,New York Terminal,Air Cargo,53,8.7,15482.34,7934.8,2.3,21027.2,90.3,Moderate Tier
+SHP-0014,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,412,48.5,28500,14200,184.5,36800,18,Elevated Watch
+SHP-0015,Singapore Terminal,Sydney Harbor,Express Maritime,132.7,32.4,10447.41,3872,21.3,10454.4,93.5,Critical Route
+SHP-0016,Busan Harbor,Tokyo Sea Port,Ocean Freight,285.5,93.5,5697.3,9432.9,28.5,26412.1,87,Low Risk
+SHP-0017,Dubai Logistics City,Santos Hub,Air Cargo,58.6,1.6,22627.72,7161.5,6.2,18978,91.3,Moderate Tier
+SHP-0018,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,126.8,41.8,5739.77,5941.8,19.8,16042.9,88.7,Elevated Watch
+SHP-0019,Hamburg Mega Hub,New York Terminal,Express Maritime,144.8,21,8331.29,3432.8,16.9,9268.6,82.3,Critical Route
+SHP-0020,Rotterdam Gateway,Felixstowe Port,Ocean Freight,349.8,98.6,5324.3,8721.8,13.1,24421,90.6,Low Risk
+SHP-0021,Singapore Terminal,Sydney Harbor,Air Cargo,32.1,3.1,21724.08,6385.7,10,16922.1,92.8,Moderate Tier
+SHP-0022,Busan Harbor,Tokyo Sea Port,Intermodal Rail,143,27.5,10483.01,5661.1,21.3,15285,83.6,Elevated Watch
+SHP-0023,Dubai Logistics City,Santos Hub,Express Maritime,147.2,41.8,9075.06,3821.6,7.9,10318.3,88.1,Critical Route
+SHP-0024,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,262.2,74.9,5430,7688.1,20.7,21526.7,80.5,Low Risk
+SHP-0025,Hamburg Mega Hub,New York Terminal,Air Cargo,45.6,7.3,20296.02,6087,6.7,16130.5,90,Moderate Tier
+SHP-0026,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,102.5,29.3,8889.76,4134.6,21.7,11163.4,82.4,Elevated Watch
+SHP-0027,Singapore Terminal,Sydney Harbor,Express Maritime,119.7,20.4,10023.88,4760.8,22.7,12854.2,91.6,Critical Route
+SHP-0028,Busan Harbor,Tokyo Sea Port,Ocean Freight,310.3,70.2,3555.76,7349.6,33.4,20578.9,93,Low Risk
+SHP-0029,Dubai Logistics City,Santos Hub,Air Cargo,57.3,1.9,17548.9,7201.4,2.6,19083.7,98.4,Moderate Tier
+SHP-0030,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,117.8,51.1,5786.71,5335.6,7.5,14406.1,82.5,Elevated Watch
+SHP-0031,Hamburg Mega Hub,New York Terminal,Express Maritime,149.5,53.9,9521.53,5927.9,12.7,16005.3,94.8,Critical Route
+SHP-0032,Rotterdam Gateway,Felixstowe Port,Ocean Freight,261,88.6,4110.39,9713.6,47.8,27198.1,72.7,Low Risk
+SHP-0033,Singapore Terminal,Sydney Harbor,Air Cargo,56.9,1.6,26007.5,7996.4,8.3,21190.5,94.3,Moderate Tier
+SHP-0034,Busan Harbor,Tokyo Sea Port,Intermodal Rail,135.5,44.8,5938.44,5391.7,13.5,14557.6,83.6,Elevated Watch
+SHP-0035,Dubai Logistics City,Santos Hub,Express Maritime,142.4,49.9,6959.66,4612.4,8.9,12453.5,88.9,Critical Route
+SHP-0036,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,290.2,27,7497.42,10601.2,23.9,29683.4,85.5,Low Risk
+SHP-0037,Hamburg Mega Hub,New York Terminal,Air Cargo,29,7,21577.93,4562.8,5.2,12091.4,98.8,Moderate Tier
+SHP-0038,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,144.4,48.2,10370.91,3405.3,8.6,9194.3,88.9,Elevated Watch
+SHP-0039,Singapore Terminal,Sydney Harbor,Express Maritime,140.2,20.1,9044.49,4471.8,6.2,12073.9,87.5,Critical Route
+SHP-0040,Busan Harbor,Tokyo Sea Port,Ocean Freight,282.6,78.8,3575.54,6643.3,26.6,18601.2,73.2,Low Risk
+SHP-0041,Dubai Logistics City,Santos Hub,Air Cargo,56.3,4.5,17063.2,6520.9,5.3,17280.4,91.4,Moderate Tier
+SHP-0042,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,123.6,26.4,5821.25,5561.1,20.3,15015,86.6,Elevated Watch
+SHP-0043,Hamburg Mega Hub,New York Terminal,Express Maritime,88.2,33,9788.91,5255.2,16.7,14189,95.2,Critical Route
+SHP-0044,Rotterdam Gateway,Felixstowe Port,Ocean Freight,309.4,70.6,7362.85,7530,41.2,21084,91.4,Low Risk
+SHP-0045,Singapore Terminal,Sydney Harbor,Air Cargo,26,6.2,15387.05,7577.4,5.6,20080.1,96.2,Moderate Tier
+SHP-0046,Busan Harbor,Tokyo Sea Port,Intermodal Rail,96.9,52.7,8691.63,4133.1,23.6,11159.4,88.5,Elevated Watch
+SHP-0047,Dubai Logistics City,Santos Hub,Express Maritime,94.5,38.9,7818.66,5847.5,14.6,15788.3,93.3,Critical Route
+SHP-0048,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,250.7,31.1,3668.11,10368.6,39.8,29032.1,78.7,Low Risk
+SHP-0049,Hamburg Mega Hub,New York Terminal,Air Cargo,46.8,3.5,24963.08,7672.3,4.5,20331.6,97.1,Moderate Tier
+SHP-0050,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,108.6,43.1,8131.81,4805.7,23.1,12975.4,95.7,Elevated Watch
+SHP-0051,Singapore Terminal,Sydney Harbor,Express Maritime,105.6,36.4,6456.17,3431.6,11.6,9265.3,96.6,Critical Route
+SHP-0052,Busan Harbor,Tokyo Sea Port,Ocean Freight,305.6,39.1,7330.05,9982.4,25.8,27950.7,85.6,Low Risk
+SHP-0053,Dubai Logistics City,Santos Hub,Air Cargo,52.1,5.2,14153.69,5618.2,8.5,14888.2,95.7,Moderate Tier
+SHP-0054,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,105,31,7183.61,4002,22.2,10805.4,89.9,Elevated Watch
+SHP-0055,Hamburg Mega Hub,New York Terminal,Express Maritime,138.8,29.6,7762.24,3981.1,10.6,10749,92.4,Critical Route
+SHP-0056,Rotterdam Gateway,Felixstowe Port,Ocean Freight,263.6,26.5,5426.57,8655,32.4,24234,81.2,Low Risk
+SHP-0057,Singapore Terminal,Sydney Harbor,Air Cargo,45,8.3,21993.38,5966.8,5.4,15812,94.2,Moderate Tier
+SHP-0058,Busan Harbor,Tokyo Sea Port,Intermodal Rail,18.5,4.2,42000,8900,1.2,24100,99.5,Elevated Watch
+SHP-0059,Dubai Logistics City,Santos Hub,Express Maritime,81,22.4,7361.33,5071.4,8,13692.8,90.4,Critical Route
+SHP-0060,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,290.7,91,3711.74,10040.4,20.5,28113.1,76.9,Low Risk
+SHP-0061,Hamburg Mega Hub,New York Terminal,Air Cargo,32.6,9.3,22050.76,6929.5,5.4,18363.2,90.3,Moderate Tier
+SHP-0062,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,116.1,24.7,7641.51,4526.5,9,12221.6,86.3,Elevated Watch
+SHP-0063,Singapore Terminal,Sydney Harbor,Express Maritime,108.7,52.4,10177.62,4140.5,16.6,11179.4,95.9,Critical Route
+SHP-0064,Busan Harbor,Tokyo Sea Port,Ocean Freight,281.6,33.7,5688.86,6657,23.9,18639.6,78.5,Low Risk
+SHP-0065,Dubai Logistics City,Santos Hub,Air Cargo,34.2,2,21410.6,5350.5,2.9,14178.8,91.9,Moderate Tier
+SHP-0066,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,138.7,53.3,8207.5,5953.7,10.2,16075,83.6,Elevated Watch
+SHP-0067,Hamburg Mega Hub,New York Terminal,Express Maritime,80.5,25,6476.93,5543.5,22.5,14967.5,88,Critical Route
+SHP-0068,Rotterdam Gateway,Felixstowe Port,Ocean Freight,265.1,94.9,7951.63,7676.7,19.3,21494.8,93.1,Low Risk
+SHP-0069,Singapore Terminal,Sydney Harbor,Air Cargo,52.2,5.3,17466.87,6635.2,5.1,17583.3,92.2,Moderate Tier
+SHP-0070,Busan Harbor,Tokyo Sea Port,Intermodal Rail,107.6,39.4,6113.14,3224.2,8.1,8705.3,90.1,Elevated Watch
+SHP-0071,Dubai Logistics City,Santos Hub,Express Maritime,109.1,49.4,7190.87,5141.8,13.9,13882.9,83.6,Critical Route
+SHP-0072,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,295.7,41.8,6039.06,6568.2,13.4,18391,88,Low Risk
+SHP-0073,Hamburg Mega Hub,New York Terminal,Air Cargo,43.9,4.1,23275.75,6139.7,2.3,16270.2,91.5,Moderate Tier
+SHP-0074,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,126,48.9,10208.81,3755,14.7,10138.5,94.7,Elevated Watch
+SHP-0075,Singapore Terminal,Sydney Harbor,Express Maritime,109.2,50.8,9753.78,5036.1,12.1,13597.5,86.9,Critical Route
+SHP-0076,Busan Harbor,Tokyo Sea Port,Ocean Freight,260.7,37.2,6185.55,7098.8,35.5,19876.6,88.1,Low Risk
+SHP-0077,Dubai Logistics City,Santos Hub,Air Cargo,43.9,4.6,18116.58,4806.3,9.7,12736.7,94.9,Moderate Tier
+SHP-0078,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,80.3,47.3,7046.4,3408.5,16.2,9203,86,Elevated Watch
+SHP-0079,Hamburg Mega Hub,New York Terminal,Express Maritime,99.5,45.2,6880.35,5752.3,10.2,15531.2,82.2,Critical Route
+SHP-0080,Rotterdam Gateway,Felixstowe Port,Ocean Freight,281,89.3,4227.04,7996.9,24.8,22391.3,90.4,Low Risk
+SHP-0081,Singapore Terminal,Sydney Harbor,Air Cargo,40.4,4.3,20991.9,5997.5,2.6,15893.4,97.6,Moderate Tier
+SHP-0082,Busan Harbor,Tokyo Sea Port,Intermodal Rail,133.2,34.1,7620.17,5235.8,22.8,14136.7,87.6,Elevated Watch
+SHP-0083,Dubai Logistics City,Santos Hub,Express Maritime,116,29.9,8528.28,3963.6,19.5,10701.7,92,Critical Route
+SHP-0084,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,251.6,92.9,4841.77,7724.7,28.4,21629.2,83.1,Low Risk
+SHP-0085,Hamburg Mega Hub,New York Terminal,Air Cargo,32.3,9.4,12214.51,5659.4,4.7,14997.4,94.2,Moderate Tier
+SHP-0086,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,82.8,53.8,10469.09,3464,16.4,9352.8,88.9,Elevated Watch
+SHP-0087,Singapore Terminal,Sydney Harbor,Express Maritime,105.1,45.5,7300.62,4874.2,16.6,13160.3,87,Critical Route
+SHP-0088,Busan Harbor,Tokyo Sea Port,Ocean Freight,338.4,40.6,6633.27,8123,16,22744.4,92.4,Low Risk
+SHP-0089,Dubai Logistics City,Santos Hub,Air Cargo,58.3,2.7,13366.71,6742.4,3.5,17867.4,96.2,Moderate Tier
+SHP-0090,Shenzhen Tech Port,Long Beach Gateway,Intermodal Rail,92.1,26.6,7237.73,3768.5,10.9,10175,92.9,Elevated Watch
+SHP-0091,Hamburg Mega Hub,New York Terminal,Express Maritime,113.9,36.2,6179.84,3782.3,8.7,10212.2,93.8,Critical Route
+SHP-0092,Rotterdam Gateway,Felixstowe Port,Ocean Freight,142,120,7800,2100,4,4200,98,Low Risk
+SHP-0093,Singapore Terminal,Sydney Harbor,Air Cargo,55.9,7.1,16237.97,7037.2,8.5,18648.6,98.8,Moderate Tier
+SHP-0094,Busan Harbor,Tokyo Sea Port,Intermodal Rail,93.3,18.2,9172.34,3742,14.4,10103.4,95.5,Elevated Watch
+SHP-0095,Dubai Logistics City,Santos Hub,Express Maritime,138.3,23,5561.73,4565.1,19.7,12325.8,83.4,Critical Route
+SHP-0096,Shenzhen Tech Port,Long Beach Gateway,Ocean Freight,320.5,48,7986.27,9607.7,46.7,26901.6,85.6,Low Risk
+SHP-0097,Hamburg Mega Hub,New York Terminal,Air Cargo,34.5,3.1,12042.04,5049.8,9.3,13382,94.5,Moderate Tier
+SHP-0098,Rotterdam Gateway,Felixstowe Port,Intermodal Rail,140.5,21.8,6583.15,5752.6,8.7,15532,93.7,Elevated Watch
+SHP-0099,Singapore Terminal,Sydney Harbor,Express Maritime,115.5,49.1,7496.32,4428.3,22.6,11956.4,86.5,Critical Route
+SHP-0100,Busan Harbor,Tokyo Sea Port,Ocean Freight,316.1,66.8,7332.84,7127.8,42.7,19957.8,72.5,Low Risk
