@@ -3775,6 +3775,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         <button class="btn-quick" id="btnRagViewPitch" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">💼 Client Solutioning Narrative</button>
                         <button class="btn-quick" id="btnRagViewMatrix" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">📊 8-Way Trade-Off Matrix</button>
                         <button class="btn-quick" id="btnRagViewCode" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">💻 Code Contract</button>
+                        <button class="btn-quick" id="btnRagViewPlaybook" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer; color: #fbbf24; font-weight: 700;">📋 Delivery Playbook (Design · Document · Track)</button>
                       </div>
                       <div style="font-size: 10px; color: var(--text-secondary);" id="lblRagViewModeHint">
                         Interactive stage pipeline flow
@@ -3804,6 +3805,11 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
                     <!-- 5. Code Contract Panel -->
                     <div id="ragCodeDisplay" style="display: none; background: #141414; padding: 12px; border-radius: 6px; font-family: Consolas, monospace; font-size: 10.5px; color: #9cdcfe; border: 1px solid var(--border); max-height: 280px; overflow-y: auto; white-space: pre-wrap;">
+                      <!-- Populated dynamically -->
+                    </div>
+
+                    <!-- 6. Delivery Playbook Panel (Design · Document · Track) -->
+                    <div id="ragPlaybookDisplay" style="display: none; background: #101010; border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 6px; padding: 14px; margin-bottom: 12px; max-height: 380px; overflow-y: auto;">
                       <!-- Populated dynamically -->
                     </div>
 
@@ -3944,6 +3950,22 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <!-- 4A: UNIVERSAL GOLDEN EVALUATION BENCHMARK SUITE -->
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
                   
+                  <!-- RAG Architecture Evaluation Context Bridge -->
+                  <div id="boxP4RagArchContextBridge" style="background: linear-gradient(135deg, rgba(78, 201, 176, 0.08), rgba(251, 191, 36, 0.08)); border: 1px solid rgba(78, 201, 176, 0.35); border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="font-size: 14px;">🎯</span>
+                      <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #fff;">
+                          Active RAG Architecture Under Evaluation: <span id="lblP4ActiveRagArchName" style="color: var(--accent);">06 Hybrid RAG (BM25 + Vector + RRF)</span>
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-secondary);" id="lblP4ActiveRagArchMetrics">
+                          Phase 4 Golden Test Focus: Dual lexical &amp; semantic recall, exact SKU code hit rate (100%), and 128-token citation groundedness.
+                        </div>
+                      </div>
+                    </div>
+                    <button class="btn-quick" id="btnP4JumpToRagStudio" style="font-size: 10px; padding: 3px 8px; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Adjust RAG parameters in Phase 3C">← Reconfigure in 3C</button>
+                  </div>
+
                   <!-- Top Header: Title, Preset Selector & Primary Action Buttons -->
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <div>

@@ -16599,8 +16599,426 @@ class AgenticRagPipeline:
     }
   };
 
+  // --- FDE Delivery Playbooks (Design · Document · Track) for 8 Canonical RAG Architectures ---
+  interface DeliveryPlaybookEntry {
+    design: {
+      workloadFit: string;
+      sizingHardware: string;
+      ingestionRules: string;
+      keyLevers: string;
+    };
+    document: {
+      arbDefense: string[];
+      invariants: string[];
+      executiveSlide: string;
+    };
+    track: {
+      phase4Metrics: { name: string; target: string; desc: string }[];
+      milestones: { id: string; label: string; done: boolean }[];
+    };
+  }
+
+  const DELIVERY_PLAYBOOKS: Record<string, DeliveryPlaybookEntry> = {
+    naive: {
+      design: {
+        workloadFit: 'Single-turn QA over clean, static documents (internal HR handbooks, IT FAQs, policy guidelines).',
+        sizingHardware: 'Minimal footprint. 1x CPU or entry GPU. Embedding model: nomic-embed-text (768d, 274MB). RAM: <2GB. Latency: <60ms.',
+        ingestionRules: '128-token semantic chunking with 16-token overlap; SHA-256 deduplication; HNSW indexing (m=16, ef_construction=64).',
+        keyLevers: 'Top-K: 3–5 | Min Score: 0.75 | Distance: Cosine'
+      },
+      document: {
+        arbDefense: [
+          'Ultra-low infrastructure footprint with zero vendor lock-in and immediate air-gapped readiness.',
+          'Linear, auditable data flow: Prompt Injection Check -> HNSW Vector Search -> Citation Extraction.',
+          'Documented trade-off: Client acknowledges risk of vocabulary mismatch and semantic drift on ambiguous queries.'
+        ],
+        invariants: [
+          'Deterministic SHA-256 chunk hashes guarantee zero duplicate embedding indexing.',
+          'Every generated claim strictly cites exact source document chunk identifiers.'
+        ],
+        executiveSlide: 'Naive RAG provides the fastest time-to-value baseline, delivering sub-60ms grounded policy answers with zero cloud dependencies.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Context Recall@5', target: '≥ 90%', desc: 'Relevant passage retrieved in top 5' },
+          { name: 'Citation Groundedness', target: '≥ 95%', desc: 'Claims backed by source span' },
+          { name: 'P95 Latency SLA', target: '< 80ms', desc: 'End-to-end retrieval latency' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'Documents Ingested & HNSW Indexed', done: true },
+          { id: 'm2', label: 'Phase 4 Golden Set (50 Cases) Evaluated', done: false },
+          { id: 'm3', label: 'ARB Security & Architecture Approved', done: false },
+          { id: 'm4', label: 'Air-Gapped Docker Pilot Deployed', done: false },
+          { id: 'm5', label: 'Phase 6 Ed25519 Audit Logging Active', done: false }
+        ]
+      }
+    },
+    multimodal: {
+      design: {
+        workloadFit: 'Engineering schematics, circuit blueprints, scanned invoices, balance sheets, and technical walkthroughs where text and visual layouts are inextricably linked.',
+        sizingHardware: 'Requires 1x NVIDIA RTX 4090 or A10G (16–24GB VRAM) for local ColPali / SigLIP multi-vector inference. RAM: 32GB+. Latency: 250ms–600ms.',
+        ingestionRules: 'High-res PDF page rasterization (150–300 DPI); ColPali vision patch embeddings preserving 2D geometric token coordinates.',
+        keyLevers: 'Patch Resolution: 448x448 | Top-K Patches: 5 | Vision Encoder: ColPali v1.2'
+      },
+      document: {
+        arbDefense: [
+          'Eliminates the catastrophic >40% information loss inherent in traditional OCR parsers on tables, schematics, and blueprints.',
+          'Air-gapped on-prem vision encoder ensures zero corporate blueprints or financial statements leak to external cloud vision APIs.',
+          'Full visual layout provenance: citations include bounding box coordinates on source PDF pages.'
+        ],
+        invariants: [
+          'Zero unredacted visual PII passed to vision-language models.',
+          'Dual verification of extracted numerical tables against original raster images.'
+        ],
+        executiveSlide: 'Multimodal RAG eliminates the $400k/yr error cost of traditional OCR parsing, enabling instant visual grounding across blueprints, schematics, and financial tables.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Visual Grounding Recall', target: '≥ 92%', desc: 'Correct diagram/table retrieved' },
+          { name: 'Spatial Bounding Accuracy', target: '≥ 96%', desc: 'Accurate coordinate span mapping' },
+          { name: 'P95 Latency SLA', target: '< 650ms', desc: 'Cross-modal retrieval pipeline latency' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'PDF Rasterization & ColPali Indexing', done: true },
+          { id: 'm2', label: 'Phase 4 Multimodal Golden Evals Passed', done: false },
+          { id: 'm3', label: 'ARB Data Privacy & Air-Gap Certified', done: false },
+          { id: 'm4', label: 'GPU-Accelerated Container Deployed', done: false },
+          { id: 'm5', label: 'Visual Bounding Box Receipts Logging Active', done: false }
+        ]
+      }
+    },
+    hyde: {
+      design: {
+        workloadFit: 'Enterprise search where user queries are terse, keyword-sparse, or use colloquial jargon that fails to match dense formal document embeddings.',
+        sizingHardware: 'Low-latency generator model (e.g. Qwen 2.5 Coder 7B or Mistral 7B) + nomic-embed-text. GPU: 12GB VRAM or fast CPU. Latency: 180ms–350ms.',
+        ingestionRules: 'Standard dense document chunking (128–256 tokens). HyDE dynamically bridges the query-document semantic gap at query time without re-indexing corpus.',
+        keyLevers: 'Hypo Temp: 0.2 | Max Hypo Tokens: 128 | Top-K: 5'
+      },
+      document: {
+        arbDefense: [
+          'Reassures ARB regarding hallucinations: the generated hypothetical document is strictly internal and never shown to the user.',
+          'Hypothetical passage acts purely as a semantic query expansion vector in high-dimensional embedding space.',
+          'Measurably boosts retrieval recall by 25–40% on acronym-heavy and brief client queries.'
+        ],
+        invariants: [
+          'Hypothetical drafts are purged from memory immediately following embedding computation.',
+          'Final output is strictly constrained to the retrieved real chunks.'
+        ],
+        executiveSlide: 'HyDE eliminates the frustrating "no results found" failure mode by expanding brief user questions into hypothetical vector passages, boosting search accuracy by 35%.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Short-Query Hit Rate Lift', target: '+ 30%', desc: 'Recall delta over Naive RAG' },
+          { name: 'Hypothetical Draft Latency', target: '< 180ms', desc: 'Speed of hypothetical doc synthesis' },
+          { name: 'P95 Latency SLA', target: '< 350ms', desc: 'End-to-end HyDE retrieval' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'Hypothetical Generator Prompt Engineered', done: true },
+          { id: 'm2', label: 'Phase 4 Short-Query Golden Set Evaluated', done: false },
+          { id: 'm3', label: 'ARB Prompt Safety & Ephemeral Guard Review', done: false },
+          { id: 'm4', label: 'Air-Gapped HyDE Service Deployed', done: false },
+          { id: 'm5', label: 'Query Expansion Audit Telemetry Enabled', done: false }
+        ]
+      }
+    },
+    corrective: {
+      design: {
+        workloadFit: 'Regulated industries (banking, pharma, healthcare, legal compliance) where hallucinating or generating ungrounded answers from noisy chunks is unacceptable.',
+        sizingHardware: 'Standard vector DB (pgvector / Qdrant) + lightweight classifier / evaluator model (e.g. DeBERTa-v3 or Llama-3-8B evaluator). Latency: 250ms–450ms.',
+        ingestionRules: '128-token semantic chunking with strict source metadata tags (document class, revision date, security classification).',
+        keyLevers: 'Confidence Gate: ≥ 0.75 | Fallback Provider: SearXNG / Archive | Strip Ratio: 40%'
+      },
+      document: {
+        arbDefense: [
+          'Directly answers the #1 enterprise objection: "What happens when vector search retrieves irrelevant or misleading documents?".',
+          'Features an explicit, deterministic Confidence Evaluator that filters noise and gates generation.',
+          'Includes an automated fallback path (enterprise archive or SearXNG air-gapped web search) when internal corpus is insufficient.'
+        ],
+        invariants: [
+          'Zero generation allowed if evaluator confidence < 0.4 and fallback is unavailable (fails safe).',
+          'Confidence score and evaluator reasoning recorded in Ed25519 audit receipts.'
+        ],
+        executiveSlide: 'Corrective RAG enforces a deterministic confidence evaluator before generation, guaranteeing zero hallucinated answers from noisy internal manuals in regulated operations.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Evaluator Precision', target: '≥ 96%', desc: 'Accuracy in identifying irrelevant chunks' },
+          { name: 'Hallucination Residual Rate', target: '0.0%', desc: 'Strict zero ungrounded statements' },
+          { name: 'Fallback Trigger Rate', target: '< 15%', desc: 'Expected percentage of fallback lookups' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'Confidence Evaluator Threshold Calibrated', done: true },
+          { id: 'm2', label: 'Phase 4 50-Case Adversarial Golden Evals Passed', done: false },
+          { id: 'm3', label: 'ARB Zero-Hallucination Gate Sign-off', done: false },
+          { id: 'm4', label: 'CRAG Pipeline with Air-Gapped Fallback Deployed', done: false },
+          { id: 'm5', label: 'Ed25519 Verification Receipts Active', done: false }
+        ]
+      }
+    },
+    graph: {
+      design: {
+        workloadFit: 'Complex interconnected domains (supply chains, corporate ownership, clinical drug pathways, fraud networks) requiring multi-hop reasoning.',
+        sizingHardware: 'Hybrid Vector + Graph DB: Neo4j Enterprise or Kùzu embedded. RAM: 16–32GB. Graph index: Entity + Relationship property graph. Latency: 300ms–800ms.',
+        ingestionRules: 'Entity-Relationship extraction via LLM or GLiNER; Entity resolution & deduplication; Community detection & hierarchical clustering.',
+        keyLevers: 'Graph Engine: Neo4j / Kùzu | Max Traversal Hops: 3 | Community Clusters: 12'
+      },
+      document: {
+        arbDefense: [
+          'Demonstrates why vector search alone fails on relational questions (e.g. "What subsidiaries of Vendor X supply components to Product Y?").',
+          'Provides visual, auditable Knowledge Graph traversal paths for every retrieved entity.',
+          'Community summarization delivers global synthesis across thousands of documents simultaneously.'
+        ],
+        invariants: [
+          'Entity resolution must enforce strict canonical naming to prevent entity fragmentation.',
+          'Graph traversal path length is strictly bounded to prevent exponential query explosion.'
+        ],
+        executiveSlide: 'Graph RAG bridges the multi-hop gap that vector search cannot see, uncovering hidden relationships across corporate entities, supply chains, and complex regulations.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Multi-Hop Path Recall', target: '≥ 88%', desc: 'Accuracy on multi-step entity queries' },
+          { name: 'Entity Extraction Precision', target: '≥ 94%', desc: 'Correct entity triplet identification' },
+          { name: 'P95 Graph Query Latency', target: '< 800ms', desc: 'Hybrid vector + Cypher traversal' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'Knowledge Graph Schema & Triplet Extraction Built', done: true },
+          { id: 'm2', label: 'Phase 4 Multi-Hop Golden Test Cases Evaluated', done: false },
+          { id: 'm3', label: 'ARB Graph Database & Security Clearance', done: false },
+          { id: 'm4', label: 'Air-Gapped Neo4j / Kùzu Cluster Deployed', done: false },
+          { id: 'm5', label: 'Graph Traversal Audit Trails Configured', done: false }
+        ]
+      }
+    },
+    hybrid: {
+      design: {
+        workloadFit: 'Enterprise Production Gold Standard. Workloads mixing exact alphanumeric identifiers (part numbers, invoice IDs, legal statutes, ICD-10 codes) with natural language questions.',
+        sizingHardware: 'pgvector (with pg_trgm / tsvector) or Qdrant with sparse-dense payload. CPU/GPU: Moderate. RAM: 8–16GB. Latency: <120ms.',
+        ingestionRules: 'Dual indexing: Dense vector embeddings (768d nomic) + Sparse BM25 inverted index tokenized with symbol preservation.',
+        keyLevers: 'RRF Constant (k): 60 | Dense Weight: 0.6 | Sparse Weight: 0.4'
+      },
+      document: {
+        arbDefense: [
+          'De-facto industry standard for mission-critical enterprise search.',
+          'Mathematically fuses lexical precision with semantic intent using Reciprocal Rank Fusion (RRF).',
+          'Guarantees 100% exact-match recall on product codes while preserving semantic understanding for natural language.'
+        ],
+        invariants: [
+          'Exact SKU / ID tokens must never be stripped by aggressive stop-word filters.',
+          'Reciprocal Rank Fusion ensures rank stability across heterogeneous scoring distributions.'
+        ],
+        executiveSlide: 'Hybrid RAG combines the pinpoint precision of BM25 keyword matching with dense AI embeddings, guaranteeing 100% exact-match recall on critical business codes.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Exact-Match SKU Recall', target: '100%', desc: 'Alphanumeric code search accuracy' },
+          { name: 'Semantic RRF Concordance', target: '≥ 0.94', desc: 'Fused rank correlation (NDCG@10)' },
+          { name: 'P95 Latency SLA', target: '< 120ms', desc: 'Dual-search + RRF fusion latency' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'Dense Vector & Sparse BM25 Indexes Built', done: true },
+          { id: 'm2', label: 'Phase 4 Dual-Mode Golden Benchmark Evaluated', done: false },
+          { id: 'm3', label: 'ARB Enterprise Production Standard Approved', done: false },
+          { id: 'm4', label: 'Postgres pgvector + BM25 Container Deployed', done: false },
+          { id: 'm5', label: 'RRF Search Telemetry & Audit Logging Active', done: false }
+        ]
+      }
+    },
+    adaptive: {
+      design: {
+        workloadFit: 'High-throughput enterprise portals handling a mixed spectrum of queries (e.g. 30% simple greetings/chitchat, 50% single-document lookups, 20% complex multi-document research).',
+        sizingHardware: 'Lightweight classifier model (SetFit or small DistilBERT / Qwen 0.5B router) + vector store. Optimizes total GPU/CPU compute by 30–50%.',
+        ingestionRules: 'Hierarchical chunk indexing: Small 128-token chunks for single-hop; cluster-level multi-document summaries for complex research.',
+        keyLevers: 'Router Strategy: Classifier Small | Routing Threshold: 0.82 | Iterative Max Steps: 3'
+      },
+      document: {
+        arbDefense: [
+          'Appeals directly to CFO and Head of Engineering on infrastructure cost and latency optimization.',
+          'Avoids wasteful vector database queries on non-retrieval prompts, reducing unnecessary server load.',
+          'Dynamically allocates expensive iterative multi-hop retrieval only when query complexity strictly demands it.'
+        ],
+        invariants: [
+          'Classifier fallback defaults to single-pass retrieval on ambiguous query classifications.',
+          'Every routed query logs its decision path for continuous classifier re-training.'
+        ],
+        executiveSlide: 'Adaptive RAG dynamically routes queries based on complexity, eliminating wasted vector compute on simple questions and cutting infrastructure costs by 35%.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Routing Accuracy', target: '≥ 96%', desc: 'Correct branch classification' },
+          { name: 'Compute Cost Reduction', target: '≥ 35%', desc: 'Saved vector/LLM compute cycles' },
+          { name: 'Average P95 Latency', target: '< 150ms', desc: 'Blended response latency across branches' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'Query Router Classifier Trained & Validated', done: true },
+          { id: 'm2', label: 'Phase 4 Multi-Tier Complexity Benchmark Evaluated', done: false },
+          { id: 'm3', label: 'ARB Cost-Optimization & Routing Architecture Review', done: false },
+          { id: 'm4', label: 'Adaptive Routing Microservice Deployed', done: false },
+          { id: 'm5', label: 'Routing Decision Log Telemetry Active', done: false }
+        ]
+      }
+    },
+    agentic: {
+      design: {
+        workloadFit: 'Deep investigation, complex multi-database financial auditing, comparative policy analysis, and cross-system reconciliation requiring autonomous tool execution.',
+        sizingHardware: 'High-capability reasoning model (e.g. Claude 3.5 Sonnet, DeepSeek-R1, or Qwen 2.5 32B/72B local) + vector store + SQL database connections. Latency: 800ms–3.5s.',
+        ingestionRules: 'Multi-source indexing: Document vector store + Relational schema catalog + API endpoint tooling definitions.',
+        keyLevers: 'Max ReAct Steps: 5 | Tool Timeout: 1200ms | Sub-Query Max: 3'
+      },
+      document: {
+        arbDefense: [
+          'Defends autonomous tool usage to InfoSec by enforcing strict read-only tool permissions and bounded step limits.',
+          'Self-reflective verification: agent critiques retrieved evidence and reformulates queries if evidence is deficient.',
+          'Complete step-by-step audit trail (Thought, Action, Observation) stored with Ed25519 cryptographic receipts.'
+        ],
+        invariants: [
+          'Strict maximum step budget (M=5) prevents infinite execution loops.',
+          'Tools operate under least-privilege air-gapped isolation with mandatory parameter validation.'
+        ],
+        executiveSlide: 'Agentic RAG delivers autonomous multi-step reasoning, iteratively querying documents, databases, and APIs to solve complex investigations that single-pass RAG cannot handle.'
+      },
+      track: {
+        phase4Metrics: [
+          { name: 'Multi-Step Goal Completion', target: '≥ 91%', desc: 'Successful end-to-end question resolution' },
+          { name: 'Step Budget Adherence', target: '100%', desc: 'Zero execution loop overflows (<=5 steps)' },
+          { name: 'Tool Invocation Precision', target: '≥ 98%', desc: 'Valid parameters and appropriate tool choice' }
+        ],
+        milestones: [
+          { id: 'm1', label: 'ReAct Agent Tools & Reasoning Loop Configured', done: true },
+          { id: 'm2', label: 'Phase 4 Complex Multi-Step Golden Evals Passed', done: false },
+          { id: 'm3', label: 'ARB Agentic Tool Permissions & Security Clearance', done: false },
+          { id: 'm4', label: 'Autonomous Agentic Service Deployed in Container', done: false },
+          { id: 'm5', label: 'Step-by-Step Ed25519 Audit Receipt Logging Active', done: false }
+        ]
+      }
+    }
+  };
+
   let selectedRagArchKey = 'hybrid';
-  let activeRagViewMode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code' = 'visual';
+  let activeRagViewMode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code' | 'playbook' = 'visual';
+
+  const renderRagPlaybookUi = (arch: any) => {
+    const pbBox = document.getElementById('ragPlaybookDisplay');
+    if (!pbBox) return;
+
+    const playbook = DELIVERY_PLAYBOOKS[arch.id] || DELIVERY_PLAYBOOKS['hybrid'];
+
+    pbBox.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(251, 191, 36, 0.25); padding-bottom: 8px;">
+        <div>
+          <span style="font-size: 13px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+            <span>📋</span> FDE Delivery Playbook: ${arch.num} ${escapeHtml(arch.name)}
+          </span>
+          <span style="font-size: 10.5px; color: var(--text-secondary);">
+            End-to-End Enterprise Delivery Lifecycle: Engineering Design, Governance Documentation &amp; Reliability Tracking
+          </span>
+        </div>
+        <button class="btn" id="btnPlaybookAdvanceP4" style="font-size: 11px; padding: 4px 12px; background: var(--success); color: #1e1e1e; font-weight: 700; cursor: pointer;" aria-label="Bridge to Phase 4 Evals">
+          🚀 Bridge to Phase 4 Evals →
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+        
+        <!-- COLUMN 1: DESIGN & SIZING SPECIFICATION -->
+        <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #fbbf24; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>🎨</span> 1. DESIGN &amp; SIZING
+          </div>
+          
+          <div style="font-size: 10.5px; color: #e2e8f0; margin-bottom: 8px;">
+            <strong style="color: #fff;">Workload Fit:</strong><br/>
+            ${escapeHtml(playbook.design.workloadFit)}
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0; margin-bottom: 8px;">
+            <strong style="color: #fff;">Air-Gapped Sizing:</strong><br/>
+            ${escapeHtml(playbook.design.sizingHardware)}
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0; margin-bottom: 8px;">
+            <strong style="color: #fff;">Ingestion &amp; Chunking:</strong><br/>
+            ${escapeHtml(playbook.design.ingestionRules)}
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0;">
+            <strong style="color: #fff;">Key Architectural Levers:</strong><br/>
+            <span style="font-family: Consolas, monospace; font-size: 10px; color: #fbbf24;">${escapeHtml(playbook.design.keyLevers)}</span>
+          </div>
+        </div>
+
+        <!-- COLUMN 2: DOCUMENTATION & ARB GOVERNANCE -->
+        <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📄</span> 2. DOCUMENT &amp; DEFEND
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0; margin-bottom: 8px;">
+            <strong style="color: #fff;">ARB Defense Strategy:</strong>
+            <ul style="margin: 4px 0 0 0; padding-left: 14px; color: #cbd5e1; font-size: 10px; line-height: 1.4;">
+              ${playbook.document.arbDefense.map((d: string) => `<li>${escapeHtml(d)}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0; margin-bottom: 8px;">
+            <strong style="color: #fff;">Security &amp; Invariants:</strong>
+            <ul style="margin: 4px 0 0 0; padding-left: 14px; color: #cbd5e1; font-size: 10px; line-height: 1.4;">
+              ${playbook.document.invariants.map((inv: string) => `<li>${escapeHtml(inv)}</li>`).join('')}
+            </ul>
+          </div>
+
+          <div style="margin-top: 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 4px; padding: 6px 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 10px; color: #38bdf8; font-weight: 700;">Living ADR Generated</span>
+              <button class="btn-quick" id="btnPlaybookExportAdr" style="font-size: 9.5px; padding: 2px 6px;">Update ADR</button>
+            </div>
+            <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">
+              <code>docs/architecture/rag_architecture_adr.md</code>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMN 3: TRACKING & RELIABILITY EVALS -->
+        <div style="background: rgba(78, 201, 176, 0.05); border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 6px; padding: 12px;">
+          <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📊</span> 3. TRACK &amp; DELIVER
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0; margin-bottom: 8px;">
+            <strong style="color: #fff;">Phase 4 Golden Test Focus:</strong>
+            <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 4px;">
+              ${playbook.track.phase4Metrics.map((m: any) => `
+                <div style="background: rgba(0,0,0,0.35); border-radius: 3px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 10px; color: #fff;">${escapeHtml(m.name)}</span>
+                  <span style="font-size: 9.5px; font-weight: 700; color: var(--accent);">${escapeHtml(m.target)}</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <div style="font-size: 10.5px; color: #e2e8f0;">
+            <strong style="color: #fff;">FDE Delivery Milestones:</strong>
+            <div style="margin-top: 4px; display: flex; flex-direction: column; gap: 4px;" id="boxPlaybookMilestones">
+              ${playbook.track.milestones.map((ms: any) => `
+                <label style="font-size: 10px; color: #cbd5e1; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                  <input type="checkbox" ${ms.done ? 'checked' : ''} class="chk-delivery-milestone" data-ms="${ms.id}" />
+                  <span>${escapeHtml(ms.label)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    `;
+
+    document.getElementById('btnPlaybookAdvanceP4')?.addEventListener('click', () => {
+      document.getElementById('btnAdvancePhase4')?.click();
+    });
+    document.getElementById('btnPlaybookExportAdr')?.addEventListener('click', () => {
+      document.getElementById('btnExportRagAdrDoc')?.click();
+    });
+  };
 
   const renderRagArchitectureUi = (archKey: string) => {
     const arch = RAG_ARCHITECTURES[archKey] || RAG_ARCHITECTURES['hybrid'];
@@ -16623,6 +17041,16 @@ class AgenticRagPipeline:
 
     const btnScaffold = document.getElementById('btnScaffoldRagPolicy') as HTMLButtonElement | null;
     if (btnScaffold) btnScaffold.textContent = `🚀 Scaffold ${arch.name} Pipeline`;
+
+    // Update Phase 4 Evaluation context banner
+    const lblP4Name = document.getElementById('lblP4ActiveRagArchName');
+    if (lblP4Name) lblP4Name.textContent = `${arch.num} ${arch.name} (${arch.badge})`;
+
+    const lblP4Metrics = document.getElementById('lblP4ActiveRagArchMetrics');
+    if (lblP4Metrics && DELIVERY_PLAYBOOKS[arch.id]) {
+      const metricsSummary = DELIVERY_PLAYBOOKS[arch.id].track.phase4Metrics.map(m => `${m.name} (${m.target})`).join(', ');
+      lblP4Metrics.textContent = `Phase 4 Golden Test Focus: ${metricsSummary}.`;
+    }
 
     // 1. Render Visual Pipeline Flow
     const visualBox = document.getElementById('ragVisualFlowDisplay');
@@ -16654,49 +17082,56 @@ class AgenticRagPipeline:
             <div style="flex: 1; background: ${bgCol}; border: 1px solid ${borderCol}; border-radius: 5px; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <span style="font-size: 11px; font-weight: 700; color: #fff;">${escapeHtml(st.name)}</span>
-                <div style="font-size: 10px; color: var(--text-secondary); margin-top: 1px;">${escapeHtml(st.detail)}</div>
+                <div style="font-size: 10px; color: #cbd5e1; margin-top: 1px;">${escapeHtml(st.detail)}</div>
               </div>
-              <span style="font-size: 9px; text-transform: uppercase; color: ${badgeCol}; font-weight: 700; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">
+              <span style="font-size: 9px; text-transform: uppercase; font-weight: bold; color: ${badgeCol}; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; border: 1px solid ${borderCol};">
                 ${st.type}
               </span>
             </div>
           </div>
         `;
+
         if (idx < arch.stages.length - 1) {
-          flowHtml += `<div style="text-align: center; color: var(--text-muted); font-size: 10px; line-height: 10px; margin-left: 9px;">▼</div>`;
+          flowHtml += `
+            <div style="text-align: center; color: var(--text-muted); font-size: 10px; line-height: 10px; margin: -2px 0;">
+              ▼
+            </div>
+          `;
         }
       });
+
       flowHtml += '</div>';
       visualBox.innerHTML = flowHtml;
     }
 
     // 2. Render Mermaid Code
     const preMermaid = document.getElementById('preRagMermaidCode');
-    if (preMermaid) preMermaid.textContent = arch.mermaidFlow;
+    if (preMermaid) {
+      preMermaid.textContent = arch.mermaidFlow;
+    }
 
-    // 3. Render Client Solutioning Narrative & Pitch
+    // 3. Render Solutioning Narrative & Pitch
     const pitchBox = document.getElementById('ragPitchDisplay');
     if (pitchBox) {
       pitchBox.innerHTML = `
-        <div style="margin-bottom: 12px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 10px 12px;">
-          <div style="font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-            <span>💼</span> Client Executive Solutioning Pitch (For VP of Eng / Chief Data Officer):
+        <div style="margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <span style="font-size: 14px;">💼</span>
+            <strong style="color: #fff; font-size: 12px;">Executive Solutioning Narrative: ${arch.name}</strong>
           </div>
           <p style="font-size: 11px; color: #cbd5e1; margin: 0; line-height: 1.5; font-style: italic;">
             "${escapeHtml(arch.elevatorPitch)}"
           </p>
         </div>
-
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div style="background: rgba(74, 222, 128, 0.06); border: 1px solid rgba(74, 222, 128, 0.25); border-radius: 6px; padding: 10px;">
             <div style="font-size: 11px; font-weight: 700; color: #4ade80; margin-bottom: 6px;">
-              ✓ When to USE (${arch.name}):
+              ✓ When to Propose to Client:
             </div>
             <ul style="margin: 0; padding-left: 16px; font-size: 10.5px; color: #cbd5e1; line-height: 1.45;">
               ${arch.whenToUse.map(u => `<li>${escapeHtml(u)}</li>`).join('')}
             </ul>
           </div>
-
           <div style="background: rgba(248, 113, 113, 0.06); border: 1px solid rgba(248, 113, 113, 0.25); border-radius: 6px; padding: 10px;">
             <div style="font-size: 11px; font-weight: 700; color: #f87171; margin-bottom: 6px;">
               ⚠️ WATCH OUT / Production Risks &amp; Trade-Offs:
@@ -16752,18 +17187,22 @@ class AgenticRagPipeline:
       codeBox.textContent = selLang === 'python' ? arch.codePreviewPy : arch.codePreviewTs;
     }
 
-    // 6. Render Dynamic Parameters Box
+    // 6. Render FDE Delivery Playbook
+    renderRagPlaybookUi(arch);
+
+    // 7. Render Dynamic Parameters Box
     const dynBox = document.getElementById('boxRagDynamicParams');
     if (dynBox) dynBox.innerHTML = arch.dynamicParamHtml;
   };
 
-  const setRagViewMode = (mode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code') => {
+  const setRagViewMode = (mode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code' | 'playbook') => {
     activeRagViewMode = mode;
     const vVisual = document.getElementById('ragVisualFlowDisplay');
     const vMermaid = document.getElementById('ragMermaidDisplay');
     const vPitch = document.getElementById('ragPitchDisplay');
     const vMatrix = document.getElementById('ragMatrixDisplay');
     const vCode = document.getElementById('ragCodeDisplay');
+    const vPlaybook = document.getElementById('ragPlaybookDisplay');
     const hint = document.getElementById('lblRagViewModeHint');
 
     if (vVisual) vVisual.style.display = mode === 'visual' ? 'block' : 'none';
@@ -16771,12 +17210,14 @@ class AgenticRagPipeline:
     if (vPitch) vPitch.style.display = mode === 'pitch' ? 'block' : 'none';
     if (vMatrix) vMatrix.style.display = mode === 'matrix' ? 'block' : 'none';
     if (vCode) vCode.style.display = mode === 'code' ? 'block' : 'none';
+    if (vPlaybook) vPlaybook.style.display = mode === 'playbook' ? 'block' : 'none';
 
     document.getElementById('btnRagViewVisual')?.classList.toggle('active', mode === 'visual');
     document.getElementById('btnRagViewMermaid')?.classList.toggle('active', mode === 'mermaid');
     document.getElementById('btnRagViewPitch')?.classList.toggle('active', mode === 'pitch');
     document.getElementById('btnRagViewMatrix')?.classList.toggle('active', mode === 'matrix');
     document.getElementById('btnRagViewCode')?.classList.toggle('active', mode === 'code');
+    document.getElementById('btnRagViewPlaybook')?.classList.toggle('active', mode === 'playbook');
 
     if (hint) {
       switch (mode) {
@@ -16785,6 +17226,7 @@ class AgenticRagPipeline:
         case 'pitch': hint.textContent = 'Client executive solutioning narrative & trade-offs'; break;
         case 'matrix': hint.textContent = '8-way comparative SLA, cost, and complexity matrix'; break;
         case 'code': hint.textContent = 'Production code contract preview'; break;
+        case 'playbook': hint.textContent = 'FDE end-to-end delivery roadmap: Design sizing, ARB documentation, and Phase 4/5/6 tracking'; break;
       }
     }
   };
@@ -16795,6 +17237,15 @@ class AgenticRagPipeline:
   document.getElementById('btnRagViewPitch')?.addEventListener('click', () => setRagViewMode('pitch'));
   document.getElementById('btnRagViewMatrix')?.addEventListener('click', () => setRagViewMode('matrix'));
   document.getElementById('btnRagViewCode')?.addEventListener('click', () => setRagViewMode('code'));
+  document.getElementById('btnRagViewPlaybook')?.addEventListener('click', () => setRagViewMode('playbook'));
+
+  // Wire Phase 4 Jump button back to Phase 3C RAG Studio
+  document.getElementById('btnP4JumpToRagStudio')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(3);
+    const card = document.getElementById('phase3Card');
+    if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
 
   // Wire Language selector
   document.getElementById('selRagLanguage')?.addEventListener('change', () => {
