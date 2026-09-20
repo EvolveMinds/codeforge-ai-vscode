@@ -3771,7 +3771,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                       <div style="display: flex; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 4px; overflow: hidden;">
                         <button class="btn-quick active" id="btnRagViewVisual" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">🎨 Visual Flow</button>
-                        <button class="btn-quick" id="btnRagViewMermaid" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">📐 Mermaid Flowchart</button>
+                        <button class="btn-quick" id="btnRagViewMermaid" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">📐 Flowchart (Diagram &amp; Mermaid)</button>
                         <button class="btn-quick" id="btnRagViewPitch" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">💼 Client Solutioning Narrative</button>
                         <button class="btn-quick" id="btnRagViewMatrix" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">📊 8-Way Trade-Off Matrix</button>
                         <button class="btn-quick" id="btnRagViewCode" style="font-size: 10px; padding: 3px 9px; border: none; margin: 0; cursor: pointer;">💻 Code Contract</button>
@@ -3788,9 +3788,34 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                       <!-- Populated dynamically -->
                     </div>
 
-                    <!-- 2. Mermaid Flowchart Panel -->
-                    <div id="ragMermaidDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; max-height: 280px; overflow-y: auto;">
-                      <pre id="preRagMermaidCode" style="margin: 0; font-family: Consolas, monospace; font-size: 10.5px; color: #9cdcfe; white-space: pre-wrap; line-height: 1.45;"></pre>
+                    <!-- 2. Mermaid Flowchart Panel (Rendered Visual Diagram + Source Code Toggle) -->
+                    <div id="ragMermaidDisplay" style="display: none; background: #101010; border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px; max-height: 380px; overflow-y: auto;">
+                      <!-- Sub-Header: Title, View Switcher & Copy Controls -->
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <span style="font-size: 13px;">📐</span>
+                          <strong style="color: #fff; font-size: 11.5px;" id="lblRagFlowchartTitle">Architecture Flowchart</strong>
+                          <span style="font-size: 9.5px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 3px;" id="lblRagFlowchartBadge">Live Visual Flow</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                          <div style="display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.4);">
+                            <button type="button" class="btn-quick active" id="btnRagToggleDiagramView" style="font-size: 10px; padding: 3px 8px; border: none; margin: 0; cursor: pointer;">🗺️ Visual Diagram</button>
+                            <button type="button" class="btn-quick" id="btnRagToggleSourceView" style="font-size: 10px; padding: 3px 8px; border: none; margin: 0; cursor: pointer;">✎ Mermaid Code</button>
+                          </div>
+                          <button class="btn-quick" id="btnCopyRagFlowchartMermaid" style="font-size: 10px; padding: 3px 8px; cursor: pointer;" title="Copy Mermaid Syntax to Clipboard">📋 Copy Mermaid</button>
+                          <button class="btn-quick" id="btnCopyRagFlowchartSvg" style="font-size: 10px; padding: 3px 8px; cursor: pointer;" title="Copy Vector SVG to Clipboard">📥 Copy SVG</button>
+                        </div>
+                      </div>
+
+                      <!-- A. Visual Rendered Flowchart Container -->
+                      <div id="boxRagFlowchartSvgContainer" style="background: #0a0a0a; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px; display: flex; justify-content: center; align-items: center; min-height: 230px; overflow-x: auto;">
+                        <!-- SVG flowchart injected dynamically -->
+                      </div>
+
+                      <!-- B. Raw Mermaid Source Code Container -->
+                      <div id="boxRagFlowchartSourceContainer" style="display: none; background: #0e0e0e; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 10px;">
+                        <pre id="preRagMermaidCode" style="margin: 0; font-family: Consolas, monospace; font-size: 11px; color: #9cdcfe; white-space: pre-wrap; line-height: 1.45;"></pre>
+                      </div>
                     </div>
 
                     <!-- 3. Client Solutioning Narrative Panel -->

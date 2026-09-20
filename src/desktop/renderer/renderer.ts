@@ -17104,11 +17104,223 @@ class AgenticRagPipeline:
       visualBox.innerHTML = flowHtml;
     }
 
-    // 2. Render Mermaid Code
-    const preMermaid = document.getElementById('preRagMermaidCode');
-    if (preMermaid) {
-      preMermaid.textContent = arch.mermaidFlow;
+  // --- Live Visual SVG Flowchart Generator for 8 Canonical RAG Architectures ---
+  const generateRagFlowchartSvg = (archKey: string): string => {
+    const defs = `
+      <defs>
+        <marker id="ragArr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8" />
+        </marker>
+        <marker id="ragArrGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#4ade80" />
+        </marker>
+        <marker id="ragArrPurple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#c084fc" />
+        </marker>
+        <marker id="ragArrAmber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#fbbf24" />
+        </marker>
+        <marker id="ragArrRed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#f87171" />
+        </marker>
+      </defs>
+    `;
+
+    const n = (x: number, y: number, w: number, h: number, stroke: string, bg: string, title: string, sub: string, titleColor: string = '#fff') => `
+      <g transform="translate(${x}, ${y})">
+        <rect width="${w}" height="${h}" rx="6" fill="${bg}" stroke="${stroke}" stroke-width="1.5" />
+        <text x="10" y="22" fill="${titleColor}" font-size="11" font-weight="700" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">${title}</text>
+        <text x="10" y="38" fill="#94a3b8" font-size="9" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">${sub}</text>
+      </g>
+    `;
+
+    const arr = (x1: number, y1: number, x2: number, y2: number, color: string = '#38bdf8', marker: string = 'ragArr', lbl?: string, ly: number = -6) => `
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}" stroke-width="1.6" marker-end="url(#${marker})" />
+      ${lbl ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 + ly}" fill="${color}" font-size="8.5" text-anchor="middle" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">${lbl}</text>` : ''}
+    `;
+
+    const pth = (d: string, color: string = '#38bdf8', marker: string = 'ragArr', lbl?: string, lx?: number, ly?: number) => `
+      <path d="${d}" stroke="${color}" stroke-width="1.6" fill="none" marker-end="url(#${marker})" />
+      ${(lbl && lx && ly) ? `<text x="${lx}" y="${ly}" fill="${color}" font-size="8.5" text-anchor="middle" font-weight="bold" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">${lbl}</text>` : ''}
+    `;
+
+    let body = '';
+
+    switch (archKey) {
+      case 'naive':
+        body = `
+          ${n(20, 30, 140, 52, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '📄 Docs Corpus', 'Internal FAQs & SOPs')}
+          ${n(200, 30, 145, 52, '#94a3b8', 'rgba(148, 163, 184, 0.08)', '✂️ Chunking Engine', '128-Tokens + 16 Overlap')}
+          ${n(385, 30, 165, 52, '#c084fc', 'rgba(192, 132, 252, 0.12)', '🗄️ PgVector / Qdrant', 'HNSW Cosine Vector Store', '#c084fc')}
+          ${n(20, 135, 140, 52, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 User Query', 'Single-pass prompt')}
+          ${n(200, 135, 145, 52, '#60a5fa', 'rgba(96, 165, 250, 0.08)', '⚡ Embeddings (768d)', 'nomic-embed-text')}
+          ${n(590, 80, 150, 62, '#4ade80', 'rgba(74, 222, 128, 0.1)', '🤖 LLM Generator', 'Prompt + Top-K Citations', '#4ade80')}
+          ${n(775, 87, 85, 48, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🎯 Answer', 'Grounded fact', '#22c55e')}
+          ${arr(160, 56, 200, 56, '#38bdf8', 'ragArr')}
+          ${arr(345, 56, 385, 56, '#94a3b8', 'ragArr')}
+          ${arr(160, 161, 200, 161, '#38bdf8', 'ragArr')}
+          ${pth('M 345 161 L 467 161 L 467 82', '#60a5fa', 'ragArr', 'HNSW Match', 467, 125)}
+          ${pth('M 550 56 L 665 56 L 665 80', '#c084fc', 'ragArrPurple', 'Top-K Chunks', 605, 50)}
+          ${arr(740, 111, 775, 111, '#4ade80', 'ragArrGreen')}
+        `;
+        break;
+
+      case 'multimodal':
+        body = `
+          ${n(20, 15, 130, 42, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '📄 Text Manuals', 'Unstructured PDFs')}
+          ${n(20, 68, 130, 42, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '📐 Blueprints', 'CAD & Schematics')}
+          ${n(20, 121, 130, 42, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '📊 Balance Sheets', 'Financial Tables')}
+          ${n(185, 55, 175, 68, '#4ade80', 'rgba(74, 222, 128, 0.1)', '👁️ ColPali Vision Encoder', 'Preserves 2D Spatial Geometry', '#4ade80')}
+          ${n(395, 55, 165, 68, '#c084fc', 'rgba(192, 132, 252, 0.12)', '🖼️ Multi-Modal Store', 'Multi-Vector Patch Embeds', '#c084fc')}
+          ${n(20, 175, 155, 42, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 Query (Text+Img)', 'Multimodal Prompt')}
+          ${n(595, 70, 155, 68, '#38bdf8', 'rgba(56, 189, 248, 0.1)', '🤖 Vision LLM', 'Gemini 2.0 / GPT-4o', '#38bdf8')}
+          ${n(780, 80, 85, 48, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🎯 Answer', 'Visual Grounding', '#22c55e')}
+          ${arr(150, 36, 185, 75, '#38bdf8', 'ragArr')}
+          ${arr(150, 89, 185, 89, '#38bdf8', 'ragArr')}
+          ${arr(150, 142, 185, 105, '#38bdf8', 'ragArr')}
+          ${arr(360, 89, 395, 89, '#4ade80', 'ragArrGreen')}
+          ${pth('M 175 196 L 477 196 L 477 123', '#38bdf8', 'ragArr', 'Query Patches', 325, 190)}
+          ${arr(560, 89, 595, 89, '#c084fc', 'ragArrPurple', 'Visual Chunks', -8)}
+          ${arr(750, 104, 780, 104, '#38bdf8', 'ragArr')}
+        `;
+        break;
+
+      case 'hyde':
+        body = `
+          ${n(20, 80, 150, 56, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 Short User Query', 'Colloquial / Acronym Heavy')}
+          ${n(210, 20, 170, 56, '#fbbf24', 'rgba(251, 191, 36, 0.1)', '💡 LLM Hypo Generator', 'Drafts Hypothetical Passage', '#fbbf24')}
+          ${n(415, 20, 155, 56, '#60a5fa', 'rgba(96, 165, 250, 0.08)', '⚡ Embed Hypo Doc', 'Maps to Document Space')}
+          ${n(605, 20, 155, 56, '#c084fc', 'rgba(192, 132, 252, 0.12)', '🗄️ Vector Store', 'Retrieves Real Documents', '#c084fc')}
+          ${n(605, 135, 155, 56, '#4ade80', 'rgba(74, 222, 128, 0.1)', '🤖 Final Synthesis LLM', 'Grounded on Real Evidence', '#4ade80')}
+          ${n(785, 140, 85, 46, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🎯 Answer', 'Zero Jargon Gap', '#22c55e')}
+          ${pth('M 170 95 L 210 48', '#38bdf8', 'ragArr', 'Expand Vocab', 170, 65)}
+          ${arr(380, 48, 415, 48, '#fbbf24', 'ragArrAmber')}
+          ${arr(570, 48, 605, 48, '#60a5fa', 'ragArr')}
+          ${arr(682, 76, 682, 135, '#c084fc', 'ragArrPurple', 'Real Chunks', 40)}
+          ${pth('M 170 120 L 510 163 L 605 163', '#38bdf8', 'ragArr', 'Original User Intent', 340, 155)}
+          ${arr(760, 163, 785, 163, '#4ade80', 'ragArrGreen')}
+        `;
+        break;
+
+      case 'corrective':
+        body = `
+          ${n(20, 85, 120, 52, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 User Query', 'Strict Precision')}
+          ${n(170, 85, 130, 52, '#c084fc', 'rgba(192, 132, 252, 0.12)', '🗄️ Vector Search', 'Raw Top-K Retrieval', '#c084fc')}
+          ${n(330, 75, 155, 72, '#fbbf24', 'rgba(251, 191, 36, 0.12)', '🛡️ Confidence Evaluator', 'Calibrated Score Gate (≥0.75)', '#fbbf24')}
+          ${n(525, 20, 165, 52, '#4ade80', 'rgba(74, 222, 128, 0.1)', '✂️ Filter & Strip Noise', 'Score ≥ 0.75: Prunes Chunks', '#4ade80')}
+          ${n(525, 150, 165, 52, '#f87171', 'rgba(248, 113, 113, 0.1)', '🌐 Air-Gap Fallback Search', 'Score < 0.75: Enterprise Archive', '#f87171')}
+          ${n(720, 80, 140, 62, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🤖 Grounded LLM', '0-Hallucination Gate', '#22c55e')}
+          ${arr(140, 111, 170, 111, '#38bdf8', 'ragArr')}
+          ${arr(300, 111, 330, 111, '#c084fc', 'ragArrPurple')}
+          ${pth('M 485 95 L 525 46', '#4ade80', 'ragArrGreen', 'Confident', 490, 65)}
+          ${pth('M 485 125 L 525 176', '#f87171', 'ragArrRed', 'Ambiguous', 490, 155)}
+          ${pth('M 690 46 L 790 46 L 790 80', '#4ade80', 'ragArrGreen')}
+          ${pth('M 690 176 L 790 176 L 790 142', '#f87171', 'ragArrRed')}
+        `;
+        break;
+
+      case 'graph':
+        body = `
+          ${n(20, 30, 140, 52, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '📄 Enterprise Corpus', 'Contracts & Reports')}
+          ${n(195, 30, 155, 52, '#fbbf24', 'rgba(251, 191, 36, 0.1)', '🕸️ Triplet Extractor', 'Entity-Relation-Entity', '#fbbf24')}
+          ${n(385, 25, 170, 62, '#c084fc', 'rgba(192, 132, 252, 0.15)', '🕸️ Knowledge Graph', 'Neo4j / Kùzu Graph Store', '#c084fc')}
+          ${n(20, 135, 140, 52, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 Relational Query', 'Multi-hop question')}
+          ${n(195, 130, 165, 62, '#38bdf8', 'rgba(56, 189, 248, 0.1)', '🔎 Hybrid Cypher Search', 'Traverses 1-3 Hops + Vectors', '#38bdf8')}
+          ${n(595, 78, 155, 64, '#4ade80', 'rgba(74, 222, 128, 0.1)', '🤖 Graph Reasoner LLM', 'Community Summaries', '#4ade80')}
+          ${n(780, 85, 85, 50, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🎯 Insights', 'Multi-Hop Paths', '#22c55e')}
+          ${arr(160, 56, 195, 56, '#38bdf8', 'ragArr')}
+          ${arr(350, 56, 385, 56, '#fbbf24', 'ragArrAmber')}
+          ${arr(160, 161, 195, 161, '#38bdf8', 'ragArr')}
+          ${pth('M 360 161 L 470 161 L 470 87', '#38bdf8', 'ragArr', 'Cypher Graph Traversal', 470, 130)}
+          ${arr(555, 56, 672, 78, '#c084fc', 'ragArrPurple')}
+          ${arr(750, 110, 780, 110, '#4ade80', 'ragArrGreen')}
+        `;
+        break;
+
+      case 'hybrid':
+        body = `
+          ${n(20, 80, 155, 60, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 User Query', 'Product SKUs & Natural Jargon')}
+          ${n(210, 20, 165, 54, '#60a5fa', 'rgba(96, 165, 250, 0.08)', '⚡ Dense HNSW Vector', 'Cosine Semantic Similarity')}
+          ${n(410, 20, 150, 54, '#c084fc', 'rgba(192, 132, 252, 0.12)', '🗄️ Dense Embeddings', 'Rank 1..N by Vector')}
+          ${n(210, 140, 165, 54, '#fbbf24', 'rgba(251, 191, 36, 0.1)', '📝 Sparse BM25 Engine', 'Symbol-Preserved Tokenizer')}
+          ${n(410, 140, 150, 54, '#c084fc', 'rgba(192, 132, 252, 0.12)', '📑 Inverted Index', 'Rank 1..N by BM25')}
+          ${n(595, 75, 160, 70, '#4ade80', 'rgba(74, 222, 128, 0.12)', '🔀 Reciprocal Rank Fusion', 'RRF (k=60) Score Concordance', '#4ade80')}
+          ${n(785, 85, 80, 50, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🎯 Answer', '100% SKU Recall', '#22c55e')}
+          ${pth('M 175 95 L 210 47', '#60a5fa', 'ragArr', 'Dense Path', 185, 65)}
+          ${arr(375, 47, 410, 47, '#60a5fa', 'ragArr')}
+          ${pth('M 175 125 L 210 167', '#fbbf24', 'ragArrAmber', 'Sparse Path', 185, 155)}
+          ${arr(375, 167, 410, 167, '#fbbf24', 'ragArrAmber')}
+          ${pth('M 560 47 L 675 47 L 675 75', '#c084fc', 'ragArrPurple')}
+          ${pth('M 560 167 L 675 167 L 675 145', '#c084fc', 'ragArrPurple')}
+          ${arr(755, 110, 785, 110, '#4ade80', 'ragArrGreen')}
+        `;
+        break;
+
+      case 'adaptive':
+        body = `
+          ${n(20, 85, 135, 50, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 Incoming Query', 'Heterogeneous Traffic')}
+          ${n(185, 75, 155, 70, '#fbbf24', 'rgba(251, 191, 36, 0.12)', '🚦 Complexity Classifier', 'DistilBERT / Router Model', '#fbbf24')}
+          ${n(375, 15, 200, 45, '#4ade80', 'rgba(74, 222, 128, 0.08)', '🚫 No Retrieval (<50ms)', 'Direct LLM for Greetings/Math')}
+          ${n(375, 87, 200, 45, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '📄 Single-Pass RAG (<120ms)', 'Standard Vector Lookup for FAQ')}
+          ${n(375, 160, 200, 45, '#c084fc', 'rgba(192, 132, 252, 0.08)', '🔄 Iterative Multi-Hop (Deep)', 'Agentic Search for Audits')}
+          ${n(610, 82, 140, 56, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🤖 Final Answer', '35% Compute Savings', '#22c55e')}
+          ${arr(155, 110, 185, 110, '#38bdf8', 'ragArr')}
+          ${pth('M 340 90 L 375 37', '#4ade80', 'ragArrGreen', 'Simple', 350, 55)}
+          ${arr(340, 110, 375, 110, '#38bdf8', 'ragArr', 'Standard', -6)}
+          ${pth('M 340 130 L 375 182', '#c084fc', 'ragArrPurple', 'Complex', 350, 165)}
+          ${pth('M 575 37 L 680 37 L 680 82', '#4ade80', 'ragArrGreen')}
+          ${arr(575, 110, 610, 110, '#38bdf8', 'ragArr')}
+          ${pth('M 575 182 L 680 182 L 680 138', '#c084fc', 'ragArrPurple')}
+        `;
+        break;
+
+      case 'agentic':
+        body = `
+          ${n(20, 85, 140, 55, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '👤 Complex Prompt', 'Multi-Source Investigation')}
+          ${n(195, 75, 155, 75, '#fb7185', 'rgba(244, 63, 94, 0.12)', '🐝 ReAct Agent Planner', 'Autonomous Goal Breakdown', '#fb7185')}
+          ${n(385, 15, 165, 42, '#38bdf8', 'rgba(56, 189, 248, 0.08)', '🛠️ Tool: Vector DB', 'Document Semantic Retrieval')}
+          ${n(385, 88, 165, 42, '#4ade80', 'rgba(74, 222, 128, 0.08)', '🛠️ Tool: SQL Database', 'Relational Schema Queries')}
+          ${n(385, 160, 165, 42, '#fbbf24', 'rgba(251, 191, 36, 0.08)', '🛠️ Tool: External API', 'Calculator & Data Verification')}
+          ${n(585, 75, 160, 75, '#c084fc', 'rgba(192, 132, 252, 0.12)', '🔄 Critique & Reformulate', 'Inspects Evidence (Step ≤ 5)', '#c084fc')}
+          ${n(780, 85, 90, 55, '#22c55e', 'rgba(34, 197, 94, 0.15)', '🔒 Solution', 'Ed25519 Signed', '#22c55e')}
+          ${arr(160, 112, 195, 112, '#38bdf8', 'ragArr')}
+          ${pth('M 350 90 L 385 36', '#38bdf8', 'ragArr')}
+          ${arr(350, 109, 385, 109, '#4ade80', 'ragArrGreen')}
+          ${pth('M 350 130 L 385 181', '#fbbf24', 'ragArrAmber')}
+          ${pth('M 550 36 L 585 90', '#38bdf8', 'ragArr')}
+          ${arr(550, 109, 585, 109, '#4ade80', 'ragArrGreen')}
+          ${pth('M 550 181 L 585 130', '#fbbf24', 'ragArrAmber')}
+          ${pth('M 665 75 C 665 0, 272 0, 272 75', '#c084fc', 'ragArrPurple', 'Iterative Reasoning Loop (Observation)', 470, 15)}
+          ${arr(745, 112, 780, 112, '#22c55e', 'ragArrGreen')}
+        `;
+        break;
     }
+
+    return `
+      <svg width="100%" height="220" viewBox="0 0 880 220" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block;">
+        ${defs}
+        ${body}
+      </svg>
+    `;
+  };
+
+  // 2. Render Architectural Flowchart (SVG Visual Diagram + Raw Mermaid Code)
+  const svgFlowBox = document.getElementById('boxRagFlowchartSvgContainer');
+  if (svgFlowBox) {
+    svgFlowBox.innerHTML = generateRagFlowchartSvg(arch.id);
+  }
+  const preMermaid = document.getElementById('preRagMermaidCode');
+  if (preMermaid) {
+    preMermaid.textContent = arch.mermaidFlow;
+  }
+  const lblFlowTitle = document.getElementById('lblRagFlowchartTitle');
+  if (lblFlowTitle) {
+    lblFlowTitle.textContent = `${arch.num} ${arch.name}: Architectural Flowchart`;
+  }
+  const lblFlowBadge = document.getElementById('lblRagFlowchartBadge');
+  if (lblFlowBadge) {
+    lblFlowBadge.textContent = arch.badge;
+  }
 
     // 3. Render Solutioning Narrative & Pitch
     const pitchBox = document.getElementById('ragPitchDisplay');
@@ -17222,7 +17434,7 @@ class AgenticRagPipeline:
     if (hint) {
       switch (mode) {
         case 'visual': hint.textContent = 'Interactive stage pipeline flow'; break;
-        case 'mermaid': hint.textContent = 'Renderable Mermaid syntax (copyable for client slide decks)'; break;
+        case 'mermaid': hint.textContent = 'Rendered visual SVG flowchart & copyable Mermaid syntax'; break;
         case 'pitch': hint.textContent = 'Client executive solutioning narrative & trade-offs'; break;
         case 'matrix': hint.textContent = '8-way comparative SLA, cost, and complexity matrix'; break;
         case 'code': hint.textContent = 'Production code contract preview'; break;
@@ -17282,7 +17494,48 @@ class AgenticRagPipeline:
     }
   });
 
-  // Wire Copy Mermaid Button
+  // Wire Architectural Flowchart Sub-Controls (Visual SVG vs Mermaid Code)
+  document.getElementById('btnRagToggleDiagramView')?.addEventListener('click', () => {
+    const svgBox = document.getElementById('boxRagFlowchartSvgContainer');
+    const srcBox = document.getElementById('boxRagFlowchartSourceContainer');
+    const btnDiag = document.getElementById('btnRagToggleDiagramView');
+    const btnSrc = document.getElementById('btnRagToggleSourceView');
+    if (svgBox) svgBox.style.display = 'flex';
+    if (srcBox) srcBox.style.display = 'none';
+    btnDiag?.classList.add('active');
+    btnSrc?.classList.remove('active');
+  });
+
+  document.getElementById('btnRagToggleSourceView')?.addEventListener('click', () => {
+    const svgBox = document.getElementById('boxRagFlowchartSvgContainer');
+    const srcBox = document.getElementById('boxRagFlowchartSourceContainer');
+    const btnDiag = document.getElementById('btnRagToggleDiagramView');
+    const btnSrc = document.getElementById('btnRagToggleSourceView');
+    if (svgBox) svgBox.style.display = 'none';
+    if (srcBox) srcBox.style.display = 'block';
+    btnSrc?.classList.add('active');
+    btnDiag?.classList.remove('active');
+  });
+
+  document.getElementById('btnCopyRagFlowchartMermaid')?.addEventListener('click', () => {
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey];
+    if (arch) {
+      navigator.clipboard.writeText(arch.mermaidFlow);
+      showToast(`📋 Copied ${arch.name} Mermaid syntax to clipboard!`);
+    }
+  });
+
+  document.getElementById('btnCopyRagFlowchartSvg')?.addEventListener('click', () => {
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey];
+    const svgBox = document.getElementById('boxRagFlowchartSvgContainer');
+    const svg = svgBox?.querySelector('svg');
+    if (svg) {
+      navigator.clipboard.writeText(svg.outerHTML);
+      showToast(`📥 Copied ${arch ? arch.name : ''} vector SVG markup to clipboard!`);
+    }
+  });
+
+  // Wire Copy Mermaid Button (legacy / top-level)
   document.getElementById('btnCopyRagMermaid')?.addEventListener('click', () => {
     const arch = RAG_ARCHITECTURES[selectedRagArchKey];
     if (arch) {
