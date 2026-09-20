@@ -191,12 +191,27 @@ function constructUriFromParams(
   username?: string,
   password?: string
 ): string {
-  const scheme = dialect === 'postgres' ? 'postgresql' : dialect;
+  const scheme = dialect === 'postgres' ? 'postgresql' : (dialect === 'clickhouse' ? (port === 8123 ? 'http' : 'https') : dialect);
   if (dialect === 'sqlite') {
     return `sqlite:///${database || host || 'app.db'}`;
   }
   if (dialect === 'bigquery') {
     return `bigquery://${host || 'project'}/${database || 'dataset'}`;
+  }
+  if (dialect === 'clickhouse') {
+    let creds = '';
+    if (username) {
+      creds = encodeURIComponent(username);
+      if (password) {
+        creds += `:${encodeURIComponent(password)}`;
+      } else {
+        creds += ':';
+      }
+      creds += '@';
+    }
+    const portPart = port ? `:${port}` : ':443';
+    const dbPart = database ? `/${database}` : '/default';
+    return `${scheme}://${creds}${host || 'play.clickhouse.com'}${portPart}${dbPart}`;
   }
 
   let creds = '';
@@ -225,12 +240,15 @@ function parseUriIntoParams(uriStr: string): {
   const trimmed = (uriStr || '').trim();
   if (!trimmed) return {};
 
-  const match = trimmed.match(/^([a-z0-9_-]+):\/\/(?:([^:@]+)(?::([^@]+))?@)?([^:\/\?#]+)?(?::(\d+))?(?:\/([^?#]*))?(?:\?(.*))?$/i);
+  const match = trimmed.match(/^([a-z0-9_-]+):\/\/(?:([^:@]+)(?::([^@]*))?@)?([^:\/\?#]+)?(?::(\d+))?(?:\/([^?#]*))?(?:\?(.*))?$/i);
   if (!match) return {};
 
   const [, rawScheme, rawUser, rawPass, rawHost, rawPort, rawDb, rawQuery] = match;
   let dialect = (rawScheme || '').toLowerCase();
   if (dialect === 'postgresql') dialect = 'postgres';
+  if (dialect === 'clickhouse' || ((rawScheme === 'http' || rawScheme === 'https') && rawHost && rawHost.includes('clickhouse'))) {
+    dialect = 'clickhouse';
+  }
 
   let schema: string | undefined;
   if (rawQuery) {
@@ -241,7 +259,7 @@ function parseUriIntoParams(uriStr: string): {
   return {
     dialect,
     username: rawUser ? decodeURIComponent(rawUser) : undefined,
-    password: rawPass ? decodeURIComponent(rawPass) : undefined,
+    password: rawPass !== undefined ? decodeURIComponent(rawPass) : undefined,
     host: rawHost || undefined,
     port: rawPort ? parseInt(rawPort, 10) : undefined,
     database: rawDb ? decodeURIComponent(rawDb) : undefined,
@@ -268,10 +286,10 @@ function buildDbOptionsFromInputs(
   const userId = p ? `${p}DbUserInput` : 'dbUserInput';
   const passId = p ? `${p}DbPasswordInput` : 'dbPasswordInput';
 
-  const dialect = (document.getElementById(dialectId) as HTMLSelectElement)?.value || 'postgres';
+  let dialect = (document.getElementById(dialectId) as HTMLSelectElement)?.value || 'postgres';
   let uri = (document.getElementById(uriId) as HTMLInputElement)?.value?.trim() || '';
-  const database = (document.getElementById(projectId) as HTMLInputElement)?.value?.trim() || 'postgres';
-  const schema = (document.getElementById(schemaId) as HTMLInputElement)?.value?.trim() || 'public';
+  const rawDb = (document.getElementById(projectId) as HTMLInputElement)?.value?.trim();
+  const rawSchema = (document.getElementById(schemaId) as HTMLInputElement)?.value?.trim();
   const securityMode = modeId ? ((document.getElementById(modeId) as HTMLSelectElement)?.value || 'standard') : 'standard';
   const entParam1 = param1Id ? ((document.getElementById(param1Id) as HTMLInputElement)?.value?.trim() || '') : '';
   const entParam2 = param2Id ? ((document.getElementById(param2Id) as HTMLInputElement)?.value?.trim() || '') : '';
@@ -281,6 +299,39 @@ function buildDbOptionsFromInputs(
   const port = portStr ? parseInt(portStr, 10) : undefined;
   const username = (document.getElementById(userId) as HTMLInputElement)?.value?.trim();
   const password = (document.getElementById(passId) as HTMLInputElement)?.value;
+
+  // If URI was set, parse it to extract authoritative values
+  let uriParsed: any = {};
+  if (uri) {
+    uriParsed = parseUriIntoParams(uri);
+    if (uriParsed.dialect && dialect === 'postgres') {
+      dialect = uriParsed.dialect;
+    }
+  }
+
+  // Authoritative Database resolution
+  let database = rawDb;
+  if (!database && uriParsed.database) {
+    database = uriParsed.database;
+  }
+  if (!database) {
+    database = dialect === 'clickhouse' ? 'default' : (dialect === 'oracle' ? 'ORCL' : (dialect === 'db2' ? 'SAMPLE' : (dialect === 'teradata' ? 'EDW' : 'postgres')));
+  }
+  if (dialect === 'clickhouse' && database === 'postgres') {
+    database = uriParsed.database || 'default';
+  }
+
+  // Authoritative Schema resolution
+  let schema = rawSchema;
+  if (!schema && uriParsed.schema) {
+    schema = uriParsed.schema;
+  }
+  if (!schema) {
+    schema = dialect === 'clickhouse' ? (database || 'default') : 'public';
+  }
+  if (dialect === 'clickhouse' && schema === 'public') {
+    schema = database || 'default';
+  }
 
   // If URI is empty or was not set, but host is present, construct URI
   if (!uri && host) {
@@ -292,10 +343,10 @@ function buildDbOptionsFromInputs(
   const options: any = {
     dialect,
     connectionUri: uri || undefined,
-    host: host || undefined,
-    port: port || undefined,
-    username: username || undefined,
-    password: password || undefined,
+    host: host || uriParsed.host || undefined,
+    port: port || uriParsed.port || undefined,
+    username: username || uriParsed.username || undefined,
+    password: password !== undefined ? password : (uriParsed.password !== undefined ? uriParsed.password : undefined),
     database: database || undefined,
     schema: schema || undefined,
     securityMode,
@@ -380,6 +431,24 @@ function handleDialectSelectChange(
     } else if (val === 'sqlserver') {
       uriInput.placeholder = 'sqlserver://sa:Password123@localhost:1433/database_name';
       if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
+    } else if (val === 'clickhouse') {
+      uriInput.placeholder = 'https://play:@play.clickhouse.com:443/default';
+      if (!uriInput.value || uriInput.value.startsWith('postgresql:') || uriInput.value.startsWith('mysql:') || uriInput.value.startsWith('oracle:')) {
+        uriInput.value = 'https://play:@play.clickhouse.com:443/default';
+      }
+      const prefix = dialectSelectId.replace(/DbDialectSelect$/, '');
+      const hostEl = document.getElementById(prefix ? `${prefix}DbHostInput` : 'dbHostInput') as HTMLInputElement | null;
+      const portEl = document.getElementById(prefix ? `${prefix}DbPortInput` : 'dbPortInput') as HTMLInputElement | null;
+      const dbEl = document.getElementById(prefix ? `${prefix}DbProjectIdInput` : 'dbProjectIdInput') as HTMLInputElement | null;
+      const userEl = document.getElementById(prefix ? `${prefix}DbUserInput` : 'dbUserInput') as HTMLInputElement | null;
+      const schemaEl = document.getElementById(prefix ? `${prefix}DbSchemaIdInput` : 'dbSchemaIdInput') as HTMLInputElement | null;
+
+      if (hostEl && (!hostEl.value || hostEl.value === 'localhost')) hostEl.value = 'play.clickhouse.com';
+      if (portEl && (!portEl.value || portEl.value === '5432')) portEl.value = '443';
+      if (dbEl && (!dbEl.value || dbEl.value === 'postgres')) dbEl.value = 'default';
+      if (userEl && (!userEl.value || userEl.value === 'postgres')) userEl.value = 'play';
+      if (schemaEl && (!schemaEl.value || schemaEl.value === 'public')) schemaEl.value = 'default';
+      if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
     } else if (val === 'databricks') {
       uriInput.placeholder = 'databricks://token@host:443/sql/1.0/endpoints/id';
       if (modeSelect) { modeSelect.value = 'standard'; modeSelect.dispatchEvent(new Event('change')); }
@@ -398,7 +467,17 @@ function applyDbPreset(prefix: '' | 'data' | 'modal', preset: string) {
   const schemaInput = document.getElementById(p ? `${p}DbSchemaIdInput` : 'dbSchemaIdInput') as HTMLInputElement | null;
   const uriInput = document.getElementById(p ? `${p}DbUriInput` : 'dbUriInput') as HTMLInputElement | null;
 
-  if (preset === 'rnacentral') {
+  if (preset === 'clickhouse') {
+    if (dialectSelect) dialectSelect.value = 'clickhouse';
+    if (hostInput) hostInput.value = 'play.clickhouse.com';
+    if (portInput) portInput.value = '443';
+    if (dbInput) dbInput.value = 'default';
+    if (userInput) userInput.value = 'play';
+    if (passInput) passInput.value = '';
+    if (schemaInput) schemaInput.value = 'default';
+    if (uriInput) uriInput.value = 'https://play:@play.clickhouse.com:443/default';
+    showToast('⚡ Loaded Public ClickHouse Playground (play.clickhouse.com:443) preset! Click "Connect & Fetch Tables" to introspect.');
+  } else if (preset === 'rnacentral') {
     if (dialectSelect) dialectSelect.value = 'postgres';
     if (hostInput) hostInput.value = 'hh-pgsql-public.ebi.ac.uk';
     if (portInput) portInput.value = '5432';
@@ -527,10 +606,11 @@ function setupDbConnectionSync(prefix: '' | 'data' | 'modal'): void {
     isSyncing = true;
     try {
       const dialect = dialectSelect?.value || 'postgres';
-      const host = hostInput?.value?.trim() || 'localhost';
+      const host = hostInput?.value?.trim() || (dialect === 'clickhouse' ? 'play.clickhouse.com' : 'localhost');
       const port = portInput?.value ? parseInt(portInput.value, 10) : undefined;
-      const database = dbInput?.value?.trim() || 'postgres';
-      const username = userInput?.value?.trim() || '';
+      const rawDb = dbInput?.value?.trim();
+      const database = rawDb || (dialect === 'clickhouse' ? 'default' : (dialect === 'oracle' ? 'ORCL' : (dialect === 'db2' ? 'SAMPLE' : (dialect === 'teradata' ? 'EDW' : 'postgres'))));
+      const username = userInput?.value?.trim() || (dialect === 'clickhouse' ? 'play' : '');
       const password = passInput?.value || '';
       uriInput.value = constructUriFromParams(dialect, host, port, database, username, password);
     } finally {
@@ -577,6 +657,7 @@ function setupDbConnectionSync(prefix: '' | 'data' | 'modal'): void {
       case 'db2': return 50000;
       case 'snowflake': return 443;
       case 'bigquery': return 443;
+      case 'clickhouse': return 443;
       default: return 5432;
     }
   };
@@ -3044,6 +3125,7 @@ function setupPhase1Discovery(api: any): void {
   let currentDiscoveryStep = 1;
   let currentDiagramMode: 'future' | 'legacy' = 'future';
   let cachedDiagrams: { futureDiagram?: string; legacyDiagram?: string } = {};
+  let setDiagramMode: (mode: 'future' | 'legacy') => void;
 
   const archetypes: Record<string, {
     raw: string;
@@ -4088,53 +4170,287 @@ function setupPhase1Discovery(api: any): void {
       '<br><span style="color: var(--text-muted);">Step counts describe the diagrams above, not measured cycle time. Use the Phase 1 numbers for financial claims.</span>';
   };
 
-  // --- Conversational diagram editing ---
+  // --- Conversational diagram editing, Undo/Redo & LocalStorage Autosave ---
   const txtInstruction = document.getElementById('txtFdeDiagramInstruction') as HTMLInputElement;
+  const selInstructionTarget = document.getElementById('selFdeInstructionTarget') as HTMLSelectElement | null;
   const btnAskDiagram = document.getElementById('btnFdeAskDiagram');
-  const btnUndoDiagram = document.getElementById('btnFdeUndoDiagram') as HTMLButtonElement;
-  let diagramUndoStack: Array<{ mode: 'future' | 'legacy'; source: string }> = [];
+  const btnUndoDiagram = document.getElementById('btnFdeUndoDiagram') as HTMLButtonElement | null;
+  const btnRedoDiagram = document.getElementById('btnFdeRedoDiagram') as HTMLButtonElement | null;
 
-  const refreshUndoState = () => {
-    if (btnUndoDiagram) btnUndoDiagram.disabled = diagramUndoStack.length === 0;
+  interface DiagramHistorySnapshot {
+    future: string;
+    legacy: string;
+    activeMode: 'future' | 'legacy';
+    description: string;
+    timestamp: number;
+  }
+  let diagramUndoStack: DiagramHistorySnapshot[] = [];
+  let diagramRedoStack: DiagramHistorySnapshot[] = [];
+  const MAX_DIAGRAM_HISTORY = 50;
+
+  const LOCAL_STORAGE_DIAGRAMS_KEY = 'evolve_fde_cached_diagrams';
+
+  const showAutosaveBadge = (text = 'Autosaved') => {
+    const statusEl = document.getElementById('fdeAutosaveStatus');
+    const textEl = document.getElementById('fdeAutosaveText');
+    if (!statusEl || !textEl) return;
+    textEl.textContent = text;
+    statusEl.style.opacity = '1';
+    statusEl.style.color = '#10b981';
+    statusEl.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+    statusEl.style.background = 'rgba(16, 185, 129, 0.12)';
   };
+
+  const flushActiveDiagram = () => {
+    if (topologyContainer) {
+      if (currentDiagramMode === 'future') {
+        cachedDiagrams.futureDiagram = topologyContainer.value;
+      } else {
+        cachedDiagrams.legacyDiagram = topologyContainer.value;
+      }
+    }
+  };
+
+  const persistDiagramsLocally = () => {
+    try {
+      flushActiveDiagram();
+      const payload = {
+        futureDiagram: cachedDiagrams.futureDiagram || '',
+        legacyDiagram: cachedDiagrams.legacyDiagram || '',
+        activePresetKey: activeTopologyPresetKey,
+        currentDiagramMode,
+        savedAt: Date.now()
+      };
+      localStorage.setItem(LOCAL_STORAGE_DIAGRAMS_KEY, JSON.stringify(payload));
+      showAutosaveBadge('Autosaved');
+    } catch (err) {
+      console.warn('Failed to persist diagrams to localStorage', err);
+    }
+  };
+
+  const refreshUndoRedoState = () => {
+    if (btnUndoDiagram) {
+      btnUndoDiagram.disabled = diagramUndoStack.length === 0;
+      if (diagramUndoStack.length > 0) {
+        const top = diagramUndoStack[diagramUndoStack.length - 1];
+        btnUndoDiagram.title = `Undo: ${top.description} (Ctrl+Z)`;
+      } else {
+        btnUndoDiagram.title = 'Undo (Ctrl+Z)';
+      }
+    }
+    if (btnRedoDiagram) {
+      btnRedoDiagram.disabled = diagramRedoStack.length === 0;
+      if (diagramRedoStack.length > 0) {
+        const top = diagramRedoStack[diagramRedoStack.length - 1];
+        btnRedoDiagram.title = `Redo: ${top.description} (Ctrl+Y or Ctrl+Shift+Z)`;
+      } else {
+        btnRedoDiagram.title = 'Redo (Ctrl+Y or Ctrl+Shift+Z)';
+      }
+    }
+  };
+
+  const pushDiagramHistory = (description: string) => {
+    flushActiveDiagram();
+    diagramUndoStack.push({
+      future: cachedDiagrams.futureDiagram || '',
+      legacy: cachedDiagrams.legacyDiagram || '',
+      activeMode: currentDiagramMode,
+      description,
+      timestamp: Date.now()
+    });
+    if (diagramUndoStack.length > MAX_DIAGRAM_HISTORY) {
+      diagramUndoStack.shift();
+    }
+    diagramRedoStack = [];
+    refreshUndoRedoState();
+  };
+
+  const executeUndo = () => {
+    if (diagramUndoStack.length === 0) return;
+    flushActiveDiagram();
+    const currentState: DiagramHistorySnapshot = {
+      future: cachedDiagrams.futureDiagram || '',
+      legacy: cachedDiagrams.legacyDiagram || '',
+      activeMode: currentDiagramMode,
+      description: 'Before Undo',
+      timestamp: Date.now()
+    };
+    diagramRedoStack.push(currentState);
+
+    const prev = diagramUndoStack.pop()!;
+    cachedDiagrams.futureDiagram = prev.future;
+    cachedDiagrams.legacyDiagram = prev.legacy;
+
+    if (currentDiagramMode !== prev.activeMode) {
+      setDiagramMode(prev.activeMode);
+    } else if (topologyContainer) {
+      topologyContainer.value = (currentDiagramMode === 'future' ? prev.future : prev.legacy);
+    }
+
+    refreshUndoRedoState();
+    persistDiagramsLocally();
+    paintDiagram();
+    paintCompare();
+    renderArrangePanel();
+    markScopeDirty();
+    checkDiagramModification();
+    showToast(`↶ Reverted: ${prev.description}`);
+  };
+
+  const executeRedo = () => {
+    if (diagramRedoStack.length === 0) return;
+    flushActiveDiagram();
+    const currentState: DiagramHistorySnapshot = {
+      future: cachedDiagrams.futureDiagram || '',
+      legacy: cachedDiagrams.legacyDiagram || '',
+      activeMode: currentDiagramMode,
+      description: 'Before Redo',
+      timestamp: Date.now()
+    };
+    diagramUndoStack.push(currentState);
+
+    const next = diagramRedoStack.pop()!;
+    cachedDiagrams.futureDiagram = next.future;
+    cachedDiagrams.legacyDiagram = next.legacy;
+
+    if (currentDiagramMode !== next.activeMode) {
+      setDiagramMode(next.activeMode);
+    } else if (topologyContainer) {
+      topologyContainer.value = (currentDiagramMode === 'future' ? next.future : next.legacy);
+    }
+
+    refreshUndoRedoState();
+    persistDiagramsLocally();
+    paintDiagram();
+    paintCompare();
+    renderArrangePanel();
+    markScopeDirty();
+    checkDiagramModification();
+    showToast(`↷ Redone: ${next.description}`);
+  };
+
+  btnUndoDiagram?.addEventListener('click', executeUndo);
+  btnRedoDiagram?.addEventListener('click', executeRedo);
 
   const applyDiagramEdit = async () => {
     const instruction = (txtInstruction?.value || '').trim();
     if (!instruction) { showToast('Describe the change you want first.'); return; }
 
-    const current = topologyContainer?.value || '';
-    if (!current.trim()) { showToast('Generate a diagram before asking for changes.'); return; }
+    flushActiveDiagram();
+
+    const targetMode = (selInstructionTarget?.value || 'auto') as 'auto' | 'future' | 'legacy' | 'both';
+    const effectiveMode: 'future' | 'legacy' | 'both' = targetMode === 'auto' ? currentDiagramMode : targetMode;
+
     if (!api?.fde?.aiEditTopology) { showToast('Diagram editing is unavailable in this build.'); return; }
+
+    if (effectiveMode === 'both') {
+      const curFuture = cachedDiagrams.futureDiagram || '';
+      const curLegacy = cachedDiagrams.legacyDiagram || '';
+      if (!curFuture.trim() && !curLegacy.trim()) {
+        showToast('Generate or select a diagram before applying changes.');
+        return;
+      }
+
+      if (diagramStatus) { diagramStatus.textContent = 'Editing both workflows...'; diagramStatus.style.color = 'var(--text-secondary)'; }
+      if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
+
+      try {
+        pushDiagramHistory(`AI Edit (Both): ${instruction.slice(0, 30)}`);
+
+        const [resFuture, resLegacy] = await Promise.all([
+          curFuture.trim() ? api.fde.aiEditTopology({ instruction, diagram: curFuture, mode: 'future' }) : Promise.resolve(null),
+          curLegacy.trim() ? api.fde.aiEditTopology({ instruction, diagram: curLegacy, mode: 'legacy' }) : Promise.resolve(null)
+        ]);
+
+        let anySuccess = false;
+        if (resFuture && resFuture.success) {
+          cachedDiagrams.futureDiagram = resFuture.diagram;
+          anySuccess = true;
+        }
+        if (resLegacy && resLegacy.success) {
+          cachedDiagrams.legacyDiagram = resLegacy.diagram;
+          anySuccess = true;
+        }
+
+        if (!anySuccess) {
+          if (diagramStatus) { diagramStatus.textContent = 'Unchanged'; diagramStatus.style.color = 'var(--warn)'; }
+          showToast((resFuture?.error || resLegacy?.error) || 'The diagrams could not be edited.');
+          return;
+        }
+
+        if (topologyContainer) {
+          topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+        }
+
+        persistDiagramsLocally();
+        paintDiagram();
+        paintCompare();
+        renderArrangePanel();
+        markScopeDirty();
+        checkDiagramModification();
+        if (txtInstruction) txtInstruction.value = '';
+
+        if (diagramStatus) { diagramStatus.textContent = 'Updated both'; diagramStatus.style.color = 'var(--success)'; }
+        showToast('Both Proposed and Legacy workflows updated. Review before saving.');
+      } catch (err) {
+        console.error('Dual diagram edit failed:', err);
+        if (diagramStatus) { diagramStatus.textContent = 'Edit failed'; diagramStatus.style.color = 'var(--warn)'; }
+        showToast('Diagram edit failed - your diagrams are unchanged.');
+      } finally {
+        if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = false;
+      }
+      return;
+    }
+
+    // Single diagram mode (future or legacy)
+    const singleMode: 'future' | 'legacy' = effectiveMode === 'future' ? 'future' : 'legacy';
+    const targetDiagram = singleMode === 'future'
+      ? (cachedDiagrams.futureDiagram || topologyContainer?.value || '')
+      : (cachedDiagrams.legacyDiagram || topologyContainer?.value || '');
+
+    if (!targetDiagram.trim()) {
+      showToast(`No ${singleMode === 'future' ? 'proposed' : 'current legacy'} diagram available to edit. Generate one first.`);
+      return;
+    }
 
     if (diagramStatus) { diagramStatus.textContent = 'Asking the model...'; diagramStatus.style.color = 'var(--text-secondary)'; }
     if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
 
     try {
-      const res = await api.fde.aiEditTopology({ instruction, diagram: current, mode: currentDiagramMode });
+      pushDiagramHistory(`AI Edit (${singleMode === 'future' ? 'Proposed' : 'Current'}): ${instruction.slice(0, 30)}`);
+
+      const res = await api.fde.aiEditTopology({ instruction, diagram: targetDiagram, mode: singleMode });
 
       if (!res || !res.success) {
-        // The previous diagram is left exactly as it was - a failed edit must never
-        // destroy something the FDE already agreed with the client.
         if (diagramStatus) { diagramStatus.textContent = 'Unchanged'; diagramStatus.style.color = 'var(--warn)'; }
         showToast((res && res.error) || 'The diagram could not be edited.');
         return;
       }
 
-      diagramUndoStack.push({ mode: currentDiagramMode, source: current });
-      refreshUndoState();
+      if (singleMode === 'future') {
+        cachedDiagrams.futureDiagram = res.diagram;
+      } else {
+        cachedDiagrams.legacyDiagram = res.diagram;
+      }
 
-      if (topologyContainer) topologyContainer.value = res.diagram;
-      if (currentDiagramMode === 'future') cachedDiagrams.futureDiagram = res.diagram;
-      else cachedDiagrams.legacyDiagram = res.diagram;
+      // If the user targeted a tab that is not active, automatically switch to it so they see their changes immediately!
+      if (currentDiagramMode !== singleMode) {
+        setDiagramMode(singleMode);
+      } else {
+        if (topologyContainer) topologyContainer.value = res.diagram;
+        paintDiagram();
+        paintCompare();
+        renderArrangePanel();
+      }
 
-      paintDiagram();
-      paintCompare();
+      persistDiagramsLocally();
       markScopeDirty();
       checkDiagramModification();
       if (txtInstruction) txtInstruction.value = '';
 
+      if (diagramStatus) { diagramStatus.textContent = 'Updated'; diagramStatus.style.color = 'var(--success)'; }
       if (res.warning) showToast(res.warning);
-      else showToast('Diagram updated. Review it before saving.');
+      else showToast(`${singleMode === 'future' ? 'Proposed AI workflow' : 'Legacy workflow'} updated. Review it before saving.`);
     } catch (err) {
       console.error('Diagram edit failed:', err);
       if (diagramStatus) { diagramStatus.textContent = 'Edit failed'; diagramStatus.style.color = 'var(--warn)'; }
@@ -4149,18 +4465,31 @@ function setupPhase1Discovery(api: any): void {
     if (e.key === 'Enter') { e.preventDefault(); applyDiagramEdit(); }
   });
 
-  btnUndoDiagram?.addEventListener('click', () => {
-    const last = diagramUndoStack.pop();
-    if (!last) return;
-    if (last.mode === 'future') cachedDiagrams.futureDiagram = last.source;
-    else cachedDiagrams.legacyDiagram = last.source;
-    if (currentDiagramMode === last.mode && topologyContainer) topologyContainer.value = last.source;
-    refreshUndoState();
-    paintDiagram();
-    paintCompare();
-    markScopeDirty();
-    checkDiagramModification();
-    showToast('Reverted the last diagram change.');
+  // Global keyboard shortcuts: Ctrl+Z (Undo), Ctrl+Y / Ctrl+Shift+Z (Redo)
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA');
+      const isTopologyInput = target && (target.id === 'fdeTopologyPreviewContainer' || target.id === 'txtFdeDiagramInstruction');
+
+      // If user is focused on an unrelated text input, allow standard input undo
+      if (isInput && !isTopologyInput) {
+        return;
+      }
+
+      if (e.key === 'z' || e.key === 'Z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          executeRedo();
+        } else {
+          e.preventDefault();
+          executeUndo();
+        }
+      } else if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault();
+        executeRedo();
+      }
+    }
   });
 
   btnViewCompare?.addEventListener('click', () => setTopologyView('compare'));
@@ -4209,15 +4538,14 @@ function setupPhase1Discovery(api: any): void {
 
   /** Single write path: snapshot for undo, persist, repaint every view. */
   const commitDiagram = (lines: string[], toastMsg?: string) => {
-    const before = topologyContainer?.value || '';
-    diagramUndoStack.push({ mode: currentDiagramMode, source: before });
-    refreshUndoState();
+    pushDiagramHistory(toastMsg || 'Canvas Edit');
 
     const next = lines.join('\n');
     if (topologyContainer) topologyContainer.value = next;
     if (currentDiagramMode === 'future') cachedDiagrams.futureDiagram = next;
     else cachedDiagrams.legacyDiagram = next;
 
+    persistDiagramsLocally();
     paintDiagram();
     paintCompare();
     renderArrangePanel();
@@ -4542,16 +4870,24 @@ function setupPhase1Discovery(api: any): void {
 
   document.getElementById('btnFdeViewArrange')?.addEventListener('click', () => setTopologyView('arrange'));
 
+  let diagramInputDebounceTimer: ReturnType<typeof setTimeout> | undefined;
   topologyContainer?.addEventListener('input', () => {
     if (currentDiagramMode === 'future') {
       cachedDiagrams.futureDiagram = topologyContainer.value;
     } else {
       cachedDiagrams.legacyDiagram = topologyContainer.value;
     }
+    persistDiagramsLocally();
     paintDiagram();
     paintCompare();
     renderArrangePanel();
     checkDiagramModification();
+    markScopeDirty();
+
+    if (diagramInputDebounceTimer) clearTimeout(diagramInputDebounceTimer);
+    diagramInputDebounceTimer = setTimeout(() => {
+      pushDiagramHistory('Manual Source Edit');
+    }, 1500);
   });
 
   btnCopyDiagram?.addEventListener('click', () => {
@@ -4569,9 +4905,7 @@ function setupPhase1Discovery(api: any): void {
       const currentKey = (activeTopologyPresetKey && topologyPresets[activeTopologyPresetKey]) ? activeTopologyPresetKey : 'enterprise-ai';
       const tpl = topologyPresets[currentKey];
       if (tpl) {
-        const before = topologyContainer?.value || '';
-        diagramUndoStack.push({ mode: currentDiagramMode, source: before });
-        refreshUndoState();
+        pushDiagramHistory(`Reload Clean Preset: ${tpl.name}`);
 
         cachedDiagrams.futureDiagram = tpl.future;
         cachedDiagrams.legacyDiagram = tpl.legacy;
@@ -4581,6 +4915,7 @@ function setupPhase1Discovery(api: any): void {
         activeTopologyPresetKey = currentKey;
         activeTopologyPresetName = presetDisplayLabels[currentKey] || tpl.name;
         activeTopologyPresetModified = false;
+        persistDiagramsLocally();
         paintDiagram();
         fitToView();
         paintCompare();
@@ -4594,9 +4929,7 @@ function setupPhase1Discovery(api: any): void {
 
     const tpl = topologyPresets[key];
     if (tpl) {
-      const before = topologyContainer?.value || '';
-      diagramUndoStack.push({ mode: currentDiagramMode, source: before });
-      refreshUndoState();
+      pushDiagramHistory(`Load Template: ${tpl.name}`);
 
       cachedDiagrams.futureDiagram = tpl.future;
       cachedDiagrams.legacyDiagram = tpl.legacy;
@@ -4606,6 +4939,7 @@ function setupPhase1Discovery(api: any): void {
       activeTopologyPresetKey = key;
       activeTopologyPresetName = presetDisplayLabels[key] || tpl.name;
       activeTopologyPresetModified = false;
+      persistDiagramsLocally();
       paintDiagram();
       fitToView();
       paintCompare();
@@ -5405,7 +5739,26 @@ function setupPhase1Discovery(api: any): void {
    * repainted only the (often hidden) diagram pane, so clicking Proposed/Legacy
    * while in Arrange or Source looked like nothing happened at all.
    */
-  const setDiagramMode = (mode: 'future' | 'legacy') => {
+  const updateInstructionTargetLabel = () => {
+    const sel = document.getElementById('selFdeInstructionTarget') as HTMLSelectElement | null;
+    if (!sel) return;
+    const autoOpt = sel.querySelector('option[value="auto"]');
+    if (autoOpt) {
+      autoOpt.textContent = `🎯 Target: Active Tab (${currentDiagramMode === 'future' ? 'Proposed' : 'Current'})`;
+    }
+  };
+
+  setDiagramMode = (mode: 'future' | 'legacy') => {
+    // CRITICAL: Flush current editor content to cachedDiagrams BEFORE switching mode
+    if (topologyContainer) {
+      if (currentDiagramMode === 'future') {
+        cachedDiagrams.futureDiagram = topologyContainer.value;
+      } else {
+        cachedDiagrams.legacyDiagram = topologyContainer.value;
+      }
+    }
+    persistDiagramsLocally();
+
     currentDiagramMode = mode;
     btnTabFuture?.classList.toggle('active', mode === 'future');
     btnTabLegacy?.classList.toggle('active', mode === 'legacy');
@@ -5420,6 +5773,7 @@ function setupPhase1Discovery(api: any): void {
     paintCompare();
     renderArrangePanel();
     updateEditingBanner();
+    updateInstructionTargetLabel();
   };
 
   btnTabFuture?.addEventListener('click', () => setDiagramMode('future'));
@@ -5483,6 +5837,9 @@ function setupPhase1Discovery(api: any): void {
   }
 
   const saveScopeHandler = async (silent = false) => {
+    flushActiveDiagram();
+    persistDiagramsLocally();
+
     const rawAsk = txtRawAsk?.value || '';
     const riskAnalysis = txtRisk?.value || '';
     const reframedGoal = txtReframed?.value || '';
@@ -6108,7 +6465,25 @@ function setupPhase1Discovery(api: any): void {
     renderScopeRules();
     computeRoi();
 
-    const hasCustomDiagrams = !!(cachedDiagrams.futureDiagram || cachedDiagrams.legacyDiagram);
+    let hasCustomDiagrams = !!(cachedDiagrams.futureDiagram || cachedDiagrams.legacyDiagram);
+    if (!hasCustomDiagrams) {
+      try {
+        const localSaved = localStorage.getItem(LOCAL_STORAGE_DIAGRAMS_KEY);
+        if (localSaved) {
+          const parsed = JSON.parse(localSaved);
+          if (parsed && (parsed.futureDiagram || parsed.legacyDiagram)) {
+            if (parsed.futureDiagram) cachedDiagrams.futureDiagram = parsed.futureDiagram;
+            if (parsed.legacyDiagram) cachedDiagrams.legacyDiagram = parsed.legacyDiagram;
+            if (parsed.activePresetKey) activeTopologyPresetKey = parsed.activePresetKey;
+            if (parsed.currentDiagramMode) currentDiagramMode = parsed.currentDiagramMode;
+            hasCustomDiagrams = true;
+            console.log('[FDE] Restored topology diagrams from localStorage fallback');
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to restore diagrams from localStorage', err);
+      }
+    }
     if (!hasCustomDiagrams) {
       const initialArch = selArchetype?.value || 'custom';
       await renderTopology(initialArch);

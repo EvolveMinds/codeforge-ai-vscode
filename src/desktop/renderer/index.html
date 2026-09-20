@@ -1624,10 +1624,24 @@
 
                   <!-- Conversational editing: the FDE changes the workflow by describing
                        the change, rather than hand-writing Mermaid in front of a client. -->
-                  <div style="display: flex; gap: 6px; margin-bottom: 8px; align-items: center;">
-                    <input type="text" id="txtFdeDiagramInstruction" placeholder="Tell the AI how to change this workflow, e.g. &quot;add a fraud check before posting to the ledger&quot;" aria-label="Describe how the AI should change this workflow diagram" style="flex: 1; min-width: 0; padding: 6px 10px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                    <button class="btn-quick" id="btnFdeAskDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Apply this change to the diagram using AI">✨ Apply Change</button>
-                    <button class="btn-quick" id="btnFdeUndoDiagram" style="font-size: 10.5px;" aria-label="Undo the last AI change to the diagram" disabled>↶ Undo</button>
+                  <div style="display: flex; gap: 6px; margin-bottom: 8px; align-items: center; flex-wrap: wrap;">
+                    <!-- Target Selector: explicit control over whether the instruction edits Proposed, Current, or Both -->
+                    <select id="selFdeInstructionTarget" class="select-fde" style="padding: 5px 8px; font-size: 11px; background: rgba(30, 41, 59, 0.95); color: #38bdf8; border: 1px solid #0284c7; border-radius: 4px; font-weight: 600; cursor: pointer;" aria-label="Instruction Target Workflow">
+                      <option value="auto" selected>🎯 Target: Active Tab (Auto)</option>
+                      <option value="future">🟢 Target: Proposed AI Workflow</option>
+                      <option value="legacy">🔴 Target: Legacy Bottlenecks</option>
+                      <option value="both">⇄ Target: Both (Synchronized)</option>
+                    </select>
+
+                    <input type="text" id="txtFdeDiagramInstruction" placeholder="Tell the AI how to change this workflow, e.g. &quot;add a fraud check before posting to the ledger&quot;" aria-label="Describe how the AI should change this workflow diagram" style="flex: 1; min-width: 220px; padding: 6px 10px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                    <button class="btn-quick" id="btnFdeAskDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent); font-weight: 600;" aria-label="Apply this change to the diagram using AI">✨ Apply Change</button>
+                    <div style="display: inline-flex; gap: 2px;">
+                      <button class="btn-quick" id="btnFdeUndoDiagram" style="font-size: 10.5px;" aria-label="Undo diagram change (Ctrl+Z)" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+                      <button class="btn-quick" id="btnFdeRedoDiagram" style="font-size: 10.5px;" aria-label="Redo diagram change (Ctrl+Y)" title="Redo (Ctrl+Y or Ctrl+Shift+Z)" disabled>↷ Redo</button>
+                    </div>
+                    <span id="fdeAutosaveStatus" style="font-size: 10.5px; color: #10b981; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px;" title="Edits are automatically saved to local storage and workspace">
+                      <span style="font-size: 11px;">💾</span> <span id="fdeAutosaveText">Autosaved</span>
+                    </span>
                   </div>
 
                   <!-- Direct On-Canvas Controls Dock -->
@@ -1890,6 +1904,7 @@
                     </div>
                     <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                       <span style="font-size: 10.5px; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
+                      <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="clickhouse" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);" title="Public open-access ClickHouse Playground (UK property sales, trips, github_events)">⚡ ClickHouse Playground</button>
                       <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
                       <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="rnacentral" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
                       <button type="button" class="btn-quick db-quick-preset" data-prefix="" data-preset="local" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid var(--border);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
@@ -1904,6 +1919,7 @@
                         <label style="font-size: 11px; font-weight: bold;" for="dbDialectSelect">Database Engine / Dialect</label>
                         <select id="dbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
                           <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                          <option value="clickhouse">ClickHouse (Cloud / Playground / HTTP)</option>
                           <option value="mysql">MySQL / MariaDB / Aurora</option>
                           <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
                           <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
@@ -6194,7 +6210,8 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               </div>
               <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span style="font-size: 10.5px; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
-                <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
+                <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="clickhouse" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);" title="Public open-access ClickHouse Playground (UK property sales, trips, github_events)">⚡ ClickHouse Playground</button>
+                <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
                 <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="rnacentral" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
                 <button type="button" class="btn-quick db-quick-preset" data-prefix="data" data-preset="local" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid var(--border);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
               </div>
@@ -6208,6 +6225,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <label style="font-size: 11px; font-weight: bold;" for="dataDbDialectSelect">Database Engine / Dialect</label>
                   <select id="dataDbDialectSelect" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
                     <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                    <option value="clickhouse">ClickHouse (Cloud / Playground / HTTP)</option>
                     <option value="mysql">MySQL / MariaDB / Aurora</option>
                     <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
                     <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
@@ -8167,6 +8185,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
           </div>
           <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span style="font-size: 10.5px; color: #94a3b8; font-weight: 600;">1-Click Demo:</span>
+            <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="clickhouse" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3);" title="Public open-access ClickHouse Playground (UK property sales, trips, github_events)">⚡ ClickHouse Playground</button>
             <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="ensembl" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);" title="Public open-access Ensembl Human Genome MySQL database">🧬 Public Ensembl MySQL</button>
             <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="rnacentral" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3);" title="Public open-access RNAcentral PostgreSQL 16 database">🔬 Public RNAcentral PG</button>
             <button type="button" class="btn-quick db-quick-preset" data-prefix="modal" data-preset="local" style="padding: 2px 8px; font-size: 10.5px; margin: 0; background: rgba(255, 255, 255, 0.08); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.15);" title="Local PostgreSQL instance on port 5432">💻 Localhost (5432)</button>
@@ -8181,6 +8200,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <label style="font-size: 11px; font-weight: bold; color: #cbd5e1; display: block; margin-bottom: 4px;" for="modalDbDialectSelect">Database Engine / Dialect</label>
               <select id="modalDbDialectSelect" style="width: 100%; padding: 7px 10px; background: #1e293b; color: #fff; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; font-size: 12px;">
                 <option value="postgres" selected>PostgreSQL / Supabase / Redshift</option>
+                <option value="clickhouse">ClickHouse (Cloud / Playground / HTTP)</option>
                 <option value="mysql">MySQL / MariaDB / Aurora</option>
                 <option value="oracle">Oracle Database (19c/21c / TNS / Wallet)</option>
                 <option value="sqlserver">Microsoft SQL Server / Azure SQL</option>
