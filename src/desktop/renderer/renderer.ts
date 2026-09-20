@@ -11398,6 +11398,7 @@ function setupDeliveryStudio(api: any): void {
   let activeLadderSubTab = 'overview';
   let activeDomainLens = 'all';
   let refreshP3Rail: () => void = () => {};
+  let renderLadderMatrixTable: () => void = () => {};
 
   interface CustomLadderTab {
     id: string;
@@ -12733,6 +12734,7 @@ export class SwarmOrchestrator {
       }
     }
     refreshP3Rail();
+    try { renderLadderMatrixTable(); } catch (_) {}
   };
 
   interface PipelineTopologyStage {
@@ -13917,6 +13919,145 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
     });
   };
 
+  // Render and synchronize the 5-Level Comparison Matrix Table
+  renderLadderMatrixTable = () => {
+    const matrixRows = document.querySelectorAll<HTMLElement>('.ladder-matrix-row');
+    matrixRows.forEach(row => {
+      const lvlStr = row.getAttribute('data-level');
+      if (!lvlStr) return;
+      const lvl = parseInt(lvlStr, 10);
+      const isViewing = lvl === selectedLadderLevel;
+      const isTarget = lvl === committedProjectTargetLevel;
+
+      row.classList.toggle('active-row', isViewing);
+      if (isViewing) {
+        row.style.background = 'rgba(78, 201, 176, 0.12)';
+        row.style.borderLeft = '3px solid var(--accent)';
+      } else {
+        row.style.background = '';
+        row.style.borderLeft = '';
+      }
+
+      const statusSpan = document.getElementById(`matrixStatusL${lvl}`);
+      if (statusSpan) {
+        if (isTarget) {
+          statusSpan.innerHTML = '<span style="font-size: 9px; background: #a855f7; color: #fff; font-weight: 800; padding: 1px 5px; border-radius: 3px; margin-left: 6px;">⭐ TARGET</span>';
+        } else if (isViewing) {
+          statusSpan.innerHTML = '<span style="font-size: 9px; background: rgba(78, 201, 176, 0.2); color: var(--accent); font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 6px;">VIEWING</span>';
+        } else {
+          statusSpan.innerHTML = '';
+        }
+      }
+
+      const targetBtn = row.querySelector<HTMLButtonElement>('.btn-matrix-target');
+      if (targetBtn) {
+        if (isTarget) {
+          targetBtn.textContent = '✓ Target Set';
+          targetBtn.style.background = '#a855f7';
+          targetBtn.style.color = '#fff';
+        } else {
+          targetBtn.textContent = '🎯 Set Target';
+          targetBtn.style.background = 'var(--accent)';
+          targetBtn.style.color = '#1e1e1e';
+        }
+      }
+    });
+  };
+
+  const setupLadderMatrixInteractivity = () => {
+    // Row click selection
+    const matrixRows = document.querySelectorAll<HTMLElement>('.ladder-matrix-row');
+    matrixRows.forEach(row => {
+      row.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target && (target.closest('.btn-matrix-inspect') || target.closest('.btn-matrix-target'))) {
+          return;
+        }
+        const lvlStr = row.getAttribute('data-level');
+        if (!lvlStr) return;
+        const lvl = parseInt(lvlStr, 10);
+        updateLadderView(lvl);
+        renderLadderMatrixTable();
+        const meta = ladderTemplates[lvl] || ladderTemplates[1];
+        showToast(`Selected Level ${lvl}: ${meta.title}`);
+      });
+    });
+
+    // Inspect Blueprint button
+    document.querySelectorAll<HTMLElement>('.btn-matrix-inspect').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lvlStr = btn.getAttribute('data-level');
+        if (!lvlStr) return;
+        const lvl = parseInt(lvlStr, 10);
+        updateLadderView(lvl);
+        switchLadderSubTab('overview');
+        const detailsBox = document.getElementById('fdeLadderDetailsBox');
+        if (detailsBox) {
+          detailsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        showToast(`🔍 Inspecting Level ${lvl} Architecture Blueprint`);
+      });
+    });
+
+    // Set Target button inside matrix
+    document.querySelectorAll<HTMLElement>('.btn-matrix-target').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const lvlStr = btn.getAttribute('data-level');
+        if (!lvlStr) return;
+        const lvl = parseInt(lvlStr, 10);
+        updateLadderView(lvl);
+        const btnSet = document.getElementById('btnSetProjectTarget');
+        if (btnSet) {
+          btnSet.click();
+        } else {
+          committedProjectTargetLevel = lvl;
+          syncActiveTargetBadge(lvl);
+        }
+        renderLadderMatrixTable();
+      });
+    });
+
+    // Close Matrix button in header
+    document.getElementById('btnCloseLadderMatrix')?.addEventListener('click', () => {
+      switchLadderSubTab('overview');
+      const detailsBox = document.getElementById('fdeLadderDetailsBox');
+      if (detailsBox) {
+        detailsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      showToast('Returned to Architecture Blueprint Overview');
+    });
+
+    // Export Matrix as Markdown table
+    document.getElementById('btnExportMatrixMarkdown')?.addEventListener('click', async () => {
+      const markdownTable = [
+        '# FDE 1–5 Capability Ladder & Trade-Off Comparison Matrix',
+        '',
+        '| Level | Paradigm | Latency | Token Cost | Hallucination SLA | Governance | Best For |',
+        '|---|---|---|---|---|---|---|',
+        '| Level 1 | Rule Engine & SQL | <5ms | $0.00 (0 tokens) | 0.0% (Zero) | Deterministic Code | Finance, SOX math, balance matching |',
+        '| Level 2 | Semantic Router | <30ms | <$0.0001 | <0.1% (Triage only) | Cosine Intent Classifier | Support triage, language routing |',
+        '| Level 3 | Grounded Policy RAG | <150ms | ~$0.001 | 100% Verified Citations | 128-tok Chunk Citations | Healthcare policies, HR handbook, legal Q&A |',
+        '| Level 4 | Tool Agent (MCP) | 1.2s – 3.0s | ~$0.01 | Sandboxed Tool Gates | Model Context Protocol | ERP inventory check, carrier SLA query |',
+        '| Level 5 | Multi-Agent Swarm | 5s – 15s | ~$0.05 | Supervised (HITL) | Multi-Role State Machine | Fraud investigation, loan underwriting |',
+        '',
+        `*Active Target:* Level ${committedProjectTargetLevel} | *Viewing Level:* Level ${selectedLadderLevel}`
+      ].join('\n');
+
+      try {
+        const ok = await copyTextToClipboard(markdownTable, api);
+        if (ok) {
+          showToast('✓ 5-Level Comparison Matrix copied to clipboard as Markdown!');
+        } else {
+          showToast('⚠️ Could not copy matrix to clipboard');
+        }
+      } catch (_) {
+        showToast('⚠️ Could not copy matrix to clipboard');
+      }
+    });
+  };
+
   // Switch Sub-tabs (supports standard + custom lenses)
   const switchLadderSubTab = (tabKey: string) => {
     const standardKeys = ['overview', 'simulator', 'code', 'gate', 'matrix'];
@@ -13969,6 +14110,27 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
 
       if (tabKey === 'gate') {
         renderGateChecklist(selectedLadderLevel);
+      }
+      if (tabKey === 'matrix') {
+        renderLadderMatrixTable();
+      }
+    }
+
+    // Synchronize top-level header 5-Level Comparison Matrix quick toggle button
+    const btnToggleMatrix = document.getElementById('btnToggleLadderMatrix');
+    if (btnToggleMatrix) {
+      if (activeLadderSubTab === 'matrix') {
+        btnToggleMatrix.classList.add('active');
+        btnToggleMatrix.style.background = 'rgba(168, 85, 247, 0.25)';
+        btnToggleMatrix.style.borderColor = '#c084fc';
+        btnToggleMatrix.style.color = '#e9d5ff';
+        btnToggleMatrix.innerHTML = '📊 5-Level Comparison Matrix <span style="font-size: 10px; background: #a855f7; color: #fff; padding: 1px 5px; border-radius: 3px; margin-left: 4px;">Active</span>';
+      } else {
+        btnToggleMatrix.classList.remove('active');
+        btnToggleMatrix.style.background = '';
+        btnToggleMatrix.style.borderColor = '#a855f7';
+        btnToggleMatrix.style.color = '#c084fc';
+        btnToggleMatrix.innerHTML = '📊 5-Level Comparison Matrix';
       }
     }
 
@@ -14318,8 +14480,31 @@ Return the complete updated markdown document with clear headings, bullet points
   document.getElementById('tabLadderSimulator')?.addEventListener('click', () => switchLadderSubTab('simulator'));
   document.getElementById('tabLadderCode')?.addEventListener('click', () => switchLadderSubTab('code'));
   document.getElementById('tabLadderGate')?.addEventListener('click', () => switchLadderSubTab('gate'));
-  document.getElementById('tabLadderMatrix')?.addEventListener('click', () => switchLadderSubTab('matrix'));
-  document.getElementById('btnToggleLadderMatrix')?.addEventListener('click', () => switchLadderSubTab('matrix'));
+  document.getElementById('tabLadderMatrix')?.addEventListener('click', () => {
+    switchLadderSubTab('matrix');
+    const matrixPanel = document.getElementById('panelLadderMatrix');
+    if (matrixPanel) {
+      matrixPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  document.getElementById('btnToggleLadderMatrix')?.addEventListener('click', () => {
+    if (activeLadderSubTab === 'matrix') {
+      switchLadderSubTab('overview');
+      const detailsBox = document.getElementById('fdeLadderDetailsBox');
+      if (detailsBox) {
+        detailsBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      showToast('Returned to Architecture Blueprint Overview');
+    } else {
+      switchLadderSubTab('matrix');
+      const matrixPanel = document.getElementById('panelLadderMatrix');
+      if (matrixPanel) {
+        matrixPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      showToast('📊 5-Level Comparison Matrix active');
+    }
+  });
 
   // Custom Lens Modal Triggers
   document.getElementById('btnAddCustomLadderTab')?.addEventListener('click', () => {
@@ -14976,7 +15161,11 @@ export interface SecurityGateSpec {
       if (simDesc) simDesc.textContent = meta.simulatorDesc;
     } else if (activeLadderSubTab === 'matrix' && snapshot.html) {
       const tableBody = document.querySelector('#panelLadderMatrix table tbody');
-      if (tableBody) tableBody.innerHTML = snapshot.html;
+      if (tableBody) {
+        tableBody.innerHTML = snapshot.html;
+        try { renderLadderMatrixTable(); } catch (_) {}
+        try { setupLadderMatrixInteractivity(); } catch (_) {}
+      }
     } else if (activeLadderSubTab === 'custom') {
       const currentTab = (customLadderTabs[selectedLadderLevel] || []).find(t => t.id === activeCustomTabId);
       if (currentTab && snapshot.content) {
@@ -15114,6 +15303,7 @@ export interface SecurityGateSpec {
 
   // Initial ladder preview setup
   initDefaultCustomTabs();
+  setupLadderMatrixInteractivity();
   updateLadderView(1);
 
   // Sync target level from saved state on load

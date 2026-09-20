@@ -38,6 +38,13 @@
       color: #89d185;
       border: 1px solid #89d185;
     }
+    .ladder-matrix-row:hover {
+      background: rgba(168, 85, 247, 0.12) !important;
+    }
+    .ladder-matrix-row.active-row {
+      background: rgba(78, 201, 176, 0.12) !important;
+      border-left: 3px solid var(--accent) !important;
+    }
     .phase-content-area {
       flex: 1;
       min-width: 0;
@@ -3060,64 +3067,111 @@
 
                     <!-- Panel 5: 5-Level Comparison Matrix -->
                     <div id="panelLadderMatrix" style="display: none;">
-                      <div style="overflow-x: auto; margin-bottom: 12px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                      <!-- Matrix Header Bar -->
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 6px; padding: 10px 14px; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                          <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                            <span>📊</span> 5-Level Architecture Capability &amp; Trade-Off Comparison Matrix
+                          </div>
+                          <div style="font-size: 11px; color: #d8b4fe; margin-top: 2px;">
+                            Compare latency, token cost, and hallucination SLAs across levels. Click any row to inspect its blueprint or set it as the active delivery target.
+                          </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                          <button class="btn-quick" id="btnExportMatrixMarkdown" style="font-size: 11px; padding: 3px 9px; cursor: pointer;" title="Copy Matrix as Markdown Table">📋 Copy Markdown</button>
+                          <button class="btn-quick" id="btnCloseLadderMatrix" style="font-size: 11px; padding: 3px 9px; cursor: pointer; color: #cbd5e1;" title="Close Matrix and Return to Blueprint">✕ Close Matrix</button>
+                        </div>
+                      </div>
+
+                      <div style="overflow-x: auto; margin-bottom: 12px; border-radius: 6px; border: 1px solid var(--border);">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;" id="tableLadderComparisonMatrix">
                           <thead>
                             <tr style="background: var(--bg-primary); border-bottom: 2px solid var(--border);">
-                              <th style="padding: 8px 10px; text-align: left; color: #fff;">Level</th>
+                              <th style="padding: 8px 10px; text-align: left; color: #fff; min-width: 100px;">Level</th>
                               <th style="padding: 8px 10px; text-align: left; color: #fff;">Paradigm</th>
                               <th style="padding: 8px 10px; text-align: left; color: #fff;">Latency</th>
                               <th style="padding: 8px 10px; text-align: left; color: #fff;">Token Cost</th>
                               <th style="padding: 8px 10px; text-align: left; color: #fff;">Hallucination SLA</th>
                               <th style="padding: 8px 10px; text-align: left; color: #fff;">Governance</th>
                               <th style="padding: 8px 10px; text-align: left; color: #fff;">Best For</th>
+                              <th style="padding: 8px 10px; text-align: center; color: #fff; min-width: 140px;">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
-                            <tr style="border-bottom: 1px solid var(--border);">
-                              <td style="padding: 8px 10px; font-weight: 700; color: var(--accent);">Level 1</td>
+                            <tr class="ladder-matrix-row" data-level="1" style="border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s ease;">
+                              <td style="padding: 8px 10px; font-weight: 700; color: var(--accent);">Level 1 <span class="matrix-level-status" id="matrixStatusL1"></span></td>
                               <td style="padding: 8px 10px;">Rule Engine &amp; SQL</td>
                               <td style="padding: 8px 10px; color: #4ade80;">&lt;5ms</td>
                               <td style="padding: 8px 10px;">$0.00 (0 tokens)</td>
                               <td style="padding: 8px 10px; color: #4ade80;">0.0% (Zero)</td>
                               <td style="padding: 8px 10px;">Deterministic Code</td>
                               <td style="padding: 8px 10px;">Finance, SOX math, balance matching</td>
+                              <td style="padding: 6px 10px; text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                  <button class="btn-quick btn-matrix-inspect" data-level="1" style="font-size: 10px; padding: 2px 7px; cursor: pointer;" title="Inspect Level 1 Blueprint">🔍 Blueprint</button>
+                                  <button class="btn btn-matrix-target" data-level="1" style="font-size: 10px; padding: 2px 8px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;" title="Set Level 1 as Project Target">🎯 Set Target</button>
+                                </div>
+                              </td>
                             </tr>
-                            <tr style="border-bottom: 1px solid var(--border);">
-                              <td style="padding: 8px 10px; font-weight: 700; color: #60a5fa;">Level 2</td>
+                            <tr class="ladder-matrix-row" data-level="2" style="border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s ease;">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #60a5fa;">Level 2 <span class="matrix-level-status" id="matrixStatusL2"></span></td>
                               <td style="padding: 8px 10px;">Semantic Router</td>
                               <td style="padding: 8px 10px; color: #60a5fa;">&lt;30ms</td>
                               <td style="padding: 8px 10px;">&lt;$0.0001</td>
                               <td style="padding: 8px 10px;">&lt;0.1% (Triage only)</td>
                               <td style="padding: 8px 10px;">Cosine Intent Classifier</td>
                               <td style="padding: 8px 10px;">Support triage, language routing</td>
+                              <td style="padding: 6px 10px; text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                  <button class="btn-quick btn-matrix-inspect" data-level="2" style="font-size: 10px; padding: 2px 7px; cursor: pointer;" title="Inspect Level 2 Blueprint">🔍 Blueprint</button>
+                                  <button class="btn btn-matrix-target" data-level="2" style="font-size: 10px; padding: 2px 8px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;" title="Set Level 2 as Project Target">🎯 Set Target</button>
+                                </div>
+                              </td>
                             </tr>
-                            <tr style="border-bottom: 1px solid var(--border);">
-                              <td style="padding: 8px 10px; font-weight: 700; color: #34d399;">Level 3</td>
+                            <tr class="ladder-matrix-row" data-level="3" style="border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s ease;">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #34d399;">Level 3 <span class="matrix-level-status" id="matrixStatusL3"></span></td>
                               <td style="padding: 8px 10px;">Grounded Policy RAG</td>
                               <td style="padding: 8px 10px;">&lt;150ms</td>
                               <td style="padding: 8px 10px;">~$0.001</td>
                               <td style="padding: 8px 10px; color: #34d399;">100% Verified Citations</td>
                               <td style="padding: 8px 10px;">128-tok Chunk Citations</td>
                               <td style="padding: 8px 10px;">Healthcare policies, HR handbook, legal Q&amp;A</td>
+                              <td style="padding: 6px 10px; text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                  <button class="btn-quick btn-matrix-inspect" data-level="3" style="font-size: 10px; padding: 2px 7px; cursor: pointer;" title="Inspect Level 3 Blueprint">🔍 Blueprint</button>
+                                  <button class="btn btn-matrix-target" data-level="3" style="font-size: 10px; padding: 2px 8px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;" title="Set Level 3 as Project Target">🎯 Set Target</button>
+                                </div>
+                              </td>
                             </tr>
-                            <tr style="border-bottom: 1px solid var(--border);">
-                              <td style="padding: 8px 10px; font-weight: 700; color: #fbbf24;">Level 4</td>
+                            <tr class="ladder-matrix-row" data-level="4" style="border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s ease;">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #fbbf24;">Level 4 <span class="matrix-level-status" id="matrixStatusL4"></span></td>
                               <td style="padding: 8px 10px;">Tool Agent (MCP)</td>
                               <td style="padding: 8px 10px;">1.2s – 3.0s</td>
                               <td style="padding: 8px 10px;">~$0.01</td>
                               <td style="padding: 8px 10px;">Sandboxed Tool Gates</td>
                               <td style="padding: 8px 10px;">Model Context Protocol</td>
                               <td style="padding: 8px 10px;">ERP inventory check, carrier SLA query</td>
+                              <td style="padding: 6px 10px; text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                  <button class="btn-quick btn-matrix-inspect" data-level="4" style="font-size: 10px; padding: 2px 7px; cursor: pointer;" title="Inspect Level 4 Blueprint">🔍 Blueprint</button>
+                                  <button class="btn btn-matrix-target" data-level="4" style="font-size: 10px; padding: 2px 8px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;" title="Set Level 4 as Project Target">🎯 Set Target</button>
+                                </div>
+                              </td>
                             </tr>
-                            <tr>
-                              <td style="padding: 8px 10px; font-weight: 700; color: #c084fc;">Level 5</td>
+                            <tr class="ladder-matrix-row" data-level="5" style="border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s ease;">
+                              <td style="padding: 8px 10px; font-weight: 700; color: #c084fc;">Level 5 <span class="matrix-level-status" id="matrixStatusL5"></span></td>
                               <td style="padding: 8px 10px;">Multi-Agent Swarm</td>
                               <td style="padding: 8px 10px;">5s – 15s</td>
                               <td style="padding: 8px 10px;">~$0.05</td>
                               <td style="padding: 8px 10px;">Supervised (HITL)</td>
                               <td style="padding: 8px 10px;">Multi-Role State Machine</td>
                               <td style="padding: 8px 10px;">Fraud investigation, loan underwriting</td>
+                              <td style="padding: 6px 10px; text-align: center;">
+                                <div style="display: flex; gap: 4px; justify-content: center;">
+                                  <button class="btn-quick btn-matrix-inspect" data-level="5" style="font-size: 10px; padding: 2px 7px; cursor: pointer;" title="Inspect Level 5 Blueprint">🔍 Blueprint</button>
+                                  <button class="btn btn-matrix-target" data-level="5" style="font-size: 10px; padding: 2px 8px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;" title="Set Level 5 as Project Target">🎯 Set Target</button>
+                                </div>
+                              </td>
                             </tr>
                           </tbody>
                         </table>
