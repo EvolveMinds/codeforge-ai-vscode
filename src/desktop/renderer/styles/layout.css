@@ -574,7 +574,7 @@ body.resizing-v .resizer-vertical {
   .app-header {
     padding: 0 10px;
   }
-  .brand-pill {
+  .app-header .brand-pill {
     display: none;
   }
   .workspace-badge {

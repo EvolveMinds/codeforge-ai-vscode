@@ -8609,9 +8609,11 @@ function setupDeliveryStudio(api: any): void {
     container.innerHTML = filtered.map(f => {
       const isErr = f.severity === 'error';
       const isWarn = f.severity === 'warning';
-      const borderCol = isErr ? 'var(--error)' : isWarn ? '#e5b567' : 'var(--border)';
-      const bgCol = isErr ? 'rgba(244, 71, 71, 0.08)' : isWarn ? 'rgba(229, 181, 103, 0.08)' : 'rgba(255, 255, 255, 0.03)';
+      const borderCol = isErr ? 'var(--error)' : isWarn ? '#e5b567' : 'rgba(56, 189, 248, 0.35)';
+      const bgCol = isErr ? 'rgba(244, 71, 71, 0.08)' : isWarn ? 'rgba(229, 181, 103, 0.08)' : 'rgba(56, 189, 248, 0.05)';
       const tagText = isErr ? 'CRITICAL' : isWarn ? 'WARNING' : 'INFO';
+      const tagBg = isErr ? 'var(--error)' : isWarn ? '#e5b567' : 'rgba(56, 189, 248, 0.2)';
+      const tagColor = isErr ? '#ffffff' : isWarn ? '#1e1e1e' : '#38bdf8';
       const catIcon = f.category === 'security' ? '🔒' : f.category === 'cleanup' ? '🧹' : f.category === 'env_parity' ? '⚖️' : f.category === 'docker' ? '🐳' : '📦';
 
       return `
@@ -8619,7 +8621,7 @@ function setupDeliveryStudio(api: any): void {
           <div style="flex: 1; min-width: 0;">
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
               <span style="font-size: 13px;">${catIcon}</span>
-              <span class="tag" style="background: ${borderCol}; color: #1e1e1e; font-weight: 800; font-size: 9.5px; padding: 1px 6px; border-radius: 3px;">${tagText}</span>
+              <span class="tag" style="background: ${tagBg}; color: ${tagColor}; font-weight: 800; font-size: 9.5px; padding: 1px 6px; border-radius: 3px;">${tagText}</span>
               <code style="font-size: 10.5px; color: var(--accent);">${f.code}</code>
               ${f.file ? `<span style="font-size: 10px; color: var(--text-secondary); font-family: monospace;">(${f.file})</span>` : ''}
             </div>
@@ -8722,7 +8724,7 @@ function setupDeliveryStudio(api: any): void {
       valP1.innerText = secretFindings.length === 0 ? '0 Leaks' : `${secretFindings.length} Leaked`;
       badgeP1.innerText = secretFindings.length === 0 ? 'CLEAN' : 'ALERT';
       badgeP1.style.background = secretFindings.length === 0 ? 'var(--success)' : 'var(--error)';
-      badgeP1.style.color = '#1e1e1e';
+      badgeP1.style.color = secretFindings.length === 0 ? '#1e1e1e' : '#ffffff';
     }
 
     // Pillar 2: Cleanup
@@ -13625,6 +13627,17 @@ console.log("[FDE Co-Pilot] Level ${level} pipeline initialized with custom poli
     const badge = document.getElementById('lblLadderAiContextBadge');
     if (!badge) return;
 
+    badge.style.color = '#38bdf8';
+    badge.style.background = 'rgba(56, 189, 248, 0.15)';
+    badge.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+    badge.style.fontWeight = '700';
+    badge.style.fontSize = '9.5px';
+    badge.style.padding = '2px 8px';
+    badge.style.borderRadius = '10px';
+    badge.style.display = 'inline-flex';
+    badge.style.alignItems = 'center';
+    badge.style.gap = '4px';
+
     const tabLabels: Record<string, string> = {
       overview: '📖 Architecture & Industry Lens',
       simulator: '⚡ Live Test Simulator',
@@ -18438,7 +18451,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
       tr.innerHTML = `
         <td style="padding: 6px 8px; font-family: monospace; color: var(--accent); font-weight: 700;">${item.id}</td>
-        <td style="padding: 6px 8px;"><span class="brand-pill" style="font-size: 9px; padding: 1px 6px;">${item.category}</span></td>
+        <td style="padding: 6px 8px;"><span style="font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); text-transform: uppercase;">${item.category}</span></td>
         <td style="padding: 6px 8px; color: #fff; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.prompt}">${item.prompt}</td>
         <td style="padding: 6px 8px; color: var(--text-secondary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Expected: ${item.expectedOutput}">${item.expectedOutput}</td>
         <td style="padding: 6px 8px; text-align: center;">${badgeHtml}</td>
