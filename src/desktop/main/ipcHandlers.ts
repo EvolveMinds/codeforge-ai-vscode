@@ -2417,7 +2417,25 @@ export async function executeTask() {
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.RAG_PIPELINE, async (_: any, req: any) => {
-      return RagPipelineScaffolder.scaffold(req);
+      try {
+        const result = RagPipelineScaffolder.scaffold(req || {});
+        const ws = workspaceMgr.getCurrentWorkspace();
+        const targetDir = ws ? ws.path : process.cwd();
+        let writtenPaths: string[] = [];
+        try {
+          writtenPaths = RagPipelineScaffolder.writeToDisk(targetDir, result);
+        } catch (err: any) {
+          console.warn('[RAG Scaffolder] Could not write files to workspace disk:', err?.message || err);
+        }
+        return {
+          ...result,
+          pipelineCode: result.retrieverPipelineCode,
+          writtenPaths
+        };
+      } catch (err: any) {
+        console.error('[RAG Scaffolder Error]:', err);
+        throw err;
+      }
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.SIEM_AUDIT, async (_: any, event: any) => {

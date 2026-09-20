@@ -9,16 +9,106 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import { RagPipelineOptions, ScaffoldedRagFiles } from './ragTypes';
+import {
+  RagPipelineOptions,
+  ScaffoldedRagFiles,
+  RagLanguage,
+  RagArchitectureType,
+  VectorStoreProvider,
+  EmbeddingProvider,
+  ChunkingStrategy,
+  DistanceMetric
+} from './ragTypes';
 
 export class RagPipelineScaffolder {
   /**
+   * Normalizes raw, partial, or legacy UI options into a complete, safe RagPipelineOptions configuration.
+   */
+  public static normalizeOptions(rawOptions?: any): RagPipelineOptions {
+    const opts = rawOptions || {};
+
+    // 1. Language normalization (handles language, targetLanguage, defaults to typescript)
+    const rawLang = String(opts.language || opts.targetLanguage || 'typescript').toLowerCase();
+    const language: RagLanguage = (rawLang === 'python' || rawLang === 'py') ? 'python' : 'typescript';
+
+    // 2. Service Name & Slug normalization
+    let serviceName = typeof opts.serviceName === 'string' && opts.serviceName.trim().length > 0
+      ? opts.serviceName.trim()
+      : (opts.architecture ? `${opts.architecture}_rag` : 'enterprise_rag');
+    serviceName = serviceName.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    // 3. Architecture normalization
+    const validArchitectures: RagArchitectureType[] = [
+      'naive', 'multimodal', 'hyde', 'corrective', 'graph', 'hybrid', 'adaptive', 'agentic'
+    ];
+    const rawArch = String(opts.architecture || (opts.enableHybridSearch ? 'hybrid' : 'naive')).toLowerCase() as RagArchitectureType;
+    const architecture: RagArchitectureType = validArchitectures.includes(rawArch) ? rawArch : 'naive';
+
+    // 4. Vector Store Provider normalization (handles vectorStore, vectorDb)
+    const rawVStore = String(opts.vectorStore || opts.vectorDb || 'pgvector').toLowerCase();
+    let vectorStore: VectorStoreProvider = 'pgvector';
+    if (rawVStore.includes('qdrant')) vectorStore = 'qdrant';
+    else if (rawVStore.includes('chroma')) vectorStore = 'chroma';
+    else if (rawVStore.includes('faiss')) vectorStore = 'faiss';
+
+    // 5. Embedding Model & Provider
+    const embeddingModel = String(opts.embeddingModel || opts.embedModel || 'nomic-embed-text');
+    const embeddingProvider: EmbeddingProvider = opts.embeddingProvider || 'ollama_local';
+    const embeddingDimensions = Number(opts.embeddingDimensions) || 768;
+
+    // 6. Chunking parameters (handles chunkSize, chunking.maxChunkSize, overlap)
+    const chunkSize = Number(opts.chunkSize) || Number(opts.chunking?.maxChunkSize) || 512;
+    const chunkOverlap = Number(opts.chunkOverlap) || Number(opts.chunking?.overlap) || 64;
+    const chunkingStrategy: ChunkingStrategy = opts.chunkingStrategy || 'recursive_character';
+
+    // 7. Search & Retrieval Thresholds
+    const distanceMetric: DistanceMetric = opts.distanceMetric || 'cosine';
+    const topK = Number(opts.topK) || 5;
+    const similarityThreshold = typeof opts.similarityThreshold === 'number' ? opts.similarityThreshold : 0.7;
+    const enableHybridSearch = opts.enableHybridSearch ?? (architecture === 'hybrid' || true);
+    const enableGuardrails = opts.enableGuardrails ?? true;
+
+    // 8. Collection Name
+    const serviceSlug = serviceName.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const collectionName = opts.collectionName || `${serviceSlug}_knowledge`;
+
+    return {
+      serviceName,
+      language,
+      architecture,
+      vectorStore,
+      embeddingProvider,
+      embeddingModel,
+      embeddingDimensions,
+      chunkSize,
+      chunkOverlap,
+      chunkingStrategy,
+      distanceMetric,
+      topK,
+      similarityThreshold,
+      enableHybridSearch,
+      enableGuardrails,
+      collectionName,
+      databaseUri: opts.databaseUri,
+      sparseEngine: opts.sparseEngine || 'bm25',
+      graphEngine: opts.graphEngine || 'neo4j',
+      evaluatorThreshold: opts.evaluatorThreshold ?? 0.75,
+      fallbackSearchProvider: opts.fallbackSearchProvider || 'internal_web',
+      hypotheticalModel: opts.hypotheticalModel || 'llama3.2:3b',
+      routerStrategy: opts.routerStrategy || 'semantic',
+      agentTools: opts.agentTools || ['vector_search', 'sql_query', 'calculator'],
+      maxAgentSteps: opts.maxAgentSteps || 5
+    };
+  }
+
+  /**
    * Generates a complete production RAG stack and returns all file contents.
    */
-  public static scaffold(options: RagPipelineOptions): ScaffoldedRagFiles {
+  public static scaffold(rawOptions: RagPipelineOptions | any): ScaffoldedRagFiles {
+    const options = this.normalizeOptions(rawOptions);
     const isPy = options.language === 'python';
     const ext = isPy ? 'py' : 'ts';
-    const collection = options.collectionName || `${options.serviceName.toLowerCase()}_knowledge`;
+    const collection = options.collectionName || `${(options.serviceName || 'rag').toLowerCase()}_knowledge`;
 
     const chunkerCode = isPy
       ? this.generatePythonChunker(options)
@@ -52,6 +142,7 @@ export class RagPipelineScaffolder {
       embeddingsPath: `src/rag/embeddings.${ext}`,
       retrieverPipelineCode,
       retrieverPipelinePath: `src/rag/rag_pipeline.${ext}`,
+      pipelineCode: retrieverPipelineCode,
       dockerComposeYaml,
       dockerComposePath: `docker-compose.rag.yml`,
       testScriptCode,

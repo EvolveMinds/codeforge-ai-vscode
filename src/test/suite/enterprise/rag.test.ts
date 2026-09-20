@@ -144,4 +144,34 @@ suite('Enterprise Suite — Air-Gapped RAG & Vector Pipeline Scaffolder', () => 
     assert.ok(cragFiles.readmeDoc.includes('**Canonical RAG Pattern**: `CORRECTIVE`'));
   });
 
+  test('gracefully handles undefined, partial, or legacy UI options without throwing toLowerCase errors', () => {
+    // 1. Completely empty options
+    const emptyResult = RagPipelineScaffolder.scaffold({} as any);
+    assert.ok(emptyResult);
+    assert.strictEqual(emptyResult.chunkerPath, 'src/rag/chunker.ts');
+    assert.ok(emptyResult.retrieverPipelineCode.length > 0);
+    assert.strictEqual(emptyResult.pipelineCode, emptyResult.retrieverPipelineCode);
+
+    // 2. Legacy UI payload with targetLanguage, vectorDb, embedModel and missing serviceName
+    const uiPayload = {
+      vectorDb: 'qdrant',
+      embedModel: 'bge-large-en-v1.5',
+      targetLanguage: 'python',
+      chunking: { maxChunkSize: 512, overlap: 64 }
+    };
+    const uiResult = RagPipelineScaffolder.scaffold(uiPayload as any);
+    assert.ok(uiResult);
+    assert.strictEqual(uiResult.chunkerPath, 'src/rag/chunker.py');
+    assert.strictEqual(uiResult.retrieverPipelinePath, 'src/rag/rag_pipeline.py');
+    assert.ok(uiResult.dockerComposeYaml.includes('qdrant'));
+    assert.strictEqual(uiResult.pipelineCode, uiResult.retrieverPipelineCode);
+
+    // 3. Normalization method directly with null
+    const norm = RagPipelineScaffolder.normalizeOptions(null as any);
+    assert.strictEqual(norm.language, 'typescript');
+    assert.strictEqual(norm.serviceName, 'enterprise_rag');
+    assert.strictEqual(norm.vectorStore, 'pgvector');
+  });
+
 });
+

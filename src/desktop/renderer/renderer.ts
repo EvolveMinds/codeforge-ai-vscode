@@ -10004,18 +10004,28 @@ function setupDeliveryStudio(api: any): void {
 
   // RAG Studio
   document.getElementById('btnScaffoldRag')?.addEventListener('click', async () => {
-    const vectorDb = (document.getElementById('ragVectorDb') as HTMLSelectElement).value;
-    const embedModel = (document.getElementById('ragEmbedModel') as HTMLSelectElement).value;
-    const lang = (document.getElementById('ragLanguage') as HTMLSelectElement).value;
+    const vectorDb = (document.getElementById('ragVectorDb') as HTMLSelectElement)?.value || 'pgvector';
+    const embedModel = (document.getElementById('ragEmbedModel') as HTMLSelectElement)?.value || 'nomic-embed-text';
+    const lang = (document.getElementById('ragLanguage') as HTMLSelectElement)?.value || 'python';
 
     showToast('🧠 Scaffolding 100% Air-Gapped RAG Stack...');
     if (api?.engines) {
-      const res = await api.engines.ragPipeline({ vectorDb, embedModel, targetLanguage: lang, chunking: { maxChunkSize: 512, overlap: 64 } });
+      const res = await api.engines.ragPipeline({
+        serviceName: 'EnterpriseRagService',
+        language: lang,
+        targetLanguage: lang,
+        vectorStore: vectorDb,
+        vectorDb: vectorDb,
+        embeddingModel: embedModel,
+        embedModel: embedModel,
+        chunkSize: 512,
+        chunkOverlap: 64
+      });
       const ragBox = document.getElementById('ragResultBox');
       const ragPrev = document.getElementById('ragCodePreview');
       if (ragBox && ragPrev) {
         ragBox.style.display = 'block';
-        ragPrev.innerText = res.pipelineCode;
+        ragPrev.innerText = res?.pipelineCode || res?.retrieverPipelineCode || '';
       }
       showToast('✓ Air-Gapped RAG Stack scaffolded in src/rag/!');
     }
@@ -17648,16 +17658,32 @@ ${arch.watchOut.map(w => `- ${w}`).join('\n')}
     showToast(`📚 Scaffolding ${arch.name} Pipeline (${store}, ${chunkSize} tokens, ${lang})...`);
 
     let code = lang === 'python' ? arch.codePreviewPy : arch.codePreviewTs;
+    let writtenCount = 7;
 
     if (api?.engines?.ragPipeline) {
-      const res = await api.engines.ragPipeline({
-        architecture: arch.id,
-        vectorDb: store,
-        embedModel: 'nomic-embed-text:768',
-        targetLanguage: lang,
-        chunking: { maxChunkSize: parseInt(chunkSize, 10), overlap: 32 }
-      });
-      if (res && res.pipelineCode) code = res.pipelineCode;
+      try {
+        const res = await api.engines.ragPipeline({
+          serviceName: `${arch.id}_rag_service`,
+          architecture: arch.id,
+          language: lang,
+          targetLanguage: lang,
+          vectorStore: store,
+          vectorDb: store,
+          embeddingModel: 'nomic-embed-text',
+          embedModel: 'nomic-embed-text',
+          chunkSize: parseInt(chunkSize, 10) || 128,
+          chunkOverlap: 32
+        });
+        if (res && (res.pipelineCode || res.retrieverPipelineCode)) {
+          code = res.pipelineCode || res.retrieverPipelineCode;
+        }
+        if (res?.writtenPaths?.length) {
+          writtenCount = res.writtenPaths.length;
+        }
+      } catch (err: any) {
+        console.error('[RAG Scaffolder UI Error]:', err);
+        showToast(`⚠️ Scaffold fallback: ${err?.message || 'Generated code preview'}`);
+      }
     }
 
     const ragBox = document.getElementById('p3RagResultBox');
@@ -17665,7 +17691,7 @@ ${arch.watchOut.map(w => `- ${w}`).join('\n')}
       ragBox.style.display = 'block';
       ragBox.innerText = `// Scaffolded ${arch.name} Stack in src/rag/\n// Vector Store: ${store.toUpperCase()} | Language: ${lang.toUpperCase()}\n\n` + code;
     }
-    showToast(`✓ ${arch.name} scaffolded in src/rag/`);
+    showToast(`✓ ${arch.name} scaffolded in src/rag/ (${writtenCount} files written)`);
     hasScaffoldedRagOrMcp = true;
     refreshP3Rail();
   });

@@ -87,10 +87,14 @@ export interface ScaffoldedRagFiles {
   embeddingsPath: string;
   retrieverPipelineCode: string;
   retrieverPipelinePath: string;
+  /** UI and backward-compatibility alias for retrieverPipelineCode */
+  pipelineCode?: string;
   dockerComposeYaml: string;
   dockerComposePath: string;
   testScriptCode: string;
   testScriptPath: string;
   readmeDoc: string;
   readmePath: string;
+  /** List of relative file paths written to disk (populated on IPC scaffold) */
+  writtenPaths?: string[];
 }
