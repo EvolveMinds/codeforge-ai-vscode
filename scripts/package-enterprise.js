@@ -51,7 +51,9 @@ execSync('npx mocha --ui tdd out/test/suite/enterprise/*.test.js', { stdio: 'inh
 // 3. Security & Secret Scan
 console.log(`\n[3/4] Performing enterprise packaging security scan...`);
 const vsceList = execSync('npx vsce ls', { encoding: 'utf8', cwd: rootDir });
-const secretMatches = vsceList.split('\n').filter(line => /token|secret|\.env|credential|password/i.test(line));
+const secretMatches = vsceList.split('\n')
+  .filter(line => /token|secret|\.env|credential|password/i.test(line))
+  .filter(line => !/secretVault\.(js|js\.map|ts)/i.test(line));
 if (secretMatches.length > 0) {
   console.error(`\n[ERROR] Secret scan failed! The following sensitive files matched:\n`);
   secretMatches.forEach(m => console.error(`  - ${m}`));

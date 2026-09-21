@@ -1,5 +1,24 @@
 # Evolve AI — Release Notes
 
+## Version 2.24.0 — September 21, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Evolve AI version 2.24.0 delivers the complete **Section 3A Interactive Capability Ladder & Comparison Matrix**, **Section 4B Groundedness Gate & Workspace Introspection**, **Section 3C Production RAG Visual Topology**, and **Autonomous Statistical Intelligence Studio**:
+* **Section 3A Interactive 5-Level Comparison Matrix**: Complete trade-off analysis across latency, token cost, hallucination SLAs, and governance models for Rule Engine (L1), Semantic Router (L2), Grounded Policy RAG (L3), Tool Agent MCP (L4), and Multi-Agent Swarm (L5). Includes row selection, `[🔍 Blueprint]` inspection, `[🎯 Set Target]` commitment, glowing active indicators, auto-scroll, and Markdown clipboard export.
+* **Section 4B Native Workspace File Introspection**: Seamless workspace file selection modal and robust file loading replacing legacy prompt dialogs for zero-error groundedness validation.
+* **Section 3C Interactive Vector SVG Flowchart**: Dynamic SVG pipeline flow rendering with visual/code toggles, zoom/pan navigation, 8 canonical RAG architectures matrix, and Level 3 capability ladder integration.
+* **Autonomous Statistical Intelligence & 3D Manifold**: Single Dataset Studio upgraded with automated distribution testing, skewness detection, covariance analysis, specialized multi-focus presets (bottlenecks, drivers, outliers, cohorts), and interactive 3D manifold visualizer.
+* **Standalone Windows Executable**: Fresh standalone portable binary `evolve-ai-enterprise-portable-2.24.0-win32-x64.exe` for air-gapped enterprise distribution.
+
+---
+
 ## Version 2.23.0 — September 17, 2026
 
 **Publisher:** `codeforge-ai`  

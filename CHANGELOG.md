@@ -2,6 +2,29 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.24.0] — 2026-09-21
+
+### Section 3A Comparison Matrix, Section 4B Groundedness Gate, Section 3C RAG Visual Topology & Autonomous Statistical Intelligence
+* **Section 3A: FDE 1–5 Capability Ladder & Interactive Comparison Matrix**:
+  * **Interactive 5-Level Comparison Matrix**: Complete trade-off analysis across latency, token cost, hallucination SLAs, and governance models for Rule Engine (L1), Semantic Router (L2), Grounded Policy RAG (L3), Tool Agent MCP (L4), and Multi-Agent Swarm (L5).
+  * **Direct Row Actions & Blueprint Inspection**: Added `[🔍 Blueprint]` buttons for instant architectural deep dive and `[🎯 Set Target]` buttons to commit delivery targets directly from the matrix.
+  * **Dynamic Target Badges**: Live synchronization of `⭐ TARGET` and `VIEWING` badges across the ladder cards and comparison matrix table.
+  * **Quick Toggle & Viewport Navigation**: Two-way responsive toggle button with active glowing pill indicator (`(Active)`), smooth auto-scroll to matrix canvas, and clean return to blueprint overview.
+  * **Markdown Export**: One-click `📋 Copy Markdown` button formatting the complete 5-level matrix into clean GitHub-flavored markdown.
+* **Section 4B: Groundedness Gate & Workspace File Introspector**:
+  * **Native Workspace File Picker**: Eliminated browser-style `prompt()` dialogs in favor of native workspace file selection modal and robust file introspection.
+  * **Enhanced Error Handling**: Resilient handling of workspace paths, cancellation, and missing files with contextual guidance and recovery.
+* **Section 3C: Production RAG Studio & Visual Architecture Topology**:
+  * **Interactive Vector SVG Flowchart**: Dynamic SVG pipeline flow rendering with visual/code toggles, zoom/pan navigation, and real-time state synchronization.
+  * **8 Canonical RAG Architectures Matrix**: Built-in architecture blueprints (Naive RAG, Sentence-Window, Auto-Merging, Hierarchical, HyDE, Corrective RAG, Self-RAG, Multi-Hop Graph RAG) with trade-off analysis and failure mode advisor.
+  * **RAG-to-Ladder Delivery Bridge**: Direct integration linking Section 3C RAG topologies with Level 3 of the Section 3A capability ladder.
+* **Autonomous Statistical Intelligence & 3D Manifold Studio**:
+  * **Autonomous Diagnostics**: Single Dataset Studio upgraded with automated distribution testing, skewness detection, covariance analysis, and anomaly scoring.
+  * **Specialized Multi-Focus Presets**: One-click analysis profiles for Bottlenecks, Key Drivers, Outliers & Anomalies, and Cohort Distributions.
+  * **Interactive 3D Manifold Visualizer**: Three-dimensional depth grid and interactive point-cloud exploration for high-dimensional dataset features.
+* **Packaging & Standalone Desktop**:
+  * Packaged standalone Windows desktop executable `evolve-ai-enterprise-portable-2.24.0-win32-x64.exe` for private enterprise distribution.
+
 ## [2.23.0] — 2026-09-17
 
 ### Section 5D: Enterprise Commercial Suite & Compliance Engines, Phase 1 Ground-Truth Discovery & Interactive Sequence Topology Studio
