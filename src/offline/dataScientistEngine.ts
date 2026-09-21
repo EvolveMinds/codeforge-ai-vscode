@@ -9,7 +9,44 @@
  * - Performs cohort & segment performance gap analysis
  * - Generates prescriptive executive business recommendations
  * - Produces interactive 2D (Waterfall, Tornado, Pareto, Correlation) and 3D manifold data models
+ * - Detects temporal structure: trend, seasonality, changepoints and forecast
+ * - Renders flow (Sankey), hierarchy (treemap), high-dimensional (parallel
+ *   coordinates) and geographic views when the data supports them
+ * - Sequences every finding into a narrated insight tour
+ *
+ * The temporal, geographic, flow and narrative layers are additive: each is
+ * optional on the result, and absent whenever the data cannot support it. A
+ * dataset with no date column simply has no `timeSeries`, and every existing
+ * caller keeps working untouched.
  */
+
+import {
+  analyzeTimeSeries,
+  type TimeSeriesAnalysis,
+} from './timeIntelligence';
+import {
+  buildGeoBubbles,
+  detectGeoColumns,
+  renderDecompositionSvg,
+  renderGeoMapSvg,
+  renderParallelCoordsSvg,
+  renderSankeySvg,
+  renderTimeSeriesSvg,
+  renderTreemapSvg,
+  sankeyLinksFromPair,
+  sankeyLinksFromStages,
+  treemapItemsFrom,
+  type GeoBubble,
+} from './advancedVisuals';
+import { buildInsightTour, renderTourHtml, type InsightTour } from './insightTour';
+
+/**
+ * Upper bound on raw rows shipped alongside the analysis for interactive views.
+ * Raised from 300 so the 3D manifold and cross-filtering operate on a realistic
+ * population; the renderer applies level-of-detail culling above ~2k points.
+ * This has never capped the statistics — those always run on the full dataset.
+ */
+export const MAX_RAW_RECORDS_PAYLOAD = 5000;
 
 export interface DataRecord {
   [key: string]: any;
@@ -87,6 +124,7 @@ export interface Point3D {
     rootCause: string;
     anomalyReason?: string;
   };
+  rawRecord?: DataRecord;
 }
 
 export type AnalysisFocusMode = 'bottlenecks' | 'drivers' | 'outliers' | 'cohorts' | 'general';
@@ -221,6 +259,7 @@ export interface DataScienceAnalysisResult {
   // 6. 3D Coordinates Space
   points3D: Point3D[];
   axisLabels3D: { x: string; y: string; z: string };
+  rawRecords?: DataRecord[];
 
   // 7. Bivariate Correlation Matrix
   correlationMatrix: {
@@ -235,7 +274,33 @@ export interface DataScienceAnalysisResult {
     paretoSvg: string;
     cohortSvg?: string;
     correlationHtml: string;
+    /** Present only when a usable date column was found. */
+    timeSeriesSvg?: string;
+    decompositionSvg?: string;
+    /** Present only when stage or paired categorical flow exists. */
+    sankeySvg?: string;
+    /** Present only when a categorical dimension exists. */
+    treemapSvg?: string;
+    /** Present only when 3+ numeric dimensions exist. */
+    parallelCoordsSvg?: string;
+    /** Present only when a location column resolved. */
+    geoMapSvg?: string;
   };
+
+  // 10. Temporal intelligence — absent when no date column is present.
+  timeSeries?: TimeSeriesAnalysis;
+
+  // 11. Geographic resolution — absent when no location column is present.
+  geo?: {
+    kind: 'latlon' | 'place';
+    column: string;
+    coverage: number;
+    bubbles: GeoBubble[];
+  };
+
+  // 12. Narrated walkthrough of every finding above.
+  insightTour?: InsightTour;
+  insightTourHtml?: string;
 
   // 9. Custom Hypothesis Evaluation & Direct Answer (if custom question provided)
   customHypothesis?: CustomHypothesisResult;
@@ -1161,7 +1226,7 @@ export class DataScientistEngine {
       datasetTitle?: string;
     }
   ): DataScienceAnalysisResult {
-    const datasetTitle = options?.datasetTitle || 'Active Dataset';
+    const datasetTitle = options?.datasetTitle || 'Built-in Demo: Supply Chain Operations';
     const focus = options?.focus;
     const focusMode = this.normalizeFocusMode(focus);
 
@@ -1285,6 +1350,126 @@ export class DataScientistEngine {
     const cohortSvg = this._renderCohortSvg(cohortAnalysis.cohorts, cohortAnalysis.dimensionName);
     const correlationHtml = this._renderCorrelationMatrixHtml(correlationMatrix);
 
+    // 13. Temporal intelligence. Silently absent when there is no date column —
+    //     that is a legitimate outcome, not a failure.
+    let timeSeries: TimeSeriesAnalysis | undefined;
+    let timeSeriesSvg: string | undefined;
+    let decompositionSvg: string | undefined;
+    try {
+      const ts = analyzeTimeSeries(rows, cols, targetKpi, { horizon: 12, agg: 'sum' });
+      if (ts) {
+        timeSeries = ts;
+        timeSeriesSvg = renderTimeSeriesSvg(
+          ts.series.map(p => ({ date: p.date, value: p.value })),
+          ts.forecast,
+          ts.changepoints.map(c => ({ date: c.date, label: c.narrative, direction: c.direction })),
+          `${targetKpi} — trend & forecast`,
+        );
+        if (ts.seasonalityDetected) {
+          decompositionSvg = renderDecompositionSvg(
+            ts.series.map(p => p.date),
+            ts.decomposition.trend,
+            ts.decomposition.seasonal,
+            ts.decomposition.residual,
+          );
+        }
+      }
+    } catch {
+      /* temporal analysis is additive — never let it break the core result */
+    }
+
+    // 14. Flow (Sankey): wide stage columns first, else a categorical pair.
+    let sankeySvg: string | undefined;
+    try {
+      let links = semanticRoles.wideStageCols && semanticRoles.wideStageCols.length >= 2
+        ? sankeyLinksFromStages(rows, semanticRoles.wideStageCols)
+        : [];
+      if (!links.length && semanticRoles.categoryCol && semanticRoles.categoricalStageCol) {
+        links = sankeyLinksFromPair(rows, semanticRoles.categoryCol, semanticRoles.categoricalStageCol, targetKpi);
+      }
+      if (links.length) {
+        sankeySvg = renderSankeySvg(links, `${targetKpi} flow`);
+      }
+    } catch {
+      /* optional view */
+    }
+
+    // 15. Hierarchy (treemap) over the primary categorical dimension.
+    let treemapSvg: string | undefined;
+    try {
+      const dim = semanticRoles.categoryCol || cohortAnalysis.dimensionName;
+      if (dim && cols.includes(dim)) {
+        const items = treemapItemsFrom(rows, dim, targetKpi);
+        if (items.length > 1) {
+          treemapSvg = renderTreemapSvg(items, `${targetKpi} by ${dim}`);
+        }
+      }
+    } catch {
+      /* optional view */
+    }
+
+    // 16. Parallel coordinates across the strongest numeric dimensions.
+    let parallelCoordsSvg: string | undefined;
+    try {
+      const dims = [targetKpi, ...semanticRoles.numericCols.filter((c: string) => c !== targetKpi)].slice(0, 6);
+      if (dims.length >= 3) {
+        const outlierIdx = outliers.records
+          .map(o => (typeof o.id === 'number' ? o.id : Number(o.id)))
+          .filter(n => Number.isInteger(n) && n >= 0 && n < rows.length);
+        parallelCoordsSvg = renderParallelCoordsSvg(rows, dims, {
+          highlightIndices: outlierIdx.length ? outlierIdx : undefined,
+          title: 'Multi-dimensional profile',
+        });
+      }
+    } catch {
+      /* optional view */
+    }
+
+    // 17. Geography.
+    let geo: DataScienceAnalysisResult['geo'];
+    let geoMapSvg: string | undefined;
+    try {
+      const detection = detectGeoColumns(rows, cols);
+      if (detection) {
+        const bubbles = buildGeoBubbles(rows, detection, targetKpi);
+        if (bubbles.length) {
+          geo = {
+            kind: detection.kind,
+            column: detection.placeColumn || `${detection.latColumn}/${detection.lonColumn}`,
+            coverage: detection.coverage,
+            bubbles,
+          };
+          geoMapSvg = renderGeoMapSvg(bubbles, `${targetKpi} by location`);
+        }
+      }
+    } catch {
+      /* optional view */
+    }
+
+    // 18. Narrate everything discovered above.
+    let insightTour: InsightTour | undefined;
+    let insightTourHtml: string | undefined;
+    try {
+      insightTour = buildInsightTour({
+        datasetTitle,
+        targetKpiName: targetKpi,
+        targetKpiUnit: unit,
+        totalRecords: rows.length,
+        timeSeries,
+        keyDrivers: keyDriverAnalysis.drivers,
+        bottlenecks: bottleneckAnalysis.stages,
+        pareto,
+        cohorts: cohortAnalysis.cohorts,
+        outliers: outliers.records,
+        prescriptiveActions,
+        hasGeo: !!geo,
+        hasFlow: !!sankeySvg,
+      });
+      insightTourHtml = renderTourHtml(insightTour);
+    } catch {
+      /* narration is additive */
+    }
+
     return {
       datasetTitle,
       totalRecords: rows.length,
@@ -1308,14 +1493,28 @@ export class DataScientistEngine {
       prescriptiveActions,
       points3D,
       axisLabels3D,
+      // Raw records ride along for the interactive views (3D manifold, inspector
+      // drawer, cross-filter recompute). The cap is a UI-payload guard, not an
+      // analysis limit — every statistic above is computed on the full `rows`.
+      rawRecords: rows.slice(0, MAX_RAW_RECORDS_PAYLOAD),
       correlationMatrix,
       visualizations: {
         waterfallSvg,
         tornadoSvg,
         paretoSvg,
         cohortSvg,
-        correlationHtml
-      }
+        correlationHtml,
+        timeSeriesSvg,
+        decompositionSvg,
+        sankeySvg,
+        treemapSvg,
+        parallelCoordsSvg,
+        geoMapSvg
+      },
+      timeSeries,
+      geo,
+      insightTour,
+      insightTourHtml
     };
   }
 
@@ -1338,6 +1537,92 @@ export class DataScientistEngine {
 
     // Render Correlation Matrix Table / Heatmap
     const correlationHtml = this._renderCorrelationMatrixHtml(p.correlationMatrix);
+
+    // Advanced visuals are pre-rendered during analyze() — reuse rather than
+    // recompute, since each is optional and may legitimately be absent.
+    const v = p.visualizations;
+    const tourHtml = p.insightTourHtml || '';
+
+    const optionalSection = (
+      title: string,
+      desc: string,
+      svg: string | undefined,
+      note?: string,
+    ): string => {
+      if (!svg) return '';
+      return `
+  <div class="section-card">
+    <div class="section-header">
+      <div>
+        <h3 class="section-title">${title}</h3>
+        <div class="section-desc">${desc}</div>
+      </div>
+    </div>
+    <div style="margin-top: 10px;">${svg}</div>
+    ${note ? `<div style="margin-top: 12px; font-size: 12px; color: #cbd5e1; background: rgba(56,189,248,0.08); border-left: 3px solid #38bdf8; padding: 8px 12px; border-radius: 4px;">${note}</div>` : ''}
+  </div>`;
+    };
+
+    const tourSection = tourHtml
+      ? `
+  <div class="section-card">
+    <div class="section-header">
+      <div>
+        <h3 class="section-title">🧭 Guided Insight Tour</h3>
+        <div class="section-desc">Every finding in narrative order — what changed, why, who it affects, and what to do</div>
+      </div>
+    </div>
+    <div style="margin-top: 10px;">${tourHtml}</div>
+  </div>`
+      : '';
+
+    const temporalSection = v?.timeSeriesSvg
+      ? optionalSection(
+          '📈 Temporal Trend, Changepoints &amp; Forecast',
+          `Historical ${p.targetKpiName} with level-shift detection and a 12-period projection`,
+          v.timeSeriesSvg,
+          p.timeSeries?.narrative,
+        )
+      : '';
+
+    const decompSection = optionalSection(
+      '🔬 Seasonal Decomposition',
+      'Trend, repeating seasonal cycle, and unexplained residual isolated from one another',
+      v?.decompositionSvg,
+      p.timeSeries?.seasonalPeriod
+        ? `A ${p.timeSeries.seasonalPeriod}-${p.timeSeries.grain} cycle is present. Compare like-for-like points in the cycle rather than consecutive periods.`
+        : undefined,
+    );
+
+    const flowSection = optionalSection(
+      '🌊 Flow Distribution',
+      'Where volume accumulates and where it drops away between stages',
+      v?.sankeySvg,
+    );
+
+    const treemapSection = optionalSection(
+      '🗂️ Contribution Hierarchy',
+      `Relative share of total ${p.targetKpiName} by segment — area encodes magnitude`,
+      v?.treemapSvg,
+    );
+
+    const parcoordsSection = optionalSection(
+      '🧵 Multi-Dimensional Profile',
+      'Every numeric dimension on one chart; highlighted lines are statistical outliers',
+      v?.parallelCoordsSvg,
+      'Each axis is independently scaled — the labels carry the real ranges.',
+    );
+
+    const geoSection = optionalSection(
+      '🌍 Geographic Distribution',
+      p.geo ? `Resolved from '${p.geo.column}' (${(p.geo.coverage * 100).toFixed(0)}% of rows)` : '',
+      v?.geoMapSvg,
+    );
+
+    const advancedSections = [
+      tourSection, temporalSection, decompSection,
+      flowSection, treemapSection, parcoordsSection, geoSection,
+    ].filter(Boolean).join('\n');
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -1655,6 +1940,10 @@ export class DataScientistEngine {
     </div>
     ${correlationHtml}
   </div>
+
+  <!-- SECTIONS 5b-5h: ADVANCED VISUAL ANALYTICS -->
+  <!-- Each renders only when the data supports it; absent sections emit nothing. -->
+  ${advancedSections}
 
   <!-- SECTION 6: PRESCRIPTIVE STRATEGY & ACTIONS -->
   <div class="section-card" style="margin-top: 24px; border-color: rgba(56, 189, 248, 0.4);">
@@ -2002,6 +2291,61 @@ print("\\n✓ Autonomous Data Scientist exploratory analysis completed successfu
    */
   public static generateExecutiveInsightsMarkdown(analysis: DataScienceAnalysisResult): string {
     const p = analysis;
+
+    // Narrated tour leads the document — it is the plain-language version of
+    // everything the sections below prove numerically.
+    const tourSection = p.insightTour && p.insightTour.steps.length > 1 ? `
+
+## 🧭 Guided Insight Tour
+
+_${p.insightTour.subtitle}_
+
+${p.insightTour.steps
+  .filter(s => s.kind !== 'headline')
+  .map(s => `**${s.order}. ${s.title}**  \n${s.narrative}  \n<sub>${s.evidence} · confidence ${(s.confidence * 100).toFixed(0)}%</sub>`)
+  .join('\n\n')}
+
+> **In short:** ${p.insightTour.executiveSummary}
+` : '';
+
+    const temporalSection = p.timeSeries ? `
+
+## ⏳ Temporal Intelligence
+
+${p.timeSeries.narrative}
+
+| Property | Value |
+|---|---|
+| Date column | \`${p.timeSeries.dateColumn}\` |
+| Grain | ${p.timeSeries.grain} |
+| Periods observed | ${p.timeSeries.series.length} |
+| Trend | ${p.timeSeries.trendDirection} (${p.timeSeries.trendPctPerPeriod >= 0 ? '+' : ''}${p.timeSeries.trendPctPerPeriod.toFixed(2)}% per ${p.timeSeries.grain}) |
+| Seasonality | ${p.timeSeries.seasonalityDetected ? `${p.timeSeries.seasonalPeriod}-${p.timeSeries.grain} cycle` : 'none detected'} |
+${p.timeSeries.changepoints.length ? `
+### Detected Level Shifts
+
+${p.timeSeries.changepoints.map(c => `- **${c.date}** — ${c.narrative} _(confidence ${(c.confidence * 100).toFixed(0)}%)_`).join('\n')}
+` : ''}${p.timeSeries.forecast.length ? `
+### Forecast (next ${p.timeSeries.forecast.length} ${p.timeSeries.grain}s)
+
+| Period | Projected | Range (95%) |
+|---|---|---|
+${p.timeSeries.forecast.slice(0, 6).map(f => `| ${f.date} | ${f.value.toFixed(2)} | ${f.lower.toFixed(2)} – ${f.upper.toFixed(2)} |`).join('\n')}
+
+_Intervals widen with horizon; treat distant periods as directional, not precise._
+` : ''}` : '';
+
+    const geoSection = p.geo && p.geo.bubbles.length ? `
+
+## 🌍 Geographic Distribution
+
+Resolved from \`${p.geo.column}\` covering ${(p.geo.coverage * 100).toFixed(0)}% of rows.
+
+| Location | ${p.targetKpiName} | Records |
+|---|---|---|
+${p.geo.bubbles.slice(0, 8).map(b => `| ${b.name} | ${b.value.toFixed(2)} | ${b.count} |`).join('\n')}
+` : '';
+
     const hypothesisSection = p.customHypothesis ? `
 
 ## 🎯 Custom Hypothesis Evaluation & Direct Answer
@@ -2027,7 +2371,7 @@ ${p.customHypothesis.evidenceMetrics.map(m => `- **${m.label}**: **${m.value}**$
 *Generated by Evolve AI Autonomous Data Engine*
 
 > **Executive Focal Mission**: ${p.focusSummary}
-${hypothesisSection}
+${hypothesisSection}${tourSection}${temporalSection}${geoSection}
 ## 1. Executive Headline Metrics (${p.focusBadge})
 ${p.focusKpis.map(k => `- **${k.label}**: **${k.value}${k.unit ? ' ' + k.unit : ''}** — *${k.subtext}* ${k.badge ? `\`[${k.badge}]\`` : ''}`).join('\n')}
 `;
@@ -2140,6 +2484,7 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
     const synthetic: DataRecord[] = [];
     const categories = ['North-America', 'EMEA', 'APAC', 'LATAM'];
     const stages = ['Order Intake', 'Verification', 'Inventory Allocation', 'Fulfillment Review', 'Carrier Dispatch'];
+    const fixedBaseEpoch = 1788220800000; // Fixed deterministic reference timestamp (2026-09-01T00:00:00.000Z)
 
     for (let i = 1; i <= 60; i++) {
       const row: DataRecord = {};
@@ -2155,7 +2500,7 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
         else if (low.includes('lat') || low.includes('time') || low.includes('dur') || low.includes('hour')) row[c] = baseLatency;
         else if (low.includes('cost') || low.includes('amt') || low.includes('rev') || low.includes('price')) row[c] = isOutlier ? 12400 : Math.round(450 + (i * 87) % 2400);
         else if (low.includes('err') || low.includes('defect') || low.includes('cnt')) row[c] = isOutlier ? 18 : (i % 4);
-        else if (low.includes('date') || low.endsWith('_at')) row[c] = new Date(Date.now() - (60 - i) * 86400000).toISOString().slice(0, 10);
+        else if (low.includes('date') || low.endsWith('_at')) row[c] = new Date(fixedBaseEpoch - (60 - i) * 86400000).toISOString().slice(0, 10);
         else row[c] = 100 + (i * 17) % 300;
       });
       synthetic.push(row);
@@ -2912,7 +3257,8 @@ ${p.cohorts.cohorts.map(c => `   - ${c.cohortName.padEnd(20)}: Mean ${c.targetMe
             : focusMode === 'cohorts'
             ? `Cohort member of "${cat}": Operating within standard segment distribution.`
             : `Normal cluster operating parameter in cohort ${cat}.`
-        }
+        },
+        rawRecord: r
       });
     }
 

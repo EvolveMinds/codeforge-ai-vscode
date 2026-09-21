@@ -16,6 +16,15 @@ import { DataScientistEngine } from './dataScientistEngine';
 
 export { DataScientistEngine };
 
+// Visual analytics layer. Each module is pure and dependency-free, so it can be
+// consumed from the Electron renderer, a VS Code webview, or a headless report
+// build without dragging the extension host along.
+export * from './timeIntelligence';
+export * from './advancedVisuals';
+export * from './manifoldLearning';
+export * from './selectionStore';
+export * from './insightTour';
+
 export function registerOfflineSuite(vsCtx: vscode.ExtensionContext, svc: IServices): void {
   // 1. Air-Gapped Mode Manager
   const airGapMgr = AirGapModeManager.register(svc);
