@@ -3025,7 +3025,7 @@ export async function executeTask() {
             }
           }
         } catch {}
-        datasetTitle = path.basename(filePath || 'Active Dataset');
+        datasetTitle = filePath ? path.basename(filePath) : 'Built-in Demo: Supply Chain Operations';
       }
 
       // Run Autonomous Data Scientist Engine
@@ -3044,6 +3044,8 @@ export async function executeTask() {
         summary = DataScientistEngine.generatePythonDataScienceScript(analysisResult, filePath);
       } else if (deliverable === 'profile') {
         summary = DataScientistEngine.generateStatisticalProfile(analysisResult);
+      } else if (deliverable === 'manifold') {
+        summary = DataScientistEngine.generateExecutiveInsightsMarkdown(analysisResult);
       } else {
         // insights
         summary = DataScientistEngine.generateExecutiveInsightsMarkdown(analysisResult);
@@ -5675,6 +5677,7 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
       notes?: string;
       priority?: string;
       ceilingThreshold?: number;
+      [key: string]: any;
     }) => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
@@ -5699,13 +5702,22 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
         transactionId: req?.transactionId || 'TX-9482',
         action,
         amount: isNaN(amountVal) ? 150.0 : amountVal,
+        unit: req?.unit || '$',
+        domain: req?.domain || 'fintech',
         customer: req?.customer || 'cust_4920',
         supervisor,
+        secondSupervisor: req?.secondSupervisor || null,
+        dualSigned: !!req?.dualSigned,
+        confidence: typeof req?.confidence === 'number' ? req.confidence : 95,
+        blastRadius: req?.blastRadius || 'Production',
+        mutationType: req?.mutationType || 'State Mutation',
         reason,
+        notes: req?.notes || reason,
         priority: req?.priority || (action === 'AUTO_CLEARED' ? 'LOW' : 'HIGH'),
         ceilingThreshold: typeof req?.ceilingThreshold === 'number' ? req.ceilingThreshold : 100,
+        customPayload: req?.customPayload || null,
         timestamp: new Date().toISOString(),
-        auditHash: 'sha256_' + crypto.createHash('sha256').update((req?.transactionId || 'TX-9482') + action + supervisor + Date.now()).digest('hex').slice(0, 24)
+        auditHash: 'sha256_' + crypto.createHash('sha256').update((req?.transactionId || 'TX-9482') + action + supervisor + (req?.secondSupervisor || '') + Date.now()).digest('hex').slice(0, 24)
       };
 
       history.unshift(entry);

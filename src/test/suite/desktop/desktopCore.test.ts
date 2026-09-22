@@ -496,10 +496,36 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.strictEqual(hitlLogRes.success, true);
     assert.strictEqual(hitlLogRes.entry.transactionId, 'TX-9482');
 
+    // Test invoking Universal Multi-Industry HITL Action with Four-Eyes Dual Sign-Off (Agentic MCP)
+    const agenticHitlLogRes = await logHitlFn(null, {
+      transactionId: 'CALL-8921',
+      action: 'APPROVED',
+      amount: 32000,
+      unit: 'Tokens',
+      domain: 'agentic_mcp',
+      customer: 'Lead-DevOps-Agent (MCP: kubernetes-exec)',
+      supervisor: 'AI-SAFETY-OFFICER',
+      secondSupervisor: 'DIR-RISK-01',
+      dualSigned: true,
+      confidence: 74,
+      mutationType: 'destructive',
+      blastRadius: 'global',
+      priority: 'CRITICAL',
+      ceilingThreshold: 25000,
+      notes: 'Dual sign-off authorized by AI Safety Officer and Risk Director'
+    });
+    assert.strictEqual(agenticHitlLogRes.success, true);
+    assert.strictEqual(agenticHitlLogRes.entry.transactionId, 'CALL-8921');
+    assert.strictEqual(agenticHitlLogRes.entry.dualSigned, true);
+    assert.strictEqual(agenticHitlLogRes.entry.secondSupervisor, 'DIR-RISK-01');
+    assert.strictEqual(agenticHitlLogRes.entry.domain, 'agentic_mcp');
+    assert.strictEqual(agenticHitlLogRes.entry.unit, 'Tokens');
+
     const hitlAuditPath = path.join(tmpDir, 'evals', 'hitl_audit_log.json');
     assert.ok(fs.existsSync(hitlAuditPath), 'hitl_audit_log.json should exist in workspace');
     const hitlAuditEntries = JSON.parse(fs.readFileSync(hitlAuditPath, 'utf8'));
     assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'TX-9482' && e.action === 'APPROVED'));
+    assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'CALL-8921' && e.dualSigned === true && e.domain === 'agentic_mcp'));
 
     wsMgr.dispose();
     termMgr.dispose();
