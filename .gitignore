@@ -46,3 +46,10 @@ bin/
 .*-sim/
 .evolve/
 
+
+# Generated at runtime by the Data Analysis Studio / HITL gate — not source.
+# Reports carry a timestamp in the filename, so each run would otherwise
+# leave a new untracked file behind.
+evolve_manifold_*.html
+*-report.html
+evals/hitl_audit_log.json

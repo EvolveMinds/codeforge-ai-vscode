@@ -10,6 +10,10 @@
     "vscode": "^1.85.0"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/EvolveMinds/codeforge-ai-vscode.git"
+  },
   "categories": [
     "Programming Languages",
     "Machine Learning",
@@ -2227,6 +2231,7 @@
     "publish:all": "node scripts/publish-all.js",
     "package:enterprise": "node scripts/package-enterprise.js",
     "package:enterprise:win": "node scripts/package-enterprise.js --platform=win32-x64",
+    "patch:create": "node scripts/create-offline-patch.js",
     "license:generate": "node scripts/generate-license.js",
     "desktop:start": "npx electron out/desktop/main/main.js",
     "desktop:build:win": "npx electron-builder --win",

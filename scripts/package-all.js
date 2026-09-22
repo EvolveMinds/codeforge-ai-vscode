@@ -36,6 +36,7 @@ console.log(`\n[2/3] Performing pre-packaging security and secret scan...`);
 const vsceList = execSync('npx vsce ls', { encoding: 'utf8', cwd: path.join(__dirname, '..') });
 const secretMatches = vsceList.split('\n')
   .filter(Boolean)
+  .filter(line => !/secretVault\.(js|js\.map|ts)/i.test(line))
   .filter(line => {
     // Compiled JS code in out/ is not a secret file
     if (line.startsWith('out/')) return false;

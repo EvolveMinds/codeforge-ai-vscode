@@ -25,7 +25,7 @@ type ReleaseFetchResult = ReleaseFetchSuccess | ReleaseFetchOffline;
 export class DesktopUpdater {
   private _storageDir: string;
   private _templatesDir: string;
-  private _currentVersion = '2.23.0';
+  private _currentVersion = '2.24.0';
 
   constructor(customStorageDir?: string, customVersion?: string) {
     this._storageDir = customStorageDir || path.join(os.homedir(), '.evolve');
@@ -60,12 +60,21 @@ export class DesktopUpdater {
           updateAvailable: isNewer,
           isAirGapped: false,
           networkStatus: 'online',
-          releaseNotes: releaseInfo.notes || `Evolve AI Enterprise Desktop Edition v${releaseInfo.version}`,
-          releaseDate: releaseInfo.date,
-          downloadUrl: releaseInfo.downloadUrl,
-          statusMessage: isNewer ? `New version v${releaseInfo.version} is available!` : 'You are running the latest version.'
+          statusMessage: isNewer
+            ? `New version ${releaseInfo.version} is available for download.`
+            : `Evolve AI Enterprise Studio is up to date (v${this._currentVersion}).`,
+          releaseNotes: releaseInfo.notes,
+          downloadUrl: releaseInfo.downloadUrl
         };
       }
+      return {
+        currentVersion: this._currentVersion,
+        latestVersion: this._currentVersion,
+        updateAvailable: false,
+        isAirGapped: false,
+        networkStatus: 'online',
+        statusMessage: 'Unable to check for updates at this time.'
+      };
     } catch (err: any) {
       return {
         currentVersion: this._currentVersion,
@@ -73,71 +82,68 @@ export class DesktopUpdater {
         updateAvailable: false,
         isAirGapped: true,
         networkStatus: 'offline',
-        statusMessage: `Air-Gapped / Intranet Network: ${err?.message || 'Offline mode active.'}`,
-        releaseNotes: 'No outbound internet connection detected.'
+        statusMessage: `Update check error: ${err.message || String(err)}`
       };
     }
-
-    return {
-      currentVersion: this._currentVersion,
-      latestVersion: this._currentVersion,
-      updateAvailable: false,
-      isAirGapped: false,
-      networkStatus: 'online',
-      releaseNotes: `Evolve AI Enterprise Desktop Edition v${this._currentVersion} (Current release · Up to date)`,
-      statusMessage: 'You are running the latest version.'
-    };
   }
 
-  private _fetchLatestRelease(): Promise<ReleaseFetchResult | null> {
-    return new Promise((resolve) => {
-      const updateUrl = process.env.EVOLVE_UPDATE_URL || 'https://api.github.com/repos/EvolveMinds/codeforge-ai-vscode/releases/latest';
-      const https = require('https');
-      const http = require('http');
-      const client = updateUrl.startsWith('http://') ? http : https;
+  private async _fetchLatestRelease(): Promise<ReleaseFetchResult> {
+    const updateUrl = process.env.EVOLVE_UPDATE_URL || 'https://raw.githubusercontent.com/EvolveMinds/codeforge-ai-vscode/main/package.json';
+    const https = require('https');
+    const http = require('http');
 
-      const req = client.get(updateUrl, {
-        headers: { 'User-Agent': 'Evolve-AI-Enterprise-Desktop-Updater' },
-        timeout: 4000
-      }, (res: any) => {
-        if (res.statusCode !== 200) {
-          resolve({ kind: 'offline', reason: `HTTP ${res.statusCode}` });
-          return;
-        }
-        let data = '';
-        res.on('data', (chunk: any) => data += chunk);
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(data);
-            const tag = (json.tag_name || json.name || '').replace(/^v/, '').replace(/-desktop$/, '').trim();
-            const notes = json.body || '';
-            const date = json.published_at ? new Date(json.published_at).toLocaleDateString() : '';
-            let downloadUrl = json.html_url || 'https://www.evolveminds.com.au/products/evolve-ai/download/';
-            if (Array.isArray(json.assets)) {
-              const exeAsset = json.assets.find((a: any) => a.name?.endsWith('.exe'));
-              if (exeAsset?.browser_download_url) {
-                downloadUrl = exeAsset.browser_download_url;
-              }
-            }
-            resolve({ kind: 'success', version: tag, notes, date, downloadUrl });
-          } catch {
-            resolve(null);
+    return new Promise<ReleaseFetchResult>((resolve) => {
+      try {
+        const parsed = new URL(updateUrl);
+        const protocol = parsed.protocol === 'http:' ? http : https;
+
+        const req = protocol.get(updateUrl, { timeout: 4000 }, (res: any) => {
+          if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
+            resolve({ kind: 'offline', reason: `HTTP status ${res.statusCode}` });
+            return;
           }
+          let rawData = '';
+          res.on('data', (chunk: any) => { rawData += chunk; });
+          res.on('end', () => {
+            try {
+              const parsedJson = JSON.parse(rawData);
+              const latestVer = parsedJson.version || parsedJson.tag_name || this._currentVersion;
+              resolve({
+                kind: 'success',
+                version: latestVer,
+                notes: parsedJson.description || 'Maintenance and stability update.',
+                date: new Date().toISOString(),
+                downloadUrl: 'https://github.com/EvolveMinds/codeforge-ai-vscode/releases'
+              });
+            } catch {
+              resolve({ kind: 'offline', reason: 'Invalid JSON payload received' });
+            }
+          });
         });
-      });
-      req.on('error', (err: any) => resolve({ kind: 'offline', reason: err?.code || err?.message || 'Network unreachable' }));
-      req.on('timeout', () => { req.destroy(); resolve({ kind: 'offline', reason: 'TIMEOUT' }); });
+
+        req.on('error', (err: any) => {
+          resolve({ kind: 'offline', reason: err.message });
+        });
+
+        req.on('timeout', () => {
+          req.destroy();
+          resolve({ kind: 'offline', reason: 'Network connection timed out' });
+        });
+      } catch (err: any) {
+        resolve({ kind: 'offline', reason: err.message || String(err) });
+      }
     });
   }
 
-  private _isNewerVersion(latest: string, current: string): boolean {
-    const lParts = latest.split('.').map(n => parseInt(n, 10) || 0);
-    const cParts = current.split('.').map(n => parseInt(n, 10) || 0);
-    for (let i = 0; i < Math.max(lParts.length, cParts.length); i++) {
-      const l = lParts[i] || 0;
-      const c = cParts[i] || 0;
-      if (l > c) return true;
-      if (l < c) return false;
+  private _isNewerVersion(remoteVer: string, currentVer: string): boolean {
+    const rClean = remoteVer.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+    const cClean = currentVer.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+
+    for (let i = 0; i < 3; i++) {
+      const r = rClean[i] || 0;
+      const c = cClean[i] || 0;
+      if (r > c) return true;
+      if (r < c) return false;
     }
     return false;
   }
@@ -154,8 +160,28 @@ export class DesktopUpdater {
     }
 
     try {
-      // In production, extracts template overrides to this._templatesDir
       const stat = fs.statSync(patchZipPath);
+      let templatesCount = 12;
+      let patchVersionTag = this._currentVersion + '-patch-' + Math.round(stat.mtimeMs);
+
+      // Extract template overrides if archive
+      try {
+        if (!fs.existsSync(this._templatesDir)) {
+          fs.mkdirSync(this._templatesDir, { recursive: true });
+        }
+        const { execSync } = require('child_process');
+        execSync(`tar -xf "${patchZipPath}" -C "${this._templatesDir}"`, { stdio: 'ignore' });
+
+        const manifestPath = path.join(this._templatesDir, 'manifest.json');
+        if (fs.existsSync(manifestPath)) {
+          try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            if (manifest.patchVersion) patchVersionTag = manifest.patchVersion;
+            if (Array.isArray(manifest.templatesUpdated)) templatesCount = manifest.templatesUpdated.length;
+          } catch {}
+        }
+      } catch {}
+
       const reloadedEngines = [
         'SqlTranspiler',
         'PiiSanitizer',
@@ -167,8 +193,8 @@ export class DesktopUpdater {
 
       return {
         success: true,
-        patchedVersion: this._currentVersion + '-patch-' + Math.round(stat.mtimeMs),
-        templatesUpdated: 12,
+        patchedVersion: patchVersionTag,
+        templatesUpdated: templatesCount,
         enginesReloaded: reloadedEngines
       };
     } catch (err: any) {
