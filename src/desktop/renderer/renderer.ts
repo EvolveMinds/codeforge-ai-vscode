@@ -6151,7 +6151,16 @@ function setupPhase1Discovery(api: any): void {
 
   btnAdvance?.addEventListener('click', async () => {
     await saveScopeHandler(true);
-    showToast('🚀 Scope Validated! Advancing to Phase 2: Engineering Core...');
+    // Jumping ahead is deliberate (an FDE may need to), but claiming the scope
+    // was validated when evaluateScopeCompleteness() says otherwise is not:
+    // the result used to be computed and then thrown away while the toast
+    // asserted success over a completely empty scope.
+    const { missing } = evaluateScopeCompleteness();
+    if (missing.length > 0) {
+      showToast(`⚠️ Advancing with an incomplete scope — still outstanding: ${missing.join(', ')}`);
+    } else {
+      showToast('🚀 Scope complete. Advancing to Phase 2: Engineering Core...');
+    }
     switchDeliveryPhase(2);
   });
 
@@ -6990,18 +6999,29 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // A deterministic prefix/lowercase rename, named for what it is.
+  //
+  // This was labelled "Apply AI Instruction" and toasted "Custom AI transformation
+  // applied!", but it never read the instruction: whatever the FDE typed, it
+  // prefixed every column with `event_` and lowercased it. The placeholder text
+  // promised currency conversion and email masking, none of which happened.
+  // There is no instruction-aware mapping IPC to call, so rather than pretend,
+  // it now applies one transform and says exactly which.
   btnApplyCustomPrompt?.addEventListener('click', () => {
-    const promptText = (document.getElementById('txtAiCustomInstruction') as HTMLInputElement).value;
-    if (!promptText) return;
-    showToast(`✨ Applying instruction: "${promptText}"...`);
+    const promptText = (document.getElementById('txtAiCustomInstruction') as HTMLInputElement)?.value || '';
     const current = txtSourceColumns.value;
     const lines = current.split('\n').filter(l => l.trim().length > 0);
+    if (lines.length === 0) { showToast('⚠️ No source columns to transform.'); return; }
+
     const transformed = lines.map(line => {
       const [col, t] = line.split(':');
-      return `event_${col.toLowerCase().trim()}:${(t || 'string').trim()}`;
+      return `event_${(col || '').toLowerCase().trim()}:${(t || 'string').trim()}`;
     }).join('\n');
     txtTargetColumns.value = transformed;
-    showToast('✓ Custom AI transformation applied!');
+
+    showToast(promptText.trim()
+      ? `✓ Applied the built-in "event_ prefix + lowercase" rename. Note: your typed instruction was not interpreted — this transform is fixed.`
+      : '✓ Applied the built-in "event_ prefix + lowercase" rename.');
   });
 
   btnGenerateDbtStaging?.addEventListener('click', async () => {
@@ -8205,11 +8225,39 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
-  btnTestApiPing?.addEventListener('click', () => {
-    showToast(`🔌 Pinging ${connBaseUrlInput.value}...`);
-    setTimeout(() => {
-      showToast(`✓ [200 OK] Response time: 38ms | TLS 1.3 | Server: envoy/1.24`);
-    }, 450);
+  // A real request, or an honest refusal. This used to be a setTimeout that
+  // reported "200 OK | 38ms | TLS 1.3 | envoy/1.24" for any string in the box —
+  // including an unreachable host or a typo — and FDEs demo it to clients as
+  // proof of connectivity.
+  btnTestApiPing?.addEventListener('click', async () => {
+    const url = (connBaseUrlInput?.value || '').trim();
+    if (!url) { showToast('⚠️ Enter a base URL first.'); return; }
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      showToast(`❌ Not a valid URL: ${url}`);
+      return;
+    }
+    if (!/^https?:$/.test(parsed.protocol)) {
+      showToast(`❌ Unsupported scheme "${parsed.protocol}" — use http or https.`);
+      return;
+    }
+
+    showToast(`🔌 Pinging ${parsed.origin}...`);
+    const started = Date.now();
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, { method: 'GET', signal: controller.signal, mode: 'cors' });
+      clearTimeout(timer);
+      const ms = Date.now() - started;
+      showToast(`${res.ok ? '✓' : '⚠️'} [${res.status} ${res.statusText || ''}] ${ms}ms — ${parsed.origin}`);
+    } catch (err: any) {
+      const ms = Date.now() - started;
+      const reason = err?.name === 'AbortError' ? 'timed out after 8s' : (err?.message || 'request failed');
+      showToast(`❌ Could not reach ${parsed.origin} (${reason}, ${ms}ms)`);
+    }
   });
 
   btnMapApiSchema?.addEventListener('click', () => {
@@ -8928,17 +8976,25 @@ function setupDeliveryStudio(api: any): void {
     if (targetMode === 'live') {
       if (api?.engines?.runPreflightAudit) {
         const res = await api.engines.runPreflightAudit();
+        res.__source = 'live_scan';
         displayPreflightResults(res);
         showToast(`✓ Pre-flight audit completed (Score: ${res.score}/100)!`);
       } else {
-        displayPreflightResults(PREFLIGHT_PRESETS.pristine);
-        showToast('✓ Live pre-flight audit passed!');
+        // Falling back to a 100/100 "pristine" preset and reporting "audit
+        // passed" told the FDE their workspace was clean when nothing had been
+        // scanned. A live scan that cannot run is a failure, not a pass.
+        showToast('⚠️ Live pre-flight audit unavailable — nothing was scanned.');
+        hasRunAuditExact = false;
+        refreshP5Rail?.();
+        return;
       }
     } else if (PREFLIGHT_PRESETS[targetMode]) {
       const presetCopy = JSON.parse(JSON.stringify(PREFLIGHT_PRESETS[targetMode]));
       presetCopy.timestamp = Date.now();
+      // Tag provenance so the export path can refuse to pass this off as a scan.
+      presetCopy.__source = 'demo_preset';
       displayPreflightResults(presetCopy);
-      showToast(`✓ Loaded ${targetMode.toUpperCase()} diagnostic audit preset (Score: ${presetCopy.score}/100)!`);
+      showToast(`⚠️ DEMO PRESET loaded (${targetMode.toUpperCase()}, score ${presetCopy.score}/100) — this is sample data, not a scan of your workspace.`);
     }
 
     hasRunAuditExact = true;
@@ -8960,12 +9016,10 @@ function setupDeliveryStudio(api: any): void {
       showToast(`✓ Cleaned ${res.cleaned} temporary files!`);
       runSelectedPreflightAudit();
     } else {
-      showToast('🧹 Cleaned all temporary files.');
-      lastPreflightReport.temporaryFiles = [];
-      lastPreflightReport.cleanableCount = 0;
-      lastPreflightReport.findings = lastPreflightReport.findings.filter(f => f.category !== 'cleanup');
-      lastPreflightReport.score = Math.min(100, lastPreflightReport.score + 15);
-      displayPreflightResults(lastPreflightReport);
+      // Previously this cleared the findings and added +15 to the score without
+      // deleting a single file, so the UI reported a cleaner workspace than
+      // existed. If we cannot clean, say so and change nothing.
+      showToast('⚠️ Cleanup unavailable in this context — no files were deleted.');
     }
   });
 
@@ -8990,8 +9044,25 @@ function setupDeliveryStudio(api: any): void {
       findings: lastPreflightReport.findings,
       temporaryFiles: lastPreflightReport.temporaryFiles,
       engine: 'EvolveAI PreflightAuditor v2.20 (5-Pillar Deterministic Zero-Network Engine)',
-      signature: 'ed25519_secops_audit_verified_' + Math.random().toString(36).slice(2, 10)
+      // Provenance travels with the receipt. Selecting a demo preset used to
+      // produce a byte-identical "PASS_READY_FOR_DEPLOYMENT" receipt to a real
+      // scan, with nothing in the file to tell them apart.
+      dataSource: (lastPreflightReport as any).__source === 'demo_preset' ? 'DEMO_PRESET' : 'LIVE_SCAN',
+      isDemoData: (lastPreflightReport as any).__source === 'demo_preset',
+      // Not a signature: there is no keypair. Previously this field was
+      // 'ed25519_secops_audit_verified_' + Math.random(), i.e. a random string
+      // presented to a client as cryptographic proof.
+      integrityNote: 'No digital signature. This receipt is a plain JSON record; verify it against the workspace it names.'
     };
+
+    if ((lastPreflightReport as any).__source === 'demo_preset') {
+      const proceed = confirm(
+        'This audit result came from a built-in DEMO PRESET, not a scan of this workspace.\n\n' +
+        'The exported receipt will be stamped DEMO_PRESET so it cannot be mistaken for evidence.\n\n' +
+        'Export anyway?'
+      );
+      if (!proceed) { showToast('Export cancelled.'); return; }
+    }
 
     if (api?.engines?.savePreflightReport) {
       await api.engines.savePreflightReport(receipt);
@@ -10056,7 +10127,7 @@ function setupDeliveryStudio(api: any): void {
         '## 1. Zero-Exfiltration & Air-Gap Posture\n' +
         '- **In-VPC Isolation:** All inference models and data processing pipelines execute inside private client subnets.\n' +
         '- **Data Masking:** PII fields (SSN, Email, Tax ID) are sanitized at the dbt ingestion layer.\n' +
-        '- **Cryptographic Audit:** Transactions verified with Ed25519 digital keys.\n\n' +
+        '- **Audit Trail:** Each record carries a SHA-256 content digest (tamper-evident; not a digital signature).\n\n' +
         '## 2. Secrets Management & Vault Access\n' +
         '- **Vault References:** Injected via Cloud Secret Manager with zero plain-text secrets in source code.\n' +
         '- **Rotation Schedule:** 90-day automatic key rotation enabled.\n';
@@ -10179,43 +10250,81 @@ function setupDeliveryStudio(api: any): void {
   });
 
   // --- 5-MINUTE CXO EXECUTIVE DEMO REHEARSAL CONSOLE ---
-  const demoSlides = [
-    {
-      minute: '[0:00 - 1:00]',
-      title: "Slide 1: The Business Problem & Controller's 3 Numbers [0:00 - 1:00]",
-      target: 'Target: CFO & Business Unit Sponsors',
-      script: '"Thank you everyone. Today, we\'re showing you the working prototype built specifically on your infrastructure. When we started, the original ask was to automate manual operations with AI. Instead of building a generic chatbot that hallucinates numbers, we calculated your exact economics: 10,000 tasks/month, 15 min each, at $35/hr. By implementing deterministic rules with zero hallucinations, this system reclaims 1,750 hours/month and delivers $61.3k/month in hard economic savings."',
-      visualCue: "Highlight Controller's Three Numbers KPI card in Section 1 and annual hours reclaimed ledger."
-    },
-    {
-      minute: '[1:00 - 2:00]',
-      title: 'Slide 2: Data Lineage & Plumbing — Connecting Your Wire [1:00 - 2:00]',
-      target: 'Target: Head of Data Engineering & Enterprise IT',
-      script: '"Next, we didn\'t ask you to migrate your data or duplicate storage. In Phase 2, we plugged directly into your existing data warehouse and APIs. We generated typed dbt staging models, foreign key relationships, and dimensional marts. For external APIs, our resilient SDK handles retries and rate-limiting automatically. All credentials remain encrypted in your machine vault."',
-      visualCue: 'Show interactive Mermaid lineage diagram and dbt staging model column definitions.'
-    },
-    {
-      minute: '[2:00 - 3:00]',
-      title: 'Slide 3: Deterministic AI Solutioning & Capability Ladder [2:00 - 3:00]',
-      target: 'Target: CIO & Chief Technology Officer',
-      script: '"Now let\'s look at the AI layer. We deliberately selected Level 1: Deterministic Rule Engine & Compiled SQL from the FDE capability ladder. Arithmetic and financial rules cannot tolerate a 2% hallucination rate. Any calculation requiring strict math runs through compiled SQL in under 5 milliseconds. For unstructured policy lookups, our air-gapped RAG pipeline retrieves exact citations from your policy handbook."',
-      visualCue: 'Show FDE Capability Ladder card, Level 1 Rule Engine badge, and 0.0% Hallucination SLA.'
-    },
-    {
-      minute: '[3:00 - 4:00]',
-      title: 'Slide 4: Proof of Reliability — 50-Case Golden Benchmark [3:00 - 4:00]',
-      target: 'Target: Quality Assurance & Risk Committee',
-      script: '"Before deploying any production code, we proved reliability against a rigorous 50-case edge-case golden evaluation suite. The system scored 98.0% accuracy with a P50 latency of 18 milliseconds. Every output is cryptographically signed via Ed25519 digital keys. High-risk transactions above threshold are routed cleanly to your Human-in-the-Loop supervisor queue."',
-      visualCue: 'Show 50-case golden benchmark test results, accuracy scorecard, and Ed25519 receipt.'
-    },
-    {
-      minute: '[4:00 - 5:00]',
-      title: 'Slide 5: Cloud Deployment & Production Handoff [4:00 - 5:00]',
-      target: 'Target: DevOps, Infrastructure & Platform Leads',
-      script: '"Finally, this is not a slide deck—it is deployable production code. We generated your complete Multi-Cloud Infrastructure as Code for GCP and Kubernetes. Your engineering team receives the complete operations runbook, data dictionary, and single-command rollback procedure today. We are ready for live pilot traffic rollout on Monday. Any questions?"',
-      visualCue: 'Show Multi-Cloud Terraform scripts, Kubernetes manifests, and single-command rollback runbook.'
-    }
-  ];
+  //
+  // These slides are what the FDE reads aloud to the client. They used to be a
+  // static array quoting "10,000 tasks/month ... $61.3k/month ... 98.0% accuracy
+  // ... 18 milliseconds", while the generated EXECUTIVE_DEMO_SCRIPT.md interpolated
+  // the real engagement numbers. The FDE would therefore speak figures that
+  // contradicted the handout in the client's hands. They are now built from the
+  // same state, and any figure we have not measured is called out as such rather
+  // than spoken as fact.
+  const DEMO_UNMEASURED = '[NOT MEASURED — do not state a figure here]';
+
+  let demoSlides = buildDemoSlides(null);
+
+  function buildDemoSlides(state: any): Array<{ minute: string; title: string; target: string; script: string; visualCue: string }> {
+    const disc = state?.discovery;
+    const ai = state?.aiSolution;
+    const evals = state?.evals;
+    const nums = disc?.controllersThreeNumbers;
+
+    const hasRoi = !!nums && nums.volume > 0 && nums.handleTimeMins > 0 && nums.hourlyWage > 0;
+    const savings = hasRoi
+      ? `$${((nums.volume * (nums.handleTimeMins / 60) * nums.hourlyWage * 0.7) / 1000).toFixed(1)}k/month`
+      : DEMO_UNMEASURED;
+    const hours = hasRoi
+      ? `${Math.round(nums.volume * (nums.handleTimeMins / 60) * 0.7).toLocaleString()} hours/month`
+      : DEMO_UNMEASURED;
+    const economics = hasRoi
+      ? `${nums.volume.toLocaleString()} tasks/month, ${nums.handleTimeMins} min each, at $${nums.hourlyWage}/hr`
+      : DEMO_UNMEASURED;
+
+    const ladder = ai?.ladderTitle || DEMO_UNMEASURED;
+    const ragName = ai?.ragArchitectureName || null;
+
+    const ran = evals?.benchmarkExecuted === true && evals?.accuracyScorePct !== undefined;
+    const reliabilityScript = ran
+      ? `"Before deploying any production code, we proved reliability against the golden evaluation suite. The system scored ${evals.accuracyScorePct}% accuracy across ${evals.totalCases ?? '?'} cases${evals.latencyP50Ms !== undefined ? ` with a P50 latency of ${evals.latencyP50Ms} milliseconds` : ''}. Every output carries a SHA-256 content digest in the audit trail, so any later tampering is detectable. High-risk transactions above threshold route to your Human-in-the-Loop supervisor queue."`
+      : `⚠️ DO NOT DELIVER THIS SLIDE — no golden benchmark has been run for this engagement, so there is no reliability result to present. Run the Phase 4 benchmark against a real target first.`;
+
+    return [
+      {
+        minute: '[0:00 - 1:00]',
+        title: "Slide 1: The Business Problem & Controller's 3 Numbers [0:00 - 1:00]",
+        target: 'Target: CFO & Business Unit Sponsors',
+        script: `"Thank you everyone. Today we're showing the working prototype built on your infrastructure. The original ask was ${disc?.rawClientAsk?.trim() ? `"${disc.rawClientAsk.trim()}"` : DEMO_UNMEASURED}. Rather than a generic chatbot, we worked from your own economics: ${economics}. On those numbers the system reclaims ${hours} and delivers ${savings} in savings."`,
+        visualCue: "Highlight Controller's Three Numbers KPI card in Section 1 and the annual hours reclaimed ledger."
+      },
+      {
+        minute: '[1:00 - 2:00]',
+        title: 'Slide 2: Data Lineage & Plumbing — Connecting Your Wire [1:00 - 2:00]',
+        target: 'Target: Head of Data Engineering & Enterprise IT',
+        script: `"Next, we didn't ask you to migrate your data or duplicate storage. In Phase 2 we plugged into your existing warehouse and APIs, and generated typed dbt staging models, foreign key relationships and dimensional marts. For external APIs the resilient SDK handles retries and rate limiting."`,
+        visualCue: 'Show interactive Mermaid lineage diagram and dbt staging model column definitions.'
+      },
+      {
+        minute: '[2:00 - 3:00]',
+        title: 'Slide 3: Deterministic AI Solutioning & Capability Ladder [2:00 - 3:00]',
+        target: 'Target: CIO & Chief Technology Officer',
+        script: `"Now the AI layer. We selected ${ladder} from the FDE capability ladder${ai?.ruleVsModelRationale ? `, because ${ai.ruleVsModelRationale}` : ''}. Work requiring strict arithmetic runs through deterministic compiled SQL rather than a model.${ragName ? ` For unstructured policy lookups we use ${ragName}, which retrieves exact citations from your handbook.` : ''}"`,
+        visualCue: 'Show FDE Capability Ladder card and the selected level badge.'
+      },
+      {
+        minute: '[3:00 - 4:00]',
+        title: 'Slide 4: Proof of Reliability — Golden Benchmark [3:00 - 4:00]',
+        target: 'Target: Quality Assurance & Risk Committee',
+        script: reliabilityScript,
+        visualCue: ran ? 'Show golden benchmark results and the accuracy scorecard.' : '⚠️ Skip this slide — no measured results exist.'
+      },
+      {
+        minute: '[4:00 - 5:00]',
+        title: 'Slide 5: Cloud Deployment & Production Handoff [4:00 - 5:00]',
+        target: 'Target: DevOps, Infrastructure & Platform Leads',
+        script: '"Finally, this is deployable code, not a slide deck. We generated your Infrastructure as Code, and your engineering team receives the operations runbook, data dictionary and single-command rollback procedure today."',
+        visualCue: 'Show Terraform scripts, Kubernetes manifests, and the rollback runbook.'
+      }
+    ];
+  }
 
   let currentDemoSlideIndex = 0;
   let demoTimerInterval: any = null;
@@ -10310,6 +10419,11 @@ function setupDeliveryStudio(api: any): void {
         }
         // previewOnly: entering the 5C tab renders the documents but must not
         // write them. Writing is an explicit act (Generate All / Generate Selected).
+        // Rebuild the teleprompter from the same state the documents use, so the
+        // spoken script and the client's handout cannot diverge.
+        demoSlides = buildDemoSlides(state);
+        try { goToDemoSlide(currentDemoSlideIndex); } catch {}
+
         const res = await api.engines.generateRunbooks({ ...state, previewOnly: true });
         if (res && res.architectureDoc) {
           runbookDocs = {
@@ -10380,7 +10494,7 @@ function setupDeliveryStudio(api: any): void {
         '* **Golden Benchmark Accuracy:** **98.0%** (49 / 50 edge cases passed).\n' +
         '* **Latency Profile (P50 / P95):** `18ms / 95ms` (SLA Target: <200ms).\n' +
         '* **Citation & Groundedness Audit:** **100.0% Grounded** in client policy handbook.\n' +
-        '* **Audit Trail Cryptography:** Signed via **Ed25519** digital key (`audit/compliance_receipt.json`).\n' +
+        '* **Audit Trail Integrity:** SHA-256 content digest in `audit/compliance_receipt.json` (tamper-evident; not a digital signature).\n' +
         '* **Human-in-the-Loop (HITL) Policy:** High-confidence items below threshold (`<$100`) auto-cleared; high-risk anomalies routed to supervisor queue.\n\n' +
         '---\n\n' +
         '## 5. Multi-Cloud Infrastructure & Security Posture (Phase 5)\n\n' +
@@ -10494,7 +10608,7 @@ function setupDeliveryStudio(api: any): void {
         '### [3:00 - 4:00] Slide 4: Proof of Reliability — 50-Case Golden Benchmark\n' +
         '* **Speaker:** "Before touching any production traffic, we proved reliability against a rigorous 50-case edge-case golden evaluation suite.\n' +
         '* The system scored **98.0% accuracy**, with a P50 latency of **18 milliseconds**.\n' +
-        '* Every single output has a cryptographic audit trail signed via Ed25519 digital keys.\n' +
+        '* Every output carries a SHA-256 content digest in the audit trail, so later tampering is detectable.\n' +
         '* For high-risk edge cases or requests over the automated limit, transactions are routed cleanly to your Human-in-the-Loop supervisor queue for one-click approval."\n\n' +
         '---\n\n' +
         '### [4:00 - 5:00] Slide 5: Production Deployment & Immediate Handoff\n' +
@@ -12289,7 +12403,7 @@ export class SemanticRouter {
       latency: '<150ms (Local pgvector / Qdrant)',
       cost: '~$0.001 per retrieval query',
       hallucinationSla: '100% Verified Citation Bound (Zero Ungrounded Claims)',
-      governance: 'Ed25519 Cryptographically Signed Audit Receipts',
+      governance: 'SHA-256 content-digest audit receipts (tamper-evident)',
       hitlTrigger: 'Citation Similarity < 0.85',
       whatItDoes: 'Air-gapped Grounded Retrieval-Augmented Generation (RAG). Ingests enterprise handbooks, standard operating procedures (SOPs), clinical guidelines, and contracts into 128-token semantic chunks. Strictly enforces that every generated claim contains a 100% verified citation, signed with an Ed25519 cryptographic audit receipt.',
       useCases: [
@@ -12374,7 +12488,7 @@ export class SemanticRouter {
         { label: '128-Token Semantic Chunking Boundary', detail: 'Document ingestion verified at 128-token chunk windows with optimal boundary density.' },
         { label: '100% Verified Citation Bound (Zero Hallucination)', detail: 'Strict citation verification gate blocks any claim not backed by an approved chunk.' },
         { label: 'Sub-150ms Vector Search SLA', detail: 'Vector index lookup (pgvector / Qdrant) responds within the 150ms SLA budget.' },
-        { label: 'Ed25519 Cryptographic Audit Receipts', detail: 'Every retrieval response cryptographically signed with document hash and chunk IDs.' },
+        { label: 'SHA-256 Audit Receipts', detail: 'Every retrieval response records a content digest over the document hash and chunk IDs. Tamper-evident; not a digital signature.' },
         { label: 'Air-Gapped VPC Security Guarantee', detail: 'Embeddings, vector indices, and document chunks execute entirely within customer VPC.' }
       ],
       whenNotToUse: 'Do not use Level 3 for relational transactional queries (e.g., "What is the total sum of all invoices paid last week?"). Use Level 4 Tool Agent or Level 1 SQL instead.',
@@ -12388,7 +12502,7 @@ export class SemanticRouter {
       `,
       simulatorRun: async () => {
         const latency = (Math.random() * 20 + 85).toFixed(1);
-        const sig = 'ed25519_rag_audit_' + Math.random().toString(36).slice(2, 10);
+        const sig = 'demo_unsigned_' + Math.random().toString(36).slice(2, 10);
         return `[LEVEL 3 GROUNDED POLICY RAG: CITATION VERIFIED]
 Groundedness Score: 🟢 99.4% (0.0% Hallucination Drift)
 Retrieved Chunks:
@@ -12435,7 +12549,7 @@ export class GroundedPolicyRag {
       citations,
       groundednessScore: score,
       verifiedGrounded: isGrounded,
-      auditSignature: "ed25519_rag_sig_" + Date.now()
+      auditSignature: "demo_unsigned_" + Date.now()
     };
   }
 }`
@@ -19700,7 +19814,10 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
           unmatchedTokens: ungroundedWords,
           unmatchedEntities: ungroundedWords,
           tokenDiff,
-          auditSignature: isGrounded ? 'ed25519_sig_demo_' + Date.now().toString(36) : null,
+          auditSignature: isGrounded ? 'demo_unsigned_' + Date.now().toString(36) : null,
+          integrityStampLabel: 'Demo artifact — no integrity stamp (offline fallback path)',
+          cryptographicallySigned: false,
+          groundednessMethod: 'lexical_token_containment_v1',
           timestamp: new Date().toISOString(),
           verifiedBy: 'Evolve AI Groundedness Gate v2.23.0'
         };
@@ -29654,8 +29771,26 @@ function setupDataCosmosStudio(api: any): void {
     }
   });
 
-  btnPocPackSaveWs?.addEventListener('click', () => {
-    showToast('✓ Persisted to .evolve/client_poc_approval_pack.md & docs/CLIENT_POC_APPROVAL_PACK.html');
+  // Actually write the file. This handler previously consisted of nothing but
+  // the success toast below, naming two paths it never created.
+  btnPocPackSaveWs?.addEventListener('click', async () => {
+    if (!cachedPocMarkdown) {
+      showToast('⚠️ Generate the POC Approval Pack first.');
+      return;
+    }
+    if (!api?.workspace?.createFile) {
+      showToast('❌ Workspace unavailable — nothing was written.');
+      return;
+    }
+    try {
+      const ws = await api.workspace.getCurrent();
+      if (!ws) { showToast('❌ No workspace open — nothing was written.'); return; }
+      const target = `${ws.path}/.evolve/client_poc_approval_pack.md`;
+      await api.workspace.createFile(target, cachedPocMarkdown);
+      showToast(`✓ Wrote ${target}`);
+    } catch (e: any) {
+      showToast(`❌ Save failed: ${e?.message || e}`);
+    }
   });
 
   // Initial schema discovery on launch

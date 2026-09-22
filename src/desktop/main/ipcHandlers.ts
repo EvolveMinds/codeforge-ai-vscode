@@ -5656,9 +5656,19 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
           }))
         : [];
 
+      // A SHA-256 digest over the claim and its citations. This is genuinely
+      // useful — it detects later tampering with a record you already trust —
+      // but it is NOT a signature: there is no keypair anywhere in the product,
+      // so nothing can verify authorship. It used to be prefixed 'ed25519_sig_'
+      // and displayed as "Ed25519 Cryptographically Signed", which claimed a
+      // guarantee the product cannot provide.
       let sig: string | null = null;
+      let sigKind: string | null = null;
       if (isGrounded) {
-        sig = 'ed25519_sig_' + crypto.createHash('sha256').update(claim + JSON.stringify(verifiedCitations) + Date.now()).digest('hex').slice(0, 32);
+        sig = 'sha256:' + crypto.createHash('sha256')
+          .update(claim + JSON.stringify(verifiedCitations))
+          .digest('hex').slice(0, 32);
+        sigKind = 'sha256_digest';
       }
 
       // Build visual token diff array for interactive UI rendering
@@ -5684,6 +5694,18 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
         unmatchedEntities: ungroundedWords,
         tokenDiff,
         auditSignature: sig,
+        integrityStampKind: sigKind,
+        integrityStampLabel: sig
+          ? 'SHA-256 content digest (tamper-evident; not a digital signature)'
+          : null,
+        cryptographicallySigned: false,
+        // Name the method so a reader knows what the score does and does not mean.
+        // This is lexical containment of salient tokens, not semantic entailment:
+        // a claim reversed in meaning ("do NOT require approval") can still score
+        // highly because every word still appears in the source.
+        groundednessMethod: 'lexical_token_containment_v1',
+        groundednessMethodCaveat:
+          'Scores token overlap against the source text. It does not verify meaning, negation or numeric accuracy, and must not be read as semantic entailment.',
         timestamp: new Date().toISOString(),
         verifiedBy: 'Evolve AI Groundedness Gate v2.23.0',
         message: isGrounded
