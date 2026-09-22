@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { OfflinePatchApplyResult, UpdateCheckResult } from '../shared/desktopTypes';
+import { getAppVersion } from '../shared/appVersion';
 
 interface ReleaseFetchSuccess {
   kind: 'success';
@@ -25,7 +26,7 @@ type ReleaseFetchResult = ReleaseFetchSuccess | ReleaseFetchOffline;
 export class DesktopUpdater {
   private _storageDir: string;
   private _templatesDir: string;
-  private _currentVersion = '2.24.0';
+  private _currentVersion: string;
 
   constructor(customStorageDir?: string, customVersion?: string) {
     this._storageDir = customStorageDir || path.join(os.homedir(), '.evolve');
@@ -33,9 +34,11 @@ export class DesktopUpdater {
     if (!fs.existsSync(this._templatesDir)) {
       try { fs.mkdirSync(this._templatesDir, { recursive: true }); } catch {}
     }
-    if (customVersion) {
-      this._currentVersion = customVersion;
-    }
+    this._currentVersion = customVersion || getAppVersion();
+  }
+
+  public getCurrentVersion(): string {
+    return this._currentVersion;
   }
 
   public async checkForUpdates(): Promise<UpdateCheckResult> {

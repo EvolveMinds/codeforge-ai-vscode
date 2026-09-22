@@ -40,6 +40,11 @@ console.log(`  Evolve AI Enterprise Edition (v${version}) — Packaging Tool   `
 console.log(`  Evolve Mind Solutions Pty Ltd • Proprietary Commercial Build `);
 console.log(`===============================================================\n`);
 
+// 0. Version-literal guard — runs first so a stale hardcoded version fails the
+// build in seconds rather than after a full compile and package.
+console.log(`[0/4] Checking for hardcoded version literals...`);
+execSync('node scripts/check-version-literals.js', { stdio: 'inherit', cwd: rootDir });
+
 // 1. Compile TypeScript source
 console.log(`[1/4] Compiling TypeScript source (tsc -p ./)...`);
 execSync('npm run compile', { stdio: 'inherit', cwd: rootDir });

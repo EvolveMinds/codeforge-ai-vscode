@@ -2,12 +2,20 @@
  * Ambient type declarations for Electron in Evolve AI Desktop
  */
 
+// Electron injects this onto process at runtime; Node's own types don't declare it.
+declare namespace NodeJS {
+  interface Process {
+    resourcesPath?: string;
+  }
+}
+
 declare module 'electron' {
   export const app: {
     whenReady(): Promise<void>;
     on(event: string, listener: (...args: any[]) => void): void;
     quit(): void;
     getPath(name: string): string;
+    getVersion(): string;
   };
 
   export class BrowserWindow {

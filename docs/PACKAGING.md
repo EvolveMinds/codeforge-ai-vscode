@@ -185,6 +185,21 @@ users — they will not appear in the command palette or settings UI.
 
 ## 6. Release procedure
 
+> **The version has exactly one source: the `version` field in `package.json`.**
+> Bump it and nothing else. Every version shown to a user — the header pill, the
+> "INSTALLED VERSION" field in Settings, the About dialog, the updater's
+> comparison against the release registry, and provenance stamps such as
+> `verifiedBy` — resolves from it at runtime via
+> `src/desktop/shared/appVersion.ts`.
+>
+> **Never write a version literal into markup, renderer code or provenance
+> strings.** In v2.24.0 and earlier, `v2.23.0` was hardcoded in
+> `index.html`, so users who downloaded v2.24.0 launched it and still saw
+> v2.23.0 — no rebuild could fix it, because the wrong value *was* the source.
+> `npm run check:version` guards against this and runs automatically as part of
+> `desktop:build:win`, `desktop:build:portable` and `package:enterprise`.
+> If a literal is genuinely intentional, mark it `ALLOW_VERSION_LITERAL`.
+
 Run from a clean working tree, on the branch that will become the release.
 
 ### Step 1 — Verify starting state

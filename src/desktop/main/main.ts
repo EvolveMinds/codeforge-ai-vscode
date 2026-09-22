@@ -14,6 +14,7 @@ import { DesktopLicenseAuth } from './licenseAuth';
 import { DesktopSecretVault } from './secretVault';
 import { DesktopUpdater } from './updater';
 import { DesktopIpcHandlers } from './ipcHandlers';
+import { getAppVersion } from '../shared/appVersion';
 
 // Suppress GPU disk cache lock warnings on Windows when launched from CLI
 if ((app as any)?.commandLine) {
@@ -61,7 +62,17 @@ const workspaceMgr = new DesktopWorkspaceManager(storageDir);
 const terminalMgr = new DesktopTerminalManager();
 const licenseAuth = new DesktopLicenseAuth(storageDir);
 const secretVault = new DesktopSecretVault(storageDir);
-const updater = new DesktopUpdater(storageDir);
+// Version comes from the packaged package.json — never hardcode it, or a shipped
+// build reports the version it was written at rather than the one it is.
+const appVersion = (() => {
+  try {
+    const v = app.getVersion();
+    if (v && v !== '0.0.0') return v;
+  } catch { /* not running under Electron (tests) */ }
+  return getAppVersion();
+})();
+
+const updater = new DesktopUpdater(storageDir, appVersion);
 
 const ipcHandlers = new DesktopIpcHandlers({
   workspaceMgr,
@@ -260,7 +271,7 @@ function buildAppMenu(): void {
               type: 'info',
               title: 'About Evolve AI Enterprise Edition',
               message: 'Evolve AI Enterprise Desktop Edition',
-              detail: `Version: 2.23.0\nOrganization: ${lic.organization}\nPlan: ${lic.plan.toUpperCase()}\nStatus: ${lic.isLicensed ? 'Active (' + lic.daysRemaining + ' days left)' : 'Community Mode'}\nBuilt by Evolve Mind Solutions Pty Ltd`
+              detail: `Version: ${appVersion || 'unknown'}\nOrganization: ${lic.organization}\nPlan: ${lic.plan.toUpperCase()}\nStatus: ${lic.isLicensed ? 'Active (' + lic.daysRemaining + ' days left)' : 'Community Mode'}\nBuilt by Evolve Mind Solutions Pty Ltd`
             });
           }
         }
