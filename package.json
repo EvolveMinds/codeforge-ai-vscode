@@ -2238,14 +2238,16 @@
     "verify:honest": "node scripts/verify-honest-mode.js"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.3.0",
-    "@vscode/vsce": "^2.22.0",
-    "@vscode/test-electron": "^2.3.0",
-    "mocha": "^10.2.0",
     "@types/mocha": "^10.0.0",
-    "glob": "^10.3.0"
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.0",
+    "@vscode/vsce": "^2.22.0",
+    "electron": "28.2.0",
+    "electron-builder": "26.16.1",
+    "glob": "^10.3.0",
+    "mocha": "^10.2.0",
+    "typescript": "^5.3.0"
   },
   "dependencies": {}
 }

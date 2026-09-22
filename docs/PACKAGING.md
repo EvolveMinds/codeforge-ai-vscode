@@ -407,3 +407,50 @@ git tag "v$V" && git push origin "v$V"
 git checkout main && git merge "release/$V" && git push origin main
 ```
 
+---
+
+## Desktop (Enterprise) build — `electron-builder` version constraint
+
+Build the portable Windows executable with:
+
+```bash
+npm run desktop:build:portable
+# -> dist-desktop/evolve-ai-enterprise-portable-<version>-win32-x64.exe
+```
+
+**`electron-builder` must be 26.x or newer, and is pinned in `devDependencies`.**
+
+On 24.x and 25.x this build fails on Windows with:
+
+```
+ERROR: Cannot create symbolic link : A required privilege is not held by the client.
+  ...winCodeSign\<id>\darwin.12\lib\libcrypto.dylib
+```
+
+Those versions download a code-signing toolchain as an unconditional
+prerequisite of Windows packaging — **even when nothing is being signed** — and
+that archive contains macOS symlinks. Windows refuses to create symlinks without
+Developer Mode or `SeCreateSymbolicLinkPrivilege`, 7-Zip exits non-zero, and the
+build aborts before packaging starts.
+
+Things that do *not* fix it, so nobody repeats the investigation:
+
+* Running the build as administrator (verified — fails identically).
+* Reusing or pre-seeding the extracted cache; the directory name is randomised
+  per run, so a prepared copy is never found.
+* Deleting the `.7z` archives; they are re-downloaded.
+* Supplying a pre-converted `.ico` to skip icon conversion.
+
+26.x skips the download entirely when no certificate is configured, logging
+`no code signing certificate configured, signing is skipped` and packaging
+normally. That is the fix.
+
+### Signing status
+
+Desktop executables are currently **unsigned** — see TODO 3 in
+`docs/FDE_TODO.md` for the impact on customers and the options. Publish the
+SHA-256 with every release so clients can verify the download:
+
+```bash
+powershell -Command "(Get-FileHash '<path-to-exe>' -Algorithm SHA256).Hash"
+```
