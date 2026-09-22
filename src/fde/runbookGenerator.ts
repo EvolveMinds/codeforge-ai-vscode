@@ -12,6 +12,13 @@
  */
 
 import { FdeEngagementState } from './fdeContext';
+import { NOT_MEASURED, documentBanner, StudioMode } from './provenance';
+
+/** Renders a discovery field, or a visible placeholder when it was never filled in. */
+function discovered(value: string | undefined, what: string): string {
+  const v = (value || '').trim();
+  return v.length > 0 ? v : `${NOT_MEASURED} _(${what} not recorded during discovery)_`;
+}
 
 export class RunbookGenerator {
   static generateArchitectureDoc(state: FdeEngagementState): string {
@@ -62,8 +69,23 @@ export class RunbookGenerator {
       apiFlows = `        ClientApi["Client Internal APIs\\n(REST / Webhooks)"] --> ResilientSdk["Resilient Connector SDK\\n(Retries & Rate Limits)"]\n        ResilientSdk --> Backend`;
     }
 
-    const cloudProvider = (state.deployment?.discoveredCloudResources?.provider || targetVpc || 'gcp').toUpperCase();
-    const vpcInfo = state.deployment?.vpcId ? `\\n(VPC: ${state.deployment.vpcId})` : '';
+    // Section 5B writes `deploymentConfig`; `deployment` is the older discovered-
+    // resources session. Prefer what the FDE actually entered, and say NOT MEASURED
+    // rather than inventing "1 vCPU / 1Gi / VPC default" for a client's blueprint.
+    const dcfg = state.deploymentConfig;
+    const dep = state.deployment as any;
+    const cfg = {
+      cpu: dcfg?.cpu || dep?.cpu,
+      memory: dcfg?.memory || dep?.memory,
+      gpu: dcfg?.gpu || dep?.gpu,
+      vpcId: dcfg?.vpcId || dep?.vpcId,
+      ingress: dcfg?.ingress || dep?.ingress,
+      secretsProvider: dcfg?.secretsProvider || dep?.secretsProvider,
+      projectId: dcfg?.projectId || dep?.projectId
+    };
+
+    const cloudProvider = (dcfg?.provider || state.deployment?.discoveredCloudResources?.provider || targetVpc || 'gcp').toUpperCase();
+    const vpcInfo = cfg.vpcId ? `\\n(VPC: ${cfg.vpcId})` : '';
 
     const disc = state.discovery;
     const ai = state.aiSolution;
@@ -78,45 +100,75 @@ export class RunbookGenerator {
 * **Annual Capacity Reclaimed:** \`${Math.round((disc.controllersThreeNumbers.volume * (disc.controllersThreeNumbers.handleTimeMins / 60) * 0.7) * 12).toLocaleString()} labor hours/year\`
 ` : '';
 
+    // Architecture claims are only as good as the decisions actually recorded.
+    // Where 3A/3B/3C never ran, say so rather than asserting a rule engine the
+    // client never agreed to.
+    const ragLine = ai?.ragArchitectureName
+      ? `**${ai.ragArchitectureName}**${ai.isGroundedRagScaffolded ? ` — air-gapped ${ai.ragStore || 'pgvector'}, ${ai.ragChunkSize || 128}-token window` : ''}`
+      : (ai?.isGroundedRagScaffolded
+        ? `Air-Gapped ${ai.ragStore || 'pgvector'} with ${ai.ragChunkSize || 128}-token semantic window`
+        : NOT_MEASURED);
+
     const aiSolutionSection = `
 ---
 
 ## 3. AI Solutioning Architecture & Decision Gates (Phase 3)
 
-* **Architecture Capability Target:** **${ai?.ladderTitle || 'Level 1: Deterministic Rule Engine & Compiled SQL'}**
-* **Hallucination SLA:** **0.0% Hallucinations** (Deterministic SQL & TypeScript rule evaluation for all mathematical/boundary operations).
-* **Decision Gate Rationale:** ${ai?.ruleModelParadigm || 'Pure Rule Engine & SQL (<5ms latency, compiled deterministic execution)'}.
-* **RAG Vector Architecture:** ${ai?.isGroundedRagScaffolded ? `Air-Gapped ${ai.ragStore || 'pgvector'} with ${ai.ragChunkSize || 128}-token semantic window` : 'Deterministic rule-first gating'}.
-* **Model Context Protocol (MCP):** ${ai?.isMcpServerScaffolded ? 'Standardized MCP Server (`src/mcp/server.ts`) exposing secure database tools' : 'Air-gapped internal functions'}.
+* **Architecture Capability Target:** ${ai?.ladderTitle ? `**${ai.ladderTitle}**` : NOT_MEASURED}
+* **Decision Gate Rationale:** ${ai?.ruleModelParadigm || NOT_MEASURED}
+* **Rule vs. Model Verdict:** ${ai?.ruleVsModelVerdict ? `**${ai.ruleVsModelVerdict.toUpperCase()}** — ${ai.ruleVsModelRationale || 'rationale not recorded'}` : NOT_MEASURED}
+* **RAG Vector Architecture:** ${ragLine}
+* **Model Context Protocol (MCP):** ${ai?.isMcpServerScaffolded ? 'Standardized MCP Server (`src/mcp/server.ts`) exposing secure database tools' : 'Not scaffolded for this engagement'}
 `;
+
+    // Every number in this section is a measurement or it is absent. The old
+    // `|| 98.0` / `|| 49` / `|| 18` fallbacks produced a complete, plausible
+    // reliability report for a system that had never been executed — which is
+    // exactly the failure this section now refuses to reproduce.
+    const ran = evals?.benchmarkExecuted === true;
 
     const evalsSection = `
 ---
 
 ## 4. Reliability & Evaluation Suite (Phase 4)
 
-* **Golden Benchmark Accuracy:** **${evals?.accuracyScorePct || '98.0'}%** (${evals?.passedCases || 49} / ${evals?.totalCases || 50} edge cases passed).
-* **Latency Profile (P50 / P95):** \`${evals?.latencyP50Ms || 18}ms / ${evals?.latencyP95Ms || 95}ms\` (SLA Target: <200ms).
-* **Citation & Groundedness Audit:** **100.0% Grounded** in client policy handbook.
-* **Audit Trail Cryptography:** Signed via **Ed25519** digital key (\`${evals?.groundednessAuditSignature || 'audit/compliance_receipt.json'}\`).
-* **Human-in-the-Loop (HITL) Policy:** High-confidence items below threshold (\`${evals?.hitlThreshold || '<$100'}\`) auto-cleared; high-risk anomalies routed to supervisor queue.
+${ran ? '' : `> [!CAUTION]
+> **No golden benchmark has been executed for this engagement.** The metrics below
+> are unpopulated by design. Run the Phase 4 benchmark against a real target before
+> presenting any reliability claim to the client.
+
+`}* **Golden Benchmark Accuracy:** ${ran && evals?.accuracyScorePct !== undefined
+      ? `**${evals.accuracyScorePct}%** (${evals.passedCases ?? '?'} / ${evals.totalCases ?? '?'} cases passed)`
+      : NOT_MEASURED}
+* **Latency Profile (P50 / P95):** ${ran && evals?.latencyP50Ms !== undefined
+      ? `\`${evals.latencyP50Ms}ms / ${evals.latencyP95Ms ?? '?'}ms\``
+      : NOT_MEASURED}
+* **Citation & Groundedness:** ${evals?.groundednessScorePct !== undefined
+      ? `**${evals.groundednessScorePct}%**${evals.groundednessMethod ? ` (method: ${evals.groundednessMethod})` : ''}`
+      : NOT_MEASURED}
+* **Audit Trail Integrity:** ${evals?.groundednessAuditSignature
+      ? `\`${evals.groundednessAuditSignature}\` — SHA-256 content digest (tamper-evident; **not** a digital signature)`
+      : NOT_MEASURED}
+* **Human-in-the-Loop (HITL) Policy:** ${evals?.hitlThreshold
+      ? `Items below threshold (\`${evals.hitlThreshold}\`) auto-cleared; higher-risk items routed to the supervisor queue.`
+      : NOT_MEASURED}
 `;
 
-    return `# ${client} — System Architecture & Integration Blueprint
+    return `${documentBanner((s.studioMode as StudioMode) || 'DEMO')}# ${client} — System Architecture & Integration Blueprint
 
-> **Generated by Evolve AI (Forward Deployed Engineer Suite)**  
-> **Engagement Target:** ${client} Production & Pilot Deployment  
-> **Infrastructure Target:** ${cloudProvider} ${vpcInfo}  
+> **Generated by Evolve AI (Forward Deployed Engineer Suite)**
+> **Engagement Target:** ${client} Production & Pilot Deployment
+> **Infrastructure Target:** ${cloudProvider} ${vpcInfo}
 > **Canonical Delivery Standard:** 5-Phase Forward-Deployed Engineering Curriculum
 
 ---
 
 ## 1. Executive Problem Reframing & Economic Boundaries (Phase 1)
 
-* **Original Client Request:** "${disc?.rawClientAsk || 'Automate client manual workflow and data operations'}"
-* **Identified Failure Modes:** ${disc?.riskAnalysis || 'Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.'}
-* **Agreed Production Target (Observation-to-Spec / O2S):** ${disc?.reframedProblem || 'Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.'}
-* **Explicit Out-of-Scope Boundaries:** ${(disc?.outOfScope && disc.outOfScope.length > 0) ? disc.outOfScope.map(o => `\`${o}\``).join(', ') : '`Direct LLM database write access`, `Unverified external API scraping`, `Unsupervised transactions >$100`'}
+* **Original Client Request:** ${disc?.rawClientAsk?.trim() ? `"${disc.rawClientAsk}"` : discovered(undefined, 'raw client ask')}
+* **Identified Failure Modes:** ${discovered(disc?.riskAnalysis, 'risk analysis')}
+* **Agreed Production Target (Observation-to-Spec / O2S):** ${discovered(disc?.reframedProblem, 'reframed problem')}
+* **Explicit Out-of-Scope Boundaries:** ${(disc?.outOfScope && disc.outOfScope.length > 0) ? disc.outOfScope.map(o => `\`${o}\``).join(', ') : `${NOT_MEASURED} _(no boundary locks agreed during discovery)_`}
 ${roiSection}
 
 ---
@@ -137,7 +189,7 @@ ${apiFlows}
 
     subgraph Cloud Delivery Layer (${cloudProvider})
         Frontend["Web & App Frontends\\n(SPA + Edge Caching)"]
-        Backend["Compute Services / Containers\\n(${state.deployment?.cpu || '1'} vCPU · ${state.deployment?.memory || '1Gi'})"]
+        Backend["Compute Services / Containers\\n(${cfg.cpu || 'unspecified'} vCPU · ${cfg.memory || 'unspecified'})"]
         Database["PostgreSQL / Supabase / Lakehouse\\n(Relational & Analytics)"]
     end
 
@@ -170,17 +222,20 @@ ${evalsSection}
 
 ## 5. Multi-Cloud Infrastructure & Security Posture (Phase 5)
 
-* **Compute Target:** ${cloudProvider} (${state.deployment?.cpu || '1'} vCPU, ${state.deployment?.memory || '1Gi'} Memory, GPU: ${state.deployment?.gpu || 'None'})
-* **Network Isolation:** Ingress set to \`${state.deployment?.ingress || 'internal'}\` within VPC \`${state.deployment?.vpcId || 'default'}\`.
-* **Secrets Provider:** \`${state.deployment?.secretsProvider || 'Cloud Secret Manager'}\`.
+* **Compute Target:** ${cloudProvider} (${cfg.cpu ? `${cfg.cpu} vCPU` : NOT_MEASURED}, ${cfg.memory ? `${cfg.memory} Memory` : NOT_MEASURED}, GPU: ${cfg.gpu || 'None'})
+* **Network Isolation:** Ingress set to ${cfg.ingress ? `\`${cfg.ingress}\`` : NOT_MEASURED} within VPC ${cfg.vpcId ? `\`${cfg.vpcId}\`` : NOT_MEASURED}.
+* **Secrets Provider:** ${cfg.secretsProvider ? `\`${cfg.secretsProvider}\`` : NOT_MEASURED}.
 * **Air-Gapped Ready:** The deployment is compatible with strict air-gapped and non-exfiltrating client boundaries.
 `;
   }
 
   static generateDeploymentRunbook(state: FdeEngagementState): string {
     const client = state.clientName || 'Client';
+    const cfg = {
+      projectId: state.deploymentConfig?.projectId || (state.deployment as any)?.projectId
+    };
 
-    return `# ${client} — Operations & Deployment Runbook
+    return `${documentBanner((state.studioMode as StudioMode) || 'DEMO')}# ${client} — Operations & Deployment Runbook
 
 > **Audience:** Client IT, DevOps, and Platform Engineering Teams  
 > **Maintained by:** Forward Deployed Engineering (FDE)  
@@ -223,7 +278,7 @@ If an issue is detected post-deployment:
 ### Frontend (Firebase Hosting):
 \`\`\`bash
 # Roll back to the previous stable release instantly:
-npx firebase-tools hosting:rollback --project ${state.deployment?.clientName || 'PROJECT_ID'}
+npx firebase-tools hosting:rollback --project ${cfg.projectId || 'PROJECT_ID'}
 \`\`\`
 
 ### Backend (Cloud Run):
@@ -334,10 +389,17 @@ Configure all secrets under GitHub Actions / GitLab CI pipeline settings before 
     const evals = state.evals;
     const nums = disc?.controllersThreeNumbers;
 
-    const monthlySavings = nums ? `$${((nums.volume * (nums.handleTimeMins / 60) * nums.hourlyWage * 0.7) / 1000).toFixed(1)}k` : '$61.3k';
-    const hoursReclaimed = nums ? `${Math.round(nums.volume * (nums.handleTimeMins / 60) * 0.7).toLocaleString()} hours/month` : '1,750 hours/month';
+    // No ROI fallback. Quoting "$61.3k/month" for an engagement whose Controller's
+    // Three Numbers were never captured is the kind of figure a CFO acts on.
+    const hasRoi = !!nums && nums.volume > 0 && nums.handleTimeMins > 0 && nums.hourlyWage > 0;
+    const monthlySavings = hasRoi
+      ? `$${((nums!.volume * (nums!.handleTimeMins / 60) * nums!.hourlyWage * 0.7) / 1000).toFixed(1)}k`
+      : NOT_MEASURED;
+    const hoursReclaimed = hasRoi
+      ? `${Math.round(nums!.volume * (nums!.handleTimeMins / 60) * 0.7).toLocaleString()} hours/month`
+      : NOT_MEASURED;
 
-    return `# 🎤 ${client} — 5-Minute Executive Demo Presentation Script
+    return `${documentBanner((state.studioMode as StudioMode) || 'DEMO')}# 🎤 ${client} — 5-Minute Executive Demo Presentation Script
 
 > **Purpose:** Forward Deployed Engineer Executive Presentation Script for client CFO, CIO, and Business Unit Leaders.  
 > **Total Duration:** Exactly 5 Minutes (Strict FDE Timeboxed Protocol)  
@@ -369,11 +431,18 @@ Configure all secrets under GitHub Actions / GitLab CI pipeline settings before 
 
 ---
 
-### [3:00 - 4:00] Slide 4: Proof of Reliability — 50-Case Golden Benchmark
-* **Speaker:** "Before touching any production traffic, we proved reliability against a rigorous 50-case edge-case golden evaluation suite.
-* The system scored **${evals?.accuracyScorePct || '98.0'}% accuracy**, with a P50 latency of **${evals?.latencyP50Ms || 18} milliseconds**.
-* Every single output has a cryptographic audit trail signed via Ed25519 digital keys.
-* For high-risk edge cases or requests over the automated limit, transactions are routed cleanly to your Human-in-the-Loop supervisor queue for one-click approval."
+### [3:00 - 4:00] Slide 4: Proof of Reliability — Golden Benchmark
+${evals?.benchmarkExecuted === true && evals?.accuracyScorePct !== undefined
+      ? `* **Speaker:** "Before touching any production traffic, we proved reliability against the golden evaluation suite.
+* The system scored **${evals.accuracyScorePct}% accuracy** across ${evals.totalCases ?? '?'} cases${evals.latencyP50Ms !== undefined ? `, with a P50 latency of **${evals.latencyP50Ms} milliseconds**` : ''}.
+* Every output carries a SHA-256 content digest in the audit trail, so any later tampering is detectable.
+* For high-risk edge cases or requests over the automated limit, transactions are routed to your Human-in-the-Loop supervisor queue for one-click approval."`
+      : `> [!CAUTION]
+> **Do not deliver this slide.** No golden benchmark has been executed for this
+> engagement, so there is no reliability result to present. Run the Phase 4
+> benchmark against a real target, then regenerate this script.
+
+* **Speaker:** _(no measured reliability results — slide intentionally left unscripted)_`}
 
 ---
 

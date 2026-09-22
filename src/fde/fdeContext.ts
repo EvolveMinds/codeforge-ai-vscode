@@ -136,6 +136,17 @@ export interface FdeAiSolutionState {
   ragStore?: string;
   ragChunkSize?: number;
   isMcpServerScaffolded?: boolean;
+  /**
+   * Which of the 8 canonical RAG patterns Section 3C selected.
+   * Persisted so the topology in the client memo matches what Phase 4 evaluates
+   * and what Phase 5 documents — previously this lived only in a renderer `let`,
+   * so every document fell back to a hardcoded rule-engine architecture.
+   */
+  ragArchitecture?: string;
+  ragArchitectureName?: string;
+  /** Section 3B's verdict. The most defensible decision in the engagement. */
+  ruleVsModelVerdict?: 'rule' | 'model' | 'hybrid';
+  ruleVsModelRationale?: string;
 }
 
 export interface FdeEvalsState {
@@ -147,6 +158,39 @@ export interface FdeEvalsState {
   groundednessAuditSignature?: string;
   hitlThreshold?: string;
   hitlSimulatedApproved?: boolean;
+  /**
+   * Set only when a benchmark actually executed against a target. Documents key
+   * every metric above off this: absent means the numbers were never produced,
+   * and the runbooks must say so rather than printing a plausible default.
+   */
+  benchmarkExecuted?: boolean;
+  benchmarkRunAt?: number;
+  benchmarkTargetType?: string;
+  /** Groundedness is a bag-of-words containment score, not semantic grounding. */
+  groundednessScorePct?: number;
+  groundednessMethod?: string;
+  /** Provenance of the preflight audit: a demo preset must never export as PASS. */
+  preflightSource?: 'live_scan' | 'demo_preset';
+  preflightScore?: number;
+}
+
+/** Section 5B's deployment configuration, as the FDE actually entered it. */
+export interface FdeDeploymentConfigState {
+  provider?: string;
+  projectId?: string;
+  region?: string;
+  cpu?: string;
+  memory?: string;
+  gpu?: string;
+  vpcId?: string;
+  subnetId?: string;
+  securityGroups?: string;
+  ingress?: string;
+  minInstances?: number;
+  maxInstances?: number;
+  secretsProvider?: string;
+  appName?: string;
+  scaffoldedAt?: number;
 }
 
 export interface FdeEngagementState {
@@ -156,6 +200,13 @@ export interface FdeEngagementState {
   targetVpc: 'gcp-firebase' | 'aws' | 'docker' | 'azure';
   activePhase: 1 | 2 | 3 | 4 | 5 | 6;
   completedPhases: number[];
+  /**
+   * DEMO drives the Studio from built-in sample data for pitching; LIVE is a real
+   * client engagement. Every generated document is stamped with this, and in DEMO
+   * mode carries a banner marking it as not a deliverable. Defaults to DEMO so a
+   * fresh install cannot silently produce something that looks like real evidence.
+   */
+  studioMode?: 'DEMO' | 'LIVE';
   discovery?: FdeDiscoveryState;
   schemaMappings: SchemaMappingSession[];
   dataMarts?: DataMartSession[];
@@ -163,6 +214,8 @@ export interface FdeEngagementState {
   aiSolution?: FdeAiSolutionState;
   evals?: FdeEvalsState;
   deployment?: DeploymentSession;
+  /** Section 5B config. Distinct from `deployment` (a discovered-resources session). */
+  deploymentConfig?: FdeDeploymentConfigState;
   activeDbConnection?: {
     dialect: string;
     host?: string;

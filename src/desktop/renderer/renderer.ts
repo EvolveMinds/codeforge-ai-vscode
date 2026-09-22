@@ -9753,7 +9753,10 @@ function setupDeliveryStudio(api: any): void {
     e.stopPropagation();
     showToast('⚡ Generating ARCHITECTURE.md...');
     if (api?.engines) {
-      const res = await api.engines.generateRunbooks({});
+      // Pass the real engagement state: sending `{}` bypassed fde.getState()
+      // entirely, so single-doc generation silently used defaults.
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
       runbookDocs.arch = res.architectureDoc;
     }
     updateDocBadges(['arch']);
@@ -9774,7 +9777,10 @@ function setupDeliveryStudio(api: any): void {
     e.stopPropagation();
     showToast('⚡ Generating DEPLOYMENT_RUNBOOK.md...');
     if (api?.engines) {
-      const res = await api.engines.generateRunbooks({});
+      // Pass the real engagement state: sending `{}` bypassed fde.getState()
+      // entirely, so single-doc generation silently used defaults.
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
       runbookDocs.deploy = res.deploymentRunbook;
     }
     updateDocBadges(['deploy']);
@@ -9795,7 +9801,10 @@ function setupDeliveryStudio(api: any): void {
     e.stopPropagation();
     showToast('⚡ Generating DATA_DICTIONARY.md...');
     if (api?.engines) {
-      const res = await api.engines.generateRunbooks({});
+      // Pass the real engagement state: sending `{}` bypassed fde.getState()
+      // entirely, so single-doc generation silently used defaults.
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
       runbookDocs.dataDict = res.dataDictionary;
     }
     updateDocBadges(['dataDict']);
@@ -9816,7 +9825,10 @@ function setupDeliveryStudio(api: any): void {
     e.stopPropagation();
     showToast('⚡ Generating ENVIRONMENT_CATALOG.md...');
     if (api?.engines) {
-      const res = await api.engines.generateRunbooks({});
+      // Pass the real engagement state: sending `{}` bypassed fde.getState()
+      // entirely, so single-doc generation silently used defaults.
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
       runbookDocs.env = res.environmentCatalog;
     }
     updateDocBadges(['env']);
@@ -9837,7 +9849,10 @@ function setupDeliveryStudio(api: any): void {
     e.stopPropagation();
     showToast('⚡ Generating EXECUTIVE_DEMO.md...');
     if (api?.engines) {
-      const res = await api.engines.generateRunbooks({});
+      // Pass the real engagement state: sending `{}` bypassed fde.getState()
+      // entirely, so single-doc generation silently used defaults.
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
       runbookDocs.demo = res.executiveDemoScript;
     }
     updateDocBadges(['demo']);
@@ -9858,7 +9873,10 @@ function setupDeliveryStudio(api: any): void {
     e.stopPropagation();
     showToast('⚡ Generating CLIENT_HANDOFF.md...');
     if (api?.engines) {
-      const res = await api.engines.generateRunbooks({});
+      // Pass the real engagement state: sending `{}` bypassed fde.getState()
+      // entirely, so single-doc generation silently used defaults.
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
       runbookDocs.complete = res.completeHandoffPackage;
     }
     updateDocBadges(['complete']);
@@ -10290,7 +10308,9 @@ function setupDeliveryStudio(api: any): void {
         if (api?.fde?.getState) {
           try { state = await api.fde.getState() || {}; } catch {}
         }
-        const res = await api.engines.generateRunbooks(state);
+        // previewOnly: entering the 5C tab renders the documents but must not
+        // write them. Writing is an explicit act (Generate All / Generate Selected).
+        const res = await api.engines.generateRunbooks({ ...state, previewOnly: true });
         if (res && res.architectureDoc) {
           runbookDocs = {
             arch: res.architectureDoc || '',

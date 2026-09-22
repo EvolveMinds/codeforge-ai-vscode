@@ -2574,7 +2574,13 @@ export async function executeTask() {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
       const docsDir = path.join(cwd, 'docs');
-      if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
+
+      // Previewing must never write. Section 5C used to call this on tab entry,
+      // so merely clicking the tab rewrote six client-facing documents in docs/
+      // with fallback-laden content and no prompt. Callers that intend to write
+      // now have to say so.
+      const previewOnly = state?.previewOnly === true;
+      if (!previewOnly && !fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
 
       // Merge with persisted .evolve/fde_state.json if available
       let mergedState = state || {};
@@ -2598,12 +2604,20 @@ export async function executeTask() {
       if (fs.existsSync(evalsPath)) {
         try {
           const evalsReport = JSON.parse(fs.readFileSync(evalsPath, 'utf8'));
+          // Carry across only what the report actually contains. The previous
+          // `|| 98.0` / `|| 49` defaults meant a malformed or partial report
+          // still produced a complete, plausible reliability section.
+          const num = (v: any): number | undefined =>
+            typeof v === 'number' && Number.isFinite(v) ? v : undefined;
           mergedState.evals = {
-            accuracyScorePct: evalsReport.accuracyScorePct || 98.0,
-            passedCases: evalsReport.passedCases || 49,
-            totalCases: evalsReport.totalCases || 50,
-            latencyP50Ms: evalsReport.p50LatencyMs || 18,
-            latencyP95Ms: evalsReport.p95LatencyMs || 95,
+            accuracyScorePct: num(evalsReport.accuracyScorePct),
+            passedCases: num(evalsReport.passedCases),
+            totalCases: num(evalsReport.totalCases),
+            latencyP50Ms: num(evalsReport.p50LatencyMs),
+            latencyP95Ms: num(evalsReport.p95LatencyMs),
+            benchmarkExecuted: evalsReport.benchmarkExecuted === true,
+            benchmarkRunAt: num(evalsReport.benchmarkRunAt),
+            benchmarkTargetType: evalsReport.targetType,
             ...mergedState.evals
           };
         } catch {}
@@ -2616,17 +2630,35 @@ export async function executeTask() {
       const executiveDemoScript = RunbookGenerator.generateExecutiveDemoScript(mergedState);
       const completeHandoffPackage = RunbookGenerator.generateCompleteHandoffPackage(mergedState);
 
-      try {
-        fs.writeFileSync(path.join(docsDir, 'ARCHITECTURE.md'), architectureDoc, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'DEPLOYMENT_RUNBOOK.md'), deploymentRunbook, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'DATA_DICTIONARY.md'), dataDictionary, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'ENVIRONMENT_CATALOG.md'), environmentCatalog, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'EXECUTIVE_DEMO_SCRIPT.md'), executiveDemoScript, 'utf8');
-        fs.writeFileSync(path.join(docsDir, 'CLIENT_HANDOFF_COMPLETE.md'), completeHandoffPackage, 'utf8');
-      } catch {}
+      const writtenPaths: string[] = [];
+      let writeError: string | undefined;
+      if (!previewOnly) {
+        const files: Array<[string, string]> = [
+          ['ARCHITECTURE.md', architectureDoc],
+          ['DEPLOYMENT_RUNBOOK.md', deploymentRunbook],
+          ['DATA_DICTIONARY.md', dataDictionary],
+          ['ENVIRONMENT_CATALOG.md', environmentCatalog],
+          ['EXECUTIVE_DEMO_SCRIPT.md', executiveDemoScript],
+          ['CLIENT_HANDOFF_COMPLETE.md', completeHandoffPackage]
+        ];
+        try {
+          for (const [name, body] of files) {
+            const p = path.join(docsDir, name);
+            fs.writeFileSync(p, body, 'utf8');
+            writtenPaths.push(p);
+          }
+        } catch (e: any) {
+          // A silent `catch {}` here meant a failed write still reported success
+          // and the FDE believed the handoff pack existed.
+          writeError = e?.message || String(e);
+        }
+      }
 
       return {
-        success: true,
+        success: !writeError,
+        previewOnly,
+        writtenPaths,
+        writeError,
         architectureDoc,
         deploymentRunbook,
         dataDictionary,
