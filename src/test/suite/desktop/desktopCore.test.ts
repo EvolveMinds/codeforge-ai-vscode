@@ -12,6 +12,7 @@ import { DesktopTerminalManager } from '../../../desktop/main/terminalManager';
 import { DesktopLicenseAuth } from '../../../desktop/main/licenseAuth';
 import { DesktopSecretVault } from '../../../desktop/main/secretVault';
 import { DesktopUpdater } from '../../../desktop/main/updater';
+import { getAppVersion, _setAppVersionForTests } from '../../../desktop/shared/appVersion';
 import { DesktopIpcHandlers } from '../../../desktop/main/ipcHandlers';
 import { DESKTOP_CHANNELS } from '../../../desktop/shared/eventChannels';
 
@@ -141,6 +142,36 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     const deleted = vault.deleteSecret('db_postgres_pass');
     assert.strictEqual(deleted, true);
     assert.strictEqual(vault.getSecret('db_postgres_pass'), null);
+  });
+
+  test('app version never reports the Electron runtime version as our own', () => {
+    // Regression guard for a real bug: running the desktop entry directly
+    //   npx electron <path>/out/desktop/main/main.js
+    // made the app display "v44.4.3" — an Electron release number. Electron's
+    // app.getVersion() does not fail when the app has no version of its own; it
+    // silently returns Electron's version, and main.ts trusted it first.
+    //
+    // getAppVersion() must read package.json itself and, failing that, return
+    // the obvious '0.0.0' sentinel rather than anything that looks like a real
+    // release.
+    const pkgVersion = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '..', '..', '..', '..', 'package.json'), 'utf8')
+    ).version;
+
+    _setAppVersionForTests(null);
+    const resolved = getAppVersion();
+
+    assert.strictEqual(resolved, pkgVersion, 'getAppVersion() must resolve from package.json');
+    assert.notStrictEqual(
+      resolved,
+      process.versions.electron,
+      'app version must never equal the Electron runtime version'
+    );
+    // Electron majors are far ahead of ours; a leak shows up as an implausible major.
+    assert.ok(
+      Number(resolved.split('.')[0]) < 40,
+      `implausible major version ${resolved} — likely an Electron version leaking through`
+    );
   });
 
   test('DesktopUpdater checks updates and handles offline patch simulation', async () => {

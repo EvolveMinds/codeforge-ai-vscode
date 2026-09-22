@@ -64,12 +64,23 @@ const licenseAuth = new DesktopLicenseAuth(storageDir);
 const secretVault = new DesktopSecretVault(storageDir);
 // Version comes from the packaged package.json — never hardcode it, or a shipped
 // build reports the version it was written at rather than the one it is.
+//
+// getAppVersion() is asked first, and app.getVersion() is only a fallback.
+// Electron's app.getVersion() does NOT fail when the app has no version of its
+// own: it silently returns *Electron's* version instead. Running the desktop
+// entry directly — `npx electron <path>/out/desktop/main/main.js` — hits exactly
+// that, and the app reported "v44.4.3", an Electron release number, as though it
+// were ours. Reading package.json ourselves either finds a real version or
+// returns the obvious '0.0.0' sentinel, which cannot be mistaken for a release.
 const appVersion = (() => {
+  const resolved = getAppVersion();
+  if (resolved && resolved !== '0.0.0') return resolved;
   try {
     const v = app.getVersion();
-    if (v && v !== '0.0.0') return v;
+    // Reject Electron's own version leaking through as the app version.
+    if (v && v !== '0.0.0' && v !== process.versions.electron) return v;
   } catch { /* not running under Electron (tests) */ }
-  return getAppVersion();
+  return resolved;
 })();
 
 const updater = new DesktopUpdater(storageDir, appVersion);
