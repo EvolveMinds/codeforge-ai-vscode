@@ -1,3 +1,12 @@
+> [!WARNING]
+> ## ⚠️ DEMONSTRATION ARTIFACT — NOT A CLIENT DELIVERABLE
+>
+> This document was generated while the Delivery Studio was in **DEMO mode**.
+> Figures, findings and signatures in it come from built-in sample data and
+> describe no real system. It must not be shared with a client, attached to a
+> proposal, or used as evidence of testing.
+>
+> _Generated 2026-09-22T02:18:22.035Z_
 # Client Pilot Engagement — Operations & Deployment Runbook
 
 > **Audience:** Client IT, DevOps, and Platform Engineering Teams  

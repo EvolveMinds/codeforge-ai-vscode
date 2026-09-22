@@ -974,7 +974,7 @@
                 <div style="font-size: 12px; font-weight: 700; margin: 4px 0; color: #fff;">Reliability &amp; Evals</div>
                 <div style="font-size: 10.5px; color: var(--text-secondary); line-height: 1.4;">
                   • 50-case golden benchmark<br>
-                  • Ed25519 groundedness audit<br>
+                  • SHA-256 groundedness audit digest<br>
                   • HITL supervisor simulator<br>
                   • Zero hallucination SLA
                 </div>
@@ -4354,7 +4354,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         <span>🛡️</span> Section 4B: Groundedness &amp; Citation Gate (Zero Ungrounded Claims)
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Cross-reference generated claims against verified handbook knowledge chunks with Ed25519 cryptographic receipts.
+                        Cross-reference generated claims against handbook knowledge chunks, recording a SHA-256 content digest with each receipt.
                       </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -4425,7 +4425,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; text-align: center;">
                       <div style="font-size: 9.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Cryptographic State</div>
                       <div id="lblCryptoStateValue" style="font-size: 12px; font-weight: 800; margin-top: 4px; color: #94a3b8;">⚪ PENDING</div>
-                      <div style="font-size: 9px; color: var(--text-muted); margin-top: 1px;">Ed25519 Signature</div>
+                      <div style="font-size: 9px; color: var(--text-muted); margin-top: 1px;">SHA-256 Digest</div>
                     </div>
                   </div>
 

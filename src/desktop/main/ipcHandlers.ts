@@ -4197,7 +4197,7 @@ export class RuleGatedPolicyRag {
           scaffoldedCode: `// Hybrid Level 1+3: Rule-Gated Grounded RAG\nexport async function evaluateRuleGatedRag(q: string, amt: number) { /* gate + rag */ }`,
           guardrails: [
             'Mandatory deterministic rule validation before embedding/vector lookup',
-            '128-token semantic chunking with Ed25519 signed citation receipts',
+            '128-token semantic chunking with SHA-256 content-digest citation receipts',
             'Zero probabilistic sampling on numerical or statutory calculations',
             'Automatic escalation to human queue on ambiguity'
           ],
@@ -4413,7 +4413,7 @@ export class RuleGatedSemanticRouter {
           costSla: '$0.0006 / query',
           hallucinationSla: '<1.0% Un-Grounded Claim Rate',
           hitlTrigger: 'Retrieval citation score <0.88',
-          rationale: 'Strict fact-retrieval from internal SOP manuals and policy documents. Enforces 128-token semantic chunking with mandatory citation of every retrieved span, plus Ed25519 receipts for audit. Retrieval grounding substantially reduces but does not eliminate ungrounded output; residual rate must be measured by the Phase 4 golden-set evaluation.',
+          rationale: 'Strict fact-retrieval from internal SOP manuals and policy documents. Enforces 128-token semantic chunking with mandatory citation of every retrieved span, plus SHA-256 content-digest receipts for audit (tamper-evident, not digitally signed). Retrieval grounding substantially reduces but does not eliminate ungrounded output; residual rate must be measured by the Phase 4 golden-set evaluation.',
           codeSnippet: `// Level 3: Air-Gapped Policy RAG (<150ms)\nexport class GroundedPolicyRag {\n  public static async answer(query: string) {\n    return { answer: "Grounded in SOP §4.2", citations: ["SOP-4.2"], score: 0.99 };\n  }\n}`,
           scaffoldedCode: `// Level 3: Policy RAG\nexport async function queryHandbook(q: string) { return { grounded: true }; }`,
           guardrails: [
@@ -4425,7 +4425,7 @@ export class RuleGatedSemanticRouter {
   Ingress["📥 Ingress Query"] --> VectorSearch["🔍 Vector Retrieval (<50ms)"]
   VectorSearch --> Chunks["📑 128-Token Chunks"]
   Chunks --> GroundCheck{"🛡️ Citation Verifier"}
-  GroundCheck -- "Score >= 0.88" --> Answer["📚 Grounded Answer + Ed25519 Receipt"]
+  GroundCheck -- "Score >= 0.88" --> Answer["📚 Grounded Answer + SHA-256 Receipt"]
   GroundCheck -- "Score < 0.88" --> Review["🛑 Reject Ungrounded Output"]`
         };
       }
@@ -4787,7 +4787,7 @@ describe('Level ${level} Architecture Target Verification', () => {
       const titles: Record<number, { title: string; paradigm: string; latency: string; sla: string; governance: string }> = {
         1: { title: 'Level 1: Deterministic Rule Engine & Compiled SQL', paradigm: 'Zero-Hallucination Deterministic Rule Gate', latency: '<5ms', sla: 'Deterministic - identical inputs always yield identical outputs', governance: 'SOX / SOC2 Deterministic Gates' },
         2: { title: 'Level 2: Fast Semantic Router & Intent Classifier', paradigm: 'Cosine Distance Embedding Triage', latency: '<30ms', sla: '98.0% Precision Boundary', governance: 'Threshold Cosine Gate (>0.85)' },
-        3: { title: 'Level 3: Air-Gapped Grounded Policy RAG', paradigm: 'Strict 128-Token Semantic Citation RAG', latency: '<150ms', sla: 'Every answer citation-backed (residual rate measured in Phase 4)', governance: 'Ed25519 Cryptographic Audit Receipts' },
+        3: { title: 'Level 3: Air-Gapped Grounded Policy RAG', paradigm: 'Strict 128-Token Semantic Citation RAG', latency: '<150ms', sla: 'Every answer citation-backed (residual rate measured in Phase 4)', governance: 'SHA-256 content-digest audit receipts (tamper-evident)' },
         4: { title: 'Level 4: Model Context Protocol (MCP) Tool Agent', paradigm: 'Standardized Sandboxed Read-Only Tool Execution', latency: '1.2s–3.0s', sla: 'Schema Validation Gate', governance: 'Model Context Protocol (MCP)' },
         5: { title: 'Level 5: Multi-Agent Swarm with Mandatory HITL Gates', paradigm: 'Multi-Role State Machine with Human Escalation Queue', latency: '5.0s–15.0s', sla: 'Supervised Multi-Role State Machine', governance: 'Human-in-the-Loop Supervisor Queue' }
       };
@@ -5230,7 +5230,7 @@ export async function startMcpServer() {
         { desc: 'Pre-flight check node environment validation', cat: 'Edge Case & SLA', pass: true, exp: 'Node >= 18 Verified', lat: 25 },
         { desc: 'Terraform provider version pin validation', cat: 'Edge Case & SLA', pass: true, exp: 'Google Provider ~> 5.0', lat: 18 },
         { desc: 'Kubernetes health liveness probe ping', cat: 'Edge Case & SLA', pass: true, exp: 'HTTP /healthz 200 OK', lat: 8 },
-        { desc: 'Audit signature verification with Ed25519', cat: 'Edge Case & SLA', pass: true, exp: 'Signature Cryptographically Valid', lat: 6 },
+        { desc: 'Audit digest verification (SHA-256 content digest)', cat: 'Edge Case & SLA', pass: true, exp: 'Digest matches recorded content', lat: 6 },
         { desc: 'Final client handoff package completeness', cat: 'Edge Case & SLA', pass: true, exp: 'All 5 Documents Validated', lat: 30 }
       ];
 

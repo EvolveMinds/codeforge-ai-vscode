@@ -1,3 +1,12 @@
+> [!WARNING]
+> ## ⚠️ DEMONSTRATION ARTIFACT — NOT A CLIENT DELIVERABLE
+>
+> This document was generated while the Delivery Studio was in **DEMO mode**.
+> Figures, findings and signatures in it come from built-in sample data and
+> describe no real system. It must not be shared with a client, attached to a
+> proposal, or used as evidence of testing.
+>
+> _Generated 2026-09-22T02:18:22.036Z_
 # 🎤 Client Pilot Engagement — 5-Minute Executive Demo Presentation Script
 
 > **Purpose:** Forward Deployed Engineer Executive Presentation Script for client CFO, CIO, and Business Unit Leaders.  
@@ -10,7 +19,7 @@
 * **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Automate our manual workflow with AI'*.
 * Most AI vendors would build a generic chatbot that hallucinates numbers. Instead, we started by **refusing that ask** and calculating your exact economics with your Controller.
 * You process **0 tasks a month**, taking **15 minutes each**, at an average cost of **$35/hr**.
-* By implementing deterministic automation with zero hallucinations, this system reclaims **0 hours/month** and delivers **$0.0k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
+* By implementing deterministic automation with zero hallucinations, this system reclaims **⚠️ NOT YET MEASURED** and delivers **⚠️ NOT YET MEASURED/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
 
 ---
 
@@ -30,11 +39,13 @@
 
 ---
 
-### [3:00 - 4:00] Slide 4: Proof of Reliability — 50-Case Golden Benchmark
-* **Speaker:** "Before touching any production traffic, we proved reliability against a rigorous 50-case edge-case golden evaluation suite.
-* The system scored **98% accuracy**, with a P50 latency of **10 milliseconds**.
-* Every single output has a cryptographic audit trail signed via Ed25519 digital keys.
-* For high-risk edge cases or requests over the automated limit, transactions are routed cleanly to your Human-in-the-Loop supervisor queue for one-click approval."
+### [3:00 - 4:00] Slide 4: Proof of Reliability — Golden Benchmark
+> [!CAUTION]
+> **Do not deliver this slide.** No golden benchmark has been executed for this
+> engagement, so there is no reliability result to present. Run the Phase 4
+> benchmark against a real target, then regenerate this script.
+
+* **Speaker:** _(no measured reliability results — slide intentionally left unscripted)_
 
 ---
 

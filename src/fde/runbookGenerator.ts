@@ -461,9 +461,12 @@ ${evals?.benchmarkExecuted === true && evals?.accuracyScorePct !== undefined
     const env = this.generateEnvironmentCatalog(state);
     const demo = this.generateExecutiveDemoScript(state);
 
-    return `# 📦 ${state.clientName || 'Client'} — Complete Engagement Handoff Bundle
-> **Generated on:** ${new Date().toISOString().split('T')[0]}  
-> **Prepared by:** Forward Deployed Engineering Studio (Evolve AI)  
+    // Banner first: this is the bundle a client is most likely to be handed,
+    // so the DEMO warning must be the first thing on the page rather than
+    // appearing partway down inside the embedded architecture section.
+    return `${documentBanner((state.studioMode as StudioMode) || 'DEMO')}# 📦 ${state.clientName || 'Client'} — Complete Engagement Handoff Bundle
+> **Generated on:** ${new Date().toISOString().split('T')[0]}
+> **Prepared by:** Forward Deployed Engineering Studio (Evolve AI)
 
 ---
 
