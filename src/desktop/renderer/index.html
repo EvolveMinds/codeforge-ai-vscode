@@ -4431,160 +4431,284 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <!-- 4C: HITL APPROVAL SIMULATOR -->
                 <div id="p4StepCPanel" role="tabpanel" aria-labelledby="btnP4StepC" style="display: none;">
                 <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-                  <!-- Header & Governance Framework Bar -->
+                  <!-- Header & Multi-Industry Governance Bar -->
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                     <div>
-                      <div style="font-weight: 700; color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-                        <span>👤</span> Section 4C: Human-in-the-Loop (HITL) Supervisor Gate
+                      <div style="font-weight: 700; color: #fff; font-size: 13.5px; display: flex; align-items: center; gap: 6px;">
+                        <span>👤</span> Section 4C: Universal Human-in-the-Loop (HITL) Supervisor Workstation
                       </div>
                       <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                        Enforce autonomous policy ceilings with dual-control supervisor review, SLA countdowns, and customizable domain metrics.
+                        Configurable schema-driven approval policies, compound multi-attribute risk vectors, dual-control (Four-Eyes) sign-offs, and multi-industry governance.
                       </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                      <label for="selHitlDomain" style="font-size: 10px; color: var(--text-secondary); font-weight: 600;">Governance Domain:</label>
-                      <select id="selHitlDomain" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
-                        <option value="fintech" selected>💳 FinOps: Payments &amp; Refunds ($ USD)</option>
-                        <option value="healthcare">🏥 Healthcare: Clinical Dosage &amp; Safety (mg)</option>
-                        <option value="devops">☁️ Cloud SRE: Infra Provisioning &amp; IAM (Nodes)</option>
-                        <option value="data">📊 Data Platform: Mutation &amp; Drift (Rows)</option>
-                        <option value="custom">🛠️ Custom FDE Work (User-Defined Metric)</option>
+                      <label for="selHitlDomain" style="font-size: 10px; color: var(--text-secondary); font-weight: 600;">Industry Blueprint:</label>
+                      <select id="selHitlDomain" style="background: var(--card-bg); color: #fff; border: 1px solid var(--accent); border-radius: 4px; padding: 3px 8px; font-size: 11px; outline: none; font-weight: 600;">
+                        <option value="agentic_mcp" selected>🤖 AI Agentic Tool Calling (MCP / API Execution Gate)</option>
+                        <option value="fintech">💳 FinOps: Payments &amp; High-Value Wires ($ USD)</option>
+                        <option value="healthcare">🏥 Healthcare: Clinical Dosing &amp; Diagnostics (mg)</option>
+                        <option value="devops">☁️ Cloud SRE: Infra Scaling &amp; Blast Radius (Nodes)</option>
+                        <option value="data">📊 Data Platform: Mutations &amp; Schema Drift (Rows)</option>
+                        <option value="legal">⚖️ Legal &amp; Compliance: Contracts &amp; Liability ($ USD)</option>
+                        <option value="customer_ops">🛍️ Customer Operations: Retention Credits &amp; Unlocks ($ USD)</option>
+                        <option value="supply_chain">🏭 Supply Chain: Hazardous Cargo &amp; Bulk Logistics (kg)</option>
+                        <option value="custom">🛠️ Custom Schema Builder (Fully User-Defined Spec)</option>
                       </select>
-                      <button class="btn-quick" id="btnToggleHitlCustomConfig" style="font-size: 9.5px; padding: 2px 6px;" title="Customize metric unit, ceiling and operator">⚙️ Custom Gate Options</button>
+                      <button class="btn-quick" id="btnToggleHitlCustomConfig" style="font-size: 10px; padding: 3px 8px; border-color: var(--accent); color: var(--accent);" title="Configure custom metric unit, labels, and clearance condition">⚙️ Schema Options</button>
                     </div>
                   </div>
 
-                  <!-- Custom Metric Definition Drawer (Collapsible) -->
-                  <div id="hitlCustomConfigPanel" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--accent); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <span style="font-size: 11px; font-weight: 700; color: var(--accent);">🛠️ Custom FDE Gate Specification Builder</span>
-                      <span style="font-size: 9.5px; color: var(--text-muted);">Configure target metric, field names and clearance condition</span>
+                  <!-- Workstation View Navigation Tabs -->
+                  <div style="display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 12px; padding-bottom: 2px;">
+                    <button class="btn-quick" id="btnHitlTabQueue" style="font-size: 11px; padding: 4px 12px; font-weight: 700; border-bottom: 2px solid var(--accent); border-radius: 4px 4px 0 0; background: rgba(255,255,255,0.03);">📋 Live Simulation &amp; Review Queue</button>
+                    <button class="btn-quick" id="btnHitlTabBuilder" style="font-size: 11px; padding: 4px 12px; font-weight: 500; border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0;">🛠️ Schema, Policy Rules &amp; Code Generator</button>
+                  </div>
+
+                  <!-- TAB 1: LIVE SIMULATION & REVIEW QUEUE -->
+                  <div id="hitlViewQueue">
+                    <!-- Custom Schema Definition Drawer (Collapsible) -->
+                    <div id="hitlCustomConfigPanel" style="display: none; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--accent); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 11px; font-weight: 700; color: var(--accent);">🛠️ Dynamic FDE Schema &amp; Policy Specification Builder</span>
+                        <span style="font-size: 9.5px; color: var(--text-muted);">Configure custom domain attributes, field labels, thresholds, and condition operators</span>
+                      </div>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+                        <div>
+                          <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomMetricUnit">Metric Name &amp; Unit</label>
+                          <input type="text" id="txtHitlCustomMetricUnit" value="Tokens (k-toks)" placeholder="e.g. Tokens, QPS, GB, Score" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomIdLabel">Identifier Label</label>
+                          <input type="text" id="txtHitlCustomIdLabel" value="Tool Call Execution ID" placeholder="e.g. Job ID, Ticket, Run ID" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomEntityLabel">Entity / Subject Label</label>
+                          <input type="text" id="txtHitlCustomEntityLabel" value="Calling Agent &amp; Target" placeholder="e.g. User, Model, Dataset" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlCustomOperator">Clearance Operator</label>
+                          <select id="selHitlCustomOperator" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 4px 6px; border-radius: 3px; outline: none;">
+                            <option value="lte" selected>&le; (Auto if Less or Equal)</option>
+                            <option value="lt">&lt; (Auto if Less Than)</option>
+                            <option value="gte">&ge; (Auto if Greater or Equal)</option>
+                            <option value="gt">&gt; (Auto if Greater Than)</option>
+                          </select>
+                        </div>
+                      </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
-                      <div>
-                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomMetricUnit">Metric Name &amp; Unit</label>
-                        <input type="text" id="txtHitlCustomMetricUnit" value="Risk Score (0-100)" placeholder="e.g. Tokens, QPS, GB, Score" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px;" />
+
+                    <!-- Compound Risk Vector HUD & Clearance Status -->
+                    <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                          <label for="selHitlCeilingThreshold" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Autonomous Metric Ceiling:</label>
+                          <select id="selHitlCeilingThreshold" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px; font-size: 11px; outline: none;">
+                            <option value="10000" selected>&lt; 10,000 Tokens Auto</option>
+                            <option value="25000">&lt; 25,000 Tokens Auto</option>
+                            <option value="50000">&lt; 50,000 Tokens Auto</option>
+                            <option value="custom">Custom Threshold...</option>
+                          </select>
+                          <input type="number" id="txtHitlCustomCeilingValue" value="10000" style="display: none; width: 80px; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 3px 6px; border-radius: 3px;" title="Custom ceiling threshold" />
+                        </div>
+                        <span id="lblHitlRoutingPill" class="brand-pill" style="font-size: 10.5px; padding: 3px 10px; font-weight: 700; background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567;">🟠 Supervisor Override Required</span>
                       </div>
-                      <div>
-                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomIdLabel">Identifier Label</label>
-                        <input type="text" id="txtHitlCustomIdLabel" value="Request ID" placeholder="e.g. Job ID, Ticket, Run ID" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px;" />
+
+                      <!-- Compound Risk Indicators Bar -->
+                      <div id="hitlCompoundRiskBadges" style="display: flex; gap: 8px; flex-wrap: wrap; font-size: 10px; align-items: center;">
+                        <span style="color: var(--text-secondary); font-weight: 600;">Compound Risk Matrix:</span>
+                        <span id="chipHitlMetricRisk" style="padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff;">📊 Metric: Within Ceiling</span>
+                        <span id="chipHitlConfidenceRisk" style="padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff;">🎯 Confidence: 95% (Pass)</span>
+                        <span id="chipHitlMutationRisk" style="padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff;">⚡ Mutation: State Update</span>
+                        <span id="chipHitlBlastRisk" style="padding: 2px 6px; border-radius: 3px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff;">🌐 Blast: Scoped</span>
                       </div>
-                      <div>
-                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlCustomEntityLabel">Entity / Subject Label</label>
-                        <input type="text" id="txtHitlCustomEntityLabel" value="Target Tenant / Principal" placeholder="e.g. User, Model, Dataset" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px;" />
+                    </div>
+
+                    <!-- Interactive Live Scenarios Queue Table -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <span style="font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase;">
+                          📥 Live Interactive Simulation Queue (Select to inspect &amp; review)
+                        </span>
+                        <div id="hitlScenarioPresets" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                          <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load safe baseline below policy ceiling">🟢 Safe Baseline</button>
+                          <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">🟠 Ceiling Breach</button>
+                          <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load high-risk anomaly requiring dual signoff">🔴 Critical Anomaly</button>
+                        </div>
                       </div>
-                      <div>
-                        <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlCustomOperator">Clearance Operator</label>
-                        <select id="selHitlCustomOperator" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px; outline: none;">
-                          <option value="lte" selected>&le; (Auto if Less or Equal)</option>
-                          <option value="lt">&lt; (Auto if Less Than)</option>
-                          <option value="gte">&ge; (Auto if Greater or Equal)</option>
-                          <option value="gt">&gt; (Auto if Greater Than)</option>
-                        </select>
+                      
+                      <!-- Queue Table -->
+                      <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 10.5px; color: var(--text-secondary); text-align: left;">
+                          <thead>
+                            <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 9.5px; text-transform: uppercase;">
+                              <th style="padding: 4px 6px;">Item ID</th>
+                              <th style="padding: 4px 6px;">Metric</th>
+                              <th style="padding: 4px 6px;">Entity / Target</th>
+                              <th style="padding: 4px 6px;">Confidence</th>
+                              <th style="padding: 4px 6px;">Severity / Vector</th>
+                              <th style="padding: 4px 6px;">Risk Level</th>
+                              <th style="padding: 4px 6px; text-align: right;">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody id="hitlScenarioQueueTableBody">
+                            <!-- Populated dynamically via renderer.ts -->
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Work Item Inspection & Parameter Configuration Form -->
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                      <div style="font-size: 11px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>⚙️ Active Work Item Parameters</span>
+                        <span style="font-size: 9.5px; color: var(--text-muted); font-weight: normal;">Edit parameters directly or load from queue above</span>
+                      </div>
+                      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px;">
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxId" id="lblHitlIdTitle">Execution ID</label>
+                          <input type="text" id="txtHitlTxId" value="CALL-8921" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxAmount" id="lblHitlMetricTitle">Tokens (k-toks)</label>
+                          <input type="number" id="txtHitlTxAmount" value="14200" step="any" min="0" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxCustomer" id="lblHitlEntityTitle">Calling Agent &amp; Target</label>
+                          <input type="text" id="txtHitlTxCustomer" value="Lead-Analyst-Agent (MCP: postgres)" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlOperationType">Operation Mutation</label>
+                          <select id="selHitlOperationType" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px; outline: none;">
+                            <option value="read">🔍 Read-Only Query (Low Risk)</option>
+                            <option value="mutation" selected>⚡ State Mutation / Insert (Medium)</option>
+                            <option value="destructive">💥 Destructive Drop / Purge (High)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlConfidence">Model SLA Confidence (%)</label>
+                          <input type="number" id="txtHitlConfidence" value="94" min="0" max="100" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlBlastRadius">Target Blast Radius</label>
+                          <select id="selHitlBlastRadius" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px; outline: none;">
+                            <option value="sandbox">🧪 Sandbox / Isolated Tenant</option>
+                            <option value="production" selected>🏢 Production Environment</option>
+                            <option value="global">🌐 Core Global Multi-Tenant</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlSupervisor" id="lblHitlSupervisorTitle">Primary Assigned Supervisor</label>
+                          <select id="selHitlSupervisor" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px; outline: none;">
+                            <option value="AI-SAFETY-OFFICER" selected>AI-SAFETY-OFFICER (Lead Orchestrator)</option>
+                            <option value="HUMAN-PRINCIPAL-DEV">HUMAN-PRINCIPAL-DEV (Staff Engineer)</option>
+                            <option value="SYSTEM-AUTONOMOUS">SYSTEM-AUTONOMOUS (Autonomous Engine)</option>
+                          </select>
+                        </div>
+                        <div style="grid-column: 1 / -1;">
+                          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxReason" id="lblHitlReasonTitle">Escalation Trigger Reason / Risk Vector</label>
+                          <input type="text" id="txtHitlTxReason" value="Sensitive database write operation exceeds 10,000 token autonomous budget" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn" id="btnSimulateHitl" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px;" aria-label="Route Transaction to HITL Queue">👤 Load into Decision Station ➔</button>
+                        <button class="btn-quick" id="btnHitlDirectAutoClear" style="font-size: 11px; padding: 6px 12px; color: var(--success);" aria-label="Direct Autonomous Clearance">⚡ Direct Autonomous Clearance (Evaluate Matrix)</button>
+                      </div>
+                    </div>
+                    
+                    <!-- Active Supervisor Decision & Review Station -->
+                    <div id="fdeHitlSimulationBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <span style="font-size: 12.5px; font-weight: 700; color: #fff;" id="lblHitlBoxTxHeader">CALL-8921 (14,200 Tokens Request)</span>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                          <span id="lblHitlSlaTimer" style="font-size: 10.5px; color: #94a3b8; font-family: monospace;">⏱️ SLA: 14m 58s remaining</span>
+                          <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;" id="lblHitlBoxStatus">Awaiting Supervisor Approval</span>
+                        </div>
+                      </div>
+                      <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="lblHitlBoxTriggerDetail">
+                        Trigger: Exceeds automated ceiling. Customer: <code>Lead-Analyst-Agent</code>.
+                      </div>
+
+                      <!-- Four-Eyes Principle Dual-Control Container -->
+                      <div id="hitlFourEyesContainer" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid #f59e0b; border-radius: 4px; padding: 10px; margin-bottom: 10px;">
+                        <div style="font-size: 11px; font-weight: 700; color: #f59e0b; margin-bottom: 4px;">
+                          👥 Dual-Control (Four-Eyes Principle) Sign-off Mandated
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 6px;">
+                          Critical severity or high blast radius requires independent sign-off from a second designated supervisor.
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                          <label for="selHitlSecondSupervisor" style="font-size: 10px; color: var(--text-muted); font-weight: 600;">Secondary Supervisor:</label>
+                          <select id="selHitlSecondSupervisor" style="background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 3px 6px; border-radius: 3px; outline: none;">
+                            <option value="DIR-RISK-01">DIR-RISK-01 (Risk &amp; Compliance Director)</option>
+                            <option value="CISO-LEAD-02">CISO-LEAD-02 (Chief Information Security Officer)</option>
+                            <option value="VP-OPS-03">VP-OPS-03 (VP of Technical Operations)</option>
+                          </select>
+                          <span id="lblHitlSecondSupervisorStatus" style="font-size: 9.5px; color: #e5b567; font-weight: 600;">⏳ Pending Second Sign-Off</span>
+                        </div>
+                      </div>
+
+                      <!-- Supervisor Justification Notes Input -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlSupervisorNotes">Supervisor Justification / Override Notes:</label>
+                        <input type="text" id="txtHitlSupervisorNotes" value="Approved after manual policy verification and schema review." style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
+                      </div>
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn" id="btnHitlApprove" style="flex: 2; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px; font-size: 11.5px; min-width: 140px;" aria-label="Approve & Dispatch to Execution">✓ Authorize &amp; Dispatch</button>
+                        <button class="btn-quick" id="btnHitlRequireDual" style="flex: 2; padding: 7px; font-size: 11.5px; color: #f59e0b; border-color: #f59e0b; min-width: 160px;" aria-label="Require Four Eyes Dual Signoff">👥 Request Second Sign-off (Four-Eyes)</button>
+                        <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 7px; font-size: 11.5px; color: var(--error); min-width: 120px;" aria-label="Reject & Issue Alert">✕ Reject &amp; Escalate</button>
+                      </div>
+                      <div id="lblHitlStatusResult" style="display: none; margin-top: 10px; font-size: 11px; font-weight: 700; text-align: center; padding: 8px; border-radius: 4px; border: 1px solid var(--border);"></div>
+                    </div>
+
+                    <!-- Persistent HITL Audit Trail & History Inspector -->
+                    <div id="hitlAuditHistoryBox" style="margin-top: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                        <div style="font-size: 10.5px; font-weight: 700; color: #fff; text-transform: uppercase;">
+                          📋 Cryptographic Supervisor Decision Audit Log (evals/hitl_audit_log.json)
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                          <button class="btn-quick" id="btnFilterHitlAll" style="font-size: 9px; padding: 1px 6px; font-weight: 700;">All</button>
+                          <button class="btn-quick" id="btnFilterHitlApproved" style="font-size: 9px; padding: 1px 6px; color: var(--success);">Approved</button>
+                          <button class="btn-quick" id="btnFilterHitlDual" style="font-size: 9px; padding: 1px 6px; color: #f59e0b;">Dual-Signed</button>
+                          <button class="btn-quick" id="btnFilterHitlRejected" style="font-size: 9px; padding: 1px 6px; color: var(--error);">Rejected</button>
+                          <button class="btn-quick" id="btnFilterHitlAuto" style="font-size: 9px; padding: 1px 6px; color: #60a5fa;">Auto-Cleared</button>
+                          <span style="color: var(--border);">|</span>
+                          <button class="btn-quick" id="btnCopyHitlLog" style="font-size: 9px; padding: 1px 6px;">📋 Copy JSON</button>
+                          <button class="btn-quick" id="btnClearHitlLog" style="font-size: 9px; padding: 1px 6px; color: var(--text-muted);">🗑️ Clear</button>
+                        </div>
+                      </div>
+                      <div id="hitlAuditLogEntries" style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary); max-height: 180px; overflow-y: auto;">
+                        <div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">No supervisor decisions logged yet.</div>
                       </div>
                     </div>
                   </div>
 
-                  <!-- Policy Ceiling Bar & Routing Status -->
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; flex-wrap: wrap; gap: 6px;">
-                    <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                      <label for="selHitlCeilingThreshold" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Autonomous Ceiling:</label>
-                      <select id="selHitlCeilingThreshold" style="background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-size: 10.5px; outline: none;">
-                        <option value="100" selected>&lt; $100 Auto</option>
-                        <option value="250">&lt; $250 Auto</option>
-                        <option value="500">&lt; $500 Auto</option>
-                        <option value="1000">&lt; $1,000 Auto</option>
-                        <option value="custom">Custom Threshold...</option>
-                      </select>
-                      <input type="number" id="txtHitlCustomCeilingValue" value="100" style="display: none; width: 70px; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 2px 4px; border-radius: 3px;" title="Custom ceiling threshold" />
-                    </div>
-                    <span id="lblHitlRoutingPill" class="brand-pill" style="font-size: 10px; background: rgba(229, 181, 103, 0.15); color: #e5b567; border: 1px solid #e5b567;">🟠 Supervisor Override Required</span>
-                  </div>
+                  <!-- TAB 2: SCHEMA, POLICY RULES & CODE GENERATOR -->
+                  <div id="hitlViewBuilder" style="display: none;">
+                    <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 12px;">
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 4px;">
+                        🛠️ Enterprise Policy Specification &amp; Code Generation
+                      </div>
+                      <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Export the active governance domain rules into production-ready TypeScript guards, Python Pydantic validators, or JSON schema specifications for direct CI/CD deployment.
+                      </div>
+                      
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                          <label for="selHitlPolicyLang" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Target Output Language:</label>
+                          <select id="selHitlPolicyLang" style="background: var(--bg-primary); border: 1px solid var(--accent); color: #fff; font-size: 10.5px; padding: 3px 8px; border-radius: 4px; outline: none; font-weight: 600;">
+                            <option value="typescript" selected>TypeScript GateGuard (hitlPolicyGuard.ts)</option>
+                            <option value="python">Python Pydantic Policy (hitl_policy.py)</option>
+                            <option value="json">JSON Specification (hitl_policy_spec.json)</option>
+                          </select>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn-quick" id="btnCopyGeneratedPolicy" style="font-size: 10px; padding: 3px 8px; color: var(--accent);">📋 Copy Code</button>
+                          <button class="btn" id="btnSavePolicySpec" style="font-size: 10px; padding: 3px 10px; background: var(--accent); color: #1e1e1e; font-weight: 700;">💾 Save to evals/hitl_policy_spec.json</button>
+                        </div>
+                      </div>
 
-                  <!-- Scenario Preset Chips Container (Dynamically rendered per domain) -->
-                  <div id="hitlScenarioPresets" style="display: flex; align-items: center; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
-                    <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Scenario Presets:</span>
-                    <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load safe baseline below policy ceiling">🟢 Auto-Clear Micro-Refund ($42.50)</button>
-                    <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">🟠 Ceiling Breach Override ($275.00)</button>
-                    <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load high-risk anomaly requiring dual signoff">🔴 High-Risk AML Flag ($4,850.00)</button>
-                  </div>
-
-                  <!-- Transaction / Item Details & Routing Station -->
-                  <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px;">
-                      <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxId" id="lblHitlIdTitle">Transaction ID</label>
-                        <input type="text" id="txtHitlTxId" value="TX-9482" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
-                      </div>
-                      <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxAmount" id="lblHitlMetricTitle">Amount ($ USD)</label>
-                        <input type="number" id="txtHitlTxAmount" value="150.00" step="any" min="0" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
-                      </div>
-                      <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxCustomer" id="lblHitlEntityTitle">Customer / Entity</label>
-                        <input type="text" id="txtHitlTxCustomer" value="cust_4920" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
-                      </div>
-                      <div>
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="selHitlSupervisor" id="lblHitlSupervisorTitle">Assigned Supervisor</label>
-                        <select id="selHitlSupervisor" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px; outline: none;">
-                          <option value="SUP-EVAL-01" selected>SUP-EVAL-01 (Lead Supervisor)</option>
-                          <option value="SUP-SEC-04">SUP-SEC-04 (Director of Risk &amp; Compliance)</option>
-                          <option value="SYSTEM-AUTONOMOUS">SYSTEM-AUTONOMOUS (Autonomous Engine)</option>
-                        </select>
-                      </div>
-                      <div style="grid-column: 1 / -1;">
-                        <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlTxReason" id="lblHitlReasonTitle">Escalation Trigger Reason / Risk Vector</label>
-                        <input type="text" id="txtHitlTxReason" value="Amount $150.00 exceeds $100 ceiling" style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
-                      </div>
-                    </div>
-                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                      <button class="btn" id="btnSimulateHitl" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px; font-size: 11.5px;" aria-label="Route Transaction to HITL Queue">👤 Queue for Supervisor Review ➔</button>
-                      <button class="btn-quick" id="btnHitlDirectAutoClear" style="font-size: 11px; padding: 6px 12px; color: var(--success);" aria-label="Direct Autonomous Clearance">⚡ Direct Autonomous Clearance (&le; Ceiling)</button>
-                    </div>
-                  </div>
-                  
-                  <!-- Active Supervisor Decision & Review Station -->
-                  <div id="fdeHitlSimulationBox" style="display: none; margin-top: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                      <span style="font-size: 12px; font-weight: 700; color: #fff;" id="lblHitlBoxTxHeader">TX-9482 ($150.00 Request)</span>
-                      <div style="display: flex; gap: 8px; align-items: center;">
-                        <span id="lblHitlSlaTimer" style="font-size: 10px; color: #94a3b8; font-family: monospace;">⏱️ SLA: 14m 58s remaining</span>
-                        <span style="font-size: 10.5px; font-weight: 700; color: #e5b567; background: rgba(229, 181, 103, 0.15); padding: 2px 8px; border-radius: 4px;" id="lblHitlBoxStatus">Awaiting Supervisor Approval</span>
-                      </div>
-                    </div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;" id="lblHitlBoxTriggerDetail">
-                      Trigger: Exceeds automated ceiling. Customer: <code>cust_4920</code>.
-                    </div>
-                    <!-- Supervisor Justification Notes Input -->
-                    <div style="margin-bottom: 10px;">
-                      <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;" for="txtHitlSupervisorNotes">Supervisor Justification / Override Notes:</label>
-                      <input type="text" id="txtHitlSupervisorNotes" value="Approved after manual policy verification." style="width: 100%; box-sizing: border-box; background: var(--bg-primary); border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px 6px; border-radius: 3px;" />
-                    </div>
-                    <div style="display: flex; gap: 8px;">
-                      <button class="btn" id="btnHitlApprove" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 7px; font-size: 11.5px;" aria-label="Approve & Dispatch to Execution">✓ Authorize &amp; Dispatch</button>
-                      <button class="btn-quick" id="btnHitlReject" style="flex: 1; padding: 7px; font-size: 11.5px; color: var(--error);" aria-label="Reject & Issue Alert">✕ Reject &amp; Issue Incident Alert</button>
-                    </div>
-                    <div id="lblHitlStatusResult" style="display: none; margin-top: 10px; font-size: 11px; font-weight: 700; text-align: center; padding: 8px; border-radius: 4px; border: 1px solid var(--border);"></div>
-                  </div>
-
-                  <!-- Persistent HITL Audit Trail & History Inspector -->
-                  <div id="hitlAuditHistoryBox" style="margin-top: 12px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 6px; padding: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                      <div style="font-size: 10.5px; font-weight: 700; color: #fff; text-transform: uppercase;">
-                        📋 Supervisor Decision Audit Log (evals/hitl_audit_log.json)
-                      </div>
-                      <div style="display: flex; gap: 6px; align-items: center;">
-                        <button class="btn-quick" id="btnFilterHitlAll" style="font-size: 9px; padding: 1px 6px; font-weight: 700;">All</button>
-                        <button class="btn-quick" id="btnFilterHitlApproved" style="font-size: 9px; padding: 1px 6px; color: var(--success);">Approved</button>
-                        <button class="btn-quick" id="btnFilterHitlRejected" style="font-size: 9px; padding: 1px 6px; color: var(--error);">Rejected</button>
-                        <button class="btn-quick" id="btnFilterHitlAuto" style="font-size: 9px; padding: 1px 6px; color: #60a5fa;">Auto-Cleared</button>
-                        <span style="color: var(--border);">|</span>
-                        <button class="btn-quick" id="btnCopyHitlLog" style="font-size: 9px; padding: 1px 6px;">📋 Copy JSON</button>
-                        <button class="btn-quick" id="btnClearHitlLog" style="font-size: 9px; padding: 1px 6px; color: var(--text-muted);">🗑️ Clear</button>
-                      </div>
-                    </div>
-                    <div id="hitlAuditLogEntries" style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary); max-height: 160px; overflow-y: auto;">
-                      <div style="padding: 4px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">No supervisor decisions logged yet.</div>
+                      <pre id="txtHitlGeneratedPolicyCode" style="margin: 0; padding: 12px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #93c5fd; font-family: monospace; font-size: 11px; max-height: 320px; overflow-y: auto; white-space: pre-wrap; word-break: break-all;"></pre>
                     </div>
                   </div>
                 </div>
@@ -6446,6 +6570,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
             <button data-d="report" class="deliverable-pill" aria-label="HTML report">📈 HTML report</button>
             <button data-d="notebook" class="deliverable-pill" aria-label="Notebook / script">📓 Notebook / script</button>
             <button data-d="profile" class="deliverable-pill" aria-label="Profiling summary">📋 Profiling summary</button>
+            <button data-d="manifold" class="deliverable-pill" aria-label="3D Data Manifold" style="border-color: #38bdf8; color: #38bdf8; font-weight: 700;">🌐 3D Data Manifold</button>
           </div>
 
           <!-- Data Scientist Analytical Focus Presets -->
@@ -6501,7 +6626,12 @@ WHERE order_date >= SYSDATE - 30;</textarea>
             </div>
           </div>
 
-          <button class="btn-analyse" id="btnExecuteDataAnalysis" aria-label="Analyse">Analyse &rarr;</button>
+          <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <button class="btn-analyse" id="btnExecuteDataAnalysis" aria-label="Analyse" style="margin-top: 0;">Analyse &rarr;</button>
+            <button type="button" class="btn-quick" id="btnLaunch3DManifoldDirect" style="padding: 10px 20px; font-size: 13px; font-weight: 700; background: linear-gradient(135deg, rgba(56,189,248,0.2), rgba(167,139,250,0.25)); color: #38bdf8; border: 1px solid #38bdf8; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 10px rgba(56,189,248,0.2); transition: all 0.2s;" title="Directly launch the interactive 3D Visual Analytics Manifold with PCA, Topological Wireframe, and K-Means Clustering">
+              🌐 Launch 3D Visual Analytics Manifold &rarr;
+            </button>
+          </div>
 
           <div id="dataAnalysisResultsBox" style="display: none; margin-top: 22px; border: 1px solid var(--accent); border-radius: 10px; padding: 18px 20px; background: var(--card-bg); box-shadow: 0 8px 24px rgba(0,0,0,0.25);">
             <!-- Header Toolbar -->
@@ -6597,25 +6727,148 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               </div>
             </div>
 
-            <!-- Panel 2: Live 3D Data Manifold & Anomaly Space -->
+            <!-- Panel 2: Live 3D Data Manifold & Multi-Dimensional Exploration Engine -->
             <div id="dataSingle3DPanel" style="display: none; width: 100%;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px; flex-wrap: wrap; gap: 8px;">
-                <div style="color: var(--text-secondary);">
-                  🌐 <strong>Autonomous 3D Data Manifold:</strong> Multi-dimensional projection of records. Pulsing neon beacons spotlight severe outliers.
+              <!-- Executive Toolbar Ribbon -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11.5px; flex-wrap: wrap; gap: 8px; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 14px;">🌐</span>
+                    <strong style="color: #fff;">3D Visual Analytics Manifold</strong>
+                  </div>
+                  <!-- Projection Mode Selector -->
+                  <div style="display: flex; gap: 4px; align-items: center; background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <button type="button" class="btn-quick active-3d-mode" id="btnSingle3DModeScatter" style="padding: 2px 7px; font-size: 10.5px; font-weight: 600; background: rgba(56,189,248,0.25); color: #38bdf8; border-color: #38bdf8;">📊 3D Scatter</button>
+                    <button type="button" class="btn-quick" id="btnSingle3DModePca" style="padding: 2px 7px; font-size: 10.5px; font-weight: 600;" title="Principal Component Analysis (Unsupervised 3D Projection)">🧠 PCA (3D)</button>
+                    <button type="button" class="btn-quick" id="btnSingle3DModeSurface" style="padding: 2px 7px; font-size: 10.5px; font-weight: 600;" title="Topological Regression Surface Mesh">🌐 Surface Mesh</button>
+                    <button type="button" class="btn-quick" id="btnSingle3DModeKmeans" style="padding: 2px 7px; font-size: 10.5px; font-weight: 600;" title="K-Means Cluster Centroids & Halos">🪐 K-Means</button>
+                  </div>
                 </div>
-                <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
-                  <button type="button" class="btn-quick" id="btnSingle3DZoomIn" style="padding: 3px 8px; font-size: 11px;">➕ Zoom In</button>
-                  <button type="button" class="btn-quick" id="btnSingle3DZoomOut" style="padding: 3px 8px; font-size: 11px;">➖ Zoom Out</button>
+
+                <!-- Camera Presets & Actions -->
+                <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
+                  <div style="display: flex; gap: 3px; align-items: center; background: rgba(0,0,0,0.3); padding: 2px 4px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.06);">
+                    <button type="button" class="btn-quick" id="btnSingle3DCamFree" style="padding: 2px 6px; font-size: 10.5px;" title="Free 3D Orbit View">🌐 Orbit</button>
+                    <button type="button" class="btn-quick" id="btnSingle3DCamTop" style="padding: 2px 6px; font-size: 10.5px;" title="Top-Down Plan View (X-Z plane)">⬇️ Top</button>
+                    <button type="button" class="btn-quick" id="btnSingle3DCamFront" style="padding: 2px 6px; font-size: 10.5px;" title="Front Elevation View (X-Y plane)">⬆️ Front</button>
+                    <button type="button" class="btn-quick" id="btnSingle3DCamSide" style="padding: 2px 6px; font-size: 10.5px;" title="Side Profile View (Z-Y plane)">➡️ Side</button>
+                  </div>
                   <button type="button" class="btn-quick" id="btnSingle3DTurntable" style="padding: 3px 8px; font-size: 11px;">🔄 Auto-Rotate</button>
-                  <button type="button" class="btn-quick" id="btnSingle3DOutliersOnly" style="padding: 3px 8px; font-size: 11px; color: #f87171; border-color: rgba(239,68,68,0.4);">🚨 Outliers Only</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DOutliersOnly" style="padding: 3px 8px; font-size: 11px; color: #f87171; border-color: rgba(239,68,68,0.4);">🚨 Outliers</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DToggleControls" style="padding: 3px 8px; font-size: 11px; color: #a78bfa; border-color: rgba(167,139,250,0.4);">⚙️ Encodings</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DSnapshot" style="padding: 3px 8px; font-size: 11px; color: #34d399; border-color: rgba(52,211,153,0.4);" title="Export High-Resolution Canvas PNG">📸 Snapshot</button>
+                  <button type="button" class="btn-quick" id="btnSingle3DExportData" style="padding: 3px 8px; font-size: 11px; color: #60a5fa; border-color: rgba(96,165,250,0.4);" title="Export 3D Projected Coordinates (JSON)">💾 Export</button>
                   <button type="button" class="btn-quick" id="btnSingle3DReset" style="padding: 3px 8px; font-size: 11px;">🎯 Reset</button>
                 </div>
               </div>
-              <div style="position: relative; width: 100%; height: 580px; background: #070a0f; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
+
+              <!-- Collapsible Advanced Encodings & Variable Mapping Drawer -->
+              <div id="dataSingle3DAdvancedControls" style="display: block; margin-bottom: 8px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 11px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
+                  <span style="font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10.5px;">🎛️ Multi-Dimensional Variable Mapping & Visual Encodings</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="single3DSensitivityLabel" style="color: #94a3b8; font-size: 10.5px;">Outlier Threshold: <strong>1.5σ</strong></span>
+                    <input type="range" id="single3DSensitivitySlider" min="1.0" max="3.5" step="0.25" value="1.5" style="width: 80px; height: 4px; accent-color: #ef4444; cursor: pointer;">
+                  </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+                  <!-- Axis X -->
+                  <div style="flex: 1; min-width: 140px;">
+                    <label style="display: block; margin-bottom: 3px; color: #ef4444; font-weight: 600;">🔴 X-Axis</label>
+                    <select id="single3DSelectX" class="input-select" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #0b0f19; border: 1px solid rgba(239,68,68,0.4); border-radius: 4px; color: #f8fafc;"></select>
+                  </div>
+                  <!-- Axis Y -->
+                  <div style="flex: 1; min-width: 140px;">
+                    <label style="display: block; margin-bottom: 3px; color: #10b981; font-weight: 600;">🟢 Y-Axis</label>
+                    <select id="single3DSelectY" class="input-select" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #0b0f19; border: 1px solid rgba(16,185,129,0.4); border-radius: 4px; color: #f8fafc;"></select>
+                  </div>
+                  <!-- Axis Z -->
+                  <div style="flex: 1; min-width: 140px;">
+                    <label style="display: block; margin-bottom: 3px; color: #38bdf8; font-weight: 600;">🔵 Z-Axis</label>
+                    <select id="single3DSelectZ" class="input-select" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #0b0f19; border: 1px solid rgba(56,189,248,0.4); border-radius: 4px; color: #f8fafc;"></select>
+                  </div>
+                  <!-- Color By -->
+                  <div style="flex: 1; min-width: 140px;">
+                    <label style="display: block; margin-bottom: 3px; color: #a78bfa; font-weight: 600;">🎨 Color By</label>
+                    <select id="single3DSelectColor" class="input-select" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #0b0f19; border: 1px solid rgba(167,139,250,0.4); border-radius: 4px; color: #f8fafc;"></select>
+                  </div>
+                  <!-- Color Palette -->
+                  <div style="flex: 0.9; min-width: 120px;">
+                    <label style="display: block; margin-bottom: 3px; color: #cbd5e1; font-weight: 600;">🌈 Palette</label>
+                    <select id="single3DSelectPalette" class="input-select" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #0b0f19; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #f8fafc;">
+                      <option value="neon">Cyberpunk Neon</option>
+                      <option value="viridis">Viridis Scientific</option>
+                      <option value="thermal">Thermal Infrared</option>
+                      <option value="emerald">Emerald Finance</option>
+                      <option value="sunset">Sunset Plasma</option>
+                    </select>
+                  </div>
+                  <!-- Size By -->
+                  <div style="flex: 1; min-width: 130px;">
+                    <label style="display: block; margin-bottom: 3px; color: #fbbf24; font-weight: 600;">📏 Size By (4D)</label>
+                    <select id="single3DSelectSize" class="input-select" style="width: 100%; font-size: 11px; padding: 4px 6px; background: #0b0f19; border: 1px solid rgba(251,191,36,0.4); border-radius: 4px; color: #f8fafc;"></select>
+                  </div>
+                  <!-- Search / Highlight Filter -->
+                  <div style="flex: 1.2; min-width: 180px;">
+                    <label style="display: block; margin-bottom: 3px; color: #cbd5e1; font-weight: 600;">🔍 Highlight Record</label>
+                    <input type="text" id="single3DSearchInput" placeholder="Filter by ID, label, category..." style="width: 100%; font-size: 11px; padding: 4px 8px; background: #0b0f19; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; color: #f8fafc;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Main Canvas & Overlays -->
+              <div style="position: relative; width: 100%; height: 620px; background: radial-gradient(circle at center, #0d131f 0%, #05070a 100%); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; touch-action: none;">
                 <canvas id="dataSingle3DCanvas" style="width: 100%; height: 100%; display: block; cursor: grab;"></canvas>
+
+                <!-- Top-Left HUD Info Badge -->
+                <div id="dataSingle3DHud" style="position: absolute; top: 12px; left: 14px; pointer-events: none; z-index: 10; display: flex; flex-direction: column; gap: 4px;">
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <span id="single3DHudModeBadge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; border-radius: 4px; padding: 2px 7px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;">
+                      📊 3D SCATTER
+                    </span>
+                    <span id="single3DHudVarianceBadge" style="display: none; background: rgba(167, 139, 250, 0.2); color: #c4b5fd; border: 1px solid #a78bfa; border-radius: 4px; padding: 2px 7px; font-size: 10.5px; font-weight: 700;">
+                      89.4% Variance Captured
+                    </span>
+                  </div>
+                  <div id="single3DHudStats" style="font-size: 11px; color: #94a3b8; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">
+                    Records: <strong style="color: #fff;" id="single3DHudRecordsCount">0</strong> &bull; Outliers: <strong style="color: #f87171;" id="single3DHudOutlierCount">0</strong>
+                  </div>
+                </div>
+
+                <!-- Top-Right Continuous Color Legend -->
+                <div id="dataSingle3DLegend" style="position: absolute; top: 12px; right: 14px; pointer-events: none; z-index: 10; display: none; background: rgba(15,23,42,0.85); backdrop-filter: blur(8px); padding: 6px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); font-size: 10px; color: #cbd5e1;">
+                  <div id="single3DLegendTitle" style="font-weight: 600; margin-bottom: 3px; color: #38bdf8;">Color Gradient</div>
+                  <div id="single3DLegendBar" style="width: 110px; height: 8px; border-radius: 3px; margin-bottom: 3px; background: linear-gradient(to right, #38bdf8, #f472b6);"></div>
+                  <div style="display: flex; justify-content: space-between; font-size: 9px; color: #94a3b8;">
+                    <span id="single3DLegendMin">Min</span>
+                    <span id="single3DLegendMax">Max</span>
+                  </div>
+                </div>
+
+                <!-- Hover Tooltip -->
                 <div id="dataSingle3DTooltip" style="position: absolute; display: none; background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border: 1px solid #38bdf8; border-radius: 8px; padding: 10px 14px; font-size: 11.5px; color: #f8fafc; pointer-events: none; z-index: 99; box-shadow: 0 10px 25px rgba(0,0,0,0.8); max-width: 320px;"></div>
-                <div style="position: absolute; bottom: 10px; left: 14px; font-size: 11px; color: #94a3b8; pointer-events: none; background: rgba(15,23,42,0.85); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
-                  <span id="dataSingle3DAxisInfo">1-Finger / Drag: Orbit &bull; Scroll / Pinch: Zoom &bull; Hover point for Data Scientist Root Cause Card</span>
+
+                <!-- Floating Click-to-Inspect Full Record Drawer -->
+                <div id="dataSingle3DInspectorDrawer" style="position: absolute; top: 16px; right: 16px; width: 330px; max-height: 520px; overflow-y: auto; background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(16px); border: 1px solid #38bdf8; border-radius: 8px; padding: 14px; box-shadow: 0 16px 40px rgba(0,0,0,0.9); display: none; z-index: 100;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 6px;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span id="single3DInspectorIcon" style="font-size: 15px;">🔍</span>
+                      <strong id="single3DInspectorTitle" style="color: #38bdf8; font-size: 12.5px;">Record Details</strong>
+                    </div>
+                    <button type="button" id="btnSingle3DCloseInspector" class="btn-quick" style="padding: 1px 6px; font-size: 10.5px; color: #94a3b8;">✕</button>
+                  </div>
+                  <div id="single3DInspectorContent" style="font-size: 11px; line-height: 1.5; color: #e2e8f0;"></div>
+                </div>
+
+                <!-- Bottom-Left Axis Legend Bar -->
+                <div style="position: absolute; bottom: 10px; left: 14px; font-size: 11px; color: #94a3b8; pointer-events: none; background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08);">
+                  <span id="dataSingle3DAxisInfo">1-Finger / Drag: Orbit &bull; Scroll / Pinch: Zoom &bull; Click Node: Deep Record Inspector</span>
+                </div>
+
+                <!-- Bottom-Right Camera Telemetry -->
+                <div style="position: absolute; bottom: 10px; right: 14px; font-size: 10.5px; color: #64748b; font-family: monospace; pointer-events: none; background: rgba(15,23,42,0.7); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
+                  <span id="dataSingle3DCamTelemetry">Orbit: 28° / 20° &bull; Dist: 320</span>
                 </div>
               </div>
             </div>
@@ -7817,7 +8070,10 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               Automated Great Expectations JSON suites, Soda Core checks, and dbt dimensional mart generation.
             </div>
           </div>
-          <button class="btn-quick btn-plugin-launch" data-targettab="quality" style="margin: 0 0 0 10px; font-size: 11px; color: var(--accent); border-color: var(--accent); white-space: nowrap;" aria-label="Open Studio">Open Studio ↗</button>
+          <div style="display: flex; gap: 6px; margin-left: 10px;">
+            <button class="btn-quick btn-plugin-launch" data-targettab="dbt-marts" style="font-size: 10.5px; color: var(--text-secondary); white-space: nowrap;" title="Phase 2: Ingestion &amp; dbt Dimensional Marts" aria-label="dbt Marts">dbt Marts</button>
+            <button class="btn-quick btn-plugin-launch" data-targettab="quality" style="font-size: 11px; color: var(--accent); border-color: var(--accent); white-space: nowrap;" title="Section 5D: Data Quality &amp; Schema Drift Gates" aria-label="Quality Gates">Quality Gates ↗</button>
+          </div>
         </div>
 
         <!-- 3. SIEM Audit Forwarder -->

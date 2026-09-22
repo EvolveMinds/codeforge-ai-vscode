@@ -1471,6 +1471,28 @@ function switchActivityTab(tabName: string, api?: any): void {
     switchDeliveryPhase(6);
     return;
   }
+  if (tabName === 'quality') {
+    switchActivityTab('delivery', api);
+    switchDeliveryPhase(5);
+    const btnStepD = document.getElementById('btnP5StepD');
+    if (btnStepD) btnStepD.click();
+    const btnDq = document.getElementById('btnRunDataQuality');
+    if (btnDq) btnDq.click();
+    setTimeout(() => {
+      const paneDq = document.getElementById('entPaneDataQuality');
+      if (paneDq) paneDq.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+    return;
+  }
+  if (tabName === 'dbt-marts') {
+    switchActivityTab('delivery', api);
+    switchDeliveryPhase(2);
+    setTimeout(() => {
+      const card = document.getElementById('phase2Card');
+      if (card) card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+    return;
+  }
 
   currentActiveTab = tabName;
   document.querySelectorAll('.activity-btn[data-tab]').forEach(btn => {
@@ -19815,11 +19837,12 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     }
   });
 
-  // 4C. HITL Approval Flow Simulator with Persistent Audit Logging & Multi-Domain Governance
+  // 4C. Universal HITL Governance Workstation with Compound Risk Scoring & Dual-Control
   let hitlAuditEntries: any[] = [];
-  let hitlAuditFilter: 'ALL' | 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED' = 'ALL';
+  let hitlAuditFilter: 'ALL' | 'APPROVED' | 'DUAL' | 'REJECTED' | 'AUTO_CLEARED' = 'ALL';
   let hitlSlaTimerInterval: any = null;
   let hitlSlaSecondsRemaining = 898;
+  let hitlPendingDualSignoff = false;
 
   interface HitlDomainPreset {
     id: string;
@@ -19829,6 +19852,12 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     supervisor: string;
     notes: string;
     label: string;
+    confidence: number;
+    mutationType: 'read' | 'mutation' | 'destructive';
+    blastRadius: 'sandbox' | 'production' | 'global';
+    riskLevel: 'LOW' | 'MEDIUM' | 'CRITICAL';
+    requiresDual?: boolean;
+    secondSupervisor?: string;
   }
 
   interface HitlDomainConfig {
@@ -19850,13 +19879,79 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
   }
 
   const HITL_DOMAINS: Record<string, HitlDomainConfig> = {
+    agentic_mcp: {
+      name: 'AI Agentic Tool Calling (MCP / API Gate)',
+      unit: 'Tokens',
+      metricLabel: 'Execution Budget / Impact (Tokens)',
+      idLabel: 'Tool Call Execution ID',
+      entityLabel: 'Calling Agent & Target MCP Server',
+      reasonLabel: 'Agent Intent & Action Vector',
+      ceilings: [
+        { label: '< 10,000 Tokens Auto', value: 10000 },
+        { label: '< 25,000 Tokens Auto', value: 25000 },
+        { label: '< 50,000 Tokens Auto', value: 50000 },
+        { label: '< 100,000 Tokens Auto', value: 100000 }
+      ],
+      defaultCeiling: 25000,
+      operator: 'lte',
+      supervisors: [
+        { id: 'AI-SAFETY-OFFICER', label: 'AI-SAFETY-OFFICER (Lead Orchestrator)' },
+        { id: 'HUMAN-PRINCIPAL-DEV', label: 'HUMAN-PRINCIPAL-DEV (Staff Engineer)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Autonomous MCP Engine)' }
+      ],
+      presets: {
+        auto: {
+          id: 'CALL-1049',
+          val: 4200,
+          entity: 'Data-Analyst-Agent (MCP: postgres-read)',
+          reason: 'Autonomous semantic SQL query on analytical read-replica',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Safe read-only execution below token ceiling. High model confidence (98%). Auto-dispatched.',
+          label: '🟢 Read-Only MCP Query (4.2k toks)',
+          confidence: 98,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'CALL-8921',
+          val: 32000,
+          entity: 'Lead-DevOps-Agent (MCP: kubernetes-exec)',
+          reason: 'Autonomous rollout patch on production deployment. Exceeds 25,000 token ceiling.',
+          supervisor: 'HUMAN-PRINCIPAL-DEV',
+          notes: 'Approved after manual inspection of rolling upgrade strategy and health probe SLA.',
+          label: '🟠 Prod Cluster Rollout (32k toks)',
+          confidence: 89,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'CALL-9910',
+          val: 145000,
+          entity: 'Finance-Agent (MCP: stripe-direct-wire)',
+          reason: 'CRITICAL ALERT: Agent attempted unrestricted external fund disbursement to unverified IBAN!',
+          supervisor: 'AI-SAFETY-OFFICER',
+          notes: 'Four-Eyes dual sign-off enforced: High-value disbursement blocked until fraud review clears.',
+          label: '🔴 Autonomous Wire Transfer (145k toks)',
+          confidence: 71,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
+      }
+    },
     fintech: {
-      name: 'FinOps & Payments',
+      name: 'FinOps: Payments & High-Value Wires',
       unit: '$',
-      metricLabel: 'Amount ($ USD)',
-      idLabel: 'Transaction ID',
-      entityLabel: 'Customer / Merchant',
-      reasonLabel: 'Policy Ceiling / Risk Vector',
+      metricLabel: 'Disbursement / Refund Amount ($ USD)',
+      idLabel: 'Transaction Reference ID',
+      entityLabel: 'Customer / Counterparty Account',
+      reasonLabel: 'Velocity Alert & Policy Vector',
       ceilings: [
         { label: '< $100 Auto', value: 100 },
         { label: '< $250 Auto', value: 250 },
@@ -19868,21 +19963,61 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
       supervisors: [
         { id: 'SUP-EVAL-01', label: 'SUP-EVAL-01 (Lead FinOps Supervisor)' },
         { id: 'SUP-SEC-04', label: 'SUP-SEC-04 (Director of Risk & AML)' },
-        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Autonomous Engine)' }
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Autonomous Ledger Engine)' }
       ],
       presets: {
-        auto: { id: 'TX-1042', val: 42.5, entity: 'cust_coffee_club', reason: 'Autonomous micro-refund (Below $100 ceiling)', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Auto-cleared below policy ceiling. Direct ledger dispatch.', label: '🟢 Auto-Clear Micro-Refund ($42.50)' },
-        ceiling: { id: 'TX-8831', val: 275.0, entity: 'cust_enterprise_cloud', reason: 'Refund amount $275.00 exceeds ceiling. Mandates dual supervisor sign-off.', supervisor: 'SUP-EVAL-01', notes: 'Approved after manual policy verification against merchant account history.', label: '🟠 Ceiling Breach Override ($275.00)' },
-        anomaly: { id: 'TX-9912', val: 4850.0, entity: 'cust_crossborder_remit', reason: 'High-Risk AML Velocity Alert: Multiple rapid refunds requested to overseas beneficiary.', supervisor: 'SUP-SEC-04', notes: 'Investigation complete: Source account verified with corporate card billing.', label: '🔴 High-Risk AML Flag ($4,850.00)' }
+        auto: {
+          id: 'TX-1042',
+          val: 42.5,
+          entity: 'cust_coffee_club',
+          reason: 'Autonomous micro-refund (Below $100 ceiling)',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Auto-cleared below policy ceiling. Direct ledger dispatch.',
+          label: '🟢 Auto-Clear Micro-Refund ($42.50)',
+          confidence: 99,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'TX-8831',
+          val: 275.0,
+          entity: 'cust_enterprise_cloud',
+          reason: 'Refund amount $275.00 exceeds ceiling. Mandates single supervisor sign-off.',
+          supervisor: 'SUP-EVAL-01',
+          notes: 'Approved after manual policy verification against merchant account history.',
+          label: '🟠 Ceiling Breach Override ($275.00)',
+          confidence: 88,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'TX-9912',
+          val: 4850.0,
+          entity: 'cust_crossborder_remit',
+          reason: 'High-Risk AML Velocity Alert: Multiple rapid refunds requested to overseas beneficiary.',
+          supervisor: 'SUP-SEC-04',
+          notes: 'Investigation complete: Source account verified with corporate card billing.',
+          label: '🔴 High-Risk AML Flag ($4,850.00)',
+          confidence: 68,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
       }
     },
     healthcare: {
-      name: 'Clinical Safety & Drug Dosage',
+      name: 'Healthcare: Clinical Dosing & Diagnostics',
       unit: 'mg',
       metricLabel: 'Daily Cumulative Dose (mg / 24h)',
-      idLabel: 'Prescription / Rx ID',
-      entityLabel: 'Patient MRN / Ward',
-      reasonLabel: 'Clinical Toxicity Warning / Escalation',
+      idLabel: 'Prescription Rx / Order ID',
+      entityLabel: 'Patient MRN & Medical Ward',
+      reasonLabel: 'Clinical Toxicity & Contraindication Vector',
       ceilings: [
         { label: '< 1,000 mg Auto', value: 1000 },
         { label: '< 2,000 mg Auto', value: 2000 },
@@ -19897,17 +20032,57 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
         { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (BNF Guideline Engine)' }
       ],
       presets: {
-        auto: { id: 'RX-4410', val: 500, entity: 'MRN-3092 (Ward 3B)', reason: 'Routine analgesic prescription per BNF §2.1', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Dose verified within safe therapeutic range. Auto-dispensed.', label: '🟢 Safe Analgesic (500 mg)' },
-        ceiling: { id: 'RX-7721', val: 4000, entity: 'MRN-8841 (ICU-A)', reason: 'Daily maximum ceiling reached (4,000 mg in 24h). Clinical review required.', supervisor: 'CLIN-PHARM-02', notes: 'Pharmacist approved: Liver function tests normal, administered with 6h spacing.', label: '🟠 Maximum Daily Ceiling (4,000 mg)' },
-        anomaly: { id: 'RX-9940', val: 8000, entity: 'MRN-1102 (ER-Resus)', reason: 'CRITICAL ALERT: Acute cumulative overdose (8,000 mg). Severe hepatotoxicity risk.', supervisor: 'PHYS-ATTENDING', notes: 'Emergency escalation: High dosage flagged. Consult required before administration.', label: '🔴 Toxic Overdose Alert (8,000 mg)' }
+        auto: {
+          id: 'RX-4410',
+          val: 500,
+          entity: 'MRN-3092 (Ward 3B)',
+          reason: 'Routine analgesic prescription per BNF §2.1 guideline',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Dose verified within safe therapeutic range. Auto-dispensed.',
+          label: '🟢 Safe Analgesic (500 mg)',
+          confidence: 96,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'RX-7721',
+          val: 4000,
+          entity: 'MRN-8841 (ICU-A)',
+          reason: 'Daily maximum ceiling reached (4,000 mg in 24h). Clinical review required.',
+          supervisor: 'CLIN-PHARM-02',
+          notes: 'Pharmacist approved: Liver function tests normal, administered with 6h spacing.',
+          label: '🟠 Maximum Daily Ceiling (4,000 mg)',
+          confidence: 87,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'RX-9940',
+          val: 8000,
+          entity: 'MRN-1102 (ER-Resus)',
+          reason: 'CRITICAL ALERT: Acute cumulative overdose (8,000 mg). Severe hepatotoxicity risk.',
+          supervisor: 'PHYS-ATTENDING',
+          notes: 'Emergency medical escalation: High dosage flagged. Consult required before administration.',
+          label: '🔴 Toxic Overdose Alert (8,000 mg)',
+          confidence: 62,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
       }
     },
     devops: {
-      name: 'Cloud SRE & IAM Provisioning',
+      name: 'Cloud SRE: Infra Scaling & Blast Radius',
       unit: 'Nodes',
       metricLabel: 'Cluster Scaling Delta (Nodes)',
       idLabel: 'Change Ticket / PR #',
-      entityLabel: 'Target VPC / Environment',
+      entityLabel: 'Target VPC & Cluster Environment',
       reasonLabel: 'Production Blast Radius Alert',
       ceilings: [
         { label: '< 5 Nodes Auto', value: 5 },
@@ -19923,18 +20098,58 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
         { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Terraform Auto-Scaler)' }
       ],
       presets: {
-        auto: { id: 'CHG-1099', val: 3, entity: 'vpc-dev-sandbox (Dev)', reason: 'Horizontal Pod Auto-scale (Non-production environment)', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Auto-approved for staging workload within monthly budget limit.', label: '🟢 Dev Sandbox Scale (3 Nodes)' },
-        ceiling: { id: 'CHG-4019', val: 16, entity: 'vpc-prod-east (Production)', reason: 'Cluster expansion exceeds 10-node limit ($4,200/mo delta). Mandates SRE Lead review.', supervisor: 'SRE-LEAD-03', notes: 'SRE approved: Capacity verified for scheduled Black Friday load test.', label: '🟠 Prod Expansion (16 Nodes)' },
-        anomaly: { id: 'CHG-9904', val: 75, entity: 'vpc-prod-global (Multi-Region)', reason: 'CRITICAL BLAST RADIUS: Multi-region teardown + root IAM privilege grant attempted.', supervisor: 'CISO-OPS-01', notes: 'Security intervention: Unauthorized root elevation blocked. Audit investigation opened.', label: '🔴 High-Impact Infra Drop (75 Nodes)' }
+        auto: {
+          id: 'CHG-1099',
+          val: 3,
+          entity: 'vpc-dev-sandbox (Dev)',
+          reason: 'Horizontal Pod Auto-scale (Non-production environment)',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Auto-approved for staging workload within monthly budget limit.',
+          label: '🟢 Dev Sandbox Scale (3 Nodes)',
+          confidence: 97,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'CHG-4019',
+          val: 16,
+          entity: 'vpc-prod-east (Production)',
+          reason: 'Cluster expansion exceeds 10-node limit ($4,200/mo delta). Mandates SRE Lead review.',
+          supervisor: 'SRE-LEAD-03',
+          notes: 'SRE approved: Capacity verified for scheduled Black Friday load test.',
+          label: '🟠 Prod Expansion (16 Nodes)',
+          confidence: 86,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'CHG-9904',
+          val: 75,
+          entity: 'vpc-prod-global (Multi-Region)',
+          reason: 'CRITICAL BLAST RADIUS: Multi-region teardown + root IAM privilege grant attempted.',
+          supervisor: 'CISO-OPS-01',
+          notes: 'Security intervention: Unauthorized root elevation blocked. Audit investigation opened.',
+          label: '🔴 High-Impact Infra Drop (75 Nodes)',
+          confidence: 65,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'CISO-LEAD-02'
+        }
       }
     },
     data: {
-      name: 'Data Platform & Schema Drift',
+      name: 'Data Platform: Mutations & Schema Drift',
       unit: 'Rows',
       metricLabel: 'Mutation Volume / Rows Affected',
       idLabel: 'Pipeline Run ID',
-      entityLabel: 'Target Dataset / Table',
-      reasonLabel: 'Data Loss & Schema Drift Alert',
+      entityLabel: 'Target Dataset & Table',
+      reasonLabel: 'Data Loss & Schema Drift Vector',
       ceilings: [
         { label: '< 5,000 Rows Auto', value: 5000 },
         { label: '< 25,000 Rows Auto', value: 25000 },
@@ -19945,13 +20160,251 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
       operator: 'lte',
       supervisors: [
         { id: 'DATA-LEAD-07', label: 'DATA-LEAD-07 (Data Platform Architect)' },
-        { id: 'GOV-OFFICER-02', label: 'GOV-OFFICER-02 (Data Governance Officer)' },
+        { id: 'GOV-OFFICER-02', label: 'GOV-OFFICER-02 (Chief Data Governance Officer)' },
         { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (dbt Pipeline Gate)' }
       ],
       presets: {
-        auto: { id: 'RUN-2041', val: 1800, entity: 'mart_customer_orders', reason: 'Scheduled hourly micro-batch incremental ingestion', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Within row budget. Schema checks and null tests 100% passing.', label: '🟢 Hourly Batch (1,800 Rows)' },
-        ceiling: { id: 'RUN-6602', val: 85000, entity: 'mart_financial_ledger', reason: 'Bulk history backfill exceeds 25,000-row autonomous ceiling.', supervisor: 'DATA-LEAD-07', notes: 'Backfill authorized: Upstream ERP reconciliation migration verified.', label: '🟠 Backfill Mutation (85,000 Rows)' },
-        anomaly: { id: 'RUN-9981', val: 1250000, entity: 'dim_customer_pii', reason: 'EMERGENCY ALERT: Unbounded DELETE/TRUNCATE affecting 1.25M records without snapshot!', supervisor: 'GOV-OFFICER-02', notes: 'Halt triggered: Unfiltered table purge prevented by data governance guardrail.', label: '🔴 Catastrophic Purge (1.25M Rows)' }
+        auto: {
+          id: 'RUN-2041',
+          val: 1800,
+          entity: 'mart_customer_orders',
+          reason: 'Scheduled hourly micro-batch incremental ingestion',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Within row budget. Schema checks and null tests 100% passing.',
+          label: '🟢 Hourly Batch (1,800 Rows)',
+          confidence: 99,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'RUN-6602',
+          val: 85000,
+          entity: 'mart_financial_ledger',
+          reason: 'Bulk history backfill exceeds 25,000-row autonomous ceiling.',
+          supervisor: 'DATA-LEAD-07',
+          notes: 'Backfill authorized: Upstream ERP reconciliation migration verified.',
+          label: '🟠 Backfill Mutation (85,000 Rows)',
+          confidence: 84,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'RUN-9981',
+          val: 1250000,
+          entity: 'dim_customer_pii',
+          reason: 'EMERGENCY ALERT: Unbounded DELETE/TRUNCATE affecting 1.25M records without snapshot!',
+          supervisor: 'GOV-OFFICER-02',
+          notes: 'Halt triggered: Unfiltered table purge prevented by data governance guardrail.',
+          label: '🔴 Catastrophic Purge (1.25M Rows)',
+          confidence: 58,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
+      }
+    },
+    legal: {
+      name: 'Legal & Compliance: Contracts & Liability',
+      unit: '$',
+      metricLabel: 'Liability Exposure Cap ($ USD)',
+      idLabel: 'Contract Reference ID',
+      entityLabel: 'Counterparty & Jurisdiction',
+      reasonLabel: 'Indemnity & IP Risk Vector',
+      ceilings: [
+        { label: '< $100,000 Auto', value: 100000 },
+        { label: '< $500,000 Auto', value: 500000 },
+        { label: '< $1,000,000 Auto', value: 1000000 },
+        { label: '< $5,000,000 Auto', value: 5000000 }
+      ],
+      defaultCeiling: 500000,
+      operator: 'lte',
+      supervisors: [
+        { id: 'LEGAL-COUNSEL-01', label: 'LEGAL-COUNSEL-01 (Senior Corporate Counsel)' },
+        { id: 'CHIEF-COMPLIANCE-01', label: 'CHIEF-COMPLIANCE-01 (Chief Compliance Officer)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Contract Risk Engine)' }
+      ],
+      presets: {
+        auto: {
+          id: 'CTR-1020',
+          val: 75000,
+          entity: 'Standard SaaS Provider Inc (Delaware)',
+          reason: 'Standard mutual non-disclosure and limited software subscription terms',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Pre-approved terms matching standard corporate master template.',
+          label: '🟢 Standard MSA ($75k)',
+          confidence: 96,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'CTR-3029',
+          val: 1500000,
+          entity: 'Global Strategic Partner LLC (California)',
+          reason: 'Enterprise contract with custom SLA penalty clauses exceeding $500k ceiling',
+          supervisor: 'LEGAL-COUNSEL-01',
+          notes: 'Counsel approved: Liability capped to 12 months trailing revenue.',
+          label: '🟠 Enterprise MSA ($1.5M)',
+          confidence: 87,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'CTR-9940',
+          val: 12000000,
+          entity: 'Overseas Consortium (Non-Hague Jurisdiction)',
+          reason: 'CRITICAL COMPLIANCE BREACH: Unlimited indemnity clause §14.2 with foreign sovereign waiver.',
+          supervisor: 'CHIEF-COMPLIANCE-01',
+          notes: 'Executive review mandatory: Unlimited IP risk requires board-level signoff.',
+          label: '🔴 Unlimited Indemnity ($12M)',
+          confidence: 60,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
+      }
+    },
+    customer_ops: {
+      name: 'Customer Operations: Retention Credits & Unlocks',
+      unit: '$',
+      metricLabel: 'Discretionary Credit / Concession ($ USD)',
+      idLabel: 'Support Ticket / Case ID',
+      entityLabel: 'Customer Tier & Account Name',
+      reasonLabel: 'Churn Risk & Policy Exception Vector',
+      ceilings: [
+        { label: '< $100 Auto', value: 100 },
+        { label: '< $250 Auto', value: 250 },
+        { label: '< $500 Auto', value: 500 },
+        { label: '< $1,000 Auto', value: 1000 }
+      ],
+      defaultCeiling: 250,
+      operator: 'lte',
+      supervisors: [
+        { id: 'CS-DIRECTOR-03', label: 'CS-DIRECTOR-03 (Customer Support Director)' },
+        { id: 'FRAUD-LEAD-02', label: 'FRAUD-LEAD-02 (Trust & Safety Manager)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Churn Prevention Agent)' }
+      ],
+      presets: {
+        auto: {
+          id: 'CASE-1002',
+          val: 45,
+          entity: 'Gold Tier: Acme Corporation',
+          reason: 'Courteous goodwill refund for minor service degradation incident',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Auto-credited: Account in good standing with 5-year tenure.',
+          label: '🟢 Goodwill Credit ($45.00)',
+          confidence: 98,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'CASE-5541',
+          val: 450,
+          entity: 'Platinum Tier: MegaCorp Logistics',
+          reason: 'Out-of-policy SLA concession requested after major cluster downtime',
+          supervisor: 'CS-DIRECTOR-03',
+          notes: 'Director approved: Retention risk mitigated for key enterprise contract.',
+          label: '🟠 Retention Concession ($450.00)',
+          confidence: 85,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'CASE-9801',
+          val: 3800,
+          entity: 'Free Trial: Suspicious Unknown IP',
+          reason: 'FRAUD ALERT: Massive retroactive refund and unrestricted API unlock on newly registered trial.',
+          supervisor: 'FRAUD-LEAD-02',
+          notes: 'Security hold placed: Suspicious chargeback velocity detected.',
+          label: '🔴 Fraudulent Unlock ($3,800.00)',
+          confidence: 52,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
+      }
+    },
+    supply_chain: {
+      name: 'Supply Chain: Hazardous Cargo & Bulk Logistics',
+      unit: 'kg',
+      metricLabel: 'Dispatched Cargo Weight (kg)',
+      idLabel: 'Bill of Lading / PO #',
+      entityLabel: 'Origin Port & Logistics Carrier',
+      reasonLabel: 'Hazmat & Port Diversion Vector',
+      ceilings: [
+        { label: '< 1,000 kg Auto', value: 1000 },
+        { label: '< 5,000 kg Auto', value: 5000 },
+        { label: '< 10,000 kg Auto', value: 10000 },
+        { label: '< 25,000 kg Auto', value: 25000 }
+      ],
+      defaultCeiling: 5000,
+      operator: 'lte',
+      supervisors: [
+        { id: 'LOGISTICS-DIR-01', label: 'LOGISTICS-DIR-01 (VP Supply Chain Logistics)' },
+        { id: 'SAFETY-AUDITOR-04', label: 'SAFETY-AUDITOR-04 (Hazardous Cargo Inspector)' },
+        { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Autonomous Dispatch)' }
+      ],
+      presets: {
+        auto: {
+          id: 'BOL-1120',
+          val: 1200,
+          entity: 'Port of Antwerp (Maersk Line)',
+          reason: 'Standard non-perishable consumer dry goods container shipment',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Customs manifest cleared automatically. Cargo weight within threshold.',
+          label: '🟢 Standard Pallet Dispatch (1,200 kg)',
+          confidence: 98,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'BOL-4491',
+          val: 8500,
+          entity: 'Port of Rotterdam (Hapag-Lloyd)',
+          reason: 'Overweight industrial shipment exceeds 5,000 kg autonomous dispatch ceiling',
+          supervisor: 'LOGISTICS-DIR-01',
+          notes: 'Logistics manager approved: Axle weight distribution verified and approved.',
+          label: '🟠 Heavy Freight (8,500 kg)',
+          confidence: 86,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'BOL-9012',
+          val: 38000,
+          entity: 'Restricted Terminal: Singapore Anchorage',
+          reason: 'CRITICAL HAZMAT ALERT: Class 3 flammable bulk chemicals routed through restricted waterway.',
+          supervisor: 'SAFETY-AUDITOR-04',
+          notes: 'Port authority intervention: Dual clearance mandatory for restricted hazmat transit.',
+          label: '🔴 Class 3 Hazmat Transit (38,000 kg)',
+          confidence: 59,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
       }
     },
     custom: {
@@ -19975,17 +20428,57 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
         { id: 'SYSTEM-AUTONOMOUS', label: 'SYSTEM-AUTONOMOUS (Custom Policy Engine)' }
       ],
       presets: {
-        auto: { id: 'REQ-1001', val: 25, entity: 'Tenant_Alpha', reason: 'Safe baseline within custom threshold', supervisor: 'SYSTEM-AUTONOMOUS', notes: 'Below threshold. Auto-cleared by custom FDE specification.', label: '🟢 Safe Baseline (25 Units)' },
-        ceiling: { id: 'REQ-2045', val: 180, entity: 'Tenant_Beta', reason: 'Metric exceeds standard clearance ceiling.', supervisor: 'SUP-CUSTOM-01', notes: 'Manual override granted after engineering review.', label: '🟠 Threshold Override (180 Units)' },
-        anomaly: { id: 'REQ-9099', val: 950, entity: 'Tenant_Gamma', reason: 'Critical anomaly threshold breached. Mandatory dual approval required.', supervisor: 'DIR-ENG-05', notes: 'Director escalation: High-risk anomaly logged.', label: '🔴 Critical Anomaly (950 Units)' }
+        auto: {
+          id: 'REQ-1001',
+          val: 25,
+          entity: 'Tenant_Alpha',
+          reason: 'Safe baseline within custom threshold',
+          supervisor: 'SYSTEM-AUTONOMOUS',
+          notes: 'Below threshold. Auto-cleared by custom FDE specification.',
+          label: '🟢 Safe Baseline (25 Units)',
+          confidence: 96,
+          mutationType: 'read',
+          blastRadius: 'sandbox',
+          riskLevel: 'LOW',
+          requiresDual: false
+        },
+        ceiling: {
+          id: 'REQ-2045',
+          val: 180,
+          entity: 'Tenant_Beta',
+          reason: 'Metric exceeds standard clearance ceiling.',
+          supervisor: 'SUP-CUSTOM-01',
+          notes: 'Manual override granted after engineering review.',
+          label: '🟠 Threshold Override (180 Units)',
+          confidence: 88,
+          mutationType: 'mutation',
+          blastRadius: 'production',
+          riskLevel: 'MEDIUM',
+          requiresDual: false
+        },
+        anomaly: {
+          id: 'REQ-9099',
+          val: 950,
+          entity: 'Tenant_Gamma',
+          reason: 'Critical anomaly threshold breached. Mandatory dual approval required.',
+          supervisor: 'DIR-ENG-05',
+          notes: 'Director escalation: High-risk anomaly logged.',
+          label: '🔴 Critical Anomaly (950 Units)',
+          confidence: 64,
+          mutationType: 'destructive',
+          blastRadius: 'global',
+          riskLevel: 'CRITICAL',
+          requiresDual: true,
+          secondSupervisor: 'DIR-RISK-01'
+        }
       }
     }
   };
 
-  let currentHitlDomainKey = 'fintech';
+  let currentHitlDomainKey = 'agentic_mcp';
 
   const getActiveHitlConfig = (): HitlDomainConfig => {
-    const base = HITL_DOMAINS[currentHitlDomainKey] || HITL_DOMAINS.fintech;
+    const base = HITL_DOMAINS[currentHitlDomainKey] || HITL_DOMAINS.agentic_mcp;
     if (currentHitlDomainKey === 'custom') {
       const customMetric = (document.getElementById('txtHitlCustomMetricUnit') as HTMLInputElement)?.value?.trim() || 'Score (0-100)';
       const customId = (document.getElementById('txtHitlCustomIdLabel') as HTMLInputElement)?.value?.trim() || 'Request ID';
@@ -20008,6 +20501,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
   const formatHitlVal = (val: number, unit: string) => {
     if (unit === '$') return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (unit === 'Tokens') return `${val.toLocaleString()} Tokens`;
     return `${val.toLocaleString()} ${unit}`;
   };
 
@@ -20022,35 +20516,186 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     return isNaN(num) ? 100 : num;
   };
 
-  const updateHitlRoutingPill = () => {
+  interface CompoundRiskEvaluation {
+    isPassing: boolean;
+    riskLevel: 'LOW' | 'MEDIUM' | 'CRITICAL';
+    requiresDual: boolean;
+    ceilingBreach: boolean;
+    confidenceBreach: boolean;
+    mutationBreach: boolean;
+    blastBreach: boolean;
+    routingMessage: string;
+    routingColor: string;
+    routingBg: string;
+  }
+
+  const evaluateCompoundRisk = (): CompoundRiskEvaluation => {
     const cfg = getActiveHitlConfig();
     const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
-    const pill = document.getElementById('lblHitlRoutingPill');
-    if (!pill) return;
+    const txtConfidence = document.getElementById('txtHitlConfidence') as HTMLInputElement;
+    const selMutation = document.getElementById('selHitlOperationType') as HTMLSelectElement;
+    const selBlast = document.getElementById('selHitlBlastRadius') as HTMLSelectElement;
 
     const ceiling = getHitlCeilingValue();
     const amount = parseFloat(txtAmount?.value || '0');
+    const confidence = parseFloat(txtConfidence?.value || '95');
+    const mutationType = (selMutation?.value || 'mutation') as 'read' | 'mutation' | 'destructive';
+    const blastRadius = (selBlast?.value || 'production') as 'sandbox' | 'production' | 'global';
     const op = cfg.operator;
 
+    let ceilingPassing = false;
+    if (op === 'lte') ceilingPassing = amount <= ceiling;
+    else if (op === 'lt') ceilingPassing = amount < ceiling;
+    else if (op === 'gte') ceilingPassing = amount >= ceiling;
+    else if (op === 'gt') ceilingPassing = amount > ceiling;
+
+    const ceilingBreach = !ceilingPassing;
+    const confidenceBreach = confidence < 90;
+    const mutationBreach = mutationType === 'destructive';
+    const blastBreach = blastRadius === 'global';
+
+    const isCritical = mutationBreach || blastBreach || confidence < 75 || amount > (ceiling * 2.5);
+    const requiresDual = isCritical;
+
+    let riskLevel: 'LOW' | 'MEDIUM' | 'CRITICAL' = 'LOW';
     let isPassing = false;
-    if (op === 'lte') isPassing = amount <= ceiling;
-    else if (op === 'lt') isPassing = amount < ceiling;
-    else if (op === 'gte') isPassing = amount >= ceiling;
-    else if (op === 'gt') isPassing = amount > ceiling;
+    let routingMessage = '';
+    let routingColor = 'var(--success)';
+    let routingBg = 'rgba(137, 209, 133, 0.15)';
 
     const ceilingFormatted = formatHitlVal(ceiling, cfg.unit);
 
-    if (isPassing) {
-      pill.textContent = `🟢 Within ${ceilingFormatted} Ceiling ➔ Direct Autonomous Clearance`;
-      pill.style.background = 'rgba(137, 209, 133, 0.15)';
-      pill.style.color = 'var(--success)';
-      pill.style.borderColor = 'var(--success)';
+    if (isCritical) {
+      riskLevel = 'CRITICAL';
+      isPassing = false;
+      routingMessage = `🔴 Critical Severity / High Blast Radius ➔ Four-Eyes Dual Sign-off Mandatory`;
+      routingColor = 'var(--error)';
+      routingBg = 'rgba(241, 76, 76, 0.15)';
+    } else if (ceilingBreach || confidenceBreach || mutationType === 'mutation' || blastRadius === 'production') {
+      riskLevel = 'MEDIUM';
+      isPassing = false;
+      const trigger = ceilingBreach ? `Exceeds ${ceilingFormatted}` : confidenceBreach ? `SLA Confidence (${confidence}%)` : `Production Mutation`;
+      routingMessage = `🟠 ${trigger} ➔ Single Supervisor Override Required`;
+      routingColor = '#e5b567';
+      routingBg = 'rgba(229, 181, 103, 0.15)';
     } else {
-      pill.textContent = `🟠 Exceeds ${ceilingFormatted} Ceiling ➔ Mandatory Supervisor Override`;
-      pill.style.background = 'rgba(229, 181, 103, 0.15)';
-      pill.style.color = '#e5b567';
-      pill.style.borderColor = '#e5b567';
+      riskLevel = 'LOW';
+      isPassing = true;
+      routingMessage = `🟢 Within ${ceilingFormatted} & High Confidence ➔ Direct Autonomous Clearance`;
+      routingColor = 'var(--success)';
+      routingBg = 'rgba(137, 209, 133, 0.15)';
     }
+
+    return {
+      isPassing,
+      riskLevel,
+      requiresDual,
+      ceilingBreach,
+      confidenceBreach,
+      mutationBreach,
+      blastBreach,
+      routingMessage,
+      routingColor,
+      routingBg
+    };
+  };
+
+  const updateHitlRoutingPill = () => {
+    const pill = document.getElementById('lblHitlRoutingPill');
+    const chipMetric = document.getElementById('chipHitlMetricRisk');
+    const chipConfidence = document.getElementById('chipHitlConfidenceRisk');
+    const chipMutation = document.getElementById('chipHitlMutationRisk');
+    const chipBlast = document.getElementById('chipHitlBlastRisk');
+
+    const evalResult = evaluateCompoundRisk();
+    const cfg = getActiveHitlConfig();
+    const ceiling = getHitlCeilingValue();
+    const txtAmount = document.getElementById('txtHitlTxAmount') as HTMLInputElement;
+    const txtConfidence = document.getElementById('txtHitlConfidence') as HTMLInputElement;
+    const selMutation = document.getElementById('selHitlOperationType') as HTMLSelectElement;
+    const selBlast = document.getElementById('selHitlBlastRadius') as HTMLSelectElement;
+
+    const amount = parseFloat(txtAmount?.value || '0');
+    const confidence = parseFloat(txtConfidence?.value || '95');
+    const mutation = selMutation?.value || 'mutation';
+    const blast = selBlast?.value || 'production';
+
+    if (pill) {
+      pill.textContent = evalResult.routingMessage;
+      pill.style.background = evalResult.routingBg;
+      pill.style.color = evalResult.routingColor;
+      pill.style.borderColor = evalResult.routingColor;
+    }
+
+    if (chipMetric) {
+      const metricPass = !evalResult.ceilingBreach;
+      chipMetric.textContent = `📊 Metric: ${formatHitlVal(amount, cfg.unit)} (${metricPass ? 'Pass' : 'Breach'})`;
+      chipMetric.style.color = metricPass ? 'var(--success)' : '#e5b567';
+      chipMetric.style.borderColor = metricPass ? 'rgba(137, 209, 133, 0.4)' : 'rgba(229, 181, 103, 0.4)';
+    }
+
+    if (chipConfidence) {
+      const confPass = confidence >= 90;
+      chipConfidence.textContent = `🎯 Confidence: ${confidence}% (${confPass ? 'SLA Passed' : confidence < 75 ? 'Critical SLA' : 'Review Required'})`;
+      chipConfidence.style.color = confPass ? 'var(--success)' : confidence < 75 ? 'var(--error)' : '#e5b567';
+      chipConfidence.style.borderColor = confPass ? 'rgba(137, 209, 133, 0.4)' : confidence < 75 ? 'rgba(241, 76, 76, 0.4)' : 'rgba(229, 181, 103, 0.4)';
+    }
+
+    if (chipMutation) {
+      const mutLabel = mutation === 'read' ? 'Read-Only' : mutation === 'mutation' ? 'State Mutation' : 'Destructive Purge';
+      chipMutation.textContent = `⚡ Mutation: ${mutLabel}`;
+      chipMutation.style.color = mutation === 'read' ? '#60a5fa' : mutation === 'mutation' ? '#e5b567' : 'var(--error)';
+      chipMutation.style.borderColor = mutation === 'read' ? 'rgba(96, 165, 250, 0.4)' : mutation === 'mutation' ? 'rgba(229, 181, 103, 0.4)' : 'rgba(241, 76, 76, 0.4)';
+    }
+
+    if (chipBlast) {
+      const blastLabel = blast === 'sandbox' ? 'Sandbox' : blast === 'production' ? 'Production' : 'Global Core';
+      chipBlast.textContent = `🌐 Blast: ${blastLabel}`;
+      chipBlast.style.color = blast === 'sandbox' ? 'var(--success)' : blast === 'production' ? '#e5b567' : 'var(--error)';
+      chipBlast.style.borderColor = blast === 'sandbox' ? 'rgba(137, 209, 133, 0.4)' : blast === 'production' ? 'rgba(229, 181, 103, 0.4)' : 'rgba(241, 76, 76, 0.4)';
+    }
+
+    // Refresh code generator if builder tab is visible
+    renderHitlPolicyCode();
+  };
+
+  const renderHitlQueueTable = () => {
+    const tbody = document.getElementById('hitlScenarioQueueTableBody');
+    if (!tbody) return;
+    const cfg = getActiveHitlConfig();
+    const presets = [cfg.presets.auto, cfg.presets.ceiling, cfg.presets.anomaly];
+
+    tbody.innerHTML = presets.map((p, idx) => {
+      const badgeColor = p.riskLevel === 'LOW' ? 'var(--success)' : p.riskLevel === 'MEDIUM' ? '#e5b567' : 'var(--error)';
+      const badgeBg = p.riskLevel === 'LOW' ? 'rgba(137, 209, 133, 0.15)' : p.riskLevel === 'MEDIUM' ? 'rgba(229, 181, 103, 0.15)' : 'rgba(241, 76, 76, 0.15)';
+      const formattedAmount = formatHitlVal(p.val, cfg.unit);
+
+      return `
+        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+          <td style="padding: 6px 8px; font-weight: 700; color: #fff; font-family: monospace;">${p.id}</td>
+          <td style="padding: 6px 8px; color: var(--accent); font-weight: 600;">${formattedAmount}</td>
+          <td style="padding: 6px 8px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.entity}">${p.entity}</td>
+          <td style="padding: 6px 8px; font-family: monospace;">${p.confidence || 95}%</td>
+          <td style="padding: 6px 8px; font-size: 10px; color: var(--text-secondary); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${p.reason}">${p.reason}</td>
+          <td style="padding: 6px 8px;">
+            <span style="font-size: 9px; font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeColor}; padding: 1px 6px; border-radius: 3px;">
+              ${p.riskLevel || 'LOW'}${p.requiresDual ? ' (Dual)' : ''}
+            </span>
+          </td>
+          <td style="padding: 6px 8px; text-align: right;">
+            <button class="btn-quick" data-queue-idx="${idx}" style="font-size: 9px; padding: 2px 8px; color: var(--accent);">Load ➔</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('button[data-queue-idx]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const idx = parseInt((e.currentTarget as HTMLElement).getAttribute('data-queue-idx') || '0');
+        const selectedPreset = presets[idx];
+        if (selectedPreset) loadHitlPreset(selectedPreset);
+      });
+    });
   };
 
   const applyHitlDomain = (domainKey: string) => {
@@ -20101,29 +20746,33 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
       });
     }
 
-    // 4. Update Scenario Presets Container
-    const presetsContainer = document.getElementById('hitlScenarioPresets');
-    if (presetsContainer) {
-      presetsContainer.innerHTML = `
-        <span style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Scenario Presets:</span>
-        <button class="btn-quick" id="btnPresetHitlAuto" style="font-size: 9.5px; padding: 2px 8px; color: var(--success);" title="Load safe baseline">${cfg.presets.auto.label}</button>
-        <button class="btn-quick" id="btnPresetHitlCeiling" style="font-size: 9.5px; padding: 2px 8px; color: #e5b567;" title="Load standard ceiling breach requiring manager override">${cfg.presets.ceiling.label}</button>
-        <button class="btn-quick" id="btnPresetHitlAml" style="font-size: 9.5px; padding: 2px 8px; color: var(--error);" title="Load high-risk anomaly requiring dual signoff">${cfg.presets.anomaly.label}</button>
-      `;
-
-      // Wire preset buttons
-      document.getElementById('btnPresetHitlAuto')?.addEventListener('click', () => loadHitlPreset(cfg.presets.auto));
-      document.getElementById('btnPresetHitlCeiling')?.addEventListener('click', () => loadHitlPreset(cfg.presets.ceiling));
-      document.getElementById('btnPresetHitlAml')?.addEventListener('click', () => loadHitlPreset(cfg.presets.anomaly));
+    // 4. Update Scenario Preset Chips
+    const btnAuto = document.getElementById('btnPresetHitlAuto');
+    const btnCeiling = document.getElementById('btnPresetHitlCeiling');
+    const btnAml = document.getElementById('btnPresetHitlAml');
+    if (btnAuto) {
+      btnAuto.textContent = cfg.presets.auto.label;
+      btnAuto.onclick = () => loadHitlPreset(cfg.presets.auto);
+    }
+    if (btnCeiling) {
+      btnCeiling.textContent = cfg.presets.ceiling.label;
+      btnCeiling.onclick = () => loadHitlPreset(cfg.presets.ceiling);
+    }
+    if (btnAml) {
+      btnAml.textContent = cfg.presets.anomaly.label;
+      btnAml.onclick = () => loadHitlPreset(cfg.presets.anomaly);
     }
 
-    // 5. Show/Hide Custom Builder
+    // 5. Render Queue Table
+    renderHitlQueueTable();
+
+    // 6. Show/Hide Custom Builder
     const customPanel = document.getElementById('hitlCustomConfigPanel');
     if (customPanel) {
       customPanel.style.display = domainKey === 'custom' ? 'block' : 'none';
     }
 
-    // 6. Load Default Auto Preset
+    // 7. Load Default Auto Preset
     loadHitlPreset(cfg.presets.auto);
     updateHitlRoutingPill();
   };
@@ -20136,6 +20785,9 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     const selSupervisor = document.getElementById('selHitlSupervisor') as HTMLSelectElement;
     const txtReason = document.getElementById('txtHitlTxReason') as HTMLInputElement;
     const txtNotes = document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement;
+    const txtConfidence = document.getElementById('txtHitlConfidence') as HTMLInputElement;
+    const selMutation = document.getElementById('selHitlOperationType') as HTMLSelectElement;
+    const selBlast = document.getElementById('selHitlBlastRadius') as HTMLSelectElement;
 
     if (txtTxId) txtTxId.value = preset.id;
     if (txtAmount) txtAmount.value = String(preset.val);
@@ -20143,10 +20795,242 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     if (selSupervisor) selSupervisor.value = preset.supervisor;
     if (txtReason) txtReason.value = preset.reason;
     if (txtNotes) txtNotes.value = preset.notes;
+    if (txtConfidence) txtConfidence.value = String(preset.confidence || 95);
+    if (selMutation) selMutation.value = preset.mutationType || 'mutation';
+    if (selBlast) selBlast.value = preset.blastRadius || 'production';
+
+    hitlPendingDualSignoff = false;
+    const dualContainer = document.getElementById('hitlFourEyesContainer');
+    if (dualContainer) dualContainer.style.display = 'none';
 
     updateHitlRoutingPill();
     showToast(`📝 Loaded preset: ${preset.label}`);
   };
+
+  // Policy Specification Code Generator
+  const renderHitlPolicyCode = () => {
+    const codePre = document.getElementById('txtHitlGeneratedPolicyCode');
+    if (!codePre) return;
+
+    const selLang = (document.getElementById('selHitlPolicyLang') as HTMLSelectElement)?.value || 'typescript';
+    const cfg = getActiveHitlConfig();
+    const ceiling = getHitlCeilingValue();
+    const domainKey = currentHitlDomainKey;
+
+    if (selLang === 'typescript') {
+      codePre.textContent = `/**
+ * Universal HITL Policy GateGuard: ${cfg.name}
+ * Generated automatically by Evolve AI FDE Delivery Studio
+ */
+export interface HitlEvaluationRequest {
+  id: string; // ${cfg.idLabel}
+  metricValue: number; // ${cfg.metricLabel} (${cfg.unit})
+  entity: string; // ${cfg.entityLabel}
+  operationType: 'read' | 'mutation' | 'destructive';
+  confidenceScore: number; // 0 - 100%
+  blastRadius: 'sandbox' | 'production' | 'global';
+  callerPrincipal: string;
+}
+
+export interface HitlGateDecision {
+  action: 'AUTO_CLEAR' | 'REQUIRE_SUPERVISOR' | 'REQUIRE_FOUR_EYES_DUAL';
+  reason: string;
+  assignedRoles: string[];
+  ceilingThreshold: number;
+}
+
+export function evaluate${domainKey.charAt(0).toUpperCase() + domainKey.slice(1)}PolicyGate(req: HitlEvaluationRequest): HitlGateDecision {
+  const CEILING = ${ceiling};
+  const isCeilingBreached = req.metricValue ${cfg.operator === 'lte' ? '>' : cfg.operator === 'lt' ? '>=' : cfg.operator === 'gte' ? '<' : '<='} CEILING;
+  const isConfidenceBreached = req.confidenceScore < 90;
+  const isDestructive = req.operationType === 'destructive';
+  const isGlobalBlast = req.blastRadius === 'global';
+
+  // 1. Four-Eyes Dual Sign-off rule
+  if (isDestructive || isGlobalBlast || req.confidenceScore < 75 || req.metricValue > (CEILING * 2.5)) {
+    return {
+      action: 'REQUIRE_FOUR_EYES_DUAL',
+      reason: \`Critical severity detected: \${isDestructive ? 'Destructive mutation' : isGlobalBlast ? 'Global blast radius' : 'Low confidence SLA'}\`,
+      assignedRoles: ['${cfg.supervisors[0]?.id || 'LEAD_SUPERVISOR'}', 'DIR-RISK-01'],
+      ceilingThreshold: CEILING
+    };
+  }
+
+  // 2. Single Supervisor Override rule
+  if (isCeilingBreached || isConfidenceBreached || req.operationType === 'mutation') {
+    return {
+      action: 'REQUIRE_SUPERVISOR',
+      reason: isCeilingBreached ? \`Value \${req.metricValue} ${cfg.unit} exceeds ceiling \${CEILING} ${cfg.unit}\` : 'Confidence SLA breach',
+      assignedRoles: ['${cfg.supervisors[0]?.id || 'LEAD_SUPERVISOR'}'],
+      ceilingThreshold: CEILING
+    };
+  }
+
+  // 3. Autonomous Clearance
+  return {
+    action: 'AUTO_CLEAR',
+    reason: 'Compliant with autonomous policy envelope',
+    assignedRoles: ['SYSTEM-AUTONOMOUS'],
+    ceilingThreshold: CEILING
+  };
+}`;
+    } else if (selLang === 'python') {
+      codePre.textContent = `"""
+Universal HITL Policy GateGuard: ${cfg.name}
+Generated automatically by Evolve AI FDE Delivery Studio
+"""
+from typing import Literal, List
+from pydantic import BaseModel, Field
+
+class HitlEvaluationRequest(BaseModel):
+    id: str = Field(..., description="${cfg.idLabel}")
+    metric_value: float = Field(..., description="${cfg.metricLabel} (${cfg.unit})")
+    entity: str = Field(..., description="${cfg.entityLabel}")
+    operation_type: Literal['read', 'mutation', 'destructive'] = 'mutation'
+    confidence_score: float = Field(default=95.0, ge=0.0, le=100.0)
+    blast_radius: Literal['sandbox', 'production', 'global'] = 'production'
+    caller_principal: str = "SYSTEM"
+
+class HitlGateDecision(BaseModel):
+    action: Literal['AUTO_CLEAR', 'REQUIRE_SUPERVISOR', 'REQUIRE_FOUR_EYES_DUAL']
+    reason: str
+    assigned_roles: List[str]
+    ceiling_threshold: float
+
+def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDecision:
+    CEILING: float = ${ceiling}.0
+    is_ceiling_breached = req.metric_value ${cfg.operator === 'lte' ? '>' : cfg.operator === 'lt' ? '>=' : cfg.operator === 'gte' ? '<' : '<='} CEILING
+    is_confidence_breached = req.confidence_score < 90.0
+    is_destructive = req.operation_type == 'destructive'
+    is_global_blast = req.blast_radius == 'global'
+
+    if is_destructive or is_global_blast or req.confidence_score < 75.0 or req.metric_value > (CEILING * 2.5):
+        return HitlGateDecision(
+            action='REQUIRE_FOUR_EYES_DUAL',
+            reason="Critical severity vector requires independent secondary authorization",
+            assigned_roles=['${cfg.supervisors[0]?.id || 'LEAD_SUPERVISOR'}', 'DIR-RISK-01'],
+            ceiling_threshold=CEILING
+        )
+
+    if is_ceiling_breached or is_confidence_breached or req.operation_type == 'mutation':
+        return HitlGateDecision(
+            action='REQUIRE_SUPERVISOR',
+            reason=f"Exceeds autonomous envelope: {req.metric_value} ${cfg.unit} vs {CEILING} ${cfg.unit}",
+            assigned_roles=['${cfg.supervisors[0]?.id || 'LEAD_SUPERVISOR'}'],
+            ceiling_threshold=CEILING
+        )
+
+    return HitlGateDecision(
+        action='AUTO_CLEAR',
+        reason="Within autonomous clearance boundaries",
+        assigned_roles=['SYSTEM-AUTONOMOUS'],
+        ceiling_threshold=CEILING
+    )`;
+    } else {
+      codePre.textContent = JSON.stringify({
+        schemaVersion: '2.24.0',
+        domain: currentHitlDomainKey,
+        name: cfg.name,
+        unit: cfg.unit,
+        labels: {
+          id: cfg.idLabel,
+          metric: cfg.metricLabel,
+          entity: cfg.entityLabel,
+          reason: cfg.reasonLabel
+        },
+        policyEnvelope: {
+          operator: cfg.operator,
+          defaultCeiling: ceiling,
+          confidenceFloorPercent: 90,
+          dualSignoffThresholdMultiplier: 2.5
+        },
+        governanceRoles: cfg.supervisors.map(s => ({ roleId: s.id, label: s.label })),
+        enforcementActions: ['AUTO_CLEAR', 'REQUIRE_SUPERVISOR', 'REQUIRE_FOUR_EYES_DUAL'],
+        auditPersistence: 'evals/hitl_audit_log.json'
+      }, null, 2);
+    }
+  };
+
+  // Wire Tab Buttons
+  document.getElementById('btnHitlTabQueue')?.addEventListener('click', () => {
+    const queueView = document.getElementById('hitlViewQueue');
+    const builderView = document.getElementById('hitlViewBuilder');
+    const tabQueue = document.getElementById('btnHitlTabQueue');
+    const tabBuilder = document.getElementById('btnHitlTabBuilder');
+    if (queueView) queueView.style.display = 'block';
+    if (builderView) builderView.style.display = 'none';
+    if (tabQueue) {
+      tabQueue.style.borderBottomColor = 'var(--accent)';
+      tabQueue.style.fontWeight = '700';
+      tabQueue.style.background = 'rgba(255,255,255,0.03)';
+    }
+    if (tabBuilder) {
+      tabBuilder.style.borderBottomColor = 'transparent';
+      tabBuilder.style.fontWeight = '500';
+      tabBuilder.style.background = 'transparent';
+    }
+  });
+
+  document.getElementById('btnHitlTabBuilder')?.addEventListener('click', () => {
+    const queueView = document.getElementById('hitlViewQueue');
+    const builderView = document.getElementById('hitlViewBuilder');
+    const tabQueue = document.getElementById('btnHitlTabQueue');
+    const tabBuilder = document.getElementById('btnHitlTabBuilder');
+    if (queueView) queueView.style.display = 'none';
+    if (builderView) builderView.style.display = 'block';
+    if (tabBuilder) {
+      tabBuilder.style.borderBottomColor = 'var(--accent)';
+      tabBuilder.style.fontWeight = '700';
+      tabBuilder.style.background = 'rgba(255,255,255,0.03)';
+    }
+    if (tabQueue) {
+      tabQueue.style.borderBottomColor = 'transparent';
+      tabQueue.style.fontWeight = '500';
+      tabQueue.style.background = 'transparent';
+    }
+    renderHitlPolicyCode();
+  });
+
+  document.getElementById('selHitlPolicyLang')?.addEventListener('change', renderHitlPolicyCode);
+
+  document.getElementById('btnCopyGeneratedPolicy')?.addEventListener('click', () => {
+    const codePre = document.getElementById('txtHitlGeneratedPolicyCode');
+    if (codePre?.textContent && navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(codePre.textContent);
+      showToast('📋 Copied generated policy specification to clipboard');
+    }
+  });
+
+  document.getElementById('btnSavePolicySpec')?.addEventListener('click', async () => {
+    const cfg = getActiveHitlConfig();
+    const ceiling = getHitlCeilingValue();
+    const spec = {
+      schemaVersion: '2.24.0',
+      domain: currentHitlDomainKey,
+      name: cfg.name,
+      unit: cfg.unit,
+      policyEnvelope: {
+        operator: cfg.operator,
+        ceiling,
+        confidenceFloorPercent: 90
+      },
+      supervisors: cfg.supervisors,
+      timestamp: new Date().toISOString()
+    };
+    try {
+      if (api?.workspace?.writeFile) {
+        await api.workspace.writeFile('evals/hitl_policy_spec.json', JSON.stringify(spec, null, 2));
+        showToast('💾 Saved policy spec to evals/hitl_policy_spec.json');
+      } else {
+        if (navigator?.clipboard?.writeText) {
+          navigator.clipboard.writeText(JSON.stringify(spec, null, 2));
+        }
+        showToast('💾 Policy spec generated & copied to clipboard');
+      }
+    } catch (_) {
+      showToast('💾 Policy spec generated');
+    }
+  });
 
   // Domain change handler
   document.getElementById('selHitlDomain')?.addEventListener('change', (e) => {
@@ -20199,6 +21083,9 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
   document.getElementById('txtHitlCustomCeilingValue')?.addEventListener('input', updateHitlRoutingPill);
   document.getElementById('txtHitlTxAmount')?.addEventListener('input', updateHitlRoutingPill);
+  document.getElementById('txtHitlConfidence')?.addEventListener('input', updateHitlRoutingPill);
+  document.getElementById('selHitlOperationType')?.addEventListener('change', updateHitlRoutingPill);
+  document.getElementById('selHitlBlastRadius')?.addEventListener('change', updateHitlRoutingPill);
 
   const startHitlSlaTimer = () => {
     if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
@@ -20226,6 +21113,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
     const filtered = hitlAuditEntries.filter(entry => {
       if (hitlAuditFilter === 'ALL') return true;
+      if (hitlAuditFilter === 'DUAL') return !!entry.dualSigned;
       return entry.action === hitlAuditFilter;
     });
 
@@ -20237,26 +21125,31 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     logContainer.innerHTML = filtered.map(item => {
       const isApproved = item.action === 'APPROVED';
       const isAuto = item.action === 'AUTO_CLEARED';
-      const badgeColor = isApproved ? 'var(--success)' : isAuto ? '#60a5fa' : 'var(--error)';
-      const badgeBg = isApproved ? 'rgba(137, 209, 133, 0.15)' : isAuto ? 'rgba(96, 165, 250, 0.15)' : 'rgba(241, 76, 76, 0.15)';
+      const isDual = !!item.dualSigned;
+      const badgeColor = isDual ? '#f59e0b' : isApproved ? 'var(--success)' : isAuto ? '#60a5fa' : 'var(--error)';
+      const badgeBg = isDual ? 'rgba(245, 158, 11, 0.15)' : isApproved ? 'rgba(137, 209, 133, 0.15)' : isAuto ? 'rgba(96, 165, 250, 0.15)' : 'rgba(241, 76, 76, 0.15)';
       const timeStr = item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : '';
       const unit = item.unit || '$';
       const formattedAmount = formatHitlVal(typeof item.amount === 'number' ? item.amount : parseFloat(item.amount || '0'), unit);
+      const supervisorDisplay = isDual ? `${item.supervisor} & ${item.secondSupervisor || 'DIR-RISK-01'}` : (item.supervisor || 'SUP-EVAL-01');
 
       return `<div style="padding: 6px 8px; margin-bottom: 6px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-          <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <strong style="color: #fff;">${item.transactionId}</strong>
-            <span style="font-size: 9px; font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeColor}; padding: 1px 6px; border-radius: 3px;">${item.action}</span>
+            <span style="font-size: 9px; font-weight: 800; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeColor}; padding: 1px 6px; border-radius: 3px;">
+              ${isDual ? '👥 DUAL-SIGNED' : item.action}
+            </span>
             <span style="color: var(--accent); font-weight: 700;">${formattedAmount}</span>
+            <span style="font-size: 9px; color: var(--text-muted); background: rgba(255,255,255,0.05); padding: 1px 4px; border-radius: 2px;">${item.domain || 'FDE'}</span>
           </div>
-          <span style="font-size: 9.5px; color: var(--text-muted); font-family: monospace;">${timeStr} [${item.supervisor || 'SUP-EVAL-01'}]</span>
+          <span style="font-size: 9.5px; color: var(--text-muted); font-family: monospace;">${timeStr} [${supervisorDisplay}]</span>
         </div>
         <div style="font-size: 10px; color: var(--text-secondary); margin-bottom: 2px;">
           ${item.reason || item.notes || 'No supervisor notes recorded.'}
         </div>
         <div style="font-size: 8.5px; color: var(--text-muted); font-family: monospace;">
-          Domain: ${item.domain || 'FDE'} | Hash: ${item.auditHash || 'sha256_verified'} | Priority: ${item.priority || 'NORMAL'}
+          Domain: ${item.domain || 'FDE'} | SLA Conf: ${item.confidence || 95}% | Hash: ${item.auditHash || 'sha256_verified'} | Priority: ${item.priority || 'NORMAL'}
         </div>
       </div>`;
     }).join('');
@@ -20277,72 +21170,99 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
   document.getElementById('btnSimulateHitl')?.addEventListener('click', () => {
     const cfg = getActiveHitlConfig();
-    const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'TX-9482';
+    const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'CALL-8921';
     const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
-    const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'cust_4920';
-    const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'SUP-EVAL-01';
-    const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Exceeds autonomous policy ceiling';
+    const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'Lead-Analyst-Agent';
+    const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'AI-SAFETY-OFFICER';
+    const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Exceeds autonomous policy envelope';
 
+    const evalResult = evaluateCompoundRisk();
     const box = document.getElementById('fdeHitlSimulationBox');
     const header = document.getElementById('lblHitlBoxTxHeader');
     const triggerDetail = document.getElementById('lblHitlBoxTriggerDetail');
     const status = document.getElementById('lblHitlStatusResult');
+    const dualContainer = document.getElementById('hitlFourEyesContainer');
+    const btnApprove = document.getElementById('btnHitlApprove');
+    const boxStatus = document.getElementById('lblHitlBoxStatus');
 
     if (header) header.textContent = `${txId} (${formatHitlVal(amount, cfg.unit)} Request)`;
-    if (triggerDetail) triggerDetail.innerHTML = `Trigger: ${reason}. ${cfg.entityLabel}: <code>${customer}</code>. Assigned Supervisor: <strong>${supervisor}</strong>.`;
+    if (triggerDetail) {
+      triggerDetail.innerHTML = `Trigger: ${reason}. ${cfg.entityLabel}: <code>${customer}</code>. Primary Supervisor: <strong>${supervisor}</strong>.`;
+    }
     if (box) box.style.display = 'block';
     if (status) status.style.display = 'none';
 
+    hitlPendingDualSignoff = false;
+    if (evalResult.requiresDual) {
+      if (dualContainer) dualContainer.style.display = 'block';
+      if (boxStatus) {
+        boxStatus.textContent = '🟠 Four-Eyes Dual Sign-off Mandated';
+        boxStatus.style.color = '#f59e0b';
+        boxStatus.style.background = 'rgba(245, 158, 11, 0.15)';
+      }
+      if (btnApprove) btnApprove.textContent = '✓ Step 1: Primary Supervisor Sign-off';
+    } else {
+      if (dualContainer) dualContainer.style.display = 'none';
+      if (boxStatus) {
+        boxStatus.textContent = 'Awaiting Supervisor Approval';
+        boxStatus.style.color = '#e5b567';
+        boxStatus.style.background = 'rgba(229, 181, 103, 0.15)';
+      }
+      if (btnApprove) btnApprove.textContent = '✓ Authorize & Dispatch';
+    }
+
     startHitlSlaTimer();
-    showToast(`👤 HITL Simulation Queue active: ${txId} awaiting supervisor review`);
+    showToast(`👤 Work Item ${txId} loaded into Decision Station`);
     hasSimulatedHitl = true;
     refreshP4Rail?.();
   });
 
-  const recordHitlDecision = async (action: 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED') => {
+  const recordHitlDecision = async (action: 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED', isDual = false) => {
     const cfg = getActiveHitlConfig();
-    const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'TX-9482';
+    const txId = (document.getElementById('txtHitlTxId') as HTMLInputElement)?.value?.trim() || 'CALL-8921';
     const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
-    const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'cust_4920';
-    const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'SUP-EVAL-01';
+    const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'Lead-Analyst-Agent';
+    const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'AI-SAFETY-OFFICER';
+    const secondSupervisor = (document.getElementById('selHitlSecondSupervisor') as HTMLSelectElement)?.value || 'DIR-RISK-01';
     const ceiling = getHitlCeilingValue();
     const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Policy check';
     const notesInput = (document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement)?.value?.trim();
-    const notes = notesInput || (action === 'APPROVED' ? 'Approved after supervisor policy verification' : action === 'AUTO_CLEARED' ? `Autonomous clearance (${formatHitlVal(amount, cfg.unit)} <= ${formatHitlVal(ceiling, cfg.unit)})` : `Rejected: ${reason}`);
+    const confidence = parseFloat((document.getElementById('txtHitlConfidence') as HTMLInputElement)?.value || '95');
+    const mutationType = (document.getElementById('selHitlOperationType') as HTMLSelectElement)?.value || 'mutation';
+    const blastRadius = (document.getElementById('selHitlBlastRadius') as HTMLSelectElement)?.value || 'production';
+
+    const notes = notesInput || (action === 'APPROVED' ? (isDual ? `Dual-control authorized by ${supervisor} and ${secondSupervisor}` : 'Approved after supervisor policy verification') : action === 'AUTO_CLEARED' ? `Autonomous clearance (${formatHitlVal(amount, cfg.unit)} <= ${formatHitlVal(ceiling, cfg.unit)})` : `Rejected: ${reason}`);
     const status = document.getElementById('lblHitlStatusResult');
 
     if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
 
     try {
       let logRes: any;
+      const payload = {
+        transactionId: txId,
+        action,
+        amount,
+        unit: cfg.unit,
+        domain: currentHitlDomainKey,
+        customer,
+        supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
+        secondSupervisor: isDual ? secondSupervisor : null,
+        dualSigned: isDual,
+        confidence,
+        mutationType,
+        blastRadius,
+        reason: notes,
+        notes,
+        priority: isDual || amount > (ceiling * 2) ? 'CRITICAL' : 'HIGH',
+        ceilingThreshold: ceiling
+      };
+
       if (api?.fde?.logHitlAction) {
-        logRes = await api.fde.logHitlAction({
-          transactionId: txId,
-          action,
-          amount,
-          unit: cfg.unit,
-          domain: currentHitlDomainKey,
-          customer,
-          supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
-          reason: notes,
-          notes,
-          priority: amount > (ceiling * 2) ? 'CRITICAL' : 'HIGH',
-          ceilingThreshold: ceiling
-        });
+        logRes = await api.fde.logHitlAction(payload);
       } else {
         const dummyEntry = {
           id: `HITL-${Date.now()}`,
-          transactionId: txId,
-          action,
-          amount,
-          unit: cfg.unit,
-          domain: currentHitlDomainKey,
-          customer,
-          supervisor: action === 'AUTO_CLEARED' ? 'SYSTEM-AUTONOMOUS' : supervisor,
-          reason: notes,
-          notes,
-          priority: amount > (ceiling * 2) ? 'CRITICAL' : 'HIGH',
-          ceilingThreshold: ceiling,
+          ...payload,
           timestamp: new Date().toISOString(),
           auditHash: 'sha256_' + Date.now().toString(36)
         };
@@ -20362,10 +21282,12 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
         status.style.display = 'block';
         const formattedAmount = formatHitlVal(amount, cfg.unit);
         if (action === 'APPROVED') {
-          status.style.color = 'var(--success)';
-          status.style.borderColor = 'var(--success)';
-          status.style.background = 'rgba(137, 209, 133, 0.1)';
-          status.textContent = `✅ Request ${txId} (${formattedAmount}) Authorized & Dispatched (${supervisor} Verified, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
+          status.style.color = isDual ? '#f59e0b' : 'var(--success)';
+          status.style.borderColor = isDual ? '#f59e0b' : 'var(--success)';
+          status.style.background = isDual ? 'rgba(245, 158, 11, 0.1)' : 'rgba(137, 209, 133, 0.1)';
+          status.textContent = isDual ?
+            `✅ Request ${txId} (${formattedAmount}) Authorized via Four-Eyes Dual Sign-off (${supervisor} & ${secondSupervisor}, Hash: ${logRes?.entry?.auditHash || 'sha256_verified'})` :
+            `✅ Request ${txId} (${formattedAmount}) Authorized & Dispatched (${supervisor} Verified, Hash: ${logRes?.entry?.auditHash || 'verified'})`;
         } else if (action === 'AUTO_CLEARED') {
           status.style.color = '#60a5fa';
           status.style.borderColor = '#60a5fa';
@@ -20379,7 +21301,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
         }
       }
 
-      showToast(action === 'APPROVED' ? `✓ ${txId} Authorized & Logged` : action === 'AUTO_CLEARED' ? `⚡ ${txId} Auto-Cleared` : `✕ ${txId} Rejected & Logged`);
+      showToast(action === 'APPROVED' ? (isDual ? `✓ ${txId} Dual-Authorized & Logged` : `✓ ${txId} Authorized & Logged`) : action === 'AUTO_CLEARED' ? `⚡ ${txId} Auto-Cleared` : `✕ ${txId} Rejected & Logged`);
       hasSimulatedHitl = true;
       refreshP4Rail?.();
     } catch (err: any) {
@@ -20387,22 +21309,62 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     }
   };
 
-  document.getElementById('btnHitlApprove')?.addEventListener('click', () => recordHitlDecision('APPROVED'));
+  document.getElementById('btnHitlApprove')?.addEventListener('click', () => {
+    const evalResult = evaluateCompoundRisk();
+    if (evalResult.requiresDual && !hitlPendingDualSignoff) {
+      // Step 1 of dual sign-off completed: prompt for step 2
+      hitlPendingDualSignoff = true;
+      const boxStatus = document.getElementById('lblHitlBoxStatus');
+      const secondStatus = document.getElementById('lblHitlSecondSupervisorStatus');
+      const btnApprove = document.getElementById('btnHitlApprove');
+      const selSecond = document.getElementById('selHitlSecondSupervisor') as HTMLSelectElement;
+      const secondName = selSecond?.value || 'DIR-RISK-01';
+
+      if (boxStatus) {
+        boxStatus.textContent = '✍️ Awaiting 2nd Supervisor Counter-Signature';
+        boxStatus.style.color = '#f59e0b';
+      }
+      if (secondStatus) {
+        secondStatus.textContent = `✍️ Sign-off Required: ${secondName}`;
+        secondStatus.style.color = 'var(--accent)';
+      }
+      if (btnApprove) {
+        btnApprove.textContent = '✍️ Counter-Sign & Complete Dual Authorization';
+      }
+      showToast(`👥 Primary sign-off recorded. Awaiting counter-signature from ${secondName}.`);
+      return;
+    }
+
+    recordHitlDecision('APPROVED', hitlPendingDualSignoff || evalResult.requiresDual);
+  });
+
+  document.getElementById('btnHitlRequireDual')?.addEventListener('click', () => {
+    const dualContainer = document.getElementById('hitlFourEyesContainer');
+    const boxStatus = document.getElementById('lblHitlBoxStatus');
+    const btnApprove = document.getElementById('btnHitlApprove');
+
+    if (dualContainer) dualContainer.style.display = 'block';
+    if (boxStatus) {
+      boxStatus.textContent = '✍️ Four-Eyes Principle Dual Sign-off Mandated';
+      boxStatus.style.color = '#f59e0b';
+    }
+    if (btnApprove) {
+      btnApprove.textContent = '✓ Step 1: Primary Supervisor Sign-off';
+    }
+    hitlPendingDualSignoff = false;
+    showToast('👥 Dual-control workflow enforced for this item');
+  });
+
   document.getElementById('btnHitlReject')?.addEventListener('click', () => recordHitlDecision('REJECTED'));
+
   document.getElementById('btnHitlDirectAutoClear')?.addEventListener('click', () => {
+    const evalResult = evaluateCompoundRisk();
     const cfg = getActiveHitlConfig();
     const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
     const ceiling = getHitlCeilingValue();
-    const op = cfg.operator;
 
-    let isPassing = false;
-    if (op === 'lte') isPassing = amount <= ceiling;
-    else if (op === 'lt') isPassing = amount < ceiling;
-    else if (op === 'gte') isPassing = amount >= ceiling;
-    else if (op === 'gt') isPassing = amount > ceiling;
-
-    if (!isPassing) {
-      showToast(`⚠️ Value (${formatHitlVal(amount, cfg.unit)}) breaches autonomous ceiling (${formatHitlVal(ceiling, cfg.unit)}). Escalating to supervisor queue.`);
+    if (!evalResult.isPassing) {
+      showToast(`⚠️ Cannot auto-clear: ${evalResult.routingMessage}. Escalating to review station.`);
       document.getElementById('btnSimulateHitl')?.click();
       return;
     }
@@ -20410,13 +21372,14 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
   });
 
   // Filter and Action Controls
-  const setHitlFilter = (filter: 'ALL' | 'APPROVED' | 'REJECTED' | 'AUTO_CLEARED') => {
+  const setHitlFilter = (filter: 'ALL' | 'APPROVED' | 'DUAL' | 'REJECTED' | 'AUTO_CLEARED') => {
     hitlAuditFilter = filter;
-    ['btnFilterHitlAll', 'btnFilterHitlApproved', 'btnFilterHitlRejected', 'btnFilterHitlAuto'].forEach(btnId => {
+    ['btnFilterHitlAll', 'btnFilterHitlApproved', 'btnFilterHitlDual', 'btnFilterHitlRejected', 'btnFilterHitlAuto'].forEach(btnId => {
       const b = document.getElementById(btnId);
       if (b) {
         const isSelected = (btnId === 'btnFilterHitlAll' && filter === 'ALL') ||
                            (btnId === 'btnFilterHitlApproved' && filter === 'APPROVED') ||
+                           (btnId === 'btnFilterHitlDual' && filter === 'DUAL') ||
                            (btnId === 'btnFilterHitlRejected' && filter === 'REJECTED') ||
                            (btnId === 'btnFilterHitlAuto' && filter === 'AUTO_CLEARED');
         b.style.fontWeight = isSelected ? '800' : '500';
@@ -20428,6 +21391,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
   document.getElementById('btnFilterHitlAll')?.addEventListener('click', () => setHitlFilter('ALL'));
   document.getElementById('btnFilterHitlApproved')?.addEventListener('click', () => setHitlFilter('APPROVED'));
+  document.getElementById('btnFilterHitlDual')?.addEventListener('click', () => setHitlFilter('DUAL'));
   document.getElementById('btnFilterHitlRejected')?.addEventListener('click', () => setHitlFilter('REJECTED'));
   document.getElementById('btnFilterHitlAuto')?.addEventListener('click', () => setHitlFilter('AUTO_CLEARED'));
 
@@ -20452,6 +21416,9 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
     } catch (_) {}
     showToast('🗑️ Cleared HITL supervisor audit log');
   });
+
+  // Apply Initial Domain (Agentic MCP)
+  applyHitlDomain('agentic_mcp');
 
   // --- Phase 4 Step Rail Navigation (4A -> 4B -> 4C) ---
   const p4StepIsDone = (step: number) => {
@@ -20852,14 +21819,21 @@ interface ActiveDbTableSource {
   connectionUri?: string;
 }
 
-// --- SINGLE DATASET 3D MANIFOLD & ANOMALY SPACE ENGINE ---
+// --- SINGLE DATASET 3D MANIFOLD & ADVANCED VISUAL ANALYTICS ENGINE ---
 class SingleDataset3DEngine {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private points: any[] = [];
+  private rawPoints: any[] = [];
+  private rawRecords: any[] = [];
+  private columns: string[] = [];
+  private numericColumns: string[] = [];
+  private categoricalColumns: string[] = [];
   private axisLabels: { x: string; y: string; z: string } = { x: 'X', y: 'Y', z: 'Z' };
   private tooltipEl: HTMLElement | null;
-  
+  private inspectorDrawerEl: HTMLElement | null;
+
+  // View & Camera
   private theta = 0.5;
   private phi = 0.35;
   private R = 320;
@@ -20869,26 +21843,736 @@ class SingleDataset3DEngine {
   private lastMouseX = 0;
   private lastMouseY = 0;
   private hoveredPoint: any = null;
+  private selectedPoint: any = null;
   private animId: number | null = null;
-  private renderedNodes: Array<{ p: any; sx: number; sy: number; sz: number; sr: number }> = [];
+  private renderedNodes: Array<{ p: any; sx: number; sy: number; sz: number; sr: number; isMatch: boolean }> = [];
+
+  // Analytical Modes & Encodings
+  private currentMode: 'scatter' | 'pca' | 'surface' | 'kmeans' = 'scatter';
+  private selectedX = '';
+  private selectedY = '';
+  private selectedZ = '';
+  private selectedColor = '';
+  private selectedPalette = 'neon';
+  private selectedSize = '';
+  private searchQuery = '';
+  private outlierThresholdSigma = 1.5;
+
+  // Scientific Model Cache
+  private pcaVariance: { pc1: number; pc2: number; pc3: number; total: number } | null = null;
+  private surfaceMesh: Array<Array<{ x: number; y: number; z: number }>> = [];
+  private kmeansCentroids: Array<{ x: number; y: number; z: number; color: string; label: string; count: number; radius: number }> = [];
+
+  // Color Palettes
+  private static readonly PALETTES: Record<string, string[]> = {
+    neon: ['#38bdf8', '#a855f7', '#f472b6', '#fbbf24', '#34d399', '#60a5fa'],
+    viridis: ['#440154', '#3b528b', '#21918c', '#5ec962', '#fde725'],
+    thermal: ['#1e1b4b', '#4338ca', '#dc2626', '#ea580c', '#fde047'],
+    emerald: ['#064e3b', '#047857', '#10b981', '#34d399', '#a7f3d0'],
+    sunset: ['#1e1b4b', '#831843', '#be185d', '#f97316', '#fef08a']
+  };
 
   constructor(canvas: HTMLCanvasElement, tooltipEl: HTMLElement | null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d')!;
     this.tooltipEl = tooltipEl;
+    this.inspectorDrawerEl = document.getElementById('dataSingle3DInspectorDrawer');
     this.initEvents();
     this.resize();
     this.startLoop();
   }
 
-  public setData(points: any[], axisLabels?: { x: string; y: string; z: string }) {
-    this.points = points || [];
+  public setData(points: any[], axisLabels?: { x: string; y: string; z: string }, columns?: string[], rawRecords?: any[]) {
+    this.rawRecords = rawRecords || [];
+    this.rawPoints = (points || []).map((p, i) => {
+      const clone = { ...p };
+      if (!clone.rawRecord && this.rawRecords[i]) {
+        clone.rawRecord = this.rawRecords[i];
+      }
+      return clone;
+    });
+    this.points = this.rawPoints.map(p => ({ ...p }));
     if (axisLabels) this.axisLabels = axisLabels;
-    const axisInfoEl = document.getElementById('dataSingle3DAxisInfo');
-    if (axisInfoEl && axisLabels) {
-      axisInfoEl.innerHTML = `Axes: <strong>X</strong>: ${axisLabels.x} &bull; <strong>Y</strong>: ${axisLabels.y} &bull; <strong>Z</strong>: ${axisLabels.z} | Drag: Orbit &bull; Wheel: Zoom &bull; Hover for Root Cause Card`;
+
+    // Detect columns
+    if (columns && columns.length > 0) {
+      this.columns = [...columns];
+    } else if (this.points.length > 0 && this.points[0].rawRecord) {
+      this.columns = Object.keys(this.points[0].rawRecord);
+    } else if (this.rawRecords && this.rawRecords.length > 0) {
+      this.columns = Object.keys(this.rawRecords[0]);
+    } else if (this.points.length > 0 && this.points[0].diagnosticCard?.metrics) {
+      this.columns = Object.keys(this.points[0].diagnosticCard.metrics);
+    } else {
+      this.columns = [this.axisLabels.x, this.axisLabels.y, this.axisLabels.z];
     }
+
+    // Comprehensive numeric classification:
+    // 1) Test values across points and rawRecords
+    // 2) Keyword / pattern matching on column names
+    // 3) Axis labels
+    const numericPattern = /latency|delay|duration|time|hour|cost|amt|amount|rev|revenue|price|qty|quantity|err|error|count|cnt|score|rate|pct|percent|total|weight|size|val|value|margin|profit|sales|subtotal|discount|num|rank|id/i;
+    const categoricalPattern = /cat|category|region|stage|status|step|phase|state|type|segment|tier|channel|country|vendor|supplier|dim|group|name|label/i;
+
+    this.numericColumns = this.columns.filter(c => {
+      // Check samples
+      const sampleVals = this.points.slice(0, 50).map((p, i) => {
+        if (p.rawRecord && p.rawRecord[c] !== undefined) return p.rawRecord[c];
+        if (this.rawRecords[i] && this.rawRecords[i][c] !== undefined) return this.rawRecords[i][c];
+        if (p.diagnosticCard?.metrics && p.diagnosticCard.metrics[c] !== undefined) return p.diagnosticCard.metrics[c];
+        if (c === this.axisLabels.x) return p.rawX;
+        if (c === this.axisLabels.y) return p.rawY;
+        if (c === this.axisLabels.z) return p.rawZ;
+        return null;
+      }).filter(v => v !== null && v !== undefined && v !== '');
+
+      if (sampleVals.length > 0) {
+        const numCount = sampleVals.filter(v => typeof v === 'number' || (!isNaN(Number(v)) && v !== '')).length;
+        if (numCount / sampleVals.length >= 0.6) return true;
+      }
+
+      // Keyword match if not explicitly categorical
+      if (numericPattern.test(c) && !categoricalPattern.test(c)) return true;
+
+      // Match axis labels
+      if ((c === this.axisLabels.x || c === this.axisLabels.y || c === this.axisLabels.z) && !categoricalPattern.test(c)) return true;
+
+      return false;
+    });
+
+    // If still empty, fall back to any columns not explicitly matching categoricalPattern
+    if (this.numericColumns.length === 0) {
+      this.numericColumns = this.columns.filter(c => !categoricalPattern.test(c));
+    }
+    // Final fallback: at least give axisLabels
+    if (this.numericColumns.length === 0) {
+      this.numericColumns = [this.axisLabels.x, this.axisLabels.y, this.axisLabels.z];
+    }
+
+    this.categoricalColumns = this.columns.filter(c => !this.numericColumns.includes(c));
+
+    // Auto-select initial dimensions
+    this.selectedX = this.axisLabels.x || (this.numericColumns[0] || this.columns[0] || '');
+    this.selectedY = this.axisLabels.y || (this.numericColumns[1] || this.columns[1] || this.selectedX);
+    this.selectedZ = this.axisLabels.z || (this.numericColumns[2] || this.columns[2] || this.selectedY);
+    this.selectedColor = 'outlier_severity';
+    this.selectedSize = '';
+
+    this.populateControlDropdowns();
+    this.updateHudMetrics();
     this.draw();
+  }
+
+  private populateControlDropdowns() {
+    const selX = document.getElementById('single3DSelectX') as HTMLSelectElement;
+    const selY = document.getElementById('single3DSelectY') as HTMLSelectElement;
+    const selZ = document.getElementById('single3DSelectZ') as HTMLSelectElement;
+    const selColor = document.getElementById('single3DSelectColor') as HTMLSelectElement;
+    const selSize = document.getElementById('single3DSelectSize') as HTMLSelectElement;
+
+    const buildOptions = (selectedVal: string, includeEmpty = false, emptyLabel = 'None') => {
+      let html = includeEmpty ? `<option value="">${emptyLabel}</option>` : '';
+      if (this.numericColumns.length > 0) {
+        html += `<optgroup label="Numerical Dimensions">`;
+        for (const c of this.numericColumns) {
+          html += `<option value="${c}" ${c === selectedVal ? 'selected' : ''}># ${c}</option>`;
+        }
+        html += `</optgroup>`;
+      }
+      if (this.categoricalColumns.length > 0) {
+        html += `<optgroup label="Categorical / Segments">`;
+        for (const c of this.categoricalColumns) {
+          html += `<option value="${c}" ${c === selectedVal ? 'selected' : ''}>🔤 ${c}</option>`;
+        }
+        html += `</optgroup>`;
+      }
+      return html;
+    };
+
+    if (selX) {
+      selX.innerHTML = buildOptions(this.selectedX);
+      selX.value = this.selectedX;
+    }
+    if (selY) {
+      selY.innerHTML = buildOptions(this.selectedY);
+      selY.value = this.selectedY;
+    }
+    if (selZ) {
+      selZ.innerHTML = buildOptions(this.selectedZ);
+      selZ.value = this.selectedZ;
+    }
+    if (selColor) {
+      selColor.innerHTML = `
+        <option value="outlier_severity" ${this.selectedColor === 'outlier_severity' ? 'selected' : ''}>🚨 Outlier Risk Severity</option>
+        <option value="category" ${this.selectedColor === 'category' ? 'selected' : ''}>🔤 Primary Category</option>
+      ` + buildOptions(this.selectedColor);
+      selColor.value = this.selectedColor;
+    }
+    if (selSize) {
+      let html = `<option value="">● Uniform Size (Standard)</option>`;
+      if (this.numericColumns.length > 0) {
+        html += `<optgroup label="Numerical Metrics (Continuous 4D Scaling)">`;
+        for (const c of this.numericColumns) {
+          html += `<option value="${c}" ${c === this.selectedSize ? 'selected' : ''}>📏 ${c}</option>`;
+        }
+        html += `</optgroup>`;
+      }
+      if (this.categoricalColumns.length > 0) {
+        html += `<optgroup label="Categorical Dimensions (Discrete 4D Scaling)">`;
+        for (const c of this.categoricalColumns) {
+          html += `<option value="${c}" ${c === this.selectedSize ? 'selected' : ''}>🔤 ${c}</option>`;
+        }
+        html += `</optgroup>`;
+      }
+      selSize.innerHTML = html;
+      selSize.value = this.selectedSize;
+    }
+  }
+
+  public setMode(mode: 'scatter' | 'pca' | 'surface' | 'kmeans') {
+    this.currentMode = mode;
+    const modeBadge = document.getElementById('single3DHudModeBadge');
+    const varianceBadge = document.getElementById('single3DHudVarianceBadge');
+
+    // Update active class on toolbar buttons
+    const btnIds: Record<string, string> = {
+      scatter: 'btnSingle3DModeScatter',
+      pca: 'btnSingle3DModePca',
+      surface: 'btnSingle3DModeSurface',
+      kmeans: 'btnSingle3DModeKmeans'
+    };
+    Object.entries(btnIds).forEach(([m, id]) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        if (m === mode) {
+          btn.style.background = 'rgba(56,189,248,0.25)';
+          btn.style.color = '#38bdf8';
+          btn.style.borderColor = '#38bdf8';
+        } else {
+          btn.style.background = 'transparent';
+          btn.style.color = 'var(--text-secondary)';
+          btn.style.borderColor = 'rgba(255,255,255,0.1)';
+        }
+      }
+    });
+
+    if (mode === 'pca') {
+      if (modeBadge) modeBadge.innerHTML = '🧠 PCA 3-COMPONENT PROJECTION';
+      this.computePCA();
+      if (varianceBadge && this.pcaVariance) {
+        varianceBadge.style.display = 'inline-block';
+        varianceBadge.innerHTML = `PC1: ${this.pcaVariance.pc1.toFixed(1)}% &bull; PC2: ${this.pcaVariance.pc2.toFixed(1)}% &bull; PC3: ${this.pcaVariance.pc3.toFixed(1)}% (${this.pcaVariance.total.toFixed(1)}% Explained)`;
+      }
+    } else {
+      if (varianceBadge) varianceBadge.style.display = 'none';
+      if (mode === 'surface') {
+        if (modeBadge) modeBadge.innerHTML = '🌐 TOPOLOGICAL REGRESSION SURFACE';
+        this.fitTopologicalSurface();
+      } else if (mode === 'kmeans') {
+        if (modeBadge) modeBadge.innerHTML = '🪐 K-MEANS CLUSTERS & HALOS';
+        this.computeKMeans(4);
+      } else {
+        if (modeBadge) modeBadge.innerHTML = '📊 3D SCATTER MANIFOLD';
+        this.reproject();
+      }
+    }
+
+    this.updateHudMetrics();
+    this.draw();
+  }
+
+  public setCameraPreset(preset: 'free' | 'top' | 'front' | 'side') {
+    if (preset === 'top') {
+      this.theta = 0;
+      this.phi = 1.54;
+      this.isTurntable = false;
+    } else if (preset === 'front') {
+      this.theta = 0;
+      this.phi = 0;
+      this.isTurntable = false;
+    } else if (preset === 'side') {
+      this.theta = Math.PI / 2;
+      this.phi = 0;
+      this.isTurntable = false;
+    } else {
+      this.theta = 0.5;
+      this.phi = 0.35;
+      this.isTurntable = true;
+    }
+
+    // Highlight preset buttons
+    const presetIds: Record<string, string> = {
+      free: 'btnSingle3DCamFree',
+      top: 'btnSingle3DCamTop',
+      front: 'btnSingle3DCamFront',
+      side: 'btnSingle3DCamSide'
+    };
+    Object.entries(presetIds).forEach(([p, id]) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        if (p === preset) {
+          btn.style.background = 'rgba(56,189,248,0.25)';
+          btn.style.color = '#38bdf8';
+          btn.style.borderColor = '#38bdf8';
+        } else {
+          btn.style.background = 'transparent';
+          btn.style.color = 'var(--text-secondary)';
+          btn.style.borderColor = 'rgba(255,255,255,0.1)';
+        }
+      }
+    });
+
+    this.updateCameraTelemetry();
+    this.draw();
+  }
+
+  public onControlChange() {
+    const selX = document.getElementById('single3DSelectX') as HTMLSelectElement;
+    const selY = document.getElementById('single3DSelectY') as HTMLSelectElement;
+    const selZ = document.getElementById('single3DSelectZ') as HTMLSelectElement;
+    const selColor = document.getElementById('single3DSelectColor') as HTMLSelectElement;
+    const selPalette = document.getElementById('single3DSelectPalette') as HTMLSelectElement;
+    const selSize = document.getElementById('single3DSelectSize') as HTMLSelectElement;
+
+    if (selX) this.selectedX = selX.value;
+    if (selY) this.selectedY = selY.value;
+    if (selZ) this.selectedZ = selZ.value;
+    if (selColor) this.selectedColor = selColor.value;
+    if (selPalette) this.selectedPalette = selPalette.value;
+    if (selSize) this.selectedSize = selSize.value;
+
+    this.reproject();
+    if (this.currentMode === 'surface') this.fitTopologicalSurface();
+    if (this.currentMode === 'kmeans') this.computeKMeans(4);
+    this.draw();
+  }
+
+  public reproject() {
+    if (this.rawPoints.length === 0) return;
+
+    const colX = this.selectedX || this.columns[0];
+    const colY = this.selectedY || this.columns[1] || colX;
+    const colZ = this.selectedZ || this.columns[2] || colY;
+
+    this.axisLabels = { x: colX, y: colY, z: colZ };
+
+    const extractValues = (col: string) => {
+      return this.rawPoints.map((p, idx) => {
+        if (p.rawRecord && p.rawRecord[col] !== undefined) return p.rawRecord[col];
+        if (this.rawRecords && this.rawRecords[idx] && this.rawRecords[idx][col] !== undefined) return this.rawRecords[idx][col];
+        if (p.diagnosticCard?.metrics && p.diagnosticCard.metrics[col] !== undefined) return p.diagnosticCard.metrics[col];
+        if (col === this.axisLabels.x) return p.rawX ?? p.x;
+        if (col === this.axisLabels.y) return p.rawY ?? p.y;
+        if (col === this.axisLabels.z) return p.rawZ ?? p.z;
+        return 0;
+      });
+    };
+
+    const xVals = extractValues(colX);
+    const yVals = extractValues(colY);
+    const zVals = extractValues(colZ);
+
+    const normalizeAxis = (vals: any[]) => {
+      const isNum = vals.filter(v => typeof v === 'number' || (!isNaN(Number(v)) && v !== '')).length / vals.length >= 0.7;
+      if (isNum) {
+        const nums = vals.map(v => Number(v) || 0);
+        let min = Math.min(...nums);
+        let max = Math.max(...nums);
+        if (min === max) { min -= 1; max += 1; }
+        return nums.map(n => ((n - min) / (max - min)) * 160 - 80);
+      } else {
+        const unique = Array.from(new Set(vals.map(v => String(v || '')))).sort();
+        const map = new Map<string, number>();
+        unique.forEach((u, i) => map.set(u, unique.length > 1 ? (i / (unique.length - 1)) * 150 - 75 : 0));
+        return vals.map(v => map.get(String(v || '')) || 0);
+      }
+    };
+
+    const normX = normalizeAxis(xVals);
+    const normY = normalizeAxis(yVals);
+    const normZ = normalizeAxis(zVals);
+
+    // Color mapping
+    const palette = SingleDataset3DEngine.PALETTES[this.selectedPalette] || SingleDataset3DEngine.PALETTES.neon;
+    let colorMapper: (p: any, idx: number) => string;
+
+    if (this.selectedColor === 'outlier_severity' || !this.selectedColor) {
+      colorMapper = (p: any) => p.isOutlier ? '#ef4444' : '#38bdf8';
+    } else if (this.selectedColor === 'category') {
+      colorMapper = (p: any) => {
+        const cat = String(p.category || '');
+        let hash = 0;
+        for (let i = 0; i < cat.length; i++) hash = ((hash << 5) - hash) + cat.charCodeAt(i);
+        return palette[Math.abs(hash) % palette.length];
+      };
+    } else {
+      const colVals = extractValues(this.selectedColor);
+      const isNum = colVals.filter(v => !isNaN(Number(v)) && v !== '').length / colVals.length >= 0.7;
+      if (isNum) {
+        const nums = colVals.map(v => Number(v) || 0);
+        const min = Math.min(...nums), max = Math.max(...nums);
+        const span = max > min ? max - min : 1;
+        this.updateColorLegend(this.selectedColor, min, max, palette);
+        colorMapper = (_: any, i: number) => {
+          const t = Math.max(0, Math.min(1, (nums[i] - min) / span));
+          return this.interpolatePalette(t, palette);
+        };
+      } else {
+        this.hideColorLegend();
+        const cats = Array.from(new Set(colVals.map(v => String(v || '')))).sort();
+        const catMap = new Map<string, string>();
+        cats.forEach((c, idx) => catMap.set(c, palette[idx % palette.length]));
+        colorMapper = (_: any, i: number) => catMap.get(String(colVals[i] || '')) || palette[0];
+      }
+    }
+
+    // Size mapping (4D)
+    let sizeMapper: (i: number) => number = () => 4.5;
+    if (this.selectedSize) {
+      const sizeVals = extractValues(this.selectedSize);
+      const isNum = sizeVals.filter(v => !isNaN(Number(v)) && v !== '').length / sizeVals.length >= 0.7;
+      if (isNum) {
+        const nums = sizeVals.map(v => Number(v) || 0);
+        let sMin = Math.min(...nums), sMax = Math.max(...nums);
+        if (sMin === sMax) { sMin -= 1; sMax += 1; }
+        const sSpan = sMax - sMin;
+        sizeMapper = (i: number) => 3.0 + ((nums[i] - sMin) / sSpan) * 9.0;
+      } else {
+        const unique = Array.from(new Set(sizeVals.map(v => String(v || '')))).sort();
+        const map = new Map<string, number>();
+        unique.forEach((u, i) => map.set(u, unique.length > 1 ? 3.0 + (i / (unique.length - 1)) * 9.0 : 5.0));
+        sizeMapper = (i: number) => map.get(String(sizeVals[i] || '')) || 4.5;
+      }
+    }
+
+    this.points = this.rawPoints.map((p, i) => {
+      const jitterX = Math.sin(i * 13.7 + normX[i]) * 2.5;
+      const jitterY = Math.cos(i * 19.3 + normY[i]) * 2.5;
+      const jitterZ = Math.sin(i * 29.1 + normZ[i]) * 2.5;
+      return {
+        ...p,
+        x: Math.max(-85, Math.min(85, normX[i] + jitterX)),
+        y: Math.max(-85, Math.min(85, normY[i] + jitterY)),
+        z: Math.max(-85, Math.min(85, normZ[i] + jitterZ)),
+        rawX: xVals[i],
+        rawY: yVals[i],
+        rawZ: zVals[i],
+        color: colorMapper(p, i),
+        nodeRadius: sizeMapper(i)
+      };
+    });
+
+    this.updateAxisInfo();
+  }
+
+  public computePCA() {
+    if (this.rawPoints.length === 0) return;
+
+    // Use top numerical columns (up to 8)
+    const cols = this.numericColumns.length >= 3 ? this.numericColumns.slice(0, 8) : this.columns.slice(0, 4);
+    const D = cols.length;
+    const N = this.rawPoints.length;
+
+    // Standardize matrix X (N x D)
+    const rawMatrix: number[][] = [];
+    const means: number[] = new Array(D).fill(0);
+    const stds: number[] = new Array(D).fill(0);
+
+    for (let j = 0; j < D; j++) {
+      const c = cols[j];
+      const colVals = this.rawPoints.map(p => Number(p.rawRecord?.[c] ?? p.x ?? 0) || 0);
+      const mean = colVals.reduce((a, b) => a + b, 0) / N;
+      const variance = colVals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / Math.max(1, N - 1);
+      const std = Math.sqrt(variance) || 1;
+      means[j] = mean;
+      stds[j] = std;
+    }
+
+    for (let i = 0; i < N; i++) {
+      const row: number[] = [];
+      for (let j = 0; j < D; j++) {
+        const raw = Number(this.rawPoints[i].rawRecord?.[cols[j]] ?? this.rawPoints[i].x ?? 0) || 0;
+        row.push((raw - means[j]) / stds[j]);
+      }
+      rawMatrix.push(row);
+    }
+
+    // Covariance Matrix C = (X^T * X) / (N - 1) (D x D)
+    const cov: number[][] = Array.from({ length: D }, () => new Array(D).fill(0));
+    for (let j1 = 0; j1 < D; j1++) {
+      for (let j2 = 0; j2 < D; j2++) {
+        let sum = 0;
+        for (let i = 0; i < N; i++) sum += rawMatrix[i][j1] * rawMatrix[i][j2];
+        cov[j1][j2] = sum / Math.max(1, N - 1);
+      }
+    }
+
+    // Power Iteration to extract top 3 Eigenvectors
+    const eigenvectors: number[][] = [];
+    const eigenvalues: number[] = [];
+
+    for (let comp = 0; comp < Math.min(3, D); comp++) {
+      let v: number[] = Array.from({ length: D }, (_, idx) => (idx === comp ? 1 : 0.5));
+      // Normalize initial vector
+      let mag = Math.hypot(...v) || 1;
+      v = v.map(x => x / mag);
+
+      for (let iter = 0; iter < 25; iter++) {
+        // Multiply by cov
+        const nextV = new Array(D).fill(0);
+        for (let r = 0; r < D; r++) {
+          for (let c = 0; c < D; c++) {
+            nextV[r] += cov[r][c] * v[c];
+          }
+        }
+        // Orthogonalize against prior eigenvectors (Gram-Schmidt)
+        for (const prior of eigenvectors) {
+          const dot = nextV.reduce((acc, val, idx) => acc + val * prior[idx], 0);
+          for (let k = 0; k < D; k++) nextV[k] -= dot * prior[k];
+        }
+        mag = Math.hypot(...nextV) || 1;
+        v = nextV.map(x => x / mag);
+      }
+
+      // Compute Rayleigh quotient (eigenvalue)
+      let lambda = 0;
+      for (let r = 0; r < D; r++) {
+        for (let c = 0; c < D; c++) {
+          lambda += v[r] * cov[r][c] * v[c];
+        }
+      }
+
+      eigenvectors.push(v);
+      eigenvalues.push(Math.max(0.01, lambda));
+    }
+
+    // Variance explained
+    const totalTrace = D; // Standardized variance sum = D
+    const pc1Pct = (eigenvalues[0] / totalTrace) * 100;
+    const pc2Pct = eigenvalues.length > 1 ? (eigenvalues[1] / totalTrace) * 100 : 0;
+    const pc3Pct = eigenvalues.length > 2 ? (eigenvalues[2] / totalTrace) * 100 : 0;
+    const totalPct = Math.min(100, pc1Pct + pc2Pct + pc3Pct);
+
+    this.pcaVariance = { pc1: pc1Pct, pc2: pc2Pct, pc3: pc3Pct, total: totalPct };
+
+    // Project dataset onto PC1, PC2, PC3
+    const proj1 = rawMatrix.map(r => r.reduce((acc, val, idx) => acc + val * (eigenvectors[0]?.[idx] || 0), 0));
+    const proj2 = rawMatrix.map(r => r.reduce((acc, val, idx) => acc + val * (eigenvectors[1]?.[idx] || 0), 0));
+    const proj3 = rawMatrix.map(r => r.reduce((acc, val, idx) => acc + val * (eigenvectors[2]?.[idx] || 0), 0));
+
+    const scaleToVolume = (arr: number[]) => {
+      const min = Math.min(...arr), max = Math.max(...arr);
+      const span = max > min ? max - min : 1;
+      return arr.map(v => ((v - min) / span) * 160 - 80);
+    };
+
+    const scaled1 = scaleToVolume(proj1);
+    const scaled2 = scaleToVolume(proj2);
+    const scaled3 = scaleToVolume(proj3);
+
+    this.axisLabels = {
+      x: `PC1 (${pc1Pct.toFixed(1)}% var)`,
+      y: `PC2 (${pc2Pct.toFixed(1)}% var)`,
+      z: `PC3 (${pc3Pct.toFixed(1)}% var)`
+    };
+
+    const palette = SingleDataset3DEngine.PALETTES[this.selectedPalette] || SingleDataset3DEngine.PALETTES.neon;
+
+    this.points = this.rawPoints.map((p, i) => {
+      const t = (scaled1[i] + 80) / 160;
+      return {
+        ...p,
+        x: scaled1[i],
+        y: scaled2[i],
+        z: scaled3[i],
+        color: p.isOutlier ? '#ef4444' : this.interpolatePalette(t, palette),
+        nodeRadius: p.isOutlier ? 6.5 : 4.5
+      };
+    });
+
+    this.updateAxisInfo();
+  }
+
+  public fitTopologicalSurface() {
+    this.reproject();
+    if (this.points.length < 6) return;
+
+    // Fit quadratic polynomial Y = a*X^2 + b*Z^2 + c*X*Z + d*X + e*Z + f via least squares
+    const M = 6;
+    const A: number[][] = Array.from({ length: M }, () => new Array(M).fill(0));
+    const B: number[] = new Array(M).fill(0);
+
+    for (const p of this.points) {
+      const x = p.x / 80;
+      const z = p.z / 80;
+      const y = p.y / 80;
+      const v = [x * x, z * z, x * z, x, z, 1];
+      for (let r = 0; r < M; r++) {
+        for (let c = 0; c < M; c++) {
+          A[r][c] += v[r] * v[c];
+        }
+        B[r] += v[r] * y;
+      }
+    }
+
+    // Add ridge regularization to diagonal
+    for (let k = 0; k < M; k++) A[k][k] += 0.05;
+
+    // Solve A * W = B via Gaussian elimination with partial pivoting
+    const W = this.solveLinearSystem(A, B);
+
+    // Build 12x12 regular mesh grid
+    this.surfaceMesh = [];
+    const steps = 11;
+    for (let gx = 0; gx <= steps; gx++) {
+      const row: Array<{ x: number; y: number; z: number }> = [];
+      const worldX = (gx / steps) * 160 - 80;
+      const normX = worldX / 80;
+      for (let gz = 0; gz <= steps; gz++) {
+        const worldZ = (gz / steps) * 160 - 80;
+        const normZ = worldZ / 80;
+        const normY = W[0] * normX * normX + W[1] * normZ * normZ + W[2] * normX * normZ + W[3] * normX + W[4] * normZ + W[5];
+        const worldY = Math.max(-85, Math.min(85, normY * 80));
+        row.push({ x: worldX, y: worldY, z: worldZ });
+      }
+      this.surfaceMesh.push(row);
+    }
+  }
+
+  public computeKMeans(k: number = 4) {
+    this.reproject();
+    if (this.points.length < k) return;
+
+    // Initialize centroids spread across points
+    const step = Math.floor(this.points.length / k);
+    let centroids: Array<{ x: number; y: number; z: number }> = [];
+    for (let i = 0; i < k; i++) {
+      const p = this.points[Math.min(this.points.length - 1, i * step)];
+      centroids.push({ x: p.x, y: p.y, z: p.z });
+    }
+
+    const assignments = new Array(this.points.length).fill(0);
+
+    // Lloyd's algorithm iterations
+    for (let iter = 0; iter < 12; iter++) {
+      for (let i = 0; i < this.points.length; i++) {
+        const p = this.points[i];
+        let bestDist = Infinity;
+        let bestCluster = 0;
+        for (let c = 0; c < k; c++) {
+          const dist = Math.hypot(p.x - centroids[c].x, p.y - centroids[c].y, p.z - centroids[c].z);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestCluster = c;
+          }
+        }
+        assignments[i] = bestCluster;
+      }
+
+      // Recompute centroids
+      const counts = new Array(k).fill(0);
+      const newCentroids = Array.from({ length: k }, () => ({ x: 0, y: 0, z: 0 }));
+      for (let i = 0; i < this.points.length; i++) {
+        const c = assignments[i];
+        counts[c]++;
+        newCentroids[c].x += this.points[i].x;
+        newCentroids[c].y += this.points[i].y;
+        newCentroids[c].z += this.points[i].z;
+      }
+      for (let c = 0; c < k; c++) {
+        if (counts[c] > 0) {
+          centroids[c] = {
+            x: newCentroids[c].x / counts[c],
+            y: newCentroids[c].y / counts[c],
+            z: newCentroids[c].z / counts[c]
+          };
+        }
+      }
+    }
+
+    const palette = SingleDataset3DEngine.PALETTES[this.selectedPalette] || SingleDataset3DEngine.PALETTES.neon;
+
+    // Calculate cluster radius (standard deviation)
+    this.kmeansCentroids = centroids.map((cent, c) => {
+      const clusterPts = this.points.filter((_, i) => assignments[i] === c);
+      const avgDist = clusterPts.reduce((acc, p) => acc + Math.hypot(p.x - cent.x, p.y - cent.y, p.z - cent.z), 0) / Math.max(1, clusterPts.length);
+      return {
+        ...cent,
+        color: palette[c % palette.length],
+        label: `Cohort ${c + 1} (${clusterPts.length})`,
+        count: clusterPts.length,
+        radius: Math.max(15, avgDist * 1.2)
+      };
+    });
+
+    // Color points by cluster
+    this.points.forEach((p, i) => {
+      const c = assignments[i];
+      p.color = p.isOutlier ? '#ef4444' : palette[c % palette.length];
+      p.clusterId = c;
+    });
+  }
+
+  public setSearchQuery(q: string) {
+    this.searchQuery = (q || '').trim().toLowerCase();
+    this.draw();
+  }
+
+  public setOutlierThreshold(sigma: number) {
+    this.outlierThresholdSigma = sigma;
+    const label = document.getElementById('single3DSensitivityLabel');
+    if (label) label.innerHTML = `Outlier Threshold: <strong>${sigma.toFixed(1)}σ</strong>`;
+
+    // Recalculate outlier flags based on deviation from origin/mean
+    this.points.forEach(p => {
+      const r = Math.hypot(p.x, p.y, p.z);
+      p.isOutlier = r > (sigma * 45);
+    });
+
+    this.updateHudMetrics();
+    this.draw();
+  }
+
+  public exportSnapshotPng() {
+    this.draw();
+    const link = document.createElement('a');
+    link.download = `3d_manifold_snapshot_${Date.now()}.png`;
+    link.href = this.canvas.toDataURL('image/png');
+    link.click();
+    showToast('📸 High-resolution 3D snapshot exported successfully!');
+  }
+
+  public exportDataJson() {
+    const exportPayload = {
+      exportTimestamp: new Date().toISOString(),
+      mode: this.currentMode,
+      axes: this.axisLabels,
+      pcaVariance: this.pcaVariance,
+      totalPoints: this.points.length,
+      points: this.points.map(p => ({
+        id: p.id,
+        label: p.label,
+        category: p.category,
+        x: p.x,
+        y: p.y,
+        z: p.z,
+        rawX: p.rawX,
+        rawY: p.rawY,
+        rawZ: p.rawZ,
+        isOutlier: p.isOutlier,
+        clusterId: p.clusterId,
+        rawRecord: p.rawRecord
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `3d_manifold_data_${Date.now()}.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+    showToast('💾 3D Manifold coordinate and projection data exported as JSON!');
   }
 
   public toggleTurntable(): boolean {
@@ -20903,11 +22587,13 @@ class SingleDataset3DEngine {
 
   public zoomIn() {
     this.R = Math.max(120, this.R - 40);
+    this.updateCameraTelemetry();
     this.draw();
   }
 
   public zoomOut() {
     this.R = Math.min(800, this.R + 40);
+    this.updateCameraTelemetry();
     this.draw();
   }
 
@@ -20917,18 +22603,186 @@ class SingleDataset3DEngine {
     this.R = 320;
     this.isTurntable = true;
     this.filterOutliersOnly = false;
+    this.selectedPoint = null;
+    if (this.inspectorDrawerEl) this.inspectorDrawerEl.style.display = 'none';
+    this.updateCameraTelemetry();
     this.draw();
   }
 
   public resize() {
     const width = this.canvas.clientWidth || 800;
-    const height = this.canvas.clientHeight || 560;
+    const height = this.canvas.clientHeight || 620;
     this.canvas.width = width * window.devicePixelRatio;
     this.canvas.height = height * window.devicePixelRatio;
     if ((this.ctx as any).resetTransform) {
       (this.ctx as any).resetTransform();
     }
     this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+
+  private updateHudMetrics() {
+    const recordsEl = document.getElementById('single3DHudRecordsCount');
+    const outliersEl = document.getElementById('single3DHudOutlierCount');
+    if (recordsEl) recordsEl.textContent = String(this.points.length);
+    if (outliersEl) {
+      const count = this.points.filter(p => p.isOutlier).length;
+      outliersEl.textContent = `${count} (${((count / Math.max(1, this.points.length)) * 100).toFixed(1)}%)`;
+    }
+  }
+
+  private updateAxisInfo() {
+    const axisInfoEl = document.getElementById('dataSingle3DAxisInfo');
+    if (axisInfoEl) {
+      axisInfoEl.innerHTML = `🔴 <strong>X</strong>: ${this.axisLabels.x} &bull; 🟢 <strong>Y</strong>: ${this.axisLabels.y} &bull; 🔵 <strong>Z</strong>: ${this.axisLabels.z} &bull; <strong>Click Node</strong>: Deep Record Inspector`;
+    }
+  }
+
+  private updateCameraTelemetry() {
+    const el = document.getElementById('dataSingle3DCamTelemetry');
+    if (el) {
+      const degTheta = Math.round(((this.theta % (Math.PI * 2)) / Math.PI) * 180);
+      const degPhi = Math.round((this.phi / Math.PI) * 180);
+      el.textContent = `Orbit: ${degTheta}° / ${degPhi}° • Dist: ${Math.round(this.R)}`;
+    }
+  }
+
+  private updateColorLegend(title: string, min: number, max: number, palette: string[]) {
+    const legend = document.getElementById('dataSingle3DLegend');
+    const titleEl = document.getElementById('single3DLegendTitle');
+    const barEl = document.getElementById('single3DLegendBar');
+    const minEl = document.getElementById('single3DLegendMin');
+    const maxEl = document.getElementById('single3DLegendMax');
+    if (legend && barEl) {
+      legend.style.display = 'block';
+      if (titleEl) titleEl.textContent = title;
+      barEl.style.background = `linear-gradient(to right, ${palette.join(', ')})`;
+      if (minEl) minEl.textContent = min.toFixed(1);
+      if (maxEl) maxEl.textContent = max.toFixed(1);
+    }
+  }
+
+  private hideColorLegend() {
+    const legend = document.getElementById('dataSingle3DLegend');
+    if (legend) legend.style.display = 'none';
+  }
+
+  private interpolatePalette(t: number, palette: string[]): string {
+    if (palette.length === 1) return palette[0];
+    const clampedT = Math.max(0, Math.min(1, t));
+    const pos = clampedT * (palette.length - 1);
+    const idx = Math.floor(pos);
+    const frac = pos - idx;
+    if (idx >= palette.length - 1) return palette[palette.length - 1];
+
+    const c1 = this.hexToRgb(palette[idx]);
+    const c2 = this.hexToRgb(palette[idx + 1]);
+    const r = Math.round(c1[0] + frac * (c2[0] - c1[0]));
+    const g = Math.round(c1[1] + frac * (c2[1] - c1[1]));
+    const b = Math.round(c1[2] + frac * (c2[2] - c1[2]));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  private hexToRgb(hex: string): [number, number, number] {
+    let clean = hex.replace('#', '');
+    if (clean.length === 3) clean = clean.split('').map(c => c + c).join('');
+    const num = parseInt(clean, 16);
+    return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+  }
+
+  private solveLinearSystem(A: number[][], B: number[]): number[] {
+    const n = B.length;
+    const M: number[][] = A.map((row, i) => [...row, B[i]]);
+
+    for (let i = 0; i < n; i++) {
+      let maxRow = i;
+      for (let k = i + 1; k < n; k++) {
+        if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+      }
+      const tmp = M[i]; M[i] = M[maxRow]; M[maxRow] = tmp;
+
+      if (Math.abs(M[i][i]) < 1e-8) continue;
+
+      for (let k = i + 1; k < n; k++) {
+        const factor = M[k][i] / M[i][i];
+        for (let j = i; j <= n; j++) {
+          M[k][j] -= factor * M[i][j];
+        }
+      }
+    }
+
+    const x = new Array(n).fill(0);
+    for (let i = n - 1; i >= 0; i--) {
+      let sum = M[i][n];
+      for (let j = i + 1; j < n; j++) {
+        sum -= M[i][j] * x[j];
+      }
+      x[i] = Math.abs(M[i][i]) > 1e-8 ? sum / M[i][i] : 0;
+    }
+    return x;
+  }
+
+  private openRecordInspector(point: any) {
+    this.selectedPoint = point;
+    if (!this.inspectorDrawerEl) return;
+
+    const iconEl = document.getElementById('single3DInspectorIcon');
+    const titleEl = document.getElementById('single3DInspectorTitle');
+    const contentEl = document.getElementById('single3DInspectorContent');
+
+    if (iconEl) iconEl.textContent = point.isOutlier ? '🚨' : '📊';
+    if (titleEl) titleEl.textContent = `${point.label || `Record #${point.id}`}`;
+
+    if (contentEl) {
+      const rec = point.rawRecord || {};
+      const entries = Object.entries(rec);
+      const isOutlier = point.isOutlier;
+
+      let html = `
+        <div style="margin-bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap;">
+          <span style="background: ${isOutlier ? 'rgba(239,68,68,0.2)' : 'rgba(56,189,248,0.2)'}; color: ${isOutlier ? '#f87171' : '#38bdf8'}; border: 1px solid ${isOutlier ? '#ef4444' : '#38bdf8'}; border-radius: 4px; padding: 2px 6px; font-weight: 700; font-size: 10px;">
+            ${isOutlier ? '🚨 CRITICAL OUTLIER' : '● NOMINAL RECORD'}
+          </span>
+          <span style="background: rgba(255,255,255,0.06); color: #cbd5e1; border-radius: 4px; padding: 2px 6px; font-size: 10px;">
+            Category: <strong>${point.category || 'Standard'}</strong>
+          </span>
+        </div>
+      `;
+
+      if (point.diagnosticCard?.rootCause) {
+        html += `
+          <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 6px 10px; margin-bottom: 10px; border-radius: 0 4px 4px 0; font-size: 10.5px; color: #fecaca; line-height: 1.4;">
+            <strong>Data Scientist Diagnosis:</strong> ${point.diagnosticCard.rootCause}
+          </div>
+        `;
+      }
+
+      html += `<div style="font-weight: 700; color: #94a3b8; font-size: 10px; text-transform: uppercase; margin-bottom: 4px;">Record Attributes</div>`;
+      html += `<div style="max-height: 280px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">`;
+
+      if (entries.length > 0) {
+        entries.forEach(([k, v]) => {
+          html += `
+            <div style="display: flex; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 10.5px;">
+              <span style="color: #94a3b8;">${k}:</span>
+              <strong style="color: #f8fafc; font-family: var(--font-mono, monospace);">${v !== null && v !== undefined ? v : '—'}</strong>
+            </div>
+          `;
+        });
+      } else {
+        html += `
+          <div style="padding: 6px 8px; font-size: 10.5px; color: #94a3b8;">
+            X (${this.axisLabels.x}): <strong>${point.rawX ?? point.x}</strong><br/>
+            Y (${this.axisLabels.y}): <strong>${point.rawY ?? point.y}</strong><br/>
+            Z (${this.axisLabels.z}): <strong>${point.rawZ ?? point.z}</strong>
+          </div>
+        `;
+      }
+      html += `</div>`;
+
+      contentEl.innerHTML = html;
+    }
+
+    this.inspectorDrawerEl.style.display = 'block';
   }
 
   private initEvents() {
@@ -20942,6 +22796,26 @@ class SingleDataset3DEngine {
       this.isDragging = false;
     });
 
+    this.canvas.addEventListener('click', (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      let clicked: any = null;
+      for (let i = this.renderedNodes.length - 1; i >= 0; i--) {
+        const n = this.renderedNodes[i];
+        if (Math.hypot(n.sx - mx, n.sy - my) < n.sr + 6) {
+          clicked = n.p;
+          break;
+        }
+      }
+
+      if (clicked) {
+        this.openRecordInspector(clicked);
+        this.draw();
+      }
+    });
+
     this.canvas.addEventListener('mousemove', (e) => {
       const rect = this.canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left;
@@ -20951,18 +22825,18 @@ class SingleDataset3DEngine {
         const dx = e.clientX - this.lastMouseX;
         const dy = e.clientY - this.lastMouseY;
         this.theta += dx * 0.01;
-        this.phi = Math.max(-1.4, Math.min(1.4, this.phi + dy * 0.01));
+        this.phi = Math.max(-1.45, Math.min(1.45, this.phi + dy * 0.01));
         this.lastMouseX = e.clientX;
         this.lastMouseY = e.clientY;
         this.isTurntable = false;
+        this.updateCameraTelemetry();
       }
 
-      // Hit test
+      // Hit test for tooltip
       this.hoveredPoint = null;
       for (let i = this.renderedNodes.length - 1; i >= 0; i--) {
         const n = this.renderedNodes[i];
-        const dist = Math.hypot(n.sx - mx, n.sy - my);
-        if (dist < n.sr + 6) {
+        if (Math.hypot(n.sx - mx, n.sy - my) < n.sr + 6) {
           this.hoveredPoint = n.p;
           break;
         }
@@ -20980,10 +22854,13 @@ class SingleDataset3DEngine {
             <span>${d ? d.title : this.hoveredPoint.label}</span>
           </div>
           <div style="font-size:11px; color:#cbd5e1; margin-bottom:6px; line-height:1.4;">
-            <strong>Root Cause:</strong> ${d ? d.rootCause : 'Normal dispersion'}
+            <strong>Diagnosis:</strong> ${d ? d.rootCause : 'Nominal operating parameter'}
           </div>
           <div style="font-size:10px; color:#94a3b8; border-top:1px solid #334155; padding-top:4px;">
             ${metricsHtml}
+          </div>
+          <div style="font-size:9.5px; color:#38bdf8; margin-top:4px;">
+            💡 Click to inspect full record details
           </div>
         `;
       } else if (this.tooltipEl) {
@@ -20994,6 +22871,7 @@ class SingleDataset3DEngine {
     this.canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       this.R = Math.max(120, Math.min(800, this.R + e.deltaY * 0.5));
+      this.updateCameraTelemetry();
     }, { passive: false });
   }
 
@@ -21007,14 +22885,19 @@ class SingleDataset3DEngine {
 
   public draw() {
     const width = this.canvas.clientWidth || 800;
-    const height = this.canvas.clientHeight || 560;
+    const height = this.canvas.clientHeight || 620;
     const ctx = this.ctx;
 
     if (this.isTurntable) {
-      this.theta += 0.005;
+      this.theta += 0.004;
+      this.updateCameraTelemetry();
     }
 
-    ctx.fillStyle = '#070a0f';
+    // Radial gradient background
+    const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 50, width / 2, height / 2, width);
+    bgGrad.addColorStop(0, '#0d131f');
+    bgGrad.addColorStop(1, '#05070a');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, width, height);
 
     const cosT = Math.cos(this.theta), sinT = Math.sin(this.theta);
@@ -21026,7 +22909,7 @@ class SingleDataset3DEngine {
       const y2 = y * cosP - z1 * sinP;
       const z2 = y * sinP + z1 * cosP + this.R;
       if (z2 <= 20) return null;
-      const f = 400;
+      const f = 420;
       return {
         sx: (x1 * f) / z2 + width / 2,
         sy: (y2 * f) / z2 + height / 2,
@@ -21034,7 +22917,7 @@ class SingleDataset3DEngine {
       };
     };
 
-    // 1. Perspective Floor Grid (at Ground Plane Y = 100)
+    // 1. Perspective Floor Grid (at ground plane Y = 100)
     const floorY = 100;
     ctx.lineWidth = 1;
     for (let gx = -100; gx <= 100; gx += 25) {
@@ -21044,7 +22927,7 @@ class SingleDataset3DEngine {
         ctx.beginPath();
         ctx.moveTo(p1.sx, p1.sy);
         ctx.lineTo(p2.sx, p2.sy);
-        ctx.strokeStyle = gx === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.1)';
+        ctx.strokeStyle = gx === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.08)';
         ctx.stroke();
       }
     }
@@ -21055,52 +22938,53 @@ class SingleDataset3DEngine {
         ctx.beginPath();
         ctx.moveTo(p1.sx, p1.sy);
         ctx.lineTo(p2.sx, p2.sy);
-        ctx.strokeStyle = gz === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.1)';
+        ctx.strokeStyle = gz === 0 ? 'rgba(56, 189, 248, 0.35)' : 'rgba(56, 189, 248, 0.08)';
         ctx.stroke();
       }
     }
 
-    // 2. Origin & 3D Axes with Labels
+    // 2. 3D Coordinate Axes Arrows & Labels
     const origin = project(-100, floorY, -100);
-    const axisX = project(-40, floorY, -100);
-    const axisY = project(-100, floorY - 60, -100);
-    const axisZ = project(-100, floorY, -40);
+    const axisX = project(-35, floorY, -100);
+    const axisY = project(-100, floorY - 65, -100);
+    const axisZ = project(-100, floorY, -35);
+
     if (origin && axisX) {
       ctx.beginPath();
       ctx.moveTo(origin.sx, origin.sy);
       ctx.lineTo(axisX.sx, axisX.sy);
       ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
       ctx.fillStyle = '#ef4444';
-      ctx.font = '10px monospace';
-      ctx.fillText(`X: ${this.axisLabels.x}`, axisX.sx + 4, axisX.sy);
+      ctx.font = '10.5px monospace';
+      ctx.fillText(`X: ${this.axisLabels.x}`, axisX.sx + 6, axisX.sy + 3);
     }
     if (origin && axisY) {
       ctx.beginPath();
       ctx.moveTo(origin.sx, origin.sy);
       ctx.lineTo(axisY.sx, axisY.sy);
       ctx.strokeStyle = '#10b981';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
       ctx.fillStyle = '#10b981';
-      ctx.font = '10px monospace';
-      ctx.fillText(`Y: ${this.axisLabels.y}`, axisY.sx + 4, axisY.sy - 4);
+      ctx.font = '10.5px monospace';
+      ctx.fillText(`Y: ${this.axisLabels.y}`, axisY.sx + 6, axisY.sy - 4);
     }
     if (origin && axisZ) {
       ctx.beginPath();
       ctx.moveTo(origin.sx, origin.sy);
       ctx.lineTo(axisZ.sx, axisZ.sy);
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.stroke();
       ctx.fillStyle = '#38bdf8';
-      ctx.font = '10px monospace';
-      ctx.fillText(`Z: ${this.axisLabels.z}`, axisZ.sx + 4, axisZ.sy);
+      ctx.font = '10.5px monospace';
+      ctx.fillText(`Z: ${this.axisLabels.z}`, axisZ.sx + 6, axisZ.sy + 3);
     }
 
-    // 3. Draw 3D Boundary Wireframe
-    ctx.strokeStyle = 'rgba(30, 41, 59, 0.7)';
+    // 3. 3D Boundary Wireframe Bounding Box
+    ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)';
     ctx.lineWidth = 1;
     const box = [-100, 100];
     for (const bx of box) {
@@ -21116,21 +23000,112 @@ class SingleDataset3DEngine {
       }
     }
 
-    // 4. Project Points
-    this.renderedNodes = [];
-    for (const p of this.points) {
-      if (this.filterOutliersOnly && !p.isOutlier) continue;
-      const proj = project(p.x, -p.y, p.z);
-      if (proj) {
-        const sr = Math.max(3, (p.isOutlier ? 8 : 4.5) * (400 / proj.sz));
-        this.renderedNodes.push({ p, sx: proj.sx, sy: proj.sy, sz: proj.sz, sr });
+    // 4. Mode-Specific Render: Topological Regression Surface Mesh
+    if (this.currentMode === 'surface' && this.surfaceMesh.length > 1) {
+      const rows = this.surfaceMesh.length;
+      const cols = this.surfaceMesh[0].length;
+
+      for (let r = 0; r < rows - 1; r++) {
+        for (let c = 0; c < cols - 1; c++) {
+          const pt00 = this.surfaceMesh[r][c];
+          const pt10 = this.surfaceMesh[r + 1][c];
+          const pt11 = this.surfaceMesh[r + 1][c + 1];
+          const pt01 = this.surfaceMesh[r][c + 1];
+
+          const p00 = project(pt00.x, -pt00.y, pt00.z);
+          const p10 = project(pt10.x, -pt10.y, pt10.z);
+          const p11 = project(pt11.x, -pt11.y, pt11.z);
+          const p01 = project(pt01.x, -pt01.y, pt01.z);
+
+          if (p00 && p10 && p11 && p01) {
+            // Draw translucent quad patch
+            const elev = (pt00.y + 85) / 170; // 0 to 1
+            ctx.beginPath();
+            ctx.moveTo(p00.sx, p00.sy);
+            ctx.lineTo(p10.sx, p10.sy);
+            ctx.lineTo(p11.sx, p11.sy);
+            ctx.lineTo(p01.sx, p01.sy);
+            ctx.closePath();
+
+            ctx.fillStyle = `rgba(56, 189, 248, ${0.05 + elev * 0.15})`;
+            ctx.fill();
+            ctx.strokeStyle = `rgba(56, 189, 248, ${0.2 + elev * 0.4})`;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
       }
     }
 
-    // Depth sort (painter's algorithm)
+    // 5. Mode-Specific Render: K-Means Centroid Stars & Orbital Halos
+    if (this.currentMode === 'kmeans' && this.kmeansCentroids.length > 0) {
+      const now = Date.now();
+      for (const cent of this.kmeansCentroids) {
+        const proj = project(cent.x, -cent.y, cent.z);
+        if (proj) {
+          // Centroid Pulse Star
+          const flare = (Math.sin(now * 0.006 + cent.x) + 1) * 0.5;
+          ctx.beginPath();
+          ctx.arc(proj.sx, proj.sy, 6 + flare * 4, 0, Math.PI * 2);
+          ctx.fillStyle = cent.color;
+          ctx.fill();
+
+          // Centroid 4-point flare cross
+          ctx.strokeStyle = cent.color;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(proj.sx - 12, proj.sy);
+          ctx.lineTo(proj.sx + 12, proj.sy);
+          ctx.moveTo(proj.sx, proj.sy - 12);
+          ctx.lineTo(proj.sx, proj.sy + 12);
+          ctx.stroke();
+
+          // Orbital Halo Ring
+          const haloR = cent.radius * (400 / proj.sz);
+          ctx.beginPath();
+          ctx.arc(proj.sx, proj.sy, haloR, 0, Math.PI * 2);
+          ctx.strokeStyle = `${cent.color}44`;
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+
+          // Centroid label tag
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = '10px sans-serif';
+          ctx.fillText(cent.label, proj.sx + 14, proj.sy + 4);
+        }
+      }
+    }
+
+    // 6. Project Data Points
+    this.renderedNodes = [];
+    const query = this.searchQuery;
+
+    for (const p of this.points) {
+      if (this.filterOutliersOnly && !p.isOutlier) continue;
+
+      let isMatch = true;
+      if (query) {
+        const matchId = String(p.id).toLowerCase().includes(query);
+        const matchLabel = String(p.label).toLowerCase().includes(query);
+        const matchCat = String(p.category).toLowerCase().includes(query);
+        const matchRecord = p.rawRecord ? Object.values(p.rawRecord).some(v => String(v).toLowerCase().includes(query)) : false;
+        isMatch = matchId || matchLabel || matchCat || matchRecord;
+      }
+
+      const proj = project(p.x, -p.y, p.z);
+      if (proj) {
+        const baseRadius = p.nodeRadius || (p.isOutlier ? 7.5 : 4.5);
+        const sr = Math.max(3, baseRadius * (420 / proj.sz));
+        this.renderedNodes.push({ p, sx: proj.sx, sy: proj.sy, sz: proj.sz, sr, isMatch });
+      }
+    }
+
+    // Painter's algorithm depth sorting
     this.renderedNodes.sort((a, b) => b.sz - a.sz);
 
-    // 5. Draw Drop-lines from Nodes to Floor Plane for 3D Depth
+    // 7. Drop-lines to floor plane
     for (const n of this.renderedNodes) {
       const p = n.p;
       const ground = project(p.x, floorY, p.z);
@@ -21138,42 +23113,42 @@ class SingleDataset3DEngine {
         ctx.beginPath();
         ctx.moveTo(n.sx, n.sy);
         ctx.lineTo(ground.sx, ground.sy);
-        ctx.strokeStyle = p.isOutlier ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.08)';
+        ctx.strokeStyle = p.isOutlier ? 'rgba(239, 68, 68, 0.25)' : (n.isMatch ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.02)');
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 3]);
         ctx.stroke();
         ctx.setLineDash([]);
+
         ctx.beginPath();
         ctx.arc(ground.sx, ground.sy, Math.max(1.5, n.sr * 0.4), 0, Math.PI * 2);
-        ctx.fillStyle = p.isOutlier ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.2)';
+        ctx.fillStyle = p.isOutlier ? 'rgba(239, 68, 68, 0.4)' : (n.isMatch ? 'rgba(56, 189, 248, 0.2)' : 'rgba(56, 189, 248, 0.05)');
         ctx.fill();
       }
     }
 
-    // 5b. Draw Topological Manifold Surface Contour Mesh (Connecting Nearest Neighbors in Continuous Space)
-    if (!this.filterOutliersOnly && this.renderedNodes.length > 3) {
+    // 8. Nearest Neighbor Topological Links (in Scatter & Surface modes)
+    if (!this.filterOutliersOnly && this.renderedNodes.length > 3 && this.currentMode !== 'kmeans') {
       const drawnLinks = new Set<string>();
       for (let i = 0; i < this.renderedNodes.length; i++) {
         const n1 = this.renderedNodes[i];
-        if (n1.p.isOutlier) continue; // Outlier beacons stand outside manifold sheet
+        if (n1.p.isOutlier) continue;
         let connections = 0;
 
         for (let j = i + 1; j < this.renderedNodes.length && connections < 3; j++) {
           const n2 = this.renderedNodes[j];
           if (n2.p.isOutlier) continue;
 
-          // 3D Euclidean distance in normalized coordinate space
           const dx = n1.p.x - n2.p.x;
           const dy = n1.p.y - n2.p.y;
           const dz = n1.p.z - n2.p.z;
           const dist3D = Math.hypot(dx, dy, dz);
 
-          if (dist3D < 42) {
+          if (dist3D < 38) {
             const linkKey = i < j ? `${i}_${j}` : `${j}_${i}`;
             if (!drawnLinks.has(linkKey)) {
               drawnLinks.add(linkKey);
               connections++;
-              const alpha = Math.max(0.04, (1 - dist3D / 42) * 0.25);
+              const alpha = Math.max(0.04, (1 - dist3D / 38) * 0.25);
               ctx.beginPath();
               ctx.moveTo(n1.sx, n1.sy);
               ctx.lineTo(n2.sx, n2.sy);
@@ -21186,18 +23161,40 @@ class SingleDataset3DEngine {
       }
     }
 
-    // 6. Draw Nodes
+    // 9. Draw Nodes
     const now = Date.now();
     for (const n of this.renderedNodes) {
       const p = n.p;
       const isHov = this.hoveredPoint === p;
+      const isSel = this.selectedPoint === p;
+
+      // Opacity dimming if search filter is active and this node is not a match
+      ctx.globalAlpha = n.isMatch ? 1.0 : 0.2;
 
       if (p.isOutlier) {
-        // Pulsing warning ring
+        // Pulsing red outlier warning beacon
         const pulse = (Math.sin(now * 0.005 + p.x) + 1) * 0.5;
         ctx.beginPath();
         ctx.arc(n.sx, n.sy, n.sr + 4 + pulse * 6, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(239, 68, 68, ${0.3 + pulse * 0.4})`;
+        ctx.strokeStyle = `rgba(239, 68, 68, ${0.35 + pulse * 0.45})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if (query && n.isMatch) {
+        // Glowing gold ring for search matches
+        ctx.beginPath();
+        ctx.arc(n.sx, n.sy, n.sr + 5, 0, Math.PI * 2);
+        ctx.strokeStyle = '#fbbf24';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if (isSel) {
+        // Reticle target for selected point
+        ctx.beginPath();
+        ctx.arc(n.sx, n.sy, n.sr + 7, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -21206,9 +23203,11 @@ class SingleDataset3DEngine {
       ctx.arc(n.sx, n.sy, isHov ? n.sr + 4 : n.sr, 0, Math.PI * 2);
       ctx.fillStyle = p.isOutlier ? '#ef4444' : (p.color || '#38bdf8');
       ctx.fill();
-      ctx.strokeStyle = isHov ? '#ffffff' : 'rgba(0,0,0,0.6)';
-      ctx.lineWidth = isHov ? 2.5 : 1;
+      ctx.strokeStyle = isHov || isSel ? '#ffffff' : 'rgba(0,0,0,0.65)';
+      ctx.lineWidth = isHov || isSel ? 2.5 : 1;
       ctx.stroke();
+
+      ctx.globalAlpha = 1.0;
     }
   }
 
@@ -21723,6 +23722,7 @@ function setupDataAnalysisStudio(api: any): void {
 
   const deliverablePills = document.querySelectorAll<HTMLElement>('.deliverable-pill');
   const btnExecute = document.getElementById('btnExecuteDataAnalysis');
+  const btnLaunch3DManifoldDirect = document.getElementById('btnLaunch3DManifoldDirect');
 
   // Render column pills for selected table
   const renderColumnsPreview = (tbl: any) => {
@@ -22051,9 +24051,18 @@ function setupDataAnalysisStudio(api: any): void {
           </div>
         </div>
       `;
+      (dropZone as any)._selectedFilePath = '';
       dropZone.style.borderColor = 'var(--accent)';
       dropZone.style.background = 'rgba(78, 201, 176, 0.05)';
     }
+
+    const wsChipsContainer = document.getElementById('wsDataFilesContainer');
+    wsChipsContainer?.querySelectorAll('.ws-data-file-chip').forEach(b => {
+      (b as HTMLElement).style.borderColor = '';
+      (b as HTMLElement).style.background = '';
+      (b as HTMLElement).style.color = '';
+      b.classList.remove('active');
+    });
 
     if (cardConnectDb) {
       cardConnectDb.classList.add('active');
@@ -22162,7 +24171,20 @@ function setupDataAnalysisStudio(api: any): void {
         }
         const dropZone = document.getElementById('dataDropZone');
         if (dropZone) {
-          dropZone.innerText = `📁 Selected: ${filePath}`;
+          const fileName = filePath.split(/[\\/]/).pop() || filePath;
+          dropZone.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 0;">
+              <span style="font-size: 24px;">📁</span>
+              <div style="text-align: left;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff;">
+                  Active Dataset: <span style="color: var(--accent); font-family: monospace;">${fileName}</span>
+                  <span class="brand-pill" style="margin-left: 8px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4); font-size: 10px;">LOCAL FILE</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px; font-family: monospace;">${filePath}</div>
+              </div>
+            </div>
+          `;
+          (dropZone as any)._selectedFilePath = filePath;
           dropZone.style.borderColor = '';
           dropZone.style.background = '';
         }
@@ -22185,6 +24207,20 @@ function setupDataAnalysisStudio(api: any): void {
       pill.classList.add('on');
       currentSelectedDeliverable = pill.getAttribute('data-d') || pill.getAttribute('data-deliv') || 'insights';
     });
+  });
+
+  btnLaunch3DManifoldDirect?.addEventListener('click', () => {
+    deliverablePills.forEach(p => {
+      p.classList.remove('active');
+      p.classList.remove('on');
+    });
+    const manifoldPill = document.querySelector('.deliverable-pill[data-d="manifold"]') as HTMLElement;
+    if (manifoldPill) {
+      manifoldPill.classList.add('active');
+      manifoldPill.classList.add('on');
+    }
+    currentSelectedDeliverable = 'manifold';
+    btnExecute?.click();
   });
 
   // Deliverable Viewer State & Elements
@@ -22214,6 +24250,27 @@ function setupDataAnalysisStudio(api: any): void {
   const btnSingle3DReset = document.getElementById('btnSingle3DReset');
   const btnSingle3DZoomIn = document.getElementById('btnSingle3DZoomIn');
   const btnSingle3DZoomOut = document.getElementById('btnSingle3DZoomOut');
+  const btnSingle3DModeScatter = document.getElementById('btnSingle3DModeScatter');
+  const btnSingle3DModePca = document.getElementById('btnSingle3DModePca');
+  const btnSingle3DModeSurface = document.getElementById('btnSingle3DModeSurface');
+  const btnSingle3DModeKmeans = document.getElementById('btnSingle3DModeKmeans');
+  const btnSingle3DCamFree = document.getElementById('btnSingle3DCamFree');
+  const btnSingle3DCamTop = document.getElementById('btnSingle3DCamTop');
+  const btnSingle3DCamFront = document.getElementById('btnSingle3DCamFront');
+  const btnSingle3DCamSide = document.getElementById('btnSingle3DCamSide');
+  const btnSingle3DToggleControls = document.getElementById('btnSingle3DToggleControls');
+  const btnSingle3DSnapshot = document.getElementById('btnSingle3DSnapshot');
+  const btnSingle3DExportData = document.getElementById('btnSingle3DExportData');
+  const btnSingle3DCloseInspector = document.getElementById('btnSingle3DCloseInspector');
+  const dataSingle3DAdvancedControls = document.getElementById('dataSingle3DAdvancedControls');
+  const single3DSensitivitySlider = document.getElementById('single3DSensitivitySlider') as HTMLInputElement;
+  const single3DSearchInput = document.getElementById('single3DSearchInput') as HTMLInputElement;
+  const single3DSelectX = document.getElementById('single3DSelectX');
+  const single3DSelectY = document.getElementById('single3DSelectY');
+  const single3DSelectZ = document.getElementById('single3DSelectZ');
+  const single3DSelectColor = document.getElementById('single3DSelectColor');
+  const single3DSelectPalette = document.getElementById('single3DSelectPalette');
+  const single3DSelectSize = document.getElementById('single3DSelectSize');
   const dataTargetKpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
   const dataFocusPresets = document.querySelectorAll<HTMLButtonElement>('.data-focus-preset');
   const dataSourceEditorPanel = document.getElementById('dataSourceEditorPanel');
@@ -22323,7 +24380,10 @@ function setupDataAnalysisStudio(api: any): void {
   const getActiveDataStudioSource = () => {
     const dropZone = document.getElementById('dataDropZone') || document.getElementById('dataStudioDropZone');
     const selectedText = dropZone?.innerText || '';
-    const filePath = (!activeAnalysisDbTable && selectedText.includes('Selected: ')) ? selectedText.replace('📁 Selected: ', '').trim() : '';
+    const storedPath = (dropZone as any)?._selectedFilePath;
+    const filePath = (!activeAnalysisDbTable && storedPath)
+      ? storedPath
+      : ((!activeAnalysisDbTable && selectedText.includes('Selected: ')) ? selectedText.replace('📁 Selected: ', '').trim() : '');
     return { filePath, dbTable: activeAnalysisDbTable };
   };
 
@@ -23103,10 +25163,31 @@ function setupDataAnalysisStudio(api: any): void {
   const formatTextDeliverableToHtml = (raw: string, type: string): string => {
     if (!raw) return '<div style="color: var(--text-secondary); font-style: italic;">No deliverable output.</div>';
 
-    if (activeDataScienceResult && (type === 'insights' || type === 'profile')) {
-      const isUnedited = raw === currentDeliverableContent || raw === originalDeliverableContent || raw.trim() === (currentDeliverableContent || '').trim();
+    if (activeDataScienceResult && (type === 'insights' || type === 'profile' || type === 'manifold')) {
+      const isUnedited = raw === currentDeliverableContent || raw === originalDeliverableContent || raw.trim() === (currentDeliverableContent || '').trim() || type === 'manifold';
       if (isUnedited) {
-        return renderDataScienceExecutiveDashboard(activeDataScienceResult);
+        let dashHtml = renderDataScienceExecutiveDashboard(activeDataScienceResult);
+        if (type === 'manifold') {
+          const manifoldHero = `
+            <div style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.22) 0%, rgba(168, 85, 247, 0.22) 100%); border: 1.5px solid #38bdf8; border-radius: 10px; padding: 18px 22px; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; box-shadow: 0 4px 20px rgba(56,189,248,0.22);">
+              <div style="flex: 1; min-width: 280px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                  <span style="font-size: 22px;">🌐</span>
+                  <span style="font-size: 15px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">3D Visual Analytics Manifold Active</span>
+                  <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;">INTERACTIVE CANVAS READY</span>
+                </div>
+                <div style="font-size: 12.5px; color: #cbd5e1; line-height: 1.45;">
+                  Multi-dimensional coordinates generated with PCA dimensionality reduction, polynomial elevation surface wireframe, K-Means clustering, and 4D/5D variable mapping.
+                </div>
+              </div>
+              <button id="btnSwitchTo3DFromDashboard" type="button" style="background: #38bdf8; color: #0b0f19; border: none; border-radius: 6px; padding: 10px 20px; font-size: 12.5px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(56,189,248,0.35); transition: transform 0.15s;">
+                🌐 Open 3D Data Manifold Canvas &rarr;
+              </button>
+            </div>
+          `;
+          dashHtml = manifoldHero + dashHtml;
+        }
+        return dashHtml;
       }
     }
 
@@ -23435,6 +25516,11 @@ function setupDataAnalysisStudio(api: any): void {
           <pre style="margin: 0; background: #070a0f; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 16px; overflow-x: auto; font-size: 12px; font-family: monospace; color: #9cdcfe; line-height: 1.5;"><code>${safeEscapeHtml(rawContent)}</code></pre>
         </div>
       `;
+    } else if (currentDeliverableType === 'manifold') {
+      docTitle = `3D Data Manifold & Topological Insights - ${currentDeliverableSourceTitle || 'Dataset'}`;
+      bodyHtml = activeDataScienceResult
+        ? renderDataScienceExecutiveDashboard(activeDataScienceResult)
+        : renderMarkdownToExecutiveHtml(rawContent);
     } else {
       docTitle = currentDeliverableType === 'insights' 
         ? `Executive Data Intelligence Insights - ${currentDeliverableSourceTitle || 'Dataset'}`
@@ -23494,12 +25580,24 @@ function setupDataAnalysisStudio(api: any): void {
         dataNotebookCodeBlock.textContent = content;
       }
       if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
+    } else if (type === 'manifold') {
+      if (dataHtmlIframeContainer) dataHtmlIframeContainer.style.display = 'none';
+      if (dataFormattedCardContainer) dataFormattedCardContainer.style.display = 'block';
+      if (dataNotebookContainer) dataNotebookContainer.style.display = 'none';
+      if (dataFormattedCardContent) {
+        dataFormattedCardContent.innerHTML = formatTextDeliverableToHtml(content, type);
+        const btnSwitch3D = document.getElementById('btnSwitchTo3DFromDashboard');
+        btnSwitch3D?.addEventListener('click', () => switchViewMode('3d'));
+      }
+      if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
     } else {
       if (dataHtmlIframeContainer) dataHtmlIframeContainer.style.display = 'none';
       if (dataFormattedCardContainer) dataFormattedCardContainer.style.display = 'block';
       if (dataNotebookContainer) dataNotebookContainer.style.display = 'none';
       if (dataFormattedCardContent) {
         dataFormattedCardContent.innerHTML = formatTextDeliverableToHtml(content, type);
+        const btnSwitch3D = document.getElementById('btnSwitchTo3DFromDashboard');
+        btnSwitch3D?.addEventListener('click', () => switchViewMode('3d'));
       }
       if (btnDataOpenBrowser) btnDataOpenBrowser.style.display = 'inline-flex';
     }
@@ -23511,6 +25609,8 @@ function setupDataAnalysisStudio(api: any): void {
         exportSourceOptionLabel.innerText = 'Save Markdown (.md)';
       } else if (type === 'profile') {
         exportSourceOptionLabel.innerText = 'Save Text Summary (.txt)';
+      } else if (type === 'manifold') {
+        exportSourceOptionLabel.innerText = 'Save 3D Point Cloud (.json)';
       } else if (type === 'report') {
         exportSourceOptionLabel.innerText = 'Save Raw HTML (.html)';
       } else {
@@ -23552,7 +25652,7 @@ function setupDataAnalysisStudio(api: any): void {
   const switchViewMode = (mode: 'preview' | '3d' | 'source') => {
     currentViewMode = mode;
     if (mode === 'preview') {
-      if (dataAnalysisSourceEditor && dataAnalysisSourceEditor.value !== currentDeliverableContent) {
+      if (dataAnalysisSourceEditor && currentDeliverableType !== 'manifold' && dataAnalysisSourceEditor.value !== currentDeliverableContent) {
         currentDeliverableContent = dataAnalysisSourceEditor.value;
         updateVisualPreview(currentDeliverableType, currentDeliverableContent);
       }
@@ -23599,9 +25699,22 @@ function setupDataAnalysisStudio(api: any): void {
       if (activeSingle3DEngine) {
         activeSingle3DEngine.resize();
         activeSingle3DEngine.draw();
+        setTimeout(() => {
+          activeSingle3DEngine?.resize();
+          activeSingle3DEngine?.draw();
+        }, 60);
       } else if (dataSingle3DCanvas && activeDataScienceResult?.points3D) {
         activeSingle3DEngine = new SingleDataset3DEngine(dataSingle3DCanvas, dataSingle3DTooltip);
-        activeSingle3DEngine.setData(activeDataScienceResult.points3D, activeDataScienceResult.axisLabels3D);
+        activeSingle3DEngine.setData(
+          activeDataScienceResult.points3D,
+          activeDataScienceResult.axisLabels3D,
+          activeDataScienceResult.columns,
+          activeDataScienceResult.rawRecords
+        );
+        setTimeout(() => {
+          activeSingle3DEngine?.resize();
+          activeSingle3DEngine?.draw();
+        }, 60);
       }
     } else {
       if (dataVisualPreviewPanel) dataVisualPreviewPanel.style.display = 'none';
@@ -23662,6 +25775,55 @@ function setupDataAnalysisStudio(api: any): void {
 
   btnSingle3DReset?.addEventListener('click', () => {
     activeSingle3DEngine?.resetView();
+  });
+
+  // Mode Selection
+  btnSingle3DModeScatter?.addEventListener('click', () => activeSingle3DEngine?.setMode('scatter'));
+  btnSingle3DModePca?.addEventListener('click', () => activeSingle3DEngine?.setMode('pca'));
+  btnSingle3DModeSurface?.addEventListener('click', () => activeSingle3DEngine?.setMode('surface'));
+  btnSingle3DModeKmeans?.addEventListener('click', () => activeSingle3DEngine?.setMode('kmeans'));
+
+  // Camera Presets
+  btnSingle3DCamFree?.addEventListener('click', () => activeSingle3DEngine?.setCameraPreset('free'));
+  btnSingle3DCamTop?.addEventListener('click', () => activeSingle3DEngine?.setCameraPreset('top'));
+  btnSingle3DCamFront?.addEventListener('click', () => activeSingle3DEngine?.setCameraPreset('front'));
+  btnSingle3DCamSide?.addEventListener('click', () => activeSingle3DEngine?.setCameraPreset('side'));
+
+  // Toggle Advanced Controls Drawer
+  btnSingle3DToggleControls?.addEventListener('click', () => {
+    if (dataSingle3DAdvancedControls) {
+      const isClosed = dataSingle3DAdvancedControls.style.display === 'none';
+      dataSingle3DAdvancedControls.style.display = isClosed ? 'block' : 'none';
+      btnSingle3DToggleControls.style.background = isClosed ? 'rgba(167,139,250,0.25)' : '';
+      btnSingle3DToggleControls.style.borderColor = isClosed ? '#a78bfa' : '';
+    }
+  });
+
+  // Snapshot & Export
+  btnSingle3DSnapshot?.addEventListener('click', () => activeSingle3DEngine?.exportSnapshotPng());
+  btnSingle3DExportData?.addEventListener('click', () => activeSingle3DEngine?.exportDataJson());
+
+  // Close Inspector Drawer
+  btnSingle3DCloseInspector?.addEventListener('click', () => {
+    const drawer = document.getElementById('dataSingle3DInspectorDrawer');
+    if (drawer) drawer.style.display = 'none';
+  });
+
+  // Dynamic Variable Mapping & Encoding Changes
+  [single3DSelectX, single3DSelectY, single3DSelectZ, single3DSelectColor, single3DSelectPalette, single3DSelectSize].forEach(el => {
+    el?.addEventListener('change', () => activeSingle3DEngine?.onControlChange());
+  });
+
+  // Outlier Sensitivity Slider
+  single3DSensitivitySlider?.addEventListener('input', (e) => {
+    const val = parseFloat((e.target as HTMLInputElement).value) || 1.5;
+    activeSingle3DEngine?.setOutlierThreshold(val);
+  });
+
+  // Search & Highlight Filter
+  single3DSearchInput?.addEventListener('input', (e) => {
+    const query = (e.target as HTMLInputElement).value || '';
+    activeSingle3DEngine?.setSearchQuery(query);
   });
 
   // Copy Deliverable
@@ -23873,6 +26035,9 @@ function setupDataAnalysisStudio(api: any): void {
     } else if (currentDeliverableType === 'report') {
       ext = 'html';
       mime = 'text/html';
+    } else if (currentDeliverableType === 'manifold') {
+      ext = 'json';
+      mime = 'application/json';
     }
 
     const safeTitle = (currentDeliverableSourceTitle || 'dataset').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
@@ -23905,9 +26070,7 @@ function setupDataAnalysisStudio(api: any): void {
 
     showToast('⚡ Analysing dataset...');
     if (api?.engines) {
-      const dropZone = document.getElementById('dataDropZone');
-      const selectedText = dropZone?.innerText || '';
-      const filePath = (!activeAnalysisDbTable && selectedText.includes('Selected: ')) ? selectedText.replace('📁 Selected: ', '').trim() : '';
+      const { filePath, dbTable } = getActiveDataStudioSource();
 
       const res = await api.engines.analyzeDataset({
         filePath,
@@ -23915,7 +26078,7 @@ function setupDataAnalysisStudio(api: any): void {
         focus: focusInput || 'General distribution and statistical anomalies',
         targetKpi,
         options: {
-          dbTable: activeAnalysisDbTable,
+          dbTable,
           targetKpi
         }
       });
@@ -23924,8 +26087,11 @@ function setupDataAnalysisStudio(api: any): void {
         currentDeliverableContent = res.summary;
         originalDeliverableContent = res.summary;
         currentDeliverableType = currentSelectedDeliverable;
-        currentDeliverableSourceTitle = res.datasetTitle || (activeAnalysisDbTable ? `${activeAnalysisDbTable.dialect?.toUpperCase()}: ${activeAnalysisDbTable.schema}.${activeAnalysisDbTable.tableName}` : (filePath ? filePath.split(/[\\/]/).pop() : 'Active Dataset'));
+        currentDeliverableSourceTitle = res.datasetTitle || (dbTable ? `${dbTable.dialect?.toUpperCase()}: ${dbTable.schema}.${dbTable.tableName}` : (filePath ? filePath.split(/[\\/]/).pop() : 'Built-in Demo: Supply Chain Operations'));
         activeDataScienceResult = res.analysisResult;
+        if (activeDataScienceResult && res.columns) {
+          activeDataScienceResult.columns = res.columns;
+        }
 
         resultsBox.style.display = 'block';
 
@@ -23940,6 +26106,9 @@ function setupDataAnalysisStudio(api: any): void {
           } else if (currentDeliverableType === 'profile') {
             dataDeliverableTitle.innerText = 'Schema & Column Profiling Matrix';
             if (dataDeliverableIcon) dataDeliverableIcon.innerText = '📋';
+          } else if (currentDeliverableType === 'manifold') {
+            dataDeliverableTitle.innerText = '3D Visual Analytics Manifold (PCA, Surface, K-Means)';
+            if (dataDeliverableIcon) dataDeliverableIcon.innerText = '🌐';
           } else {
             dataDeliverableTitle.innerText = 'Executive Data Intelligence Insights';
             if (dataDeliverableIcon) dataDeliverableIcon.innerText = '💬';
@@ -23947,11 +26116,13 @@ function setupDataAnalysisStudio(api: any): void {
         }
 
         if (dataDeliverableSourceBadge) {
-          dataDeliverableSourceBadge.innerText = currentDeliverableSourceTitle;
+          const isDemo = currentDeliverableSourceTitle.includes('Built-in Demo') || currentDeliverableSourceTitle.includes('Demo Benchmark');
+          dataDeliverableSourceBadge.innerText = isDemo ? '⚡ DEMO BENCHMARK: SUPPLY CHAIN' : currentDeliverableSourceTitle;
+          dataDeliverableSourceBadge.title = isDemo ? 'Built-in 60-row Supply Chain benchmark dataset (default when no file/table is selected).' : `Active dataset: ${currentDeliverableSourceTitle}`;
         }
 
         if (dataDeliverableFormatBadge) {
-          dataDeliverableFormatBadge.innerText = currentDeliverableType === 'report' ? '.HTML' : currentDeliverableType === 'notebook' ? '.PY' : currentDeliverableType === 'insights' ? '.MD' : '.TXT';
+          dataDeliverableFormatBadge.innerText = currentDeliverableType === 'report' ? '.HTML' : currentDeliverableType === 'notebook' ? '.PY' : currentDeliverableType === 'manifold' ? '.3D' : currentDeliverableType === 'insights' ? '.MD' : '.TXT';
         }
 
         // Update Studio Editor Document Header
@@ -23959,17 +26130,21 @@ function setupDataAnalysisStudio(api: any): void {
           if (currentDeliverableType === 'report') dataEditorDocTitle.innerText = 'executive_report.html';
           else if (currentDeliverableType === 'notebook') dataEditorDocTitle.innerText = 'data_analysis_script.py';
           else if (currentDeliverableType === 'profile') dataEditorDocTitle.innerText = 'schema_profiling.txt';
+          else if (currentDeliverableType === 'manifold') dataEditorDocTitle.innerText = '3d_data_manifold.json';
           else dataEditorDocTitle.innerText = 'data_scientist_insights.md';
         }
         if (dataEditorLangBadge) {
           if (currentDeliverableType === 'report') dataEditorLangBadge.innerText = 'HTML';
           else if (currentDeliverableType === 'notebook') dataEditorLangBadge.innerText = 'PYTHON';
           else if (currentDeliverableType === 'profile') dataEditorLangBadge.innerText = 'TEXT';
+          else if (currentDeliverableType === 'manifold') dataEditorLangBadge.innerText = 'JSON';
           else dataEditorLangBadge.innerText = 'MARKDOWN';
         }
 
         if (dataAnalysisSourceEditor) {
-          dataAnalysisSourceEditor.value = currentDeliverableContent;
+          dataAnalysisSourceEditor.value = currentDeliverableType === 'manifold' && activeDataScienceResult?.points3D
+            ? JSON.stringify(activeDataScienceResult.points3D, null, 2)
+            : currentDeliverableContent;
           updateEditorStats();
         }
 
@@ -23986,15 +26161,26 @@ function setupDataAnalysisStudio(api: any): void {
           if (!activeSingle3DEngine) {
             activeSingle3DEngine = new SingleDataset3DEngine(dataSingle3DCanvas, dataSingle3DTooltip);
           }
-          activeSingle3DEngine.setData(res.analysisResult.points3D, res.analysisResult.axisLabels3D);
+          activeSingle3DEngine.setData(
+            res.analysisResult.points3D,
+            res.analysisResult.axisLabels3D,
+            res.columns,
+            res.analysisResult.rawRecords
+          );
         }
 
-        // Render visual preview and activate preview tab
+        // Render visual preview and activate appropriate tab
         updateVisualPreview(currentDeliverableType, currentDeliverableContent);
-        switchViewMode('preview');
+        if (currentDeliverableType === 'manifold') {
+          switchViewMode('3d');
+        } else {
+          switchViewMode('preview');
+        }
 
         resultsBox.scrollIntoView({ behavior: 'smooth' });
-        showToast('✓ Analysis deliverable generated and ready for review!');
+        showToast(currentDeliverableType === 'manifold'
+          ? '🌐 3D Visual Analytics Manifold generated and ready!'
+          : '✓ Analysis deliverable generated and ready for review!');
       }
     }
   });
@@ -24020,8 +26206,46 @@ async function refreshWorkspaceDataFiles(api: any): Promise<void> {
         const p = btn.getAttribute('data-path');
         const dropZone = document.getElementById('dataDropZone');
         if (dropZone && p) {
-          dropZone.innerText = `📁 Selected: ${p}`;
-          showToast(`✓ Selected: ${btn.textContent?.trim()}`);
+          activeAnalysisDbTable = null;
+          const cardConnectDb = document.getElementById('cardConnectDbSource');
+          if (cardConnectDb) {
+            cardConnectDb.classList.remove('active');
+            cardConnectDb.style.borderColor = '';
+            cardConnectDb.style.background = '';
+          }
+          container.querySelectorAll('.ws-data-file-chip').forEach(b => {
+            (b as HTMLElement).style.borderColor = '';
+            (b as HTMLElement).style.background = '';
+            (b as HTMLElement).style.color = '';
+            b.classList.remove('active');
+          });
+          btn.classList.add('active');
+          (btn as HTMLElement).style.borderColor = 'var(--accent)';
+          (btn as HTMLElement).style.background = 'rgba(56, 189, 248, 0.18)';
+          (btn as HTMLElement).style.color = '#38bdf8';
+
+          const fileName = p.split(/[\\/]/).pop() || p;
+          dropZone.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 0;">
+              <span style="font-size: 24px;">📊</span>
+              <div style="text-align: left;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff;">
+                  Active Dataset: <span style="color: var(--accent); font-family: monospace;">${fileName}</span>
+                  <span class="brand-pill" style="margin-left: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 10px;">WORKSPACE FILE</span>
+                </div>
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px; font-family: monospace;">${p}</div>
+              </div>
+            </div>
+          `;
+          (dropZone as any)._selectedFilePath = p;
+          dropZone.style.borderColor = '';
+          dropZone.style.background = '';
+
+          const kpiSelect = document.getElementById('dataTargetKpiSelect') as HTMLSelectElement;
+          if (kpiSelect) {
+            kpiSelect.innerHTML = '<option value="">Auto-Detect Primary KPI</option>';
+          }
+          showToast(`✓ Selected workspace dataset: ${fileName}`);
         }
       });
     });
@@ -26128,6 +28352,9 @@ function setupDataCosmosStudio(api: any): void {
 
       <!-- FDE Engineering Action Handoffs -->
       <div style="display: flex; flex-direction: column; gap: 6px;">
+        <button class="btn" id="btnInspector3DManifold_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(167,139,250,0.3)); color: #38bdf8; border: 1px solid #38bdf8; font-weight: 700; font-size: 11px; padding: 7px 10px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(56,189,248,0.25);" title="Open table directly in the 3D Data Manifold with PCA, Topological Mesh, and K-Means Clustering">
+          🌐 Open in 3D Data Manifold (PCA, Surface, K-Means)
+        </button>
         <button class="btn" id="btnInspectorSendStaging_${isPhase2 ? 'p2' : 'data'}" style="width: 100%; background: #10b981; color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer;">
           🚀 Send to Phase 2 Staging Mapper
         </button>
@@ -26316,6 +28543,20 @@ function setupDataCosmosStudio(api: any): void {
         martName.value = `fct_${node.name}_daily`;
       }
       showToast(`✓ Spotlight: Base model set to '${node.name}' for Mart Builder!`);
+    });
+
+    // Wire Open in 3D Data Manifold
+    const btn3DManifold = document.getElementById(`btnInspector3DManifold_${isPhase2 ? 'p2' : 'data'}`);
+    btn3DManifold?.addEventListener('click', () => {
+      if ((window as any).loadTableInDataStudio) {
+        (window as any).loadTableInDataStudio(node.name, node);
+        setTimeout(() => {
+          const manifoldPill = document.querySelector('.deliverable-pill[data-d="manifold"]') as HTMLElement;
+          manifoldPill?.click();
+          const btnLaunch = document.getElementById('btnLaunch3DManifoldDirect') || document.getElementById('btnExecuteDataAnalysis');
+          btnLaunch?.click();
+        }, 150);
+      }
     });
 
     // Wire Analyze in Data Studio
@@ -30162,7 +32403,17 @@ function setupModals(api: any): void {
       if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'none';
 
       if (targetTab) {
-        switchActivityTab(targetTab);
+        if (targetTab === 'quality') {
+          switchActivityTab('quality', api);
+          showToast('🚀 Navigated to Enterprise Data Quality & Schema Drift Gates (Section 5D)');
+          return;
+        }
+        if (targetTab === 'dbt-marts') {
+          switchActivityTab('dbt-marts', api);
+          showToast('🚀 Navigated to Phase 2: Ingestion & dbt Dimensional Marts');
+          return;
+        }
+        switchActivityTab(targetTab, api);
         showToast(`🚀 Navigated to ${targetTab.toUpperCase()} Studio`);
       } else if (targetSettings) {
         const btnOpenSettings = document.getElementById('btnOpenSettings');
