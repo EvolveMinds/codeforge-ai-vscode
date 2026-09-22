@@ -1005,7 +1005,21 @@
               <button class="btn-quick" id="btnNewEngagement" style="color: var(--accent); font-weight: bold;" aria-label="+ New Project">+ New Project</button>
               <button class="btn-quick" id="btnResetEngagement" aria-label="Reset / Redo">🔄 Reset / Redo</button>
             </div>
-            <div style="display: flex; gap: 14px; color: var(--text-secondary); font-size: 11.5px; flex-wrap: wrap;">
+            <div style="display: flex; gap: 14px; color: var(--text-secondary); font-size: 11.5px; flex-wrap: wrap; align-items: center;">
+              <!--
+                DEMO vs LIVE. Every generated document is stamped with this, and
+                in DEMO carries a banner marking it as not a client deliverable.
+                Defaults to DEMO so nothing can be mistaken for real evidence.
+              -->
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-weight: 700; font-size: 11px;">MODE:</span>
+                <button type="button" id="btnStudioMode"
+                  title="Switch between DEMO (sample data, documents watermarked) and LIVE (real client engagement)"
+                  aria-label="Toggle Studio mode between DEMO and LIVE"
+                  style="background: rgba(234,179,8,0.18); color: #facc15; border: 1px solid #eab308; border-radius: 4px; padding: 3px 10px; font-size: 11px; font-weight: 800; cursor: pointer; letter-spacing: .04em;">
+                  ⚠️ DEMO
+                </button>
+              </span>
               <span>Target VPC: <strong id="lblTargetVpc" style="color: var(--accent);">gcp-firebase</strong></span>
               <span>Artifacts: <strong id="lblArtifactCount" style="color: #fff;">0 models, 0 marts, 0 APIs</strong></span>
             </div>
@@ -2144,6 +2158,33 @@
                         <option value="basic">HTTP Basic Auth</option>
                         <option value="none">None / Public</option>
                       </select>
+                    </div>
+                  </div>
+                  <!--
+                    Resilience controls. ApiConnectorOptions has always accepted
+                    maxRetries / timeoutMs / rateLimitPerSec, and the section
+                    header advertises backoff and rate limiting, but there was
+                    no way to set any of them — every generated SDK silently
+                    took the defaults.
+                  -->
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px;">
+                    <div>
+                      <label for="connMaxRetries" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Max Retries</label>
+                      <input type="number" id="connMaxRetries" min="0" max="10" value="3"
+                        title="Retry attempts for retryable failures, with exponential backoff and jitter."
+                        style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
+                    </div>
+                    <div>
+                      <label for="connTimeoutMs" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Timeout (ms)</label>
+                      <input type="number" id="connTimeoutMs" min="500" max="120000" step="500" value="15000"
+                        title="Per-request timeout in milliseconds."
+                        style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
+                    </div>
+                    <div>
+                      <label for="connRateLimit" style="font-size: 10.5px; color: var(--text-secondary); font-weight: 600;">Rate Limit (req/s)</label>
+                      <input type="number" id="connRateLimit" min="0" max="1000" value="0" placeholder="0 = unlimited"
+                        title="Client-side request ceiling per second. 0 disables the limiter."
+                        style="width: 100%; margin-top: 3px; padding: 5px 8px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
                     </div>
                   </div>
 

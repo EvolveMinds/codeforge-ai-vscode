@@ -2138,12 +2138,67 @@ function setupEngagementManager(api: any): void {
 
   const renderEngagementOptions = () => {
     if (!selEngagement) return;
-    selEngagement.innerHTML = activeProjects.map(p => 
+    selEngagement.innerHTML = activeProjects.map(p =>
       `<option value="${p.id}">🏢 ${p.name} (${p.targetVpc})</option>`
     ).join('');
   };
 
   renderEngagementOptions();
+
+  /* ---------------------------------------------------------------
+   * DEMO / LIVE mode
+   *
+   * DEMO means the Studio is being driven from built-in sample data for a
+   * pitch; LIVE means a real client engagement. The distinction matters
+   * because every generated document is stamped with it — in DEMO they carry
+   * a banner saying they are not a deliverable. Switching to LIVE is the
+   * deliberate act of saying "what follows is real", so it is confirmed.
+   * ------------------------------------------------------------- */
+  const btnStudioMode = document.getElementById('btnStudioMode');
+  let studioMode: 'DEMO' | 'LIVE' = 'DEMO';
+
+  const paintStudioMode = () => {
+    if (!btnStudioMode) return;
+    const demo = studioMode === 'DEMO';
+    btnStudioMode.textContent = demo ? '⚠️ DEMO' : '🟢 LIVE';
+    btnStudioMode.style.background = demo ? 'rgba(234,179,8,0.18)' : 'rgba(16,185,129,0.18)';
+    btnStudioMode.style.color = demo ? '#facc15' : '#10b981';
+    btnStudioMode.style.borderColor = demo ? '#eab308' : '#10b981';
+    btnStudioMode.title = demo
+      ? 'DEMO: sample data. Generated documents are watermarked "not a client deliverable". Click to switch to LIVE.'
+      : 'LIVE: real client engagement. Generated documents are unwatermarked. Click to switch back to DEMO.';
+  };
+
+  void (async () => {
+    try {
+      const st = await api?.fde?.getState?.();
+      if (st?.studioMode === 'LIVE') studioMode = 'LIVE';
+    } catch {}
+    paintStudioMode();
+  })();
+
+  btnStudioMode?.addEventListener('click', async () => {
+    const next: 'DEMO' | 'LIVE' = studioMode === 'DEMO' ? 'LIVE' : 'DEMO';
+    if (next === 'LIVE') {
+      const ok = confirm(
+        'Switch to LIVE mode?\n\n' +
+        'Documents generated in LIVE mode are presented as real client deliverables: ' +
+        'they lose the "demonstration artifact" banner.\n\n' +
+        'Only do this for a real engagement, working from real data.'
+      );
+      if (!ok) return;
+    }
+    studioMode = next;
+    paintStudioMode();
+    const res = await api?.fde?.setStudioMode?.(next);
+    if (res && res.success === false) {
+      showToast(`⚠️ Mode changed for this session only — could not persist: ${res.error}`);
+      return;
+    }
+    showToast(next === 'LIVE'
+      ? '🟢 LIVE mode — generated documents are now unwatermarked client deliverables.'
+      : '⚠️ DEMO mode — generated documents are watermarked as demonstration artifacts.');
+  });
 
   selEngagement?.addEventListener('change', () => {
     const selected = activeProjects.find(p => p.id === selEngagement.value);
@@ -8115,6 +8170,21 @@ function setupDeliveryStudio(api: any): void {
     const safe = raw.replace(/[^A-Za-z0-9_-]/g, '');
     return safe.length > 0 ? safe : 'ClientApi';
   };
+
+  /** Resilience settings the generator accepts but the UI could not set. */
+  const sdkResilience = () => {
+    const num = (id: string, fallback: number) => {
+      const v = parseInt((document.getElementById(id) as HTMLInputElement)?.value ?? '', 10);
+      return Number.isFinite(v) && v >= 0 ? v : fallback;
+    };
+    const rate = num('connRateLimit', 0);
+    return {
+      maxRetries: num('connMaxRetries', 3),
+      timeoutMs: num('connTimeoutMs', 15000),
+      // 0 in the box means "no limiter", which the generator expresses as undefined.
+      rateLimitPerSec: rate > 0 ? rate : undefined
+    };
+  };
   const btnScaffoldTsSdk = document.getElementById('btnScaffoldTsSdk');
   const btnScaffoldPySdk = document.getElementById('btnScaffoldPySdk');
   const btnTestApiPing = document.getElementById('btnTestApiPing');
@@ -8239,6 +8309,7 @@ function setupDeliveryStudio(api: any): void {
         serviceName: sdkConnectorName(),
         baseUrl: connBaseUrlInput.value || 'https://api.client-vpc.internal/v1',
         authType: (connAuthTypeSelect?.value as any) || 'none',
+        ...sdkResilience(),
         targetLanguage: 'typescript',
         endpoints: effectiveEndpoints()
       });
@@ -8272,6 +8343,7 @@ function setupDeliveryStudio(api: any): void {
         serviceName: sdkConnectorName(),
         baseUrl: connBaseUrlInput.value || 'https://api.client-vpc.internal/v1',
         authType: (connAuthTypeSelect?.value as any) || 'none',
+        ...sdkResilience(),
         targetLanguage: 'python',
         endpoints: effectiveEndpoints()
       });
