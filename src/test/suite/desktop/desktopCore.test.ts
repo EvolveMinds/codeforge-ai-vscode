@@ -466,7 +466,10 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.strictEqual(validGroundedRes.isGrounded, true);
     assert.ok(validGroundedRes.groundednessScorePct >= 65);
     assert.ok(validGroundedRes.auditSignature !== null);
-    assert.ok(validGroundedRes.auditSignature.startsWith('ed25519_sig_'));
+    // A SHA-256 content digest, not a signature: there is no keypair, so the
+    // old 'ed25519_sig_' prefix claimed a guarantee the product cannot provide.
+    assert.ok(validGroundedRes.auditSignature.startsWith('sha256:'));
+    assert.strictEqual(validGroundedRes.cryptographicallySigned, false);
 
     // Groundedness Violation scenario (ungrounded hallucinated claim)
     const violationGroundedRes = await verifyGroundedFn(null, {

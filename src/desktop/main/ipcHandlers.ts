@@ -4662,7 +4662,7 @@ export class GroundedPolicyRag {
       citations,
       groundednessScore: score,
       verifiedGrounded: isGrounded,
-      auditSignature: "ed25519_rag_sig_" + Date.now()
+      auditDigest: "sha256:" + require("crypto").createHash("sha256").update(JSON.stringify(citations)).digest("hex").slice(0, 32)
     };
   }
 }
