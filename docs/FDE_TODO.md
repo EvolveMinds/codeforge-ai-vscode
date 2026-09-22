@@ -1,7 +1,8 @@
-# FDE Delivery Studio — Outstanding Work
+# Evolve AI — Outstanding Work
 
-> Tracked follow-ups from the six-phase design audit (2026-09-22).
-> Everything else from that audit is implemented on `fix/fde-honest-mode`.
+> Tracked follow-ups from the six-phase FDE design audit (2026-09-22), plus
+> release/distribution items raised alongside it. Everything else from that
+> audit shipped in v2.25.0.
 
 ---
 
@@ -115,6 +116,76 @@ different shape from the outbound SDK generator already there.
 If this is not wanted soon, retitle Section 2B to "Resilient Client API Studio"
 and drop "Webhooks" from the step label. Removing the claim is a ten-minute
 change and is more honest than leaving it unbuilt.
+
+---
+
+## TODO 3 — Code-sign the Windows desktop EXE
+
+**Status:** Not started. **Priority:** High for enterprise sales — low for the
+code itself. **Raised:** 2026-09-22, deferred for v2.25.0.
+
+### The problem
+
+Every desktop release shipped so far is **unsigned** — verified across
+2.20.0 through 2.24.0, all report `NotSigned`. Windows therefore cannot tell
+whether the binary came from Evolve Mind Solutions or from someone
+impersonating us, and it has no way to detect tampering after we built it.
+
+This is unrelated to the Ed25519 licensing inside the app. That verifies
+*licences*; code signing verifies *the executable* to the operating system,
+before any of our code runs.
+
+### What customers hit today
+
+| | Unsigned (today) | Signed |
+|---|---|---|
+| First launch | "Windows protected your PC" SmartScreen prompt; needs *More info → Run anyway* | Runs directly |
+| Publisher shown | "Unknown publisher" | "Evolve Mind Solutions Pty Ltd" |
+| Corporate AV / EDR | Often quarantined | Usually passes |
+| Locked-down SOE | Frequently **blocked by policy, no user override** | Allowed |
+| Admin rights required | **No** | **No** |
+
+The last row matters: the download page's claim "Standard User (No
+administrator rights required)" is **unaffected** by signing and remains true.
+
+The real exposure is our own target market. We sell to banking, defence and
+air-gapped enterprise — precisely the organisations that run application
+allow-listing, where an unsigned binary from an unknown publisher is silently
+blocked with no "Run anyway" option. An FDE arrives on a client laptop and the
+product simply will not start, and it looks like our software is broken rather
+than like a policy decision.
+
+### Options
+
+| Option | Cost | Clears SmartScreen | Notes |
+|---|---|---|---|
+| **Azure Trusted Signing** | ~US$9.99/mo (~A$180/yr) | Yes | No hardware token. **Requires the business to be 3+ years old** — check the ABN registration date first, as this is much the cheapest route if we qualify. |
+| **EV certificate** | ~A$600–1,200/yr | Immediately | Hardware token required |
+| **OV certificate** | ~A$300–600/yr | After reputation builds (weeks) | Hardware token required |
+| Self-signed | Free | **No** | Windows does not trust the issuer, so SmartScreen and allow-listing still block it. Arguably worse than unsigned: it looks solved and stops anyone revisiting it. |
+| SignPath Foundation | Free | Yes | **Open-source projects only** — the Enterprise Edition is proprietary, so we do not qualify. |
+
+There is no free option that clears SmartScreen for proprietary commercial
+software. All certificates have required hardware key storage since June 2023,
+so there is a physical cost floor regardless of CA.
+
+### Interim mitigations (free, and worth doing regardless)
+
+1. **Publish SHA-256 checksums** with every release, on the download page and
+   in the GitHub release body, so a security-conscious client can verify the
+   binary is exactly what we built. This is the honest substitute for a
+   signature and matches the posture we already sell.
+2. **Document the first-launch SmartScreen prompt** on the download page. A
+   warning we predicted reads as professionalism; an unexpected one reads as
+   malware.
+3. **Submit the EXE to Microsoft** via the Defender submission portal as a
+   false positive. Reduces AV quarantining; does not clear SmartScreen.
+
+### Next action
+
+Check when Evolve Mind Solutions Pty Ltd was registered. 3+ years → pursue
+Azure Trusted Signing and stop looking. Under 3 years → plan for an OV/EV
+certificate and rely on the mitigations above meanwhile.
 
 ---
 
