@@ -1,5 +1,5 @@
 # 📦 Client Pilot Engagement — Complete Engagement Handoff Bundle
-> **Generated on:** 2026-09-20  
+> **Generated on:** 2026-09-21  
 > **Prepared by:** Forward Deployed Engineering Studio (Evolve AI)  
 
 ---
@@ -15,17 +15,17 @@
 
 ## 1. Executive Problem Reframing & Economic Boundaries (Phase 1)
 
-* **Original Client Request:** "Build an AI that automates all customer support tickets and refunds so we do not need human agents."
-* **Identified Failure Modes:** Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.
-* **Agreed Production Target (Observation-to-Spec / O2S):** Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.
-* **Explicit Out-of-Scope Boundaries:** `No automated refunds > $100 without Human-in-the-Loop gate`, `No direct external customer email dispatch in pilot phase`, `No DB write access without cryptographically signed audit logging`, `No ungrounded responses (must cite handbook)`
+* **Original Client Request:** "Automate client manual workflow and data operations"
+* **Identified Failure Modes:** Direct LLM hallucination in strict arithmetic tasks, schema drift, ungrounded external calls.
+* **Agreed Production Target (Observation-to-Spec / O2S):** Deterministic staging models, compiled SQL rule gates, and air-gapped policy citations.
+* **Explicit Out-of-Scope Boundaries:** `No direct production write access without cryptographically signed audit log`, `No ungrounded responses or unverified external API mutations`
 
 ### Controller's Three Numbers & Economic ROI (Phase 1)
-* **Monthly Volume:** `10,000 tasks/mo`
-* **Handle Time / Latency:** `15 min/task`
-* **Fully-Burdened Wage:** `$35/hr`
-* **Projected Monthly Savings:** `$61.2k / month`
-* **Annual Capacity Reclaimed:** `21,000 labor hours/year`
+* **Monthly Volume:** `0 tasks/mo`
+* **Handle Time / Latency:** `0 min/task`
+* **Fully-Burdened Wage:** `$0/hr`
+* **Projected Monthly Savings:** `$0.0k / month`
+* **Annual Capacity Reclaimed:** `0 labor hours/year`
 
 
 ---
@@ -223,10 +223,10 @@ Configure all secrets under GitHub Actions / GitLab CI pipeline settings before 
 ---
 
 ### [0:00 - 1:00] Slide 1: The Business Problem & The Controller's 3 Numbers
-* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Build an AI that automates all customer support tickets and refunds so we do not need human agents.'*.
+* **Speaker:** "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: *'Automate our manual workflow with AI'*.
 * Most AI vendors would build a generic chatbot that hallucinates numbers. Instead, we started by **refusing that ask** and calculating your exact economics with your Controller.
-* You process **10,000 tasks a month**, taking **15 minutes each**, at an average cost of **$35/hr**.
-* By implementing deterministic automation with zero hallucinations, this system reclaims **1,750 hours/month** and delivers **$61.2k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
+* You process **0 tasks a month**, taking **15 minutes each**, at an average cost of **$35/hr**.
+* By implementing deterministic automation with zero hallucinations, this system reclaims **0 hours/month** and delivers **$0.0k/month in hard savings**, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."
 
 ---
 

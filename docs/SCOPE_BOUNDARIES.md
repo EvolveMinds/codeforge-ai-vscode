@@ -1,48 +1,43 @@
 # Discovery Scope Boundaries & Controller's ROI Summary
 **Client Engagement**: Client Pilot Engagement
-**Engagement Archetype**: Support Operations Copilot (Tier 1-2 Deflection)
-**Updated**: 2026-09-16T10:05:25.566Z
+**Engagement Archetype**: Custom Engagement
+**Updated**: 2026-09-21T09:45:18.222Z
 
 ---
 
 ## 1. Ground-Truth Discovery & Observation-to-Spec (O2S)
 * **Delivery Standard**: MEDIUM
-* **Raw Client Request**: Build an AI that automates all customer support tickets and refunds so we do not need human agents.
-* **Floor Observations & Shadow IT**: • Shadow IT: Agents keep 40+ personal text snippets in Notepad and message colleagues in Slack for policy interpretations.
-• Process Reality: 65% of tickets are repetitive status queries ("Where is my order?"), while agents spend 12 mins researching complex exceptions.
-• Risk Observed: Customers frequently paste aggressive prompts attempting to trigger auto-replies with discount codes.
-* **Operational Risk & Failure Modes**: Full automation of refunds introduces critical financial exploit vectors and chargeback fraud. Unbounded generation without human gates risks compliance breach and brand reputation.
-* **Agreed Production Target**: Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.
+* **Raw Client Request**: Pending user input
+* **Floor Observations & Shadow IT**: Direct operator shadow IT and manual workarounds
+* **Operational Risk & Failure Modes**: Pending risk analysis
+* **Agreed Production Target**: Pending reframed goal
 
 ### Diagnostic Gemba Inquiry Probes
-- [x] **[Failure Mode]** How do you prevent adversarial customers from using prompt injection to extract refunds or concessions?
-- [x] **[Shadow IT]** What undocumented canned responses, macro shortcuts, or team Slack channels do support agents rely on?
-- [x] **[Exception Iceberg]** What fraction of incoming tickets are simple status queries vs complex billing disputes?
-- [x] **[Regulatory Gate]** Who has authority to grant SLA credits or policy exceptions, and what threshold requires supervisor sign-off?
+- [x] **[Shadow IT]** What manual workarounds, personal spreadsheets, or unofficial channels bypass the official system?
+- [x] **[Failure Mode]** What is the absolute worst-case outcome if this automated workflow executes incorrect actions?
+- [x] **[Exception Iceberg]** What proportion of inputs do not follow the declared standard process, and who handles them today?
+- [x] **[Regulatory Gate]** What compliance frameworks, audit log requirements, or legal constraints govern this workflow?
 
 ### First-Principles Invariant Gates
 | Naive Client Assumption | Fundamental Physics / Constraint | Hard Invariant |
 | :--- | :--- | :--- |
-| LLM can read emails and autonomously send replies to customers | Untrusted user input can contain prompt injection attacks and hallucinate legally binding promises | Zero autonomous dispatch: human agent 1-click confirmation required for all customer communications |
-| Use large LLM for every inbound ticket triage | Large LLMs incur 1500ms latency and high compute cost for trivial status lookups | Sub-30ms deterministic intent router; routine status routed to compiled DB lookup (<10ms) |
-| Copilot can draft answers from open web or arbitrary training weights | Generates outdated return policies and incorrect SLA commitments | Strict grounding: copilot answers only from versioned, approved support knowledge base |
+| Full autonomous automation can replace human operators on Day 1 | Edge-case entropy and real-world variance make unconstrained end-to-end automation brittle | Deterministic core for repeatable rules + Human-in-the-Loop approval gate for variance exceptions |
+| Probabilistic AI outputs can directly mutate operational databases | AI hallucination rate > 0% creates creeping data corruption without cryptographically verified provenance | Zero direct database writes from generative models without schema validation and signed audit trails |
 
 ---
 
 ## 2. Dynamic Out-of-Scope Boundary Locks
-- [x] **LOCKED**: No automated refunds > $100 without Human-in-the-Loop gate
-- [x] **LOCKED**: No direct external customer email dispatch in pilot phase
-- [x] **LOCKED**: No DB write access without cryptographically signed audit logging
-- [x] **LOCKED**: No ungrounded responses (must cite handbook)
+- [x] **LOCKED**: No direct production write access without cryptographically signed audit log
+- [x] **LOCKED**: No ungrounded responses or unverified external API mutations
 
 ---
 
 ## 3. The Controller's Three Numbers (Financial ROI)
-* **Monthly Workflow Volume**: 10,000 units/mo
-* **Average Handle Time**: 15 mins
-* **Operator Hourly Wage**: $35/hr
-* **Reclaimed Labor Capacity**: 1,750 hrs/mo (~13.0 FTEs)
+* **Monthly Workflow Volume**: 0 units/mo
+* **Average Handle Time**: 0 mins
+* **Operator Hourly Wage**: $0/hr
+* **Reclaimed Labor Capacity**: 0 hrs/mo (~0.0 FTEs)
 
-**Estimated monthly saving: $63,700 - $95,550** (expected $79,625/mo / $955,500/yr)
+**Estimated monthly saving: $0 - $0** (expected $0/mo / $0/yr)
 
-Basis: 1,750 hrs/mo reclaimed at 70% automation, costed at $35/hr x 1.3 loaded multiplier ($45.50/hr loaded), with a +/-20% confidence band. These are estimates built on the assumptions above, not measured results.
+Basis: 0 hrs/mo reclaimed at 70% automation, costed at $0/hr x 1.3 loaded multiplier ($0.00/hr loaded), with a +/-20% confidence band. These are estimates built on the assumptions above, not measured results.
