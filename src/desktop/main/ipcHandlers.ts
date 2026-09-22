@@ -5732,7 +5732,10 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
       minThreshold?: number;
     }) => {
       const claim = (req?.generatedClaim || 'Refund requests under $100 are automatically processed according to section 4.2 of the Merchant Policy.').trim();
-      const minThreshold = typeof req?.minThreshold === 'number' && !isNaN(req.minThreshold) ? req.minThreshold : 65.0;
+      // 75 matches the renderer's default strictness. These disagreed (65 here,
+      // 75 there), so the same claim could pass or fail depending on which path
+      // evaluated it.
+      const minThreshold = typeof req?.minThreshold === 'number' && !isNaN(req.minThreshold) ? req.minThreshold : 75.0;
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
       const auditDir = path.join(cwd, 'audit');

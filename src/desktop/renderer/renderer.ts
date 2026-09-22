@@ -2415,6 +2415,12 @@ function switchDeliveryPhase(phase: number): void {
     const api = (window as any).evolveApi;
     if (api) refreshGitStatus(api);
   }
+
+  // Remember where the FDE is. Free navigation between phases is deliberate
+  // (see the note above), but the position was never persisted, so every
+  // restart dropped the engagement back to Phase 1 with no record of progress.
+  const evolveApi = (window as any).evolveApi;
+  void evolveApi?.fde?.savePhaseState?.({ key: 'activePhase', data: phase, merge: false });
 }
 
 /* ============================================================================
@@ -10919,7 +10925,9 @@ function setupDeliveryStudio(api: any): void {
         pane.style.display = isCur ? 'block' : 'none';
       }
     });
-    hasRunEnterpriseModule = true;
+    // Switching tabs is not running anything. This used to mark step 5D
+    // complete on any of the 8 module buttons being clicked; the flag is now
+    // set by the individual module handlers when they actually execute.
     refreshP5Rail?.();
   };
 
@@ -11602,18 +11610,26 @@ function setupDeliveryStudio(api: any): void {
     switchDeliveryPhase(4);
     const selArch = (document.getElementById('selFdeArchetype') as HTMLSelectElement)?.value || 'custom';
     const txtClaim = document.getElementById('txtGroundedClaim') as HTMLTextAreaElement;
-    if (txtClaim) {
-      if (selArch === 'fin-reconcile') {
-        txtClaim.value = 'Refund requests under $100 are automatically processed according to section 4.2 of Merchant Policy.';
-      } else if (selArch === 'health-records') {
-        txtClaim.value = 'De-identified clinical notes adhere to HIPAA Safe Harbor §164.514 guideline citation SOP-84.';
-      } else if (selArch === 'support-copilot') {
-        txtClaim.value = 'Tier-1 ticket responses strictly cite product knowledge base documentation §2.1.';
-      } else if (selArch === 'supply-chain') {
-        txtClaim.value = 'Carrier delay exceptions under 48 hours are automatically rerouted per SLA agreement §5.3.';
-      }
+    // Seed only an empty box. This used to overwrite whatever the FDE had
+    // already written every time they re-entered Phase 4.
+    if (txtClaim && !txtClaim.value.trim()) {
+      const seeds: Record<string, string> = {
+        'fin-reconcile': 'Refund requests under $100 are automatically processed according to section 4.2 of Merchant Policy.',
+        'health-records': 'De-identified clinical notes adhere to HIPAA Safe Harbor §164.514 guideline citation SOP-84.',
+        'support-copilot': 'Tier-1 ticket responses strictly cite product knowledge base documentation §2.1.',
+        'supply-chain': 'Carrier delay exceptions under 48 hours are automatically rerouted per SLA agreement §5.3.'
+      };
+      if (seeds[selArch]) txtClaim.value = seeds[selArch];
     }
-    showToast('🚀 Advancing to Phase 4: Reliability & Evals...');
+    // Phase 4 evaluates whatever Phase 3 chose, so tell the FDE which pattern
+    // is under test. The seed above keys off the Phase 1 *industry* archetype
+    // and is unrelated to the retrieval architecture.
+    const ragName = RAG_ARCHITECTURES[selectedRagArchKey]
+      ? `${RAG_ARCHITECTURES[selectedRagArchKey].num} ${RAG_ARCHITECTURES[selectedRagArchKey].name}`
+      : null;
+    showToast(ragName
+      ? `🚀 Phase 4: Reliability & Evals — evaluating ${ragName}`
+      : '🚀 Advancing to Phase 4: Reliability & Evals...');
   });
 
   document.getElementById('btnAdvancePhase5')?.addEventListener('click', () => {
@@ -16565,6 +16581,19 @@ export class SovereignSwarmOrchestrator {
     populateGateEditorFromState(activeGateState);
     showToast(`✓ Evaluated Gate: ${activeGateState.paradigm}`);
     hasEvaluatedRuleModelGate = true;
+
+    // Persist the verdict. 3B computes the single most defensible architectural
+    // decision in the engagement and used to return it without recording it
+    // anywhere, so the client documents could not cite what was decided or why.
+    const lvl = String(activeGateState.level || '');
+    void api?.fde?.savePhaseState?.({
+      key: 'aiSolution',
+      data: {
+        ruleVsModelVerdict: lvl.includes('+') ? 'hybrid' : (lvl === '1' ? 'rule' : 'model'),
+        ruleVsModelRationale: activeGateState.rationale,
+        ruleModelParadigm: activeGateState.paradigm
+      }
+    });
     refreshP3Rail();
   });
 
@@ -21481,7 +21510,8 @@ def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDec
 
     startHitlSlaTimer();
     showToast(`👤 Work Item ${txId} loaded into Decision Station`);
-    hasSimulatedHitl = true;
+    // Loading a work item is not deciding one. 4C is complete when a decision
+    // is recorded (see recordHitlDecision), not when the station is populated.
     refreshP4Rail?.();
   });
 
@@ -21491,7 +21521,9 @@ def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDec
     const amount = parseFloat((document.getElementById('txtHitlTxAmount') as HTMLInputElement)?.value || '0');
     const customer = (document.getElementById('txtHitlTxCustomer') as HTMLInputElement)?.value || 'Lead-Analyst-Agent';
     const supervisor = (document.getElementById('selHitlSupervisor') as HTMLSelectElement)?.value || 'AI-SAFETY-OFFICER';
-    const secondSupervisor = (document.getElementById('selHitlSecondSupervisor') as HTMLSelectElement)?.value || 'DIR-RISK-01';
+    // No fallback: an unset second supervisor must not be silently named in a
+    // dual-control record. Callers that require one validate before arriving here.
+    const secondSupervisor = ((document.getElementById('selHitlSecondSupervisor') as HTMLSelectElement)?.value || '').trim();
     const ceiling = getHitlCeilingValue();
     const reason = (document.getElementById('txtHitlTxReason') as HTMLInputElement)?.value || 'Policy check';
     const notesInput = (document.getElementById('txtHitlSupervisorNotes') as HTMLInputElement)?.value?.trim();
@@ -21499,7 +21531,18 @@ def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDec
     const mutationType = (document.getElementById('selHitlOperationType') as HTMLSelectElement)?.value || 'mutation';
     const blastRadius = (document.getElementById('selHitlBlastRadius') as HTMLSelectElement)?.value || 'production';
 
-    const notes = notesInput || (action === 'APPROVED' ? (isDual ? `Dual-control authorized by ${supervisor} and ${secondSupervisor}` : 'Approved after supervisor policy verification') : action === 'AUTO_CLEARED' ? `Autonomous clearance (${formatHitlVal(amount, cfg.unit)} <= ${formatHitlVal(ceiling, cfg.unit)})` : `Rejected: ${reason}`);
+    // A blank note used to become "Approved after supervisor policy
+    // verification" — an assertion about what a human did, written by the
+    // system, into a permanent audit record. Generated text is now labelled as
+    // such so it cannot be read as the supervisor's own words.
+    const notes = notesInput || (
+      action === 'APPROVED'
+        ? (isDual
+          ? `[system-generated] Dual-control authorized by ${supervisor} and ${secondSupervisor}; no supervisor note entered`
+          : '[system-generated] No supervisor note entered')
+        : action === 'AUTO_CLEARED'
+          ? `[system-generated] Autonomous clearance (${formatHitlVal(amount, cfg.unit)} <= ${formatHitlVal(ceiling, cfg.unit)})`
+          : `[system-generated] Rejected: ${reason}`);
     const status = document.getElementById('lblHitlStatusResult');
 
     if (hitlSlaTimerInterval) clearInterval(hitlSlaTimerInterval);
@@ -21586,7 +21629,16 @@ def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDec
       const secondStatus = document.getElementById('lblHitlSecondSupervisorStatus');
       const btnApprove = document.getElementById('btnHitlApprove');
       const selSecond = document.getElementById('selHitlSecondSupervisor') as HTMLSelectElement;
-      const secondName = selSecond?.value || 'DIR-RISK-01';
+      // Four-eyes means a named human chose to counter-sign. Defaulting this to
+      // 'DIR-RISK-01' wrote a dual-control audit record naming an approver the
+      // operator never selected, which is exactly what such a record exists to
+      // rule out.
+      const secondName = (selSecond?.value || '').trim();
+      if (!secondName) {
+        showToast('⚠️ Select the second supervisor before requesting a counter-signature.');
+        selSecond?.focus();
+        return;
+      }
 
       if (boxStatus) {
         boxStatus.textContent = '✍️ Awaiting 2nd Supervisor Counter-Signature';
