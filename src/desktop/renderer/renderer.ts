@@ -2957,9 +2957,13 @@ function setupPhase1Discovery(api: any): void {
     renderLinkedArtifacts();
   };
 
-  btnStdSimple?.addEventListener('click', () => applyDeliveryStandard('simple'));
-  btnStdMedium?.addEventListener('click', () => applyDeliveryStandard('medium'));
-  btnStdAdvanced?.addEventListener('click', () => applyDeliveryStandard('advanced'));
+  // Every one of these mutates persisted scope state. Without markScopeDirty()
+  // the 2.5s autosave never fired and the "unsaved changes" pill never lit, so
+  // editing the boundary locks — the most contractually load-bearing field in
+  // Phase 1 — left no trace unless some other field was touched afterwards.
+  btnStdSimple?.addEventListener('click', () => { applyDeliveryStandard('simple'); markScopeDirty(); });
+  btnStdMedium?.addEventListener('click', () => { applyDeliveryStandard('medium'); markScopeDirty(); });
+  btnStdAdvanced?.addEventListener('click', () => { applyDeliveryStandard('advanced'); markScopeDirty(); });
 
   const renderInquiryProbes = () => {
     if (!probesListContainer) return;
@@ -2989,6 +2993,7 @@ function setupPhase1Discovery(api: any): void {
       chk.title = 'Mark probe as answered / investigated';
       chk.addEventListener('change', () => {
         currentInquiryProbes[idx].checked = chk.checked;
+        markScopeDirty();
       });
 
       const badge = document.createElement('span');
@@ -3002,6 +3007,7 @@ function setupPhase1Discovery(api: any): void {
       input.style.cssText = 'flex: 1; background: transparent; border: none; color: #fff; font-size: 10.5px; outline: none; padding: 1px 4px;';
       input.addEventListener('input', () => {
         currentInquiryProbes[idx].question = input.value;
+        markScopeDirty();
       });
 
       const delBtn = document.createElement('button');
@@ -3011,6 +3017,7 @@ function setupPhase1Discovery(api: any): void {
       delBtn.addEventListener('click', () => {
         currentInquiryProbes.splice(idx, 1);
         renderInquiryProbes();
+        markScopeDirty();
       });
 
       row.appendChild(chk);
@@ -3024,6 +3031,7 @@ function setupPhase1Discovery(api: any): void {
   btnAddInquiryProbe?.addEventListener('click', () => {
     currentInquiryProbes.push({ category: 'Custom', question: '', checked: true });
     renderInquiryProbes();
+    markScopeDirty();
     const inputs = probesListContainer?.querySelectorAll('input[type="text"]');
     if (inputs && inputs.length > 0) {
       const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
@@ -3174,6 +3182,7 @@ function setupPhase1Discovery(api: any): void {
       chk.title = 'Toggle active enforcement';
       chk.addEventListener('change', () => {
         currentScopeRules[idx].enabled = chk.checked;
+        markScopeDirty();
       });
 
       const input = document.createElement('input');
@@ -3183,6 +3192,7 @@ function setupPhase1Discovery(api: any): void {
       input.style.cssText = 'flex: 1; background: transparent; border: none; color: #fff; font-size: 10.5px; outline: none; padding: 1px 4px;';
       input.addEventListener('input', () => {
         currentScopeRules[idx].text = input.value;
+        markScopeDirty();
       });
 
       const delBtn = document.createElement('button');
@@ -3192,6 +3202,7 @@ function setupPhase1Discovery(api: any): void {
       delBtn.addEventListener('click', () => {
         currentScopeRules.splice(idx, 1);
         renderScopeRules();
+        markScopeDirty();
       });
 
       row.appendChild(chk);
@@ -3204,6 +3215,7 @@ function setupPhase1Discovery(api: any): void {
   btnAddScopeRule?.addEventListener('click', () => {
     currentScopeRules.push({ text: '', enabled: true });
     renderScopeRules();
+    markScopeDirty();
     const inputs = rulesListContainer?.querySelectorAll('input[type="text"]');
     if (inputs && inputs.length > 0) {
       const lastInput = inputs[inputs.length - 1] as HTMLInputElement;
@@ -5983,9 +5995,18 @@ function setupPhase1Discovery(api: any): void {
     const reframedGoal = txtReframed?.value || '';
     const archetype = selArchetype?.value || 'custom';
 
+    // `outOfScope` stays a string[] of ENFORCED rules, because that is what the
+    // document generators contractually print. But persisting only that list
+    // destroyed the `enabled` flag on every round-trip: a boundary lock the FDE
+    // unticked in front of a client was filtered out on save and came back as
+    // "deleted" on load, indistinguishable from one they had removed. Keep the
+    // full set alongside it so disabling stays reversible.
     const outOfScope: string[] = currentScopeRules
       .filter(r => r.enabled && r.text.trim().length > 0)
       .map(r => r.text.trim());
+    const outOfScopeRules = currentScopeRules
+      .filter(r => r.text.trim().length > 0)
+      .map(r => ({ text: r.text.trim(), enabled: !!r.enabled }));
 
     const { volume: vol, handleTimeMins: time, hourlyWage: wage } = readThreeNumbers();
 
@@ -6000,6 +6021,7 @@ function setupPhase1Discovery(api: any): void {
       archetype,
       activeTopologyTemplate: activeTopologyPresetKey,
       outOfScope,
+      outOfScopeRules,
       linkedArtifacts: currentLinkedArtifacts,
       customFutureDiagram: cachedDiagrams.futureDiagram,
       customLegacyDiagram: cachedDiagrams.legacyDiagram,
@@ -6142,10 +6164,18 @@ function setupPhase1Discovery(api: any): void {
 
   btnSave?.addEventListener('click', () => saveScopeHandler(false));
   btnReset?.addEventListener('click', () => {
+    // Resetting cleared the UI but never marked the scope dirty or saved, so
+    // fde_state.json kept the old engagement while the screen showed a blank
+    // one — the next autosave then wrote whichever won the race. Confirm first
+    // (this discards client work), then persist the reset immediately.
+    const ok = confirm('Reset the discovery scope to a blank template?\n\nThis clears the raw ask, observations, invariants, risk analysis, boundary locks and ROI inputs for this engagement.');
+    if (!ok) return;
     if (selArchetype) {
       selArchetype.value = 'custom';
       selArchetype.dispatchEvent(new Event('change'));
     }
+    markScopeDirty();
+    void saveScopeHandler(true);
     showToast('🔄 Discovery scope reset to blank template');
   });
 
@@ -6440,7 +6470,9 @@ function setupPhase1Discovery(api: any): void {
         if (txtReframed && d.reframedProblem) txtReframed.value = d.reframedProblem;
         if (selArchetype && d.archetype) selArchetype.value = d.archetype;
         if (Array.isArray(d.outOfScope)) {
-          currentScopeRules = d.outOfScope.map((s: string) => ({ text: s, enabled: true }));
+          currentScopeRules = Array.isArray(d.outOfScopeRules) && d.outOfScopeRules.length
+            ? d.outOfScopeRules.map((r: any) => ({ text: String(r.text || ''), enabled: r.enabled !== false }))
+            : d.outOfScope.map((s: string) => ({ text: s, enabled: true }));
           renderScopeRules();
         }
         if (d.controllersThreeNumbers) {
@@ -6572,7 +6604,9 @@ function setupPhase1Discovery(api: any): void {
           if (txtReframed && state.discovery.reframedProblem) txtReframed.value = state.discovery.reframedProblem;
           if (selArchetype && state.discovery.archetype) selArchetype.value = state.discovery.archetype;
           if (Array.isArray(state.discovery.outOfScope) && state.discovery.outOfScope.length > 0) {
-            currentScopeRules = state.discovery.outOfScope.map((s: string) => ({ text: s, enabled: true }));
+            currentScopeRules = Array.isArray(state.discovery.outOfScopeRules) && state.discovery.outOfScopeRules.length
+              ? state.discovery.outOfScopeRules.map((r: any) => ({ text: String(r.text || ''), enabled: r.enabled !== false }))
+              : state.discovery.outOfScope.map((s: string) => ({ text: s, enabled: true }));
           }
           if (state.discovery.customFutureDiagram) cachedDiagrams.futureDiagram = state.discovery.customFutureDiagram;
           if (state.discovery.customLegacyDiagram) cachedDiagrams.legacyDiagram = state.discovery.customLegacyDiagram;
@@ -8064,6 +8098,17 @@ function setupDeliveryStudio(api: any): void {
   const connNameInput = document.getElementById('connName') as HTMLInputElement;
   const connBaseUrlInput = document.getElementById('connBaseUrl') as HTMLInputElement;
   const connAuthTypeSelect = document.getElementById('connAuthType') as HTMLSelectElement;
+
+  /**
+   * The connector name is interpolated straight into a write path, so a value
+   * containing `/` or `..` would write outside src/connectors/. Restrict it to
+   * an identifier and fall back to a safe default.
+   */
+  const sdkConnectorName = (): string => {
+    const raw = (connNameInput?.value || '').trim();
+    const safe = raw.replace(/[^A-Za-z0-9_-]/g, '');
+    return safe.length > 0 ? safe : 'ClientApi';
+  };
   const btnScaffoldTsSdk = document.getElementById('btnScaffoldTsSdk');
   const btnScaffoldPySdk = document.getElementById('btnScaffoldPySdk');
   const btnTestApiPing = document.getElementById('btnTestApiPing');
@@ -8178,9 +8223,17 @@ function setupDeliveryStudio(api: any): void {
   btnScaffoldTsSdk?.addEventListener('click', async () => {
     showToast('⚡ Scaffolding Resilient TypeScript SDK...');
     if (api?.engines) {
+      // ApiConnectorOptions requires connectorName/authType/targetLanguage.
+      // Only `serviceName` was sent, so generateTypeScriptSdk() dereferenced
+      // `opts.connectorName.replace(...)` on undefined and threw — both scaffold
+      // buttons were hard-broken — and the selected auth strategy was ignored,
+      // producing SDKs with no auth header whatever the dropdown said.
       const res = await api.engines.generateApiSdk({
-        serviceName: connNameInput.value || 'ClientBillingApi',
+        connectorName: sdkConnectorName(),
+        serviceName: sdkConnectorName(),
         baseUrl: connBaseUrlInput.value || 'https://api.client-vpc.internal/v1',
+        authType: (connAuthTypeSelect?.value as any) || 'none',
+        targetLanguage: 'typescript',
         endpoints: effectiveEndpoints()
       });
       generatedTsSdk = res.tsCode;
@@ -8192,7 +8245,7 @@ function setupDeliveryStudio(api: any): void {
       if (api?.workspace) {
         const ws = await api.workspace.getCurrent();
         if (ws) {
-          await api.workspace.createFile(ws.path + `/src/connectors/${connNameInput.value}.ts`, generatedTsSdk);
+          await api.workspace.createFile(ws.path + `/src/connectors/${sdkConnectorName()}.ts`, generatedTsSdk);
           renderFileTree(api);
         }
       }
@@ -8203,9 +8256,17 @@ function setupDeliveryStudio(api: any): void {
   btnScaffoldPySdk?.addEventListener('click', async () => {
     showToast('⚡ Scaffolding Resilient Python Async SDK...');
     if (api?.engines) {
+      // ApiConnectorOptions requires connectorName/authType/targetLanguage.
+      // Only `serviceName` was sent, so generateTypeScriptSdk() dereferenced
+      // `opts.connectorName.replace(...)` on undefined and threw — both scaffold
+      // buttons were hard-broken — and the selected auth strategy was ignored,
+      // producing SDKs with no auth header whatever the dropdown said.
       const res = await api.engines.generateApiSdk({
-        serviceName: connNameInput.value || 'ClientBillingApi',
+        connectorName: sdkConnectorName(),
+        serviceName: sdkConnectorName(),
         baseUrl: connBaseUrlInput.value || 'https://api.client-vpc.internal/v1',
+        authType: (connAuthTypeSelect?.value as any) || 'none',
+        targetLanguage: 'python',
         endpoints: effectiveEndpoints()
       });
       generatedTsSdk = res.tsCode;
@@ -8217,7 +8278,7 @@ function setupDeliveryStudio(api: any): void {
       if (api?.workspace) {
         const ws = await api.workspace.getCurrent();
         if (ws) {
-          await api.workspace.createFile(ws.path + `/src/connectors/${connNameInput.value.toLowerCase()}.py`, generatedPySdk);
+          await api.workspace.createFile(ws.path + `/src/connectors/${sdkConnectorName().toLowerCase()}.py`, generatedPySdk);
           renderFileTree(api);
         }
       }
@@ -17892,6 +17953,19 @@ class AgenticRagPipeline:
   const renderRagArchitectureUi = (archKey: string) => {
     const arch = RAG_ARCHITECTURES[archKey] || RAG_ARCHITECTURES['hybrid'];
     selectedRagArchKey = arch.id;
+
+    // Persist the choice. This was a module-local `let`, so the pattern the FDE
+    // selected in 3C never reached disk: it died on reload, never arrived in
+    // ipcHandlers, and the Scope Alignment Memo's topology section fell back to
+    // a hardcoded rule-engine diagram even when Multimodal RAG was selected —
+    // the client signed off on an architecture the build would not match.
+    void api?.fde?.savePhaseState?.({
+      key: 'aiSolution',
+      data: {
+        ragArchitecture: arch.id,
+        ragArchitectureName: `${arch.num} ${arch.name}`
+      }
+    });
 
     // Update active card styling
     document.querySelectorAll<HTMLElement>('.rag-arch-card').forEach(c => {

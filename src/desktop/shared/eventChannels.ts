@@ -141,6 +141,13 @@ export const DESKTOP_CHANNELS = {
   FDE: {
     GET_STATE: 'evolve:fde:get-state',
     SAVE_DISCOVERY: 'evolve:fde:save-discovery',
+    /**
+     * Merge a block of state for any phase into .evolve/fde_state.json.
+     * SAVE_DISCOVERY was the only persistence channel, so Phases 2-5 computed
+     * results and discarded them on reload.
+     */
+    SAVE_PHASE_STATE: 'evolve:fde:save-phase-state',
+    SET_STUDIO_MODE: 'evolve:fde:set-studio-mode',
     CALCULATE_ROI: 'evolve:fde:calculate-roi',
     GENERATE_TOPOLOGY: 'evolve:fde:generate-topology',
     GENERATE_POC_PACK: 'evolve:fde:generate-poc-pack',

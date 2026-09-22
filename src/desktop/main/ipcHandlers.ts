@@ -3784,7 +3784,14 @@ export async function executeTask() {
       try {
         if (fs.existsSync(stateFile)) {
           const raw = fs.readFileSync(stateFile, 'utf-8');
-          return JSON.parse(raw);
+          const parsed = JSON.parse(raw);
+          // State files written before the DEMO/LIVE switch existed have no
+          // mode. Default them to DEMO: assuming LIVE would silently drop the
+          // "not a deliverable" banner from their generated documents.
+          if (parsed && typeof parsed === 'object' && !parsed.studioMode) {
+            parsed.studioMode = 'DEMO';
+          }
+          return parsed;
         }
       } catch {}
 
@@ -3792,6 +3799,10 @@ export async function executeTask() {
         id: 'proj-fde-1',
         clientName: 'Client Pilot Engagement',
         activePhase: 1,
+        completedPhases: [],
+        // A fresh workspace starts in DEMO so nothing it generates can be
+        // mistaken for real engagement evidence before anyone opts in to LIVE.
+        studioMode: 'DEMO',
         discovery: {
           rawClientAsk: '',
           riskAnalysis: '',
@@ -3883,6 +3894,79 @@ export async function executeTask() {
         return { success: false, error: 'Reveal is unavailable in this environment.' };
       } catch (err: any) {
         return { success: false, error: (err && err.message) ? err.message : String(err) };
+      }
+    });
+
+    /**
+     * Merge one phase's state into .evolve/fde_state.json.
+     *
+     * Before this, SAVE_DISCOVERY was the only way anything reached disk, so
+     * Phase 2's connectors and marts, 3B's verdict, 3C's chosen RAG pattern,
+     * Phase 4's eval results and Phase 5's deployment config all lived in
+     * renderer-local `let`s and died on reload — which is also why the client
+     * documents had nothing real to read and fell back to invented values.
+     *
+     * `key` is the top-level block to merge into; unknown keys are rejected so
+     * a typo cannot silently create a parallel state tree.
+     */
+    ipc.handle(DESKTOP_CHANNELS.FDE.SAVE_PHASE_STATE, async (_: any, req: { key: string; data: any; merge?: boolean }) => {
+      const allowed = new Set([
+        'aiSolution', 'evals', 'deploymentConfig', 'deployment',
+        'schemaMappings', 'dataMarts', 'apiConnectors',
+        'activePhase', 'completedPhases', 'engineering'
+      ]);
+      const key = req?.key;
+      if (!key || !allowed.has(key)) {
+        return { success: false, error: `Unknown phase state key: ${key}` };
+      }
+
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const evolveDir = path.join(cwd, '.evolve');
+      const stateFile = path.join(evolveDir, 'fde_state.json');
+
+      let current: any = {};
+      try {
+        if (!fs.existsSync(evolveDir)) fs.mkdirSync(evolveDir, { recursive: true });
+        if (fs.existsSync(stateFile)) current = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+      } catch {}
+
+      const incoming = req.data;
+      const mergeObjects = req.merge !== false && !Array.isArray(incoming) && typeof incoming === 'object' && incoming !== null;
+      current[key] = mergeObjects ? { ...(current[key] || {}), ...incoming } : incoming;
+      current.updatedAt = Date.now();
+
+      try {
+        fs.writeFileSync(stateFile, JSON.stringify(current, null, 2), 'utf-8');
+        return { success: true, path: stateFile, key };
+      } catch (e: any) {
+        return { success: false, error: e?.message || String(e) };
+      }
+    });
+
+    /** DEMO vs LIVE. Stamped into every generated document. */
+    ipc.handle(DESKTOP_CHANNELS.FDE.SET_STUDIO_MODE, async (_: any, mode: 'DEMO' | 'LIVE') => {
+      if (mode !== 'DEMO' && mode !== 'LIVE') {
+        return { success: false, error: `Invalid studio mode: ${mode}` };
+      }
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const evolveDir = path.join(cwd, '.evolve');
+      const stateFile = path.join(evolveDir, 'fde_state.json');
+
+      let current: any = {};
+      try {
+        if (!fs.existsSync(evolveDir)) fs.mkdirSync(evolveDir, { recursive: true });
+        if (fs.existsSync(stateFile)) current = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+      } catch {}
+
+      current.studioMode = mode;
+      current.updatedAt = Date.now();
+      try {
+        fs.writeFileSync(stateFile, JSON.stringify(current, null, 2), 'utf-8');
+        return { success: true, mode };
+      } catch (e: any) {
+        return { success: false, error: e?.message || String(e) };
       }
     });
 
