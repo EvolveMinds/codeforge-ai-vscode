@@ -2,6 +2,68 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.25.0] — 2026-09-22
+
+### Delivery Studio honesty pass — no client document may state a number nobody measured
+
+This release removes an entire class of defect in which the FDE Delivery Studio
+presented invented data as measured fact. A six-phase audit found fabricated
+metrics in signed client documents, three fake cryptographic signatures, a
+benchmark that never executed anything, and client deliverables being overwritten
+by merely clicking a tab.
+
+* **Client documents no longer assert unmeasured results.** `runbookGenerator`
+  filled every missing metric with a plausible default (`|| '98.0'`, `|| 49`,
+  `|| 18`), plus the hardcoded strings "100.0% Grounded" and "0.0%
+  Hallucinations". Nothing ever wrote `state.evals`, so those fallbacks always
+  fired — the committed `CLIENT_HANDOFF_COMPLETE.md` claimed 98% accuracy over
+  49/50 cases for a benchmark that had never run. New `src/fde/provenance.ts`
+  is the single authority on whether a value may be shown to a client;
+  `renderMeasured()` deliberately has no default parameter.
+* **DEMO / LIVE mode switch.** Every generated document is stamped with the mode
+  and, in DEMO, carries a banner marking it as not a deliverable. Defaults to
+  DEMO for fresh workspaces *and* for state files written before the switch
+  existed, so nothing silently loses the warning.
+* **Fake cryptography removed.** Three code paths generated a string, labelled it
+  an Ed25519 signature and showed it as cryptographic proof — one was
+  `Math.random()`. There is no keypair in the product, so none were verifiable.
+  These are now honest SHA-256 content digests, described as tamper-evident but
+  explicitly *not* digital signatures. Licensing Ed25519 is untouched: that one
+  performs a real `crypto.verify` and the claim is accurate.
+* **Simulated benchmark runs are marked as such.** The LLM, REST and script
+  targets never executed anything; verdicts came from each case's own `status`
+  field and latency from `Math.random()`. They now report `simulated`, and
+  reliability metrics render as NOT MEASURED rather than as evidence.
+* **Phase persistence.** `SAVE_DISCOVERY` was the only channel reaching disk, so
+  Phase 2 connectors, the 3B verdict, the 3C RAG architecture, Phase 4 results
+  and Phase 5 deployment config all died on reload. Adds
+  `FDE.SAVE_PHASE_STATE`; the memo's topology now matches what was chosen.
+* **Presentable client deliverables.** Generated documents are also rendered as
+  self-contained, printable HTML in `docs/client/`. Honesty survives the
+  prettier rendering: unmeasured values become visible chips rather than being
+  dropped for looking untidy. Nothing is fetched at runtime, so they open on
+  air-gapped client laptops.
+* **API SDK scaffolding fixed.** Both scaffold buttons threw `TypeError` on every
+  use — the renderer sent `serviceName` where `connectorName` was required — and
+  the selected auth strategy was never passed, producing SDKs with no auth
+  header. Adds the Max Retries / Timeout / Rate Limit controls the generator has
+  always accepted but nothing could set.
+* **Data-loss and audit-integrity fixes.** Unticking a contractual boundary lock
+  no longer deletes it permanently; nine controls that mutate scope state now
+  trigger autosave; four-eyes approval no longer names a default second
+  supervisor the operator never chose; Section 5C no longer rewrites six client
+  documents as a side effect of opening the tab.
+* **Version handling.** The app version resolves from `package.json` at runtime.
+  `npm run check:version` guards against literals; the HITL policy
+  `schemaVersion` is decoupled from the app version so a release bump no longer
+  implies a schema change.
+* **Verification.** `npm run verify:honest` adds 61 end-to-end checks, and the
+  release was driven in a real Electron window.
+
+Known gaps are tracked in `docs/FDE_TODO.md`: the benchmark still does not
+execute the system under test, and the advertised Webhook Ingest Studio does not
+exist.
+
 ## [2.24.0] — 2026-09-21
 
 ### Section 3A Comparison Matrix, Section 4B Groundedness Gate, Section 3C RAG Visual Topology & Autonomous Statistical Intelligence

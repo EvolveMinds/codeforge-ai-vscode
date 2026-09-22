@@ -1,5 +1,53 @@
 # Evolve AI — Release Notes
 
+## Version 2.25.0 — September 22, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.25.0 is a correctness and trust release for the FDE Delivery Studio.
+A full six-phase audit found that generated client documents were stating
+figures nobody had measured, so this release makes that structurally impossible.
+
+* **No document states an unmeasured number.** Reliability metrics previously
+  fell back to `98.0%`, `49/50` and `18ms` whenever real results were missing —
+  which was always, because nothing persisted them. Unmeasured values now render
+  as a visible `NOT YET MEASURED` marker instead of a plausible figure.
+* **DEMO / LIVE mode.** A switch in the engagement bar marks whether the Studio
+  is running on sample data or a real engagement. DEMO documents carry a banner
+  identifying them as demonstration artifacts, and DEMO is the default.
+* **Honest integrity stamps.** Audit receipts previously claimed Ed25519
+  signatures that did not exist. They now record SHA-256 content digests,
+  described accurately as tamper-evident rather than digitally signed.
+  (Enterprise licensing Ed25519 is genuine and unchanged.)
+* **Client-ready deliverables.** Every generated document is also produced as a
+  formatted, printable HTML page under `docs/client/`, suitable for sending to a
+  client or saving as PDF. They are fully self-contained and open on air-gapped
+  machines.
+* **Engagement state persists.** Work done in Phases 2 through 5 — connectors,
+  the rule-vs-model verdict, the chosen RAG architecture, evaluation results and
+  deployment configuration — now survives a restart and flows into the
+  documents, which previously fell back to defaults.
+* **API SDK scaffolding repaired.** Both TypeScript and Python scaffold buttons
+  failed on every use and produced connectors with no authentication header.
+  Fixed, with new retry, timeout and rate-limit controls.
+* **Client documents are no longer overwritten by accident.** Opening the Runbook
+  Factory tab used to rewrite six deliverables in `docs/` with no prompt.
+
+### Known Gaps
+
+Tracked in `docs/FDE_TODO.md`:
+* The golden benchmark does not yet execute the system under test. Simulated
+  runs are clearly marked and cannot be presented as measured results.
+* The advertised Webhook Ingest Studio is not implemented.
+
+---
+
 ## Version 2.24.0 — September 21, 2026
 
 **Publisher:** `codeforge-ai`  

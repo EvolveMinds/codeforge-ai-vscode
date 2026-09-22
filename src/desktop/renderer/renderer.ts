@@ -18059,6 +18059,13 @@ class AgenticRagPipeline:
     }
   };
 
+  /**
+   * Version of the exported HITL policy *file format* — deliberately NOT the app
+   * version. It happened to read '2.24.0', which would have implied a schema
+   * change on every release bump. Bump this only when the emitted shape changes.
+   */
+  const HITL_POLICY_SCHEMA_VERSION = '1.0';
+
   let selectedRagArchKey = 'hybrid';
   let activeRagViewMode: 'visual' | 'mermaid' | 'pitch' | 'matrix' | 'code' | 'playbook' = 'visual';
 
@@ -21409,7 +21416,7 @@ def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDec
     )`;
     } else {
       codePre.textContent = JSON.stringify({
-        schemaVersion: '2.24.0',
+        schemaVersion: HITL_POLICY_SCHEMA_VERSION,
         domain: currentHitlDomainKey,
         name: cfg.name,
         unit: cfg.unit,
@@ -21486,7 +21493,7 @@ def evaluate_${domainKey}_policy_gate(req: HitlEvaluationRequest) -> HitlGateDec
     const cfg = getActiveHitlConfig();
     const ceiling = getHitlCeilingValue();
     const spec = {
-      schemaVersion: '2.24.0',
+      schemaVersion: HITL_POLICY_SCHEMA_VERSION,
       domain: currentHitlDomainKey,
       name: cfg.name,
       unit: cfg.unit,

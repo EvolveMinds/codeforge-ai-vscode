@@ -146,14 +146,21 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
   test('DesktopUpdater checks updates and handles offline patch simulation', async () => {
     const updater = new DesktopUpdater(tmpDir);
 
+    // Assert against package.json rather than a literal: the updater's whole
+    // job is to report the version it was built at, so pinning a number here
+    // means every release bump breaks the test for the wrong reason.
+    const expectedVersion = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '..', '..', '..', '..', 'package.json'), 'utf8')
+    ).version;
+
     const checkRes = await updater.checkForUpdates();
-    assert.strictEqual(checkRes.currentVersion, '2.24.0');
+    assert.strictEqual(checkRes.currentVersion, expectedVersion);
 
     // Test Air-Gapped / Intranet Enclave fallback handling
     process.env.EVOLVE_UPDATE_URL = 'http://127.0.0.1:59999/nonexistent-airgap';
     try {
       const offlineRes = await updater.checkForUpdates();
-      assert.strictEqual(offlineRes.currentVersion, '2.24.0');
+      assert.strictEqual(offlineRes.currentVersion, expectedVersion);
       assert.strictEqual(offlineRes.isAirGapped, true);
       assert.strictEqual(offlineRes.networkStatus, 'offline');
       assert.ok(offlineRes.statusMessage?.includes('Air-gapped / Intranet'));
@@ -166,7 +173,7 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
 
     const patchRes = updater.applyOfflinePatch(patchFile);
     assert.strictEqual(patchRes.success, true);
-    assert.ok(patchRes.patchedVersion.includes('2.24.0-patch-'));
+    assert.ok(patchRes.patchedVersion.includes(`${expectedVersion}-patch-`));
     assert.ok(patchRes.enginesReloaded.includes('SqlTranspiler'));
   });
 

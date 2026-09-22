@@ -6,9 +6,12 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { getAppVersion } from '../desktop/shared/appVersion';
 
+// The version this server advertises to MCP clients tracks the app, so it
+// resolves from package.json rather than being hand-edited each release.
 export const server = new Server(
-  { name: 'evolve-fde-mcp-server', version: '2.24.0' },
+  { name: 'evolve-fde-mcp-server', version: getAppVersion() },
   { capabilities: { tools: {} } }
 );
 
