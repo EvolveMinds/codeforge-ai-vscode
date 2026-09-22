@@ -9186,6 +9186,22 @@ function setupDeliveryStudio(api: any): void {
     };
   };
 
+  /**
+   * Persist what the FDE actually configured in 5B.
+   *
+   * The config was passed to the scaffolder and then dropped — nothing ever
+   * wrote `state.deployment`/`deploymentConfig` — while the runbook generator
+   * read exactly that path. So an engagement configured for 8 vCPU / 32Gi on a
+   * named VPC still handed the client a blueprint saying "1 vCPU, 1Gi, VPC
+   * default".
+   */
+  const persistDeployConfig = () => {
+    void api?.fde?.savePhaseState?.({
+      key: 'deploymentConfig',
+      data: { ...getDeployConfig(), scaffoldedAt: Date.now() }
+    });
+  };
+
   // --- Section 5B: Multi-File IaC State & File Tab Navigator ---
   interface IaCScaffoldResult {
     terraform?: string;
@@ -9270,6 +9286,7 @@ function setupDeliveryStudio(api: any): void {
     if (!activeIaCAssets.terraform && !activeIaCAssets.kubernetes) {
       const cfg = getDeployConfig();
       if (api?.engines) {
+        persistDeployConfig();
         const res = await api.engines.scaffoldDeploy(cfg);
         activeIaCAssets = res;
       }
@@ -9316,6 +9333,7 @@ function setupDeliveryStudio(api: any): void {
     const cfg = getDeployConfig();
     showToast(`🚀 Scaffolding ${cfg.provider.toUpperCase()} infrastructure & deploy scripts...`);
     if (api?.engines) {
+      persistDeployConfig();
       const res = await api.engines.scaffoldDeploy(cfg);
       activeIaCAssets = res;
       const p3Box = document.getElementById('p3ResultBox');
@@ -9345,6 +9363,7 @@ function setupDeliveryStudio(api: any): void {
   document.getElementById('btnGenerateTerraformExact')?.addEventListener('click', async () => {
     const cfg = getDeployConfig();
     if (api?.engines) {
+      persistDeployConfig();
       const res = await api.engines.scaffoldDeploy(cfg);
       activeIaCAssets = { ...activeIaCAssets, ...res };
       const p3Box = document.getElementById('p3ResultBox');
@@ -9364,6 +9383,7 @@ function setupDeliveryStudio(api: any): void {
   document.getElementById('btnGenerateK8sExact')?.addEventListener('click', async () => {
     const cfg = getDeployConfig();
     if (api?.engines) {
+      persistDeployConfig();
       const res = await api.engines.scaffoldDeploy(cfg);
       activeIaCAssets = { ...activeIaCAssets, ...res };
       const p3Box = document.getElementById('p3ResultBox');
@@ -9383,6 +9403,7 @@ function setupDeliveryStudio(api: any): void {
   document.getElementById('btnGenerateDockerExact')?.addEventListener('click', async () => {
     const cfg = getDeployConfig();
     if (api?.engines) {
+      persistDeployConfig();
       const res = await api.engines.scaffoldDeploy(cfg);
       activeIaCAssets = { ...activeIaCAssets, ...res };
       const p3Box = document.getElementById('p3ResultBox');
@@ -9408,6 +9429,7 @@ function setupDeliveryStudio(api: any): void {
 
     showToast(`⚡ Scaffolding CI/CD pipeline for ${platform.toUpperCase()} (${tier})...`);
     if (api?.engines) {
+      persistDeployConfig();
       const res = await api.engines.scaffoldDeploy(cfg);
       activeIaCAssets = { ...activeIaCAssets, ...res };
       const cicdBox = document.getElementById('cicdResultBox');
@@ -9571,6 +9593,7 @@ function setupDeliveryStudio(api: any): void {
     try {
       const cfg = getDeployConfig();
       if (api?.engines) {
+        persistDeployConfig();
         const res = await api.engines.scaffoldDeploy(cfg);
         if (res) {
           activeIaCAssets = res;
@@ -19520,6 +19543,28 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
       hasRunGoldenBenchmark = true;
       evaluateBenchmarkSla(benchRes);
 
+      // Persist the results so Phase 5's documents can cite a real run.
+      // `benchmarkExecuted` is what the runbook generator keys off: without it
+      // every reliability figure renders as NOT MEASURED rather than falling
+      // back to the old invented 98% / 49 / 50 / 18ms defaults.
+      if (benchRes.simulated) {
+        showToast(`⚠️ Simulated run — ${benchRes.simulationReason || 'the target was not executed'}. These figures are not a measurement.`);
+      }
+      void api?.fde?.savePhaseState?.({
+        key: 'evals',
+        data: {
+          // Only a real run may mark the engagement as benchmarked.
+          benchmarkExecuted: benchRes.benchmarkExecuted === true,
+          benchmarkRunAt: Date.now(),
+          benchmarkTargetType: benchRes.targetUsed || targetConfig.type,
+          accuracyScorePct: benchRes.accuracyScorePct,
+          passedCases: benchRes.passedCases,
+          totalCases: benchRes.totalCases,
+          latencyP50Ms: benchRes.p50LatencyMs,
+          latencyP95Ms: benchRes.p95LatencyMs
+        }
+      });
+
       showToast(`✓ Benchmark Complete: ${benchRes.accuracyScorePct}% Accuracy (${benchRes.passedCases}/${benchRes.totalCases} passed via ${benchRes.targetUsed || targetConfig.type})`);
       refreshP4Rail?.();
     } catch (err: any) {
@@ -19566,12 +19611,24 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
 
   // Export JSON / Markdown Report
   document.getElementById('btnExportBenchmarkReport')?.addEventListener('click', async () => {
-    if (api?.fde?.exportBenchmarkReport && cachedBenchmarkCases.length > 0) {
-      await api.fde.exportBenchmarkReport({ cases: cachedBenchmarkCases, timestamp: new Date().toISOString() });
-      showToast('📥 Exported evals/golden_benchmark_report.json & evals/BENCHMARK.md');
-    } else {
-      showToast('📥 Benchmark report exported to evals/BENCHMARK.md');
+    // Guard the export. Without this, the shipped preset suite — every case
+    // pre-marked PASSED with an invented latency — exported as a 98%-accuracy
+    // report for a system that was never executed.
+    if (!hasRunGoldenBenchmark) {
+      showToast('⚠️ Run the benchmark first — there are no results to export yet.');
+      return;
     }
+    if (!api?.fde?.exportBenchmarkReport || cachedBenchmarkCases.length === 0) {
+      // Previously this branch toasted success while writing nothing.
+      showToast('❌ Export unavailable — nothing was written.');
+      return;
+    }
+    await api.fde.exportBenchmarkReport({
+      cases: cachedBenchmarkCases,
+      benchmarkExecuted: true,
+      timestamp: new Date().toISOString()
+    });
+    showToast('📥 Exported evals/golden_benchmark_report.json & evals/BENCHMARK.md');
   });
 
   // CI/CD Runner Dropdown & Exporters

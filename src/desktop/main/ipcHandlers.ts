@@ -5261,8 +5261,15 @@ export async function startMcpServer() {
       }
 
       // -------------------------------------------------------------
-      // REAL EXECUTION ENGINE EVALUATION
+      // TARGET EVALUATION
+      //
+      // Some target types genuinely execute (rest_api posts each case to the
+      // endpoint; workspace_script checks the file exists). Others do not yet,
+      // and those set `simulated` so the result cannot be mistaken for — or
+      // persisted as — a measurement.
       // -------------------------------------------------------------
+      let simulated = false;
+      let simulationReason = '';
       let cases: any[] = [];
       let targetType: string = (targetConfig as any).type || 'rule_engine';
       let targetProvider: string = (targetConfig as any).provider || '';
@@ -5303,18 +5310,30 @@ export async function startMcpServer() {
             cases: []
           };
         } else {
-          // LLM execution loop (probes Ollama or executes with realistic model metrics)
-          cases = rawCases.map((c, idx) => {
+          // NOT AN EXECUTION LOOP. Despite the previous comment claiming it
+          // "probes Ollama", nothing here contacts a model: the verdict is
+          // copied from each case's own `status` field, `actualOutput` echoes
+          // `expectedOutput`, and the latency is Math.random(). Cases therefore
+          // passed by construction, and the resulting "98% accuracy" flowed
+          // into client handoff documents as a measured result.
+          //
+          // Wiring a real multi-provider execution engine is a separate piece of
+          // work. Until then this path is labelled simulated at every level, so
+          // `benchmarkExecuted` stays false and the runbooks render the metrics
+          // as NOT MEASURED rather than presenting them as evidence.
+          simulated = true;
+          simulationReason = `No execution engine is wired for target "${provider}". Results below are derived from the preset suite, not from running the system.`;
+          cases = rawCases.map((c) => {
             const isAmbiguous = (c.prompt || '').toLowerCase().includes('ambiguous') || c.id === 'CASE-041';
             const pass = !isAmbiguous && c.status !== 'FAILED';
-            const latency = Math.floor(Math.random() * 80 + 120);
             return {
               ...c,
-              actualOutput: pass ? c.expectedOutput : 'Ambiguity Threshold Exceeded (Model confidence 0.38 < 0.85)',
+              simulated: true,
+              actualOutput: pass ? c.expectedOutput : 'Ambiguity Threshold Exceeded (simulated)',
               status: pass ? 'PASSED' : 'FAILED',
-              latencyMs: latency,
-              tokensUsed: Math.round(latency * 3.2),
-              costUsd: 0.0015
+              latencyMs: null,
+              tokensUsed: null,
+              costUsd: null
             };
           });
         }
@@ -5348,15 +5367,20 @@ export async function startMcpServer() {
             costUsd: 0
           }));
         } else {
+          // The endpoint answered a liveness GET, but the cases are never POSTed
+          // to it — the verdicts below come from the preset, not the target.
+          simulated = true;
+          simulationReason = `Endpoint ${endpointUrl} is reachable, but cases are not yet submitted to it. Results are from the preset suite.`;
           cases = rawCases.map(c => {
             const pass = c.status !== 'FAILED' && !c.prompt.toLowerCase().includes('ambiguous');
             return {
               ...c,
-              actualOutput: pass ? c.expectedOutput : 'HTTP 422: Validation Error on prompt invariant',
+              simulated: true,
+              actualOutput: pass ? c.expectedOutput : 'HTTP 422: Validation Error (simulated)',
               status: pass ? 'PASSED' : 'FAILED',
-              latencyMs: Math.floor(Math.random() * 45 + 15),
-              tokensUsed: 0,
-              costUsd: 0.0002
+              latencyMs: null,
+              tokensUsed: null,
+              costUsd: null
             };
           });
         }
@@ -5372,13 +5396,17 @@ export async function startMcpServer() {
             costUsd: 0
           }));
         } else {
+          // The script exists on disk but is never spawned.
+          simulated = true;
+          simulationReason = `Script ${path.relative(cwd, scriptPath)} was found but is not executed yet. Results are from the preset suite.`;
           cases = rawCases.map(c => ({
             ...c,
+            simulated: true,
             actualOutput: c.expectedOutput,
             status: c.status === 'FAILED' ? 'FAILED' : 'PASSED',
-            latencyMs: Math.floor(Math.random() * 30 + 10),
-            tokensUsed: 0,
-            costUsd: 0
+            latencyMs: null,
+            tokensUsed: null,
+            costUsd: null
           }));
         }
       } else {
@@ -5476,6 +5504,12 @@ export async function startMcpServer() {
         breaches,
         slaTargets,
         timestamp: new Date().toISOString(),
+        // The single flag the rest of the product keys off. Only a target that
+        // really ran may claim a measurement; everything else is marked so the
+        // runbooks render NOT MEASURED instead of quoting these figures.
+        simulated,
+        simulationReason: simulated ? simulationReason : undefined,
+        benchmarkExecuted: !simulated,
         cases
       };
 
@@ -5483,10 +5517,16 @@ export async function startMcpServer() {
         fs.writeFileSync(path.join(evalsDir, 'golden_benchmark_report.json'), JSON.stringify(reportData, null, 2), 'utf-8');
         const tableRows = cases.map(c => '| ' + c.id + ' | ' + c.category + ' | ' + c.prompt + ' | ' + c.expectedOutput + ' | ' + (c.status === 'PASSED' ? '✅ PASS' : '❌ FAIL') + ' | ' + c.latencyMs + 'ms |').join('\n');
         const mdReport = '# 🧪 Golden Evaluation Benchmark Suite Report\n\n' +
+          (simulated
+            ? '> [!CAUTION]\n> **SIMULATED RUN — NOT A MEASUREMENT.** ' + simulationReason +
+              '\n> No reliability claim in this report may be presented to a client.\n\n'
+            : '') +
           '**Domain / Lens**: ' + reportData.domain + '\n' +
           '**Execution Target SUT**: ' + targetConfig.type + (targetConfig.model ? ` (${targetConfig.model})` : '') + '\n' +
           '**Timestamp**: ' + reportData.timestamp + '\n' +
-          '**SLA Quality Gate**: ' + (isSlaMet ? '✅ PRODUCTION READY (All Client SLAs Met)' : '⚠️ SLA BREACH: ' + breaches.join(', ') + ' (Release Blocked)') + '\n' +
+          '**SLA Quality Gate**: ' + (simulated
+            ? '⚠️ NOT ASSESSED (simulated run)'
+            : (isSlaMet ? '✅ PRODUCTION READY (All Client SLAs Met)' : '⚠️ SLA BREACH: ' + breaches.join(', ') + ' (Release Blocked)')) + '\n' +
           '**Accuracy Score**: ' + reportData.accuracyScorePct + '% (' + passed + '/' + cases.length + ' Passed, Target: >=' + slaTargets.minAccuracy + '%)\n' +
           '**Latency**: p50=' + reportData.p50LatencyMs + 'ms | p95=' + reportData.p95LatencyMs + 'ms (Target: <=' + slaTargets.maxLatencyP95 + 'ms) | p99=' + reportData.p99LatencyMs + 'ms\n' +
           '**Avg Cost / Task**: $' + reportData.averageCostPerTaskUsd.toFixed(4) + ' (Budget: <=' + slaTargets.maxCost + ')\n' +
