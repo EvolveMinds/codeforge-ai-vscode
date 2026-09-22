@@ -85,20 +85,29 @@ export class RunbookGenerator {
     };
 
     const cloudProvider = (dcfg?.provider || state.deployment?.discoveredCloudResources?.provider || targetVpc || 'gcp').toUpperCase();
-    const vpcInfo = cfg.vpcId ? `\\n(VPC: ${cfg.vpcId})` : '';
+    // Plain prose, not a mermaid label: this lands in a markdown blockquote,
+    // where `\n` is a literal backslash-n rather than a line break.
+    const vpcInfo = cfg.vpcId ? `(VPC: ${cfg.vpcId})` : '';
 
     const disc = state.discovery;
     const ai = state.aiSolution;
     const evals = state.evals;
 
-    const roiSection = disc?.controllersThreeNumbers ? `
+    // An ROI table of zeros is worse than no table: it reads as a finding that
+    // the work is worth nothing, when in fact nobody captured the numbers.
+    const n3 = disc?.controllersThreeNumbers;
+    const hasThreeNumbers = !!n3 && n3.volume > 0 && n3.handleTimeMins > 0 && n3.hourlyWage > 0;
+    const roiSection = hasThreeNumbers ? `
 ### Controller's Three Numbers & Economic ROI (Phase 1)
-* **Monthly Volume:** \`${disc.controllersThreeNumbers.volume.toLocaleString()} tasks/mo\`
-* **Handle Time / Latency:** \`${disc.controllersThreeNumbers.handleTimeMins} min/task\`
-* **Fully-Burdened Wage:** \`$${disc.controllersThreeNumbers.hourlyWage}/hr\`
-* **Projected Monthly Savings:** \`$${((disc.controllersThreeNumbers.volume * (disc.controllersThreeNumbers.handleTimeMins / 60) * disc.controllersThreeNumbers.hourlyWage * 0.7) / 1000).toFixed(1)}k / month\`
-* **Annual Capacity Reclaimed:** \`${Math.round((disc.controllersThreeNumbers.volume * (disc.controllersThreeNumbers.handleTimeMins / 60) * 0.7) * 12).toLocaleString()} labor hours/year\`
-` : '';
+* **Monthly Volume:** \`${n3!.volume.toLocaleString()} tasks/mo\`
+* **Handle Time / Latency:** \`${n3!.handleTimeMins} min/task\`
+* **Fully-Burdened Wage:** \`$${n3!.hourlyWage}/hr\`
+* **Projected Monthly Savings:** \`$${((n3!.volume * (n3!.handleTimeMins / 60) * n3!.hourlyWage * 0.7) / 1000).toFixed(1)}k / month\`
+* **Annual Capacity Reclaimed:** \`${Math.round((n3!.volume * (n3!.handleTimeMins / 60) * 0.7) * 12).toLocaleString()} labor hours/year\`
+` : `
+### Controller's Three Numbers & Economic ROI (Phase 1)
+${NOT_MEASURED} — the volume, handle time and loaded wage were not captured during discovery, so no economic case can be stated here.
+`;
 
     // Architecture claims are only as good as the decisions actually recorded.
     // Where 3A/3B/3C never ran, say so rather than asserting a rule engine the

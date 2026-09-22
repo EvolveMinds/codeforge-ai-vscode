@@ -74,6 +74,9 @@ const desktopApi = {
     createPr: (prInfo: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CREATE_PR, prInfo),
     init: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.INIT),
     setRemote: (url: string, name?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SET_REMOTE, url, name),
+    connectHttps: (payload: { remoteUrl: string; username: string; token: string; remoteName?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.CONNECT_HTTPS, payload),
+    testRemote: (url?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.TEST_REMOTE, url),
     setConfig: (config: { name?: string; email?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SET_CONFIG, config),
     sync: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SYNC),
     stage: (files?: string[]) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.STAGE, files),
@@ -122,6 +125,7 @@ const desktopApi = {
   // --- UPDATER APIS ---
   updater: {
     checkUpdate: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.CHECK_UPDATE),
+    getVersion: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.GET_VERSION),
     applyOfflinePatch: (patchPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.APPLY_OFFLINE_PATCH, patchPath)
   },
 

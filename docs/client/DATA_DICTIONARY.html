@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Data Dictionary &amp; Transformation Mapping — Client Pilot Engagement</title>
+<style>
+  :root {
+    --ink: #1a1d23; --muted: #5b6472; --line: #e3e7ed; --bg: #ffffff;
+    --soft: #f6f8fa; --accent: #0f766e; --accent-soft: #e6f4f1;
+    --danger: #b42318; --danger-soft: #fef3f2; --warn-soft: #fffaeb; --warn-ink: #b54708;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--soft); color: var(--ink);
+    font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 920px; margin: 32px auto 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 3px rgba(16,24,40,.06); overflow: hidden; }
+  .masthead { padding: 34px 44px 26px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg,#fbfdfc,#fff); }
+  .eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .masthead h1 { margin: 8px 0 4px; font-size: 27px; line-height: 1.25; letter-spacing: -.02em; }
+  .masthead .sub { color: var(--muted); font-size: 14px; }
+  .content { padding: 10px 44px 44px; }
+  h2 { font-size: 20px; margin: 34px 0 10px; padding-bottom: 7px; border-bottom: 2px solid var(--accent-soft); letter-spacing: -.01em; }
+  h3 { font-size: 16px; margin: 24px 0 8px; color: #27303f; }
+  h4,h5,h6 { font-size: 14px; margin: 18px 0 6px; color: #27303f; }
+  p { margin: 10px 0; }
+  ul { margin: 10px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  li.task-item { list-style: none; margin-left: -18px; }
+  .task { display: inline-block; width: 16px; color: var(--muted); }
+  .task-done { color: var(--accent); font-weight: 700; }
+  a { color: var(--accent); }
+  code { background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: #0f1419; color: #e6edf3; padding: 15px 17px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
+  pre code { background: none; border: 0; color: inherit; padding: 0; font-size: 12.5px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 26px 0; }
+  blockquote { margin: 14px 0; padding: 2px 16px; border-left: 3px solid var(--line); color: var(--muted); }
+  blockquote p { margin: 6px 0; }
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; background: var(--soft); border-bottom: 2px solid var(--line); padding: 9px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  td { border-bottom: 1px solid var(--line); padding: 9px 12px; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .callout { margin: 16px 0; padding: 14px 18px; border-radius: 8px; border: 1px solid; }
+  .callout p { margin: 5px 0; font-size: 14px; }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+  .callout-danger { background: var(--danger-soft); border-color: #fda29b; color: #7a271a; }
+  .callout-note { background: var(--accent-soft); border-color: #99d5cd; color: #134e48; }
+  .demo-banner { margin: 0; padding: 18px 44px; background: var(--danger); color: #fff; }
+  .demo-banner-title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+  .demo-banner p { margin: 6px 0 0; font-size: 13.5px; opacity: .95; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; vertical-align: baseline; }
+  .chip-unmeasured { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid #fedf89; }
+  .chip-demo { background: var(--danger-soft); color: #7a271a; border: 1px solid #fda29b; }
+  .diagram { margin: 16px 0; }
+  .diagram figcaption { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-style: italic; }
+  .footer { padding: 20px 44px 28px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; background: var(--soft); }
+
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; border: 0; box-shadow: none; max-width: none; }
+    .masthead, .content, .footer, .demo-banner { padding-left: 0; padding-right: 0; }
+    pre { white-space: pre-wrap; word-wrap: break-word; }
+    h2, h3 { break-after: avoid; }
+    table, figure, .callout { break-inside: avoid; }
+  }
+  @media (max-width: 640px) {
+    .page { margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
+    .masthead, .content, .footer, .demo-banner { padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+  <div class="demo-banner">
+    <div class="demo-banner-title">⚠️ Demonstration artifact — not a client deliverable</div>
+    <p>This document was produced while the Delivery Studio was in <strong>DEMO mode</strong>. Figures and findings come from built-in sample data and describe no real system. Do not share it with a client or present it as evidence of testing.</p>
+  </div>
+  <header class="masthead">
+    <div class="eyebrow">Demonstration artifact</div>
+    <h1>Data Dictionary &amp; Transformation Mapping</h1>
+    <div class="sub">Client Pilot Engagement · Column-level lineage reference</div>
+  </header>
+  <main class="content">
+<h2>Client Pilot Engagement — Data Dictionary &amp; Field Mapping Reference</h2>
+<p><em>No schema mappings have been generated yet. Use Phase 1 (Schema Mapper) to map client schemas.</em></p>
+  </main>
+  <footer class="footer">
+    Generated by Evolve AI Delivery Studio · 2026-09-22 06:41 UTC · DEMO MODE<br/>
+    Values shown as &ldquo;NOT YET MEASURED&rdquo; have not been produced by a real run.
+  </footer>
+</article>
+</body>
+</html>

@@ -61,6 +61,32 @@ let activeProjects: EngagementProject[] = [
   { id: 'health-azure', name: 'Healthcare Data Lakehouse', targetVpc: 'azure-container', goal: 'HIPAA compliant Delta Lakehouse with automated PII masking' }
 ];
 
+// --- SHARED APP VERSION ---
+// Resolved once from the main process. The renderer cannot read package.json
+// itself, so it caches what the updater reports. Never write a version literal
+// here: it would survive rebuilds and report a stale version forever.
+let _appVersion = '';
+
+async function resolveAppVersion(api?: any): Promise<string> {
+  if (_appVersion) return _appVersion;
+  try {
+    const targetApi = api || (window as any).evolveApi;
+    const res = await targetApi?.updater?.getVersion?.();
+    if (res?.version) _appVersion = res.version;
+  } catch {}
+  return _appVersion;
+}
+
+/** Version for display/provenance, e.g. "2.24.0". Empty until resolved. */
+function appVersion(): string {
+  return _appVersion;
+}
+
+/** Version tagged for provenance strings, e.g. "v2.24.0". */
+function appVersionTag(): string {
+  return _appVersion ? `v${_appVersion}` : '';
+}
+
 // --- SHARED CLIPBOARD HELPER ---
 async function copyTextToClipboard(text: string, api?: any): Promise<boolean> {
   if (!text) return false;
@@ -1152,6 +1178,10 @@ async function setupLicenseGate(api: any): Promise<boolean> {
 
 document.addEventListener('DOMContentLoaded', async () => {
   const api = (window as any).evolveApi;
+
+  // Resolve the running version first so every label and provenance stamp
+  // rendered afterwards reports the real build rather than an empty value.
+  try { await resolveAppVersion(api); } catch (e) { console.error('resolveAppVersion failed', e); }
 
   // 0. Enforce Cryptographic License Gate before opening workstation fully
   try { await setupLicenseGate(api); } catch (e) { console.error('setupLicenseGate failed', e); }
@@ -6885,6 +6915,48 @@ function setupDeliveryStudio(api: any): void {
     if (gitSetupDrawer) gitSetupDrawer.style.display = 'none';
   });
 
+  // --- Method 1: HTTPS + token / app password ---
+  const btnSaveHttpsRemote = document.getElementById('btnSaveHttpsRemote') as HTMLButtonElement;
+  const httpsRepoUrl = document.getElementById('httpsRepoUrl') as HTMLInputElement;
+  const httpsUsername = document.getElementById('httpsUsername') as HTMLInputElement;
+  const httpsToken = document.getElementById('httpsToken') as HTMLInputElement;
+
+  btnSaveHttpsRemote?.addEventListener('click', async () => {
+    const remoteUrl = (httpsRepoUrl?.value || '').trim();
+    const username = (httpsUsername?.value || '').trim();
+    const token = (httpsToken?.value || '').trim();
+
+    if (!remoteUrl) { showToast('⚠️ Enter the remote repository HTTPS URL.'); httpsRepoUrl?.focus(); return; }
+    if (!username) { showToast('⚠️ Enter the username / account for the token.'); httpsUsername?.focus(); return; }
+    if (!token) { showToast('⚠️ Enter the token / app password.'); httpsToken?.focus(); return; }
+    if (!api?.git?.connectHttps) { showToast('⚠️ Git bridge unavailable — restart the app.'); return; }
+
+    const label = btnSaveHttpsRemote.innerHTML;
+    btnSaveHttpsRemote.disabled = true;
+    btnSaveHttpsRemote.innerHTML = '⏳ Configuring &amp; verifying…';
+    try {
+      const res = await api.git.connectHttps({ remoteUrl, username, token });
+      if (res?.success) {
+        // Clear the token from the DOM — it is stored now, no reason to keep it on screen.
+        if (httpsToken) httpsToken.value = '';
+        showToast(res.empty
+          ? '✓ Remote configured & verified — the remote repository is empty, ready for your first push'
+          : `✓ Remote configured & verified — ${res.refs} branch(es) found on ${res.host}`);
+      } else if (res?.configured) {
+        // Remote was written but the credentials did not authenticate.
+        showToast(`⚠️ Remote saved, but verification failed: ${res.error}`);
+      } else {
+        showToast(`⚠️ ${res?.error || 'Could not configure the remote.'}`);
+      }
+      await refreshGitStatus(api);
+    } catch (err: any) {
+      showToast(`⚠️ Git connect failed: ${err?.message || err}`);
+    } finally {
+      btnSaveHttpsRemote.disabled = false;
+      btnSaveHttpsRemote.innerHTML = label;
+    }
+  });
+
   btnDeliveryCreatePr?.addEventListener('click', async () => {
     if (modalCreatePr) {
       modalCreatePr.style.display = 'flex';
@@ -9713,6 +9785,46 @@ function setupDeliveryStudio(api: any): void {
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
+
+    // GitHub callouts (> [!WARNING] / [!CAUTION] / [!NOTE]) render as raw text
+    // in a plain markdown pass, which is how the DEMO banner ended up looking
+    // like stray punctuation in the preview. Lift them into styled panels, and
+    // do it before the generic blockquote rule can claim the lines.
+    escaped = escaped.replace(
+      /(?:^&gt; \[!(WARNING|CAUTION|NOTE|IMPORTANT|TIP)\]\s*$\n)((?:^&gt;.*$\n?)*)/gmi,
+      (_m: string, kind: string, bodyLines: string) => {
+        const danger = /WARNING|CAUTION/i.test(kind);
+        const text = bodyLines
+          .split('\n')
+          .map((l: string) => l.replace(/^&gt;\s?/, ''))
+          .filter((l: string) => l.trim().length > 0)
+          .map((l: string) => {
+            const h = l.match(/^#{1,6}\s+(.*)$/);
+            return h
+              ? `<div style="font-weight:800;margin-bottom:4px;">${h[1]}</div>`
+              : `<div style="margin:3px 0;">${l}</div>`;
+          })
+          .join('');
+        const bg = danger ? 'rgba(239,68,68,0.12)' : 'rgba(56,189,248,0.10)';
+        const bd = danger ? '#ef4444' : '#38bdf8';
+        const fg = danger ? '#fca5a5' : '#7dd3fc';
+        return `<div style="background:${bg};border:1px solid ${bd};border-left-width:4px;border-radius:6px;padding:10px 14px;margin:12px 0;color:${fg};font-size:11.5px;line-height:1.55;">${text}</div>`;
+      }
+    );
+
+    // The honesty marker becomes a visible chip rather than plain text, so a
+    // reader can tell an unmeasured value from a real one at a glance.
+    escaped = escaped.replace(
+      /⚠️?\s*NOT YET MEASURED/g,
+      '<span style="display:inline-block;background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.5);border-radius:999px;padding:0 8px;font-size:10.5px;font-weight:700;letter-spacing:.02em;">NOT YET MEASURED</span>'
+    );
+
+    // Mermaid fences get a labelled panel instead of being dumped as code.
+    escaped = escaped.replace(/```mermaid\n([\s\S]*?)```/g, (_m: string, code: string) => {
+      return '<div style="margin:12px 0;"><div style="font-size:10.5px;color:var(--text-secondary);font-style:italic;margin-bottom:4px;">Architecture diagram — Mermaid source</div>'
+        + '<pre style="background:#101010;padding:12px;border-radius:4px;border:1px solid rgba(255,255,255,0.08);overflow-x:auto;font-family:monospace;font-size:11px;margin:0;"><code>'
+        + code + '</code></pre></div>';
+    });
     
     // Code blocks
     escaped = escaped.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_m, lang, code) => {
@@ -18758,7 +18870,7 @@ ${arch.watchOut.map(w => `- ${w}`).join('\n')}
     showToast('🔌 Scaffolding MCP Tool Server & Protocol Handlers in src/mcp/...');
     let code = `// Model Context Protocol Server (Evolve AI FDE)
 import { Server } from '@modelcontextprotocol/sdk/server';
-export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`;
+export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion()}' });`;
     if (api?.fde?.scaffoldMcpToolServer) {
       const res = await api.fde.scaffoldMcpToolServer();
       if (res && res.code) code = res.code;
@@ -20051,7 +20163,7 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '2.23.0' });`
           cryptographicallySigned: false,
           groundednessMethod: 'lexical_token_containment_v1',
           timestamp: new Date().toISOString(),
-          verifiedBy: 'Evolve AI Groundedness Gate v2.23.0'
+          verifiedBy: `Evolve AI Groundedness Gate ${appVersionTag()}`
         };
       }
 
@@ -33253,8 +33365,27 @@ function setupModals(api: any): void {
   const headerVersionLabel = document.getElementById('headerVersionLabel');
   const headerUpdateStatusLabel = document.getElementById('headerUpdateStatusLabel');
 
-  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = 'v2.23.0') => {
-    if (headerVersionLabel) headerVersionLabel.innerText = version.startsWith('v') ? version : `v${version}`;
+  // Real running version, resolved from the main process. Never hardcode it here:
+  // a literal in the renderer survives a rebuild and reports the old build forever.
+  let runningVersion = '';
+  const applyVersionLabels = (version: string) => {
+    if (!version) return;
+    runningVersion = version;
+    const withV = version.startsWith('v') ? version : `v${version}`;
+    if (headerVersionLabel) headerVersionLabel.innerText = withV;
+    const lblInstalled = document.getElementById('lblCurrentAppVersion');
+    if (lblInstalled) lblInstalled.innerText = withV;
+  };
+
+  void (async () => {
+    try {
+      const v = await resolveAppVersion(api);
+      if (v) applyVersionLabels(v);
+    } catch { /* leave the markup default in place */ }
+  })();
+
+  const setHeaderVersionPillState = (status: 'up-to-date' | 'update-available' | 'air-gapped', version = runningVersion) => {
+    if (version) applyVersionLabels(version);
     if (!headerUpdateDot || !headerUpdateStatusLabel) return;
 
     if (status === 'update-available') {
@@ -33317,18 +33448,18 @@ function setupModals(api: any): void {
         if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
         showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.23.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || runningVersion);
         if (updateCheckStatus) {
           updateCheckStatus.style.background = 'rgba(16, 185, 129, 0.15)';
           updateCheckStatus.style.color = '#34d399';
           updateCheckStatus.style.borderColor = 'rgba(16, 185, 129, 0.4)';
-          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || '2.23.0'}).</span>`;
+          updateCheckStatus.innerHTML = `<span>✓</span> <span><b>Up to date:</b> You are running the latest version (v${res?.currentVersion || runningVersion}).</span>`;
         }
         if (updateDownloadArea) updateDownloadArea.style.display = 'none';
-        showToast(`✓ You are running the latest version (v${res?.currentVersion || '2.23.0'}).`);
+        showToast(`✓ You are running the latest version (v${res?.currentVersion || runningVersion}).`);
       }
     } catch (err: any) {
-      setHeaderVersionPillState('air-gapped', '2.23.0');
+      setHeaderVersionPillState('air-gapped', runningVersion);
       if (updateCheckStatus) {
         updateCheckStatus.style.background = 'rgba(100, 116, 139, 0.15)';
         updateCheckStatus.style.color = '#94a3b8';
@@ -33349,10 +33480,10 @@ function setupModals(api: any): void {
       } else if (res?.updateAvailable) {
         setHeaderVersionPillState('update-available', res.currentVersion);
       } else {
-        setHeaderVersionPillState('up-to-date', res?.currentVersion || '2.23.0');
+        setHeaderVersionPillState('up-to-date', res?.currentVersion || runningVersion);
       }
     } catch {
-      setHeaderVersionPillState('air-gapped', '2.23.0');
+      setHeaderVersionPillState('air-gapped', runningVersion);
     }
   }, 2500);
 

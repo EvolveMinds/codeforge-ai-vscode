@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Complete Engagement Handoff Bundle — Client Pilot Engagement</title>
+<style>
+  :root {
+    --ink: #1a1d23; --muted: #5b6472; --line: #e3e7ed; --bg: #ffffff;
+    --soft: #f6f8fa; --accent: #0f766e; --accent-soft: #e6f4f1;
+    --danger: #b42318; --danger-soft: #fef3f2; --warn-soft: #fffaeb; --warn-ink: #b54708;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--soft); color: var(--ink);
+    font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 920px; margin: 32px auto 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 3px rgba(16,24,40,.06); overflow: hidden; }
+  .masthead { padding: 34px 44px 26px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg,#fbfdfc,#fff); }
+  .eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .masthead h1 { margin: 8px 0 4px; font-size: 27px; line-height: 1.25; letter-spacing: -.02em; }
+  .masthead .sub { color: var(--muted); font-size: 14px; }
+  .content { padding: 10px 44px 44px; }
+  h2 { font-size: 20px; margin: 34px 0 10px; padding-bottom: 7px; border-bottom: 2px solid var(--accent-soft); letter-spacing: -.01em; }
+  h3 { font-size: 16px; margin: 24px 0 8px; color: #27303f; }
+  h4,h5,h6 { font-size: 14px; margin: 18px 0 6px; color: #27303f; }
+  p { margin: 10px 0; }
+  ul { margin: 10px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  li.task-item { list-style: none; margin-left: -18px; }
+  .task { display: inline-block; width: 16px; color: var(--muted); }
+  .task-done { color: var(--accent); font-weight: 700; }
+  a { color: var(--accent); }
+  code { background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: #0f1419; color: #e6edf3; padding: 15px 17px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
+  pre code { background: none; border: 0; color: inherit; padding: 0; font-size: 12.5px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 26px 0; }
+  blockquote { margin: 14px 0; padding: 2px 16px; border-left: 3px solid var(--line); color: var(--muted); }
+  blockquote p { margin: 6px 0; }
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; background: var(--soft); border-bottom: 2px solid var(--line); padding: 9px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  td { border-bottom: 1px solid var(--line); padding: 9px 12px; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .callout { margin: 16px 0; padding: 14px 18px; border-radius: 8px; border: 1px solid; }
+  .callout p { margin: 5px 0; font-size: 14px; }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+  .callout-danger { background: var(--danger-soft); border-color: #fda29b; color: #7a271a; }
+  .callout-note { background: var(--accent-soft); border-color: #99d5cd; color: #134e48; }
+  .demo-banner { margin: 0; padding: 18px 44px; background: var(--danger); color: #fff; }
+  .demo-banner-title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+  .demo-banner p { margin: 6px 0 0; font-size: 13.5px; opacity: .95; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; vertical-align: baseline; }
+  .chip-unmeasured { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid #fedf89; }
+  .chip-demo { background: var(--danger-soft); color: #7a271a; border: 1px solid #fda29b; }
+  .diagram { margin: 16px 0; }
+  .diagram figcaption { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-style: italic; }
+  .footer { padding: 20px 44px 28px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; background: var(--soft); }
+
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; border: 0; box-shadow: none; max-width: none; }
+    .masthead, .content, .footer, .demo-banner { padding-left: 0; padding-right: 0; }
+    pre { white-space: pre-wrap; word-wrap: break-word; }
+    h2, h3 { break-after: avoid; }
+    table, figure, .callout { break-inside: avoid; }
+  }
+  @media (max-width: 640px) {
+    .page { margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
+    .masthead, .content, .footer, .demo-banner { padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+  <div class="demo-banner">
+    <div class="demo-banner-title">⚠️ Demonstration artifact — not a client deliverable</div>
+    <p>This document was produced while the Delivery Studio was in <strong>DEMO mode</strong>. Figures and findings come from built-in sample data and describe no real system. Do not share it with a client or present it as evidence of testing.</p>
+  </div>
+  <header class="masthead">
+    <div class="eyebrow">Demonstration artifact</div>
+    <h1>Complete Engagement Handoff Bundle</h1>
+    <div class="sub">Client Pilot Engagement · Consolidated delivery package</div>
+  </header>
+  <main class="content">
+<h2>📦 Client Pilot Engagement — Complete Engagement Handoff Bundle</h2>
+<blockquote><p><strong>Generated on:</strong> 2026-09-22</p><p><strong>Prepared by:</strong> Forward Deployed Engineering Studio (Evolve AI)</p></blockquote>
+<hr/>
+<div class="callout callout-danger"><div class="callout-title">⚠️ DEMONSTRATION ARTIFACT — NOT A CLIENT DELIVERABLE</div><p>This document was generated while the Delivery Studio was in <strong>DEMO mode</strong>.</p><p>Figures, findings and signatures in it come from built-in sample data and</p><p>describe no real system. It must not be shared with a client, attached to a</p><p>proposal, or used as evidence of testing.</p><p>_Generated 2026-09-22T06:41:19.670Z_</p></div>
+<h2>Client Pilot Engagement — System Architecture &amp; Integration Blueprint</h2>
+<blockquote><p><strong>Generated by Evolve AI (Forward Deployed Engineer Suite)</strong></p><p><strong>Engagement Target:</strong> Client Pilot Engagement Production &amp; Pilot Deployment</p><p><strong>Infrastructure Target:</strong> GCP-FIREBASE (VPC: default)</p><p><strong>Canonical Delivery Standard:</strong> 5-Phase Forward-Deployed Engineering Curriculum</p></blockquote>
+<hr/>
+<h3>1. Executive Problem Reframing &amp; Economic Boundaries (Phase 1)</h3>
+<ul>
+<li><strong>Original Client Request:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span> _(raw client ask not recorded during discovery)_</li>
+<li><strong>Identified Failure Modes:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span> _(risk analysis not recorded during discovery)_</li>
+<li><strong>Agreed Production Target (Observation-to-Spec / O2S):</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span> _(reframed problem not recorded during discovery)_</li>
+<li><strong>Explicit Out-of-Scope Boundaries:</strong> <code>No direct production write access without cryptographically signed audit log</code>, <code>No ungrounded responses or unverified external API mutations</code></li>
+</ul>
+<h4>Controller's Three Numbers &amp; Economic ROI (Phase 1)</h4>
+<p><span class="chip chip-unmeasured">NOT YET MEASURED</span> — the volume, handle time and loaded wage were not captured during discovery, so no economic case can be stated here.</p>
+<hr/>
+<h3>2. Executive System Overview &amp; Data Lineage</h3>
+<p>This document specifies the end-to-end architecture, data lineage flows, and deployment topology implemented for the <strong>Client Pilot Engagement</strong> pilot engagement.</p>
+<figure class="diagram"><figcaption>Architecture diagram — Mermaid source</figcaption><pre><code>graph TD
+    subgraph Client Data Ingestion &amp; Mart Layer
+        RawData["Raw Client Data\n(CSV / Oracle / SQL)"] --&gt; StagingModel["dbt Staging Model\n(Type Casts &amp; Renaming)"]
+        StagingModel --&gt; Database
+    end
+
+    subgraph External &amp; Connected API Feeds
+        ClientApi["Client Internal APIs\n(REST / Webhooks)"] --&gt; ResilientSdk["Resilient Connector SDK\n(Retries &amp; Rate Limits)"]
+        ResilientSdk --&gt; Backend
+    end
+
+    subgraph Cloud Delivery Layer (GCP-FIREBASE)
+        Frontend["Web &amp; App Frontends\n(SPA + Edge Caching)"]
+        Backend["Compute Services / Containers\n(1 vCPU · 1Gi)"]
+        Database["PostgreSQL / Supabase / Lakehouse\n(Relational &amp; Analytics)"]
+    end
+
+    Frontend --&gt; Backend
+    Backend --&gt; Database</code></pre></figure>
+<hr/>
+<h3>3. Ingested Data Models &amp; Transformations (Phase 2)</h3>
+<h4>Staging Models</h4>
+<div class="table-wrap"><table><thead><tr><th>Source Dataset</th><th>Target Model</th><th>Dialect</th><th>Columns</th><th>Status</th></tr></thead><tbody><tr><td><em>(No schema models mapped yet)</em></td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></div>
+<h4>Downstream Business Marts</h4>
+<div class="table-wrap"><table><thead><tr><th>Mart Name</th><th>Base Model</th><th>Joins</th><th>Dimensions</th><th>Metrics</th><th>Status</th></tr></thead><tbody><tr><td><em>(No data marts generated yet)</em></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></div>
+<h4>Connected APIs &amp; External Feeds</h4>
+<div class="table-wrap"><table><thead><tr><th>Connector Name</th><th>Base URL</th><th>Auth Strategy</th><th>Endpoints</th><th>Status</th></tr></thead><tbody><tr><td><em>(No API connectors registered)</em></td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></div>
+<hr/>
+<h3>3. AI Solutioning Architecture &amp; Decision Gates (Phase 3)</h3>
+<ul>
+<li><strong>Architecture Capability Target:</strong> <strong>Level 3: Air-Gapped Grounded Policy RAG</strong></li>
+<li><strong>Decision Gate Rationale:</strong> Air-gapped Grounded Retrieval-Augmented Generation (RAG). Ingests enterprise handbooks, standard operating procedures (SOPs), clinical guidelines, and contracts into 128-token semantic chunks. Strictly enforces that every generated claim contains a 100% verified citation, recorded with a SHA-256 content-digest audit receipt.</li>
+<li><strong>Rule vs. Model Verdict:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>RAG Vector Architecture:</strong> <strong>01 Naive RAG</strong></li>
+<li><strong>Model Context Protocol (MCP):</strong> Not scaffolded for this engagement</li>
+</ul>
+<hr/>
+<h3>4. Reliability &amp; Evaluation Suite (Phase 4)</h3>
+<div class="callout callout-danger"><p><strong>No golden benchmark has been executed for this engagement.</strong> The metrics below</p><p>are unpopulated by design. Run the Phase 4 benchmark against a real target before</p><p>presenting any reliability claim to the client.</p></div>
+<ul>
+<li><strong>Golden Benchmark Accuracy:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Latency Profile (P50 / P95):</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Citation &amp; Groundedness:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Audit Trail Integrity:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Human-in-the-Loop (HITL) Policy:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+</ul>
+<hr/>
+<h3>5. Multi-Cloud Infrastructure &amp; Security Posture (Phase 5)</h3>
+<ul>
+<li><strong>Compute Target:</strong> GCP-FIREBASE (1 vCPU, 1Gi Memory, GPU: none)</li>
+<li><strong>Network Isolation:</strong> Ingress set to <code>all</code> within VPC <code>default</code>.</li>
+<li><strong>Secrets Provider:</strong> <code>gcp-secret-manager</code>.</li>
+<li><strong>Air-Gapped Ready:</strong> The deployment is compatible with strict air-gapped and non-exfiltrating client boundaries.</li>
+</ul>
+<hr/>
+<div class="callout callout-danger"><div class="callout-title">⚠️ DEMONSTRATION ARTIFACT — NOT A CLIENT DELIVERABLE</div><p>This document was generated while the Delivery Studio was in <strong>DEMO mode</strong>.</p><p>Figures, findings and signatures in it come from built-in sample data and</p><p>describe no real system. It must not be shared with a client, attached to a</p><p>proposal, or used as evidence of testing.</p><p>_Generated 2026-09-22T06:41:19.670Z_</p></div>
+<h2>Client Pilot Engagement — Operations &amp; Deployment Runbook</h2>
+<blockquote><p><strong>Audience:</strong> Client IT, DevOps, and Platform Engineering Teams  </p><p><strong>Maintained by:</strong> Forward Deployed Engineering (FDE)  </p></blockquote>
+<hr/>
+<h3>1. Quick-Start Deployment</h3>
+<p>To deploy updates to the client environment, execute the cross-platform deployment script from the project root:</p>
+<pre><code># Linux / macOS (Bash)
+./scripts/deploy.sh pilot all
+
+# Windows (PowerShell)
+.\scripts\deploy.ps1 -Environment pilot -Component all</code></pre>
+<hr/>
+<h3>2. Pre-Deployment Health &amp; Sanity Checklist</h3>
+<p>Before initiating any deployment to staging or production, run the pre-flight verification script:</p>
+<pre><code>node scripts/prepare-deployment.js --clean</code></pre>
+<h4>Automated Verifications:</h4>
+<p>1. <strong>Dangling Artifacts:</strong> Cleans up temporary or backup files (<code><em>.bak</code>, <code></em>.tmp</code>, <code><em>_OLD.</em></code>).</p>
+<p>2. <strong>Secret Leak Prevention:</strong> Scans build artifacts to ensure no private keys or tokens are exposed.</p>
+<p>3. <strong>Environment Parity:</strong> Verifies that all required keys in <code>.env.example</code> are populated in the active environment.</p>
+<hr/>
+<h3>3. Rollback Procedure</h3>
+<p>If an issue is detected post-deployment:</p>
+<h4>Frontend (Firebase Hosting):</h4>
+<pre><code># Roll back to the previous stable release instantly:
+npx firebase-tools hosting:rollback --project acme-pilot-2026</code></pre>
+<h4>Backend (Cloud Run):</h4>
+<pre><code># Route 100% of traffic back to the previous stable revision:
+gcloud run services update-traffic api-service --to-revisions=PREVIOUS_REVISION=100</code></pre>
+<hr/>
+<h3>4. Troubleshooting &amp; Diagnostics</h3>
+<div class="table-wrap"><table><thead><tr><th>Symptom</th><th>Probable Cause</th><th>Action</th></tr></thead><tbody><tr><td><strong>HTTP 429 Too Many Requests</strong></td><td>Upstream client rate limit reached</td><td>Verify <code>RATE_LIMIT_PER_SEC</code> config in connector SDK.</td></tr><tr><td><strong>Missing Environment Variable</strong></td><td><code>.env</code> parity discrepancy</td><td>Compare local <code>.env</code> against <code>.env.example</code>.</td></tr><tr><td><strong>CORS Error on Frontend</strong></td><td>Cloud Run domain mismatch</td><td>Update <code>CLIENT_URLS</code> in backend environment configuration.</td></tr></tbody></table></div>
+<hr/>
+<h2>Client Pilot Engagement — Data Dictionary &amp; Field Mapping Reference</h2>
+<p><em>No schema mappings have been generated yet. Use Phase 1 (Schema Mapper) to map client schemas.</em></p>
+<hr/>
+<h2>Client Pilot Engagement — Environment Variables &amp; Secrets Reference</h2>
+<blockquote><p><strong>Maintained by:</strong> Forward Deployed Engineering (FDE)  </p><p><strong>Target Environment:</strong> pilot  </p></blockquote>
+<hr/>
+<h3>1. Required Runtime Configuration</h3>
+<div class="table-wrap"><table><thead><tr><th>Variable Name</th><th>Required</th><th>Secret?</th><th>Description / Expected Value</th></tr></thead><tbody><tr><td><code>GCP_PROJECT_ID</code></td><td><strong>Yes</strong></td><td>Public</td><td>Runtime configuration for <code>GCP_PROJECT_ID</code></td></tr><tr><td><code>FIREBASE_TOKEN</code></td><td><strong>Yes</strong></td><td>🔒 Secret</td><td>Runtime configuration for <code>FIREBASE_TOKEN</code></td></tr><tr><td><code>DATABASE_URL</code></td><td><strong>Yes</strong></td><td>Public</td><td>Runtime configuration for <code>DATABASE_URL</code></td></tr><tr><td><code>API_BEARER_TOKEN</code></td><td><strong>Yes</strong></td><td>🔒 Secret</td><td>Runtime configuration for <code>API_BEARER_TOKEN</code></td></tr><tr><td><code>PORT</code></td><td><strong>Yes</strong></td><td>Public</td><td>Runtime configuration for <code>PORT</code></td></tr></tbody></table></div>
+<hr/>
+<h3>2. Setup Guide</h3>
+<h4>Local Development (<code>.env</code>):</h4>
+<pre><code>cp .env.example .env
+# Fill in local secrets safely</code></pre>
+<h4>CI/CD Deployment:</h4>
+<p>Configure all secrets under GitHub Actions / GitLab CI pipeline settings before triggering automated pilot builds.</p>
+<hr/>
+<div class="callout callout-danger"><div class="callout-title">⚠️ DEMONSTRATION ARTIFACT — NOT A CLIENT DELIVERABLE</div><p>This document was generated while the Delivery Studio was in <strong>DEMO mode</strong>.</p><p>Figures, findings and signatures in it come from built-in sample data and</p><p>describe no real system. It must not be shared with a client, attached to a</p><p>proposal, or used as evidence of testing.</p><p>_Generated 2026-09-22T06:41:19.670Z_</p></div>
+<h2>🎤 Client Pilot Engagement — 5-Minute Executive Demo Presentation Script</h2>
+<blockquote><p><strong>Purpose:</strong> Forward Deployed Engineer Executive Presentation Script for client CFO, CIO, and Business Unit Leaders.  </p><p><strong>Total Duration:</strong> Exactly 5 Minutes (Strict FDE Timeboxed Protocol)  </p><p><strong>Prepared by:</strong> Evolve AI Delivery Studio  </p></blockquote>
+<hr/>
+<h4>[0:00 - 1:00] Slide 1: The Business Problem &amp; The Controller's 3 Numbers</h4>
+<ul>
+<li><strong>Speaker:</strong> "Thank you everyone. Today, we're showing you the working prototype built specifically on your infrastructure. When we started, the original ask was: <em>'Automate our manual workflow with AI'</em>.</li>
+<li>Most AI vendors would build a generic chatbot that hallucinates numbers. Instead, we started by <strong>refusing that ask</strong> and calculating your exact economics with your Controller.</li>
+<li>You process <strong>0 tasks a month</strong>, taking <strong>15 minutes each</strong>, at an average cost of <strong>$35/hr</strong>.</li>
+<li>By implementing deterministic automation with zero hallucinations, this system reclaims <strong><span class="chip chip-unmeasured">NOT YET MEASURED</span></strong> and delivers <strong><span class="chip chip-unmeasured">NOT YET MEASURED</span>/month in hard savings</strong>, while establishing strict boundaries: no unverified writes and no unsupervised actions above threshold."</li>
+</ul>
+<hr/>
+<h4>[1:00 - 2:00] Slide 2: The Plumbing — Connecting Your Data Wire</h4>
+<ul>
+<li><strong>Speaker:</strong> "Next, we didn't ask you to migrate your data. In Phase 2, we plugged directly into your existing data feeds.</li>
+<li>We generated typed staging models for your raw datasets and compiled dbt dimensional marts.</li>
+<li>For your external APIs, we scaffolded hardened, resilient SDKs with automated rate limiting and exponential backoff.</li>
+<li>Everything runs in your VPC, with all credentials encrypted in your machine vault."</li>
+</ul>
+<hr/>
+<h4>[2:00 - 3:00] Slide 3: Deterministic AI Solutioning (FDE Capability Ladder)</h4>
+<ul>
+<li><strong>Speaker:</strong> "Now let's look at the AI layer. We deliberately selected <strong>Level 3: Air-Gapped Grounded Policy RAG</strong> from the FDE capability ladder.</li>
+<li>Why? Because arithmetic and financial rules cannot tolerate a 2% hallucination rate.</li>
+<li>Any task requiring strict math runs through compiled SQL and deterministic code in under 10 milliseconds.</li>
+<li>Where unstructured policy interpretation is needed, our air-gapped RAG pipeline retrieves exact citations from your handbook with 128-token chunk precision."</li>
+</ul>
+<hr/>
+<h4>[3:00 - 4:00] Slide 4: Proof of Reliability — Golden Benchmark</h4>
+<div class="callout callout-danger"><p><strong>Do not deliver this slide.</strong> No golden benchmark has been executed for this</p><p>engagement, so there is no reliability result to present. Run the Phase 4</p><p>benchmark against a real target, then regenerate this script.</p></div>
+<ul>
+<li><strong>Speaker:</strong> _(no measured reliability results — slide intentionally left unscripted)_</li>
+</ul>
+<hr/>
+<h4>[4:00 - 5:00] Slide 5: Production Deployment &amp; Immediate Handoff</h4>
+<ul>
+<li><strong>Speaker:</strong> "Finally, this is not a slide deck—it is deployable code.</li>
+<li>We have generated your complete Multi-Cloud Infrastructure as Code—ready for GCP Cloud Run and Kubernetes.</li>
+<li>Your engineering team receives the complete operations runbook, data dictionary, and single-command rollback procedure today.</li>
+<li>We are ready to begin pilot traffic rollout on Monday. Any questions?"</li>
+</ul>
+  </main>
+  <footer class="footer">
+    Generated by Evolve AI Delivery Studio · 2026-09-22 06:41 UTC · DEMO MODE<br/>
+    Values shown as &ldquo;NOT YET MEASURED&rdquo; have not been produced by a real run.
+  </footer>
+</article>
+</body>
+</html>

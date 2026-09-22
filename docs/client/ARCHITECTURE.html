@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>System Architecture &amp; Integration Blueprint — Client Pilot Engagement</title>
+<style>
+  :root {
+    --ink: #1a1d23; --muted: #5b6472; --line: #e3e7ed; --bg: #ffffff;
+    --soft: #f6f8fa; --accent: #0f766e; --accent-soft: #e6f4f1;
+    --danger: #b42318; --danger-soft: #fef3f2; --warn-soft: #fffaeb; --warn-ink: #b54708;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--soft); color: var(--ink);
+    font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 920px; margin: 32px auto 64px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 1px 3px rgba(16,24,40,.06); overflow: hidden; }
+  .masthead { padding: 34px 44px 26px; border-bottom: 1px solid var(--line); background: linear-gradient(180deg,#fbfdfc,#fff); }
+  .eyebrow { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  .masthead h1 { margin: 8px 0 4px; font-size: 27px; line-height: 1.25; letter-spacing: -.02em; }
+  .masthead .sub { color: var(--muted); font-size: 14px; }
+  .content { padding: 10px 44px 44px; }
+  h2 { font-size: 20px; margin: 34px 0 10px; padding-bottom: 7px; border-bottom: 2px solid var(--accent-soft); letter-spacing: -.01em; }
+  h3 { font-size: 16px; margin: 24px 0 8px; color: #27303f; }
+  h4,h5,h6 { font-size: 14px; margin: 18px 0 6px; color: #27303f; }
+  p { margin: 10px 0; }
+  ul { margin: 10px 0; padding-left: 22px; }
+  li { margin: 5px 0; }
+  li.task-item { list-style: none; margin-left: -18px; }
+  .task { display: inline-block; width: 16px; color: var(--muted); }
+  .task-done { color: var(--accent); font-weight: 700; }
+  a { color: var(--accent); }
+  code { background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: #0f1419; color: #e6edf3; padding: 15px 17px; border-radius: 8px; overflow-x: auto; margin: 12px 0; }
+  pre code { background: none; border: 0; color: inherit; padding: 0; font-size: 12.5px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 26px 0; }
+  blockquote { margin: 14px 0; padding: 2px 16px; border-left: 3px solid var(--line); color: var(--muted); }
+  blockquote p { margin: 6px 0; }
+  .table-wrap { overflow-x: auto; margin: 14px 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; background: var(--soft); border-bottom: 2px solid var(--line); padding: 9px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  td { border-bottom: 1px solid var(--line); padding: 9px 12px; vertical-align: top; }
+  tr:last-child td { border-bottom: 0; }
+  .callout { margin: 16px 0; padding: 14px 18px; border-radius: 8px; border: 1px solid; }
+  .callout p { margin: 5px 0; font-size: 14px; }
+  .callout-title { font-weight: 700; margin-bottom: 4px; }
+  .callout-danger { background: var(--danger-soft); border-color: #fda29b; color: #7a271a; }
+  .callout-note { background: var(--accent-soft); border-color: #99d5cd; color: #134e48; }
+  .demo-banner { margin: 0; padding: 18px 44px; background: var(--danger); color: #fff; }
+  .demo-banner-title { font-size: 16px; font-weight: 800; letter-spacing: -.01em; }
+  .demo-banner p { margin: 6px 0 0; font-size: 13.5px; opacity: .95; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; letter-spacing: .02em; vertical-align: baseline; }
+  .chip-unmeasured { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid #fedf89; }
+  .chip-demo { background: var(--danger-soft); color: #7a271a; border: 1px solid #fda29b; }
+  .diagram { margin: 16px 0; }
+  .diagram figcaption { font-size: 12px; color: var(--muted); margin-bottom: 6px; font-style: italic; }
+  .footer { padding: 20px 44px 28px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; background: var(--soft); }
+
+  @media print {
+    body { background: #fff; }
+    .page { margin: 0; border: 0; box-shadow: none; max-width: none; }
+    .masthead, .content, .footer, .demo-banner { padding-left: 0; padding-right: 0; }
+    pre { white-space: pre-wrap; word-wrap: break-word; }
+    h2, h3 { break-after: avoid; }
+    table, figure, .callout { break-inside: avoid; }
+  }
+  @media (max-width: 640px) {
+    .page { margin: 0; border-radius: 0; border-left: 0; border-right: 0; }
+    .masthead, .content, .footer, .demo-banner { padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+</head>
+<body>
+<article class="page">
+  <div class="demo-banner">
+    <div class="demo-banner-title">⚠️ Demonstration artifact — not a client deliverable</div>
+    <p>This document was produced while the Delivery Studio was in <strong>DEMO mode</strong>. Figures and findings come from built-in sample data and describe no real system. Do not share it with a client or present it as evidence of testing.</p>
+  </div>
+  <header class="masthead">
+    <div class="eyebrow">Demonstration artifact</div>
+    <h1>System Architecture &amp; Integration Blueprint</h1>
+    <div class="sub">Client Pilot Engagement · Prepared for Client IT &amp; Platform Engineering</div>
+  </header>
+  <main class="content">
+<h2>Client Pilot Engagement — System Architecture &amp; Integration Blueprint</h2>
+<blockquote><p><strong>Generated by Evolve AI (Forward Deployed Engineer Suite)</strong></p><p><strong>Engagement Target:</strong> Client Pilot Engagement Production &amp; Pilot Deployment</p><p><strong>Infrastructure Target:</strong> GCP-FIREBASE (VPC: default)</p><p><strong>Canonical Delivery Standard:</strong> 5-Phase Forward-Deployed Engineering Curriculum</p></blockquote>
+<hr/>
+<h3>1. Executive Problem Reframing &amp; Economic Boundaries (Phase 1)</h3>
+<ul>
+<li><strong>Original Client Request:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span> _(raw client ask not recorded during discovery)_</li>
+<li><strong>Identified Failure Modes:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span> _(risk analysis not recorded during discovery)_</li>
+<li><strong>Agreed Production Target (Observation-to-Spec / O2S):</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span> _(reframed problem not recorded during discovery)_</li>
+<li><strong>Explicit Out-of-Scope Boundaries:</strong> <code>No direct production write access without cryptographically signed audit log</code>, <code>No ungrounded responses or unverified external API mutations</code></li>
+</ul>
+<h4>Controller's Three Numbers &amp; Economic ROI (Phase 1)</h4>
+<p><span class="chip chip-unmeasured">NOT YET MEASURED</span> — the volume, handle time and loaded wage were not captured during discovery, so no economic case can be stated here.</p>
+<hr/>
+<h3>2. Executive System Overview &amp; Data Lineage</h3>
+<p>This document specifies the end-to-end architecture, data lineage flows, and deployment topology implemented for the <strong>Client Pilot Engagement</strong> pilot engagement.</p>
+<figure class="diagram"><figcaption>Architecture diagram — Mermaid source</figcaption><pre><code>graph TD
+    subgraph Client Data Ingestion &amp; Mart Layer
+        RawData["Raw Client Data\n(CSV / Oracle / SQL)"] --&gt; StagingModel["dbt Staging Model\n(Type Casts &amp; Renaming)"]
+        StagingModel --&gt; Database
+    end
+
+    subgraph External &amp; Connected API Feeds
+        ClientApi["Client Internal APIs\n(REST / Webhooks)"] --&gt; ResilientSdk["Resilient Connector SDK\n(Retries &amp; Rate Limits)"]
+        ResilientSdk --&gt; Backend
+    end
+
+    subgraph Cloud Delivery Layer (GCP-FIREBASE)
+        Frontend["Web &amp; App Frontends\n(SPA + Edge Caching)"]
+        Backend["Compute Services / Containers\n(1 vCPU · 1Gi)"]
+        Database["PostgreSQL / Supabase / Lakehouse\n(Relational &amp; Analytics)"]
+    end
+
+    Frontend --&gt; Backend
+    Backend --&gt; Database</code></pre></figure>
+<hr/>
+<h3>3. Ingested Data Models &amp; Transformations (Phase 2)</h3>
+<h4>Staging Models</h4>
+<div class="table-wrap"><table><thead><tr><th>Source Dataset</th><th>Target Model</th><th>Dialect</th><th>Columns</th><th>Status</th></tr></thead><tbody><tr><td><em>(No schema models mapped yet)</em></td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></div>
+<h4>Downstream Business Marts</h4>
+<div class="table-wrap"><table><thead><tr><th>Mart Name</th><th>Base Model</th><th>Joins</th><th>Dimensions</th><th>Metrics</th><th>Status</th></tr></thead><tbody><tr><td><em>(No data marts generated yet)</em></td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></div>
+<h4>Connected APIs &amp; External Feeds</h4>
+<div class="table-wrap"><table><thead><tr><th>Connector Name</th><th>Base URL</th><th>Auth Strategy</th><th>Endpoints</th><th>Status</th></tr></thead><tbody><tr><td><em>(No API connectors registered)</em></td><td>-</td><td>-</td><td>-</td><td>-</td></tr></tbody></table></div>
+<hr/>
+<h3>3. AI Solutioning Architecture &amp; Decision Gates (Phase 3)</h3>
+<ul>
+<li><strong>Architecture Capability Target:</strong> <strong>Level 3: Air-Gapped Grounded Policy RAG</strong></li>
+<li><strong>Decision Gate Rationale:</strong> Air-gapped Grounded Retrieval-Augmented Generation (RAG). Ingests enterprise handbooks, standard operating procedures (SOPs), clinical guidelines, and contracts into 128-token semantic chunks. Strictly enforces that every generated claim contains a 100% verified citation, recorded with a SHA-256 content-digest audit receipt.</li>
+<li><strong>Rule vs. Model Verdict:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>RAG Vector Architecture:</strong> <strong>01 Naive RAG</strong></li>
+<li><strong>Model Context Protocol (MCP):</strong> Not scaffolded for this engagement</li>
+</ul>
+<hr/>
+<h3>4. Reliability &amp; Evaluation Suite (Phase 4)</h3>
+<div class="callout callout-danger"><p><strong>No golden benchmark has been executed for this engagement.</strong> The metrics below</p><p>are unpopulated by design. Run the Phase 4 benchmark against a real target before</p><p>presenting any reliability claim to the client.</p></div>
+<ul>
+<li><strong>Golden Benchmark Accuracy:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Latency Profile (P50 / P95):</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Citation &amp; Groundedness:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Audit Trail Integrity:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+<li><strong>Human-in-the-Loop (HITL) Policy:</strong> <span class="chip chip-unmeasured">NOT YET MEASURED</span></li>
+</ul>
+<hr/>
+<h3>5. Multi-Cloud Infrastructure &amp; Security Posture (Phase 5)</h3>
+<ul>
+<li><strong>Compute Target:</strong> GCP-FIREBASE (1 vCPU, 1Gi Memory, GPU: none)</li>
+<li><strong>Network Isolation:</strong> Ingress set to <code>all</code> within VPC <code>default</code>.</li>
+<li><strong>Secrets Provider:</strong> <code>gcp-secret-manager</code>.</li>
+<li><strong>Air-Gapped Ready:</strong> The deployment is compatible with strict air-gapped and non-exfiltrating client boundaries.</li>
+</ul>
+  </main>
+  <footer class="footer">
+    Generated by Evolve AI Delivery Studio · 2026-09-22 06:41 UTC · DEMO MODE<br/>
+    Values shown as &ldquo;NOT YET MEASURED&rdquo; have not been produced by a real run.
+  </footer>
+</article>
+</body>
+</html>

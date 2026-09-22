@@ -6,7 +6,7 @@
 > describe no real system. It must not be shared with a client, attached to a
 > proposal, or used as evidence of testing.
 >
-> _Generated 2026-09-22T02:18:22.035Z_
+> _Generated 2026-09-22T06:41:19.653Z_
 # Client Pilot Engagement — Operations & Deployment Runbook
 
 > **Audience:** Client IT, DevOps, and Platform Engineering Teams  
@@ -50,7 +50,7 @@ If an issue is detected post-deployment:
 ### Frontend (Firebase Hosting):
 ```bash
 # Roll back to the previous stable release instantly:
-npx firebase-tools hosting:rollback --project PROJECT_ID
+npx firebase-tools hosting:rollback --project acme-pilot-2026
 ```
 
 ### Backend (Cloud Run):

@@ -54,6 +54,8 @@ export const DESKTOP_CHANNELS = {
     CREATE_PR: 'evolve:git:create-pr',
     INIT: 'evolve:git:init',
     SET_REMOTE: 'evolve:git:set-remote',
+    CONNECT_HTTPS: 'evolve:git:connect-https',
+    TEST_REMOTE: 'evolve:git:test-remote',
     SET_CONFIG: 'evolve:git:set-config',
     SYNC: 'evolve:git:sync',
     STAGE: 'evolve:git:stage',
@@ -96,6 +98,7 @@ export const DESKTOP_CHANNELS = {
 
   UPDATER: {
     CHECK_UPDATE: 'evolve:updater:check-update',
+    GET_VERSION: 'evolve:updater:get-version',
     APPLY_OFFLINE_PATCH: 'evolve:updater:apply-offline-patch'
   },
 

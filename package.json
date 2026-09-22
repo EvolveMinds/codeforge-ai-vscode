@@ -2211,6 +2211,7 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./ && node scripts/copy-desktop-assets.js",
+    "check:version": "node scripts/check-version-literals.js",
     "watch": "tsc -watch -p ./",
     "postinstall": "node scripts/download-binaries.js",
     "download-bins": "node scripts/download-binaries.js",
@@ -2230,8 +2231,8 @@
     "patch:create": "node scripts/create-offline-patch.js",
     "license:generate": "node scripts/generate-license.js",
     "desktop:start": "npx electron out/desktop/main/main.js",
-    "desktop:build:win": "npx electron-builder --win",
-    "desktop:build:portable": "npx electron-builder --win portable",
+    "desktop:build:win": "npm run check:version && npx electron-builder --win",
+    "desktop:build:portable": "npm run check:version && npx electron-builder --win portable",
     "test": "node ./out/test/runTest.js",
     "test:fde": "mocha --ui tdd out/test/suite/fde/*.test.js",
     "verify:honest": "node scripts/verify-honest-mode.js"

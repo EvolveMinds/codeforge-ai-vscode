@@ -16,10 +16,12 @@ import * as https from 'https';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { URL } from 'url';
 import { DESKTOP_CHANNELS } from '../shared/eventChannels';
+import { getAppVersion, getAppVersionTag } from '../shared/appVersion';
 import { DesktopWorkspaceManager } from './workspaceManager';
 import { DesktopTerminalManager } from './terminalManager';
 import { DesktopLicenseAuth } from './licenseAuth';
@@ -48,6 +50,7 @@ import { ApiConnectorGenerator } from '../../fde/apiConnectorGen';
 import { DeployScriptScaffolder } from '../../deployment/deployScriptScaffolder';
 import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
+import { presentDocument } from '../../fde/documentPresenter';
 import { DataScientistEngine } from '../../offline/dataScientistEngine';
 import {
   LANGUAGES,
@@ -1521,6 +1524,133 @@ End Function
       }
     });
 
+    // Non-interactive git env: without these, any command that needs credentials
+    // blocks forever on a hidden prompt instead of returning an error we can show.
+    const nonInteractiveGitEnv = () => ({
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_ASKPASS: 'echo',
+      SSH_ASKPASS: 'echo',
+      GCM_INTERACTIVE: 'never'
+    });
+
+    const stripCredsFromUrl = (url: string) => url.replace(/\/\/[^@/]*@/, '//');
+
+    const redact = (text: string, ...secrets: string[]) => {
+      let out = text || '';
+      for (const s of secrets) {
+        if (s && s.length > 2) out = out.split(s).join('***');
+      }
+      return out;
+    };
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.TEST_REMOTE, async (_: any, remoteUrl?: string) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const target = (remoteUrl || 'origin').trim();
+      try {
+        const { stdout } = await execFileAsync('git', ['ls-remote', '--heads', target], {
+          cwd,
+          env: nonInteractiveGitEnv(),
+          timeout: 30000
+        });
+        const refs = stdout.split('\n').filter((l: string) => l.trim()).length;
+        return { success: true, refs, empty: refs === 0 };
+      } catch (err: any) {
+        return { success: false, error: redact(err.stderr || err.message || 'ls-remote failed') };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.CONNECT_HTTPS, async (
+      _: any,
+      payload: { remoteUrl: string; username: string; token: string; remoteName?: string }
+    ) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const remoteName = payload?.remoteName || 'origin';
+      const username = (payload?.username || '').trim();
+      const token = (payload?.token || '').trim();
+      // Never persist a URL that carries credentials.
+      const remoteUrl = stripCredsFromUrl((payload?.remoteUrl || '').trim());
+
+      if (!remoteUrl) return { success: false, error: 'Remote repository HTTPS URL is required.' };
+      if (!/^https?:\/\//i.test(remoteUrl)) {
+        return { success: false, error: 'URL must start with https:// — use the SSH panel for git@ URLs.' };
+      }
+      if (!username || !token) {
+        return { success: false, error: 'Username and token / app password are both required.' };
+      }
+
+      const steps: string[] = [];
+      try {
+        // 1. Ensure we are inside a git repo (a fresh folder is the common case here).
+        try {
+          await execFileAsync('git', ['rev-parse', '--git-dir'], { cwd });
+        } catch {
+          await execFileAsync('git', ['init'], { cwd });
+          steps.push('Initialized a new Git repository');
+        }
+
+        // 2. Point the remote at the clean URL.
+        try {
+          await execFileAsync('git', ['remote', 'set-url', remoteName, remoteUrl], { cwd });
+          steps.push(`Updated remote '${remoteName}'`);
+        } catch {
+          await execFileAsync('git', ['remote', 'add', remoteName, remoteUrl], { cwd });
+          steps.push(`Added remote '${remoteName}'`);
+        }
+
+        // 3. Persist the token: encrypted vault (for Evolve) + git's own credential
+        //    store (so terminal / VS Code / any git client stops prompting).
+        const host = new URL(remoteUrl).host;
+        secretVault.setSecret(`git.https.${host}`, `${username}:${token}`);
+        steps.push('Saved token to the encrypted vault');
+
+        const credFile = path.join(os.homedir(), '.git-credentials');
+        const credLine = `https://${encodeURIComponent(username)}:${encodeURIComponent(token)}@${host}`;
+        let existing: string[] = [];
+        try {
+          existing = fs.readFileSync(credFile, 'utf8').split('\n').filter((l: string) => l.trim());
+        } catch { /* first credential on this machine */ }
+        // Replace any prior entry for this host rather than stacking duplicates.
+        const kept = existing.filter((l: string) => {
+          try { return new URL(l).host !== host; } catch { return true; }
+        });
+        kept.push(credLine);
+        fs.writeFileSync(credFile, kept.join('\n') + '\n', { mode: 0o600 });
+        await execFileAsync('git', ['config', 'credential.helper', 'store'], { cwd });
+        steps.push('Configured git credential store');
+
+        // 4. Verify against the live remote, non-interactively.
+        let refs = 0;
+        let empty = false;
+        try {
+          const { stdout } = await execFileAsync('git', ['ls-remote', '--heads', remoteName], {
+            cwd,
+            env: nonInteractiveGitEnv(),
+            timeout: 30000
+          });
+          refs = stdout.split('\n').filter((l: string) => l.trim()).length;
+          empty = refs === 0;
+        } catch (verifyErr: any) {
+          const raw = redact(verifyErr.stderr || verifyErr.message || '', token);
+          let hint = raw;
+          if (/authentication failed|invalid username or password|403/i.test(raw)) {
+            hint = 'Authentication failed — check the username and that the token has repository read/write scope.';
+          } else if (/not found|repository does not exist|404/i.test(raw)) {
+            hint = 'Repository not found — verify the URL, and that the token can see this repo.';
+          } else if (/could not resolve host|timed out|connect/i.test(raw)) {
+            hint = 'Could not reach the host — check your network or proxy.';
+          }
+          return { success: false, configured: true, steps, remoteUrl, error: hint, detail: raw };
+        }
+
+        return { success: true, steps, remoteUrl, host, refs, empty };
+      } catch (err: any) {
+        return { success: false, steps, error: redact(err.stderr || err.message || String(err), token) };
+      }
+    });
+
     ipc.handle(DESKTOP_CHANNELS.GIT.SET_CONFIG, async (_: any, config: { name?: string; email?: string }) => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
@@ -1999,6 +2129,11 @@ End Function
     // --- UPDATER CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.UPDATER.CHECK_UPDATE, async () => {
       return await updater.checkForUpdates();
+    });
+
+    // Resolved at runtime so the UI never shows a version baked in at authoring time.
+    ipc.handle(DESKTOP_CHANNELS.UPDATER.GET_VERSION, async () => {
+      return { version: updater.getCurrentVersion() };
     });
 
     ipc.handle(DESKTOP_CHANNELS.UPDATER.APPLY_OFFLINE_PATCH, async (_: any, patchPath: string) => {
@@ -2630,6 +2765,20 @@ export async function executeTask() {
       const executiveDemoScript = RunbookGenerator.generateExecutiveDemoScript(mergedState);
       const completeHandoffPackage = RunbookGenerator.generateCompleteHandoffPackage(mergedState);
 
+      // Titles for the client-facing HTML twins. A .md file full of `**bold**`
+      // and raw mermaid is a working artifact; what gets emailed to a CIO needs
+      // to be a formatted, printable page.
+      const clientName = mergedState.clientName || 'Client';
+      const studioMode = mergedState.studioMode === 'LIVE' ? 'LIVE' : 'DEMO';
+      const docMeta: Record<string, { title: string; subtitle?: string }> = {
+        'ARCHITECTURE.md': { title: 'System Architecture & Integration Blueprint', subtitle: 'Prepared for Client IT & Platform Engineering' },
+        'DEPLOYMENT_RUNBOOK.md': { title: 'Operations & Deployment Runbook', subtitle: 'Prepared for Client IT, DevOps & Platform Teams' },
+        'DATA_DICTIONARY.md': { title: 'Data Dictionary & Transformation Mapping', subtitle: 'Column-level lineage reference' },
+        'ENVIRONMENT_CATALOG.md': { title: 'Environment & Configuration Catalog', subtitle: 'Environment variables and secret references' },
+        'EXECUTIVE_DEMO_SCRIPT.md': { title: 'Executive Demonstration Script', subtitle: 'Five-minute CXO presentation' },
+        'CLIENT_HANDOFF_COMPLETE.md': { title: 'Complete Engagement Handoff Bundle', subtitle: 'Consolidated delivery package' }
+      };
+
       const writtenPaths: string[] = [];
       let writeError: string | undefined;
       if (!previewOnly) {
@@ -2642,10 +2791,24 @@ export async function executeTask() {
           ['CLIENT_HANDOFF_COMPLETE.md', completeHandoffPackage]
         ];
         try {
+          const htmlDir = path.join(docsDir, 'client');
+          if (!fs.existsSync(htmlDir)) fs.mkdirSync(htmlDir, { recursive: true });
+
           for (const [name, body] of files) {
             const p = path.join(docsDir, name);
             fs.writeFileSync(p, body, 'utf8');
             writtenPaths.push(p);
+
+            // The presentable twin, in docs/client/, ready to send or print to PDF.
+            const meta = docMeta[name] || { title: name.replace(/\.md$/, '') };
+            const htmlPath = path.join(htmlDir, name.replace(/\.md$/, '.html'));
+            fs.writeFileSync(htmlPath, presentDocument(body, {
+              title: meta.title,
+              subtitle: meta.subtitle,
+              client: clientName,
+              mode: studioMode
+            }), 'utf8');
+            writtenPaths.push(htmlPath);
           }
         } catch (e: any) {
           // A silent `catch {}` here meant a failed write still reported success
@@ -4951,7 +5114,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 
 export const server = new Server(
-  { name: 'evolve-fde-mcp-server', version: '2.23.0' },
+  { name: 'evolve-fde-mcp-server', version: '${getAppVersion()}' },
   { capabilities: { tools: {} } }
 );
 
@@ -5032,7 +5195,7 @@ export async function startMcpServer() {
           type: 'rule_engine',
           latencyMs: 1,
           message: 'Local Rule Engine & Invariant Subsystem Ready (Zero Network Latency)',
-          details: { version: '2.23.0', mode: 'Air-Gapped In-Memory Deterministic' }
+          details: { version: getAppVersion(), mode: 'Air-Gapped In-Memory Deterministic' }
         };
       }
 
@@ -5834,7 +5997,7 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
         groundednessMethodCaveat:
           'Scores token overlap against the source text. It does not verify meaning, negation or numeric accuracy, and must not be read as semantic entailment.',
         timestamp: new Date().toISOString(),
-        verifiedBy: 'Evolve AI Groundedness Gate v2.23.0',
+        verifiedBy: `Evolve AI Groundedness Gate ${getAppVersionTag()}`,
         message: isGrounded
           ? `✓ Citation Grounded: ${groundednessScorePct}% entity grounding against handbook (Threshold: ${minThreshold}%)`
           : `❌ Groundedness Violation: Claim contains ${hallucinationScorePct}% ungrounded assertions not in handbook (Threshold: ${minThreshold}%, unverified: ${ungroundedWords.slice(0, 5).join(', ')})`

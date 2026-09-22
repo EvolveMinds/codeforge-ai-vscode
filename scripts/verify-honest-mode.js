@@ -205,6 +205,56 @@ check('an unknown key is rejected', savePhase('bogusKey', { x: 1 }).success === 
 fs.rmSync(dir, { recursive: true, force: true });
 
 /* ------------------------------------------------------------------ */
+section('9. Client-facing HTML is presentable and self-contained');
+
+const { presentDocument } = require(path.join(OUT, 'fde', 'documentPresenter.js'));
+const md = RunbookGenerator.generateArchitectureDoc({ ...real, studioMode: 'DEMO' });
+const html = presentDocument(md, { title: 'System Architecture', client: 'Acme Pilot', mode: 'DEMO' });
+const htmlBody = html.split('<main class="content">')[1].split('</main>')[0];
+
+check('no unrendered **bold**', !/\*\*[^*<]+\*\*/.test(htmlBody));
+check('no raw heading hashes', !/^#{1,6}\s/m.test(htmlBody));
+check('no raw code fences', !htmlBody.includes('```'));
+check('no raw callout syntax', !/\[!(WARNING|CAUTION|NOTE)\]/.test(htmlBody));
+check('tables become real <table>', /<table>/.test(htmlBody));
+check('mermaid becomes a labelled figure', /class="diagram"/.test(htmlBody));
+check('unmeasured values become visible chips', /chip-unmeasured/.test(htmlBody));
+// Match the rendered panel, not the stylesheet rule — `.demo-banner` is defined
+// in every page's inline CSS whether or not the panel is emitted.
+const hasDemoPanel = (h) => /<div class="demo-banner">/.test(h);
+check('DEMO renders the red banner panel', hasDemoPanel(html));
+check('LIVE drops the banner panel',
+  !hasDemoPanel(presentDocument(md, { title: 'T', mode: 'LIVE' })));
+check('LIVE body does not retain the markdown banner',
+  !/NOT A CLIENT DELIVERABLE/.test(
+    presentDocument(RunbookGenerator.generateArchitectureDoc({ ...base, studioMode: 'LIVE' }),
+      { title: 'T', mode: 'LIVE' }).split('<main class="content">')[1]
+  ));
+check('carries print stylesheet', /@media print/.test(html));
+check('fetches nothing at runtime (air-gap safe)',
+  !/(src|href)\s*=\s*["']https?:/i.test(html));
+
+// The presentation pass must not quietly drop the honesty markers.
+const emptyHtml = presentDocument(
+  RunbookGenerator.generateArchitectureDoc({ ...base, studioMode: 'LIVE' }),
+  { title: 'T', mode: 'LIVE' }
+);
+check('prettified empty doc still shows unmeasured markers', /chip-unmeasured/.test(emptyHtml));
+check('prettified empty doc still states no benchmark ran',
+  /No golden benchmark has been executed/.test(emptyHtml));
+
+/* ------------------------------------------------------------------ */
+section('10. Document defects stay fixed');
+
+check('no literal \\n leaking into prose', !/FIREBASE\s*\\n/.test(md));
+const zeroRoi = RunbookGenerator.generateArchitectureDoc({
+  ...base, studioMode: 'LIVE',
+  discovery: { controllersThreeNumbers: { volume: 0, handleTimeMins: 0, hourlyWage: 0 } }
+});
+check('an all-zero ROI table is suppressed', !/\$0\/hr/.test(zeroRoi));
+check('and replaced with an honest note', /no economic case can be stated/.test(zeroRoi));
+
+/* ------------------------------------------------------------------ */
 console.log(`\n${'='.repeat(52)}`);
 console.log(`${pass} passed, ${fail} failed`);
 console.log('='.repeat(52));
