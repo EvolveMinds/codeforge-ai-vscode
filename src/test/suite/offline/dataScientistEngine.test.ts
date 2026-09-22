@@ -98,18 +98,22 @@ suite('Autonomous Data Scientist & Statistical Intelligence Engine Suite', () =>
     });
 
     assert.strictEqual(res.points3D.length, 11);
+    assert.ok(res.rawRecords && res.rawRecords.length === 11, 'res.rawRecords should preserve raw dataset records');
     for (const pt of res.points3D) {
       assert.ok(pt.x >= -100 && pt.x <= 100);
       assert.ok(pt.y >= -100 && pt.y <= 100);
       assert.ok(pt.z >= -100 && pt.z <= 100);
       assert.ok(pt.color);
       assert.ok(pt.diagnosticCard);
+      assert.ok(pt.rawRecord, 'Each 3D point must carry rawRecord for dynamic client-side re-projection');
+      assert.strictEqual(typeof pt.rawRecord?.total_delay_hrs, 'number');
     }
 
     const outlier3DPt = res.points3D.find(pt => pt.label.includes('ORD-999') || String(pt.id).includes('ORD-999'));
     assert.ok(outlier3DPt);
     assert.strictEqual(outlier3DPt.isOutlier, true);
     assert.strictEqual(outlier3DPt.color, '#ef4444');
+    assert.strictEqual(outlier3DPt.rawRecord?.order_id, 'ORD-999');
   });
 
   test('generates all 4 production deliverables with embedded visualizations and scripts', () => {
