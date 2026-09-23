@@ -13,7 +13,61 @@ let currentActiveTab = 'delivery';
 let currentSelectedLanguage = 'python';
 let currentSelectedDeliverable = 'insights';
 let activeSelectedModel = 'qwen2.5-coder:7b';
+// Provider key for the active engine, matching the catalogue's `provFamily`.
+// The backend routes on this: cloud families hit their own API, everything
+// else stays on local Ollama. Without it a cloud model is posted to Ollama.
+let activeSelectedProvider = 'ollama';
 let currentConverterTarget = 'typescript';
+
+/** Cloud families that need an API key before they can be activated. */
+const CLOUD_PROVIDER_KEYS: Record<string, { label: string; vaultKey: string }> = {
+  anthropic: { label: 'Anthropic', vaultKey: 'anthropicApiKey' },
+  openai: { label: 'OpenAI', vaultKey: 'openaiApiKey' },
+  // The cloud grid keys Gemini on provFamily ('google'), the model picker on
+  // provider ('gemini'). Both reach the same vault entry.
+  google: { label: 'Google Gemini', vaultKey: 'geminiApiKey' },
+  gemini: { label: 'Google Gemini', vaultKey: 'geminiApiKey' }
+};
+
+/**
+ * Ensures a cloud engine has an API key before it is made active.
+ *
+ * Prompts for the key and stores it in the encrypted vault. Returns false when
+ * the engine must not be activated, so the caller can leave the current one in
+ * place instead of reporting a switch that cannot work.
+ */
+async function ensureProviderApiKey(api: any, providerKey: string, modelName: string): Promise<boolean> {
+  const keySpec = CLOUD_PROVIDER_KEYS[providerKey];
+  if (!keySpec) return true;       // local engine — nothing to check
+  if (!api?.vault) return true;    // no vault bridge; backend reports the missing key
+
+  let existing = '';
+  try { existing = await api.vault.getSecret(keySpec.vaultKey); } catch {}
+  if (existing) return true;
+
+  const entered = await showPromptModal(
+    `🔑 ${keySpec.label} API Key Required`,
+    `${modelName} runs on ${keySpec.label}'s cloud API. Paste your API key to activate it — it is stored in the local encrypted vault, never in settings.`,
+    '',
+    `Paste your ${keySpec.label} API key...`,
+    true
+  );
+
+  if (!entered || !entered.trim()) {
+    showToast(`⚠️ ${modelName} not activated — an API key is required.`);
+    return false;
+  }
+
+  try {
+    await api.vault.setSecret(keySpec.vaultKey, entered.trim());
+  } catch (err: any) {
+    showToast(`⚠️ Could not save the API key: ${err?.message || 'vault error'}`);
+    return false;
+  }
+
+  showToast(`🔐 ${keySpec.label} API key saved to the encrypted vault.`);
+  return true;
+}
 
 // Chat conversation history for context-aware multi-turn AI reasoning
 let chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
@@ -2354,7 +2408,7 @@ function extractFileContent(fileData: any): string {
  * Enterprise non-blocking modal prompt dialog for desktop environments where
  * synchronous window.prompt() is unsupported or prohibited by Electron.
  */
-function showPromptModal(title: string, message: string, defaultValue = '', placeholder = ''): Promise<string | null> {
+function showPromptModal(title: string, message: string, defaultValue = '', placeholder = '', masked = false): Promise<string | null> {
   return new Promise((resolve) => {
     const existing = document.getElementById('evolveCustomPromptModal');
     if (existing) existing.remove();
@@ -2375,7 +2429,7 @@ function showPromptModal(title: string, message: string, defaultValue = '', plac
     msgEl.innerText = message;
 
     const input = document.createElement('input');
-    input.type = 'text';
+    input.type = masked ? 'password' : 'text';
     input.value = defaultValue;
     if (placeholder) input.placeholder = placeholder;
     input.style.cssText = 'background: #0f172a; border: 1px solid #475569; border-radius: 5px; color: #f8fafc; font-size: 12.5px; padding: 8px 10px; outline: none; transition: border-color 0.15s ease; width: 100%; box-sizing: border-box;';
@@ -14657,7 +14711,9 @@ Provide:
 4. **Production Runbook & Verification Criteria**
 
 Format with clean GitHub markdown. Be highly specific, engineering-focused, and direct.`,
-              history: []
+              history: [],
+              model: activeSelectedModel,
+              provider: activeSelectedProvider
             });
             if (aiRes && aiRes.content) {
               aiGeneratedContent = aiRes.content;
@@ -14717,7 +14773,9 @@ Return ONLY the refactored code inside triple backticks. Preserve strict typing 
 
 Current Code:
 ${meta.code}`,
-                history: []
+                history: [],
+                model: activeSelectedModel,
+                provider: activeSelectedProvider
               });
               if (aiRes && aiRes.content) {
                 const match = aiRes.content.match(/```(?:[a-zA-Z0-9_-]*)\n?([\s\S]*?)```/);
@@ -14748,7 +14806,9 @@ ${meta.code}`,
                 prompt: `You are an enterprise FDE Quality Gate Architect. Provide 2 new quality gate checklist items for Level ${selectedLadderLevel} based on: "${prompt}".
 Output strictly valid JSON array of objects with keys "label" and "detail". Example:
 [{"label": "SOC2 Audit Logging", "detail": "Immutable append-only audit trail verified."}]`,
-                history: []
+                history: [],
+                model: activeSelectedModel,
+                provider: activeSelectedProvider
               });
               if (aiRes && aiRes.content) {
                 const jsonMatch = aiRes.content.match(/\[\s*\{[\s\S]*\}\s*\]/);
@@ -14840,7 +14900,9 @@ Current Lens Markdown:
 ${currentTab.content}
 
 Return the complete updated markdown document with clear headings, bullet points, and code/table blocks as needed.`,
-                  history: []
+                  history: [],
+                  model: activeSelectedModel,
+                  provider: activeSelectedProvider
                 });
                 if (aiRes && aiRes.content) {
                   refinedContent = aiRes.content;
@@ -31475,7 +31537,8 @@ function setupAiChatStudio(api: any): void {
         const response = await api.ai.chat({
           prompt: text,
           history: chatHistory,
-          model: activeSelectedModel
+          model: activeSelectedModel,
+          provider: activeSelectedProvider
         });
 
         const content = response.content || 'I processed your request.';
@@ -32142,6 +32205,7 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
       const modelName = btn.getAttribute('data-name') || modelId;
 
       activeSelectedModel = modelId;
+      activeSelectedProvider = 'ollama';
 
       const lblHeader = document.getElementById('lblHeaderModel');
       if (lblHeader) lblHeader.innerText = `OLLAMA · ${activeSelectedModel}`;
@@ -32272,7 +32336,7 @@ function renderCloudModelsGrid(api: any): void {
           <span style="font-size: 10.5px; color: var(--success); font-weight: 600;">⚡ Zero Local RAM</span>
           ${isActive ?
             '<span style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 10.5px; padding: 3px 8px; border-radius: 4px;">● ACTIVE</span>' :
-            `<button class="btn btn-cloud-activate" data-model="${c.id}" data-name="${c.name}" data-provider="${c.provider}" style="padding: 4px 10px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Activate Engine</button>`
+            `<button class="btn btn-cloud-activate" data-model="${c.id}" data-name="${c.name}" data-provider="${c.provider}" data-provfamily="${c.provFamily || ''}" style="padding: 4px 10px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Activate Engine</button>`
           }
         </div>
       </div>
@@ -32284,12 +32348,18 @@ function renderCloudModelsGrid(api: any): void {
   `;
 
   grid.querySelectorAll('.btn-cloud-activate').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const modelId = btn.getAttribute('data-model') || 'gemini-2.5-pro';
       const modelName = btn.getAttribute('data-name') || modelId;
       const provider = btn.getAttribute('data-provider') || 'Cloud';
+      const provFamily = btn.getAttribute('data-provfamily') || '';
+
+      // A cloud engine is useless without a key, so ask for it here rather than
+      // reporting success and failing silently on the first message.
+      if (!await ensureProviderApiKey(api, provFamily, modelName)) return;
 
       activeSelectedModel = modelId;
+      activeSelectedProvider = provFamily || 'ollama';
 
       const lblHeader = document.getElementById('lblHeaderModel');
       if (lblHeader) lblHeader.innerText = `${provider.split(' ')[0].toUpperCase()} · ${activeSelectedModel}`;
@@ -33001,7 +33071,7 @@ function setupModals(api: any): void {
           aiModelListContainer.innerHTML = filtered.map((m: any) => {
             const isSelected = m.id === activeSelectedModel || activeSelectedModel.includes(m.id) || m.id.includes(activeSelectedModel);
             return `
-              <div class="modal-item ${isSelected ? 'active' : ''}" data-model="${m.id}" data-name="${m.name}" data-provider="${m.providerLabel}" style="padding: 10px 14px; background: var(--bg-primary); border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">
+              <div class="modal-item ${isSelected ? 'active' : ''}" data-model="${m.id}" data-name="${m.name}" data-provider="${m.providerLabel}" data-providerkey="${m.provider || ''}" style="padding: 10px 14px; background: var(--bg-primary); border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; border-radius: 6px; cursor: pointer; transition: all 0.15s ease;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                   <div style="font-weight: 700; font-size: 13px; color: ${isSelected ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 8px;">
                     <span>${m.icon}</span> ${m.name}
@@ -33023,12 +33093,16 @@ function setupModals(api: any): void {
           }).join('');
 
           aiModelListContainer.querySelectorAll('.modal-item[data-model]').forEach(item => {
-            item.addEventListener('click', () => {
+            item.addEventListener('click', async () => {
               const chosen = item.getAttribute('data-model') || 'qwen2.5-coder:7b';
               const modelName = item.getAttribute('data-name') || chosen;
               const providerLabel = item.getAttribute('data-provider') || 'AI Model';
+              const providerKey = item.getAttribute('data-providerkey') || 'ollama';
+
+              if (!await ensureProviderApiKey(api, providerKey, modelName)) return;
 
               activeSelectedModel = chosen.replace(/ \(offline\)/, '');
+              activeSelectedProvider = providerKey;
 
               // 1. Update Global Header Bar
               const lblHeader = document.getElementById('lblHeaderModel');

@@ -4,6 +4,7 @@
 
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import { DESKTOP_CHANNELS } from '../shared/eventChannels';
+import type { HardwareFingerprintInfo } from '../shared/desktopTypes';
 
 const desktopApi = {
   // --- WORKSPACE APIS ---
@@ -107,7 +108,8 @@ const desktopApi = {
     activateKey: (key: string, userEmail?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.ACTIVATE_KEY, key, userEmail),
     deactivate: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.DEACTIVATE),
     generateTrialKey: (orgName?: string, days?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GENERATE_TRIAL_KEY, orgName, days),
-    getFingerprint: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_FINGERPRINT),
+    // Typed so callers cannot stringify the whole object into a text field.
+    getFingerprint: (): Promise<HardwareFingerprintInfo> => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_FINGERPRINT),
     exportChallenge: (userId: string, orgName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.EXPORT_CHALLENGE, userId, orgName),
     importOfflineLicense: (filePath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.IMPORT_OFFLINE_LICENSE, filePath),
     getProfile: () => ipcRenderer.invoke(DESKTOP_CHANNELS.LICENSE.GET_PROFILE),
@@ -131,7 +133,7 @@ const desktopApi = {
 
   // --- LOCAL AI & LLM INFERENCE APIS ---
   ai: {
-    chat: (req: { prompt: string; history?: any[]; model?: string; system?: string }) => 
+    chat: (req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) =>
       ipcRenderer.invoke(DESKTOP_CHANNELS.AI.CHAT, req),
     getModels: () => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.GET_MODELS),
     pullModel: (modelName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.PULL_MODEL, modelName)

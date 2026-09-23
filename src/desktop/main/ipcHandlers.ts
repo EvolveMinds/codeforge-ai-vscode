@@ -229,6 +229,142 @@ const CONFIG_JSON = new Set([
   'babel.config.json', 'components.json', 'evolve-data-pipeline.json',
 ]);
 
+/**
+ * Cloud chat providers reachable from the desktop chat.
+ *
+ * Keyed by the `provFamily` the renderer's model catalogue already uses, so the
+ * Activate button can pass its provider straight through. Anything not listed
+ * here (ollama, lmstudio, vllm, built-in) stays on the local path.
+ */
+interface CloudChatProvider {
+  label: string;
+  vaultKey: string;
+  envVar: string;
+  host: string;
+  path: string;
+  /** Anthropic has its own request/response shape; the rest are OpenAI-compatible. */
+  dialect: 'anthropic' | 'openai' | 'gemini';
+  headers: (apiKey: string) => Record<string, string>;
+}
+
+const GEMINI_CHAT_PROVIDER: CloudChatProvider = {
+  label: 'Google Gemini',
+  vaultKey: 'geminiApiKey',
+  envVar: 'GEMINI_API_KEY',
+  host: 'generativelanguage.googleapis.com',
+  path: '/v1beta/openai/chat/completions',
+  dialect: 'gemini',
+  headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
+};
+
+const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
+  anthropic: {
+    label: 'Anthropic',
+    vaultKey: 'anthropicApiKey',
+    envVar: 'ANTHROPIC_API_KEY',
+    host: 'api.anthropic.com',
+    path: '/v1/messages',
+    dialect: 'anthropic',
+    headers: (apiKey) => ({
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    })
+  },
+  openai: {
+    label: 'OpenAI',
+    vaultKey: 'openaiApiKey',
+    envVar: 'OPENAI_API_KEY',
+    host: 'api.openai.com',
+    path: '/v1/chat/completions',
+    dialect: 'openai',
+    headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
+  },
+  // Two catalogues name Gemini differently: the cloud grid keys on provFamily
+  // ('google'), the model picker on provider ('gemini'). Accept both.
+  google: GEMINI_CHAT_PROVIDER,
+  gemini: GEMINI_CHAT_PROVIDER
+};
+
+/**
+ * One HTTPS chat round-trip to a cloud provider.
+ *
+ * Resolves rather than rejects: the caller turns a failure into a visible
+ * message, and an unhandled rejection here would surface as a dead chat bubble.
+ */
+function callCloudChat(
+  provider: CloudChatProvider,
+  apiKey: string,
+  model: string,
+  system: string,
+  messages: Array<{ role: string; content: string }>
+): Promise<{ content: string; success: boolean; error?: string }> {
+  return new Promise((resolve) => {
+    let payload: string;
+
+    if (provider.dialect === 'anthropic') {
+      // Anthropic takes the system prompt as a top-level field, not a message.
+      payload = JSON.stringify({
+        model,
+        max_tokens: 4096,
+        temperature: 0.2,
+        system,
+        messages: messages
+          .filter(m => m.role !== 'system')
+          .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
+      });
+    } else {
+      payload = JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 4096 });
+    }
+
+    const r = https.request({
+      host: provider.host,
+      path: provider.path,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+        ...provider.headers(apiKey)
+      },
+      timeout: 60000
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        const status = res.statusCode || 0;
+        if (status < 200 || status >= 300) {
+          let detail = `HTTP ${status}`;
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed?.error?.message) detail = `HTTP ${status}: ${parsed.error.message}`;
+          } catch {}
+          resolve({ content: '', success: false, error: detail });
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = provider.dialect === 'anthropic'
+            ? (parsed.content || []).map((b: any) => b?.text || '').join('')
+            : parsed.choices?.[0]?.message?.content || '';
+
+          if (!content) {
+            resolve({ content: '', success: false, error: 'Provider returned an empty response.' });
+            return;
+          }
+          resolve({ content, success: true });
+        } catch (err: any) {
+          resolve({ content: '', success: false, error: `Could not parse response: ${err.message}` });
+        }
+      });
+    });
+
+    r.on('error', (err) => resolve({ content: '', success: false, error: `Network error: ${err.message}` }));
+    r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false, error: 'Request timed out after 60s.' }); });
+    r.write(payload);
+    r.end();
+  });
+}
+
 export interface DesktopIpcHandlersOptions {
   workspaceMgr: DesktopWorkspaceManager;
   terminalMgr: DesktopTerminalManager;
@@ -2395,14 +2531,56 @@ End Function
       });
     });
 
-    ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string }) => {
-      const { prompt, history = [], model = 'qwen2.5-coder:7b', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
+    ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {
+      const { prompt, history = [], model = 'qwen2.5-coder:7b', provider = 'ollama', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
 
       const messages = [
         { role: 'system', content: system },
         ...history.map((h: any) => ({ role: h.role || 'user', content: h.content })),
         { role: 'user', content: prompt }
       ];
+
+      // 0. Cloud providers route to their own API — never to Ollama.
+      const cloudProvider = CLOUD_CHAT_PROVIDERS[provider];
+      if (cloudProvider) {
+        let apiKey = '';
+        try {
+          apiKey = secretVault.getSecret(cloudProvider.vaultKey) || process.env[cloudProvider.envVar] || '';
+        } catch {}
+
+        if (!apiKey) {
+          return {
+            content: `**No API key configured for ${cloudProvider.label}.**\n\nOpen **Settings → Security & Vault** and save your ${cloudProvider.label} API key, then try again.`,
+            modelUsed: model,
+            isLocal: false,
+            offlineFallback: false,
+            error: 'missing_api_key',
+            provider
+          };
+        }
+
+        const cloudRes = await callCloudChat(cloudProvider, apiKey, model, system, messages);
+        if (cloudRes.success) {
+          return {
+            content: cloudRes.content,
+            modelUsed: model,
+            isLocal: false,
+            offlineFallback: false,
+            provider
+          };
+        }
+
+        // A cloud failure is reported as a failure. Falling back to a canned local
+        // reply here would look like a real answer from the model the user picked.
+        return {
+          content: `**${cloudProvider.label} request failed.**\n\n${cloudRes.error}\n\nCheck your API key in **Settings → Security & Vault** and your network connection.`,
+          modelUsed: model,
+          isLocal: false,
+          offlineFallback: false,
+          error: 'provider_error',
+          provider
+        };
+      }
 
       // 1. Try querying local Ollama instance (port 11434)
       const ollamaPromise = new Promise<{ content: string; success: boolean; modelUsed: string }>((resolve) => {
@@ -2461,9 +2639,13 @@ End Function
 
       // 2. Intelligent Offline Fallback Generator when Ollama server is not running or model not pulled
       const p = prompt.toLowerCase();
+      // Word-boundary matching: substring tests made "this"/"architecture"/"machine"
+      // match the 'hi' greeting branch, so unrelated questions got the canned hello.
+      const mentions = (...words: string[]) =>
+        words.some(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(p));
       let fallback = '';
 
-      if (p.includes('hello world') || p.includes('python')) {
+      if (mentions('hello world') || mentions('python')) {
         fallback = `\`\`\`python
 # Simple Hello World in Python
 def main():
@@ -2473,7 +2655,7 @@ if __name__ == "__main__":
     main()
 \`\`\`
 *Tip: To run this code directly in the integrated terminal, type \`python -c 'print("Hello, World!")'\`.*`;
-      } else if (p.includes('dbt') || p.includes('staging') || p.includes('mart')) {
+      } else if (mentions('dbt', 'staging', 'mart')) {
         fallback = `\`\`\`sql
 -- Example dbt staging model (stg_orders.sql)
 WITH source_raw AS (
@@ -2492,7 +2674,7 @@ standardized AS (
 
 SELECT * FROM standardized;
 \`\`\``;
-      } else if (p.includes('hi') || p.includes('hello') || p.includes('hey')) {
+      } else if (mentions('hi', 'hello', 'hey')) {
         fallback = `Hello! I am your **Evolve AI Copilot**. 
 
 I can help you:
@@ -2517,8 +2699,14 @@ export async function executeTask() {
 *Note: For live continuous neural generation across large models, ensure Ollama is active on \`localhost:11434\`.*`;
       }
 
+      // Marked in the content itself: without this the canned text is
+      // indistinguishable from a real answer by the model the user selected.
+      const banner = `> ⚠️ **Offline canned response** — no AI model generated this.\n`
+        + `> Ollama is not reachable on \`127.0.0.1:11434\`, or \`${model}\` is not pulled.\n`
+        + `> Start Ollama (or pick a cloud engine with an API key) for a real answer.\n\n`;
+
       return {
-        content: fallback,
+        content: banner + fallback,
         modelUsed: `${model} (Air-Gapped Copilot)`,
         isLocal: true,
         offlineFallback: true
