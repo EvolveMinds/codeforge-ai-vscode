@@ -461,7 +461,7 @@ export function defaultModelFor(p: string, cfg: vscode.WorkspaceConfiguration): 
   switch (p) {
     case 'ollama':      return cfg.get<string>('ollamaModel', 'qwen2.5-coder:7b');
     case 'gemma4':      return cfg.get<string>('gemma4Model', 'gemma4:e4b');
-    case 'glm':         return cfg.get<string>('glmModel', 'codegeex4-all-9b');
+    case 'glm':         return cfg.get<string>('glmModel', 'codegeex4:9b');
     case 'colibri':     return cfg.get<string>('colibriModel', 'glm-5.2');
     case 'anthropic':   return cfg.get<string>('anthropicModel', 'claude-sonnet-4-6');
     case 'openai':      return cfg.get<string>('openaiModel', 'gpt-4o');

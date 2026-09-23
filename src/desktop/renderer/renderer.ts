@@ -26,7 +26,24 @@ const CLOUD_PROVIDER_KEYS: Record<string, { label: string; vaultKey: string }> =
   // The cloud grid keys Gemini on provFamily ('google'), the model picker on
   // provider ('gemini'). Both reach the same vault entry.
   google: { label: 'Google Gemini', vaultKey: 'geminiApiKey' },
-  gemini: { label: 'Google Gemini', vaultKey: 'geminiApiKey' }
+  gemini: { label: 'Google Gemini', vaultKey: 'geminiApiKey' },
+  // Likewise GLM: the grid says 'glm', the model picker says 'zai'.
+  glm: { label: 'GLM (Z.ai)', vaultKey: 'zaiApiKey' },
+  zai: { label: 'GLM (Z.ai)', vaultKey: 'zaiApiKey' },
+  deepseek: { label: 'DeepSeek', vaultKey: 'deepseekApiKey' },
+  groq: { label: 'Groq', vaultKey: 'groqApiKey' },
+  huggingface: { label: 'Hugging Face', vaultKey: 'huggingfaceApiKey' }
+};
+
+/** Settings → Security & Vault key fields, as {input element id: vault key}. */
+const VAULT_KEY_FIELDS: Record<string, string> = {
+  cfgKeyAnthropic: 'anthropicApiKey',
+  cfgKeyGemini: 'geminiApiKey',
+  cfgKeyOpenai: 'openaiApiKey',
+  cfgKeyZai: 'zaiApiKey',
+  cfgKeyDeepseek: 'deepseekApiKey',
+  cfgKeyGroq: 'groqApiKey',
+  cfgKeyHuggingface: 'huggingfaceApiKey'
 };
 
 /**
@@ -19672,13 +19689,13 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion
       if (modelInput) modelInput.value = 'qwen2.5-coder';
       updateTargetStatusPill('🟡 Ollama Target Selected (Ping recommended)', false);
     } else if (currentBenchTargetType === 'llm_gemini') {
-      if (modelInput) modelInput.value = 'gemini-1.5-flash';
+      if (modelInput) modelInput.value = 'gemini-3.5-flash-lite';
       updateTargetStatusPill('🟡 Gemini Target Selected (Vault/API Key required)', false);
     } else if (currentBenchTargetType === 'llm_openai') {
-      if (modelInput) modelInput.value = 'gpt-4o-mini';
+      if (modelInput) modelInput.value = 'gpt-6-luna';
       updateTargetStatusPill('🟡 OpenAI Target Selected (Vault/API Key required)', false);
     } else if (currentBenchTargetType === 'llm_anthropic') {
-      if (modelInput) modelInput.value = 'claude-3-5-sonnet-20241022';
+      if (modelInput) modelInput.value = 'claude-sonnet-5';
       updateTargetStatusPill('🟡 Claude Target Selected (Vault/API Key required)', false);
     } else if (currentBenchTargetType === 'rest_api') {
       if (urlInput) urlInput.value = 'http://localhost:8000/eval';
@@ -31284,51 +31301,24 @@ function updateConverterModelFit(modelId: string, toLang: string = 'typescript')
   const toLangUpper = (toLang || 'typescript').toUpperCase();
 
   if (lblModelName) {
-    if (cleanId.includes('claude-3-7-sonnet')) {
-      lblModelName.innerText = 'anthropic (cloud) - claude-3-7-sonnet';
-    } else if (cleanId.includes('claude-3-5-sonnet')) {
-      lblModelName.innerText = 'anthropic (cloud) - claude-3-5-sonnet';
-    } else if (cleanId.includes('claude-3-5-haiku')) {
-      lblModelName.innerText = 'anthropic (cloud) - claude-3-5-haiku';
-    } else if (cleanId.includes('claude-3-opus')) {
-      lblModelName.innerText = 'anthropic (cloud) - claude-3-opus';
-    } else if (cleanId.includes('gemini-2.5-pro')) {
-      lblModelName.innerText = 'google gemini (cloud) - gemini-2.5-pro';
-    } else if (cleanId.includes('gemini-2.5-flash')) {
-      lblModelName.innerText = 'google gemini (cloud) - gemini-2.5-flash';
-    } else if (cleanId.includes('gemini-2.0')) {
-      lblModelName.innerText = `google gemini (cloud) - ${cleanId}`;
-    } else if (cleanId.includes('gemini-1.5')) {
-      lblModelName.innerText = `google gemini (cloud) - ${cleanId}`;
-    } else if (cleanId.includes('gpt-4o')) {
-      lblModelName.innerText = `openai (cloud) - ${cleanId}`;
-    } else if (cleanId.includes('o1') || cleanId.includes('o3')) {
-      lblModelName.innerText = `openai (cloud) - ${cleanId}`;
-    } else if (cleanId.includes('gpt-4.5')) {
-      lblModelName.innerText = 'openai (cloud) - gpt-4.5-preview';
-    } else if (cleanId.includes('groq') || cleanId.includes('versatile')) {
-      lblModelName.innerText = 'groq lpu (cloud) - llama-3.3-70b-versatile';
-    } else if (cleanId.includes('glm-4') || cleanId.includes('zai')) {
-      lblModelName.innerText = `glm / z.ai - ${cleanId}`;
-    } else if (cleanId.includes('codegeex')) {
-      lblModelName.innerText = 'glm / z.ai - codegeex4-all-9b';
-    } else if (cleanId.includes('colibri')) {
-      lblModelName.innerText = 'colibri on-premise - glm-5.2 (744b moe)';
-    } else if (cleanId.includes('deepseek-r1') || cleanId.includes('deepseek-reasoner')) {
-      lblModelName.innerText = `deepseek - ${cleanId}`;
-    } else if (cleanId.includes('deepseek-coder') || cleanId.includes('deepseek-chat') || cleanId.includes('deepseek-v3')) {
-      lblModelName.innerText = `deepseek - ${cleanId}`;
-    } else if (cleanId.includes('gemma4') || cleanId.includes('gemma2')) {
-      lblModelName.innerText = `google gemma (local) - ${cleanId}`;
-    } else if (cleanId.includes('lmstudio')) {
-      lblModelName.innerText = `lm studio (port 1234) - ${cleanId}`;
-    } else if (cleanId.includes('vllm')) {
-      lblModelName.innerText = `vllm cluster (port 8000) - ${cleanId}`;
-    } else if (cleanId.includes('offline')) {
-      lblModelName.innerText = 'offline built-in - deterministic ast engine';
-    } else {
-      lblModelName.innerText = `local / provider - ${cleanId}`;
-    }
+    // Matched by family prefix, not by individual model id: enumerating models
+    // here is what left this list labelling retired models after they were gone.
+    const FAMILY_LABELS: Array<[RegExp, string]> = [
+      [/^claude-/, 'anthropic (cloud)'],
+      [/^gemini-/, 'google gemini (cloud)'],
+      [/^gpt-|^o\d/, 'openai (cloud)'],
+      [/groq|versatile/, 'groq lpu (cloud)'],
+      [/^glm-|zai|codegeex/, 'glm / z.ai'],
+      [/colibri/, 'colibri on-premise'],
+      [/^deepseek/, 'deepseek'],
+      [/^gemma/, 'google gemma (local)'],
+      [/lmstudio/, 'lm studio (port 1234)'],
+      [/vllm/, 'vllm cluster (port 8000)'],
+      [/offline/, 'offline built-in'],
+      [/^qwen\//, 'hugging face (cloud)'],
+    ];
+    const family = FAMILY_LABELS.find(([re]) => re.test(cleanId));
+    lblModelName.innerText = family ? `${family[1]} - ${cleanId}` : `local / provider - ${cleanId}`;
   }
 
   if (cleanId.includes('claude-3-7') || cleanId.includes('claude-3-5')) {
@@ -31783,7 +31773,7 @@ const LOCAL_SPECS: CustomAiModel[] = [
   { id: 'gemma2:9b', name: 'Gemma 2 9B Instruct', family: 'Google Gemma', provider: 'Ollama', provFamily: 'google', icon: '🤖', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.5, context: '32k', badge: 'Fast 9B', description: 'Balanced 9B parameter model offering best-in-class performance per watt for local coding.', pullCommand: 'gemma2:9b' },
 
   // --- GLM (Zhipu / Z.ai) Series ---
-  { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', family: 'GLM / Z.ai', provider: 'Ollama', provFamily: 'glm', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.8, context: '128k', badge: 'Polyglot 26-Lang', description: 'Specialized polyglot conversion model capable of mapping complex architectures across 26 languages.', pullCommand: 'codegeex4-all-9b' },
+  { id: 'codegeex4:9b', name: 'CodeGeeX4 9B (GLM)', family: 'GLM / Z.ai', provider: 'Ollama', provFamily: 'glm', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.8, context: '128k', badge: 'Polyglot 26-Lang', description: 'Specialized polyglot conversion model capable of mapping complex architectures across 26 languages.', pullCommand: 'codegeex4:9b' },
   { id: 'glm4:9b', name: 'GLM-4 9B', family: 'GLM / Z.ai', provider: 'Ollama', provFamily: 'glm', icon: '💻', minRamGb: 12, reqVramGb: 6.5, diskGb: 5.5, context: '128k', badge: 'Bilingual 128k', description: 'General multilingual reasoning and enterprise documentation generator with 128k context.', pullCommand: 'glm4:9b' },
   { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', family: 'Colibri Local', provider: 'Colibri Local', provFamily: 'glm', icon: '🚀', minRamGb: 32, reqVramGb: 24.0, diskGb: 372.0, context: '128k', badge: '744B Frontier MoE', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise on-premise infrastructure.' },
 
@@ -31811,42 +31801,33 @@ const LOCAL_SPECS: CustomAiModel[] = [
 
 const CLOUD_SPECS: CustomAiModel[] = [
   // --- Google Gemini Family ---
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'Leaderboard #1 for massive codebases, multi-file repos & complex data marts', badge: '1M Context' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast (~120 tok/s)', strength: 'High-speed structured extraction, schema mapping & instant code conversions', badge: 'Low Latency' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~100 tok/s)', strength: 'Next-generation multimodal model for code and structured documentation', badge: 'Next-Gen Omni' },
-  { id: 'gemini-2.0-flash-thinking-exp', name: 'Gemini 2.0 Flash Thinking', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Fast (~50 tok/s)', strength: 'Built-in chain-of-thought reasoning for complex algorithms, math, and data migrations', badge: 'Reasoning CoT' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '2,000,000 Tokens', latency: 'Balanced (~35 tok/s)', strength: 'Long-context workhorse for entire repository ingestion and legacy migrations', badge: '2M Context' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast (~110 tok/s)', strength: 'High throughput, cost-efficient intelligence for routine transformations', badge: 'High Throughput' },
+  // Model IDs verified against each provider's live documentation. A retired ID
+  // returns 404 regardless of the API key, so keep this current.
+  { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Ultra Fast', strength: 'Most intelligent Flash model — long-horizon engineering and autonomous agents', badge: 'Recommended' },
+  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Balanced', strength: 'Advanced reasoning for complex architecture and multi-repo analysis', badge: 'Deep Reasoning' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', family: 'Google Gemini', provider: 'Google Gemini', provFamily: 'google', icon: '✨', context: '1,000,000 Tokens', latency: 'Instant', strength: 'Most cost-effective tier for high-throughput structured extraction', badge: 'Cost Efficient' },
 
   // --- Anthropic Claude Family ---
-  { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fast (~65 tok/s)', strength: 'State-of-the-art hybrid reasoning & complex algorithmic pipeline synthesis', badge: 'State-of-the-Art' },
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fast (~70 tok/s)', strength: 'Benchmark leader for architectural refactoring & cross-language migration', badge: 'Leaderboard #1' },
-  { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Instant (~140 tok/s)', strength: 'Ultra-fast refactoring, unit test generation & quick markdown documentation', badge: 'Speed Leader' },
-  { id: 'claude-3-opus', name: 'Claude 3 Opus', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Steady (~30 tok/s)', strength: 'Deep analytical synthesis for legacy enterprise migrations & full audits', badge: 'Deep Synthesis' },
+  { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '1,000,000 Tokens', latency: 'Moderate', strength: 'Long-running agentic coding and enterprise knowledge work', badge: 'Recommended' },
+  { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '1,000,000 Tokens', latency: 'Fast', strength: 'Best combination of speed and intelligence for daily transformations', badge: 'Balanced' },
+  { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '200,000 Tokens', latency: 'Fastest', strength: 'Near-frontier intelligence for quick refactors and unit tests', badge: 'Speed Leader' },
+  { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', family: 'Anthropic', provider: 'Anthropic', provFamily: 'anthropic', icon: '☁️', context: '1,000,000 Tokens', latency: 'Slower', strength: 'Most demanding reasoning and long-horizon agentic migrations', badge: 'Max Reasoning' },
 
   // --- OpenAI Family ---
-  { id: 'gpt-4o', name: 'GPT-4o', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '128,000 Tokens', latency: 'Fast (~80 tok/s)', strength: 'Omni flagship intelligence for cross-stack conversions & system architecture', badge: 'Flagship Omni' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '128,000 Tokens', latency: 'Instant (~125 tok/s)', strength: 'Cost-efficient and fast model for day-to-day coding and refactoring tasks', badge: 'Lightweight' },
-  { id: 'o1', name: 'OpenAI o1', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🧠', context: '200,000 Tokens', latency: 'Reasoning (~40 tok/s)', strength: 'Flagship reasoning engine with deep reflection for complex architectural problems', badge: 'Deep Reasoning' },
-  { id: 'o1-mini', name: 'OpenAI o1-mini', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🧠', context: '128,000 Tokens', latency: 'Fast (~85 tok/s)', strength: 'High-speed reasoning model tailored for STEM, math, and code tasks', badge: 'Fast Reasoning' },
-  { id: 'o3-mini', name: 'OpenAI o3-mini', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🧠', context: '200,000 Tokens', latency: 'Ultra Fast (~100 tok/s)', strength: 'High-speed reasoning model tailored for science, math, and complex algorithms', badge: 'Frontier Coding' },
-  { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '128,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'OpenAI\'s massive frontier scaling research model with expansive syntax knowledge', badge: 'Frontier Research' },
+  { id: 'gpt-6-sol', name: 'GPT-6 Sol', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '256,000 Tokens', latency: 'Fast', strength: 'Built to power complex coding and agentic engineering workflows', badge: 'Coding Flagship' },
+  { id: 'gpt-6-astra', name: 'GPT-6 Astra', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '256,000 Tokens', latency: 'Moderate', strength: 'Most capable model, built for the hardest end-to-end work', badge: 'Most Capable' },
+  { id: 'gpt-6-luna', name: 'GPT-6 Luna', family: 'OpenAI', provider: 'OpenAI', provFamily: 'openai', icon: '🌐', context: '256,000 Tokens', latency: 'Instant', strength: 'Most efficient tier for focused, high-volume refactoring', badge: 'Efficient' },
 
   // --- GLM (Zhipu AI / Z.ai Cloud) Family ---
-  { id: 'glm-4-plus', name: 'GLM-4-Plus', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Fast (~50 tok/s)', strength: 'Zhipu\'s premier foundation flagship with high-level reasoning and bilingual mastery', badge: 'Frontier Flagship' },
-  { id: 'glm-4.6', name: 'GLM-4.6', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Fast (~55 tok/s)', strength: 'Flagship multilingual reasoning & enterprise schema modernization', badge: 'Cloud Flagship' },
-  { id: 'glm-4-air', name: 'GLM-4-Air', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Ultra Fast (~95 tok/s)', strength: 'High-throughput, cost-efficient inference for batch code transformations', badge: 'High Speed' },
-  { id: 'glm-4-flash', name: 'GLM-4-Flash', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '128,000 Tokens', latency: 'Instant (~130 tok/s)', strength: 'Ultra-fast zero-latency cloud tier for instant syntax and lint validation', badge: 'Zero Latency' },
-  { id: 'glm-4-long', name: 'GLM-4-Long', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '1,000,000 Tokens', latency: 'Fast (~45 tok/s)', strength: 'Massive 1M-token context for enterprise documentation and full repo analysis', badge: '1M Context' },
+  { id: 'glm-4.6', name: 'GLM-4.6', family: 'GLM / Z.ai Cloud', provider: 'Z.ai Cloud', provFamily: 'glm', icon: '💻', context: '200,000 Tokens', latency: 'Fast', strength: 'Flagship multilingual reasoning & enterprise schema modernization', badge: 'Cloud Flagship' },
 
   // --- DeepSeek Cloud Family ---
-  { id: 'deepseek-chat', name: 'DeepSeek-V3 (671B MoE)', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '64,000 Tokens', latency: 'Fast (~60 tok/s)', strength: '671B MoE frontier flagship matching top proprietary intelligence at extreme efficiency', badge: '671B Flagship' },
-  { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (671B CoT)', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '64,000 Tokens', latency: 'Reasoning (~40 tok/s)', strength: 'Frontier 671B reasoning model featuring native step-by-step chain-of-thought verification', badge: 'SOTA Reasoning' },
-  { id: 'deepseek-coder-v2:236b', name: 'DeepSeek Coder V2 236B', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '128,000 Tokens', latency: 'Fast (~50 tok/s)', strength: 'Massive 236B parameter MoE coding engine for complex repository transformations', badge: '236B MoE' },
+  { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '128,000 Tokens', latency: 'Fast', strength: 'Frontier model for complex repository transformations', badge: 'Frontier' },
+  { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', family: 'DeepSeek Cloud', provider: 'DeepSeek Cloud', provFamily: 'deepseek', icon: '🧠', context: '128,000 Tokens', latency: 'Ultra Fast', strength: 'High-throughput tier for batch conversion and routine tasks', badge: 'Fast' },
 
   // --- Groq & Open Cloud APIs ---
-  { id: 'llama-3.3-70b-versatile', name: 'Groq LPU — Llama 3.3 70B', family: 'Groq Cloud', provider: 'Groq Cloud', provFamily: 'open', icon: '⚡', context: '128,000 Tokens', latency: 'Extreme (~500 tok/s)', strength: 'Sub-second real-time inference on Groq Language Processing Units', badge: '500 tok/s' },
-  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', family: 'Hugging Face Hub', provider: 'Hugging Face Hub', provFamily: 'open', icon: '🤗', context: '32,000 Tokens', latency: 'Fast (~40 tok/s)', strength: 'Serverless hosted inference on Hugging Face open model infrastructure', badge: 'Serverless API' }
+  { id: 'llama-3.3-70b-versatile', name: 'Groq LPU — Llama 3.3 70B', family: 'Groq Cloud', provider: 'Groq Cloud', provFamily: 'groq', icon: '⚡', context: '128,000 Tokens', latency: 'Extreme (~500 tok/s)', strength: 'Sub-second real-time inference on Groq Language Processing Units', badge: '500 tok/s' },
+  { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', family: 'Hugging Face Hub', provider: 'Hugging Face Hub', provFamily: 'huggingface', icon: '🤗', context: '32,000 Tokens', latency: 'Fast (~40 tok/s)', strength: 'Serverless hosted inference on Hugging Face open model infrastructure', badge: 'Serverless API' }
 ];
 
 let lastHwProfile: any = null;
@@ -32294,7 +32275,9 @@ function renderCloudModelsGrid(api: any): void {
     if (currentCloudProvFilter === 'openai') return c.provFamily === 'openai' || c.id.includes('gpt') || c.id.includes('o1') || c.id.includes('o3');
     if (currentCloudProvFilter === 'glm') return c.provFamily === 'glm' || c.id.includes('glm');
     if (currentCloudProvFilter === 'deepseek') return c.provFamily === 'deepseek' || c.id.includes('deepseek');
-    if (currentCloudProvFilter === 'open') return c.provFamily === 'open' || c.id.includes('llama') || c.id.includes('groq') || c.id.includes('qwen') || c.id.includes('hf');
+    // 'open' is a UI grouping, not a provider — Groq and Hugging Face each
+    // route to their own API and carry their own provFamily.
+    if (currentCloudProvFilter === 'open') return c.provFamily === 'open' || c.provFamily === 'groq' || c.provFamily === 'huggingface' || c.id.includes('llama') || c.id.includes('qwen');
     return c.provFamily === currentCloudProvFilter;
   });
 
@@ -32349,7 +32332,7 @@ function renderCloudModelsGrid(api: any): void {
 
   grid.querySelectorAll('.btn-cloud-activate').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const modelId = btn.getAttribute('data-model') || 'gemini-2.5-pro';
+      const modelId = btn.getAttribute('data-model') || 'gemini-3.8-flash';
       const modelName = btn.getAttribute('data-name') || modelId;
       const provider = btn.getAttribute('data-provider') || 'Cloud';
       const provFamily = btn.getAttribute('data-provfamily') || '';
@@ -33247,19 +33230,15 @@ function setupModals(api: any): void {
 
     // 4. Fetch Stored API Keys from Vault
     if (api?.vault) {
-      try {
-        const antKey = await api.vault.getSecret('anthropicApiKey');
-        const gemKey = await api.vault.getSecret('geminiApiKey');
-        const oaiKey = await api.vault.getSecret('openaiApiKey');
-
-        const inpAnt = document.getElementById('cfgKeyAnthropic') as HTMLInputElement;
-        const inpGem = document.getElementById('cfgKeyGemini') as HTMLInputElement;
-        const inpOai = document.getElementById('cfgKeyOpenai') as HTMLInputElement;
-
-        if (inpAnt && antKey) inpAnt.value = antKey;
-        if (inpGem && gemKey) inpGem.value = gemKey;
-        if (inpOai && oaiKey) inpOai.value = oaiKey;
-      } catch {}
+      // Driven by one table so a new cloud provider only needs an entry here
+      // plus the matching input in index.html.
+      for (const [inputId, vaultKey] of Object.entries(VAULT_KEY_FIELDS)) {
+        try {
+          const stored = await api.vault.getSecret(vaultKey);
+          const input = document.getElementById(inputId) as HTMLInputElement;
+          if (input && stored) input.value = stored;
+        } catch {}
+      }
     }
   };
 
@@ -33399,14 +33378,11 @@ function setupModals(api: any): void {
 
   // Save AI Config & Secrets
   document.getElementById('btnSaveAiSettings')?.addEventListener('click', async () => {
-    const inpAnt = (document.getElementById('cfgKeyAnthropic') as HTMLInputElement)?.value.trim();
-    const inpGem = (document.getElementById('cfgKeyGemini') as HTMLInputElement)?.value.trim();
-    const inpOai = (document.getElementById('cfgKeyOpenai') as HTMLInputElement)?.value.trim();
-
     if (api?.vault) {
-      if (inpAnt) await api.vault.setSecret('anthropicApiKey', inpAnt);
-      if (inpGem) await api.vault.setSecret('geminiApiKey', inpGem);
-      if (inpOai) await api.vault.setSecret('openaiApiKey', inpOai);
+      for (const [inputId, vaultKey] of Object.entries(VAULT_KEY_FIELDS)) {
+        const value = (document.getElementById(inputId) as HTMLInputElement)?.value.trim();
+        if (value) await api.vault.setSecret(vaultKey, value);
+      }
     }
     showToast('✓ AI server URLs & API keys safely stored in local encrypted vault.');
   });

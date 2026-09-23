@@ -1708,10 +1708,10 @@ function resolveModelView(
       return { currentModel: current, availableModels: variants };
     }
     case 'glm': {
-      const current = cfg.get<string>('glmModel', 'codegeex4-all-9b');
+      const current = cfg.get<string>('glmModel', 'codegeex4:9b');
       // Installed GLM/CodeGeeX models first, then the known local tags
       const glmInstalled = ollamaModels.filter(m => m.startsWith('glm') || m.startsWith('codegeex'));
-      const known = ['codegeex4-all-9b', 'glm4:9b', 'glm4'];
+      const known = ['codegeex4:9b', 'glm4:9b', 'glm4'];
       return { currentModel: current, availableModels: dedupe([current, ...glmInstalled, ...known]) };
     }
     case 'colibri': {

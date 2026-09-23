@@ -314,8 +314,8 @@ export class CoreCommands {
       await this._runGemma4Wizard(cfg);
     } else if (provider === 'glm') {
       // Local GLM coding model via Ollama — pick a model, offer to pull it
-      const glmModels = ['codegeex4-all-9b', 'glm4:9b', 'glm4'];
-      const current   = cfg.get<string>('glmModel', 'codegeex4-all-9b');
+      const glmModels = ['codegeex4:9b', 'glm4:9b', 'glm4'];
+      const current   = cfg.get<string>('glmModel', 'codegeex4:9b');
       const modelChoice = await vscode.window.showQuickPick(
         [...glmModels, '$(edit) Enter custom model tag…'],
         { placeHolder: `Choose a local GLM model (current: ${current})` }
@@ -323,7 +323,7 @@ export class CoreCommands {
       if (!modelChoice) return;
       let model = modelChoice;
       if (modelChoice.includes('custom')) {
-        const custom = await vscode.window.showInputBox({ prompt: 'Ollama model tag (e.g. codegeex4-all-9b)', value: current });
+        const custom = await vscode.window.showInputBox({ prompt: 'Ollama model tag (e.g. codegeex4:9b)', value: current });
         if (!custom) return;
         model = custom;
       }
@@ -1242,7 +1242,7 @@ const RELEASE_NOTES: Record<string, string> = {
     `A GLM / CodeGeeX **coding model** that runs fully offline via Ollama. No API key, no data leaves your machine.\n`,
     `1. Install [Ollama](https://ollama.com/download)`,
     `2. **Switch** → **GLM (local)** → pick a model → it offers to download it`,
-    `3. Default is \`codegeex4-all-9b\` (built on GLM-4-9B, ~5.5GB, 128K context). \`glm4:9b\` and \`glm4\` also available.\n`,
+    `3. Default is \`codegeex4:9b\` (built on GLM-4-9B, ~5.5GB, 128K context). \`glm4:9b\` and \`glm4\` also available.\n`,
     `### ☁️ GLM (Z.ai) — the flagship, via cloud\n`,
     `The large \`glm-4.6\` / \`glm-4.5\` models via Z.ai's API. These are 355B+ parameter models — too big to run locally, so they run in the cloud.\n`,
     `1. Get a key at [z.ai](https://z.ai/manage-apikey/apikey-list)`,
@@ -1251,7 +1251,7 @@ const RELEASE_NOTES: Record<string, string> = {
     `### Honest about hardware\n`,
     `GLM-5.x / GLM-4.6 flagships are hundreds of billions of parameters — they can't run offline on a laptop. So the **local** provider ships the 9B-class coding models that actually do, and the **cloud** provider gives you the flagship when you want it. No pretending.\n`,
     `### Settings added\n`,
-    `- \`aiForge.glmModel\` (default \`codegeex4-all-9b\`) — local model tag`,
+    `- \`aiForge.glmModel\` (default \`codegeex4:9b\`) — local model tag`,
     `- \`aiForge.zaiModel\` (default \`glm-4.6\`) — cloud model name`,
     `- \`aiForge.zaiBaseUrl\` — Z.ai OpenAI-compatible endpoint\n`,
   ].join('\n'),

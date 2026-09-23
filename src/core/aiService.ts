@@ -458,13 +458,13 @@ export class AIService implements IAIService {
   /**
    * Local GLM provider — runs a GLM/CodeGeeX coding model offline via Ollama.
    * Mirrors _streamGemma4 but simpler: no thinking/vision specifics. Default
-   * model is codegeex4-all-9b (a coding model built on GLM-4-9B, ~5.5GB).
+   * model is codegeex4:9b (a coding model built on GLM-4-9B, ~5.5GB).
    */
   private async* _streamGlm(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     const host     = readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     warnIfRemoteHost('aiForge.ollamaHost', host);
     const resolved = await this._resolveOllamaHost(host);
-    const model    = req.modelOverride || cfg.get<string>('glmModel', 'codegeex4-all-9b');
+    const model    = req.modelOverride || cfg.get<string>('glmModel', 'codegeex4:9b');
 
     // Pre-check: verify the GLM model is installed; offer a guided pull if not
     const available = await this._getOllamaModels(resolved);

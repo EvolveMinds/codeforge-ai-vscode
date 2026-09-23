@@ -448,7 +448,7 @@ expressions are gated by `isSafeExpression()` because templates are shareable fi
 | `ollamaModel` | string | `qwen2.5-coder:7b` | Ollama model |
 | `gemma4Model` | string | `gemma4:e4b` | Gemma 4 variant: `gemma4:e2b` / `gemma4:e4b` / `gemma4:26b` / `gemma4:31b` |
 | `gemma4ThinkingMode` | boolean | `false` | Enable chain-of-thought reasoning (better results, slower) |
-| `glmModel` | string | `codegeex4-all-9b` | Local GLM/CodeGeeX model tag via Ollama (offline). Also `glm4:9b`, `glm4` |
+| `glmModel` | string | `codegeex4:9b` | Local GLM/CodeGeeX model tag via Ollama (offline). Also `glm4:9b`, `glm4` |
 | `colibriBaseUrl` | string | `http://localhost:8080/v1` | Colibri server URL (OpenAI-compatible). User starts it with `coli serve` — the extension never installs or launches it |
 | `colibriModel` | string | `glm-5.2` | Model served by Colibri. Also `kimi-k3`, `inkling`, `olmoe`. GLM-5.2 needs ~372GB disk |
 | `allowHardwareDetection` | boolean | `true` | Allow detecting system specs to recommend best Gemma 4 variant. First use asks for consent. |

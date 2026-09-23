@@ -1693,7 +1693,7 @@
             "Auto-detect: use Ollama if running, else offline AI",
             "Ollama — local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
             "Gemma 4 — Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
-            "GLM (local) — GLM / CodeGeeX coding model, runs offline via Ollama. Free, private. Default codegeex4-all-9b (~5.5GB)",
+            "GLM (local) — GLM / CodeGeeX coding model, runs offline via Ollama. Free, private. Default codegeex4:9b (~5.5GB)",
             "Colibri — runs frontier MoE models (GLM-5.2, 744B) locally by streaming experts from disk. Free, private, no GPU required. Needs ~372GB disk; speed depends heavily on RAM/VRAM",
             "Anthropic Claude — cloud, requires API key",
             "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
@@ -1740,8 +1740,8 @@
         },
         "aiForge.glmModel": {
           "type": "string",
-          "default": "codegeex4-all-9b",
-          "description": "Local GLM / CodeGeeX model tag to run via Ollama (e.g. codegeex4-all-9b, glm4:9b, glm4). codegeex4-all-9b is a coding model built on GLM-4-9B (~5.5GB, 128K context). Runs fully offline. This is NOT the 355B+ GLM-4.5/4.6 flagship — those are cloud-only (use the GLM (Z.ai) provider)."
+          "default": "codegeex4:9b",
+          "description": "Local GLM / CodeGeeX model tag to run via Ollama (e.g. codegeex4:9b, glm4:9b, glm4). codegeex4:9b is a coding model built on GLM-4-9B (~5.5GB, 128K context). Runs fully offline. This is NOT the 355B+ GLM-4.5/4.6 flagship — those are cloud-only (use the GLM (Z.ai) provider)."
         },
         "aiForge.colibriBaseUrl": {
           "type": "string",

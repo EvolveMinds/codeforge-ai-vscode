@@ -257,6 +257,16 @@ const GEMINI_CHAT_PROVIDER: CloudChatProvider = {
   headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
 };
 
+const ZAI_CHAT_PROVIDER: CloudChatProvider = {
+  label: 'GLM (Z.ai)',
+  vaultKey: 'zaiApiKey',
+  envVar: 'ZAI_API_KEY',
+  host: 'api.z.ai',
+  path: '/api/paas/v4/chat/completions',
+  dialect: 'openai',
+  headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
+};
+
 const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
   anthropic: {
     label: 'Anthropic',
@@ -282,7 +292,39 @@ const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
   // Two catalogues name Gemini differently: the cloud grid keys on provFamily
   // ('google'), the model picker on provider ('gemini'). Accept both.
   google: GEMINI_CHAT_PROVIDER,
-  gemini: GEMINI_CHAT_PROVIDER
+  gemini: GEMINI_CHAT_PROVIDER,
+
+  // Likewise GLM: the grid says 'glm', the model picker says 'zai'.
+  glm: ZAI_CHAT_PROVIDER,
+  zai: ZAI_CHAT_PROVIDER,
+
+  deepseek: {
+    label: 'DeepSeek',
+    vaultKey: 'deepseekApiKey',
+    envVar: 'DEEPSEEK_API_KEY',
+    host: 'api.deepseek.com',
+    path: '/chat/completions',
+    dialect: 'openai',
+    headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
+  },
+  groq: {
+    label: 'Groq',
+    vaultKey: 'groqApiKey',
+    envVar: 'GROQ_API_KEY',
+    host: 'api.groq.com',
+    path: '/openai/v1/chat/completions',
+    dialect: 'openai',
+    headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
+  },
+  huggingface: {
+    label: 'Hugging Face',
+    vaultKey: 'huggingfaceApiKey',
+    envVar: 'HUGGINGFACE_API_KEY',
+    host: 'router.huggingface.co',
+    path: '/v1/chat/completions',
+    dialect: 'openai',
+    headers: (apiKey) => ({ Authorization: `Bearer ${apiKey}` })
+  }
 };
 
 /**
@@ -2359,7 +2401,7 @@ End Function
         { id: 'gemma2:9b', name: 'Gemma 2 9B', provider: 'gemma4', providerLabel: 'Google Gemma', category: 'local', isCoding: true, icon: '🤖', badge: 'Fast 9B', context: '32k', mode: 'Local Edge', description: 'Balanced 9B parameter model offering best-in-class performance per watt.', isInstalled: ollamaModels.some(m => m.startsWith('gemma2:9b') || m.startsWith('gemma:9b')) },
 
         // GLM & CodeGeeX Series
-        { id: 'codegeex4-all-9b', name: 'CodeGeeX4 9B (GLM)', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: true, icon: '💻', badge: 'Polyglot 26-Lang', context: '128k', mode: 'Local Offline', description: 'Specialized polyglot code conversion and architectural mapping across 26 languages.', isInstalled: ollamaModels.some(m => m.startsWith('codegeex4')) },
+        { id: 'codegeex4:9b', name: 'CodeGeeX4 9B (GLM)', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: true, icon: '💻', badge: 'Polyglot 26-Lang', context: '128k', mode: 'Local Offline', description: 'Specialized polyglot code conversion and architectural mapping across 26 languages.', isInstalled: ollamaModels.some(m => m.startsWith('codegeex4')) },
         { id: 'glm4:9b', name: 'GLM-4 9B', provider: 'glm', providerLabel: 'GLM / Z.ai', category: 'local', isCoding: false, icon: '💻', badge: 'Bilingual 128k', context: '128k', mode: 'Local Offline', description: 'General multilingual reasoning and enterprise documentation generator.', isInstalled: ollamaModels.some(m => m.startsWith('glm4')) },
         { id: 'colibri-glm-5.2', name: 'Colibri — GLM-5.2 (744B MoE)', provider: 'colibri', providerLabel: 'Colibri Local', category: 'local', isCoding: true, icon: '🚀', badge: 'Frontier MoE', context: '128k', mode: 'On-Premise Server', description: 'Frontier 744B Mixture-of-Experts engine running on dedicated enterprise compute.', isInstalled: false },
 
@@ -2385,43 +2427,36 @@ End Function
         { id: 'offline-engine', name: 'Offline Deterministic Engine', provider: 'offline', providerLabel: 'Evolve Built-in', category: 'local', isCoding: true, icon: '⚙️', badge: 'Instant AST', context: 'Unlimited', mode: 'Zero-Latency', description: 'Built-in AST, transpilers, and heuristic algorithms. Zero setup, 100% offline.', isInstalled: true },
 
         // --- 2. CLOUD FLAGSHIPS ---
+        // Model IDs verified against each provider's live documentation.
+        // A retired ID returns 404 no matter how good the API key is, so keep
+        // this list current rather than accumulating historical snapshots.
+
         // Google Gemini Family
-        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Leaderboard #1 for massive codebases, multi-file repositories & complex data marts.', isInstalled: true },
-        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Ultra Fast', context: '1M', mode: 'Cloud API', description: 'Ultra-fast structured extraction, schema mapping & instant code conversions.', isInstalled: true },
-        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: false, icon: '✨', badge: 'Next-Gen Omni', context: '1M', mode: 'Cloud API', description: 'Next-generation multimodal model for code and structured documentation.', isInstalled: true },
-        { id: 'gemini-2.0-flash-thinking-exp', name: 'Gemini 2.0 Flash Thinking', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Reasoning CoT', context: '1M', mode: 'Cloud API', description: 'Built-in chain-of-thought reasoning for complex algorithms and math.', isInstalled: true },
-        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '2M Context', context: '2M', mode: 'Cloud API', description: 'Long-context workhorse for entire repository ingestion and legacy migrations.', isInstalled: true },
-        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'High Throughput', context: '1M', mode: 'Cloud API', description: 'High throughput, cost-efficient intelligence for routine conversions.', isInstalled: true },
+        { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Recommended', context: '1M', mode: 'Cloud API', description: 'Google\'s most intelligent Flash model for long-horizon engineering and autonomous agents.', isInstalled: true },
+        { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Deep Reasoning', context: '1M', mode: 'Cloud API', description: 'Advanced reasoning for complex architecture and multi-repository analysis.', isInstalled: true },
+        { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Cost Efficient', context: '1M', mode: 'Cloud API', description: 'Most cost-effective tier for high-throughput structured extraction and conversions.', isInstalled: true },
 
         // Anthropic Claude Family
-        { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'State-of-the-Art', context: '200k', mode: 'Cloud API', description: 'Anthropic\'s most advanced hybrid reasoning and architectural code generation model.', isInstalled: true },
-        { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Leaderboard #1', context: '200k', mode: 'Cloud API', description: 'Benchmark-leading coding, architectural planning, and data pipeline assistant.', isInstalled: true },
-        { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Ultra Fast', context: '200k', mode: 'Cloud API', description: 'High speed and low latency for quick code edits and lightweight queries.', isInstalled: true },
-        { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: false, icon: '☁️', badge: 'Deep Synthesis', context: '200k', mode: 'Cloud API', description: 'Deep analytical synthesis for enterprise code analysis and legacy modernization.', isInstalled: true },
+        { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Recommended', context: '1M', mode: 'Cloud API', description: 'Flagship model for long-running agentic coding and enterprise knowledge work.', isInstalled: true },
+        { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Balanced', context: '1M', mode: 'Cloud API', description: 'The best combination of speed and intelligence for everyday code transformation.', isInstalled: true },
+        { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Speed Leader', context: '200k', mode: 'Cloud API', description: 'Fastest Claude model with near-frontier intelligence for quick edits and tests.', isInstalled: true },
+        { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Max Reasoning', context: '1M', mode: 'Cloud API', description: 'For the most demanding reasoning and long-horizon agentic migrations.', isInstalled: true },
 
         // OpenAI Family
-        { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Omni Flagship', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s flagship multimodal intelligence engine with strong coding capabilities.', isInstalled: true },
-        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Lightweight', context: '128k', mode: 'Cloud API', description: 'Cost-efficient and fast model for day-to-day coding and refactoring tasks.', isInstalled: true },
-        { id: 'o1', name: 'OpenAI o1', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Deep Reasoning', context: '200k', mode: 'Cloud API', description: 'Flagship reasoning engine with deep reflection for complex architectural problems.', isInstalled: true },
-        { id: 'o1-mini', name: 'OpenAI o1-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Fast Reasoning', context: '128k', mode: 'Cloud API', description: 'High-speed reasoning model tailored for math, code, and STEM tasks.', isInstalled: true },
-        { id: 'o3-mini', name: 'OpenAI o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Frontier Coding', context: '200k', mode: 'Cloud API', description: 'High-speed reasoning model tailored for science, math, and complex algorithms.', isInstalled: true },
-        { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Frontier Research', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s massive frontier scaling research model with expansive world knowledge.', isInstalled: true },
+        { id: 'gpt-6-sol', name: 'GPT-6 Sol', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Coding Flagship', context: '256k', mode: 'Cloud API', description: 'Built to power complex coding and agentic engineering workflows.', isInstalled: true },
+        { id: 'gpt-6-astra', name: 'GPT-6 Astra', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Most Capable', context: '256k', mode: 'Cloud API', description: 'OpenAI\'s most capable model, built for the hardest end-to-end work.', isInstalled: true },
+        { id: 'gpt-6-luna', name: 'GPT-6 Luna', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Efficient', context: '256k', mode: 'Cloud API', description: 'Most efficient tier for focused, high-volume refactoring tasks.', isInstalled: true },
 
         // GLM (Zhipu AI / Z.ai Cloud) Family
-        { id: 'glm-4-plus', name: 'GLM-4-Plus', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Frontier Flagship', context: '128k', mode: 'Cloud API', description: 'Zhipu\'s premier foundation flagship with high-level reasoning and bilingual mastery.', isInstalled: true },
-        { id: 'glm-4.6', name: 'GLM-4.6', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Cloud Flagship', context: '128k', mode: 'Cloud API', description: 'Flagship multilingual coding model with deep enterprise schema knowledge.', isInstalled: true },
-        { id: 'glm-4-air', name: 'GLM-4-Air', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'High Speed', context: '128k', mode: 'Cloud API', description: 'High-throughput, cost-efficient inference for batch transformations.', isInstalled: true },
-        { id: 'glm-4-flash', name: 'GLM-4-Flash', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Zero Latency', context: '128k', mode: 'Cloud API', description: 'Ultra-fast, zero-latency cloud tier for instant code syntax validation.', isInstalled: true },
-        { id: 'glm-4-long', name: 'GLM-4-Long', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Massive 1M-token context for enterprise documentation and full repo analysis.', isInstalled: true },
+        { id: 'glm-4.6', name: 'GLM-4.6', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Cloud Flagship', context: '200k', mode: 'Cloud API', description: 'Flagship multilingual coding model with deep enterprise schema knowledge.', isInstalled: true },
 
         // DeepSeek Cloud Family
-        { id: 'deepseek-chat', name: 'DeepSeek-V3 (671B MoE)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: '671B Flagship', context: '64k', mode: 'Cloud API', description: '671B MoE frontier flagship model matching top proprietary intelligence at extreme efficiency.', isInstalled: true },
-        { id: 'deepseek-reasoner', name: 'DeepSeek-R1 (671B CoT)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'SOTA Reasoning', context: '64k', mode: 'Cloud API', description: 'Frontier 671B reasoning model featuring native step-by-step chain-of-thought verification.', isInstalled: true },
-        { id: 'deepseek-coder-v2:236b', name: 'DeepSeek Coder V2 236B', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: '236B MoE', context: '128k', mode: 'Cloud API', description: 'Massive 236B parameter MoE coding engine for complex repository transformations.', isInstalled: true },
+        { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Frontier', context: '128k', mode: 'Cloud API', description: 'DeepSeek\'s frontier model for complex repository transformations.', isInstalled: true },
+        { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Fast', context: '128k', mode: 'Cloud API', description: 'High-throughput tier for batch code conversion and routine engineering tasks.', isInstalled: true },
 
         // Groq & Open Cloud APIs
-        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq Fast)', provider: 'openai', providerLabel: 'Groq / LPU Cloud', category: 'cloud', isCoding: true, icon: '⚡', badge: '500 tok/s', context: '128k', mode: 'Groq LPU', description: 'Ultra-high-speed inference powered by Groq LPUs for instant answers.', isInstalled: true },
-        { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'huggingface', providerLabel: 'Hugging Face Hub', category: 'cloud', isCoding: true, icon: '🤗', badge: 'HF Hosted', context: '32k', mode: 'Inference API', description: 'Hosted inference via Hugging Face Serverless Inference API.', isInstalled: true }
+        { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq Fast)', provider: 'groq', providerLabel: 'Groq / LPU Cloud', category: 'cloud', isCoding: true, icon: '⚡', badge: '500 tok/s', context: '128k', mode: 'Groq LPU', description: 'Ultra-high-speed inference powered by Groq LPUs for instant answers.', isInstalled: true },
+        { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'huggingface', providerLabel: 'Hugging Face Hub', category: 'cloud', isCoding: true, icon: '🤗', badge: 'HF Hosted', context: '32k', mode: 'Inference API', description: 'Hosted inference via the Hugging Face router endpoint.', isInstalled: true }
       ];
 
       // Dynamically register any models pulled in Ollama that are not already in the catalogue
