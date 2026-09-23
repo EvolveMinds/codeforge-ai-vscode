@@ -80,6 +80,29 @@ suite('Flowchart renderer — parsing', () => {
     assert.strictEqual(p.edges.length, 1);
   });
 
+  test('"A & B --> C" fans out into separate edges', () => {
+    // Real ladder diagrams use this for consensus steps. Treating "A & B" as a
+    // single id silently invents a node nobody declared, which is worse than
+    // refusing the line.
+    const p = parseFlowchart('flowchart TD\n A["Ex"] & B["Au"] --> C{"Consensus?"}');
+    assert.strictEqual(p.nodes.length, 3, `got ${p.nodes.map(n => n.id).join(', ')}`);
+    assert.strictEqual(p.edges.length, 2);
+    assert.deepStrictEqual(p.edges.map(e => `${e.from}->${e.to}`), ['A->C', 'B->C']);
+  });
+
+  test('an ampersand inside a label does not split the endpoint', () => {
+    const p = parseFlowchart(
+      'flowchart TD\n TXT["Docs"] & IMG["Schematics & Diagrams"] --> IN["Ingestion & Description"]');
+    assert.strictEqual(p.nodes.length, 3, `got ${p.nodes.map(n => n.id).join(', ')}`);
+    assert.strictEqual(p.nodes.find(n => n.id === 'IMG')?.label, 'Schematics & Diagrams');
+    assert.strictEqual(p.edges.length, 2);
+  });
+
+  test('a three-way fan-in produces three edges', () => {
+    const p = parseFlowchart('flowchart TD\n V["V"] & S["S"] & A["A"] --> I{"Inspect"}');
+    assert.strictEqual(p.edges.length, 3);
+  });
+
   test('a node referenced before declaration still resolves to one node', () => {
     const p = parseFlowchart('flowchart TD\n A --> B\n B["Named later"]');
     assert.strictEqual(p.nodes.length, 2);

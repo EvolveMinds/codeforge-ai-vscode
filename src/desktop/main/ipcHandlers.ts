@@ -217,6 +217,149 @@ function clampNum(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
+/**
+ * The model-type half of the Rule-vs-Model verdict.
+ *
+ * The ladder answers how much machinery a task needs. This answers what kind of
+ * model that machinery should contain — a question the UI has always collected
+ * an answer for (`inputModality`) and the handler has always discarded.
+ *
+ * The `structured_data` case is the one that matters most and reads oddly at
+ * first: for arithmetic over rows and columns the honest recommendation is
+ * usually NO model. A SQL query is exact, instant and auditable; a language
+ * model is none of those. Saying so is more useful than naming one, and it is
+ * the Rule of Parsimony applied one level down.
+ *
+ * Kept as a plain function over plain data — no imports from the extension
+ * host, which does not exist in the Electron main process.
+ */
+function buildModelGuidance(req: {
+  taskDescription?: string;
+  inputModality?: string;
+  requiresStrictArithmetic?: boolean;
+}): {
+  job: string;
+  headline: string;
+  rationale: string;
+  flowDiagram?: string;
+  provenance: 'detected' | 'known' | 'assumed';
+} {
+  const modality = (req?.inputModality || 'structured_data').toLowerCase();
+  const task = (req?.taskDescription || '').toLowerCase();
+  const mathy = req?.requiresStrictArithmetic ||
+    /sum|total|reconcil|balance|ledger|tax|invoice|arithmetic|calculat/i.test(task);
+
+  // Everything below is reasoned from the declared modality, not measured on
+  // the client's system, so it is labelled 'assumed' — the same discipline the
+  // model advisory applies to a capability guessed from a name.
+  const provenance = 'assumed' as const;
+
+  if (modality === 'structured_data') {
+    return mathy
+      ? {
+          job: 'none',
+          headline: 'No model needed — this is deterministic arithmetic',
+          rationale:
+            'Sums, balances and reconciliations over structured data are exact operations. ' +
+            'A SQL query or a compiled rule gives the right answer every time, in under a ' +
+            'millisecond, and can be audited line by line. A language model can only ' +
+            'approximate it, and cannot show its working.',
+          provenance,
+        }
+      : {
+          job: 'classification',
+          headline: 'A small classifier, if anything',
+          rationale:
+            'Structured input usually needs routing or labelling rather than generation. ' +
+            'A small encoder does that in one forward pass, far cheaper than asking a ' +
+            'generative model to emit a single word.',
+          flowDiagram:
+            'flowchart TD\n' +
+            '  In["📥 Row / event"] --> Enc["Encoder"]\n' +
+            '  Enc --> Head["Classification head"]\n' +
+            '  Head --> Score{"Confidence"}\n' +
+            '  Score -- "above threshold" --> Out["✅ Label"]\n' +
+            '  Score -- "below threshold" --> HITL["👤 Human review"]',
+          provenance,
+        };
+  }
+
+  if (modality === 'unstructured_text') {
+    return {
+      job: 'embedding',
+      headline: 'Retrieval first: embeddings, then a reranker, then generation',
+      rationale:
+        'Unstructured text is a retrieval problem before it is a generation problem. ' +
+        'Embeddings narrow millions of chunks to a shortlist cheaply; a reranker reads ' +
+        'query and document together to order that shortlist properly; only then does a ' +
+        'language model answer, grounded in what was retrieved.',
+      flowDiagram:
+        'flowchart TD\n' +
+        '  Q["📥 Question"] --> QE["Embed query"]\n' +
+        '  QE --> Search["Nearest neighbours"]\n' +
+        '  Search --> Cand["Shortlist"]\n' +
+        '  Cand --> RR["Reranker"]\n' +
+        '  RR --> Top["Best passages"]\n' +
+        '  Top --> Gen["Language model, grounded"]\n' +
+        '  Gen --> Out["✅ Cited answer"]',
+      provenance,
+    };
+  }
+
+  if (modality === 'multimodal') {
+    const documentish = /pdf|scan|invoice|form|receipt|table|statement/i.test(task);
+    return documentish
+      ? {
+          job: 'ocr',
+          headline: 'A document-understanding model, not a general vision model',
+          rationale:
+            'Scanned documents need layout and reading order preserved. A general vision ' +
+            'model will describe a table; a document model reproduces it as a table.',
+          flowDiagram:
+            'flowchart TD\n' +
+            '  Doc["📄 Page"] --> Layout["Detect layout"]\n' +
+            '  Layout --> Read["Read in order"]\n' +
+            '  Read --> Struct["Rebuild structure"]\n' +
+            '  Struct --> Out["✅ Structured text"]',
+          provenance,
+        }
+      : {
+          job: 'vision',
+          headline: 'A vision-language model',
+          rationale:
+            'Images and text are handled together: a vision encoder turns the image into ' +
+            'tokens the language model can read alongside the prompt. Note that images ' +
+            'consume context far faster than text does.',
+          flowDiagram:
+            'flowchart TD\n' +
+            '  Img["🖼️ Image"] --> VE["Vision encoder"]\n' +
+            '  VE --> Proj["Projection"]\n' +
+            '  Proj --> Ctx["Shared context"]\n' +
+            '  Txt["📝 Prompt"] --> Ctx\n' +
+            '  Ctx --> LLM["Language model"]\n' +
+            '  LLM --> Out["✅ Response"]',
+          provenance,
+        };
+  }
+
+  // api_stream and anything unrecognised.
+  return {
+    job: 'classification',
+    headline: 'A fast classifier on the hot path',
+    rationale:
+      'Streaming events are routed or labelled at volume, where per-event cost and ' +
+      'latency dominate. A small encoder handles that; a generative model on the hot ' +
+      'path is the expensive way to get one word back.',
+    flowDiagram:
+      'flowchart TD\n' +
+      '  Ev["📥 Event"] --> Cls["Small classifier"]\n' +
+      '  Cls --> Route{"Route"}\n' +
+      '  Route -- "known intent" --> Handler["Deterministic handler"]\n' +
+      '  Route -- "ambiguous" --> HITL["👤 Human review"]',
+    provenance,
+  };
+}
+
 const DATA_EXTENSIONS = ['.csv', '.tsv', '.parquet', '.xlsx', '.xls'];
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'out', 'dist', 'build', 'bin', '.vscode',
@@ -4541,6 +4684,14 @@ export async function executeTask() {
       architectureOverride?: string;
       hitlRequired?: string;
     }) => {
+      // The verdict below answers "how much machinery does this need?" — which
+      // ladder level. It has always also received `inputModality` from the UI
+      // and never read it, so the other half of the question — "and what KIND
+      // of model?" — went unanswered. `withModelGuidance` attaches that answer
+      // to whatever the branches below return, additively: every existing field
+      // is untouched, so nothing downstream can break, and no branch can be
+      // missed by forgetting to edit it.
+      const evaluated = await (async () => {
       const taskDesc = (req?.taskDescription || '').toLowerCase();
       const mathReq = req?.requiresStrictArithmetic || /math|arithmetic|reconcil|balance|invoice|tax|currency|fx|sox|ledger|tolerance/i.test(taskDesc);
       const latencyBudget = req?.latencyBudgetMs || 50;
@@ -4870,6 +5021,9 @@ export class RuleGatedSemanticRouter {
   Consensus -- "Yes" --> Commit["✅ Execute Production Work"]
   Consensus -- "No" --> HITL["🛑 Escalate to Human Supervisor"]`
       };
+      })();
+
+      return { ...evaluated, modelGuidance: buildModelGuidance(req) };
     });
 
     ipc.handle(DESKTOP_CHANNELS.FDE.SCAFFOLD_LADDER_LEVEL, async (_: any, req: { level: number; config?: any }) => {

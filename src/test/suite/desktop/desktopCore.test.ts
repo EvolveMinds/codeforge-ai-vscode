@@ -384,6 +384,55 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     });
     assert.strictEqual(routerEval.recommendedLevel, 2);
 
+    // ── modelGuidance: the model-type half of the verdict ────────────────────
+    // `inputModality` was collected by the UI and passed to this handler from
+    // the beginning, and never read. These pin that it now answers, and — more
+    // importantly — that adding it did not disturb anything the ladder already
+    // returned. The assertions above this line are that contract.
+
+    // Arithmetic over structured data: the honest answer is no model at all.
+    const structuredEval = await fdeEvalGateFn(null, {
+      taskDescription: 'Reconcile invoice totals against the ledger',
+      inputModality: 'structured_data',
+      requiresStrictArithmetic: true,
+      latencyBudgetMs: 5
+    });
+    assert.ok(structuredEval.modelGuidance, 'modelGuidance should be attached');
+    assert.strictEqual(structuredEval.modelGuidance.job, 'none');
+    assert.ok(/no model needed/i.test(structuredEval.modelGuidance.headline),
+      structuredEval.modelGuidance.headline);
+    // The ladder verdict must survive unchanged alongside it.
+    assert.strictEqual(structuredEval.recommendedLevel, 1);
+    assert.ok(structuredEval.paradigm.length > 0);
+
+    // Unstructured text is a retrieval problem before it is a generation one.
+    const textEval = await fdeEvalGateFn(null, {
+      taskDescription: 'Answer questions from the policy handbook',
+      inputModality: 'unstructured_text'
+    });
+    assert.strictEqual(textEval.modelGuidance.job, 'embedding');
+    assert.ok(/rerank/i.test(textEval.modelGuidance.rationale), textEval.modelGuidance.rationale);
+
+    // Multimodal splits: scanned documents need a document model, not a
+    // general vision model that would describe a table instead of reading it.
+    const docEval = await fdeEvalGateFn(null, {
+      taskDescription: 'Extract tables from scanned supplier invoices',
+      inputModality: 'multimodal'
+    });
+    assert.strictEqual(docEval.modelGuidance.job, 'ocr');
+
+    const visionEval = await fdeEvalGateFn(null, {
+      taskDescription: 'Describe what is happening in this screenshot',
+      inputModality: 'multimodal'
+    });
+    assert.strictEqual(visionEval.modelGuidance.job, 'vision');
+
+    // Guidance is reasoned from the declared modality, not measured on the
+    // client's machine, so it must never claim to be detected fact.
+    for (const ev of [structuredEval, textEval, docEval, visionEval]) {
+      assert.strictEqual(ev.modelGuidance.provenance, 'assumed');
+    }
+
     // Test invoking Runbook Generator with empty/undefined state (must not throw)
     const runbookFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.GENERATE_RUNBOOKS)!;
     const runbookRes = await runbookFn(null, {});

@@ -25,6 +25,8 @@ import {
   type ModelJob, type ModelProfile,
 } from '../core/modelAdvisor';
 import { defaultModelFor, providerLabel } from '../core/modelCapability';
+import { citeFlow, flowForJob } from '../core/modelFlows';
+import { renderFlowchartSvg } from '../offline/flowchartRenderer';
 import {
   ModelAdvisorPanel,
   type AdvisorPanelMessage, type AdvisorVerdict, type JobChoice, type ModelRow,
@@ -72,12 +74,30 @@ export class ModelAdvisorCommands {
   }
 
   async open(): Promise<void> {
+    // Diagrams are drawn here, in the host, and handed to the panel as SVG.
+    // The renderer is a plain module; the webview has no filesystem access and
+    // no business parsing anything.
     const jobs: JobChoice[] = JOB_CATALOG
       .filter(j => j.inScope)
-      .map(j => ({
-        job: j.job, label: j.label, whatItDoes: j.whatItDoes,
-        whenToUse: j.whenToUse, commonMistake: j.commonMistake,
-      }));
+      .map(j => {
+        const flow = flowForJob(j.job);
+        const base: JobChoice = {
+          job: j.job, label: j.label, whatItDoes: j.whatItDoes,
+          whenToUse: j.whenToUse, commonMistake: j.commonMistake,
+        };
+        if (!flow) return base;
+        const runtime = renderFlowchartSvg(flow.runtime, { title: flow.title });
+        const build = flow.buildTime
+          ? renderFlowchartSvg(flow.buildTime, { title: 'Ahead of time' })
+          : null;
+        return {
+          ...base,
+          flowSvg: runtime.svg || undefined,
+          buildSvg: build?.svg || undefined,
+          flowCite: citeFlow(flow.provenance),
+          costNote: flow.costNote,
+        };
+      });
 
     let selected: ModelJob = jobs[0]?.job ?? 'chat';
     let profiles: ModelProfile[] = [];

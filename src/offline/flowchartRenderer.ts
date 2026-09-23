@@ -95,6 +95,29 @@ const EDGE_FORMS: Array<{ re: RegExp; dashed: boolean; labelled: boolean }> = [
   { re: /^(.+?)\s*-->\s*(.+)$/,                    dashed: false, labelled: false },
 ];
 
+/**
+ * Split `A & B` into its endpoints, respecting quotes.
+ *
+ * The naive split is wrong on real input: `IMG["Schematics & Diagrams"]` has an
+ * ampersand inside its label, and breaking there would invent two nonsense
+ * nodes. So only ampersands outside quotes and outside brackets separate.
+ */
+function splitEndpoints(side: string): string[] {
+  const parts: string[] = [];
+  let buf = '';
+  let quoted = false;
+  let depth = 0;
+  for (const ch of side) {
+    if (ch === '"') { quoted = !quoted; buf += ch; continue; }
+    if (!quoted && (ch === '[' || ch === '{' || ch === '(')) { depth++; buf += ch; continue; }
+    if (!quoted && (ch === ']' || ch === '}' || ch === ')')) { depth--; buf += ch; continue; }
+    if (ch === '&' && !quoted && depth === 0) { parts.push(buf); buf = ''; continue; }
+    buf += ch;
+  }
+  parts.push(buf);
+  return parts.map(p => p.trim()).filter(Boolean);
+}
+
 /** Strip the quotes a Mermaid label usually carries. */
 function unquote(s: string): string {
   const t = s.trim();
@@ -180,15 +203,21 @@ export function parseFlowchart(src: string): ParsedFlowchart {
     for (const form of EDGE_FORMS) {
       const m = form.re.exec(line);
       if (!m) continue;
-      const from = ensure(form.labelled ? m[1] : m[1]);
-      const to   = ensure(form.labelled ? m[3] : m[2]);
-      const edge: FlowEdge = { from, to };
-      if (form.labelled) {
-        const lbl = unquote(m[2]);
-        if (lbl) edge.label = lbl;
+      // `A & B --> C` fans several sources into one target (and the reverse).
+      // Splitting here rather than treating "A & B" as one id matters: an
+      // unsplit ampersand silently invents a node that was never declared,
+      // which is worse than refusing the line.
+      const froms = splitEndpoints(form.labelled ? m[1] : m[1]).map(ensure);
+      const tos   = splitEndpoints(form.labelled ? m[3] : m[2]).map(ensure);
+      const label = form.labelled ? unquote(m[2]) : '';
+      for (const from of froms) {
+        for (const to of tos) {
+          const edge: FlowEdge = { from, to };
+          if (label) edge.label = label;
+          if (form.dashed) edge.dashed = true;
+          out.edges.push(edge);
+        }
       }
-      if (form.dashed) edge.dashed = true;
-      out.edges.push(edge);
       matched = true;
       break;
     }
