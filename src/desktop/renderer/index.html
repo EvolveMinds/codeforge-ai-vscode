@@ -8342,8 +8342,24 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <input type="password" id="cfgKeyGemini" placeholder="AIzaSy..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="AIzaSy..."/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyOpenai">OPENAI / GROQ API KEY</label>
-              <input type="password" id="cfgKeyOpenai" placeholder="sk-proj-... or gsk_..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="sk-proj-... or gsk_..."/>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyOpenai">OPENAI API KEY</label>
+              <input type="password" id="cfgKeyOpenai" placeholder="sk-proj-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="sk-proj-..."/>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyZai">GLM / Z.AI API KEY</label>
+              <input type="password" id="cfgKeyZai" placeholder="Z.ai API key..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="Z.ai API key"/>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyDeepseek">DEEPSEEK API KEY</label>
+              <input type="password" id="cfgKeyDeepseek" placeholder="sk-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="DeepSeek API key"/>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyGroq">GROQ API KEY</label>
+              <input type="password" id="cfgKeyGroq" placeholder="gsk_..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="Groq API key"/>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyHuggingface">HUGGING FACE API KEY</label>
+              <input type="password" id="cfgKeyHuggingface" placeholder="hf_..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="Hugging Face API key"/>
             </div>
           </div>
           <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
@@ -8796,6 +8812,13 @@ WHERE order_date >= SYSDATE - 30;</textarea>
       var exports = {};
     }
   </script>
+  <!--
+    Offline flowchart renderer. Emitted by scripts/copy-desktop-assets.js, which
+    wraps the compiled module in its own exports shim, so this defines
+    globalThis.EvolveFlowchart without touching the global `exports` above.
+    Must load before renderer.js, which calls into it.
+  -->
+  <script src="flowchart.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

@@ -2759,6 +2759,46 @@ function getParticipantRoleMeta(p: SeqParticipant) {
   };
 }
 
+/**
+ * Route a diagram to the renderer that understands it.
+ *
+ * The Studio emits two kinds of Mermaid: `sequenceDiagram` for workflow
+ * topologies and `flowchart` for every capability-ladder level and decision
+ * gate. Only the first had a renderer, so the flowcharts — 27 of them — were
+ * rejected with "Preview supports `sequenceDiagram` only" and shown as raw
+ * text, including on the air-gapped client laptops where the picture is the
+ * point.
+ *
+ * The flowchart renderer lives in offline/flowchartRenderer.ts and reaches this
+ * file as `globalThis.EvolveFlowchart`, loaded by its own <script> tag. It is
+ * NOT imported: renderer.ts has no real imports because it is served as a
+ * classic script into a context-isolated renderer with no module loader, so an
+ * import would emit a require() and blank the window. See
+ * scripts/copy-desktop-assets.js, which emits the shim and fails the build if a
+ * require() ever appears.
+ *
+ * If the script is missing for any reason we fall through to the sequence
+ * renderer, whose error message is at least accurate about what it accepts.
+ */
+function renderDiagramSvg(src: string, options?: SeqRenderOptions): { svg: string; errors: string[] } {
+  const fc = (globalThis as any).EvolveFlowchart;
+  if (fc?.isFlowchart?.(src)) {
+    return fc.renderFlowchartSvg(src, {
+      title: options?.architectureTitle,
+      activeStep: options?.activeStep,
+      photonRatio: options?.photonRatio,
+    });
+  }
+  return renderSequenceSvg(src, options);
+}
+
+/** How many animation steps this diagram has, whichever kind it is. */
+function diagramStepCount(src: string): number {
+  const fc = (globalThis as any).EvolveFlowchart;
+  if (fc?.isFlowchart?.(src)) return fc.flowchartStepCount(src);
+  return parseSequenceDiagram(src).messages.filter(m => m.kind === 'msg').length;
+}
+
 /** Renders the parsed diagram to futuristic, interactive standalone SVG markup. */
 function renderSequenceSvg(src: string, options?: SeqRenderOptions): { svg: string; errors: string[] } {
   const d = parseSequenceDiagram(src);
@@ -4287,7 +4327,7 @@ function setupPhase1Discovery(api: any): void {
       return;
     }
     const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
-    const { svg, errors } = renderSequenceSvg(src, { mode: currentDiagramMode, architectureTitle: archTitle, ...renderOpts });
+    const { svg, errors } = renderDiagramSvg(src, { mode: currentDiagramMode, architectureTitle: archTitle, ...renderOpts });
     if (!svg) {
       renderedPane.innerHTML = '<div style="color: var(--warn); font-size: 11.5px; padding: 16px;">Could not render this diagram.<br><span style="color: var(--text-secondary);">' +
         errors.map(e => e.replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('<br>') + '</span></div>';
@@ -5280,8 +5320,9 @@ function setupPhase1Discovery(api: any): void {
 
   const startFlowAnimation = () => {
     const src = topologyContainer?.value || '';
-    const d = parseSequenceDiagram(src);
-    const msgCount = d.messages.filter(m => m.kind === 'msg').length;
+    // Counts edges for a flowchart and messages for a sequence diagram, so the
+    // step-through works for both kinds.
+    const msgCount = diagramStepCount(src);
     if (!msgCount) {
       showToast('No message steps to animate.');
       return;
