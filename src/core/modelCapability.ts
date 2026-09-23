@@ -113,6 +113,37 @@ const KNOWN_MODELS: KnownModel[] = [
     note: 'General-purpose. A coder model converts more reliably.' },
 ];
 
+/**
+ * Matches a "small model" parameter-size token (≤3B) in a model id.
+ *
+ * The shape matters and is the same lesson as the `[:\-]…b\b` entry in
+ * KNOWN_MODELS: a size is only a size when it stands alone. Requiring a `:`,
+ * `-` or start-of-string before it, and forbidding a digit after it, is what
+ * stops "32b" matching as "2b" and "13b" matching as "1b".
+ *
+ *   matches:     llama3.2:1b · qwen2.5:0.5b · gemma2:2b · phi-2b · foo-1.5b
+ *   not matched: qwen3:32b · llama3.2:13b · codestral:22b · llama3.3:70b
+ */
+const SMALL_PARAM_SIZE = /(?:^|[:\-])(?:0\.5|1|1\.5|2|3)b(?![\d.])/i;
+
+/**
+ * Pull the parameter count (in billions) out of a model id, when it states one.
+ *
+ * Reading the number once is more honest than a list of alternations per size
+ * band: `/(7|8|9|14|27|70)b/` also matches the "70b" inside "170b" and the "7b"
+ * inside "97b". Returns null when the id says nothing about size — an unknown
+ * size must not be guessed at.
+ *
+ *   qwen3:32b → 32 · llama3.2:13b → 13 · mixtral:8x7b → 7 · nomic-embed-text → null
+ */
+export function parseParamSizeB(modelId: string): number | null {
+  // `8x7b` (MoE) states the expert size; take the trailing number.
+  const m = /(?:^|[:\-x])(\d+(?:\.\d+)?)b(?![\d.])/i.exec(modelId.toLowerCase());
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /** Conservative default when we know nothing about a model at all. */
 const UNKNOWN: Omit<ModelCapability, 'id' | 'source'> = {
   contextTokens: 8_192,
@@ -371,7 +402,11 @@ export function assessModelForDataAnalysis(
   }
 
   // General 7B+ Models (Gemma2, Llama 3.1 8B, etc.)
-  if (/gemma-?2?:(9|27)b|llama-?3\.[123]?:(8|70)b|mistral-small/i.test(m) || /(7|8|9|14|27|70)b/i.test(m)) {
+  // Sized by reading the parameter count rather than listing bands, so a 13B or
+  // 32B model is recognised as capable instead of falling through to the
+  // generic fallback — and so "170b" is not matched via the "70b" inside it.
+  const paramsB = parseParamSizeB(m);
+  if (/gemma-?2?:(9|27)b|llama-?3\.[123]?:(8|70)b|mistral-small/i.test(m) || (paramsB !== null && paramsB >= 7)) {
     return {
       modelId,
       provider,
@@ -386,7 +421,13 @@ export function assessModelForDataAnalysis(
   }
 
   // Underpowered / Small Models (< 7B or non-coding 1B/3B)
-  if (/0\.5b|1b|1\.5b|2b|3b|mini|tiny|phi-?3/i.test(m) || /llama-?3\.2:[13]b/i.test(m)) {
+  //
+  // The separator and the trailing \b are load-bearing, exactly as in
+  // KNOWN_MODELS above. Without them this matched the "2b" inside "qwen3:32b"
+  // and the "1b" inside "llama3.2:13b", and told users their 32B and 13B models
+  // were "Underpowered for Data Science". Match a size token only where it is a
+  // whole token: preceded by ':' or '-' and not followed by another digit.
+  if (SMALL_PARAM_SIZE.test(m) || /mini|tiny|phi-?3/i.test(m)) {
     const suggested = ramGB && ramGB >= 16 ? 'qwen2.5-coder:14b' : 'qwen2.5-coder:7b';
     return {
       modelId,
