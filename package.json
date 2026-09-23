@@ -309,6 +309,10 @@
         "title": "Evolve AI: Switch AI Provider"
       },
       {
+        "command": "aiForge.model.advisor",
+        "title": "Evolve AI: Which Model Should I Use?"
+      },
+      {
         "command": "aiForge.setupOllama",
         "title": "Evolve AI: Setup Ollama"
       },

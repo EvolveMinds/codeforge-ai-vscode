@@ -20,6 +20,7 @@ import { registerInlineProviders } from './ui/inlineActions';
 import { CoreCommands }            from './commands/coreCommands';
 import { GitConnectCommands }      from './commands/gitConnectCommands';
 import { CICDSetupCommands }       from './commands/cicdSetupCommands';
+import { ModelAdvisorCommands }    from './commands/modelAdvisorCommands';
 import { AnalysisController }      from './analysis/controller';
 import { LineageStore }            from './ui/lineageStore';
 import { registerLineageProviders } from './ui/lineageProviders';
@@ -82,6 +83,7 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
   new CoreCommands(svc).register();
   new GitConnectCommands(svc).register();
   new CICDSetupCommands(svc).register();
+  new ModelAdvisorCommands(svc).register();
 
   // 4b. [DE-1] Lineage commands
   vsCtx.subscriptions.push(
