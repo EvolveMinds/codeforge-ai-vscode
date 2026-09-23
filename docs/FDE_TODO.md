@@ -71,7 +71,44 @@ metric off `evals.benchmarkExecuted`, so an unexecuted benchmark renders
 
 ## TODO 2 — Webhook Ingest Studio
 
-**Status:** Not started. **Priority:** Medium — currently advertised but absent.
+**Status:** **Engine done — UI wiring outstanding.** **Updated:** 2026-09-23.
+
+### Done
+
+`src/fde/webhookGen.ts` generates inbound receivers in TypeScript/Express and
+Python/FastAPI for Stripe, GitHub, Slack and a generic HMAC-SHA256 convention:
+
+* **Signature verification over the raw body.** Every provider signs the bytes
+  as sent; verifying a parsed-and-re-serialised body is the most common reason
+  a correct implementation appears broken and the check gets removed.
+* **Constant-time comparison**, with the length guard `crypto.timingSafeEqual`
+  requires, and `hmac.compare_digest` on the Python side.
+* **Replay window** wherever the provider sends a timestamp. Stripe tolerates
+  multiple `v1=` values so a secret rotation does not drop deliveries.
+* **Idempotency** on the provider's event id, with the in-memory limitation
+  stated in the generated code — silently losing dedupe behind a load balancer
+  is a data-integrity bug, not a footnote.
+* **Schema inference** from a pasted sample, mirroring `parseCurlCommand`. An
+  empty array stays `unknown[]` rather than guessing an element type.
+* **A test harness** that proves the *rejections*: tampered body, missing
+  signature, stale timestamp, redelivered event. A receiver that accepts
+  everything also returns 200, so the negative cases carry the evidence.
+
+23 unit tests, plus a run that extracted the emitted `verifySignature` and
+executed it against real HMACs: forged signatures, stale timestamps, a Slack
+digest built without the `v0:` prefix and a GitHub digest missing `sha256=`
+were each refused, rotation was accepted, and an unset secret failed closed
+(14/14).
+
+### Still outstanding
+
+* **UI wiring.** Section 2B has no webhook panel yet — provider picker, sample
+  payload box, generated-code preview, and writing the receiver plus harness
+  into the workspace. This touches `src/desktop/renderer/index.html` and
+  `renderer.ts`, which another session is actively editing, so it was left for
+  a separate pass rather than merged into a shared file mid-flight.
+* Until that lands, the section title still over-promises. The cheaper
+  alternative below remains valid if the UI is not wanted soon.
 
 ### The problem
 
