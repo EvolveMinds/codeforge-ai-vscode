@@ -26,6 +26,8 @@ evolve-ai-vscode/
 ├── docs/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
+│   ├── RELEASE_RUNBOOK.md      ← desktop EXE/ZIP release: build, publish, website, checklist
+│   ├── FDE_TODO.md             ← outstanding work carried between releases
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
 │   ├── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
 │   ├── DATA_ANALYSIS.md        ← Data Analysis & Reporting plugin user guide (v2.11.0 — report design system, customisation, refine loop)
@@ -544,7 +546,17 @@ npm test
 
 ## Packaging & Marketplace Release Protocol
 
-> **CRITICAL MEMORY / SINGLE SOURCE OF TRUTH**: Full details in `docs/PACKAGING.md`.
+> **CRITICAL MEMORY / SINGLE SOURCE OF TRUTH**
+>
+> * **VS Code extension** (`.vsix`, six platform targets, Marketplace) —
+>   `docs/PACKAGING.md`.
+> * **Commercial Enterprise Desktop** (portable `.exe`, offline patch `.zip`,
+>   GitHub releases, company website) — **`docs/RELEASE_RUNBOOK.md`**. Read it
+>   before shipping a desktop release; it carries the end-to-end procedure, the
+>   verification steps and the traps that have actually bitten.
+>
+> These are two separate pipelines. The six-target `.vsix` rule below applies
+> only to the extension.
 
 1. **Native Binaries Bundled**: Evolve AI bundles platform-specific binaries for **Biome (1.9.4)** and **Ruff (0.7.4)**.
 2. **Never Publish Universal `.vsix`**: Never publish the output of bare `vsce package`. We publish **six platform-targeted `.vsix` packages** for every release:

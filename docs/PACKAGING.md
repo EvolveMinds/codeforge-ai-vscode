@@ -1,5 +1,13 @@
 # Packaging & Release Guide
 
+> **Scope:** this document covers the **VS Code extension** — the six
+> platform-targeted `.vsix` packages and the Marketplace.
+>
+> For the **commercial Enterprise Desktop** release — the portable `.exe`, the
+> offline patch `.zip`, the GitHub releases that host them and the company
+> website that points customers at them — see
+> [`RELEASE_RUNBOOK.md`](./RELEASE_RUNBOOK.md).
+
 > **Read this fully before publishing any version to the VS Code Marketplace.**
 > Publishing is irreversible: a version number can never be reused, unpublished, or
 > overwritten once accepted. Every install auto-updates. There is no rollback —
