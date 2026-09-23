@@ -199,13 +199,23 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
       delete process.env.EVOLVE_UPDATE_URL;
     }
 
+    // A file that is not an archive must be REFUSED.
+    //
+    // This assertion used to be the opposite: the file below contains the text
+    // "EVOLVE_PATCH_BINARY_DATA" and the test asserted success, six reloaded
+    // engines and a patched version — because applyOfflinePatch() swallowed the
+    // failed extraction in a `catch {}` and returned a hardcoded engine list.
+    // The test encoded the bug, so it changes with the fix.
     const patchFile = path.join(tmpDir, 'test-patch.zip');
     fs.writeFileSync(patchFile, 'EVOLVE_PATCH_BINARY_DATA', 'utf8');
 
     const patchRes = updater.applyOfflinePatch(patchFile);
-    assert.strictEqual(patchRes.success, true);
-    assert.ok(patchRes.patchedVersion.includes(`${expectedVersion}-patch-`));
-    assert.ok(patchRes.enginesReloaded.includes('SqlTranspiler'));
+    assert.strictEqual(patchRes.success, false, 'a non-archive must not apply');
+    assert.strictEqual(patchRes.templatesUpdated, 0);
+    assert.deepStrictEqual(patchRes.enginesReloaded, [], 'no engine may be reported as reloaded');
+    assert.ok(patchRes.error, 'a refusal must explain itself');
+    // Version is unchanged by a refused patch.
+    assert.strictEqual(patchRes.patchedVersion, expectedVersion);
   });
 
   test('DesktopIpcHandlers registers and executes all IPC channel handlers', async function () {

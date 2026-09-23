@@ -191,8 +191,44 @@ certificate and rely on the mitigations above meanwhile.
 
 ## TODO 4 — Offline hot patch: publish the archive, and make the claims true
 
-**Status:** Not started. **Priority:** High — the feature is advertised in the UI
-and there is nothing for a customer to apply. **Raised:** 2026-09-22.
+**Status:** **Integrity done — publishing still outstanding.** **Raised:** 2026-09-22.
+**Updated:** 2026-09-23.
+
+### Done
+
+Verification now exists and is enforced (`src/fde/patchIntegrity.ts`):
+
+* The generator hashes every file and digests the manifest over itself, so
+  neither a file nor the file list can be altered undetected.
+* The applier extracts to a **temporary** directory, verifies every file, and
+  only then copies into place. Any failure refuses the patch **whole** — no
+  partial application.
+* Archive paths are validated before anything is written (`../`, absolute,
+  drive-letter and UNC paths are rejected), because `tar -xf` follows them.
+* Reported `templatesUpdated` and `enginesReloaded` are derived from the files
+  actually written; both are empty on refusal.
+* A pre-integrity manifest (`manifestVersion` absent or < 2) is **refused**
+  rather than waved through for compatibility.
+* The UI no longer claims "cryptographically signed"; it states a SHA-256
+  digest, tamper-evident and not signed.
+
+13 unit tests in `src/test/suite/fde/patchIntegrity.test.ts`, plus an
+end-to-end run that built a real archive, applied it, then confirmed a
+tampered, a corrupt and a wrong-version archive were each refused with zero
+engines reported.
+
+Two real bugs surfaced while testing, both fixed: the generator writes a
+**zip**, but the applier used `tar -xf`, which GNU tar cannot read (it now
+falls back to PowerShell's `Expand-Archive`); and files were landing at
+`templates/templates/...` because the archive prefix was not stripped.
+
+### Still outstanding
+
+* **Publish the archive.** No patch `.zip` has ever been attached to a release.
+  Until one is, the UI control has nothing to select — see `RELEASE_RUNBOOK.md`
+  §5, which currently tells the next release to skip it.
+* **A real signature**, if the product is to claim origin and not just
+  tamper-evidence. That needs a keypair and is the same decision as TODO 3.
 
 ### The problem
 

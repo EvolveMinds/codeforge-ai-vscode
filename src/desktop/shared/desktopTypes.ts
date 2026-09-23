@@ -137,7 +137,26 @@ export interface UpdateCheckResult {
 export interface OfflinePatchApplyResult {
   success: boolean;
   patchedVersion: string;
+  /** Count of files actually written to disk — not a projection from the manifest. */
   templatesUpdated: number;
+  /**
+   * Engines whose templates this patch replaced. Derived from the files that
+   * were written; previously this was a hardcoded list returned unconditionally,
+   * including when the extraction had failed.
+   */
   enginesReloaded: string[];
   error?: string;
+  /** Why the patch was refused, when it was. */
+  rejectionReason?: string;
+  /** Archive-relative paths whose SHA-256 matched the manifest. */
+  verifiedFiles?: string[];
+  /** Plain statement of what the integrity check proves — never "signed". */
+  integrityNote?: string;
+  /**
+   * True when the new templates are live in the running process. The engines
+   * read their templates from disk on next use rather than holding them in
+   * memory, so this says whether a restart is needed rather than asserting a
+   * hot reload that did not happen.
+   */
+  appliesWithoutRestart?: boolean;
 }

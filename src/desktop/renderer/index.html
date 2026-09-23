@@ -8451,7 +8451,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">AIR-GAPPED OFFLINE HOT PATCHING (.ZIP)</div>
           <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
-            For banking, defense, and high-assurance enclaves without public internet access. Import a cryptographically signed patch archive to hot-reload dbt templates, regex schema mappers, and transpilation engines without restarting or re-licensing.
+            For banking, defense, and high-assurance enclaves without public internet access. Import a patch archive to update dbt templates, regex schema mappers, and transpilation engines without restarting or re-licensing. Every file is verified against a SHA-256 digest before anything is written — tamper-evident, but not digitally signed. A patch that fails verification is refused whole.
           </p>
           <div style="display: flex; gap: 10px; align-items: center;">
             <input type="file" id="fileInputOfflinePatch" accept=".zip,.tar.gz" style="display: none;" />

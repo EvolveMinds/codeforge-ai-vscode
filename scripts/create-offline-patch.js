@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const rootDir = path.join(__dirname, '..');
@@ -41,36 +42,11 @@ if (!fs.existsSync(distDir)) {
 const stagingDir = path.join(distDir, `staging-patch-${Date.now()}`);
 fs.mkdirSync(stagingDir, { recursive: true });
 
-// 1. Create Manifest
-const manifest = {
-  name: "Evolve AI Enterprise Air-Gapped Hot Patch",
-  patchId,
-  patchVersion,
-  baseVersion: version,
-  releasedAt: timestamp,
-  publisher: "Evolve Mind Solutions Pty Ltd",
-  contact: "support@evolvemindsolutions.com",
-  description: "Enterprise AST transpiler rules, updated PII compliance patterns (HIPAA/GDPR/APP), and high-performance synthetic data generator profiles for air-gapped enclaves.",
-  enginesReloaded: [
-    "SqlTranspiler",
-    "PiiSanitizer",
-    "ReverseEtlGenerator",
-    "RlsPolicyGenerator",
-    "SyntheticDataGenerator",
-    "MockServerGenerator"
-  ],
-  templatesUpdated: [
-    "templates/sql/snowflake_to_databricks_ast.json",
-    "templates/pii/hipaa_gdpr_app_patterns.json",
-    "templates/rls/multi_tenant_rls_policy.sql",
-    "templates/synthetic/fde_financial_synthetic_profile.json",
-    "templates/mock/enterprise_mock_endpoints.json"
-  ]
-};
-
-fs.writeFileSync(path.join(stagingDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
-
-// 2. Create Template Overrides
+// 1. Create Template Overrides
+//
+// The manifest is written LAST, after these files exist, because it records a
+// SHA-256 of each one. Writing it first — as this script used to — is why the
+// archive shipped with no way to detect tampering.
 const templatesDir = path.join(stagingDir, 'templates');
 fs.mkdirSync(path.join(templatesDir, 'sql'), { recursive: true });
 fs.mkdirSync(path.join(templatesDir, 'pii'), { recursive: true });
@@ -144,6 +120,64 @@ fs.writeFileSync(
   'utf8'
 );
 
+// 2. Build the manifest from what is actually on disk
+//
+// Every file is hashed, and the manifest is then hashed over itself, so neither
+// a file nor the file list can be altered without detection. This is a digest,
+// not a signature: it proves the archive is unchanged since it was built, not
+// who built it. There is no keypair in the product, so nothing here claims to
+// be signed — the applier states the same distinction to the user.
+const listFiles = (dir, prefix = '') => {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, entry.name);
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) out.push(...listFiles(abs, rel));
+    else if (entry.isFile() && rel !== 'manifest.json') out.push({ abs, rel });
+  }
+  return out;
+};
+
+const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+
+const files = listFiles(stagingDir)
+  .map(({ abs, rel }) => {
+    const contents = fs.readFileSync(abs);
+    return { path: rel, bytes: contents.length, sha256: sha256(contents) };
+  })
+  .sort((a, b) => a.path.localeCompare(b.path));
+
+const manifest = {
+  manifestVersion: 2,
+  name: "Evolve AI Enterprise Air-Gapped Hot Patch",
+  patchId,
+  patchVersion,
+  baseVersion: version,
+  releasedAt: timestamp,
+  publisher: "Evolve Mind Solutions Pty Ltd",
+  contact: "support@evolvemindsolutions.com",
+  description: "Enterprise AST transpiler rules, updated PII compliance patterns (HIPAA/GDPR/APP), and high-performance synthetic data generator profiles for air-gapped enclaves.",
+  files,
+  integrity: 'sha256-digest',
+  signed: false
+};
+
+// Canonical form must match canonicalManifestJson() in src/fde/patchIntegrity.ts
+// byte for byte, or the verifier will reject every archive this script builds.
+const canonical = (value) => {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.keys(value).sort().reduce((acc, k) => {
+      acc[k] = canonical(value[k]);
+      return acc;
+    }, {});
+  }
+  return value;
+};
+manifest.manifestDigest = sha256(JSON.stringify(canonical(manifest)));
+
+fs.writeFileSync(path.join(stagingDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+
 // 3. Compress into .zip
 const zipName = `evolve-ai-enterprise-patch-${version}.zip`;
 const outputZip = path.join(distDir, zipName);
@@ -163,6 +197,14 @@ try {
 
 // Clean up staging
 try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch {}
+
+// Checksum of the archive itself, for the release notes and the download page.
+// Distinct from the per-file digests inside: this one lets a customer confirm
+// the file they received is the file we published, before it is ever opened.
+const archiveSha256 = sha256(fs.readFileSync(outputZip));
+console.log(`\n  Archive SHA-256: ${archiveSha256}`);
+console.log(`  Files hashed in manifest: ${files.length}`);
+console.log(`  Integrity: SHA-256 digest (tamper-evident) — NOT digitally signed.`);
 
 const stats = fs.statSync(outputZip);
 const sizeKB = (stats.size / 1024).toFixed(1);
