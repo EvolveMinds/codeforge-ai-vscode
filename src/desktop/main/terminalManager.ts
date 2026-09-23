@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { TerminalSessionInfo, TerminalSpawnOptions } from '../shared/desktopTypes';
+import { refreshPathFromRegistry } from '../../core/processUtil';
 
 interface ActiveSession {
   info: TerminalSessionInfo;
@@ -60,7 +61,13 @@ export class DesktopTerminalManager {
     const sessionId = options.id || 'term_' + Math.random().toString(36).substring(2, 9);
     const sessionName = options.name || 'Terminal ' + (this._sessions.size + 1);
     const shell = options.shell || this.getDefaultShell();
-    const cwd = options.cwd || process.cwd();
+    // A workspace folder that has been moved or deleted would make the shell
+    // spawn fail with ENOENT, leaving a terminal tab that accepts no commands.
+    const requestedCwd = options.cwd || process.cwd();
+    let cwd = process.cwd();
+    try {
+      if (fs.existsSync(requestedCwd) && fs.statSync(requestedCwd).isDirectory()) cwd = requestedCwd;
+    } catch { /* keep process.cwd() */ }
 
     const env = {
       ...process.env,
@@ -140,6 +147,19 @@ export class DesktopTerminalManager {
     }, 50);
 
     return info;
+  }
+
+  /**
+   * Push text to a session's listeners without running anything.
+   *
+   * Lets a feature that does its own work (the cloud CLI installer) show its
+   * progress in the terminal the user is already watching, instead of having to
+   * launder the output through a shell command.
+   */
+  public emitToSession(sessionId: string, text: string): void {
+    for (const listener of this._dataListeners) {
+      try { listener(sessionId, text); } catch { /* a dead listener must not break the caller */ }
+    }
   }
 
   public writeData(sessionId: string, data: string): boolean {
@@ -231,8 +251,21 @@ export class DesktopTerminalManager {
       const shellCmd = isWin ? 'powershell.exe' : '/bin/bash';
       const shellArgs = isWin ? ['-NoLogo', '-Command', cmd] : ['-c', cmd];
 
+      // Pick up CLIs installed since the app launched, so the user does not
+      // have to restart to use something they just installed from this terminal.
+      refreshPathFromRegistry();
+
+      // spawn fails with ENOENT when cwd is gone, which would surface as an
+      // unexplained "Command error" rather than a shell message.
+      const spawnCwd = (() => {
+        try {
+          if (targetCwd && fs.existsSync(targetCwd) && fs.statSync(targetCwd).isDirectory()) return targetCwd;
+        } catch { /* fall through */ }
+        return process.cwd();
+      })();
+
       const child = child_process.spawn(shellCmd, shellArgs, {
-        cwd: targetCwd,
+        cwd: spawnCwd,
         env: process.env,
         windowsHide: true
       });

@@ -10,11 +10,28 @@
  *  - waitForCommand(cmd, args, signal, opts) — poll until the command exits 0
  *    or the timeout / abort fires. Used to detect "user finished installing X".
  *
- * Always uses `shell: false` and an args array — avoids platform shell-quoting
- * pitfalls (PowerShell vs bash) and command-injection holes.
+ * Defaults to `shell: false` with an args array — avoids platform shell-quoting
+ * pitfalls (PowerShell vs bash) and command-injection holes. Callers probing a
+ * Windows .cmd shim (gcloud, az) must opt in with `shell: true`, because Node
+ * cannot execute a batch file otherwise.
  */
 
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
+import * as fs from 'fs';
+
+/**
+ * Node's spawn fails with ENOENT when `cwd` does not exist, and the error is
+ * indistinguishable from "the command is not installed". A workspace folder
+ * that has been moved or deleted would therefore make every CLI probe report
+ * the tool as missing. Fall back to the process cwd instead of guessing.
+ */
+function usableCwd(cwd?: string): string | undefined {
+  if (!cwd) return undefined;
+  try {
+    if (fs.existsSync(cwd) && fs.statSync(cwd).isDirectory()) return cwd;
+  } catch { /* fall through */ }
+  return undefined;
+}
 
 export interface RunResult {
   code:   number | null;
@@ -31,6 +48,16 @@ export interface RunOptions {
   env?:       NodeJS.ProcessEnv;
   /** Optional input to write to stdin (then end). */
   stdin?:     string;
+  /**
+   * Run through a shell. Required on Windows for CLIs that ship a .cmd/.bat
+   * shim rather than a real .exe (gcloud, az, npm). Node refuses to execute a
+   * batch file with shell:false — it returns EINVAL, which reads like "not
+   * installed" — so detection of those tools must opt in.
+   *
+   * Only ever set this for a fixed command with caller-controlled arguments;
+   * a shell reintroduces quoting and injection concerns that shell:false avoids.
+   */
+  shell?:     boolean;
 }
 
 /**
@@ -44,9 +71,9 @@ export function runCommand(cmd: string, args: string[], opts: RunOptions = {}): 
     const done = (val: RunResult | null) => { if (!settled) { settled = true; resolve(val); } };
     try {
       const proc = spawn(cmd, args, {
-        shell:       false,
+        shell:       opts.shell === true,
         windowsHide: true,
-        cwd:         opts.cwd,
+        cwd:         usableCwd(opts.cwd),
         env:         opts.env ? { ...process.env, ...opts.env } : process.env,
       });
       let stdout = '';
@@ -119,4 +146,51 @@ export function versionLessThan(a: string, b: string): boolean {
     if (av > bv) return false;
   }
   return false;
+}
+
+/**
+ * Re-reads PATH from the Windows registry and merges anything new into
+ * process.env.PATH.
+ *
+ * A running process keeps the environment it was launched with, so a CLI
+ * installed after the app started (aws, gcloud, az, docker) is invisible to it
+ * until the app is restarted — "installed, but Evolve still says missing".
+ * Refreshing before a probe or a terminal command removes that restart.
+ *
+ * Machine and User PATH are read separately because that is how Windows stores
+ * them; an installer typically writes to one, not the combined value.
+ * No-ops off Windows, where no such split exists. Never throws.
+ */
+export function refreshPathFromRegistry(): void {
+  if (process.platform !== 'win32') return;
+
+  try {
+    // -NoProfile keeps this fast and avoids user profile side effects.
+    const read = (scope: 'Machine' | 'User') => {
+      const r = spawnSync(
+        'powershell.exe',
+        ['-NoProfile', '-NonInteractive', '-Command',
+         `[Environment]::GetEnvironmentVariable('Path','${scope}')`],
+        { encoding: 'utf8', timeout: 5000, windowsHide: true },
+      );
+      return (r.status === 0 && r.stdout) ? r.stdout.trim() : '';
+    };
+
+    const fromRegistry = `${read('Machine')};${read('User')}`;
+    if (!fromRegistry.replace(/;/g, '')) return;   // both reads failed
+
+    const current = process.env.PATH || '';
+    const seen = new Set(
+      current.split(';').map(s => s.trim().toLowerCase()).filter(Boolean),
+    );
+
+    const additions = fromRegistry
+      .split(';')
+      .map(s => s.trim())
+      .filter(s => s && !seen.has(s.toLowerCase()));
+
+    if (additions.length) {
+      process.env.PATH = current ? `${current};${additions.join(';')}` : additions.join(';');
+    }
+  } catch { /* a stale PATH is better than a crash */ }
 }

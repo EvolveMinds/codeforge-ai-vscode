@@ -28,7 +28,7 @@ import { DesktopLicenseAuth } from './licenseAuth';
 import { DesktopSecretVault } from './secretVault';
 import { DesktopUpdater } from './updater';
 import { HardwareInspector } from '../../core/hardwareInspector';
-import { runForStdout } from '../../core/processUtil';
+import { runForStdout, runCommand, refreshPathFromRegistry } from '../../core/processUtil';
 import {
   SqlTranspiler,
   PiiSanitizer,
@@ -548,6 +548,169 @@ function callCloudChat(
     r.write(payload);
     r.end();
   });
+}
+
+/**
+ * One-click CLI installation for the Multi-Cloud hub.
+ *
+ * Typing a package-manager command into a terminal is not an install button: it
+ * leaves the user reading winget output to work out what happened. In particular
+ * `winget install` on a package whose installed version is "Unknown" (which is
+ * how Google Cloud SDK registers) reports "already installed... cannot be
+ * determined" and exits 0 having done nothing — indistinguishable from success.
+ *
+ * So each install runs as a pipeline that answers one question: is the CLI
+ * usable now? Detect first, install only if needed, then re-detect.
+ */
+interface CliSpec {
+  /** Command probed to decide whether the CLI is present. */
+  probe: string;
+  probeArgs: string[];
+  /** winget package id (Windows). */
+  wingetId?: string;
+  brew?: string;
+  /** Homebrew casks need `--cask`. */
+  brewCask?: boolean;
+  /** Fallback shell one-liner for Linux. */
+  linux?: string;
+  /** Where to send the user if every automated route fails. */
+  manualUrl: string;
+  label: string;
+}
+
+const CLI_SPECS: Record<string, CliSpec> = {
+  gcp: {
+    probe: 'gcloud', probeArgs: ['--version'],
+    wingetId: 'Google.CloudSDK',
+    brew: 'google-cloud-sdk', brewCask: true,
+    linux: 'curl -sSL https://sdk.cloud.google.com | bash',
+    manualUrl: 'https://cloud.google.com/sdk/docs/install',
+    label: 'Google Cloud SDK',
+  },
+  aws: {
+    probe: 'aws', probeArgs: ['--version'],
+    wingetId: 'Amazon.AWSCLI',
+    brew: 'awscli',
+    linux: 'curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip && unzip -qo /tmp/awscliv2.zip -d /tmp && sudo /tmp/aws/install --update',
+    manualUrl: 'https://aws.amazon.com/cli/',
+    label: 'AWS CLI v2',
+  },
+  azure: {
+    probe: 'az', probeArgs: ['version'],
+    wingetId: 'Microsoft.AzureCLI',
+    brew: 'azure-cli',
+    linux: 'curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash',
+    manualUrl: 'https://learn.microsoft.com/cli/azure/install-azure-cli',
+    label: 'Azure CLI',
+  },
+  docker: {
+    probe: 'docker', probeArgs: ['--version'],
+    wingetId: 'Docker.DockerDesktop',
+    brew: 'docker', brewCask: true,
+    linux: 'curl -fsSL https://get.docker.com | sh',
+    manualUrl: 'https://www.docker.com/products/docker-desktop/',
+    label: 'Docker Desktop',
+  },
+};
+
+export interface CliInstallResult {
+  ok: boolean;
+  /** Present and working before we did anything. */
+  alreadyInstalled: boolean;
+  /** Installed, but the shell needs restarting to see it on PATH. */
+  needsRestart: boolean;
+  version?: string;
+  message: string;
+  /** Set when the automated route failed and the user must do it by hand. */
+  manualUrl?: string;
+  log: string[];
+}
+
+/** Is the CLI callable right now? Returns its version line, or null. */
+async function probeCli(spec: CliSpec): Promise<string | null> {
+  // shell:true — gcloud and az are .cmd shims, which Node cannot spawn directly.
+  const out = await runForStdout(spec.probe, spec.probeArgs, { timeoutMs: 20000, shell: true });
+  return out ? out.trim().split('\n')[0].trim() : null;
+}
+
+/**
+ * Install one CLI and report what actually happened.
+ *
+ * Never throws: every failure path returns a result the UI can render, with a
+ * manual URL so the user is never left with a dead button.
+ */
+export async function installCloudCli(provider: string): Promise<CliInstallResult> {
+  const spec = CLI_SPECS[provider];
+  const log: string[] = [];
+  if (!spec) {
+    return { ok: false, alreadyInstalled: false, needsRestart: false, log,
+             message: `Unknown provider "${provider}".` };
+  }
+
+  // 1. Already usable? Then there is nothing to install.
+  refreshPathFromRegistry();
+  const existing = await probeCli(spec);
+  if (existing) {
+    log.push(`${spec.probe} already on PATH: ${existing}`);
+    return { ok: true, alreadyInstalled: true, needsRestart: false, version: existing, log,
+             message: `${spec.label} is already installed — ${existing}` };
+  }
+
+  // 2. Install via the platform's package manager.
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+  let cmd: string;
+  let args: string[];
+
+  if (isWin && spec.wingetId) {
+    // --include-unknown covers packages whose installed version winget cannot
+    // determine (Google Cloud SDK); without it winget refuses and exits 0.
+    // --accept-* stop the install blocking on an interactive agreement prompt.
+    cmd = 'winget';
+    args = ['install', '-e', '--id', spec.wingetId, '--include-unknown',
+            '--accept-package-agreements', '--accept-source-agreements',
+            '--disable-interactivity'];
+  } else if (isMac && spec.brew) {
+    cmd = 'brew';
+    args = spec.brewCask ? ['install', '--cask', spec.brew] : ['install', spec.brew];
+  } else if (spec.linux) {
+    cmd = spec.linux;
+    args = [];
+  } else {
+    return { ok: false, alreadyInstalled: false, needsRestart: false, log, manualUrl: spec.manualUrl,
+             message: `No automated installer for ${spec.label} on this platform.` };
+  }
+
+  log.push(`Running: ${cmd} ${args.join(' ')}`.trim());
+  // Installers are slow (downloads + an elevation prompt), hence the long timeout.
+  const res = await runCommand(cmd, args, { timeoutMs: 600000, shell: true });
+
+  if (!res) {
+    return { ok: false, alreadyInstalled: false, needsRestart: false, log, manualUrl: spec.manualUrl,
+             message: `${spec.label} install timed out or could not be started. Install it manually.` };
+  }
+  const output = `${res.stdout}\n${res.stderr}`.trim();
+  if (output) log.push(output);
+
+  // 3. Re-probe. The exit code alone is not evidence: winget exits 0 on the
+  //    "already installed, cannot upgrade" no-op that started this bug.
+  refreshPathFromRegistry();
+  const after = await probeCli(spec);
+  if (after) {
+    return { ok: true, alreadyInstalled: false, needsRestart: false, version: after, log,
+             message: `${spec.label} installed — ${after}` };
+  }
+
+  // 4. Installed but not yet visible. A freshly installed CLI often lands on a
+  //    PATH that existing processes cannot see; say so rather than claiming it
+  //    failed, but only when the installer itself reported success.
+  if (res.code === 0) {
+    return { ok: true, alreadyInstalled: false, needsRestart: true, log, manualUrl: spec.manualUrl,
+             message: `${spec.label} installed, but is not on PATH yet. Restart Evolve AI to use it.` };
+  }
+
+  return { ok: false, alreadyInstalled: false, needsRestart: false, log, manualUrl: spec.manualUrl,
+           message: `${spec.label} install failed (exit ${res.code}). Install it manually.` };
 }
 
 export interface DesktopIpcHandlersOptions {
@@ -2207,6 +2370,10 @@ End Function
 
     // --- REAL MULTI-CLOUD CLI DETAILED STATUS (100% Match with Screenshot 2) ---
     ipc.handle(DESKTOP_CHANNELS.CLOUD.GET_DETAILED_STATUS, async () => {
+      // A CLI installed since the app launched is not on our inherited PATH,
+      // so without this a re-scan keeps reporting it as missing until restart.
+      refreshPathFromRegistry();
+
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
 
@@ -2217,7 +2384,7 @@ End Function
 
       // 1. GCP Check
       try {
-        const gVer = await runForStdout('gcloud', ['--version'], { cwd, timeoutMs: 4000 });
+        const gVer = await runForStdout('gcloud', ['--version'], { cwd, timeoutMs: 4000, shell: true });
         if (gVer && !gVer.includes('not recognized')) {
           gcpInstalled = true;
           const firstLine = gVer.split('\n')[0] || '';
@@ -2227,7 +2394,7 @@ End Function
 
       if (gcpInstalled) {
         try {
-          const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd, timeoutMs: 5000 });
+          const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd, timeoutMs: 5000, shell: true });
           if (g && !g.includes('ERROR')) {
             const parsed = JSON.parse(g);
             const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
@@ -2236,17 +2403,17 @@ End Function
               gcpAccount = active.account || '';
             }
           }
-          const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd, timeoutMs: 3000 });
+          const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd, timeoutMs: 3000, shell: true });
           if (gProj && !gProj.includes('unset') && !gProj.includes('ERROR')) gcpProject = gProj.trim();
 
-          const gReg = await runForStdout('gcloud', ['config', 'get-value', 'compute/region'], { cwd, timeoutMs: 3000 });
+          const gReg = await runForStdout('gcloud', ['config', 'get-value', 'compute/region'], { cwd, timeoutMs: 3000, shell: true });
           if (gReg && !gReg.includes('unset') && !gReg.includes('ERROR')) gcpRegion = gReg.trim();
         } catch {}
       }
 
       // 2. AWS Check
       try {
-        const aVer = await runForStdout('aws', ['--version'], { cwd, timeoutMs: 4000 });
+        const aVer = await runForStdout('aws', ['--version'], { cwd, timeoutMs: 4000, shell: true });
         if (aVer && !aVer.includes('not recognized')) {
           awsInstalled = true;
           awsVersion = aVer.trim().split('\n')[0] || '';
@@ -2255,7 +2422,7 @@ End Function
 
       if (awsInstalled) {
         try {
-          const a = await runForStdout('aws', ['sts', 'get-caller-identity', '--output', 'json'], { cwd, timeoutMs: 5000 });
+          const a = await runForStdout('aws', ['sts', 'get-caller-identity', '--output', 'json'], { cwd, timeoutMs: 5000, shell: true });
           if (a && !a.includes('error')) {
             const parsed = JSON.parse(a);
             if (parsed.Arn) {
@@ -2264,14 +2431,14 @@ End Function
               awsAccount = parsed.Arn.split('/').pop() || parsed.Account || 'Active';
             }
           }
-          const aReg = await runForStdout('aws', ['configure', 'get', 'region'], { cwd, timeoutMs: 3000 });
+          const aReg = await runForStdout('aws', ['configure', 'get', 'region'], { cwd, timeoutMs: 3000, shell: true });
           if (aReg && !aReg.includes('error')) awsRegion = aReg.trim();
         } catch {}
       }
 
       // 3. Azure Check
       try {
-        const azVer = await runForStdout('az', ['version'], { cwd, timeoutMs: 4000 });
+        const azVer = await runForStdout('az', ['version'], { cwd, timeoutMs: 4000, shell: true });
         if (azVer && !azVer.includes('not recognized')) {
           azureInstalled = true;
           try {
@@ -2285,7 +2452,7 @@ End Function
 
       if (azureInstalled) {
         try {
-          const az = await runForStdout('az', ['account', 'show', '--output', 'json'], { cwd, timeoutMs: 5000 });
+          const az = await runForStdout('az', ['account', 'show', '--output', 'json'], { cwd, timeoutMs: 5000, shell: true });
           if (az && !az.includes('error')) {
             const parsed = JSON.parse(az);
             if (parsed.name || parsed.id) {
@@ -2300,7 +2467,7 @@ End Function
 
       // 4. Docker Check
       try {
-        const dVer = await runForStdout('docker', ['--version'], { cwd, timeoutMs: 4000 });
+        const dVer = await runForStdout('docker', ['--version'], { cwd, timeoutMs: 4000, shell: true });
         if (dVer && !dVer.includes('not recognized')) {
           dockerInstalled = true;
           dockerVersion = dVer.trim().split('\n')[0] || '';
@@ -2309,12 +2476,12 @@ End Function
 
       if (dockerInstalled) {
         try {
-          const d = await runForStdout('docker', ['info', '--format', '{{.ServerVersion}}'], { cwd, timeoutMs: 4000 });
+          const d = await runForStdout('docker', ['info', '--format', '{{.ServerVersion}}'], { cwd, timeoutMs: 4000, shell: true });
           if (d && !d.includes('error') && !d.includes('Cannot connect') && !d.includes('failed to connect')) {
             dockerRunning = true;
             dockerVersion = `v${d.trim()}`;
 
-            const dCont = await runForStdout('docker', ['info', '--format', '{{.ContainersRunning}} running / {{.Containers}} total'], { cwd, timeoutMs: 3000 });
+            const dCont = await runForStdout('docker', ['info', '--format', '{{.ContainersRunning}} running / {{.Containers}} total'], { cwd, timeoutMs: 3000, shell: true });
             if (dCont && !dCont.includes('error')) dockerContainers = dCont.trim();
           }
         } catch {}
@@ -2330,6 +2497,20 @@ End Function
 
     // --- REAL MULTI-CLOUD CONNECT / INSTALL EXECUTION ---
     ipc.handle(DESKTOP_CHANNELS.CLOUD.CONNECT_ACCOUNT, async (_: any, provider: string, action: string, sessionId?: string) => {
+      if (action === 'install') {
+        const result = await installCloudCli(provider);
+        if (sessionId) {
+          const tick = result.ok ? '\u2713' : '\u26a0';
+          const colour = result.ok ? '\x1b[32m' : '\x1b[31m';
+          const body = result.log.length ? result.log.join('\r\n') + '\r\n' : '';
+          terminalMgr.emitToSession(
+            sessionId,
+            body + colour + tick + ' ' + result.message + '\x1b[0m\r\n',
+          );
+        }
+        return result;
+      }
+
       const isWin = process.platform === 'win32';
       const isMac = process.platform === 'darwin';
       let cmd = '';
