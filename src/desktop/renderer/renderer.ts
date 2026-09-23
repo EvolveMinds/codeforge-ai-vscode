@@ -33151,7 +33151,11 @@ function setupModals(api: any): void {
       try {
         const fp = await api.license.getFingerprint();
         const txtFp = document.getElementById('txtHwFingerprint') as HTMLInputElement;
-        if (txtFp) txtFp.value = fp || 'HW-FINGERPRINT-SIMULATED';
+        if (txtFp) {
+          txtFp.value = fp?.machineFingerprint
+            ? `${fp.machineFingerprint} (${fp.hostname || 'localhost'} · ${fp.platform || 'win32'}-${fp.arch || 'x64'})`
+            : 'HW-FINGERPRINT-SIMULATED';
+        }
       } catch {}
 
       // 3. Fetch Profile Info
