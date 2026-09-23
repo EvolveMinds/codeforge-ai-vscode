@@ -13,7 +13,7 @@ import * as http   from 'http';
 import * as https  from 'https';
 import { safeUpdateConfig, readHostSetting, warnIfRemoteHost } from './configSafe';
 import type { EventBus }   from './eventBus';
-import type { IAIService } from './interfaces';
+import type { IAIService, OllamaModelInfo } from './interfaces';
 
 export type ProviderName = 'auto' | 'ollama' | 'gemma4' | 'glm' | 'colibri' | 'anthropic' | 'openai' | 'gemini' | 'zai' | 'huggingface' | 'offline';
 
@@ -331,16 +331,22 @@ export class AIService implements IAIService {
   /**
    * Ask Ollama what a model can actually do. `/api/show` reports the trained
    * context length under `model_info["<arch>.context_length"]`, which beats
-   * any table we could maintain. Returns null when unavailable.
+   * any table we could maintain, plus a `capabilities` list and `details`
+   * telling us what the model is *for*. Returns null when unavailable.
+   *
+   * Note `capabilities` and `details` are SIBLINGS of `model_info`, not
+   * children — reading them has to survive `model_info` being absent, or a
+   * model that reports its capabilities but not its context length would be
+   * treated as reporting nothing at all.
    */
-  async getOllamaModelInfo(model: string, host?: string): Promise<{ contextTokens?: number } | null> {
+  async getOllamaModelInfo(model: string, host?: string): Promise<OllamaModelInfo | null> {
     const h = host ?? readHostSetting('aiForge', 'ollamaHost', 'http://localhost:11434');
     const resolved = await this._resolveOllamaHost(h);
     try {
       const url = new URL(resolved + '/api/show');
       const lib = url.protocol === 'https:' ? https : http;
       const payload = JSON.stringify({ model });
-      return await new Promise<{ contextTokens?: number } | null>((resolve) => {
+      return await new Promise<OllamaModelInfo | null>((resolve) => {
         const r = lib.request(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
@@ -349,13 +355,36 @@ export class AIService implements IAIService {
           res.on('data', d => data += d);
           res.on('end', () => {
             try {
-              const info = JSON.parse(data)?.model_info as Record<string, unknown> | undefined;
-              if (!info) { resolve(null); return; }
+              const body = JSON.parse(data) as {
+                model_info?: Record<string, unknown>;
+                capabilities?: unknown;
+                details?: { family?: unknown; parameter_size?: unknown };
+              } | undefined;
+              if (!body) { resolve(null); return; }
+
+              const out: OllamaModelInfo = {};
+
               // The key is architecture-prefixed: llama.context_length,
               // qwen2.context_length, gemma3.context_length, …
-              const key = Object.keys(info).find(k => k.endsWith('.context_length'));
-              const val = key ? info[key] : undefined;
-              resolve(typeof val === 'number' && val > 0 ? { contextTokens: val } : null);
+              const info = body.model_info;
+              if (info) {
+                const key = Object.keys(info).find(k => k.endsWith('.context_length'));
+                const val = key ? info[key] : undefined;
+                if (typeof val === 'number' && val > 0) out.contextTokens = val;
+              }
+
+              if (Array.isArray(body.capabilities)) {
+                const caps = body.capabilities.filter((c): c is string => typeof c === 'string');
+                if (caps.length) out.capabilities = caps;
+              }
+              if (typeof body.details?.family === 'string') out.family = body.details.family;
+              if (typeof body.details?.parameter_size === 'string') {
+                out.parameterSize = body.details.parameter_size;
+              }
+
+              // Null means "the server told us nothing", which is different
+              // from "the server said this model has no capabilities".
+              resolve(Object.keys(out).length ? out : null);
             } catch { resolve(null); }
           });
         });

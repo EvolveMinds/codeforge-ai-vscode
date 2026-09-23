@@ -18,6 +18,29 @@ import type { GeneratedFile }                               from './workspaceSer
 
 // ── AI service ────────────────────────────────────────────────────────────────
 
+/**
+ * What the running Ollama server reports about a model.
+ *
+ * Every field is optional because the server is the authority and may say
+ * nothing: an absent field means "not reported", never "not supported". That
+ * distinction matters — it is the difference between a detected fact and a
+ * guess, and callers label them differently to the user.
+ */
+export interface OllamaModelInfo {
+  /** Trained context length, from `model_info["<arch>.context_length"]`. */
+  contextTokens?: number;
+  /**
+   * Ollama's own capability list, e.g. `["completion","tools","insert"]`.
+   * Known values include completion, tools, insert (fill-in-the-middle),
+   * vision, embedding and thinking.
+   */
+  capabilities?: string[];
+  /** Architecture family, e.g. "qwen2". */
+  family?: string;
+  /** Parameter count as reported, e.g. "7.6B". */
+  parameterSize?: string;
+}
+
 export interface IAIService {
   /** Detect which provider is currently configured */
   detectProvider(): Promise<ProviderName>;
@@ -26,11 +49,13 @@ export interface IAIService {
   /** List models installed in Ollama */
   getOllamaModels(host?: string): Promise<string[]>;
   /**
-   * Ask Ollama what a model can handle — currently its real trained context
-   * length. Null when the server or model can't tell us. Callers building
-   * large prompts use this to size the request instead of guessing.
+   * Ask Ollama what a model can handle. Null when the server or model can't
+   * tell us. Callers building large prompts use this to size the request
+   * instead of guessing, and `capabilities` lets us report what a model is
+   * *for* — vision, embedding, tool use — as detected fact rather than a guess
+   * from its name.
    */
-  getOllamaModelInfo?(model: string, host?: string): Promise<{ contextTokens?: number } | null>;
+  getOllamaModelInfo?(model: string, host?: string): Promise<OllamaModelInfo | null>;
   /** Stream a response, chunk by chunk */
   stream(request: AIRequest): AsyncGenerator<string>;
   /** Collect the full response as a string */
