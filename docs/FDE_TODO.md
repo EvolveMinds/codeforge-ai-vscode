@@ -189,6 +189,130 @@ certificate and rely on the mitigations above meanwhile.
 
 ---
 
+## TODO 4 — Offline hot patch: publish the archive, and make the claims true
+
+**Status:** Not started. **Priority:** High — the feature is advertised in the UI
+and there is nothing for a customer to apply. **Raised:** 2026-09-22.
+
+### The problem
+
+Settings → Updates & Version offers **"Apply Offline Patch (.zip)"**, described
+as importing *"a cryptographically signed patch archive to hot-reload dbt
+templates, regex schema mappers, and transpilation engines without restarting or
+re-licensing"*, aimed at *"banking, defense, and high-assurance enclaves"*.
+
+Two things are wrong with that today.
+
+**1. The archive has never been published.** Every GitHub release on both
+`codeforge-ai-vscode` and `evolve-ai-enterprise` contains exactly one asset: the
+portable `.exe`. No patch `.zip` has ever been attached, for any version. The
+only one that exists is `dist-desktop/evolve-ai-enterprise-patch-2.24.0.zip` on
+a build machine, and `dist-desktop/` is gitignored. A customer clicking the
+button has no file to select.
+
+**2. Nothing is signed, and nothing is verified.** `scripts/create-offline-patch.js`
+contains no signing, hashing or checksum code at all. Its `manifest.json` carries
+descriptive metadata (`patchId`, `baseVersion`, `publisher`, a template list) but
+no digest and no signature. `DesktopUpdater.applyOfflinePatch()`
+(`src/desktop/main/updater.ts`) then runs `tar -xf` on whatever file it is handed
+and verifies nothing.
+
+The applier also reports results it did not produce:
+
+| Reported | Reality |
+|---|---|
+| `enginesReloaded: [6 engine names]` | A hardcoded array in the applier, returned unconditionally. No engine is reloaded — the running process is untouched. |
+| `templatesUpdated` | Defaults to `12`; only corrected if the manifest happens to list files. |
+| `patchedVersion` | Derived from the archive's **mtime** when no manifest is found. |
+| `success: true` | The extraction is wrapped in `catch {}`, so a failed `tar` still returns success with the full "reloaded" list. |
+
+So a customer in an air-gapped enclave can hand it an arbitrary zip — or a
+corrupt one — and be told six engines reloaded successfully. For the audience
+this feature names, that is the least acceptable place to overstate.
+
+### What is required
+
+1. **Real integrity.** Add a SHA-256 per file plus a manifest digest at build
+   time, and verify both before extracting. If the product is to claim
+   *signed*, it needs a keypair and a real signature — the same distinction
+   drawn for audit receipts in v2.25.0: a digest is tamper-evident, a signature
+   proves origin. Until a keypair exists, the UI must say digest, not signed.
+2. **Refuse bad input.** Validate the manifest, check `baseVersion` against the
+   running version, reject path traversal in archive entries (`../`), and fail
+   loudly rather than inside `catch {}`.
+3. **Report what actually happened.** Return the files genuinely written and the
+   engines genuinely reloaded. If hot-reload is not implemented, say the patch
+   applies on restart rather than naming six engines that were not touched.
+4. **Publish the archive** as a release asset alongside the `.exe`, with its
+   SHA-256 in the release notes and on the download page, the same way the
+   executable is handled.
+
+### Acceptance
+
+- A tampered archive is **rejected**, not extracted.
+- A corrupt or unreadable archive reports failure, not success.
+- The applier's reported file and engine counts match what changed on disk.
+- `evolve-ai-enterprise-patch-<version>.zip` is attached to the release and
+  listed on the download page with its checksum.
+- The UI wording matches what the code actually does.
+
+### Interim
+
+Until the above is done, **hide the Apply Offline Patch control**. An advertised
+feature with no artifact and unverified claims is worse than an absent one — the
+same reasoning that drove the v2.25.0 honesty pass.
+
+---
+
+## TODO 5 — Rebuild and replace the v2.25.0 desktop asset
+
+**Status:** Not started. **Priority:** Low — cosmetic for packaged builds, but
+worth folding into the next release. **Raised:** 2026-09-22.
+
+### The problem
+
+The published `evolve-ai-enterprise-portable-2.25.0-win32-x64.exe` was built
+just before the fix for Electron's version leaking through as the app version
+(`main.ts` asked `app.getVersion()` first, and Electron returns *its own*
+version when the app has none of its own).
+
+In a **packaged** build `app.getVersion()` reads the bundled `package.json`
+correctly, so the shipped artifact does report `2.25.0`. The defect only shows
+when the desktop entry is run directly, e.g.
+
+```
+npx electron <path>/out/desktop/main/main.js <workspace>
+```
+
+which is a developer path, not a customer one. That is why the asset was left
+in place rather than pulled.
+
+### Why it still matters
+
+The update check compares the resolved version against the release registry. In
+any situation where the leak occurs, the app compares an Electron version such
+as `44.4.3` against real releases, concludes it is ahead of everything, and
+reports *"Up to date"* — so it would **never** tell that user an update exists.
+The packaged build is not believed to be affected, but the failure mode is
+silent, which is reason enough not to leave a known-stale binary published
+indefinitely.
+
+### What is required
+
+Rebuild from a commit that includes the fix (`a35954c` or later) and replace the
+asset on both releases, or supersede it with the next version. If replacing in
+place, the SHA-256 changes — so the release notes, the download page and
+`releaseHistory` in the website's `src/content/site.ts` all need the new hash.
+
+### Acceptance
+
+- The published binary is built from a commit containing the version fix.
+- Its SHA-256 matches what the download page and release notes state.
+- `getAppVersion()` in the packaged app returns the package version under an
+  Electron runtime of a different major.
+
+---
+
 ## Notes for whoever picks these up
 
 - `src/fde/provenance.ts` is the contract for anything client-facing.

@@ -24,143 +24,6 @@
     "Formatters",
     "Other"
   ],
-  "keywords": [
-    "fde",
-    "forward deployed engineer",
-    "forward-deployed engineer",
-    "forward deployed engineering",
-    "forward deployed",
-    "client deployment",
-    "pilot deployment",
-    "firebase deployment",
-    "firebase hosting",
-    "cloud run",
-    "preflight audit",
-    "pre-flight",
-    "schema mapper",
-    "runbook generator",
-    "data dictionary",
-    "air gapped",
-    "air-gapped",
-    "offline ai",
-    "ai",
-    "copilot alternative",
-    "ollama",
-    "gemma",
-    "claude",
-    "gemini",
-    "google gemini",
-    "glm",
-    "glm-5.2",
-    "codegeex",
-    "zhipu",
-    "colibri",
-    "local llm",
-    "moe",
-    "offline ai",
-    "data analysis",
-    "data reporting",
-    "report generator",
-    "csv",
-    "excel",
-    "parquet",
-    "data profiling",
-    "powerbi",
-    "pandas",
-    "data pipeline",
-    "code assistant",
-    "data engineering",
-    "dbt",
-    "dbt lineage",
-    "dbt impact",
-    "dbt manifest",
-    "databricks",
-    "unity catalog",
-    "spark",
-    "pyspark",
-    "bigquery",
-    "bigquery cost",
-    "query cost",
-    "explain cost",
-    "airflow",
-    "dag",
-    "airflow lint",
-    "etl",
-    "data lineage",
-    "snowflake",
-    "delta lake",
-    "github setup",
-    "github auth",
-    "bitbucket connect",
-    "git wizard",
-    "git connect",
-    "ssh key",
-    "personal access token",
-    "pat",
-    "git remote",
-    "ci/cd",
-    "cicd",
-    "continuous integration",
-    "github actions",
-    "gitlab ci",
-    "jenkins",
-    "circleci",
-    "azure pipelines",
-    "bitbucket pipelines",
-    "devops",
-    "pipeline",
-    "oidc",
-    "workflow",
-    "code converter",
-    "code conversion",
-    "convert code",
-    "code translation",
-    "language converter",
-    "transpiler",
-    "transpile",
-    "port code",
-    "code migration",
-    "legacy modernization",
-    "legacy migration",
-    "modernize legacy code",
-    "python to java",
-    "python to go",
-    "java to python",
-    "javascript to typescript",
-    "cobol to java",
-    "vba to python",
-    "sas to python",
-    "matlab to python",
-    "perl to python",
-    "c# to java",
-    "php to python",
-    "r to python",
-    "cobol",
-    "vba",
-    "sas",
-    "matlab",
-    "legacy code",
-    "golang",
-    "rust",
-    "kotlin",
-    "swift",
-    "scala",
-    "html report",
-    "report builder",
-    "report template",
-    "dashboard",
-    "data visualization",
-    "dataviz",
-    "charts",
-    "business intelligence",
-    "data prep",
-    "data cleaning",
-    "matplotlib",
-    "notebook",
-    "jupyter",
-    "pdf report",
-    "modernization"
-  ],
   "homepage": "https://github.com/EvolveMinds/codeforge-ai-vscode#readme",
   "bugs": {
     "url": "https://github.com/EvolveMinds/codeforge-ai-vscode/issues"
@@ -203,7 +66,7 @@
   "activationEvents": [
     "onStartupFinished"
   ],
-  "main": "./out/extension.js",
+  "main": "out/desktop/main/main.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
@@ -582,7 +445,7 @@
       },
       {
         "command": "aiForge.databricks.convertToDataFrame",
-        "title": "Databricks: Convert SQL \u2194 DataFrame API",
+        "title": "Databricks: Convert SQL ↔ DataFrame API",
         "category": "Evolve AI"
       },
       {
@@ -1691,16 +1554,16 @@
           ],
           "enumDescriptions": [
             "Auto-detect: use Ollama if running, else offline AI",
-            "Ollama \u2014 local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
-            "Gemma 4 \u2014 Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
-            "GLM (local) \u2014 GLM / CodeGeeX coding model, runs offline via Ollama. Free, private. Default codegeex4-all-9b (~5.5GB)",
-            "Colibri \u2014 runs frontier MoE models (GLM-5.2, 744B) locally by streaming experts from disk. Free, private, no GPU required. Needs ~372GB disk; speed depends heavily on RAM/VRAM",
-            "Anthropic Claude \u2014 cloud, requires API key",
-            "OpenAI / compatible \u2014 works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
-            "Google Gemini \u2014 cloud, requires API key. gemini-2.5-pro, 2.5-flash, 2.0-flash",
-            "GLM (Z.ai) \u2014 cloud, requires API key. Zhipu/Z.ai flagship GLM models: glm-4.6, glm-4.5",
-            "Hugging Face Inference API \u2014 cloud, requires API key. Access thousands of open models",
-            "Built-in offline AI \u2014 no LLM, pattern-based, instant"
+            "Ollama — local LLM, private, free. Also works with LM Studio, llama.cpp, and Jan via ollamaHost",
+            "Gemma 4 — Google's open multimodal model, runs locally via Ollama. Free, private, Apache 2.0. Guided setup included",
+            "GLM (local) — GLM / CodeGeeX coding model, runs offline via Ollama. Free, private. Default codegeex4-all-9b (~5.5GB)",
+            "Colibri — runs frontier MoE models (GLM-5.2, 744B) locally by streaming experts from disk. Free, private, no GPU required. Needs ~372GB disk; speed depends heavily on RAM/VRAM",
+            "Anthropic Claude — cloud, requires API key",
+            "OpenAI / compatible — works with OpenAI, Groq, Mistral, Together AI, or any OpenAI-compatible endpoint",
+            "Google Gemini — cloud, requires API key. gemini-2.5-pro, 2.5-flash, 2.0-flash",
+            "GLM (Z.ai) — cloud, requires API key. Zhipu/Z.ai flagship GLM models: glm-4.6, glm-4.5",
+            "Hugging Face Inference API — cloud, requires API key. Access thousands of open models",
+            "Built-in offline AI — no LLM, pattern-based, instant"
           ],
           "description": "AI provider to use"
         },
@@ -1726,10 +1589,10 @@
             "gemma4:31b"
           ],
           "enumDescriptions": [
-            "E2B \u2014 2.3B active params, ~7.2GB download, fast, good for quick tasks (text+image+audio)",
-            "E4B \u2014 4.5B active params, ~9.6GB download, balanced speed and quality (text+image+audio, recommended)",
-            "26B MoE \u2014 25.2B total (3.8B active), ~18GB download, high quality reasoning (text+image, needs 32GB+ RAM)",
-            "31B Dense \u2014 30.7B params, ~20GB download, highest quality (text+image, needs 32GB+ RAM and GPU)"
+            "E2B — 2.3B active params, ~7.2GB download, fast, good for quick tasks (text+image+audio)",
+            "E4B — 4.5B active params, ~9.6GB download, balanced speed and quality (text+image+audio, recommended)",
+            "26B MoE — 25.2B total (3.8B active), ~18GB download, high quality reasoning (text+image, needs 32GB+ RAM)",
+            "31B Dense — 30.7B params, ~20GB download, highest quality (text+image, needs 32GB+ RAM and GPU)"
           ],
           "description": "Gemma 4 model variant. E4B recommended for most users."
         },
@@ -1741,19 +1604,19 @@
         "aiForge.glmModel": {
           "type": "string",
           "default": "codegeex4-all-9b",
-          "description": "Local GLM / CodeGeeX model tag to run via Ollama (e.g. codegeex4-all-9b, glm4:9b, glm4). codegeex4-all-9b is a coding model built on GLM-4-9B (~5.5GB, 128K context). Runs fully offline. This is NOT the 355B+ GLM-4.5/4.6 flagship \u2014 those are cloud-only (use the GLM (Z.ai) provider)."
+          "description": "Local GLM / CodeGeeX model tag to run via Ollama (e.g. codegeex4-all-9b, glm4:9b, glm4). codegeex4-all-9b is a coding model built on GLM-4-9B (~5.5GB, 128K context). Runs fully offline. This is NOT the 355B+ GLM-4.5/4.6 flagship — those are cloud-only (use the GLM (Z.ai) provider)."
         },
         "aiForge.colibriBaseUrl": {
           "type": "string",
           "default": "http://localhost:8080/v1",
           "pattern": "^https?://",
           "patternErrorMessage": "Must be an http:// or https:// URL.",
-          "description": "Colibri server URL (OpenAI-compatible). Start Colibri separately with `coli serve` \u2014 Evolve AI does not launch or install it. See github.com/JustVugg/colibri."
+          "description": "Colibri server URL (OpenAI-compatible). Start Colibri separately with `coli serve` — Evolve AI does not launch or install it. See github.com/JustVugg/colibri."
         },
         "aiForge.colibriModel": {
           "type": "string",
           "default": "glm-5.2",
-          "description": "Model served by Colibri. glm-5.2 is the 744B MoE flagship (~372GB on disk as INT4). Colibri also supports kimi-k3, inkling, and olmoe. Decode speed depends heavily on RAM/VRAM \u2014 roughly 0.05 tok/s at the 25GB minimum, ~1-2 tok/s on a 128GB desktop."
+          "description": "Model served by Colibri. glm-5.2 is the 744B MoE flagship (~372GB on disk as INT4). Colibri also supports kimi-k3, inkling, and olmoe. Decode speed depends heavily on RAM/VRAM — roughly 0.05 tok/s at the 25GB minimum, ~1-2 tok/s on a 128GB desktop."
         },
         "aiForge.allowHardwareDetection": {
           "type": "boolean",
@@ -1793,7 +1656,7 @@
         "aiForge.zaiModel": {
           "type": "string",
           "default": "glm-4.6",
-          "description": "GLM (Z.ai) cloud model name (e.g., glm-4.6, glm-4.5, glm-4.5-air, glm-4-flash). These are the large flagship GLM models served by Z.ai's API \u2014 for local/offline GLM use the 'glm' provider instead."
+          "description": "GLM (Z.ai) cloud model name (e.g., glm-4.6, glm-4.5, glm-4.5-air, glm-4-flash). These are the large flagship GLM models served by Z.ai's API — for local/offline GLM use the 'glm' provider instead."
         },
         "aiForge.zaiBaseUrl": {
           "type": "string",
@@ -1814,7 +1677,7 @@
           "type": "number",
           "default": 0,
           "minimum": 0,
-          "description": "Idle timeout for AI requests, in milliseconds. The timer resets on every streamed chunk, so it only fires when the server goes silent (no response / cold-start stall) \u2014 it never cuts off a response that is still streaming. 0 = auto: 300000 (5 min) for local runtimes (Ollama / Gemma 4 / Hugging Face) which can be slow to warm up, and 120000 (2 min) for cloud APIs. Set a positive value to override both."
+          "description": "Idle timeout for AI requests, in milliseconds. The timer resets on every streamed chunk, so it only fires when the server goes silent (no response / cold-start stall) — it never cuts off a response that is still streaming. 0 = auto: 300000 (5 min) for local runtimes (Ollama / Gemma 4 / Hugging Face) which can be slow to warm up, and 120000 (2 min) for cloud APIs. Set a positive value to override both."
         },
         "aiForge.codeLensEnabled": {
           "type": "boolean",
@@ -1919,7 +1782,7 @@
         "aiForge.airflow.simulator.runOnSave": {
           "type": "boolean",
           "default": true,
-          "description": "Re-run DAG analysis only on save. When false, runs on every edit (live diagnostics \u2014 slower on big DAGs)."
+          "description": "Re-run DAG analysis only on save. When false, runs on every edit (live diagnostics — slower on big DAGs)."
         },
         "aiForge.airflow.simulator.severity": {
           "type": "string",
@@ -2000,9 +1863,9 @@
           "enumDescriptions": [
             "Auto-detect: VS Code GitHub auth for github.com, PAT for everything else",
             "Sign in to GitHub via VS Code's built-in auth provider (recommended for github.com)",
-            "Personal Access Token / Bitbucket app password \u2014 works everywhere, you paste a token",
-            "SSH key \u2014 generate ed25519, add to platform, test",
-            "GitHub CLI (`gh auth login`) \u2014 only available if `gh` is installed"
+            "Personal Access Token / Bitbucket app password — works everywhere, you paste a token",
+            "SSH key — generate ed25519, add to platform, test",
+            "GitHub CLI (`gh auth login`) — only available if `gh` is installed"
           ],
           "default": "auto",
           "description": "Pre-selected authentication method shown first in the Git Connect wizard."
@@ -2020,7 +1883,7 @@
         "aiForge.gitConnect.statusHint": {
           "type": "boolean",
           "default": true,
-          "description": "When a repo has no remote configured, show a `\u00b7 not connected` hint in the status bar and a one-time toast offering to run the Git Connect wizard. Set to false to disable both."
+          "description": "When a repo has no remote configured, show a `· not connected` hint in the status bar and a one-time toast offering to run the Git Connect wizard. Set to false to disable both."
         },
         "aiForge.cicd.openPRAfterCommit": {
           "type": "boolean",
@@ -2087,7 +1950,7 @@
           "enumDescriptions": [
             "Rewrite so it reads like native code in the target language. Same behaviour, target-language structure.",
             "Keep the original structure and names so the result can be diffed against the source. Easiest to audit.",
-            "Idiomatic, plus upgrade dated patterns \u2014 async where it belongs, real types, current stdlib APIs."
+            "Idiomatic, plus upgrade dated patterns — async where it belongs, real types, current stdlib APIs."
           ],
           "description": "How literally the Code Converter follows the source."
         },
@@ -2100,7 +1963,7 @@
           ],
           "default": "popular",
           "enumDescriptions": [
-            "Standard library only \u2014 no third-party packages introduced.",
+            "Standard library only — no third-party packages introduced.",
             "Use the packages an experienced developer in that ecosystem would reach for. Each one is listed in the report.",
             "Map each source dependency to its closest counterpart, one for one."
           ],
@@ -2119,7 +1982,7 @@
         "aiForge.convert.emitManifest": {
           "type": "boolean",
           "default": true,
-          "description": "Also emit the dependency manifest (go.mod, package.json, requirements.txt, \u2026) for the converted code."
+          "description": "Also emit the dependency manifest (go.mod, package.json, requirements.txt, …) for the converted code."
         },
         "aiForge.convert.outputFolder": {
           "type": "string",
@@ -2137,7 +2000,7 @@
           "type": "number",
           "default": 60000,
           "minimum": 8000,
-          "description": "Upper bound on the characters sent per conversion request. The converter also derives a budget from the chosen model's real context window and uses whichever is smaller \u2014 so this can only make requests smaller, never larger than the model can take."
+          "description": "Upper bound on the characters sent per conversion request. The converter also derives a budget from the chosen model's real context window and uses whichever is smaller — so this can only make requests smaller, never larger than the model can take."
         },
         "aiForge.codeAnalysis.consent.autoApply": {
           "type": "object",
@@ -2163,7 +2026,7 @@
         "aiForge.data.directEdit": {
           "type": "boolean",
           "default": true,
-          "description": "Enable direct manipulation in the report preview \u2014 hover a section to move, duplicate or delete it, and double-click text to edit it in place. These edits never call the AI."
+          "description": "Enable direct manipulation in the report preview — hover a section to move, duplicate or delete it, and double-click text to edit it in place. These edits never call the AI."
         },
         "aiForge.strictOffline": {
           "type": "boolean",
@@ -2207,47 +2070,6 @@
         }
       }
     }
-  },
-  "scripts": {
-    "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./ && node scripts/copy-desktop-assets.js",
-    "check:version": "node scripts/check-version-literals.js",
-    "watch": "tsc -watch -p ./",
-    "postinstall": "node scripts/download-binaries.js",
-    "download-bins": "node scripts/download-binaries.js",
-    "download-bins:all": "node scripts/download-binaries.js --all",
-    "clean:bin": "node -e \"require('fs').rmSync('bin', { recursive: true, force: true })\"",
-    "package": "vsce package",
-    "package:all": "node scripts/package-all.js",
-    "package:win-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=win32-x64    && vsce package --target win32-x64",
-    "package:win-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=win32-arm64  && vsce package --target win32-arm64",
-    "package:mac-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-x64  && vsce package --target darwin-x64",
-    "package:mac-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=darwin-arm64 && vsce package --target darwin-arm64",
-    "package:linux-x64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-x64   && vsce package --target linux-x64",
-    "package:linux-arm64": "npm run clean:bin && node scripts/download-binaries.js --platform=linux-arm64 && vsce package --target linux-arm64",
-    "publish:all": "node scripts/publish-all.js",
-    "package:enterprise": "node scripts/package-enterprise.js",
-    "package:enterprise:win": "node scripts/package-enterprise.js --platform=win32-x64",
-    "patch:create": "node scripts/create-offline-patch.js",
-    "license:generate": "node scripts/generate-license.js",
-    "desktop:start": "npx electron out/desktop/main/main.js",
-    "desktop:build:win": "npm run check:version && npx electron-builder --win",
-    "desktop:build:portable": "npm run check:version && npx electron-builder --win portable",
-    "test": "node ./out/test/runTest.js",
-    "test:fde": "mocha --ui tdd out/test/suite/fde/*.test.js",
-    "verify:honest": "node scripts/verify-honest-mode.js"
-  },
-  "devDependencies": {
-    "@types/mocha": "^10.0.0",
-    "@types/node": "^20.0.0",
-    "@types/vscode": "^1.85.0",
-    "@vscode/test-electron": "^2.3.0",
-    "@vscode/vsce": "^2.22.0",
-    "electron": "28.2.0",
-    "electron-builder": "26.16.1",
-    "glob": "^10.3.0",
-    "mocha": "^10.2.0",
-    "typescript": "^5.3.0"
   },
   "dependencies": {}
 }
