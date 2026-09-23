@@ -21,7 +21,8 @@ import {
   SECRET_ANTHROPIC, SECRET_OPENAI, SECRET_GEMINI, SECRET_ZAI, SECRET_HUGGINGFACE,
 } from '../core/aiService';
 import {
-  JOB_CATALOG, fitnessFor, jobInfo, profileModel, recommendForJob,
+  JOB_CATALOG, choiceForJob, fitnessFor, jobInfo, profileModel, recommendForJob,
+  setChoiceForJob,
   type ModelJob, type ModelProfile,
 } from '../core/modelAdvisor';
 import { defaultModelFor, providerLabel } from '../core/modelCapability';
@@ -32,31 +33,8 @@ import {
   type AdvisorPanelMessage, type AdvisorVerdict, type JobChoice, type ModelRow,
 } from '../ui/modelAdvisorPanel';
 
-/** A model chosen for one job. Session-scoped: never written to settings. */
-export interface JobModelChoice {
-  provider: ProviderName;
-  model: string;
-}
-
 export class ModelAdvisorCommands {
   constructor(private readonly _svc: IServices) {}
-
-  /**
-   * Per-job overrides chosen in this session.
-   *
-   * Static so a choice survives the panel being closed and reopened, and so
-   * other features can read it without holding a reference to the command
-   * class. Deliberately not persisted — a model picked for one big job should
-   * not quietly become the default next week.
-   */
-  private static readonly _choices = new Map<ModelJob, JobModelChoice>();
-
-  /** What model, if any, has been chosen for this job in this session. */
-  static choiceFor(job: ModelJob): JobModelChoice | undefined {
-    return this._choices.get(job);
-  }
-
-  static clearChoices(): void { this._choices.clear(); }
 
   register(): void {
     const r = (id: string, fn: (...a: unknown[]) => unknown) =>
@@ -110,10 +88,7 @@ export class ModelAdvisorCommands {
           break;
 
         case 'useModel': {
-          ModelAdvisorCommands._choices.set(selected, {
-            provider: msg.provider as ProviderName,
-            model: msg.id,
-          });
+          setChoiceForJob(selected, { provider: msg.provider, model: msg.id });
           const label = jobInfo(selected)?.label.toLowerCase() ?? selected;
           panel.setStatus(
             `${msg.id} will be used for ${label} in this session. ` +
@@ -235,7 +210,7 @@ export class ModelAdvisorCommands {
    * otherwise the global default.
    */
   private _currentModelFor(job: ModelJob): string | undefined {
-    const chosen = ModelAdvisorCommands._choices.get(job);
+    const chosen = choiceForJob(job);
     if (chosen) return chosen.model;
     const cfg = vscode.workspace.getConfiguration('aiForge');
     const provider = cfg.get<string>('provider', 'auto');

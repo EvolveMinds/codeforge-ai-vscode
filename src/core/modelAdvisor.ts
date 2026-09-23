@@ -516,6 +516,54 @@ function weakestSource(profiles: ModelProfile[]): CapabilitySource {
     (worst, p) => (rank[p.source] < rank[worst] ? p.source : worst), 'detected');
 }
 
+// ── Session-scoped model choices ──────────────────────────────────────────────
+
+/** A model chosen for one job. Session-scoped: never written to settings. */
+export interface JobModelChoice {
+  provider: string;
+  model: string;
+}
+
+/**
+ * Which model each job should use, for this session only.
+ *
+ * Lives in core rather than in a command or a panel because several features
+ * need to agree on it: the advisor sets it, the Data Analysis studio offers it
+ * in its own picker, and anything building an `AIRequest` reads it. A command
+ * class would have been the wrong home — plugins would have had to import from
+ * `commands/`, which nothing else does and which inverts the dependency.
+ *
+ * Deliberately not persisted. `aiForge.switchProvider` writes the provider and
+ * model to global settings, which is right for "change my default" and wrong
+ * for "use something better for this one job" — that choice used to leak into
+ * chat and code conversion and stay there. A model picked for one big job
+ * should be gone by tomorrow.
+ */
+const JOB_CHOICES = new Map<ModelJob, JobModelChoice>();
+
+export function choiceForJob(job: ModelJob): JobModelChoice | undefined {
+  return JOB_CHOICES.get(job);
+}
+
+export function setChoiceForJob(job: ModelJob, choice: JobModelChoice): void {
+  JOB_CHOICES.set(job, choice);
+}
+
+export function clearChoiceForJob(job: ModelJob): void {
+  JOB_CHOICES.delete(job);
+}
+
+export function clearAllChoices(): void { JOB_CHOICES.clear(); }
+
+/**
+ * The session choice for a job as per-request overrides, ready to spread into
+ * an `AIRequest`. Empty when nothing is chosen, so the global default applies.
+ */
+export function overridesForJob(job: ModelJob): { providerOverride?: string; modelOverride?: string } {
+  const c = JOB_CHOICES.get(job);
+  return c ? { providerOverride: c.provider, modelOverride: c.model } : {};
+}
+
 // ── Task → job ────────────────────────────────────────────────────────────────
 
 /** The ladder's input-modality options, which constrain what job makes sense. */

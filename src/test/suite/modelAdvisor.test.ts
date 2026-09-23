@@ -13,7 +13,12 @@
 import * as assert from 'assert';
 import {
   JOB_CATALOG,
+  choiceForJob,
+  clearAllChoices,
+  clearChoiceForJob,
   fitnessFor,
+  overridesForJob,
+  setChoiceForJob,
   inferJobFromTask,
   profileModel,
   recommendForJob,
@@ -166,6 +171,60 @@ suite('Model Advisor — inferJobFromTask()', () => {
 
   test('multimodal input implies vision', () => {
     assert.strictEqual(inferJobFromTask('summarise this', 'multimodal').job, 'vision');
+  });
+});
+
+/**
+ * The session store is what stops a model picked for one job leaking into every
+ * other feature. Before this, the Data Analysis studio changed the model by
+ * writing `aiForge.provider` and `aiForge.ollamaModel` to global settings, so
+ * choosing a bigger model for one CSV silently changed chat and code conversion
+ * too — permanently, until changed back by hand.
+ */
+suite('Model Advisor — session-scoped choices', () => {
+  setup(() => clearAllChoices());
+  teardown(() => clearAllChoices());
+
+  test('no choice means no override, so the global default applies', () => {
+    assert.deepStrictEqual(overridesForJob('code-agentic'), {});
+    assert.strictEqual(choiceForJob('code-agentic'), undefined);
+  });
+
+  test('an empty override spreads into a request as a no-op', () => {
+    // This is the property that makes the change safe: features spread
+    // overridesForJob(...) unconditionally into every AIRequest.
+    const req = { mode: 'new', ...overridesForJob('code-agentic') };
+    assert.deepStrictEqual(Object.keys(req), ['mode']);
+  });
+
+  test('a choice becomes per-request overrides', () => {
+    setChoiceForJob('code-agentic', { provider: 'ollama', model: 'qwen2.5-coder:14b' });
+    assert.deepStrictEqual(overridesForJob('code-agentic'), {
+      providerOverride: 'ollama',
+      modelOverride: 'qwen2.5-coder:14b',
+    });
+  });
+
+  test('choosing for one job does not affect another', () => {
+    setChoiceForJob('code-agentic', { provider: 'ollama', model: 'qwen2.5-coder:14b' });
+    assert.deepStrictEqual(overridesForJob('chat'), {},
+      'a model chosen for analysis must not change chat');
+    assert.deepStrictEqual(overridesForJob('vision'), {});
+  });
+
+  test('clearing one job returns it to the default and leaves others alone', () => {
+    setChoiceForJob('code-agentic', { provider: 'ollama', model: 'a' });
+    setChoiceForJob('vision', { provider: 'ollama', model: 'b' });
+    clearChoiceForJob('code-agentic');
+    assert.deepStrictEqual(overridesForJob('code-agentic'), {});
+    assert.strictEqual(choiceForJob('vision')?.model, 'b');
+  });
+
+  test('a later choice replaces an earlier one', () => {
+    setChoiceForJob('code-agentic', { provider: 'ollama', model: 'first' });
+    setChoiceForJob('code-agentic', { provider: 'anthropic', model: 'second' });
+    assert.strictEqual(choiceForJob('code-agentic')?.model, 'second');
+    assert.strictEqual(choiceForJob('code-agentic')?.provider, 'anthropic');
   });
 });
 

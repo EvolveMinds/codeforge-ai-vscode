@@ -40,6 +40,10 @@ import type {
 } from '../core/plugin';
 import type { IServices } from '../core/services';
 import type { AIRequest } from '../core/aiService';
+import type { ProviderName } from '../core/aiService';
+import {
+  choiceForJob, clearChoiceForJob, overridesForJob, setChoiceForJob,
+} from '../core/modelAdvisor';
 import { GcpClient }        from '../core/gcpClient';
 import { AzureClient }      from '../core/azureClient';
 import { AwsClient }        from '../core/awsClient';
@@ -740,12 +744,12 @@ export class DataAnalysisPlugin implements IPlugin {
         }
         case 'editTheme':      await this._createTheme(); break;
         case 'switchModel': {
-          await vscode.commands.executeCommand('aiForge.switchProvider');
-          const newProvider = await services.ai.detectProvider();
-          const newCfg = vscode.workspace.getConfiguration('aiForge');
-          const newModel = defaultModelFor(newProvider, newCfg);
-          const newVerdict = assessModelForDataAnalysis(newProvider, newModel, ramGB);
-          panel.setModelVerdict(newVerdict);
+          // Two genuinely different intentions used to be collapsed into one.
+          // Picking a better model for one analysis used to rewrite the global
+          // provider and model, so the choice leaked into chat and code
+          // conversion and stayed there until changed back by hand. Ask which
+          // is meant rather than guessing.
+          await this._chooseModel(services, panel, ramGB);
           break;
         }
         case 'connectSource':  await this._analyzeSource(services); break;
@@ -933,6 +937,87 @@ export class DataAnalysisPlugin implements IPlugin {
     } else {
       panel.setStatus(`✓ Profile written: ${outName}`);
     }
+  }
+
+  /**
+   * Choose a model for analysis, distinguishing the two things the old single
+   * button conflated.
+   *
+   * "Use for this analysis" is session-scoped, applied through
+   * `AIRequest.providerOverride`/`modelOverride`, and leaves settings alone —
+   * the pattern the code converter has used since v2.12.0. "Change my default"
+   * is the old behaviour, still available, but now clearly labelled as global.
+   *
+   * When the advisor has a recommendation we offer it by name, because a
+   * suggestion the user has to retype is a suggestion they will not take. The
+   * old panel rendered `suggestedLocalModel` as prose and nothing ever consumed
+   * the field.
+   */
+  private async _chooseModel(
+    services: IServices,
+    panel: DataAnalysisPanel,
+    ramGB: number | undefined,
+  ): Promise<void> {
+    type Item = vscode.QuickPickItem & { action: 'session' | 'global' | 'clear'; model?: string };
+
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    const provider = await services.ai.detectProvider();
+    const active = choiceForJob('code-agentic');
+    const items: Item[] = [];
+
+    // Anything installed that is actually good at generating analysis code.
+    let installed: string[] = [];
+    try { installed = await services.ai.getOllamaModels(); } catch { /* not running */ }
+    const good = installed.filter(m => /coder|codegeex|codestral|codellama|devstral/i.test(m));
+    for (const m of good) {
+      if (m === active?.model) continue;
+      items.push({
+        label: `$(rocket) ${m}`,
+        description: 'use for this analysis only',
+        detail: 'Applied to analysis requests in this session. Chat and code conversion keep your default.',
+        action: 'session', model: m,
+      });
+    }
+
+    if (active) {
+      items.push({
+        label: '$(discard) Stop using ' + active.model + ' for analysis',
+        description: 'back to your default',
+        action: 'clear',
+      });
+    }
+
+    items.push({
+      label: '$(settings-gear) Change my default provider and model…',
+      description: 'global — affects everything',
+      detail: 'Opens the provider wizard. This is the setting chat and code conversion use too.',
+      action: 'global',
+    });
+
+    const pick = await vscode.window.showQuickPick(items, {
+      placeHolder: active
+        ? `Analysis is using ${active.model} (this session)`
+        : `Analysis is using your default (${defaultModelFor(provider, cfg)})`,
+      ignoreFocusOut: true,
+    });
+    if (!pick) return;
+
+    if (pick.action === 'session' && pick.model) {
+      setChoiceForJob('code-agentic', { provider, model: pick.model });
+      panel.setStatus(`Analysis will use ${pick.model} in this session. Your default is unchanged.`);
+    } else if (pick.action === 'clear') {
+      clearChoiceForJob('code-agentic');
+      panel.setStatus('Analysis is back to using your default model.');
+    } else {
+      await vscode.commands.executeCommand('aiForge.switchProvider');
+    }
+
+    // Re-derive the verdict from whatever is now in force.
+    const nowProvider = choiceForJob('code-agentic')?.provider
+      ?? await services.ai.detectProvider();
+    const nowModel = choiceForJob('code-agentic')?.model
+      ?? defaultModelFor(nowProvider, vscode.workspace.getConfiguration('aiForge'));
+    panel.setModelVerdict(assessModelForDataAnalysis(nowProvider, nowModel, ramGB));
   }
 
   /**
@@ -1190,6 +1275,7 @@ export class DataAnalysisPlugin implements IPlugin {
       system: REPORT_SYSTEM,
       instruction: 'data sql script',
       mode: 'new',
+      ...this._modelOverride(),
     };
 
     const output = await vscode.window.withProgress(
@@ -1379,7 +1465,22 @@ export class DataAnalysisPlugin implements IPlugin {
       system: REPORT_SYSTEM,
       instruction: `data ${kind}`,
       mode: 'new',
+      ...this._modelOverride(),
     };
+  }
+
+  /**
+   * The model chosen for analysis in this session, as per-request overrides.
+   *
+   * Empty when the user has not chosen one, so the global default applies and
+   * nothing changes. This is how a per-task model choice is supposed to work:
+   * `aiForge.switchProvider` writes the provider AND model to global settings,
+   * which is right for "change my default" and wrong for "use something better
+   * for this one analysis" — the latter used to leak into chat and code
+   * conversion and stay there.
+   */
+  private _modelOverride(): { providerOverride?: ProviderName; modelOverride?: string } {
+    return overridesForJob('code-agentic') as { providerOverride?: ProviderName; modelOverride?: string };
   }
 
   // ── Theme + spec ──────────────────────────────────────────────────────────
@@ -1680,6 +1781,7 @@ export class DataAnalysisPlugin implements IPlugin {
         instruction: 'refine report block',
         mode: 'edit',
         signal: st.abort.signal,
+        ...this._modelOverride(),
       })) {
         if (st.abort.signal.aborted) break;
         output += chunk;
@@ -1829,6 +1931,7 @@ export class DataAnalysisPlugin implements IPlugin {
         instruction: 'refine data report',
         mode: 'edit',
         signal: st.abort.signal,
+        ...this._modelOverride(),
       })) {
         if (st.abort.signal.aborted) break;
         output += chunk;
