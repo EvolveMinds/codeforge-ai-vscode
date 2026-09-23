@@ -44,6 +44,8 @@ evolve-ai-vscode/
 │   ├── reportEditor.ts      ← in-iframe direct manipulation (move/delete/duplicate/inline edit) + block extraction/splicing
     │   ├── codeConvert.ts       ← conversion engine: language catalogue (idioms/pitfalls/checkers), output contract, prompts, result parser, fidelity report, file slicing
     │   ├── modelCapability.ts   ← model context windows / output caps / coding tier + fit assessment (used to size any large-prompt job)
+    │   ├── modelAdvisor.ts      ← WHICH KIND of model fits a job (jobs vs attributes), Ollama capability detection, session-scoped per-job model choices
+    │   ├── modelFlows.ts        ← corrected architecture diagrams per model kind, each with declared provenance
     │   ├── jsonc.ts             ← stripJsonComments — shared by the pipeline + report-theme config files
     │   ├── interfaces.ts        ← IAIService, IContextService, IWorkspaceService
     │   ├── services.ts          ← IServices interface + ServiceContainer (DI root)
@@ -79,6 +81,12 @@ evolve-ai-vscode/
     │   └── suite/
     │       ├── index.ts         ← Mocha bootstrap (discovers *.test.js)
     │       └── contextService.test.ts ← Context budget + prompt tests
+    ├── offline/                  ← zero-AI offline tools; pure, dependency-free, usable from the extension host, the Electron renderer and headless report builds
+    │   ├── flowchartRenderer.ts  ← Mermaid `flowchart` → SVG with no dependencies (air-gap safe); the sequence renderer lives in desktop/renderer
+    │   └── advancedVisuals.ts    ← hand-rolled SVG charts (sankey, treemap, geo, time series)
+    ├── desktop/                  ← Electron app (main / renderer / shared). Holds the FDE capability ladder (EVALUATE_RULE_VS_MODEL) and the Delivery Studio UI
+    ├── enterprise/               ← licensed modules: licensing, RAG scaffolder, load testing, data quality, SIEM, migration, PII, reverse ETL, synthetic data, mock server, air-gapped serving
+    ├── fde/                      ← Forward-Deployed Engineering: provenance.ts is the authority on client-facing claims
     └── plugins/
         ├── index.ts             ← ONLY file to edit when adding a plugin
         ├── codeConvert.ts       ← Code Converter orchestration (pick sources, batch, review, verify, save)
@@ -158,7 +166,7 @@ to undo.
 
 ### What is next to build
 
-All planned plugins are complete (17 auto-detecting plugins). The extension is ready for packaging and release.
+All planned plugins are complete (24 registered in `plugins/index.ts`). The extension is ready for packaging and release.
 
 Future plugin ideas (community contributions welcome):
 - `plugins/nextjs.ts` — detect `next.config.*`. App Router, Server Components, API routes.
@@ -258,9 +266,14 @@ are merged into the core system transparently:
 
 ---
 
-## Commands currently registered (60 total)
+## Commands currently registered (265 total)
 
-### Core (18)
+> The tables below cover the core and wizard commands. They are **not** the full
+> list — run `node -e "console.log(require('./package.json').contributes.commands.length)"`
+> for the true count, which includes the FDE Studio, lineage, query-analysis,
+> connected-cloud and offline-suite commands documented in their own files under `docs/`.
+
+### Core (19)
 | Command ID | Keybinding | Description |
 |---|---|---|
 | `aiForge.openChat` | Ctrl+Shift+A | Open sidebar chat |
@@ -278,6 +291,7 @@ are merged into the core system transparently:
 | `aiForge.buildFramework` | — | Build framework from description |
 | `aiForge.runAndFix` | — | Run file and auto-fix errors |
 | `aiForge.switchProvider` | — | Switch AI provider |
+| `aiForge.model.advisor` | — | Which model should I use? Job-first picker with provenance + architecture diagrams |
 | `aiForge.setupOllama` | — | Open Ollama setup page |
 | `aiForge.gemma4Info` | — | Show Gemma 4 info, tips & variant comparison |
 | `aiForge.whatsNew` | — | Show release notes for the current version |
@@ -367,6 +381,54 @@ The flow the plugin enforces is the product:
 6. **Oversized work is split, not truncated.** Many files → batches; one file too big for any pass →
    sliced at top-level declarations, each part told what earlier parts declared, then stitched back
    into one file with a report warning naming the rejoined files.
+
+### Model Advisor (v2.26.0)
+
+`modelCapability.ts` answers "will this job FIT in this model?" — a question about size.
+`core/modelAdvisor.ts` answers the one before it: **is this the right KIND of model at
+all?** A 70B chat model with a huge window is still the wrong tool for embeddings.
+
+The taxonomy deliberately separates two axes, and this is the whole reason it is usable:
+
+- **`ModelJob`** — what you want done: chat, reasoning, code-agentic, code-fim, embedding,
+  reranking, vision, ocr, classification, timeseries.
+- **`ModelAttributes`** — size, MoE, encoder-only, modality, openness.
+
+Mixture-of-Experts and masked-language-modelling are **attributes, not jobs** — a model can
+be an MoE encoder that produces embeddings. Popular explainers put both on one axis, which
+is exactly what makes them useless as a picker. Tests assert that MoE never appears in the
+job list; keep it that way.
+
+Three rules the module will not bend:
+
+1. **Detection beats the table.** `getOllamaModelInfo()` reads `capabilities`, `family` and
+   `parameter_size` from `/api/show` — `vision`, `embedding`, `insert` (FIM) and `thinking`
+   are *detected facts*, not guesses from a model name. Note `capabilities` and `details`
+   are **siblings of `model_info`**, so the parse must survive `model_info` being absent.
+2. **Parsimony.** Where several models do a job equally well the **smallest** wins, then
+   local over cloud. Same rule the FDE ladder applies to architecture.
+3. **Provenance on every claim.** A verdict reports the *weakest* source it rests on
+   (`detected` | `known` | `assumed`), so a recommendation built on a guess is never shown
+   as measured fact. This is `fde/provenance.ts` discipline applied to model advice.
+
+**Forecasting is always `unsupported`, by design.** Evolve AI already ships a real
+statistical forecaster (`offline/timeIntelligence.ts` — Holt-Winters with prediction
+intervals, changepoints, autocorrelation seasonality). It is deterministic, runs offline and
+shows its uncertainty. The advisor says so instead of nominating a language model.
+
+**Session-scoped model choices.** `setChoiceForJob` / `overridesForJob` live in
+`modelAdvisor.ts` and are applied via `AIRequest.providerOverride`/`modelOverride`. They are
+**never written to settings**: `aiForge.switchProvider` writes the global provider and model,
+which is right for "change my default" and wrong for "use something better for this one job".
+`overridesForJob` returns `{}` when nothing is chosen, so spreading it into a request is a
+no-op — that property is tested, and it is what makes the default path unchanged.
+
+`core/modelFlows.ts` holds the architecture diagram for each model kind, drawn with
+`offline/flowchartRenderer.ts`. Each declares `provenance` (a cited paper, or an explicit
+"illustrative of this family") and separates `runtime` from `buildTime` — collapsing those
+is what makes the usual "small model" diagram wrong. `costNote` explains where time goes in
+words; a test fails the build if one states a latency or cost figure, because these end up
+in client documents.
 
 ### Per-request model overrides (v2.12.0)
 

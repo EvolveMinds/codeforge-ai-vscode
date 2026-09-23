@@ -2,6 +2,61 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.26.0] — 2026-09-23
+
+### The right *kind* of model, not just the biggest one
+
+The product could tell you whether a job would **fit** in your model. It could not tell you
+whether that model was the right **kind** of thing for the job at all — so a coder model
+asked for embeddings returned nonsense and nothing explained why.
+
+* **A real bug, fixed first.** `assessModelForDataAnalysis` matched parameter sizes with a
+  bare alternation tested against the whole model id. With no separator and no word
+  boundary, the digits matched *inside* larger sizes: `"32b"` contains `"2b"`, `"13b"`
+  contains `"1b"`. Users running `qwen3:32b` — a current, perfectly capable model — were
+  told it was "⚠️ Underpowered for Data Science". `llama3.2:13b` and `llava:13b` were hit the
+  same way. The identical bug class had already been found and fixed on the conversion path;
+  the data-analysis path never received it, which is what having two divergent advisory
+  implementations costs. Sizes are now read once by `parseParamSizeB()`, which returns `null`
+  rather than guessing when a name states no size.
+* **A model advisor organised around the job.** New `Which Model Should I Use?` command
+  (`aiForge.model.advisor`). Pick what you are doing — chat, reasoning, code, fill-in-the-middle
+  completion, embeddings, reranking, vision, documents, classification — and it reports whether
+  your current model is the right tool, lists what else you have, and offers the *smallest*
+  sufficient alternative. Jobs and attributes are kept on separate axes: Mixture-of-Experts and
+  masked-language-modelling describe how a model is built, not what it does for you.
+* **Capabilities are detected, not guessed.** `/api/show` reports `vision`, `embedding`,
+  `insert` (fill-in-the-middle) and `thinking`; we already called that endpoint and read only
+  the context length. Every claim carries its provenance — `detected`, `known` or `assumed` —
+  and a verdict shows the weakest source it rests on, so a guess is never presented as fact.
+* **Forecasting answers honestly.** Asked which model to use for a forecast, the advisor says
+  to use the built-in statistical forecaster instead. `offline/timeIntelligence.ts` already
+  does Holt-Winters with prediction intervals, changepoint detection and autocorrelation
+  seasonality — deterministic, offline, and it shows its uncertainty. A language model asked to
+  forecast produces confident numbers with nothing behind them.
+* **29 flowchart diagrams render as pictures for the first time.** Every capability-ladder
+  level and decision-gate template was Mermaid `flowchart` source, and the offline renderer
+  supported `sequenceDiagram` only — so they were copy-to-clipboard text on exactly the
+  air-gapped client laptops where a diagram is the point. New `offline/flowchartRenderer.ts`
+  draws them with no dependencies and no network; `▶ Animate Flow` now steps through both kinds.
+* **Architecture diagrams that are actually correct.** `core/modelFlows.ts` draws each kind of
+  model, with the errors of the usual explainers fixed: MoE routes inside *every* layer and
+  replaces the feed-forward block only; encoder-only models attend jointly in both directions
+  rather than through separate "left" and "right" branches; vision has no phantom text encoder;
+  and quantisation is shown as a build-time step, not a stage of inference. Each diagram
+  declares whether it follows a cited paper or illustrates a family, and a test fails the build
+  if a caption states a latency or cost figure nobody measured.
+* **The FDE ladder reads the modality it always collected.** `EVALUATE_RULE_VS_MODEL` has
+  received `inputModality` from the UI since it was written and discarded it. It now returns a
+  `modelGuidance` block alongside the existing verdict. For arithmetic over structured data the
+  recommendation is **no model at all** — SQL is exact, instant and auditable.
+* **A model picked for one analysis no longer changes everything else.** The Data Analysis
+  studio changed models by writing the global provider and model, so a choice made for one CSV
+  silently applied to chat and code conversion and stayed there. The picker now distinguishes
+  "use for this analysis" (session-scoped, via per-request overrides) from "change my default"
+  (still available, clearly labelled), and offers installed models by name instead of printing
+  a suggestion the user has to retype.
+
 ## [2.25.0] — 2026-09-22
 
 ### Delivery Studio honesty pass — no client document may state a number nobody measured

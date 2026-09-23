@@ -377,4 +377,30 @@ interactive **Analyze from Database or Cloud Source** command.
 
 ---
 
+## Choosing the model for an analysis (v2.26.0)
+
+The panel's model button distinguishes two things it used to conflate:
+
+| Choice | Scope | When you want it |
+|---|---|---|
+| **Use for this analysis** | This session only, via per-request overrides | A bigger or better model for one dataset |
+| **Change my default provider and model…** | Global — chat, code conversion, everything | You want a new default everywhere |
+
+Before this, picking a model here wrote the global provider and model, so a model chosen for
+one CSV silently became the model for everything else and stayed there until changed back by
+hand. The session choice is deliberately not persisted: a model picked for one big job should
+be gone tomorrow.
+
+Installed coder models are offered by name. If the active model is a poor fit — a 3B general
+model, or an embedding model — the verdict banner says so and
+**Evolve AI: Which Model Should I Use?** explains why, with the architecture diagram for the
+kind of model the job actually needs.
+
+> Note on forecasting: the Studio's trend analysis uses a real statistical forecaster
+> (Holt-Winters with a prediction interval, changepoint detection, seasonality inferred by
+> autocorrelation), not a language model. Report generation is explicitly told not to
+> forecast, because a model inventing a projection is fabrication.
+
+---
+
 *See also: [README](../README.md) · [LINEAGE.md](LINEAGE.md) · [QUERY_ANALYSIS.md](QUERY_ANALYSIS.md)*
