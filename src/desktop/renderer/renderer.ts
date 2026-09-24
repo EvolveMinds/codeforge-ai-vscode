@@ -16300,6 +16300,109 @@ export class SovereignSwarmOrchestrator {
     }
   };
 
+  // =========================================================================
+  // INTEGRATED SOLUTION ARCHITECTURE CONTRACT (PHASE 3 SHARED STATE)
+  // =========================================================================
+  interface SolutionContract {
+    industry: string;
+    industryLabel: string;
+    workloadKey: string;
+    workloadTitle: string;
+    gateVerdict: string;
+    gateRationale: string;
+    targetLevel: number | string;
+    ragPatternKey: string;
+    ragArchitecture?: string;
+    ragArchitectureName?: string;
+    modelId: string;
+    modelClass?: string;
+    modelSource: 'local' | 'cloud' | 'none';
+    latencySla: string;
+    costSla: string;
+    hallucinationSla: string;
+    guardrails: string[];
+  }
+
+  let activeSolutionContract: SolutionContract = {
+    industry: 'finance',
+    industryLabel: 'FinOps & Banking',
+    workloadKey: 'financial_reconciliation',
+    workloadTitle: 'AP Invoice 3-Way Match & Tolerance',
+    gateVerdict: 'Deterministic Rule & SQL',
+    gateRationale: 'Strict monetary balance matching and tax calculation requires deterministic execution to guarantee 0% hallucination drift.',
+    targetLevel: 1,
+    ragPatternKey: 'hybrid',
+    ragArchitecture: 'hybrid',
+    ragArchitectureName: '06 Hybrid RAG',
+    modelId: 'Deterministic Rule Engine',
+    modelClass: 'RULE',
+    modelSource: 'none',
+    latencySla: '<5ms',
+    costSla: '$0.00',
+    hallucinationSla: '0.0% Exact',
+    guardrails: ['SOX 404 statutory immutable audit log', 'Decimal arithmetic precision guarantee']
+  };
+
+  const updateSolutionRibbon = () => {
+    const chipIndustry = document.getElementById('ribbonIndustryChip');
+    const chipGate = document.getElementById('ribbonGateChip');
+    const chipLevel = document.getElementById('ribbonLevelChip');
+    const chipEngine = document.getElementById('ribbonEngineChip');
+    const badgeSla = document.getElementById('ribbonSlaBadge');
+
+    if (chipIndustry) chipIndustry.textContent = `🏢 ${activeSolutionContract.industryLabel || 'FinOps & Banking'}`;
+    if (chipGate) chipGate.textContent = `⚖️ ${activeSolutionContract.gateVerdict || 'Rule-First Gate'}`;
+    if (chipLevel) chipLevel.textContent = `🪜 Level ${activeSolutionContract.targetLevel || 1}`;
+    if (chipEngine) chipEngine.textContent = `🤖 ${activeSolutionContract.modelId || 'Zero LLM'}`;
+    if (badgeSla) badgeSla.textContent = `⚡ ${activeSolutionContract.latencySla || '<5ms'} • ${activeSolutionContract.hallucinationSla || '0% Drift'}`;
+  };
+
+  const RAG_TO_MODEL_MAP: Record<string, { modelKey: string; modelName: string; rationale: string }> = {
+    naive: {
+      modelKey: 'mlm',
+      modelName: 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)',
+      rationale: 'Single-pass dense embedding + compact SLM synthesis'
+    },
+    multimodal: {
+      modelKey: 'vlm',
+      modelName: 'VLM (Llama 3.2 Vision 11B / Qwen 2.5 VL)',
+      rationale: 'Mandatory Vision-Language Model to decode visual patch tokens'
+    },
+    hyde: {
+      modelKey: 'slm',
+      modelName: 'SLM (Qwen 2.5 7B Draft Probe) + MLM',
+      rationale: 'Zero-shot drafting probe + document-space vector embedding'
+    },
+    corrective: {
+      modelKey: 'mlm',
+      modelName: 'MLM (Evaluator Grader) + SLM (Synthesis)',
+      rationale: 'Sub-25ms evidence confidence classifier with web search fallback'
+    },
+    graph: {
+      modelKey: 'llm',
+      modelName: 'LLM (Qwen 2.5 7B - Structured JSON) + Graph',
+      rationale: 'Extracts entity-relationship triples and Leiden community summaries'
+    },
+    hybrid: {
+      modelKey: 'mlm',
+      modelName: 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)',
+      rationale: 'BM25 lexical index + dense 768d vector space with RRF fusion'
+    },
+    adaptive: {
+      modelKey: 'slm',
+      modelName: 'SLM (Complexity Router <15ms) + Multi-Tier',
+      rationale: 'Linguistic difficulty classifier routing across 3 retrieval tiers'
+    },
+    agentic: {
+      modelKey: 'lam',
+      modelName: 'LAM (Qwen 2.5 Coder 7B - Tools / MCP)',
+      rationale: 'Mandatory Large Action Model with ReAct sandbox tool calling'
+    }
+  };
+
+  let refreshAdvisorCards: () => void = () => {};
+  let selectedAdvisorModelKey: string = 'llm';
+
   let activeGateState: DecisionGateState = { ...gateTemplates.level_1 };
   let gatePreviewMode: 'visual' | 'mermaid' | 'tradeoff' | 'code' = 'visual';
   const gateUndoHistory: DecisionGateState[] = [];
@@ -16424,6 +16527,54 @@ export class SovereignSwarmOrchestrator {
     return `flowchart TD\n  Ingress["📥 Ingress Input"] --> Gate{"🛡️ ${state.title}"}\n  Gate --> Egress["✅ Output (<50ms)"]`;
   };
 
+  // Helper: Visual SVG Flowchart Generator for Decision Gate
+  const generateGateFlowchartSvg = (state: DecisionGateState): string => {
+    const mermaid = generateGateMermaidDiagram(state);
+    try {
+      const rendered = renderDiagramSvg(mermaid, {
+        architectureTitle: `${state.levelBadge}: ${state.title}`,
+        mode: 'future'
+      });
+      if (rendered?.svg) {
+        return rendered.svg;
+      }
+    } catch (e) {
+      console.warn('generateGateFlowchartSvg fallback:', e);
+    }
+    // High-fidelity fallback SVG
+    return `
+      <svg width="100%" height="220" viewBox="0 0 860 220" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%; height: auto; display: block;">
+        <defs>
+          <marker id="gateFbArr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#38bdf8" />
+          </marker>
+          <marker id="gateFbArrGreen" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#4ade80" />
+          </marker>
+        </defs>
+        <rect width="860" height="220" fill="#0a0a0a" rx="8" />
+        <g transform="translate(30, 80)">
+          <rect width="180" height="60" rx="6" fill="rgba(56, 189, 248, 0.08)" stroke="#38bdf8" stroke-width="1.5" />
+          <text x="14" y="24" fill="#fff" font-size="11" font-weight="700">📥 Ingress Workload</text>
+          <text x="14" y="42" fill="#94a3b8" font-size="9.5">Incoming Request</text>
+        </g>
+        <line x1="210" y1="110" x2="310" y2="110" stroke="#38bdf8" stroke-width="1.6" marker-end="url(#gateFbArr)" />
+        <g transform="translate(310, 65)">
+          <rect width="280" height="90" rx="6" fill="rgba(74, 222, 128, 0.08)" stroke="#4ade80" stroke-width="1.5" />
+          <text x="14" y="26" fill="#4ade80" font-size="12" font-weight="700">🛡️ ${escapeHtml(state.levelBadge)}</text>
+          <text x="14" y="46" fill="#cbd5e1" font-size="10.5">${escapeHtml(state.paradigm || state.title)}</text>
+          <text x="14" y="68" fill="#94a3b8" font-size="9.5">SLA: ${escapeHtml(state.latencySla)} · ${escapeHtml(state.costSla)}</text>
+        </g>
+        <line x1="590" y1="110" x2="680" y2="110" stroke="#4ade80" stroke-width="1.6" marker-end="url(#gateFbArrGreen)" />
+        <g transform="translate(680, 80)">
+          <rect width="150" height="60" rx="6" fill="rgba(34, 197, 94, 0.15)" stroke="#22c55e" stroke-width="1.5" />
+          <text x="14" y="24" fill="#22c55e" font-size="11" font-weight="700">✅ Egress Execution</text>
+          <text x="14" y="42" fill="#94a3b8" font-size="9.5">${escapeHtml(state.hallucinationSla)}</text>
+        </g>
+      </svg>
+    `;
+  };
+
   // Helper: Trade-Off Matrix HTML Generator
   const renderGateTradeOffMatrixHtml = (state: DecisionGateState): string => {
     const activeLevelStr = String(state.level);
@@ -16503,6 +16654,9 @@ export class SovereignSwarmOrchestrator {
     const visualBox = document.getElementById('gateVisualFlowDisplay');
     const tradeOffBox = document.getElementById('gateTradeOffDisplay');
     const mermaidBox = document.getElementById('gateMermaidDisplay');
+    const svgGateFlowBox = document.getElementById('boxGateFlowchartSvgContainer');
+    const lblGateFlowTitle = document.getElementById('lblGateFlowchartTitle');
+    const lblGateFlowBadge = document.getElementById('lblGateFlowchartBadge');
 
     if (lblParadigm) lblParadigm.textContent = `Recommended Architecture: ${state.paradigm} (${state.levelBadge})`;
     if (lblBadge) lblBadge.textContent = state.levelBadge;
@@ -16519,6 +16673,9 @@ export class SovereignSwarmOrchestrator {
 
     if (lblCode) lblCode.textContent = state.codeSnippet;
     if (preMermaid) preMermaid.textContent = generateGateMermaidDiagram(state);
+    if (svgGateFlowBox) svgGateFlowBox.innerHTML = generateGateFlowchartSvg(state);
+    if (lblGateFlowTitle) lblGateFlowTitle.textContent = `${state.paradigm || state.title}: Architecture Flowchart`;
+    if (lblGateFlowBadge) lblGateFlowBadge.textContent = `${state.levelBadge} · ${state.latencySla}`;
     if (visualBox) visualBox.innerHTML = renderGateVisualFlowHtml(state);
     if (tradeOffBox) tradeOffBox.innerHTML = renderGateTradeOffMatrixHtml(state);
 
@@ -16928,6 +17085,16 @@ export class SovereignSwarmOrchestrator {
         activeGateState = { ...gateTemplates[p.override] };
         updateDecisionGateDisplay(activeGateState);
         populateGateEditorFromState(activeGateState);
+        try {
+          activeSolutionContract.workloadKey = presetKey;
+          activeSolutionContract.workloadTitle = sel.options[sel.selectedIndex].text;
+          activeSolutionContract.gateVerdict = activeGateState.paradigm;
+          activeSolutionContract.targetLevel = activeGateState.level || 1;
+          activeSolutionContract.latencySla = activeGateState.latencySla;
+          activeSolutionContract.costSla = activeGateState.costSla;
+          activeSolutionContract.hallucinationSla = activeGateState.hallucinationSla;
+          updateSolutionRibbon();
+        } catch (_) {}
         showToast(`🏢 Loaded enterprise archetype: ${sel.options[sel.selectedIndex].text}`);
       }
     }
@@ -17020,6 +17187,44 @@ export class SovereignSwarmOrchestrator {
   document.getElementById('btnCopyGateCode')?.addEventListener('click', async () => {
     await navigator.clipboard.writeText(activeGateState.codeSnippet);
     showToast('📋 Copied Implementation Code to clipboard!');
+  });
+
+  // Wire Architectural Flowchart Sub-Controls for Decision Gate (Visual SVG vs Mermaid Code)
+  document.getElementById('btnGateToggleDiagramView')?.addEventListener('click', () => {
+    const svgBox = document.getElementById('boxGateFlowchartSvgContainer');
+    const srcBox = document.getElementById('boxGateFlowchartSourceContainer');
+    const btnDiag = document.getElementById('btnGateToggleDiagramView');
+    const btnSrc = document.getElementById('btnGateToggleSourceView');
+    if (svgBox) svgBox.style.display = 'flex';
+    if (srcBox) srcBox.style.display = 'none';
+    btnDiag?.classList.add('active');
+    btnSrc?.classList.remove('active');
+  });
+
+  document.getElementById('btnGateToggleSourceView')?.addEventListener('click', () => {
+    const svgBox = document.getElementById('boxGateFlowchartSvgContainer');
+    const srcBox = document.getElementById('boxGateFlowchartSourceContainer');
+    const btnDiag = document.getElementById('btnGateToggleDiagramView');
+    const btnSrc = document.getElementById('btnGateToggleSourceView');
+    if (svgBox) svgBox.style.display = 'none';
+    if (srcBox) srcBox.style.display = 'block';
+    btnSrc?.classList.add('active');
+    btnDiag?.classList.remove('active');
+  });
+
+  document.getElementById('btnCopyGateFlowchartMermaid')?.addEventListener('click', async () => {
+    const m = generateGateMermaidDiagram(activeGateState);
+    await navigator.clipboard.writeText(m);
+    showToast(`📋 Copied ${activeGateState.title} Mermaid flowchart to clipboard!`);
+  });
+
+  document.getElementById('btnCopyGateFlowchartSvg')?.addEventListener('click', async () => {
+    const svgBox = document.getElementById('boxGateFlowchartSvgContainer');
+    const svg = svgBox?.querySelector('svg');
+    if (svg) {
+      await navigator.clipboard.writeText(svg.outerHTML);
+      showToast(`📥 Copied ${activeGateState.title} vector SVG to clipboard!`);
+    }
   });
 
   // 6. Interactive Gate Editor Drawer
@@ -18317,6 +18522,22 @@ class AgenticRagPipeline:
     const arch = RAG_ARCHITECTURES[archKey] || RAG_ARCHITECTURES['hybrid'];
     selectedRagArchKey = arch.id;
 
+    // Synchronize into persistent activeSolutionContract
+    activeSolutionContract.ragPatternKey = arch.id;
+    activeSolutionContract.ragArchitecture = arch.id;
+    activeSolutionContract.ragArchitectureName = `${arch.num} ${arch.name}`;
+
+    // Auto-couple matching Specialized Model Engine from literature audit
+    const mapping = RAG_TO_MODEL_MAP[arch.id] || RAG_TO_MODEL_MAP['hybrid'];
+    selectedAdvisorModelKey = mapping.modelKey;
+    const targetLvlNum = parseInt(String(activeSolutionContract.targetLevel), 10) || 1;
+    if (targetLvlNum >= 3 || String(activeSolutionContract.modelId || '').includes('Deterministic')) {
+      activeSolutionContract.modelId = mapping.modelName;
+      activeSolutionContract.modelClass = mapping.modelKey.toUpperCase();
+    }
+    updateSolutionRibbon();
+    try { refreshAdvisorCards(); } catch (_) {}
+
     // Persist the choice. This was a module-local `let`, so the pattern the FDE
     // selected in 3C never reached disk: it died on reload, never arrived in
     // ipcHandlers, and the Scope Alignment Memo's topology section fell back to
@@ -18944,6 +19165,8 @@ ${arch.watchOut.map(w => `- ${w}`).join('\n')}
   document.getElementById('btnExportRagAdrDoc')?.addEventListener('click', exportRagAdrDoc);
   document.getElementById('btnExportRagAdrToWorkspace')?.addEventListener('click', exportRagAdrDoc);
 
+  let hasScaffoldedRagOrMcp = false;
+
   // Wire Scaffold RAG Pipeline Button
   document.getElementById('btnScaffoldRagPolicy')?.addEventListener('click', async () => {
     const arch = RAG_ARCHITECTURES[selectedRagArchKey] || RAG_ARCHITECTURES['hybrid'];
@@ -19025,20 +19248,241 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion
   renderRagArchitectureUi('hybrid');
 
   // --- Phase 3 Step Rail Navigation (3A -> 3B -> 3C) ---
+  const updateLadderTargetDefense = () => {
+    const heading = document.getElementById('lblLadderTargetActiveHeading');
+    const text = document.getElementById('lblLadderDefenseText');
+    if (heading) {
+      heading.textContent = `Active Delivery Target: Level ${activeSolutionContract.targetLevel} (${activeSolutionContract.gateVerdict})`;
+    }
+    if (text) {
+      text.textContent = activeGateState.rationale || 'Zero hallucination SLA. Because your task requires strict math and monetary limits, this level is recommended.';
+    }
+  };
+
+  const renderComponentArchitectureStep = () => {
+    const targetLvl = String(activeSolutionContract.targetLevel);
+    const notice = document.getElementById('boxCDeterministicNotice');
+    if (targetLvl === '1' || targetLvl === '2') {
+      if (notice) notice.style.display = 'block';
+    } else {
+      if (notice) notice.style.display = 'none';
+      if (targetLvl === '3' || targetLvl.includes('3')) {
+        renderRagArchitectureUi(activeSolutionContract.ragPatternKey || 'hybrid');
+      }
+    }
+    renderModelAdvisorUi();
+  };
+
+  const generateEndToEndFlowchartMermaid = (contract: SolutionContract): string => {
+    const targetLvl = String(contract.targetLevel || '1');
+    const workloadTitle = contract.workloadTitle || 'Enterprise Ingress';
+    const gateVerdict = contract.gateVerdict || 'Deterministic Rule & SQL';
+    const ragKey = contract.ragPatternKey || 'hybrid';
+    const modelEngine = contract.modelId || 'Local Engine';
+    const latency = contract.latencySla || '<120ms';
+
+    if (targetLvl === '1') {
+      return `flowchart TD
+  Ingress["📥 Ingress Event: ${workloadTitle}"] --> Gate{"🛡️ Ingress Gate: ${gateVerdict}"}
+  Gate -- "Normal Tolerance" --> RuleExec["⚡ Compiled SQL / Ledger Transaction"]
+  Gate -- "Threshold Exceeded" --> HITL["👤 HITL Compliance Auditor Queue"]
+  HITL --> RuleExec
+  RuleExec --> Audit["🔒 SOX 404 Immutable Audit Log"]
+  Audit --> Out["✅ Zero-Drift Verified Output (${latency})"]`;
+    }
+
+    if (targetLvl === '2') {
+      return `flowchart TD
+  Ingress["📥 Ingress Query: ${workloadTitle}"] --> Embed["⚡ Intent Embedding Encoder (MLM: <15ms)"]
+  Embed --> SimRouter{"🧭 Cosine Similarity Intent Router"}
+  SimRouter -- "Factual Cluster (>= 0.85)" --> Cache["⚡ Pre-Computed Enterprise Action (<25ms)"]
+  SimRouter -- "Ambiguous Intent" --> Fallback["🛡️ Escalation / Standard Workflow"]
+  Cache & Fallback --> Out["✅ Low-Latency Grounded Response (${latency})"]`;
+    }
+
+    if (targetLvl === '4' || ragKey === 'agentic') {
+      return `flowchart TD
+  Ingress["📥 Goal: ${workloadTitle}"] --> Plan["🧠 Model Engine: ${modelEngine}"]
+  Plan --> Dispatch{"⚡ Tool Dispatcher (MCP)"}
+  Dispatch -- "1. Policy Lookup" --> Vec["🗄️ Vector Knowledge Base"]
+  Dispatch -- "2. Transaction Ledger" --> SQL["🏛️ Live Database / SQL Engine"]
+  Dispatch -- "3. External Action" --> API["🔌 Enterprise REST / ERP API"]
+  Vec & SQL & API --> Sandbox["🛡️ Sandboxed Observation & Validation"]
+  Sandbox --> Reflect{"Goal Completed?"}
+  Reflect -- "Iterate (≤ 4 steps)" --> Plan
+  Reflect -- "Complete" --> Out["✅ Audited Solution with Traces (${latency})"]`;
+    }
+
+    if (ragKey === 'multimodal') {
+      return `flowchart TD
+  Ingress["📥 Multimodal Ingress: Raster PDF / Blueprint + Query"] --> PatchSplit["🖼️ Visual Patch Splitter & OCR Ingress"]
+  PatchSplit --> ColPali["👁️ Multi-Vector Patch Embedder (ColPali / ViT)"]
+  ColPali --> VisionDB["🗄️ Multi-Vector Patch Vector Store"]
+  VisionDB --> PatchSearch["🔍 Geometric Patch Cosine Search"]
+  PatchSearch --> CrossProj["📐 Vision-Language Linear Projection"]
+  CrossProj --> VLMEngine["👁️ Model Engine: ${modelEngine}"]
+  VLMEngine --> Out["✅ Visually Grounded Solution (${latency})"]`;
+    }
+
+    if (ragKey === 'graph') {
+      return `flowchart TD
+  Ingress["📥 Thematic Inquiry: ${workloadTitle}"] --> EntityLink["🕸️ Entity Linking & Focal Node Extraction"]
+  EntityLink --> GraphDB["🌐 Knowledge Graph (Neo4j / Kùzu)"]
+  GraphDB --> Community["📊 Community Detection & Summaries"]
+  Community --> JointContext["🔀 Joint Vector & Graph Context"]
+  JointContext --> Synthesis["🤖 Model Engine: ${modelEngine}"]
+  Synthesis --> Out["✅ Holistic Thematic Solution (${latency})"]`;
+    }
+
+    if (ragKey === 'hyde') {
+      return `flowchart TD
+  Ingress["📥 Informal Query: ${workloadTitle}"] --> DraftProbe["💡 Model Engine: ${modelEngine}"]
+  DraftProbe --> HypoDoc["📄 Hypothetical Answer Draft"]
+  HypoDoc --> EmbedProbe["🗄️ Embed Draft in Document Space (MLM)"]
+  EmbedProbe --> RealCorpus["🏛️ Real Enterprise Knowledge Store"]
+  RealCorpus --> RealChunks["📋 Verified Real Evidence Chunks"]
+  Ingress & RealChunks --> FinalSynth["🤖 Final Grounded LLM Synthesis"]
+  FinalSynth --> Out["✅ Hallucination-Free Solution (${latency})"]`;
+    }
+
+    if (ragKey === 'corrective') {
+      return `flowchart TD
+  Ingress["📥 User Query: ${workloadTitle}"] --> InitialRet["🔍 Internal Vector Search"]
+  InitialRet --> Grader{"🛡️ Evidence Quality Grader (MLM: <25ms)"}
+  Grader -- "Confidence >= 0.75" --> KeepEvidence["📋 Verified Internal Evidence"]
+  Grader -- "Weak / Ambiguous" --> FallbackSearch["🌐 External Fallback Web Search"]
+  FallbackSearch --> Refine["🧹 Knowledge Clean & Strip Tokens"]
+  KeepEvidence & Refine --> Synthesis["🤖 Model Engine: ${modelEngine}"]
+  Synthesis --> Out["✅ Grounded Solution with Citations (${latency})"]`;
+    }
+
+    if (ragKey === 'adaptive') {
+      return `flowchart TD
+  Ingress["📥 Incoming User Query: ${workloadTitle}"] --> CompRouter{"🚦 Complexity Router (SLM / Heuristic <15ms)"}
+  CompRouter -- "Level A: Chitchat" --> DirectAns["⚡ Direct In-Weights Response (<25ms)"]
+  CompRouter -- "Level B: Simple Policy" --> SingleRet["🔍 Single-Pass Hybrid RAG (<120ms)"]
+  CompRouter -- "Level C: Deep Research" --> DeepLoop["🔄 Multi-Hop Iterative Retrieval (<600ms)"]
+  DirectAns & SingleRet & DeepLoop --> Out["✅ Adaptive Latency-Optimized Response (${latency})"]`;
+    }
+
+    // Default: 06 Hybrid RAG / 01 Naive RAG
+    return `flowchart TD
+  Ingress["📥 Ingress Query: ${workloadTitle}"] --> Gate{"🛡️ Ingress Gate: ${gateVerdict}"}
+  Gate --> Split["🔀 Dual Lexical + Semantic Dispatch"]
+  Split --> BM25["🗂️ BM25 Inverted Lexical Index"]
+  Split --> DenseVec["🗄️ Dense Vector Index (MLM: nomic-embed)"]
+  BM25 & DenseVec --> RRF["⚖️ Reciprocal Rank Fusion (RRF k=60)"]
+  RRF --> Rerank["🎯 Cross-Encoder Reranker (Top-5 Chunks)"]
+  Rerank --> Context["📄 Provenance Context Assembler"]
+  Context --> Engine["🤖 Model Engine: ${modelEngine}"]
+  Engine --> Out["✅ High-Precision Grounded Output (${latency})"]`;
+  };
+
+  const renderSolutionContractStep = () => {
+    // Populate blueprint tiles
+    const w = document.getElementById('lblDWorkload');
+    const ind = document.getElementById('lblDIndustry');
+    const gv = document.getElementById('lblDGateVerdict');
+    const tl = document.getElementById('lblDTargetLevel');
+    const tsla = document.getElementById('lblDTargetSla');
+    const cp = document.getElementById('lblDComponentPattern');
+    const me = document.getElementById('lblDModelEngine');
+    const gr = document.getElementById('lblDGuardrail');
+    const ts = document.getElementById('lblDContractTimestamp');
+
+    if (w) w.textContent = activeSolutionContract.workloadTitle || 'AP Invoice 3-Way Match';
+    if (ind) ind.textContent = activeSolutionContract.industryLabel || 'FinOps & Banking';
+    if (gv) gv.textContent = activeSolutionContract.gateVerdict || 'Deterministic Rule & SQL';
+    const targetLvl = String(activeSolutionContract.targetLevel || '1');
+    if (tl) tl.textContent = `Level ${targetLvl}: ${targetLvl === '1' ? 'Rule Engine & SQL' : targetLvl === '2' ? 'Semantic Router' : targetLvl === '3' ? 'Grounded Policy RAG' : targetLvl === '4' ? 'Tool Agent (MCP)' : 'Multi-Agent Swarm'}`;
+    if (tsla) tsla.textContent = `${activeSolutionContract.latencySla || '<5ms'} • ${activeSolutionContract.hallucinationSla || '0% Drift'}`;
+
+    const compPattern = targetLvl === '1'
+      ? 'Compiled SQL / TypeScript Rules'
+      : targetLvl === '2'
+      ? 'Cosine Embedding Semantic Router'
+      : targetLvl === '3'
+      ? (activeSolutionContract.ragArchitectureName || '06 Hybrid RAG (BM25 + Vector + RRF)')
+      : (activeSolutionContract.ragArchitectureName || '08 Agentic RAG (Sandboxed MCP Tools)');
+
+    const modelEngine = targetLvl === '1'
+      ? 'Deterministic Engine (Zero LLM)'
+      : (activeSolutionContract.modelId || 'Local Ollama Engine');
+
+    if (cp) cp.textContent = compPattern;
+    if (me) me.textContent = modelEngine;
+    if (gr) gr.textContent = (activeGateState.guardrails && activeGateState.guardrails[0]) || 'SOX 404 Immutable Audit Log';
+    if (ts) ts.textContent = `${new Date().toLocaleDateString()} • Verified Contract`;
+
+    // Render end-to-end flowchart SVG dynamically matching active contract
+    const mermaid = generateEndToEndFlowchartMermaid(activeSolutionContract);
+
+    const preCode = document.getElementById('preDContractMermaidCode');
+    if (preCode) preCode.textContent = mermaid;
+
+    const svgContainer = document.getElementById('boxDFlowchartSvgContainer');
+    if (svgContainer) {
+      try {
+        const rendered = renderDiagramSvg(mermaid, {
+          architectureTitle: `Solution Contract: Level ${activeSolutionContract.targetLevel} (${activeSolutionContract.gateVerdict})`,
+          mode: 'future'
+        });
+        if (rendered?.svg) {
+          svgContainer.innerHTML = rendered.svg;
+        }
+      } catch (e) {
+        console.warn('renderSolutionContractStep SVG error:', e);
+      }
+    }
+
+    // Assemble production code matching active contract
+    const preProd = document.getElementById('preDProductionCode');
+    const lblScaffoldPath = document.getElementById('lblDScaffoldPath');
+    if (preProd) {
+      if (targetLvl === '1') {
+        if (lblScaffoldPath) lblScaffoldPath.textContent = 'src/services/deterministicRuleGate.ts';
+        preProd.textContent = activeGateState.codeSnippet || `// Level 1: Deterministic Rule & Ingress Gate (<5ms)
+export async function executeSolution(input: any): Promise<any> {
+  if (input.amount == null || input.amount > 100000) {
+    throw new Error("Threshold exceeded: Triggering HITL supervisor escalation queue");
+  }
+  return { status: "APPROVED", latencyMs: 3.2, drift: 0.0 };
+}`;
+      } else if (targetLvl === '2') {
+        if (lblScaffoldPath) lblScaffoldPath.textContent = 'src/services/semanticRouter.ts';
+        preProd.textContent = `// Level 2: Fast Semantic Router (<25ms)
+import { CosineSimilarityRouter } from './semanticRouter';
+
+export async function routeIntent(query: string): Promise<any> {
+  const router = new CosineSimilarityRouter({ threshold: 0.85 });
+  return router.dispatch(query);
+}`;
+      } else {
+        const arch = RAG_ARCHITECTURES[activeSolutionContract.ragPatternKey || 'hybrid'];
+        if (lblScaffoldPath) lblScaffoldPath.textContent = `src/services/${activeSolutionContract.ragPatternKey || 'hybrid'}RagPipeline.ts`;
+        preProd.textContent = arch?.codePreviewTs || activeGateState.codeSnippet || `// Production Pipeline`;
+      }
+    }
+  };
+
+  // --- Phase 3 Step Rail Navigation ---
   let currentP3Step = 1;
   let hasEvaluatedRuleModelGate = false;
-  let hasScaffoldedRagOrMcp = false;
+  let hasConfiguredLadder = false;
+  let hasConfiguredComponentOrModel = false;
+  let hasScaffoldedContract = false;
 
   const p3StepIsDone = (step: number) => {
-    if (step === 1) return committedProjectTargetLevel > 0;
-    if (step === 2) return hasEvaluatedRuleModelGate;
-    if (step === 3) return hasScaffoldedRagOrMcp;
+    if (step === 1) return hasEvaluatedRuleModelGate;
+    if (step === 2) return committedProjectTargetLevel > 0;
+    if (step === 3) return hasConfiguredComponentOrModel;
+    if (step === 4) return hasScaffoldedContract;
     return false;
   };
 
   refreshP3Rail = () => {
-    [1, 2, 3].forEach(i => {
-      const btnId = i === 1 ? 'btnP3StepA' : i === 2 ? 'btnP3StepB' : 'btnP3StepC';
+    [1, 2, 3, 4].forEach(i => {
+      const btnId = i === 1 ? 'btnP3StepA' : i === 2 ? 'btnP3StepB' : i === 3 ? 'btnP3StepC' : 'btnP3StepD';
       const btn = document.getElementById(btnId);
       if (!btn) return;
       const done = p3StepIsDone(i);
@@ -19054,22 +19498,34 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion
     const prev = document.getElementById('btnP3StepPrev') as HTMLButtonElement | null;
     const next = document.getElementById('btnP3StepNext') as HTMLButtonElement | null;
     if (prev) prev.disabled = currentP3Step === 1;
-    if (next) next.textContent = currentP3Step === 3 ? 'Advance to Phase 4 ➔' : 'Next →';
+    if (next) next.textContent = currentP3Step === 4 ? 'Advance to Phase 4 ➔' : 'Next →';
+    updateSolutionRibbon();
   };
 
   const goToP3Step = (step: number) => {
-    if (step > 3) {
+    if (step > 4) {
       document.getElementById('btnAdvancePhase4')?.click();
       return;
     }
-    currentP3Step = Math.min(3, Math.max(1, step));
+    currentP3Step = Math.min(4, Math.max(1, step));
     const a = document.getElementById('p3StepAPanel');
     const b = document.getElementById('p3StepBPanel');
     const c = document.getElementById('p3StepCPanel');
+    const d = document.getElementById('p3StepDPanel');
     if (a) { a.style.display = currentP3Step === 1 ? 'block' : 'none'; a.hidden = currentP3Step !== 1; }
     if (b) { b.style.display = currentP3Step === 2 ? 'block' : 'none'; b.hidden = currentP3Step !== 2; }
     if (c) { c.style.display = currentP3Step === 3 ? 'block' : 'none'; c.hidden = currentP3Step !== 3; }
+    if (d) { d.style.display = currentP3Step === 4 ? 'block' : 'none'; d.hidden = currentP3Step !== 4; }
     refreshP3Rail();
+    if (currentP3Step === 2) {
+      updateLadderTargetDefense();
+    }
+    if (currentP3Step === 3) {
+      renderComponentArchitectureStep();
+    }
+    if (currentP3Step === 4) {
+      renderSolutionContractStep();
+    }
     const card = document.getElementById('phase3Card');
     if (card) card.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
@@ -19077,8 +19533,771 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion
   document.getElementById('btnP3StepA')?.addEventListener('click', () => goToP3Step(1));
   document.getElementById('btnP3StepB')?.addEventListener('click', () => goToP3Step(2));
   document.getElementById('btnP3StepC')?.addEventListener('click', () => goToP3Step(3));
+  document.getElementById('btnP3StepD')?.addEventListener('click', () => goToP3Step(4));
+  document.getElementById('btnOpenModelAdvisor')?.addEventListener('click', () => goToP3Step(3));
+  document.getElementById('btnAdvisorBackToGate')?.addEventListener('click', () => goToP3Step(1));
   document.getElementById('btnP3StepPrev')?.addEventListener('click', () => goToP3Step(currentP3Step - 1));
   document.getElementById('btnP3StepNext')?.addEventListener('click', () => goToP3Step(currentP3Step + 1));
+
+  // --- Step 3A to 3B: Gate Apply & Advance ---
+  document.getElementById('btnGateApplyAndAdvance')?.addEventListener('click', () => {
+    hasEvaluatedRuleModelGate = true;
+    activeSolutionContract.gateVerdict = activeGateState.paradigm;
+    activeSolutionContract.targetLevel = activeGateState.level || 1;
+    activeSolutionContract.latencySla = activeGateState.latencySla;
+    activeSolutionContract.costSla = activeGateState.costSla;
+    activeSolutionContract.hallucinationSla = activeGateState.hallucinationSla;
+    const numLevel = typeof activeSolutionContract.targetLevel === 'number' ? activeSolutionContract.targetLevel : parseInt(String(activeSolutionContract.targetLevel), 10) || 1;
+    syncActiveTargetBadge(numLevel);
+    goToP3Step(2);
+    showToast(`✓ Gate Applied: ${activeSolutionContract.gateVerdict} ➔ Advancing to Level ${numLevel} Target`);
+  });
+
+  // --- Step 3B to 3C: Ladder Confirm & Advance ---
+  document.getElementById('btnLadderConfirmAndAdvance')?.addEventListener('click', () => {
+    hasConfiguredLadder = true;
+    activeSolutionContract.targetLevel = committedProjectTargetLevel || selectedLadderLevel || 1;
+    goToP3Step(3);
+    showToast(`✓ Target Confirmed: Level ${activeSolutionContract.targetLevel} ➔ Configuring Components`);
+  });
+
+  // --- Step 3C to 3D: Component Confirm & Advance ---
+  document.getElementById('btnComponentConfirmAndAdvance')?.addEventListener('click', () => {
+    hasConfiguredComponentOrModel = true;
+    goToP3Step(4);
+    showToast('✓ Components Configured ➔ Generating Executive Solution Contract');
+  });
+
+  // --- Step 3D: Scaffold Architecture Code ---
+  document.getElementById('btnDScaffoldArchitecture')?.addEventListener('click', async () => {
+    hasScaffoldedContract = true;
+    const code = (document.getElementById('preDProductionCode') as HTMLElement)?.textContent || '';
+    try {
+      const ws = api?.workspace?.getCurrent ? await api.workspace.getCurrent() : null;
+      if (ws && ws.path) {
+        const filePath = ws.path + '/src/services/aiSolutionPipeline.ts';
+        try { await api.workspace.createDir(ws.path + '/src/services'); } catch (_) {}
+        await api.workspace.writeFile(filePath, code);
+        showToast('✓ Successfully scaffolded src/services/aiSolutionPipeline.ts!');
+      } else {
+        await navigator.clipboard.writeText(code);
+        showToast('📋 Copied production code to clipboard (no active workspace)!');
+      }
+    } catch (e) {
+      console.warn('Error scaffolding architecture code:', e);
+      await navigator.clipboard.writeText(code);
+      showToast('📋 Copied production code to clipboard!');
+    }
+    refreshP3Rail();
+  });
+
+  // --- Step 3D: Export Solution ADR ---
+  const exportSolutionAdrHandler = async () => {
+    const md = generateGateAdrMarkdown(activeGateState);
+    try {
+      const ws = api?.workspace?.getCurrent ? await api.workspace.getCurrent() : null;
+      if (ws && ws.path) {
+        const archPath = ws.path + '/docs/ARCHITECTURE.md';
+        let existing = '';
+        try {
+          const res = await api.workspace.readFile(archPath);
+          existing = extractFileContent(res);
+        } catch (_) { existing = ''; }
+        const newContent = existing ? existing.trimEnd() + '\n\n---\n\n' + md : `# Architecture Specifications\n\n${md}`;
+        await api.workspace.writeFile(archPath, newContent);
+        showToast('✓ Appended Solution Contract ADR to docs/ARCHITECTURE.md!');
+      } else {
+        await navigator.clipboard.writeText(md);
+        showToast('📋 Copied Solution ADR to clipboard!');
+      }
+    } catch (e) {
+      await navigator.clipboard.writeText(md);
+      showToast('📋 Copied Solution ADR to clipboard!');
+    }
+  };
+  document.getElementById('btnDExportSolutionAdr')?.addEventListener('click', exportSolutionAdrHandler);
+  document.getElementById('btnDExportSolutionAdrBottom')?.addEventListener('click', exportSolutionAdrHandler);
+
+  // --- Step 3D: Advance to Phase 4 (Evals) ---
+  document.getElementById('btnDAdvanceToEvals')?.addEventListener('click', () => {
+    // Pre-populate Phase 4 with this solution contract
+    const lblP4Arch = document.getElementById('lblP4ActiveRagArchName');
+    const lblP4Metrics = document.getElementById('lblP4ActiveRagArchMetrics');
+    if (lblP4Arch) {
+      lblP4Arch.textContent = `Level ${activeSolutionContract.targetLevel}: ${activeSolutionContract.gateVerdict}`;
+    }
+    if (lblP4Metrics) {
+      lblP4Metrics.textContent = `Phase 4 Golden Test Focus: ${activeSolutionContract.latencySla} latency SLA, zero hallucination verification, and ${activeSolutionContract.guardrails[0] || 'SOX compliance'}.`;
+    }
+    document.getElementById('btnAdvancePhase4')?.click();
+    showToast('🚀 Transferred Solution Contract to Phase 4: Reliability & Evals!');
+  });
+
+  // --- Step 3D: Flowchart view toggles & copy ---
+  document.getElementById('btnDToggleDiagramView')?.addEventListener('click', () => {
+    const svgBox = document.getElementById('boxDFlowchartSvgContainer');
+    const srcBox = document.getElementById('boxDFlowchartSourceContainer');
+    const btnD = document.getElementById('btnDToggleDiagramView');
+    const btnS = document.getElementById('btnDToggleSourceView');
+    if (svgBox) svgBox.style.display = 'flex';
+    if (srcBox) srcBox.style.display = 'none';
+    if (btnD) btnD.classList.add('active');
+    if (btnS) btnS.classList.remove('active');
+  });
+
+  document.getElementById('btnDToggleSourceView')?.addEventListener('click', () => {
+    const svgBox = document.getElementById('boxDFlowchartSvgContainer');
+    const srcBox = document.getElementById('boxDFlowchartSourceContainer');
+    const btnD = document.getElementById('btnDToggleDiagramView');
+    const btnS = document.getElementById('btnDToggleSourceView');
+    if (svgBox) svgBox.style.display = 'none';
+    if (srcBox) srcBox.style.display = 'block';
+    if (btnS) btnS.classList.add('active');
+    if (btnD) btnD.classList.remove('active');
+  });
+
+  document.getElementById('btnDCopyContractMermaid')?.addEventListener('click', async () => {
+    const code = (document.getElementById('preDContractMermaidCode') as HTMLElement)?.textContent || '';
+    if (code) {
+      await navigator.clipboard.writeText(code);
+      showToast('📋 Copied End-to-End Architecture Mermaid diagram!');
+    }
+  });
+
+  document.getElementById('btnDCopyContractCode')?.addEventListener('click', async () => {
+    const code = (document.getElementById('preDProductionCode') as HTMLElement)?.textContent || '';
+    if (code) {
+      await navigator.clipboard.writeText(code);
+      showToast('📋 Copied production contract code!');
+    }
+  });
+
+  document.getElementById('btnDCopyFlowchartSvg')?.addEventListener('click', async () => {
+    const svgEl = document.getElementById('boxDFlowchartSvgContainer')?.querySelector('svg');
+    if (svgEl) {
+      await navigator.clipboard.writeText(svgEl.outerHTML);
+      showToast('📥 Copied Architecture Flowchart SVG markup!');
+    } else {
+      showToast('⚠️ No SVG diagram available to copy');
+    }
+  });
+
+  // =========================================================================
+  // SECTION 3D: 8 SPECIALIZED AI MODELS & MODEL ADVISOR
+  // =========================================================================
+  interface AdvisorModelSpec {
+    id: string;
+    name: string;
+    shortName: string;
+    icon: string;
+    badge: string;
+    badgeColor: string;
+    tagline: string;
+    job: string;
+    whatItDoes: string;
+    whenToUse: string;
+    realityCheck: string;
+    costNote: string;
+    citation: string;
+    mermaid: string;
+    exampleModels: string[];
+    suggestedPull: string;
+  }
+
+  const ADVISOR_MODELS: Record<string, AdvisorModelSpec> = {
+    llm: {
+      id: 'llm',
+      name: 'LLM (Large Language Model)',
+      shortName: 'LLM',
+      icon: '💬',
+      badge: '✅ Sound Category',
+      badgeColor: '#4ade80',
+      tagline: 'Autoregressive next-token text generation & instructions',
+      job: 'chat',
+      whatItDoes: 'Generates fluent prose, follows complex prompt instructions, summarizes documents, and explains reasoning. Operates by repeatedly predicting the next token in sequence.',
+      whenToUse: 'General drafting, natural language explanations, synthesis, conversational UI, and open-ended analysis.',
+      realityCheck: 'Generation is an autoregressive loop (one token at a time), not a single pass. Output token volume drives latency and cost. Sizing follows Parsimony: a 7B/8B model often beats a 70B on targeted tasks.',
+      costNote: 'One full forward pass through all transformer layers per token emitted. Latency scales linearly with output length.',
+      citation: 'Vaswani et al., "Attention Is All You Need" (arXiv:1706.03762)',
+      mermaid: `flowchart TD
+  In["📥 User Prompt"] --> Tok["Tokeniser"]
+  Tok --> Emb["Token Embeddings"]
+  Emb --> Dec["Transformer Decoder Layers"]
+  Dec --> Next{"Next Token Predictor"}
+  Next -- "not stop token" --> Dec
+  Next -- "stop token / EOS" --> Out["✅ Response Stream"]`,
+      exampleModels: ['Qwen 2.5 7B', 'Llama 3.3 70B', 'DeepSeek-V3'],
+      suggestedPull: 'ollama pull qwen2.5-coder:7b'
+    },
+    lcm: {
+      id: 'lcm',
+      name: 'LCM (Large Concept Model / Latent Consistency)',
+      shortName: 'LCM',
+      icon: '🧠',
+      badge: '⚠️ 2 Fused Papers (Audited)',
+      badgeColor: '#f59e0b',
+      tagline: 'Sentence concept space modeling vs. few-step diffusion',
+      job: 'reasoning',
+      whatItDoes: 'The viral infographic fused Meta\'s Large Concept Model (arXiv:2412.08821: sentence-level SONAR embedding space) with Latent Consistency Models (arXiv:2310.04378: fast image diffusion).',
+      whenToUse: 'Cross-lingual concept representation (Meta LCM) or sub-4-step fast diffusion inference (LCM). Neither is a standalone client-facing model picker option.',
+      realityCheck: 'Latent Consistency is a diffusion distillation method; Large Concept Model is an exploratory research architecture. They have no relation. In Meta\'s LCM, diffusion and quantization are alternative research variants, not sequential runtime pipeline stages.',
+      costNote: 'Meta LCM bypasses token-by-token generation by reasoning directly in sentence representation space, saving decode loops.',
+      citation: 'Meta AI, "Large Concept Models: Language Modeling in Sentence Space" (arXiv:2412.08821) & Luo et al., "Latent Consistency Models" (arXiv:2310.04378)',
+      mermaid: `flowchart TD
+  In["📥 Input Sentences"] --> Seg["Sentence Segmentation"]
+  Seg --> Sonar["SONAR Multilingual Embedding Space"]
+  Sonar --> LCM["Large Concept Model Backbone"]
+  LCM --> GenChoice{"Variant Selection"}
+  GenChoice -- "Variant A" --> MSE["MSE Regression"]
+  GenChoice -- "Variant B" --> Diff["Diffusion in Concept Space"]
+  GenChoice -- "Variant C" --> Quant["Quantized Concept Decoding"]
+  MSE --> Out["✅ Output Representation"]
+  Diff --> Out
+  Quant --> Out`,
+      exampleModels: ['Meta SONAR (Research)', 'LCM-SD1.5 (Image)'],
+      suggestedPull: 'ollama pull deepseek-r1:8b'
+    },
+    lam: {
+      id: 'lam',
+      name: 'LAM (Large Action Model / Tool Agent)',
+      shortName: 'LAM',
+      icon: '⚡',
+      badge: '⚠️ Marketing Coinage → Tool Agent',
+      badgeColor: '#38bdf8',
+      tagline: 'Autonomous action execution & MCP function calling',
+      job: 'code-agentic',
+      whatItDoes: 'Translates user intent into structured API, CLI, or Model Context Protocol (MCP) tool invocations, executes actions in sandboxes, and verifies execution results in an iterative feedback loop.',
+      whenToUse: 'Autonomous code refactoring, ERP database mutations, workflow automation, external API orchestration, and self-healing pipelines.',
+      realityCheck: '"LAM" is a marketing term coined by consumer hardware startups. In enterprise AI, it is simply an LLM equipped with structured tool-calling, sandboxed MCP execution, and an agentic loop.',
+      costNote: 'Cost multiplies with each tool round-trip. Enforce turn ceilings (≤ 5) and schema validators to prevent runaway execution.',
+      citation: 'Schick et al., "Toolformer: Language Models Can Teach Themselves to Use Tools" (arXiv:2302.04761)',
+      mermaid: `flowchart TD
+  Goal["📥 User Task / Goal"] --> LLM["LLM with Tool Calling"]
+  LLM --> ToolCall{"Structured Tool Call?"}
+  ToolCall -- "yes" --> Sandbox["⚡ Sandboxed MCP Tool Execution"]
+  Sandbox --> Obs["👁️ Environment Observation"]
+  Obs --> Eval{"Goal Achieved?"}
+  Eval -- "iterate" --> LLM
+  Eval -- "complete" --> Final["✅ Verified Action Output"]
+  ToolCall -- "no tool needed" --> Final`,
+      exampleModels: ['Qwen 2.5 Coder 7B (Tools)', 'Claude 3.5 Sonnet', 'GPT-4o'],
+      suggestedPull: 'ollama pull qwen2.5-coder:7b'
+    },
+    moe: {
+      id: 'moe',
+      name: 'MoE (Mixture of Experts)',
+      shortName: 'MoE',
+      icon: '🔀',
+      badge: '❌ Category Error: Layer Architecture',
+      badgeColor: '#c084fc',
+      tagline: 'Internal sparse layer routing (Architecture Attribute)',
+      job: 'chat',
+      whatItDoes: 'Replaces dense Feed-Forward Network (FFN) blocks with multiple parallel expert subnetworks, dynamically activating top-k experts per token via a learned router.',
+      whenToUse: 'High-throughput serving where total parameter capacity (e.g. 8x7B) fits in VRAM but latency and FLOPs of only active parameters (e.g. 2x7B) is incurred.',
+      realityCheck: 'MoE is an internal layer architecture, NOT a model type or job. A model can be an LLM, VLM, and MoE simultaneously. The viral infographic drew routing once at the front door; in reality, routing occurs per layer independently, and attention is shared across all experts.',
+      costNote: 'RAM/VRAM footprint scales with TOTAL parameters; compute latency scales only with ACTIVE parameters.',
+      citation: 'Fedus et al., "Switch Transformers" (arXiv:2101.03961) & Mixtral of Experts (arXiv:2401.04088)',
+      mermaid: `flowchart TD
+  Tok["📥 Token Ingress"] --> Attn["Shared Multi-Head Self-Attention"]
+  Attn --> Router{"Layer Router (Softmax Top-K)"}
+  Router -- "Top 1" --> E1["Expert Subnetwork 1 (FFN)"]
+  Router -- "Top 2" --> E2["Expert Subnetwork 2 (FFN)"]
+  Router -- "Inactive" --> Inactive["Experts 3..N (Gated Off)"]
+  E1 --> Comb["Weighted Combination & Residual"]
+  E2 --> Comb
+  Comb --> NextLayer{"More MoE Layers?"}
+  NextLayer -- "yes" --> Attn
+  NextLayer -- "no" --> Out["✅ Layer Output"]`,
+      exampleModels: ['Mixtral 8x7B', 'DeepSeek-V3 (671B/37B active)', 'Qwen 2.5 57B-A14B'],
+      suggestedPull: 'ollama pull deepseek-v2:16b'
+    },
+    vlm: {
+      id: 'vlm',
+      name: 'VLM (Vision-Language Model)',
+      shortName: 'VLM',
+      icon: '👁️',
+      badge: '✅ Sound Category',
+      badgeColor: '#38bdf8',
+      tagline: 'Multimodal image, document & diagram understanding',
+      job: 'vision',
+      whatItDoes: 'Ingests raster images, diagrams, blueprints, and scanned documents alongside text prompts, projecting visual patch features into the LLM token space.',
+      whenToUse: 'Interpreting technical schematics, OCR on invoices/receipts, analyzing architectural blueprints, chart question answering, and multimodal RAG.',
+      realityCheck: 'There is NO separate "text encoder" or phantom "multimodal processor" as drawn in popular infographics. In modern VLMs (LLaVA lineage), text goes directly to LLM embeddings; the vision encoder output is mapped into the same space via a linear/cross-attention projection.',
+      costNote: 'One image expands into 256 to 1152 tokens of context window depending on grid resolution.',
+      citation: 'Liu et al., "Visual Instruction Tuning (LLaVA)" (arXiv:2304.08485)',
+      mermaid: `flowchart TD
+  Img["🖼️ Image Input"] --> VisionEnc["Vision Transformer (ViT / SigLIP)"]
+  VisionEnc --> Proj["Linear / Cross-Attention Projection"]
+  Proj --> SharedCtx["Shared Token Context"]
+  Txt["📝 User Prompt Text"] --> Tok["Text Tokeniser"]
+  Tok --> SharedCtx
+  SharedCtx --> LLM["Multimodal LLM Backbone"]
+  LLM --> Out["✅ Visually Grounded Response"]`,
+      exampleModels: ['Llama 3.2 Vision 11B', 'Qwen 2.5 VL 7B', 'Gemini 2.0 Flash'],
+      suggestedPull: 'ollama pull llama3.2-vision:11b'
+    },
+    slm: {
+      id: 'slm',
+      name: 'SLM (Small Language Model)',
+      shortName: 'SLM',
+      icon: '💻',
+      badge: '⚠️ Deployability Filter, Not a Job',
+      badgeColor: '#4ade80',
+      tagline: 'Air-gapped edge & laptop deployable (Size Attribute)',
+      job: 'chat',
+      whatItDoes: 'Runs the identical transformer decoder loop as massive frontier models, but sized (0.5B to 9B parameters) and quantized to execute locally on consumer laptop CPUs or air-gapped workstations.',
+      whenToUse: 'Air-gapped enterprise environments (defence, banking), zero cloud token fees, zero network latency, and edge embedded devices.',
+      realityCheck: 'An SLM is defined by deployability, not a different mathematical paradigm. Quantization and packaging are build-time steps done once ahead of time, not runtime inference stages.',
+      costNote: '$0.00 unit economics. Runs with zero incremental cost per prompt on local silicon.',
+      citation: 'Touvron et al., "Llama: Open and Efficient Foundation Language Models" & Microsoft Phi-3/4 Technical Report',
+      mermaid: `flowchart TD
+  subgraph OfflineBuild["Build-Time (Done Once)"]
+    Weights["Trained Dense Weights"] --> Quant["AWQ / GGUF Quantisation (4-bit)"]
+    Quant --> Pack["Ollama / llama.cpp Package"]
+  end
+  subgraph LocalRuntime["Local Air-Gapped Runtime"]
+    In["📥 User Query"] --> LocalEngine["Local Silicon / NPU (e.g. Qwen 7B)"]
+    LocalEngine --> Out["✅ Zero-Egress Response (<30ms)"]
+  end
+  Pack --> LocalEngine`,
+      exampleModels: ['Qwen 2.5 7B', 'Phi-4 14B', 'Gemma 2 9B'],
+      suggestedPull: 'ollama pull qwen2.5:7b'
+    },
+    mlm: {
+      id: 'mlm',
+      name: 'MLM (Masked Language Model / Encoder)',
+      shortName: 'MLM',
+      icon: '🗄️',
+      badge: '⚠️ Pre-Training Objective → Encoder',
+      badgeColor: '#60a5fa',
+      tagline: 'Bidirectional attention embeddings & fast classification',
+      job: 'embedding',
+      whatItDoes: 'Trained by predicting masked tokens within bidirectional context; used at inference as encoder-only models for high-speed embeddings, semantic search, and classification.',
+      whenToUse: 'Semantic search, RAG vector indexing (nomic-embed-text), cross-encoder reranking, and sub-25ms intent triage.',
+      realityCheck: 'Masking is a pre-training objective, not a runtime inference mode. At inference, there are no masked tokens. Bidirectional attention is joint across all layers, not two separate merging branches.',
+      costNote: 'Single forward pass, non-autoregressive. Runs orders of magnitude faster and cheaper than generative chat models.',
+      citation: 'Devlin et al., "BERT: Pre-training of Deep Bidirectional Transformers" (arXiv:1810.04805)',
+      mermaid: `flowchart TD
+  In["📥 Document / Query Text"] --> Tok["Tokeniser"]
+  Tok --> Emb["Token Embeddings"]
+  Emb --> BiAttn["Bidirectional Self-Attention Layers"]
+  BiAttn --> Pool["Mean / CLS Pooling Head"]
+  Pool --> Vector["✅ 768d / 1536d Normalized Embedding"]
+  Vector --> Store["🗄️ Vector Database (pgvector / Qdrant)"]`,
+      exampleModels: ['nomic-embed-text', 'bge-m3', 'ModernBERT'],
+      suggestedPull: 'ollama pull nomic-embed-text'
+    },
+    sam: {
+      id: 'sam',
+      name: 'SAM (Segment Anything Model)',
+      shortName: 'SAM',
+      icon: '🎯',
+      badge: '❌ Product Name: Promptable Vision',
+      badgeColor: '#ec4899',
+      tagline: 'Interactive promptable zero-shot vision segmentation',
+      job: 'vision',
+      whatItDoes: 'Performs zero-shot segmentation of objects, boundaries, and regions in images guided by interactive point, box, or text prompts.',
+      whenToUse: 'Interactive image masking, defect detection, satellite imagery, medical scans, and visual bounding.',
+      realityCheck: 'SAM is Meta\'s product trademark, not a category name. The real headline: the heavy image encoder runs once and caches the embedding; lightweight prompt and mask decoders then run interactively in real-time (~50ms).',
+      costNote: 'Heavy image encoding is done once; subsequent prompt-to-mask queries run in real-time (~50ms).',
+      citation: 'Kirillov et al., "Segment Anything" (Meta AI, arXiv:2304.02643)',
+      mermaid: `flowchart TD
+  Img["🖼️ Heavy Image Input"] --> HeavyEnc["Heavy ViT Image Encoder (Run Once)"]
+  HeavyEnc --> CachedEmb["🗃️ Cached Image Embedding"]
+  Prompt["🖱️ Point / Bounding Box / Mask Prompt"] --> FastPromptEnc["Lightweight Prompt Encoder"]
+  CachedEmb --> FastMaskDec["Two-Way Transformer Mask Decoder"]
+  FastPromptEnc --> FastMaskDec
+  FastMaskDec --> Masks["✅ Predicted Segmentation Masks"]
+  FastMaskDec --> Score["IoU Confidence Quality Head"]`,
+      exampleModels: ['Segment Anything 2 (Meta)', 'FastSAM', 'MobileSAM'],
+      suggestedPull: 'ollama pull llama3.2-vision:11b'
+    }
+  };
+
+  const ADVISOR_WORKLOADS: Record<string, any[]> = {
+    finance: [
+      { id: 'fin_recon', label: 'Balance Reconciliation & Ledgers', model: 'slm', tier: 'Level 1: Pure Rule Engine & SQL (<5ms, 0% Drift)', guidance: 'Deterministic arithmetic and monetary balances must NEVER use probabilistic token sampling. Run via compiled SQL or TypeScript boundary rules.', rag: '' },
+      { id: 'fin_fraud', label: 'Transaction Fraud Triage & Ingress Routing', model: 'mlm', tier: 'Level 2: Fast Semantic Router / Encoder (<25ms)', guidance: 'High-throughput event scoring in a single non-generative forward pass, saving GPU cost.', rag: '' },
+      { id: 'fin_sop', label: 'SOX & Regulatory Policy Q&A', model: 'mlm', tier: 'Level 3: Grounded Air-Gapped Policy RAG', guidance: 'Air-gapped semantic search across statutory compliance manuals with mandatory citation receipts.', rag: 'Hybrid RAG (Dense Semantic + Sparse BM25 + Citation Receipts)' }
+    ],
+    healthcare: [
+      { id: 'hc_hipaa', label: 'HIPAA SOP & Clinical Protocol Guidance', model: 'mlm', tier: 'Level 3: Grounded Policy RAG (<120ms)', guidance: 'Strict clinical retrieval from vetted pharmacology and diagnostic handbooks with 100% citation receipts.', rag: 'Hybrid RAG (ColPali Visual + Lexical Exact Match)' },
+      { id: 'hc_diagnostics', label: 'Zero-Hallucination Diagnostic Protocol', model: 'slm', tier: 'Level 1+3: Deterministic Rule-Gated RAG', guidance: 'Hard boundary validation against clinical contraindications before synthesis.', rag: 'Corrective RAG (CRAG) with Automated Hallucination Grader' },
+      { id: 'hc_ehr', label: 'Multimodal EHR & Lab Report Ingestion', model: 'vlm', tier: 'Level 4: Multimodal Tool Agent (<250ms)', guidance: 'Preserves 2D tabular spatial structure of bloodwork and diagnostic ECG charts.', rag: 'Multimodal ColPali Patch RAG' }
+    ],
+    legal: [
+      { id: 'leg_clause', label: 'Contract Clause Analysis & Liability Boundaries', model: 'mlm', tier: 'Level 1+3: Rule-Gated Policy RAG', guidance: 'Extracts limitation of liability clauses, verifying caps against statutory maximums.', rag: 'Hybrid RAG with Legal Citation Verification' },
+      { id: 'leg_statute', label: 'Statutory Compliance & Precedent Verification', model: 'llm', tier: 'Level 3: Graph RAG (<350ms)', guidance: 'Traverses legal citations and precedent case laws across statutory entity relationships.', rag: 'Graph RAG (Knowledge Graph Entity Traversal)' }
+    ],
+    defence: [
+      { id: 'def_airgap', label: 'Air-Gapped Sovereign Intelligence', model: 'slm', tier: 'Level 1+3: Sovereign Air-Gapped SLM Target', guidance: 'Zero external network egress. Local open-weight models running on isolated silicon.', rag: 'Air-Gapped Local Vector Store (pgvector / Qdrant)' },
+      { id: 'def_imagery', label: 'Tactical Geospatial & Blueprints Analysis', model: 'sam', tier: 'Level 4: Multimodal Segmentation & Tool Agent', guidance: 'Interactive segmentation and spatial bounding on satellite imagery and engineering CAD.', rag: 'Multimodal ColPali Patch RAG' }
+    ],
+    retail: [
+      { id: 'ret_inventory', label: 'Multi-Warehouse ERP Inventory Rebalancing', model: 'lam', tier: 'Level 4: MCP Sandboxed Tool Agent', guidance: 'Executes verified carrier booking and inventory transfer via sandboxed MCP ERP calls.', rag: '' },
+      { id: 'ret_ocr', label: 'Invoice & Receipt Structured OCR', model: 'vlm', tier: 'Level 3: Document Layout VLM', guidance: 'Extracts line items, tax breakdown, and vendor IDs preserving spatial layout.', rag: 'Multimodal ColPali Patch RAG' }
+    ],
+    software: [
+      { id: 'soft_refactor', label: 'Full-Repository Code Migration & Refactoring', model: 'lam', tier: 'Level 4: Tool-Equipped Coding Agent', guidance: 'Reads AST, writes whole files, executes unit tests in a self-healing loop.', rag: '' },
+      { id: 'soft_fim', label: 'Inline Autocomplete (Fill-In-The-Middle)', model: 'slm', tier: 'Level 1: Low Latency FIM Model (<40ms)', guidance: 'Uses models trained specifically on FIM (prefix/suffix insertion) on every keystroke pause.', rag: '' }
+    ],
+    general: [
+      { id: 'gen_qa', label: 'Corporate Knowledge Base & FAQ Search', model: 'llm', tier: 'Level 3: Hybrid RAG Architecture', guidance: 'Dense semantic + sparse lexical search over company handbooks and docs.', rag: 'Hybrid RAG (BM25 + pgvector + RRF)' },
+      { id: 'gen_triage', label: 'Customer Support Ingress & Intent Routing', model: 'mlm', tier: 'Level 2: Fast Semantic Intent Classifier', guidance: 'Routes incoming tickets to specialized queues in a single forward pass (<25ms).', rag: '' }
+    ]
+  };
+
+  selectedAdvisorModelKey = selectedAdvisorModelKey || 'llm';
+  let advisorFlowViewMode: 'visual' | 'mermaid' = 'visual';
+
+  const renderModelAdvisorUi = () => {
+    renderAdvisorModelCards();
+    renderAdvisorSelectedModel();
+    renderAdvisorInstalledModels();
+  };
+
+  const renderAdvisorModelCards = () => {
+    refreshAdvisorCards = renderAdvisorModelCards;
+    const grid = document.getElementById('advisorModelGrid');
+    if (!grid) return;
+    const reqModelKey = RAG_TO_MODEL_MAP[activeSolutionContract.ragPatternKey || 'hybrid']?.modelKey;
+
+    grid.innerHTML = Object.values(ADVISOR_MODELS).map(m => {
+      const isSelected = m.id === selectedAdvisorModelKey;
+      const isMatched = m.id === reqModelKey;
+      const cardBorder = isSelected ? '#38bdf8' : isMatched ? 'var(--accent)' : 'var(--border)';
+      const cardBg = isSelected ? 'rgba(56, 189, 248, 0.12)' : isMatched ? 'rgba(78, 201, 176, 0.08)' : 'rgba(255, 255, 255, 0.03)';
+
+      return `
+        <div class="advisor-model-card ${isSelected ? 'active' : ''}" data-model="${m.id}" style="background: ${cardBg}; border: 1.5px solid ${cardBorder}; border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.15s ease;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 4px;">
+            <div style="font-size: 12px; font-weight: 700; color: ${isSelected ? '#38bdf8' : isMatched ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 5px;">
+              <span>${m.icon}</span> <span>${m.shortName}</span>
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              ${isMatched ? `<span style="font-size: 8px; padding: 1px 4px; border-radius: 3px; font-weight: 800; background: rgba(78,201,176,0.25); color: var(--accent); border: 1px solid var(--accent);" title="Matched Engine for Active RAG Pattern">⚡ MATCHED</span>` : ''}
+              <span style="font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; background: rgba(255,255,255,0.06); color: ${m.badgeColor}; border: 1px solid ${m.badgeColor}40;">
+                ${m.badge.split(':')[0]}
+              </span>
+            </div>
+          </div>
+          <div style="font-size: 10px; color: var(--text-secondary); line-height: 1.35; margin-bottom: 6px;">
+            ${m.tagline}
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 9.5px;">
+            <span style="color: var(--accent); font-weight: 600;">Job: ${m.job}</span>
+            <span style="color: ${isSelected ? '#38bdf8' : isMatched ? 'var(--accent)' : 'var(--text-muted)'}; font-weight: 700;">${isSelected ? '● Active' : isMatched ? '⚡ Matched' : 'Inspect →'}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('.advisor-model-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const mid = card.getAttribute('data-model');
+        if (mid && ADVISOR_MODELS[mid]) {
+          selectedAdvisorModelKey = mid;
+          activeSolutionContract.modelId = ADVISOR_MODELS[mid].name;
+          activeSolutionContract.modelClass = ADVISOR_MODELS[mid].shortName;
+          updateSolutionRibbon();
+          renderAdvisorModelCards();
+          renderAdvisorSelectedModel();
+          renderAdvisorInstalledModels();
+        }
+      });
+    });
+  };
+
+  const renderAdvisorSelectedModel = () => {
+    const m = ADVISOR_MODELS[selectedAdvisorModelKey] || ADVISOR_MODELS.llm;
+    const card = document.getElementById('advisorDetailCard');
+    if (!card) return;
+
+    // Generate SVG via EvolveFlowchart
+    let svgHtml = '';
+    try {
+      const rendered = renderDiagramSvg(m.mermaid, { architectureTitle: `${m.name}: Architecture Flowchart` });
+      svgHtml = rendered?.svg || '';
+    } catch (e) {
+      console.warn('Advisor SVG error:', e);
+    }
+
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 18px;">${m.icon}</span>
+            <strong style="color: #fff; font-size: 14px;">${escapeHtml(m.name)}</strong>
+            <span style="font-size: 10px; font-weight: 700; color: ${m.badgeColor}; border: 1px solid ${m.badgeColor}60; background: ${m.badgeColor}15; padding: 1px 7px; border-radius: 4px;">${m.badge}</span>
+            <span style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); padding: 1px 6px; border-radius: 3px;">Job: ${m.job}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px; font-style: italic;">
+            "${escapeHtml(m.tagline)}"
+          </div>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn-quick" id="btnAdvisorPullCmd" style="font-size: 10.5px; padding: 3px 8px; border-color: var(--accent); color: var(--accent); cursor: pointer;" title="Copy Ollama Pull Command">📋 ${m.suggestedPull}</button>
+        </div>
+      </div>
+
+      <!-- 3-Column Analysis Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+        <div style="background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #38bdf8; margin-bottom: 5px;">📘 What It Actually Does:</div>
+          <p style="font-size: 10.5px; color: #cbd5e1; margin: 0; line-height: 1.45;">${escapeHtml(m.whatItDoes)}</p>
+        </div>
+        <div style="background: rgba(74, 222, 128, 0.05); border: 1px solid rgba(74, 222, 128, 0.25); border-radius: 6px; padding: 10px;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #4ade80; margin-bottom: 5px;">🎯 When to Propose / Use:</div>
+          <p style="font-size: 10.5px; color: #cbd5e1; margin: 0; line-height: 1.45;">${escapeHtml(m.whenToUse)}</p>
+        </div>
+        <div style="background: rgba(248, 113, 113, 0.05); border: 1px solid rgba(248, 113, 113, 0.25); border-radius: 6px; padding: 10px;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #f87171; margin-bottom: 5px;">⚠️ The Reality / Viral Mistake:</div>
+          <p style="font-size: 10.5px; color: #cbd5e1; margin: 0; line-height: 1.45;">${escapeHtml(m.realityCheck)}</p>
+        </div>
+      </div>
+
+      <!-- Cost & Provenance Row -->
+      <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 12px; font-size: 10.5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 8px 12px;">
+        <div>
+          <span style="font-weight: 700; color: #fbbf24;">⏱️ Cost &amp; Latency Mechanics:</span>
+          <span style="color: #cbd5e1; margin-left: 4px;">${escapeHtml(m.costNote)}</span>
+        </div>
+        <div>
+          <span style="font-weight: 700; color: #c084fc;">📚 Primary Literature:</span>
+          <span style="color: #cbd5e1; margin-left: 4px; font-style: italic;">${escapeHtml(m.citation)}</span>
+        </div>
+      </div>
+
+      <!-- Flowchart Sub-Panel -->
+      <div style="background: #0a0a0a; border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 12px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 12px;">📐</span>
+            <strong style="color: #fff; font-size: 11px;">${escapeHtml(m.name)}: Architectural Flowchart</strong>
+            <span style="font-size: 9px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 1px 6px; border-radius: 3px;">Corrected Flow</span>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <div style="display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; background: rgba(0,0,0,0.4);">
+              <button type="button" class="btn-quick ${advisorFlowViewMode === 'visual' ? 'active' : ''}" id="btnAdvisorToggleDiagramView" style="font-size: 9.5px; padding: 2px 7px; border: none; margin: 0; cursor: pointer;">🗺️ Visual Diagram</button>
+              <button type="button" class="btn-quick ${advisorFlowViewMode === 'mermaid' ? 'active' : ''}" id="btnAdvisorToggleSourceView" style="font-size: 9.5px; padding: 2px 7px; border: none; margin: 0; cursor: pointer;">✎ Mermaid Code</button>
+            </div>
+            <button class="btn-quick" id="btnAdvisorCopyMermaid" style="font-size: 9.5px; padding: 2px 7px; cursor: pointer;" title="Copy Mermaid Code">📋 Copy Mermaid</button>
+            <button class="btn-quick" id="btnAdvisorCopySvg" style="font-size: 9.5px; padding: 2px 7px; cursor: pointer;" title="Copy Vector SVG">📥 Copy SVG</button>
+          </div>
+        </div>
+
+        <div id="boxAdvisorFlowchartSvgContainer" style="display: ${advisorFlowViewMode === 'visual' ? 'flex' : 'none'}; justify-content: center; align-items: center; min-height: 220px; overflow-x: auto; padding: 8px;">
+          ${svgHtml || '<div style="color: var(--text-secondary); font-size: 11px;">Generating SVG flow...</div>'}
+        </div>
+
+        <div id="boxAdvisorFlowchartSourceContainer" style="display: ${advisorFlowViewMode === 'mermaid' ? 'block' : 'none'}; background: #0e0e0e; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 10px;">
+          <pre id="preAdvisorMermaidCode" style="margin: 0; font-family: Consolas, monospace; font-size: 10.5px; color: #9cdcfe; white-space: pre-wrap; line-height: 1.45;">${escapeHtml(m.mermaid)}</pre>
+        </div>
+      </div>
+    `;
+
+    // Wire buttons inside detail card
+    document.getElementById('btnAdvisorPullCmd')?.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(m.suggestedPull);
+      showToast(`📋 Copied: ${m.suggestedPull}`);
+    });
+
+    document.getElementById('btnAdvisorToggleDiagramView')?.addEventListener('click', () => {
+      advisorFlowViewMode = 'visual';
+      const sBox = document.getElementById('boxAdvisorFlowchartSvgContainer');
+      const cBox = document.getElementById('boxAdvisorFlowchartSourceContainer');
+      if (sBox) sBox.style.display = 'flex';
+      if (cBox) cBox.style.display = 'none';
+      document.getElementById('btnAdvisorToggleDiagramView')?.classList.add('active');
+      document.getElementById('btnAdvisorToggleSourceView')?.classList.remove('active');
+    });
+
+    document.getElementById('btnAdvisorToggleSourceView')?.addEventListener('click', () => {
+      advisorFlowViewMode = 'mermaid';
+      const sBox = document.getElementById('boxAdvisorFlowchartSvgContainer');
+      const cBox = document.getElementById('boxAdvisorFlowchartSourceContainer');
+      if (sBox) sBox.style.display = 'none';
+      if (cBox) cBox.style.display = 'block';
+      document.getElementById('btnAdvisorToggleSourceView')?.classList.add('active');
+      document.getElementById('btnAdvisorToggleDiagramView')?.classList.remove('active');
+    });
+
+    document.getElementById('btnAdvisorCopyMermaid')?.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(m.mermaid);
+      showToast(`📋 Copied ${m.shortName} Mermaid flowchart!`);
+    });
+
+    document.getElementById('btnAdvisorCopySvg')?.addEventListener('click', async () => {
+      const sBox = document.getElementById('boxAdvisorFlowchartSvgContainer');
+      const svg = sBox?.querySelector('svg');
+      if (svg) {
+        await navigator.clipboard.writeText(svg.outerHTML);
+        showToast(`📥 Copied ${m.shortName} vector SVG to clipboard!`);
+      }
+    });
+  };
+
+  const renderAdvisorInstalledModels = async () => {
+    const tbody = document.getElementById('tblAdvisorModelsBody');
+    if (!tbody) return;
+
+    let catalogue: any[] = [];
+    if (api?.ai?.getModels) {
+      try {
+        const res = await api.ai.getModels();
+        if (res && res.catalogue) catalogue = res.catalogue;
+      } catch (err) {
+        console.warn('Advisor getModels error:', err);
+      }
+    }
+
+    if (!catalogue.length) {
+      catalogue = [
+        { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'ollama', providerLabel: 'Ollama (Local)', isInstalled: true, context: '32k' },
+        { id: 'nomic-embed-text:latest', name: 'Nomic Embed Text', provider: 'ollama', providerLabel: 'Ollama (Local)', isInstalled: true, context: '8k' },
+        { id: 'llama3.2-vision:11b', name: 'Llama 3.2 Vision 11B', provider: 'ollama', providerLabel: 'Ollama (Local)', isInstalled: false, context: '128k' }
+      ];
+    }
+
+    const curModel = ADVISOR_MODELS[selectedAdvisorModelKey] || ADVISOR_MODELS.llm;
+    const curJob = curModel.job;
+
+    tbody.innerHTML = catalogue.slice(0, 10).map((m: any) => {
+      const idLower = (m.id || '').toLowerCase();
+      let fitBadge = '<span style="color: #94a3b8; font-weight: 600;">Usable</span>';
+      let capabilities = '<span style="color: #94a3b8; font-size: 10px;">chat</span>';
+
+      if (idLower.includes('embed')) {
+        capabilities = '<span style="color: #60a5fa; font-size: 10px; font-weight: 700;">embedding · semantic</span>';
+        fitBadge = curJob === 'embedding'
+          ? '<span style="color: #4ade80; font-weight: 700;">★ Purpose-Built</span>'
+          : '<span style="color: #f87171; font-weight: 600;">Cannot (Vector only)</span>';
+      } else if (idLower.includes('vision') || idLower.includes('vl')) {
+        capabilities = '<span style="color: #38bdf8; font-size: 10px; font-weight: 700;">vision · multimodal · chat</span>';
+        fitBadge = curJob === 'vision'
+          ? '<span style="color: #4ade80; font-weight: 700;">★ Purpose-Built</span>'
+          : '<span style="color: #38bdf8; font-weight: 600;">Capable</span>';
+      } else if (idLower.includes('coder') || idLower.includes('code')) {
+        capabilities = '<span style="color: #4ade80; font-size: 10px; font-weight: 700;">code-agentic · insert (FIM) · tools</span>';
+        fitBadge = (curJob === 'code-agentic' || curJob === 'code-fim')
+          ? '<span style="color: #4ade80; font-weight: 700;">★ Purpose-Built</span>'
+          : '<span style="color: #38bdf8; font-weight: 600;">Capable</span>';
+      } else if (idLower.includes('deepseek-r1') || idLower.includes('reason')) {
+        capabilities = '<span style="color: #c084fc; font-size: 10px; font-weight: 700;">reasoning · thinking · logic</span>';
+        fitBadge = curJob === 'reasoning'
+          ? '<span style="color: #4ade80; font-weight: 700;">★ Purpose-Built</span>'
+          : '<span style="color: #fbbf24; font-weight: 600;">Overkill / High Latency</span>';
+      } else {
+        capabilities = '<span style="color: #94a3b8; font-size: 10px;">text · chat · instructions</span>';
+        fitBadge = curJob === 'chat'
+          ? '<span style="color: #4ade80; font-weight: 700;">★ Purpose-Built</span>'
+          : '<span style="color: #94a3b8; font-weight: 600;">Usable</span>';
+      }
+
+      const isCurrent = m.id === activeSelectedModel || activeSelectedModel.includes(m.id);
+
+      return `
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.06); background: ${isCurrent ? 'rgba(78, 201, 176, 0.08)' : 'transparent'};">
+          <td style="padding: 6px 8px;">
+            <div style="font-weight: 700; color: ${isCurrent ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
+              <span>${m.name || m.id}</span>
+              ${isCurrent ? '<span style="font-size: 9px; background: var(--accent); color: #1e1e1e; padding: 1px 5px; border-radius: 4px; font-weight: 800;">ACTIVE</span>' : ''}
+            </div>
+            <div style="font-size: 9.5px; color: var(--text-secondary);">${m.providerLabel || m.provider} · ${m.context || '32k'}</div>
+          </td>
+          <td style="padding: 6px 8px;">${fitBadge}</td>
+          <td style="padding: 6px 8px;">${capabilities}</td>
+          <td style="padding: 6px 8px; text-align: right;">
+            ${m.isInstalled
+              ? `<button class="btn-quick btnAdvisorUseModel" data-model="${m.id}" data-provider="${m.provider || 'ollama'}" style="font-size: 9.5px; padding: 2px 7px; color: var(--accent); border-color: var(--accent); cursor: pointer;">Use Model</button>`
+              : `<button class="btn-quick btnAdvisorPullModel" data-pull="ollama pull ${m.id}" style="font-size: 9.5px; padding: 2px 7px; cursor: pointer;">📋 Copy Pull</button>`}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    tbody.querySelectorAll('.btnAdvisorUseModel').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mid = btn.getAttribute('data-model') || 'qwen2.5-coder:7b';
+        const prov = btn.getAttribute('data-provider') || 'ollama';
+        activeSelectedModel = mid;
+        activeSelectedProvider = prov;
+        const lblH = document.getElementById('lblHeaderModel');
+        if (lblH) lblH.innerText = `${prov.toUpperCase()} · ${mid}`;
+        showToast(`✓ Switched active model to ${mid}!`);
+        renderAdvisorInstalledModels();
+      });
+    });
+
+    tbody.querySelectorAll('.btnAdvisorPullModel').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const pull = btn.getAttribute('data-pull') || '';
+        if (pull) {
+          await navigator.clipboard.writeText(pull);
+          showToast(`📋 Copied: ${pull}`);
+        }
+      });
+    });
+  };
+
+  // Wire Industry & Workload Selectors in 3D
+  const selAdvInd = document.getElementById('selAdvisorIndustry') as HTMLSelectElement | null;
+  const selAdvWork = document.getElementById('selAdvisorWorkload') as HTMLSelectElement | null;
+  const advBanner = document.getElementById('advisorGuidanceBanner');
+  const lblAdvTier = document.getElementById('lblAdvisorGbTier');
+  const lblAdvText = document.getElementById('lblAdvisorGbText');
+  const advRagRow = document.getElementById('advisorGbRagRow');
+  const lblAdvRag = document.getElementById('lblAdvisorGbRagLabel');
+
+  selAdvInd?.addEventListener('change', () => {
+    const ind = selAdvInd.value;
+    if (!selAdvWork) return;
+    selAdvWork.innerHTML = '';
+    if (!ind || !ADVISOR_WORKLOADS[ind]) {
+      selAdvWork.disabled = true;
+      selAdvWork.innerHTML = '<option value="">Select an industry first...</option>';
+      if (advBanner) advBanner.style.display = 'none';
+      return;
+    }
+    const workloads = ADVISOR_WORKLOADS[ind];
+    selAdvWork.disabled = false;
+    selAdvWork.innerHTML = '<option value="">Choose nature of work...</option>' +
+      workloads.map(w => `<option value="${w.id}">${escapeHtml(w.label)}</option>`).join('');
+    if (advBanner) advBanner.style.display = 'none';
+  });
+
+  selAdvWork?.addEventListener('change', () => {
+    const wid = selAdvWork.value;
+    const ind = selAdvInd?.value || '';
+    if (!wid || !ind || !ADVISOR_WORKLOADS[ind]) {
+      if (advBanner) advBanner.style.display = 'none';
+      return;
+    }
+    const w = ADVISOR_WORKLOADS[ind].find((item: any) => item.id === wid);
+    if (!w) return;
+
+    if (lblAdvTier) lblAdvTier.textContent = w.tier;
+    if (lblAdvText) lblAdvText.textContent = w.guidance;
+    if (w.rag && advRagRow && lblAdvRag) {
+      lblAdvRag.textContent = w.rag;
+      advRagRow.style.display = 'flex';
+    } else if (advRagRow) {
+      advRagRow.style.display = 'none';
+    }
+    if (advBanner) advBanner.style.display = 'block';
+
+    if (w.model && ADVISOR_MODELS[w.model]) {
+      selectedAdvisorModelKey = w.model;
+      renderAdvisorModelCards();
+      renderAdvisorSelectedModel();
+      renderAdvisorInstalledModels();
+    }
+  });
+
+  document.getElementById('btnRefreshAdvisorModels')?.addEventListener('click', () => {
+    renderAdvisorInstalledModels();
+    showToast('🔄 Refreshed installed and cloud models!');
+  });
 
   refreshP3Rail();
 
@@ -22164,6 +23383,44 @@ function setupCloudHub(api: any): void {
     showToast('🚀 Switched to Pilot Deployment Studio (Phase 3)');
   });
 
+  let cloudAuthWatcherTimer: any = null;
+
+  const startCloudAuthWatcher = (provider: string) => {
+    if (cloudAuthWatcherTimer) {
+      clearInterval(cloudAuthWatcherTimer);
+      cloudAuthWatcherTimer = null;
+    }
+    let attempts = 0;
+    const maxAttempts = 60; // 60 * 2.5s = 150s (2.5 mins max polling)
+    cloudAuthWatcherTimer = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        clearInterval(cloudAuthWatcherTimer);
+        cloudAuthWatcherTimer = null;
+        return;
+      }
+      try {
+        const res = await api?.cloud?.getDetailedStatus();
+        if (res) {
+          const isOk = (provider === 'gcp' && res.gcp?.ok) ||
+                       (provider === 'aws' && res.aws?.ok) ||
+                       (provider === 'azure' && res.azure?.ok) ||
+                       (provider === 'docker' && res.docker?.ok);
+          if (isOk) {
+            clearInterval(cloudAuthWatcherTimer);
+            cloudAuthWatcherTimer = null;
+            await refreshCloudHubStatus(api);
+            const accountName = (provider === 'gcp' ? res.gcp?.account :
+                                 provider === 'aws' ? res.aws?.account :
+                                 provider === 'azure' ? res.azure?.account :
+                                 res.docker?.version) || 'Active';
+            showToast(`✓ ${provider.toUpperCase()} connected successfully! (${accountName})`);
+          }
+        }
+      } catch {}
+    }, 2500);
+  };
+
   const handleCloudAction = async (provider: string, action: string) => {
     if (!api?.cloud) return;
     showToast(`🚀 Initiating ${provider.toUpperCase()} [${action}] in terminal...`);
@@ -22178,7 +23435,15 @@ function setupCloudHub(api: any): void {
       currentActiveSessionId = session.id;
     }
 
-    await api.cloud.connectAccount(provider, action, currentActiveSessionId);
+    if (['login', 'adc', 'sso', 'startDocker', 'install'].includes(action)) {
+      startCloudAuthWatcher(provider);
+    }
+
+    try {
+      await api.cloud.connectAccount(provider, action, currentActiveSessionId);
+    } finally {
+      await refreshCloudHubStatus(api);
+    }
   };
 
   // Phase 3 Drawer Connect Buttons
@@ -22236,6 +23501,32 @@ function setupCloudHub(api: any): void {
       }
     });
   });
+
+  // Auto-refresh when user switches focus back from their browser to Evolve AI Desktop
+  let lastFocusRefresh = 0;
+  window.addEventListener('focus', async () => {
+    const now = Date.now();
+    if (now - lastFocusRefresh < 3000) return;
+    lastFocusRefresh = now;
+
+    const drawer = document.getElementById('cloudHubDrawer');
+    const isDrawerOpen = drawer && drawer.style.display !== 'none' && drawer.style.display !== '';
+    const studioCloud = document.getElementById('cloudHubStudioContent');
+    const isStudioVisible = studioCloud && studioCloud.offsetParent !== null;
+
+    if (isDrawerOpen || isStudioVisible || cloudAuthWatcherTimer) {
+      await refreshCloudHubStatus(api);
+    }
+  });
+
+  // Background auto-refresh heartbeat when Cloud Hub drawer is open
+  setInterval(async () => {
+    const drawer = document.getElementById('cloudHubDrawer');
+    const isDrawerOpen = drawer && drawer.style.display !== 'none' && drawer.style.display !== '';
+    if (isDrawerOpen && api?.cloud) {
+      await refreshCloudHubStatus(api);
+    }
+  }, 12000);
 }
 
 async function refreshCloudHubStatus(api: any): Promise<void> {
@@ -22400,6 +23691,7 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
     const paneDocCont = document.getElementById('paneDockerContainers');
     const paneDocAcc = document.getElementById('paneDockerAccount');
     const btnPaneDocInst = document.getElementById('btnPaneDockerInstall');
+    const btnPaneDocStart = document.getElementById('btnPaneDockerStart') as HTMLButtonElement | null;
 
     if (res.docker?.ok) {
       if (docBadge) { docBadge.innerText = '✓ Active'; docBadge.style.color = 'var(--success)'; }
@@ -22411,29 +23703,44 @@ async function refreshCloudHubStatus(api: any): Promise<void> {
       if (paneDocCli) paneDocCli.innerText = res.docker.version ? `Docker Engine ${res.docker.version}` : 'Docker Engine (Running)';
       if (paneDocCont) paneDocCont.innerText = res.docker.containers || 'Ready for containers';
       if (paneDocAcc) paneDocAcc.innerText = `Daemon Active (${res.docker.version || 'Running'})`;
+      if (btnPaneDocStart) {
+        btnPaneDocStart.innerText = '🐳 Docker Active';
+        btnPaneDocStart.style.background = 'var(--success)';
+        btnPaneDocStart.style.color = '#fff';
+      }
       if (btnPaneDocInst) btnPaneDocInst.style.display = 'none';
     } else if (res.docker?.installed) {
       if (docBadge) { docBadge.innerText = '⭕ Daemon Stopped'; docBadge.style.color = 'var(--warning)'; }
-      if (docAcc) docAcc.innerText = 'Docker installed (Daemon not running)';
+      if (docAcc) docAcc.innerText = res.docker.desktopInstalled ? 'Docker Desktop Installed (Daemon Stopped)' : 'Docker CLI Detected (Daemon Stopped)';
       if (docBtn) { docBtn.innerText = '🚀 Start Docker'; docBtn.setAttribute('data-action', 'startDocker'); }
 
       if (paneDocTop) { paneDocTop.innerText = '⭕ Daemon Stopped'; paneDocTop.style.color = 'var(--warning)'; }
       if (paneDocB) { paneDocB.innerText = '⭕ Daemon Stopped'; paneDocB.style.color = 'var(--warning)'; paneDocB.style.borderColor = 'var(--warning)'; paneDocB.style.background = 'rgba(229, 181, 103, 0.15)'; }
-      if (paneDocCli) paneDocCli.innerText = 'Docker CLI Detected';
+      if (paneDocCli) paneDocCli.innerText = res.docker.desktopInstalled ? 'Docker Desktop Installed' : 'Docker CLI Detected';
       if (paneDocCont) paneDocCont.innerText = 'Daemon offline';
       if (paneDocAcc) paneDocAcc.innerText = 'Click Start Docker Desktop below';
+      if (btnPaneDocStart) {
+        btnPaneDocStart.innerText = '🚀 Start Docker Desktop';
+        btnPaneDocStart.style.background = 'var(--accent)';
+        btnPaneDocStart.style.color = '#1e1e1e';
+      }
       if (btnPaneDocInst) btnPaneDocInst.style.display = 'none';
     } else {
-      if (docBadge) { docBadge.innerText = '⚠️ Missing'; docBadge.style.color = 'var(--error)'; }
+      if (docBadge) { docBadge.innerText = '⚠️ Not Installed'; docBadge.style.color = 'var(--error)'; }
       if (docAcc) docAcc.innerText = 'Docker not found on system';
-      if (docBtn) { docBtn.innerText = '⬇️ Install Docker'; docBtn.setAttribute('data-action', 'install'); }
+      if (docBtn) { docBtn.innerText = '⬇️ 1-Click Install & Start Docker'; docBtn.setAttribute('data-action', 'startDocker'); }
 
-      if (paneDocTop) { paneDocTop.innerText = '⚠️ Missing'; paneDocTop.style.color = 'var(--error)'; }
-      if (paneDocB) { paneDocB.innerText = '⚠️ Missing'; paneDocB.style.color = 'var(--error)'; paneDocB.style.borderColor = 'var(--error)'; paneDocB.style.background = 'rgba(244, 71, 71, 0.15)'; }
-      if (paneDocCli) paneDocCli.innerText = 'Docker not found on system PATH';
+      if (paneDocTop) { paneDocTop.innerText = '⚠️ Not Installed'; paneDocTop.style.color = 'var(--error)'; }
+      if (paneDocB) { paneDocB.innerText = '⚠️ Not Installed'; paneDocB.style.color = 'var(--error)'; paneDocB.style.borderColor = 'var(--error)'; paneDocB.style.background = 'rgba(244, 71, 71, 0.15)'; }
+      if (paneDocCli) paneDocCli.innerText = 'Docker not found locally';
       if (paneDocCont) paneDocCont.innerText = 'N/A';
-      if (paneDocAcc) paneDocAcc.innerText = 'Docker Desktop Missing';
-      if (btnPaneDocInst) btnPaneDocInst.style.display = 'block';
+      if (paneDocAcc) paneDocAcc.innerText = 'Docker Desktop Missing — Click below to 1-Click Install & Start';
+      if (btnPaneDocStart) {
+        btnPaneDocStart.innerText = '⬇️ 1-Click Install & Start Docker Desktop';
+        btnPaneDocStart.style.background = '#e06c75';
+        btnPaneDocStart.style.color = '#fff';
+      }
+      if (btnPaneDocInst) btnPaneDocInst.style.display = 'none';
     }
 
   } catch {}

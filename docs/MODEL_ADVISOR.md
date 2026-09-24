@@ -252,6 +252,49 @@ This is where MoE, SLM and MLM actually belong:
 > size, architecture, modality, context and licence. MoE and MLM are filters, not jobs.
 > SAM is a product, not a job.
 
+### 2.4 Axis 3 — Industry & Nature of Work Profiler
+
+Clients and Forward Deployed Engineers (FDEs) don't start from an abstract model job—they start
+from **their industry vertical** and **the specific nature of the problem** they must solve.
+To prevent clients from defaulting to a 70B general LLM for tasks that require strict determinism
+or specialized encoders, Evolve AI provides an interactive **Industry & Workload Profiler**
+backed by the `WORKLOAD_ARCHETYPES` matrix in `src/core/modelAdvisor.ts`.
+
+#### Supported Industry Verticals
+
+| Industry Vertical | Icon | Focus & Regulatory Boundaries |
+|---|:---:|---|
+| **Banking & Financial Services** (`finance`) | 💰 | Strict statutory arithmetic, SOX ledgers, sub-5ms low latency, real-time fraud triage. |
+| **Healthcare & Life Sciences** (`healthcare`) | 🏥 | HIPAA privacy rules, clinical SOP retrieval, air-gapped on-premise vector stores, zero-hallucination diagnostics. |
+| **Legal & Compliance** (`legal`) | ⚖️ | Multi-clause contract risk analysis, statutory indemnity ceilings, citation verification. |
+| **Defence & Air-Gapped** (`defence`) | 🛡️ | Zero external network telemetry, local open-weight SLMs (7B–14B), sub-15ms edge sensor event triage. |
+| **Retail & Supply Chain** (`retail`) | 📦 | ERP inventory tool-calling with database rollback, invoice/bill-of-lading OCR, deterministic demand forecasting. |
+| **Software Engineering & DevOps** (`software`) | 💻 | Syntax-aware code refactoring, sub-50ms FIM inline autocomplete, multi-step bug reasoning. |
+| **General Enterprise** (`general`) | 🌐 | Cross-functional drafting, semantic knowledge base search, summary generation. |
+
+#### Workload Archetypes Matrix (`WORKLOAD_ARCHETYPES`)
+
+| Workload Archetype | Industry | Primary Job | Recommended Tier | Engineering Guidance & Parsimony Guarantee |
+|---|---|---|---|---|
+| **Balance Reconciliation & Ledgers** (`fin_recon`) | Finance | `classification` | **Level 1: Pure Rule Engine & SQL** (<5ms, 0% Drift) | **Strict Arithmetic Guarantee**: Never use probabilistic token sampling for monetary calculations. Runs via compiled SQL or TypeScript boundary rules (0% hallucination guarantee). |
+| **Transaction Fraud Triage** (`fin_fraud_triage`) | Finance | `classification` | **Level 2: Fast Semantic Router / Encoder** (<25ms) | High-throughput event triage via a lightweight embedding classifier or small encoder in a single forward pass, saving GPU cost. |
+| **SOX & Regulatory Policy Q&A** (`fin_compliance_sop`) | Finance | `embedding` | **Level 3: Grounded Air-Gapped Policy RAG** | Air-gapped semantic search across statutory compliance manuals with 128-token chunking and mandatory citation receipts. |
+| **Clinical Protocol & HIPAA SOP Guidance** (`health_clinical_sop`) | Healthcare | `embedding` | **Level 3: Air-Gapped Grounded Policy RAG** | Strict fact-retrieval from internal clinical guidelines. Air-gapped on-premise vector store with citation verification. |
+| **Patient Intake & Symptom Triage** (`health_patient_triage`) | Healthcare | `classification` | **Level 2: Semantic Router with Mandatory HITL Queue** | Fast symptom classification with low confidence threshold fallback to human clinical review queue. |
+| **Diagnostic Report & Lab Form OCR** (`health_lab_ocr`) | Healthcare | `ocr` | **Document Layout & Structured OCR Model** | Extracts clinical lab values and tabular metrics preserving table column headers and reading order. |
+| **Contract Risk Analysis** (`legal_contract_risk`) | Legal | `reasoning` | **Reasoning Model (Extended Thinking)** | Multi-step reasoning across interrelated contractual clauses, indemnity covenants, and statutory liability limits. |
+| **Statutory Ceiling & Rule Gate** (`legal_statutory_gate`) | Legal | `classification` | **Hybrid Level 1+3: Deterministic Rule-Gated RAG** | Deterministic rule check on statutory caps and jurisdictional boundaries before semantic retrieval. |
+| **Classified Field Intel Search** (`def_airgap_intel`) | Defence | `embedding` | **Air-Gapped Local SLM (7B-14B) + Local Vector Store** | 100% offline local embeddings (e.g. `nomic-embed-text`) and local SLM with zero external network telemetry. |
+| **Sensor Telemetry & Stream Triage** (`def_sensor_triage`) | Defence | `classification` | **Level 2: Lightweight Classifier** (<15ms) | Sub-15ms edge classification to prioritize critical telemetry alerts and sensor state changes. |
+| **ERP Inventory Rebalancing** (`retail_inventory_mcp`) | Retail | `code-agentic` | **Level 4: MCP Tool Agent with Database Rollback** | Structured tool execution via Model Context Protocol (MCP) to check stock levels and draft purchase orders with transactional boundary checks. |
+| **Supplier Invoice & BOL Intake** (`retail_invoice_ocr`) | Retail | `ocr` | **Document & OCR Extraction** | Preserves line-item tables, tax breakdowns, and vendor metadata from scanned PDFs and receipts. |
+| **Seasonal Demand & SKU Forecasting** (`retail_demand_forecast`) | Retail | `timeseries` | **Deterministic Holt-Winters Forecaster (No LLM)** | Holt-Winters with prediction intervals, changepoint detection, and autocorrelation seasonality. Deterministic and offline. |
+| **Full-File Code Refactoring** (`sw_refactor_agent`) | Software | `code-agentic` | **Specialized Coder Model** (e.g. Qwen2.5-Coder 7B/14B) | Dedicated coding model trained on syntax trees. Consistently outperforms general chat models of equal size. |
+| **Inline Code Autocomplete** (`sw_autocomplete_fim`) | Software | `code-fim` | **FIM-Trained Model with insert capability** (1.5B–7B) | Sub-50ms latency completion trained on prefix/suffix fill-in-the-middle. Ollama reports this as `insert`. |
+| **Complex Bug Diagnostics** (`sw_bug_diagnostics`) | Software | `reasoning` | **Reasoning Model with Extended Thinking** | Spends inference-time compute exploring call stacks and race conditions before producing a diagnosis. |
+| **General Drafting & Summaries** (`gen_chat_drafting`) | General | `chat` | **General Chat Model (Small to Medium)** | Standard conversational model for drafting and synthesising unstructured text. |
+| **Knowledge Base Search** (`gen_kb_search`) | General | `embedding` | **Bi-Encoder Embedding Model** | Vector representation for fast similarity search across large document corpuses. |
+
 ---
 
 ## 3. Design

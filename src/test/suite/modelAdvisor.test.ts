@@ -13,6 +13,10 @@
 import * as assert from 'assert';
 import {
   JOB_CATALOG,
+  INDUSTRY_LIST,
+  WORKLOAD_ARCHETYPES,
+  getArchetypesForIndustry,
+  getArchetypeById,
   choiceForJob,
   clearAllChoices,
   clearChoiceForJob,
@@ -248,3 +252,84 @@ suite('Model Advisor — JOB_CATALOG', () => {
     assert.ok(/statistical forecaster/i.test(ts?.commonMistake ?? ''), ts?.commonMistake);
   });
 });
+
+suite('Model Advisor — Industry & Workload Archetypes', () => {
+  test('all supported industries are in the catalog with icons and descriptions', () => {
+    assert.strictEqual(INDUSTRY_LIST.length, 7);
+    for (const ind of INDUSTRY_LIST) {
+      assert.ok(ind.label.length > 0);
+      assert.ok(ind.icon.length > 0);
+      assert.ok(ind.description.length > 0);
+    }
+  });
+
+  test('every industry has at least one defined workload archetype', () => {
+    for (const ind of INDUSTRY_LIST) {
+      const archetypes = getArchetypesForIndustry(ind.id);
+      assert.ok(archetypes.length > 0, `Industry ${ind.id} should have archetypes`);
+      for (const a of archetypes) {
+        assert.strictEqual(a.industry, ind.id);
+        assert.ok(a.label.length > 0);
+        assert.ok(a.guidance.length > 0);
+        assert.ok(a.recommendedTier.length > 0);
+      }
+    }
+  });
+
+  test('financial reconciliation strictly flags arithmetic and warns against probabilistic sampling', () => {
+    const fin = getArchetypeById('fin_recon');
+    assert.ok(fin !== undefined);
+    assert.strictEqual(fin!.strictArithmetic, true);
+    assert.ok(/deterministic|rule/i.test(fin!.recommendedTier));
+    assert.ok(/NEVER use probabilistic/i.test(fin!.guidance));
+  });
+
+  test('code autocomplete maps to code-fim and mentions FIM/insert', () => {
+    const sw = getArchetypeById('sw_autocomplete_fim');
+    assert.ok(sw !== undefined);
+    assert.strictEqual(sw!.job, 'code-fim');
+    assert.ok(/insert/i.test(sw!.guidance));
+  });
+
+  test('inferJobFromTask respects industry vertical context', () => {
+    const resFin = inferJobFromTask('monthly ledger reconciliation', 'structured_data', 'finance');
+    assert.strictEqual(resFin.confidence, 'low');
+    assert.ok(/deterministic arithmetic/i.test(resFin.note ?? ''));
+
+    const resHealth = inferJobFromTask('lookup protocol section 4', undefined, 'healthcare');
+    assert.strictEqual(resHealth.job, 'embedding');
+    assert.strictEqual(resHealth.confidence, 'high');
+
+    const resSw = inferJobFromTask('autocomplete next token cursor', undefined, 'software');
+    assert.strictEqual(resSw.job, 'code-fim');
+    assert.strictEqual(resSw.confidence, 'high');
+  });
+
+  test('all 8 canonical RAG architectures are represented with descriptive labels across archetypes', () => {
+    const requiredPatterns = ['naive', 'multimodal', 'hyde', 'corrective', 'graph', 'hybrid', 'adaptive', 'agentic'] as const;
+    const foundPatterns = new Set<string>();
+
+    for (const a of WORKLOAD_ARCHETYPES) {
+      if (a.recommendedRagArchitecture) {
+        foundPatterns.add(a.recommendedRagArchitecture);
+        assert.ok(a.ragArchitectureLabel, `Archetype ${a.id} must have a ragArchitectureLabel`);
+        assert.ok(a.ragArchitectureLabel!.length > 5, `ragArchitectureLabel for ${a.id} should be descriptive`);
+      }
+    }
+
+    for (const pat of requiredPatterns) {
+      assert.ok(foundPatterns.has(pat), `Canonical RAG architecture "${pat}" should be represented in WORKLOAD_ARCHETYPES`);
+    }
+
+    // Verify key domain mappings
+    assert.strictEqual(getArchetypeById('fin_compliance_sop')?.recommendedRagArchitecture, 'hybrid');
+    assert.strictEqual(getArchetypeById('health_clinical_sop')?.recommendedRagArchitecture, 'corrective');
+    assert.strictEqual(getArchetypeById('health_lab_ocr')?.recommendedRagArchitecture, 'multimodal');
+    assert.strictEqual(getArchetypeById('def_airgap_intel')?.recommendedRagArchitecture, 'naive');
+    assert.strictEqual(getArchetypeById('retail_inventory_mcp')?.recommendedRagArchitecture, 'agentic');
+    assert.strictEqual(getArchetypeById('legal_contract_risk')?.recommendedRagArchitecture, 'graph');
+    assert.strictEqual(getArchetypeById('sw_bug_diagnostics')?.recommendedRagArchitecture, 'adaptive');
+    assert.strictEqual(getArchetypeById('gen_kb_search')?.recommendedRagArchitecture, 'hyde');
+  });
+});
+

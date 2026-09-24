@@ -425,6 +425,11 @@
         "icon": "$(server-process)"
       },
       {
+        "command": "aiForge.model.advisor",
+        "title": "Evolve AI: Model Advisor (Which Model Should I Use?)",
+        "icon": "$(hubot)"
+      },
+      {
         "command": "aiForge.convert.review",
         "title": "Evolve AI: Reopen Conversion Review"
       },

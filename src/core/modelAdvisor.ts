@@ -157,6 +157,277 @@ export function jobInfo(job: ModelJob): JobInfo | undefined {
   return JOB_BY_ID.get(job);
 }
 
+// ── Industry & Workload Archetypes ──────────────────────────────────────────
+
+/**
+ * Enterprise industry verticals supported by Evolve AI and FDE engagements.
+ */
+export type IndustryVertical =
+  | 'finance'
+  | 'healthcare'
+  | 'legal'
+  | 'defence'
+  | 'retail'
+  | 'software'
+  | 'general';
+
+export interface IndustryInfo {
+  id: IndustryVertical;
+  label: string;
+  icon: string;
+  description: string;
+}
+
+export const INDUSTRY_LIST: readonly IndustryInfo[] = [
+  { id: 'finance', label: 'Banking & Financial Services', icon: '💰', description: 'Strict arithmetic, statutory SOX ledgers, low latency, fraud triage.' },
+  { id: 'healthcare', label: 'Healthcare & Life Sciences', icon: '🏥', description: 'HIPAA compliance, clinical SOP retrieval, zero-hallucination diagnostics.' },
+  { id: 'legal', label: 'Legal & Compliance', icon: '⚖️', description: 'Contract clause analysis, statutory boundaries, citation verification.' },
+  { id: 'defence', label: 'Defence & Air-Gapped', icon: '🛡️', description: 'Zero external network egress, local open-weight SLMs, hardware isolation.' },
+  { id: 'retail', label: 'Retail & Supply Chain', icon: '📦', description: 'Catalog search, inventory rebalancing, invoice/receipt OCR, demand trends.' },
+  { id: 'software', label: 'Software Engineering & DevOps', icon: '💻', description: 'Full-file code refactoring, inline FIM autocomplete, bug analysis.' },
+  { id: 'general', label: 'General Enterprise', icon: '🌐', description: 'Cross-functional chat, knowledge base search, task summarization.' },
+];
+
+/**
+ * Canonical 8 RAG Architectures supported by Evolve AI Enterprise Scaffolder.
+ */
+export type CanonicalRagArchitecture =
+  | 'naive'
+  | 'multimodal'
+  | 'hyde'
+  | 'corrective'
+  | 'graph'
+  | 'hybrid'
+  | 'adaptive'
+  | 'agentic';
+
+export interface WorkloadArchetype {
+  id: string;
+  label: string;
+  industry: IndustryVertical;
+  job: ModelJob;
+  description: string;
+  strictArithmetic?: boolean;
+  recommendedTier: string;
+  guidance: string;
+  /** Matching canonical RAG architecture when retrieval or grounding is required */
+  recommendedRagArchitecture?: CanonicalRagArchitecture;
+  /** Human-readable explanation of why this RAG pattern fits the workload */
+  ragArchitectureLabel?: string;
+}
+
+export const WORKLOAD_ARCHETYPES: readonly WorkloadArchetype[] = [
+  // Finance
+  {
+    id: 'fin_recon',
+    label: 'Balance Reconciliation & Ledgers',
+    industry: 'finance',
+    job: 'classification',
+    strictArithmetic: true,
+    recommendedTier: 'Level 1: Pure Rule Engine & SQL (<5ms, 0% Drift)',
+    guidance: 'Deterministic arithmetic and monetary balances must NEVER use probabilistic token sampling. Run via compiled SQL or TypeScript boundary rules (0% hallucination guarantee).',
+    description: 'Strict monetary calculations and balance reconciliation across transaction ledgers.',
+  },
+  {
+    id: 'fin_fraud_triage',
+    label: 'Transaction Fraud Triage & Ingress Routing',
+    industry: 'finance',
+    job: 'classification',
+    recommendedTier: 'Level 2: Fast Semantic Router / Encoder (<25ms)',
+    guidance: 'High-throughput ingress event triage. Uses a lightweight embedding classifier or small encoder in a single forward pass, saving GPU cost.',
+    description: 'Real-time event scoring and dispatch to specialized financial rules or review queues.',
+  },
+  {
+    id: 'fin_compliance_sop',
+    label: 'SOX & Regulatory Policy Q&A',
+    industry: 'finance',
+    job: 'embedding',
+    recommendedTier: 'Level 3: Grounded Air-Gapped Policy RAG',
+    guidance: 'Air-gapped semantic search across statutory compliance manuals. Enforces 128-token semantic chunking with mandatory citation receipts.',
+    recommendedRagArchitecture: 'hybrid',
+    ragArchitectureLabel: 'Hybrid RAG (Dense Semantic + Sparse BM25 + Citation Receipts)',
+    description: 'Strict retrieval from corporate governance manuals and SOX controls.',
+  },
+
+  // Healthcare
+  {
+    id: 'health_clinical_sop',
+    label: 'Clinical Protocol & HIPAA SOP Guidance',
+    industry: 'healthcare',
+    job: 'embedding',
+    recommendedTier: 'Level 3: Air-Gapped Grounded Policy RAG',
+    guidance: 'Strict fact-retrieval from internal clinical guidelines and HIPAA SOPs. Air-gapped on-premise vector store with citation verification.',
+    recommendedRagArchitecture: 'corrective',
+    ragArchitectureLabel: 'Corrective RAG / CRAG (Relevance Evaluator + Clinician Review Queue)',
+    description: 'Search clinical protocol handbooks and statutory privacy standards.',
+  },
+  {
+    id: 'health_patient_triage',
+    label: 'Patient Intake & Symptom Triage',
+    industry: 'healthcare',
+    job: 'classification',
+    recommendedTier: 'Level 2: Semantic Router with Mandatory HITL Queue',
+    guidance: 'Fast symptom classification with low confidence threshold fallback to human clinical review queue.',
+    description: 'Inbound patient inquiry classification with clinician escalation.',
+  },
+  {
+    id: 'health_lab_ocr',
+    label: 'Diagnostic Report & Lab Form OCR',
+    industry: 'healthcare',
+    job: 'ocr',
+    recommendedTier: 'Document Layout & Structured OCR Model',
+    guidance: 'Extracts clinical lab values, tabular metrics, and physician notes preserving table column headers and reading order.',
+    recommendedRagArchitecture: 'multimodal',
+    ragArchitectureLabel: 'Multimodal RAG (Document Layout OCR + Structured Tabular Extraction)',
+    description: 'Extract structured text and tables from diagnostic test forms and scans.',
+  },
+
+  // Legal
+  {
+    id: 'legal_contract_risk',
+    label: 'Contract Risk Analysis & Clause Auditing',
+    industry: 'legal',
+    job: 'reasoning',
+    recommendedTier: 'Reasoning Model (Extended Thinking)',
+    guidance: 'Multi-step reasoning across interrelated contractual clauses, indemnity covenants, and statutory liability limits.',
+    recommendedRagArchitecture: 'graph',
+    ragArchitectureLabel: 'Graph RAG (Clause Cross-Reference & Entity Dependency Graph)',
+    description: 'Identify conflicting covenants and non-standard indemnification terms.',
+  },
+  {
+    id: 'legal_statutory_gate',
+    label: 'Statutory Ceiling & Regulatory Rule Gate',
+    industry: 'legal',
+    job: 'classification',
+    strictArithmetic: true,
+    recommendedTier: 'Hybrid Level 1+3: Deterministic Rule-Gated RAG',
+    guidance: 'Deterministic rule check on statutory caps and jurisdictional boundaries before semantic retrieval.',
+    recommendedRagArchitecture: 'hybrid',
+    ragArchitectureLabel: 'Hybrid Rule-Gated RAG (Level 1 Deterministic Statutory Filter + Level 3 Retrieval)',
+    description: 'Validate compliance against statutory limits before legal synthesis.',
+  },
+
+  // Defence
+  {
+    id: 'def_airgap_intel',
+    label: 'Classified Field Intel & Local Document Search',
+    industry: 'defence',
+    job: 'embedding',
+    recommendedTier: 'Air-Gapped Local SLM (7B-14B) + Local Vector Store',
+    guidance: '100% offline local embeddings (e.g. nomic-embed-text) and local SLM with zero external network telemetry.',
+    recommendedRagArchitecture: 'naive',
+    ragArchitectureLabel: 'Air-Gapped Dense Vector RAG (100% Disconnected Local pgvector/Qdrant)',
+    description: 'Search mission documentation in fully disconnected, secure environments.',
+  },
+  {
+    id: 'def_sensor_triage',
+    label: 'Sensor Telemetry & Stream Event Triage',
+    industry: 'defence',
+    job: 'classification',
+    recommendedTier: 'Level 2: Lightweight Classifier (<15ms)',
+    guidance: 'Sub-15ms edge classification to prioritize critical telemetry alerts and sensor state changes.',
+    description: 'Classify high-frequency event stream telemetry on edge compute.',
+  },
+
+  // Retail
+  {
+    id: 'retail_inventory_mcp',
+    label: 'ERP Inventory Rebalancing & Warehouse Actions',
+    industry: 'retail',
+    job: 'code-agentic',
+    recommendedTier: 'Level 4: MCP Tool Agent with Database Rollback',
+    guidance: 'Structured tool execution via Model Context Protocol (MCP) to check stock levels and draft purchase orders with transactional boundary checks.',
+    recommendedRagArchitecture: 'agentic',
+    ragArchitectureLabel: 'Agentic RAG (Tool-Calling ReAct Loop + ERP Transactional Rollback)',
+    description: 'Execute ERP queries and update purchase orders safely via tool calling.',
+  },
+  {
+    id: 'retail_invoice_ocr',
+    label: 'Supplier Invoice & Bill of Lading Intake',
+    industry: 'retail',
+    job: 'ocr',
+    recommendedTier: 'Document & OCR Extraction',
+    guidance: 'Preserves line-item tables, tax breakdowns, and vendor metadata from scanned PDFs and receipts.',
+    recommendedRagArchitecture: 'multimodal',
+    ragArchitectureLabel: 'Multimodal RAG (Line-Item Ingestion & Tabular Key-Value Alignment)',
+    description: 'Extract line-items, tax amounts, and shipment numbers from scanned invoices.',
+  },
+  {
+    id: 'retail_demand_forecast',
+    label: 'Seasonal Demand & SKU Forecasting',
+    industry: 'retail',
+    job: 'timeseries',
+    recommendedTier: 'Deterministic Holt-Winters Forecaster (No LLM)',
+    guidance: 'Holt-Winters with prediction intervals, changepoint detection, and autocorrelation seasonality. Deterministic and offline.',
+    description: 'Project warehouse demand without probabilistic language model hallucination.',
+  },
+
+  // Software
+  {
+    id: 'sw_refactor_agent',
+    label: 'Full-File Code Refactoring & Unit Test Generation',
+    industry: 'software',
+    job: 'code-agentic',
+    recommendedTier: 'Specialized Coder Model (e.g. Qwen2.5-Coder 7B/14B)',
+    guidance: 'Dedicated coding model trained on syntax trees and programming languages. Consistently outperforms general chat models of equal size.',
+    recommendedRagArchitecture: 'graph',
+    ragArchitectureLabel: 'Graph RAG (AST Call-Graph & Dependency Topology Retrieval)',
+    description: 'Migrate code, generate unit test suites, and fix compiler errors.',
+  },
+  {
+    id: 'sw_autocomplete_fim',
+    label: 'As-You-Type Inline Code Autocomplete',
+    industry: 'software',
+    job: 'code-fim',
+    recommendedTier: 'FIM-Trained Model with insert capability (1.5B–7B)',
+    guidance: 'Sub-50ms latency completion trained on prefix/suffix fill-in-the-middle. Ollama reports this as "insert".',
+    description: 'Autocomplete code at the cursor given surrounding context.',
+  },
+  {
+    id: 'sw_bug_diagnostics',
+    label: 'Complex Bug Diagnostics & Logic Tracing',
+    industry: 'software',
+    job: 'reasoning',
+    recommendedTier: 'Reasoning Model with Extended Thinking',
+    guidance: 'Spends inference-time compute exploring call stacks and race conditions before producing a diagnosis.',
+    recommendedRagArchitecture: 'adaptive',
+    ragArchitectureLabel: 'Adaptive RAG (Dynamic Query Routing Across Logs, Traces & Source Files)',
+    description: 'Diagnose subtle timing, concurrency, or logic bugs.',
+  },
+
+  // General
+  {
+    id: 'gen_chat_drafting',
+    label: 'General Drafting, Explanations & Summaries',
+    industry: 'general',
+    job: 'chat',
+    recommendedTier: 'General Chat Model (Small to Medium)',
+    guidance: 'Standard conversational model for drafting and synthesising unstructured text.',
+    description: 'Draft emails, write summaries, and converse naturally.',
+  },
+  {
+    id: 'gen_kb_search',
+    label: 'Knowledge Base & Document Search',
+    industry: 'general',
+    job: 'embedding',
+    recommendedTier: 'Bi-Encoder Embedding Model',
+    guidance: 'Vector representation for fast similarity search across large document corpuses.',
+    recommendedRagArchitecture: 'hyde',
+    ragArchitectureLabel: 'HyDE RAG (Hypothetical Document Embeddings for Broad Query Expansion)',
+    description: 'Index documents and search them semantically.',
+  },
+];
+
+const ARCHETYPE_BY_ID = new Map<string, WorkloadArchetype>(WORKLOAD_ARCHETYPES.map(a => [a.id, a]));
+
+export function getArchetypesForIndustry(industry: IndustryVertical): WorkloadArchetype[] {
+  return WORKLOAD_ARCHETYPES.filter(a => a.industry === industry);
+}
+
+export function getArchetypeById(id: string): WorkloadArchetype | undefined {
+  return ARCHETYPE_BY_ID.get(id);
+}
+
 // ── Attributes ────────────────────────────────────────────────────────────────
 
 export interface ModelAttributes {
@@ -596,14 +867,32 @@ const TASK_PATTERNS: Array<{ re: RegExp; job: ModelJob }> = [
  * right answer is usually a rule or a SQL query, not a model at all. Saying so
  * is more useful than naming a model.
  */
-export function inferJobFromTask(text: string, modality?: InputModality): JobInference {
+export function inferJobFromTask(
+  text: string,
+  modality?: InputModality,
+  industry?: IndustryVertical,
+): JobInference {
   const t = text || '';
 
-  if (modality === 'structured_data' && /sum|total|reconcil|balance|ledger|tax|invoice|arithmetic|calculat/i.test(t)) {
+  if ((modality === 'structured_data' || industry === 'finance') && /sum|total|reconcil|balance|ledger|tax|invoice|arithmetic|calculat/i.test(t)) {
     return {
       job: 'classification', confidence: 'low',
       note: 'This looks like deterministic arithmetic over structured data. A rule or SQL query is exact, ' +
             'instant and auditable; a model is none of those. Consider whether it needs one at all.',
+    };
+  }
+
+  if (industry === 'healthcare' && /protocol|sop|clinical|guideline|trial|hipaa/i.test(t)) {
+    return {
+      job: 'embedding', confidence: 'high',
+      note: 'Clinical guidelines and HIPAA SOPs require grounded retrieval with verified citations.',
+    };
+  }
+
+  if (industry === 'software' && /autocomplete|cursor|fim|inline/i.test(t)) {
+    return {
+      job: 'code-fim', confidence: 'high',
+      note: 'As-you-type autocomplete requires a low-latency model trained with a fill-in-the-middle objective.',
     };
   }
 

@@ -12,6 +12,7 @@ import { refreshPathFromRegistry } from '../../core/processUtil';
 interface ActiveSession {
   info: TerminalSessionInfo;
   process: child_process.ChildProcess;
+  currentCommandChild?: child_process.ChildProcess;
 }
 
 export class DesktopTerminalManager {
@@ -164,7 +165,17 @@ export class DesktopTerminalManager {
 
   public writeData(sessionId: string, data: string): boolean {
     const session = this._sessions.get(sessionId);
-    if (session && session.process.stdin && !session.process.stdin.destroyed) {
+    if (!session) return false;
+
+    // If an interactive foreground command is executing, route stdin directly to it
+    if (session.currentCommandChild && session.currentCommandChild.stdin && !session.currentCommandChild.stdin.destroyed) {
+      try {
+        session.currentCommandChild.stdin.write(data);
+        return true;
+      } catch {}
+    }
+
+    if (session.process.stdin && !session.process.stdin.destroyed) {
       try {
         session.process.stdin.write(data);
         return true;
@@ -267,8 +278,13 @@ export class DesktopTerminalManager {
       const child = child_process.spawn(shellCmd, shellArgs, {
         cwd: spawnCwd,
         env: process.env,
-        windowsHide: true
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe']
       });
+
+      if (session) {
+        session.currentCommandChild = child;
+      }
 
       let stdout = '';
       let stderr = '';
@@ -290,6 +306,9 @@ export class DesktopTerminalManager {
       });
 
       child.on('close', (code) => {
+        if (session && session.currentCommandChild === child) {
+          session.currentCommandChild = undefined;
+        }
         const activeCwd = (session && session.info.cwd) ? session.info.cwd : targetCwd;
         for (const listener of this._dataListeners) {
           try { listener(sessionId, `\r\nPS ${activeCwd}> `); } catch {}
@@ -298,6 +317,9 @@ export class DesktopTerminalManager {
       });
 
       child.on('error', (err) => {
+        if (session && session.currentCommandChild === child) {
+          session.currentCommandChild = undefined;
+        }
         const activeCwd = (session && session.info.cwd) ? session.info.cwd : targetCwd;
         for (const listener of this._dataListeners) {
           try { listener(sessionId, `\r\n\x1b[31mCommand error: ${err.message}\x1b[0m\r\nPS ${activeCwd}> `); } catch {}
@@ -310,8 +332,17 @@ export class DesktopTerminalManager {
   public killSession(sessionId: string): boolean {
     const session = this._sessions.get(sessionId);
     if (session) {
+      if (session.currentCommandChild && !session.currentCommandChild.killed) {
+        try {
+          if (os.platform() === 'win32' && session.currentCommandChild.pid) {
+            child_process.exec(`taskkill /pid ${session.currentCommandChild.pid} /T /F`);
+          } else {
+            session.currentCommandChild.kill('SIGTERM');
+          }
+        } catch {}
+      }
       try {
-        if (os.platform() === 'win32') {
+        if (os.platform() === 'win32' && session.process.pid) {
           child_process.exec(`taskkill /pid ${session.process.pid} /T /F`);
         } else {
           session.process.kill('SIGTERM');
@@ -319,6 +350,22 @@ export class DesktopTerminalManager {
       } catch {}
       this._sessions.delete(sessionId);
       return true;
+    }
+    return false;
+  }
+
+  public cancelCurrentCommand(sessionId: string): boolean {
+    const session = this._sessions.get(sessionId);
+    if (session && session.currentCommandChild && !session.currentCommandChild.killed) {
+      try {
+        if (os.platform() === 'win32' && session.currentCommandChild.pid) {
+          child_process.exec(`taskkill /pid ${session.currentCommandChild.pid} /T /F`);
+        } else {
+          session.currentCommandChild.kill('SIGTERM');
+        }
+        session.currentCommandChild = undefined;
+        return true;
+      } catch {}
     }
     return false;
   }

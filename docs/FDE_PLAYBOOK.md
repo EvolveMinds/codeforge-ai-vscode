@@ -117,3 +117,56 @@ graph LR
 
 > [!IMPORTANT]
 > **Zero-Downtime Rollback:** If a client deployment fails, run `npx firebase-tools hosting:rollback` to instantly revert the frontend, and `gcloud run services update-traffic` to revert backend container traffic.
+
+---
+
+## 5. Model Selection & The Rule of Parsimony by Industry Vertical
+
+During client discovery workshops, enterprise stakeholders often demand frontier 70B+ LLMs for every problem. As an FDE, your responsibility is to enforce the **Rule of Parsimony**: *always deliver at the lowest capability level that reliably solves the problem with zero unnecessary cost, latency, or drift.*
+
+### 5.1 The 5 Capability Levels
+
+```mermaid
+graph TD
+    L1["Level 1: Pure Rule Engine & SQL<br/>(<5ms latency, 0% drift, $0 inference)"]
+    L2["Level 2: Fast Semantic Router / Encoder<br/>(<25ms, single forward pass, ~$0.00001)"]
+    L3["Level 3: Grounded Air-Gapped RAG<br/>(128-token chunks + mandatory citations)"]
+    L4["Level 4: MCP Tool Agent<br/>(Structured schema calling + DB rollback)"]
+    L5["Level 5: Extended Reasoning Model<br/>(Inference-time compute for subtle logic)"]
+
+    L1 -->|Complex unstructured text| L2
+    L2 -->|Policy knowledge retrieval| L3
+    L3 -->|External API actions| L4
+    L4 -->|Non-deterministic planning| L5
+```
+
+### 5.2 Industry Vertical Playbook
+
+Use the interactive **Model Advisor** (`aiForge.model.advisor`) in VS Code to demonstrate these decisions visually to client architects:
+
+1. **Banking & Financial Services (`finance`)**
+   - **Monetary Balances & Ledgers:** Deliver at **Level 1 (Pure Rule Engine & SQL)**. Zero probabilistic sampling. Deterministic boundary rules guarantee 0% hallucination and sub-5ms latency for audit compliance (SOX).
+   - **Ingress Fraud Triage:** Deliver at **Level 2 (Fast Semantic Router / Encoder)**. Sub-25ms classification over event streams without paying for a full autoregressive generative decode loop.
+   - **Compliance Manual Q&A:** Deliver at **Level 3 (Grounded Air-Gapped Policy RAG)**. Local vector embeddings (`nomic-embed-text`) with strict citation receipts.
+
+2. **Healthcare & Life Sciences (`healthcare`)**
+   - **HIPAA SOP & Clinical Protocols:** Deliver at **Level 3 (Grounded Air-Gapped Policy RAG)**. Disconnected local storage ensures PHI/PII never egresses client VPC.
+   - **Patient Symptom Triage:** Deliver at **Level 2 with Mandatory Human-in-the-Loop (HITL)**. Below-threshold confidence routes immediately to physician review.
+   - **Diagnostic & Lab OCR:** Deliver with **Document Layout OCR Models**. Retain tabular headers and numerical column alignments rather than standard text VLMs.
+
+3. **Legal & Compliance (`legal`)**
+   - **Multi-Clause Risk Auditing:** Deliver at **Level 5 (Extended Reasoning Model)**. Allocate inference-time compute to uncover subtle indemnification conflicts across schedules.
+   - **Statutory Caps & Jurisdictional Ceilings:** Deliver at **Hybrid Level 1+3**. Hard rule checks gate semantic retrieval to prevent statutory violations.
+
+4. **Defence & Air-Gapped Environments (`defence`)**
+   - **Field Intel Search:** Deliver via **Air-Gapped Local SLM (7B–14B) + Local Vector Store**. Enforce zero telemetry and offline open weights (e.g. Qwen2.5 / Gemma2).
+   - **Sensor Stream Telemetry:** Deliver at **Level 2 (Lightweight Edge Classifier)** for sub-15ms classification on tactical edge hardware.
+
+5. **Retail & Supply Chain (`retail`)**
+   - **ERP Inventory Rebalancing:** Deliver at **Level 4 (MCP Tool Agent)**. Connect to ERP databases via typed Model Context Protocol tools with mandatory transactional rollback.
+   - **Demand Forecasting:** Deliver with **Deterministic Holt-Winters Forecaster (No LLM)**. Generative models hallucinate numbers; Holt-Winters provides true prediction intervals and changepoint detection.
+
+6. **Software Engineering & DevOps (`software`)**
+   - **Code Refactoring & Unit Tests:** Deliver via **Specialized Coder Models** (e.g. `qwen2.5-coder:7b`).
+   - **As-You-Type Autocomplete:** Deliver via **FIM-Trained Models** (Fill-in-the-Middle, Ollama `insert` capability) for sub-50ms keystroke latency.
+

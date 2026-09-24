@@ -28,7 +28,10 @@
  */
 
 import * as vscode from 'vscode';
-import type { CapabilitySource, JobFitness, ModelJob } from '../core/modelAdvisor';
+import {
+  INDUSTRY_LIST, WORKLOAD_ARCHETYPES,
+  type CapabilitySource, type JobFitness, type ModelJob,
+} from '../core/modelAdvisor';
 
 /** One job, as offered in the picker. */
 export interface JobChoice {
@@ -162,6 +165,22 @@ export class ModelAdvisorPanel {
   }
 
   private _html(): string {
+    const industryOptions = INDUSTRY_LIST.map(ind =>
+      `<option value="${escAttr(ind.id)}">${escHtml(ind.icon + ' ' + ind.label)}</option>`
+    ).join('');
+
+    const archetypesJson = JSON.stringify(WORKLOAD_ARCHETYPES.map(a => ({
+      id: a.id,
+      label: a.label,
+      industry: a.industry,
+      job: a.job,
+      recommendedTier: a.recommendedTier,
+      guidance: a.guidance,
+      description: a.description,
+      recommendedRagArchitecture: a.recommendedRagArchitecture,
+      ragArchitectureLabel: a.ragArchitectureLabel,
+    }))).replace(/</g, '\\u003c');
+
     const jobCards = this._jobs.map((j, i) =>
       `<button class="job${i === 0 ? ' on' : ''}" data-job="${escAttr(j.job)}" ` +
       `title="${escAttr(j.whatItDoes)}"><span class="jl">${escHtml(j.label)}</span></button>`
@@ -216,6 +235,93 @@ export class ModelAdvisorPanel {
   .step { margin-bottom: 18px; }
   .steph { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
            color: var(--dim); margin-bottom: 7px; font-weight: 600; }
+
+  /* Industry & Workload Profiler */
+  .profile-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 600px) {
+    .profile-grid { grid-template-columns: 1fr; }
+  }
+  .profile-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--dim);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .profile-select {
+    width: 100%;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 9px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .profile-select:focus {
+    border-color: var(--accent);
+  }
+  .guidance-banner {
+    margin-top: 11px;
+    padding: 9px 12px;
+    background: var(--card-alt);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    font-size: 11.5px;
+  }
+  .gb-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .gb-text {
+    color: var(--fg);
+    margin: 0;
+    line-height: 1.45;
+  }
+  .gb-rag-row {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px dashed var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11.5px;
+  }
+  .gb-rag-badge {
+    background: #6366f1;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: .03em;
+  }
+  .gb-rag-label {
+    color: var(--fg);
+    font-weight: 500;
+  }
 
   /* Job picker */
   .jobs { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -313,7 +419,34 @@ export class ModelAdvisorPanel {
 not on which one is biggest.</p>
 
 <div class="step">
-  <div class="steph">1 · What are you trying to do?</div>
+  <div class="steph">1 · Guided Selection: Choose by Industry &amp; Workload</div>
+  <div class="profile-box">
+    <div class="profile-grid">
+      <div class="profile-field">
+        <label for="selIndustry">🏢 Industry Vertical</label>
+        <select id="selIndustry" class="profile-select">
+          <option value="">All Industries (Browse by Job)</option>
+          ${industryOptions}
+        </select>
+      </div>
+      <div class="profile-field">
+        <label for="selWorkload">💼 Nature of Work</label>
+        <select id="selWorkload" class="profile-select" disabled>
+          <option value="">Select an industry first...</option>
+        </select>
+      </div>
+    </div>
+    <div id="guidanceBanner" class="guidance-banner" hidden>
+      <div class="gb-head"><span>💡</span> <span id="gbTier"></span></div>
+      <p id="gbText" class="gb-text"></p>
+      <div id="gbRagRow" class="gb-rag-row" hidden>
+        <span class="gb-rag-badge">🏛️ Canonical RAG Pattern</span>
+        <span id="gbRagLabel" class="gb-rag-label"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="steph" style="margin-top: 14px;">Or browse specific model jobs directly</div>
   <div class="jobs" id="jobs">${jobCards}</div>
   <div id="jdetails">${jobDetails}</div>
 </div>
@@ -349,6 +482,60 @@ not on which one is biggest.</p>
 <script nonce="${nonce}">
 const vscode = acquireVsCodeApi();
 const $ = id => document.getElementById(id);
+const ARCHETYPES = ${archetypesJson};
+const selIndustry = $('selIndustry');
+const selWorkload = $('selWorkload');
+const guidanceBanner = $('guidanceBanner');
+const gbTier = $('gbTier');
+const gbText = $('gbText');
+const gbRagRow = $('gbRagRow');
+const gbRagLabel = $('gbRagLabel');
+
+if (selIndustry) {
+  selIndustry.addEventListener('change', () => {
+    const ind = selIndustry.value;
+    selWorkload.innerHTML = '';
+    if (!ind) {
+      selWorkload.disabled = true;
+      selWorkload.innerHTML = '<option value="">Select an industry first...</option>';
+      guidanceBanner.hidden = true;
+      if (gbRagRow) gbRagRow.hidden = true;
+      return;
+    }
+    const matching = ARCHETYPES.filter(a => a.industry === ind);
+    selWorkload.disabled = false;
+    selWorkload.innerHTML = '<option value="">Choose nature of work...</option>' +
+      matching.map(a => '<option value="' + esc(a.id) + '">' + esc(a.label) + '</option>').join('');
+    guidanceBanner.hidden = true;
+    if (gbRagRow) gbRagRow.hidden = true;
+  });
+}
+
+if (selWorkload) {
+  selWorkload.addEventListener('change', () => {
+    const id = selWorkload.value;
+    if (!id) {
+      guidanceBanner.hidden = true;
+      if (gbRagRow) gbRagRow.hidden = true;
+      return;
+    }
+    const arch = ARCHETYPES.find(a => a.id === id);
+    if (!arch) return;
+
+    gbTier.textContent = arch.recommendedTier;
+    gbText.textContent = arch.guidance;
+    if (arch.recommendedRagArchitecture && arch.ragArchitectureLabel) {
+      gbRagLabel.textContent = arch.ragArchitectureLabel;
+      gbRagRow.hidden = false;
+    } else {
+      gbRagRow.hidden = true;
+    }
+    guidanceBanner.hidden = false;
+
+    selectJob(arch.job);
+  });
+}
+
 let jobs = [];
 
 function post(m) { vscode.postMessage(m); }

@@ -18,6 +18,7 @@
 
 import { spawn, spawnSync } from 'child_process';
 import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Node's spawn fails with ENOENT when `cwd` does not exist, and the error is
@@ -193,4 +194,159 @@ export function refreshPathFromRegistry(): void {
       process.env.PATH = current ? `${current};${additions.join(';')}` : additions.join(';');
     }
   } catch { /* a stale PATH is better than a crash */ }
+}
+
+/**
+ * Resolves the absolute path to the Docker Desktop executable across Windows, macOS, and Linux.
+ * Checks per-user install locations (LocalAppData), machine-wide locations (Program Files),
+ * and paths derived relative to the docker CLI shim (where.exe / which).
+ * Returns the path if found, or null.
+ */
+export function findDockerDesktopPath(): string | null {
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+
+  if (isWin) {
+    const localAppData = process.env.LOCALAPPDATA || '';
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+
+    const candidates = [
+      localAppData ? path.join(localAppData, 'Programs', 'DockerDesktop', 'Docker Desktop.exe') : '',
+      path.join(programFiles, 'Docker', 'Docker', 'Docker Desktop.exe'),
+      path.join(programFilesX86, 'Docker', 'Docker', 'Docker Desktop.exe'),
+      localAppData ? path.join(localAppData, 'Docker', 'Docker Desktop.exe') : '',
+      localAppData ? path.join(localAppData, 'Programs', 'Docker', 'Docker Desktop.exe') : '',
+    ].filter(Boolean);
+
+    for (const cand of candidates) {
+      try {
+        if (fs.existsSync(cand)) return cand;
+      } catch {}
+    }
+
+    // Try relative to where.exe docker
+    try {
+      const res = spawnSync('where.exe', ['docker'], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+      if (res.status === 0 && res.stdout) {
+        const lines = res.stdout.trim().split(/\r?\n/);
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          // e.g. C:\Users\<User>\AppData\Local\Programs\DockerDesktop\resources\bin\docker.exe
+          const rel1 = path.resolve(path.dirname(trimmed), '..', '..', 'Docker Desktop.exe');
+          if (fs.existsSync(rel1)) return rel1;
+          const rel2 = path.resolve(path.dirname(trimmed), '..', 'Docker Desktop.exe');
+          if (fs.existsSync(rel2)) return rel2;
+          const rel3 = path.resolve(path.dirname(trimmed), 'Docker Desktop.exe');
+          if (fs.existsSync(rel3)) return rel3;
+        }
+      }
+    } catch {}
+
+    return null;
+  }
+
+  if (isMac) {
+    const home = process.env.HOME || '';
+    const candidates = [
+      '/Applications/Docker.app',
+      home ? path.join(home, 'Applications', 'Docker.app') : '',
+      '/Applications/Docker Desktop.app',
+      home ? path.join(home, 'Applications', 'Docker Desktop.app') : '',
+    ].filter(Boolean);
+
+    for (const cand of candidates) {
+      try {
+        if (fs.existsSync(cand)) return cand;
+      } catch {}
+    }
+    return null;
+  }
+
+  if (process.platform === 'linux') {
+    const candidates = [
+      '/usr/bin/docker-desktop',
+      '/opt/docker-desktop/bin/docker-desktop',
+      '/usr/local/bin/docker-desktop'
+    ];
+    for (const cand of candidates) {
+      try {
+        if (fs.existsSync(cand)) return cand;
+      } catch {}
+    }
+    return null;
+  }
+
+  return null;
+}
+
+export interface DockerLaunchCommandResult {
+  cmd: string;
+  isInstalled: boolean;
+  path: string | null;
+}
+
+/**
+ * Returns a platform-appropriate command to either launch Docker Desktop (if installed)
+ * or 1-click install via package manager and auto-start it (if missing).
+ */
+export function getDockerLaunchCommand(forceInstall: boolean = false): DockerLaunchCommandResult {
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+  const desktopPath = findDockerDesktopPath();
+
+  if (desktopPath && !forceInstall) {
+    if (isWin) {
+      const escaped = desktopPath.replace(/"/g, '`"');
+      return {
+        isInstalled: true,
+        path: desktopPath,
+        cmd: `Write-Host "🐳 Docker Desktop detected at: ${escaped}" -ForegroundColor Cyan; Start-Process -FilePath "${escaped}"; Write-Host "🚀 Docker Desktop launched. Initializing daemon..." -ForegroundColor Green`,
+      };
+    }
+    if (isMac) {
+      return {
+        isInstalled: true,
+        path: desktopPath,
+        cmd: `open "${desktopPath}"`,
+      };
+    }
+    return {
+      isInstalled: true,
+      path: desktopPath,
+      cmd: 'sudo systemctl start docker || sudo service docker start',
+    };
+  }
+
+  // Not installed locally — 1-click automated install & start
+  if (isWin) {
+    const installAndStartCmd = [
+      'Write-Host "⚠️ Docker Desktop not found locally." -ForegroundColor Yellow',
+      'Write-Host "⬇️ Starting 1-click automated installation via winget..." -ForegroundColor Cyan',
+      'winget install -e --id Docker.DockerDesktop --accept-package-agreements --accept-source-agreements',
+      '$dPath = @("$env:LOCALAPPDATA\\Programs\\DockerDesktop\\Docker Desktop.exe", "$env:ProgramFiles\\Docker\\Docker\\Docker Desktop.exe", "${env:ProgramFiles(x86)}\\Docker\\Docker\\Docker Desktop.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1',
+      'if ($dPath) { Write-Host "🚀 Installation complete! Launching Docker Desktop..." -ForegroundColor Green; Start-Process -FilePath $dPath; Write-Host "✓ Docker Desktop launched successfully." -ForegroundColor Green } else { Write-Host "ℹ️ Docker Desktop installation initiated. If prompted by Windows UAC, please approve." -ForegroundColor Magenta }',
+    ].join('; ');
+
+    return {
+      isInstalled: false,
+      path: null,
+      cmd: installAndStartCmd,
+    };
+  }
+
+  if (isMac) {
+    return {
+      isInstalled: false,
+      path: null,
+      cmd: 'echo "⚠️ Docker Desktop not found. Installing via Homebrew..."; brew install --cask docker && open /Applications/Docker.app',
+    };
+  }
+
+  return {
+    isInstalled: false,
+    path: null,
+    cmd: 'echo "⚠️ Docker not found. Installing..."; curl -fsSL https://get.docker.com | sh && sudo systemctl start docker',
+  };
 }

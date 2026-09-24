@@ -28,7 +28,7 @@ import { DesktopLicenseAuth } from './licenseAuth';
 import { DesktopSecretVault } from './secretVault';
 import { DesktopUpdater } from './updater';
 import { HardwareInspector } from '../../core/hardwareInspector';
-import { runForStdout, runCommand, refreshPathFromRegistry } from '../../core/processUtil';
+import { runForStdout, runCommand, refreshPathFromRegistry, findDockerDesktopPath, getDockerLaunchCommand } from '../../core/processUtil';
 import {
   SqlTranspiler,
   PiiSanitizer,
@@ -652,6 +652,18 @@ export async function installCloudCli(provider: string): Promise<CliInstallResul
   const existing = await probeCli(spec);
   if (existing) {
     log.push(`${spec.probe} already on PATH: ${existing}`);
+    if (provider === 'docker') {
+      const desktopPath = findDockerDesktopPath();
+      if (desktopPath) {
+        if (process.platform === 'win32') {
+          runCommand('powershell.exe', ['-NoProfile', '-Command', `Start-Process -FilePath "${desktopPath.replace(/"/g, '`"')}"`]);
+        } else if (process.platform === 'darwin') {
+          runCommand('open', [desktopPath]);
+        }
+        return { ok: true, alreadyInstalled: true, needsRestart: false, version: existing, log,
+                 message: `${spec.label} is installed and has been launched.` };
+      }
+    }
     return { ok: true, alreadyInstalled: true, needsRestart: false, version: existing, log,
              message: `${spec.label} is already installed — ${existing}` };
   }
@@ -696,9 +708,22 @@ export async function installCloudCli(provider: string): Promise<CliInstallResul
   //    "already installed, cannot upgrade" no-op that started this bug.
   refreshPathFromRegistry();
   const after = await probeCli(spec);
+
+  // If Docker Desktop was installed, trigger its startup
+  if (provider === 'docker' && (after || res.code === 0)) {
+    const desktopPath = findDockerDesktopPath();
+    if (desktopPath) {
+      if (process.platform === 'win32') {
+        runCommand('powershell.exe', ['-NoProfile', '-Command', `Start-Process -FilePath "${desktopPath.replace(/"/g, '`"')}"`]);
+      } else if (process.platform === 'darwin') {
+        runCommand('open', [desktopPath]);
+      }
+    }
+  }
+
   if (after) {
     return { ok: true, alreadyInstalled: false, needsRestart: false, version: after, log,
-             message: `${spec.label} installed — ${after}` };
+             message: `${spec.label} installed${provider === 'docker' ? ' and launched' : ''} — ${after}` };
   }
 
   // 4. Installed but not yet visible. A freshly installed CLI often lands on a
@@ -706,7 +731,7 @@ export async function installCloudCli(provider: string): Promise<CliInstallResul
   //    failed, but only when the installer itself reported success.
   if (res.code === 0) {
     return { ok: true, alreadyInstalled: false, needsRestart: true, log, manualUrl: spec.manualUrl,
-             message: `${spec.label} installed, but is not on PATH yet. Restart Evolve AI to use it.` };
+             message: `${spec.label} installed${provider === 'docker' ? ' and launched' : ''}, but is not on PATH yet. Restart Evolve AI to use CLI.` };
   }
 
   return { ok: false, alreadyInstalled: false, needsRestart: false, log, manualUrl: spec.manualUrl,
@@ -2394,15 +2419,49 @@ End Function
 
       if (gcpInstalled) {
         try {
-          const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd, timeoutMs: 5000, shell: true });
+          const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd, timeoutMs: 8000, shell: true });
           if (g && !g.includes('ERROR')) {
             const parsed = JSON.parse(g);
-            const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
-            if (active) {
-              gcpOk = true;
-              gcpAccount = active.account || '';
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              const active = parsed.find(a => a.status === 'ACTIVE') || parsed[0];
+              if (active && active.account) {
+                gcpOk = true;
+                gcpAccount = active.account;
+              }
             }
           }
+        } catch {}
+
+        if (!gcpOk) {
+          try {
+            const gAcc = await runForStdout('gcloud', ['config', 'get-value', 'account'], { cwd, timeoutMs: 4000, shell: true });
+            if (gAcc && !gAcc.includes('unset') && !gAcc.includes('ERROR') && gAcc.trim()) {
+              gcpOk = true;
+              gcpAccount = gAcc.trim();
+            }
+          } catch {}
+        }
+
+        if (!gcpOk) {
+          try {
+            const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+              (process.platform === 'win32'
+                ? path.join(process.env.APPDATA || '', 'gcloud', 'application_default_credentials.json')
+                : path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json'));
+            if (fs.existsSync(adcPath)) {
+              const adcContent = JSON.parse(fs.readFileSync(adcPath, 'utf8'));
+              if (adcContent.client_email || adcContent.account || adcContent.quota_project_id) {
+                gcpOk = true;
+                gcpAccount = adcContent.client_email || adcContent.account || 'ADC Credentials Configured';
+                if (!gcpProject && adcContent.quota_project_id) {
+                  gcpProject = adcContent.quota_project_id;
+                }
+              }
+            }
+          } catch {}
+        }
+
+        try {
           const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd, timeoutMs: 3000, shell: true });
           if (gProj && !gProj.includes('unset') && !gProj.includes('ERROR')) gcpProject = gProj.trim();
 
@@ -2466,6 +2525,7 @@ End Function
       }
 
       // 4. Docker Check
+      const desktopPath = findDockerDesktopPath();
       try {
         const dVer = await runForStdout('docker', ['--version'], { cwd, timeoutMs: 4000, shell: true });
         if (dVer && !dVer.includes('not recognized')) {
@@ -2473,6 +2533,10 @@ End Function
           dockerVersion = dVer.trim().split('\n')[0] || '';
         }
       } catch {}
+
+      if (desktopPath) {
+        dockerInstalled = true;
+      }
 
       if (dockerInstalled) {
         try {
@@ -2491,13 +2555,13 @@ End Function
         gcp: { installed: gcpInstalled, ok: gcpOk, account: gcpAccount, project: gcpProject, region: gcpRegion, version: gcpVersion },
         aws: { installed: awsInstalled, ok: awsOk, account: awsAccount, region: awsRegion, arn: awsArn, version: awsVersion },
         azure: { installed: azureInstalled, ok: azureOk, account: azureAccount, subscriptionId: azureSubId, tenantId: azureTenantId, version: azureVersion },
-        docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion, containers: dockerContainers }
+        docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion, containers: dockerContainers, desktopPath: desktopPath || null, desktopInstalled: !!desktopPath }
       };
     });
 
     // --- REAL MULTI-CLOUD CONNECT / INSTALL EXECUTION ---
     ipc.handle(DESKTOP_CHANNELS.CLOUD.CONNECT_ACCOUNT, async (_: any, provider: string, action: string, sessionId?: string) => {
-      if (action === 'install') {
+      if (action === 'install' && provider !== 'docker') {
         const result = await installCloudCli(provider);
         if (sessionId) {
           const tick = result.ok ? '\u2713' : '\u26a0';
@@ -2526,8 +2590,10 @@ End Function
           cmd = 'gcloud auth list';
         } else if (action === 'projectsList') {
           cmd = 'gcloud projects list';
+        } else if (action === 'loginNoBrowser') {
+          cmd = 'gcloud auth login --no-browser --update-adc';
         } else {
-          cmd = 'gcloud auth login';
+          cmd = 'gcloud auth login --update-adc --quiet';
         }
       } else if (provider === 'aws') {
         if (action === 'install') {
@@ -2554,10 +2620,9 @@ End Function
           cmd = 'az login';
         }
       } else if (provider === 'docker') {
-        if (action === 'startDocker') {
-          cmd = isWin ? 'Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" -ErrorAction SilentlyContinue' : (isMac ? 'open /Applications/Docker.app' : 'sudo systemctl start docker');
-        } else if (action === 'install') {
-          cmd = isWin ? 'winget install -e --id Docker.DockerDesktop' : (isMac ? 'brew install --cask docker' : 'curl -fsSL https://get.docker.com | sh');
+        if (action === 'startDocker' || action === 'install') {
+          const launchResult = getDockerLaunchCommand(action === 'install');
+          cmd = launchResult.cmd;
         } else if (action === 'ps') {
           cmd = 'docker ps -a';
         } else if (action === 'build') {

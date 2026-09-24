@@ -25,7 +25,7 @@ import { FirebaseConfigGenerator } from '../deployment/firebaseConfigGen';
 import { DeployScriptScaffolder, DeployScriptOptions } from '../deployment/deployScriptScaffolder';
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
-import { runCommand, runForStdout } from '../core/processUtil';
+import { runCommand, runForStdout, findDockerDesktopPath, getDockerLaunchCommand } from '../core/processUtil';
 import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient, SqlTranspiler, PiiSanitizer, ReverseEtlGenerator, RlsPolicyGenerator, SyntheticDataGenerator, MockServerGenerator } from '../enterprise';
 
 export class FdeCockpitPanel {
@@ -2012,6 +2012,7 @@ Output ONLY the message without markdown code fences.`;
         const options: RagPipelineOptions = {
           serviceName: msg.serviceName || 'ClientIntelApi',
           language: msg.language || 'python',
+          architecture: msg.architecture || 'hybrid',
           vectorStore: msg.vectorStore || 'pgvector',
           embeddingProvider: msg.embeddingProvider || 'ollama_local',
           embeddingModel: msg.embeddingModel || 'nomic-embed-text',
@@ -2022,10 +2023,18 @@ Output ONLY the message without markdown code fences.`;
           distanceMetric: msg.distanceMetric || 'cosine',
           topK: msg.topK || 5,
           similarityThreshold: msg.similarityThreshold || 0.75,
-          enableHybridSearch: msg.enableHybridSearch ?? true,
+          enableHybridSearch: msg.enableHybridSearch ?? (msg.architecture === 'hybrid' || true),
           enableGuardrails: msg.enableGuardrails ?? true,
           collectionName: msg.collectionName,
-          databaseUri: msg.databaseUri
+          databaseUri: msg.databaseUri,
+          sparseEngine: msg.sparseEngine,
+          graphEngine: msg.graphEngine,
+          evaluatorThreshold: msg.evaluatorThreshold,
+          fallbackSearchProvider: msg.fallbackSearchProvider,
+          hypotheticalModel: msg.hypotheticalModel,
+          routerStrategy: msg.routerStrategy,
+          agentTools: msg.agentTools,
+          maxAgentSteps: msg.maxAgentSteps,
         };
 
         const scaffolded = RagPipelineScaffolder.scaffold(options);
@@ -2043,6 +2052,7 @@ Output ONLY the message without markdown code fences.`;
         this._panel.webview.postMessage({
           type: 'ragPipelineScaffolded',
           files: scaffolded,
+          architecture: options.architecture,
           isLicensed: isUnlocked
         });
         break;
@@ -2454,15 +2464,49 @@ Output ONLY the message without markdown code fences.`;
 
           if (gcpInstalled) {
             try {
-              const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd: ws, timeoutMs: 5000 });
+              const g = await runForStdout('gcloud', ['auth', 'list', '--format=json'], { cwd: ws, timeoutMs: 8000 });
               if (g && !g.includes('ERROR')) {
                 const parsed = JSON.parse(g);
-                const active = Array.isArray(parsed) ? parsed.find(a => a.status === 'ACTIVE') : null;
-                if (active) {
-                  gcpOk = true;
-                  gcpAccount = active.account || '';
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  const active = parsed.find(a => a.status === 'ACTIVE') || parsed[0];
+                  if (active && active.account) {
+                    gcpOk = true;
+                    gcpAccount = active.account;
+                  }
                 }
               }
+            } catch {}
+
+            if (!gcpOk) {
+              try {
+                const gAcc = await runForStdout('gcloud', ['config', 'get-value', 'account'], { cwd: ws, timeoutMs: 4000 });
+                if (gAcc && !gAcc.includes('unset') && !gAcc.includes('ERROR') && gAcc.trim()) {
+                  gcpOk = true;
+                  gcpAccount = gAcc.trim();
+                }
+              } catch {}
+            }
+
+            if (!gcpOk) {
+              try {
+                const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+                  (process.platform === 'win32'
+                    ? path.join(process.env.APPDATA || '', 'gcloud', 'application_default_credentials.json')
+                    : path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json'));
+                if (fs.existsSync(adcPath)) {
+                  const adcContent = JSON.parse(fs.readFileSync(adcPath, 'utf8'));
+                  if (adcContent.client_email || adcContent.account || adcContent.quota_project_id) {
+                    gcpOk = true;
+                    gcpAccount = adcContent.client_email || adcContent.account || 'ADC Credentials Configured';
+                    if (!gcpProject && adcContent.quota_project_id) {
+                      gcpProject = adcContent.quota_project_id;
+                    }
+                  }
+                }
+              } catch {}
+            }
+
+            try {
               const gProj = await runForStdout('gcloud', ['config', 'get-value', 'project'], { cwd: ws, timeoutMs: 3000 });
               if (gProj && !gProj.includes('unset') && !gProj.includes('ERROR')) gcpProject = gProj.trim();
             } catch {}
@@ -2507,10 +2551,15 @@ Output ONLY the message without markdown code fences.`;
           }
 
           // 4. Docker Check
+          const desktopPath = findDockerDesktopPath();
           try {
             const dVer = await runForStdout('docker', ['--version'], { cwd: ws, timeoutMs: 4000 });
             dockerInstalled = !!dVer && !dVer.includes('not recognized');
           } catch {}
+
+          if (desktopPath) {
+            dockerInstalled = true;
+          }
 
           if (dockerInstalled) {
             try {
@@ -2527,7 +2576,7 @@ Output ONLY the message without markdown code fences.`;
             gcp: { installed: gcpInstalled, ok: gcpOk, account: gcpAccount, project: gcpProject },
             aws: { installed: awsInstalled, ok: awsOk, account: awsAccount },
             azure: { installed: azureInstalled, ok: azureOk, account: azureAccount },
-            docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion },
+            docker: { installed: dockerInstalled, ok: dockerRunning, version: dockerVersion, desktopPath: desktopPath || null, desktopInstalled: !!desktopPath },
           });
 
           const summary = [
@@ -2557,7 +2606,7 @@ Output ONLY the message without markdown code fences.`;
             terminal.sendText(cmd);
             vscode.window.showInformationMessage('⬇️ Installing Google Cloud SDK in terminal...');
           } else {
-            terminal.sendText('gcloud auth login');
+            terminal.sendText('gcloud auth login --update-adc --quiet');
             vscode.window.showInformationMessage('🔑 Initiated Google Cloud authentication in terminal. Follow the browser prompt to log in.');
           }
         } else if (provider === 'aws') {
@@ -2579,20 +2628,14 @@ Output ONLY the message without markdown code fences.`;
             vscode.window.showInformationMessage('🔑 Initiated Azure login in terminal. Follow the browser prompt to log in.');
           }
         } else if (provider === 'docker') {
-          if (action === 'startDocker') {
-            if (isWin) {
-              terminal.sendText('Start-Process "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe" -ErrorAction SilentlyContinue');
-              vscode.window.showInformationMessage('🐳 Launching Docker Desktop application on Windows...');
-            } else if (isMac) {
-              terminal.sendText('open /Applications/Docker.app');
+          if (action === 'startDocker' || action === 'install') {
+            const launchResult = getDockerLaunchCommand(action === 'install');
+            terminal.sendText(launchResult.cmd);
+            if (launchResult.isInstalled) {
               vscode.window.showInformationMessage('🐳 Launching Docker Desktop application...');
             } else {
-              terminal.sendText('sudo systemctl start docker');
+              vscode.window.showInformationMessage('⬇️ Starting 1-click install & auto-launch for Docker Desktop...');
             }
-          } else if (action === 'install') {
-            const cmd = isWin ? 'winget install -e --id Docker.DockerDesktop' : (isMac ? 'brew install --cask docker' : 'curl -fsSL https://get.docker.com | sh');
-            terminal.sendText(cmd);
-            vscode.window.showInformationMessage('⬇️ Installing Docker Desktop in terminal...');
           } else {
             terminal.sendText('docker info');
           }
@@ -4600,14 +4643,41 @@ Output ONLY the message without markdown code fences.`;
         </div>
 
         <!-- 2. Air-Gapped RAG & Vector Pipeline Studio -->
-        <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
+        <div id="ragStudioCard" style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; margin-bottom: 20px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 16px;">🧠</span>
               <div>
                 <strong style="font-size: 13px; color: var(--accent);">Air-Gapped RAG &amp; Vector Pipeline Studio</strong>
-                <div style="font-size: 11px; opacity: 0.85;">Scaffold 100% offline, private RAG stacks with chunking, pgvector / Qdrant indexing, and prompt guardrails.</div>
+                <div style="font-size: 11px; opacity: 0.85;">Scaffold 100% offline, private RAG stacks across all 8 canonical paradigms with pgvector / Qdrant / Chroma / FAISS indexing and guardrails.</div>
               </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Service Name</label>
+              <input type="text" id="ragServiceName" value="EnterpriseRAG" placeholder="EnterpriseRAG" style="margin-bottom: 0;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Canonical RAG Architecture</label>
+              <select id="ragArchitecture" onchange="onRagArchChanged()">
+                <option value="hybrid" selected>🔀 Hybrid RAG (Dense + BM25 Sparse + RRF)</option>
+                <option value="naive">📄 Naive RAG (Single-Pass Dense Vector Retrieval)</option>
+                <option value="multimodal">🖼️ Multimodal RAG (Structured OCR + Document Layout)</option>
+                <option value="hyde">💡 HyDE RAG (Hypothetical Document Embeddings)</option>
+                <option value="corrective">🛡️ Corrective RAG / CRAG (Relevance Evaluator + Fallback)</option>
+                <option value="graph">🕸️ Graph RAG (Entity Knowledge Graph &amp; Topology)</option>
+                <option value="adaptive">🔀 Adaptive RAG (Dynamic Query Routing)</option>
+                <option value="agentic">🤖 Agentic RAG (Tool-Calling ReAct Loop + Rollback)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">Target Language</label>
+              <select id="ragLanguage">
+                <option value="python" selected>Python (Production FastAPI / LangChain)</option>
+                <option value="typescript">TypeScript (Node.js / Express)</option>
+              </select>
             </div>
           </div>
 
@@ -4617,6 +4687,8 @@ Output ONLY the message without markdown code fences.`;
               <select id="ragVectorDb">
                 <option value="pgvector" selected>PostgreSQL + pgvector (HNSW Index)</option>
                 <option value="qdrant">Qdrant Vector Engine</option>
+                <option value="chroma">Chroma DB (Local / Embedded)</option>
+                <option value="faiss">FAISS (Facebook AI Similarity Search)</option>
               </select>
             </div>
             <div>
@@ -4629,10 +4701,11 @@ Output ONLY the message without markdown code fences.`;
               </select>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold;">Target Language</label>
-              <select id="ragLanguage">
-                <option value="python" selected>Python (Production FastAPI / LangChain)</option>
-                <option value="typescript">TypeScript (Node.js / Express)</option>
+              <label style="font-size: 11px; font-weight: bold;">Distance Metric</label>
+              <select id="ragDistanceMetric">
+                <option value="cosine" selected>Cosine Similarity</option>
+                <option value="l2">Euclidean (L2)</option>
+                <option value="dot">Dot Product</option>
               </select>
             </div>
           </div>
@@ -4652,6 +4725,10 @@ Output ONLY the message without markdown code fences.`;
             </div>
           </div>
 
+          <div id="ragArchInfo" style="margin-bottom: 14px; padding: 9px 13px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-left: 3px solid #6366f1; border-radius: 6px; font-size: 11.5px;">
+            <strong style="color: #818cf8;">🏛️ Canonical RAG Pattern:</strong> <span id="ragArchDescription">Dense semantic vectors + BM25 keyword matching fused via Reciprocal Rank Fusion (RRF). Ideal for statutory policies, regulatory text, and mixed vocabularies.</span>
+          </div>
+
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="btn" style="background: var(--accent); color: var(--bg); font-weight: 700;" onclick="scaffoldRagPipeline()">🧠 Scaffold Air-Gapped RAG Stack</button>
             <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="runRagTestsTerminal()">▶️ Run RAG Tests in Terminal</button>
@@ -4661,7 +4738,10 @@ Output ONLY the message without markdown code fences.`;
           <div id="ragResultBox" style="margin-top: 14px; display: none;">
             <div style="background: var(--success-bg); border: 1px solid var(--success); padding: 10px 14px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <div style="color: var(--success); font-weight: 700; font-size: 12px;">✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/</div>
+                <div style="color: var(--success); font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 8px;">
+                  <span>✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/</span>
+                  <span id="ragArchBadge" style="background: #6366f1; color: #fff; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; text-transform: uppercase;">HYBRID</span>
+                </div>
                 <div style="font-size: 11px; opacity: 0.9;" id="ragPathBadge">Location: <code>src/rag/rag_pipeline.py</code></div>
               </div>
               <div style="display: flex; gap: 6px;">
@@ -7405,23 +7485,47 @@ Output ONLY the message without markdown code fences.`;
     let currentWrittenRagPipelinePath = '';
     let activeRagTab = 'pipeline';
 
+    const RAG_ARCH_DESCRIPTIONS = {
+      hybrid: 'Dense semantic vectors + BM25 keyword matching fused via Reciprocal Rank Fusion (RRF). Ideal for statutory policies, regulatory text, and mixed vocabularies.',
+      naive: 'Single-pass dense vector retrieval with semantic chunking. Simplest, fastest pattern for small, well-bounded corpuses.',
+      multimodal: 'Reads images, scanned PDFs, and forms into layout-aware tokens and tabular structures before embedding.',
+      hyde: 'Hypothetical Document Embeddings. Generates a draft answer first, then retrieves documents similar to the draft for query expansion.',
+      corrective: 'Corrective RAG (CRAG). Evaluates retrieved chunk relevance; if below confidence threshold, triggers fallback search or clinician review.',
+      graph: 'Graph RAG. Extracts entities and relationships into a graph store to answer multi-hop dependency questions across documents.',
+      adaptive: 'Adaptive RAG. Dynamically routes queries between simple lookup, web search, or multi-step reasoning based on complexity.',
+      agentic: 'Agentic RAG. Equips an LLM with tool-calling ReAct loops, vector search tools, SQL executors, and transactional rollback boundaries.'
+    };
+
+    function onRagArchChanged() {
+      const archSel = document.getElementById('ragArchitecture');
+      const descEl = document.getElementById('ragArchDescription');
+      if (archSel && descEl) {
+        descEl.innerText = RAG_ARCH_DESCRIPTIONS[archSel.value] || 'Canonical RAG Architecture.';
+      }
+    }
+
     function scaffoldRagPipeline() {
-      const db = document.getElementById('ragVectorDb').value;
+      const db = document.getElementById('ragVectorDb') ? document.getElementById('ragVectorDb').value : 'pgvector';
+      const arch = document.getElementById('ragArchitecture') ? document.getElementById('ragArchitecture').value : 'hybrid';
       const embedModelRaw = document.getElementById('ragEmbedModel').value.split(':');
       const embedModel = embedModelRaw[0];
       const embedDims = parseInt(embedModelRaw[1], 10) || 768;
       const lang = document.getElementById('ragLanguage').value;
+      const metric = document.getElementById('ragDistanceMetric') ? document.getElementById('ragDistanceMetric').value : 'cosine';
       const chunkSize = parseInt(document.getElementById('ragChunkSize').value, 10) || 512;
       const overlap = parseInt(document.getElementById('ragChunkOverlap').value, 10) || 64;
       const threshold = parseFloat(document.getElementById('ragThreshold').value) || 0.75;
-      const connName = (document.getElementById('connName') ? document.getElementById('connName').value : 'ClientIntelApi').trim() || 'ClientIntelApi';
+      const serviceNameInput = document.getElementById('ragServiceName');
+      const connName = (serviceNameInput ? serviceNameInput.value : '').trim() || (document.getElementById('connName') ? document.getElementById('connName').value : 'ClientIntelApi').trim() || 'ClientIntelApi';
 
-      showToast('🧠 Scaffolding 100% Air-Gapped RAG & Vector Pipeline (' + db.toUpperCase() + ')...');
+      showToast('🧠 Scaffolding 100% Air-Gapped RAG Stack (' + arch.toUpperCase() + ' · ' + db.toUpperCase() + ')...');
       vscode.postMessage({
         command: 'scaffoldRagPipeline',
         serviceName: connName,
         language: lang,
+        architecture: arch,
         vectorStore: db,
+        distanceMetric: metric,
         embeddingProvider: embedModel.includes('tei') ? 'tei_huggingface' : 'ollama_local',
         embeddingModel: embedModel.replace('tei-', ''),
         embeddingDimensions: embedDims,
@@ -7762,6 +7866,7 @@ Output ONLY the message without markdown code fences.`;
     window.copyLoadTestCode = copyLoadTestCode;
     window.runLoadTestTerminal = runLoadTestTerminal;
     window.scaffoldRagPipeline = scaffoldRagPipeline;
+    window.onRagArchChanged = onRagArchChanged;
     window.switchRagTab = switchRagTab;
     window.copyRagCode = copyRagCode;
     window.runRagTestsTerminal = runRagTestsTerminal;
@@ -8208,12 +8313,12 @@ Output ONLY the message without markdown code fences.`;
             if (docBtn) { docBtn.innerText = '🐳 Check Docker Status'; docBtn.setAttribute('onclick', "connectCloud('docker', 'login')"); }
           } else if (doc.installed) {
             if (docBadge) { docBadge.innerText = '⚠️ Daemon Stopped'; docBadge.style.color = 'var(--warn)'; }
-            if (docAcc) docAcc.innerText = 'Docker CLI present, app is closed';
-            if (docBtn) { docBtn.innerText = '🐳 Launch Docker Desktop'; docBtn.setAttribute('onclick', "connectCloud('docker', 'startDocker')"); }
+            if (docAcc) docAcc.innerText = doc.desktopInstalled ? 'Docker Desktop installed, daemon closed' : 'Docker CLI present, daemon closed';
+            if (docBtn) { docBtn.innerText = '🚀 Launch Docker Desktop'; docBtn.setAttribute('onclick', "connectCloud('docker', 'startDocker')"); }
           } else {
             if (docBadge) { docBadge.innerText = '⚠️ Not Installed'; docBadge.style.color = 'var(--error)'; }
-            if (docAcc) docAcc.innerText = 'Docker Desktop not installed';
-            if (docBtn) { docBtn.innerText = '⬇️ Install Docker Desktop'; docBtn.setAttribute('onclick', "connectCloud('docker', 'install')"); }
+            if (docAcc) docAcc.innerText = 'Docker not installed locally';
+            if (docBtn) { docBtn.innerText = '⬇️ 1-Click Install & Start Docker'; docBtn.setAttribute('onclick', "connectCloud('docker', 'startDocker')"); }
           }
         }
         showToast('✓ Cloud provider diagnostics updated!');
@@ -8547,9 +8652,13 @@ Output ONLY the message without markdown code fences.`;
           if (resultBox) resultBox.style.display = 'block';
           const pathBadge = document.getElementById('ragPathBadge');
           if (pathBadge) pathBadge.innerHTML = 'Location: <code>' + files.retrieverPipelinePath + '</code>';
+          const archBadge = document.getElementById('ragArchBadge');
+          if (archBadge && msg.architecture) {
+            archBadge.innerText = String(msg.architecture).toUpperCase();
+          }
 
           switchRagTab(activeRagTab);
-          showToast('✓ 100% Air-Gapped RAG Pipeline Generated in src/rag/!');
+          showToast('✓ 100% Air-Gapped ' + (msg.architecture ? String(msg.architecture).toUpperCase() + ' ' : '') + 'RAG Pipeline Generated in src/rag/!');
         }
       } else if (msg.type === 'enterpriseLicenseState') {
         const lic = msg.state;
@@ -8786,6 +8895,7 @@ Output ONLY the message without markdown code fences.`;
     try { window.copyLoadTestCode = copyLoadTestCode; } catch(e) {}
     try { window.runLoadTestTerminal = runLoadTestTerminal; } catch(e) {}
     try { window.scaffoldRagPipeline = scaffoldRagPipeline; } catch(e) {}
+    try { window.onRagArchChanged = onRagArchChanged; } catch(e) {}
     try { window.switchRagTab = switchRagTab; } catch(e) {}
     try { window.copyRagCode = copyRagCode; } catch(e) {}
     try { window.runRagTestsTerminal = runRagTestsTerminal; } catch(e) {}

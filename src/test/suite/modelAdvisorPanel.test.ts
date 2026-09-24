@@ -11,7 +11,7 @@
  */
 
 import * as assert from 'assert';
-import { JOB_CATALOG } from '../../core/modelAdvisor';
+import { JOB_CATALOG, INDUSTRY_LIST, WORKLOAD_ARCHETYPES } from '../../core/modelAdvisor';
 
 /**
  * The panel's escaping helpers, mirrored here.
@@ -81,6 +81,19 @@ suite('Model Advisor Panel — job catalogue contract', () => {
   test('labels stay short enough to read as buttons', () => {
     for (const j of JOB_CATALOG.filter(x => x.inScope)) {
       assert.ok(j.label.length <= 42, `"${j.label}" is too long for a picker chip`);
+    }
+  });
+});
+
+suite('Model Advisor Panel — industry and workload options contract', () => {
+  test('industry and archetype IDs are safe for HTML attributes and option values', () => {
+    for (const ind of INDUSTRY_LIST) {
+      assert.match(ind.id, /^[a-z]+$/, `${ind.id} should be clean lowercase letters`);
+      assert.strictEqual(escAttr(ind.id), ind.id);
+    }
+    for (const a of WORKLOAD_ARCHETYPES) {
+      assert.match(a.id, /^[a-z0-9_]+$/, `${a.id} should be attribute safe`);
+      assert.strictEqual(escAttr(a.id), a.id);
     }
   });
 });
