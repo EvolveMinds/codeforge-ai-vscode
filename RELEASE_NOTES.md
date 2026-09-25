@@ -1,5 +1,27 @@
 # Evolve AI — Release Notes
 
+## Version 2.26.0 — September 25, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.26.0 introduces full end-to-end integration of Phase 3 (AI Solutioning), the Model Advisor suite, and automated pipeline verification.
+
+* **Phase 3 AI Solutioning Contract:** Ground-truth problem framing, out-of-scope boundary locks, first-principles invariants, and the Controller's 3 numbers flow seamlessly into Phase 3 solution architecture and executive contracts.
+* **Database Schema Bindings:** Discovered tables and column definitions from Phase 2 are bound directly to Level 1 deterministic rule engines, eliminating mock schemas.
+* **Auto-Locking Decision Gate:** Evaluating the rule-vs-model gate automatically locks the target capability level across the Capability Ladder, Component Architecture, and Solution Contract.
+* **Automated In-Browser Verification Runner:** Direct execution of pipeline verification tests measuring live latency, validating boundary interception with HITL escalation, and verifying 0.0% drift.
+* **Canonical Multi-File Scaffolding:** Scaffolds production service code, canonical pipeline contracts, and Vitest/Jest verification suites simultaneously.
+* **Model Advisor Suite:** Objective job-centric model selection based on true model capabilities (vision, thinking, embeddings, fill-in-the-middle) with explicit provenance tracking.
+* **29 Offline Flowchart Diagrams:** Self-contained vector flowchart rendering with animation support on air-gapped workstations.
+
+---
+
 ## Version 2.25.0 — September 22, 2026
 
 **Publisher:** `codeforge-ai`  

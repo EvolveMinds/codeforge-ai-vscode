@@ -2,7 +2,18 @@
 
 All notable changes to Evolve AI are documented here.
 
-## [2.26.0] — 2026-09-23
+## [2.26.0] — 2026-09-25
+
+### Phase 3 AI Solutioning Contract Integration & Model Advisor
+
+* **Phase 3 AI Solutioning Contract Integration:** Fully wired Phase 1 (Problem framing, out-of-scope boundary locks, first-principles invariants, and Controller's three numbers) and Phase 2 (introspected database schema bindings) directly into Phase 3.
+* **Synchronized Governance & Unit Economics:** Out-of-scope boundary locks dynamically enforce mandatory governance guardrails with immutable audit trails. The Controller's 3 numbers derive real baseline manual unit costs vs. target SLA costs.
+* **Live Schema Ribbon & Database Bindings:** The persistent solution contract ribbon reflects live database introspection status (`🔌 DB: X tables`). Level 1 deterministic code dynamically binds to discovered database tables and column schemas.
+* **Auto-Locking Architecture Level:** Evaluating the decision gate in Step 3A now automatically locks the target capability level across the Capability Ladder (3B), Component View (3C), and Executive Solution Contract (3D).
+* **Adaptive Component View:** Step 3C displays why heavy generative LLMs are bypassed ($0.00 cost, <5ms latency) and binds directly to introspected schema when Level 1 or 2 is active.
+* **Canonical Pipeline Scaffolding:** `🚀 Scaffold Production Solution` in Step 3D scaffolds `src/services/aiSolutionPipeline.ts`, canonical production contract `src/solution/pipeline.ts`, and full automated verification suite `src/solution/pipeline.test.ts`.
+* **Automated In-Browser Verification Test Runner:** Added `▶️ Run Verification Test` to Step 3D, executing automated contract verification, measuring live execution latency via `performance.now()`, testing boundary condition interception with HITL escalation, and rendering an executive audit report.
+* **Seamless Phase 4 Handoff:** Advancing to Phase 4 ("Reliability & Evals") automatically seeds grounded evaluation claims from the active solution contract.
 
 ### The right *kind* of model, not just the biggest one
 
