@@ -10,8 +10,11 @@
 > [`PACKAGING.md`](./PACKAGING.md) — that is a separate pipeline with separate
 > rules, and nothing here applies to it.
 >
-> Written from the v2.25.0 release (2026-09-22). Every command below was run for
-> real; the traps in §9 are ones that actually bit, not hypotheticals.
+> Written from the v2.25.0 release (2026-09-22) and updated/verified through
+> the v2.26.0 release (2026-09-25). Every command below was run for real;
+> the traps in §9 are ones that actually bit, not hypotheticals. Every release
+> must update both the desktop binaries and the company website, and record
+> verification in §11.
 
 ---
 
@@ -151,6 +154,19 @@ Finally, confirm no dependency leaked into the bundle:
 npx asar list dist-desktop/win-unpacked/resources/app.asar | grep -c node_modules   # must be 0
 ```
 
+### 4.1 Package the VS Code Extension (.vsix)
+
+The Enterprise release publishes both the zero-install standalone Windows EXE
+and the VS Code extension VSIX:
+
+```bash
+npx @vscode/vsce package --no-dependencies -o evolve-ai-X.Y.Z.vsix
+
+# Checksum & Size
+powershell -Command "(Get-FileHash 'evolve-ai-X.Y.Z.vsix' -Algorithm SHA256).Hash"
+ls -la evolve-ai-X.Y.Z.vsix
+```
+
 ---
 
 ## 5. Build the patch ZIP
@@ -203,9 +219,10 @@ binaries. Write the notes to a file first so both repos get identical text:
 ```bash
 gh release create vX.Y.Z-desktop \
   --repo EvolveMinds/codeforge-ai-vscode \
-  --title "Evolve AI Enterprise Desktop vX.Y.Z (Windows x64 Portable)" \
+  --title "Evolve AI Enterprise Desktop vX.Y.Z (Windows x64 Portable & VSIX)" \
   --notes-file /tmp/release-body.md --latest \
-  dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe
+  dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe \
+  evolve-ai-X.Y.Z.vsix
 
 # repeat verbatim for EvolveMinds/evolve-ai-enterprise
 ```
@@ -237,26 +254,38 @@ Repo: **`EvolveMinds/Company`** — a Next.js site on AWS Amplify.
 PR; never push to `main` directly.
 
 ```bash
-gh repo clone EvolveMinds/Company    # clone OUTSIDE the product repo — see §9.2
-cd Company && git checkout -b release/evolve-ai-X.Y.Z
+# Navigate to Company outside this repo (see §9.2)
+cd ../Company
+
+# ALWAYS pull latest main before branching (see §9.6)
+git checkout main && git pull origin main
+git checkout -b release/evolve-ai-X.Y.Z
 pnpm install --frozen-lockfile
 ```
 
-### One file to edit
+### 7.1 Single source of truth: `src/content/site.ts`
 
-`src/content/site.ts`, the `evolve-ai` product entry:
+In `src/content/site.ts`, update the `evolve-ai` product entry:
 
 ```ts
-downloadUrl:      ".../vX.Y.Z-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe",
+downloadUrl:      "https://github.com/EvolveMinds/codeforge-ai-vscode/releases/download/vX.Y.Z-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe",
 downloadVersion:  "vX.Y.Z",
-downloadSize:     "<from §4>",
+downloadSize:     "<from §4, e.g. '78.8 MB'>",
 downloadSha256:   "<from §4>",
 downloadSigned:   false,          // flip to true when TODO 3 lands
 releaseHistory: [
   // Move the OUTGOING release to the top of this array, with its own
-  // checksum. Never delete an entry: customers reproducing a validated
-  // environment need the exact build they qualified.
-  { version, released, url, size, sha256, summary, notesUrl },
+  // checksum, size, and release notes URL. Never delete an entry: customers
+  // reproducing a validated environment need the exact build they qualified.
+  {
+    version: "vPREV",
+    released: "YYYY-MM-DD",
+    url: "...",
+    size: "...",
+    sha256: "...",
+    summary: "...",
+    notesUrl: "...",
+  },
   ...
 ],
 ```
@@ -266,39 +295,50 @@ Everything else — the download page, the `/products/evolve-ai/` CTA, the
 email — derives from that entry. **If you find yourself editing a version in a
 second file, that is a bug: fix the derivation instead.**
 
-### Verify before merging
+### 7.2 Structured data & download page attributes
+
+In `src/app/products/evolve-ai/download/page.tsx`:
+* Update `fileSize` in the Schema.org JSON-LD to the exact binary size in bytes.
+* Update `newFeatures` array to highlight the headline deliverables of the new release.
+
+### 7.3 Verify before merging
 
 ```bash
-pnpm exec tsc --noEmit     # 0
-pnpm run build             # 0
+pnpm exec tsc --noEmit     # must exit 0
+pnpm run build             # must exit 0
 
-# No stale version anywhere in the built output
-for f in $(find .next/server/app -name "*.html"); do
-  hits=$(grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" "$f" | sort -u | tr '\n' ' ')
-  [ -n "$hits" ] && echo "${f#.next/server/app/}: $hits"
-done
+# Verify no stale versions in the built HTML output
+powershell -Command "Get-ChildItem -Path '.next/server/app' -Recurse -Filter '*.html' | ForEach-Object { \$matches = (Select-String -Path \$_.FullName -Pattern 'v2\.[0-9]+\.[0-9]+' -AllMatches).Matches.Value | Select-Object -Unique; if (\$matches) { \"\$(\$_.Name): \$(\$matches -join ', ')\" } }"
 ```
 
-Expect the new version everywhere, and **only** the archive page listing older
-ones.
+Expect the new version everywhere, and **only** `versions.html` listing older
+superseded builds.
 
-Open a PR, get it reviewed, then merge. Amplify redeploys automatically — allow
-a few minutes.
+Open a PR, review, and merge to `main`:
 
-### Verify production, by downloading
+```bash
+git add src/content/site.ts src/app/products/evolve-ai/download/page.tsx src/components/EditionComparison.tsx
+git commit -m "feat(release): update Evolve AI Enterprise Desktop to vX.Y.Z"
+git push -u origin release/evolve-ai-X.Y.Z
+gh pr create --repo EvolveMinds/Company --fill
+gh pr merge <PR_NUMBER> --repo EvolveMinds/Company --merge --delete-branch
+```
+
+Amplify redeploys automatically — allow 2–3 minutes.
+
+### 7.4 Verify production, by downloading
 
 This is the step that proves the chain works end to end:
 
 ```bash
-for u in /products/evolve-ai/ /products/evolve-ai/download/ /products/evolve-ai/download/versions/; do
-  curl -s "https://www.evolveminds.com.au$u" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | sort -u | tr '\n' ' '
-  echo "  <- $u"
-done
+# Verify pages report new version
+curl -s "https://www.evolveminds.com.au/products/evolve-ai/download/" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | sort -u
 
 # Download what a customer downloads and confirm the published hash
-curl -sL -o /tmp/dl.exe "<downloadUrl from site.ts>"
-powershell -Command "(Get-FileHash /tmp/dl.exe -Algorithm SHA256).Hash"   # must equal downloadSha256
+powershell -Command "Invoke-WebRequest -Uri '<downloadUrl from site.ts>' -OutFile '\$env:TEMP\dl.exe'; (Get-FileHash '\$env:TEMP\dl.exe' -Algorithm SHA256).Hash"
 ```
+
+The resulting hash must match `downloadSha256` exactly.
 
 ---
 
@@ -340,7 +380,7 @@ had `main` pointing at the desktop entry instead of the extension.
 
 `gh repo clone EvolveMinds/Company` run from the product repo root puts a nested
 git repo inside it, which `git add -A` will happily stage. Clone to a scratch
-directory.
+directory or side-by-side workspace folder (`../Company`).
 
 ### 9.3 Electron's version can masquerade as the app version
 
@@ -365,43 +405,84 @@ extension breaks.
 assets. Before quoting a checksum for an *older* build, download the published
 asset and hash that — do not trust a local file of the same name.
 
+### 9.6 Always pull `origin/main` in `Company` before creating a release branch
+
+If local `main` in the `Company` repository lags behind previously merged pull
+requests, branching off it causes merge conflicts and git will mark the PR
+dirty/unmergeable. Always run `git checkout main && git pull origin main` first.
+
+### 9.7 Verify binaries and hashes directly from disk before quoting
+
+Never estimate or handcraft SHA-256 digests or file sizes. Run `Get-FileHash`
+on both `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` and
+`evolve-ai-X.Y.Z.vsix` directly.
+
+### 9.8 Version archive synchronization
+
+Never remove superseded builds from `releaseHistory` in `src/content/site.ts`.
+Enterprise clients qualifying specific builds in banking/air-gapped enclaves
+require permanent access to superseded binaries and hashes.
+
 ---
 
 ## 10. Release checklist
 
-Copy into the release PR or issue.
+Copy into the release PR or issue before beginning every version upgrade:
 
-**Pre-flight**
+**1. Pre-flight**
 - [ ] `main` clean, pulled, no foreign changes in `git status`
-- [ ] `npm run compile` · `check:version` · `verify:honest` · `test:fde` · desktop tests — all pass
+- [ ] `npm run compile` · `npm run check:version` · `npm run verify:honest` · `npm run test:fde` — all pass
+- [ ] Desktop mocha tests pass: `npx mocha --ui tdd out/test/suite/desktop/desktopCore.test.js`
 
-**Version**
-- [ ] `package.json` bumped
-- [ ] `CHANGELOG.md`, `RELEASE_NOTES.md` (with Known Gaps), `docs/FDE_TODO.md` updated
-- [ ] `check:version` passes against the new number
+**2. Version Bump**
+- [ ] `package.json` bumped: `"version": "X.Y.Z"`
+- [ ] `npm run check:version` confirms single-source semver
+- [ ] `CHANGELOG.md` updated with new user-facing section
+- [ ] `RELEASE_NOTES.md` updated with highlights, SHA-256 verification table, and Known Gaps
+- [ ] `docs/FDE_TODO.md` updated (completed items closed, deferred items logged)
+- [ ] Commit version bump: `git commit -m "chore(release): bump to X.Y.Z"`
 
-**Build**
+**3. Package Binaries**
 - [ ] `npm run desktop:build:portable` succeeds (electron-builder ≥ 26)
-- [ ] EXE metadata shows the new ProductVersion and the company
-- [ ] SHA-256 and byte size recorded
-- [ ] Packaged app launches and Settings shows the new version — **not** an Electron version
-- [ ] `app.asar` contains no `node_modules`
+- [ ] EXE metadata shows ProductVersion and Company: `(Get-Item 'dist-desktop\*.exe').VersionInfo`
+- [ ] Package VS Code Extension: `npx @vscode/vsce package --no-dependencies -o evolve-ai-X.Y.Z.vsix`
+- [ ] SHA-256 and byte sizes recorded for BOTH `.exe` and `.vsix`
+- [ ] Smoke-test packaged desktop app (Settings shows X.Y.Z, not Electron version)
+- [ ] `app.asar` contains no `node_modules` (`npx asar list ... | grep -c node_modules` is 0)
 - [ ] Patch ZIP: **skipped** unless TODO 4 has landed
 
-**Publish**
-- [ ] Code + `vX.Y.Z` tag pushed to `origin` **and** `enterprise`
-- [ ] `vX.Y.Z-desktop` release created on **both** repos, EXE attached, marked latest
-- [ ] Release body: changes, SmartScreen notice, verification block, Known Gaps
-- [ ] Asset `state == uploaded`; download URL returns 200
+**4. Publish GitHub Releases**
+- [ ] Code + `vX.Y.Z` tag pushed to `origin` **and** `enterprise` mirrors
+- [ ] `vX.Y.Z-desktop` release created on **both** repos (`codeforge-ai-vscode` and `evolve-ai-enterprise`)
+- [ ] Both `evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` and `evolve-ai-X.Y.Z.vsix` attached
+- [ ] Release body contains SmartScreen notice, verification table with SHA-256, and Known Gaps
+- [ ] Asset upload verified (`state == uploaded`; download URLs return 200)
 
-**Website**
-- [ ] Branch + PR against `EvolveMinds/Company` (never push to `main`)
-- [ ] Only `src/content/site.ts` edited; outgoing release moved into `releaseHistory` with its checksum
-- [ ] `tsc --noEmit` and `pnpm run build` pass
-- [ ] Built HTML shows the new version on every page; only the archive lists older ones
-- [ ] PR reviewed and merged; Amplify deployed
-- [ ] Live pages verified; **binary downloaded and hash matched**
+**5. Update Company Website**
+- [ ] Switch to `Company` repo: `git checkout main && git pull origin main`
+- [ ] Create branch `release/evolve-ai-X.Y.Z`
+- [ ] Update `src/content/site.ts`: `downloadUrl`, `downloadVersion`, `downloadSize`, `downloadSha256`
+- [ ] Move outgoing release into `releaseHistory` array at the top
+- [ ] Update `fileSize` (bytes) and `newFeatures` in `src/app/products/evolve-ai/download/page.tsx`
+- [ ] `pnpm exec tsc --noEmit` exits 0
+- [ ] `pnpm run build` exits 0
+- [ ] Built HTML verification: new version on all pages; only `versions.html` lists superseded ones
+- [ ] PR created, reviewed, and merged to `main` (`gh pr merge --merge --delete-branch`)
+- [ ] Amplify production deployment completed; live URLs & downloads verified against SHA-256
 
-**After**
-- [ ] `docs/FDE_TODO.md` reflects what shipped and what was deferred
-- [ ] Anything discovered during the release added to §9 of this runbook
+**6. Audit & Documentation**
+- [ ] Release recorded in §11 of this runbook with checksums, date, and status
+- [ ] `docs/DEPLOYMENT_CHECKLIST.md` verified and in sync
+
+---
+
+## 11. Release execution audit log
+
+Historical record of verified production releases:
+
+| Version | Release Date | Desktop EXE SHA-256 (Size) | VSIX SHA-256 (Size) | GitHub Releases | Website Status |
+|---|---|---|---|---|---|
+| **v2.26.0** | 2026-09-25 | `F133B5F7F3EBF7BB388A48AB8D4DF83584ADE1C769A485F80FC4C2EAD265EF8F` (78.8 MB / 82,672,078 B) | `8DBB848C9ADB4ED550B88A33A05645DBCF0B94F3D9FDFDC83C0D227F7AC23130` (22.7 MB / 23,812,480 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.26.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.26.0-desktop) | Verified & Merged (PR #2) |
+| **v2.25.0** | 2026-09-22 | `976CA196E6612DD87E2510C78F20A86BBB527A3C67FA72F3F7C3680A51F9A239` (78.8 MB) | N/A | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.25.0-desktop) | Archived in `releaseHistory` |
+| **v2.24.0** | 2026-09-21 | `5176535787FCBCC0E6B0A911E3633495AB80E06DB986B8EB19D99D6A0063E172` (71.5 MB) | N/A | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.24.0-desktop) | Archived in `releaseHistory` |
+
