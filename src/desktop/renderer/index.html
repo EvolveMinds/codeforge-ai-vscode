@@ -1183,9 +1183,10 @@
               <button class="phase-nav-btn active" data-phase="1" title="Phase 1: Discover &amp; Frame (Gemba Ground-Truth, First-Principles &amp; O2S Spec)" aria-label="Phase 1: Discover &amp; Frame (Gemba Ground-Truth, First-Principles &amp; O2S Spec)">🎯 1. Discover &amp; Frame</button>
               <button class="phase-nav-btn" data-phase="2" title="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)" aria-label="Phase 2: Engineering Core (Their formats, broken APIs, DB wire &amp; plumbing)">🔌 2. Engineering Core</button>
               <button class="phase-nav-btn" data-phase="3" title="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)" aria-label="Phase 3: AI Solutioning (FDE 1-5 ladder, rule vs model, RAG &amp; MCP)">🧠 3. AI Solutioning</button>
-              <button class="phase-nav-btn" data-phase="4" title="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)" aria-label="Phase 4: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 4. Reliability &amp; Evals</button>
-              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)" aria-label="Phase 5: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)">🚀 5. Deploy &amp; Influence</button>
-              <button class="phase-nav-btn" data-phase="6" title="Phase 6: DevOps &amp; Git Hub (Bitbucket, GitHub, GitLab, Remotes, PR &amp; CI/CD)" aria-label="Phase 6: DevOps &amp; Git Hub (Bitbucket, GitHub, GitLab, Remotes, PR &amp; CI/CD)">🌿 6. DevOps &amp; Git</button>
+              <button class="phase-nav-btn" data-phase="4" title="Phase 4: AI Engineering (NLP Agent &amp; Pipeline Studio, Canvas, Code &amp; Test)" aria-label="Phase 4: AI Engineering (NLP Agent &amp; Pipeline Studio, Canvas, Code &amp; Test)">⚙️ 4. AI Engineering</button>
+              <button class="phase-nav-btn" data-phase="5" title="Phase 5: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)" aria-label="Phase 5: Reliability &amp; Evals (50-case golden benchmark, groundedness &amp; HITL)">🧪 5. Reliability &amp; Evals</button>
+              <button class="phase-nav-btn" data-phase="6" title="Phase 6: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)" aria-label="Phase 6: Deploy &amp; Influence (Cloud MLOps, runbooks, controller's 3 numbers &amp; 5-min demo)">🚀 6. Deploy &amp; Influence</button>
+              <button class="phase-nav-btn" data-phase="7" title="Phase 7: DevOps &amp; Git Hub (Bitbucket, GitHub, GitLab, Remotes, PR &amp; CI/CD)" aria-label="Phase 7: DevOps &amp; Git Hub (Bitbucket, GitHub, GitLab, Remotes, PR &amp; CI/CD)">🌿 7. DevOps &amp; Git</button>
             </div>
 
             <!-- Right Step Content Canvas -->
@@ -2595,7 +2596,7 @@
                     </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn" id="btnAdvancePhase4" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 4: Reliability & Evals">🚀 Advance to Phase 4: Reliability &amp; Evals ➔</button>
+                    <button class="btn" id="btnAdvancePhase4" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 4: AI Engineering">🚀 Advance to Phase 4: AI Engineering ➔</button>
                   </div>
                 </div>
 
@@ -4305,7 +4306,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         <button class="btn-quick" id="btnDRunVerificationTest" style="padding: 6px 14px; font-size: 11px; border-color: #4ade80; color: #4ade80; cursor: pointer; font-weight: 700;" title="Run automated verification test against the solution pipeline">▶️ Run Verification Test</button>
                         <button class="btn-quick" id="btnDExportSolutionAdrBottom" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📖 Export Solution ADR</button>
                       </div>
-                      <button class="btn" id="btnDAdvanceToEvals" style="padding: 6px 18px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 800; cursor: pointer;" aria-label="Advance to Phase 4: Reliability & Evals">🧪 Advance to Phase 4: Reliability &amp; Evals ➔</button>
+                      <button class="btn" id="btnDAdvanceToEvals" style="padding: 6px 18px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 800; cursor: pointer;" aria-label="Advance to Phase 4: AI Engineering">⚙️ Advance to Phase 4: AI Engineering ➔</button>
                     </div>
 
                     <!-- Live Verification Test Output Box -->
@@ -4316,14 +4317,230 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
               </div>
 
+              
               <!-- ============================================================= -->
-              <!-- STEP 4: PHASE 4 · RELIABILITY & EVALS -->
+              <!-- STEP 4: PHASE 4 · AI ENGINEERING (NLP AGENT & PIPELINE STUDIO) -->
               <!-- ============================================================= -->
               <div class="content-card" id="phase4Card" style="display: none;">
+                <!-- Phase 4 Header -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                  <div>
+                    <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                      <span>⚙️</span> Phase 4 · AI Engineering ("NLP Agent &amp; Pipeline Studio · Canvas, Code &amp; Test")
+                      <span style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● Runnable Microservice</span>
+                    </h3>
+                    <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
+                      Synthesize autonomous AI agents and compound RAG pipelines from plain natural language. Visually wire nodes, inspect intermediate execution traces, inject custom TypeScript/Python logic, and export production-ready testable code.
+                    </p>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn" id="btnAdvancePhase5" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 5: Reliability & Evals">🧪 Advance to Phase 5: Reliability &amp; Evals ➔</button>
+                  </div>
+                </div>
+
+                <!-- PERSISTENT PIPELINE STATUS RIBBON -->
+                <div id="aiEngPipelineRibbon" style="background: linear-gradient(90deg, rgba(78, 201, 176, 0.08) 0%, rgba(56, 189, 248, 0.08) 50%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(78, 201, 176, 0.35); border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-size: 11px; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
+                      <span>⚙️</span> Active Pipeline:
+                    </span>
+                    <span id="lblAiEngPipelineName" style="font-size: 10.5px; background: rgba(255,255,255,0.08); color: #fff; font-weight: 700; border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px;">InvoiceReconciliationPipeline</span>
+                    <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
+                    <span id="lblAiEngRagBadge" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;">📚 06 Hybrid RAG</span>
+                    <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
+                    <span id="lblAiEngModelBadge" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;">🤖 LAM (Qwen 2.5 Coder 7B)</span>
+                    <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
+                    <span id="lblAiEngToolsBadge" style="font-size: 10px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 2px 7px; border-radius: 4px; font-weight: 700;">🔌 3 Tools Active</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span id="lblAiEngExecutionMode" style="font-size: 9.5px; background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px;">🧪 Dual-Mode: Mock/Live</span>
+                  </div>
+                </div>
+
+                <!-- NLP PROMPT INGESTION & SYNTHESIZER BAR -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <div style="font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                      <span>💬</span> Build or Refine Pipeline with Natural Language (NLP)
+                    </div>
+                    <div style="font-size: 10px; color: var(--text-secondary);">
+                      Type your custom requirement or pick an enterprise preset below
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 8px;">
+                    <input type="text" id="txtAiEngPrompt" style="flex: 1; background: #0c0c0c; border: 1px solid var(--border); border-radius: 5px; padding: 8px 12px; color: #fff; font-size: 12px;" placeholder="e.g. Build an invoice reconciliation agent that queries our PostgreSQL orders table, checks line variances, and escalates discrepancies > $100 to Slack..." />
+                    <button class="btn" id="btnAiEngSynthesize" style="padding: 8px 18px; font-size: 12px; background: var(--accent); color: #1e1e1e; font-weight: 800; cursor: pointer; white-space: nowrap;">✨ Synthesize Pipeline</button>
+                  </div>
+                  <!-- Quick NLP Preset Chips -->
+                  <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                    <span style="font-size: 10px; color: var(--text-secondary);">Presets:</span>
+                    <button class="btn-quick btn-ai-eng-preset" data-preset="hybrid" style="font-size: 10px; padding: 2px 8px; margin: 0; cursor: pointer;">🔍 Hybrid Policy RAG (BM25 + pgvector)</button>
+                    <button class="btn-quick btn-ai-eng-preset" data-preset="agentic" style="font-size: 10px; padding: 2px 8px; margin: 0; cursor: pointer;">🛠️ Autonomous Tool Agent (LAM / MCP)</button>
+                    <button class="btn-quick btn-ai-eng-preset" data-preset="multimodal" style="font-size: 10px; padding: 2px 8px; margin: 0; cursor: pointer;">👁️ Multimodal Blueprint Inspector (VLM)</button>
+                    <button class="btn-quick btn-ai-eng-preset" data-preset="corrective" style="font-size: 10px; padding: 2px 8px; margin: 0; cursor: pointer;">🛡️ Corrective RAG (CRAG) Analyst</button>
+                    <button class="btn-quick btn-ai-eng-preset" data-preset="rule" style="font-size: 10px; padding: 2px 8px; margin: 0; cursor: pointer;">⚡ Zero-LLM Deterministic Rule Gate</button>
+                  </div>
+                </div>
+
+                <!-- WORKBENCH SUB-TABS -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; gap: 6px;" role="tablist">
+                    <button class="btn-quick active" id="btnTabAiEngCanvas" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">🗺️ Visual Node Pipeline</button>
+                    <button class="btn-quick" id="btnTabAiEngSimulator" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">🧪 Live In-Studio Simulator</button>
+                    <button class="btn-quick" id="btnTabAiEngCode" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">💻 Code Workbench</button>
+                    <button class="btn-quick" id="btnTabAiEngDeploy" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">📦 Export, Git &amp; Cloud</button>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <button class="btn-quick" id="btnAiEngRunQuickTest" style="font-size: 10.5px; padding: 3px 10px; background: rgba(78,201,176,0.12); color: var(--accent); border-color: var(--accent); margin: 0; cursor: pointer;">▶ Run Quick Test</button>
+                    <button class="btn-quick" id="btnAiEngScaffoldWorkspace" style="font-size: 10.5px; padding: 3px 10px; margin: 0; cursor: pointer;">🚀 Scaffold to Workspace</button>
+                  </div>
+                </div>
+
+                <!-- SUB-PANEL 1: VISUAL NODE PIPELINE CANVAS -->
+                <div id="p4AiEngCanvasPanel" style="display: block;">
+                  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 14px;">
+                    <!-- Left: Pipeline Nodes Flow -->
+                    <div style="background: #111; border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #fff;">Execution Topology Nodes</span>
+                        <span style="font-size: 10px; color: var(--text-secondary);">Click any node to customize parameters</span>
+                      </div>
+                      <div id="boxAiEngNodesContainer" style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Dynamically populated with interactive Node Cards -->
+                      </div>
+                    </div>
+
+                    <!-- Right: Node Inspector -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                      <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                        <span>🎛️</span> Node Inspector
+                      </div>
+                      <div id="boxAiEngNodeInspector" style="font-size: 11px; color: var(--text-secondary);">
+                        Select a node to inspect and edit its configuration.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SUB-PANEL 2: IN-STUDIO LIVE SIMULATOR -->
+                <div id="p4AiEngSimulatorPanel" style="display: none;">
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                      <div style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🧪</span> Interactive Pipeline Test Simulator
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-size: 10.5px; color: var(--text-secondary);" for="selAiEngSimMode">Execution Mode:</label>
+                        <select id="selAiEngSimMode" style="background: #181818; border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 2px 6px; border-radius: 4px;">
+                          <option value="mock" selected>Offline Mock Mode (Zero Credentials / Sample Data)</option>
+                          <option value="live">Live Mode (Ollama / Active Secrets)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                      <input type="text" id="txtAiEngSimQuery" style="flex: 1; background: #0c0c0c; border: 1px solid var(--border); border-radius: 5px; padding: 8px 12px; color: #fff; font-size: 12px;" value="Verify invoice #INV-4902 billed for $1,250 against purchase order PO-8821" />
+                      <button class="btn" id="btnAiEngRunSim" style="padding: 8px 18px; font-size: 12px; background: var(--accent); color: #1e1e1e; font-weight: 800; cursor: pointer; white-space: nowrap;">▶ Run Simulation</button>
+                    </div>
+                    <!-- Live Execution Node Tracing Container -->
+                    <div id="boxAiEngSimTrace" style="display: flex; flex-direction: column; gap: 8px; margin-top: 12px;">
+                      <div style="padding: 18px; text-align: center; color: var(--text-muted); font-size: 11px;">
+                        Click "Run Simulation" above to execute the pipeline and observe real-time node traces.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- SUB-PANEL 3: CODE WORKBENCH -->
+                <div id="p4AiEngCodePanel" style="display: none;">
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                      <div style="display: flex; gap: 4px;" id="boxAiEngCodeTabs">
+                        <button class="btn-quick active btn-ai-eng-codetab" data-file="pipeline" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">pipeline.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="agent" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">agent.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="ragStore" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">ragStore.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="tools" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">tools.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="customHooks" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">customHooks.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="test" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">pipeline.test.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="docker" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">Dockerfile</button>
+                      </div>
+                      <div style="display: flex; gap: 6px;">
+                        <button class="btn-quick" id="btnAiEngCopyCode" style="font-size: 10.5px; padding: 3px 10px; margin: 0; cursor: pointer;">📋 Copy Code</button>
+                      </div>
+                    </div>
+                    <pre id="preAiEngGeneratedCode" style="background: #0e0e0e; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #4ec9b0; max-height: 380px; overflow: auto; white-space: pre; margin: 0;"></pre>
+                  </div>
+                </div>
+
+                <!-- SUB-PANEL 4: EXPORT, GIT & CLOUD DEPLOY -->
+                <div id="p4AiEngDeployPanel" style="display: none;">
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <!-- Option 1: Workspace & Local Tests -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+                        💻 1. Local Workspace &amp; Offline Unit Tests
+                      </div>
+                      <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+                        Scaffold the complete self-contained agent microservice directly into your workspace folder (<code style="color: var(--accent);">src/agents/&lt;name&gt;/</code>) with unit tests ready for execution.
+                      </p>
+                      <div style="display: flex; gap: 8px;">
+                        <button class="btn" id="btnAiEngScaffoldWorkspaceAction" style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 6px 14px; cursor: pointer;">🚀 Write to Workspace</button>
+                        <button class="btn-quick" id="btnAiEngRunTestsAction" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">🧪 Run Unit Tests</button>
+                      </div>
+                      <div id="boxAiEngTestResults" style="display: none; margin-top: 10px; padding: 8px; background: #0c0c0c; border: 1px solid #4ade80; border-radius: 4px; font-family: monospace; font-size: 10.5px; color: #4ade80;"></div>
+                    </div>
+
+                    <!-- Option 2: Git Repository & Pull Request -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+                        🌿 2. Version Control &amp; Pull Request
+                      </div>
+                      <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+                        Stage all files, create a new branch (<code style="color: #38bdf8;">feat/agent-pipeline</code>), commit with conventional commit message, and open a Pull Request on your remote.
+                      </p>
+                      <button class="btn" id="btnAiEngCommitGitAction" style="background: #38bdf8; color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 6px 14px; cursor: pointer;">🌿 1-Click Commit to Git &amp; PR</button>
+                    </div>
+
+                    <!-- Option 3: Cloud Container Deployment -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+                        🐳 3. Multi-Cloud Container Deployment
+                      </div>
+                      <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+                        Build container image via Docker Desktop or trigger automated serverless container push to Google Cloud Run, AWS ECS/Fargate, or Azure Container Apps.
+                      </p>
+                      <button class="btn" id="btnAiEngDeployCloudAction" style="background: var(--success); color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 6px 14px; cursor: pointer;">🚀 Deploy Container to Cloud Hub</button>
+                    </div>
+
+                    <!-- Option 4: n8n / Webhook Interoperability -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
+                      <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">
+                        🔌 4. n8n / REST Webhook Bridge
+                      </div>
+                      <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+                        Export an n8n-compatible Custom Tool descriptor and OpenAPI REST spec so your enterprise n8n workflows can invoke this pipeline via webhook.
+                      </p>
+                      <button class="btn-quick" id="btnAiEngExportN8nAction" style="font-size: 11px; padding: 6px 14px; cursor: pointer;">📋 Copy n8n Webhook Connector</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Primary Advance Bar -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); flex-wrap: wrap; gap: 8px;">
+                  <div style="font-size: 11px; color: var(--text-secondary);">
+                    <span>💡 Next: Verify production reliability and citation groundedness across a 50-case edge-case golden benchmark.</span>
+                  </div>
+                  <button class="btn" id="btnAiEngAdvanceToEvalsBottom" style="padding: 6px 18px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 800; cursor: pointer;" aria-label="Advance to Phase 5: Reliability & Evals">🧪 Advance to Phase 5: Reliability &amp; Evals ➔</button>
+                </div>
+              </div>
+
+              <!-- ============================================================= -->
+              <!-- STEP 5: PHASE 5 · RELIABILITY & EVALS -->
+              <!-- ============================================================= -->
+              <div class="content-card" id="phase5Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                      <span>🧪</span> Phase 4 · Reliability &amp; Evals ("50-Case Golden Benchmark, Groundedness &amp; HITL")
+                      <span>🧪</span> Phase 5 · Reliability &amp; Evals ("50-Case Golden Benchmark, Groundedness &amp; HITL")
                       <span style="font-size: 10px; font-weight: 700; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; border-radius: 10px;">● 0 Hallucination Policy</span>
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
@@ -4331,7 +4548,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn" id="btnAdvancePhase5" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 5: Deploy & Influence">🚀 Advance to Phase 5: Deploy &amp; Influence ➔</button>
+                    <button class="btn" id="btnAdvancePhase6" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 6: Deploy & Influence">🚀 Advance to Phase 6: Deploy &amp; Influence ➔</button>
                   </div>
                 </div>
 
@@ -5035,20 +5252,20 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 5: PHASE 5 · DEPLOY & INFLUENCE -->
+              <!-- STEP 6: PHASE 6 · DEPLOY & INFLUENCE -->
               <!-- ============================================================= -->
-              <div class="content-card" id="phase5Card" style="display: none;">
+              <div class="content-card" id="phase6Card" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
                   <div>
                     <h3 style="margin: 0; font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px;">
-                      <span>🚀</span> Phase 5 · Deploy &amp; Influence ("Cloud MLOps, Runbooks, Controller's 3 Numbers &amp; 5-Min Demo")
+                      <span>🚀</span> Phase 6 · Deploy &amp; Influence ("Cloud MLOps, Runbooks, Controller's 3 Numbers &amp; 5-Min Demo")
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
                       Multi-cloud automated pilot deployment, comprehensive architecture runbooks, executive 5-minute presentation demo, and air-gapped commercial enterprise suite.
                     </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn" id="btnAdvancePhase6" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 6: DevOps & Git Hub">🌿 Advance to Phase 6: DevOps &amp; Git Hub ➔</button>
+                    <button class="btn" id="btnAdvancePhase7" style="padding: 5px 14px; font-size: 11.5px; background: var(--success); color: #1e1e1e; font-weight: 700;" aria-label="Advance to Phase 7: DevOps & Git Hub">🌿 Advance to Phase 7: DevOps &amp; Git Hub ➔</button>
                   </div>
                 </div>
 
@@ -6361,9 +6578,9 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               </div>
 
               <!-- ============================================================= -->
-              <!-- STEP 6: DEVOPS & GIT HUB (BITBUCKET, GITHUB, GITLAB, PR & CI/CD) -->
+              <!-- STEP 7: DEVOPS & GIT HUB (BITBUCKET, GITHUB, GITLAB, PR & CI/CD) -->
               <!-- ============================================================= -->
-              <div class="content-card" id="phase6Card" style="display: none; margin-bottom: 16px;">
+              <div class="content-card" id="phase7Card" style="display: none; margin-bottom: 16px;">
 
             <!-- Studio Header -->
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 14px;">
@@ -9097,6 +9314,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
     Must load before renderer.js, which calls into it.
   -->
   <script src="flowchart.js"></script>
+  <script src="agentBuilder.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

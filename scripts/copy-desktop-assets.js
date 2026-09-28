@@ -76,6 +76,25 @@ try {
   process.exit(1);
 }
 
+try {
+  const agentBuilderModulePath = path.join(__dirname, '..', 'out', 'core', 'agentBuilder.js');
+  if (fs.existsSync(agentBuilderModulePath)) {
+    const body = fs.readFileSync(agentBuilderModulePath, 'utf8');
+    const shimmed =
+      '(function(){var exports={};var module={exports:exports};\n' +
+      body +
+      '\nglobalThis.EvolveAgentBuilder=exports;})();\n';
+
+    const dest = path.join(__dirname, '..', 'out', 'desktop', 'renderer', 'agentBuilder.js');
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, shimmed);
+    console.log('[Desktop Assets] Emitted: agentBuilder.js (classic-script shim)');
+  }
+} catch (e) {
+  console.error('[Desktop Assets] Could not emit agentBuilder.js:', e.message);
+  process.exit(1);
+}
+
 // Also sync full out/ directory to VS Code installed extension directories if present
 try {
   const os = require('os');
