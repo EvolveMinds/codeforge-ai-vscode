@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Evolve AI — Product Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: 1280px 720px; margin: 0; }
+  :root {
+    --ink: #0b1220;
+    --body: #3b4557;
+    --muted: #6b7587;
+    --line: #e4e8ee;
+    --soft: #f5f7fa;
+    --accent: #0e9f86;
+    --accent-ink: #087563;
+    --accent-soft: #e6f6f2;
+    --night: #0b1220;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; }
+  body { font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  .slide {
+    width: 1280px; height: 720px; position: relative; overflow: hidden;
+    padding: 56px 64px 48px; display: flex; flex-direction: column;
+    break-after: page; page-break-after: always; background: #fff;
+  }
+  body { counter-reset: s; }
+  .slide { counter-increment: s; }
+  .pnum::after { content: counter(s); }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+
+  /* running chrome */
+  .foot {
+    position: absolute; left: 64px; right: 64px; bottom: 22px;
+    display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); letter-spacing: .02em;
+  }
+  .foot b { color: var(--ink); font-weight: 600; }
+
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 14px; }
+  h1 { font-size: 54px; line-height: 1.05; font-weight: 800; letter-spacing: -.025em; }
+  h2 { font-size: 36px; line-height: 1.12; font-weight: 750; letter-spacing: -.02em; max-width: 900px; }
+  .lede { font-size: 17px; line-height: 1.55; color: var(--body); max-width: 760px; margin-top: 14px; }
+
+  /* screenshot frame */
+  .shot {
+    border-radius: 12px; overflow: hidden; background: #1e1e1e;
+    box-shadow: 0 1px 2px rgba(11,18,32,.08), 0 18px 40px -12px rgba(11,18,32,.28);
+    border: 1px solid #d5dbe3;
+  }
+  .shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+  .cap { font-size: 11.5px; color: var(--muted); margin-top: 8px; }
+
+  /* two-column feature layout */
+  .feature { display: grid; grid-template-columns: 380px 1fr; gap: 44px; flex: 1; margin-top: 26px; min-height: 0; }
+  .points { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+  .points li { padding-left: 22px; position: relative; font-size: 15px; line-height: 1.5; color: var(--body); }
+  .points li::before { content: ''; position: absolute; left: 0; top: 8px; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); }
+  .points li b { color: var(--ink); font-weight: 650; }
+  .note {
+    margin-top: auto; padding: 14px 16px; border-left: 3px solid var(--accent); background: var(--accent-soft);
+    font-size: 13.5px; line-height: 1.5; color: var(--ink); border-radius: 0 8px 8px 0;
+  }
+
+  /* cover */
+  .cover { background: var(--night); color: #fff; padding: 64px; }
+  .cover .eyebrow { color: #5eead4; }
+  .cover h1 { color: #fff; max-width: 560px; }
+  .cover .lede { color: #b8c2d3; max-width: 470px; font-size: 18px; }
+  .cover .shot { position: absolute; right: -40px; top: 110px; width: 700px; height: 438px; border-color: #26324a; box-shadow: 0 30px 80px -20px rgba(0,0,0,.7); }
+  .cover .stack { position: absolute; right: 0; top: 0; bottom: 0; width: 640px; }
+  .cover .stack .shot { position: absolute; width: 500px; height: 236px; right: auto; top: auto; border-color: #33425f; box-shadow: 0 28px 70px -18px rgba(0,0,0,.85); }
+  .cover .stack .s1 { left: 130px; top: 50px; }
+  .cover .stack .s2 { left: 70px; top: 238px; height: 176px; }
+  .cover .stack .s3 { left: 10px; top: 432px; height: 226px; }
+  .cover .stack img { object-position: top left; }
+  .cover .lbl { position: absolute; right: 12px; top: 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #0b1220; background: #5eead4; padding: 5px 10px; border-radius: 6px; }
+  .cover .float { top: auto; right: auto; left: 560px; bottom: 70px; width: 300px; height: 190px; border-color: #3a4a68; box-shadow: 0 24px 60px -10px rgba(0,0,0,.8); }
+  .cover .float img { object-position: center; }
+  .cover .tags { display: flex; gap: 10px; margin-top: 32px; flex-wrap: wrap; max-width: 520px; }
+  .cover .tag { font-size: 12.5px; font-weight: 600; padding: 7px 12px; border-radius: 999px; border: 1px solid #2c3a55; color: #dbe3ef; }
+  .cover .foot { color: #7d889c; }
+  .cover .foot b { color: #fff; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; margin-bottom: 64px; }
+  .mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #14b8a6, #0e9f86); display: grid; place-items: center; font-size: 15px; color: #fff; font-weight: 800; }
+
+  /* problem cards */
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 36px; }
+  .card { border: 1px solid var(--line); border-radius: 14px; padding: 26px 24px; background: #fff; }
+  .card .n { font-size: 12px; font-weight: 700; color: var(--accent-ink); letter-spacing: .1em; }
+  .card h3 { font-size: 20px; margin: 10px 0 10px; letter-spacing: -.01em; }
+  .card p { font-size: 14.5px; line-height: 1.55; color: var(--body); }
+
+  /* phases */
+  .phases { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 26px; }
+  .phase { border: 1px solid var(--line); border-radius: 10px; padding: 12px 12px; background: var(--soft); }
+  .phase .k { font-size: 11px; font-weight: 700; color: var(--accent-ink); letter-spacing: .08em; }
+  .phase .t { font-size: 14px; font-weight: 650; margin-top: 4px; }
+  .phase .d { font-size: 12px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+  /* stats */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: 44px; border-top: 1px solid var(--line); }
+  .stat { padding: 46px 28px 46px 0; border-bottom: 1px solid var(--line); }
+  .stat:nth-child(3n+2), .stat:nth-child(3n+3) { padding-left: 28px; border-left: 1px solid var(--line); }
+  .stat .v { font-size: 64px; font-weight: 800; letter-spacing: -.03em; color: var(--ink); line-height: 1; }
+  .stat .l { font-size: 15px; font-weight: 650; margin-top: 10px; }
+  .stat .s { font-size: 13px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+
+  /* trust grid */
+  .trust { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-top: 34px; }
+  .trust .card { padding: 22px 24px; }
+  .trust .card h3 { font-size: 18px; margin-top: 0; }
+
+  /* providers */
+  .prov { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .prov div { font-size: 13px; line-height: 1.5; color: var(--body); }
+  .prov div b { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-ink); margin-bottom: 4px; }
+
+  .band {
+    margin-top: auto; margin-bottom: 18px; padding: 26px 30px; border-radius: 14px; background: var(--night); color: #fff;
+    display: flex; align-items: center; gap: 28px;
+  }
+  .band .k { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #5eead4; white-space: nowrap; }
+  .band p { font-size: 19px; line-height: 1.45; font-weight: 500; color: #e6ecf5; }
+  .band p b { color: #fff; font-weight: 700; }
+
+  /* close */
+  .close { background: var(--night); color: #fff; justify-content: center; }
+  .close h1 { color: #fff; max-width: 900px; }
+  .close .lede { color: #b8c2d3; }
+  .aud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 44px; }
+  .aud div { border-top: 2px solid #14b8a6; padding-top: 14px; }
+  .aud h3 { font-size: 17px; }
+  .aud p { font-size: 14px; color: #b8c2d3; margin-top: 6px; line-height: 1.5; }
+  .cta { margin-top: 48px; font-size: 16px; color: #dbe3ef; }
+  .cta b { color: #5eead4; }
+  .close .foot { color: #7d889c; }
+  .close .foot b { color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- 1 · Cover -->
+<section class="slide cover">
+  <div class="brand"><span class="mark">E</span> Evolve Mind Solutions</div>
+  <div class="eyebrow">Product overview</div>
+  <h1>Evolve AI Enterprise Delivery Studio</h1>
+  <p class="lede">Take a client from the first conversation to a deployed, auditable AI solution, in one desktop app that can run entirely on your own hardware.</p>
+  <div class="tags">
+    <span class="tag">Windows desktop app</span>
+    <span class="tag">VS Code extension</span>
+    <span class="tag">Local or cloud AI</span>
+    <span class="tag">Air-gap capable</span>
+  </div>
+  <div class="stack">
+    <div class="shot s1"><img src="shots/10_schema_erd_2d.png" alt="Schema topology"><span class="lbl">Map the data</span></div>
+    <div class="shot s2"><img src="shots/c2_models.png" alt="AI model guide"><span class="lbl">Choose the AI</span></div>
+    <div class="shot s3"><img src="shots/c3_git.png" alt="Git and deployment hub"><span class="lbl">Ship it</span></div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · v2.26</span><span>Evolve Mind Solutions Pty Ltd</span></div>
+</section>
+
+<!-- 2 · Problem -->
+<section class="slide">
+  <div class="eyebrow">The problem</div>
+  <h2>Delivering AI to a client is still stitched together by hand</h2>
+  <p class="lede">The work between "we have a use case" and "it's running in production" is spread across a dozen tools, and most of the judgement calls live in people's heads.</p>
+  <div class="cards">
+    <div class="card"><div class="n">01</div><h3>Context lost at every hand-off</h3><p>Schema notes, notebooks, diagram tools, the IDE and three cloud consoles. Each move between them drops a decision on the floor.</p></div>
+    <div class="card"><div class="n">02</div><h3>Data that can't leave the building</h3><p>Banks, government and healthcare can't send schemas or source code to a public model. Most AI tooling assumes they can.</p></div>
+    <div class="card"><div class="n">03</div><h3>AI where a rule would do</h3><p>Teams reach for a language model by default, even where a deterministic rule would be faster, cheaper and provably correct.</p></div>
+  </div>
+  <div class="band"><span class="k">Evolve AI</span><p>Puts the whole engagement in <b>one workspace</b>, runs on <b>local models</b> when the data can't leave, and tells you <b>when not to use AI at all</b>.</p></div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 3 · Solution -->
+<section class="slide">
+  <div class="eyebrow">The product</div>
+  <h2>One workspace that follows the whole engagement</h2>
+  <div class="phases">
+    <div class="phase"><div class="k">PHASE 1</div><div class="t">Discover &amp; Frame</div><div class="d">Scope, ask, success criteria</div></div>
+    <div class="phase"><div class="k">PHASE 2</div><div class="t">Engineering Core</div><div class="d">Client data, APIs, schemas, marts</div></div>
+    <div class="phase"><div class="k">PHASE 3</div><div class="t">AI Solutioning</div><div class="d">Rule vs model, RAG, MCP</div></div>
+    <div class="phase"><div class="k">PHASE 4</div><div class="t">Reliability &amp; Evals</div><div class="d">Test it before the client does</div></div>
+    <div class="phase"><div class="k">PHASE 5</div><div class="t">Deploy &amp; Influence</div><div class="d">Ship it and make the case</div></div>
+    <div class="phase"><div class="k">PHASE 6</div><div class="t">DevOps &amp; Git</div><div class="d">Branch, commit, PR, pipeline</div></div>
+  </div>
+  <div class="shot" style="margin-top: 22px; flex: 1; min-height: 0;"><img src="shots/00_full_app.png" alt="Delivery Studio with the six-phase navigator"></div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 4 · Data mapping -->
+<section class="slide">
+  <div class="eyebrow">Phase 2 · Engineering core</div>
+  <h2>See the client's data model in minutes, not workshops</h2>
+  <div class="feature">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>Connect a live database or warehouse</b> (PostgreSQL, Snowflake, BigQuery and more) and pull the real schema.</li>
+        <li><b>Switch between a technical ERD and a 3D topology</b> of the same tables and relationships.</li>
+        <li><b>Go straight from diagram to build:</b> staging models, join paths and dimensional marts.</li>
+        <li><b>Export a POC approval pack</b> the client can sign off.</li>
+      </ul>
+      <div class="note">Credentials default to session-only, in memory. Nothing is written to settings files.</div>
+    </div>
+    <div style="display:grid; grid-template-rows: 1fr 1fr; gap: 14px; min-height:0;">
+      <div class="shot"><img src="shots/10_schema_erd_2d.png" alt="2D technical ERD"></div>
+      <div class="shot"><img src="shots/11_schema_3d.png" alt="3D schema topology" style="object-position: left center;"></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 5 · Rule vs model -->
+<section class="slide">
+  <div class="eyebrow">Phase 3 · AI solutioning</div>
+  <h2>It asks "do we need AI?" before anyone builds any</h2>
+  <div class="feature">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>Rule-vs-model decision gate.</b> Describe the task: its arithmetic, inputs, latency budget and tolerance for error.</li>
+        <li><b>A five-level capability ladder</b> recommends the simplest architecture that does the job, from compiled rules up to agentic systems.</li>
+        <li><b>Every recommendation comes with its reasoning,</b> a flow diagram, a trade-off matrix and a code contract.</li>
+        <li><b>Export architecture decision records</b> straight into the client's documentation.</li>
+      </ul>
+      <div class="note">For a ledger reconciliation it recommends a rule engine, not a language model. That's the answer a trusted advisor gives.</div>
+    </div>
+    <div class="shot"><img src="shots/20_ai_solutioning_ladder.png" alt="Rule vs model decision gate"></div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 6 · RAG + model choice -->
+<section class="slide">
+  <div class="eyebrow">Phase 3 · Component architecture</div>
+  <h2>The right retrieval pattern, then the right kind of model</h2>
+  <div class="feature">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>Start from the client's failure.</b> Pick the symptom ("exact part numbers get missed") and it matches one of eight canonical RAG patterns, each with a diagram, trade-offs and a delivery playbook.</li>
+        <li><b>A model guide, fact-checked against the research.</b> The popular "8 types of AI model" list is checked against the published papers. It shows which types are real categories, which are marketing names, and which are really attributes such as size or Mixture-of-Experts.</li>
+        <li><b>Every model type links to the job it does</b> (chat, embeddings, vision, tool use), its architecture diagram and its primary paper.</li>
+        <li><b>Then it checks your machine:</b> which installed models can actually do that job.</li>
+      </ul>
+    </div>
+    <div style="display:grid; grid-template-rows: 1fr 1.25fr; gap: 14px; min-height:0;">
+      <div class="shot"><img src="shots/21_rag_patterns.png" alt="Eight RAG architecture patterns"></div>
+      <div class="shot"><img src="shots/22_models_audit.png" alt="AI model types audited against the literature"></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 7 · Data analysis -->
+<section class="slide">
+  <div class="eyebrow">Data analysis &amp; reporting studio</div>
+  <h2>From raw data to a client-ready report, locally</h2>
+  <div class="feature" style="grid-template-columns: 340px 1fr;">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>Bring any source:</b> CSV, Excel, JSON and Parquet files, or BigQuery, Databricks, Cosmos DB, DynamoDB, cloud storage and SQL databases.</li>
+        <li><b>Choose the deliverable:</b> an HTML report, a reproducible notebook, a data profile, or interactive 3D analytics.</li>
+        <li><b>Explore in 3D</b> with scatter, PCA, surface and k-means views, and outliers flagged automatically.</li>
+        <li><b>Refine in plain language.</b> "Move the churn chart up" edits the report; every change can be undone.</li>
+      </ul>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height:0;">
+      <div class="shot"><img src="shots/30_data_studio_demo.png" alt="Data source connection"></div>
+      <div class="shot"><img src="shots/31_data_3d_manifold.png" alt="3D analytics surface" style="object-position: center;"></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 8 · Code converter -->
+<section class="slide">
+  <div class="eyebrow">Code converter</div>
+  <h2>Move legacy code to a modern stack, and keep an audit trail</h2>
+  <div class="feature">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>26 languages,</b> including COBOL, VBA, SAS and Perl on the legacy side. Convert a selection, a file or a whole folder.</li>
+        <li><b>Choose the style:</b> idiomatic, line-for-line literal, or modernised, with a dependency policy to match.</li>
+        <li><b>Checks its own work</b> with the target language's own parser where it's installed, and feeds failures back for repair.</li>
+        <li><b>Every conversion comes with a report</b> of what mapped exactly, what was approximated and what still needs a person.</li>
+      </ul>
+      <div class="note">Nothing is written to disk until you accept the side-by-side review.</div>
+    </div>
+    <div class="shot"><img src="shots/40_code_converter.png" alt="Code converter"></div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- Deploy · Phase 5B -->
+<section class="slide">
+  <div class="eyebrow">Phase 5 · Deploy</div>
+  <h2>From architecture to deployable infrastructure in one click</h2>
+  <div class="feature" style="grid-template-columns: 340px 1fr;">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>Pick the target:</b> Google Cloud, AWS, Azure, or on-prem and air-gapped Docker.</li>
+        <li><b>Size it from a preset,</b> from a scale-to-zero pilot sandbox up to GPU inference, then fine-tune CPU, memory, network and autoscaling.</li>
+        <li><b>One click scaffolds everything:</b> Terraform, Kubernetes, Docker Compose, deploy scripts for bash and PowerShell, and a CI/CD workflow.</li>
+        <li><b>Lists the exact secrets</b> the pipeline needs, and targets GitHub Actions, GitLab CI, Bitbucket or Azure DevOps.</li>
+      </ul>
+    </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 14px; min-height:0;">
+      <div class="shot"><img src="shots/52_deploy_hub.png" alt="Cloud deployment sizing and parameters"></div>
+      <div class="shot"><img src="shots/53_deploy_files.png" alt="Generated infrastructure files and CI/CD"></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- DevOps & Git · Phase 6 -->
+<section class="slide">
+  <div class="eyebrow">Phase 6 · DevOps &amp; Git</div>
+  <h2>Git set up and shipping without leaving the tool</h2>
+  <div class="feature">
+    <div style="display:flex; flex-direction:column;">
+      <ul class="points">
+        <li><b>One-click setup wizard</b> for Bitbucket, GitHub and GitLab. It detects git, your identity and the remote, then initialises the repo and tests the connection.</li>
+        <li><b>See every change live:</b> branch, remote and working tree, updated in real time.</li>
+        <li><b>AI drafts the commit message,</b> then commit and push in one click.</li>
+        <li><b>Branch, pull, stash and open a pull request</b> from the same screen, with a git command bar for everything else.</li>
+      </ul>
+      <div class="note">The client's delivery work lands in their repository with a clean history, not on a consultant's laptop.</div>
+    </div>
+    <div style="display:grid; grid-template-rows: auto 1fr; gap: 14px; min-height:0;">
+      <div class="shot" style="height: 118px;"><img src="shots/61_git_wizard_strip.png" alt="Git and Bitbucket setup wizard"></div>
+      <div class="shot"><img src="shots/60_git_hub.png" alt="Git and remote repository hub"></div>
+    </div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 9 · Hardware / providers -->
+<section class="slide">
+  <div class="eyebrow">Local-first AI</div>
+  <h2>Runs on the hardware you already have</h2>
+  <div class="feature">
+    <div style="display:flex; flex-direction:column; gap: 22px;">
+      <ul class="points">
+        <li><b>Detects the machine's RAM, GPU and CPU</b> and shows which local models will actually fit, before anything is downloaded.</li>
+        <li><b>One-click install</b> of a recommended local model.</li>
+        <li><b>Switch provider per job:</b> a bigger model for a code port without changing the default for everything else.</li>
+      </ul>
+      <div class="prov">
+        <div><b>Local &amp; offline</b>Ollama, Gemma 4, GLM, Colibri, and a fully offline mode</div>
+        <div><b>Cloud</b>Anthropic, OpenAI-compatible, Google Gemini, Z.ai, Hugging Face</div>
+      </div>
+    </div>
+    <div class="shot"><img src="shots/50_hardware.png" alt="Hardware sizer and model matrix"></div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 10 · At a glance -->
+<section class="slide">
+  <div class="eyebrow">At a glance</div>
+  <h2>A complete delivery platform, shipping today</h2>
+  <div class="stats">
+    <div class="stat"><div class="v">6</div><div class="l">Delivery phases</div><div class="s">Discovery through to DevOps, in one workspace</div></div>
+    <div class="stat"><div class="v">26</div><div class="l">Programming languages</div><div class="s">For review-first code conversion</div></div>
+    <div class="stat"><div class="v">24</div><div class="l">Stack plugins</div><div class="s">Databricks, dbt, Airflow, Terraform, Kubernetes and more</div></div>
+    <div class="stat"><div class="v">10</div><div class="l">AI provider modes</div><div class="s">Local, cloud or fully offline</div></div>
+    <div class="stat"><div class="v">8</div><div class="l">RAG architecture patterns</div><div class="s">Each with a diagram, trade-offs and a playbook</div></div>
+    <div class="stat"><div class="v">2</div><div class="l">Surfaces</div><div class="s">Windows desktop app and VS Code extension</div></div>
+  </div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 11 · Trust -->
+<section class="slide">
+  <div class="eyebrow">Why clients can trust it</div>
+  <h2>Built for teams that answer to auditors</h2>
+  <div class="trust">
+    <div class="card"><h3>Air-gap capable</h3><p>Run on local models with no network at all. Client data and code never have to leave the machine.</p></div>
+    <div class="card"><h3>No invented numbers</h3><p>Every figure in a client document is labelled as measured, user-supplied, demo or unmeasured. The product won't fill a gap with a plausible guess.</p></div>
+    <div class="card"><h3>Review before anything changes</h3><p>Generated code, conversions and edits are previewed before they land, and can be undone.</p></div>
+    <div class="card"><h3>Secrets stay in the OS vault</h3><p>API keys and access tokens live in the operating system's secure storage, never in settings files.</p></div>
+  </div>
+  <div class="band"><span class="k">Our rule</span><p>A visible gap is better than a plausible guess. <b>If nobody measured it, the product says so.</b></p></div>
+  <div class="foot"><span><b>Evolve AI</b> · Product overview</span><span class="pnum"></span></div>
+</section>
+
+<!-- 12 · Close -->
+<section class="slide close">
+  <div class="eyebrow">Who it's for</div>
+  <h1>AI delivery that holds up in front of the client</h1>
+  <div class="aud">
+    <div><h3>Solutions &amp; forward-deployed teams</h3><p>One place to run an engagement from discovery to deployment.</p></div>
+    <div><h3>Data &amp; AI consultancies</h3><p>Repeatable, well-documented delivery across many clients and stacks.</p></div>
+    <div><h3>Regulated enterprises</h3><p>AI assistance that stays inside the perimeter and leaves an audit trail.</p></div>
+  </div>
+  <p class="cta">Let's show you a live walkthrough &nbsp;·&nbsp; <b>support@evolveminds.com.au</b></p>
+  <div class="foot"><span><b>Evolve AI</b> · Evolve Mind Solutions Pty Ltd</span><span class="pnum"></span></div>
+</section>
+
+</body>
+</html>
