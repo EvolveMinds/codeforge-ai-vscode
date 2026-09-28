@@ -31,9 +31,11 @@ Before touching version numbers or code:
 
 - [ ] **Working Tree Clean:** `git status` reports no untracked or unstaged files.
 - [ ] **Remote Synchronized:** `git checkout main && git pull origin main && git pull enterprise main`.
+- [ ] **Zero-Secret Leak Guard:** `git grep -E "BEGIN (RSA |EC )?PRIVATE KEY" src/` returns zero results (no signing keys or credentials in client bundles).
 - [ ] **TypeScript Compilation:** `npm run compile` exits 0.
 - [ ] **Semver Single-Source Guard:** `npm run check:version` exits 0 (no hardcoded version literals).
 - [ ] **Honesty & Metrics Integrity:** `npm run verify:honest` passes all 61 checks.
+- [ ] **Cryptographic License Engine Tests:** `npx mocha --ui tdd out/test/suite/enterprise/license.test.js` passes all 11 tests.
 - [ ] **FDE Unit & Integration Tests:** `npm run test:fde` passes all 76 tests.
 - [ ] **Desktop Core Mocha Tests:** `npx mocha --ui tdd out/test/suite/desktop/desktopCore.test.js` passes 7 tests.
 

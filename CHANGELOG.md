@@ -2,6 +2,26 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.27.0] — 2026-09-28
+
+### Security Hardening · Zero-Secret Cryptographic Key Rotation & Decoupled Trials
+
+* **Rotated Master Signing Key:** Replaced the legacy Ed25519 signing keypair with a freshly generated master keypair. The public key is embedded in `LicenseValidator` and all legacy tokens signed with the old key are immediately invalidated.
+* **Decoupled Local Evaluation Trials:** Re-architected 30-day evaluation trials to use zero-secret local state persisted in OS-backed hardware-encrypted vault (`vscode.SecretStorage` / desktop storage). The client extension and desktop app never sign licenses locally and contain zero private keys.
+* **Decoupled Admin License Generator:** Removed `LicenseGenerator` exports from client extension and desktop runtime bundles. Offline and enterprise license issuance now runs strictly via serverless backend functions (`claim-otp`) or administrative CLI tools (`issue-license.js`) requiring explicit environment secrets (`EVOLVE_MASTER_PRIVATE_KEY` / `LICENSE_SIGNING_PRIVATE_KEY`).
+* **Supabase OTP Edge Function Hardening:** Removed hardcoded private key fallback from `claim-otp/index.ts`. All seat tokens are now signed exclusively via server-side Supabase environment secrets.
+
+### Phase 4 · NLP Agent & Pipeline Studio with 8-RAG Patterns & Simulator
+
+* **Phase 4 NLP Pipeline Studio:** End-to-end multi-model design canvas supporting 8 production RAG patterns (Naive RAG, Sentence Window, Auto-Merging, Hierarchical Summarization, HyDE, Fusion RAG, Multi-Hop RAG, and Parent-Document).
+* **Multi-Model Evaluation Matrix:** Direct comparison and benchmarking across 8 leading model families: Gemini 1.5/2.0, Claude 3.5 Sonnet, GPT-4o, Llama 3.3, Mistral Large, Cohere Command R+, DeepSeek V3/R1, and Local Ollama.
+* **Live Pipeline Simulator:** Step-by-step interactive simulation calculating token economics, retrieval latency, confidence scoring, and boundary guardrail interception.
+* **Production Code Scaffolding:** Instant export to production FastAPI microservices, Apache Airflow DAGs, and automated Pytest evaluation suites.
+
+### Deployment Protocol Enforcement
+
+* **Mandatory Zero-Secret Leak Guard:** Added automated pre-flight scan checking for private key headers across all source files prior to packaging and release.
+
 ## [2.26.0] — 2026-09-25
 
 ### Phase 3 AI Solutioning Contract Integration & Model Advisor

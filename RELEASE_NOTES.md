@@ -1,5 +1,29 @@
 # Evolve AI — Release Notes
 
+## Version 2.27.0 — September 28, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.27.0 delivers a critical security overhaul of the enterprise licensing engine alongside Phase 4 (NLP Agent & Pipeline Studio).
+
+* **Zero-Secret Licensing & Cryptographic Key Rotation:** Rotated the master Ed25519 signing keypair. All legacy tokens signed with the old key are invalidated.
+* **Decoupled Client-Side Evaluation Trials:** 30-day evaluation trials are now locally tracked in hardware-encrypted OS vaults (`vscode.SecretStorage` / desktop storage). The client extension and desktop app contain zero private keys.
+* **Decoupled Administrative Key Generator:** `LicenseGenerator` has been removed from client runtime bundles and is strictly an administrative/offline utility requiring explicit environment secrets.
+* **Hardened Serverless Claim OTP Function:** The Supabase edge function now strictly loads `LICENSE_SIGNING_PRIVATE_KEY` from Supabase secrets without fallback to hardcoded keys.
+* **Phase 4 NLP Agent & Pipeline Studio:** Interactive multi-model canvas supporting 8 production RAG patterns (Naive, Sentence Window, Auto-Merging, Hierarchical Summarization, HyDE, Fusion RAG, Multi-Hop RAG, Parent-Document).
+* **Multi-Model Evaluation Matrix:** Live comparative benchmarking across Gemini 1.5/2.0, Claude 3.5 Sonnet, GPT-4o, Llama 3.3, Mistral Large, Cohere Command R+, DeepSeek V3/R1, and Local Ollama.
+* **Interactive Pipeline Simulator:** Real-time token economics, latency measurement, confidence scores, and boundary guardrail interception with human-in-the-loop escalation.
+* **Production Scaffolding:** Instant generation of FastAPI microservices, Apache Airflow DAGs, and automated Pytest evaluation test suites.
+* **Enforced Pre-Flight Security Checks:** Deployment checklist now enforces an automated Zero-Secret Leak Guard before packaging.
+
+---
+
 ## Version 2.26.0 — September 25, 2026
 
 **Publisher:** `codeforge-ai`  
