@@ -11,8 +11,8 @@ import { EnterpriseLicensePayload, LicenseVerificationResult, EnterpriseFeature 
 /**
  * Official Evolve Mind Solutions Master Public Key (Ed25519)
  */
-const EVOLVE_MASTER_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEA+knvPt16q6Y8c+M1YCWiQ/CQp3b0Bv6ILowxZnDl4DM=
+export const EVOLVE_MASTER_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VwAyEALZPafF2acKzjX3gMi1Jha9JQgXk+UQXVi81/jUMM/8w=
 -----END PUBLIC KEY-----`;
 
 export class LicenseValidator {

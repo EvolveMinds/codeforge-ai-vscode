@@ -1,19 +1,18 @@
 /**
  * scripts/issue-license.js
  * 
- * Official Enterprise License Key Generator CLI for Evolve Mind Solutions.
+ * Official Enterprise License Key Generator CLI for Evolve Mind Solutions (Administrative Only).
+ * Generates cryptographically signed (Ed25519) offline license tokens for paying enterprise clients.
+ * 
  * Usage:
  *   node scripts/issue-license.js --org "Client Name" --plan enterprise_platinum --days 365 --seats 50
- *   node scripts/issue-license.js --out license.json
+ *   node scripts/issue-license.js --out license.json --key-file ./master.key
+ *   EVOLVE_MASTER_PRIVATE_KEY="-----BEGIN..." node scripts/issue-license.js --org "Acme"
  */
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-
-const EVOLVE_MASTER_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEINYvrTn35C3FQ0Y8oQbuQz8QIY3yIjhluUNE9L4Kh1HD
------END PRIVATE KEY-----`;
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -24,6 +23,8 @@ function parseArgs() {
     seats: 25,
     scope: 'seat',
     email: 'admin@evolveminds.com.au',
+    key: null,
+    keyFile: null,
     out: null
   };
 
@@ -67,13 +68,37 @@ function parseArgs() {
     }
     else if (a.startsWith('--email=')) options.email = a.slice('--email='.length);
     else if (a === '--email' && args[i + 1]) options.email = args[++i];
+    else if (a.startsWith('--key=')) options.key = a.slice('--key='.length);
+    else if (a === '--key' && args[i + 1]) options.key = args[++i];
+    else if (a.startsWith('--key-file=')) options.keyFile = a.slice('--key-file='.length);
+    else if (a === '--key-file' && args[i + 1]) options.keyFile = args[++i];
     else if (a.startsWith('--out=')) options.out = a.slice('--out='.length);
     else if (a === '--out' && args[i + 1]) options.out = args[++i];
   }
   return options;
 }
 
-function issueLicense(options) {
+function resolveSigningKey(options) {
+  if (options.key) return options.key;
+  if (options.keyFile) {
+    const resolvedPath = path.resolve(options.keyFile);
+    if (fs.existsSync(resolvedPath)) {
+      return fs.readFileSync(resolvedPath, 'utf8').trim();
+    }
+    throw new Error(`Private key file not found: ${resolvedPath}`);
+  }
+  const envKey = process.env.EVOLVE_MASTER_PRIVATE_KEY || process.env.LICENSE_SIGNING_PRIVATE_KEY;
+  if (envKey) return envKey.trim();
+
+  throw new Error(
+    'Missing Master Ed25519 Private Key.\n' +
+    'Provide the key via:\n' +
+    '  - Environment variable: export EVOLVE_MASTER_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----..."\n' +
+    '  - CLI argument:        --key="<pem>" or --key-file=<path_to_pem>'
+  );
+}
+
+function issueLicense(options, privateKey) {
   const now = new Date();
   const expiry = new Date();
   expiry.setDate(now.getDate() + options.days);
@@ -104,7 +129,7 @@ function issueLicense(options) {
 
   const payloadStr = JSON.stringify(payload);
   const payloadB64 = Buffer.from(payloadStr, 'utf8').toString('base64');
-  const signatureBuf = crypto.sign(null, Buffer.from(payloadStr, 'utf8'), EVOLVE_MASTER_PRIVATE_KEY);
+  const signatureBuf = crypto.sign(null, Buffer.from(payloadStr, 'utf8'), privateKey);
   const signatureB64 = signatureBuf.toString('base64');
 
   const token = `EM-ENT-V1.${payloadB64}.${signatureB64}`;
@@ -124,25 +149,31 @@ function issueLicense(options) {
   return { token, jsonBundle, payload, isSiteLicense };
 }
 
-const opts = parseArgs();
-const { token, jsonBundle, payload, isSiteLicense } = issueLicense(opts);
+try {
+  const opts = parseArgs();
+  const privateKey = resolveSigningKey(opts);
+  const { token, jsonBundle, payload, isSiteLicense } = issueLicense(opts, privateKey);
 
-console.log('\n================================================================');
-console.log('   EVOLVE AI ENTERPRISE LICENSE GENERATOR');
-console.log('================================================================');
-console.log(`Organization : ${payload.organization}`);
-console.log(`Plan         : ${payload.plan}`);
-console.log(`Scope        : ${isSiteLicense ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers / Org-wide)' : `👥 SEAT-BASED (${payload.maxSeats} Licensed Developers)`}`);
-console.log(`Issued At    : ${payload.issuedAt}`);
-console.log(`Expires At   : ${payload.expiresAt} (${opts.days} days)`);
-console.log('----------------------------------------------------------------');
-console.log('LICENSE KEY (Copy and paste into Evolve AI):');
-console.log('----------------------------------------------------------------');
-console.log(token);
-console.log('----------------------------------------------------------------\n');
+  console.log('\n================================================================');
+  console.log('   EVOLVE AI ENTERPRISE LICENSE GENERATOR');
+  console.log('================================================================');
+  console.log(`Organization : ${payload.organization}`);
+  console.log(`Plan         : ${payload.plan}`);
+  console.log(`Scope        : ${isSiteLicense ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers / Org-wide)' : `👥 SEAT-BASED (${payload.maxSeats} Licensed Developers)`}`);
+  console.log(`Issued At    : ${payload.issuedAt}`);
+  console.log(`Expires At   : ${payload.expiresAt} (${opts.days} days)`);
+  console.log('----------------------------------------------------------------');
+  console.log('LICENSE KEY (Copy and paste into Evolve AI):');
+  console.log('----------------------------------------------------------------');
+  console.log(token);
+  console.log('----------------------------------------------------------------\n');
 
-if (opts.out) {
-  const targetPath = path.resolve(opts.out);
-  fs.writeFileSync(targetPath, JSON.stringify(jsonBundle, null, 2), 'utf8');
-  console.log(`License file saved to: ${targetPath}\n`);
+  if (opts.out) {
+    const targetPath = path.resolve(opts.out);
+    fs.writeFileSync(targetPath, JSON.stringify(jsonBundle, null, 2), 'utf8');
+    console.log(`License file saved to: ${targetPath}\n`);
+  }
+} catch (err) {
+  console.error('\n❌ ERROR:', err.message || err);
+  process.exit(1);
 }

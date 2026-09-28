@@ -14,7 +14,6 @@ import {
 } from '../shared/desktopTypes';
 import { LicenseValidator } from '../../enterprise/license/licenseValidator';
 import { LicenseManager } from '../../enterprise/license/licenseManager';
-import { LicenseGenerator } from '../../enterprise/license/licenseGenerator';
 
 export class DesktopLicenseAuth {
   private _storageDir: string;
@@ -35,6 +34,9 @@ export class DesktopLicenseAuth {
         try {
           if (fs.existsSync(this._licenseFile)) {
             const raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8'));
+            if (key === 'evolve.enterprise.trialInfo') {
+              return raw[key] || (raw.isTrial ? JSON.stringify(raw) : undefined);
+            }
             return raw[key] || raw.licenseKey || raw.key || (typeof raw === 'string' ? raw : undefined);
           }
         } catch {}
@@ -47,8 +49,14 @@ export class DesktopLicenseAuth {
             try { raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8')); } catch {}
           }
           raw[key] = val;
-          raw.licenseKey = val;
-          raw.key = val;
+          if (key === 'evolve.enterprise.licenseKey') {
+            raw.licenseKey = val;
+            raw.key = val;
+            delete raw['evolve.enterprise.trialInfo'];
+            delete raw.isTrial;
+          } else if (key === 'evolve.enterprise.trialInfo') {
+            raw.isTrial = true;
+          }
           fs.writeFileSync(this._licenseFile, JSON.stringify(raw, null, 2), 'utf8');
         } catch {}
       },
@@ -57,8 +65,13 @@ export class DesktopLicenseAuth {
           if (fs.existsSync(this._licenseFile)) {
             const raw = JSON.parse(fs.readFileSync(this._licenseFile, 'utf8'));
             delete raw[key];
-            delete raw.licenseKey;
-            delete raw.key;
+            if (key === 'evolve.enterprise.licenseKey') {
+              delete raw.licenseKey;
+              delete raw.key;
+            }
+            if (key === 'evolve.enterprise.trialInfo') {
+              delete raw.isTrial;
+            }
             fs.writeFileSync(this._licenseFile, JSON.stringify(raw, null, 2), 'utf8');
           }
         } catch {}
@@ -78,6 +91,37 @@ export class DesktopLicenseAuth {
         if (rawContent.startsWith('{')) {
           try {
             const parsed = JSON.parse(rawContent);
+            if (parsed.isTrial && parsed.expiresAt) {
+              const now = new Date();
+              const expiresAt = new Date(parsed.expiresAt);
+              if (now < expiresAt) {
+                const diffMs = expiresAt.getTime() - now.getTime();
+                const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                (this._licenseMgr as any)._state = {
+                  isLicensed: true,
+                  isTrial: true,
+                  plan: 'enterprise_platinum',
+                  organization: parsed.organization || 'Trial Partner',
+                  licenseId: parsed.licenseId || 'EM-TRIAL-LOCAL',
+                  expiresAt: parsed.expiresAt,
+                  daysRemaining: daysRemaining,
+                  maxSeats: parsed.maxSeats || 25,
+                  seats: parsed.maxSeats || 25,
+                  licenseScope: 'seat',
+                  features: parsed.features || [
+                    'load_testing',
+                    'rag_scaffolder',
+                    'data_quality',
+                    'siem_logging',
+                    'co_branding',
+                    'multi_tenant_sync',
+                    'priority_sla',
+                  ],
+                  rawKey: 'LOCAL_TRIAL_ACTIVE',
+                };
+                return;
+              }
+            }
             const extracted = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
             key = (extracted || '').replace(/[\r\n\s\t]+/g, '').trim();
             claimantEmail = parsed.claimedBy || parsed.userEmail || parsed.email;
@@ -88,6 +132,7 @@ export class DesktopLicenseAuth {
           if (res.valid && res.payload) {
             (this._licenseMgr as any)._state = {
               isLicensed: true,
+              isTrial: false,
               plan: res.payload.plan,
               organization: res.payload.organization,
               licenseId: res.payload.licenseId,
@@ -110,6 +155,7 @@ export class DesktopLicenseAuth {
       // If no valid license found
       (this._licenseMgr as any)._state = {
         isLicensed: false,
+        isTrial: false,
         plan: 'community',
         organization: 'Community User',
         licenseId: '',
@@ -231,12 +277,19 @@ export class DesktopLicenseAuth {
     return this.getLicenseState();
   }
 
-  public generateTrialKey(orgName: string = 'Enterprise Partner', days: number = 30): string {
-    return LicenseGenerator.generateTrialKey(orgName, days);
+  public async activateLocalTrial(orgName: string = 'Enterprise Partner', days: number = 30): Promise<EnterpriseLicenseState> {
+    await this._licenseMgr.activateLocalTrial(orgName, days);
+    this._syncFromStorage();
+    return this.getLicenseState();
   }
 
-  public generateSiteLicenseKey(orgName: string = 'Enterprise Partner', days: number = 365): string {
-    return LicenseGenerator.generateSiteLicenseKey(orgName, days);
+  public async generateTrialKey(orgName: string = 'Enterprise Partner', days: number = 30): Promise<string> {
+    await this.activateLocalTrial(orgName, days);
+    return `EM-TRIAL-ACTIVE (${days} Days Evaluation Active)`;
+  }
+
+  public generateSiteLicenseKey(_orgName?: string, _days?: number): string {
+    return 'Site licenses are issued by Evolve Mind Solutions via enterprise procurement. Contact sales@evolveminds.com.au.';
   }
 
   public generateOfflineChallenge(userId: string, orgName: string): ActivationChallengeRequest {

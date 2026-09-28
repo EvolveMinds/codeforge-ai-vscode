@@ -26,7 +26,7 @@ import { DeployScriptScaffolder, DeployScriptOptions } from '../deployment/deplo
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout, findDockerDesktopPath, getDockerLaunchCommand } from '../core/processUtil';
-import { LicenseValidator, LicenseGenerator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient, SqlTranspiler, PiiSanitizer, ReverseEtlGenerator, RlsPolicyGenerator, SyntheticDataGenerator, MockServerGenerator } from '../enterprise';
+import { LicenseValidator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient, SqlTranspiler, PiiSanitizer, ReverseEtlGenerator, RlsPolicyGenerator, SyntheticDataGenerator, MockServerGenerator } from '../enterprise';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -271,23 +271,15 @@ Output ONLY the message without markdown code fences.`;
 
       case 'startTrial': {
         try {
-          const trialKey = LicenseGenerator.generateTrialKey('VS Code FDE Community User', 30);
           if (this._svc?.license) {
-            await this._svc.license.activateLicense(trialKey);
-          }
-          if (this._vsCtx?.secrets) {
-            await this._vsCtx.secrets.store('evolve.enterprise.licenseKey', trialKey);
+            await this._svc.license.activateLocalTrial('VS Code FDE Community User', 30);
           }
           vscode.window.showInformationMessage(
-            `⚡ 30-Day Enterprise Trial Activated!\nTrial License: ${trialKey.slice(0, 24)}... (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Client POC Pack.`,
-            'Launch Desktop Edition',
-            'Copy Full Key'
+            `⚡ 30-Day Enterprise Trial Activated!\nValid for 30 days (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Client POC Pack.`,
+            'Launch Desktop Edition'
           ).then(async (choice) => {
             if (choice === 'Launch Desktop Edition') {
               vscode.commands.executeCommand('aiForge.fde.launchDesktop');
-            } else if (choice === 'Copy Full Key') {
-              await vscode.env.clipboard.writeText(trialKey);
-              vscode.window.showInformationMessage('✓ 30-Day Enterprise Trial Key copied to clipboard!');
             }
           });
           this._update();
@@ -1935,9 +1927,8 @@ Output ONLY the message without markdown code fences.`;
 
       case 'generateDemoEnterpriseKey': {
         if (!this._svc?.license) return;
-        const trialKey = LicenseGenerator.generateTrialKey(msg.orgName || 'Demo Enterprise Partner', 30);
-        const result = await this._svc.license.activateLicense(trialKey);
-        vscode.window.showInformationMessage(`✓ 30-Day Enterprise Platinum Trial Activated for ${result.payload?.organization}!`);
+        const state = await this._svc.license.activateLocalTrial(msg.orgName || 'Demo Enterprise Partner', 30);
+        vscode.window.showInformationMessage(`✓ 30-Day Enterprise Platinum Trial Activated for ${state.organization}!`);
         this._panel.webview.postMessage({
           type: 'enterpriseLicenseResult',
           success: true,

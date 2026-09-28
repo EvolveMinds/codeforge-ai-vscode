@@ -7,7 +7,6 @@
 
 export * from "./license/licenseTypes";
 export * from "./license/licenseValidator";
-export * from "./license/licenseGenerator";
 export * from "./license/licenseManager";
 export * from "./loadTesting/loadTestTypes";
 export * from "./loadTesting/loadTestGenerator";

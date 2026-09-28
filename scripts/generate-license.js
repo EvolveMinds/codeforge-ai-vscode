@@ -60,9 +60,30 @@ for (const arg of args) {
     options.days = parseInt(arg.slice('--days='.length), 10) || 365;
   } else if (arg.startsWith('--email=')) {
     options.email = arg.slice('--email='.length);
+  } else if (arg.startsWith('--key=')) {
+    options.key = arg.slice('--key='.length);
+  } else if (arg.startsWith('--key-file=')) {
+    options.keyFile = arg.slice('--key-file='.length);
   } else if (arg.startsWith('--out=')) {
     options.out = arg.slice('--out='.length);
   }
+}
+
+let signingKey = options.key || process.env.EVOLVE_MASTER_PRIVATE_KEY || process.env.LICENSE_SIGNING_PRIVATE_KEY;
+if (options.keyFile) {
+  const keyPath = path.resolve(options.keyFile);
+  if (fs.existsSync(keyPath)) {
+    signingKey = fs.readFileSync(keyPath, 'utf8').trim();
+  } else {
+    console.error(`\n❌ ERROR: Key file not found: ${keyPath}`);
+    process.exit(1);
+  }
+}
+
+if (!signingKey) {
+  console.error('\n❌ ERROR: Master signing key is required.');
+  console.error('Provide via EVOLVE_MASTER_PRIVATE_KEY environment variable or --key="<pem>" / --key-file=<path>');
+  process.exit(1);
 }
 
 const now = new Date();
@@ -85,7 +106,7 @@ const payload = {
   contactEmail: options.email
 };
 
-const token = LicenseGenerator.sign(payload);
+const token = LicenseGenerator.sign(payload, signingKey);
 const verification = LicenseValidator.verify(token);
 
 const jsonBundle = {

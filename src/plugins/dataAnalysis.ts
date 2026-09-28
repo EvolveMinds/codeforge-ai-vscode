@@ -72,7 +72,7 @@ import { injectDataPrep } from '../core/reportBlocks';
 import type { ReportBlock, DataPrep, ReportTemplate, BlockType } from '../core/reportBlocks';
 import { extractBlock, buildBlockRefinePrompt } from '../core/reportEditor';
 import { assessModelForDataAnalysis, defaultModelFor } from '../core/modelCapability';
-import { LicenseGenerator, LicenseValidator } from '../enterprise';
+import { LicenseValidator } from '../enterprise';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
@@ -762,22 +762,18 @@ export class DataAnalysisPlugin implements IPlugin {
         }
         case 'startTrial': {
           try {
-            const trialKey = LicenseGenerator.generateTrialKey('VS Code Community User', 30);
-            if (services.vsCtx?.secrets) {
-              await services.vsCtx.secrets.store('evolve.enterprise.licenseKey', trialKey);
+            if (services.license) {
+              await services.license.activateLocalTrial('VS Code Community User', 30);
             }
             vscode.window.showInformationMessage(
-              `⚡ 30-Day Enterprise Trial Activated!\nTrial License: ${trialKey.slice(0, 24)}... (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Touchscreen Topology.`,
-              'Launch Desktop Edition',
-              'Copy Full Key'
+              `⚡ 30-Day Enterprise Trial Activated!\nValid for 30 days (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Touchscreen Topology.`,
+              'Launch Desktop Edition'
             ).then(async (choice) => {
               if (choice === 'Launch Desktop Edition') {
                 vscode.commands.executeCommand('aiForge.fde.launchDesktop');
-              } else if (choice === 'Copy Full Key') {
-                await vscode.env.clipboard.writeText(trialKey);
-                vscode.window.showInformationMessage('✓ 30-Day Enterprise Trial Key copied to clipboard!');
               }
             });
+            panel.setStatus('⚡ 30-Day Enterprise Trial Active');
           } catch (err: any) {
             vscode.window.showErrorMessage(`Trial activation error: ${err?.message || err}`);
           }

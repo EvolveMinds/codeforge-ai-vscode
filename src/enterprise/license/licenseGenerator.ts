@@ -1,27 +1,37 @@
 /**
  * enterprise/license/licenseGenerator.ts
  *
- * Official License Key Generator for Evolve Mind Solutions.
+ * Official License Key Generator for Evolve Mind Solutions (Administrative & Offline Tooling).
  * Uses Ed25519 asymmetric signing to issue cryptographically unforgeable license tokens.
  * Evolve Mind Solutions Pty Ltd. All rights reserved.
+ *
+ * NOTE: This tool is strictly for administrative use (e.g. backend functions, offline key issuance).
+ * The master signing private key is loaded from the environment (EVOLVE_MASTER_PRIVATE_KEY)
+ * and must NEVER be bundled into client-side extension or desktop applications.
  */
 
 import * as crypto from 'crypto';
 import { EnterpriseLicensePayload } from './licenseTypes';
 
-export const EVOLVE_MASTER_PRIVATE_KEY = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEINYvrTn35C3FQ0Y8oQbuQz8QIY3yIjhluUNE9L4Kh1HD
------END PRIVATE KEY-----`;
-
 export class LicenseGenerator {
   /**
    * Generates a signed license key string for a customer payload.
+   * Requires either customPrivateKey or process.env.EVOLVE_MASTER_PRIVATE_KEY.
    */
   public static sign(payload: EnterpriseLicensePayload, customPrivateKey?: string): string {
+    const privKey =
+      customPrivateKey ||
+      process.env.EVOLVE_MASTER_PRIVATE_KEY ||
+      process.env.LICENSE_SIGNING_PRIVATE_KEY;
+
+    if (!privKey) {
+      throw new Error(
+        'Missing enterprise signing key: EVOLVE_MASTER_PRIVATE_KEY environment variable is required to generate signed licenses.'
+      );
+    }
+
     const payloadStr = JSON.stringify(payload);
     const payloadB64 = Buffer.from(payloadStr, 'utf8').toString('base64');
-
-    const privKey = customPrivateKey || EVOLVE_MASTER_PRIVATE_KEY;
     const payloadBuf = Buffer.from(payloadStr, 'utf8');
 
     const signatureBuf = crypto.sign(null, payloadBuf, privKey);
@@ -31,9 +41,13 @@ export class LicenseGenerator {
   }
 
   /**
-   * Generates a 30-day Enterprise Trial license for testing and demonstrations.
+   * Generates a signed 30-day Enterprise Trial license token for customer pilots.
    */
-  public static generateTrialKey(organizationName: string = 'Demo Enterprise Client', days: number = 30): string {
+  public static generateTrialKey(
+    organizationName: string = 'Demo Enterprise Client',
+    days: number = 30,
+    customPrivateKey?: string
+  ): string {
     const now = new Date();
     const expiry = new Date();
     expiry.setDate(now.getDate() + days);
@@ -58,13 +72,17 @@ export class LicenseGenerator {
       contactEmail: 'sales@evolveminds.com.au',
     };
 
-    return this.sign(payload);
+    return this.sign(payload, customPrivateKey);
   }
 
   /**
-   * Generates an Enterprise Site License key (organization-wide, unlimited developer seats).
+   * Generates a signed Enterprise Site License token (organization-wide, unlimited developer seats).
    */
-  public static generateSiteLicenseKey(organizationName: string = 'Demo Enterprise Partner', days: number = 365): string {
+  public static generateSiteLicenseKey(
+    organizationName: string = 'Demo Enterprise Partner',
+    days: number = 365,
+    customPrivateKey?: string
+  ): string {
     const now = new Date();
     const expiry = new Date();
     expiry.setDate(now.getDate() + days);
@@ -89,6 +107,6 @@ export class LicenseGenerator {
       contactEmail: 'sales@evolveminds.com.au',
     };
 
-    return this.sign(payload);
+    return this.sign(payload, customPrivateKey);
   }
 }

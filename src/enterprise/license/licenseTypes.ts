@@ -62,6 +62,7 @@ export interface LicenseVerificationResult {
 
 export interface LicenseState {
   isLicensed: boolean;
+  isTrial?: boolean;
   plan: LicensePlan;
   organization: string;
   licenseId: string;
