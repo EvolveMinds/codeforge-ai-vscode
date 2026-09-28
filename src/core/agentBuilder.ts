@@ -83,6 +83,7 @@ export interface PipelineSimulationResult {
 // THE 8 CANONICAL RAG BLUEPRINTS FOR PIPELINE NODES
 // =========================================================================
 export const RAG_NODE_BLUEPRINTS: Record<string, {
+  id: string;
   name: string;
   description: string;
   defaultStore: string;
@@ -90,6 +91,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
   features: string[];
 }> = {
   naive: {
+    id: 'naive',
     name: '01 Naive RAG',
     description: 'Single-pass dense vector retrieval over indexed documents',
     defaultStore: 'sqlite-vec',
@@ -97,6 +99,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['Dense Vector Cosine Match', 'Top-K Injection']
   },
   multimodal: {
+    id: 'multimodal',
     name: '02 Multimodal RAG',
     description: 'ColPali multi-vector patch embeddings for PDFs and blueprints',
     defaultStore: 'qdrant',
@@ -104,6 +107,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['Visual Patch Splitter', 'ColPali Multi-Vector', 'VLM Projection']
   },
   hyde: {
+    id: 'hyde',
     name: '03 HyDE',
     description: 'Hypothetical Document Embeddings with SLM zero-shot draft probe',
     defaultStore: 'sqlite-vec',
@@ -111,6 +115,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['SLM Draft Generator', 'Document-Space Embedding', 'Corpus Dense Match']
   },
   corrective: {
+    id: 'corrective',
     name: '04 Corrective RAG (CRAG)',
     description: 'Retrieval evaluator grader with automated external search fallback',
     defaultStore: 'pgvector',
@@ -118,6 +123,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['Confidence Grader (<25ms)', 'Web Fallback Branch', 'Knowledge Strip']
   },
   self_rag: {
+    id: 'self_rag',
     name: '05 Self-RAG',
     description: 'Adaptive retrieval with self-reflection critique tokens',
     defaultStore: 'sqlite-vec',
@@ -125,6 +131,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['[Retrieve] Gate', '[IsRel] Relevance Check', '[IsSup] Fact Check']
   },
   hybrid: {
+    id: 'hybrid',
     name: '06 Hybrid RAG',
     description: 'Inverted lexical BM25 + dense pgvector + RRF k=60 + Cross-Encoder reranker',
     defaultStore: 'pgvector',
@@ -132,6 +139,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['BM25 Lexical', '768d Dense Vector', 'Reciprocal Rank Fusion', 'Cross-Encoder']
   },
   graph: {
+    id: 'graph',
     name: '07 Graph RAG',
     description: 'Knowledge Graph entity linking with Leiden community summaries',
     defaultStore: 'neo4j',
@@ -139,6 +147,7 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
     features: ['Entity-Relation Triples', 'Community Detection', 'Hierarchical Summaries']
   },
   agentic: {
+    id: 'agentic',
     name: '08 Agentic RAG',
     description: 'Tool-equipped autonomous ReAct loop with multi-step search & action',
     defaultStore: 'pgvector',
@@ -147,64 +156,77 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
   }
 };
 
+export const RAG_BLUEPRINTS = RAG_NODE_BLUEPRINTS;
+
 // =========================================================================
 // THE 8 SPECIALIZED MODEL CLASSES
 // =========================================================================
 export const MODEL_CLASS_BLUEPRINTS: Record<string, {
+  id: string;
   name: string;
   defaultModel: string;
   role: string;
   latencySla: string;
 }> = {
   slm: {
+    id: 'slm',
     name: 'SLM (Small Language Model)',
     defaultModel: 'Qwen 2.5 7B / Llama 3.2 3B',
     role: 'Fast zero-shot drafting, single-hop RAG synthesis (<80ms)',
     latencySla: '<80ms'
   },
   mlm: {
+    id: 'mlm',
     name: 'MLM (Masked Language / Embedding)',
     defaultModel: 'nomic-embed-text / ModernBERT',
     role: 'Sub-25ms dense embeddings, intent routing, and evidence grading',
     latencySla: '<25ms'
   },
   llm: {
+    id: 'llm',
     name: 'LLM (Large Language Model)',
     defaultModel: 'Qwen 2.5 32B / Claude 3.5 Sonnet',
     role: 'Complex multi-document synthesis, structured JSON extraction',
     latencySla: '<1200ms'
   },
   vlm: {
+    id: 'vlm',
     name: 'VLM (Vision-Language Model)',
     defaultModel: 'Llama 3.2 Vision 11B / Qwen 2.5 VL',
     role: 'Visual chart decoding, raster PDF extraction, blueprint analysis',
     latencySla: '<800ms'
   },
   lam: {
+    id: 'lam',
     name: 'LAM (Large Action Model)',
     defaultModel: 'Qwen 2.5 Coder 7B (Tools / MCP)',
     role: 'Multi-turn tool calling, ReAct agent loop, sandboxed execution',
     latencySla: '<250ms'
   },
   reasoner: {
+    id: 'reasoner',
     name: 'Reasoner (Chain-of-Thought)',
     defaultModel: 'DeepSeek-R1 / QwQ-32B',
     role: 'Mathematical proofs, financial reconciliation, backtracking logic',
     latencySla: '<2500ms'
   },
   code_fim: {
+    id: 'code_fim',
     name: 'Code FIM (Fill-in-the-Middle)',
     defaultModel: 'Qwen 2.5 Coder 1.5B',
     role: 'Sub-40ms inline code & SQL snippet generation on pause',
     latencySla: '<40ms'
   },
   classifier: {
+    id: 'classifier',
     name: 'Fast Classifier / Decision',
     defaultModel: 'TypeSafe Jev / Local Cross-Encoder',
     role: 'Sub-15ms deterministic guardrail, PII filter, policy decision',
     latencySla: '<15ms'
   }
 };
+
+export const MODEL_BLUEPRINTS = MODEL_CLASS_BLUEPRINTS;
 
 // =========================================================================
 // NLP PIPELINE SYNTHESIZER
@@ -216,14 +238,26 @@ export function synthesizePipelineFromNlp(
     contract?: any;
     tables?: Array<{ name: string; columns: string[] }>;
     archetype?: string;
-  }
+  } | string,
+  legacyRagPattern?: string
 ): PipelineManifest {
   const p = (prompt || '').toLowerCase();
-  const c = context?.contract || {};
+  let c: any = {};
+  let tablesList: Array<{ name: string; columns: string[] }> = [];
+
+  if (typeof context === 'string') {
+    tablesList = [{ name: context, columns: ['id', 'name', 'status', 'created_at'] }];
+    if (legacyRagPattern) {
+      c.ragPatternKey = legacyRagPattern;
+    }
+  } else if (context && typeof context === 'object') {
+    c = context.contract || {};
+    tablesList = context.tables || [];
+  }
   
   // 1. Identify Target Level and Paradigm
   let targetLevel = c.targetLevel ? Number(c.targetLevel) : 3;
-  let ragPattern = c.ragPatternKey || 'hybrid';
+  let ragPattern = c.ragPatternKey || (legacyRagPattern ? legacyRagPattern : 'hybrid');
   let modelClass = 'slm';
   let modelId = 'Qwen 2.5 7B';
   let workloadCategory = c.workloadTitle || 'Enterprise Intelligent Agent';
@@ -275,9 +309,10 @@ export function synthesizePipelineFromNlp(
 
   // 2. Synthesize Tools (using context tables if available)
   const tools: AgentToolDefinition[] = [];
+  const finalTables = tablesList.length > 0 ? tablesList : (context && typeof context === 'object' && context.tables ? context.tables : []);
   
-  if (context?.tables && context.tables.length > 0) {
-    context.tables.slice(0, 3).forEach(t => {
+  if (finalTables.length > 0) {
+    finalTables.slice(0, 3).forEach(t => {
       tools.push({
         name: `query_${t.name}`,
         description: `Queries the ${t.name} table to fetch records matching criteria`,

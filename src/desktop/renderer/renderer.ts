@@ -20943,20 +20943,117 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     const lblTools = document.getElementById('lblAiEngToolsBadge');
     const lblMode = document.getElementById('lblAiEngExecutionMode');
 
+    const builder = getAgentBuilder();
+    const rKey = activePipelineManifest.ragPatternKey || activePipelineManifest.ragBlueprint?.id || 'hybrid';
+    const mKey = activePipelineManifest.modelClass || activePipelineManifest.modelBlueprint?.id || 'lam';
+
+    const rBp = (builder?.RAG_NODE_BLUEPRINTS || builder?.RAG_BLUEPRINTS || {})[rKey] || activePipelineManifest.ragBlueprint;
+    const mBp = (builder?.MODEL_CLASS_BLUEPRINTS || builder?.MODEL_BLUEPRINTS || {})[mKey] || activePipelineManifest.modelBlueprint;
+
     if (lblName) lblName.textContent = activePipelineManifest.name;
-    if (lblRag) lblRag.textContent = `📚 ${activePipelineManifest.ragBlueprint?.name || '06 Hybrid RAG'}`;
-    if (lblModel) lblModel.textContent = `🤖 ${activePipelineManifest.modelBlueprint?.name || 'LAM'} (${activePipelineManifest.modelBlueprint?.defaultModel || 'qwen2.5-coder:7b'})`;
+    if (lblRag) lblRag.textContent = `📚 ${rBp?.name || rKey}`;
+    if (lblModel) lblModel.textContent = `🤖 ${mBp?.name || mKey} (${mBp?.defaultModel || 'qwen2.5-coder:7b'})`;
     if (lblTools) lblTools.textContent = `🔌 ${activePipelineManifest.tools?.length || 0} Tools Active`;
     if (lblMode) lblMode.textContent = `🧪 SLA: <${activePipelineManifest.slaLatencyMs || 250}ms · 0.0% Hallucination`;
 
     // Sync quick dropdowns in canvas toolbar
     const selRag = document.getElementById('selCanvasRagQuick') as HTMLSelectElement;
-    if (selRag && activePipelineManifest.ragBlueprint?.id) {
-      selRag.value = activePipelineManifest.ragBlueprint.id;
+    if (selRag && rKey) {
+      selRag.value = rKey;
     }
     const selModel = document.getElementById('selCanvasModelQuick') as HTMLSelectElement;
-    if (selModel && activePipelineManifest.modelBlueprint?.id) {
-      selModel.value = activePipelineManifest.modelBlueprint.id;
+    if (selModel && mKey) {
+      selModel.value = mKey;
+    }
+  }
+
+  function applyRagArchitectureChange(ragKey: string, skipToast = false) {
+    ensureDefaultAiEngPipeline();
+    const builder = getAgentBuilder();
+    const blueprints = builder?.RAG_NODE_BLUEPRINTS || builder?.RAG_BLUEPRINTS || {};
+    const bp = blueprints[ragKey] || blueprints.hybrid;
+
+    activePipelineManifest.ragPatternKey = ragKey;
+    (activePipelineManifest as any).ragBlueprint = bp;
+
+    let ragNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'rag');
+    if (!ragNode && activePipelineManifest.nodes) {
+      ragNode = {
+        id: 'node_rag',
+        type: 'rag',
+        title: bp ? bp.name : '06 Hybrid RAG',
+        subtitle: bp ? bp.description : 'Inverted lexical BM25 + dense pgvector',
+        config: { pattern: ragKey, ragType: ragKey, vectorStore: bp?.defaultStore || 'pgvector', chunkSize: bp?.defaultChunkSize || 128, topK: 5 }
+      };
+      activePipelineManifest.nodes.splice(2, 0, ragNode);
+    } else if (ragNode && bp) {
+      ragNode.title = bp.name;
+      ragNode.subtitle = bp.description;
+      ragNode.config = ragNode.config || {};
+      ragNode.config.pattern = ragKey;
+      ragNode.config.ragType = ragKey;
+      ragNode.config.vectorStore = bp.defaultStore || ragNode.config.vectorStore || 'pgvector';
+      ragNode.config.chunkSize = bp.defaultChunkSize || ragNode.config.chunkSize || 128;
+    }
+
+    // Synchronize toolbar dropdown
+    const selToolbarRag = document.getElementById('selCanvasRagQuick') as HTMLSelectElement;
+    if (selToolbarRag) selToolbarRag.value = ragKey;
+
+    // Synchronize Inspector select if present
+    const inspRag = document.getElementById('inspRagType') as HTMLSelectElement;
+    if (inspRag) inspRag.value = ragKey;
+
+    updateAiEngRibbon();
+    renderAiEngCanvas();
+    renderAiEngCodeWorkbench();
+
+    if (activeAiEngSelectedNodeId === 'node_rag' || (ragNode && activeAiEngSelectedNodeId === ragNode.id)) {
+      renderAiEngNodeInspector(ragNode ? ragNode.id : 'node_rag');
+    }
+
+    if (!skipToast) {
+      showToast(`📚 Switched RAG Architecture to ${bp ? bp.name : ragKey}!`);
+    }
+  }
+
+  function applyModelArchitectureChange(modelKey: string, skipToast = false) {
+    ensureDefaultAiEngPipeline();
+    const builder = getAgentBuilder();
+    const blueprints = builder?.MODEL_CLASS_BLUEPRINTS || builder?.MODEL_BLUEPRINTS || {};
+    const mbp = blueprints[modelKey] || blueprints.lam || blueprints.slm;
+
+    activePipelineManifest.modelClass = modelKey;
+    (activePipelineManifest as any).modelBlueprint = mbp;
+
+    let agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
+    if (agentNode && mbp) {
+      agentNode.title = mbp.name;
+      agentNode.subtitle = `${mbp.defaultModel} · ${mbp.role}`;
+      agentNode.config = agentNode.config || {};
+      agentNode.config.modelClass = modelKey;
+      agentNode.config.modelBlueprint = modelKey;
+      agentNode.config.modelId = mbp.defaultModel;
+    }
+
+    // Synchronize toolbar dropdown
+    const selToolbarModel = document.getElementById('selCanvasModelQuick') as HTMLSelectElement;
+    if (selToolbarModel) selToolbarModel.value = modelKey;
+
+    // Synchronize Inspector select if present
+    const inspModel = document.getElementById('inspAgentModelArch') as HTMLSelectElement;
+    if (inspModel) inspModel.value = modelKey;
+
+    updateAiEngRibbon();
+    renderAiEngCanvas();
+    renderAiEngCodeWorkbench();
+
+    if (activeAiEngSelectedNodeId === 'node_agent' || (agentNode && activeAiEngSelectedNodeId === agentNode.id)) {
+      renderAiEngNodeInspector(agentNode ? agentNode.id : 'node_agent');
+    }
+
+    if (!skipToast) {
+      showToast(`🤖 Switched Model Architecture to ${mbp ? mbp.name : modelKey}!`);
     }
   }
 
@@ -21338,33 +21435,32 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       </button>
     `;
 
+    // Live instantaneous preview when changing dropdowns in inspector
+    document.getElementById('inspRagType')?.addEventListener('change', (e: any) => {
+      applyRagArchitectureChange(e.target.value, false);
+    });
+
+    document.getElementById('inspAgentModelArch')?.addEventListener('change', (e: any) => {
+      applyModelArchitectureChange(e.target.value, false);
+    });
+
     document.getElementById('btnAiEngSaveNodeConfig')?.addEventListener('click', () => {
       if (node.type === 'rag') {
-        const ragType = (document.getElementById('inspRagType') as HTMLSelectElement)?.value;
+        const ragType = (document.getElementById('inspRagType') as HTMLSelectElement)?.value || 'hybrid';
         const topK = parseInt((document.getElementById('inspTopK') as HTMLInputElement)?.value || '5', 10);
         const sim = parseFloat((document.getElementById('inspSimThreshold') as HTMLInputElement)?.value || '0.78');
-        node.config.ragType = ragType;
         node.config.topK = topK;
         node.config.similarityThreshold = sim;
-
-        const builder = getAgentBuilder();
-        if (builder?.RAG_BLUEPRINTS?.[ragType]) {
-          activePipelineManifest.ragBlueprint = builder.RAG_BLUEPRINTS[ragType];
-        }
+        applyRagArchitectureChange(ragType, true);
       } else if (node.type === 'agent') {
-        const arch = (document.getElementById('inspAgentModelArch') as HTMLSelectElement)?.value;
+        const arch = (document.getElementById('inspAgentModelArch') as HTMLSelectElement)?.value || 'lam';
         const temp = parseFloat((document.getElementById('inspAgentTemp') as HTMLInputElement)?.value || '0.1');
         const tokens = parseInt((document.getElementById('inspAgentTokens') as HTMLInputElement)?.value || '1024', 10);
         const sys = (document.getElementById('inspAgentSystemPrompt') as HTMLTextAreaElement)?.value;
-        node.config.modelBlueprint = arch;
         node.config.temperature = temp;
         node.config.maxTokens = tokens;
         node.config.systemPrompt = sys;
-
-        const builder = getAgentBuilder();
-        if (builder?.MODEL_BLUEPRINTS?.[arch]) {
-          activePipelineManifest.modelBlueprint = builder.MODEL_BLUEPRINTS[arch];
-        }
+        applyModelArchitectureChange(arch, true);
       } else if (node.type === 'source') {
         node.config.sourceTable = (document.getElementById('inspSourceTable') as HTMLInputElement)?.value || 'orders';
         node.config.chunkSize = parseInt((document.getElementById('inspSourceChunkSize') as HTMLInputElement)?.value || '512', 10);
@@ -21375,6 +21471,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       showToast('✓ Node configuration saved and pipeline updated!');
       renderAiEngCanvas();
       renderAiEngCodeWorkbench();
+      renderAiEngNodeInspector(node.id);
     });
   }
 
@@ -21620,6 +21717,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         );
       }
       showToast(`🔄 Synchronized with Section 3C Architecture (${archKey} + ${model})!`);
+      updateAiEngRibbon();
       renderAiEngCanvas();
       renderAiEngCodeWorkbench();
     };
@@ -21630,38 +21728,12 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     // Canvas Quick Dropdowns (RAG & Model)
     const selCanvasRag = document.getElementById('selCanvasRagQuick') as HTMLSelectElement;
     selCanvasRag?.addEventListener('change', () => {
-      const rKey = selCanvasRag.value;
-      const builder = getAgentBuilder();
-      if (builder?.RAG_BLUEPRINTS?.[rKey]) {
-        activePipelineManifest.ragBlueprint = builder.RAG_BLUEPRINTS[rKey];
-        const ragNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'rag');
-        if (ragNode) {
-          ragNode.title = `${builder.RAG_BLUEPRINTS[rKey].num} ${builder.RAG_BLUEPRINTS[rKey].name}`;
-          ragNode.config.ragType = rKey;
-        }
-        updateAiEngRibbon();
-        renderAiEngCanvas();
-        renderAiEngCodeWorkbench();
-        showToast(`📚 Switched RAG Architecture to ${builder.RAG_BLUEPRINTS[rKey].name}!`);
-      }
+      applyRagArchitectureChange(selCanvasRag.value, false);
     });
 
     const selCanvasModel = document.getElementById('selCanvasModelQuick') as HTMLSelectElement;
     selCanvasModel?.addEventListener('change', () => {
-      const mKey = selCanvasModel.value;
-      const builder = getAgentBuilder();
-      if (builder?.MODEL_BLUEPRINTS?.[mKey]) {
-        activePipelineManifest.modelBlueprint = builder.MODEL_BLUEPRINTS[mKey];
-        const agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
-        if (agentNode) {
-          agentNode.title = `Autonomous Agent (${builder.MODEL_BLUEPRINTS[mKey].name})`;
-          agentNode.config.modelBlueprint = mKey;
-        }
-        updateAiEngRibbon();
-        renderAiEngCanvas();
-        renderAiEngCodeWorkbench();
-        showToast(`🤖 Switched Model Architecture to ${builder.MODEL_BLUEPRINTS[mKey].name}!`);
-      }
+      applyModelArchitectureChange(selCanvasModel.value, false);
     });
 
     // Canvas View Modes
