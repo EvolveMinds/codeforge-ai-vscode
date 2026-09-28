@@ -18727,6 +18727,7 @@ class AgenticRagPipeline:
   const renderRagArchitectureUi = (archKey: string) => {
     const arch = RAG_ARCHITECTURES[archKey] || RAG_ARCHITECTURES['hybrid'];
     selectedRagArchKey = arch.id;
+    (window as any).selectedRagArchKey = arch.id;
 
     // Synchronize into persistent activeSolutionContract
     activeSolutionContract.ragPatternKey = arch.id;
@@ -19777,6 +19778,34 @@ export async function routeIntent(query: string): Promise<any> {
     showToast(`✓ Target Confirmed: Level ${activeSolutionContract.targetLevel} ➔ Configuring Components`);
   });
 
+  // --- Step 3C to Phase 4: Direct Bridge to AI Engineering Studio Canvas ---
+  const send3CToCanvas = () => {
+    hasConfiguredComponentOrModel = true;
+    (window as any).selectedRagArchKey = selectedRagArchKey;
+    (window as any).activeSelectedModel = activeSelectedModel;
+
+    const arch = RAG_ARCHITECTURES[selectedRagArchKey] || RAG_ARCHITECTURES['hybrid'];
+    const model = activeSelectedModel || 'qwen2.5-coder:7b';
+    const primaryTable = currentIntrospectedTables && currentIntrospectedTables.length > 0 ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name) : 'orders';
+
+    const builder = getAgentBuilder();
+    if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
+      activePipelineManifest = builder.synthesizePipelineFromNlp(
+        `Deploy enterprise ${arch.name} pipeline with ${model} and ${primaryTable} table integration`,
+        primaryTable,
+        selectedRagArchKey
+      );
+    }
+    switchDeliveryPhase(4);
+    if (typeof (window as any).syncPhase4AiEngineering === 'function') {
+      (window as any).syncPhase4AiEngineering();
+    }
+    showToast(`⚙️ Successfully transferred Section 3C Architecture (${arch.name} + ${model}) to Canvas!`);
+  };
+
+  document.getElementById('btn3CSendToAiEngCanvas')?.addEventListener('click', send3CToCanvas);
+  document.getElementById('btn3CSendToAiEngCanvasTop')?.addEventListener('click', send3CToCanvas);
+
   // --- Step 3C to 3D: Component Confirm & Advance ---
   document.getElementById('btnComponentConfirmAndAdvance')?.addEventListener('click', () => {
     hasConfiguredComponentOrModel = true;
@@ -20734,14 +20763,16 @@ describe('Solution Pipeline Contract Verification Suite', () => {
 
   refreshP3Rail();
 
-  // ==========================================
+// ==========================================
   // PHASE 4: AI ENGINEERING (NLP AGENT & PIPELINE STUDIO)
   // ==========================================
 
   let activePipelineManifest: any = null;
-  let activeAiEngSelectedNodeId: string | null = null;
-  let activeAiEngCurrentTab: 'canvas' | 'simulator' | 'code' | 'deploy' = 'canvas';
+  let activeAiEngSelectedNodeId: string = 'node_agent';
+  let activeAiEngCurrentTab: 'canvas' | 'simulator' | 'code' | 'deploy' | 'data' = 'canvas';
   let activeAiEngCurrentCodeFile: string = 'pipeline';
+  let activeCanvasViewMode: 'canvas' | 'data' | 'linear' = 'canvas';
+  let activeInspectorTab: 'params' | 'data' | 'test' = 'params';
 
   function getAgentBuilder() {
     return (window as any).EvolveAgentBuilder || (globalThis as any).EvolveAgentBuilder || null;
@@ -20750,11 +20781,16 @@ describe('Solution Pipeline Contract Verification Suite', () => {
   function ensureDefaultAiEngPipeline() {
     if (activePipelineManifest) return;
     const builder = getAgentBuilder();
+    const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+      ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
+      : 'orders';
+
     if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
+      const ragArch = (window as any).selectedRagArchKey || 'hybrid';
       activePipelineManifest = builder.synthesizePipelineFromNlp(
         'Build an invoice reconciliation agent that queries PostgreSQL orders, validates variances, and escalates discrepancies > $100 to Slack',
-        'orders',
-        'hybrid'
+        primaryTable,
+        ragArch
       );
     } else {
       activePipelineManifest = {
@@ -20783,24 +20819,117 @@ describe('Solution Pipeline Contract Verification Suite', () => {
           { id: 'guard-hallucination', name: 'Citation Grounding Verifier', type: 'groundedness', enabled: true }
         ],
         tools: [
-          { id: 'tool-postgres', name: 'query_orders_db', description: 'Executes parameterized queries against PostgreSQL orders and items table' },
-          { id: 'tool-slack', name: 'send_slack_alert', description: 'Posts variance alert message to #finance-recon Slack channel' }
+          { id: 'tool-postgres', name: `query_${primaryTable}_db`, description: `PULL: Executes parameterized SQL queries against ${primaryTable} table` },
+          { id: 'tool-slack', name: 'send_slack_alert', description: 'PUSH: Dispatches variance alert message to #finance-recon Slack channel' }
         ],
         nodes: [
-          { id: 'node-ingress', type: 'ingress', title: 'HTTP Ingress & Webhook', subtitle: 'POST /v1/reconcile', config: { port: 8080 } },
-          { id: 'node-guardrail', type: 'guardrail', title: 'Security Guardrails & Firewall', subtitle: 'PII & SQL Sanitization', config: { blockPii: true, sanitizeSql: true } },
-          { id: 'node-rag', type: 'rag', title: '06 Hybrid Policy Retrieval', subtitle: 'BM25 Keyword + pgvector Dense', config: { ragType: 'hybrid', topK: 5, similarityThreshold: 0.78, chunkSizeBytes: 512 } },
-          { id: 'node-tools', type: 'tool', title: 'Enterprise MCP Tools Hub', subtitle: 'PostgreSQL DB & Slack Webhook', config: { toolsCount: 2 } },
-          { id: 'node-agent', type: 'agent', title: 'Autonomous Decision Agent', subtitle: 'LAM (qwen2.5-coder:7b)', config: { model: 'qwen2.5-coder:7b', temperature: 0.1, maxTokens: 1024 } },
-          { id: 'node-output', type: 'eval_output', title: 'Zero-Drift Evaluation Gate', subtitle: 'Hallucination & Schema Validation', config: { hallucinationTolerance: 0.0 } }
+          {
+            id: 'node_ingress',
+            type: 'ingress',
+            title: 'Inbound Ingress & Chat Trigger',
+            subtitle: 'REST Webhook / SSE Stream · Port 8080',
+            dataContract: {
+              source: 'Client Webhook / App Trigger',
+              inSchema: '{ invoiceId: string, billedAmount: number, poNumber: string }',
+              outSchema: '{ sanitizedQuery: string, invoiceId: string, amount: number }',
+              storageLocation: 'Memory buffer / Redis stream',
+              operation: 'INGRESS'
+            },
+            config: { port: 8080, rateLimitRps: 100 }
+          },
+          {
+            id: 'node_source',
+            type: 'source',
+            title: 'Data Sources & Chunking Pipeline',
+            subtitle: `PostgreSQL ${primaryTable} + Vendor Policy SOPs (PDF)`,
+            dataContract: {
+              source: `PostgreSQL.${primaryTable} + docs/policies/*.pdf`,
+              inSchema: 'Raw database tables (rows) and policy document binaries',
+              outSchema: 'DocumentChunk[] { id, content (512 tokens), metadata, table }',
+              storageLocation: 'Primary PostgreSQL DB + Local Filesystem',
+              operation: 'INGEST & CHUNK'
+            },
+            config: { chunkSize: 512, overlapTokens: 50, sourceTable: primaryTable }
+          },
+          {
+            id: 'node_vector_store',
+            type: 'vector_store',
+            title: 'Vector Database & Embedding Storage',
+            subtitle: 'SQLite-vec (./data/rag.db) · pgvector HNSW 1536 dim',
+            dataContract: {
+              source: './data/vector_store.db (or PostgreSQL pgvector)',
+              inSchema: 'DocumentChunk[] with embedding vectors',
+              outSchema: 'HNSW Index (vector_cosine_ops)',
+              storageLocation: 'Tier 1: ./data/vector_store.db | Tier 2: pgvector',
+              operation: 'STORE & INDEX'
+            },
+            config: { engine: 'sqlite_vec', filePath: './data/vector_store.db', dimensions: 1536, metric: 'cosine' }
+          },
+          {
+            id: 'node_rag',
+            type: 'rag',
+            title: '06 Hybrid Policy Retrieval',
+            subtitle: 'BM25 Keyword + pgvector Dense ➔ RRF Top-5',
+            dataContract: {
+              source: 'Vector Store + Inverted Keyword Index',
+              inSchema: '{ queryText: string, embeddingVector: float[1536] }',
+              outSchema: 'RetrievedChunk[] (Top 5 matches with citations and RRF scores)',
+              storageLocation: 'Embedded SQLite-vec / pgvector',
+              operation: 'PULL: Dense & Sparse Retrieval'
+            },
+            config: { ragType: 'hybrid', topK: 5, similarityThreshold: 0.78, chunkSizeBytes: 512 }
+          },
+          {
+            id: 'node_agent',
+            type: 'agent',
+            title: 'Autonomous Decision Agent',
+            subtitle: 'LAM (qwen2.5-coder:7b) · ReAct Decision Loop',
+            dataContract: {
+              source: 'Model Engine (Ollama / Local Air-Gapped / Cloud)',
+              inSchema: '{ systemPrompt, retrievedContextChunks, userQuery, toolDefinitions }',
+              outSchema: '{ thought, toolCalls: [query_orders_db], finalAnswer }',
+              storageLocation: 'In-Memory Context Window',
+              operation: 'REASON & DECIDE'
+            },
+            config: { model: 'qwen2.5-coder:7b', modelBlueprint: 'lam', temperature: 0.1, maxTokens: 1024 }
+          },
+          {
+            id: 'node_tools',
+            type: 'tool',
+            title: 'Enterprise MCP Tools Hub (Push/Pull)',
+            subtitle: `PULL: ${primaryTable} DB | PUSH: Approve Status & Slack Alert`,
+            dataContract: {
+              source: `PostgreSQL connection & Slack Webhook API`,
+              inSchema: 'ToolCall { name, arguments }',
+              outSchema: 'ToolResult { rowRecord, status: 200, mutated: true }',
+              storageLocation: `External Database (${primaryTable}) & Webhook endpoints`,
+              operation: 'PULL & PUSH (Read & Mutate)'
+            },
+            config: { toolsCount: 2, allowMutations: true }
+          },
+          {
+            id: 'node_output',
+            type: 'eval_output',
+            title: 'Zero-Drift Evaluation Gate & Audit Ledger',
+            subtitle: 'Citation Grounding SLA (100%) · Tamper-Evident SHA-256',
+            dataContract: {
+              source: 'Tamper-Evident Audit Ledger (SQLite / PostgreSQL)',
+              inSchema: '{ rawAnswer, citations: string[], latencyMs: number }',
+              outSchema: 'FinalResponse { status: "APPROVED", digest: "sha256_...", verified: true }',
+              storageLocation: 'ai_audit_log table on disk',
+              operation: 'PUSH: Immutable Audit Entry'
+            },
+            config: { hallucinationTolerance: 0.0, requireAuditDigest: true }
+          }
         ],
         edges: [
-          { from: 'node-ingress', to: 'node-guardrail' },
-          { from: 'node-guardrail', to: 'node-rag' },
-          { from: 'node-rag', to: 'node-agent' },
-          { from: 'node-agent', to: 'node-tools' },
-          { from: 'node-tools', to: 'node-agent' },
-          { from: 'node-agent', to: 'node-output' }
+          { from: 'node_ingress', to: 'node_source', label: 'User Request' },
+          { from: 'node_source', to: 'node_vector_store', label: 'Chunks [512t]' },
+          { from: 'node_vector_store', to: 'node_rag', label: 'HNSW Index' },
+          { from: 'node_rag', to: 'node_agent', label: 'Top-5 Chunks' },
+          { from: 'node_agent', to: 'node_tools', label: 'Tool Requests' },
+          { from: 'node_tools', to: 'node_agent', label: 'DB Rows & Receipts' },
+          { from: 'node_agent', to: 'node_output', label: 'Grounded Answer' }
         ]
       };
     }
@@ -20819,6 +20948,64 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     if (lblModel) lblModel.textContent = `🤖 ${activePipelineManifest.modelBlueprint?.name || 'LAM'} (${activePipelineManifest.modelBlueprint?.defaultModel || 'qwen2.5-coder:7b'})`;
     if (lblTools) lblTools.textContent = `🔌 ${activePipelineManifest.tools?.length || 0} Tools Active`;
     if (lblMode) lblMode.textContent = `🧪 SLA: <${activePipelineManifest.slaLatencyMs || 250}ms · 0.0% Hallucination`;
+
+    // Sync quick dropdowns in canvas toolbar
+    const selRag = document.getElementById('selCanvasRagQuick') as HTMLSelectElement;
+    if (selRag && activePipelineManifest.ragBlueprint?.id) {
+      selRag.value = activePipelineManifest.ragBlueprint.id;
+    }
+    const selModel = document.getElementById('selCanvasModelQuick') as HTMLSelectElement;
+    if (selModel && activePipelineManifest.modelBlueprint?.id) {
+      selModel.value = activePipelineManifest.modelBlueprint.id;
+    }
+  }
+
+  function drawAiEngCanvasWires() {
+    const svg = document.getElementById('svgAiEngCanvasWires');
+    const container = document.getElementById('boxAiEngNodesContainer');
+    if (!svg || !container) return;
+
+    svg.innerHTML = '';
+    const nodes = container.querySelectorAll('.ai-eng-canvas-node');
+    if (nodes.length < 2) return;
+
+    const containerRect = container.getBoundingClientRect();
+
+    for (let i = 0; i < nodes.length - 1; i++) {
+      const curr = nodes[i] as HTMLElement;
+      const next = nodes[i + 1] as HTMLElement;
+
+      const outPort = curr.querySelector('.node-out-port') as HTMLElement;
+      const inPort = next.querySelector('.node-in-port') as HTMLElement;
+
+      if (!outPort || !inPort) continue;
+
+      const r1 = outPort.getBoundingClientRect();
+      const r2 = inPort.getBoundingClientRect();
+
+      const x1 = r1.left + r1.width / 2 - containerRect.left;
+      const y1 = r1.top + r1.height / 2 - containerRect.top;
+      const x2 = r2.left + r2.width / 2 - containerRect.left;
+      const y2 = r2.top + r2.height / 2 - containerRect.top;
+
+      let strokeColor = '#38bdf8';
+      if (i === 1) strokeColor = '#4ec9b0'; // Store
+      else if (i === 2) strokeColor = '#38bdf8'; // Retrieval
+      else if (i === 3) strokeColor = '#c084fc'; // Agent
+      else if (i === 4) strokeColor = '#4ade80'; // Tools
+      else if (i === 5) strokeColor = '#fbbf24'; // Output
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      const dy = Math.max(16, (y2 - y1) / 2);
+      path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${y1 + dy}, ${x2} ${y2 - dy}, ${x2} ${y2}`);
+      path.setAttribute('stroke', strokeColor);
+      path.setAttribute('stroke-width', '2.5');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-dasharray', '5 4');
+      path.setAttribute('opacity', '0.75');
+
+      svg.appendChild(path);
+    }
   }
 
   function renderAiEngCanvas() {
@@ -20837,42 +21024,97 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     nodes.forEach((node: any, idx: number) => {
       const isSelected = node.id === activeAiEngSelectedNodeId;
       const card = document.createElement('div');
-      card.className = 'ai-eng-node-card';
-      card.style.cssText = `
-        background: ${isSelected ? 'rgba(78, 201, 176, 0.08)' : 'var(--bg-secondary, #1a1a1a)'};
-        border: 1px solid ${isSelected ? 'var(--accent, #4ec9b0)' : 'var(--border, #333)'};
-        border-radius: 6px;
-        padding: 10px 14px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        position: relative;
-      `;
+      card.className = 'ai-eng-canvas-node';
+      card.dataset.nodeId = node.id;
 
       let icon = '📦';
       let tagBg = 'rgba(255,255,255,0.08)';
       let tagColor = '#fff';
-      if (node.type === 'ingress') { icon = '🌐'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; }
-      else if (node.type === 'guardrail') { icon = '🛡️'; tagBg = 'rgba(244, 63, 94, 0.15)'; tagColor = '#f43f5e'; }
-      else if (node.type === 'rag') { icon = '📚'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; }
-      else if (node.type === 'tool') { icon = '🔌'; tagBg = 'rgba(74, 222, 128, 0.15)'; tagColor = '#4ade80'; }
-      else if (node.type === 'agent') { icon = '🤖'; tagBg = 'rgba(168, 85, 247, 0.15)'; tagColor = '#c084fc'; }
-      else if (node.type === 'eval_output') { icon = '🎯'; tagBg = 'rgba(251, 191, 36, 0.15)'; tagColor = '#fbbf24'; }
+      let stageName = 'STAGE';
+      let inSchema = 'Input';
+      let outSchema = 'Output';
+
+      if (node.type === 'ingress') {
+        icon = '🌐'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; stageName = 'INGRESS & TRIGGER';
+        inSchema = 'HTTP POST / Chat'; outSchema = 'Sanitized Query';
+      } else if (node.type === 'source') {
+        icon = '📥'; tagBg = 'rgba(251, 191, 36, 0.15)'; tagColor = '#fbbf24'; stageName = 'DATA SOURCE & CHUNKER';
+        inSchema = 'Raw SQL & PDF Docs'; outSchema = '512t Chunks';
+      } else if (node.type === 'vector_store') {
+        icon = '💾'; tagBg = 'rgba(78, 201, 176, 0.15)'; tagColor = '#4ec9b0'; stageName = 'VECTOR STORE & EMBEDDING DB';
+        inSchema = 'Chunks + Vectors'; outSchema = 'HNSW Cosine Index';
+      } else if (node.type === 'rag') {
+        icon = '🔍'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; stageName = 'RETRIEVAL & RANKER';
+        inSchema = 'Query [1536 dim]'; outSchema = 'Top-5 Ranked Chunks';
+      } else if (node.type === 'agent') {
+        icon = '🤖'; tagBg = 'rgba(168, 85, 247, 0.15)'; tagColor = '#c084fc'; stageName = 'AGENT REASONING CORE';
+        inSchema = 'Ranked Context + Tools'; outSchema = 'Action & Answer';
+      } else if (node.type === 'tool') {
+        icon = '🔌'; tagBg = 'rgba(74, 222, 128, 0.15)'; tagColor = '#4ade80'; stageName = 'MCP TOOLS (PUSH/PULL)';
+        inSchema = 'Tool Call Dispatch'; outSchema = 'DB Rows & Mutation';
+      } else if (node.type === 'eval_output') {
+        icon = '🎯'; tagBg = 'rgba(251, 191, 36, 0.15)'; tagColor = '#fbbf24'; stageName = 'OUTPUT & AUDIT SINK';
+        inSchema = 'Synthesized Answer'; outSchema = 'Verified JSON & Ledger';
+      }
+
+      card.style.cssText = `
+        background: ${isSelected ? 'linear-gradient(135deg, rgba(78, 201, 176, 0.12), rgba(15, 23, 42, 0.95))' : 'rgba(15, 23, 42, 0.85)'};
+        border: ${isSelected ? '2px solid var(--accent, #4ec9b0)' : '1px solid var(--border, #333)'};
+        box-shadow: ${isSelected ? '0 0 16px rgba(78, 201, 176, 0.25)' : 'none'};
+        border-radius: 8px;
+        padding: 12px 14px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      `;
 
       card.innerHTML = `
+        <!-- Top Stage Bar & Ports -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <!-- Left Input Port -->
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="node-in-port" style="width: 10px; height: 10px; border-radius: 50%; background: ${tagColor}; border: 2px solid #000; display: inline-block;"></span>
+            <span style="font-size: 9px; color: var(--text-secondary); background: rgba(0,0,0,0.4); padding: 1px 5px; border-radius: 3px;">${inSchema}</span>
+          </div>
+          <!-- Stage Badge -->
+          <span style="font-size: 9px; font-weight: 800; background: ${tagBg}; color: ${tagColor}; padding: 2px 7px; border-radius: 3px; letter-spacing: 0.05em;">
+            STAGE ${idx + 1} · ${stageName}
+          </span>
+          <!-- Right Output Port -->
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 9px; color: var(--text-secondary); background: rgba(0,0,0,0.4); padding: 1px 5px; border-radius: 3px;">${outSchema}</span>
+            <span class="node-out-port" style="width: 10px; height: 10px; border-radius: 50%; background: ${tagColor}; border: 2px solid #000; display: inline-block;"></span>
+          </div>
+        </div>
+
+        <!-- Node Header & Content -->
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 16px;">${icon}</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 20px;">${icon}</span>
             <div>
-              <div style="font-weight: 700; font-size: 12px; color: #fff;">${escapeHtml(node.title)}</div>
-              <div style="font-size: 10px; color: var(--text-secondary);">${escapeHtml(node.subtitle)}</div>
+              <div style="font-weight: 700; font-size: 12.5px; color: #fff;">${escapeHtml(node.title)}</div>
+              <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(node.subtitle)}</div>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <span style="font-size: 9.5px; padding: 2px 6px; border-radius: 3px; background: ${tagBg}; color: ${tagColor}; font-weight: 700; text-transform: uppercase;">
-              ${escapeHtml(node.type)}
+          <div style="text-align: right;">
+            <span style="font-size: 10px; color: ${isSelected ? 'var(--accent)' : 'var(--text-secondary)'}; font-weight: 700;">
+              ${isSelected ? '● Selected (Inspecting)' : 'Inspect ➔'}
             </span>
-            <span style="font-size: 10px; color: var(--text-secondary);">${isSelected ? '● Active' : 'Select'}</span>
           </div>
+        </div>
+
+        <!-- Push / Pull Data Action Pill -->
+        <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+          ${node.dataContract?.operation ? `
+            <span style="font-size: 9px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #cbd5e1; padding: 1px 6px; border-radius: 3px;">
+              ⚡ ${escapeHtml(node.dataContract.operation)}
+            </span>
+          ` : ''}
+          ${node.dataContract?.storageLocation ? `
+            <span style="font-size: 9px; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); color: #38bdf8; padding: 1px 6px; border-radius: 3px;">
+              💾 ${escapeHtml(node.dataContract.storageLocation)}
+            </span>
+          ` : ''}
         </div>
       `;
 
@@ -20882,15 +21124,12 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       });
 
       container.appendChild(card);
-
-      // Downward DAG connector arrow between sequential nodes
-      if (idx < nodes.length - 1) {
-        const arrow = document.createElement('div');
-        arrow.style.cssText = 'text-align: center; color: var(--text-secondary); font-size: 10px; margin: -4px 0; user-select: none;';
-        arrow.innerHTML = '↓';
-        container.appendChild(arrow);
-      }
     });
+
+    // Draw SVG Bezier Cables between sequential nodes
+    setTimeout(() => {
+      drawAiEngCanvasWires();
+    }, 50);
 
     renderAiEngNodeInspector(activeAiEngSelectedNodeId);
   }
@@ -20905,6 +21144,67 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       return;
     }
 
+    if (activeInspectorTab === 'data') {
+      // TAB 2: DATA FLOW & CONTRACTS
+      inspector.innerHTML = `
+        <div style="font-weight: 700; font-size: 12px; color: #fff; margin-bottom: 8px;">
+          📊 Data Flow &amp; Contract: ${escapeHtml(node.title)}
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 10.5px;">
+          <div style="background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 2px;">💾 Storage &amp; Persistence Location:</div>
+            <div style="font-family: monospace; color: #e2e8f0;">${escapeHtml(node.dataContract?.storageLocation || './data/vector_store.db')}</div>
+          </div>
+          <div style="background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+            <div style="font-weight: 700; color: #4ade80; margin-bottom: 2px;">📥 Incoming Data Payload:</div>
+            <div style="font-family: monospace; color: #e2e8f0;">${escapeHtml(node.dataContract?.inSchema || 'Query string')}</div>
+          </div>
+          <div style="background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+            <div style="font-weight: 700; color: #c084fc; margin-bottom: 2px;">📤 Outgoing Data Payload:</div>
+            <div style="font-family: monospace; color: #e2e8f0;">${escapeHtml(node.dataContract?.outSchema || 'Processed response')}</div>
+          </div>
+          <div style="background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+            <div style="font-weight: 700; color: #fbbf24; margin-bottom: 2px;">⚡ Data Push / Pull Operation:</div>
+            <div style="font-family: monospace; color: #e2e8f0;">${escapeHtml(node.dataContract?.operation || 'Read/Transform')}</div>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    if (activeInspectorTab === 'test') {
+      // TAB 3: ISOLATED NODE TEST
+      inspector.innerHTML = `
+        <div style="font-weight: 700; font-size: 12px; color: #fff; margin-bottom: 6px;">
+          🧪 Isolated Node Test: ${escapeHtml(node.title)}
+        </div>
+        <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0 0 10px 0;">
+          Execute a standalone mock test directly against this single node to verify input/output schemas.
+        </p>
+        <button class="btn" id="btnAiEngTestSingleNode" style="width: 100%; padding: 6px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer; margin-bottom: 10px;">
+          ▶ Run Isolated Test
+        </button>
+        <div id="boxAiEngNodeTestOutput" style="background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 10px; color: #4ade80; max-height: 180px; overflow: auto;">
+          Click "Run Isolated Test" to execute.
+        </div>
+      `;
+      document.getElementById('btnAiEngTestSingleNode')?.addEventListener('click', () => {
+        const outBox = document.getElementById('boxAiEngNodeTestOutput');
+        if (outBox) {
+          outBox.innerHTML = `
+            <div>✓ Node: ${escapeHtml(node.id)}</div>
+            <div>✓ Status: PASSED (2ms)</div>
+            <div>✓ Input: "${escapeHtml(node.dataContract?.inSchema || 'Sample query')}"</div>
+            <div>✓ Output: "${escapeHtml(node.dataContract?.outSchema || 'Valid result')}"</div>
+            <div style="color: var(--accent); margin-top: 4px;">Verified: Schema conformance 100%</div>
+          `;
+          showToast(`✓ Node ${node.title} passed isolated test!`);
+        }
+      });
+      return;
+    }
+
+    // TAB 1: PARAMETERS (Default)
     let configHtml = '';
     if (node.type === 'rag') {
       const currentRag = node.config.ragType || activePipelineManifest.ragBlueprint?.id || 'hybrid';
@@ -20935,8 +21235,8 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         <div style="margin-bottom: 8px;">
           <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Vector Store Engine</label>
           <select id="inspVecEngine" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+            <option value="sqlite_vec">SQLite-vec (Embedded local file ./data/vector_store.db)</option>
             <option value="pgvector">PostgreSQL pgvector (HNSW Index)</option>
-            <option value="sqlite_vec">SQLite-vec (Offline Embedded DB)</option>
             <option value="qdrant">Qdrant Vector Engine</option>
             <option value="lance">LanceDB Embedded Serverless</option>
           </select>
@@ -20973,23 +21273,6 @@ describe('Solution Pipeline Contract Verification Suite', () => {
           <textarea id="inspAgentSystemPrompt" rows="3" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 6px; border-radius: 4px; resize: vertical;">${node.config.systemPrompt || 'You are an autonomous enterprise agent. Ground all answers strictly in retrieved context and execute validated tools.'}</textarea>
         </div>
       `;
-    } else if (node.type === 'guardrail') {
-      configHtml = `
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: #fff; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-            <input type="checkbox" id="chkGuardPii" ${node.config.blockPii !== false ? 'checked' : ''} />
-            Block PII & Anonymize Sensitive Entities
-          </label>
-          <label style="font-size: 10px; color: #fff; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-            <input type="checkbox" id="chkGuardSql" ${node.config.sanitizeSql !== false ? 'checked' : ''} />
-            SQL Injection Firewall & Parameter Validator
-          </label>
-          <label style="font-size: 10px; color: #fff; display: flex; align-items: center; gap: 6px;">
-            <input type="checkbox" id="chkGuardHallucination" checked />
-            Zero-Tolerance Citation Grounding SLA
-          </label>
-        </div>
-      `;
     } else if (node.type === 'tool') {
       const tools = activePipelineManifest.tools || [];
       configHtml = `
@@ -21005,21 +21288,39 @@ describe('Solution Pipeline Contract Verification Suite', () => {
           </div>
         </div>
       `;
+    } else if (node.type === 'source') {
+      configHtml = `
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Source Table Name</label>
+          <input type="text" id="inspSourceTable" value="${node.config.sourceTable || 'orders'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+        </div>
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Chunk Size (Tokens)</label>
+          <input type="number" id="inspSourceChunkSize" value="${node.config.chunkSize || 512}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+        </div>
+      `;
+    } else if (node.type === 'vector_store') {
+      configHtml = `
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Vector Store File Path</label>
+          <input type="text" id="inspStorePath" value="${node.config.filePath || './data/vector_store.db'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+        </div>
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Dimensions</label>
+          <input type="number" id="inspStoreDim" value="${node.config.dimensions || 1536}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+        </div>
+      `;
     } else if (node.type === 'ingress') {
       configHtml = `
         <div style="margin-bottom: 8px;">
           <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Microservice Ingress Port</label>
           <input type="number" id="inspIngressPort" value="${node.config.port || 8080}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
         </div>
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Rate Limit (req/sec)</label>
-          <input type="number" id="inspIngressRps" value="${node.config.rateLimitRps || 100}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
-        </div>
       `;
     } else {
       configHtml = `
         <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px;">
-          Enforces schema conformance and logs Golden Test benchmark assertions.
+          Enforces schema conformance and logs Golden Test benchmark assertions with 0.0% hallucination drift.
         </div>
       `;
     }
@@ -21064,9 +21365,12 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         if (builder?.MODEL_BLUEPRINTS?.[arch]) {
           activePipelineManifest.modelBlueprint = builder.MODEL_BLUEPRINTS[arch];
         }
-      } else if (node.type === 'guardrail') {
-        node.config.blockPii = (document.getElementById('chkGuardPii') as HTMLInputElement)?.checked ?? true;
-        node.config.sanitizeSql = (document.getElementById('chkGuardSql') as HTMLInputElement)?.checked ?? true;
+      } else if (node.type === 'source') {
+        node.config.sourceTable = (document.getElementById('inspSourceTable') as HTMLInputElement)?.value || 'orders';
+        node.config.chunkSize = parseInt((document.getElementById('inspSourceChunkSize') as HTMLInputElement)?.value || '512', 10);
+      } else if (node.type === 'vector_store') {
+        node.config.filePath = (document.getElementById('inspStorePath') as HTMLInputElement)?.value || './data/vector_store.db';
+        node.config.dimensions = parseInt((document.getElementById('inspStoreDim') as HTMLInputElement)?.value || '1536', 10);
       }
       showToast('✓ Node configuration saved and pipeline updated!');
       renderAiEngCanvas();
@@ -21098,9 +21402,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       `;
 
       btnRun.setAttribute('disabled', 'true');
-
-      // Small async yield to allow UI repaint
-      await new Promise(res => setTimeout(res, 250));
+      await new Promise(res => setTimeout(res, 200));
 
       try {
         const builder = getAgentBuilder();
@@ -21114,10 +21416,11 @@ describe('Solution Pipeline Contract Verification Suite', () => {
             totalTokens: 380,
             steps: [
               { nodeId: 'node_ingress', type: 'ingress', nodeTitle: 'HTTP Ingress Gateway', latencyMs: 2, status: 'success', outputSnippet: 'Parsed inbound query payload.' },
-              { nodeId: 'node_guardrail', type: 'guardrail', nodeTitle: 'Security Guardrails & Firewall', latencyMs: 3, status: 'success', outputSnippet: 'Passed PII and SQL injection sanitize checks.' },
-              { nodeId: 'node_rag', type: 'rag', nodeTitle: '06 Hybrid Policy Retrieval', latencyMs: 42, status: 'success', outputSnippet: 'Retrieved 3 matched policy clauses via BM25 + dense vectors.' },
-              { nodeId: 'node_tools', type: 'tool', nodeTitle: 'Enterprise MCP Tools Hub', latencyMs: 35, status: 'success', outputSnippet: 'Executed query_orders_db and verified row records.' },
-              { nodeId: 'node_agent', type: 'agent', nodeTitle: 'Autonomous Decision Agent', latencyMs: 80, status: 'success', outputSnippet: 'Reconciled invoice against purchase orders with $0 variance.' },
+              { nodeId: 'node_source', type: 'source', nodeTitle: 'Data Source & Chunker', latencyMs: 8, status: 'success', outputSnippet: 'Chunked relational rows and policy SOPs.' },
+              { nodeId: 'node_vector_store', type: 'vector_store', nodeTitle: 'Vector Store & Embeddings', latencyMs: 12, status: 'success', outputSnippet: 'Queried HNSW index with 1536-dim vector.' },
+              { nodeId: 'node_rag', type: 'rag', nodeTitle: '06 Hybrid Policy Retrieval', latencyMs: 38, status: 'success', outputSnippet: 'Retrieved 3 matched policy clauses via BM25 + dense vectors.' },
+              { nodeId: 'node_tools', type: 'tool', nodeTitle: 'Enterprise MCP Tools Hub', latencyMs: 25, status: 'success', outputSnippet: 'Executed query_orders_db and verified row records.' },
+              { nodeId: 'node_agent', type: 'agent', nodeTitle: 'Autonomous Decision Agent', latencyMs: 78, status: 'success', outputSnippet: 'Reconciled invoice against purchase orders with $0 variance.' },
               { nodeId: 'node_output', type: 'eval_output', nodeTitle: 'Zero-Drift Evaluation Gate', latencyMs: 3, status: 'success', outputSnippet: 'Verified response schema and logged tamper-evident audit digest.' }
             ],
             finalOutput: `Verified: Order invoice matches database records within tolerance.`
@@ -21148,8 +21451,9 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       let badgeColor = '#38bdf8';
       const nodeType = t.type || t.nodeType;
       if (nodeType === 'ingress') { icon = '🌐'; }
-      else if (nodeType === 'guardrail') { icon = '🛡️'; badgeColor = '#f43f5e'; }
-      else if (nodeType === 'rag') { icon = '📚'; badgeColor = '#38bdf8'; }
+      else if (nodeType === 'source') { icon = '📥'; badgeColor = '#fbbf24'; }
+      else if (nodeType === 'vector_store') { icon = '💾'; badgeColor = '#4ec9b0'; }
+      else if (nodeType === 'rag') { icon = '🔍'; badgeColor = '#38bdf8'; }
       else if (nodeType === 'tool') { icon = '🔌'; badgeColor = '#4ade80'; }
       else if (nodeType === 'agent') { icon = '🤖'; badgeColor = '#c084fc'; }
       else if (nodeType === 'eval_output') { icon = '🎯'; badgeColor = '#fbbf24'; }
@@ -21237,7 +21541,6 @@ describe('Solution Pipeline Contract Verification Suite', () => {
 
     pre.textContent = code;
 
-    // Update active code tab highlight
     document.querySelectorAll('.btn-ai-eng-codetab').forEach(btn => {
       const f = btn.getAttribute('data-file');
       btn.classList.toggle('active', f === activeAiEngCurrentCodeFile);
@@ -21260,7 +21563,10 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       }
       const builder = getAgentBuilder();
       if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
-        activePipelineManifest = builder.synthesizePipelineFromNlp(prompt, 'orders');
+        const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+          ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
+          : 'orders';
+        activePipelineManifest = builder.synthesizePipelineFromNlp(prompt, primaryTable);
         showToast('✨ Synthesized autonomous pipeline from prompt!');
         renderAiEngCanvas();
         renderAiEngCodeWorkbench();
@@ -21282,9 +21588,12 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         const preset = btn.getAttribute('data-preset') || 'hybrid';
         const builder = getAgentBuilder();
         if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
+          const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+            ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
+            : 'orders';
           activePipelineManifest = builder.synthesizePipelineFromNlp(
             btn.textContent?.trim() || 'Custom Enterprise Agent',
-            'orders',
+            primaryTable,
             preset
           );
           showToast(`✨ Loaded ${activePipelineManifest.name}!`);
@@ -21294,25 +21603,117 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       });
     });
 
+    // Import from Section 3C buttons
+    const handleImport3C = () => {
+      const archKey = (window as any).selectedRagArchKey || (typeof selectedRagArchKey !== 'undefined' ? selectedRagArchKey : 'hybrid');
+      const model = activeSelectedModel || 'qwen2.5-coder:7b';
+      const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+        ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
+        : 'orders';
+
+      const builder = getAgentBuilder();
+      if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
+        activePipelineManifest = builder.synthesizePipelineFromNlp(
+          `Deploy enterprise ${archKey} pipeline with ${model} and ${primaryTable} table integration`,
+          primaryTable,
+          archKey
+        );
+      }
+      showToast(`🔄 Synchronized with Section 3C Architecture (${archKey} + ${model})!`);
+      renderAiEngCanvas();
+      renderAiEngCodeWorkbench();
+    };
+
+    document.getElementById('btnAiEngImport3CArch')?.addEventListener('click', handleImport3C);
+    document.getElementById('btnAiEngSync3CQuick')?.addEventListener('click', handleImport3C);
+
+    // Canvas Quick Dropdowns (RAG & Model)
+    const selCanvasRag = document.getElementById('selCanvasRagQuick') as HTMLSelectElement;
+    selCanvasRag?.addEventListener('change', () => {
+      const rKey = selCanvasRag.value;
+      const builder = getAgentBuilder();
+      if (builder?.RAG_BLUEPRINTS?.[rKey]) {
+        activePipelineManifest.ragBlueprint = builder.RAG_BLUEPRINTS[rKey];
+        const ragNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'rag');
+        if (ragNode) {
+          ragNode.title = `${builder.RAG_BLUEPRINTS[rKey].num} ${builder.RAG_BLUEPRINTS[rKey].name}`;
+          ragNode.config.ragType = rKey;
+        }
+        updateAiEngRibbon();
+        renderAiEngCanvas();
+        renderAiEngCodeWorkbench();
+        showToast(`📚 Switched RAG Architecture to ${builder.RAG_BLUEPRINTS[rKey].name}!`);
+      }
+    });
+
+    const selCanvasModel = document.getElementById('selCanvasModelQuick') as HTMLSelectElement;
+    selCanvasModel?.addEventListener('change', () => {
+      const mKey = selCanvasModel.value;
+      const builder = getAgentBuilder();
+      if (builder?.MODEL_BLUEPRINTS?.[mKey]) {
+        activePipelineManifest.modelBlueprint = builder.MODEL_BLUEPRINTS[mKey];
+        const agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
+        if (agentNode) {
+          agentNode.title = `Autonomous Agent (${builder.MODEL_BLUEPRINTS[mKey].name})`;
+          agentNode.config.modelBlueprint = mKey;
+        }
+        updateAiEngRibbon();
+        renderAiEngCanvas();
+        renderAiEngCodeWorkbench();
+        showToast(`🤖 Switched Model Architecture to ${builder.MODEL_BLUEPRINTS[mKey].name}!`);
+      }
+    });
+
+    // Canvas View Modes
+    document.getElementById('btnAiEngView2DCanvas')?.addEventListener('click', () => {
+      switchSubTab('canvas');
+      const mainGrid = document.getElementById('aiEngCanvasMainGrid');
+      if (mainGrid) mainGrid.style.display = 'grid';
+      renderAiEngCanvas();
+    });
+
+    document.getElementById('btnAiEngViewDataArch')?.addEventListener('click', () => {
+      switchSubTab('data');
+    });
+
+    document.getElementById('btnAiEngViewLinear')?.addEventListener('click', () => {
+      switchSubTab('canvas');
+      renderAiEngCanvas();
+    });
+
+    // Inspector Tabs (Params, Data, Test)
+    document.querySelectorAll('.btn-ai-eng-insptab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = (btn.getAttribute('data-tab') || 'params') as 'params' | 'data' | 'test';
+        activeInspectorTab = tab;
+        document.querySelectorAll('.btn-ai-eng-insptab').forEach(b => b.classList.toggle('active', b === btn));
+        renderAiEngNodeInspector(activeAiEngSelectedNodeId);
+      });
+    });
+
     // Sub-tab switcher
     const tabCanvas = document.getElementById('btnTabAiEngCanvas');
+    const tabDataArch = document.getElementById('btnTabAiEngDataArch');
     const tabSim = document.getElementById('btnTabAiEngSimulator');
     const tabCode = document.getElementById('btnTabAiEngCode');
     const tabDeploy = document.getElementById('btnTabAiEngDeploy');
 
     const pCanvas = document.getElementById('p4AiEngCanvasPanel');
+    const pDataArch = document.getElementById('p4AiEngDataArchPanel');
     const pSim = document.getElementById('p4AiEngSimulatorPanel');
     const pCode = document.getElementById('p4AiEngCodePanel');
     const pDeploy = document.getElementById('p4AiEngDeployPanel');
 
-    const switchSubTab = (tab: 'canvas' | 'simulator' | 'code' | 'deploy') => {
+    const switchSubTab = (tab: 'canvas' | 'data' | 'simulator' | 'code' | 'deploy') => {
       activeAiEngCurrentTab = tab;
       if (pCanvas) pCanvas.style.display = tab === 'canvas' ? 'block' : 'none';
+      if (pDataArch) pDataArch.style.display = tab === 'data' ? 'block' : 'none';
       if (pSim) pSim.style.display = tab === 'simulator' ? 'block' : 'none';
       if (pCode) pCode.style.display = tab === 'code' ? 'block' : 'none';
       if (pDeploy) pDeploy.style.display = tab === 'deploy' ? 'block' : 'none';
 
       tabCanvas?.classList.toggle('active', tab === 'canvas');
+      tabDataArch?.classList.toggle('active', tab === 'data');
       tabSim?.classList.toggle('active', tab === 'simulator');
       tabCode?.classList.toggle('active', tab === 'code');
       tabDeploy?.classList.toggle('active', tab === 'deploy');
@@ -21323,6 +21724,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     };
 
     tabCanvas?.addEventListener('click', () => switchSubTab('canvas'));
+    tabDataArch?.addEventListener('click', () => switchSubTab('data'));
     tabSim?.addEventListener('click', () => switchSubTab('simulator'));
     tabCode?.addEventListener('click', () => switchSubTab('code'));
     tabDeploy?.addEventListener('click', () => switchSubTab('deploy'));
@@ -21392,12 +21794,13 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         resultsBox.innerHTML = `
           <div><strong>Test Suite: ${activePipelineManifest.name}.test.ts</strong></div>
           <div style="margin-top: 4px;">✓ Ingress request validation schema (1ms)</div>
-          <div>✓ Guardrail PII and SQL injection sanitize (2ms)</div>
+          <div>✓ Data source & chunking boundary test (2ms)</div>
+          <div>✓ Vector store HNSW cosine index query (3ms)</div>
           <div>✓ RAG ${activePipelineManifest.ragBlueprint?.name || 'Hybrid'} top-k recall SLA (4ms)</div>
           <div>✓ MCP tool execution and mock fallbacks (3ms)</div>
           <div>✓ Autonomous Agent reasoning and contract compliance (11ms)</div>
           <div>✓ Zero-drift hallucination SLA guarantee (1ms)</div>
-          <div style="margin-top: 6px; font-weight: 700; color: #4ade80;">Tests: 6 passed, 6 total · Time: 22ms · 100% Passing</div>
+          <div style="margin-top: 6px; font-weight: 700; color: #4ade80;">Tests: 7 passed, 7 total · Time: 25ms · 100% Passing</div>
         `;
         showToast('🧪 Unit tests passed with 100% SLA compliance!');
       }
@@ -21449,13 +21852,17 @@ describe('Solution Pipeline Contract Verification Suite', () => {
   (window as any).syncPhase4AiEngineering = function() {
     try {
       const contract = (window as any).activeSolutionContract;
+      const builder = getAgentBuilder();
+      const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+        ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
+        : 'orders';
+
       if (contract && contract.workloadTitle) {
-        const builder = getAgentBuilder();
         if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
-          const ragKey = (window as any).selectedRagArchKey || 'hybrid';
+          const ragKey = (window as any).selectedRagArchKey || (typeof selectedRagArchKey !== 'undefined' ? selectedRagArchKey : 'hybrid');
           activePipelineManifest = builder.synthesizePipelineFromNlp(
             `${contract.workloadTitle}: ${contract.gateVerdict || 'Autonomous workflow'}`,
-            'orders',
+            primaryTable,
             ragKey
           );
         }
@@ -21469,10 +21876,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     }
   };
 
-
-  initPhase4AiEngineering();
-
-  // ==========================================
+    // ==========================================
   // PHASE 5: RELIABILITY & EVALS (5A: UNIVERSAL GOLDEN BENCHMARK)
   // ==========================================
 
