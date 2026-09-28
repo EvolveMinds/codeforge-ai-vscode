@@ -21848,9 +21848,17 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     renderAiEngCanvas();
   }
 
+  let isPhase4Initialized = false;
+  function ensurePhase4Initialized() {
+    if (!isPhase4Initialized) {
+      isPhase4Initialized = true;
+      initPhase4AiEngineering();
+    }
+  }
   // Phase 4 Sync from Phase 3 Contract
   (window as any).syncPhase4AiEngineering = function() {
     try {
+      ensurePhase4Initialized();
       const contract = (window as any).activeSolutionContract;
       const builder = getAgentBuilder();
       const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
