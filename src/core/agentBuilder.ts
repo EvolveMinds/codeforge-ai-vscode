@@ -156,6 +156,21 @@ export const RAG_NODE_BLUEPRINTS: Record<string, {
   }
 };
 
+// Non-enumerable alias for Adaptive RAG (Section 3C pattern 07)
+Object.defineProperty(RAG_NODE_BLUEPRINTS, 'adaptive', {
+  value: {
+    id: 'adaptive',
+    name: '07 Adaptive RAG',
+    description: 'Dynamic complexity routing across single-pass, hybrid, and multi-hop tiers',
+    defaultStore: 'pgvector',
+    defaultChunkSize: 256,
+    features: ['Complexity Classifier', 'Tiered Routing', 'Fallback Escalation']
+  },
+  enumerable: false,
+  configurable: true,
+  writable: true
+});
+
 export const RAG_BLUEPRINTS = RAG_NODE_BLUEPRINTS;
 
 // =========================================================================
@@ -226,6 +241,46 @@ export const MODEL_CLASS_BLUEPRINTS: Record<string, {
   }
 };
 
+// Non-enumerable aliases for 3C Specialized models: moe, sam, lcm
+Object.defineProperty(MODEL_CLASS_BLUEPRINTS, 'moe', {
+  value: {
+    id: 'moe',
+    name: 'MoE (Mixture of Experts)',
+    defaultModel: 'DeepSeek-V3 / Mixtral 8x7B',
+    role: 'Sparse layer routing, dynamic top-k expert subnetworks',
+    latencySla: '<150ms'
+  },
+  enumerable: false,
+  configurable: true,
+  writable: true
+});
+
+Object.defineProperty(MODEL_CLASS_BLUEPRINTS, 'sam', {
+  value: {
+    id: 'sam',
+    name: 'SAM (Segment Anything)',
+    defaultModel: 'Segment Anything 2 / MobileSAM',
+    role: 'Zero-shot promptable visual segmentation and spatial bounding',
+    latencySla: '<50ms'
+  },
+  enumerable: false,
+  configurable: true,
+  writable: true
+});
+
+Object.defineProperty(MODEL_CLASS_BLUEPRINTS, 'lcm', {
+  value: {
+    id: 'lcm',
+    name: 'LCM (Large Concept Model)',
+    defaultModel: 'SONAR Concept Space / LCM-SD',
+    role: 'Sentence concept space reasoning & fast diffusion inference',
+    latencySla: '<180ms'
+  },
+  enumerable: false,
+  configurable: true,
+  writable: true
+});
+
 export const MODEL_BLUEPRINTS = MODEL_CLASS_BLUEPRINTS;
 
 // =========================================================================
@@ -255,56 +310,94 @@ export function synthesizePipelineFromNlp(
     tablesList = context.tables || [];
   }
   
+  const explicitRag = legacyRagPattern || c.ragPatternKey || (typeof context === 'object' && (context as any)?.ragPattern);
+  const explicitModelClass = (typeof context === 'object' && (context as any)?.modelClass) || c.modelClass;
+  const explicitModelId = (typeof context === 'object' && (context as any)?.modelId) || c.modelId;
+
   // 1. Identify Target Level and Paradigm
   let targetLevel = c.targetLevel ? Number(c.targetLevel) : 3;
-  let ragPattern = c.ragPatternKey || (legacyRagPattern ? legacyRagPattern : 'hybrid');
-  let modelClass = 'slm';
-  let modelId = 'Qwen 2.5 7B';
+  let ragPattern = explicitRag || 'hybrid';
+  let modelClass = explicitModelClass ? String(explicitModelClass).toLowerCase() : 'slm';
+  let modelId = explicitModelId || 'Qwen 2.5 7B';
   let workloadCategory = c.workloadTitle || 'Enterprise Intelligent Agent';
 
-  if (p.includes('tool') || p.includes('mcp') || p.includes('action') || p.includes('erp') || p.includes('booking') || targetLevel === 4) {
-    targetLevel = 4;
-    ragPattern = 'agentic';
-    modelClass = 'lam';
-    modelId = 'Qwen 2.5 Coder 7B (Tools / MCP)';
-    workloadCategory = 'Autonomous Tool Action Worker';
-  } else if (p.includes('multimodal') || p.includes('image') || p.includes('pdf') || p.includes('blueprint') || p.includes('drawing')) {
-    targetLevel = 3;
-    ragPattern = 'multimodal';
-    modelClass = 'vlm';
-    modelId = 'Llama 3.2 Vision 11B';
-    workloadCategory = 'Multimodal Document & Blueprint Inspector';
-  } else if (p.includes('graph') || p.includes('entity') || p.includes('community') || p.includes('network')) {
-    targetLevel = 3;
-    ragPattern = 'graph';
-    modelClass = 'llm';
-    modelId = 'Qwen 2.5 32B (Structured Triples)';
-    workloadCategory = 'Knowledge Graph Entity Navigator';
-  } else if (p.includes('corrective') || p.includes('crag') || p.includes('web search') || p.includes('fallback')) {
-    targetLevel = 3;
-    ragPattern = 'corrective';
-    modelClass = 'mlm';
-    modelId = 'MLM Grader + SLM Synthesis';
-    workloadCategory = 'Corrective RAG with Web Fallback';
-  } else if (p.includes('hyde') || p.includes('hypothetical')) {
-    targetLevel = 3;
-    ragPattern = 'hyde';
-    modelClass = 'slm';
-    modelId = 'SLM Draft Probe + MLM Vector';
-    workloadCategory = 'HyDE Zero-Shot Question Resolution';
-  } else if (p.includes('rule') || p.includes('deterministic') || p.includes('strict math') || p.includes('sox') || targetLevel === 1) {
-    targetLevel = 1;
-    ragPattern = 'naive';
-    modelClass = 'classifier';
-    modelId = 'Deterministic Rule & Ingress Engine';
-    workloadCategory = 'Deterministic Rule Gatekeeper';
+  if (!explicitRag) {
+    if (p.includes('tool') || p.includes('mcp') || p.includes('action') || p.includes('erp') || p.includes('booking') || targetLevel === 4) {
+      targetLevel = 4;
+      ragPattern = 'agentic';
+      modelClass = 'lam';
+      modelId = 'Qwen 2.5 Coder 7B (Tools / MCP)';
+      workloadCategory = 'Autonomous Tool Action Worker';
+    } else if (p.includes('multimodal') || p.includes('image') || p.includes('pdf') || p.includes('blueprint') || p.includes('drawing')) {
+      targetLevel = 3;
+      ragPattern = 'multimodal';
+      modelClass = 'vlm';
+      modelId = 'Llama 3.2 Vision 11B';
+      workloadCategory = 'Multimodal Document & Blueprint Inspector';
+    } else if (p.includes('graph') || p.includes('entity') || p.includes('community') || p.includes('network')) {
+      targetLevel = 3;
+      ragPattern = 'graph';
+      modelClass = 'llm';
+      modelId = 'Qwen 2.5 32B (Structured Triples)';
+      workloadCategory = 'Knowledge Graph Entity Navigator';
+    } else if (p.includes('corrective') || p.includes('crag') || p.includes('web search') || p.includes('fallback')) {
+      targetLevel = 3;
+      ragPattern = 'corrective';
+      modelClass = 'mlm';
+      modelId = 'MLM Grader + SLM Synthesis';
+      workloadCategory = 'Corrective RAG with Web Fallback';
+    } else if (p.includes('hyde') || p.includes('hypothetical')) {
+      targetLevel = 3;
+      ragPattern = 'hyde';
+      modelClass = 'slm';
+      modelId = 'SLM Draft Probe + MLM Vector';
+      workloadCategory = 'HyDE Zero-Shot Question Resolution';
+    } else if (p.includes('rule') || p.includes('deterministic') || p.includes('strict math') || p.includes('sox') || targetLevel === 1) {
+      targetLevel = 1;
+      ragPattern = 'naive';
+      modelClass = 'classifier';
+      modelId = 'Deterministic Rule & Ingress Engine';
+      workloadCategory = 'Deterministic Rule Gatekeeper';
+    } else {
+      // Default: Level 3 Hybrid RAG
+      targetLevel = 3;
+      ragPattern = 'hybrid';
+      modelClass = 'slm';
+      modelId = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)';
+      workloadCategory = 'Enterprise Hybrid Policy RAG';
+    }
   } else {
-    // Default: Level 3 Hybrid RAG
-    targetLevel = 3;
-    ragPattern = 'hybrid';
-    modelClass = 'slm';
-    modelId = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)';
-    workloadCategory = 'Enterprise Hybrid Policy RAG';
+    // Explicit RAG pattern was provided — honor it directly and couple default model class if omitted
+    if (ragPattern === 'agentic') {
+      targetLevel = 4;
+      if (!explicitModelClass) modelClass = 'lam';
+      if (!explicitModelId) modelId = 'Qwen 2.5 Coder 7B (Tools / MCP)';
+    } else if (ragPattern === 'multimodal') {
+      targetLevel = 3;
+      if (!explicitModelClass) modelClass = 'vlm';
+      if (!explicitModelId) modelId = 'Llama 3.2 Vision 11B';
+    } else if (ragPattern === 'graph') {
+      targetLevel = 3;
+      if (!explicitModelClass) modelClass = 'llm';
+      if (!explicitModelId) modelId = 'Qwen 2.5 32B (Structured Triples)';
+    } else if (ragPattern === 'corrective') {
+      targetLevel = 3;
+      if (!explicitModelClass) modelClass = 'mlm';
+      if (!explicitModelId) modelId = 'MLM Grader + SLM Synthesis';
+    } else if (ragPattern === 'hyde') {
+      targetLevel = 3;
+      if (!explicitModelClass) modelClass = 'slm';
+      if (!explicitModelId) modelId = 'SLM Draft Probe + MLM Vector';
+    } else if (ragPattern === 'naive') {
+      targetLevel = targetLevel || 1;
+      if (!explicitModelClass) modelClass = 'slm';
+      if (!explicitModelId) modelId = 'Qwen 2.5 7B';
+    } else {
+      // hybrid, adaptive, self_rag, etc.
+      targetLevel = targetLevel || 3;
+      if (!explicitModelClass) modelClass = 'slm';
+      if (!explicitModelId) modelId = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)';
+    }
   }
 
   // 2. Synthesize Tools (using context tables if available)

@@ -16580,6 +16580,19 @@ export class SovereignSwarmOrchestrator {
     }
   };
 
+  function inferModelClassFromModelId(modelId: string): string {
+    const m = (modelId || '').toLowerCase();
+    if (m.includes('vision') || m.includes('vl') || m.includes('colpali') || m.includes('sam')) return 'vlm';
+    if (m.includes('r1') || m.includes('reason') || m.includes('o1') || m.includes('o3') || m.includes('qwq')) return 'reasoner';
+    if (m.includes('coder') || m.includes('tool') || m.includes('lam')) return 'lam';
+    if (m.includes('fim') || m.includes('starcoder')) return 'code_fim';
+    if (m.includes('embed') || m.includes('bge') || m.includes('bert') || m.includes('mlm')) return 'mlm';
+    if (m.includes('classifier') || m.includes('rerank')) return 'classifier';
+    if (m.includes('70b') || m.includes('32b') || m.includes('sonnet') || m.includes('gpt-4') || m.includes('claude') || m.includes('llm')) return 'llm';
+    if (m.includes('1.5b') || m.includes('3b') || m.includes('7b') || m.includes('8b') || m.includes('slm') || m.includes('gemma') || m.includes('phi')) return 'slm';
+    return 'lam';
+  }
+
   let refreshAdvisorCards: () => void = () => {};
   let selectedAdvisorModelKey: string = 'llm';
 
@@ -17476,6 +17489,32 @@ export async function evaluateGateRule(record: ${tblName.charAt(0).toUpperCase()
 }`;
         }
       }
+
+      // Restore previously saved RAG and Model if available
+      try {
+        const savedRag = localStorage.getItem('evolve_active_rag_arch');
+        if (savedRag && RAG_ARCHITECTURES[savedRag]) {
+          selectedRagArchKey = savedRag;
+          (window as any).selectedRagArchKey = savedRag;
+          activeSolutionContract.ragPatternKey = savedRag;
+          activeSolutionContract.ragArchitecture = savedRag;
+          activeSolutionContract.ragArchitectureName = `${RAG_ARCHITECTURES[savedRag].num} ${RAG_ARCHITECTURES[savedRag].name}`;
+        }
+
+        const savedModelKey = localStorage.getItem('evolve_active_model_key');
+        if (savedModelKey) {
+          selectedAdvisorModelKey = savedModelKey;
+          (window as any).selectedAdvisorModelKey = savedModelKey;
+          activeSolutionContract.modelClass = savedModelKey.toUpperCase();
+        }
+
+        const savedModelId = localStorage.getItem('evolve_active_model_id');
+        if (savedModelId) {
+          activeSelectedModel = savedModelId;
+          (window as any).activeSelectedModel = savedModelId;
+          activeSolutionContract.modelId = savedModelId;
+        }
+      } catch (_) {}
 
       updateSolutionRibbon();
       updateDecisionGateDisplay(activeGateState);
@@ -19624,24 +19663,35 @@ class AgenticRagPipeline:
     // Auto-couple matching Specialized Model Engine from literature audit
     const mapping = RAG_TO_MODEL_MAP[arch.id] || RAG_TO_MODEL_MAP['hybrid'];
     selectedAdvisorModelKey = mapping.modelKey;
+    (window as any).selectedAdvisorModelKey = mapping.modelKey;
+
+    try {
+      localStorage.setItem('evolve_active_rag_arch', arch.id);
+    } catch (_) {}
+
     const targetLvlNum = parseInt(String(activeSolutionContract.targetLevel), 10) || 1;
     if (targetLvlNum >= 3 || String(activeSolutionContract.modelId || '').includes('Deterministic')) {
       activeSolutionContract.modelId = mapping.modelName;
       activeSolutionContract.modelClass = mapping.modelKey.toUpperCase();
+      try {
+        localStorage.setItem('evolve_active_model_id', mapping.modelName);
+        localStorage.setItem('evolve_active_model_key', mapping.modelKey);
+      } catch (_) {}
     }
     updateSolutionRibbon();
     try { refreshAdvisorCards(); } catch (_) {}
 
-    // Persist the choice. This was a module-local `let`, so the pattern the FDE
-    // selected in 3C never reached disk: it died on reload, never arrived in
-    // ipcHandlers, and the Scope Alignment Memo's topology section fell back to
-    // a hardcoded rule-engine diagram even when Multimodal RAG was selected —
-    // the client signed off on an architecture the build would not match.
+    // Persist the choice to disk / phase state
     void api?.fde?.savePhaseState?.({
       key: 'aiSolution',
       data: {
         ragArchitecture: arch.id,
-        ragArchitectureName: `${arch.num} ${arch.name}`
+        ragArchitectureName: `${arch.num} ${arch.name}`,
+        ragPatternKey: arch.id,
+        modelId: activeSolutionContract.modelId,
+        modelClass: activeSolutionContract.modelClass,
+        selectedAdvisorModelKey: selectedAdvisorModelKey,
+        activeSelectedModel: activeSelectedModel
       }
     });
 
@@ -20763,24 +20813,77 @@ export async function routeIntent(query: string): Promise<any> {
     hasConfiguredComponentOrModel = true;
     (window as any).selectedRagArchKey = selectedRagArchKey;
     (window as any).activeSelectedModel = activeSelectedModel;
+    (window as any).selectedAdvisorModelKey = selectedAdvisorModelKey;
 
     const arch = RAG_ARCHITECTURES[selectedRagArchKey] || RAG_ARCHITECTURES['hybrid'];
     const model = activeSelectedModel || 'qwen2.5-coder:7b';
+    const modelClass = selectedAdvisorModelKey || (activeSolutionContract.modelClass ? activeSolutionContract.modelClass.toLowerCase() : inferModelClassFromModelId(model));
     const primaryTable = currentIntrospectedTables && currentIntrospectedTables.length > 0 ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name) : 'orders';
+
+    try {
+      localStorage.setItem('evolve_active_rag_arch', selectedRagArchKey);
+      localStorage.setItem('evolve_active_model_id', model);
+      localStorage.setItem('evolve_active_model_key', modelClass);
+    } catch (_) {}
+
+    void api?.fde?.savePhaseState?.({
+      key: 'aiSolution',
+      data: {
+        ragArchitecture: selectedRagArchKey,
+        ragArchitectureName: `${arch.num} ${arch.name}`,
+        ragPatternKey: selectedRagArchKey,
+        modelId: model,
+        modelClass: modelClass,
+        selectedAdvisorModelKey: modelClass,
+        activeSelectedModel: model
+      }
+    });
 
     const builder = getAgentBuilder();
     if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
       activePipelineManifest = builder.synthesizePipelineFromNlp(
         `Deploy enterprise ${arch.name} pipeline with ${model} and ${primaryTable} table integration`,
-        primaryTable,
+        {
+          contract: activeSolutionContract,
+          tables: currentIntrospectedTables && currentIntrospectedTables.length > 0
+            ? currentIntrospectedTables.map((t: any) => ({ name: t.tableName || t.name, columns: (t.columns || []).map((c: any) => c.columnName || c.name || c) }))
+            : [{ name: primaryTable, columns: ['id', 'name', 'status', 'created_at'] }],
+          ragPattern: selectedRagArchKey,
+          modelClass: modelClass,
+          modelId: model
+        },
         selectedRagArchKey
       );
     }
-    switchDeliveryPhase(4);
-    if (typeof (window as any).syncPhase4AiEngineering === 'function') {
-      (window as any).syncPhase4AiEngineering();
+
+    if (activePipelineManifest) {
+      activePipelineManifest.ragPatternKey = selectedRagArchKey;
+      activePipelineManifest.modelClass = modelClass;
+      activePipelineManifest.modelId = model;
     }
-    showToast(`⚙️ Successfully transferred Section 3C Architecture (${arch.name} + ${model}) to Canvas!`);
+
+    (window as any).__from3CSendToCanvas = true;
+
+    switchDeliveryPhase(4);
+
+    // Explicitly apply visual changes to Canvas, Nodes & Inspector
+    applyRagArchitectureChange(selectedRagArchKey, true);
+    applyModelArchitectureChange(modelClass, true);
+
+    if (activePipelineManifest) {
+      activePipelineManifest.modelId = model;
+      const agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
+      if (agentNode) {
+        agentNode.subtitle = `${model} · ${agentNode.config?.modelClass || modelClass}`;
+        if (agentNode.config) agentNode.config.modelId = model;
+      }
+    }
+
+    renderAiEngCanvas();
+    renderAiEngCodeWorkbench();
+    updateAiEngRibbon();
+
+    showToast(`⚙️ Transferred Section 3C (${arch.name} + ${model}) directly into Canvas!`);
   };
 
   document.getElementById('btn3CSendToAiEngCanvas')?.addEventListener('click', send3CToCanvas);
@@ -21439,12 +21542,38 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         const mid = card.getAttribute('data-model');
         if (mid && ADVISOR_MODELS[mid]) {
           selectedAdvisorModelKey = mid;
-          activeSolutionContract.modelId = ADVISOR_MODELS[mid].name;
-          activeSolutionContract.modelClass = ADVISOR_MODELS[mid].shortName;
+          (window as any).selectedAdvisorModelKey = mid;
+          const chosenSpec = ADVISOR_MODELS[mid];
+          const sampleModel = chosenSpec.exampleModels && chosenSpec.exampleModels.length > 0
+            ? chosenSpec.exampleModels[0]
+            : (chosenSpec.suggestedPull ? chosenSpec.suggestedPull.replace('ollama pull ', '') : mid);
+
+          activeSelectedModel = sampleModel;
+          (window as any).activeSelectedModel = sampleModel;
+
+          activeSolutionContract.modelId = chosenSpec.name;
+          activeSolutionContract.modelClass = chosenSpec.shortName;
+
+          try {
+            localStorage.setItem('evolve_active_model_key', mid);
+            localStorage.setItem('evolve_active_model_id', sampleModel);
+          } catch (_) {}
+
+          void api?.fde?.savePhaseState?.({
+            key: 'aiSolution',
+            data: {
+              modelId: chosenSpec.name,
+              modelClass: chosenSpec.shortName,
+              selectedAdvisorModelKey: mid,
+              activeSelectedModel: sampleModel
+            }
+          });
+
           updateSolutionRibbon();
           renderAdvisorModelCards();
           renderAdvisorSelectedModel();
           renderAdvisorInstalledModels();
+          showToast(`🤖 Selected ${chosenSpec.name} (${sampleModel})!`);
         }
       });
     });
@@ -21664,10 +21793,37 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         const prov = btn.getAttribute('data-provider') || 'ollama';
         activeSelectedModel = mid;
         activeSelectedProvider = prov;
+        (window as any).activeSelectedModel = mid;
+
+        const inferredClass = inferModelClassFromModelId(mid);
+        selectedAdvisorModelKey = inferredClass;
+        (window as any).selectedAdvisorModelKey = inferredClass;
+
+        activeSolutionContract.modelId = mid;
+        activeSolutionContract.modelClass = (ADVISOR_MODELS[inferredClass]?.shortName || inferredClass).toUpperCase();
+
+        try {
+          localStorage.setItem('evolve_active_model_id', mid);
+          localStorage.setItem('evolve_active_model_key', inferredClass);
+        } catch (_) {}
+
+        void api?.fde?.savePhaseState?.({
+          key: 'aiSolution',
+          data: {
+            modelId: mid,
+            modelClass: activeSolutionContract.modelClass,
+            selectedAdvisorModelKey: inferredClass,
+            activeSelectedModel: mid
+          }
+        });
+
         const lblH = document.getElementById('lblHeaderModel');
         if (lblH) lblH.innerText = `${prov.toUpperCase()} · ${mid}`;
-        showToast(`✓ Switched active model to ${mid}!`);
+        updateSolutionRibbon();
+        showToast(`✓ Switched active model to ${mid} (${activeSolutionContract.modelClass})!`);
         renderAdvisorInstalledModels();
+        renderAdvisorModelCards();
+        renderAdvisorSelectedModel();
       });
     });
 
@@ -21766,12 +21922,28 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       : 'orders';
 
     if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
-      const ragArch = (window as any).selectedRagArchKey || 'hybrid';
+      const ragArch = (window as any).selectedRagArchKey || activeSolutionContract?.ragPatternKey || localStorage.getItem('evolve_active_rag_arch') || 'hybrid';
+      const model = activeSolutionContract?.modelId || (window as any).activeSelectedModel || activeSelectedModel || localStorage.getItem('evolve_active_model_id') || 'qwen2.5-coder:7b';
+      const modelClass = (window as any).selectedAdvisorModelKey || localStorage.getItem('evolve_active_model_key') || inferModelClassFromModelId(model);
+
       activePipelineManifest = builder.synthesizePipelineFromNlp(
         'Build an invoice reconciliation agent that queries PostgreSQL orders, validates variances, and escalates discrepancies > $100 to Slack',
-        primaryTable,
+        {
+          contract: activeSolutionContract || {},
+          tables: (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+            ? currentIntrospectedTables.map((t: any) => ({ name: t.tableName || t.name, columns: (t.columns || []).map((c: any) => c.columnName || c.name || c) }))
+            : [{ name: primaryTable, columns: ['id', 'name', 'status', 'created_at'] }],
+          ragPattern: ragArch,
+          modelClass: modelClass,
+          modelId: model
+        },
         ragArch
       );
+      if (activePipelineManifest) {
+        activePipelineManifest.ragPatternKey = ragArch;
+        activePipelineManifest.modelClass = modelClass;
+        activePipelineManifest.modelId = model;
+      }
     } else {
       activePipelineManifest = {
         id: 'pipeline-invoice-recon',
@@ -21939,8 +22111,9 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       lblRag.title = `RAG Architecture: ${rBp?.name || rKey}. Click to jump to Section 3C to change RAG architecture.`;
     }
     if (lblModel) {
-      lblModel.textContent = `🤖 ${mBp?.name || mKey} (${mBp?.defaultModel || 'qwen2.5-coder:7b'})`;
-      lblModel.title = `Model Engine: ${mBp?.name || mKey}. Click to jump to Section 3C to change Model.`;
+      const displayModel = activePipelineManifest.modelId || mBp?.defaultModel || 'qwen2.5-coder:7b';
+      lblModel.textContent = `🤖 ${mBp?.name || mKey} (${displayModel})`;
+      lblModel.title = `Model Engine: ${mBp?.name || mKey} (${displayModel}). Click to jump to Section 3C to change Model.`;
     }
     if (lblTools) lblTools.textContent = `🔌 ${activePipelineManifest.tools?.length || 0} Tools Active`;
     if (lblMode) lblMode.textContent = `🧪 SLA: <${activePipelineManifest.slaLatencyMs || 250}ms · 0.0% Hallucination`;
@@ -22017,12 +22190,13 @@ describe('Solution Pipeline Contract Verification Suite', () => {
 
     let agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
     if (agentNode && mbp) {
+      const displayModel = activePipelineManifest.modelId || mbp.defaultModel;
       agentNode.title = mbp.name;
-      agentNode.subtitle = `${mbp.defaultModel} · ${mbp.role}`;
+      agentNode.subtitle = `${displayModel} · ${mbp.role}`;
       agentNode.config = agentNode.config || {};
       agentNode.config.modelClass = modelKey;
       agentNode.config.modelBlueprint = modelKey;
-      agentNode.config.modelId = mbp.defaultModel;
+      agentNode.config.modelId = displayModel;
     }
 
     // Synchronize toolbar dropdown
@@ -22691,21 +22865,48 @@ describe('Solution Pipeline Contract Verification Suite', () => {
 
     // Import from Section 3C buttons
     const handleImport3C = () => {
-      const archKey = (window as any).selectedRagArchKey || (typeof selectedRagArchKey !== 'undefined' ? selectedRagArchKey : 'hybrid');
-      const model = activeSelectedModel || 'qwen2.5-coder:7b';
+      const archKey = (window as any).selectedRagArchKey || activeSolutionContract?.ragPatternKey || (typeof selectedRagArchKey !== 'undefined' ? selectedRagArchKey : '') || localStorage.getItem('evolve_active_rag_arch') || 'hybrid';
+      const model = activeSolutionContract?.modelId || (window as any).activeSelectedModel || activeSelectedModel || localStorage.getItem('evolve_active_model_id') || 'qwen2.5-coder:7b';
+      const modelClass = (window as any).selectedAdvisorModelKey || (typeof selectedAdvisorModelKey !== 'undefined' ? selectedAdvisorModelKey : '') || localStorage.getItem('evolve_active_model_key') || inferModelClassFromModelId(model);
       const primaryTable = (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
         ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
         : 'orders';
 
+      const arch = RAG_ARCHITECTURES[archKey] || RAG_ARCHITECTURES['hybrid'];
       const builder = getAgentBuilder();
       if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
         activePipelineManifest = builder.synthesizePipelineFromNlp(
-          `Deploy enterprise ${archKey} pipeline with ${model} and ${primaryTable} table integration`,
-          primaryTable,
+          `Deploy enterprise ${arch.name} pipeline with ${model} and ${primaryTable} table integration`,
+          {
+            contract: activeSolutionContract,
+            tables: currentIntrospectedTables && currentIntrospectedTables.length > 0
+              ? currentIntrospectedTables.map((t: any) => ({ name: t.tableName || t.name, columns: (t.columns || []).map((c: any) => c.columnName || c.name || c) }))
+              : [{ name: primaryTable, columns: ['id', 'name', 'status', 'created_at'] }],
+            ragPattern: archKey,
+            modelClass: modelClass,
+            modelId: model
+          },
           archKey
         );
       }
-      showToast(`🔄 Synchronized with Section 3C Architecture (${archKey} + ${model})!`);
+      if (activePipelineManifest) {
+        activePipelineManifest.ragPatternKey = archKey;
+        activePipelineManifest.modelClass = modelClass;
+        activePipelineManifest.modelId = model;
+      }
+      applyRagArchitectureChange(archKey, true);
+      applyModelArchitectureChange(modelClass, true);
+
+      if (activePipelineManifest) {
+        activePipelineManifest.modelId = model;
+        const agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
+        if (agentNode) {
+          agentNode.subtitle = `${model} · ${agentNode.config?.modelClass || modelClass}`;
+          if (agentNode.config) agentNode.config.modelId = model;
+        }
+      }
+
+      showToast(`🔄 Synchronized with Section 3C Architecture (${arch.name} + ${model})!`);
       updateAiEngRibbon();
       renderAiEngCanvas();
       renderAiEngCodeWorkbench();
@@ -22926,17 +23127,61 @@ describe('Solution Pipeline Contract Verification Suite', () => {
         ? (currentIntrospectedTables[0].tableName || currentIntrospectedTables[0].name)
         : 'orders';
 
-      if (contract && contract.workloadTitle) {
+      const ragKey = (window as any).selectedRagArchKey || contract?.ragPatternKey || contract?.ragArchitecture || (typeof selectedRagArchKey !== 'undefined' ? selectedRagArchKey : '') || localStorage.getItem('evolve_active_rag_arch') || 'hybrid';
+      const modelId = (window as any).activeSelectedModel || activeSelectedModel || contract?.modelId || localStorage.getItem('evolve_active_model_id') || 'qwen2.5-coder:7b';
+      const modelClass = (window as any).selectedAdvisorModelKey || (typeof selectedAdvisorModelKey !== 'undefined' ? selectedAdvisorModelKey : '') || localStorage.getItem('evolve_active_model_key') || inferModelClassFromModelId(modelId);
+
+      // If this was called as part of send3CToCanvas, activePipelineManifest was already populated!
+      if ((window as any).__from3CSendToCanvas && activePipelineManifest) {
+        (window as any).__from3CSendToCanvas = false;
+        applyRagArchitectureChange(ragKey, true);
+        applyModelArchitectureChange(modelClass, true);
+        if (activePipelineManifest) activePipelineManifest.modelId = modelId;
+        renderAiEngCanvas();
+        renderAiEngCodeWorkbench();
+        updateAiEngRibbon();
+        return;
+      }
+
+      if (!activePipelineManifest) {
         if (builder && typeof builder.synthesizePipelineFromNlp === 'function') {
-          const ragKey = (window as any).selectedRagArchKey || (typeof selectedRagArchKey !== 'undefined' ? selectedRagArchKey : 'hybrid');
           activePipelineManifest = builder.synthesizePipelineFromNlp(
-            `${contract.workloadTitle}: ${contract.gateVerdict || 'Autonomous workflow'}`,
-            primaryTable,
+            contract && contract.workloadTitle ? `${contract.workloadTitle}: ${contract.gateVerdict || 'Autonomous workflow'}` : 'Enterprise AI Pipeline',
+            {
+              contract: contract || {},
+              tables: (typeof currentIntrospectedTables !== 'undefined' && currentIntrospectedTables && currentIntrospectedTables.length > 0)
+                ? currentIntrospectedTables.map((t: any) => ({ name: t.tableName || t.name, columns: (t.columns || []).map((c: any) => c.columnName || c.name || c) }))
+                : [{ name: primaryTable, columns: ['id', 'name', 'status', 'created_at'] }],
+              ragPattern: ragKey,
+              modelClass: modelClass,
+              modelId: modelId
+            },
             ragKey
           );
         }
       }
+
       ensureDefaultAiEngPipeline();
+
+      // Ensure the pipeline manifest strictly matches 3C selections
+      if (activePipelineManifest) {
+        activePipelineManifest.ragPatternKey = ragKey;
+        activePipelineManifest.modelClass = modelClass;
+        activePipelineManifest.modelId = modelId;
+      }
+
+      applyRagArchitectureChange(ragKey, true);
+      applyModelArchitectureChange(modelClass, true);
+
+      if (activePipelineManifest) {
+        activePipelineManifest.modelId = modelId;
+        const agentNode = (activePipelineManifest.nodes || []).find((n: any) => n.type === 'agent');
+        if (agentNode) {
+          agentNode.subtitle = `${modelId} · ${agentNode.config?.modelClass || modelClass}`;
+          if (agentNode.config) agentNode.config.modelId = modelId;
+        }
+      }
+
       renderAiEngCanvas();
       renderAiEngCodeWorkbench();
       updateAiEngRibbon();
