@@ -16258,7 +16258,21 @@ export class SovereignSwarmOrchestrator {
     }
   };
 
-  const gatePresets: Record<string, { desc: string; math: string; modality: string; latency: string; hallucination: string; hitl: string; override: string }> = {
+  const gatePresets: Record<string, {
+    desc: string;
+    math: string;
+    modality: string;
+    latency: string;
+    hallucination: string;
+    hitl: string;
+    override: string;
+    industry: string;
+    industryLabel: string;
+    industryIcon: string;
+    p1Archetype?: string;
+    recommendedModel?: string;
+    recommendedRag?: string;
+  }> = {
     financial_reconciliation: {
       desc: 'Transaction tolerance reconciliation and invoice total check',
       math: 'yes',
@@ -16266,7 +16280,13 @@ export class SovereignSwarmOrchestrator {
       latency: '50ms',
       hallucination: 'zero',
       hitl: 'discrepancy',
-      override: 'level_1'
+      override: 'level_1',
+      industry: 'finance',
+      industryLabel: 'FinOps & Banking',
+      industryIcon: '🏢',
+      p1Archetype: 'fin-reconcile',
+      recommendedModel: 'Zero LLM / $0.00 Cost',
+      recommendedRag: 'hybrid'
     },
     support_triage: {
       desc: 'Customer support ticket ingress classification and sentiment routing',
@@ -16275,7 +16295,13 @@ export class SovereignSwarmOrchestrator {
       latency: '25ms',
       hallucination: 'low',
       hitl: 'discrepancy',
-      override: 'level_2'
+      override: 'level_2',
+      industry: 'customer_support',
+      industryLabel: 'Customer Support & CRM',
+      industryIcon: '🎧',
+      p1Archetype: 'support-copilot',
+      recommendedModel: 'SLM (Complexity Router <15ms)',
+      recommendedRag: 'adaptive'
     },
     clinical_protocol: {
       desc: 'Clinical diagnostic guideline lookup and HIPAA compliant SOP verification',
@@ -16284,7 +16310,13 @@ export class SovereignSwarmOrchestrator {
       latency: '120ms',
       hallucination: 'low',
       hitl: 'mandatory',
-      override: 'level_3'
+      override: 'level_3',
+      industry: 'healthcare',
+      industryLabel: 'Healthcare & Life Sciences',
+      industryIcon: '📚',
+      p1Archetype: 'health-records',
+      recommendedModel: 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)',
+      recommendedRag: 'hierarchical'
     },
     erp_rebalance: {
       desc: 'Multi-warehouse ERP inventory rebalancing and automated carrier booking',
@@ -16293,7 +16325,13 @@ export class SovereignSwarmOrchestrator {
       latency: '250ms',
       hallucination: 'zero',
       hitl: 'discrepancy',
-      override: 'level_4'
+      override: 'level_4',
+      industry: 'logistics',
+      industryLabel: 'Supply Chain & ERP',
+      industryIcon: '📦',
+      p1Archetype: 'supply-chain',
+      recommendedModel: 'LAM (Qwen 2.5 Coder 7B - Tools / MCP)',
+      recommendedRag: 'agentic'
     },
     claims_adjudication: {
       desc: 'Cross-border multi-entity insurance claim investigation with fraud state machine',
@@ -16302,7 +16340,12 @@ export class SovereignSwarmOrchestrator {
       latency: '1500ms',
       hallucination: 'zero',
       hitl: 'mandatory',
-      override: 'level_5'
+      override: 'level_5',
+      industry: 'insurance',
+      industryLabel: 'Insurance & Claims',
+      industryIcon: '🐝',
+      recommendedModel: 'LAM + Multi-Agent Swarm (Qwen 2.5 Coder 7B)',
+      recommendedRag: 'agentic'
     },
     payment_interlock: {
       desc: 'High-value SWIFT payment execution with strict balance verification & MCP ERP settlement',
@@ -16311,7 +16354,13 @@ export class SovereignSwarmOrchestrator {
       latency: '100ms',
       hallucination: 'zero',
       hitl: 'mandatory',
-      override: 'hybrid_1_4'
+      override: 'hybrid_1_4',
+      industry: 'fintech',
+      industryLabel: 'FinTech & Payments',
+      industryIcon: '🛡️',
+      p1Archetype: 'fin-reconcile',
+      recommendedModel: 'Deterministic Guard + LAM (Qwen 2.5 Coder 7B)',
+      recommendedRag: 'hybrid'
     },
     contract_boundary: {
       desc: 'Master Services Agreement financial liability clause extraction with statutory cap checks',
@@ -16320,7 +16369,13 @@ export class SovereignSwarmOrchestrator {
       latency: '150ms',
       hallucination: 'zero',
       hitl: 'discrepancy',
-      override: 'hybrid_1_3'
+      override: 'hybrid_1_3',
+      industry: 'legal',
+      industryLabel: 'Legal & Compliance',
+      industryIcon: '📑',
+      p1Archetype: 'legal-contracts',
+      recommendedModel: 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)',
+      recommendedRag: 'hybrid'
     },
     credit_underwrite: {
       desc: 'Commercial loan credit underwriting scoring with statutory debt-to-income hard gate and human escalation',
@@ -16329,7 +16384,13 @@ export class SovereignSwarmOrchestrator {
       latency: '800ms',
       hallucination: 'zero',
       hitl: 'mandatory',
-      override: 'hybrid_1_5'
+      override: 'hybrid_1_5',
+      industry: 'banking',
+      industryLabel: 'Banking & Lending',
+      industryIcon: '🏦',
+      p1Archetype: 'fin-reconcile',
+      recommendedModel: 'LAM + Multi-Agent Swarm (Qwen 2.5 Coder 7B)',
+      recommendedRag: 'agentic'
     }
   };
 
@@ -16339,6 +16400,7 @@ export class SovereignSwarmOrchestrator {
   interface SolutionContract {
     industry: string;
     industryLabel: string;
+    industryIcon?: string;
     workloadKey: string;
     workloadTitle: string;
     gateVerdict: string;
@@ -16359,6 +16421,7 @@ export class SovereignSwarmOrchestrator {
   let activeSolutionContract: SolutionContract = {
     industry: 'finance',
     industryLabel: 'FinOps & Banking',
+    industryIcon: '🏢',
     workloadKey: 'financial_reconciliation',
     workloadTitle: 'AP Invoice 3-Way Match & Tolerance',
     gateVerdict: 'Deterministic Rule & SQL',
@@ -16385,8 +16448,9 @@ export class SovereignSwarmOrchestrator {
     const chipDb = document.getElementById('ribbonDbChip');
 
     if (chipIndustry) {
-      chipIndustry.textContent = `🏢 ${activeSolutionContract.industryLabel || 'FinOps & Banking'}`;
-      chipIndustry.title = `Source: Phase 1 & Section 3A Task Archetype (${activeSolutionContract.workloadTitle || 'Financial Reconciliation'}). Click to jump and edit.`;
+      const icon = activeSolutionContract.industryIcon || '🏢';
+      chipIndustry.textContent = `${icon} ${activeSolutionContract.industryLabel || 'FinOps & Banking'}`;
+      chipIndustry.title = `Domain: ${activeSolutionContract.industryLabel} (Source: Phase 1 & Section 3A Task Preset: ${activeSolutionContract.workloadTitle || 'Financial Reconciliation'}). Click to jump and edit.`;
     }
     if (chipGate) {
       chipGate.textContent = `⚖️ ${activeSolutionContract.gateVerdict || 'Rule-First Gate'}`;
@@ -17304,6 +17368,14 @@ export async function evaluateGateRule(record: ${tblName.charAt(0).toUpperCase()
         try {
           activeSolutionContract.workloadKey = presetKey;
           activeSolutionContract.workloadTitle = sel.options[sel.selectedIndex].text;
+          if (p.industry) activeSolutionContract.industry = p.industry;
+          if (p.industryLabel) activeSolutionContract.industryLabel = p.industryLabel;
+          if (p.industryIcon) activeSolutionContract.industryIcon = p.industryIcon;
+          if (p.recommendedModel) activeSolutionContract.modelId = p.recommendedModel;
+          if (p.recommendedRag) {
+            activeSolutionContract.ragPatternKey = p.recommendedRag;
+            activeSolutionContract.ragArchitecture = p.recommendedRag;
+          }
           activeSolutionContract.gateVerdict = activeGateState.paradigm;
           activeSolutionContract.targetLevel = activeGateState.level || 1;
           activeSolutionContract.latencySla = activeGateState.latencySla;
@@ -17315,8 +17387,16 @@ export async function evaluateGateRule(record: ${tblName.charAt(0).toUpperCase()
           syncActiveTargetBadge(numLvl);
           updateLadderView(numLvl);
           updateSolutionRibbon();
+
+          // Sync Phase 1 Archetype selector if aligned
+          if (p.p1Archetype) {
+            const selP1 = document.getElementById('selFdeArchetype') as HTMLSelectElement | null;
+            if (selP1 && selP1.value !== p.p1Archetype) {
+              selP1.value = p.p1Archetype;
+            }
+          }
         } catch (_) {}
-        showToast(`🏢 Loaded enterprise archetype: ${sel.options[sel.selectedIndex].text}`);
+        showToast(`🏢 Loaded archetype: ${activeSolutionContract.industryIcon || '🏢'} ${activeSolutionContract.industryLabel} · ${activeSolutionContract.gateVerdict}`);
       }
     }
   });
@@ -17330,6 +17410,19 @@ export async function evaluateGateRule(record: ${tblName.charAt(0).toUpperCase()
         activeGateState = { ...gateTemplates[overrideVal] };
         updateDecisionGateDisplay(activeGateState);
         populateGateEditorFromState(activeGateState);
+        try {
+          activeSolutionContract.gateVerdict = activeGateState.paradigm;
+          activeSolutionContract.targetLevel = activeGateState.level || 1;
+          activeSolutionContract.latencySla = activeGateState.latencySla;
+          activeSolutionContract.costSla = activeGateState.costSla;
+          activeSolutionContract.hallucinationSla = activeGateState.hallucinationSla;
+          const numLvl = typeof activeGateState.level === 'number' ? activeGateState.level : parseInt(String(activeGateState.level), 10) || 1;
+          committedProjectTargetLevel = numLvl;
+          selectedLadderLevel = numLvl;
+          syncActiveTargetBadge(numLvl);
+          updateLadderView(numLvl);
+          updateSolutionRibbon();
+        } catch (_) {}
         showToast(`🎯 Switched architecture tier to ${activeGateState.paradigm}`);
       }
     } else if (overrideVal === 'custom') {
