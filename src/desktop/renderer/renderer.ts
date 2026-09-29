@@ -16384,16 +16384,31 @@ export class SovereignSwarmOrchestrator {
     const badgeSla = document.getElementById('ribbonSlaBadge');
     const chipDb = document.getElementById('ribbonDbChip');
 
-    if (chipIndustry) chipIndustry.textContent = `🏢 ${activeSolutionContract.industryLabel || 'FinOps & Banking'}`;
-    if (chipGate) chipGate.textContent = `⚖️ ${activeSolutionContract.gateVerdict || 'Rule-First Gate'}`;
-    if (chipLevel) chipLevel.textContent = `🪜 Level ${activeSolutionContract.targetLevel || 1}`;
-    if (chipEngine) chipEngine.textContent = `🤖 ${activeSolutionContract.modelId || 'Zero LLM'}`;
-    if (badgeSla) badgeSla.textContent = `⚡ ${activeSolutionContract.latencySla || '<5ms'} • ${activeSolutionContract.hallucinationSla || '0% Drift'}`;
+    if (chipIndustry) {
+      chipIndustry.textContent = `🏢 ${activeSolutionContract.industryLabel || 'FinOps & Banking'}`;
+      chipIndustry.title = `Source: Phase 1 & Section 3A Task Archetype (${activeSolutionContract.workloadTitle || 'Financial Reconciliation'}). Click to jump and edit.`;
+    }
+    if (chipGate) {
+      chipGate.textContent = `⚖️ ${activeSolutionContract.gateVerdict || 'Rule-First Gate'}`;
+      chipGate.title = `Source: Section 3A Rule vs Model Decision Gate. Click to jump and edit rules & verdicts.`;
+    }
+    if (chipLevel) {
+      chipLevel.textContent = `🪜 Level ${activeSolutionContract.targetLevel || 1}`;
+      chipLevel.title = `Source: Section 3B FDE 1–5 Capability Ladder Target. Click to jump and change level.`;
+    }
+    if (chipEngine) {
+      chipEngine.textContent = `🤖 ${activeSolutionContract.modelId || 'Zero LLM'}`;
+      chipEngine.title = `Source: Section 3C RAG Architecture (${activeSolutionContract.ragArchitectureName || activeSolutionContract.ragPatternKey}) & Model Selection. Click to jump and change.`;
+    }
+    if (badgeSla) {
+      badgeSla.textContent = `⚡ ${activeSolutionContract.latencySla || '<5ms'} • ${activeSolutionContract.hallucinationSla || '0% Drift'}`;
+      badgeSla.title = `Source: Section 3A Latency & Hallucination SLA budget. Click to adjust.`;
+    }
     if (chipDb) {
       if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
         chipDb.style.display = 'inline-block';
         chipDb.textContent = `🔌 DB: ${currentIntrospectedTables.length} tables`;
-        chipDb.title = `Connected tables: ${currentIntrospectedTables.map(t => t.tableName || t.name).slice(0, 5).join(', ')}`;
+        chipDb.title = `Source: Phase 2 Introspected Schema (${currentIntrospectedTables.map(t => t.tableName || t.name).slice(0, 5).join(', ')}). Click to view Data Architecture.`;
       } else {
         chipDb.style.display = 'none';
       }
@@ -19756,6 +19771,87 @@ export async function routeIntent(query: string): Promise<any> {
   document.getElementById('btnP3StepPrev')?.addEventListener('click', () => goToP3Step(currentP3Step - 1));
   document.getElementById('btnP3StepNext')?.addEventListener('click', () => goToP3Step(currentP3Step + 1));
 
+  // --- Solution Contract Ribbon Click-to-Jump Navigation Handlers ---
+  document.getElementById('ribbonIndustryChip')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(1);
+    const sel = document.getElementById('selRuleGatePreset') as HTMLSelectElement | null;
+    if (sel) {
+      sel.focus();
+      sel.style.outline = '2px solid var(--accent)';
+      setTimeout(() => { sel.style.outline = ''; }, 2000);
+    }
+    showToast('✏️ Navigated to Section 3A: Task Archetype & Industry Preset');
+  });
+
+  document.getElementById('ribbonGateChip')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(1);
+    const gateCard = document.getElementById('boxGateAiLayer') || document.getElementById('selArchitectureTierOverride');
+    if (gateCard) gateCard.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    showToast('✏️ Navigated to Section 3A: Rule vs Model Decision Gate');
+  });
+
+  document.getElementById('ribbonLevelChip')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(2);
+    const ladder = document.getElementById('p3StepBPanel');
+    if (ladder) ladder.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showToast('✏️ Navigated to Section 3B: FDE 1–5 Capability Ladder Target');
+  });
+
+  document.getElementById('ribbonEngineChip')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(3);
+    const ragCards = document.getElementById('p3StepCPanel');
+    if (ragCards) ragCards.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showToast('✏️ Navigated to Section 3C: Component Architecture & Model Engine');
+  });
+
+  document.getElementById('ribbonSlaBadge')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(1);
+    const slaInput = document.getElementById('txtRuleLatencyBudget') as HTMLInputElement | null;
+    if (slaInput) slaInput.focus();
+    showToast('✏️ Navigated to Section 3A: Latency & Hallucination SLA');
+  });
+
+  document.getElementById('ribbonDbChip')?.addEventListener('click', () => {
+    switchDeliveryPhase(4);
+    document.getElementById('tabAiEngDataArch')?.click();
+    showToast('💾 Navigated to RAG Vector Store & Data Architecture');
+  });
+
+  document.getElementById('btnEditSolutionContract')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(1);
+    showToast('✏️ Opening Section 3A Solution Contract editor');
+  });
+
+  document.getElementById('btnP4JumpToContract')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(1);
+    showToast('🧠 Viewing Phase 3 Solution Contract');
+  });
+
+  document.getElementById('lblAiEngPipelineName')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(1);
+    showToast('✏️ Navigated to Section 3A: Solution Contract Pipeline Definition');
+  });
+
+  document.getElementById('lblAiEngRagBadge')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(3);
+    showToast('✏️ Navigated to Section 3C: RAG Architecture Selector');
+  });
+
+  document.getElementById('lblAiEngModelBadge')?.addEventListener('click', () => {
+    switchDeliveryPhase(3);
+    goToP3Step(3);
+    showToast('✏️ Navigated to Section 3C: Model Selection Advisor');
+  });
+
   // --- Step 3A to 3B: Gate Apply & Advance ---
   document.getElementById('btnGateApplyAndAdvance')?.addEventListener('click', () => {
     hasEvaluatedRuleModelGate = true;
@@ -20950,9 +21046,18 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     const rBp = (builder?.RAG_NODE_BLUEPRINTS || builder?.RAG_BLUEPRINTS || {})[rKey] || activePipelineManifest.ragBlueprint;
     const mBp = (builder?.MODEL_CLASS_BLUEPRINTS || builder?.MODEL_BLUEPRINTS || {})[mKey] || activePipelineManifest.modelBlueprint;
 
-    if (lblName) lblName.textContent = activePipelineManifest.name;
-    if (lblRag) lblRag.textContent = `📚 ${rBp?.name || rKey}`;
-    if (lblModel) lblModel.textContent = `🤖 ${mBp?.name || mKey} (${mBp?.defaultModel || 'qwen2.5-coder:7b'})`;
+    if (lblName) {
+      lblName.textContent = activePipelineManifest.name;
+      lblName.title = 'Active Pipeline synthesized from Solution Contract. Click to jump to Section 3A.';
+    }
+    if (lblRag) {
+      lblRag.textContent = `📚 ${rBp?.name || rKey}`;
+      lblRag.title = `RAG Architecture: ${rBp?.name || rKey}. Click to jump to Section 3C to change RAG architecture.`;
+    }
+    if (lblModel) {
+      lblModel.textContent = `🤖 ${mBp?.name || mKey} (${mBp?.defaultModel || 'qwen2.5-coder:7b'})`;
+      lblModel.title = `Model Engine: ${mBp?.name || mKey}. Click to jump to Section 3C to change Model.`;
+    }
     if (lblTools) lblTools.textContent = `🔌 ${activePipelineManifest.tools?.length || 0} Tools Active`;
     if (lblMode) lblMode.textContent = `🧪 SLA: <${activePipelineManifest.slaLatencyMs || 250}ms · 0.0% Hallucination`;
 

@@ -45,6 +45,23 @@
       background: rgba(78, 201, 176, 0.12) !important;
       border-left: 3px solid var(--accent) !important;
     }
+    .ribbon-interactive-chip {
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .ribbon-interactive-chip:hover {
+      filter: brightness(1.28);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+      border-color: var(--accent) !important;
+    }
+    .ribbon-interactive-chip:active {
+      transform: translateY(0);
+    }
     .phase-content-area {
       flex: 1;
       min-width: 0;
@@ -2606,17 +2623,18 @@
                     <span style="font-size: 11px; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
                       <span>🧠</span> Solution Contract:
                     </span>
-                    <span id="ribbonIndustryChip" style="font-size: 10px; background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px;">🏢 FinOps &amp; Banking</span>
+                    <span id="ribbonIndustryChip" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(255,255,255,0.06); color: #cbd5e1; border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px;" title="Source: Phase 1 &amp; Section 3A Task Archetype. Click to jump and edit.">🏢 FinOps &amp; Banking</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
-                    <span id="ribbonGateChip" style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 7px; border-radius: 4px; font-weight: 700;">⚖️ Rule-First Gate</span>
+                    <span id="ribbonGateChip" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: var(--accent); border: 1px solid var(--accent); padding: 2px 7px; border-radius: 4px; font-weight: 700;" title="Source: Section 3A Rule vs Model Decision Gate. Click to jump and edit rules &amp; verdicts.">⚖️ Rule-First Gate</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
-                    <span id="ribbonLevelChip" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;">🪜 Level 1: Deterministic</span>
+                    <span id="ribbonLevelChip" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;" title="Source: Section 3B FDE 1–5 Capability Ladder Target. Click to jump and edit level.">🪜 Level 1: Deterministic</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
-                    <span id="ribbonEngineChip" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 7px; border-radius: 4px;">🤖 Zero LLM / $0.00 Cost</span>
+                    <span id="ribbonEngineChip" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 7px; border-radius: 4px;" title="Source: Section 3C RAG Architecture &amp; Model Selection. Click to jump and change.">🤖 Zero LLM / $0.00 Cost</span>
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <span id="ribbonDbChip" style="display: none; font-size: 9.5px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 6px; border-radius: 3px; font-weight: 700;">🔌 DB: 0 tables</span>
-                    <span id="ribbonSlaBadge" style="font-size: 9.5px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 2px 6px; border-radius: 3px; font-weight: 700;">⚡ &lt;5ms • 0% Drift</span>
+                    <span id="ribbonSlaBadge" class="ribbon-interactive-chip" style="font-size: 9.5px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 2px 6px; border-radius: 3px; font-weight: 700;" title="Source: Section 3A Latency &amp; Hallucination Constraints. Click to edit.">⚡ &lt;5ms • 0% Drift</span>
+                    <button class="btn-quick" id="btnEditSolutionContract" style="font-size: 9.5px; padding: 2px 8px; margin: 0; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Click any chip above or click here to jump directly to Section 3A editor">✏️ Click Chip to Edit</button>
                   </div>
                 </div>
 
@@ -4345,16 +4363,17 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <span style="font-size: 11px; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
                       <span>⚙️</span> Active Pipeline:
                     </span>
-                    <span id="lblAiEngPipelineName" style="font-size: 10.5px; background: rgba(255,255,255,0.08); color: #fff; font-weight: 700; border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px;">InvoiceReconciliationPipeline</span>
+                    <span id="lblAiEngPipelineName" class="ribbon-interactive-chip" style="font-size: 10.5px; background: rgba(255,255,255,0.08); color: #fff; font-weight: 700; border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px;" title="Pipeline Name (configured from Solution Contract). Click to jump to Section 3A.">InvoiceReconciliationPipeline</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
-                    <span id="lblAiEngRagBadge" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;">📚 06 Hybrid RAG</span>
+                    <span id="lblAiEngRagBadge" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;" title="Source: Section 3C RAG Architecture. Click to change RAG pattern.">📚 06 Hybrid RAG</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
-                    <span id="lblAiEngModelBadge" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;">🤖 LAM (Qwen 2.5 Coder 7B)</span>
+                    <span id="lblAiEngModelBadge" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;" title="Source: Section 3C Model Selection. Click to change model.">🤖 LAM (Qwen 2.5 Coder 7B)</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
                     <span id="lblAiEngToolsBadge" style="font-size: 10px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 2px 7px; border-radius: 4px; font-weight: 700;">🔌 3 Tools Active</span>
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <span id="lblAiEngExecutionMode" style="font-size: 9.5px; background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px;">🧪 Dual-Mode: Mock/Live</span>
+                    <button class="btn-quick" id="btnP4JumpToContract" style="font-size: 9.5px; padding: 2px 8px; margin: 0; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Jump to Phase 3 Solution Contract &amp; Architecture">🧠 View Solution Contract</button>
                   </div>
                 </div>
 
