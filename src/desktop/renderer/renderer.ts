@@ -17401,6 +17401,233 @@ export async function evaluateGateRule(record: ${tblName.charAt(0).toUpperCase()
     }
   });
 
+  // --- Custom Enterprise Task Presets Management ---
+  interface CustomPresetEntry {
+    key: string;
+    title: string;
+    desc: string;
+    math: string;
+    modality: string;
+    latency: string;
+    hallucination: string;
+    hitl: string;
+    override: string;
+    industry: string;
+    industryLabel: string;
+    industryIcon: string;
+    recommendedModel?: string;
+    recommendedRag?: string;
+  }
+
+  const loadCustomGatePresets = () => {
+    try {
+      const raw = localStorage.getItem('evolve_custom_gate_presets');
+      if (!raw) return;
+      const list: CustomPresetEntry[] = JSON.parse(raw);
+      if (!Array.isArray(list) || list.length === 0) return;
+
+      const optgroup = document.getElementById('optgroupCustomPresets');
+      if (optgroup) {
+        optgroup.innerHTML = '';
+        optgroup.style.display = 'block';
+      }
+
+      list.forEach(p => {
+        gatePresets[p.key] = {
+          desc: p.desc,
+          math: p.math,
+          modality: p.modality,
+          latency: p.latency,
+          hallucination: p.hallucination,
+          hitl: p.hitl,
+          override: p.override,
+          industry: p.industry,
+          industryLabel: p.industryLabel,
+          industryIcon: p.industryIcon,
+          recommendedModel: p.recommendedModel,
+          recommendedRag: p.recommendedRag
+        };
+
+        if (optgroup) {
+          const opt = document.createElement('option');
+          opt.value = p.key;
+          opt.textContent = `${p.industryIcon || '⭐'} ${p.title} (${p.override.replace('_', ' ').toUpperCase()})`;
+          optgroup.appendChild(opt);
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to load custom presets from storage:', e);
+    }
+  };
+
+  const saveCustomGatePreset = (p: CustomPresetEntry) => {
+    try {
+      gatePresets[p.key] = {
+        desc: p.desc,
+        math: p.math,
+        modality: p.modality,
+        latency: p.latency,
+        hallucination: p.hallucination,
+        hitl: p.hitl,
+        override: p.override,
+        industry: p.industry,
+        industryLabel: p.industryLabel,
+        industryIcon: p.industryIcon,
+        recommendedModel: p.recommendedModel,
+        recommendedRag: p.recommendedRag
+      };
+
+      const raw = localStorage.getItem('evolve_custom_gate_presets');
+      const list: CustomPresetEntry[] = raw ? JSON.parse(raw) : [];
+      const existingIdx = list.findIndex(item => item.key === p.key);
+      if (existingIdx >= 0) {
+        list[existingIdx] = p;
+      } else {
+        list.push(p);
+      }
+      localStorage.setItem('evolve_custom_gate_presets', JSON.stringify(list));
+
+      const optgroup = document.getElementById('optgroupCustomPresets');
+      if (optgroup) {
+        optgroup.style.display = 'block';
+        let existingOpt = optgroup.querySelector(`option[value="${p.key}"]`) as HTMLOptionElement | null;
+        if (!existingOpt) {
+          existingOpt = document.createElement('option');
+          existingOpt.value = p.key;
+          optgroup.appendChild(existingOpt);
+        }
+        existingOpt.textContent = `${p.industryIcon || '⭐'} ${p.title} (${p.override.replace('_', ' ').toUpperCase()})`;
+      }
+
+      const sel = document.getElementById('selRuleGatePreset') as HTMLSelectElement | null;
+      if (sel) {
+        sel.value = p.key;
+        sel.dispatchEvent(new Event('change'));
+      }
+      showToast(`✓ Custom preset saved: ${p.title}`);
+    } catch (e) {
+      console.error('Error saving custom preset:', e);
+      showToast('❌ Failed to save custom preset');
+    }
+  };
+
+  // Wire Modal & Buttons
+  const modalCustomPreset = document.getElementById('customPresetModal');
+  const openCustomPresetModal = (prefill?: Partial<CustomPresetEntry>) => {
+    if (!modalCustomPreset) return;
+    const txtTitle = document.getElementById('txtCustomPresetTitle') as HTMLInputElement | null;
+    const txtInd = document.getElementById('txtCustomPresetIndustry') as HTMLInputElement | null;
+    const selIcon = document.getElementById('selCustomPresetIcon') as HTMLSelectElement | null;
+    const selTier = document.getElementById('selCustomPresetTier') as HTMLSelectElement | null;
+    const txtDesc = document.getElementById('txtCustomPresetDesc') as HTMLInputElement | null;
+    const selMath = document.getElementById('selCustomPresetMath') as HTMLSelectElement | null;
+    const txtLat = document.getElementById('txtCustomPresetLatency') as HTMLInputElement | null;
+    const selHal = document.getElementById('selCustomPresetHal') as HTMLSelectElement | null;
+
+    if (txtTitle) txtTitle.value = prefill?.title || '';
+    if (txtInd) txtInd.value = prefill?.industryLabel || '';
+    if (selIcon && prefill?.industryIcon) selIcon.value = prefill.industryIcon;
+    if (selTier && prefill?.override) selTier.value = prefill.override;
+    if (txtDesc) txtDesc.value = prefill?.desc || (document.getElementById('txtRuleTaskDesc') as HTMLInputElement)?.value || '';
+    if (selMath) selMath.value = prefill?.math || (document.getElementById('selRuleMathReq') as HTMLSelectElement)?.value || 'yes';
+    if (txtLat) txtLat.value = prefill?.latency || (document.getElementById('txtRuleLatencyBudget') as HTMLInputElement)?.value || '50ms';
+    if (selHal) selHal.value = prefill?.hallucination || (document.getElementById('selRuleHallucinationTolerance') as HTMLSelectElement)?.value || 'zero';
+
+    modalCustomPreset.style.display = 'flex';
+    txtTitle?.focus();
+  };
+
+  document.getElementById('btnOpenNewPresetModal')?.addEventListener('click', () => {
+    openCustomPresetModal();
+  });
+
+  document.getElementById('btnCloseCustomPresetModal')?.addEventListener('click', () => {
+    if (modalCustomPreset) modalCustomPreset.style.display = 'none';
+  });
+
+  document.getElementById('btnCancelCustomPreset')?.addEventListener('click', () => {
+    if (modalCustomPreset) modalCustomPreset.style.display = 'none';
+  });
+
+  document.getElementById('btnConfirmSaveCustomPreset')?.addEventListener('click', () => {
+    const txtTitle = document.getElementById('txtCustomPresetTitle') as HTMLInputElement | null;
+    const txtInd = document.getElementById('txtCustomPresetIndustry') as HTMLInputElement | null;
+    const selIcon = document.getElementById('selCustomPresetIcon') as HTMLSelectElement | null;
+    const selTier = document.getElementById('selCustomPresetTier') as HTMLSelectElement | null;
+    const txtDesc = document.getElementById('txtCustomPresetDesc') as HTMLInputElement | null;
+    const selMath = document.getElementById('selCustomPresetMath') as HTMLSelectElement | null;
+    const txtLat = document.getElementById('txtCustomPresetLatency') as HTMLInputElement | null;
+    const selHal = document.getElementById('selCustomPresetHal') as HTMLSelectElement | null;
+
+    const title = txtTitle?.value.trim();
+    if (!title) {
+      showToast('⚠️ Please enter a Preset Title');
+      txtTitle?.focus();
+      return;
+    }
+    const industryLabel = txtInd?.value.trim() || 'Custom Enterprise';
+    const industryIcon = selIcon?.value || '⭐';
+    const override = selTier?.value || 'level_1';
+    const desc = txtDesc?.value.trim() || title;
+    const math = selMath?.value || 'yes';
+    const latency = txtLat?.value.trim() || '50ms';
+    const hallucination = selHal?.value || 'zero';
+    const key = `custom_${Date.now()}`;
+
+    // Derive recommended model from tier
+    let recommendedModel = 'Zero LLM / $0.00 Cost';
+    let recommendedRag = 'hybrid';
+    if (override === 'level_2') { recommendedModel = 'SLM (Complexity Router <15ms)'; recommendedRag = 'adaptive'; }
+    else if (override === 'level_3') { recommendedModel = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)'; recommendedRag = 'hybrid'; }
+    else if (override === 'level_4') { recommendedModel = 'LAM (Qwen 2.5 Coder 7B - Tools / MCP)'; recommendedRag = 'agentic'; }
+    else if (override === 'level_5') { recommendedModel = 'LAM + Multi-Agent Swarm (Qwen 2.5 Coder 7B)'; recommendedRag = 'agentic'; }
+    else if (override === 'hybrid_1_3') { recommendedModel = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)'; recommendedRag = 'hybrid'; }
+    else if (override === 'hybrid_1_4') { recommendedModel = 'Deterministic Guard + LAM (Qwen 2.5 Coder 7B)'; recommendedRag = 'hybrid'; }
+    else if (override === 'hybrid_1_5') { recommendedModel = 'LAM + Multi-Agent Swarm (Qwen 2.5 Coder 7B)'; recommendedRag = 'agentic'; }
+
+    saveCustomGatePreset({
+      key,
+      title,
+      desc,
+      math,
+      modality: 'structured_data',
+      latency,
+      hallucination,
+      hitl: 'discrepancy',
+      override,
+      industry: 'custom',
+      industryLabel,
+      industryIcon,
+      recommendedModel,
+      recommendedRag
+    });
+
+    if (modalCustomPreset) modalCustomPreset.style.display = 'none';
+  });
+
+  // Quick-save button directly captures current screen values
+  document.getElementById('btnQuickSavePreset')?.addEventListener('click', () => {
+    const curDesc = (document.getElementById('txtRuleTaskDesc') as HTMLInputElement)?.value || '';
+    const curTier = (document.getElementById('selArchitectureTierOverride') as HTMLSelectElement)?.value || 'level_1';
+    const curMath = (document.getElementById('selRuleMathReq') as HTMLSelectElement)?.value || 'yes';
+    const curLat = (document.getElementById('txtRuleLatencyBudget') as HTMLInputElement)?.value || '50ms';
+    const curHal = (document.getElementById('selRuleHallucinationTolerance') as HTMLSelectElement)?.value || 'zero';
+
+    openCustomPresetModal({
+      title: curDesc ? `${curDesc.slice(0, 40)} Preset` : 'Custom Workload Preset',
+      industryLabel: activeSolutionContract.industryLabel || 'Enterprise Domain',
+      industryIcon: activeSolutionContract.industryIcon || '⭐',
+      override: curTier !== 'auto' && curTier !== 'custom' ? curTier : 'hybrid_1_3',
+      desc: curDesc,
+      math: curMath,
+      latency: curLat,
+      hallucination: curHal
+    });
+  });
+
+  // Load any previously saved custom presets
+  loadCustomGatePresets();
+
   // 3. Architecture Tier Override Change
   document.getElementById('selArchitectureTierOverride')?.addEventListener('change', () => {
     const sel = document.getElementById('selArchitectureTierOverride') as HTMLSelectElement;

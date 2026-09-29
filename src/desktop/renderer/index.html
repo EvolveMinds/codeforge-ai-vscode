@@ -2727,17 +2727,27 @@
                       <!-- Top Row: Archetype Preset & Architecture Override -->
                       <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 10px;">
                         <div>
-                          <label style="font-size: 10.5px; font-weight: 700; color: #4ade80;" for="selRuleGatePreset">🏢 Enterprise Task Archetype Preset:</label>
-                          <select id="selRuleGatePreset" style="width: 100%; margin-top: 3px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
-                            <option value="">Choose Enterprise Archetype...</option>
-                            <option value="financial_reconciliation" selected>💰 Financial Tolerance &amp; Ledger Balance (Level 1: Pure Rule Engine &amp; SQL)</option>
-                            <option value="support_triage">🎧 Customer Support Ingress &amp; Intent Triage (Level 2: Semantic Router &amp; Classifier)</option>
-                            <option value="clinical_protocol">📚 Clinical Protocol &amp; HIPAA SOP Guidance (Level 3: Grounded Policy RAG)</option>
-                            <option value="erp_rebalance">📦 ERP Warehouse Inventory Rebalancing (Level 4: MCP Tool Agent)</option>
-                            <option value="claims_adjudication">🐝 Multi-Entity Claims Adjudication (Level 5: Swarm with HITL)</option>
-                            <option value="payment_interlock">🛡️ High-Value Payment with Fraud Interlock (Hybrid Level 1+4: Guardrailed Tool)</option>
-                            <option value="contract_boundary">📑 Contract Risk Analysis with Hard Gates (Hybrid Level 1+3: Rule-Gated RAG)</option>
-                            <option value="credit_underwrite">🏦 Credit Underwriting with Escalation (Hybrid Level 1+5: Swarm with Interlocks)</option>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                            <label style="font-size: 10.5px; font-weight: 700; color: #4ade80;" for="selRuleGatePreset">🏢 Enterprise Task Archetype Preset:</label>
+                            <div style="display: flex; gap: 4px;">
+                              <button class="btn-quick" id="btnQuickSavePreset" style="font-size: 9.5px; padding: 1px 6px; margin: 0; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Save current settings on screen as a custom preset">💾 Save Current</button>
+                              <button class="btn-quick" id="btnOpenNewPresetModal" style="font-size: 9.5px; padding: 1px 6px; margin: 0; cursor: pointer;" title="Define and add a new custom preset">+ New Preset</button>
+                            </div>
+                          </div>
+                          <select id="selRuleGatePreset" style="width: 100%; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                            <optgroup label="🏢 Standard Enterprise Archetypes">
+                              <option value="">Choose Enterprise Archetype...</option>
+                              <option value="financial_reconciliation" selected>💰 Financial Tolerance &amp; Ledger Balance (Level 1: Pure Rule Engine &amp; SQL)</option>
+                              <option value="support_triage">🎧 Customer Support Ingress &amp; Intent Triage (Level 2: Semantic Router &amp; Classifier)</option>
+                              <option value="clinical_protocol">📚 Clinical Protocol &amp; HIPAA SOP Guidance (Level 3: Grounded Policy RAG)</option>
+                              <option value="erp_rebalance">📦 ERP Warehouse Inventory Rebalancing (Level 4: MCP Tool Agent)</option>
+                              <option value="claims_adjudication">🐝 Multi-Entity Claims Adjudication (Level 5: Swarm with HITL)</option>
+                              <option value="payment_interlock">🛡️ High-Value Payment with Fraud Interlock (Hybrid Level 1+4: Guardrailed Tool)</option>
+                              <option value="contract_boundary">📑 Contract Risk Analysis with Hard Gates (Hybrid Level 1+3: Rule-Gated RAG)</option>
+                              <option value="credit_underwrite">🏦 Credit Underwriting with Escalation (Hybrid Level 1+5: Swarm with Interlocks)</option>
+                            </optgroup>
+                            <optgroup id="optgroupCustomPresets" label="⭐ Custom Enterprise Presets" style="display: none;">
+                            </optgroup>
                           </select>
                         </div>
                         <div>
@@ -9489,6 +9499,99 @@ WHERE order_date >= SYSDATE - 30;</textarea>
       <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px;">
         <button class="btn-quick" id="btnCancelCustomModel" style="padding: 6px 14px; font-size: 11.5px;">Cancel</button>
         <button class="btn" id="btnSaveCustomModel" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 18px; font-size: 11.5px;">💾 Register Model</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Create / Add Custom Enterprise Task Archetype Preset -->
+  <div id="customPresetModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.78); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: var(--card-bg, #181818); border: 1px solid var(--border, #333); border-radius: 8px; width: 520px; max-width: 90vw; padding: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.7);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+        <h4 style="margin: 0; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>🏢</span> Add Custom Enterprise Task Archetype Preset
+        </h4>
+        <button class="btn-quick" id="btnCloseCustomPresetModal" style="padding: 2px 8px; font-size: 11px; cursor: pointer;">✕</button>
+      </div>
+      <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+        Define your custom enterprise workload, domain industry, and technical constraints. This preset will be saved in your workspace and available in the dropdown anytime.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <div>
+          <label style="font-size: 10px; font-weight: 700; color: #4ade80; display: block; margin-bottom: 3px;" for="txtCustomPresetTitle">PRESET TITLE *</label>
+          <input type="text" id="txtCustomPresetTitle" placeholder="e.g. Fraud Ring Graph Traversal &amp; AML Enforcement" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11.5px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 140px; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: 700; color: #38bdf8; display: block; margin-bottom: 3px;" for="txtCustomPresetIndustry">INDUSTRY / DOMAIN LABEL *</label>
+            <input type="text" id="txtCustomPresetIndustry" placeholder="e.g. FinTech &amp; Anti-Fraud" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11.5px;">
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 3px;" for="selCustomPresetIcon">DOMAIN ICON</label>
+            <select id="selCustomPresetIcon" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11.5px;">
+              <option value="🕵️">🕵️ Anti-Fraud</option>
+              <option value="⚡">⚡ Low-Latency</option>
+              <option value="🛡️">🛡️ Security/Gov</option>
+              <option value="🏦">🏦 Banking</option>
+              <option value="🏥">🏥 Healthcare</option>
+              <option value="🏭">🏭 Manufacturing</option>
+              <option value="📦">📦 Logistics</option>
+              <option value="📑">📑 Legal/Risk</option>
+              <option value="🎧">🎧 Support</option>
+              <option value="🌐">🌐 Microservice</option>
+              <option value="🤖">🤖 Agentic</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 10px; font-weight: 700; color: #c084fc; display: block; margin-bottom: 3px;" for="selCustomPresetTier">TARGET ARCHITECTURE PARADIGM *</label>
+          <select id="selCustomPresetTier" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11.5px;">
+            <option value="level_1">Level 1: Pure Rule Engine &amp; Compiled SQL (&lt;5ms, 0% Drift)</option>
+            <option value="level_2">Level 2: Fast Semantic Router &amp; Classifier (&lt;25ms)</option>
+            <option value="level_3">Level 3: Grounded Policy RAG (&lt;120ms)</option>
+            <option value="level_4">Level 4: Model Context Protocol (MCP) Tool Agent (&lt;250ms)</option>
+            <option value="level_5">Level 5: Autonomous Multi-Agent Swarm with HITL</option>
+            <option value="hybrid_1_2">Hybrid Level 1+2: Rule Gate + Semantic Router</option>
+            <option value="hybrid_1_3" selected>Hybrid Level 1+3: Deterministic Rule-Gated RAG</option>
+            <option value="hybrid_1_4">Hybrid Level 1+4: Guardrailed Tool Execution (Rule + MCP)</option>
+            <option value="hybrid_1_5">Hybrid Level 1+5: Swarm with Hard Gate &amp; HITL</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="font-size: 10px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 3px;" for="txtCustomPresetDesc">TASK DESCRIPTION</label>
+          <input type="text" id="txtCustomPresetDesc" placeholder="e.g. Graph multi-hop suspicious account linking with strict sub-50ms latency gate" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11.5px;">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 10px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 3px;" for="selCustomPresetMath">ARITHMETIC?</label>
+            <select id="selCustomPresetMath" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11px;">
+              <option value="yes">Strict Math (0% Drift)</option>
+              <option value="hybrid">Hybrid (Math + Text)</option>
+              <option value="no">Natural Language Only</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 3px;" for="txtCustomPresetLatency">LATENCY BUDGET</label>
+            <input type="text" id="txtCustomPresetLatency" value="50ms" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11px;">
+          </div>
+          <div>
+            <label style="font-size: 10px; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 3px;" for="selCustomPresetHal">HALLUCINATION</label>
+            <select id="selCustomPresetHal" style="width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 4px; color: #fff; font-size: 11px;">
+              <option value="zero">Zero Tolerance (0.0%)</option>
+              <option value="low">Low (&lt;1%)</option>
+              <option value="tolerant">Tolerant (&lt;5%)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; margin-top: 14px;">
+        <button class="btn-quick" id="btnCancelCustomPreset" style="padding: 6px 14px; font-size: 11.5px; cursor: pointer;">Cancel</button>
+        <button class="btn" id="btnConfirmSaveCustomPreset" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 18px; font-size: 11.5px; cursor: pointer;">💾 Save &amp; Apply Preset</button>
       </div>
     </div>
   </div>
