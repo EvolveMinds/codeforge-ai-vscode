@@ -6417,6 +6417,27 @@ function setupPhase1Discovery(api: any): void {
     switchDeliveryPhase(2);
   });
 
+  document.getElementById('btnFdeTopologyAdvancePhase3')?.addEventListener('click', async () => {
+    await saveScopeHandler(true);
+    const selTopology = (document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement)?.value || '';
+    let targetLevel = 1;
+    if (selTopology === 'support-copilot') targetLevel = 2;
+    else if (selTopology === 'health-records' || selTopology === 'hipaa-vault') targetLevel = 3;
+    else if (selTopology === 'supply-chain' || selTopology === 'streaming-fraud') targetLevel = 4;
+    else if (selTopology === 'enterprise-ai') targetLevel = 1;
+
+    switchDeliveryPhase(3);
+
+    const targetCard = document.querySelector(`.fde-ladder-card[data-level="${targetLevel}"]`) as HTMLElement;
+    targetCard?.click();
+
+    if (typeof (window as any).syncPhase3FromPriorPhases === 'function') {
+      (window as any).syncPhase3FromPriorPhases();
+    }
+
+    showToast(`🚀 Bridged Workflow Topology into Phase 3 AI Solutioning (Target: Level ${targetLevel})...`);
+  });
+
   // --- AI REFLECTION & REFRAMING HANDLERS ---
   const btnAiAnalyzeAsk = document.getElementById('btnFdeAiAnalyzeAsk');
   const btnAiSuggestProbes = document.getElementById('btnFdeAiSuggestProbes');
@@ -16482,6 +16503,29 @@ export class SovereignSwarmOrchestrator {
       badgeSla.textContent = `⚡ ${activeSolutionContract.latencySla || '<5ms'} • ${activeSolutionContract.hallucinationSla || '0% Drift'}`;
       badgeSla.title = `Source: Section 3A Latency & Hallucination SLA budget. Click to adjust.`;
     }
+    const chipSource = document.getElementById('ribbonSourceChip');
+    if (chipSource) {
+      const p1 = typeof (window as any)._getPhase1ScopeData === 'function' ? (window as any)._getPhase1ScopeData() : null;
+      const rawAsk = p1?.rawClientAsk || (document.getElementById('txtFdeRawAsk') as HTMLTextAreaElement)?.value || '';
+      const reframedGoal = p1?.reframedProblem || (document.getElementById('txtFdeReframedGoal') as HTMLTextAreaElement)?.value || '';
+      const outOfScope: string[] = Array.isArray(p1?.outOfScope) ? p1.outOfScope : [];
+      const threeNums = p1?.controllersThreeNumbers || { volume: 0, handleTimeMins: 0, hourlyWage: 0 };
+      const hasP1 = Boolean(rawAsk.trim() || reframedGoal.trim() || outOfScope.length > 0 || (threeNums && Number(threeNums.volume) > 0));
+
+      if (hasP1) {
+        chipSource.textContent = '🎯 Scope: Synced';
+        chipSource.style.background = 'rgba(168, 85, 247, 0.18)';
+        chipSource.style.color = '#c084fc';
+        chipSource.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+        chipSource.title = `Provenance: Phase 1 Scope & Discovery ("${activeSolutionContract.workloadTitle}"). Click to jump to Phase 1.`;
+      } else {
+        chipSource.textContent = '⚡ Direct Sandbox';
+        chipSource.style.background = 'rgba(148, 163, 184, 0.12)';
+        chipSource.style.color = '#94a3b8';
+        chipSource.style.borderColor = 'rgba(148, 163, 184, 0.3)';
+        chipSource.title = 'Mode: Standalone AI Architecture Sandbox (Phase 1 Discovery optional). Click to visit Phase 1 Discovery.';
+      }
+    }
     if (chipDb) {
       if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
         chipDb.style.display = 'inline-block';
@@ -16861,6 +16905,21 @@ export class SovereignSwarmOrchestrator {
       if (archMap[archetype]) {
         activeSolutionContract.industry = archMap[archetype].ind;
         activeSolutionContract.industryLabel = archMap[archetype].label;
+      } else {
+        const selTopology = (document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement)?.value || '';
+        const topoMap: Record<string, { ind: string; label: string; icon: string }> = {
+          'streaming-fraud': { ind: 'fintech', label: 'FinTech & Anti-Fraud', icon: '🕵️' },
+          'hipaa-vault': { ind: 'healthcare', label: 'Healthcare & Life Sciences', icon: '🏥' },
+          'fin-settlement': { ind: 'finance', label: 'FinOps & Banking', icon: '🏢' },
+          'support-copilot': { ind: 'customer_support', label: 'Customer Support', icon: '🎧' },
+          'health-records': { ind: 'healthcare', label: 'Healthcare Clinical Records', icon: '🏥' },
+          'supply-chain': { ind: 'logistics', label: 'Supply Chain & ERP', icon: '📦' }
+        };
+        if (topoMap[selTopology]) {
+          activeSolutionContract.industry = topoMap[selTopology].ind;
+          activeSolutionContract.industryLabel = topoMap[selTopology].label;
+          activeSolutionContract.industryIcon = topoMap[selTopology].icon;
+        }
       }
 
       // 3. Ingest Phase 1 boundary locks into guardrails
@@ -20168,6 +20227,11 @@ export async function routeIntent(query: string): Promise<any> {
     const slaInput = document.getElementById('txtRuleLatencyBudget') as HTMLInputElement | null;
     if (slaInput) slaInput.focus();
     showToast('✏️ Navigated to Section 3A: Latency & Hallucination SLA');
+  });
+
+  document.getElementById('ribbonSourceChip')?.addEventListener('click', () => {
+    switchDeliveryPhase(1);
+    showToast('🎯 Navigated to Phase 1: Discover & Frame (Gemba reality & Scope)');
   });
 
   document.getElementById('ribbonDbChip')?.addEventListener('click', () => {
