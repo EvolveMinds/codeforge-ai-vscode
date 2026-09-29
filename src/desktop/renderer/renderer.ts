@@ -16391,6 +16391,20 @@ export class SovereignSwarmOrchestrator {
       p1Archetype: 'fin-reconcile',
       recommendedModel: 'LAM + Multi-Agent Swarm (Qwen 2.5 Coder 7B)',
       recommendedRag: 'agentic'
+    },
+    custom_fraud_aml: {
+      desc: 'Graph multi-hop suspicious account linking with strict sub-50ms latency gate and AML compliance checks',
+      math: 'yes',
+      modality: 'structured_data',
+      latency: '45ms',
+      hallucination: 'zero',
+      hitl: 'mandatory',
+      override: 'hybrid_1_4',
+      industry: 'fintech',
+      industryLabel: 'FinTech & Anti-Fraud',
+      industryIcon: '🕵️',
+      recommendedModel: 'Deterministic Guard + LAM (Qwen 2.5 Coder 7B)',
+      recommendedRag: 'hybrid'
     }
   };
 
@@ -17422,9 +17436,29 @@ export async function evaluateGateRule(record: ${tblName.charAt(0).toUpperCase()
   const loadCustomGatePresets = () => {
     try {
       const raw = localStorage.getItem('evolve_custom_gate_presets');
-      if (!raw) return;
-      const list: CustomPresetEntry[] = JSON.parse(raw);
-      if (!Array.isArray(list) || list.length === 0) return;
+      let list: CustomPresetEntry[] = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(list)) list = [];
+
+      // Ensure default starter custom preset is always seeded
+      if (!list.some(p => p.key === 'custom_fraud_aml')) {
+        list.unshift({
+          key: 'custom_fraud_aml',
+          title: 'Fraud Ring Graph Traversal & AML Enforcement',
+          desc: 'Graph multi-hop suspicious account linking with strict sub-50ms latency gate and AML compliance checks',
+          math: 'yes',
+          modality: 'structured_data',
+          latency: '45ms',
+          hallucination: 'zero',
+          hitl: 'mandatory',
+          override: 'hybrid_1_4',
+          industry: 'fintech',
+          industryLabel: 'FinTech & Anti-Fraud',
+          industryIcon: '🕵️',
+          recommendedModel: 'Deterministic Guard + LAM (Qwen 2.5 Coder 7B)',
+          recommendedRag: 'hybrid'
+        });
+        try { localStorage.setItem('evolve_custom_gate_presets', JSON.stringify(list)); } catch (_) {}
+      }
 
       const optgroup = document.getElementById('optgroupCustomPresets');
       if (optgroup) {
