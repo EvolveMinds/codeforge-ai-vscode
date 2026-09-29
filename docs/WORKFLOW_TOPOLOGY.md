@@ -1,5 +1,5 @@
 # 🗺️ Workflow Topology Architecture
-> **Active Architecture Preset**: `custom`
+> **Active Architecture Preset**: `support-copilot`
 
 ```mermaid
 sequenceDiagram

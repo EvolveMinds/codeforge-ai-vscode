@@ -1,12 +1,12 @@
 # Discovery Scope Boundaries & Controller's ROI Summary
 **Client Engagement**: Client Pilot Engagement
 **Engagement Archetype**: Custom Engagement
-**Updated**: 2026-09-25T00:22:03.492Z
+**Updated**: 2026-09-29T02:21:16.761Z
 
 ---
 
 ## 1. Ground-Truth Discovery & Observation-to-Spec (O2S)
-* **Delivery Standard**: ADVANCED
+* **Delivery Standard**: SIMPLE
 * **Raw Client Request**: Pending user input
 * **Floor Observations & Shadow IT**: Direct operator shadow IT and manual workarounds
 * **Operational Risk & Failure Modes**: Pending risk analysis
