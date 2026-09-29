@@ -16871,6 +16871,343 @@ export class SovereignSwarmOrchestrator {
     document.getElementById('btnGatePreviewCode')?.classList.toggle('active', gatePreviewMode === 'code');
   };
 
+  // =========================================================================
+  // TOPOLOGY-TO-SOLUTION DECONSTRUCTION ENGINE (PHASE 1 -> PHASE 3 BRIDGE)
+  // =========================================================================
+  interface TopologyDeconstructionResult {
+    hasTopology: boolean;
+    workloadTitle: string;
+    industry: string;
+    industryLabel: string;
+    industryIcon: string;
+    targetLevel: string | number;
+    levelBadge: string;
+    gateVerdict: string;
+    gateRationale: string;
+    latencySla: string;
+    costSla: string;
+    hallucinationSla: string;
+    hitlTrigger: string;
+    inputModality: string;
+    mathDemand: string;
+    ragPattern: string;
+    modelId: string;
+    guardrails: string[];
+    nodes: Array<{ icon: string; name: string; role: string }>;
+    codeSnippet: string;
+    summaryText: string;
+    presetKey: string;
+  }
+
+  const deconstructTopologyIntoSolutionContract = (src: string, p1Scope?: any): TopologyDeconstructionResult | null => {
+    if (!src || !src.trim() || !/^sequenceDiagram/i.test(src.trim())) return null;
+
+    try {
+      const seq = parseSequenceDiagram(src);
+      if (!seq.participants || seq.participants.length < 2) return null;
+
+      const participants = seq.participants;
+      const messages = seq.messages || [];
+      const allText = (participants.map(p => p.label || p.id).join(' ') + ' ' + messages.map(m => m.text || '').join(' ')).toLowerCase();
+
+      // 1. Identify Architectural Components & Node Roles
+      const nodes: Array<{ icon: string; name: string; role: string }> = [];
+      let hasRuleGate = false;
+      let hasRag = false;
+      let hasCopilot = false;
+      let hasHitl = false;
+      let hasDb = false;
+      let hasRouter = false;
+      let hasTools = false;
+
+      participants.forEach(p => {
+        const name = (p.label || p.id).trim();
+        const nLower = name.toLowerCase();
+
+        if (p.isActor && /user|operator|customer|client|human|staff|clinician|broker|carrier|doctor|planner|analyst/i.test(nLower) && !/hitl|supervisor|auditor/i.test(nLower)) {
+          nodes.push({ icon: '👤', name, role: 'User / Operator Ingress' });
+        } else if (/gateway|ingress|webhook|kafka|api\s*gw|stream|fixgw|edge/i.test(nLower)) {
+          nodes.push({ icon: '🛡️', name, role: 'Secure Ingress Gateway' });
+        } else if (/staging|rule|sql|filter|validator|deterministic|tolerance|matcher|parser|guard/i.test(nLower)) {
+          hasRuleGate = true;
+          nodes.push({ icon: '⚖️', name, role: 'Deterministic Rule Gate (<10ms)' });
+        } else if (/rag|handbook|policy|context|guideline|knowledge|docs|embed|de-id|vault/i.test(nLower)) {
+          hasRag = true;
+          nodes.push({ icon: '📚', name, role: 'Grounded Policy RAG' });
+        } else if (/router|triage|classifier|switch/i.test(nLower)) {
+          hasRouter = true;
+          nodes.push({ icon: '🔀', name, role: 'Intent / Policy Router' });
+        } else if (/hitl|supervisor|auditor|approval|sign|ethics|reviewer/i.test(nLower)) {
+          hasHitl = true;
+          nodes.push({ icon: '👤', name, role: 'Human-in-the-Loop (HITL) Gate' });
+        } else if (/db|warehouse|audit|log|erp|ledger|lake|sink|dlt|store/i.test(nLower)) {
+          hasDb = true;
+          if (/erp|sap|oracle/i.test(nLower)) hasTools = true;
+          nodes.push({ icon: '💾', name, role: 'Production Warehouse & Audit Trail' });
+        } else if (/ai|copilot|llm|slm|vlm|lam|reasoning|engine|assistant/i.test(nLower)) {
+          hasCopilot = true;
+          nodes.push({ icon: '🤖', name, role: 'AI Reasoning Engine / Copilot' });
+        } else {
+          nodes.push({ icon: '⚙️', name, role: 'System Component' });
+        }
+      });
+
+      // Analyze interactions for deep signals
+      messages.forEach(m => {
+        const t = (m.text || '').toLowerCase();
+        if (/sql|deterministic|tolerance|<10ms|<5ms|staging/i.test(t)) hasRuleGate = true;
+        if (/handbook|rag|citation|context|128-token|grounded/i.test(t)) hasRag = true;
+        if (/copilot|ai|recommendation|draft|synthes/i.test(t)) hasCopilot = true;
+        if (/hitl|supervisor|approval|dual-key|signed\s*approval/i.test(t)) hasHitl = true;
+        if (/erp|post\s*journal|mutation|reschedule/i.test(t)) hasTools = true;
+        if (/router|route|classify/i.test(t)) hasRouter = true;
+      });
+
+      // 2. Latency Budget Extraction
+      let latencyBudget = '<50ms';
+      let ruleLatency = '<10ms';
+      const latMatch = src.match(/([<~]?\s*\d+(?:\.\d+)?\s*(?:ms|s|sec))/i);
+      if (latMatch) {
+        const rawLat = latMatch[1].trim();
+        if (/ms/i.test(rawLat)) {
+          ruleLatency = rawLat;
+          latencyBudget = rawLat;
+        }
+      }
+      if (hasRuleGate && hasCopilot) {
+        latencyBudget = `${ruleLatency} Rule / <350ms AI`;
+      }
+
+      // 3. HITL Trigger Extraction
+      let hitlTrigger = 'Policy Interpretation or Threshold Exceeded';
+      const elseMatch = src.match(/else\s+([^\r\n]+)/i);
+      if (elseMatch && elseMatch[1].trim()) {
+        hitlTrigger = elseMatch[1].trim();
+      } else if (/discrepancy|tolerance/i.test(allText)) {
+        hitlTrigger = 'Discrepancy or Ceiling Exceeded';
+      } else if (hasHitl) {
+        hitlTrigger = 'High Risk or Dual Sign-off Required';
+      }
+
+      // 4. Input Modality & Math Demand
+      let inputModality = 'structured_data';
+      if (/webhook|payload|json|rest|api|kafka|stream|fix/i.test(allText)) {
+        inputModality = 'structured_data';
+      } else if (/pdf|image|document|scan|ocr/i.test(allText)) {
+        inputModality = 'multimodal';
+      } else if (/prompt|chat|ticket|email/i.test(allText)) {
+        inputModality = 'text_nlp';
+      }
+
+      let mathDemand = 'no';
+      if (/sql|tolerance|balance|arithmetic|ledger|dollar|cent|reconcil|amount/i.test(allText)) {
+        mathDemand = 'yes';
+      } else if (hasRuleGate) {
+        mathDemand = 'hybrid';
+      }
+
+      // 5. Industry / Domain Extraction
+      let industry = 'enterprise_ai';
+      let industryLabel = 'Enterprise AI Systems';
+      let industryIcon = '🤖';
+
+      if (/fraud|pos|cardholder|payment|swift|settlement|trade|ledger|banking|finops|invoice|reconcil/i.test(allText)) {
+        industry = 'fintech';
+        industryLabel = 'FinOps & Banking';
+        industryIcon = '🏢';
+      } else if (/ehr|clinician|patient|doctor|hipaa|medical|hospital|clinical/i.test(allText)) {
+        industry = 'healthcare';
+        industryLabel = 'Healthcare & Clinical Records';
+        industryIcon = '🏥';
+      } else if (/carrier|edi|po|supply|logistics|inventory|reschedule|vendor|tracker/i.test(allText)) {
+        industry = 'logistics';
+        industryLabel = 'Supply Chain & ERP';
+        industryIcon = '📦';
+      } else if (/ticket|support|helpdesk|customer|triage/i.test(allText)) {
+        industry = 'customer_support';
+        industryLabel = 'Customer Support';
+        industryIcon = '🎧';
+      }
+
+      // 6. Architectural Level Classification
+      let targetLevel: string | number = 1;
+      let levelBadge = 'LEVEL 1';
+      let gateVerdict = 'Deterministic Rule & SQL';
+      let gateRationale = 'Strict schema validation and invariant assertions executed with zero hallucination drift.';
+      let ragPattern = 'naive';
+      let modelId = 'Deterministic Rule Engine';
+
+      if (hasRuleGate && hasTools && hasCopilot) {
+        targetLevel = 'hybrid_1_4';
+        levelBadge = 'LEVEL 1+4 HYBRID';
+        gateVerdict = 'Hybrid Deterministic Guard + LAM Agent';
+        gateRationale = `Deterministic ingress rule gate intercepts high-risk payloads in ${ruleLatency}; stateful agent orchestrates ERP/database mutations with strict rollback protection.`;
+        ragPattern = 'agentic';
+        modelId = 'Deterministic Guard + LAM (Qwen 2.5 Coder 7B)';
+      } else if (hasRuleGate && (hasRag || hasCopilot)) {
+        targetLevel = 'hybrid_1_3';
+        levelBadge = 'LEVEL 1+3 HYBRID';
+        gateVerdict = `Deterministic Ingress (${ruleLatency}) + Grounded AI Copilot`;
+        gateRationale = `Deterministic SQL rules and schema invariants validate standard payloads in ${ruleLatency} with 0% drift. Complex policy interpretations route to the grounded AI Copilot with citations and HITL verification.`;
+        ragPattern = 'hybrid';
+        modelId = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)';
+      } else if (hasTools) {
+        targetLevel = 4;
+        levelBadge = 'LEVEL 4';
+        gateVerdict = 'Stateful Tool / LAM Agent';
+        gateRationale = 'Workload requires dynamic external tool orchestration, database updates, and stateful API mutations.';
+        ragPattern = 'agentic';
+        modelId = 'LAM (Qwen 2.5 Coder 7B - Tools / MCP)';
+      } else if (hasRag || hasCopilot) {
+        targetLevel = 3;
+        levelBadge = 'LEVEL 3';
+        gateVerdict = 'Grounded Context RAG & SLM';
+        gateRationale = 'Document retrieval over institutional knowledge bases with citation verification and grounded answer generation.';
+        ragPattern = 'hierarchical';
+        modelId = 'MLM (nomic-embed) + SLM (Qwen 2.5 7B)';
+      } else if (hasRouter) {
+        targetLevel = 2;
+        levelBadge = 'LEVEL 2';
+        gateVerdict = 'Semantic Intent Router';
+        gateRationale = 'Fast classification layer routing structured queries to deterministic handlers and ambiguous queries to LLMs.';
+        ragPattern = 'naive';
+        modelId = 'SLM Intent Classifier (Qwen 2.5 7B)';
+      }
+
+      // 7. Workload Title
+      let workloadTitle = '';
+      if (p1Scope?.reframedProblem && p1Scope.reframedProblem.trim()) {
+        workloadTitle = p1Scope.reframedProblem.split('\n')[0].replace(/^[#*\-•\s]+/, '').trim().slice(0, 90);
+      } else if (p1Scope?.rawClientAsk && p1Scope.rawClientAsk.trim()) {
+        workloadTitle = p1Scope.rawClientAsk.split('\n')[0].replace(/^[#*\-•\s]+/, '').trim().slice(0, 90);
+      }
+      if (!workloadTitle) {
+        if (hasRuleGate && hasCopilot) {
+          workloadTitle = 'Air-Gapped AI Copilot with Deterministic Rule Staging & HITL Gate';
+        } else if (hasRuleGate) {
+          workloadTitle = `${industryLabel} Invariant Rule & Schema Staging Engine`;
+        } else if (hasRag) {
+          workloadTitle = `${industryLabel} Grounded Policy & Knowledge Retrieval`;
+        } else {
+          workloadTitle = `${industryLabel} Automated Workflow Pipeline`;
+        }
+      }
+
+      // 8. Concrete Guardrails
+      const guardrails: string[] = [];
+      if (hasRuleGate) guardrails.push(`Deterministic Schema Staging & Compiled SQL Validation (${ruleLatency})`);
+      if (hasRag) guardrails.push('128-token grounded handbook context with mandatory citation audit');
+      if (hasHitl) guardrails.push(`Dual-key Human-in-the-Loop approval when: "${hitlTrigger}"`);
+      if (hasDb) guardrails.push('Immutable cryptographically signed audit log committed to warehouse');
+      if (p1Scope?.outOfScope && Array.isArray(p1Scope.outOfScope)) {
+        p1Scope.outOfScope.forEach((b: string) => {
+          const text = b.startsWith('Boundary Lock:') ? b : `Boundary Lock: ${b}`;
+          if (!guardrails.includes(text)) guardrails.push(text);
+        });
+      }
+
+      // 9. Concrete TypeScript Gate Code matching this exact topology
+      const actorGateway = participants.find(p => /gateway|webhook|api/i.test(p.label || p.id))?.label || 'Secure Ingest Gateway';
+      const actorStaging = participants.find(p => /staging|rule|sql/i.test(p.label || p.id))?.label || 'Deterministic Rule Staging';
+      const actorCopilot = participants.find(p => /ai|copilot|model/i.test(p.label || p.id))?.label || 'Evolve AI Copilot';
+      const actorHitl = participants.find(p => /hitl|supervisor|human/i.test(p.label || p.id))?.label || 'HITL Supervisor Gate';
+      const actorDb = participants.find(p => /warehouse|db|audit|erp/i.test(p.label || p.id))?.label || 'Production Warehouse';
+
+      const codeSnippet = `// Architecture: ${levelBadge}
+// Deconstructed from Phase 1 Proposed Topology:
+// [${actorGateway}] ➔ [${actorStaging}] ➔ [${actorCopilot}] ➔ [${actorHitl}] ➔ [${actorDb}]
+
+export interface IngressPayload {
+  requestId: string;
+  source: string;
+  operationType: string;
+  timestamp: string;
+  payload: Record<string, any>;
+  metricValue?: number;
+}
+
+export interface GateRoutingVerdict {
+  allowed: boolean;
+  route: 'DETERMINISTIC_PASS' | 'ESCALATE_AI_COPILOT' | 'ESCALATE_HITL' | 'REJECT';
+  latencyMs: number;
+  drift: 0.0;
+  auditTrail: {
+    requestId: string;
+    rule: string;
+    timestamp: string;
+    targetComponent: string;
+  };
+}
+
+export async function evaluateTopologyIngressGate(payload: IngressPayload): Promise<GateRoutingVerdict> {
+  const startTime = performance.now();
+
+  // 1. Ingress Invariant & Schema Validation (<${ruleLatency.replace(/[<~]/g, '')})
+  if (!payload || !payload.requestId || !payload.operationType) {
+    return {
+      allowed: false,
+      route: 'REJECT',
+      latencyMs: performance.now() - startTime,
+      drift: 0.0,
+      auditTrail: { requestId: payload?.requestId || 'UNKNOWN', rule: 'SCHEMA_INVALID', timestamp: new Date().toISOString(), targetComponent: '${actorStaging}' }
+    };
+  }
+
+  // 2. High-Confidence Deterministic Fast-Path (<${ruleLatency.replace(/[<~]/g, '')})
+  const isDeterministicPass = payload.metricValue != null && payload.metricValue <= 1000;
+  if (isDeterministicPass) {
+    return {
+      allowed: true,
+      route: 'DETERMINISTIC_PASS',
+      latencyMs: performance.now() - startTime,
+      drift: 0.0,
+      auditTrail: { requestId: payload.requestId, rule: 'DETERMINISTIC_PASS', timestamp: new Date().toISOString(), targetComponent: '${actorDb}' }
+    };
+  }
+
+  // 3. Escalation Route: "${hitlTrigger}"
+  return {
+    allowed: true,
+    route: 'ESCALATE_AI_COPILOT',
+    latencyMs: performance.now() - startTime,
+    drift: 0.0,
+    auditTrail: { requestId: payload.requestId, rule: 'POLICY_INTERPRETATION_ESCALATION', timestamp: new Date().toISOString(), targetComponent: '${actorCopilot}' }
+  };
+}`;
+
+      const summaryText = `Parsed ${participants.length} sequence actors and ${messages.filter(m => m.kind === 'msg').length} workflow interaction steps into an executable ${levelBadge} contract.`;
+      const presetKey = 'deconstructed_topology';
+
+      return {
+        hasTopology: true,
+        workloadTitle,
+        industry,
+        industryLabel,
+        industryIcon,
+        targetLevel,
+        levelBadge,
+        gateVerdict,
+        gateRationale,
+        latencySla: latencyBudget,
+        costSla: '$0.00 Ingress / ~$0.0004 AI op',
+        hallucinationSla: '0.0% Hard Gate Invariant',
+        hitlTrigger,
+        inputModality,
+        mathDemand,
+        ragPattern,
+        modelId,
+        guardrails,
+        nodes,
+        codeSnippet,
+        summaryText,
+        presetKey
+      };
+    } catch (err) {
+      console.warn('deconstructTopologyIntoSolutionContract error:', err);
+      return null;
+    }
+  };
+
   // Helper: Synchronize Phase 3 from Prior Phases (Phase 1 Scope & Phase 2 Data Schema)
   const syncPhase3FromPriorPhases = () => {
     try {
@@ -16881,72 +17218,194 @@ export class SovereignSwarmOrchestrator {
       const archetype = p1?.archetype || (document.getElementById('selFdeArchetype') as HTMLSelectElement)?.value || 'custom';
       const threeNums = p1?.controllersThreeNumbers || { volume: 0, handleTimeMins: 0, hourlyWage: 0 };
 
-      // 1. Ingest problem framing into workload title & evaluator input
-      const titleCandidate = reframedGoal.trim() || rawAsk.trim();
-      if (titleCandidate) {
-        const cleanTitle = titleCandidate.split('\n')[0].replace(/^[#*\-•\s]+/, '').trim().slice(0, 90);
-        if (cleanTitle) {
-          activeSolutionContract.workloadTitle = cleanTitle;
-          const txtRuleTask = document.getElementById('txtRuleTaskDesc') as HTMLInputElement;
-          if (txtRuleTask && (!txtRuleTask.value || txtRuleTask.value === 'Tolerance reconciliation' || txtRuleTask.value === 'AP Invoice 3-Way Match & Tolerance')) {
-            txtRuleTask.value = cleanTitle;
+      // Check if we have an active proposed sequence diagram in Phase 1
+      const futureDiagram = (p1?.customFutureDiagram && p1.customFutureDiagram.trim())
+        || (document.getElementById('fdeTopologyPreviewContainer') as HTMLTextAreaElement)?.value
+        || (() => {
+          try {
+            const saved = localStorage.getItem('evolve_fde_topology_diagrams');
+            return saved ? JSON.parse(saved).futureDiagram : '';
+          } catch { return ''; }
+        })();
+
+      const deconstruct = deconstructTopologyIntoSolutionContract(futureDiagram, p1);
+
+      if (deconstruct && deconstruct.hasTopology) {
+        // --- DECONSTRUCTED TOPOLOGY PATH ---
+        activeSolutionContract.workloadTitle = deconstruct.workloadTitle;
+        activeSolutionContract.industry = deconstruct.industry;
+        activeSolutionContract.industryLabel = deconstruct.industryLabel;
+        activeSolutionContract.industryIcon = deconstruct.industryIcon;
+        activeSolutionContract.gateVerdict = deconstruct.gateVerdict;
+        activeSolutionContract.gateRationale = deconstruct.gateRationale;
+        activeSolutionContract.targetLevel = deconstruct.targetLevel;
+        activeSolutionContract.latencySla = deconstruct.latencySla;
+        activeSolutionContract.costSla = deconstruct.costSla;
+        activeSolutionContract.hallucinationSla = deconstruct.hallucinationSla;
+        activeSolutionContract.guardrails = deconstruct.guardrails;
+        activeSolutionContract.ragPatternKey = deconstruct.ragPattern;
+        activeSolutionContract.modelId = deconstruct.modelId;
+
+        activeGateState.title = deconstruct.workloadTitle;
+        activeGateState.paradigm = deconstruct.gateVerdict;
+        activeGateState.level = deconstruct.targetLevel;
+        activeGateState.levelBadge = deconstruct.levelBadge;
+        activeGateState.latencySla = deconstruct.latencySla;
+        activeGateState.costSla = deconstruct.costSla;
+        activeGateState.hallucinationSla = deconstruct.hallucinationSla;
+        activeGateState.hitlTrigger = deconstruct.hitlTrigger;
+        activeGateState.rationale = deconstruct.gateRationale;
+        activeGateState.guardrails = deconstruct.guardrails;
+        activeGateState.codeSnippet = deconstruct.codeSnippet;
+
+        // Register custom preset
+        gatePresets[deconstruct.presetKey] = {
+          desc: deconstruct.workloadTitle,
+          math: deconstruct.mathDemand,
+          modality: deconstruct.inputModality,
+          latency: deconstruct.latencySla.includes('10ms') ? '10ms' : '50ms',
+          hallucination: 'zero',
+          hitl: 'mandatory',
+          override: String(deconstruct.targetLevel),
+          industry: deconstruct.industry,
+          industryLabel: deconstruct.industryLabel,
+          industryIcon: deconstruct.industryIcon,
+          recommendedModel: deconstruct.modelId,
+          recommendedRag: deconstruct.ragPattern
+        };
+
+        const selGatePreset = document.getElementById('selRuleGatePreset') as HTMLSelectElement | null;
+        if (selGatePreset) {
+          let deconstructedOpt = document.getElementById('optDeconstructedTopology') as HTMLOptionElement | null;
+          if (!deconstructedOpt) {
+            deconstructedOpt = document.createElement('option');
+            deconstructedOpt.id = 'optDeconstructedTopology';
+            deconstructedOpt.value = deconstruct.presetKey;
+            const optgroup = document.getElementById('optgroupCustomPresets') || selGatePreset;
+            optgroup.prepend(deconstructedOpt);
+          }
+          deconstructedOpt.textContent = `✨ ${deconstruct.industryIcon} ${deconstruct.workloadTitle} (${deconstruct.levelBadge})`;
+          selGatePreset.value = deconstruct.presetKey;
+        }
+
+        // Populate Section 3A Form Fields
+        const txtRuleTask = document.getElementById('txtRuleTaskDesc') as HTMLInputElement | null;
+        if (txtRuleTask) txtRuleTask.value = deconstruct.workloadTitle;
+
+        const selMath = document.getElementById('selRuleMathDemand') as HTMLSelectElement | null;
+        if (selMath) selMath.value = deconstruct.mathDemand;
+
+        const selMod = document.getElementById('selRuleModality') as HTMLSelectElement | null;
+        if (selMod) selMod.value = deconstruct.inputModality;
+
+        const txtLat = document.getElementById('txtRuleLatencyBudget') as HTMLInputElement | null;
+        if (txtLat) txtLat.value = deconstruct.latencySla.match(/\d+ms/)?.[0] || '10ms';
+
+        const selHal = document.getElementById('selRuleHallucinationTolerance') as HTMLSelectElement | null;
+        if (selHal) selHal.value = 'zero';
+
+        const selHitl = document.getElementById('selRuleHitlTrigger') as HTMLSelectElement | null;
+        if (selHitl) selHitl.value = 'mandatory';
+
+        const selTierOverride = document.getElementById('selArchitectureTierOverride') as HTMLSelectElement | null;
+        if (selTierOverride) selTierOverride.value = String(deconstruct.targetLevel);
+
+        // Render Callout Banner
+        const banner = document.getElementById('p3TopologyDeconstructionBanner');
+        const summaryEl = document.getElementById('p3TopologyDeconstructionSummary');
+        const badgeArch = document.getElementById('p3TopologyBadgeArch');
+        const flowEl = document.getElementById('p3TopologyPipelineFlow');
+
+        if (banner && flowEl) {
+          banner.style.display = 'block';
+          if (summaryEl) summaryEl.textContent = deconstruct.summaryText;
+          if (badgeArch) badgeArch.textContent = deconstruct.levelBadge;
+          flowEl.innerHTML = deconstruct.nodes.map((n, i) => `
+            <span style="display:inline-flex; align-items:center; gap:4px; background:rgba(30,41,59,0.9); border:1px solid rgba(148,163,184,0.3); border-radius:4px; padding:2px 8px; font-weight:600; color:#e2e8f0;">
+              <span>${n.icon}</span> <span>${escapeHtml(n.name)}</span>
+            </span>
+            ${i < deconstruct.nodes.length - 1 ? '<span style="color:#64748b; font-weight:bold;">➔</span>' : ''}
+          `).join('');
+        }
+
+        // Highlight matching capability ladder card in Section 3B
+        const ladderLevelKey = String(deconstruct.targetLevel).replace(/[^0-9]/g, '') || '1';
+        document.querySelectorAll('.fde-ladder-card').forEach(c => c.classList.remove('selected'));
+        const targetCard = document.querySelector(`.fde-ladder-card[data-level="${ladderLevelKey}"]`) as HTMLElement | null;
+        targetCard?.classList.add('selected');
+
+      } else {
+        // --- FALLBACK METADATA PATH (when no sequence diagram is defined) ---
+        const banner = document.getElementById('p3TopologyDeconstructionBanner');
+        if (banner) banner.style.display = 'none';
+
+        // 1. Ingest problem framing into workload title & evaluator input
+        const titleCandidate = reframedGoal.trim() || rawAsk.trim();
+        if (titleCandidate) {
+          const cleanTitle = titleCandidate.split('\n')[0].replace(/^[#*\-•\s]+/, '').trim().slice(0, 90);
+          if (cleanTitle) {
+            activeSolutionContract.workloadTitle = cleanTitle;
+            const txtRuleTask = document.getElementById('txtRuleTaskDesc') as HTMLInputElement;
+            if (txtRuleTask && (!txtRuleTask.value || txtRuleTask.value === 'Tolerance reconciliation' || txtRuleTask.value === 'AP Invoice 3-Way Match & Tolerance')) {
+              txtRuleTask.value = cleanTitle;
+            }
+          }
+        }
+
+        // 2. Map archetype to industry label
+        const archMap: Record<string, { ind: string; label: string }> = {
+          'fin-reconcile': { ind: 'finance', label: 'FinOps & Banking' },
+          'support-copilot': { ind: 'customer_support', label: 'Customer Support' },
+          'health-records': { ind: 'healthcare', label: 'Healthcare & EHR' },
+          'supply-chain': { ind: 'logistics', label: 'Supply Chain & Logistics' },
+          'legal-contracts': { ind: 'legal', label: 'Legal & Compliance' }
+        };
+        if (archMap[archetype]) {
+          activeSolutionContract.industry = archMap[archetype].ind;
+          activeSolutionContract.industryLabel = archMap[archetype].label;
+        } else {
+          const selTopology = (document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement)?.value || '';
+          const topoMap: Record<string, { ind: string; label: string; icon: string }> = {
+            'streaming-fraud': { ind: 'fintech', label: 'FinTech & Anti-Fraud', icon: '🕵️' },
+            'hipaa-vault': { ind: 'healthcare', label: 'Healthcare & Life Sciences', icon: '🏥' },
+            'fin-settlement': { ind: 'finance', label: 'FinOps & Banking', icon: '🏢' },
+            'support-copilot': { ind: 'customer_support', label: 'Customer Support', icon: '🎧' },
+            'health-records': { ind: 'healthcare', label: 'Healthcare Clinical Records', icon: '🏥' },
+            'supply-chain': { ind: 'logistics', label: 'Supply Chain & ERP', icon: '📦' }
+          };
+          if (topoMap[selTopology]) {
+            activeSolutionContract.industry = topoMap[selTopology].ind;
+            activeSolutionContract.industryLabel = topoMap[selTopology].label;
+            activeSolutionContract.industryIcon = topoMap[selTopology].icon;
+          }
+        }
+
+        // 3. Ingest Phase 1 boundary locks into guardrails
+        if (outOfScope && outOfScope.length > 0) {
+          const boundaryGuardrails = [
+            ...outOfScope.map(r => r.startsWith('Boundary Lock:') ? r : `Boundary Lock: ${r}`),
+            'SOX 404 statutory immutable audit log'
+          ];
+          activeSolutionContract.guardrails = boundaryGuardrails;
+          activeGateState.guardrails = boundaryGuardrails;
+        }
+
+        // 4. Ingest Controller's 3 Numbers for unit economics & cost SLA
+        const vol = Number(threeNums.volume) || 0;
+        const mins = Number(threeNums.handleTimeMins) || 0;
+        const wage = Number(threeNums.hourlyWage) || 0;
+        if (vol > 0 && mins > 0 && wage > 0) {
+          const manualUnitCost = (mins / 60) * wage;
+          const totalAnnualBaseline = vol * manualUnitCost;
+          if (String(activeGateState.level) === '1') {
+            const costStr = `$0.00 / query ($${Math.round(totalAnnualBaseline).toLocaleString()}/yr labor unlocked)`;
+            activeSolutionContract.costSla = costStr;
+            activeGateState.costSla = costStr;
           }
         }
       }
 
-      // 2. Map archetype to industry label
-      const archMap: Record<string, { ind: string; label: string }> = {
-        'fin-reconcile': { ind: 'finance', label: 'FinOps & Banking' },
-        'support-copilot': { ind: 'customer_support', label: 'Customer Support' },
-        'health-records': { ind: 'healthcare', label: 'Healthcare & EHR' },
-        'supply-chain': { ind: 'logistics', label: 'Supply Chain & Logistics' },
-        'legal-contracts': { ind: 'legal', label: 'Legal & Compliance' }
-      };
-      if (archMap[archetype]) {
-        activeSolutionContract.industry = archMap[archetype].ind;
-        activeSolutionContract.industryLabel = archMap[archetype].label;
-      } else {
-        const selTopology = (document.getElementById('selFdeTopologyTemplate') as HTMLSelectElement)?.value || '';
-        const topoMap: Record<string, { ind: string; label: string; icon: string }> = {
-          'streaming-fraud': { ind: 'fintech', label: 'FinTech & Anti-Fraud', icon: '🕵️' },
-          'hipaa-vault': { ind: 'healthcare', label: 'Healthcare & Life Sciences', icon: '🏥' },
-          'fin-settlement': { ind: 'finance', label: 'FinOps & Banking', icon: '🏢' },
-          'support-copilot': { ind: 'customer_support', label: 'Customer Support', icon: '🎧' },
-          'health-records': { ind: 'healthcare', label: 'Healthcare Clinical Records', icon: '🏥' },
-          'supply-chain': { ind: 'logistics', label: 'Supply Chain & ERP', icon: '📦' }
-        };
-        if (topoMap[selTopology]) {
-          activeSolutionContract.industry = topoMap[selTopology].ind;
-          activeSolutionContract.industryLabel = topoMap[selTopology].label;
-          activeSolutionContract.industryIcon = topoMap[selTopology].icon;
-        }
-      }
-
-      // 3. Ingest Phase 1 boundary locks into guardrails
-      if (outOfScope && outOfScope.length > 0) {
-        const boundaryGuardrails = [
-          ...outOfScope.map(r => r.startsWith('Boundary Lock:') ? r : `Boundary Lock: ${r}`),
-          'SOX 404 statutory immutable audit log'
-        ];
-        activeSolutionContract.guardrails = boundaryGuardrails;
-        activeGateState.guardrails = boundaryGuardrails;
-      }
-
-      // 4. Ingest Controller's 3 Numbers for unit economics & cost SLA
-      const vol = Number(threeNums.volume) || 0;
-      const mins = Number(threeNums.handleTimeMins) || 0;
-      const wage = Number(threeNums.hourlyWage) || 0;
-      if (vol > 0 && mins > 0 && wage > 0) {
-        const manualUnitCost = (mins / 60) * wage;
-        const totalAnnualBaseline = vol * manualUnitCost;
-        if (String(activeGateState.level) === '1') {
-          const costStr = `$0.00 / query ($${Math.round(totalAnnualBaseline).toLocaleString()}/yr labor unlocked)`;
-          activeSolutionContract.costSla = costStr;
-          activeGateState.costSla = costStr;
-        }
-      }
-
-      // 5. Ingest Phase 2 Introspected Database Tables
+      // 5. Ingest Phase 2 Introspected Database Tables (augmenting codeSnippet if tables are present)
       if (currentIntrospectedTables && currentIntrospectedTables.length > 0) {
         const primaryTable = currentIntrospectedTables[0];
         const tblName = primaryTable.tableName || primaryTable.name || 'transactions';
@@ -20232,6 +20691,13 @@ export async function routeIntent(query: string): Promise<any> {
   document.getElementById('ribbonSourceChip')?.addEventListener('click', () => {
     switchDeliveryPhase(1);
     showToast('🎯 Navigated to Phase 1: Discover & Frame (Gemba reality & Scope)');
+  });
+
+  document.getElementById('btnP3ViewTopologyAgain')?.addEventListener('click', () => {
+    switchDeliveryPhase(1);
+    const btnStep3 = document.getElementById('btnFdeStep3');
+    if (btnStep3) btnStep3.click();
+    showToast('🗺️ Jumped back to Phase 1 Workflow Topology Canvas');
   });
 
   document.getElementById('ribbonDbChip')?.addEventListener('click', () => {
