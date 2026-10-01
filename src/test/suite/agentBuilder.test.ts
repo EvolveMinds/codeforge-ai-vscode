@@ -100,6 +100,20 @@ suite('Agent Builder & Pipeline Synthesizer Suite', () => {
     });
   });
 
+  test('generateRagStoreTs generates strongly typed retrieval engine tailored to RAG pattern', () => {
+    const hydeManifest = synthesizePipelineFromNlp('Search customer support documents with HyDE', { ragPattern: 'hyde' });
+    const hydeCode = generateRagStoreTs(hydeManifest);
+    assert.ok(hydeCode.includes('03 HyDE: Hypothetical Document Embeddings'));
+    assert.ok(hydeCode.includes('export async function queryRagStore'));
+    assert.ok(hydeCode.includes('executeSqliteVecQuery'));
+    assert.ok(hydeCode.includes('executePgVectorQuery'));
+
+    const hybridManifest = synthesizePipelineFromNlp('Enterprise hybrid search', { ragPattern: 'hybrid' });
+    const hybridCode = generateRagStoreTs(hybridManifest);
+    assert.ok(hybridCode.includes('reciprocalRankFusion'));
+    assert.ok(hybridCode.includes('06 Hybrid RAG'));
+  });
+
   test('generatePipelineTestTs produces self-contained offline tests', () => {
     const manifest = synthesizePipelineFromNlp('Customer Support FAQ Search');
     const testCode = generatePipelineTestTs(manifest);
