@@ -4545,29 +4545,162 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                 <!-- SUB-PANEL 5: DATA & VECTOR STORE ARCHITECTURE -->
                 <div id="p4AiEngDataArchPanel" style="display: none;">
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
-                    <!-- Block 1: Storage Tier & Location -->
+                    <!-- Block 1: Storage Tier & Location (Interactive Deployment Destination Selector) -->
                     <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
                         <div style="font-size: 12px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
                           <span>💾</span> 1. Vector Database &amp; Storage Tier
                         </div>
-                        <span style="font-size: 9.5px; background: rgba(78, 201, 176, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-weight: 700;">● Active</span>
+                        <span id="lblActiveStorageTierHeaderBadge" style="font-size: 9.5px; background: rgba(78, 201, 176, 0.15); color: var(--accent); padding: 3px 8px; border-radius: 4px; font-weight: 700; border: 1px solid rgba(78, 201, 176, 0.35); display: flex; align-items: center; gap: 5px;">
+                          ● ACTIVE: Tier 1 (SQLite-vec Local)
+                        </span>
                       </div>
                       <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 10px 0;">
-                        Defines where document chunks, embeddings, and transactional tables physically reside across development, local testing, and production cloud tiers.
+                        Choose your deployment destination below. Making a tier active configures where document embeddings, HNSW indexes, and RAG contracts are physically provisioned and executed.
                       </p>
-                      <div style="display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
-                        <div style="background: #111; border: 1px solid rgba(78, 201, 176, 0.3); border-radius: 4px; padding: 8px 10px;">
-                          <div style="font-weight: 700; color: var(--accent);">🟢 Tier 1: Local Embedded Store (SQLite-vec / LanceDB)</div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">Path: <code style="color: #cbd5e1;">./data/vector_store.db</code> · Zero installation required. Portable vector file stored on disk for offline unit tests.</div>
+
+                      <!-- Interactive Tiers Container -->
+                      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 11px;" id="aiEngStorageTiersContainer">
+                        
+                        <!-- Tier 1: Local Embedded Store -->
+                        <div id="cardStorageTier1" class="storage-tier-card" data-tier="tier1" style="background: rgba(78, 201, 176, 0.05); border: 1.5px solid var(--accent); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 0 10px rgba(78, 201, 176, 0.18);">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--accent);">
+                              <span style="font-size: 13px;">🟢</span> Tier 1: Local Embedded Store (Zero-Setup)
+                            </div>
+                            <button class="btn-quick btn-make-tier-active" id="btnSelectStorageTier1" data-tier="tier1" style="font-size: 9.5px; font-weight: 700; padding: 2px 8px; background: var(--accent); color: #0f172a; border: none; border-radius: 3px; cursor: pointer;">
+                              ● ACTIVE TARGET
+                            </button>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 6px;">
+                            Zero installation required. Portable vector file stored on disk for offline unit tests, local development, and rapid prototyping.
+                          </div>
+                          <div style="display: grid; grid-template-columns: 140px 1fr; gap: 6px; align-items: center; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">Storage Engine:</label>
+                              <select id="selTier1Engine" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px;">
+                                <option value="sqlite_vec" selected>SQLite-vec (.db)</option>
+                                <option value="lancedb">LanceDB (.lance)</option>
+                                <option value="chromadb_embedded">ChromaDB (Embedded)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">Target Path:</label>
+                              <input type="text" id="txtTier1Path" value="./data/vector_store.db" style="width: 100%; background: #111; border: 1px solid var(--border); color: #4ade80; font-family: monospace; font-size: 10.5px; padding: 2px 6px; border-radius: 3px;" />
+                            </div>
+                          </div>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span style="font-size: 9.5px; color: #94a3b8;">📍 Deployed to: <code style="color: #4ade80;" id="lblTier1DeployLoc">./data/vector_store.db</code> (Local Disk)</span>
+                            <button class="btn-quick" id="btnTier1Verify" style="font-size: 9.5px; padding: 1px 7px; color: #4ade80; border-color: rgba(74, 222, 128, 0.4); cursor: pointer;" title="Initialize local storage directory and test offline embedding store">⚡ Verify / Init</button>
+                          </div>
                         </div>
-                        <div style="background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
-                          <div style="font-weight: 700; color: #38bdf8;">🐳 Tier 2: Local Docker Container (pgvector / Qdrant)</div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">URI: <code style="color: #cbd5e1;">postgresql://postgres:postgres@localhost:5432/rag_db</code> · Full HNSW index parity with cloud environments.</div>
+
+                        <!-- Tier 2: Local Docker Container -->
+                        <div id="cardStorageTier2" class="storage-tier-card" data-tier="tier2" style="background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.2s ease;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: #38bdf8;">
+                              <span style="font-size: 13px;">🐳</span> Tier 2: Local Docker Container (Isolated Microservice)
+                            </div>
+                            <button class="btn-quick btn-make-tier-active" id="btnSelectStorageTier2" data-tier="tier2" style="font-size: 9.5px; font-weight: 600; padding: 2px 8px; background: transparent; color: #94a3b8; border: 1px solid var(--border); border-radius: 3px; cursor: pointer;">
+                              ⚡ Set Active
+                            </button>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 6px;">
+                            Runs inside a dedicated container with full HNSW index parity, pgvector extension, and Docker Compose orchestration.
+                          </div>
+                          <div style="display: grid; grid-template-columns: 140px 1fr; gap: 6px; align-items: center; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">Container Engine:</label>
+                              <select id="selTier2Engine" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px;">
+                                <option value="pgvector" selected>PostgreSQL 16 + pgvector</option>
+                                <option value="qdrant">Qdrant (Port 6333)</option>
+                                <option value="clickhouse">ClickHouse Vector</option>
+                                <option value="milvus">Milvus Standalone</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">Connection URI:</label>
+                              <input type="text" id="txtTier2Uri" value="postgresql://postgres:postgres@localhost:5432/rag_db" style="width: 100%; background: #111; border: 1px solid var(--border); color: #38bdf8; font-family: monospace; font-size: 10.5px; padding: 2px 6px; border-radius: 3px;" />
+                            </div>
+                          </div>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span style="font-size: 9.5px; color: #94a3b8;">📍 Deployed to: <code style="color: #38bdf8;" id="lblTier2DeployLoc">docker://localhost:5432/rag_db</code></span>
+                            <div style="display: flex; gap: 4px;">
+                              <button class="btn-quick" id="btnTier2TestConn" style="font-size: 9.5px; padding: 1px 7px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); cursor: pointer;" title="Test connection to local container">🔌 Test Connection</button>
+                            </div>
+                          </div>
                         </div>
-                        <div style="background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
-                          <div style="font-weight: 700; color: #c084fc;">☁️ Tier 3: Managed Cloud VPC (GCP Cloud SQL / AWS RDS)</div>
-                          <div style="font-size: 10px; color: var(--text-secondary); margin-top: 2px;">Target: <code style="color: #cbd5e1;">Cloud SQL pgvector / AWS Aurora Serverless</code> with IAM role authentication.</div>
+
+                        <!-- Tier 3: Managed Cloud VPC -->
+                        <div id="cardStorageTier3" class="storage-tier-card" data-tier="tier3" style="background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; cursor: pointer; transition: all 0.2s ease;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: #c084fc;">
+                              <span style="font-size: 13px;">☁️</span> Tier 3: Managed Cloud VPC (Production Enterprise)
+                            </div>
+                            <button class="btn-quick btn-make-tier-active" id="btnSelectStorageTier3" data-tier="tier3" style="font-size: 9.5px; font-weight: 600; padding: 2px 8px; background: transparent; color: #94a3b8; border: 1px solid var(--border); border-radius: 3px; cursor: pointer;">
+                              ⚡ Set Active
+                            </button>
+                          </div>
+                          <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 6px;">
+                            High-availability enterprise deployment inside an encrypted VPC subnet with IAM role authentication and automated failover.
+                          </div>
+                          <div style="display: grid; grid-template-columns: 140px 1fr; gap: 6px; align-items: center; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 6px;">
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">Cloud Provider &amp; Service:</label>
+                              <select id="selTier3Provider" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px;">
+                                <option value="gcp_cloud_sql" selected>GCP Cloud SQL (pgvector)</option>
+                                <option value="aws_aurora">AWS Aurora Serverless v2</option>
+                                <option value="azure_postgres">Azure PostgreSQL Flexible</option>
+                                <option value="pinecone_serverless">Pinecone Serverless</option>
+                                <option value="qdrant_cloud">Qdrant Cloud Managed</option>
+                                <option value="supabase_enterprise">Supabase Enterprise</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">VPC Private Endpoint / Host:</label>
+                              <input type="text" id="txtTier3Endpoint" value="cloudsql-pgvector.corp.internal:5432" style="width: 100%; background: #111; border: 1px solid var(--border); color: #c084fc; font-family: monospace; font-size: 10.5px; padding: 2px 6px; border-radius: 3px;" />
+                            </div>
+                          </div>
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-items: center; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">VPC Region:</label>
+                              <select id="selTier3Region" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px;">
+                                <option value="us-central1" selected>us-central1 (Iowa)</option>
+                                <option value="us-east-1">us-east-1 (N. Virginia)</option>
+                                <option value="europe-west1">europe-west1 (Belgium)</option>
+                                <option value="ap-southeast-1">ap-southeast-1 (Singapore)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style="font-size: 9.5px; color: var(--text-secondary); display: block;">Authentication Mode:</label>
+                              <select id="selTier3Auth" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 2px 4px; border-radius: 3px;">
+                                <option value="iam" selected>GCP Workload Identity / IAM</option>
+                                <option value="secrets">Secret Manager (DB_PASSWORD)</option>
+                                <option value="mtls">Mutual TLS (mTLS + Private CA)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                            <span style="font-size: 9.5px; color: #94a3b8;">📍 Deployed to: <code style="color: #c084fc;" id="lblTier3DeployLoc">GCP Cloud SQL (us-central1 VPC)</code></span>
+                            <button class="btn-quick" id="btnTier3VerifyVpc" style="font-size: 9.5px; padding: 1px 7px; color: #c084fc; border-color: rgba(192, 132, 252, 0.4); cursor: pointer;" title="Validate VPC connectivity and IAM roles">🔐 Validate VPC</button>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      <!-- Active Deployment Destination Details Box -->
+                      <div id="aiEngActiveDeploymentBox" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(78, 201, 176, 0.4); border-radius: 6px; padding: 10px 12px; margin-top: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                          <span style="font-size: 10.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                            🎯 Active Deployment Destination:
+                          </span>
+                          <span id="lblActiveTierEnvBadge" style="font-size: 9px; background: rgba(78, 201, 176, 0.15); color: var(--accent); padding: 1px 6px; border-radius: 3px; font-weight: 700;">
+                            Local In-Process
+                          </span>
+                        </div>
+                        <div id="lblActiveDeploymentDetails" style="font-size: 10px; color: #cbd5e1; line-height: 1.45; font-family: monospace;">
+                          Destination: <strong style="color: #4ade80;" id="lblActiveDestPath">./data/vector_store.db</strong> (<span id="lblActiveDestEngine">SQLite-vec</span> · Portable offline database)<br>
+                          Deployment Status: <span style="color: #38bdf8;">Configured &amp; Active</span> · Auto-synced with Block 3 DDL, DAG Pipeline, and Code Workbench.
                         </div>
                       </div>
                     </div>
