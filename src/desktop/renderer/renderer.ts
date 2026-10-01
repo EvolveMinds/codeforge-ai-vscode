@@ -23142,8 +23142,217 @@ INSERT INTO ai_audit_log (
     }
   }
 
+  interface IngestStrategyConfig {
+    chunkStrategy: string;
+    chunkSize: number;
+    chunkOverlap: number;
+    embeddingModel: string;
+    embeddingDim: number;
+    indexType: string;
+    distanceMetric: string;
+    metadataFields: string;
+  }
+
+  const DEFAULT_INGEST_CONFIG: IngestStrategyConfig = {
+    chunkStrategy: 'recursive',
+    chunkSize: 512,
+    chunkOverlap: 50,
+    embeddingModel: 'text-embedding-3-small',
+    embeddingDim: 1536,
+    indexType: 'hnsw',
+    distanceMetric: 'cosine',
+    metadataFields: 'source_table, doc_id, section, timestamp, tenant_id'
+  };
+
+  const CHUNK_STRATEGY_HELPERS: Record<string, string> = {
+    recursive: '💡 <strong>Best for:</strong> Multi-paragraph contracts, policy PDFs, and structured manuals. Recursively splits on double-newlines, single-newlines, and whitespace to keep concepts intact.',
+    hierarchical: '💡 <strong>Best for:</strong> Complex technical specifications and research papers. Indexes small 128t chunks for precision matching, but retrieves full 1024t parent context.',
+    semantic: '💡 <strong>Best for:</strong> Conversational transcripts, customer chats, and prose. Splits at semantic breakpoints where topical focus shifts.',
+    tabular: '💡 <strong>Best for:</strong> Relational tables, CSVs, and data marts. Formats each row as Markdown key-value pairs with column schema context.',
+    code_ast: '💡 <strong>Best for:</strong> Source code repositories (TypeScript, Python, Go, Java). Splits along class, method, and function AST boundaries.',
+    fixed: '💡 <strong>Best for:</strong> High-speed keyword and dense retrieval when uniform chunk length is strictly required.'
+  };
+
+  const EMBEDDING_MODEL_HELPERS: Record<string, { dim: number; text: string }> = {
+    'text-embedding-3-small': { dim: 1536, text: '💡 <strong>Best for:</strong> General enterprise RAG. Matches MTEB benchmark state-of-the-art with minimal latency (<15ms) and low cost ($0.02/1M tokens).' },
+    'text-embedding-3-large': { dim: 3072, text: '💡 <strong>Best for:</strong> High-stakes legal, medical, and financial nuance requiring deep 3072-dimensional geometric separation.' },
+    'nomic-embed-text-v1.5': { dim: 768, text: '💡 <strong>Best for:</strong> 100% offline, local air-gapped deployments using Ollama or local ONNX runtime with zero cloud dependencies.' },
+    'bge-large-en-v1.5': { dim: 1024, text: '💡 <strong>Best for:</strong> Top-ranked open-source dense retrieval for technical documentation and enterprise search.' },
+    'voyage-code-3': { dim: 1536, text: '💡 <strong>Best for:</strong> Code search, function definition matching, and software architecture understanding.' },
+    'all-minilm-l6-v2': { dim: 384, text: '💡 <strong>Best for:</strong> Ultra-fast embedding generation (<3ms) on constrained CPU devices and edge microservices.' }
+  };
+
+  const INDEX_TYPE_HELPERS: Record<string, string> = {
+    hnsw: '💡 <strong>Best for:</strong> High-throughput production query workloads with sub-5ms approximate nearest neighbor response and >98% recall.',
+    hnsw_fast: '💡 <strong>Best for:</strong> Mission-critical search with maximized recall (>99.5%) with higher build time.',
+    ivfflat: '💡 <strong>Best for:</strong> Extremely large datasets on RAM-constrained machines with faster index compilation.',
+    exact_flat: '💡 <strong>Best for:</strong> Small catalogs (<50k records) where 100% mathematical precision is required.'
+  };
+
+  function updateIngestStrategyUI(config?: Partial<IngestStrategyConfig>, notify = false) {
+    let saved: IngestStrategyConfig;
+    try {
+      const raw = localStorage.getItem('evolve_ai_eng_ingest_config');
+      saved = raw ? { ...DEFAULT_INGEST_CONFIG, ...JSON.parse(raw) } : { ...DEFAULT_INGEST_CONFIG };
+    } catch {
+      saved = { ...DEFAULT_INGEST_CONFIG };
+    }
+
+    if (config) {
+      saved = { ...saved, ...config };
+      localStorage.setItem('evolve_ai_eng_ingest_config', JSON.stringify(saved));
+    }
+
+    const selStrategy = document.getElementById('selAiEngChunkStrategy') as HTMLSelectElement | null;
+    const txtSize = document.getElementById('txtAiEngChunkSize') as HTMLInputElement | null;
+    const txtOverlap = document.getElementById('txtAiEngChunkOverlap') as HTMLInputElement | null;
+    const selModel = document.getElementById('selAiEngEmbeddingModel') as HTMLSelectElement | null;
+    const txtDim = document.getElementById('txtAiEngEmbedDim') as HTMLInputElement | null;
+    const selIndex = document.getElementById('selAiEngIndexType') as HTMLSelectElement | null;
+    const selMetric = document.getElementById('selAiEngDistanceMetric') as HTMLSelectElement | null;
+    const txtMetadata = document.getElementById('txtAiEngMetadataFields') as HTMLInputElement | null;
+
+    if (selStrategy && !config) selStrategy.value = saved.chunkStrategy;
+    if (txtSize && !config) txtSize.value = String(saved.chunkSize);
+    if (txtOverlap && !config) txtOverlap.value = String(saved.chunkOverlap);
+    if (selModel && !config) selModel.value = saved.embeddingModel;
+    if (txtDim) txtDim.value = String(saved.embeddingDim);
+    if (selIndex && !config) selIndex.value = saved.indexType;
+    if (selMetric && !config) selMetric.value = saved.distanceMetric;
+    if (txtMetadata && !config) txtMetadata.value = saved.metadataFields;
+
+    // Update Helpers
+    const lblStrat = document.getElementById('lblChunkStrategyHelper');
+    if (lblStrat && CHUNK_STRATEGY_HELPERS[saved.chunkStrategy]) {
+      lblStrat.innerHTML = CHUNK_STRATEGY_HELPERS[saved.chunkStrategy];
+    }
+
+    const lblModel = document.getElementById('lblEmbeddingHelper');
+    if (lblModel && EMBEDDING_MODEL_HELPERS[saved.embeddingModel]) {
+      lblModel.innerHTML = EMBEDDING_MODEL_HELPERS[saved.embeddingModel].text;
+    }
+
+    const lblIdx = document.getElementById('lblIndexHelper');
+    if (lblIdx && INDEX_TYPE_HELPERS[saved.indexType]) {
+      lblIdx.innerHTML = INDEX_TYPE_HELPERS[saved.indexType];
+    }
+
+    // Update overlap chips highlight
+    document.querySelectorAll('.ingest-overlap-chip').forEach(btn => {
+      const tokens = parseInt(btn.getAttribute('data-tokens') || '-1', 10);
+      const isMatch = tokens === saved.chunkOverlap;
+      btn.classList.toggle('active', isMatch);
+      (btn as HTMLElement).style.background = isMatch ? 'rgba(56, 189, 248, 0.2)' : 'transparent';
+      (btn as HTMLElement).style.color = isMatch ? '#38bdf8' : 'var(--text-secondary)';
+      (btn as HTMLElement).style.borderColor = isMatch ? '#38bdf8' : 'var(--border)';
+    });
+
+    // Update activePipelineManifest
+    if (activePipelineManifest) {
+      (activePipelineManifest as any).ingestConfig = saved;
+
+      const srcNode = activePipelineManifest.nodes?.find((n: any) => n.id === 'node_source' || n.type === 'source');
+      if (srcNode) {
+        srcNode.subtitle = 'Chunking: ' + saved.chunkStrategy + ' (' + saved.chunkSize + 't, ' + saved.chunkOverlap + 't overlap)';
+        srcNode.config = { ...srcNode.config, chunkSize: saved.chunkSize, overlapTokens: saved.chunkOverlap, strategy: saved.chunkStrategy };
+      }
+
+      const vecNode = activePipelineManifest.nodes?.find((n: any) => n.id === 'node_vector_store' || n.type === 'vector_store');
+      if (vecNode) {
+        vecNode.config = { ...vecNode.config, dimensions: saved.embeddingDim, metric: saved.distanceMetric, indexType: saved.indexType };
+      }
+    }
+
+    // Update DDL vector dimension if changed
+    const txtVectorDdl = document.getElementById('txtAiEngVectorDdl') as HTMLTextAreaElement | null;
+    if (txtVectorDdl && txtVectorDdl.value) {
+      if (txtVectorDdl.value.includes('vector(')) {
+        txtVectorDdl.value = txtVectorDdl.value.replace(/vector\(\d+\)/g, 'vector(' + saved.embeddingDim + ')');
+        localStorage.setItem('evolve_active_vector_ddl', txtVectorDdl.value);
+      }
+    }
+
+    if (notify) {
+      showToast('📥 Ingestion & Chunking parameters saved and synchronized with pipeline!');
+    }
+  }
+
+  function applyIngestBestPracticeRecommendations() {
+    let rec: Partial<IngestStrategyConfig> = {
+      chunkStrategy: 'recursive',
+      chunkSize: 512,
+      chunkOverlap: 50,
+      embeddingModel: 'text-embedding-3-small',
+      embeddingDim: 1536,
+      indexType: 'hnsw',
+      distanceMetric: 'cosine',
+      metadataFields: 'source_table, doc_id, section, timestamp, tenant_id'
+    };
+
+    const category = (activePipelineManifest?.workloadCategory || '').toLowerCase();
+    const prompt = (activePipelineManifest?.description || '').toLowerCase();
+
+    if (/code|api|sdk|software|dev/i.test(category) || /code|repo|function|ast/i.test(prompt)) {
+      rec = {
+        chunkStrategy: 'code_ast',
+        chunkSize: 512,
+        chunkOverlap: 100,
+        embeddingModel: 'voyage-code-3',
+        embeddingDim: 1536,
+        indexType: 'hnsw_fast',
+        distanceMetric: 'cosine',
+        metadataFields: 'source_repo, file_path, function_name, timestamp, commit_hash'
+      };
+    } else if (/database|sql|mart|warehouse|etl/i.test(category) || /table|schema|relational|order/i.test(prompt)) {
+      rec = {
+        chunkStrategy: 'tabular',
+        chunkSize: 256,
+        chunkOverlap: 25,
+        embeddingModel: 'text-embedding-3-small',
+        embeddingDim: 1536,
+        indexType: 'hnsw',
+        distanceMetric: 'cosine',
+        metadataFields: 'source_table, primary_key, tenant_id, updated_at'
+      };
+    } else if (activeAiEngStorageTier === 'tier1') {
+      rec = {
+        chunkStrategy: 'recursive',
+        chunkSize: 512,
+        chunkOverlap: 50,
+        embeddingModel: 'nomic-embed-text-v1.5',
+        embeddingDim: 768,
+        indexType: 'hnsw',
+        distanceMetric: 'cosine',
+        metadataFields: 'source_table, doc_id, section, timestamp'
+      };
+    }
+
+    // Apply to DOM inputs
+    const selStrategy = document.getElementById('selAiEngChunkStrategy') as HTMLSelectElement | null;
+    const txtSize = document.getElementById('txtAiEngChunkSize') as HTMLInputElement | null;
+    const txtOverlap = document.getElementById('txtAiEngChunkOverlap') as HTMLInputElement | null;
+    const selModel = document.getElementById('selAiEngEmbeddingModel') as HTMLSelectElement | null;
+    const txtDim = document.getElementById('txtAiEngEmbedDim') as HTMLInputElement | null;
+    const selIndex = document.getElementById('selAiEngIndexType') as HTMLSelectElement | null;
+    const selMetric = document.getElementById('selAiEngDistanceMetric') as HTMLSelectElement | null;
+    const txtMetadata = document.getElementById('txtAiEngMetadataFields') as HTMLInputElement | null;
+
+    if (selStrategy && rec.chunkStrategy) selStrategy.value = rec.chunkStrategy;
+    if (txtSize && rec.chunkSize) txtSize.value = String(rec.chunkSize);
+    if (txtOverlap && rec.chunkOverlap !== undefined) txtOverlap.value = String(rec.chunkOverlap);
+    if (selModel && rec.embeddingModel) selModel.value = rec.embeddingModel;
+    if (txtDim && rec.embeddingDim) txtDim.value = String(rec.embeddingDim);
+    if (selIndex && rec.indexType) selIndex.value = rec.indexType;
+    if (selMetric && rec.distanceMetric) selMetric.value = rec.distanceMetric;
+    if (txtMetadata && rec.metadataFields) txtMetadata.value = rec.metadataFields;
+
+    updateIngestStrategyUI(rec, false);
+    showToast('✨ Applied AI-recommended Ingestion & Chunking settings for this workload!');
+  }
+
   function renderAiEngDataArch() {
     updateStorageTierUI(activeAiEngStorageTier, false);
+    updateIngestStrategyUI();
 
     const txtDdl = document.getElementById('txtAiEngVectorDdl') as HTMLTextAreaElement | null;
     const txtPushPull = document.getElementById('txtAiEngPushPullSql') as HTMLTextAreaElement | null;
@@ -23520,6 +23729,93 @@ INSERT INTO ai_audit_log (
       const region = (document.getElementById('selTier3Region') as HTMLSelectElement)?.value || 'us-central1';
       updateStorageTierUI('tier3', false);
       showToast(`🔐 VPC connectivity verified: ${endpoint} in ${region} reachable via Private Service Connect (IAM role authorized)`);
+    });
+
+    // Wire Block 2 Ingestion & Chunking Strategy Listeners
+    const saveIngestChanges = () => {
+      const selStrategy = (document.getElementById('selAiEngChunkStrategy') as HTMLSelectElement)?.value || 'recursive';
+      const txtSize = parseInt((document.getElementById('txtAiEngChunkSize') as HTMLInputElement)?.value || '512', 10);
+      const txtOverlap = parseInt((document.getElementById('txtAiEngChunkOverlap') as HTMLInputElement)?.value || '50', 10);
+      const selModel = (document.getElementById('selAiEngEmbeddingModel') as HTMLSelectElement)?.value || 'text-embedding-3-small';
+      const dim = EMBEDDING_MODEL_HELPERS[selModel]?.dim || 1536;
+      const selIndex = (document.getElementById('selAiEngIndexType') as HTMLSelectElement)?.value || 'hnsw';
+      const selMetric = (document.getElementById('selAiEngDistanceMetric') as HTMLSelectElement)?.value || 'cosine';
+      const txtMetadata = (document.getElementById('txtAiEngMetadataFields') as HTMLInputElement)?.value || 'source_table, doc_id, section, timestamp, tenant_id';
+
+      const txtDim = document.getElementById('txtAiEngEmbedDim') as HTMLInputElement | null;
+      if (txtDim) txtDim.value = String(dim);
+
+      updateIngestStrategyUI({
+        chunkStrategy: selStrategy,
+        chunkSize: txtSize,
+        chunkOverlap: txtOverlap,
+        embeddingModel: selModel,
+        embeddingDim: dim,
+        indexType: selIndex,
+        distanceMetric: selMetric,
+        metadataFields: txtMetadata
+      }, false);
+    };
+
+    ['selAiEngChunkStrategy', 'txtAiEngChunkSize', 'txtAiEngChunkOverlap', 'selAiEngEmbeddingModel', 'selAiEngIndexType', 'selAiEngDistanceMetric', 'txtAiEngMetadataFields'].forEach(id => {
+      const el = document.getElementById(id);
+      el?.addEventListener('input', saveIngestChanges);
+      el?.addEventListener('change', saveIngestChanges);
+    });
+
+    // Chunk Overlap Quick Chips
+    document.querySelectorAll('.ingest-overlap-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const tokens = chip.getAttribute('data-tokens') || '50';
+        const input = document.getElementById('txtAiEngChunkOverlap') as HTMLInputElement | null;
+        if (input) input.value = tokens;
+        saveIngestChanges();
+      });
+    });
+
+    // Metadata Quick Chips
+    document.querySelectorAll('.metadata-quick-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const field = chip.getAttribute('data-field') || '';
+        const input = document.getElementById('txtAiEngMetadataFields') as HTMLInputElement | null;
+        if (input && field) {
+          const current = input.value.split(',').map(s => s.trim()).filter(Boolean);
+          if (!current.includes(field)) {
+            current.push(field);
+            input.value = current.join(', ');
+            saveIngestChanges();
+            showToast(`+ Added metadata attribute: ${field}`);
+          }
+        }
+      });
+    });
+
+    // Recommend Best Settings Button
+    document.getElementById('btnAiEngAutoRecommendIngest')?.addEventListener('click', () => {
+      applyIngestBestPracticeRecommendations();
+    });
+
+    // Reset Defaults Button
+    document.getElementById('btnAiEngResetIngest')?.addEventListener('click', () => {
+      updateIngestStrategyUI(DEFAULT_INGEST_CONFIG, false);
+      const selStrategy = document.getElementById('selAiEngChunkStrategy') as HTMLSelectElement | null;
+      const txtSize = document.getElementById('txtAiEngChunkSize') as HTMLInputElement | null;
+      const txtOverlap = document.getElementById('txtAiEngChunkOverlap') as HTMLInputElement | null;
+      const selModel = document.getElementById('selAiEngEmbeddingModel') as HTMLSelectElement | null;
+      const txtDim = document.getElementById('txtAiEngEmbedDim') as HTMLInputElement | null;
+      const selIndex = document.getElementById('selAiEngIndexType') as HTMLSelectElement | null;
+      const selMetric = document.getElementById('selAiEngDistanceMetric') as HTMLSelectElement | null;
+      const txtMetadata = document.getElementById('txtAiEngMetadataFields') as HTMLInputElement | null;
+
+      if (selStrategy) selStrategy.value = DEFAULT_INGEST_CONFIG.chunkStrategy;
+      if (txtSize) txtSize.value = String(DEFAULT_INGEST_CONFIG.chunkSize);
+      if (txtOverlap) txtOverlap.value = String(DEFAULT_INGEST_CONFIG.chunkOverlap);
+      if (selModel) selModel.value = DEFAULT_INGEST_CONFIG.embeddingModel;
+      if (txtDim) txtDim.value = String(DEFAULT_INGEST_CONFIG.embeddingDim);
+      if (selIndex) selIndex.value = DEFAULT_INGEST_CONFIG.indexType;
+      if (selMetric) selMetric.value = DEFAULT_INGEST_CONFIG.distanceMetric;
+      if (txtMetadata) txtMetadata.value = DEFAULT_INGEST_CONFIG.metadataFields;
+      showToast('↩ Ingestion & Chunking parameters reset to standard defaults.');
     });
 
     // Wire Block 3 AI SQL Co-Architect & Dual Editors
