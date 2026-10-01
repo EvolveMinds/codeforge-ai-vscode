@@ -4607,48 +4607,81 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
 
                   <!-- Block 3: Vector Table DDL & Push/Pull Operations -->
                   <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 6px;">
                       <div style="font-size: 12px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
                         <span>📋</span> 3. Storage DDL &amp; Data Push / Pull Execution Blueprint
                       </div>
-                      <span style="font-size: 10px; color: var(--text-secondary);">Production ANSI SQL + pgvector</span>
+                      <span style="font-size: 10px; color: var(--text-secondary);">Production ANSI SQL + pgvector / SQLite-vec</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                      <!-- Left: DDL -->
-                      <div>
-                        <div style="font-size: 10.5px; font-weight: 700; color: var(--accent); margin-bottom: 4px;">Vector Store Table DDL (PostgreSQL / SQLite-vec):</div>
-                        <pre style="background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-family: monospace; font-size: 10px; color: #4ec9b0; margin: 0; max-height: 160px; overflow: auto; white-space: pre;">CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE IF NOT EXISTS rag_document_chunks (
-    id VARCHAR(64) PRIMARY KEY,
-    source_table VARCHAR(64) NOT NULL, -- e.g. 'orders', 'policies'
-    content TEXT NOT NULL,
-    embedding vector(1536) NOT NULL,
-    metadata JSONB NOT NULL DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_chunks_hnsw ON rag_document_chunks 
-USING hnsw (embedding vector_cosine_ops);</pre>
+                    <!-- AI SQL Co-Architect Toolbar -->
+                    <div style="background: linear-gradient(135deg, rgba(78, 201, 176, 0.08), rgba(56, 189, 248, 0.08)); border: 1px solid rgba(78, 201, 176, 0.35); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+                        <div style="font-size: 11px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                          <span>✨</span> AI SQL Co-Architect:
+                          <span style="font-size: 10px; font-weight: 400; color: var(--text-secondary);">(Generate, validate, correct syntax, or enhance DDL &amp; Push/Pull queries)</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                          <button class="btn-quick" id="btnAiEngSqlRevert" style="font-size: 9.5px; padding: 2px 7px; color: #f87171; border-color: rgba(248, 113, 113, 0.4); display: none; cursor: pointer;" title="Revert last AI modification">↩ Revert SQL</button>
+                          <button class="btn-quick" id="btnAiEngSqlFixSyntax" style="font-size: 9.5px; padding: 2px 8px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); cursor: pointer;" title="Analyze and correct syntax, types, and HNSW parameters">🛠️ AI Fix Syntax</button>
+                          <button class="btn-quick" id="btnAiEngSqlOptimize" style="font-size: 9.5px; padding: 2px 8px; color: #4ade80; border-color: rgba(74, 222, 128, 0.4); cursor: pointer;" title="Optimize vector indexes and add isolation guardrails">⚡ AI Optimize</button>
+                        </div>
                       </div>
-                      <!-- Right: Data Push & Pull Actions -->
+                      <div style="display: flex; gap: 6px;">
+                        <input type="text" id="txtAiEngSqlPrompt" placeholder="e.g. 'Optimize for pgvector with HNSW index and multi-tenant RLS', 'Convert to SQLite-vec', 'Add BM25 full-text tsvector for hybrid search', 'Add SOX audit trigger'..." style="flex: 1; background: #0c0c0c; border: 1px solid rgba(78, 201, 176, 0.4); color: #fff; padding: 5px 10px; border-radius: 4px; font-size: 11px;">
+                        <button class="btn" id="btnApplyAiEngSql" style="background: var(--accent); color: #0f172a; font-weight: 700; font-size: 10.5px; padding: 5px 14px; cursor: pointer;">⚡ Apply AI</button>
+                      </div>
+                      <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; align-items: center;">
+                        <span style="font-size: 10px; color: var(--text-secondary);">Quick Prompts:</span>
+                        <button class="btn-quick sql-quick-chip" data-prompt="Add row-level security (RLS) tenant isolation policies for multi-tenant SaaS" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">🛡️ Multi-Tenant RLS</button>
+                        <button class="btn-quick sql-quick-chip" data-prompt="Optimize HNSW index parameters (m=16, ef_construction=64, vector_cosine_ops)" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">⚡ HNSW Index</button>
+                        <button class="btn-quick sql-quick-chip" data-prompt="Add BM25 tsvector column and GIN index for hybrid lexical and vector search" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">🔍 Hybrid BM25 tsvector</button>
+                        <button class="btn-quick sql-quick-chip" data-prompt="Add immutable SOX 404 audit log table and post-insert audit trigger" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">📜 SOX 404 Audit Trigger</button>
+                        <button class="btn-quick sql-quick-chip" data-prompt="Convert schema to SQLite-vec local embedded virtual table format" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">💾 SQLite-vec Format</button>
+                        <button class="btn-quick sql-quick-chip" data-prompt="Generate ClickHouse MergeTree vector search schema with cosine distance" style="font-size: 9px; padding: 1px 6px; cursor: pointer;">⚡ ClickHouse Vector</button>
+                      </div>
+                    </div>
+
+                    <!-- Dual Interactive SQL Editors Grid -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                      <!-- Left: DDL Editor -->
                       <div>
-                        <div style="font-size: 10.5px; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">How Agents PULL and PUSH Data:</div>
-                        <div style="background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-family: monospace; font-size: 10px; color: #cbd5e1; max-height: 160px; overflow: auto;">
-                          <div style="color: #4ade80;">-- 1. PULL: Semantic Vector Search + Filter</div>
-                          <div>SELECT content, 1 - (embedding &lt;=&gt; $query_vec) AS score</div>
-                          <div>FROM rag_document_chunks</div>
-                          <div>WHERE metadata-&gt;&gt;'tenant_id' = $tenant</div>
-                          <div>ORDER BY score DESC LIMIT 5;</div>
-                          <br />
-                          <div style="color: #fbbf24;">-- 2. PUSH: Mutate Business State via Tool</div>
-                          <div>UPDATE invoices</div>
-                          <div>SET status = 'AUTO_APPROVED', approved_at = NOW()</div>
-                          <div>WHERE invoice_id = $inv_id;</div>
-                          <br />
-                          <div style="color: #f43f5e;">-- 3. PUSH: Immutable Audit Receipt</div>
-                          <div>INSERT INTO ai_audit_log (id, verdict, digest, latency_ms)</div>
-                          <div>VALUES ($id, 'APPROVED', $digest, $latency);</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <span style="font-size: 10.5px; font-weight: 700; color: var(--accent);">Vector Store Table DDL:</span>
+                            <select id="selAiEngDdlDialect" style="background: #111; border: 1px solid var(--border); color: #38bdf8; font-size: 10px; padding: 1px 5px; border-radius: 3px; cursor: pointer;">
+                              <option value="pgvector" selected>PostgreSQL (pgvector)</option>
+                              <option value="sqlite_vec">SQLite-vec (Embedded)</option>
+                              <option value="clickhouse">ClickHouse Vector</option>
+                              <option value="bigquery">BigQuery / BigLake</option>
+                              <option value="snowflake">Snowflake Cortex</option>
+                            </select>
+                          </div>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick" id="btnAiEngCopyDdl" style="font-size: 9.5px; padding: 1px 6px; margin: 0; cursor: pointer;" title="Copy DDL to clipboard">📋 Copy</button>
+                            <button class="btn-quick" id="btnAiEngResetDdl" style="font-size: 9.5px; padding: 1px 6px; margin: 0; cursor: pointer;" title="Reset to default schema">↩ Reset</button>
+                          </div>
+                        </div>
+                        <textarea id="txtAiEngVectorDdl" rows="12" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-family: 'Consolas', 'Fira Code', monospace; font-size: 10px; color: #4ec9b0; line-height: 1.45; resize: vertical; outline: none;"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 9.5px; color: var(--text-secondary);">
+                          <span id="lblAiEngDdlStatus" style="color: #4ade80;">✓ Valid Vector DDL · HNSW Enabled</span>
+                          <span>💡 User editable: Paste or refine SQL schema</span>
+                        </div>
+                      </div>
+
+                      <!-- Right: Data Push & Pull Actions Editor -->
+                      <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                          <span style="font-size: 10.5px; font-weight: 700; color: #38bdf8;">How Agents PULL and PUSH Data (Queries &amp; Mutations):</span>
+                          <div style="display: flex; gap: 4px;">
+                            <button class="btn-quick" id="btnAiEngCopyPushPull" style="font-size: 9.5px; padding: 1px 6px; margin: 0; cursor: pointer;" title="Copy Push/Pull SQL to clipboard">📋 Copy</button>
+                            <button class="btn-quick" id="btnAiEngResetPushPull" style="font-size: 9.5px; padding: 1px 6px; margin: 0; cursor: pointer;" title="Reset to default queries">↩ Reset</button>
+                          </div>
+                        </div>
+                        <textarea id="txtAiEngPushPullSql" rows="12" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; font-family: 'Consolas', 'Fira Code', monospace; font-size: 10px; color: #cbd5e1; line-height: 1.45; resize: vertical; outline: none;"></textarea>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 9.5px; color: var(--text-secondary);">
+                          <span id="lblAiEngPushPullStatus" style="color: #4ade80;">✓ Parameterized Queries &amp; Safe Mutations</span>
+                          <span>💡 User editable: Customize agent queries</span>
                         </div>
                       </div>
                     </div>

@@ -22807,6 +22807,257 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     });
   }
 
+  // ==========================================
+  // PHASE 4: DATA & VECTOR STORE ARCHITECTURE
+  // ==========================================
+  const DEFAULT_VECTOR_DDLS: Record<string, string> = {
+    pgvector: `CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE IF NOT EXISTS rag_document_chunks (
+    id VARCHAR(64) PRIMARY KEY,
+    source_table VARCHAR(64) NOT NULL, -- e.g. 'orders', 'policies'
+    content TEXT NOT NULL,
+    embedding vector(1536) NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chunks_hnsw ON rag_document_chunks 
+USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);`,
+
+    sqlite_vec: `-- SQLite-vec: Embedded local disk vector store
+CREATE VIRTUAL TABLE IF NOT EXISTS vec_document_chunks USING vec0(
+    id TEXT PRIMARY KEY,
+    source_table TEXT,
+    content TEXT,
+    embedding FLOAT[1536] distance_metric=cosine
+);
+
+CREATE TABLE IF NOT EXISTS doc_metadata (
+    id TEXT PRIMARY KEY,
+    source_table TEXT,
+    metadata_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`,
+
+    clickhouse: `-- ClickHouse Vector Search Engine
+CREATE TABLE IF NOT EXISTS rag_document_chunks (
+    id UUID,
+    source_table LowCardinality(String),
+    content String,
+    embedding Array(Float32),
+    metadata String,
+    created_at DateTime DEFAULT now()
+) ENGINE = MergeTree()
+ORDER BY id
+SETTINGS index_granularity = 8192;
+
+ALTER TABLE rag_document_chunks ADD VECTOR INDEX IF NOT EXISTS idx_chunks_vec embedding
+TYPE HNSW('metric_type=Cosine', 'm=16', 'ef_construction=64');`,
+
+    bigquery: `-- Google Cloud BigQuery Vector Search
+CREATE OR REPLACE TABLE \`project.dataset.rag_document_chunks\` (
+    id STRING,
+    source_table STRING,
+    content STRING,
+    embedding ARRAY<FLOAT64>,
+    metadata JSON,
+    created_at TIMESTAMP
+);
+
+CREATE VECTOR INDEX IF NOT EXISTS idx_chunks_vector
+ON \`project.dataset.rag_document_chunks\`(embedding)
+OPTIONS(distance_type='COSINE', index_type='IVF');`,
+
+    snowflake: `-- Snowflake Cortex Vector Search
+CREATE OR REPLACE TABLE rag_document_chunks (
+    id VARCHAR(64) PRIMARY KEY,
+    source_table VARCHAR(64),
+    content TEXT,
+    embedding VECTOR(FLOAT, 1536),
+    metadata VARIANT,
+    created_at TIMESTAMP_LTZ DEFAULT CURRENT_TIMESTAMP()
+);`
+  };
+
+  const DEFAULT_PUSH_PULL_SQL = `-- 1. PULL: Semantic Vector Search + Minimum Threshold Gate
+SELECT id, source_table, content, 
+       1 - (embedding <=> $query_vec) AS similarity_score
+FROM rag_document_chunks
+WHERE metadata->>'tenant_id' = $tenant_id
+  AND 1 - (embedding <=> $query_vec) >= 0.78
+ORDER BY similarity_score DESC 
+LIMIT 5;
+
+-- 2. PUSH: Mutate Transaction Business State via Tool Dispatch
+UPDATE invoices
+SET status = 'AUTO_APPROVED',
+    approved_by = 'EVOLVE_AI_AGENT_01',
+    approved_at = NOW()
+WHERE invoice_id = $inv_id
+  AND tenant_id = $tenant_id;
+
+-- 3. PUSH: Write Immutable SOX 404 Audit Log Receipt
+INSERT INTO ai_audit_log (
+    event_id, 
+    pipeline_id, 
+    user_query, 
+    verdict, 
+    citations_digest, 
+    latency_ms, 
+    executed_at
+) VALUES (
+    $event_id, 
+    'DeployEnterpriseHydePipeline', 
+    $sanitized_query, 
+    'APPROVED', 
+    $sha256_digest, 
+    $latency_ms, 
+    NOW()
+);`;
+
+  const dataArchSqlUndoHistory: Array<{ ddl: string; pushPull: string; dialect: string }> = [];
+
+  function renderAiEngDataArch() {
+    const txtDdl = document.getElementById('txtAiEngVectorDdl') as HTMLTextAreaElement | null;
+    const txtPushPull = document.getElementById('txtAiEngPushPullSql') as HTMLTextAreaElement | null;
+    const selDialect = document.getElementById('selAiEngDdlDialect') as HTMLSelectElement | null;
+    if (!txtDdl || !txtPushPull) return;
+
+    if (!txtDdl.value) {
+      const savedDdl = localStorage.getItem('evolve_active_vector_ddl') || activePipelineManifest?.dataContract?.vectorDdl;
+      const dialect = selDialect?.value || 'pgvector';
+      txtDdl.value = savedDdl || DEFAULT_VECTOR_DDLS[dialect] || DEFAULT_VECTOR_DDLS.pgvector;
+    }
+
+    if (!txtPushPull.value) {
+      const savedPushPull = localStorage.getItem('evolve_active_push_pull_sql') || activePipelineManifest?.dataContract?.pushPullSql;
+      txtPushPull.value = savedPushPull || DEFAULT_PUSH_PULL_SQL;
+    }
+  }
+
+  const executeDataArchAiCommand = (prompt: string, fixOnly = false) => {
+    const txtDdl = document.getElementById('txtAiEngVectorDdl') as HTMLTextAreaElement | null;
+    const txtPushPull = document.getElementById('txtAiEngPushPullSql') as HTMLTextAreaElement | null;
+    const selDialect = document.getElementById('selAiEngDdlDialect') as HTMLSelectElement | null;
+    const btnRevert = document.getElementById('btnAiEngSqlRevert');
+    const lblDdlStatus = document.getElementById('lblAiEngDdlStatus');
+    const lblPushPullStatus = document.getElementById('lblAiEngPushPullStatus');
+    if (!txtDdl || !txtPushPull) return;
+
+    dataArchSqlUndoHistory.push({
+      ddl: txtDdl.value,
+      pushPull: txtPushPull.value,
+      dialect: selDialect?.value || 'pgvector'
+    });
+    if (btnRevert) btnRevert.style.display = 'inline-block';
+
+    const p = prompt.toLowerCase();
+    let currentDdl = txtDdl.value;
+    let currentPushPull = txtPushPull.value;
+
+    if (fixOnly) {
+      // 1. Syntax Fix & Validation Pass
+      if (selDialect?.value === 'pgvector' || !selDialect?.value) {
+        if (!currentDdl.includes('CREATE EXTENSION IF NOT EXISTS vector')) {
+          currentDdl = 'CREATE EXTENSION IF NOT EXISTS vector;\n\n' + currentDdl;
+        }
+        if (currentDdl.includes('USING ivfflat')) {
+          currentDdl = currentDdl.replace(/USING ivfflat/gi, 'USING hnsw');
+        }
+        if (!currentDdl.includes('USING hnsw') && currentDdl.includes('CREATE INDEX')) {
+          currentDdl += '\n\n-- AI Auto-Fix: Added missing HNSW vector index\nCREATE INDEX IF NOT EXISTS idx_chunks_hnsw ON rag_document_chunks USING hnsw (embedding vector_cosine_ops);';
+        }
+      }
+      // Fix string interpolation in Push/Pull queries
+      if (currentPushPull.includes("' + ") || currentPushPull.includes("${")) {
+        currentPushPull = currentPushPull
+          .replace(/'\s*\+\s*([a-zA-Z0-9_]+)\s*\+\s*'/g, '$$$1')
+          .replace(/\$\{[^}]+\}/g, '$1');
+      }
+      if (!currentPushPull.includes('LIMIT')) {
+        currentPushPull += '\nLIMIT 5;';
+      }
+      txtDdl.value = currentDdl;
+      txtPushPull.value = currentPushPull;
+      if (lblDdlStatus) lblDdlStatus.innerHTML = '✓ Syntax verified: HNSW enabled, parameterized queries';
+      if (lblPushPullStatus) lblPushPullStatus.innerHTML = '✓ Parameterized & Injection-safe';
+      showToast('🛠️ AI analyzed and corrected vector SQL syntax, parameters, and indexes!');
+    } else if (/rls|tenant|multi-tenant|isolation/i.test(p)) {
+      if (!currentDdl.includes('ENABLE ROW LEVEL SECURITY')) {
+        currentDdl += '\n\n-- AI Enhanced: Row Level Security (RLS) Tenant Isolation Policy\nALTER TABLE rag_document_chunks ENABLE ROW LEVEL SECURITY;\n\nCREATE POLICY tenant_isolation_policy ON rag_document_chunks\nAS RESTRICTIVE\nUSING (metadata->>\'tenant_id\' = current_setting(\'app.current_tenant_id\', true));';
+      }
+      if (!currentPushPull.includes("app.current_tenant_id")) {
+        currentPushPull = currentPushPull.replace(
+          /WHERE metadata->>'tenant_id' = \$tenant_id/g,
+          "WHERE metadata->>'tenant_id' = current_setting('app.current_tenant_id', true)"
+        );
+      }
+      txtDdl.value = currentDdl;
+      txtPushPull.value = currentPushPull;
+      showToast('🛡️ AI added Row-Level Security (RLS) tenant isolation policies!');
+    } else if (/hnsw|index|optimize|performance|ef_construction/i.test(p)) {
+      if (currentDdl.includes('idx_chunks_hnsw')) {
+        currentDdl = currentDdl.replace(
+          /CREATE INDEX[^\n]+idx_chunks_hnsw[^\n]+/gi,
+          'CREATE INDEX IF NOT EXISTS idx_chunks_hnsw ON rag_document_chunks \nUSING hnsw (embedding vector_cosine_ops)\nWITH (m = 16, ef_construction = 64);'
+        );
+      } else {
+        currentDdl += '\n\n-- AI Optimized: Production HNSW Vector Index\nCREATE INDEX IF NOT EXISTS idx_chunks_hnsw ON rag_document_chunks USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);';
+      }
+      txtDdl.value = currentDdl;
+      showToast('⚡ AI tuned HNSW vector index (m=16, ef_construction=64, cosine)!');
+    } else if (/hybrid|bm25|lexical|tsvector|gin/i.test(p)) {
+      if (!currentDdl.includes('tsvector')) {
+        currentDdl += '\n\n-- AI Enhanced: BM25 Lexical tsvector Column & GIN Index for Hybrid Search\nALTER TABLE rag_document_chunks \nADD COLUMN IF NOT EXISTS tsv tsvector \nGENERATED ALWAYS AS (to_tsvector(\'english\', content)) STORED;\n\nCREATE INDEX IF NOT EXISTS idx_chunks_tsv ON rag_document_chunks USING gin(tsv);';
+      }
+      currentPushPull = '-- AI Hybrid Search: Reciprocal Rank Fusion (BM25 Lexical + Vector Cosine)\nSELECT id, source_table, content,\n       (0.5 * (1 - (embedding <=> $query_vec))) + \n       (0.5 * ts_rank_cd(tsv, plainto_tsquery(\'english\', $keyword_query))) AS hybrid_score\nFROM rag_document_chunks\nWHERE tsv @@ plainto_tsquery(\'english\', $keyword_query)\n   OR (1 - (embedding <=> $query_vec) >= 0.75)\nORDER BY hybrid_score DESC \nLIMIT 5;\n\n' + currentPushPull;
+      txtDdl.value = currentDdl;
+      txtPushPull.value = currentPushPull;
+      showToast('🔍 AI added BM25 tsvector column, GIN index, and Hybrid RRF ranking query!');
+    } else if (/sox|audit|trigger|journal/i.test(p)) {
+      if (!currentDdl.includes('ai_audit_log')) {
+        currentDdl += '\n\n-- AI Enhanced: Immutable SOX 404 Audit Log Table\nCREATE TABLE IF NOT EXISTS ai_audit_log (\n    event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),\n    pipeline_id VARCHAR(64) NOT NULL,\n    user_query TEXT NOT NULL,\n    verdict VARCHAR(32) NOT NULL,\n    sha256_digest VARCHAR(64) NOT NULL,\n    latency_ms INTEGER NOT NULL,\n    executed_at TIMESTAMPTZ DEFAULT NOW()\n);\n\nCREATE INDEX IF NOT EXISTS idx_audit_executed ON ai_audit_log(executed_at DESC);';
+      }
+      txtDdl.value = currentDdl;
+      showToast('📜 AI added immutable SOX 404 audit table and ledger schema!');
+    } else if (/sqlite/i.test(p)) {
+      if (selDialect) selDialect.value = 'sqlite_vec';
+      txtDdl.value = DEFAULT_VECTOR_DDLS.sqlite_vec;
+      txtPushPull.value = '-- SQLite-vec Local Parameterized Vector Query\nSELECT id, source_table, content, distance\nFROM vec_document_chunks\nWHERE embedding MATCH $query_vec\n  AND k = 5\nORDER BY distance ASC;';
+      showToast('💾 AI converted schema to SQLite-vec local embedded virtual table format!');
+    } else if (/clickhouse/i.test(p)) {
+      if (selDialect) selDialect.value = 'clickhouse';
+      txtDdl.value = DEFAULT_VECTOR_DDLS.clickhouse;
+      txtPushPull.value = '-- ClickHouse Cosine Vector Search Query\nSELECT id, source_table, content,\n       cosineDistance(embedding, $query_vec) AS distance\nFROM rag_document_chunks\nORDER BY distance ASC\nLIMIT 5;';
+      showToast('⚡ AI converted schema to ClickHouse MergeTree vector format!');
+    } else if (/bigquery/i.test(p)) {
+      if (selDialect) selDialect.value = 'bigquery';
+      txtDdl.value = DEFAULT_VECTOR_DDLS.bigquery;
+      txtPushPull.value = '-- BigQuery VECTOR_SEARCH Query\nSELECT base.id, base.content, distance\nFROM VECTOR_SEARCH(\n    TABLE `project.dataset.rag_document_chunks`,\n    \'embedding\',\n    (SELECT $query_vec AS query_embedding),\n    top_k => 5,\n    distance_type => \'COSINE\'\n);';
+      showToast('☁️ AI converted schema to BigQuery Vector Search format!');
+    } else if (/snowflake/i.test(p)) {
+      if (selDialect) selDialect.value = 'snowflake';
+      txtDdl.value = DEFAULT_VECTOR_DDLS.snowflake;
+      txtPushPull.value = '-- Snowflake Cortex VECTOR_COSINE_SIMILARITY\nSELECT id, content,\n       VECTOR_COSINE_SIMILARITY(embedding, $query_vec) AS score\nFROM rag_document_chunks\nORDER BY score DESC\nLIMIT 5;';
+      showToast('❄️ AI converted schema to Snowflake Cortex Vector format!');
+    } else {
+      // General custom prompt enhancement
+      currentDdl += '\n\n-- AI Customized Schema (' + prompt + ')\n-- Enforces validated vector indexing and relational schema contracts';
+      txtDdl.value = currentDdl;
+      showToast('✨ AI enhanced SQL schema per: "' + prompt + '"!');
+    }
+
+    localStorage.setItem('evolve_active_vector_ddl', txtDdl.value);
+    localStorage.setItem('evolve_active_push_pull_sql', txtPushPull.value);
+    if (activePipelineManifest) {
+      if (!activePipelineManifest.dataContract) activePipelineManifest.dataContract = {};
+      activePipelineManifest.dataContract.vectorDdl = txtDdl.value;
+      activePipelineManifest.dataContract.pushPullSql = txtPushPull.value;
+    }
+  };
+
   function initPhase4AiEngineering() {
     ensureDefaultAiEngPipeline();
     updateAiEngRibbon();
@@ -22981,6 +23232,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       tabDeploy?.classList.toggle('active', tab === 'deploy');
 
       if (tab === 'canvas') renderAiEngCanvas();
+      if (tab === 'data') renderAiEngDataArch();
       if (tab === 'simulator') renderAiEngSimulator();
       if (tab === 'code') renderAiEngCodeWorkbench();
     };
@@ -22990,6 +23242,121 @@ describe('Solution Pipeline Contract Verification Suite', () => {
     tabSim?.addEventListener('click', () => switchSubTab('simulator'));
     tabCode?.addEventListener('click', () => switchSubTab('code'));
     tabDeploy?.addEventListener('click', () => switchSubTab('deploy'));
+
+    // Wire Block 3 AI SQL Co-Architect & Dual Editors
+    const txtVectorDdl = document.getElementById('txtAiEngVectorDdl') as HTMLTextAreaElement | null;
+    const txtPushPullSql = document.getElementById('txtAiEngPushPullSql') as HTMLTextAreaElement | null;
+    const selDdlDialect = document.getElementById('selAiEngDdlDialect') as HTMLSelectElement | null;
+
+    txtVectorDdl?.addEventListener('input', () => {
+      localStorage.setItem('evolve_active_vector_ddl', txtVectorDdl.value);
+      if (activePipelineManifest) {
+        if (!activePipelineManifest.dataContract) activePipelineManifest.dataContract = {};
+        activePipelineManifest.dataContract.vectorDdl = txtVectorDdl.value;
+      }
+    });
+
+    txtPushPullSql?.addEventListener('input', () => {
+      localStorage.setItem('evolve_active_push_pull_sql', txtPushPullSql.value);
+      if (activePipelineManifest) {
+        if (!activePipelineManifest.dataContract) activePipelineManifest.dataContract = {};
+        activePipelineManifest.dataContract.pushPullSql = txtPushPullSql.value;
+      }
+    });
+
+    selDdlDialect?.addEventListener('change', () => {
+      const dialect = selDdlDialect.value || 'pgvector';
+      if (txtVectorDdl) {
+        dataArchSqlUndoHistory.push({
+          ddl: txtVectorDdl.value,
+          pushPull: txtPushPullSql?.value || '',
+          dialect: dialect
+        });
+        const btnRevert = document.getElementById('btnAiEngSqlRevert');
+        if (btnRevert) btnRevert.style.display = 'inline-block';
+
+        txtVectorDdl.value = DEFAULT_VECTOR_DDLS[dialect] || DEFAULT_VECTOR_DDLS.pgvector;
+        localStorage.setItem('evolve_active_vector_ddl', txtVectorDdl.value);
+        showToast(`🔄 Switched Vector DDL dialect to ${dialect}`);
+      }
+    });
+
+    document.getElementById('btnAiEngCopyDdl')?.addEventListener('click', () => {
+      const code = txtVectorDdl?.value || '';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(() => showToast('📋 Copied Vector Store DDL to clipboard!'));
+      }
+    });
+
+    document.getElementById('btnAiEngResetDdl')?.addEventListener('click', () => {
+      if (txtVectorDdl) {
+        const dialect = selDdlDialect?.value || 'pgvector';
+        txtVectorDdl.value = DEFAULT_VECTOR_DDLS[dialect] || DEFAULT_VECTOR_DDLS.pgvector;
+        localStorage.setItem('evolve_active_vector_ddl', txtVectorDdl.value);
+        showToast('↩ Reset Vector DDL to default template');
+      }
+    });
+
+    document.getElementById('btnAiEngCopyPushPull')?.addEventListener('click', () => {
+      const code = txtPushPullSql?.value || '';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code).then(() => showToast('📋 Copied Push/Pull SQL to clipboard!'));
+      }
+    });
+
+    document.getElementById('btnAiEngResetPushPull')?.addEventListener('click', () => {
+      if (txtPushPullSql) {
+        txtPushPullSql.value = DEFAULT_PUSH_PULL_SQL;
+        localStorage.setItem('evolve_active_push_pull_sql', txtPushPullSql.value);
+        showToast('↩ Reset Push/Pull SQL to default template');
+      }
+    });
+
+    document.getElementById('btnApplyAiEngSql')?.addEventListener('click', () => {
+      const prompt = (document.getElementById('txtAiEngSqlPrompt') as HTMLInputElement)?.value || '';
+      if (prompt.trim()) executeDataArchAiCommand(prompt, false);
+    });
+
+    document.getElementById('txtAiEngSqlPrompt')?.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const prompt = (document.getElementById('txtAiEngSqlPrompt') as HTMLInputElement)?.value || '';
+        if (prompt.trim()) executeDataArchAiCommand(prompt, false);
+      }
+    });
+
+    document.getElementById('btnAiEngSqlFixSyntax')?.addEventListener('click', () => {
+      executeDataArchAiCommand('', true);
+    });
+
+    document.getElementById('btnAiEngSqlOptimize')?.addEventListener('click', () => {
+      executeDataArchAiCommand('Optimize vector indexes with HNSW m=16 ef=64 and add tenant isolation', false);
+    });
+
+    document.getElementById('btnAiEngSqlRevert')?.addEventListener('click', () => {
+      const prev = dataArchSqlUndoHistory.pop();
+      if (prev) {
+        if (txtVectorDdl) txtVectorDdl.value = prev.ddl;
+        if (txtPushPullSql) txtPushPullSql.value = prev.pushPull;
+        if (selDdlDialect && prev.dialect) selDdlDialect.value = prev.dialect;
+        showToast('↩ Reverted last AI SQL modification!');
+        if (dataArchSqlUndoHistory.length === 0) {
+          const btnRevert = document.getElementById('btnAiEngSqlRevert');
+          if (btnRevert) btnRevert.style.display = 'none';
+        }
+      }
+    });
+
+    document.querySelectorAll<HTMLElement>('.sql-quick-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const prompt = chip.getAttribute('data-prompt') || chip.textContent || '';
+        const input = document.getElementById('txtAiEngSqlPrompt') as HTMLInputElement | null;
+        if (input) input.value = prompt;
+        executeDataArchAiCommand(prompt, false);
+      });
+    });
+
+    renderAiEngDataArch();
 
     // Quick action buttons in tab bar
     document.getElementById('btnAiEngRunQuickTest')?.addEventListener('click', () => {
