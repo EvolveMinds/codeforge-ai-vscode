@@ -4406,8 +4406,11 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <span id="lblAiEngModelBadge" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700;" title="Source: Section 3C Model Selection. Click to change model.">🤖 LAM (Qwen 2.5 Coder 7B)</span>
                     <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
                     <span id="lblAiEngToolsBadge" style="font-size: 10px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 2px 7px; border-radius: 4px; font-weight: 700;">🔌 3 Tools Active</span>
+                    <span style="color: var(--text-secondary); font-size: 10px;">➔</span>
+                    <span id="lblAiEngEnterpriseBadge" class="ribbon-interactive-chip" style="font-size: 10px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); padding: 2px 7px; border-radius: 4px; font-weight: 700; cursor: pointer;" title="Client Enterprise Architecture & Database. Click to view/configure client topology.">🏢 Client DB: Oracle 19c Enterprise</span>
                   </div>
                   <div style="display: flex; align-items: center; gap: 6px;">
+                    <button class="btn-quick" id="btnAiEngAbsorbClientTopology" style="font-size: 9.5px; padding: 2px 8px; margin: 0; color: #fbbf24; border-color: #fbbf24; cursor: pointer; font-weight: 700;" title="Absorb live introspected database from Phase 2 and proposed topology from Phase 3">🔄 Absorb Client Topology</button>
                     <span id="lblAiEngExecutionMode" style="font-size: 9.5px; background: rgba(255, 255, 255, 0.06); color: #cbd5e1; border: 1px solid var(--border); padding: 2px 6px; border-radius: 3px;">🧪 Dual-Mode: Mock/Live</span>
                     <button class="btn-quick" id="btnP4JumpToContract" style="font-size: 9.5px; padding: 2px 8px; margin: 0; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Jump to Phase 3 Solution Contract &amp; Architecture">🧠 View Solution Contract</button>
                   </div>
@@ -4445,6 +4448,7 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                     <button class="btn-quick" id="btnTabAiEngSimulator" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">🧪 Live In-Studio Simulator</button>
                     <button class="btn-quick" id="btnTabAiEngCode" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">💻 Code Workbench</button>
                     <button class="btn-quick" id="btnTabAiEngDataArch" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">💾 Data &amp; Vector Store</button>
+                    <button class="btn-quick" id="btnTabAiEngEnterpriseTopology" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">🏢 Client Enterprise Topology</button>
                     <button class="btn-quick" id="btnTabAiEngDeploy" style="padding: 4px 12px; font-size: 11px; font-weight: 700; margin: 0; cursor: pointer;">📦 Export, Git &amp; Cloud</button>
                   </div>
                   <div style="display: flex; gap: 6px; align-items: center;">
@@ -4948,6 +4952,280 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   </div>
                 </div>
 
+                <!-- SUB-PANEL: CLIENT ENTERPRISE TOPOLOGY & ARCHITECTURE INTEGRATION -->
+                <div id="p4AiEngEnterpriseTopologyPanel" style="display: none;">
+                  <!-- Top Provenance & Live Synchronization Banner -->
+                  <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.95) 100%); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                      <div>
+                        <div style="font-size: 13.5px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+                          <span>🏢</span> Client Enterprise Topology &amp; Architecture Integration
+                          <span style="font-size: 9.5px; font-weight: 800; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.5); padding: 2px 8px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.05em;">FDE Production Architecture</span>
+                        </div>
+                        <p style="font-size: 11px; color: #cbd5e1; margin: 4px 0 0 0; line-height: 1.45;">
+                          Define, absorb, and build on top of your client company's existing IT, database, and ERP infrastructure. Incorporates legacy systems (<strong>Oracle 19c/21c</strong>, <strong>IBM DB2 LUW/zOS</strong>, <strong>Teradata Vantage/EDW</strong>, <strong>SAP S/4HANA</strong>, <strong>SQL Server</strong>, <strong>Snowflake</strong>) from Phase 2 Introspection and Phase 3 Solution Topology directly into your AI pipeline execution.
+                        </p>
+                      </div>
+                      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn" id="btnAiEngAbsorbPanelAction" style="padding: 6px 14px; font-size: 11px; background: rgba(245,158,11,0.25); color: #fbbf24; border: 1px solid #fbbf24; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px;" title="Pulls live introspected schema from Phase 2 and proposed sequence diagram from Phase 3">
+                          <span>🔄</span> Absorb Client Topology (from Phase 2 / 3)
+                        </button>
+                        <button class="btn-quick" id="btnAiEngApplyEnterpriseToDag" style="font-size: 11px; padding: 6px 12px; color: var(--accent); border-color: var(--accent); cursor: pointer; font-weight: 700; margin: 0;">
+                          ✨ Apply to 2D Visual DAG
+                        </button>
+                      </div>
+                    </div>
+                    <!-- Provenance and Status Chips -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.08);">
+                      <span id="lblAiEngEnterpriseProvenance" style="font-size: 10px; background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: #94a3b8; padding: 2px 8px; border-radius: 4px;">
+                        📌 Provenance: Phase 2 Introspection &amp; Phase 3 Solution Contract
+                      </span>
+                      <span id="lblAiEngEnterpriseDialectStatus" style="font-size: 10px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 2px 8px; border-radius: 4px; font-weight: 700;">
+                        ● Source Dialect: Oracle 19c Enterprise (PL/SQL)
+                      </span>
+                      <span id="lblAiEngEnterpriseSecurityStatus" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-weight: 700;">
+                        🔐 Security: Oracle Wallet (cwallet.sso / Air-Gapped)
+                      </span>
+                      <span id="lblAiEngEnterpriseTargetStatus" style="font-size: 10px; background: rgba(74, 222, 128, 0.15); border: 1px solid rgba(74, 222, 128, 0.4); color: #4ade80; padding: 2px 8px; border-radius: 4px; font-weight: 700;">
+                        🎯 Target Sink: FIN_CORE.GL_RECON_AUDIT (2PC Atomic Commit)
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- The 3 Enterprise Architecture Pillars Grid -->
+                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px;">
+                    <!-- PILLAR 1: CLIENT OPERATIONAL SOURCE SYSTEM -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-size: 12px; font-weight: 700; color: #fbbf24; display: flex; align-items: center; gap: 6px;">
+                          <span>🏢</span> 1. Operational Source System
+                        </div>
+                        <span style="font-size: 9.5px; background: rgba(245,158,11,0.12); color: #fbbf24; padding: 1px 6px; border-radius: 3px; font-weight: 700;">WHERE DATA LIVES</span>
+                      </div>
+                      <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0 0 10px 0;">
+                        Sourced operational database or ERP system of record holding client core transactions.
+                      </p>
+
+                      <!-- Dialect -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Operational Database Dialect:</label>
+                        <select id="selAiEngSourceDialect" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #fbbf24; font-weight: 700;">
+                          <option value="oracle" selected>Oracle 19c / 21c Enterprise (PL/SQL, RAC, TNS)</option>
+                          <option value="db2">IBM DB2 LUW / z/OS Mainframe (SQL PL, DRDA)</option>
+                          <option value="teradata">Teradata Vantage / Enterprise Data Warehouse (EDW)</option>
+                          <option value="sap_hana">SAP S/4HANA (BAPI, RFC, Core Data Services)</option>
+                          <option value="sqlserver">Microsoft SQL Server (AlwaysOn, T-SQL)</option>
+                          <option value="postgres">PostgreSQL (AWS Aurora / Cloud SQL / Enterprise)</option>
+                          <option value="snowflake">Snowflake Data Cloud (Cortex, Streams &amp; Tasks)</option>
+                          <option value="bigquery">Google BigQuery (BigLake &amp; Analytics Hub)</option>
+                          <option value="clickhouse">ClickHouse (MergeTree Real-time Analytics)</option>
+                        </select>
+                      </div>
+
+                      <!-- Security & Credential Mode -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Security &amp; Credential Mode:</label>
+                        <select id="selAiEngSourceSecurityMode" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #fff;">
+                          <option value="oracle_wallet" selected>Oracle Wallet (cwallet.sso / Mutual TLS)</option>
+                          <option value="oracle_tns">Oracle TNS (tnsnames.ora / Dedicated Service)</option>
+                          <option value="db2_ssl_truststore">IBM DB2 SSL Truststore (.arm Certificate)</option>
+                          <option value="db2_mainframe">IBM DB2 z/OS Mainframe (DRDA Port 446 / RACF)</option>
+                          <option value="teradata_cop">Teradata COP Discovery / Teradata Wallet</option>
+                          <option value="corporate_dsn">Enterprise ODBC / JDBC DSN with Kerberos</option>
+                          <option value="ssh_bastion">Air-Gapped SSH Bastion Tunnel (Zero Public Ingress)</option>
+                          <option value="env_vault">Enterprise Vault / AWS Secrets Manager</option>
+                          <option value="standard">Standard Encrypted Connection String</option>
+                        </select>
+                      </div>
+
+                      <!-- Connection URI / Identifier -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Connection URI / TNS Name / Host:</label>
+                        <input type="text" id="txtAiEngSourceUri" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #fff;" value="FIN_PROD_RAC.corp.internal:1521/FINANCE_SRV" placeholder="e.g. host:port/service or tns_alias" />
+                      </div>
+
+                      <!-- Database & Schema -->
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                        <div>
+                          <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px;">Database / SID:</label>
+                          <input type="text" id="txtAiEngSourceDb" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #fff;" value="FINANCE_PROD" />
+                        </div>
+                        <div>
+                          <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px;">Schema / Owner:</label>
+                          <input type="text" id="txtAiEngSourceSchema" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #fff;" value="FIN_CORE" />
+                        </div>
+                      </div>
+
+                      <!-- Sourced Operational Tables -->
+                      <div style="margin-bottom: 10px; flex: 1;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                          <label style="font-size: 10px; color: var(--text-secondary); font-weight: 700;">Sourced Tables (Introspected):</label>
+                          <span id="lblAiEngSourceTablesCount" style="font-size: 9px; color: var(--accent);">3 selected</span>
+                        </div>
+                        <input type="text" id="txtAiEngSourceTables" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #38bdf8; margin-bottom: 6px;" value="GL_BALANCES, VENDOR_INVOICES, PURCHASE_ORDERS" />
+                        <!-- Quick Add Enterprise Table Chips -->
+                        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                          <button class="btn-quick ent-table-chip" data-tbl="GL_BALANCES" style="font-size: 9px; padding: 1px 5px; margin: 0; cursor: pointer;">+ GL_BALANCES</button>
+                          <button class="btn-quick ent-table-chip" data-tbl="VENDOR_INVOICES" style="font-size: 9px; padding: 1px 5px; margin: 0; cursor: pointer;">+ VENDOR_INVOICES</button>
+                          <button class="btn-quick ent-table-chip" data-tbl="POLICY_CLAIMS" style="font-size: 9px; padding: 1px 5px; margin: 0; cursor: pointer;">+ POLICY_CLAIMS</button>
+                          <button class="btn-quick ent-table-chip" data-tbl="CUSTOMER_360" style="font-size: 9px; padding: 1px 5px; margin: 0; cursor: pointer;">+ CUSTOMER_360</button>
+                        </div>
+                      </div>
+
+                      <!-- Ingestion Pattern -->
+                      <div>
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Extraction &amp; Ingestion Mode:</label>
+                        <select id="selAiEngSourceIngestMode" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 10.5px; color: #fff;">
+                          <option value="cdc_streaming" selected>Real-time CDC (GoldenGate / Debezium Log Reader)</option>
+                          <option value="batch_sql_watermark">Incremental Watermark SQL (WHERE updated_at &gt; :watermark)</option>
+                          <option value="event_message_queue">Message Broker Consumer (Apache Kafka / IBM MQ)</option>
+                          <option value="direct_tool_query">Direct Read-Through Tool (Parameterized Agent Queries)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- PILLAR 2: EMBEDDED AI & IN-COMPANY DEPLOYMENT -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-size: 12px; font-weight: 700; color: #c084fc; display: flex; align-items: center; gap: 6px;">
+                          <span>🤖</span> 2. In-Company AI Embedding
+                        </div>
+                        <span style="font-size: 9.5px; background: rgba(168,85,247,0.12); color: #c084fc; padding: 1px 6px; border-radius: 3px; font-weight: 700;">HOW AI FITS IN</span>
+                      </div>
+                      <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0 0 10px 0;">
+                        Architectural integration pattern embedding AI models directly within company boundaries.
+                      </p>
+
+                      <!-- Embedding Pattern -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Enterprise Embedding Pattern:</label>
+                        <select id="selAiEngEmbeddingPattern" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #c084fc; font-weight: 700;">
+                          <option value="sidecar_microservice" selected>Pattern A: Sidecar Agent Microservice (Private gRPC / REST)</option>
+                          <option value="in_db_stored_procedure">Pattern B: In-Database Stored Proc (PL/SQL &amp; UDF Wrapper)</option>
+                          <option value="stream_event_processor">Pattern C: Stream Event Processor (Kafka Consumer / Producer)</option>
+                          <option value="air_gapped_appliance">Pattern D: Zero-Egress Air-Gapped Appliance (Local Weights)</option>
+                        </select>
+                      </div>
+
+                      <!-- Execution Environment -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Execution Hardware / Host:</label>
+                        <select id="selAiEngExecutionEnv" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #fff;">
+                          <option value="on_prem_gpu" selected>On-Prem Air-Gapped GPU Cluster (NVIDIA H100 / A100 TensorRT)</option>
+                          <option value="private_cloud_vpc">Private Cloud VPC (AWS PrivateLink / Azure Private Link / GCP PSC)</option>
+                          <option value="hybrid_bastion">Hybrid Enterprise Bastion Host with Secure Enclave</option>
+                        </select>
+                      </div>
+
+                      <!-- Isolation & Network -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Network Isolation &amp; Security:</label>
+                        <select id="selAiEngIsolationMode" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #fff;">
+                          <option value="air_gapped_zero_egress" selected>100% Air-Gapped (Zero Public Internet Egress, Local Model Weights)</option>
+                          <option value="private_service_connect">Private VPC Peering / Service Connect (RFC 1918 Private IPs)</option>
+                          <option value="mutual_tls">Mutual TLS (mTLS) with Corporate Internal Root CA</option>
+                        </select>
+                      </div>
+
+                      <!-- Statutory Compliance -->
+                      <div style="margin-bottom: 10px; flex: 1;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Statutory Compliance Profile:</label>
+                        <select id="selAiEngComplianceProfile" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #fff;">
+                          <option value="sox_404" selected>SOX 404 (Financial Internal Controls &amp; Immutable Audit Trail)</option>
+                          <option value="hipaa">HIPAA / HITECH (Protected Health Information De-Identification)</option>
+                          <option value="basel_iii">Basel III (Banking Risk Capital, Stress Testing &amp; Governance)</option>
+                          <option value="gdpr">GDPR / CCPA (Data Privacy, Pseudonymization &amp; Eradication)</option>
+                        </select>
+                      </div>
+
+                      <!-- Dynamic Architecture Rationale -->
+                      <div id="boxAiEngEmbeddingRationale" style="background: #0a0a0a; border: 1px solid rgba(168,85,247,0.25); border-radius: 4px; padding: 8px; font-size: 10px; color: #cbd5e1; line-height: 1.4;">
+                        💡 <strong>Sidecar Microservice:</strong> Deploys containerized agent adjacent to Oracle RAC nodes. Operates over high-speed loopback / private subnet with sub-millisecond network latency and zero public attack surface.
+                      </div>
+                    </div>
+
+                    <!-- PILLAR 3: TARGET ENTERPRISE WRITE-BACK & ACTIONS -->
+                    <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; flex-direction: column;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-size: 12px; font-weight: 700; color: #4ade80; display: flex; align-items: center; gap: 6px;">
+                          <span>🎯</span> 3. Target Write-Back &amp; Actions
+                        </div>
+                        <span style="font-size: 9.5px; background: rgba(74,222,128,0.12); color: #4ade80; padding: 1px 6px; border-radius: 3px; font-weight: 700;">WHERE AI WRITES TO</span>
+                      </div>
+                      <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0 0 10px 0;">
+                        Target enterprise systems where AI conclusions, classifications, and approved actions are committed.
+                      </p>
+
+                      <!-- Target Sink Type -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Target Write-Back Sink:</label>
+                        <select id="selAiEngTargetSinkType" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #4ade80; font-weight: 700;">
+                          <option value="operational_db_table" selected>Operational Database Table Write-Back (Oracle / DB2 / Teradata)</option>
+                          <option value="erp_bapi_webhook">ERP Integration / SAP BAPI Webhook (RFC execution)</option>
+                          <option value="kafka_event_broker">Enterprise Message Broker (Kafka topic: enterprise.ai.events)</option>
+                          <option value="compliance_audit_ledger">Immutable Compliance Audit Ledger (Strict SOX 404)</option>
+                        </select>
+                      </div>
+
+                      <!-- Target Table / Sink Name -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Target Table / Sink Name:</label>
+                        <input type="text" id="txtAiEngTargetTable" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #4ade80; font-weight: 700;" value="FIN_CORE.GL_RECON_AUDIT" placeholder="e.g. SCHEMA.TABLE or topic_name" />
+                      </div>
+
+                      <!-- Write-Back Transaction Policy -->
+                      <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Write-Back Transaction Policy:</label>
+                        <select id="selAiEngTargetWriteBackMode" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 11px; color: #fff;">
+                          <option value="two_phase_commit" selected>Two-Phase Commit (2PC) / Atomic Transaction (Rollback on failure)</option>
+                          <option value="guardrail_gated_upsert">Guardrail-Gated Upsert (Abort if hallucination &gt; 0% or conf &lt; 95%)</option>
+                          <option value="hitl_approval_queue">Human-in-the-Loop Review Queue (Variance &gt; $100 routes to human)</option>
+                        </select>
+                      </div>
+
+                      <!-- Audit Ledger Table -->
+                      <div style="margin-bottom: 10px; flex: 1;">
+                        <label style="display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 3px; font-weight: 700;">Immutable SOX 404 Audit Table:</label>
+                        <input type="text" id="txtAiEngTargetAuditLedger" style="width: 100%; box-sizing: border-box; background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-family: monospace; font-size: 10.5px; color: #fbbf24;" value="FIN_CORE.AI_SOX_AUDIT_LOG" />
+                        <div style="font-size: 9px; color: var(--text-secondary); margin-top: 3px;">
+                          Writes cryptographic SHA-256 payload receipt on every execution.
+                        </div>
+                      </div>
+
+                      <!-- Dry Run Action Button -->
+                      <button class="btn-quick" id="btnAiEngTestWriteBack" style="width: 100%; font-size: 10.5px; padding: 5px 8px; margin: 0; cursor: pointer; color: #4ade80; border-color: #4ade80; font-weight: 700;">
+                        🧪 Test Dry-Run Write-Back &amp; Guardrail Check
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Visual Architecture Flow Diagram -->
+                  <div style="background: #090d16; border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <div style="font-size: 11.5px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                        <span>🗺️</span> End-to-End Enterprise Data &amp; Process Flow
+                      </div>
+                      <span style="font-size: 9.5px; color: var(--text-secondary);">Bridging Client Existing IT ➔ Ingest ➔ Embedded AI ➔ Target Write-Back</span>
+                    </div>
+                    <div id="boxAiEngEnterpriseVisualFlow" style="background: #0a0a0a; border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 14px; font-family: 'Consolas', 'Fira Code', monospace; font-size: 11px; color: #cbd5e1; overflow-x: auto; white-space: pre; line-height: 1.5;"></div>
+                  </div>
+
+                  <!-- Footer Actions -->
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;">
+                    <div style="font-size: 11px; color: var(--text-secondary);">
+                      ⚡ Configuration is persisted in the Enterprise Architecture Contract and passed forward to <strong>Phase 5 (Reliability &amp; Evals)</strong> and <strong>Phase 6 (Deployment)</strong>.
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="btn-quick" id="btnAiEngJumpToConnectorCode" style="font-size: 11px; padding: 4px 12px; margin: 0; cursor: pointer; color: #fbbf24; border-color: #fbbf24; font-weight: 700;">
+                        💻 View enterpriseConnector.ts
+                      </button>
+                      <button class="btn" id="btnAiEngSaveEnterpriseContract" style="font-size: 11px; padding: 6px 16px; background: var(--accent); color: #1e1e1e; font-weight: 800; cursor: pointer;">
+                        💾 Save &amp; Sync Enterprise Topology
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- SUB-PANEL 2: IN-STUDIO LIVE SIMULATOR -->
                 <div id="p4AiEngSimulatorPanel" style="display: none;">
                   <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
@@ -4985,6 +5263,8 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                         <button class="btn-quick btn-ai-eng-codetab" data-file="agent" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">agent.ts</button>
                         <button class="btn-quick btn-ai-eng-codetab" data-file="ragStore" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">ragStore.ts</button>
                         <button class="btn-quick btn-ai-eng-codetab" data-file="tools" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">tools.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="enterpriseConnector" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer; color: #fbbf24;" title="Client Enterprise Database Connector (Oracle, DB2, Teradata, SAP, etc.)">🏢 enterpriseConnector.ts</button>
+                        <button class="btn-quick btn-ai-eng-codetab" data-file="targetWriteBack" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer; color: #4ade80;" title="Target Operational System Write-Back & SOX Audit Executor">🎯 targetWriteBack.ts</button>
                         <button class="btn-quick btn-ai-eng-codetab" data-file="customHooks" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">customHooks.ts</button>
                         <button class="btn-quick btn-ai-eng-codetab" data-file="test" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">pipeline.test.ts</button>
                         <button class="btn-quick btn-ai-eng-codetab" data-file="docker" style="font-size: 10.5px; padding: 3px 8px; margin: 0; cursor: pointer;">Dockerfile</button>

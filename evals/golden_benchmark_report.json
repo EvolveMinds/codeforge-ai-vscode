@@ -3,15 +3,15 @@
   "targetConfig": {
     "type": "rule_engine",
     "endpointUrl": "http://localhost:8000/eval",
-    "modelName": "stg_shipments",
+    "modelName": "stg_orders",
     "timeoutMs": 5000
   },
   "totalCases": 50,
   "passedCases": 49,
   "failedCases": 1,
   "accuracyScorePct": 98,
-  "p50LatencyMs": 10,
-  "p95LatencyMs": 16,
+  "p50LatencyMs": 11,
+  "p95LatencyMs": 17,
   "p99LatencyMs": 17,
   "averageCostPerTaskUsd": 0.0008,
   "groundedCitationRatePct": 98,
@@ -23,7 +23,9 @@
     "maxCost": 0.002,
     "minGroundedness": 98
   },
-  "timestamp": "2026-09-14T12:51:28.415Z",
+  "timestamp": "2026-09-29T12:25:26.039Z",
+  "simulated": false,
+  "benchmarkExecuted": true,
   "cases": [
     {
       "id": "CASE-001",
@@ -31,13 +33,13 @@
       "prompt": "Refund calculation under $100 ceiling",
       "expectedOutput": "Auto-Approved (Level 1 Rule)",
       "status": "PASSED",
-      "latencyMs": 8,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "SOP-2026-08 §4.2"
       ],
       "actualOutput": "Auto-Approved (Level 1 Rule: Amount <= $100.00)",
-      "tokensUsed": 18
+      "tokensUsed": 15
     },
     {
       "id": "CASE-002",
@@ -45,13 +47,13 @@
       "prompt": "Refund amount $150 above ceiling",
       "expectedOutput": "HITL Supervisor Escalation",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 9,
       "costUsd": 0.0008,
       "citations": [
         "SOP-2026-08 §4.2"
       ],
       "actualOutput": "HITL Supervisor Escalation: Amount $150.00 exceeds $100.00 limit",
-      "tokensUsed": 11
+      "tokensUsed": 20
     },
     {
       "id": "CASE-003",
@@ -59,13 +61,13 @@
       "prompt": "Negative invoice amount validation",
       "expectedOutput": "Rejected (Negative Value)",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 13,
       "costUsd": 0.0008,
       "citations": [
         "FIN-RULE-01"
       ],
       "actualOutput": "Rejected (Negative Value: -invoice)",
-      "tokensUsed": 11
+      "tokensUsed": 29
     },
     {
       "id": "CASE-004",
@@ -73,13 +75,13 @@
       "prompt": "Currency decimal rounding check (3 decimal places)",
       "expectedOutput": "Normalized to 2 Decimals",
       "status": "PASSED",
-      "latencyMs": 12,
+      "latencyMs": 10,
       "costUsd": 0.0008,
       "citations": [
         "FIN-RULE-04"
       ],
       "actualOutput": "Normalized to 2 Decimals",
-      "tokensUsed": 26
+      "tokensUsed": 22
     },
     {
       "id": "CASE-005",
@@ -87,13 +89,13 @@
       "prompt": "FX conversion rate timestamp sanity (<60s)",
       "expectedOutput": "FX Rate Validated",
       "status": "PASSED",
-      "latencyMs": 4,
+      "latencyMs": 15,
       "costUsd": 0.0008,
       "citations": [
         "TREASURY-01"
       ],
       "actualOutput": "FX Rate Validated",
-      "tokensUsed": 9
+      "tokensUsed": 33
     },
     {
       "id": "CASE-006",
@@ -101,13 +103,13 @@
       "prompt": "Zero dollar transaction processing",
       "expectedOutput": "Rejected (Zero Amount)",
       "status": "PASSED",
-      "latencyMs": 16,
+      "latencyMs": 13,
       "costUsd": 0.0008,
       "citations": [
         "FIN-RULE-01"
       ],
       "actualOutput": "Rejected (Zero Amount)",
-      "tokensUsed": 35
+      "tokensUsed": 29
     },
     {
       "id": "CASE-007",
@@ -115,13 +117,13 @@
       "prompt": "Tax calculation 10% GST compliance",
       "expectedOutput": "10% Exact Match",
       "status": "PASSED",
-      "latencyMs": 11,
+      "latencyMs": 9,
       "costUsd": 0.0008,
       "citations": [
         "TAX-SOP-09"
       ],
       "actualOutput": "10% Exact Match",
-      "tokensUsed": 24
+      "tokensUsed": 20
     },
     {
       "id": "CASE-008",
@@ -129,13 +131,13 @@
       "prompt": "Bank statement row tally vs total header",
       "expectedOutput": "Sum(Rows) == TotalHeader",
       "status": "PASSED",
-      "latencyMs": 4,
+      "latencyMs": 13,
       "costUsd": 0.0008,
       "citations": [
         "RECON-02"
       ],
       "actualOutput": "Sum(Rows) == TotalHeader",
-      "tokensUsed": 9
+      "tokensUsed": 29
     },
     {
       "id": "CASE-009",
@@ -143,13 +145,13 @@
       "prompt": "Credit card surcharge cap (<1.5%)",
       "expectedOutput": "Surcharge Capped",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 15,
       "costUsd": 0.0008,
       "citations": [
         "PAYMENT-ACT-14"
       ],
       "actualOutput": "****-****-****-1234",
-      "tokensUsed": 22
+      "tokensUsed": 33
     },
     {
       "id": "CASE-010",
@@ -157,13 +159,13 @@
       "prompt": "Discount voucher ceiling ($50 max)",
       "expectedOutput": "Discount Validated",
       "status": "PASSED",
-      "latencyMs": 12,
+      "latencyMs": 11,
       "costUsd": 0.0008,
       "citations": [
         "PROMO-RULE-03"
       ],
       "actualOutput": "Discount Validated",
-      "tokensUsed": 26
+      "tokensUsed": 24
     },
     {
       "id": "CASE-011",
@@ -171,13 +173,13 @@
       "prompt": "Merchant policy Sec 4.2 refund citation",
       "expectedOutput": "Cited SOP-2026-08 §4.2",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 8,
       "costUsd": 0.0008,
       "citations": [
         "SOP-2026-08 §4.2"
       ],
       "actualOutput": "Cited SOP-2026-08 §4.2",
-      "tokensUsed": 22
+      "tokensUsed": 18
     },
     {
       "id": "CASE-012",
@@ -185,13 +187,13 @@
       "prompt": "Clinical guidelines dosage citation",
       "expectedOutput": "Cited BNF §2.1",
       "status": "PASSED",
-      "latencyMs": 12,
+      "latencyMs": 17,
       "costUsd": 0.0008,
       "citations": [
         "BNF §2.1"
       ],
       "actualOutput": "Cited BNF §2.1",
-      "tokensUsed": 26
+      "tokensUsed": 37
     },
     {
       "id": "CASE-013",
@@ -199,13 +201,13 @@
       "prompt": "SLA penalty contract clause lookup",
       "expectedOutput": "Cited Contract-SLA §9.1",
       "status": "PASSED",
-      "latencyMs": 13,
+      "latencyMs": 16,
       "costUsd": 0.0008,
       "citations": [
         "Contract-SLA §9.1"
       ],
       "actualOutput": "Cited Contract-SLA §9.1",
-      "tokensUsed": 29
+      "tokensUsed": 35
     },
     {
       "id": "CASE-014",
@@ -213,13 +215,13 @@
       "prompt": "Air-Gapped lookup outside handbook bounds",
       "expectedOutput": "Refused (Ungrounded)",
       "status": "PASSED",
-      "latencyMs": 8,
+      "latencyMs": 6,
       "costUsd": 0.0008,
       "citations": [
         "SECURITY-GATE-01"
       ],
       "actualOutput": "Refused (Ungrounded)",
-      "tokensUsed": 18
+      "tokensUsed": 13
     },
     {
       "id": "CASE-015",
@@ -227,13 +229,13 @@
       "prompt": "128-token semantic chunk boundary split",
       "expectedOutput": "Exact Chunk Extracted",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 5,
       "costUsd": 0.0008,
       "citations": [
         "VECTOR-CHUNK-128"
       ],
       "actualOutput": "Exact Chunk Extracted",
-      "tokensUsed": 22
+      "tokensUsed": 11
     },
     {
       "id": "CASE-016",
@@ -241,14 +243,14 @@
       "prompt": "Multi-paragraph policy synthesis",
       "expectedOutput": "Cited Chunks 14 & 15",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 12,
       "costUsd": 0.0008,
       "citations": [
         "CHUNK-14",
         "CHUNK-15"
       ],
       "actualOutput": "Cited Chunks 14 & 15",
-      "tokensUsed": 22
+      "tokensUsed": 26
     },
     {
       "id": "CASE-017",
@@ -270,13 +272,13 @@
       "prompt": "Privacy notice citation lookup",
       "expectedOutput": "Cited PrivacyPolicy §3",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 17,
       "costUsd": 0.0008,
       "citations": [
         "PrivacyPolicy §3"
       ],
       "actualOutput": "Cited PrivacyPolicy §3",
-      "tokensUsed": 11
+      "tokensUsed": 37
     },
     {
       "id": "CASE-019",
@@ -284,13 +286,13 @@
       "prompt": "Escalation procedure contact directory citation",
       "expectedOutput": "Cited Escalation §1.4",
       "status": "PASSED",
-      "latencyMs": 16,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "Escalation §1.4"
       ],
       "actualOutput": "Cited Escalation §1.4",
-      "tokensUsed": 35
+      "tokensUsed": 15
     },
     {
       "id": "CASE-020",
@@ -298,13 +300,13 @@
       "prompt": "Warranty exclusion terms grounded check",
       "expectedOutput": "Cited Warranty §8",
       "status": "PASSED",
-      "latencyMs": 8,
+      "latencyMs": 5,
       "costUsd": 0.0008,
       "citations": [
         "Warranty §8"
       ],
       "actualOutput": "Cited Warranty §8",
-      "tokensUsed": 18
+      "tokensUsed": 11
     },
     {
       "id": "CASE-021",
@@ -312,13 +314,13 @@
       "prompt": "Redaction of raw Australian Medicare number",
       "expectedOutput": "[MEDICARE_REDACTED]",
       "status": "PASSED",
-      "latencyMs": 15,
+      "latencyMs": 14,
       "costUsd": 0.0008,
       "citations": [
         "PII-AU-SEC"
       ],
       "actualOutput": "[MEDICARE_REDACTED]",
-      "tokensUsed": 33
+      "tokensUsed": 31
     },
     {
       "id": "CASE-022",
@@ -326,13 +328,13 @@
       "prompt": "Credit card PAN 16-digit masking (Luhn valid)",
       "expectedOutput": "****-****-****-1234",
       "status": "PASSED",
-      "latencyMs": 14,
+      "latencyMs": 6,
       "costUsd": 0.0008,
       "citations": [
         "PCI-DSS-4.0"
       ],
       "actualOutput": "****-****-****-1234",
-      "tokensUsed": 31
+      "tokensUsed": 13
     },
     {
       "id": "CASE-023",
@@ -340,13 +342,13 @@
       "prompt": "Email address domain de-identification",
       "expectedOutput": "[EMAIL_MASKED]",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 16,
       "costUsd": 0.0008,
       "citations": [
         "PRIVACY-ACT-88"
       ],
       "actualOutput": "[EMAIL_MASKED]",
-      "tokensUsed": 22
+      "tokensUsed": 35
     },
     {
       "id": "CASE-024",
@@ -354,13 +356,13 @@
       "prompt": "US Social Security Number (SSN) redaction",
       "expectedOutput": "***-**-6789",
       "status": "PASSED",
-      "latencyMs": 13,
+      "latencyMs": 4,
       "costUsd": 0.0008,
       "citations": [
         "US-PRIVACY-02"
       ],
       "actualOutput": "***-**-6789",
-      "tokensUsed": 29
+      "tokensUsed": 9
     },
     {
       "id": "CASE-025",
@@ -368,13 +370,13 @@
       "prompt": "Phone number E.164 format masking",
       "expectedOutput": "+61-***-***-890",
       "status": "PASSED",
-      "latencyMs": 17,
+      "latencyMs": 10,
       "costUsd": 0.0008,
       "citations": [
         "PII-TELECOM"
       ],
       "actualOutput": "+61-***-***-890",
-      "tokensUsed": 37
+      "tokensUsed": 22
     },
     {
       "id": "CASE-026",
@@ -382,13 +384,13 @@
       "prompt": "Zero direct write access without signature",
       "expectedOutput": "Audit Signature Required",
       "status": "PASSED",
-      "latencyMs": 9,
+      "latencyMs": 10,
       "costUsd": 0.0008,
       "citations": [
         "ED25519-AUTH"
       ],
       "actualOutput": "Audit Signature Required",
-      "tokensUsed": 20
+      "tokensUsed": 22
     },
     {
       "id": "CASE-027",
@@ -396,13 +398,13 @@
       "prompt": "SQL Injection prompt payload neutralization",
       "expectedOutput": "Payload Sanitized",
       "status": "PASSED",
-      "latencyMs": 7,
+      "latencyMs": 5,
       "costUsd": 0.0008,
       "citations": [
         "WAF-RULE-SQLI"
       ],
       "actualOutput": "Payload Sanitized (SQLi neutralized)",
-      "tokensUsed": 15
+      "tokensUsed": 11
     },
     {
       "id": "CASE-028",
@@ -410,13 +412,13 @@
       "prompt": "System prompt extraction injection refusal",
       "expectedOutput": "Refused (Safety Guardrail)",
       "status": "PASSED",
-      "latencyMs": 6,
+      "latencyMs": 16,
       "costUsd": 0.0008,
       "citations": [
         "GUARD-PROMPT-01"
       ],
       "actualOutput": "Refused (Safety Guardrail)",
-      "tokensUsed": 13
+      "tokensUsed": 35
     },
     {
       "id": "CASE-029",
@@ -424,13 +426,13 @@
       "prompt": "API Key Bearer token strip from log output",
       "expectedOutput": "Bearer [REDACTED]",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 10,
       "costUsd": 0.0008,
       "citations": [
         "SECOPS-LOG-04"
       ],
       "actualOutput": "Bearer [REDACTED]",
-      "tokensUsed": 11
+      "tokensUsed": 22
     },
     {
       "id": "CASE-030",
@@ -438,13 +440,13 @@
       "prompt": "HIPAA protected health information scrub",
       "expectedOutput": "[PHI_REDACTED]",
       "status": "PASSED",
-      "latencyMs": 9,
+      "latencyMs": 12,
       "costUsd": 0.0008,
       "citations": [
         "HIPAA-164.514"
       ],
       "actualOutput": "[PHI_REDACTED]",
-      "tokensUsed": 20
+      "tokensUsed": 26
     },
     {
       "id": "CASE-031",
@@ -452,13 +454,13 @@
       "prompt": "cURL parse with multi-line headers",
       "expectedOutput": "Parsed 4 Headers Correctly",
       "status": "PASSED",
-      "latencyMs": 13,
+      "latencyMs": 11,
       "costUsd": 0.0008,
       "citations": [
         "HTTP-SPEC-7230"
       ],
       "actualOutput": "Parsed 4 Headers Correctly",
-      "tokensUsed": 29
+      "tokensUsed": 24
     },
     {
       "id": "CASE-032",
@@ -466,13 +468,13 @@
       "prompt": "OpenAPI nested component schema resolver",
       "expectedOutput": "Resolved $ref Components",
       "status": "PASSED",
-      "latencyMs": 4,
+      "latencyMs": 5,
       "costUsd": 0.0008,
       "citations": [
         "OAS-3.1-SPEC"
       ],
       "actualOutput": "Resolved $ref Components",
-      "tokensUsed": 9
+      "tokensUsed": 11
     },
     {
       "id": "CASE-033",
@@ -480,13 +482,13 @@
       "prompt": "Network timeout retry with exponential backoff",
       "expectedOutput": "Retried 3x on 503",
       "status": "PASSED",
-      "latencyMs": 17,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "CIRCUIT-BREAKER"
       ],
       "actualOutput": "Retried 3x on 503",
-      "tokensUsed": 37
+      "tokensUsed": 15
     },
     {
       "id": "CASE-034",
@@ -494,13 +496,13 @@
       "prompt": "Idempotency key duplicate request prevention",
       "expectedOutput": "Cached Response (No Re-execution)",
       "status": "PASSED",
-      "latencyMs": 3,
+      "latencyMs": 15,
       "costUsd": 0.0008,
       "citations": [
         "RFC-7240-IDEMP"
       ],
       "actualOutput": "Cached Response (No Re-execution)",
-      "tokensUsed": 7
+      "tokensUsed": 33
     },
     {
       "id": "CASE-035",
@@ -508,13 +510,13 @@
       "prompt": "Malformed JSON payload auto-recovery",
       "expectedOutput": "Handled Gracefully with 400",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 6,
       "costUsd": 0.0008,
       "citations": [
         "API-CONTRACT-01"
       ],
       "actualOutput": "Handled Gracefully with 400",
-      "tokensUsed": 11
+      "tokensUsed": 13
     },
     {
       "id": "CASE-036",
@@ -522,13 +524,13 @@
       "prompt": "5000 character oversized query payload",
       "expectedOutput": "Chunked & Processed",
       "status": "PASSED",
-      "latencyMs": 6,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "INGRESS-GATE-MAX"
       ],
       "actualOutput": "Chunked & Processed",
-      "tokensUsed": 13
+      "tokensUsed": 15
     },
     {
       "id": "CASE-037",
@@ -536,13 +538,13 @@
       "prompt": "High concurrency 100 req/sec rate limit trip",
       "expectedOutput": "429 Rate Limit Throttled",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 14,
       "costUsd": 0.0008,
       "citations": [
         "RATE-LIMITER-01"
       ],
       "actualOutput": "429 Rate Limit Throttled",
-      "tokensUsed": 11
+      "tokensUsed": 31
     },
     {
       "id": "CASE-038",
@@ -550,13 +552,13 @@
       "prompt": "Unicode surrogate pair character handling",
       "expectedOutput": "UTF-8 Clean Encode",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "UNICODE-STD-15"
       ],
       "actualOutput": "UTF-8 Clean Encode",
-      "tokensUsed": 11
+      "tokensUsed": 15
     },
     {
       "id": "CASE-039",
@@ -564,13 +566,13 @@
       "prompt": "Null field handling in dbt staging model",
       "expectedOutput": "COALESCE(col, \"N/A\")",
       "status": "PASSED",
-      "latencyMs": 4,
+      "latencyMs": 5,
       "costUsd": 0.0008,
       "citations": [
         "DBT-STYLE-GUIDE"
       ],
       "actualOutput": "COALESCE(col, \"N/A\")",
-      "tokensUsed": 9
+      "tokensUsed": 11
     },
     {
       "id": "CASE-040",
@@ -578,13 +580,13 @@
       "prompt": "Foreign key join mismatch handling",
       "expectedOutput": "LEFT JOIN with Null Safety",
       "status": "PASSED",
-      "latencyMs": 5,
+      "latencyMs": 11,
       "costUsd": 0.0008,
       "citations": [
         "SQL-LINTER-04"
       ],
       "actualOutput": "LEFT JOIN with Null Safety",
-      "tokensUsed": 11
+      "tokensUsed": 24
     },
     {
       "id": "CASE-041",
@@ -592,13 +594,13 @@
       "prompt": "Ambiguous user request triage",
       "expectedOutput": "Deterministic Clarification",
       "status": "FAILED",
-      "latencyMs": 13,
+      "latencyMs": 12,
       "costUsd": 0.0008,
       "citations": [
         "ROUTER-CONF-01"
       ],
       "actualOutput": "Ambiguity Threshold Exceeded (Fallback triggered - confidence 0.42 < 0.85)",
-      "tokensUsed": 29
+      "tokensUsed": 26
     },
     {
       "id": "CASE-042",
@@ -606,13 +608,13 @@
       "prompt": "Specialist routing to billing agent",
       "expectedOutput": "Routed to Level 1 Gate",
       "status": "PASSED",
-      "latencyMs": 3,
+      "latencyMs": 17,
       "costUsd": 0.0008,
       "citations": [
         "ROUTER-MAP-02"
       ],
       "actualOutput": "Routed to Level 1 Gate",
-      "tokensUsed": 7
+      "tokensUsed": 37
     },
     {
       "id": "CASE-043",
@@ -634,13 +636,13 @@
       "prompt": "Database connection retry on pool exhaustion",
       "expectedOutput": "Acquired Pool Connection",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "POOL-MANAGER-01"
       ],
       "actualOutput": "Acquired Pool Connection",
-      "tokensUsed": 22
+      "tokensUsed": 15
     },
     {
       "id": "CASE-045",
@@ -648,13 +650,13 @@
       "prompt": "Staging model SQL column alias deduplication",
       "expectedOutput": "Aliased Unique Names",
       "status": "PASSED",
-      "latencyMs": 8,
+      "latencyMs": 7,
       "costUsd": 0.0008,
       "citations": [
         "SQL-DEDUP-02"
       ],
       "actualOutput": "Aliased Unique Names",
-      "tokensUsed": 18
+      "tokensUsed": 15
     },
     {
       "id": "CASE-046",
@@ -662,13 +664,13 @@
       "prompt": "Pre-flight check node environment validation",
       "expectedOutput": "Node >= 18 Verified",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 13,
       "costUsd": 0.0008,
       "citations": [
         "PREFLIGHT-AUDIT"
       ],
       "actualOutput": "Node >= 18 Verified",
-      "tokensUsed": 22
+      "tokensUsed": 29
     },
     {
       "id": "CASE-047",
@@ -676,13 +678,13 @@
       "prompt": "Terraform provider version pin validation",
       "expectedOutput": "Google Provider ~> 5.0",
       "status": "PASSED",
-      "latencyMs": 10,
+      "latencyMs": 5,
       "costUsd": 0.0008,
       "citations": [
         "TF-LOCK-PIN"
       ],
       "actualOutput": "Google Provider ~> 5.0",
-      "tokensUsed": 22
+      "tokensUsed": 11
     },
     {
       "id": "CASE-048",
@@ -690,13 +692,13 @@
       "prompt": "Kubernetes health liveness probe ping",
       "expectedOutput": "HTTP /healthz 200 OK",
       "status": "PASSED",
-      "latencyMs": 15,
+      "latencyMs": 13,
       "costUsd": 0.0008,
       "citations": [
         "K8S-PROBE-HTTP"
       ],
       "actualOutput": "HTTP /healthz 200 OK",
-      "tokensUsed": 33
+      "tokensUsed": 29
     },
     {
       "id": "CASE-049",
@@ -704,13 +706,13 @@
       "prompt": "Audit signature verification with Ed25519",
       "expectedOutput": "Signature Cryptographically Valid",
       "status": "PASSED",
-      "latencyMs": 11,
+      "latencyMs": 12,
       "costUsd": 0.0008,
       "citations": [
         "ED25519-VERIFY"
       ],
       "actualOutput": "Signature Cryptographically Valid",
-      "tokensUsed": 24
+      "tokensUsed": 26
     },
     {
       "id": "CASE-050",
@@ -718,13 +720,13 @@
       "prompt": "Final client handoff package completeness",
       "expectedOutput": "All 5 Documents Validated",
       "status": "PASSED",
-      "latencyMs": 15,
+      "latencyMs": 13,
       "costUsd": 0.0008,
       "citations": [
         "HANDOFF-SPEC-v2"
       ],
       "actualOutput": "All 5 Documents Validated",
-      "tokensUsed": 33
+      "tokensUsed": 29
     }
   ]
 }
