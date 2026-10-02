@@ -176,7 +176,8 @@ export const DESKTOP_CHANNELS = {
     TEST_TARGET_CONNECTION: 'evolve:fde:test-target-connection',
     LOG_HITL_ACTION: 'evolve:fde:log-hitl-action',
     GET_HITL_LOG: 'evolve:fde:get-hitl-log',
-    CLEAR_HITL_LOG: 'evolve:fde:clear-hitl-log'
+    CLEAR_HITL_LOG: 'evolve:fde:clear-hitl-log',
+    CHAT_HELP_GUIDE: 'evolve:fde:chat-help-guide'
   },
 
   SYSTEM: {

@@ -1261,6 +1261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { setupZoomManager(api); } catch (e) { console.error('setupZoomManager failed', e); }
   try { setupNavigation(api); } catch (e) { console.error('setupNavigation failed', e); }
   try { setupTerminal(api); } catch (e) { console.error('setupTerminal failed', e); }
+  try { setupHelpGuide(api); } catch (e) { console.error('setupHelpGuide failed', e); }
   try { setupWorkspace(api); } catch (e) { console.error('setupWorkspace failed', e); }
   try { setupLayoutResizers(); } catch (e) { console.error('setupLayoutResizers failed', e); }
   try { setupEngagementManager(api); } catch (e) { console.error('setupEngagementManager failed', e); }
@@ -1976,6 +1977,256 @@ function appendTerminalOutput(viewport: HTMLElement, text: string): void {
   span.innerHTML = formatted;
   viewport.appendChild(span);
   viewport.scrollTop = viewport.scrollHeight;
+}
+
+// --- VIRTUAL ASSISTANT & APPLICATION HELP GUIDE ---
+function setupHelpGuide(api: any): void {
+  const drawer = document.getElementById('appHelpGuideDrawer');
+  const btnHeader = document.getElementById('btnHeaderHelpGuide');
+  const btnClose = document.getElementById('btnCloseHelpGuideDrawer');
+  const btnClear = document.getElementById('btnClearHelpGuideChat');
+  const chatLog = document.getElementById('helpGuideChatLog');
+  const input = document.getElementById('txtHelpGuideInput') as HTMLTextAreaElement | null;
+  const btnSubmit = document.getElementById('btnHelpGuideSubmit');
+  const chipsContainer = document.getElementById('helpGuideQuickChips');
+
+  if (!drawer || !chatLog) return;
+
+  const conversationHistory: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+
+  const toggleDrawer = (open?: boolean) => {
+    const isCurrentlyOpen = drawer.style.display === 'flex';
+    const shouldOpen = open !== undefined ? open : !isCurrentlyOpen;
+    drawer.style.display = shouldOpen ? 'flex' : 'none';
+    if (btnHeader) {
+      btnHeader.classList.toggle('active', shouldOpen);
+      btnHeader.style.background = shouldOpen ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.18)';
+      btnHeader.style.borderColor = shouldOpen ? '#a5b4fc' : 'rgba(129, 140, 248, 0.45)';
+    }
+    if (shouldOpen) {
+      input?.focus();
+      if (chatLog.children.length === 0) {
+        renderWelcomeMessage();
+      }
+    }
+  };
+
+  btnHeader?.addEventListener('click', () => toggleDrawer());
+  btnClose?.addEventListener('click', () => toggleDrawer(false));
+
+  const formatMarkdown = (md: string): string => {
+    if (!md) return '';
+    let escaped = md
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Code blocks
+    escaped = escaped.replace(/```([a-z0-9_-]*)\n([\s\S]*?)```/gi, (_m, _lang, code) => {
+      return `<pre style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); padding: 8px; border-radius: 4px; overflow-x: auto; margin: 6px 0; font-family: monospace; font-size: 11px;"><code>${code}</code></pre>`;
+    });
+
+    // Inline code
+    escaped = escaped.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.1); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 11px; color: #a5b4fc;">$1</code>');
+
+    // Headings
+    escaped = escaped.replace(/^#### (.*$)/gim, '<div style="font-weight: 700; color: #e0e7ff; margin: 8px 0 4px 0; font-size: 12.5px;">$1</div>');
+    escaped = escaped.replace(/^### (.*$)/gim, '<div style="font-weight: 800; color: #ffffff; margin: 10px 0 4px 0; font-size: 13.5px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 3px;">$1</div>');
+    escaped = escaped.replace(/^## (.*$)/gim, '<div style="font-weight: 800; color: #ffffff; margin: 12px 0 6px 0; font-size: 14px;">$1</div>');
+
+    // Bold
+    escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong style="color: #ffffff;">$1</strong>');
+
+    // Bullet points
+    escaped = escaped.replace(/^[•\*\-] (.*$)/gim, '<div style="display: flex; gap: 6px; margin: 3px 0 3px 6px;"><span>•</span><div>$1</div></div>');
+
+    // Paragraph breaks
+    escaped = escaped.replace(/\n\n+/g, '<div style="height: 6px;"></div>');
+    escaped = escaped.replace(/\n/g, '<br/>');
+
+    return escaped;
+  };
+
+  const handleActionClick = (action: { phase: number; subTab?: string; subStep?: string; activityTab?: string }) => {
+    try {
+      if (action.activityTab && action.activityTab !== 'delivery') {
+        switchActivityTab(action.activityTab, api);
+      } else {
+        switchActivityTab('delivery', api);
+        switchDeliveryPhase(action.phase);
+
+        if (action.phase === 1 && action.subStep) {
+          const btn = document.getElementById(`btnFdeStep${action.subStep}`);
+          btn?.click();
+        } else if (action.phase === 3 && action.subStep) {
+          const btn = document.getElementById(`btnP3Step${action.subStep}`);
+          btn?.click();
+        } else if (action.phase === 4 && action.subTab) {
+          const tabMap: Record<string, string> = {
+            canvas: 'btnTabAiEngCanvas',
+            multiagent: 'btnTabAiEngMultiAgent',
+            code: 'btnTabAiEngCode',
+            deploy: 'btnTabAiEngDeploy',
+            sim: 'btnTabAiEngSimulator',
+            dataarch: 'btnTabAiEngDataArch'
+          };
+          const btnId = tabMap[action.subTab];
+          if (btnId) document.getElementById(btnId)?.click();
+        }
+      }
+      showToast(`🧭 Navigated to Phase ${action.phase}${action.subStep ? ' Step ' + action.subStep : ''}`);
+    } catch (e) {
+      console.warn('Action click navigation warning:', e);
+    }
+  };
+
+  const appendUserBubble = (text: string) => {
+    const bubble = document.createElement('div');
+    bubble.style.cssText = 'align-self: flex-end; max-width: 85%; background: rgba(99, 102, 241, 0.28); border: 1px solid rgba(129, 140, 248, 0.45); padding: 9px 13px; border-radius: 12px 12px 2px 12px; color: #f1f5f9; font-size: 12px; line-height: 1.45; word-break: break-word;';
+    bubble.textContent = text;
+    chatLog.appendChild(bubble);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  };
+
+  const appendAssistantBubble = (reply: string, actions?: any[], guardrailTriggered?: boolean) => {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'align-self: flex-start; max-width: 96%; background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.1); padding: 12px 14px; border-radius: 12px 12px 12px 2px; color: #cbd5e1; font-size: 12px; line-height: 1.55; word-break: break-word; box-shadow: 0 4px 15px rgba(0,0,0,0.25);';
+
+    if (guardrailTriggered) {
+      wrapper.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+      wrapper.style.background = 'rgba(239, 68, 68, 0.08)';
+    }
+
+    const contentDiv = document.createElement('div');
+    contentDiv.innerHTML = formatMarkdown(reply);
+    wrapper.appendChild(contentDiv);
+
+    if (actions && actions.length > 0) {
+      const actionsContainer = document.createElement('div');
+      actionsContainer.style.cssText = 'margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; flex-wrap: wrap; gap: 6px;';
+
+      actions.forEach(act => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-quick';
+        btn.style.cssText = 'font-size: 11px; padding: 4px 9px; background: rgba(99, 102, 241, 0.2); border-color: rgba(129, 140, 248, 0.4); color: #c7d2fe; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600; border-radius: 4px; transition: all 0.15s ease;';
+        btn.textContent = act.label;
+        if (act.description) btn.title = act.description;
+
+        btn.addEventListener('mouseenter', () => {
+          btn.style.background = 'rgba(99, 102, 241, 0.35)';
+          btn.style.color = '#ffffff';
+        });
+        btn.addEventListener('mouseleave', () => {
+          btn.style.background = 'rgba(99, 102, 241, 0.2)';
+          btn.style.color = '#c7d2fe';
+        });
+
+        btn.addEventListener('click', () => {
+          handleActionClick(act);
+        });
+
+        actionsContainer.appendChild(btn);
+      });
+
+      wrapper.appendChild(actionsContainer);
+    }
+
+    chatLog.appendChild(wrapper);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  };
+
+  const renderWelcomeMessage = () => {
+    chatLog.innerHTML = '';
+    const welcome = `### 👋 Welcome to Evolve Virtual Assistant\n\n` +
+      `I am your in-app guide for building, architecting, and delivering enterprise AI applications across the **7 Delivery Phases**.\n\n` +
+      `**How I can help you:**\n` +
+      `• **UI & UX Architecture**: Clarify where client interfaces, wireframes, and backend APIs are defined and generated.\n` +
+      `• **UI/UX Iterations**: Guide you through modifying screens, updating layouts, and executing surgical diffs.\n` +
+      `• **Greenfield & Brownfield Delivery**: Guide automated scaffolding for new builds or modernization of legacy systems.\n` +
+      `• **Smart Navigation**: If you're stuck, ask me where to go next!\n\n` +
+      `*🛡️ Note: Evolve AI internal source code & design files are protected under enterprise guardrail policies.*`;
+
+    appendAssistantBubble(welcome, [
+      { label: '🎨 Where are UI & UX defined?', phase: 3, subStep: 'D' },
+      { label: '🔄 How do I update UI & UX?', phase: 3, subStep: 'D' },
+      { label: '🚀 Greenfield Automated Build', phase: 4, subTab: 'code' },
+      { label: '🧭 Where do I go next?', phase: 1 }
+    ]);
+  };
+
+  btnClear?.addEventListener('click', () => {
+    conversationHistory.length = 0;
+    renderWelcomeMessage();
+    showToast('🧹 Virtual Assistant conversation cleared');
+  });
+
+  // Ribbon phase jump buttons (P1 to P7)
+  document.querySelectorAll('.btn-guide-phase-jump[data-phase]').forEach(el => {
+    el.addEventListener('click', () => {
+      const p = parseInt(el.getAttribute('data-phase') || '1', 10);
+      switchActivityTab('delivery', api);
+      switchDeliveryPhase(p);
+      showToast(`🧭 Navigated to Phase ${p}`);
+    });
+  });
+
+  // Prompt chips
+  chipsContainer?.querySelectorAll('.btn-help-chip[data-prompt]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const prompt = chip.getAttribute('data-prompt');
+      if (prompt) {
+        if (input) input.value = prompt;
+        doSubmit();
+      }
+    });
+  });
+
+  const doSubmit = async () => {
+    const query = (input ? input.value : '').trim();
+    if (!query) return;
+
+    if (input) input.value = '';
+    appendUserBubble(query);
+    conversationHistory.push({ role: 'user', text: query });
+
+    // Show loading indicator bubble
+    const loadingBubble = document.createElement('div');
+    loadingBubble.id = 'helpGuideLoadingBubble';
+    loadingBubble.style.cssText = 'align-self: flex-start; background: #1e293b; border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px 14px; border-radius: 10px; color: #94a3b8; font-size: 11.5px; display: flex; align-items: center; gap: 6px;';
+    loadingBubble.innerHTML = '<span>⚡</span> <span>Consulting Evolve Delivery Guide...</span>';
+    chatLog.appendChild(loadingBubble);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    try {
+      const res = await (window as any).evolveApi?.fde?.chatHelpGuide?.({
+        query,
+        history: conversationHistory
+      });
+
+      loadingBubble.remove();
+
+      if (res && res.success) {
+        appendAssistantBubble(res.reply, res.actions, res.guardrailTriggered);
+        conversationHistory.push({ role: 'assistant', text: res.reply });
+      } else {
+        appendAssistantBubble(res?.reply || 'Sorry, I encountered an issue retrieving the guide details. Please try again.');
+      }
+    } catch (err: any) {
+      loadingBubble.remove();
+      appendAssistantBubble(`⚠️ Assistant error: ${err?.message || 'Failed to communicate with in-app guide.'}`);
+    }
+  };
+
+  btnSubmit?.addEventListener('click', () => doSubmit());
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      doSubmit();
+    }
+  });
+
+  // Initial welcome message
+  renderWelcomeMessage();
 }
 
 // --- WORKSPACE & COLLAPSIBLE FILE EXPLORER ---

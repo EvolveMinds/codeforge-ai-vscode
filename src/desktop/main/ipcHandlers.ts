@@ -754,6 +754,327 @@ export interface DesktopIpcHandlersOptions {
   updater: DesktopUpdater;
 }
 
+export interface HelpGuideReply {
+  success: boolean;
+  guardrailTriggered?: boolean;
+  reply: string;
+  actions?: Array<{
+    label: string;
+    phase: number;
+    subTab?: string;
+    subStep?: string;
+    activityTab?: string;
+    description?: string;
+  }>;
+}
+
+/**
+ * Intelligent In-App Virtual Guide for Evolve AI.
+ * strictly enforces IP & source code anti-leak guardrails while assisting users
+ * with end-to-end delivery lifecycle navigation, UI/UX architecture, and automated building.
+ */
+export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpGuideReply {
+  const query = (rawQuery || '').trim();
+  if (!query) {
+    return {
+      success: false,
+      reply: 'Please ask a question about navigating Evolve AI or how to use any of its 7 delivery phases.',
+      actions: []
+    };
+  }
+
+  const q = query.toLowerCase();
+
+  // =========================================================================
+  // 1. STRICT INTELLECTUAL PROPERTY & APPLICATION SECURITY GUARDRAIL
+  // Anti-leak filter: Rejects any attempt to view, dump, reconstruct, or discuss
+  // the internal source code, implementation files, proprietary algorithms,
+  // or electron architecture of Evolve AI itself.
+  // =========================================================================
+  const antiLeakPatterns = [
+    /source\s*code/i,
+    /internal\s*(code|design|architecture|implementation|file)/i,
+    /show\s*(me\s*)?(your|the|app)\s*code/i,
+    /give\s*(me\s*)?(your|the|app)\s*code/i,
+    /(coded|built)\s*(and\s*built\s*)?internally/i,
+    /how\s*(are\s*you|is\s*.*?app)\s*(coded|built|implemented)/i,
+    /renderer\.(ts|js)/i,
+    /ipcHandlers\.(ts|js)/i,
+    /preload\.(ts|js)/i,
+    /main\.(ts|js)/i,
+    /system\s*prompt/i,
+    /prompt\s*injection/i,
+    /dump\s*code/i,
+    /inspect\s*source/i,
+    /view\s*source/i,
+    /app\s*design\s*internals/i,
+    /reverse\s*engineer/i,
+    /proprietary\s*code/i,
+    /give\s*me\s*(the\s*)?(github|repo|source)/i,
+    /what\s*is\s*your\s*code/i,
+    /your\s*implementation/i
+  ];
+
+  const isAntiLeakTriggered = antiLeakPatterns.some(pattern => pattern.test(query));
+
+  if (isAntiLeakTriggered) {
+    return {
+      success: true,
+      guardrailTriggered: true,
+      reply: `🔒 **Security & Intellectual Property Guardrail Active**\n\n` +
+             `As the **Evolve AI In-App Guide**, I am strictly authorized to help you navigate, configure, and use Evolve AI. In accordance with enterprise IP protection policies, I cannot share, inspect, or display Evolve AI's internal source code, proprietary algorithms, electron runtime files, or internal system design.\n\n` +
+             `However, if you are looking to build, architect, and scaffold **your own project's application code, frontend/backend architecture, or UI/UX**, Evolve AI provides automated generators to do this for your project workspace:\n\n` +
+             `• **Phase 3 Step D**: Generate UI/UX wireframes, frontend design prototypes, and component journeys.\n` +
+             `• **Phase 4 Step A**: Interactively architect your project's frontend, backend microservices, and databases.\n` +
+             `• **Phase 4 Step C**: Run automated full-stack code scaffolding to generate production React/Vue and Node/Python source code for your app.\n\n` +
+             `Where would you like to navigate to start building your application?`,
+      actions: [
+        { label: '🎨 Go to Phase 3 Step D (UI & UX Prototypes)', phase: 3, subStep: 'D', description: 'Scaffold frontend wireframes and user interaction flows' },
+        { label: '🏗️ Go to Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Visually layout microservices, client nodes, and API routes' },
+        { label: '💻 Go to Phase 4 Step C (Code Generation)', phase: 4, subTab: 'code', description: 'Generate production-ready application source code for your workspace' }
+      ]
+    };
+  }
+
+  // =========================================================================
+  // 2. DOMAIN KNOWLEDGE BASE & WORKFLOW ROUTING
+  // =========================================================================
+
+  const mentionsUiUx = /\b(frontend|backend|ui|ux)\b/i.test(q);
+  const mentionsDefinition = /\b(where|define|defined|build|built|deliver|delivered|generate|generated)\b/i.test(q);
+  const mentionsGreenfieldBrownfield = /\b(greenfield|brownfield)\b/i.test(q);
+  const mentionsUpdate = /\b(update|change|modify|edit|tweak)\b/i.test(q);
+
+  // A. Where does frontend, backend, UI & UX get defined and built?
+  if (mentionsUiUx && mentionsDefinition && !mentionsGreenfieldBrownfield && !mentionsUpdate) {
+    return {
+      success: true,
+      reply: `### 🎨 Defining, Building & Delivering Frontend, Backend, and UI/UX\n\n` +
+             `In Evolve AI, application delivery follows an automated, architectural lifecycle across **Phase 3** and **Phase 4**:\n\n` +
+             `#### 1. UI & UX Definition\n` +
+             `• **Phase 3 Step D (Multi-Modal & UI Scaffolding)**: This is where you specify UI design criteria, component systems (Tailwind, React, Material), screen layouts, and user journeys. You can click **"Generate UI Prototype"** to produce interactive wireframe mockups and client templates.\n` +
+             `• **Phase 4 Step A (AI Engineering Visual Canvas)**: Drag and drop **Frontend / Client Nodes** to specify client views, device targets (Web / Mobile), and user interaction entry points.\n\n` +
+             `#### 2. Backend & System Logic Definition\n` +
+             `• **Phase 3 Step A & B (Pattern & Model Matrix)**: Choose whether your backend relies on Direct Prompts, Single-Turn RAG, Multi-Turn Agents, or Multi-Agent Swarms, and select the optimal inference engine based on cost and latency.\n` +
+             `• **Phase 4 Step A (Architecture Canvas)**: Connect your Frontend Node to API Gateways, Microservices, Vector DBs, and Enterprise context bridges with strict latency budgets.\n\n` +
+             `#### 3. Automated Code Building & Delivery\n` +
+             `• **Phase 4 Step C (Microservices & Agent Scaffolding)**: Click **"Generate Full-Stack Scaffolding"**. The automated multi-agent code generator emits complete frontend components (React/Next.js/Tailwind), backend APIs (FastAPI/Express), MCP tool servers, and Dockerfiles directly into your project workspace repository!\n` +
+             `• **Phase 4 Step D (Cloud Deployment)**: Export production Docker Compose recipes, Kubernetes manifests, and Terraform IaC ready for deployment.\n` +
+             `• **Phase 6 (Shadow & Canary Testing)**: Run traffic split verification to deliver your app into staging/production without risk.`,
+      actions: [
+        { label: '🎨 Open Phase 3 Step D (UI & UX Prototypes)', phase: 3, subStep: 'D', description: 'Scaffold frontend templates and user interaction journeys' },
+        { label: '🏗️ Open Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Visually connect Frontend, API Gateway, and Backend nodes' },
+        { label: '💻 Open Phase 4 Step C (Code Generation)', phase: 4, subTab: 'code', description: 'Generate complete full-stack codebase into your workspace' }
+      ]
+    };
+  }
+
+  // B. How to make an update to UI & UX?
+  if (mentionsUpdate && (mentionsUiUx || /\b(screen|layout|design)\b/i.test(q))) {
+    return {
+      success: true,
+      reply: `### 🔄 How to Update Application UI & UX in Evolve AI\n\n` +
+             `When you need to iterate, restyle, or change the user interface and user experience of your application, use this 4-step workflow:\n\n` +
+             `#### Step 1: Update Wireframes & Journey Flow (Phase 3 Step D)\n` +
+             `• Navigate to **Phase 3 Step D (Multi-Modal & UI Prototype Scaffolding)**.\n` +
+             `• Update your user requirements, color themes, or component layout rules.\n` +
+             `• Click **"Regenerate UI Prototype"** to visually preview the revised screens, responsive breakpoints, and UX interaction states.\n\n` +
+             `#### Step 2: Adjust Visual Topology & Routes (Phase 4 Step A)\n` +
+             `• In **Phase 4 Step A (AI Engineering Visual Canvas)**, select the **Client / Frontend Node**.\n` +
+             `• Update route parameters, websocket endpoints, or client state bindings.\n\n` +
+             `#### Step 3: Automated Surgical Code Edits via AI Assistant or Terminal\n` +
+             `• Open the built-in **Terminal (⚡ Terminal button)** or switch to the **AI Copilot (💬 tab)**.\n` +
+             `• Prompt the AI Coder agent: *"Update the dashboard UI to include real-time metric cards and a collapsible sidebar navigation"*. The agent applies non-destructive git diffs to your frontend files (\`src/client/...\`).\n\n` +
+             `#### Step 4: Validate Reliability & Visual Evals (Phase 5)\n` +
+             `• Run **Phase 5 (Evals & Reliability)** to test for client latency regressions, UI component rendering benchmarks, and user workflow completion rates.`,
+      actions: [
+        { label: '🎨 Open Phase 3 Step D (UI & UX Prototypes)', phase: 3, subStep: 'D', description: 'Update wireframes and regenerate screen prototypes' },
+        { label: '🏗️ Open Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Adjust frontend node configurations and route links' },
+        { label: '🛡️ Open Phase 5 (Evals & Reliability)', phase: 5, description: 'Verify UI regression benchmarks and response latencies' }
+      ]
+    };
+  }
+
+  // C. Greenfield vs Brownfield & automated building from architecture
+  if (
+    q.includes('greenfield') || q.includes('brownfield') ||
+    (q.includes('automated') && (q.includes('build') || q.includes('architecture')))
+  ) {
+    return {
+      success: true,
+      reply: `### 🚀 Building Applications: Greenfield vs. Brownfield\n\n` +
+             `Evolve AI adapts its automated engineering engine based on your project's engagement nature:\n\n` +
+             `#### 🟢 Greenfield Application (Building from Scratch)\n` +
+             `1. **Phase 1 Step 3**: Select **Greenfield Engagement**. Evolve AI initializes a clean-slate capability roadmap and target domain architecture.\n` +
+             `2. **Phase 3**: In Step A & B, choose your AI patterns and models. In Step D, generate your UI/UX design blueprints and component trees.\n` +
+             `3. **Phase 4 Step A**: Build your topology visually on the **AI Engineering Canvas** (Client ➔ API Gateway ➔ Multi-Agent Swarm ➔ Vector DB).\n` +
+             `4. **Phase 4 Step C**: Click **"Generate Full-Stack Scaffolding"**. Evolve AI writes the entire runnable repository (frontend, backend, schemas, tests, Dockerfiles).\n\n` +
+             `#### 🟡 Brownfield Application (Modernizing Legacy Systems)\n` +
+             `1. **Phase 1 Step 3**: Select **Brownfield Modernization**. Evolve AI inspects existing codebases, databases, and dependencies.\n` +
+             `2. **Phase 2**: Introspect live relational schemas (Postgres, Oracle, Snowflake) and index corporate documents into vector stores.\n` +
+             `3. **Phase 3 Step C**: Establish an **Enterprise Context Bridge** to isolate legacy data with anti-corruption layers and zero-drift SQL tolerance models.\n` +
+             `4. **Phase 6**: Execute **Shadow Testing & Canary Splits** to test AI outputs side-by-side against legacy systems before cutting over.`,
+      actions: [
+        { label: '🧭 Phase 1 Step 3 (Engagement Nature)', phase: 1, subStep: '3', description: 'Toggle Greenfield vs. Brownfield mode' },
+        { label: '🏗️ Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Inspect or design application topology' },
+        { label: '💻 Phase 4 Step C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Automated full-stack code generator' }
+      ]
+    };
+  }
+
+  // D. User is stuck or asking what step / where to go next
+  if (
+    q.includes('stuck') || q.includes('what next') || q.includes('where to go') ||
+    q.includes('next step') || q.includes('how do i start') || q.includes('guide me') || q.includes('workflow')
+  ) {
+    return {
+      success: true,
+      reply: `### 🧭 Evolve AI 7-Phase Delivery Roadmap: Where to Go Next\n\n` +
+             `If you are unsure where to proceed, follow this sequential 7-phase delivery ladder:\n\n` +
+             `• **Phase 1: Enterprise Discovery & Framing** ➔ Reframing intake, Capability Ladder (L1 Rules to L5 Autonomous), Greenfield vs. Brownfield.\n` +
+             `• **Phase 2: Data Readiness & Vectorization** ➔ Connect live databases (🔌 Live DB) or vectorize documents into Chroma/Pinecone.\n` +
+             `• **Phase 3: AI Solutioning & UI Scaffolding** ➔ Select AI patterns (3A), benchmark models (3B), bridge enterprise context (3C), and scaffold UI prototypes (3D).\n` +
+             `• **Phase 4: AI Engineering & Code Generation** ➔ Visual Architecture Canvas (4A), Multi-Agent Swarms (4B), Automated Full-Stack Scaffolding (4C), and Cloud Blueprints (4D).\n` +
+             `• **Phase 5: Reliability & Evals** ➔ Run golden benchmarks, test hallucination rates, and audit Human-In-The-Loop (HITL) gates.\n` +
+             `• **Phase 6: Shadow Testing & Canary** ➔ Dual-run live traffic in shadow mode and execute progressive canary split rollouts.\n` +
+             `• **Phase 7: Full Production & Ops** ➔ Real-time telemetry, model drift detection, SLA monitoring, and release git tags.\n\n` +
+             `Click any quick action below to immediately jump to that phase!`,
+      actions: [
+        { label: '1️⃣ Go to Phase 1 (Discovery)', phase: 1, description: 'Problem framing & Capability Ladder' },
+        { label: '2️⃣ Go to Phase 2 (Data Readiness)', phase: 2, description: 'Database schema & vectorization' },
+        { label: '3️⃣ Go to Phase 3 (AI Solutioning)', phase: 3, description: 'AI patterns & UI prototyping' },
+        { label: '4️⃣ Go to Phase 4 (AI Engineering)', phase: 4, description: 'Visual canvas & code scaffolding' },
+        { label: '5️⃣ Go to Phase 5 (Evals & Reliability)', phase: 5, description: 'Golden benchmarks & HITL audit' }
+      ]
+    };
+  }
+
+  // E. Phase specific queries
+  if (q.includes('phase 1') || q.includes('discovery') || q.includes('refram') || q.includes('capability ladder')) {
+    return {
+      success: true,
+      reply: `### 🔍 Phase 1: Enterprise Discovery & Problem Framing\n\n` +
+             `Phase 1 helps enterprise architects reframe vague business requests into rigorous engineering specifications:\n\n` +
+             `• **Step 1: Stakeholder Intake & Reframing**: Enter raw asks or paste meeting transcripts to decompose first principles, identify operational risks, and calculate projected ROI.\n` +
+             `• **Step 2: AI Capability Ladder**: Position your solution across Levels 1 to 5 (L1 Deterministic Rules ➔ L2 Augmented Search ➔ L3 Human-Gated Copilot ➔ L4 Multi-Agent Swarm ➔ L5 Fully Autonomous Orchestrator).\n` +
+             `• **Step 3: Engagement Nature & Out-of-Scope**: Select **Greenfield** (new product) or **Brownfield** (legacy modernization), and establish contractual Out-of-Scope boundaries.`,
+      actions: [
+        { label: 'Step 1: Stakeholder Intake', phase: 1, subStep: '1' },
+        { label: 'Step 2: Capability Ladder', phase: 1, subStep: '2' },
+        { label: 'Step 3: Greenfield/Brownfield', phase: 1, subStep: '3' }
+      ]
+    };
+  }
+
+  if (q.includes('phase 2') || q.includes('data readiness') || q.includes('vector') || q.includes('schema') || q.includes('database')) {
+    return {
+      success: true,
+      reply: `### 📊 Phase 2: Data Readiness & Vectorization\n\n` +
+             `Phase 2 prepares your corporate data foundation for AI consumption:\n\n` +
+             `• **Database Introspection**: Click the **🔌 Live DB** button on the top header to connect to PostgreSQL, MySQL, Snowflake, BigQuery, Oracle, or SQL Server.\n` +
+             `• **Data Hygiene & Masking**: Auto-detect sensitive PII columns and define masking rules before passing data to AI models.\n` +
+             `• **Vector Embeddings & RAG Indexing**: Chunk and vectorize unstructured manuals, policies, and tickets into vector stores.`,
+      actions: [
+        { label: '📊 Open Phase 2 (Data Readiness)', phase: 2 }
+      ]
+    };
+  }
+
+  if (q.includes('phase 3') || q.includes('solutioning') || q.includes('rag') || q.includes('model matrix')) {
+    return {
+      success: true,
+      reply: `### 📐 Phase 3: AI Solutioning & System Design\n\n` +
+             `Phase 3 bridges high-level requirements into concrete architecture:\n\n` +
+             `• **Step A (Pattern Selection)**: Choose between Direct Prompting, Vector RAG, Hybrid Search, or Multi-Agent Swarms.\n` +
+             `• **Step B (Context Bridge)**: Configure enterprise security, IAM boundaries, VPC peering, and audit requirements.\n` +
+             `• **Step C (Model & Inference Matrix)**: Benchmark models across accuracy, token costs, context length, and latency SLAs.\n` +
+             `• **Step D (UI & UX Scaffolding)**: Define client wireframes, component styles, and user interaction journeys.`,
+      actions: [
+        { label: 'Step A: AI Patterns', phase: 3, subStep: 'A' },
+        { label: 'Step C: Model Matrix', phase: 3, subStep: 'C' },
+        { label: 'Step D: UI Scaffolding', phase: 3, subStep: 'D' }
+      ]
+    };
+  }
+
+  if (q.includes('phase 4') || q.includes('canvas') || q.includes('engineering') || q.includes('scaffold') || q.includes('code gen') || q.includes('swarm')) {
+    return {
+      success: true,
+      reply: `### 🛠️ Phase 4: AI Engineering Studio\n\n` +
+             `Phase 4 turns architecture designs into running code and infrastructure:\n\n` +
+             `• **Visual Architecture Canvas (4A)**: Interactive drag-and-drop pipeline designer connecting Clients, Gateways, Agents, RAG, and Databases with live Cost & Latency simulation.\n` +
+             `• **Multi-Agent Swarm Orchestrator (4B)**: Configure Leader, Router, Coder, Reviewer, and Planner agent teams.\n` +
+             `• **Automated Code Scaffolding (4C)**: Emit full-stack production repositories (React/Next.js, FastAPI, Node, Dockerfiles).\n` +
+             `• **Cloud Deployment Blueprints (4D)**: Generate Kubernetes manifests, Terraform IaC, and Docker compose configurations.`,
+      actions: [
+        { label: 'Canvas (Architecture)', phase: 4, subTab: 'canvas' },
+        { label: 'Multi-Agent Swarm', phase: 4, subTab: 'multiagent' },
+        { label: 'Code Scaffolding', phase: 4, subTab: 'code' },
+        { label: 'Cloud Deployment', phase: 4, subTab: 'deploy' }
+      ]
+    };
+  }
+
+  if (q.includes('phase 5') || q.includes('eval') || q.includes('benchmark') || q.includes('reliability') || q.includes('hitl')) {
+    return {
+      success: true,
+      reply: `### 🛡️ Phase 5: Reliability, Evals & HITL Governance\n\n` +
+             `Phase 5 guarantees enterprise safety and precision:\n\n` +
+             `• **Golden Benchmark Suite**: Run test suites measuring hallucination drift, accuracy, precision, and latency percentiles (p50/p95/p99).\n` +
+             `• **Human-In-The-Loop (HITL) Gatekeeper**: Configure deterministic safety gates where high-stakes actions require manual human operator approval.\n` +
+             `• **Audit Trail**: Cryptographic logging of model outputs, confidence scores, and operator approvals.`,
+      actions: [
+        { label: '🛡️ Open Phase 5 (Reliability & Evals)', phase: 5 }
+      ]
+    };
+  }
+
+  if (q.includes('phase 6') || q.includes('canary') || q.includes('shadow')) {
+    return {
+      success: true,
+      reply: `### 🚀 Phase 6: Shadow Testing & Canary Deployment\n\n` +
+             `Phase 6 allows zero-risk validation in production environments:\n\n` +
+             `• **Shadow Traffic Dual-Run**: Replicate live incoming traffic to the new AI system in parallel with the legacy system to compare outputs with zero customer impact.\n` +
+             `• **Canary Traffic Split**: Gradually shift live user traffic (e.g. 5% ➔ 20% ➔ 50% ➔ 100%) with automated rollbacks on latency spikes or error thresholds.`,
+      actions: [
+        { label: '🚀 Open Phase 6 (Canary Testing)', phase: 6 }
+      ]
+    };
+  }
+
+  if (q.includes('phase 7') || q.includes('production') || q.includes('ops') || q.includes('monitor')) {
+    return {
+      success: true,
+      reply: `### 📈 Phase 7: Full Production & Operations\n\n` +
+             `Phase 7 handles live operations:\n\n` +
+             `• **Telemetry & Monitoring**: Real-time throughput, token usage, cost tracking, and latency graphs.\n` +
+             `• **Model Drift Detection**: Active alerts when input distributions or output confidence deviate from benchmark baselines.\n` +
+             `• **Git Release Tagging**: Tag and release audited code builds with cryptographic audit provenance.`,
+      actions: [
+        { label: '📈 Open Phase 7 (Continuous Ops)', phase: 7 }
+      ]
+    };
+  }
+
+  // Default intelligent fallback assistance
+  return {
+    success: true,
+    reply: `### 💡 Evolve AI Virtual Assistant\n\n` +
+           `I can assist you with any stage of using Evolve AI to build and deliver enterprise applications:\n\n` +
+           `• **UI & UX Definition & Updates**: Learn how frontend, backend, wireframes, and UX are designed in Phase 3 Step D and Phase 4.\n` +
+           `• **Greenfield vs. Brownfield**: Structure new products from scratch or modernize existing enterprise codebases.\n` +
+           `• **Full-Stack Automated Scaffolding**: Generate running React/Next.js frontend and Node/Python backend code in Phase 4 Step C.\n` +
+           `• **Navigating the 7 Phases**: Get step-by-step guidance on what to do if you are stuck.\n\n` +
+           `*(Note: For enterprise security, Evolve AI internal source code and design implementation are strictly protected by our in-app guardrail).*`,
+    actions: [
+      { label: '🎨 Where are UI & UX Defined?', phase: 3, subStep: 'D' },
+      { label: '🏗️ Phase 4 Architecture Canvas', phase: 4, subTab: 'canvas' },
+      { label: '💻 Phase 4 Code Scaffolding', phase: 4, subTab: 'code' },
+      { label: '🧭 Delivery Lifecycle Roadmap', phase: 1 }
+    ]
+  };
+}
+
 export class DesktopIpcHandlers {
   private readonly _workspaceMgr: DesktopWorkspaceManager;
   private readonly _terminalMgr: DesktopTerminalManager;
@@ -6728,6 +7049,10 @@ def test_golden_benchmark_case(case_id, category, prompt, expected, max_latency_
       } catch (err: any) {
         return { success: false, error: err.message };
       }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.FDE.CHAT_HELP_GUIDE, async (_: any, req: { query: string; history?: any[] }) => {
+      return generateHelpGuideReply(req?.query, req?.history);
     });
 
     ipc.handle(DESKTOP_CHANNELS.FDE.GENERATE_TOPOLOGY, async (_: any, req: { archetype?: string; clientName?: string; reframedProblem?: string; outOfScope?: string[] }) => {

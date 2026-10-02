@@ -204,7 +204,8 @@ const desktopApi = {
     testTargetConnection: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.TEST_TARGET_CONNECTION, req),
     logHitlAction: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, req),
     getHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_HITL_LOG),
-    clearHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CLEAR_HITL_LOG)
+    clearHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CLEAR_HITL_LOG),
+    chatHelpGuide: (req: { query: string; history?: any[] }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CHAT_HELP_GUIDE, req)
   },
 
   // --- DISPLAY SCALE & ZOOM APIS ---
