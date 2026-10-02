@@ -177,6 +177,33 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
     assert.ok(canaryRes.reply.includes('Canary Traffic Split'));
   });
 
+  test('answers queries about Git, Bitbucket, GitHub, GitLab, and the Green Leaf icon', () => {
+    const gitQueries = [
+      'Where is git?',
+      'How does Bitbucket and GitHub connect?',
+      'Where is the green leaf icon pointing to?',
+      'How do I create a pull request or commit changes?'
+    ];
+    for (const q of gitQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.ok(res.reply.includes('Git & Remote Repository Hub'), `Query "${q}" should mention Git & Remote Repository Hub`);
+      assert.ok(res.actions && res.actions.some(a => a.activityTab === 'git'), `Query "${q}" should offer jump to git tab`);
+    }
+  });
+
+  test('guides stuck or struck users and handles how does it work and where is it', () => {
+    const resStruck = generateHelpGuideReply('I am struck, where do I go next?');
+    assert.strictEqual(resStruck.success, true);
+    assert.ok(resStruck.reply.includes('Delivery Roadmap'));
+    assert.ok(resStruck.actions && resStruck.actions.some(a => a.activityTab === 'git'));
+
+    const resHowWhere = generateHelpGuideReply('how does the application work and where is it?');
+    assert.strictEqual(resHowWhere.success, true);
+    assert.strictEqual(resHowWhere.guardrailTriggered, undefined, 'Must not trigger IP refusal banner');
+    assert.ok(resHowWhere.actions && resHowWhere.actions.length >= 4);
+  });
+
   test('handles empty or whitespace query gracefully', () => {
     const res = generateHelpGuideReply('   ');
     assert.strictEqual(res.success, false);

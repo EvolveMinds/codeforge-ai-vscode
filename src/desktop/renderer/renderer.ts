@@ -1568,11 +1568,6 @@ function setupNavigation(api: any): void {
 }
 
 function switchActivityTab(tabName: string, api?: any): void {
-  if (tabName === 'git') {
-    switchActivityTab('delivery', api);
-    switchDeliveryPhase(6);
-    return;
-  }
   if (tabName === 'quality') {
     switchActivityTab('delivery', api);
     switchDeliveryPhase(5);
@@ -2152,11 +2147,11 @@ function setupHelpGuide(api: any): void {
   const renderWelcomeMessage = () => {
     chatLog.innerHTML = '';
     const welcome = `### 👋 Welcome to Evolve Virtual Assistant\n\n` +
-      `I am your in-app guide for building, architecting, and delivering enterprise AI applications across the **7 Delivery Phases**.\n\n` +
+      `I am your in-app guide for building, architecting, and delivering enterprise AI applications across our **6 Delivery Phases** plus **3 Dedicated Activity Hubs** (🌿 Git & Remote Repository Hub, ☁️ Multi-Cloud Connect Matrix, 🤖 Local AI Hardware Sizer).\n\n` +
       `**How I can help you:**\n` +
       `• **🚀 Build New Applications**: Step-by-step guidance on creating a fresh greenfield app or modernizing brownfield systems.\n` +
-      `• **🔌 Locate Features ("Where is it?")**: Instant navigation to Live DB, Visual Canvas, Code Gen, Guardrails, Terminal, or Swarms.\n` +
-      `• **⚙️ Understand Architecture ("How does it work?")**: Deep architectural insights on RAG, Agents, Guardrails, Evals, and Deployments.\n` +
+      `• **🔌 Locate Features ("Where is it?")**: Instant navigation to Live DB, Visual Canvas, Code Gen, Guardrails, Git Hub, Terminal, or Swarms.\n` +
+      `• **⚙️ Understand Architecture ("How does it work?")**: Deep architectural insights on RAG, Agents, Guardrails, Evals, Deployments, and Git.\n` +
       `• **🧭 Unblock Your Workflow**: If you are stuck at any point, ask me where to go next!\n\n` +
       `*🛡️ Note: Evolve AI internal source code & design files are protected under enterprise guardrail policies.*`;
 
@@ -2166,6 +2161,7 @@ function setupHelpGuide(api: any): void {
       { label: '🎨 UI & UX Architecture', phase: 3, subStep: 'D' },
       { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
       { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
+      { label: '🌿 Git & Remote Repository Hub', phase: 6, activityTab: 'git' },
       { label: '🧭 Where do I go next?', phase: 1 }
     ]);
   };
@@ -2176,10 +2172,21 @@ function setupHelpGuide(api: any): void {
     showToast('🧹 Virtual Assistant conversation cleared');
   });
 
-  // Ribbon phase jump buttons (P1 to P7)
-  document.querySelectorAll('.btn-guide-phase-jump[data-phase]').forEach(el => {
+  // Ribbon phase jump buttons (P1 to P6 and dedicated tabs)
+  document.querySelectorAll('.btn-guide-phase-jump').forEach(el => {
     el.addEventListener('click', () => {
+      const tab = el.getAttribute('data-tab');
+      if (tab) {
+        switchActivityTab(tab, api);
+        showToast(`🧭 Navigated to ${tab.toUpperCase()} tab`);
+        return;
+      }
       const p = parseInt(el.getAttribute('data-phase') || '1', 10);
+      if (p === 7) {
+        switchActivityTab('git', api);
+        showToast('🧭 Navigated to GIT tab');
+        return;
+      }
       switchActivityTab('delivery', api);
       switchDeliveryPhase(p);
       showToast(`🧭 Navigated to Phase ${p}`);
@@ -2214,7 +2221,8 @@ function setupHelpGuide(api: any): void {
     chatLog.scrollTop = chatLog.scrollHeight;
 
     try {
-      const res = await (window as any).evolveApi?.fde?.chatHelpGuide?.({
+      const clientApi = api || (window as any).evolveApi;
+      const res = await clientApi?.fde?.chatHelpGuide?.({
         query,
         history: conversationHistory
       });
@@ -2825,12 +2833,17 @@ function setUnsavedIndicator(dirty: boolean): void {
 }
 
 function switchDeliveryPhase(phase: number): void {
+  if (phase === 7) {
+    const api = (window as any).evolveApi;
+    switchActivityTab('git', api);
+    return;
+  }
   document.querySelectorAll('.phase-nav-btn[data-phase]').forEach(btn => {
     const isActive = parseInt(btn.getAttribute('data-phase') || '1', 10) === phase;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-current', isActive ? 'step' : 'false');
   });
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 6; i++) {
     const card = document.getElementById(`phase${i}Card`);
     if (card) card.style.display = i === phase ? 'block' : 'none';
   }
@@ -2851,10 +2864,6 @@ function switchDeliveryPhase(phase: number): void {
     } catch (e) {
       console.warn('Phase 4 synchronization error:', e);
     }
-  }
-  if (phase === 7) {
-    const api = (window as any).evolveApi;
-    if (api) refreshGitStatus(api);
   }
 
   // Remember where the FDE is. Free navigation between phases is deliberate
@@ -12638,12 +12647,14 @@ function setupDeliveryStudio(api: any): void {
     showToast('🚀 Advancing to Phase 6: Deploy & Influence...');
   });
 
-  document.getElementById('btnAdvancePhase7')?.addEventListener('click', () => {
-    switchDeliveryPhase(7);
+  const onAdvanceGit = () => {
     const api = (window as any).evolveApi;
+    switchActivityTab('git', api);
     if (api) refreshGitStatus(api);
-    showToast('🌿 Advancing to Phase 7: DevOps & Git Hub...');
-  });
+    showToast('🌿 Opening Git & Remote Repository Hub...');
+  };
+  document.getElementById('btnAdvanceGitStudio')?.addEventListener('click', onAdvanceGit);
+  document.getElementById('btnAdvancePhase7')?.addEventListener('click', onAdvanceGit);
 
   // ==========================================
   // PHASE 3: AI SOLUTIONING HANDLERS
@@ -27218,11 +27229,11 @@ INSERT INTO ai_audit_log (
         if (api?.git?.createBranch) {
           await api.git.createBranch(branchName);
         }
-        showToast(`🌿 Switched to branch ${branchName}. Directing to DevOps & Git Hub...`);
-        switchDeliveryPhase(7);
+        showToast(`🌿 Switched to branch ${branchName}. Directing to Git & Remote Repository Hub...`);
+        switchActivityTab('git', api);
       } catch (e: any) {
-        showToast(`🌿 Directing to Phase 7: DevOps & Git Hub...`);
-        switchDeliveryPhase(7);
+        showToast(`🌿 Directing to Git & Remote Repository Hub...`);
+        switchActivityTab('git', api);
       }
     });
 

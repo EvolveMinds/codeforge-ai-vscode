@@ -799,24 +799,26 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     !/\b(your\s*code|internal\s*code|system\s*prompt|dump|inspect\s*source|view\s*source|reverse\s*engineer|how\s*are\s*you\s*(coded|built)|ipcHandlers|renderer\.ts)\b/i.test(q);
 
   const antiLeakPatterns = [
-    /source\s*code/i,
-    /internal\s*(code|design|architecture|implementation|file)/i,
-    /show\s*(me\s*)?(your|the|app)\s*code/i,
-    /give\s*(me\s*)?(your|the|app)\s*code/i,
-    /(coded|built)\s*(and\s*built\s*)?internally/i,
-    /how\s*(are\s*you|is\s*.*?app)\s*(coded|built|implemented)/i,
+    /\b(?:show|give|dump|inspect|leak|extract|reveal)\s*(?:me\s*)?(?:your|internal|evolve(?:'s)?|this\s*app's?)\s*source\s*code\b/i,
+    /\b(?:your|internal)\s*source\s*code\b/i,
+    /internal\s*code\s*(?:of|for)\s*evolve/i,
+    /\binternal\s*(?:code|implementation|files?)\b/i,
+    /show\s*(?:me\s*)?(?:your|the\s*app's?)\s*code/i,
+    /give\s*(?:me\s*)?(?:your|the\s*app's?)\s*code/i,
+    /(?:coded|built)\s*(?:and\s*built\s*)?internally/i,
+    /how\s*(?:are\s*you|is\s*.*?evolve.*?app)\s*(?:coded|built|implemented)/i,
     /renderer\.(ts|js)/i,
     /ipcHandlers\.(ts|js)/i,
     /preload\.(ts|js)/i,
     /main\.(ts|js)/i,
     /system\s*prompt/i,
-    /dump\s*code/i,
-    /inspect\s*source/i,
-    /view\s*source/i,
+    /dump\s*(?:code|source|files)/i,
+    /inspect\s*(?:internal|your)\s*source/i,
+    /view\s*(?:internal|your|app)\s*source/i,
     /app\s*design\s*internals/i,
     /reverse\s*engineer/i,
     /proprietary\s*code/i,
-    /give\s*me\s*(the\s*)?(github|repo|source)/i,
+    /give\s*me\s*(?:the\s*)?(?:github|repo|source)\s*(?:of|for)\s*evolve/i,
     /what\s*is\s*your\s*code/i,
     /your\s*implementation/i
   ];
@@ -1156,16 +1158,64 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
       };
     }
 
-    // 13. Telemetry & Continuous Operations
+    // 13. Telemetry, Production Ops & Deployment
     if (/\b(telemetry|ops|operations|monitoring|drift|metrics)\b/i.test(q)) {
       return {
         success: true,
-        reply: `### 📈 Where to Find Production Telemetry & Ops\n\n` +
-               `Continuous operations live in **Phase 7 (Full Production & Operations)**:\n\n` +
-               `• **Navigation**: Click **Phase 7** in the top ribbon.\n` +
-               `• **Capabilities**: Monitor real-time throughput, token consumption, model drift alerts, and cryptographic release git tags.`,
+        reply: `### 📈 Where to Find Production Telemetry, Ops & Canary Deployments\n\n` +
+               `Production operations and rollout controls live in **Phase 6 (Deploy & Influence)** and the **🌿 Git & Remote Hub**:\n\n` +
+               `• **Phase 6 (Deploy & Influence)**: Dual-run shadow testing, canary traffic splits, latency SLAs, and client handoff bundles.\n` +
+               `• **🌿 Git & Remote Repository Hub**: Tag releases, manage tracking branches, and synchronize upstream PRs.\n` +
+               `• **Navigation**: Click **Phase 6** in the delivery ribbon or click the **Green Leaf (\`🌿\`)** icon in the left activity bar.`,
         actions: [
-          { label: '📈 Open Phase 7 (Continuous Ops)', phase: 7, description: 'Live telemetry and drift alerts' }
+          { label: '🚀 Open Phase 6 (Deploy & Influence)', phase: 6, description: 'Shadow dual-run & canary splits' },
+          { label: '🌿 Open Git & Remote Hub', phase: 6, activityTab: 'git', description: 'Switch to Git Hub' }
+        ]
+      };
+    }
+
+    // 14. Git & Remote Repository Hub / Leaf Icon
+    if (/\b(git|bitbucket|github|gitlab|remote|remotes|branch|branches|commit|commits|push|pull|pr|pull\s*request|leaf|green\s*leaf|devops)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🌿 Where to Find the Git & Remote Repository Hub\n\n` +
+               `The **Git & Remote Repository Hub** is located in the **left activity bar** under the **Green Leaf icon (\`🌿\`)**:\n\n` +
+               `• **Navigation**: Click the **🌿 Green Leaf** icon in the far-left activity bar to open the Git & Remote Repository Hub.\n` +
+               `• **Capabilities**: Auto-detection and setup wizard for Bitbucket, GitHub, and GitLab remotes, branch management, staged tree inspection, AI commit message generator, 1-click push, and PR creation.\n` +
+               `• **Terminal Integration**: You can also open the embedded terminal (**⚡ Terminal** button in top header) to run raw Git CLI commands directly in your workspace repository.`,
+        actions: [
+          { label: '🌿 Open Git Hub', phase: 6, activityTab: 'git', description: 'Open Git & Remote Repository Hub' },
+          { label: '⚡ Open Terminal', phase: 4, actionType: 'terminal', description: 'Open developer terminal' }
+        ]
+      };
+    }
+
+    // 15. Local AI Hardware Sizer & Engine Prober
+    if (/\b(hardware|sizer|gpu|vram|ollama|cuda|engine\s*prober)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🤖 Where to Find the Local AI Hardware Sizer\n\n` +
+               `The **Local AI Hardware Sizer & Model Engine Prober** is located in the **left activity bar** under the **Robot icon (\`🤖\`)**:\n\n` +
+               `• **Navigation**: Click the **🤖** icon in the far-left activity bar.\n` +
+               `• **Capabilities**: Probes physical GPU, dedicated VRAM, system RAM, CPU cores, quantization thresholds, and checks local Ollama engine status.`,
+        actions: [
+          { label: '🤖 Open Hardware Sizer', phase: 3, activityTab: 'hardware', description: 'Open Hardware Sizer' },
+          { label: '🧠 Open Phase 3C (Model Matrix)', phase: 3, subStep: 'C', description: 'Benchmark AI models' }
+        ]
+      };
+    }
+
+    // 16. Multi-Cloud Connect Matrix
+    if (/\b(multi-cloud|cloud\s*matrix|cloud\s*connect|aws|azure|gcp)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### ☁️ Where to Find the Multi-Cloud Connect Matrix\n\n` +
+               `The **Multi-Cloud Connect Matrix** is located in the **left activity bar** under the **Cloud icon (\`☁️\`)**:\n\n` +
+               `• **Navigation**: Click the **☁️** icon in the far-left activity bar.\n` +
+               `• **Capabilities**: 1-click credential check, cluster discovery, and connectivity tests for AWS, GCP, and Microsoft Azure.`,
+        actions: [
+          { label: '☁️ Open Multi-Cloud Matrix', phase: 4, activityTab: 'cloud', description: 'Open Multi-Cloud Matrix' },
+          { label: '☁️ Open Phase 4D (Cloud Blueprints)', phase: 4, subTab: 'deploy', description: 'Export Terraform & Kubernetes' }
         ]
       };
     }
@@ -1293,55 +1343,101 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
       };
     }
 
-    // 7. Overall Application / What is Evolve AI
-    if (/\b(evolve|evolve\s*ai|application|platform|this\s*app)\b/i.test(q)) {
+    // 7. Overall Application / How Evolve AI Works
+    if (/\b(evolve|evolve\s*ai|application|platform|this\s*app|it\s*works?|how\s*it\s*works?|how\s*does\s*it\s*work)\b/i.test(q)) {
       return {
         success: true,
         reply: `### 🌐 How Evolve AI Works: The Enterprise Delivery Operating System\n\n` +
-               `Evolve AI is an end-to-end delivery platform designed to take enterprise AI applications from raw idea to hardened production operations:\n\n` +
+               `Evolve AI is an end-to-end delivery platform designed to take enterprise AI applications from raw idea to hardened production operations across **6 Customer-Facing Delivery Phases** and **3 Dedicated Activity Hubs**:\n\n` +
+               `#### 🚀 Core 6-Phase Delivery Studio\n` +
                `• **Phase 1: Framing & Discovery**: Define business value, position on the Capability Ladder (L1-L5), and select Greenfield or Brownfield mode.\n` +
-               `• **Phase 2: Data Readiness**: Connect live databases (🔌 Live DB), introspect schemas, mask PII, and generate vector embeddings.\n` +
-               `• **Phase 3: AI Solutioning**: Select AI patterns, establish enterprise context bridges, benchmark models, and scaffold UI/UX wireframes.\n` +
-               `• **Phase 4: AI Engineering Studio**: Visually design pipeline topology on the Architecture Canvas, orchestrate agent swarms, and generate full-stack runnable code.\n` +
+               `• **Phase 2: Engineering Core & Data Readiness**: Connect live databases (🔌 Live DB), introspect schemas, mask PII, and generate vector embeddings.\n` +
+               `• **Phase 3: AI Solutioning**: Select AI patterns, establish enterprise context bridges, benchmark models, and scaffold UI/UX wireframes (Step D).\n` +
+               `• **Phase 4: AI Engineering Studio**: Visually design pipeline topology on the Architecture Canvas (4A), orchestrate agent swarms (4B), and generate full-stack runnable code (4C).\n` +
                `• **Phase 5: Reliability & Evals**: Run golden benchmarks, measure hallucination rates, and configure Human-in-the-Loop gates.\n` +
-               `• **Phase 6: Canary & Shadow**: Dual-run live traffic in shadow mode and execute progressive canary split rollouts.\n` +
-               `• **Phase 7: Full Production & Ops**: Monitor live throughput, model drift, token costs, and tag production releases.`,
+               `• **Phase 6: Deploy & Influence**: Dual-run live traffic in shadow mode, execute progressive canary split rollouts, and generate client handoff bundles.\n\n` +
+               `#### 🌿 Dedicated Activity Hubs\n` +
+               `• **🌿 Git & Remote Repository Hub (Green Leaf)**: Remotes (Bitbucket, GitHub, GitLab), branch management, staging, AI commits, PR creation.\n` +
+               `• **☁️ Multi-Cloud Connect Matrix**: AWS, GCP, Azure credential verification.\n` +
+               `• **🤖 Local AI Hardware Sizer**: Real-time GPU & VRAM prober.\n\n` +
+               `Where would you like to navigate?`,
         actions: [
           { label: '1️⃣ Phase 1 (Discovery)', phase: 1, description: 'Intake and Capability Ladder' },
           { label: '2️⃣ Phase 2 (Data Readiness)', phase: 2, description: 'Live DB and vectorization' },
           { label: '3️⃣ Phase 3 (AI Solutioning)', phase: 3, description: 'AI patterns and UI prototyping' },
           { label: '4️⃣ Phase 4 (AI Engineering)', phase: 4, description: 'Visual canvas and code generation' },
-          { label: '5️⃣ Phase 5 (Evals & Reliability)', phase: 5, description: 'Golden benchmarks and HITL' }
+          { label: '5️⃣ Phase 5 (Evals & Reliability)', phase: 5, description: 'Golden benchmarks and HITL' },
+          { label: '6️⃣ Phase 6 (Deploy & Canary)', phase: 6, description: 'Shadow & Canary splits' },
+          { label: '🌿 Git & Remote Hub', phase: 6, activityTab: 'git', description: 'Git & Remote Hub' }
+        ]
+      };
+    }
+
+    // 8. Git & Remote Repository Hub
+    if (/\b(git|bitbucket|github|gitlab|remote|remotes|branch|branches|commit|commits|push|pull|pr|pull\s*request|leaf|green\s*leaf|devops)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🌿 Git & Remote Repository Hub (Bitbucket, GitHub, GitLab, Remotes, PR & CI/CD)\n\n` +
+               `The **Git & Remote Repository Hub** is accessible via the **Green Leaf icon (\`🌿\`)** in the left activity bar:\n\n` +
+               `#### 1. Remote Origin Configuration & Setup Wizard\n` +
+               `• **1-Click Presets**: Quick auto-fill buttons for **Bitbucket** (\`git@bitbucket.org:org/repo.git\`), **GitHub**, and **GitLab**.\n` +
+               `• **Test Ping Connection**: 1-click network and SSH/HTTPS authentication probe to verify credentials before committing.\n\n` +
+               `#### 2. Active Branch Lifecycle & Tracking\n` +
+               `• Inspect active branch and upstream remote tracking (\`origin/main\`).\n` +
+               `• Fast branch creation (\`+ Branch\`) and switching from the branch selector dropdown.\n` +
+               `• Remote synchronization operations: **Pull (Fast-Forward)**, **Pull with Rebase**, **Push Active Branch**, and **Push & Set Upstream (-u)**.\n\n` +
+               `#### 3. Working Tree & Smart Staging\n` +
+               `• Real-time list of modified, staged, and untracked files with file change counts.\n` +
+               `• Quick buttons to **Stage All (+)** and **Unstage All (-)**.\n\n` +
+               `#### 4. Local AI Conventional Commit Generator\n` +
+               `• Click **✨ AI Commit Msg** to automatically analyze staged git diffs and draft conventional commits (\`feat:\`, \`fix:\`, \`refactor:\`, \`docs:\`).\n` +
+               `• Optional **"Automatically push immediately after commit"** toggle for 1-click delivery.\n\n` +
+               `#### 5. Pull Request Composer & Browser Launch\n` +
+               `• Click **✨ Create PR** to open the embedded PR drawer.\n` +
+               `• Specify Source and Target branches, enter summary titles, and launch PR URLs directly in your browser or submit via Git CLI.\n\n` +
+               `#### 6. Git CLI Quick Toolbar\n` +
+               `• 1-click execution for \`git status\`, \`git log --graph\`, \`git diff --stat\`, \`git branch -a\`, \`git remote -v\`, \`git stash list\`, and \`git fetch --prune\` directly in your active terminal drawer!`,
+        actions: [
+          { label: '🌿 Open Git & Remote Repository Hub', phase: 6, activityTab: 'git', description: 'Switch to Git & Remote Repository Hub' },
+          { label: '⚡ Open Terminal Drawer', phase: 4, actionType: 'terminal', description: 'Execute Git CLI commands in terminal' }
         ]
       };
     }
   }
 
-  // G. User is stuck or asking what step / where to go next
+  // G. User is stuck / struck or asking what step / where to go next
   if (
-    q.includes('stuck') || q.includes('what next') || q.includes('where to go') ||
+    q.includes('stuck') || q.includes('struck') || q.includes('what next') || q.includes('where to go') ||
     q.includes('next step') || q.includes('how do i start') || q.includes('guide me') ||
     q.includes('workflow') || q.includes('where do i begin') || q.includes('lost') ||
-    q.includes('confused') || q.includes('help me navigate') || q.includes('roadmap')
+    q.includes('confused') || q.includes('help me navigate') || q.includes('roadmap') ||
+    q.includes('how does it work and where is it') || q.includes('how it work and where is it')
   ) {
     return {
       success: true,
-      reply: `### 🧭 Evolve AI 7-Phase Delivery Roadmap: Where to Go Next\n\n` +
-             `If you are unsure where to proceed, follow this sequential 7-phase delivery ladder:\n\n` +
-             `• **Phase 1: Enterprise Discovery & Framing** ➔ Reframing intake, Capability Ladder (L1 Rules to L5 Autonomous), Greenfield vs. Brownfield.\n` +
-             `• **Phase 2: Data Readiness & Vectorization** ➔ Connect live databases (🔌 Live DB) or vectorize documents into Chroma/Pinecone.\n` +
-             `• **Phase 3: AI Solutioning & UI Scaffolding** ➔ Select AI patterns (3A), benchmark models (3B), bridge enterprise context (3C), and scaffold UI prototypes (3D).\n` +
-             `• **Phase 4: AI Engineering & Code Generation** ➔ Visual Architecture Canvas (4A), Multi-Agent Swarms (4B), Automated Full-Stack Scaffolding (4C), and Cloud Blueprints (4D).\n` +
-             `• **Phase 5: Reliability & Evals** ➔ Run golden benchmarks, test hallucination rates, and audit Human-In-The-Loop (HITL) gates.\n` +
-             `• **Phase 6: Shadow Testing & Canary** ➔ Dual-run live traffic in shadow mode and execute progressive canary split rollouts.\n` +
-             `• **Phase 7: Full Production & Ops** ➔ Real-time telemetry, model drift detection, SLA monitoring, and release git tags.\n\n` +
-             `Click any quick action below to immediately jump to that phase!`,
+      reply: `### 🧭 Evolve AI 7-Phase Delivery Roadmap & Activity Hubs: Where to Go Next\n\n` +
+             `If you are unsure where to proceed or need to know how the platform works and where key features live, follow our streamlined delivery framework:\n\n` +
+             `#### 🚀 Core 6-Phase Delivery Studio\n` +
+             `• **Phase 1: Discover & Frame** ➔ First-principles stakeholder intake, AI Capability Ladder (L1 Rules to L5 Autonomous), and Greenfield vs. Brownfield project setup.\n` +
+             `• **Phase 2: Engineering Core & Data Readiness** ➔ Connect live databases (🔌 Live DB button for Postgres, Snowflake, MySQL, Oracle, etc.), schema mapping, PII masking, and document vectorization.\n` +
+             `• **Phase 3: AI Solutioning & System Design** ➔ Select AI patterns (3A), establish enterprise context bridges (3B), benchmark models (3C), and scaffold UI/UX wireframes (3D).\n` +
+             `• **Phase 4: AI Engineering Studio** ➔ Interactive Visual Architecture Canvas (4A), Multi-Agent Swarm Orchestrator (4B), Automated Full-Stack Scaffolding (4C), and Cloud Blueprints (4D).\n` +
+             `• **Phase 5: Reliability, Evals & Governance** ➔ Golden benchmark test suites, hallucination metrics, latency SLAs, and Human-in-the-Loop (HITL) compliance gates.\n` +
+             `• **Phase 6: Deploy & Influence** ➔ Dual-run shadow testing, progressive canary traffic splits (5% ➔ 100%), and containerized staging rollout.\n\n` +
+             `#### 🛠️ Dedicated Infrastructure & Operations Hubs (Left Activity Bar)\n` +
+             `• **🌿 Git & Remote Repository Hub**: Complete remote wizard for Bitbucket, GitHub, and GitLab, branch lifecycle, staged tree, AI commit messages, 1-click push, and PR creation.\n` +
+             `• **☁️ Multi-Cloud Connect Matrix**: 1-click credential verification and cluster discovery for AWS, GCP, and Azure.\n` +
+             `• **🤖 Local AI Hardware Sizer**: Real-time GPU & VRAM inspection, quantization calculator, and Ollama engine prober.\n` +
+             `• **⚡ Developer Terminal Drawer**: Embedded terminal accessible anytime via the **⚡ Terminal** button in the top header.\n\n` +
+             `Click any quick action below to immediately jump to that phase or hub!`,
       actions: [
         { label: '1️⃣ Go to Phase 1 (Discovery)', phase: 1, description: 'Problem framing & Capability Ladder' },
         { label: '2️⃣ Go to Phase 2 (Data Readiness)', phase: 2, description: 'Database schema & vectorization' },
         { label: '3️⃣ Go to Phase 3 (AI Solutioning)', phase: 3, description: 'AI patterns & UI prototyping' },
         { label: '4️⃣ Go to Phase 4 (AI Engineering)', phase: 4, description: 'Visual canvas & code scaffolding' },
-        { label: '5️⃣ Go to Phase 5 (Evals & Reliability)', phase: 5, description: 'Golden benchmarks & HITL audit' }
+        { label: '5️⃣ Go to Phase 5 (Evals & Reliability)', phase: 5, description: 'Golden benchmarks & HITL audit' },
+        { label: '6️⃣ Go to Phase 6 (Deploy & Influence)', phase: 6, description: 'Canary testing & rollout' },
+        { label: '🌿 Open Git & Remote Hub', phase: 6, activityTab: 'git', description: 'Bitbucket, GitHub, GitLab, Remotes, PR & CI/CD' }
       ]
     };
   }
@@ -1443,18 +1539,49 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
   if (q.includes('phase 7') || q.includes('production') || q.includes('ops') || q.includes('monitor')) {
     return {
       success: true,
-      reply: `### 📈 Phase 7: Full Production & Operations\n\n` +
-             `Phase 7 handles live operations:\n\n` +
-             `• **Telemetry & Monitoring**: Real-time throughput, token usage, cost tracking, and latency graphs.\n` +
-             `• **Model Drift Detection**: Active alerts when input distributions or output confidence deviate from benchmark baselines.\n` +
-             `• **Git Release Tagging**: Tag and release audited code builds with cryptographic audit provenance.`,
+      reply: `### 🌿 DevOps & Git Hub (Formerly Phase 7) & Phase 6 Production Ops\n\n` +
+             `To simplify and streamline delivery, DevOps & Git is now a dedicated **Top-Level Activity Hub** in the left activity bar:\n\n` +
+             `• **🌿 Git & Remote Repository Hub**: Click the **Green Leaf (\`🌿\`)** icon in the left activity bar to access the Bitbucket/GitHub/GitLab wizard, branch manager, staging, AI commits, and PR creator.\n` +
+             `• **🚀 Phase 6 (Deploy & Influence)**: Handles production Canary traffic splits, shadow testing dual-runs, and client handoff bundles.\n` +
+             `• **⚡ Terminal Quick Command Bar**: Available from the top header or within the Git Hub to run live CLI commands.`,
       actions: [
-        { label: '📈 Open Phase 7 (Continuous Ops)', phase: 7 }
+        { label: '🌿 Open Git & Remote Hub', phase: 6, activityTab: 'git', description: 'Switch to Git Hub' },
+        { label: '🚀 Open Phase 6 (Deploy & Influence)', phase: 6, description: 'Go to Phase 6 Deploy' }
       ]
     };
   }
 
   // I. Keyword / Topic-aware fallback assistance
+  if (/\b(git|bitbucket|github|gitlab|remote|remotes|branch|branches|commit|commits|push|pull|pr|pull\s*request|leaf|green\s*leaf|devops)\b/i.test(q)) {
+    return {
+      success: true,
+      reply: `### 🌿 Git & Remote Repository Hub (Bitbucket, GitHub, GitLab, Remotes, PR & CI/CD)\n\n` +
+             `The **Git & Remote Repository Hub** is accessible via the **Green Leaf icon (\`🌿\`)** in the left activity bar:\n\n` +
+             `#### 1. Remote Origin Configuration & Setup Wizard\n` +
+             `• **1-Click Presets**: Quick auto-fill buttons for **Bitbucket** (\`git@bitbucket.org:org/repo.git\`), **GitHub**, and **GitLab**.\n` +
+             `• **Test Ping Connection**: 1-click network and SSH/HTTPS authentication probe to verify credentials before committing.\n\n` +
+             `#### 2. Active Branch Lifecycle & Tracking\n` +
+             `• Inspect active branch and upstream remote tracking (\`origin/main\`).\n` +
+             `• Fast branch creation (\`+ Branch\`) and switching from the branch selector dropdown.\n` +
+             `• Remote synchronization operations: **Pull (Fast-Forward)**, **Pull with Rebase**, **Push Active Branch**, and **Push & Set Upstream (-u)**.\n\n` +
+             `#### 3. Working Tree & Smart Staging\n` +
+             `• Real-time list of modified, staged, and untracked files with file change counts.\n` +
+             `• Quick buttons to **Stage All (+)** and **Unstage All (-)**.\n\n` +
+             `#### 4. Local AI Conventional Commit Generator\n` +
+             `• Click **✨ AI Commit Msg** to automatically analyze staged git diffs and draft conventional commits (\`feat:\`, \`fix:\`, \`refactor:\`, \`docs:\`).\n` +
+             `• Optional **"Automatically push immediately after commit"** toggle for 1-click delivery.\n\n` +
+             `#### 5. Pull Request Composer & Browser Launch\n` +
+             `• Click **✨ Create PR** to open the embedded PR drawer.\n` +
+             `• Specify Source and Target branches, enter summary titles, and launch PR URLs directly in your browser or submit via Git CLI.\n\n` +
+             `#### 6. Git CLI Quick Toolbar\n` +
+             `• 1-click execution for \`git status\`, \`git log --graph\`, \`git diff --stat\`, \`git branch -a\`, \`git remote -v\`, \`git stash list\`, and \`git fetch --prune\` directly in your active terminal drawer!`,
+      actions: [
+        { label: '🌿 Open Git & Remote Repository Hub', phase: 6, activityTab: 'git', description: 'Switch to Git & Remote Repository Hub' },
+        { label: '⚡ Open Terminal Drawer', phase: 4, actionType: 'terminal', description: 'Execute Git CLI commands in terminal' }
+      ]
+    };
+  }
+
   if (/\b(data|table|schema|ingest|sql)\b/i.test(q)) {
     return {
       success: true,
@@ -1489,19 +1616,21 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
   return {
     success: true,
     reply: `### 💡 Evolve AI Virtual Assistant\n\n` +
-           `I am here to help you navigate, understand, and build applications with Evolve AI across all 7 Delivery Phases:\n\n` +
+           `I am here to help you navigate, understand, and build applications with Evolve AI across our **6 Delivery Phases** and **3 Dedicated Activity Hubs**:\n\n` +
            `• **🚀 Build New Applications**: Ask *"What is the process flow to build a fresh new application?"* to learn the 5-stage greenfield build path.\n` +
-           `• **🔌 Locate Features ("Where is it?")**: Ask where to find the **Live Database**, **Visual Architecture Canvas**, **Safety Guardrails**, **Terminal**, or **Code Scaffolding**.\n` +
-           `• **⚙️ Understand Architecture ("How does it work?")**: Ask how **Safety Guardrails**, **RAG**, **Multi-Agent Swarms**, or **Canary Rollouts** work.\n` +
+           `• **🔌 Locate Features ("Where is it?")**: Ask where to find the **Live Database**, **Visual Architecture Canvas**, **Safety Guardrails**, **Git Hub (🌿)**, **Terminal**, or **Code Scaffolding**.\n` +
+           `• **⚙️ Understand Architecture ("How does it work?")**: Ask how **Safety Guardrails**, **RAG**, **Multi-Agent Swarms**, **Canary Rollouts**, or **Git Remote Setup** work.\n` +
            `• **🧭 Get Unstuck**: Ask *"I am stuck, what is my next step?"* for a customized diagnostic delivery roadmap.\n\n` +
-           `Click any quick action below to immediately jump into that delivery stage!`,
+           `Click any quick action below to immediately jump into that delivery stage or activity hub!`,
     actions: [
       { label: '🚀 Process Flow for New App', phase: 1, subStep: '3' },
       { label: '🔌 Connect Live Database', phase: 2, actionType: 'livedb' },
       { label: '🎨 UI & UX Prototypes', phase: 3, subStep: 'D' },
       { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
       { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
-      { label: '🛡️ Reliability & Evals', phase: 5 }
+      { label: '🌿 Git & Remote Repository Hub', phase: 6, activityTab: 'git' },
+      { label: '🛡️ Reliability & Evals', phase: 5 },
+      { label: '🚀 Canary & Deployment', phase: 6 }
     ]
   };
 }

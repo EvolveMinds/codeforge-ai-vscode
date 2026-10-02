@@ -14,19 +14,20 @@
 ## 📑 Table of Contents
 1. [Platform Architecture & Executive Process Flow](#1-platform-architecture--executive-process-flow)
 2. [End-to-End Document Flow & Artifact Topology](#2-end-to-end-document-flow--artifact-topology)
-3. [Tab 1: Forward-Deployed Engineers (FDE) Delivery Studio (Phases 1–5)](#3-tab-1-forward-deployed-engineers-fde-delivery-studio)
+3. [Tab 1: Forward-Deployed Engineers (FDE) Delivery Studio (Phases 1–6)](#3-tab-1-forward-deployed-engineers-fde-delivery-studio)
    - [Phase 1: Discover & Frame (Observation-to-Spec)](#phase-1-discover--frame)
    - [Phase 2: Engineering Core & Data Introspection](#phase-2-engineering-core)
    - [Phase 3: AI Solutioning & Guardrails](#phase-3-ai-solutioning--guardrails)
    - [Phase 4: Pilot Deployment & Pre-Flight](#phase-4-pilot-deployment--pre-flight)
    - [Phase 5: Executive Handoff & Governance](#phase-5-executive-handoff--governance)
+   - [Phase 6: Deploy & Influence (Shadow, Canary & Cloud Rollouts)](#phase-6-deploy--influence)
 4. [Tab 2: Data Analysis & Reporting Studio](#4-tab-2-data-analysis--reporting-studio)
 5. [Tab 3: Code Converter Studio (26 Multi-Target Languages)](#5-tab-3-code-converter-studio)
 6. [Tab 4: Databricks Lakehouse & Unity Catalog Hub](#6-tab-4-databricks-lakehouse--unity-catalog-hub)
 7. [Tab 5: Security Scanner & Pre-Flight Health Auditor](#7-tab-5-security-scanner--pre-flight-health-auditor)
 8. [Tab 6: AI Copilot & Multi-Engine Chat](#8-tab-6-ai-copilot--multi-engine-chat)
 9. [Tab 7: Local AI Hardware Auto-Detection & Sizer](#9-tab-7-local-ai-hardware-auto-detection--sizer)
-10. [Tab 8: Git & Remote Repository Hub](#10-tab-8-git--remote-repository-hub)
+10. [Tab 8: Git & Remote Repository Hub (🌿 Green Leaf Icon)](#10-tab-8-git--remote-repository-hub)
 11. [Tab 9: Multi-Cloud Connect Matrix](#11-tab-9-multi-cloud-connect-matrix)
 12. [Tab 10: Settings, License Identity & EULA Viewer](#12-tab-10-settings-license-identity--eula-viewer)
 13. [Website Knowledge Base Gating & Access Control Architecture](#13-website-knowledge-base-gating--access-control-architecture)
@@ -275,13 +276,29 @@ Real-time hardware inspection for air-gapped machine qualification.
 
 ---
 
-## 10. Tab 8: Git & Remote Repository Hub
+## 10. Tab 8: Git & Remote Repository Hub (🌿 Green Leaf Icon)
 
-Native Git integration for branch isolation and delivery auditing.
+Dedicated, top-level Git and remote repository activity hub accessible directly via the **Green Leaf icon (`🌿`)** in the left activity bar. Provides enterprise engineers with zero-terminal friction across Bitbucket, GitHub, and GitLab remotes:
 
-* **Repository Inspection**: Inspect staged changes, untracked files, and active branch tracking.
-* **Branch Switching**: Move between `main` (Enterprise), `community` (Marketplace), and engagement-specific feature branches.
-* **Commit & Remote Push**: Stage, commit, and push changes over HTTPS or SSH to remote repositories.
+* **Remote Origin Configuration Wizard**:
+  * 1-Click quick presets for **Bitbucket** (`git@bitbucket.org:org/repo.git`), **GitHub** (`git@github.com:...`), and **GitLab**.
+  * Input field for any custom SSH or HTTPS remote URL with instant "Set Remote Origin".
+  * **Test Ping Connection**: 1-click non-mutating network authentication probe to verify credentials before committing code.
+* **Branch Lifecycle & Remote Tracking**:
+  * Live status indicator showing active branch and upstream tracking (`origin/main`).
+  * Instant branch creation (`+ Branch`) and dropdown branch switcher.
+  * Remote operations: **Pull (Fast-Forward)**, **Pull with Rebase**, **Push Active Branch**, and **Push & Set Upstream (-u origin)**.
+* **Working Tree & Smart Staging**:
+  * Real-time file change counter and scrollable file change list.
+  * 1-click **Stage All (+)** and **Unstage All (-)** operations.
+* **Local AI Conventional Commit Generator**:
+  * Click **✨ AI Commit Msg** to automatically inspect staged git diffs and synthesize standardized conventional commit messages (`feat: ...`, `fix: ...`, `refactor: ...`, `docs: ...`).
+  * **1-Click Commit & Push**: Optional automated upstream push upon commit for streamlined continuous delivery.
+* **Pull Request Composer (Bitbucket / GitHub / GitLab)**:
+  * Embedded PR drawer with Source and Target branch selectors and title composer.
+  * 1-click **Open PR URL in Browser** and **Submit via Git CLI / API**.
+* **Live Git Terminal Quick Toolbar**:
+  * Integrated execution buttons for `git status`, `git log --graph`, `git diff --stat`, `git branch -a`, `git remote -v`, `git stash list`, and `git fetch --prune` that execute directly in the active terminal drawer.
 
 ---
 
