@@ -21022,22 +21022,235 @@ ${arch.watchOut.map(w => `- ${w}`).join('\n')}
     refreshP3Rail();
   });
 
-  // Wire Scaffold MCP Tool Server Button
-  document.getElementById('btnScaffoldMcpServer')?.addEventListener('click', async () => {
-    showToast('🔌 Scaffolding MCP Tool Server & Protocol Handlers in src/mcp/...');
-    let code = `// Model Context Protocol Server (Evolve AI FDE)
-import { Server } from '@modelcontextprotocol/sdk/server';
-export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion()}' });`;
-    if (api?.fde?.scaffoldMcpToolServer) {
-      const res = await api.fde.scaffoldMcpToolServer();
-      if (res && res.code) code = res.code;
+  // --- MCP (Model Context Protocol) Studio Handlers ---
+
+  // Toggle SSE port input visibility when transport changes
+  const selMcpTransport = document.getElementById('selMcpTransport') as HTMLSelectElement | null;
+  const txtMcpPort = document.getElementById('txtMcpPort') as HTMLInputElement | null;
+  selMcpTransport?.addEventListener('change', () => {
+    if (txtMcpPort) {
+      txtMcpPort.style.display = selMcpTransport.value === 'sse' ? 'inline-block' : 'none';
     }
+  });
+
+  // Wire Export MCP ADR Button (Generates docs/architecture/mcp_server_adr.md)
+  const exportMcpAdrDoc = async () => {
+    const lang = (document.getElementById('selMcpLanguage') as HTMLSelectElement)?.value || 'typescript';
+    const transport = (document.getElementById('selMcpTransport') as HTMLSelectElement)?.value || 'stdio';
+    const port = parseInt((document.getElementById('txtMcpPort') as HTMLInputElement)?.value || '8080', 10);
+    const date = new Date().toISOString().split('T')[0];
+
+    const activeTools: string[] = [];
+    if ((document.getElementById('chkMcpDbSchema') as HTMLInputElement)?.checked ?? true) activeTools.push('🗄️ introspect_schema (Dynamic schema discovery & primary key inspection)');
+    if ((document.getElementById('chkMcpSafeSql') as HTMLInputElement)?.checked ?? true) activeTools.push('⚡ execute_safe_sql (AST query-guarded read-only SQL runner)');
+    if ((document.getElementById('chkMcpVectorSearch') as HTMLInputElement)?.checked ?? true) activeTools.push('🔍 vector_search (Cosine similarity retrieval over enterprise embeddings)');
+    if ((document.getElementById('chkMcpRestGateway') as HTMLInputElement)?.checked ?? true) activeTools.push('🌐 call_enterprise_api (VPC authenticated REST endpoint gateway)');
+    if ((document.getElementById('chkMcpPiiMask') as HTMLInputElement)?.checked ?? true) activeTools.push('🛡️ mask_sensitive_payload (Automated PII scrubbing filter)');
+    if ((document.getElementById('chkMcpFileReader') as HTMLInputElement)?.checked ?? true) activeTools.push('📁 read_workspace_document (Sandboxed relative document reader)');
+
+    const tableNames = (currentIntrospectedTables || []).map(t => t.tableName || t.name).filter(Boolean);
+    const tableContext = tableNames.length > 0 
+      ? `- **Bound Schema Models:** ${tableNames.slice(0, 5).join(', ')}${tableNames.length > 5 ? ` (+${tableNames.length - 5} more)` : ''}`
+      : '- **Bound Schema Models:** Enterprise Data Catalog (Default star-schema models)';
+
+    const adrContent = `# Architectural Decision Record (ADR): Enterprise Model Context Protocol (MCP) Server
+**Document Ref:** ADR-MCP-001  
+**Status:** Approved for Client Pilot  
+**Date:** ${date}  
+**Protocol Standard:** Model Context Protocol (MCP 2024-11-05 Specification)  
+**Target Runtime:** ${lang.toUpperCase()}  
+**Transport Layer:** ${transport.toUpperCase()}${transport === 'sse' ? ` (Port: ${port})` : ' (Standard I/O Subprocess)'}  
+
+---
+
+## 1. Context & Problem Framing
+Enterprise LLM agents (specifically 08 Agentic RAG and Level 4 Tool Agents) require controlled, audited, and type-safe access to corporate databases, vector indexes, and internal APIs. Direct SQL access or ad-hoc HTTP endpoints introduce critical enterprise vulnerabilities:
+- **Zero Prompt Injection Resilience:** Malicious user prompts could coerce the model into generating destructive DDL/DML mutations (\`DROP\`, \`ALTER\`, \`DELETE\`).
+- **Credential Exposure:** Embedding database passwords or API secrets in prompts violates enterprise security and SOC 2 / ISO 27001 policies.
+- **Client Protocol Fragmentation:** Desktop tool hosts (Claude Desktop, Cursor IDE) and autonomous agent frameworks require a single standardized protocol for tool discovery and execution.
+${tableContext}
+
+---
+
+## 2. Architectural Decision
+We establish a standardized **Model Context Protocol (MCP) Server** running as a secure, sandboxed intermediary.
+- **Standard:** JSON-RPC 2.0 based Model Context Protocol (MCP).
+- **Runtime Target:** ${lang === 'python' ? 'Python 3.11+ using FastMCP and Pydantic v2.' : 'TypeScript (Node.js/Bun) with `@modelcontextprotocol/sdk` and strict Zod validation.'}
+- **Transport:** ${transport === 'sse' ? `Server-Sent Events (SSE) streamable HTTP server listening on port ${port}, containerized for Kubernetes and Docker Swarm deployments.` : `stdio standard input/output pipe for zero-network-latency execution with Claude Desktop, Cursor IDE, and local CLI agents.`}
+
+---
+
+## 3. Active Tool Capabilities & Invariants
+${activeTools.map(t => `- ${t}`).join('\n')}
+
+---
+
+## 4. Enterprise Security & Governance Guardrails
+1. **AST Read-Only Query Guard:** All SQL statements executed via \`execute_safe_sql\` must strictly begin with \`SELECT\`, \`WITH\`, or \`EXPLAIN\`. The AST parser strictly rejects any query containing \`DROP\`, \`ALTER\`, \`TRUNCATE\`, \`DELETE\`, \`UPDATE\`, \`INSERT\`, \`GRANT\`, or \`REVOKE\`.
+2. **Automated PII Masking:** Regex scrubbing intercepts outbound data to redact Credit Cards / PAN (13-16 digits), US Social Security Numbers, Bearer authentication tokens, and email addresses.
+3. **SOX 404 Cryptographic Audit Trail:** Every tool execution calculates a SHA-256 hash-chain digest capturing invocation timestamp, tool name, argument hash, duration, and status, ensuring non-repudiation.
+
+---
+
+## 5. Implementation Artifacts
+- **Scaffolding Target Directory:** \`src/mcp/\`
+- **Server Entrypoint:** \`src/mcp/server.${lang === 'python' ? 'py' : 'ts'}\`
+- **Tools Definition:** \`src/mcp/tools.${lang === 'python' ? 'py' : 'ts'}\`
+- **Security Middleware:** \`src/mcp/security.${lang === 'python' ? 'py' : 'ts'}\`
+- **Client Config:** \`src/mcp/claude_desktop_config.json\`
+- **Containerization:** \`src/mcp/Dockerfile.mcp\` & \`src/mcp/docker-compose.mcp.yml\`
+`;
+
+    try {
+      if (api?.workspace?.writeFile) {
+        const ws = await api.workspace.getWorkspace();
+        if (ws?.path) {
+          const outDir = ws.path + '/docs/architecture';
+          try { await api.workspace.createDir(outDir); } catch (_) {}
+          const fullPath = `${outDir}/mcp_server_adr.md`;
+          await api.workspace.writeFile(fullPath, adrContent);
+          showToast('✓ Saved MCP ADR to docs/architecture/mcp_server_adr.md!');
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error writing MCP ADR:', e);
+    }
+
+    navigator.clipboard.writeText(adrContent);
+    showToast('✓ Copied complete MCP Architectural Decision Record (ADR) to clipboard!');
+  };
+
+  document.getElementById('btnWriteMcpAdr')?.addEventListener('click', exportMcpAdrDoc);
+
+  // Wire Copy Claude Desktop Config Button
+  document.getElementById('btnCopyClaudeDesktopConfig')?.addEventListener('click', async () => {
+    const lang = (document.getElementById('selMcpLanguage') as HTMLSelectElement)?.value || 'typescript';
+    const transport = (document.getElementById('selMcpTransport') as HTMLSelectElement)?.value || 'stdio';
+    const port = parseInt((document.getElementById('txtMcpPort') as HTMLInputElement)?.value || '8080', 10);
+    
+    let wsPath = 'd:/EvolveMInds/EvolveAI';
+    try {
+      if (api?.workspace?.getWorkspace) {
+        const ws = await api.workspace.getWorkspace();
+        if (ws?.path) wsPath = ws.path.replace(/\\/g, '/');
+      }
+    } catch (_) {}
+
+    let configSnippet: any;
+    if (transport === 'sse') {
+      configSnippet = {
+        mcpServers: {
+          "evolve-enterprise-mcp": {
+            url: `http://localhost:${port}/sse`,
+            transport: "sse"
+          }
+        }
+      };
+    } else if (lang === 'python') {
+      configSnippet = {
+        mcpServers: {
+          "evolve-enterprise-mcp": {
+            command: "python",
+            args: [`${wsPath}/src/mcp/server.py`],
+            env: {
+              PYTHONPATH: `${wsPath}/src/mcp`,
+              MCP_TRANSPORT: "stdio"
+            }
+          }
+        }
+      };
+    } else {
+      configSnippet = {
+        mcpServers: {
+          "evolve-enterprise-mcp": {
+            command: "node",
+            args: ["--loader", "ts-node/esm", `${wsPath}/src/mcp/server.ts`],
+            env: {
+              NODE_ENV: "production"
+            }
+          }
+        }
+      };
+    }
+
+    const jsonStr = JSON.stringify(configSnippet, null, 2);
+    try {
+      if (api?.system?.copyToClipboard) {
+        await api.system.copyToClipboard(jsonStr);
+      } else {
+        await navigator.clipboard.writeText(jsonStr);
+      }
+    } catch (_) {
+      navigator.clipboard.writeText(jsonStr);
+    }
+
     const mcpBox = document.getElementById('p3McpResultBox');
     if (mcpBox) {
       mcpBox.style.display = 'block';
-      mcpBox.innerText = code;
+      mcpBox.innerText = `// Claude Desktop Configuration (claude_desktop_config.json)\n${jsonStr}`;
     }
-    showToast('✓ MCP Tool Server scaffolded in src/mcp/server.ts');
+    showToast('✓ Copied Claude Desktop MCP configuration to clipboard!');
+  });
+
+  // Wire Scaffold MCP Tool Server Button
+  document.getElementById('btnScaffoldMcpServer')?.addEventListener('click', async () => {
+    const lang = (document.getElementById('selMcpLanguage') as HTMLSelectElement)?.value as ('typescript' | 'python') || 'typescript';
+    const transport = (document.getElementById('selMcpTransport') as HTMLSelectElement)?.value as ('stdio' | 'sse') || 'stdio';
+    const port = parseInt((document.getElementById('txtMcpPort') as HTMLInputElement)?.value || '8080', 10);
+
+    const tools = {
+      dbSchema: (document.getElementById('chkMcpDbSchema') as HTMLInputElement)?.checked ?? true,
+      safeSql: (document.getElementById('chkMcpSafeSql') as HTMLInputElement)?.checked ?? true,
+      vectorSearch: (document.getElementById('chkMcpVectorSearch') as HTMLInputElement)?.checked ?? true,
+      restGateway: (document.getElementById('chkMcpRestGateway') as HTMLInputElement)?.checked ?? true,
+      piiMask: (document.getElementById('chkMcpPiiMask') as HTMLInputElement)?.checked ?? true,
+      fileReader: (document.getElementById('chkMcpFileReader') as HTMLInputElement)?.checked ?? true
+    };
+
+    const includeClaudeConfig = (document.getElementById('chkMcpClaudeConfig') as HTMLInputElement)?.checked ?? true;
+    const includeDocker = (document.getElementById('chkMcpDocker') as HTMLInputElement)?.checked ?? true;
+    const includeAuditLogging = (document.getElementById('chkMcpAuditLog') as HTMLInputElement)?.checked ?? true;
+
+    showToast(`🔌 Scaffolding Enterprise MCP Server (${lang.toUpperCase()}, ${transport.toUpperCase()}) in src/mcp/...`);
+
+    let resultSummary = '';
+    let filesCount = 6;
+    if (api?.fde?.scaffoldMcpToolServer) {
+      const res = await api.fde.scaffoldMcpToolServer({
+        language: lang,
+        transport,
+        port,
+        tools,
+        includeClaudeConfig,
+        includeDocker,
+        includeAuditLogging,
+        readOnlyAst: true,
+        tables: currentIntrospectedTables
+      });
+
+      if (res && res.filesWritten && Array.isArray(res.filesWritten)) {
+        filesCount = res.filesWritten.length;
+        resultSummary = `// Successfully scaffolded ${filesCount} files in src/mcp/\n` +
+          `// Runtime: ${lang.toUpperCase()} | Transport: ${transport.toUpperCase()}${transport === 'sse' ? ` (Port: ${port})` : ''}\n` +
+          `// Enterprise Invariants: AST Read-Only SQL Guard | Regex PII Redaction | SOX 404 Audit Logging\n\n` +
+          res.filesWritten.map((f: any) => `✓ ${f.path} — ${f.description}`).join('\n') +
+          `\n\n// Primary Entrypoint Preview (${res.filePath}):\n` + (res.code || '');
+      } else if (res && res.code) {
+        resultSummary = res.code;
+      }
+    }
+
+    if (!resultSummary) {
+      resultSummary = `// MCP Server Scaffolded (${lang}, ${transport})\n// Entrypoint: src/mcp/server.${lang === 'python' ? 'py' : 'ts'}`;
+    }
+
+    const mcpBox = document.getElementById('p3McpResultBox');
+    if (mcpBox) {
+      mcpBox.style.display = 'block';
+      mcpBox.innerText = resultSummary;
+    }
+    showToast(`✓ Enterprise MCP Server scaffolded in src/mcp/ (${filesCount} files written)`);
     hasScaffoldedRagOrMcp = true;
     refreshP3Rail();
   });

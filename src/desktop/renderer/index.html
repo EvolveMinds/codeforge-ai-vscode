@@ -4178,22 +4178,94 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                           <span style="font-size: 9.5px; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #4ade80; padding: 1px 5px; border-radius: 3px;">Level 4 &amp; Agentic Link</span>
                         </div>
                         <p style="font-size: 10.5px; color: var(--text-secondary); margin: 0 0 8px 0; line-height: 1.4;">
-                          Expose secure database introspections and enterprise APIs as standardized Model Context Protocol tools. Directly callable by 08 Agentic RAG and Level 4 Tool Agents.
+                          Expose secure database introspections and enterprise APIs as standardized Model Context Protocol tools. Directly callable by 08 Agentic RAG, Level 4 Tool Agents, Cursor, and Claude Desktop.
                         </p>
-                        <div style="font-size: 10px; color: #cbd5e1; margin-bottom: 8px; background: #111; padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
-                          <div style="font-weight: 700; color: #38bdf8; margin-bottom: 3px;">Standardized MCP Tool Capabilities:</div>
-                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
-                            <div>• Introspect DB Schema</div>
-                            <div>• Execute Safe Analytical SQL</div>
-                            <div>• Vector Cosine Search</div>
-                            <div>• Enterprise REST Gateway</div>
+
+                        <!-- MCP Runtime & Transport Options Grid -->
+                        <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; margin-bottom: 8px;">
+                          <div>
+                            <label style="font-size: 10px; font-weight: bold; color: var(--text-secondary);" for="selMcpLanguage">Language / SDK</label>
+                            <select id="selMcpLanguage" style="width: 100%; margin-top: 2px; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                              <option value="typescript" selected>TypeScript (@modelcontextprotocol/sdk)</option>
+                              <option value="python">Python (FastMCP / Pydantic v2)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style="font-size: 10px; font-weight: bold; color: var(--text-secondary);" for="selMcpTransport">Transport Protocol</label>
+                            <div style="display: flex; gap: 4px; margin-top: 2px;">
+                              <select id="selMcpTransport" style="flex: 1; padding: 4px 6px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                                <option value="stdio" selected>stdio (Local Subprocess / Desktop)</option>
+                                <option value="sse">SSE / HTTP (Microservice / K8s)</option>
+                              </select>
+                              <input type="number" id="txtMcpPort" value="8080" title="SSE HTTP Port" style="display: none; width: 52px; padding: 4px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; text-align: center;" />
+                            </div>
                           </div>
                         </div>
-                        <div style="margin-top: auto;">
-                          <button class="btn" id="btnScaffoldMcpServer" style="width: 100%; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px; cursor: pointer;" aria-label="Scaffold MCP Tool Server">
-                            🔌 Scaffold MCP Tool Server &amp; Endpoints
-                          </button>
-                          <div id="p3McpResultBox" style="display: none; margin-top: 8px; background: #181818; padding: 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 10.5px; border: 1px solid var(--border); max-height: 120px; overflow-y: auto; color: #4ade80;"></div>
+
+                        <!-- Interactive Tool Capabilities Matrix -->
+                        <div style="font-size: 10px; color: #cbd5e1; margin-bottom: 8px; background: #111; padding: 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-weight: 700; color: #38bdf8;">Standardized MCP Toolsets:</span>
+                            <span style="font-size: 9px; color: #94a3b8;">AST Safe · PII Filtered</span>
+                          </div>
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px;">
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                              <input type="checkbox" id="chkMcpDbSchema" checked style="cursor: pointer;" />
+                              <span>🗄️ Introspect DB Schema</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                              <input type="checkbox" id="chkMcpSafeSql" checked style="cursor: pointer;" />
+                              <span>⚡ Safe Analytical SQL</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                              <input type="checkbox" id="chkMcpVectorSearch" checked style="cursor: pointer;" />
+                              <span>🔍 Vector Cosine Search</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                              <input type="checkbox" id="chkMcpRestGateway" checked style="cursor: pointer;" />
+                              <span>🌐 Enterprise REST Gateway</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                              <input type="checkbox" id="chkMcpPiiMask" checked style="cursor: pointer;" />
+                              <span>🛡️ Sensitive PII Masker</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                              <input type="checkbox" id="chkMcpFileReader" checked style="cursor: pointer;" />
+                              <span>📁 Sandboxed Doc Reader</span>
+                            </label>
+                          </div>
+                        </div>
+
+                        <!-- Enterprise Deployment & Governance Options -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 8px; font-size: 9.5px; color: #94a3b8; flex-wrap: wrap;">
+                          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="chkMcpClaudeConfig" checked style="cursor: pointer;" />
+                            <span>⚙️ Claude Desktop JSON</span>
+                          </label>
+                          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="chkMcpDocker" checked style="cursor: pointer;" />
+                            <span>🐳 Dockerfile &amp; Compose</span>
+                          </label>
+                          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                            <input type="checkbox" id="chkMcpAuditLog" checked style="cursor: pointer;" />
+                            <span>📜 SOX 404 Audit Log</span>
+                          </label>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div style="margin-top: auto; display: flex; flex-direction: column; gap: 6px;">
+                          <div style="display: flex; gap: 6px;">
+                            <button class="btn" id="btnScaffoldMcpServer" style="flex: 1; background: var(--success); color: #1e1e1e; font-weight: 700; padding: 6px; font-size: 11px; cursor: pointer;" aria-label="Scaffold MCP Tool Server">
+                              🔌 Scaffold MCP Server Package
+                            </button>
+                            <button class="btn-quick" id="btnCopyClaudeDesktopConfig" style="font-size: 10.5px; padding: 6px 10px; color: #38bdf8; border-color: #38bdf8; cursor: pointer;" title="Copy configuration snippet for Claude Desktop or Cursor">
+                              📋 Claude JSON
+                            </button>
+                            <button class="btn-quick" id="btnWriteMcpAdr" style="font-size: 10.5px; padding: 6px 10px; color: var(--accent); border-color: var(--accent); cursor: pointer;" title="Write full ADR documentation to docs/architecture/mcp_server_adr.md">
+                              📖 Write ADR
+                            </button>
+                          </div>
+                          <div id="p3McpResultBox" style="display: none; background: #181818; padding: 8px; border-radius: 4px; font-family: Consolas, monospace; font-size: 10.5px; border: 1px solid var(--border); max-height: 130px; overflow-y: auto; color: #4ade80;"></div>
                         </div>
                       </div>
 

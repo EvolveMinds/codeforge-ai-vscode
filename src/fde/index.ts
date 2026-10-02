@@ -19,3 +19,4 @@ export * from './runbookGenerator';
 export * from '../deployment/preflightAuditor';
 export * from '../deployment/firebaseConfigGen';
 export * from '../deployment/deployScriptScaffolder';
+export * from './mcpScaffolder';

@@ -146,6 +146,20 @@ The primary cockpit for leading a client engagement from Day 1 to Day 14.
 * **Step 4: Human-in-the-Loop (HITL) Gate & Action Logger**:
   * Mandate human approval for any high-risk action (e.g. transactions >=$100).
   * Record supervisor approval in `evals/hitl_audit_log.json` with timestamp, transaction ID, supervisor ID, and cryptographic verification.
+* **Step 5: Enterprise Model Context Protocol (MCP) Server Studio (Section 3C)**:
+  * **Dual Runtime Scaffolding**: Generate production-ready MCP packages in TypeScript (`@modelcontextprotocol/sdk` + Zod) or Python (`FastMCP` + Pydantic v2).
+  * **Transport Protocols**: Support `stdio` (high-speed pipe for Claude Desktop, Cursor IDE, and local FDE CLI agents) or `SSE / HTTP` (microservices on configurable port for Kubernetes/Docker clusters).
+  * **Enterprise Toolsets Matrix**: Selectable tool primitives dynamically bound to introspected Phase 2 relational schema:
+    * `introspect_schema`: Structured table and column metadata inspection.
+    * `execute_safe_sql`: AST query-guarded read-only SQL runner (strictly rejects `DROP`, `ALTER`, `TRUNCATE`, `DELETE`, `UPDATE`, `INSERT`).
+    * `vector_search`: Cosine similarity retrieval over enterprise embeddings with citation provenance.
+    * `call_enterprise_api`: Whitelisted VPC internal REST gateway with timeout and rate limit guards.
+    * `mask_sensitive_payload`: Regex PII redaction filter for Credit Cards, SSNs, Bearer tokens, and emails.
+    * `read_workspace_document`: Sandboxed relative workspace document reader with path-traversal prevention.
+  * **Client Integration & Architectural Governance**:
+    * 1-Click **"📋 Copy Claude Desktop JSON"** generating instant configuration snippet for `%APPDATA%\Claude\claude_desktop_config.json`.
+    * 1-Click **"📖 Write MCP ADR"** compiling a complete Architectural Decision Record (`docs/architecture/mcp_server_adr.md`).
+    * Production containerization with `Dockerfile.mcp` and `docker-compose.mcp.yml` and SOX 404 SHA-256 cryptographic audit logging.
 
 ---
 
