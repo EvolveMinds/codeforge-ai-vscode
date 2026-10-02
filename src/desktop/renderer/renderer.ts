@@ -3102,6 +3102,8 @@ function setupPhase1Discovery(api: any): void {
 
   let goToStep: (step: number) => void;
   let currentDeliveryStandard: 'simple' | 'medium' | 'advanced' = 'medium';
+  let currentEngagementNature: 'brownfield' | 'greenfield' = 'brownfield';
+  let applyEngagementNature: (nature: 'brownfield' | 'greenfield') => void;
 
   let currentInquiryProbes: Array<{ category: string; question: string; checked: boolean }> = [
     { category: 'Shadow IT', question: 'What offline spreadsheets, sticky notes, or WhatsApp chats are consulted before approval?', checked: true },
@@ -3737,6 +3739,112 @@ function setupPhase1Discovery(api: any): void {
         { name: "Telemetry Staging Model", type: "model", path: "models/staging/stg_carrier_telemetry.sql", desc: "Idempotent event-time deduplication staging model", status: "Pending Build" },
         { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "ERP credential isolation and audit log verification", status: "Linked" }
       ]
+    },
+    'greenfield-agentic': {
+      raw: 'Build a brand new autonomous AI multi-agent platform for our enterprise from scratch.',
+      risk: 'Uncoordinated autonomous agents without typed IPC protocols or human approval gates can loop infinitely or trigger unexpected mutations.',
+      reframed: 'Greenfield Multi-Agent Architecture: Event-driven ingress, deterministic task orchestrator, specialized tool agents, and human consensus verification gate.',
+      rules: [
+        'No direct database mutations without cryptographic transaction logging',
+        'Strict timeout (15s) and max-hop (6) bounds on inter-agent communication',
+        'Deterministic validation gate before committing external actions'
+      ],
+      volume: 15000,
+      handleTime: 25,
+      wage: 60,
+      baselineError: 0,
+      residualError: 0,
+      reworkCost: 0,
+      probes: [
+        { category: 'Architecture Goals', question: 'What are the core external touchpoints and event triggers for this net-new application?', checked: true },
+        { category: 'SLA & Latency', question: 'What are the required p95 latency and throughput SLAs across user-facing endpoints?', checked: true },
+        { category: 'Governance & Auth', question: 'What identity provider (OIDC/SAML) and RBAC policies govern tenant access from Day 1?', checked: true },
+        { category: 'Human-in-the-Loop', question: 'Which high-impact transactions or API actions require mandatory human supervisor sign-off?', checked: true }
+      ],
+      observations: `• Greenfield Discovery: Client product team is designing a net-new AI operational hub from scratch.\n• Integration Vision: Front-end SPA connects via WebSockets to real-time agent orchestrator.\n• Design Consensus: Zero legacy migration overhead; architecture enforces typed contracts and deterministic guardrails from Day 1.`,
+      invariants: [
+        {
+          assumption: 'New AI platform can rely purely on agentic autonomy without static schemas',
+          physics: 'Unchecked agent outputs introduce cascading hallucinations and drift across service boundaries',
+          invariant: 'Strongly typed contract boundaries between all agents and client microservices'
+        },
+        {
+          assumption: 'Store all application state in ephemeral agent memory',
+          physics: 'Stateless agent clusters lose execution context on restart and cannot be audited',
+          invariant: 'Immutable audit ledger and externalized state persistence (PostgreSQL / Redis)'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates net-new operational capacity & time-to-market speedup", status: "Synchronized" },
+        { name: "Target Architecture Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Canonical sequence diagram of the net-new multi-agent system", status: "Synchronized" },
+        { name: "Microservice Schema DDL", type: "model", path: "models/staging/stg_agents.sql", desc: "Compiled event and state schema", status: "Pending Build" },
+        { name: "Deployment Runbook", type: "runbook", path: "docs/DEPLOYMENT_RUNBOOK.md", desc: "Air-gapped deployment & boundary lock verification", status: "Linked" }
+      ]
+    },
+    'greenfield-saas': {
+      raw: 'Create a next-generation AI copilot SaaS application for our enterprise end-users.',
+      risk: 'Direct generative outputs exposed to multi-tenant users without input sanitization or tenant isolation risk prompt injection and data leakage.',
+      reframed: 'Secure AI SaaS Architecture: JWT/RBAC API gateway, session caching, tenant-isolated vector store, and streaming SSE responses.',
+      rules: [
+        'Strict tenant-level RLS boundary isolation across all vector and relational stores',
+        'Input prompt sanitization filter before invoking generative models',
+        'Streaming chunk telemetry with token-level latency tracking'
+      ],
+      volume: 20000,
+      handleTime: 15,
+      wage: 50,
+      baselineError: 0,
+      residualError: 0,
+      reworkCost: 0,
+      probes: [
+        { category: 'Tenant Isolation', question: 'How is multi-tenancy enforced across database connections and vector embeddings?', checked: true },
+        { category: 'Streaming Latency', question: 'What is the Time-to-First-Token (TTFT) budget (<300ms) for streaming responses?', checked: true },
+        { category: 'Audit Logging', question: 'Are conversation transcripts and model inferences logged with cryptographic tamper-evidence?', checked: true }
+      ],
+      observations: `• Greenfield Discovery: Net-new SaaS application designed from scratch for enterprise commercialization.\n• Architecture Target: Modern containerized microservice deployed on Cloud Run / Kubernetes.\n• Core Flow: Client Web App -> Edge Gateway -> Fastify API -> Agent Engine -> pgvector.`,
+      invariants: [
+        {
+          assumption: 'Multi-tenant users can query shared vector embeddings with soft filters',
+          physics: 'Software-only filter bugs in vector databases lead to severe cross-tenant data leakage',
+          invariant: 'Hard PostgreSQL Row-Level Security (RLS) policies with cryptographic tenant tokens'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates net-new commercial SaaS capability & onboarding velocity", status: "Synchronized" },
+        { name: "Target Architecture Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Canonical sequence diagram of the net-new SaaS application", status: "Synchronized" }
+      ]
+    },
+    'greenfield-event': {
+      raw: 'Build an event-driven intelligent microservice that processes real-time transaction streams.',
+      risk: 'Unbuffered asynchronous event processing under high burst volume can overwhelm downstream model inferences.',
+      reframed: 'Idempotent Event-Driven Microservice: Pub/Sub ingestion queue, SLM batch worker, Iceberg lakehouse commit, and automated exception routing.',
+      rules: [
+        'Idempotent deduplication using event ID hashes on message ingress',
+        'Backpressure buffering with dead-letter queue for unparseable payloads',
+        'SHA-256 seal on every committed lakehouse micro-batch'
+      ],
+      volume: 50000,
+      handleTime: 5,
+      wage: 45,
+      baselineError: 0,
+      residualError: 0,
+      reworkCost: 0,
+      probes: [
+        { category: 'Event Throughput', question: 'What is the peak event arrival rate per second during market spikes?', checked: true },
+        { category: 'Idempotency', question: 'How does the event worker detect and drop duplicate webhook transmissions?', checked: true }
+      ],
+      observations: `• Greenfield Discovery: Net-new high-throughput event processing pipeline designed from first principles.\n• Target Architecture: Event Stream -> Pub/Sub -> Container Worker -> Fast SLM -> Iceberg Lakehouse.`,
+      invariants: [
+        {
+          assumption: 'External event streams deliver guaranteed once-only ordered messages',
+          physics: 'Distributed networks experience clock drift, out-of-order delivery, and re-transmissions',
+          invariant: 'Strict idempotent consumer pattern with content-hash deduplication store'
+        }
+      ],
+      artifacts: [
+        { name: "Controller's 3 Numbers", type: "roi", path: "Step 2 (ROI Calculator)", desc: "Calculates automated throughput capacity from Day 1", status: "Synchronized" },
+        { name: "Target Architecture Topology", type: "diagram", path: "Step 3 (Workflow Topology)", desc: "Canonical sequence diagram of the event-driven microservice", status: "Synchronized" }
+      ]
     }
   };
 
@@ -4239,10 +4347,88 @@ function setupPhase1Discovery(api: any): void {
     DualSigner-->>ExcelMatch: Approve wire transfers via token fob (⚠️ EOD deadline)
     ExcelMatch->>Custodian: Transmit batch SWIFT MT541 instruction (⚠️ T+2 Settlement)
     Custodian-->>Broker: Final clearing notice arrives two days later`
+    },
+    'greenfield-agentic': {
+      name: '🌱 Greenfield Multi-Agent System (From Scratch)',
+      future: `sequenceDiagram
+    autonumber
+    actor Client as Client App / User
+    participant Gateway as API Gateway & Auth Ingress
+    participant Orch as Executive Orchestrator (LAM)
+    participant Mesh as Specialized Agent Mesh
+    participant DB as Postgres & pgvector
+    actor HITL as Human Verification Gate
+    
+    Client->>Gateway: Submit task request / prompt
+    Gateway->>Orch: Authenticated event with user context
+    Orch->>Mesh: Dispatch subtasks over A2A event bus
+    par Parallel Specialist Execution
+        Mesh->>DB: Query vector store & structured tables
+        DB-->>Mesh: Low-latency semantic chunks & facts (<15ms)
+        Mesh->>Mesh: Execute domain tool logic
+    end
+    Mesh-->>Orch: Aggregate subtask findings
+    alt High-Impact Transaction Mutation
+        Orch->>HITL: Route proposed action for sign-off
+        HITL-->>Orch: 1-Click cryptographic approval
+    end
+    Orch->>DB: Atomic 2PC write & signed audit log
+    Orch-->>Gateway: Execution receipt & synthesized output
+    Gateway-->>Client: Streaming response with citations`,
+      legacy: ``
+    },
+    'greenfield-saas': {
+      name: '🌱 Net-New AI SaaS Application (Clean Slate)',
+      future: `sequenceDiagram
+    autonumber
+    actor User as Web / Mobile Client
+    participant Edge as Edge CDN & WAF
+    participant API as Fastify Backend API
+    participant Agent as Context-Aware AI Agent
+    participant Cache as Redis Session Cache
+    participant DB as Cloud SQL & Vector Store
+    
+    User->>Edge: Interactive user session / API request
+    Edge->>API: Validated JWT bearer request
+    API->>Cache: Hydrate user conversation memory (<2ms)
+    Cache-->>API: Active context & preferences
+    API->>Agent: Stream prompt & session context
+    Agent->>DB: Dense semantic search & tenant records
+    DB-->>Agent: Grounded knowledge chunks
+    Agent-->>API: Stream token chunks with citations
+    API->>DB: Append immutable audit event
+    API-->>User: Real-time SSE / WebSocket streaming UI`,
+      legacy: ``
+    },
+    'greenfield-event': {
+      name: '🌱 Event-Driven Intelligent Microservice',
+      future: `sequenceDiagram
+    autonumber
+    actor Producer as Upstream Service / Kafka
+    participant Queue as Pub/Sub Event Ingress
+    participant Worker as Event Processor Worker
+    participant Model as Small Language Model (SLM)
+    participant Lake as Apache Iceberg / BigLake
+    actor Audit as Compliance Verification Gate
+    
+    Producer->>Queue: Publish domain event payload
+    Queue->>Worker: Pull event batch
+    Worker->>Model: Fast deterministic extraction & classification (<20ms)
+    Model-->>Worker: Structured typed schema entity
+    alt Anomaly or Threshold Exceeded
+        Worker->>Audit: Escalate exception to review queue
+        Audit-->>Worker: Certified resolution stamp
+    end
+    Worker->>Lake: Append parquet micro-batch with SHA-256 seal
+    Worker-->>Queue: Acknowledge message processed`,
+      legacy: ``
     }
   };
 
   const presetDisplayLabels: Record<string, string> = {
+    'greenfield-agentic': '🌱 Greenfield Multi-Agent System',
+    'greenfield-saas': '🚀 Net-New AI SaaS Application',
+    'greenfield-event': '⚡ Event-Driven Microservice',
     'support-copilot': '🎧 Support Operations Co-Pilot',
     'fin-reconcile': '💰 Financial Core Reconciliation',
     'health-records': '🏥 Healthcare Clinical Records',
@@ -4368,13 +4554,20 @@ function setupPhase1Discovery(api: any): void {
   const updateEditingBanner = () => {
     const el = document.getElementById('fdeEditingBanner');
     if (el) {
-      const isFuture = currentDiagramMode === 'future';
-      el.textContent = isFuture
-        ? '\u25cf Editing: Future State (proposed workflow)'
-        : '\u25cf Editing: Current State (today\u2019s workflow)';
-      el.style.color = isFuture ? '#38bdf8' : '#fbbf24';
-      el.style.borderColor = isFuture ? 'rgba(56, 189, 248, 0.4)' : 'rgba(251, 191, 36, 0.4)';
-      el.style.background = isFuture ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
+      if (currentEngagementNature === 'greenfield') {
+        el.textContent = '● Editing: Target Application Architecture (Greenfield Spec)';
+        el.style.color = '#34d399';
+        el.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+        el.style.background = 'rgba(52, 211, 153, 0.1)';
+      } else {
+        const isFuture = currentDiagramMode === 'future';
+        el.textContent = isFuture
+          ? '\u25cf Editing: Future State (proposed workflow)'
+          : '\u25cf Editing: Current State (today\u2019s workflow)';
+        el.style.color = isFuture ? '#38bdf8' : '#fbbf24';
+        el.style.borderColor = isFuture ? 'rgba(56, 189, 248, 0.4)' : 'rgba(251, 191, 36, 0.4)';
+        el.style.background = isFuture ? 'rgba(56, 189, 248, 0.1)' : 'rgba(251, 191, 36, 0.1)';
+      }
     }
     updateActiveTemplateUI();
   };
@@ -4514,6 +4707,22 @@ function setupPhase1Discovery(api: any): void {
   };
 
   const paintCompare = () => {
+    if (currentEngagementNature === 'greenfield') {
+      if (compareLegacy) {
+        compareLegacy.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 28px 16px; text-align: center;"><div style="font-size: 20px; margin-bottom: 8px;">🌱</div><strong style="color: #34d399; font-size: 12px;">Greenfield Clean-Slate Application</strong><br><br><span style="color: #94a3b8; line-height: 1.5;">This application is being architected from scratch with the client.<br>There are no legacy manual systems or As-Is bottlenecks to contrast.<br>The single canonical target architecture evolves continuously.</span></div>';
+      }
+      drawInto(compareFuture, cachedDiagrams.futureDiagram, 'No target architecture diagram yet. Load an archetype or click AI Synthesize Topology.');
+
+      if (compareDelta) {
+        const b = summariseDiagram(cachedDiagrams.futureDiagram);
+        compareDelta.innerHTML =
+          '<strong style="color: #34d399; font-size: 12px;">🌱 Greenfield Clean-Slate Architecture (Single Canonical State)</strong><br>' +
+          'Target Application Specification: <strong>' + b.steps + '</strong> end-to-end integration steps, <strong>' + b.actors + '</strong> core actors/services, <strong>' + b.gates + '</strong> human approval gate(s).<br>' +
+          '<span style="color: var(--text-muted);">As engineers and client stakeholders iterate, this single canonical topology is updated in real time.</span>';
+      }
+      return;
+    }
+
     drawInto(compareLegacy, cachedDiagrams.legacyDiagram, 'No current-state diagram yet. Load an archetype or click AI Synthesize Topology.');
     drawInto(compareFuture, cachedDiagrams.futureDiagram, 'No future-state diagram yet. Load an archetype or click AI Synthesize Topology.');
 
@@ -4589,6 +4798,7 @@ function setupPhase1Discovery(api: any): void {
         legacyDiagram: cachedDiagrams.legacyDiagram || '',
         activePresetKey: activeTopologyPresetKey,
         currentDiagramMode,
+        engagementNature: currentEngagementNature,
         savedAt: Date.now()
       };
       localStorage.setItem(LOCAL_STORAGE_DIAGRAMS_KEY, JSON.stringify(payload));
@@ -5299,6 +5509,11 @@ function setupPhase1Discovery(api: any): void {
 
     const tpl = topologyPresets[key];
     if (tpl) {
+      if (key.startsWith('greenfield')) {
+        applyEngagementNature('greenfield');
+      } else if (currentEngagementNature === 'greenfield') {
+        applyEngagementNature('brownfield');
+      }
       pushDiagramHistory(`Load Template: ${tpl.name}`);
 
       cachedDiagrams.futureDiagram = tpl.future;
@@ -6020,6 +6235,11 @@ function setupPhase1Discovery(api: any): void {
 
   selArchetype?.addEventListener('change', async () => {
     const key = selArchetype.value;
+    if (key.startsWith('greenfield')) {
+      applyEngagementNature('greenfield');
+    } else if (key !== 'custom' && currentEngagementNature === 'greenfield') {
+      applyEngagementNature('brownfield');
+    }
     const arch = archetypes[key];
     if (arch) {
       if (txtRawAsk) txtRawAsk.value = arch.raw;
@@ -6150,6 +6370,79 @@ function setupPhase1Discovery(api: any): void {
   btnTabFuture?.addEventListener('click', () => setDiagramMode('future'));
   btnTabLegacy?.addEventListener('click', () => setDiagramMode('legacy'));
 
+  applyEngagementNature = (nature: 'brownfield' | 'greenfield') => {
+    currentEngagementNature = nature;
+    const btnBrown = document.getElementById('btnFdeNatureBrownfield');
+    const btnGreen = document.getElementById('btnFdeNatureGreenfield');
+    if (btnBrown) {
+      btnBrown.classList.toggle('active', nature === 'brownfield');
+      btnBrown.style.background = nature === 'brownfield' ? 'rgba(56, 189, 248, 0.2)' : '';
+      btnBrown.style.borderColor = nature === 'brownfield' ? '#38bdf8' : 'var(--border)';
+      btnBrown.style.color = nature === 'brownfield' ? '#38bdf8' : 'var(--text-secondary)';
+      btnBrown.style.fontWeight = nature === 'brownfield' ? '700' : 'normal';
+    }
+    if (btnGreen) {
+      btnGreen.classList.toggle('active', nature === 'greenfield');
+      btnGreen.style.background = nature === 'greenfield' ? 'rgba(52, 211, 153, 0.2)' : '';
+      btnGreen.style.borderColor = nature === 'greenfield' ? '#34d399' : 'var(--border)';
+      btnGreen.style.color = nature === 'greenfield' ? '#34d399' : 'var(--text-secondary)';
+      btnGreen.style.fontWeight = nature === 'greenfield' ? '700' : 'normal';
+    }
+
+    const titleText = document.getElementById('fdeStep3TitleText');
+    const subtitle = document.getElementById('fdeStep3Subtitle');
+    const step3BtnLabel = document.querySelector('#btnFdeStep3 .fde-step-label');
+
+    if (nature === 'greenfield') {
+      if (titleText) titleText.textContent = '3. Target Application Topology (Greenfield Specification)';
+      if (subtitle) subtitle.textContent = 'Single canonical architecture topology designed from scratch with the client. Evolves continuously as engineers and stakeholders iterate.';
+      if (step3BtnLabel) step3BtnLabel.textContent = 'Target Architecture';
+      if (btnTabLegacy) btnTabLegacy.style.display = 'none';
+      if (btnTabFuture) btnTabFuture.innerHTML = '🌱 Evolving Architecture Topology';
+      
+      // Greenfield has single target state, so ensure mode is future
+      if (currentDiagramMode === 'legacy') {
+        setDiagramMode('future');
+      }
+    } else {
+      if (titleText) titleText.textContent = '3. Current vs Future State Workflow Topology';
+      if (subtitle) subtitle.textContent = 'Interactive Mermaid sequence topology contrasting legacy manual bottlenecks against the proposed FDE AI system. Editable for custom projects.';
+      if (step3BtnLabel) step3BtnLabel.textContent = 'Workflow Topology';
+      if (btnTabLegacy) btnTabLegacy.style.display = '';
+      if (btnTabFuture) btnTabFuture.innerHTML = '🟢 Proposed AI Workflow';
+    }
+
+    updateEditingBanner();
+    paintDiagram();
+    paintCompare();
+  };
+
+  document.getElementById('btnFdeNatureBrownfield')?.addEventListener('click', () => {
+    applyEngagementNature('brownfield');
+    markScopeDirty();
+    showToast('🏭 Switched to Brownfield Mode: As-Is vs To-Be Topology Comparison');
+  });
+
+  document.getElementById('btnFdeNatureGreenfield')?.addEventListener('click', () => {
+    applyEngagementNature('greenfield');
+    if (!cachedDiagrams.futureDiagram || cachedDiagrams.futureDiagram.includes('messy request')) {
+      const gfTpl = topologyPresets['greenfield-agentic'];
+      if (gfTpl) {
+        cachedDiagrams.futureDiagram = gfTpl.future;
+        cachedDiagrams.legacyDiagram = '';
+        if (topologyContainer) topologyContainer.value = gfTpl.future;
+        activeTopologyPresetKey = 'greenfield-agentic';
+        activeTopologyPresetName = '🌱 Greenfield Multi-Agent System';
+        activeTopologyPresetModified = false;
+        updateActiveTemplateUI();
+        paintDiagram();
+        fitToView();
+      }
+    }
+    markScopeDirty();
+    showToast('🌱 Switched to Greenfield Mode: Single Evolving Architecture Topology');
+  });
+
   // --- Phase 1 completeness: drives the status badge, the nav rail and the Advance gate ---
   interface ScopeCompleteness { complete: boolean; missing: string[]; filled: number; total: number; }
 
@@ -6227,6 +6520,7 @@ function setupPhase1Discovery(api: any): void {
 
     return {
       standard: currentDeliveryStandard,
+      engagementNature: currentEngagementNature,
       rawClientAsk: rawAsk,
       inquiryProbes: currentInquiryProbes,
       floorObservations: txtFloorObservations?.value || '',
@@ -6487,9 +6781,18 @@ function setupPhase1Discovery(api: any): void {
           computeRoi();
         }
         if (api?.fde?.aiGenerateTopology) {
-          const topRes = await api.fde.aiGenerateTopology({ rawAsk: raw, reframedGoal: res.reframedGoal, archetype: res.detectedArchetype });
+          const topRes = await api.fde.aiGenerateTopology({
+            rawAsk: raw,
+            reframedGoal: res.reframedGoal,
+            archetype: res.detectedArchetype,
+            engagementNature: currentEngagementNature
+          });
           if (topRes.futureDiagram) cachedDiagrams.futureDiagram = topRes.futureDiagram;
-          if (topRes.legacyDiagram) cachedDiagrams.legacyDiagram = topRes.legacyDiagram;
+          if (currentEngagementNature === 'greenfield') {
+            cachedDiagrams.legacyDiagram = '';
+          } else if (topRes.legacyDiagram) {
+            cachedDiagrams.legacyDiagram = topRes.legacyDiagram;
+          }
           if (topologyContainer) {
             topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
           }
@@ -6598,9 +6901,18 @@ function setupPhase1Discovery(api: any): void {
     const reframed = txtReframed?.value || '';
     if (api?.fde?.aiGenerateTopology) {
       showToast('✨ AI is synthesizing sequence workflow topology...');
-      const topRes = await api.fde.aiGenerateTopology({ rawAsk: raw, reframedGoal: reframed, archetype: selArchetype?.value });
+      const topRes = await api.fde.aiGenerateTopology({
+        rawAsk: raw,
+        reframedGoal: reframed,
+        archetype: selArchetype?.value,
+        engagementNature: currentEngagementNature
+      });
       if (topRes.futureDiagram) cachedDiagrams.futureDiagram = topRes.futureDiagram;
-      if (topRes.legacyDiagram) cachedDiagrams.legacyDiagram = topRes.legacyDiagram;
+      if (currentEngagementNature === 'greenfield') {
+        cachedDiagrams.legacyDiagram = '';
+      } else if (topRes.legacyDiagram) {
+        cachedDiagrams.legacyDiagram = topRes.legacyDiagram;
+      }
       if (topologyContainer) {
         topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
       }
@@ -6659,6 +6971,7 @@ function setupPhase1Discovery(api: any): void {
     const payload = {
       discovery: {
         standard: currentDeliveryStandard,
+        engagementNature: currentEngagementNature,
         rawClientAsk: rawAsk,
         inquiryProbes: currentInquiryProbes,
         floorObservations: txtFloorObservations?.value || '',
@@ -6695,6 +7008,13 @@ function setupPhase1Discovery(api: any): void {
         const d = res.restoredData.discovery;
         if (d.standard && (d.standard === 'simple' || d.standard === 'medium' || d.standard === 'advanced')) {
           applyDeliveryStandard(d.standard);
+        }
+        if (d.engagementNature && (d.engagementNature === 'greenfield' || d.engagementNature === 'brownfield')) {
+          applyEngagementNature(d.engagementNature);
+        } else if (d.archetype?.startsWith('greenfield') || d.activeTopologyTemplate?.startsWith('greenfield')) {
+          applyEngagementNature('greenfield');
+        } else {
+          applyEngagementNature('brownfield');
         }
         if (txtRawAsk && d.rawClientAsk) txtRawAsk.value = d.rawClientAsk;
         if (txtFloorObservations && d.floorObservations) txtFloorObservations.value = d.floorObservations;
@@ -6772,6 +7092,7 @@ function setupPhase1Discovery(api: any): void {
       clientName: 'Client Executive Sponsor',
       discovery: {
         standard: currentDeliveryStandard,
+        engagementNature: currentEngagementNature,
         rawClientAsk: rawAsk,
         inquiryProbes: currentInquiryProbes,
         floorObservations: txtFloorObservations?.value || '',
@@ -6829,6 +7150,11 @@ function setupPhase1Discovery(api: any): void {
         if (state && state.discovery) {
           if (state.discovery.standard && (state.discovery.standard === 'simple' || state.discovery.standard === 'medium' || state.discovery.standard === 'advanced')) {
             applyDeliveryStandard(state.discovery.standard);
+          }
+          if (state.discovery.engagementNature && (state.discovery.engagementNature === 'greenfield' || state.discovery.engagementNature === 'brownfield')) {
+            applyEngagementNature(state.discovery.engagementNature);
+          } else if (state.discovery.archetype?.startsWith('greenfield') || state.discovery.activeTopologyTemplate?.startsWith('greenfield')) {
+            applyEngagementNature('greenfield');
           }
           if (txtRawAsk && state.discovery.rawClientAsk) txtRawAsk.value = state.discovery.rawClientAsk;
           if (txtFloorObservations && state.discovery.floorObservations) txtFloorObservations.value = state.discovery.floorObservations;
@@ -6901,6 +7227,9 @@ function setupPhase1Discovery(api: any): void {
             if (parsed.legacyDiagram) cachedDiagrams.legacyDiagram = parsed.legacyDiagram;
             if (parsed.activePresetKey) activeTopologyPresetKey = parsed.activePresetKey;
             if (parsed.currentDiagramMode) currentDiagramMode = parsed.currentDiagramMode;
+            if (parsed.engagementNature && (parsed.engagementNature === 'greenfield' || parsed.engagementNature === 'brownfield')) {
+              applyEngagementNature(parsed.engagementNature);
+            }
             hasCustomDiagrams = true;
             console.log('[FDE] Restored topology diagrams from localStorage fallback');
           }

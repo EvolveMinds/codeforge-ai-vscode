@@ -125,4 +125,30 @@ suite('FDE Suite — Discovery Archetypes & Scope Serialization', () => {
     assert.ok(!md.includes('Downstream Rework Savings'));
     assert.ok(md.includes('- _No custom boundaries defined._'));
   });
+
+  test('maps all Greenfield engagement archetypes to clean-slate labels', () => {
+    assert.strictEqual(ARCHETYPE_NAMES['greenfield-agentic'], 'Greenfield Autonomous AI Platform (From Scratch)');
+    assert.strictEqual(ARCHETYPE_NAMES['greenfield-saas'], 'Greenfield AI SaaS Application (Clean Slate)');
+    assert.strictEqual(ARCHETYPE_NAMES['greenfield-event'], 'Greenfield Event-Driven Microservice');
+  });
+
+  test('buildScopeMarkdown outputs Greenfield delivery nature header and single canonical state', () => {
+    const data = {
+      standard: 'medium',
+      engagementNature: 'greenfield',
+      archetype: 'greenfield-agentic',
+      rawClientAsk: 'Build a net-new multi-agent coordination platform from scratch.',
+      controllersThreeNumbers: {
+        volume: 2000,
+        handleTimeMins: 20,
+        hourlyWage: 50
+      }
+    };
+
+    const md = buildScopeMarkdown('Nova Systems', data);
+    assert.ok(md.includes('**Project Delivery Nature**: 🌱 Greenfield (Net-New Application from Scratch — Single Canonical State)'));
+    assert.ok(md.includes('Greenfield Autonomous AI Platform (From Scratch)'));
+    assert.ok(md.includes('Build a net-new multi-agent coordination platform from scratch.'));
+  });
 });
+

@@ -104,6 +104,9 @@ export const ARCHETYPE_NAMES: Record<string, string> = {
   'fin-reconcile': 'Financial Ledger & Payment Reconciliation',
   'health-records': 'Clinical Records & Diagnostic Intake Extraction',
   'supply-chain': 'Supply Chain Disruption & ASN Routing Agent',
+  'greenfield-agentic': 'Greenfield Autonomous AI Platform (From Scratch)',
+  'greenfield-saas': 'Greenfield AI SaaS Application (Clean Slate)',
+  'greenfield-event': 'Greenfield Event-Driven Microservice',
   'custom': 'Custom Engagement'
 };
 
@@ -179,10 +182,15 @@ export function buildScopeMarkdown(clientName: string, data: any): string {
 * **Downstream Rework Savings**: $${reworkMonthly.toLocaleString()}/mo (${Math.round(errorsAvoidedPerMonth).toLocaleString()} errors avoided @ $${reworkCost}/error)`;
   }
 
+  const isGreenfield = data?.engagementNature === 'greenfield' || archKey.startsWith('greenfield');
+  const projectTypeLine = isGreenfield
+    ? '**Project Delivery Nature**: 🌱 Greenfield (Net-New Application from Scratch — Single Canonical State)\n'
+    : '';
+
   return `# Discovery Scope Boundaries & Controller's ROI Summary
 **Client Engagement**: ${clientName}
 **Engagement Archetype**: ${archLabel}
-**Updated**: ${new Date().toISOString()}
+${projectTypeLine}**Updated**: ${new Date().toISOString()}
 
 ---
 
@@ -7318,12 +7326,13 @@ Establish clean staging schema models and compiled rule gates for all determinis
       };
     });
 
-    ipc.handle(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, async (_: any, req: { rawAsk?: string; reframedGoal?: string; archetype?: string }) => {
+    ipc.handle(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, async (_: any, req: { rawAsk?: string; reframedGoal?: string; archetype?: string; engagementNature?: 'brownfield' | 'greenfield' }) => {
       const raw = (req?.rawAsk || '').trim();
       const reframed = (req?.reframedGoal || '').trim();
       const archetype = req?.archetype || 'custom';
+      const isGreenfield = req?.engagementNature === 'greenfield' || archetype.startsWith('greenfield');
 
-      let legacyDiagram = `sequenceDiagram
+      let legacyDiagram = isGreenfield ? '' : `sequenceDiagram
     autonumber
     actor User as Business Operator / User
     participant Legacy as Legacy Manual Process (Spreadsheets / PDF)
@@ -7335,7 +7344,32 @@ Establish clean staging schema models and compiled rule gates for all determinis
     Note over Core: Hallucination & integrity risk
     Core-->>User: Un-audited completion (high rework rate)`;
 
-      let futureDiagram = `sequenceDiagram
+      let futureDiagram = isGreenfield ? `sequenceDiagram
+    autonumber
+    actor Client as Client App / User
+    participant Gateway as API Gateway & Auth Ingress
+    participant Orch as Executive AI Orchestrator (LAM)
+    participant Mesh as Specialized Worker & Tool Mesh
+    participant DB as Operational Store & pgvector
+    actor Supervisor as Human-in-the-Loop (HITL) Gate
+    
+    Client->>Gateway: Event trigger / prompt ("${raw.slice(0, 40) || 'Net-new task'}...")
+    Gateway->>Orch: Authenticated event with tenant context
+    Orch->>Mesh: Parallel dispatch over typed event bus
+    par Specialist Knowledge & Tools
+        Mesh->>DB: Query vector store / database tables
+        DB-->>Mesh: Low-latency semantic chunks & facts (<15ms)
+        Mesh->>Mesh: Execute domain tool logic
+    end
+    Mesh-->>Orch: Synthesized subtask findings
+    alt Sensitive or High-Impact Mutation
+        Orch->>Supervisor: Route proposed action for sign-off
+        Supervisor-->>Orch: 1-Click cryptographic approval
+    end
+    Orch->>DB: Atomic commit & signed audit receipt
+    Orch-->>Gateway: Execution payload with citations
+    Gateway-->>Client: Verified response delivered (<50ms)`
+      : `sequenceDiagram
     autonumber
     actor User as Business Operator / User
     participant Gateway as Secure Ingest & Webhook Gateway
@@ -7487,6 +7521,7 @@ ${(snapshotData.discovery?.outOfScope || []).map((s: string) => `* \`${s}\``).jo
       const monthlyHours = Math.round((volume * (handleTime / 60)) * 0.7);
       const monthlySavings = ((volume * (handleTime / 60) * wage * 0.7) / 1000).toFixed(1);
       const dateStr = new Date().toISOString().split('T')[0];
+      const isGreenfield = disc.engagementNature === 'greenfield' || (disc.archetype && disc.archetype.startsWith('greenfield')) || (disc.activeTopologyTemplate && disc.activeTopologyTemplate.startsWith('greenfield'));
 
       const memoMd = `# 📑 Project Scope & Technical Alignment Memorandum
 
@@ -7495,6 +7530,7 @@ ${(snapshotData.discovery?.outOfScope || []).map((s: string) => `* \`${s}\``).jo
 **Date:** ${dateStr}  
 **Status:** ✅ **Aligned & Formally Scoped**  
 **Delivery Standard:** \`${(disc.standard || 'medium').toUpperCase()} STANDARD\`  
+**Project Nature:** \`${isGreenfield ? '🌱 GREENFIELD (NET-NEW APPLICATION FROM SCRATCH)' : '🏭 BROWNFIELD (AS-IS VS TO-BE MODERNIZATION)'}\`  
 **Version:** \`v1.0 (Production Discovery Baseline)\`  
 
 ---
@@ -7579,9 +7615,10 @@ Approved economic projections based on verifiable operational telemetry:
 
 ---
 
-## 6. Current vs Future State Workflow Topology
+## 6. ${isGreenfield ? 'Target Application Topology (Greenfield Specification)' : 'Current vs Future State Workflow Topology'}
 ${disc.activeTopologyTemplate ? `\n> **Active Architecture Preset**: \`${disc.activeTopologyTemplate}\`\n` : ''}
-### Proposed Production Architecture:
+${isGreenfield ? '> *Clean-slate canonical architecture designed with client engineers. Zero legacy bottlenecks.*\n' : ''}
+### ${isGreenfield ? 'Target Application Architecture:' : 'Proposed Production Architecture:'}
 \`\`\`mermaid
 ${disc.customFutureDiagram || `sequenceDiagram
     autonumber
@@ -7646,7 +7683,10 @@ ${disc.customFutureDiagram || `sequenceDiagram
         <h1>Project Scope &amp; Technical Alignment Memorandum</h1>
         <div style="font-size: 12px; color: #94a3b8;">Client: <strong>${client}</strong> &bull; Prepared by Forward Deployed Engineering Team &bull; Date: ${dateStr}</div>
       </div>
-      <span class="badge">${(disc.standard || 'enterprise').toUpperCase()} STANDARD</span>
+      <div>
+        <span class="badge">${(disc.standard || 'enterprise').toUpperCase()} STANDARD</span>
+        <span class="badge" style="background: ${isGreenfield ? 'rgba(52, 211, 153, 0.15)' : 'rgba(245, 158, 11, 0.15)'}; color: ${isGreenfield ? '#34d399' : '#f59e0b'}; border-color: ${isGreenfield ? '#34d399' : '#f59e0b'}; margin-left: 6px;">${isGreenfield ? '🌱 GREENFIELD' : '🏭 BROWNFIELD'}</span>
+      </div>
     </div>
 
     <div class="section">
