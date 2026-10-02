@@ -5277,15 +5277,30 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                   <div style="display: grid; grid-template-columns: 46% 54%; gap: 14px; margin-bottom: 14px;">
                     <!-- LEFT COLUMN: AGENT ROSTER & SPEC INSPECTOR -->
                     <div style="display: flex; flex-direction: column; gap: 12px;">
-                      <!-- Agent Roster List -->
+                      <!-- Agent Roster List & Drag & Drop Schedule Organizer -->
                       <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 12px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                          <div style="font-size: 11.5px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
-                            <span>📋</span> Agent Roster (User-Specified)
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 4px;">
+                          <div style="font-size: 11px; font-weight: 700; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                            <span>📋</span> Agent Roster &amp; Schedule
+                            <span style="font-size: 8.5px; font-weight: 800; background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 1px 6px; border-radius: 8px; letter-spacing: 0.04em;">DRAG &amp; DROP</span>
                           </div>
-                          <span style="font-size: 10px; color: var(--text-secondary);">Click agent to edit spec</span>
+                          <div style="display: flex; align-items: center; gap: 4px;">
+                            <button type="button" class="btn-quick active" id="btnAiEngViewList" style="font-size: 9.5px; padding: 2px 7px; margin: 0; cursor: pointer; color: #38bdf8;" title="View list & reorder execution sequence">
+                              📋 Order
+                            </button>
+                            <button type="button" class="btn-quick" id="btnAiEngViewStages" style="font-size: 9.5px; padding: 2px 7px; margin: 0; cursor: pointer; color: #c084fc;" title="Drag & drop into workflow stage lanes">
+                              ⏱️ Stages
+                            </button>
+                          </div>
                         </div>
-                        <div id="listAiEngAgents" style="display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto;">
+
+                        <!-- Sub-View 1: Draggable Execution Sequence List -->
+                        <div id="listAiEngAgents" style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">
+                          <!-- Rendered dynamically with draggable cards -->
+                        </div>
+
+                        <!-- Sub-View 2: Drag & Drop Stage Lanes -->
+                        <div id="lanesAiEngAgentStages" style="display: none; grid-template-columns: 1fr 1fr 1fr; gap: 6px; max-height: 220px; overflow-y: auto;">
                           <!-- Rendered dynamically -->
                         </div>
                       </div>
@@ -5332,8 +5347,19 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                             </select>
                           </div>
                           <div>
-                            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">Specific Model ID:</label>
-                            <input type="text" id="txtAiEngAgentModelId" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); color: #c084fc; font-size: 11px; padding: 5px 8px; border-radius: 4px;" value="Qwen 2.5 Coder 32B (Tools / MCP)" />
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                              <label style="font-size: 10px; color: var(--text-secondary);">Specific Model ID:</label>
+                              <span style="font-size: 8.5px; color: #38bdf8; font-weight: 700;">Select or Type Custom</span>
+                            </div>
+                            <div style="position: relative; display: flex; align-items: center;">
+                              <input type="text" id="txtAiEngAgentModelId" list="dlAiEngAgentModels" style="width: 100%; box-sizing: border-box; background: #0c0c0c; border: 1px solid var(--border); color: #c084fc; font-size: 11px; padding: 5px 24px 5px 8px; border-radius: 4px;" value="Qwen 2.5 Coder 32B (Tools / MCP)" placeholder="Select or type model ID..." />
+                              <select id="selAiEngModelQuickPick" style="position: absolute; right: 0; top: 0; bottom: 0; width: 22px; opacity: 0; cursor: pointer;" title="Select from recommended models">
+                              </select>
+                              <span style="position: absolute; right: 6px; pointer-events: none; color: #c084fc; font-size: 9px;">▼</span>
+                            </div>
+                            <datalist id="dlAiEngAgentModels">
+                              <!-- Dynamically populated based on modelClass -->
+                            </datalist>
                           </div>
                         </div>
 
@@ -5351,9 +5377,49 @@ export function evaluateTransaction(amount: number, threshold: number = 100): bo
                           </div>
                         </div>
 
-                        <div style="margin-bottom: 10px;">
+                        <div style="margin-bottom: 8px;">
                           <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 3px;">System Prompt / Directives (User Specs):</label>
                           <textarea id="txtAiEngAgentSystemPrompt" rows="3" style="width: 100%; box-sizing: border-box; background: #090d16; border: 1px solid var(--border); color: #e2e8f0; font-family: monospace; font-size: 10.5px; padding: 6px 8px; border-radius: 4px; resize: vertical; line-height: 1.4;"></textarea>
+                        </div>
+
+                        <!-- Execution Schedule & Work Design -->
+                        <div style="background: #090d16; border: 1px solid rgba(251, 191, 36, 0.25); border-radius: 6px; padding: 10px; margin-bottom: 10px;">
+                          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="font-size: 10.5px; font-weight: 700; color: #fbbf24; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 5px;">
+                              <span>⏱️</span> Execution Schedule &amp; Work Design
+                            </div>
+                            <span id="lblAiEngAgentOrderBadge" style="font-size: 9px; background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); padding: 1px 6px; border-radius: 3px; font-weight: 800;">Step #1</span>
+                          </div>
+                          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                            <div>
+                              <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Trigger Mode:</label>
+                              <select id="selAiEngAgentTriggerMode" style="width: 100%; background: #0c0c0c; border: 1px solid var(--border); color: #fbbf24; font-size: 10.5px; padding: 4px 6px; border-radius: 4px;">
+                                <option value="event">⚡ Real-Time Ingress / App Event</option>
+                                <option value="cron">⏱️ Scheduled Cron Job</option>
+                                <option value="step">➔ Sequential Pipeline Step</option>
+                                <option value="on_demand">🤝 On-Demand Peer Delegation</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Stage Assignment:</label>
+                              <select id="selAiEngAgentStage" style="width: 100%; background: #0c0c0c; border: 1px solid var(--border); color: #c084fc; font-size: 10.5px; padding: 4px 6px; border-radius: 4px;">
+                                <option value="stage1">Stage 1: Ingress &amp; Coordination</option>
+                                <option value="stage2">Stage 2: Parallel Analysis &amp; Tools</option>
+                                <option value="stage3">Stage 3: Verification &amp; Commit</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div id="boxAiEngAgentCron" style="display: none; margin-top: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                              <label style="font-size: 10px; color: var(--text-secondary);">Cron Expression:</label>
+                              <div style="display: flex; gap: 4px;">
+                                <button type="button" class="btn-quick btn-cron-preset" data-cron="*/5 * * * *" style="font-size: 8.5px; padding: 1px 4px; margin: 0; cursor: pointer;">Every 5m</button>
+                                <button type="button" class="btn-quick btn-cron-preset" data-cron="0 * * * *" style="font-size: 8.5px; padding: 1px 4px; margin: 0; cursor: pointer;">Hourly</button>
+                                <button type="button" class="btn-quick btn-cron-preset" data-cron="0 9 * * 1-5" style="font-size: 8.5px; padding: 1px 4px; margin: 0; cursor: pointer;">Daily 9am</button>
+                              </div>
+                            </div>
+                            <input type="text" id="txtAiEngAgentCron" style="width: 100%; box-sizing: border-box; background: #050505; border: 1px solid var(--border); color: #38bdf8; font-family: monospace; font-size: 10.5px; padding: 4px 6px; border-radius: 4px;" value="*/5 * * * *" placeholder="*/5 * * * *" />
+                          </div>
                         </div>
 
                         <!-- Four-Way Communication Matrix -->

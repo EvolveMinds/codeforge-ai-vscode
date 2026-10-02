@@ -1700,6 +1700,13 @@ export interface AgentCommunicationConfig {
   dbDialect?: string;
 }
 
+export interface AgentScheduleConfig {
+  triggerType: 'event' | 'cron' | 'step' | 'on_demand';
+  cronExpression?: string;
+  stepOrder?: number;
+  stage?: 'stage1' | 'stage2' | 'stage3';
+}
+
 export interface UserAgentSpec {
   id: string;
   name: string;
@@ -1713,6 +1720,7 @@ export interface UserAgentSpec {
   toolBindings: string[];
   communication: AgentCommunicationConfig;
   isCoordinator?: boolean;
+  schedule?: AgentScheduleConfig;
 }
 
 export type MultiAgentTopology =
@@ -1811,7 +1819,12 @@ export const DEFAULT_MULTI_AGENT_SYSTEM: MultiAgentSystemConfig = {
         canTalkToRag: false,
         canTalkToDb: false
       },
-      isCoordinator: true
+      isCoordinator: true,
+      schedule: {
+        triggerType: 'event',
+        stepOrder: 1,
+        stage: 'stage1'
+      }
     },
     {
       id: 'agent_rag_specialist',
@@ -1830,6 +1843,11 @@ export const DEFAULT_MULTI_AGENT_SYSTEM: MultiAgentSystemConfig = {
         canTalkToRag: true,
         canTalkToDb: false,
         ragStoreId: 'pgvector'
+      },
+      schedule: {
+        triggerType: 'step',
+        stepOrder: 2,
+        stage: 'stage2'
       }
     },
     {
@@ -1849,6 +1867,11 @@ export const DEFAULT_MULTI_AGENT_SYSTEM: MultiAgentSystemConfig = {
         canTalkToRag: false,
         canTalkToDb: true,
         dbDialect: 'oracle'
+      },
+      schedule: {
+        triggerType: 'step',
+        stepOrder: 3,
+        stage: 'stage2'
       }
     },
     {
@@ -1868,6 +1891,11 @@ export const DEFAULT_MULTI_AGENT_SYSTEM: MultiAgentSystemConfig = {
         canTalkToRag: false,
         canTalkToDb: true,
         dbDialect: 'oracle'
+      },
+      schedule: {
+        triggerType: 'step',
+        stepOrder: 4,
+        stage: 'stage3'
       }
     }
   ],
@@ -2484,6 +2512,12 @@ export interface UserAgentSpec {
     canTalkToDb: boolean;
   };
   isCoordinator?: boolean;
+  schedule?: {
+    triggerType: 'event' | 'cron' | 'step' | 'on_demand';
+    cronExpression?: string;
+    stepOrder?: number;
+    stage?: 'stage1' | 'stage2' | 'stage3';
+  };
 }
 
 export const AGENT_SPECS: Record<string, UserAgentSpec> = ${JSON.stringify(
@@ -2498,6 +2532,10 @@ export function getAgentSpec(agentId: string): UserAgentSpec | undefined {
 
 export function listAgents(): UserAgentSpec[] {
   return Object.values(AGENT_SPECS);
+}
+
+export function listAgentsBySchedule(): UserAgentSpec[] {
+  return listAgents().sort((a, b) => ((a.schedule?.stepOrder || 999) - (b.schedule?.stepOrder || 999)));
 }
 
 export function listAgentsCanTalkTo(channel: 'app' | 'agent' | 'rag' | 'db'): UserAgentSpec[] {

@@ -22548,6 +22548,70 @@ export class TargetWriteBackExecutor {
   // ==========================================
   let activeMultiAgentSystem: any = null;
   let activeSelectedAgentId = 'agent_orchestrator';
+  let activeMultiAgentViewMode: 'list' | 'stages' = 'list';
+  let draggedAgentId: string | null = null;
+
+  const RECOMMENDED_MODELS_BY_CLASS: Record<string, string[]> = {
+    lam: [
+      'Qwen 2.5 Coder 32B (Tools / MCP)',
+      'Qwen 2.5 Coder 7B (Tools / MCP)',
+      'Claude 3.7 Sonnet (Tool Calling)',
+      'GPT-4o (Function Calling)',
+      'Mistral Large 2 (MCP Agent)',
+      'Command R+ (Enterprise Tools)'
+    ],
+    llm: [
+      'Qwen 2.5 72B Instruct',
+      'Claude 3.7 Sonnet',
+      'GPT-4o',
+      'Llama 3.3 70B Instruct',
+      'Gemini 2.0 Flash',
+      'DeepSeek V3 (MoE)'
+    ],
+    slm: [
+      'Qwen 2.5 7B (Hybrid Search)',
+      'Qwen 2.5 3B Instruct',
+      'Llama 3.2 3B Instruct',
+      'Gemma 2 9B Instruct',
+      'Phi-3.5 Mini (3.8B)',
+      'Mistral 7B Instruct v0.3'
+    ],
+    reasoner: [
+      'DeepSeek-R1 (Distill 70B)',
+      'DeepSeek-R1 (Local 14B)',
+      'OpenAI o1',
+      'OpenAI o3-mini',
+      'QwQ-32B Preview',
+      'Kimi k1.5 (Long-Horizon)'
+    ],
+    code_fim: [
+      'StarCoder2 15B (Fill-in-Middle)',
+      'Qwen 2.5 Coder 7B (FIM)',
+      'CodeQwen 1.5 7B',
+      'DeepSeek Coder 6.7B',
+      'Codestral 22B'
+    ],
+    classifier: [
+      'BGE-Reranker-Large',
+      'TypeSafe Jev (Guardrail)',
+      'DeBERTa v3 Large',
+      'ModernBERT Guardrail',
+      'Llama-Guard-3 8B'
+    ],
+    vlm: [
+      'ColPali v1.2 (Patch Multi-Vector)',
+      'Llama 3.2 Vision 11B',
+      'Qwen 2.5 VL 72B',
+      'Gemini 2.0 Flash (Multimodal)',
+      'Claude 3.7 Sonnet (Vision)'
+    ],
+    moe: [
+      'Mixtral 8x7B Instruct',
+      'Mixtral 8x22B',
+      'DeepSeek V3 (671B MoE)',
+      'Qwen 2.5 57B A14B'
+    ]
+  };
 
   function getActiveMultiAgentSystem(): any {
     if (!activeMultiAgentSystem) {
@@ -22696,13 +22760,27 @@ export class TargetWriteBackExecutor {
     }
 
     // Render Agent Roster Cards
+    // View Switcher Buttons
+    const btnViewList = document.getElementById('btnAiEngViewList');
+    const btnViewStages = document.getElementById('btnAiEngViewStages');
     const rosterList = document.getElementById('listAiEngAgents');
-    if (rosterList) {
+    const lanesStages = document.getElementById('lanesAiEngAgentStages');
+
+    btnViewList?.classList.toggle('active', activeMultiAgentViewMode === 'list');
+    btnViewStages?.classList.toggle('active', activeMultiAgentViewMode === 'stages');
+    if (rosterList) rosterList.style.display = activeMultiAgentViewMode === 'list' ? 'flex' : 'none';
+    if (lanesStages) lanesStages.style.display = activeMultiAgentViewMode === 'stages' ? 'grid' : 'none';
+
+    // Render Draggable Execution Sequence List
+    if (rosterList && activeMultiAgentViewMode === 'list') {
       rosterList.innerHTML = '';
-      agents.forEach(a => {
+      agents.forEach((a, idx) => {
         const isSelected = a.id === activeSelectedAgentId;
         const card = document.createElement('div');
-        card.style.cssText = `padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; background: ${isSelected ? 'rgba(78, 201, 176, 0.08)' : '#0e0e0e'}; transition: all 0.15s ease;`;
+        card.setAttribute('draggable', 'true');
+        card.dataset.agentId = a.id;
+        card.dataset.index = String(idx);
+        card.style.cssText = `padding: 8px 10px; border-radius: 6px; cursor: grab; display: flex; justify-content: space-between; align-items: center; border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; background: ${isSelected ? 'rgba(78, 201, 176, 0.08)' : '#0e0e0e'}; transition: all 0.15s ease; user-select: none;`;
 
         const commBadges = [];
         if (a.communication?.canTalkToApp) commBadges.push('<span style="font-size: 8.5px; background: rgba(74,222,128,0.15); color: #4ade80; padding: 1px 4px; border-radius: 2px;">APP</span>');
@@ -22710,26 +22788,194 @@ export class TargetWriteBackExecutor {
         if (a.communication?.canTalkToRag) commBadges.push('<span style="font-size: 8.5px; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 1px 4px; border-radius: 2px;">RAG</span>');
         if (a.communication?.canTalkToDb) commBadges.push('<span style="font-size: 8.5px; background: rgba(251,191,36,0.15); color: #fbbf24; padding: 1px 4px; border-radius: 2px;">DB</span>');
 
+        const trig = a.schedule?.triggerType || (a.isCoordinator ? 'event' : 'step');
+        const triggerBadge = trig === 'event' ? '<span style="font-size: 8px; background: rgba(74,222,128,0.12); color: #4ade80; padding: 1px 4px; border-radius: 2px; font-weight: 700;">⚡ INGRESS</span>'
+          : trig === 'cron' ? `<span style="font-size: 8px; background: rgba(56,189,248,0.12); color: #38bdf8; padding: 1px 4px; border-radius: 2px; font-weight: 700;">⏱️ ${escapeHtml(a.schedule?.cronExpression || 'CRON')}</span>`
+          : trig === 'step' ? `<span style="font-size: 8px; background: rgba(251,191,36,0.12); color: #fbbf24; padding: 1px 4px; border-radius: 2px; font-weight: 700;">➔ STEP #${idx + 1}</span>`
+          : '<span style="font-size: 8px; background: rgba(192,132,252,0.12); color: #c084fc; padding: 1px 4px; border-radius: 2px; font-weight: 700;">🤝 ON-DEMAND</span>';
+
         card.innerHTML = `
-          <div>
-            <div style="font-size: 11px; font-weight: 700; color: ${isSelected ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
-              <span>${a.isCoordinator ? '👑' : '🤖'}</span>
-              <span>${escapeHtml(a.name)}</span>
-              <span style="font-size: 8.5px; background: #222; color: #cbd5e1; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">${a.modelClass.toUpperCase()}</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #64748b; font-size: 13px; cursor: grab;" title="Drag to reorder execution sequence">⠿</span>
+            <span style="font-size: 9px; font-weight: 800; background: #181824; color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); padding: 1px 5px; border-radius: 3px;">#${idx + 1}</span>
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: ${isSelected ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
+                <span>${a.isCoordinator ? '👑' : '🤖'}</span>
+                <span>${escapeHtml(a.name)}</span>
+                <span style="font-size: 8.5px; background: #222; color: #cbd5e1; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">${a.modelClass.toUpperCase()}</span>
+                ${triggerBadge}
+              </div>
+              <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(a.role)}</div>
             </div>
-            <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(a.role)}</div>
           </div>
           <div style="display: flex; gap: 3px; align-items: center;">
             ${commBadges.join('')}
           </div>
         `;
 
-        card.addEventListener('click', () => {
+        card.addEventListener('click', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.getAttribute('title')?.includes('Drag')) return;
           activeSelectedAgentId = a.id;
           renderAiEngMultiAgent();
         });
 
+        card.addEventListener('dragstart', (e) => {
+          draggedAgentId = a.id;
+          card.style.opacity = '0.4';
+          card.style.borderColor = 'var(--accent)';
+          if (e.dataTransfer) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', a.id);
+          }
+        });
+
+        card.addEventListener('dragend', () => {
+          draggedAgentId = null;
+          card.style.opacity = '1';
+          card.style.borderColor = isSelected ? 'var(--accent)' : 'var(--border)';
+        });
+
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+          card.style.borderTop = '2px solid #38bdf8';
+          card.style.background = 'rgba(56, 189, 248, 0.08)';
+        });
+
+        card.addEventListener('dragleave', () => {
+          card.style.borderTop = '';
+          card.style.background = isSelected ? 'rgba(78, 201, 176, 0.08)' : '#0e0e0e';
+        });
+
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.style.borderTop = '';
+          card.style.background = isSelected ? 'rgba(78, 201, 176, 0.08)' : '#0e0e0e';
+          if (!draggedAgentId || draggedAgentId === a.id) return;
+          const fromIdx = agents.findIndex(ag => ag.id === draggedAgentId);
+          const toIdx = idx;
+          if (fromIdx !== -1 && toIdx !== -1) {
+            const moved = agents.splice(fromIdx, 1)[0];
+            agents.splice(toIdx, 0, moved);
+            agents.forEach((ag, i) => {
+              if (!ag.schedule) ag.schedule = { triggerType: 'step', stepOrder: i + 1, stage: 'stage2' };
+              ag.schedule.stepOrder = i + 1;
+            });
+            saveActiveMultiAgentSystem(sys);
+            showToast(`✨ Reordered schedule: ${moved.name} is now Step #${toIdx + 1}!`);
+            renderAiEngMultiAgent();
+          }
+        });
+
         rosterList.appendChild(card);
+      });
+    }
+
+    // Render Drag & Drop Stages View
+    if (lanesStages && activeMultiAgentViewMode === 'stages') {
+      lanesStages.innerHTML = '';
+      const stagesDef = [
+        { id: 'stage1', title: 'Stage 1: Ingress & Coordination', color: '#c084fc', bg: 'rgba(168, 85, 247, 0.08)', border: 'rgba(168, 85, 247, 0.25)', desc: 'Host app events, cron scheduling, task delegation' },
+        { id: 'stage2', title: 'Stage 2: Parallel Analysis & Tools', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.08)', border: 'rgba(56, 189, 248, 0.25)', desc: 'RAG search, operational database queries, subtasks' },
+        { id: 'stage3', title: 'Stage 3: Verification & SOX Commit', color: '#4ade80', bg: 'rgba(74, 222, 128, 0.08)', border: 'rgba(74, 222, 128, 0.25)', desc: 'Guardrails, tolerance checks, 2PC atomic write-back' }
+      ];
+
+      stagesDef.forEach(st => {
+        const col = document.createElement('div');
+        col.style.cssText = `background: #080c14; border: 1px dashed ${st.border}; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 180px; transition: all 0.15s ease;`;
+
+        col.innerHTML = `
+          <div style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 4px; margin-bottom: 2px;">
+            <div style="font-size: 9.5px; font-weight: 800; color: ${st.color}; text-transform: uppercase; letter-spacing: 0.04em;">${st.title}</div>
+            <div style="font-size: 8.5px; color: var(--text-secondary); margin-top: 1px;">${st.desc}</div>
+          </div>
+          <div class="stage-drop-zone" style="display: flex; flex-direction: column; gap: 4px; flex: 1;">
+          </div>
+        `;
+
+        const zone = col.querySelector('.stage-drop-zone') as HTMLElement;
+        const stageAgents = agents.filter(ag => {
+          const agStage = ag.schedule?.stage || (ag.isCoordinator ? 'stage1' : (ag.communication?.canTalkToDb && ag.id.includes('audit')) ? 'stage3' : 'stage2');
+          return agStage === st.id;
+        });
+
+        stageAgents.forEach(a => {
+          const isSelected = a.id === activeSelectedAgentId;
+          const miniCard = document.createElement('div');
+          miniCard.setAttribute('draggable', 'true');
+          miniCard.style.cssText = `padding: 6px 8px; border-radius: 4px; cursor: grab; background: ${isSelected ? 'rgba(78, 201, 176, 0.1)' : '#111622'}; border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; font-size: 10px; display: flex; justify-content: space-between; align-items: center; user-select: none;`;
+          miniCard.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <span>${a.isCoordinator ? '👑' : '🤖'}</span>
+              <span style="font-weight: 700; color: #fff;">${escapeHtml(a.name)}</span>
+            </div>
+            <span style="font-size: 8px; background: #222; color: #cbd5e1; padding: 1px 4px; border-radius: 2px;">${a.modelClass.toUpperCase()}</span>
+          `;
+
+          miniCard.addEventListener('click', () => {
+            activeSelectedAgentId = a.id;
+            renderAiEngMultiAgent();
+          });
+
+          miniCard.addEventListener('dragstart', (e) => {
+            draggedAgentId = a.id;
+            miniCard.style.opacity = '0.4';
+            if (e.dataTransfer) {
+              e.dataTransfer.effectAllowed = 'move';
+              e.dataTransfer.setData('text/plain', a.id);
+            }
+          });
+
+          miniCard.addEventListener('dragend', () => {
+            draggedAgentId = null;
+            miniCard.style.opacity = '1';
+          });
+
+          zone.appendChild(miniCard);
+        });
+
+        col.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+          col.style.border = `1px solid ${st.color}`;
+          col.style.background = st.bg;
+        });
+
+        col.addEventListener('dragleave', () => {
+          col.style.border = `1px dashed ${st.border}`;
+          col.style.background = '#080c14';
+        });
+
+        col.addEventListener('drop', (e) => {
+          e.preventDefault();
+          col.style.border = `1px dashed ${st.border}`;
+          col.style.background = '#080c14';
+          if (!draggedAgentId) return;
+          const targetAgent = agents.find(ag => ag.id === draggedAgentId);
+          if (targetAgent) {
+            if (!targetAgent.schedule) {
+              targetAgent.schedule = { triggerType: 'step', stepOrder: 1, stage: st.id as any };
+            }
+            targetAgent.schedule.stage = st.id as any;
+            if (st.id === 'stage1') {
+              targetAgent.schedule.triggerType = 'event';
+              if (!targetAgent.communication) targetAgent.communication = {} as any;
+              targetAgent.communication.canTalkToApp = true;
+            } else if (st.id === 'stage2') {
+              targetAgent.schedule.triggerType = 'step';
+            } else if (st.id === 'stage3') {
+              targetAgent.schedule.triggerType = 'step';
+              if (!targetAgent.communication) targetAgent.communication = {} as any;
+              targetAgent.communication.canTalkToDb = true;
+            }
+            saveActiveMultiAgentSystem(sys);
+            showToast(`🎯 Moved ${targetAgent.name} to ${st.title}!`);
+            renderAiEngMultiAgent();
+          }
+        });
+
+        lanesStages.appendChild(col);
       });
     }
 
@@ -22752,6 +22998,13 @@ export class TargetWriteBackExecutor {
       const chkDb = document.getElementById('chkAiEngAgentTalkToDb') as HTMLInputElement | null;
       const txtPeers = document.getElementById('txtAiEngAgentTalkToAgents') as HTMLInputElement | null;
 
+      // Schedule & Trigger controls
+      const selTrigger = document.getElementById('selAiEngAgentTriggerMode') as HTMLSelectElement | null;
+      const selStage = document.getElementById('selAiEngAgentStage') as HTMLSelectElement | null;
+      const txtCron = document.getElementById('txtAiEngAgentCron') as HTMLInputElement | null;
+      const boxCron = document.getElementById('boxAiEngAgentCron');
+      const lblOrder = document.getElementById('lblAiEngAgentOrderBadge');
+
       if (txtName) txtName.value = currentAgent.name;
       if (txtId) txtId.value = currentAgent.id;
       if (txtRole) txtRole.value = currentAgent.role;
@@ -22766,6 +23019,33 @@ export class TargetWriteBackExecutor {
       if (chkRag) chkRag.checked = !!currentAgent.communication?.canTalkToRag;
       if (chkDb) chkDb.checked = !!currentAgent.communication?.canTalkToDb;
       if (txtPeers) txtPeers.value = (currentAgent.communication?.canTalkToAgents || []).join(', ');
+
+      // Populate Recommended Models Datalist & Quick Pick
+      const currentClass = currentAgent.modelClass || 'lam';
+      const recModels = RECOMMENDED_MODELS_BY_CLASS[currentClass] || RECOMMENDED_MODELS_BY_CLASS['lam'] || [];
+      const datalist = document.getElementById('dlAiEngAgentModels');
+      if (datalist) {
+        datalist.innerHTML = recModels.map(m => `<option value="${escapeHtml(m)}"></option>`).join('');
+      }
+      const quickPick = document.getElementById('selAiEngModelQuickPick') as HTMLSelectElement | null;
+      if (quickPick) {
+        quickPick.innerHTML = '<option value="">▼ Select recommended model...</option>' +
+          recModels.map(m => `<option value="${escapeHtml(m)}" ${m === currentAgent.modelId ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+      }
+
+      // Populate Schedule values
+      const curIdx = agents.findIndex(ag => ag.id === currentAgent.id);
+      const curOrder = currentAgent.schedule?.stepOrder || (curIdx + 1);
+      if (lblOrder) lblOrder.textContent = `Step #${curOrder}`;
+
+      const curTrigger = currentAgent.schedule?.triggerType || (currentAgent.isCoordinator ? 'event' : 'step');
+      if (selTrigger) selTrigger.value = curTrigger;
+
+      const curStage = currentAgent.schedule?.stage || (currentAgent.isCoordinator ? 'stage1' : (currentAgent.communication?.canTalkToDb && currentAgent.id.includes('audit')) ? 'stage3' : 'stage2');
+      if (selStage) selStage.value = curStage;
+
+      if (txtCron) txtCron.value = currentAgent.schedule?.cronExpression || '*/5 * * * *';
+      if (boxCron) boxCron.style.display = curTrigger === 'cron' ? 'block' : 'none';
     }
   }
 
@@ -25202,6 +25482,65 @@ INSERT INTO ai_audit_log (
       if (lblAgentTemp) lblAgentTemp.textContent = rngAgentTemp.value;
     });
 
+    // View Switcher Handlers
+    document.getElementById('btnAiEngViewList')?.addEventListener('click', () => {
+      activeMultiAgentViewMode = 'list';
+      renderAiEngMultiAgent();
+    });
+    document.getElementById('btnAiEngViewStages')?.addEventListener('click', () => {
+      activeMultiAgentViewMode = 'stages';
+      renderAiEngMultiAgent();
+    });
+
+    // Dynamic Architecture Change updates model datalist & quick pick
+    const selAgentClass = document.getElementById('selAiEngAgentModelClass') as HTMLSelectElement | null;
+    selAgentClass?.addEventListener('change', () => {
+      const newClass = selAgentClass.value;
+      const recModels = RECOMMENDED_MODELS_BY_CLASS[newClass] || [];
+      const datalist = document.getElementById('dlAiEngAgentModels');
+      if (datalist) {
+        datalist.innerHTML = recModels.map(m => `<option value="${escapeHtml(m)}"></option>`).join('');
+      }
+      const quickPick = document.getElementById('selAiEngModelQuickPick') as HTMLSelectElement | null;
+      if (quickPick) {
+        quickPick.innerHTML = '<option value="">▼ Select recommended model...</option>' +
+          recModels.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+      }
+      const txtModel = document.getElementById('txtAiEngAgentModelId') as HTMLInputElement | null;
+      if (txtModel && recModels.length > 0) {
+        txtModel.value = recModels[0];
+      }
+    });
+
+    // Quick pick model selection updates input
+    const selQuickPick = document.getElementById('selAiEngModelQuickPick') as HTMLSelectElement | null;
+    selQuickPick?.addEventListener('change', () => {
+      const txtModel = document.getElementById('txtAiEngAgentModelId') as HTMLInputElement | null;
+      if (selQuickPick.value && txtModel) {
+        txtModel.value = selQuickPick.value;
+      }
+    });
+
+    // Trigger Mode change shows/hides cron input
+    const selTriggerMode = document.getElementById('selAiEngAgentTriggerMode') as HTMLSelectElement | null;
+    selTriggerMode?.addEventListener('change', () => {
+      const boxCron = document.getElementById('boxAiEngAgentCron');
+      if (boxCron) {
+        boxCron.style.display = selTriggerMode.value === 'cron' ? 'block' : 'none';
+      }
+    });
+
+    // Cron Presets
+    document.querySelectorAll('.btn-cron-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cron = btn.getAttribute('data-cron');
+        const txtCron = document.getElementById('txtAiEngAgentCron') as HTMLInputElement | null;
+        if (cron && txtCron) {
+          txtCron.value = cron;
+        }
+      });
+    });
+
     const selAgentTop = document.getElementById('selAiEngMultiAgentTopology') as HTMLSelectElement | null;
     selAgentTop?.addEventListener('change', () => {
       const sys = getActiveMultiAgentSystem();
@@ -25248,6 +25587,18 @@ INSERT INTO ai_audit_log (
         canTalkToAgents
       };
 
+      const triggerType = ((document.getElementById('selAiEngAgentTriggerMode') as HTMLSelectElement)?.value || 'event') as any;
+      const stage = ((document.getElementById('selAiEngAgentStage') as HTMLSelectElement)?.value || 'stage1') as any;
+      const cronExpression = (document.getElementById('txtAiEngAgentCron') as HTMLInputElement)?.value || '*/5 * * * *';
+      const stepOrder = targetAgent.schedule?.stepOrder || (sys.agents.indexOf(targetAgent) + 1);
+
+      targetAgent.schedule = {
+        triggerType,
+        stage,
+        cronExpression,
+        stepOrder
+      };
+
       saveActiveMultiAgentSystem(sys);
       renderAiEngMultiAgent();
       showToast(`💾 Saved specifications for agent: ${targetAgent.name}!`);
@@ -25262,7 +25613,7 @@ INSERT INTO ai_audit_log (
         name: `Custom Agent ${newIdx}`,
         role: 'Domain Task Specialist',
         modelClass: 'slm',
-        modelId: 'Qwen 2.5 Coder 7B',
+        modelId: 'Qwen 2.5 7B (Hybrid Search)',
         systemPrompt: 'You are an autonomous domain agent. Analyze user requests, execute tools, and coordinate with peer agents.',
         temperature: 0.1,
         maxTokens: 2048,
@@ -25271,6 +25622,11 @@ INSERT INTO ai_audit_log (
           canTalkToAgents: [sys.coordinatorAgentId || 'agent_orchestrator'],
           canTalkToRag: true,
           canTalkToDb: false
+        },
+        schedule: {
+          triggerType: 'step',
+          stepOrder: newIdx,
+          stage: 'stage2'
         }
       };
       sys.agents.push(newAgent);

@@ -441,6 +441,39 @@ suite('Agent Builder & Pipeline Synthesizer Suite', () => {
     assert.ok(agentNode?.subtitle.includes('COLLABORATIVE_SWARM'));
     assert.strictEqual(agentNode?.config.agentsCount, 1);
   });
+
+  test('DEFAULT_MULTI_AGENT_SYSTEM agents contain valid schedule configuration and stage assignments', () => {
+    const agents = DEFAULT_MULTI_AGENT_SYSTEM.agents;
+    assert.strictEqual(agents.length, 4);
+
+    const orchestrator = agents.find(a => a.id === 'agent_orchestrator');
+    assert.ok(orchestrator?.schedule);
+    assert.strictEqual(orchestrator?.schedule?.triggerType, 'event');
+    assert.strictEqual(orchestrator?.schedule?.stage, 'stage1');
+    assert.strictEqual(orchestrator?.schedule?.stepOrder, 1);
+
+    const ragAgent = agents.find(a => a.id === 'agent_rag_specialist');
+    assert.ok(ragAgent?.schedule);
+    assert.strictEqual(ragAgent?.schedule?.stage, 'stage2');
+    assert.strictEqual(ragAgent?.schedule?.stepOrder, 2);
+
+    const dbAgent = agents.find(a => a.id === 'agent_db_analyst');
+    assert.ok(dbAgent?.schedule);
+    assert.strictEqual(dbAgent?.schedule?.stage, 'stage2');
+    assert.strictEqual(dbAgent?.schedule?.stepOrder, 3);
+
+    const auditor = agents.find(a => a.id === 'agent_auditor');
+    assert.ok(auditor?.schedule);
+    assert.strictEqual(auditor?.schedule?.stage, 'stage3');
+    assert.strictEqual(auditor?.schedule?.stepOrder, 4);
+  });
+
+  test('generateAgentSpecsTs includes schedule definitions and listAgentsBySchedule helper', () => {
+    const code = generateAgentSpecsTs(DEFAULT_MULTI_AGENT_SYSTEM);
+    assert.ok(code.includes('schedule?: {'));
+    assert.ok(code.includes('triggerType: \'event\' | \'cron\' | \'step\' | \'on_demand\''));
+    assert.ok(code.includes('export function listAgentsBySchedule'));
+  });
 });
 
 
