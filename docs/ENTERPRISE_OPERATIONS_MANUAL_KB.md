@@ -70,6 +70,8 @@ Every action in the Studio produces or consumes tangible, Git-trackable files in
 | **`docs/DATA_DICTIONARY.md`** | Phase 2 `Introspect Database` | Data Engineering & Analytics Teams | Full schema, types, nullable keys, and data lineage documentation. |
 | **`models/staging/stg_core.sql`** | Phase 2 `Scaffold Staging Mart` | dbt runner, CI/CD pipelines | Compiled SQL transformation model enforcing data contract. |
 | **`evals/hitl_audit_log.json`** | Phase 3 `LOG_HITL_ACTION` | Compliance Auditor, SOC 2 / ISO 27001 | Cryptographically verifiable log of all human approvals >$100. |
+| **`src/mcp/server.ts`** / **`server.py`** | Phase 3C `Scaffold MCP Server` | Claude Desktop, Cursor, Agent Swarms | Standardized Model Context Protocol server exposing database & API tools. |
+| **`docs/architecture/mcp_server_adr.md`** | Phase 3C `Write MCP ADR` | Enterprise Architecture Review Board | Formal Architectural Decision Record for MCP server and security guardrails. |
 | **`docs/DEPLOYMENT_RUNBOOK.md`** | Phase 5 `Scaffold Runbook` | Operations & DevOps Teams | Step-by-step production failover, preflight checks, and rollback. |
 | **`docs/CLIENT_HANDOFF_COMPLETE.md`** | Phase 5 `Generate Handoff Bundle`| Client Leadership & Procurement | Complete 14-day engagement delivery package and economic ROI report. |
 
@@ -150,12 +152,12 @@ The primary cockpit for leading a client engagement from Day 1 to Day 14.
   * **Dual Runtime Scaffolding**: Generate production-ready MCP packages in TypeScript (`@modelcontextprotocol/sdk` + Zod) or Python (`FastMCP` + Pydantic v2).
   * **Transport Protocols**: Support `stdio` (high-speed pipe for Claude Desktop, Cursor IDE, and local FDE CLI agents) or `SSE / HTTP` (microservices on configurable port for Kubernetes/Docker clusters).
   * **Enterprise Toolsets Matrix**: Selectable tool primitives dynamically bound to introspected Phase 2 relational schema:
-    * `introspect_schema`: Structured table and column metadata inspection.
-    * `execute_safe_sql`: AST query-guarded read-only SQL runner (strictly rejects `DROP`, `ALTER`, `TRUNCATE`, `DELETE`, `UPDATE`, `INSERT`).
-    * `vector_search`: Cosine similarity retrieval over enterprise embeddings with citation provenance.
-    * `call_enterprise_api`: Whitelisted VPC internal REST gateway with timeout and rate limit guards.
-    * `mask_sensitive_payload`: Regex PII redaction filter for Credit Cards, SSNs, Bearer tokens, and emails.
-    * `read_workspace_document`: Sandboxed relative workspace document reader with path-traversal prevention.
+    * 🗄️ **`introspect_schema`**: Returns table metadata, column definitions, data types, and primary keys from verified enterprise tables. Dynamically binds to introspected Phase 2 relational schemas so agents understand your tables without hardcoded stubs.
+    * ⚡ **`execute_safe_sql`**: Executes read-only analytical queries protected by an AST Query Guard that strictly allows SELECT, WITH, or EXPLAIN and rejects any DDL/DML mutations (DROP, ALTER, TRUNCATE, DELETE, UPDATE, INSERT, GRANT, REVOKE).
+    * 🔍 **`vector_search`**: Vector cosine similarity retrieval over enterprise knowledge bases with citation provenance and relevance scoring.
+    * 🌐 **`call_enterprise_api`**: Authenticated, whitelisted internal VPC REST gateway with timeout and rate limit guards.
+    * 🛡️ **`mask_sensitive_payload`**: Automatic regex PII redactor scrubbing Credit Cards/PAN (13-16 digits), US SSNs, Bearer tokens, and email addresses before payloads reach the LLM context.
+    * 📁 **`read_workspace_document`**: Path-traversal sandboxed document reader for approved architectural markdown files, ADRs, and runbooks within the active workspace.
   * **Client Integration & Architectural Governance**:
     * 1-Click **"📋 Copy Claude Desktop JSON"** generating instant configuration snippet for `%APPDATA%\Claude\claude_desktop_config.json`.
     * 1-Click **"📖 Write MCP ADR"** compiling a complete Architectural Decision Record (`docs/architecture/mcp_server_adr.md`).

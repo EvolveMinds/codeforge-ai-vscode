@@ -204,6 +204,34 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
     assert.ok(resHowWhere.actions && resHowWhere.actions.length >= 4);
   });
 
+  test('explains MCP Server and all 6 standardized enterprise tools with Phase 3C navigation', () => {
+    const mcpQueries = [
+      'How does the MCP Server work and what do the MCP tools do?',
+      'What is Model Context Protocol in Section 3C?',
+      'Where is the MCP Server located?',
+      'What does introspect_schema do?',
+      'Tell me about execute_safe_sql and AST Query Guard',
+      'How does vector_search work in MCP?',
+      'What is call_enterprise_api?',
+      'How does mask_sensitive_payload redact PII?',
+      'Explain read_workspace_document tool'
+    ];
+
+    for (const q of mcpQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger IP refusal`);
+      assert.ok(res.reply.includes('Model Context Protocol (MCP) Server'), `Query "${q}" should explain MCP Server`);
+      assert.ok(res.reply.includes('introspect_schema'), `Query "${q}" should detail introspect_schema`);
+      assert.ok(res.reply.includes('execute_safe_sql'), `Query "${q}" should detail execute_safe_sql`);
+      assert.ok(res.reply.includes('vector_search'), `Query "${q}" should detail vector_search`);
+      assert.ok(res.reply.includes('call_enterprise_api'), `Query "${q}" should detail call_enterprise_api`);
+      assert.ok(res.reply.includes('mask_sensitive_payload'), `Query "${q}" should detail mask_sensitive_payload`);
+      assert.ok(res.reply.includes('read_workspace_document'), `Query "${q}" should detail read_workspace_document`);
+      assert.ok(res.actions && res.actions.some(a => a.phase === 3 && a.subStep === 'C'), `Query "${q}" should offer jump to Phase 3 Step C`);
+    }
+  });
+
   test('handles empty or whitespace query gracefully', () => {
     const res = generateHelpGuideReply('   ');
     assert.strictEqual(res.success, false);

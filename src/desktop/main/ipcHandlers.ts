@@ -850,6 +850,41 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
   // 2. DOMAIN KNOWLEDGE BASE & WORKFLOW ROUTING
   // =========================================================================
 
+  // A. MCP (Model Context Protocol) Server & Standardized Enterprise Tools (Section 3C)
+  const isMcpQuery =
+    /\b(mcp|model\s*context\s*protocol|introspect_schema|execute_safe_sql|vector_search|call_enterprise_api|mask_sensitive_payload|read_workspace_document)\b/i.test(q) ||
+    (/\b(tool\s*server|mcp\s*tools?)\b/i.test(q)) ||
+    (/\b(tools?)\b/i.test(q) && /\b(section\s*3c|3c|level\s*4|claude\s*desktop)\b/i.test(q));
+
+  if (isMcpQuery) {
+    return {
+      success: true,
+      reply: `### 🔌 Model Context Protocol (MCP) Server & Enterprise Toolsets (Section 3C)\n\n` +
+             `In **Phase 3 Step C (AI Solutioning / Architecture Matrix)**, Evolve AI provides an **Enterprise Model Context Protocol (MCP) Studio**. The MCP server acts as a standardized, secure bridge connecting AI agents (such as **08 Agentic RAG**, **Level 4 Tool Agents**, **Claude Desktop**, and **Cursor IDE**) directly to enterprise databases, vector stores, and VPC APIs.\n\n` +
+             `#### 🛠️ Standardized Enterprise Tool Capabilities:\n` +
+             `• 🗄️ **\`introspect_schema\`**: Returns table metadata, column definitions, data types, and primary keys from verified enterprise tables. Dynamically binds to introspected Phase 2 relational schema so agents understand your tables without hardcoded stubs.\n` +
+             `• ⚡ **\`execute_safe_sql\`**: Executes read-only analytical queries protected by an **AST Query Guard** that strictly allows \`SELECT\`, \`WITH\`, or \`EXPLAIN\` and rejects any DDL/DML mutations (\`DROP\`, \`ALTER\`, \`TRUNCATE\`, \`DELETE\`, \`UPDATE\`, \`INSERT\`, \`GRANT\`, \`REVOKE\`).\n` +
+             `• 🔍 **\`vector_search\`**: Vector cosine similarity retrieval over enterprise knowledge bases with citation provenance and relevance scoring.\n` +
+             `• 🌐 **\`call_enterprise_api\`**: Authenticated, whitelisted internal VPC REST gateway with timeout and rate limit guards.\n` +
+             `• 🛡️ **\`mask_sensitive_payload\`**: Automatic regex PII redactor scrubbing Credit Cards/PAN (13-16 digits), US SSNs, Bearer tokens, and email addresses before payloads reach the LLM context.\n` +
+             `• 📁 **\`read_workspace_document\`**: Path-traversal sandboxed document reader for approved architectural markdown files, ADRs, and runbooks within the active workspace.\n\n` +
+             `#### ⚙️ Advanced Scaffolding & Integration Options:\n` +
+             `• **Dual Runtime Support**: Scaffold production packages in **TypeScript** (\`@modelcontextprotocol/sdk\` + Zod) or **Python** (\`FastMCP\` + Pydantic v2).\n` +
+             `• **Transport Protocols**:\n` +
+             `  - **\`stdio\`**: High-speed pipe for local subprocess execution with Claude Desktop, Cursor IDE, and local FDE CLI agents.\n` +
+             `  - **\`SSE / HTTP\`**: Streamable HTTP microservice on a customizable port (default \`8080\`) for Kubernetes pods and Docker swarms.\n` +
+             `• **📋 1-Click "Claude JSON"**: Instantly generates and copies the exact JSON configuration block ready to paste into \`claude_desktop_config.json\`.\n` +
+             `• **📖 1-Click "Write ADR"**: Automatically generates a formal **Architectural Decision Record** (\`docs/architecture/mcp_server_adr.md\`).\n` +
+             `• **🐳 Air-Gapped Containerization**: Auto-generates \`Dockerfile.mcp\` and \`docker-compose.mcp.yml\` with healthchecks.\n` +
+             `• **📜 SOX 404 Audit Logging**: Cryptographically chains tool invocations using SHA-256 hashes outputted to stderr.`,
+      actions: [
+        { label: '🔌 Open Section 3C (MCP Tool Server)', phase: 3, subStep: 'C', description: 'Scaffold MCP server package and configure tools' },
+        { label: '📊 Open Phase 2 (Data Readiness)', phase: 2, description: 'Introspect database schema to bind to MCP tools' },
+        { label: '🏗️ Open Phase 4A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Connect MCP Tool Server to Agent nodes' }
+      ]
+    };
+  }
+
   const mentionsUiUx = /\b(frontend|backend|ui|ux)\b/i.test(q);
   const mentionsDefinition = /\b(where|define|defined|build|built|deliver|delivered|generate|generated)\b/i.test(q);
   const mentionsGreenfieldBrownfield = /\b(greenfield|brownfield)\b/i.test(q);

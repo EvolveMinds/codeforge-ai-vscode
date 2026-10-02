@@ -2161,6 +2161,7 @@ function setupHelpGuide(api: any): void {
       { label: '🎨 UI & UX Architecture', phase: 3, subStep: 'D' },
       { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
       { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
+      { label: '🔌 MCP Tool Server (3C)', phase: 3, subStep: 'C' },
       { label: '🌿 Git & Remote Repository Hub', phase: 6, activityTab: 'git' },
       { label: '🧭 Where do I go next?', phase: 1 }
     ]);
