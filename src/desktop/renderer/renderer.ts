@@ -23891,8 +23891,8 @@ export class TargetWriteBackExecutor {
           {
             id: 'node_ingress',
             type: 'ingress',
-            title: 'Inbound Ingress & Chat Trigger',
-            subtitle: 'REST Webhook / SSE Stream · Port 8080',
+            title: 'STAGE 1: Inbound Ingress Gateway',
+            subtitle: 'REST Webhook / SSE Stream · Port 8080 · Auth: JWT',
             dataContract: {
               source: 'Client Webhook / App Trigger',
               inSchema: '{ invoiceId: string, billedAmount: number, poNumber: string }',
@@ -23900,12 +23900,49 @@ export class TargetWriteBackExecutor {
               storageLocation: 'Memory buffer / Redis stream',
               operation: 'INGRESS'
             },
-            config: { port: 8080, rateLimitRps: 100 }
+            config: {
+              protocol: 'rest',
+              port: 8080,
+              auth: 'jwt',
+              rateLimitRps: 100,
+              maxPayloadMb: 10,
+              corsOrigins: '*',
+              customHeaders: []
+            }
+          },
+          {
+            id: 'node_guardrail',
+            type: 'guardrail',
+            title: 'STAGE 2: Safety & Policy Guardrails',
+            subtitle: '7 Policies Active · Max $100 · 60 RPM · 2 Custom Rules',
+            dataContract: {
+              source: 'Inbound Query Stream',
+              inSchema: '{ rawQuery: string, userId: string, authScope: string }',
+              outSchema: '{ sanitizedQuery: string, policyPassed: boolean, violations: string[] }',
+              storageLocation: 'Ephemeral Gate / Policy Enforcer',
+              operation: 'SANITIZE & ENFORCE'
+            },
+            config: {
+              piiMasking: true,
+              promptInjectionDefense: true,
+              financialLimits: true,
+              maxSpendUsd: 100.0,
+              rateLimitRpm: 60,
+              requireHitlApproval: true,
+              confidenceThreshold: 0.95,
+              sqlFirewall: true,
+              citationGrounding: true,
+              soxCompliance: true,
+              customRules: [
+                { id: 'rule-var', name: 'Variance Ceiling', category: 'Numeric Boundary', pattern: 'variance_amount <= $50.00', enabled: true },
+                { id: 'rule-ssn', name: 'Strict PII Scrubbing', category: 'Regex Pattern', pattern: '\\b\\d{3}-\\d{2}-\\d{4}\\b', enabled: true }
+              ]
+            }
           },
           {
             id: 'node_source',
             type: 'source',
-            title: 'Data Sources & Chunking Pipeline',
+            title: 'STAGE 3: Data Sources & Chunking Pipeline',
             subtitle: `PostgreSQL ${primaryTable} + Vendor Policy SOPs (PDF)`,
             dataContract: {
               source: `PostgreSQL.${primaryTable} + docs/policies/*.pdf`,
@@ -23914,13 +23951,21 @@ export class TargetWriteBackExecutor {
               storageLocation: 'Primary PostgreSQL DB + Local Filesystem',
               operation: 'INGEST & CHUNK'
             },
-            config: { chunkSize: 512, overlapTokens: 50, sourceTable: primaryTable }
+            config: {
+              sourceTable: primaryTable,
+              dialect: 'postgres',
+              ingestMode: 'cdc',
+              chunkSize: 512,
+              overlapTokens: 50,
+              splitter: 'recursive',
+              customFilters: []
+            }
           },
           {
             id: 'node_vector_store',
             type: 'vector_store',
-            title: 'Vector Database & Embedding Storage',
-            subtitle: 'SQLite-vec (./data/rag.db) · pgvector HNSW 1536 dim',
+            title: 'STAGE 4: Vector Database & Embedding Storage',
+            subtitle: 'SQLite-vec (./data/vector_store.db) · 1536 dim HNSW',
             dataContract: {
               source: './data/vector_store.db (or PostgreSQL pgvector)',
               inSchema: 'DocumentChunk[] with embedding vectors',
@@ -23928,12 +23973,21 @@ export class TargetWriteBackExecutor {
               storageLocation: 'Tier 1: ./data/vector_store.db | Tier 2: pgvector',
               operation: 'STORE & INDEX'
             },
-            config: { engine: 'sqlite_vec', filePath: './data/vector_store.db', dimensions: 1536, metric: 'cosine' }
+            config: {
+              tier: 'tier1',
+              engine: 'sqlite_vec',
+              filePath: './data/vector_store.db',
+              embeddingModel: 'text-embedding-3-small',
+              dimensions: 1536,
+              metric: 'cosine',
+              indexType: 'hnsw',
+              customMetadataIndexes: []
+            }
           },
           {
             id: 'node_rag',
             type: 'rag',
-            title: '06 Hybrid Policy Retrieval',
+            title: 'STAGE 5: 06 Hybrid Policy Retrieval',
             subtitle: 'BM25 Keyword + pgvector Dense ➔ RRF Top-5',
             dataContract: {
               source: 'Vector Store + Inverted Keyword Index',
@@ -23942,12 +23996,22 @@ export class TargetWriteBackExecutor {
               storageLocation: 'Embedded SQLite-vec / pgvector',
               operation: 'PULL: Dense & Sparse Retrieval'
             },
-            config: { ragType: 'hybrid', topK: 5, similarityThreshold: 0.78, chunkSizeBytes: 512 }
+            config: {
+              ragType: 'hybrid',
+              topK: 5,
+              similarityThreshold: 0.78,
+              vectorStore: 'sqlite_vec',
+              tokenBudget: 2048,
+              reranker: 'bge',
+              denseWeight: 0.65,
+              queryExpansion: 'none',
+              customDirectives: []
+            }
           },
           {
             id: 'node_agent',
             type: 'agent',
-            title: 'Autonomous Decision Agent',
+            title: 'STAGE 6: Autonomous Decision Agent',
             subtitle: 'LAM (qwen2.5-coder:7b) · ReAct Decision Loop',
             dataContract: {
               source: 'Model Engine (Ollama / Local Air-Gapped / Cloud)',
@@ -23956,12 +24020,23 @@ export class TargetWriteBackExecutor {
               storageLocation: 'In-Memory Context Window',
               operation: 'REASON & DECIDE'
             },
-            config: { model: 'qwen2.5-coder:7b', modelBlueprint: 'lam', temperature: 0.1, maxTokens: 1024 }
+            config: {
+              model: 'qwen2.5-coder:7b',
+              modelBlueprint: 'lam',
+              modelId: 'qwen2.5-coder:7b',
+              decisionLoop: 'react',
+              temperature: 0.1,
+              maxTokens: 1024,
+              maxSteps: 5,
+              timeoutMs: 30000,
+              systemPrompt: 'You are an autonomous enterprise agent. Ground all answers strictly in retrieved context and execute validated tools.',
+              customGuidelines: []
+            }
           },
           {
             id: 'node_tools',
             type: 'tool',
-            title: 'Enterprise MCP Tools Hub (Push/Pull)',
+            title: 'STAGE 7: Enterprise MCP Tools Hub (Push/Pull)',
             subtitle: `PULL: ${primaryTable} DB | PUSH: Approve Status & Slack Alert`,
             dataContract: {
               source: `PostgreSQL connection & Slack Webhook API`,
@@ -23970,12 +24045,19 @@ export class TargetWriteBackExecutor {
               storageLocation: `External Database (${primaryTable}) & Webhook endpoints`,
               operation: 'PULL & PUSH (Read & Mutate)'
             },
-            config: { toolsCount: 2, allowMutations: true }
+            config: {
+              execMode: 'transactional',
+              timeoutMs: 5000,
+              maxConcurrent: 4,
+              toolsCount: 2,
+              allowMutations: true,
+              activeToolIds: ['tool-postgres', 'tool-slack']
+            }
           },
           {
             id: 'node_output',
             type: 'eval_output',
-            title: 'Zero-Drift Evaluation Gate & Audit Ledger',
+            title: 'STAGE 8: Zero-Drift Evaluation Gate & Audit Ledger',
             subtitle: 'Citation Grounding SLA (100%) · Tamper-Evident SHA-256',
             dataContract: {
               source: 'Tamper-Evident Audit Ledger (SQLite / PostgreSQL)',
@@ -23984,11 +24066,26 @@ export class TargetWriteBackExecutor {
               storageLocation: 'ai_audit_log table on disk',
               operation: 'PUSH: Immutable Audit Entry'
             },
-            config: { hallucinationTolerance: 0.0, requireAuditDigest: true }
+            config: {
+              writeBackMode: 'atomic_2pc',
+              targetTable: 'ai_audit_ledger',
+              hallucinationTolerance: 0.0,
+              auditDigest: 'sha256',
+              structuredJson: true,
+              complianceFrameworks: {
+                sox404: true,
+                hipaa: false,
+                eu_ai_act: true,
+                gdpr: true,
+                iso27001: true
+              },
+              customAssertions: []
+            }
           }
         ],
         edges: [
-          { from: 'node_ingress', to: 'node_source', label: 'User Request' },
+          { from: 'node_ingress', to: 'node_guardrail', label: 'Raw Inbound Query' },
+          { from: 'node_guardrail', to: 'node_source', label: 'Sanitized & Enforced' },
           { from: 'node_source', to: 'node_vector_store', label: 'Chunks [512t]' },
           { from: 'node_vector_store', to: 'node_rag', label: 'HNSW Index' },
           { from: 'node_rag', to: 'node_agent', label: 'Top-5 Chunks' },
@@ -24237,6 +24334,9 @@ export class TargetWriteBackExecutor {
         if (node.type === 'ingress') {
           icon = '🌐'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; stageName = 'INGRESS & TRIGGER';
           inSchema = 'HTTP POST / Chat'; outSchema = 'Sanitized Query';
+        } else if (node.type === 'guardrail') {
+          icon = '🛡️'; tagBg = 'rgba(244, 63, 94, 0.15)'; tagColor = '#f43f5e'; stageName = 'SAFETY & POLICY GUARDRAIL';
+          inSchema = 'Raw Inbound Query'; outSchema = 'Sanitized & Enforced';
         } else if (node.type === 'source') {
           const top = getActiveClientEnterpriseTopology();
           icon = '🏢'; tagBg = 'rgba(251, 191, 36, 0.15)'; tagColor = '#fbbf24'; stageName = `CLIENT SOURCE (${top.sourceDialect.toUpperCase()})`;
@@ -24353,6 +24453,9 @@ export class TargetWriteBackExecutor {
       if (node.type === 'ingress') {
         icon = '🌐'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; stageName = 'INGRESS & TRIGGER';
         inSchema = 'HTTP POST / Chat'; outSchema = 'Sanitized Query';
+      } else if (node.type === 'guardrail') {
+        icon = '🛡️'; tagBg = 'rgba(244, 63, 94, 0.15)'; tagColor = '#f43f5e'; stageName = 'SAFETY & POLICY GUARDRAIL';
+        inSchema = 'Raw Inbound Query'; outSchema = 'Sanitized & Enforced';
       } else if (node.type === 'source') {
         const top = getActiveClientEnterpriseTopology();
         icon = '🏢'; tagBg = 'rgba(251, 191, 36, 0.15)'; tagColor = '#fbbf24'; stageName = `CLIENT SOURCE (${top.sourceDialect.toUpperCase()})`;
@@ -24522,11 +24625,395 @@ export class TargetWriteBackExecutor {
       return;
     }
 
+    // Helpers for AI Recommendations and Custom Items
+    const renderAiSuggestHeader = (title: string, desc: string, presets: Array<{ id: string; label: string; action: string }>): string => {
+      return `
+        <div style="background: linear-gradient(135deg, rgba(78, 201, 176, 0.12), rgba(56, 189, 248, 0.08)); border: 1px solid rgba(78, 201, 176, 0.35); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-weight: 700; font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 5px;">
+              <span>✨</span> AI Recommendation &amp; Presets: ${escapeHtml(title)}
+            </span>
+            <span style="font-size: 9px; background: rgba(78, 201, 176, 0.2); color: var(--accent); padding: 1px 6px; border-radius: 3px; font-weight: 700;">1-CLICK APPLY</span>
+          </div>
+          <div style="font-size: 10px; color: #94a3b8; margin-bottom: 8px;">${escapeHtml(desc)}</div>
+          <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+            ${presets.map(p => `
+              <button type="button" class="btn-quick btn-ai-eng-insp-preset" data-action="${escapeHtml(p.action)}" style="font-size: 9.5px; padding: 3px 8px; margin: 0; background: rgba(0,0,0,0.4); border-color: rgba(78, 201, 176, 0.4); color: #fff; cursor: pointer;">
+                ${escapeHtml(p.label)}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    const renderCustomItemsSection = (
+      title: string,
+      categoryOptions: string[],
+      items: Array<{ id?: string; name?: string; category?: string; pattern?: string; filterExpr?: string; directive?: string; guideline?: string; assertion?: string; fieldName?: string }>,
+      placeholder: string = 'e.g. Rule definition or expression...'
+    ): string => {
+      return `
+        <div style="margin-top: 12px; border-top: 1px dashed var(--border); padding-top: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label style="font-size: 10.5px; font-weight: 700; color: #fff;">${escapeHtml(title)} (${items.length})</label>
+            <span style="font-size: 9px; color: var(--text-secondary);">User Custom Defined</span>
+          </div>
+          
+          <div id="inspCustomItemList" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; max-height: 120px; overflow-y: auto;">
+            ${items.length === 0 ? `
+              <div style="font-size: 10px; color: var(--text-muted); font-style: italic; padding: 4px;">No custom rules added yet. Add custom rules below.</div>
+            ` : items.map((item, idx) => {
+              const displayVal = item.pattern || item.name || item.filterExpr || item.directive || item.guideline || item.assertion || item.fieldName || '';
+              return `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #0c0c0c; border: 1px solid rgba(255,255,255,0.08); border-radius: 4px; padding: 4px 8px; font-size: 10px;">
+                  <div style="min-width: 0; flex: 1; display: flex; align-items: center; gap: 6px; overflow: hidden;">
+                    ${item.category ? `<span style="font-size: 8.5px; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 1px 4px; border-radius: 3px; white-space: nowrap;">${escapeHtml(item.category)}</span>` : ''}
+                    <span style="color: #e2e8f0; font-family: monospace; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;" title="${escapeHtml(displayVal)}">${escapeHtml(displayVal)}</span>
+                  </div>
+                  <button type="button" class="btn-insp-delete-custom-item" data-index="${idx}" style="background: transparent; border: none; color: #f87171; cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1;" title="Remove this item">✕</button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <div style="display: flex; gap: 4px; flex-direction: column; background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 4px; padding: 6px;">
+            <div style="display: flex; gap: 4px;">
+              ${categoryOptions.length > 0 ? `
+                <select id="inspNewCustomCategory" style="background: #111; border: 1px solid var(--border); color: #38bdf8; font-size: 10px; padding: 3px 6px; border-radius: 3px; max-width: 110px;">
+                  ${categoryOptions.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')}
+                </select>
+              ` : ''}
+              <input type="text" id="inspNewCustomInput" placeholder="${escapeHtml(placeholder)}" style="flex: 1; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 3px 6px; border-radius: 3px;" />
+            </div>
+            <button type="button" id="btnInspAddCustomItem" class="btn-quick" style="width: 100%; font-size: 10px; padding: 3px 6px; color: var(--accent); border-color: var(--accent); font-weight: 700; cursor: pointer;">
+              + Add Custom Rule / Item
+            </button>
+          </div>
+        </div>
+      `;
+    };
+
     // TAB 1: PARAMETERS (Default)
     let configHtml = '';
-    if (node.type === 'rag') {
-      const currentRag = node.config.ragType || activePipelineManifest.ragBlueprint?.id || 'hybrid';
+
+    if (node.type === 'guardrail') {
+      const cfg = node.config || {};
+      const customRules = cfg.customRules || [];
+      const presets = [
+        { id: 'fintech', label: '🏦 FinTech & GL Invariants', action: 'preset_guard_fintech' },
+        { id: 'hipaa', label: '🏥 HIPAA PHI Shield', action: 'preset_guard_hipaa' },
+        { id: 'zerotrust', label: '🔒 Zero-Trust Strict', action: 'preset_guard_zerotrust' },
+        { id: 'throughput', label: '⚡ High-Throughput (Fast)', action: 'preset_guard_throughput' }
+      ];
+
       configHtml = `
+        ${renderAiSuggestHeader(
+          'Guardrail Policies & Invariants',
+          'AI-curated guardrails tailored to enterprise compliance, hallucination prevention, and financial invariants.',
+          presets
+        )}
+        
+        <div style="font-size: 11px; font-weight: 700; color: #fff; margin-bottom: 6px;">Enterprise Policy Enforcement Matrix</div>
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; background: #0c0c0c; border: 1px solid var(--border); border-radius: 6px; padding: 8px;">
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardPii" ${cfg.piiMasking ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>PII &amp; PHI Redaction Guard</strong> (Mask SSN, Credit Card PAN, Email, Phone)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardPrompt" ${cfg.promptInjectionDefense ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>Prompt Injection &amp; Jailbreak Shield</strong> (Semantic firewall &amp; prompt leakage block)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardFinancial" ${cfg.financialLimits ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>Financial Invariant Lock</strong> (Strict ledger reconciliation &amp; spend boundaries)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardSql" ${cfg.sqlFirewall ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>SQL Injection &amp; AST Firewall</strong> (Parameterization enforce &amp; forbid DROP/TRUNCATE)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardCitation" ${cfg.citationGrounding ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>Citation Grounding &amp; Anti-Hallucination SLA</strong> (100% policy-backed citations)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardHitl" ${cfg.requireHitlApproval ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>Human-In-The-Loop (HITL) Escalation</strong> (Route to supervisor on low confidence/variance)</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 10.5px; cursor: pointer; color: #e2e8f0;">
+            <input type="checkbox" id="chkGuardSox" ${cfg.soxCompliance ? 'checked' : ''} style="accent-color: var(--accent);" />
+            <span><strong>SOX 404 Tamper-Evident Ledger</strong> (Cryptographic SHA-256 hash chains of transactions)</span>
+          </label>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Max Spend ($USD)</label>
+            <input type="number" id="inspGuardMaxSpend" value="${cfg.maxSpendUsd ?? 100}" min="1" max="10000" step="5" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Rate Limit (RPM)</label>
+            <input type="number" id="inspGuardRateLimit" value="${cfg.rateLimitRpm ?? 60}" min="10" max="6000" step="10" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Confidence SLA (0-1)</label>
+            <input type="number" id="inspGuardConfidence" value="${cfg.confidenceThreshold ?? 0.95}" min="0.5" max="1.0" step="0.01" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
+        ${renderCustomItemsSection(
+          '🛡️ Custom Guardrail Rules & Blacklists',
+          ['Regex Pattern', 'Keyword Ban', 'Numeric Boundary', 'Semantic Boundary', 'Policy Blacklist'],
+          customRules,
+          'e.g. variance <= $50.00 or \\b\\d{3}-\\d{2}-\\d{4}\\b'
+        )}
+      `;
+    } else if (node.type === 'ingress') {
+      const cfg = node.config || {};
+      const customHeaders = cfg.customHeaders || [];
+      const presets = [
+        { id: 'zerotrust', label: '🛡️ Zero-Trust (mTLS + JWT)', action: 'preset_ingress_zerotrust' },
+        { id: 'grpc', label: '⚡ High-Throughput (gRPC 1000 RPS)', action: 'preset_ingress_grpc' },
+        { id: 'sse', label: '📡 Real-Time SSE / WebSocket', action: 'preset_ingress_sse' }
+      ];
+
+      configHtml = `
+        ${renderAiSuggestHeader(
+          'Ingress Protocol & Security Suite',
+          'Optimize entry gateway protocols, zero-trust authentication schemes, and throughput rate limits.',
+          presets
+        )}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Ingress Protocol</label>
+            <select id="inspIngressProtocol" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="rest" ${cfg.protocol === 'rest' ? 'selected' : ''}>REST Webhook (FastAPI/Express)</option>
+              <option value="ws" ${cfg.protocol === 'ws' ? 'selected' : ''}>WebSocket (Bi-directional Stream)</option>
+              <option value="grpc" ${cfg.protocol === 'grpc' ? 'selected' : ''}>gRPC RPC (Protobuf High-Perf)</option>
+              <option value="graphql" ${cfg.protocol === 'graphql' ? 'selected' : ''}>GraphQL Enterprise Gateway</option>
+              <option value="sse" ${cfg.protocol === 'sse' ? 'selected' : ''}>Server-Sent Events (SSE Stream)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Microservice Port</label>
+            <input type="number" id="inspIngressPort" value="${cfg.port || 8080}" min="1024" max="65535" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Authentication Scheme</label>
+            <select id="inspIngressAuth" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="jwt" ${cfg.auth === 'jwt' ? 'selected' : ''}>Bearer JWT (RS256 Public Key)</option>
+              <option value="apikey" ${cfg.auth === 'apikey' ? 'selected' : ''}>X-API-Key (Hashed Secret Token)</option>
+              <option value="mtls" ${cfg.auth === 'mtls' ? 'selected' : ''}>Mutual TLS (mTLS Zero-Trust)</option>
+              <option value="oauth2" ${cfg.auth === 'oauth2' ? 'selected' : ''}>OAuth2 / OIDC SSO Bearer</option>
+              <option value="vpc_private" ${cfg.auth === 'vpc_private' ? 'selected' : ''}>Air-Gapped Private VPC Subnet</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Rate Limit (RPS)</label>
+            <input type="number" id="inspIngressRateLimit" value="${cfg.rateLimitRps || 100}" min="10" max="10000" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Max Payload Size (MB)</label>
+            <input type="number" id="inspIngressPayloadMb" value="${cfg.maxPayloadMb || 10}" min="1" max="100" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">CORS Allowed Origins</label>
+            <input type="text" id="inspIngressCors" value="${cfg.corsOrigins || '*'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
+        ${renderCustomItemsSection(
+          '🌐 Custom Ingress Headers & Middleware',
+          ['Header Auth', 'Rate Override', 'Security Middleware'],
+          customHeaders,
+          'e.g. X-Tenant-Domain: enterprise-corp'
+        )}
+      `;
+    } else if (node.type === 'source') {
+      const cfg = node.config || {};
+      const customFilters = cfg.customFilters || [];
+      const presets = [
+        { id: 'cdc', label: '🏢 Financial CDC Ledger (Row-Level)', action: 'preset_source_cdc' },
+        { id: 'docs', label: '📄 Enterprise PDF & Policy SOPs', action: 'preset_source_docs' },
+        { id: 'analytics', label: '📊 Big Data Warehouse (Micro-Batch)', action: 'preset_source_analytics' }
+      ];
+
+      configHtml = `
+        ${renderAiSuggestHeader(
+          'Data Source & Ingestion Tuning',
+          'AI recommendations for database dialect connectors, chunk sizes, token overlaps, and parsing strategies.',
+          presets
+        )}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Source Table Name</label>
+            <input type="text" id="inspSourceTable" value="${cfg.sourceTable || 'orders'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Database Dialect</label>
+            <select id="inspSourceDialect" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="postgres" ${cfg.dialect === 'postgres' ? 'selected' : ''}>PostgreSQL (Supabase/RDS)</option>
+              <option value="oracle" ${cfg.dialect === 'oracle' ? 'selected' : ''}>Oracle 19c Enterprise</option>
+              <option value="db2" ${cfg.dialect === 'db2' ? 'selected' : ''}>IBM DB2 LUW / Mainframe</option>
+              <option value="teradata" ${cfg.dialect === 'teradata' ? 'selected' : ''}>Teradata Vantage EDW</option>
+              <option value="clickhouse" ${cfg.dialect === 'clickhouse' ? 'selected' : ''}>ClickHouse Real-Time Columnar</option>
+              <option value="snowflake" ${cfg.dialect === 'snowflake' ? 'selected' : ''}>Snowflake Data Cloud</option>
+              <option value="bigquery" ${cfg.dialect === 'bigquery' ? 'selected' : ''}>Google Cloud BigQuery</option>
+              <option value="sqlite" ${cfg.dialect === 'sqlite' ? 'selected' : ''}>Local SQLite Embedded</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Ingestion Mode</label>
+            <select id="inspSourceIngestMode" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="cdc" ${cfg.ingestMode === 'cdc' ? 'selected' : ''}>Change Data Capture (CDC Stream)</option>
+              <option value="batch" ${cfg.ingestMode === 'batch' ? 'selected' : ''}>Scheduled Batch Snapshot</option>
+              <option value="microbatch" ${cfg.ingestMode === 'microbatch' ? 'selected' : ''}>60s Micro-Batch Stream</option>
+              <option value="ondemand" ${cfg.ingestMode === 'ondemand' ? 'selected' : ''}>On-Demand JIT Query</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Splitter Strategy</label>
+            <select id="inspSourceSplitter" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="recursive" ${cfg.splitter === 'recursive' ? 'selected' : ''}>Recursive Character (512t)</option>
+              <option value="markdown" ${cfg.splitter === 'markdown' ? 'selected' : ''}>Markdown Header-Aware</option>
+              <option value="token" ${cfg.splitter === 'token' ? 'selected' : ''}>TikToken BPE Token Splitter</option>
+              <option value="row" ${cfg.splitter === 'row' ? 'selected' : ''}>Row-Level Structured Serializer</option>
+              <option value="pdf_section" ${cfg.splitter === 'pdf_section' ? 'selected' : ''}>PDF Section &amp; Layout Aware</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Chunk Size (Tokens)</label>
+            <input type="number" id="inspSourceChunkSize" value="${cfg.chunkSize || 512}" step="64" min="64" max="4096" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Overlap Tokens</label>
+            <input type="number" id="inspSourceOverlap" value="${cfg.overlapTokens ?? 50}" step="10" min="0" max="512" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
+        ${renderCustomItemsSection(
+          '🏢 Custom Source Extraction Filters & Partitions',
+          ['WHERE Filter', 'Exclude Column', 'Page Range'],
+          customFilters,
+          'e.g. WHERE status = \'ACTIVE\' AND deleted_at IS NULL'
+        )}
+      `;
+    } else if (node.type === 'vector_store') {
+      const cfg = node.config || {};
+      const customIndexes = cfg.customMetadataIndexes || [];
+      const presets = [
+        { id: 'tier1', label: '💻 Local Air-Gapped (SQLite-vec Tier 1)', action: 'preset_vec_tier1' },
+        { id: 'tier2', label: '🏢 Production pgvector (Tier 2 HNSW)', action: 'preset_vec_tier2' },
+        { id: 'tier3', label: '☁️ Managed Cloud VPC (Tier 3)', action: 'preset_vec_tier3' }
+      ];
+
+      configHtml = `
+        ${renderAiSuggestHeader(
+          'Vector Database & Embedding Specifications',
+          'Configure zero-setup local vector storage, pgvector HNSW indexing, or high-scale cloud clusters.',
+          presets
+        )}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Deployment Tier</label>
+            <select id="inspStorageTier" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="tier1" ${activeAiEngStorageTier === 'tier1' ? 'selected' : ''}>Tier 1: Local Embedded Store (Zero-Setup)</option>
+              <option value="tier2" ${activeAiEngStorageTier === 'tier2' ? 'selected' : ''}>Tier 2: Docker Container (pgvector / Qdrant)</option>
+              <option value="tier3" ${activeAiEngStorageTier === 'tier3' ? 'selected' : ''}>Tier 3: Managed Cloud VPC (Cloud SQL / RDS)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Vector Engine</label>
+            <select id="inspVecStoreEngine" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="sqlite_vec" ${cfg.engine === 'sqlite_vec' ? 'selected' : ''}>SQLite-vec (Embedded Local file)</option>
+              <option value="pgvector" ${cfg.engine === 'pgvector' ? 'selected' : ''}>PostgreSQL pgvector (HNSW Index)</option>
+              <option value="qdrant" ${cfg.engine === 'qdrant' ? 'selected' : ''}>Qdrant Distributed Vector Engine</option>
+              <option value="lancedb" ${cfg.engine === 'lancedb' ? 'selected' : ''}>LanceDB Serverless Columnar</option>
+              <option value="chroma" ${cfg.engine === 'chroma' ? 'selected' : ''}>Chroma Vector Store</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 8px;">
+          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Destination Path / URI</label>
+          <input type="text" id="inspStorePath" value="${cfg.filePath || cfg.uri || './data/vector_store.db'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Embedding Model</label>
+            <select id="inspEmbedModel" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="text-embedding-3-small" ${cfg.embeddingModel === 'text-embedding-3-small' ? 'selected' : ''}>OpenAI text-embedding-3-small (1536 dim)</option>
+              <option value="bge-large-en-v1.5" ${cfg.embeddingModel === 'bge-large-en-v1.5' ? 'selected' : ''}>BAAI/bge-large-en-v1.5 (1024 dim - Local)</option>
+              <option value="nomic-embed-text" ${cfg.embeddingModel === 'nomic-embed-text' ? 'selected' : ''}>nomic-embed-text-v1.5 (768 dim - Air-Gap)</option>
+              <option value="all-MiniLM-L6-v2" ${cfg.embeddingModel === 'all-MiniLM-L6-v2' ? 'selected' : ''}>sentence-transformers (384 dim)</option>
+              <option value="colpali-v1.2" ${cfg.embeddingModel === 'colpali-v1.2' ? 'selected' : ''}>ColPali Multi-Vector VLM</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Embedding Dimensions</label>
+            <input type="number" id="inspStoreDim" value="${cfg.dimensions || 1536}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Distance Metric</label>
+            <select id="inspDistanceMetric" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="cosine" ${cfg.metric === 'cosine' ? 'selected' : ''}>Cosine Distance (<=>)</option>
+              <option value="inner_product" ${cfg.metric === 'inner_product' ? 'selected' : ''}>Dot / Inner Product (<#>)</option>
+              <option value="l2" ${cfg.metric === 'l2' ? 'selected' : ''}>Euclidean / L2 Distance (<->)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Index Architecture</label>
+            <select id="inspIndexType" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="hnsw" ${cfg.indexType === 'hnsw' ? 'selected' : ''}>HNSW (m=16, ef_search=64)</option>
+              <option value="ivfflat" ${cfg.indexType === 'ivfflat' ? 'selected' : ''}>IVFFlat (lists=100)</option>
+              <option value="flat" ${cfg.indexType === 'flat' ? 'selected' : ''}>Flat Index (Exact k-NN Search)</option>
+            </select>
+          </div>
+        </div>
+
+        ${renderCustomItemsSection(
+          '💾 Custom Metadata Indexes',
+          ['Tenant Partition', 'Exact Filter', 'Range Index'],
+          customIndexes,
+          'e.g. tenant_id (VARCHAR) or created_at (TIMESTAMP)'
+        )}
+      `;
+    } else if (node.type === 'rag') {
+      const cfg = node.config || {};
+      const currentRag = cfg.ragType || activePipelineManifest.ragBlueprint?.id || 'hybrid';
+      const customDirectives = cfg.customDirectives || [];
+      const presets = [
+        { id: 'hybrid', label: '🔍 High-Precision Hybrid (BM25 + Dense)', action: 'preset_rag_hybrid' },
+        { id: 'hyde', label: '💡 Zero-Shot Ambiguous (HyDE)', action: 'preset_rag_hyde' },
+        { id: 'agentic', label: '🕵️ Multi-Hop Reasoning (Agentic RAG)', action: 'preset_rag_agentic' }
+      ];
+
+      configHtml = `
+        ${renderAiSuggestHeader(
+          'RAG Retrieval Hyperparameters',
+          'AI-guided parameter tuning for Reciprocal Rank Fusion, cross-encoder rerankers, and context budgets.',
+          presets
+        )}
+
         <div style="margin-bottom: 8px;">
           <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">RAG Architecture (8 Types)</label>
           <select id="inspRagType" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
@@ -24540,119 +25027,277 @@ export class TargetWriteBackExecutor {
             <option value="agentic" ${currentRag === 'agentic' ? 'selected' : ''}>08 Agentic RAG (Multi-hop Reasoning)</option>
           </select>
         </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
           <div>
             <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Top-K Retrieval</label>
-            <input type="number" id="inspTopK" value="${node.config.topK || 5}" min="1" max="20" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+            <input type="number" id="inspTopK" value="${cfg.topK || 5}" min="1" max="20" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
           </div>
           <div>
             <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Min Similarity (0-1)</label>
-            <input type="number" id="inspSimThreshold" value="${node.config.similarityThreshold || 0.78}" step="0.01" min="0.1" max="1" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+            <input type="number" id="inspSimThreshold" value="${cfg.similarityThreshold || 0.78}" step="0.01" min="0.1" max="1" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
           </div>
         </div>
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Vector Store Engine</label>
-          <select id="inspVecEngine" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
-            <option value="sqlite_vec">SQLite-vec (Embedded local file ./data/vector_store.db)</option>
-            <option value="pgvector">PostgreSQL pgvector (HNSW Index)</option>
-            <option value="qdrant">Qdrant Vector Engine</option>
-            <option value="lance">LanceDB Embedded Serverless</option>
-          </select>
-        </div>
-      `;
-    } else if (node.type === 'agent') {
-      const currentModel = node.config.modelBlueprint || activePipelineManifest.modelBlueprint?.id || 'lam';
-      configHtml = `
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Model Architecture (8 Types)</label>
-          <select id="inspAgentModelArch" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
-            <option value="slm" ${currentModel === 'slm' ? 'selected' : ''}>SLM (Qwen 2.5 1.5B/3B, Llama 3.2 3B)</option>
-            <option value="mlm" ${currentModel === 'mlm' ? 'selected' : ''}>MLM (Qwen 2.5 7B, Mistral 7B, Gemma 2 9B)</option>
-            <option value="llm" ${currentModel === 'llm' ? 'selected' : ''}>LLM (Claude 3.7 Sonnet, GPT-4o, Gemini 2.0)</option>
-            <option value="vlm" ${currentModel === 'vlm' ? 'selected' : ''}>VLM (ColPali, Qwen2-VL, Gemini 2.0 Flash)</option>
-            <option value="lam" ${currentModel === 'lam' ? 'selected' : ''}>LAM (Qwen 2.5 Coder 7B, Tool-Calling Agents)</option>
-            <option value="reasoner" ${currentModel === 'reasoner' ? 'selected' : ''}>Reasoner (DeepSeek R1, OpenAI o1/o3)</option>
-            <option value="code_fim" ${currentModel === 'code_fim' ? 'selected' : ''}>Code FIM (StarCoder2, CodeQwen 7B)</option>
-            <option value="classifier" ${currentModel === 'classifier' ? 'selected' : ''}>Zero-LLM Fast Classifier (BGE-Reranker, DeBERTa)</option>
-          </select>
-        </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
           <div>
-            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Temperature</label>
-            <input type="number" id="inspAgentTemp" value="${node.config.temperature ?? 0.1}" step="0.05" min="0" max="1" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Reranker Engine</label>
+            <select id="inspReranker" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="none" ${cfg.reranker === 'none' ? 'selected' : ''}>None (Single-Pass Fast)</option>
+              <option value="bge" ${cfg.reranker === 'bge' ? 'selected' : ''}>BGE-Reranker-Large (Cross-Encoder)</option>
+              <option value="cohere" ${cfg.reranker === 'cohere' ? 'selected' : ''}>Cohere Rerank v3 Multilingual</option>
+              <option value="colbert" ${cfg.reranker === 'colbert' ? 'selected' : ''}>ColBERT Token-Level MaxSim</option>
+            </select>
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Max Output Tokens</label>
-            <input type="number" id="inspAgentTokens" value="${node.config.maxTokens || 1024}" step="128" min="128" max="8192" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Context Token Budget</label>
+            <input type="number" id="inspTokenBudget" value="${cfg.tokenBudget || 2048}" step="256" min="512" max="16384" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
           </div>
         </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Dense Weight (${Math.round((cfg.denseWeight ?? 0.65) * 100)}% Dense)</label>
+            <input type="range" id="inspDenseWeight" min="0" max="1" step="0.05" value="${cfg.denseWeight ?? 0.65}" style="width: 100%; accent-color: var(--accent);" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Query Expansion</label>
+            <select id="inspQueryExpansion" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="none" ${cfg.queryExpansion === 'none' ? 'selected' : ''}>None (Direct Pass-through)</option>
+              <option value="hyde" ${cfg.queryExpansion === 'hyde' ? 'selected' : ''}>HyDE (Hypothetical Embedding)</option>
+              <option value="multi_query" ${cfg.queryExpansion === 'multi_query' ? 'selected' : ''}>Multi-Query Decomposition</option>
+              <option value="step_back" ${cfg.queryExpansion === 'step_back' ? 'selected' : ''}>Step-Back Abstraction</option>
+            </select>
+          </div>
+        </div>
+
+        ${renderCustomItemsSection(
+          '🔍 Custom Retrieval Directives',
+          ['Date Filter', 'Tenant Boost', 'Negative Constraint'],
+          customDirectives,
+          'e.g. Prioritize documents from current fiscal year'
+        )}
+      `;
+    } else if (node.type === 'agent') {
+      const cfg = node.config || {};
+      const currentModel = cfg.modelBlueprint || activePipelineManifest.modelBlueprint?.id || 'lam';
+      const customGuidelines = cfg.customGuidelines || [];
+      const presets = [
+        { id: 'react', label: '🤖 Grounded Enterprise Core (ReAct)', action: 'preset_agent_react' },
+        { id: 'strict', label: '⚡ Strict Deterministic Gatekeeper', action: 'preset_agent_strict' },
+        { id: 'reasoner', label: '🧠 Multi-Hop Deep Reasoner', action: 'preset_agent_reasoner' }
+      ];
+
+      configHtml = `
+        ${renderAiSuggestHeader(
+          'Agent Reasoning & System Prompt Suite',
+          'Fine-tune agent loops, reasoning steps, tool calling parameters, and zero-drift system prompts.',
+          presets
+        )}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Model Architecture (8 Types)</label>
+            <select id="inspAgentModelArch" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="slm" ${currentModel === 'slm' ? 'selected' : ''}>SLM (Qwen 2.5 1.5B/3B, Llama 3.2 3B)</option>
+              <option value="mlm" ${currentModel === 'mlm' ? 'selected' : ''}>MLM (Qwen 2.5 7B, Mistral 7B, Gemma 2 9B)</option>
+              <option value="llm" ${currentModel === 'llm' ? 'selected' : ''}>LLM (Claude 3.7 Sonnet, GPT-4o, Gemini 2.0)</option>
+              <option value="vlm" ${currentModel === 'vlm' ? 'selected' : ''}>VLM (ColPali, Qwen2-VL, Gemini 2.0 Flash)</option>
+              <option value="lam" ${currentModel === 'lam' ? 'selected' : ''}>LAM (Qwen 2.5 Coder 7B, Tool-Calling Agents)</option>
+              <option value="reasoner" ${currentModel === 'reasoner' ? 'selected' : ''}>Reasoner (DeepSeek R1, OpenAI o1/o3)</option>
+              <option value="code_fim" ${currentModel === 'code_fim' ? 'selected' : ''}>Code FIM (StarCoder2, CodeQwen 7B)</option>
+              <option value="classifier" ${currentModel === 'classifier' ? 'selected' : ''}>Zero-LLM Fast Classifier (BGE-Reranker, DeBERTa)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Decision Loop Strategy</label>
+            <select id="inspAgentDecisionLoop" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="react" ${cfg.decisionLoop === 'react' ? 'selected' : ''}>ReAct (Reason ➔ Act ➔ Observe ➔ Answer)</option>
+              <option value="plan_solve" ${cfg.decisionLoop === 'plan_solve' ? 'selected' : ''}>Plan-and-Solve (Upfront Decomposition)</option>
+              <option value="reflexion" ${cfg.decisionLoop === 'reflexion' ? 'selected' : ''}>Reflexion (Self-Correction on Error)</option>
+              <option value="direct_tools" ${cfg.decisionLoop === 'direct_tools' ? 'selected' : ''}>Parallel Direct Tool Calling</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Temperature</label>
+            <input type="number" id="inspAgentTemp" value="${cfg.temperature ?? 0.1}" step="0.05" min="0" max="1" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Max Output Tokens</label>
+            <input type="number" id="inspAgentTokens" value="${cfg.maxTokens || 1024}" step="128" min="128" max="8192" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 9.5px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Max Iterations</label>
+            <input type="number" id="inspAgentMaxSteps" value="${cfg.maxSteps || 5}" min="1" max="15" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
         <div style="margin-bottom: 8px;">
           <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">System Prompt Instruction</label>
-          <textarea id="inspAgentSystemPrompt" rows="3" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 6px; border-radius: 4px; resize: vertical;">${node.config.systemPrompt || 'You are an autonomous enterprise agent. Ground all answers strictly in retrieved context and execute validated tools.'}</textarea>
+          <textarea id="inspAgentSystemPrompt" rows="3" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 6px; border-radius: 4px; resize: vertical;">${cfg.systemPrompt || 'You are an autonomous enterprise agent. Ground all answers strictly in retrieved context and execute validated tools.'}</textarea>
         </div>
+
         <div style="margin-top: 6px; margin-bottom: 8px;">
           <button type="button" id="btnInspOpenMultiAgent" class="btn-quick" style="width: 100%; font-size: 10px; padding: 5px; color: #c084fc; border-color: #c084fc; cursor: pointer; font-weight: 700;">
             🤖 Open Multi-Agent Studio &amp; Testing Matrix
           </button>
         </div>
+
+        ${renderCustomItemsSection(
+          '🤖 Custom Behavioral Guidelines & Personas',
+          ['Math Constraint', 'Output Format', 'Security Rule'],
+          customGuidelines,
+          'e.g. Always format currency as USD with 2 decimal places'
+        )}
       `;
     } else if (node.type === 'tool') {
+      const cfg = node.config || {};
       const tools = activePipelineManifest.tools || [];
+      const presets = [
+        { id: 'erp', label: '🔌 Enterprise ERP & SQL Read/Write', action: 'preset_tools_erp' },
+        { id: 'readonly', label: '🛡️ Air-Gapped Read-Only Mode', action: 'preset_tools_readonly' },
+        { id: 'hitl', label: '⚖️ Strict HITL Audited Write-Back', action: 'preset_tools_hitl' }
+      ];
+
       configHtml = `
+        ${renderAiSuggestHeader(
+          'Enterprise MCP Tools Hub & Permissions',
+          'Configure Model Context Protocol (MCP) tool execution policies, timeouts, and active tools.',
+          presets
+        )}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Execution Mode</label>
+            <select id="inspToolExecMode" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="safe_readonly" ${cfg.execMode === 'safe_readonly' ? 'selected' : ''}>Safe Read-Only (PULL queries only)</option>
+              <option value="transactional" ${cfg.execMode === 'transactional' ? 'selected' : ''}>Transactional Read/Write (2PC Rollback)</option>
+              <option value="hitl_writes" ${cfg.execMode === 'hitl_writes' ? 'selected' : ''}>Strict HITL (Approval required for writes)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Timeout SLA (ms)</label>
+            <input type="number" id="inspToolTimeout" value="${cfg.timeoutMs || 5000}" step="1000" min="500" max="60000" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+        </div>
+
         <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Wired Tools (${tools.length})</label>
-          <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Active Tools Matrix (${tools.length})</label>
+          <div style="display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto;">
             ${tools.map((t: any) => `
-              <div style="background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 6px; font-size: 10.5px;">
-                <div style="font-weight: 700; color: #4ade80;">🔌 ${escapeHtml(t.name)}</div>
-                <div style="color: var(--text-secondary); font-size: 10px;">${escapeHtml(t.description)}</div>
+              <div style="display: flex; align-items: center; justify-content: space-between; background: #111; border: 1px solid var(--border); border-radius: 4px; padding: 6px; font-size: 10.5px;">
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-weight: 700; color: #4ade80;">🔌 ${escapeHtml(t.name)}</div>
+                  <div style="color: var(--text-secondary); font-size: 9.5px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(t.description)}</div>
+                </div>
+                <label style="display: flex; align-items: center; gap: 4px; font-size: 9.5px; color: var(--text-secondary); cursor: pointer; flex-shrink: 0; margin-left: 8px;">
+                  <input type="checkbox" class="chk-active-tool" data-tool-id="${escapeHtml(t.id || t.name)}" checked style="accent-color: var(--accent);" />
+                  Active
+                </label>
               </div>
             `).join('')}
           </div>
         </div>
-      `;
-    } else if (node.type === 'source') {
-      configHtml = `
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Source Table Name</label>
-          <input type="text" id="inspSourceTable" value="${node.config.sourceTable || 'orders'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
-        </div>
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Chunk Size (Tokens)</label>
-          <input type="number" id="inspSourceChunkSize" value="${node.config.chunkSize || 512}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
-        </div>
-      `;
-    } else if (node.type === 'vector_store') {
-      configHtml = `
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Active Deployment Tier</label>
-          <select id="inspStorageTier" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
-            <option value="tier1" ${activeAiEngStorageTier === 'tier1' ? 'selected' : ''}>Tier 1: Local Embedded Store (SQLite-vec / LanceDB)</option>
-            <option value="tier2" ${activeAiEngStorageTier === 'tier2' ? 'selected' : ''}>Tier 2: Local Docker Container (pgvector / Qdrant)</option>
-            <option value="tier3" ${activeAiEngStorageTier === 'tier3' ? 'selected' : ''}>Tier 3: Managed Cloud VPC (GCP Cloud SQL / AWS RDS)</option>
-          </select>
-        </div>
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Destination Path / URI</label>
-          <input type="text" id="inspStorePath" value="${node.config.filePath || node.config.uri || node.config.endpoint || './data/vector_store.db'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
-        </div>
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Embedding Dimensions</label>
-          <input type="number" id="inspStoreDim" value="${node.config.dimensions || 1536}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
-        </div>
-      `;
-    } else if (node.type === 'ingress') {
-      configHtml = `
-        <div style="margin-bottom: 8px;">
-          <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Microservice Ingress Port</label>
-          <input type="number" id="inspIngressPort" value="${node.config.port || 8080}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+
+        <div style="margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 8px;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">+ Register Custom MCP Tool</div>
+          <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+            <input type="text" id="inspNewToolName" placeholder="Tool name (e.g. query_shipping_db)" style="flex: 1; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 3px 6px; border-radius: 3px;" />
+            <select id="inspNewToolType" style="background: #111; border: 1px solid var(--border); color: #38bdf8; font-size: 10px; padding: 3px; border-radius: 3px;">
+              <option value="PULL">PULL (Read)</option>
+              <option value="PUSH">PUSH (Write)</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <input type="text" id="inspNewToolDesc" placeholder="Description of tool behavior..." style="flex: 1; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10px; padding: 3px 6px; border-radius: 3px;" />
+            <button type="button" id="btnInspAddTool" class="btn-quick" style="font-size: 10px; padding: 3px 8px; color: var(--accent); border-color: var(--accent); cursor: pointer; font-weight: 700;">+ Add</button>
+          </div>
         </div>
       `;
     } else {
+      const cfg = node.config || {};
+      const customAssertions = cfg.customAssertions || [];
+      const frameworks = cfg.complianceFrameworks || { sox404: true, hipaa: false, eu_ai_act: true, gdpr: true, iso27001: true };
+      const presets = [
+        { id: 'sox', label: '💼 SOX 404 & Financial Audit Gate', action: 'preset_output_sox' },
+        { id: 'hipaa', label: '🏥 HIPAA Healthcare EHR Gate', action: 'preset_output_hipaa' },
+        { id: 'eu', label: '🇪🇺 EU AI Act High-Risk Gate', action: 'preset_output_eu' }
+      ];
+
       configHtml = `
-        <div style="font-size: 10.5px; color: var(--text-secondary); margin-bottom: 8px;">
-          Enforces schema conformance and logs Golden Test benchmark assertions with 0.0% hallucination drift.
+        ${renderAiSuggestHeader(
+          'Target Write-Back & Compliance Gates',
+          'Enforce strict zero-drift schemas, tamper-evident cryptographic digests, and statutory compliance frameworks.',
+          presets
+        )}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Write-Back Mode</label>
+            <select id="inspOutputWriteMode" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="atomic_2pc" ${cfg.writeBackMode === 'atomic_2pc' ? 'selected' : ''}>Atomic 2PC Transaction (DB + Audit)</option>
+              <option value="staging_queue" ${cfg.writeBackMode === 'staging_queue' ? 'selected' : ''}>Staging Table &amp; Review Queue</option>
+              <option value="dlq_on_drift" ${cfg.writeBackMode === 'dlq_on_drift' ? 'selected' : ''}>Dead-Letter Queue (DLQ) on Drift</option>
+              <option value="read_only_stream" ${cfg.writeBackMode === 'read_only_stream' ? 'selected' : ''}>Read-Only Stream (No Mutation)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Target Audit Table / Stream</label>
+            <input type="text" id="inspOutputTargetTable" value="${cfg.targetTable || 'ai_audit_ledger'}" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
         </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Hallucination Tolerance SLA (%)</label>
+            <input type="number" id="inspOutputTolerance" value="${cfg.hallucinationTolerance ?? 0.0}" step="0.1" min="0" max="5" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">Audit Ledger Digest</label>
+            <select id="inspOutputDigest" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 11px; padding: 4px; border-radius: 4px;">
+              <option value="sha256" ${cfg.auditDigest === 'sha256' ? 'selected' : ''}>SHA-256 Tamper-Evident Hash Chain</option>
+              <option value="ed25519" ${cfg.auditDigest === 'ed25519' ? 'selected' : ''}>Ed25519 Cryptographic Signature</option>
+              <option value="hmac512" ${cfg.auditDigest === 'hmac512' ? 'selected' : ''}>HMAC-SHA512 Secret Token</option>
+              <option value="none" ${cfg.auditDigest === 'none' ? 'selected' : ''}>None (Dev / Sandbox only)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 8px; background: #0c0c0c; border: 1px solid var(--border); border-radius: 6px; padding: 8px;">
+          <div style="font-size: 10.5px; font-weight: 700; color: #fff; margin-bottom: 4px;">Statutory Compliance Frameworks</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #e2e8f0;">
+              <input type="checkbox" id="chkCompSox" ${frameworks.sox404 ? 'checked' : ''} style="accent-color: var(--accent);" />
+              <span>SOX 404 Financial Traceability</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #e2e8f0;">
+              <input type="checkbox" id="chkCompHipaa" ${frameworks.hipaa ? 'checked' : ''} style="accent-color: var(--accent);" />
+              <span>HIPAA Security &amp; Audit Trail</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #e2e8f0;">
+              <input type="checkbox" id="chkCompEu" ${frameworks.eu_ai_act ? 'checked' : ''} style="accent-color: var(--accent);" />
+              <span>EU AI Act High-Risk System</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #e2e8f0;">
+              <input type="checkbox" id="chkCompGdpr" ${frameworks.gdpr ? 'checked' : ''} style="accent-color: var(--accent);" />
+              <span>GDPR Art 22 Explainability</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: #e2e8f0;">
+              <input type="checkbox" id="chkCompIso" ${frameworks.iso27001 ? 'checked' : ''} style="accent-color: var(--accent);" />
+              <span>ISO 27001 Security Logging</span>
+            </label>
+          </div>
+        </div>
+
+        ${renderCustomItemsSection(
+          '🎯 Custom Validation Assertions & SLAs',
+          ['Schema Assert', 'Threshold Assert', 'Invariant Check'],
+          customAssertions,
+          'e.g. assert citation_count >= 1 or assert variance <= 100'
+        )}
       `;
     }
 
@@ -24678,36 +25323,457 @@ export class TargetWriteBackExecutor {
       applyModelArchitectureChange(e.target.value, false);
     });
 
-    document.getElementById('btnAiEngSaveNodeConfig')?.addEventListener('click', () => {
-      if (node.type === 'rag') {
-        const ragType = (document.getElementById('inspRagType') as HTMLSelectElement)?.value || 'hybrid';
-        const topK = parseInt((document.getElementById('inspTopK') as HTMLInputElement)?.value || '5', 10);
-        const sim = parseFloat((document.getElementById('inspSimThreshold') as HTMLInputElement)?.value || '0.78');
-        node.config.topK = topK;
-        node.config.similarityThreshold = sim;
-        applyRagArchitectureChange(ragType, true);
-      } else if (node.type === 'agent') {
-        const arch = (document.getElementById('inspAgentModelArch') as HTMLSelectElement)?.value || 'lam';
-        const temp = parseFloat((document.getElementById('inspAgentTemp') as HTMLInputElement)?.value || '0.1');
-        const tokens = parseInt((document.getElementById('inspAgentTokens') as HTMLInputElement)?.value || '1024', 10);
-        const sys = (document.getElementById('inspAgentSystemPrompt') as HTMLTextAreaElement)?.value;
-        node.config.temperature = temp;
-        node.config.maxTokens = tokens;
-        node.config.systemPrompt = sys;
-        applyModelArchitectureChange(arch, true);
-      } else if (node.type === 'source') {
-        node.config.sourceTable = (document.getElementById('inspSourceTable') as HTMLInputElement)?.value || 'orders';
-        node.config.chunkSize = parseInt((document.getElementById('inspSourceChunkSize') as HTMLInputElement)?.value || '512', 10);
-      } else if (node.type === 'vector_store') {
-        const tier = ((document.getElementById('inspStorageTier') as HTMLSelectElement)?.value as StorageTierId) || 'tier1';
-        node.config.filePath = (document.getElementById('inspStorePath') as HTMLInputElement)?.value || './data/vector_store.db';
-        node.config.dimensions = parseInt((document.getElementById('inspStoreDim') as HTMLInputElement)?.value || '1536', 10);
-        updateStorageTierUI(tier, false);
+    // AI Presets 1-Click Handlers
+    document.querySelectorAll('.btn-ai-eng-insp-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        node.config = node.config || {};
+        if (action === 'preset_guard_fintech') {
+          node.config.piiMasking = true;
+          node.config.promptInjectionDefense = true;
+          node.config.financialLimits = true;
+          node.config.sqlFirewall = true;
+          node.config.citationGrounding = true;
+          node.config.requireHitlApproval = true;
+          node.config.soxCompliance = true;
+          node.config.maxSpendUsd = 100.0;
+          node.config.rateLimitRpm = 60;
+          node.config.confidenceThreshold = 0.95;
+          node.config.customRules = [
+            { id: 'rule-var', name: 'GL Variance Threshold', category: 'Numeric Boundary', pattern: 'variance_amount <= $50.00', enabled: true },
+            { id: 'rule-pan', name: 'PCI-DSS Strict PAN Scrubbing', category: 'Regex Pattern', pattern: '\\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14})\\b', enabled: true },
+            { id: 'rule-2pc', name: 'Mandatory 2PC Signed Digest', category: 'Semantic Boundary', pattern: 'require_2pc_signed_digest', enabled: true }
+          ];
+          node.subtitle = '7 Policies Active · Max $100 · 60 RPM · FinTech GL Pack';
+        } else if (action === 'preset_guard_hipaa') {
+          node.config.piiMasking = true;
+          node.config.promptInjectionDefense = true;
+          node.config.financialLimits = false;
+          node.config.sqlFirewall = true;
+          node.config.citationGrounding = true;
+          node.config.requireHitlApproval = true;
+          node.config.soxCompliance = true;
+          node.config.maxSpendUsd = 50.0;
+          node.config.rateLimitRpm = 100;
+          node.config.confidenceThreshold = 0.98;
+          node.config.customRules = [
+            { id: 'rule-mrn', name: 'HIPAA Safe Harbor MRN Masking', category: 'Regex Pattern', pattern: 'mask_mrn_and_dob', enabled: true },
+            { id: 'rule-phi', name: 'Block PHI Exfiltration Outbound', category: 'Policy Blacklist', pattern: 'block_phi_exfiltration', enabled: true }
+          ];
+          node.subtitle = '6 Policies Active · HIPAA PHI Shield · 0.98 SLA';
+        } else if (action === 'preset_guard_zerotrust') {
+          node.config.piiMasking = true;
+          node.config.promptInjectionDefense = true;
+          node.config.financialLimits = true;
+          node.config.sqlFirewall = true;
+          node.config.citationGrounding = true;
+          node.config.requireHitlApproval = true;
+          node.config.soxCompliance = true;
+          node.config.maxSpendUsd = 25.0;
+          node.config.rateLimitRpm = 120;
+          node.config.confidenceThreshold = 0.98;
+          node.config.customRules = [
+            { id: 'rule-anti-extract', name: 'Forbid System Prompt Extraction', category: 'Policy Blacklist', pattern: 'forbid_system_prompt_extraction', enabled: true },
+            { id: 'rule-sql-ro', name: 'Enforce Read-Only AST Validation', category: 'Security Rule', pattern: 'sql_select_only_enforce', enabled: true }
+          ];
+          node.subtitle = '7 Policies Active · Zero-Trust Strict Enterprise';
+        } else if (action === 'preset_guard_throughput') {
+          node.config.piiMasking = true;
+          node.config.promptInjectionDefense = true;
+          node.config.financialLimits = false;
+          node.config.sqlFirewall = true;
+          node.config.citationGrounding = true;
+          node.config.requireHitlApproval = false;
+          node.config.soxCompliance = false;
+          node.config.maxSpendUsd = 500.0;
+          node.config.rateLimitRpm = 1000;
+          node.config.confidenceThreshold = 0.85;
+          node.subtitle = '4 Fast Policies Active · 1000 RPM · <50ms SLA';
+        } else if (action === 'preset_ingress_zerotrust') {
+          node.config.protocol = 'rest';
+          node.config.port = 8443;
+          node.config.auth = 'mtls';
+          node.config.rateLimitRps = 200;
+          node.config.maxPayloadMb = 10;
+          node.subtitle = 'REST · Port 8443 · Auth: MTLS';
+        } else if (action === 'preset_ingress_grpc') {
+          node.config.protocol = 'grpc';
+          node.config.port = 50051;
+          node.config.auth = 'apikey';
+          node.config.rateLimitRps = 1000;
+          node.config.maxPayloadMb = 32;
+          node.subtitle = 'GRPC · Port 50051 · Auth: APIKEY';
+        } else if (action === 'preset_ingress_sse') {
+          node.config.protocol = 'sse';
+          node.config.port = 8080;
+          node.config.auth = 'jwt';
+          node.config.rateLimitRps = 500;
+          node.config.maxPayloadMb = 5;
+          node.subtitle = 'SSE · Port 8080 · Auth: JWT';
+        } else if (action === 'preset_source_cdc') {
+          node.config.dialect = 'oracle';
+          node.config.ingestMode = 'cdc';
+          node.config.splitter = 'row';
+          node.config.chunkSize = 256;
+          node.config.overlapTokens = 32;
+          node.subtitle = 'ORACLE orders · CDC · 256t';
+        } else if (action === 'preset_source_docs') {
+          node.config.dialect = 'sqlite';
+          node.config.ingestMode = 'batch';
+          node.config.splitter = 'markdown';
+          node.config.chunkSize = 512;
+          node.config.overlapTokens = 64;
+          node.subtitle = 'SQLITE SOPs · BATCH · 512t';
+        } else if (action === 'preset_source_analytics') {
+          node.config.dialect = 'clickhouse';
+          node.config.ingestMode = 'microbatch';
+          node.config.splitter = 'recursive';
+          node.config.chunkSize = 1024;
+          node.config.overlapTokens = 128;
+          node.subtitle = 'CLICKHOUSE warehouse · MICROBATCH · 1024t';
+        } else if (action === 'preset_vec_tier1') {
+          node.config.tier = 'tier1';
+          node.config.engine = 'sqlite_vec';
+          node.config.dimensions = 1024;
+          node.config.embeddingModel = 'bge-large-en-v1.5';
+          node.config.indexType = 'flat';
+          updateStorageTierUI('tier1', false);
+          node.subtitle = 'sqlite_vec · 1024 dim · FLAT';
+        } else if (action === 'preset_vec_tier2') {
+          node.config.tier = 'tier2';
+          node.config.engine = 'pgvector';
+          node.config.dimensions = 1536;
+          node.config.embeddingModel = 'text-embedding-3-small';
+          node.config.indexType = 'hnsw';
+          updateStorageTierUI('tier2', false);
+          node.subtitle = 'pgvector · 1536 dim · HNSW';
+        } else if (action === 'preset_vec_tier3') {
+          node.config.tier = 'tier3';
+          node.config.engine = 'qdrant';
+          node.config.dimensions = 1536;
+          node.config.embeddingModel = 'text-embedding-3-small';
+          node.config.indexType = 'hnsw';
+          updateStorageTierUI('tier3', false);
+          node.subtitle = 'qdrant · 1536 dim · HNSW';
+        } else if (action === 'preset_rag_hybrid') {
+          node.config.ragType = 'hybrid';
+          node.config.topK = 5;
+          node.config.similarityThreshold = 0.82;
+          node.config.reranker = 'bge';
+          node.config.denseWeight = 0.65;
+          applyRagArchitectureChange('hybrid', true);
+        } else if (action === 'preset_rag_hyde') {
+          node.config.ragType = 'hyde';
+          node.config.topK = 4;
+          node.config.similarityThreshold = 0.75;
+          node.config.reranker = 'none';
+          node.config.denseWeight = 0.70;
+          applyRagArchitectureChange('hyde', true);
+        } else if (action === 'preset_rag_agentic') {
+          node.config.ragType = 'agentic';
+          node.config.topK = 8;
+          node.config.similarityThreshold = 0.70;
+          node.config.reranker = 'cohere';
+          node.config.tokenBudget = 4096;
+          applyRagArchitectureChange('agentic', true);
+        } else if (action === 'preset_agent_react') {
+          node.config.modelBlueprint = 'lam';
+          node.config.decisionLoop = 'react';
+          node.config.temperature = 0.1;
+          node.config.maxTokens = 1024;
+          node.config.maxSteps = 5;
+          applyModelArchitectureChange('lam', true);
+        } else if (action === 'preset_agent_strict') {
+          node.config.modelBlueprint = 'classifier';
+          node.config.decisionLoop = 'plan_solve';
+          node.config.temperature = 0.0;
+          node.config.maxTokens = 512;
+          node.config.maxSteps = 2;
+          applyModelArchitectureChange('classifier', true);
+        } else if (action === 'preset_agent_reasoner') {
+          node.config.modelBlueprint = 'reasoner';
+          node.config.decisionLoop = 'reflexion';
+          node.config.temperature = 0.3;
+          node.config.maxTokens = 2048;
+          node.config.maxSteps = 6;
+          applyModelArchitectureChange('reasoner', true);
+        } else if (action === 'preset_tools_erp') {
+          node.config.execMode = 'transactional';
+          node.config.timeoutMs = 5000;
+          node.subtitle = 'TRANSACTIONAL · Tools Active · 5000ms';
+        } else if (action === 'preset_tools_readonly') {
+          node.config.execMode = 'safe_readonly';
+          node.config.timeoutMs = 3000;
+          node.subtitle = 'SAFE_READONLY · Tools Active · 3000ms';
+        } else if (action === 'preset_tools_hitl') {
+          node.config.execMode = 'hitl_writes';
+          node.config.timeoutMs = 10000;
+          node.subtitle = 'HITL_WRITES · Human Approval Required · 10000ms';
+        } else if (action === 'preset_output_sox') {
+          node.config.writeBackMode = 'atomic_2pc';
+          node.config.targetTable = 'ai_audit_ledger';
+          node.config.hallucinationTolerance = 0.0;
+          node.config.auditDigest = 'sha256';
+          node.config.complianceFrameworks = { sox404: true, hipaa: false, eu_ai_act: true, gdpr: true, iso27001: true };
+          node.subtitle = '0.0% Drift SLA · SHA256 · ai_audit_ledger';
+        } else if (action === 'preset_output_hipaa') {
+          node.config.writeBackMode = 'staging_queue';
+          node.config.targetTable = 'ehr_audit_trail';
+          node.config.hallucinationTolerance = 0.0;
+          node.config.auditDigest = 'ed25519';
+          node.config.complianceFrameworks = { sox404: false, hipaa: true, eu_ai_act: false, gdpr: true, iso27001: true };
+          node.subtitle = '0.0% Drift SLA · ED25519 · ehr_audit_trail';
+        } else if (action === 'preset_output_eu') {
+          node.config.writeBackMode = 'dlq_on_drift';
+          node.config.targetTable = 'ai_decisions_log';
+          node.config.hallucinationTolerance = 0.0;
+          node.config.auditDigest = 'sha256';
+          node.config.complianceFrameworks = { sox404: false, hipaa: false, eu_ai_act: true, gdpr: true, iso27001: true };
+          node.subtitle = '0.0% Drift SLA · SHA256 · ai_decisions_log';
+        }
+        showToast(`✨ Applied AI Recommended Preset for ${node.title}!`);
+        renderAiEngCanvas();
+        renderAiEngCodeWorkbench();
+        renderAiEngNodeInspector(node.id);
+      });
+    });
+
+    // Custom Rule / Item Adder Listener
+    document.getElementById('btnInspAddCustomItem')?.addEventListener('click', () => {
+      const cat = (document.getElementById('inspNewCustomCategory') as HTMLSelectElement)?.value || 'General';
+      const val = (document.getElementById('inspNewCustomInput') as HTMLInputElement)?.value?.trim();
+      if (!val) {
+        showToast('⚠️ Please enter custom rule, pattern, or parameter value.');
+        return;
       }
-      showToast('✓ Node configuration saved and pipeline updated!');
+      node.config = node.config || {};
+      if (node.type === 'guardrail') {
+        node.config.customRules = node.config.customRules || [];
+        node.config.customRules.push({ id: `rule-${Date.now()}`, name: val, category: cat, pattern: val, enabled: true });
+      } else if (node.type === 'ingress') {
+        node.config.customHeaders = node.config.customHeaders || [];
+        node.config.customHeaders.push({ id: `hdr-${Date.now()}`, name: val, category: cat, pattern: val });
+      } else if (node.type === 'source') {
+        node.config.customFilters = node.config.customFilters || [];
+        node.config.customFilters.push({ id: `filter-${Date.now()}`, name: val, category: cat, filterExpr: val, pattern: val });
+      } else if (node.type === 'vector_store') {
+        node.config.customMetadataIndexes = node.config.customMetadataIndexes || [];
+        node.config.customMetadataIndexes.push({ id: `idx-${Date.now()}`, fieldName: val, category: cat, pattern: val });
+      } else if (node.type === 'rag') {
+        node.config.customDirectives = node.config.customDirectives || [];
+        node.config.customDirectives.push({ id: `dir-${Date.now()}`, name: val, category: cat, directive: val, pattern: val });
+      } else if (node.type === 'agent') {
+        node.config.customGuidelines = node.config.customGuidelines || [];
+        node.config.customGuidelines.push({ id: `guide-${Date.now()}`, name: val, category: cat, guideline: val, pattern: val });
+      } else if (node.type === 'eval_output') {
+        node.config.customAssertions = node.config.customAssertions || [];
+        node.config.customAssertions.push({ id: `assert-${Date.now()}`, name: val, category: cat, assertion: val, pattern: val });
+      }
+      showToast(`✓ Added custom rule: "${val}"`);
       renderAiEngCanvas();
       renderAiEngCodeWorkbench();
       renderAiEngNodeInspector(node.id);
+    });
+
+    // Custom Rule Deletion Listeners
+    document.querySelectorAll('.btn-insp-delete-custom-item').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index') || '0', 10);
+        node.config = node.config || {};
+        if (node.type === 'guardrail' && node.config.customRules) {
+          node.config.customRules.splice(idx, 1);
+        } else if (node.type === 'ingress' && node.config.customHeaders) {
+          node.config.customHeaders.splice(idx, 1);
+        } else if (node.type === 'source' && node.config.customFilters) {
+          node.config.customFilters.splice(idx, 1);
+        } else if (node.type === 'vector_store' && node.config.customMetadataIndexes) {
+          node.config.customMetadataIndexes.splice(idx, 1);
+        } else if (node.type === 'rag' && node.config.customDirectives) {
+          node.config.customDirectives.splice(idx, 1);
+        } else if (node.type === 'agent' && node.config.customGuidelines) {
+          node.config.customGuidelines.splice(idx, 1);
+        } else if (node.type === 'eval_output' && node.config.customAssertions) {
+          node.config.customAssertions.splice(idx, 1);
+        }
+        showToast('Removed custom rule.');
+        renderAiEngCanvas();
+        renderAiEngCodeWorkbench();
+        renderAiEngNodeInspector(node.id);
+      });
+    });
+
+    // Custom MCP Tool Adder Listener
+    document.getElementById('btnInspAddTool')?.addEventListener('click', () => {
+      const name = (document.getElementById('inspNewToolName') as HTMLInputElement)?.value?.trim();
+      const type = (document.getElementById('inspNewToolType') as HTMLSelectElement)?.value || 'PULL';
+      const desc = (document.getElementById('inspNewToolDesc') as HTMLInputElement)?.value?.trim() || `${type} tool`;
+      if (!name) {
+        showToast('⚠️ Please enter a tool name.');
+        return;
+      }
+      activePipelineManifest.tools = activePipelineManifest.tools || [];
+      activePipelineManifest.tools.push({
+        id: `tool-${Date.now()}`,
+        name,
+        description: `${type}: ${desc}`
+      });
+      node.config = node.config || {};
+      node.config.toolsCount = activePipelineManifest.tools.length;
+      showToast(`✓ Registered custom tool: ${name}`);
+      renderAiEngCanvas();
+      renderAiEngCodeWorkbench();
+      renderAiEngNodeInspector(node.id);
+    });
+
+    // Unified "Apply Configuration" Button Handler for all 8 stages
+    document.getElementById('btnAiEngSaveNodeConfig')?.addEventListener('click', () => {
+      node.config = node.config || {};
+
+      if (node.type === 'guardrail') {
+        const pii = (document.getElementById('chkGuardPii') as HTMLInputElement)?.checked ?? true;
+        const promptInj = (document.getElementById('chkGuardPrompt') as HTMLInputElement)?.checked ?? true;
+        const fin = (document.getElementById('chkGuardFinancial') as HTMLInputElement)?.checked ?? true;
+        const sql = (document.getElementById('chkGuardSql') as HTMLInputElement)?.checked ?? true;
+        const cit = (document.getElementById('chkGuardCitation') as HTMLInputElement)?.checked ?? true;
+        const hitl = (document.getElementById('chkGuardHitl') as HTMLInputElement)?.checked ?? true;
+        const sox = (document.getElementById('chkGuardSox') as HTMLInputElement)?.checked ?? true;
+        const spend = parseFloat((document.getElementById('inspGuardMaxSpend') as HTMLInputElement)?.value || '100');
+        const rpm = parseInt((document.getElementById('inspGuardRateLimit') as HTMLInputElement)?.value || '60', 10);
+        const conf = parseFloat((document.getElementById('inspGuardConfidence') as HTMLInputElement)?.value || '0.95');
+
+        node.config.piiMasking = pii;
+        node.config.promptInjectionDefense = promptInj;
+        node.config.financialLimits = fin;
+        node.config.sqlFirewall = sql;
+        node.config.citationGrounding = cit;
+        node.config.requireHitlApproval = hitl;
+        node.config.soxCompliance = sox;
+        node.config.maxSpendUsd = spend;
+        node.config.rateLimitRpm = rpm;
+        node.config.confidenceThreshold = conf;
+
+        const activeCount = [pii, promptInj, fin, sql, cit, hitl, sox].filter(Boolean).length;
+        const customCount = (node.config.customRules || []).length;
+        node.subtitle = `${activeCount} Policies Active · Max $${spend} · ${rpm} RPM${customCount > 0 ? ` · ${customCount} Custom Rules` : ''}`;
+      } else if (node.type === 'ingress') {
+        const proto = (document.getElementById('inspIngressProtocol') as HTMLSelectElement)?.value || 'rest';
+        const port = parseInt((document.getElementById('inspIngressPort') as HTMLInputElement)?.value || '8080', 10);
+        const auth = (document.getElementById('inspIngressAuth') as HTMLSelectElement)?.value || 'jwt';
+        const rps = parseInt((document.getElementById('inspIngressRateLimit') as HTMLInputElement)?.value || '100', 10);
+        const mb = parseInt((document.getElementById('inspIngressPayloadMb') as HTMLInputElement)?.value || '10', 10);
+        const cors = (document.getElementById('inspIngressCors') as HTMLInputElement)?.value || '*';
+
+        node.config.protocol = proto;
+        node.config.port = port;
+        node.config.auth = auth;
+        node.config.rateLimitRps = rps;
+        node.config.maxPayloadMb = mb;
+        node.config.corsOrigins = cors;
+        node.subtitle = `${proto.toUpperCase()} · Port ${port} · Auth: ${auth.toUpperCase()}`;
+      } else if (node.type === 'source') {
+        const table = (document.getElementById('inspSourceTable') as HTMLInputElement)?.value || 'orders';
+        const dialect = (document.getElementById('inspSourceDialect') as HTMLSelectElement)?.value || 'postgres';
+        const mode = (document.getElementById('inspSourceIngestMode') as HTMLSelectElement)?.value || 'cdc';
+        const chunkSize = parseInt((document.getElementById('inspSourceChunkSize') as HTMLInputElement)?.value || '512', 10);
+        const overlap = parseInt((document.getElementById('inspSourceOverlap') as HTMLInputElement)?.value || '50', 10);
+        const splitter = (document.getElementById('inspSourceSplitter') as HTMLSelectElement)?.value || 'recursive';
+
+        node.config.sourceTable = table;
+        node.config.dialect = dialect;
+        node.config.ingestMode = mode;
+        node.config.chunkSize = chunkSize;
+        node.config.overlapTokens = overlap;
+        node.config.splitter = splitter;
+        node.subtitle = `${dialect.toUpperCase()} ${table} · ${mode.toUpperCase()} · ${chunkSize}t`;
+      } else if (node.type === 'vector_store') {
+        const tier = ((document.getElementById('inspStorageTier') as HTMLSelectElement)?.value as StorageTierId) || 'tier1';
+        const engine = (document.getElementById('inspVecStoreEngine') as HTMLSelectElement)?.value || 'sqlite_vec';
+        const path = (document.getElementById('inspStorePath') as HTMLInputElement)?.value || './data/vector_store.db';
+        const model = (document.getElementById('inspEmbedModel') as HTMLSelectElement)?.value || 'text-embedding-3-small';
+        const dim = parseInt((document.getElementById('inspStoreDim') as HTMLInputElement)?.value || '1536', 10);
+        const metric = (document.getElementById('inspDistanceMetric') as HTMLSelectElement)?.value || 'cosine';
+        const indexType = (document.getElementById('inspIndexType') as HTMLSelectElement)?.value || 'hnsw';
+
+        node.config.tier = tier;
+        node.config.engine = engine;
+        node.config.filePath = path;
+        node.config.embeddingModel = model;
+        node.config.dimensions = dim;
+        node.config.metric = metric;
+        node.config.indexType = indexType;
+        node.subtitle = `${engine} · ${dim} dim · ${indexType.toUpperCase()}`;
+        updateStorageTierUI(tier, false);
+      } else if (node.type === 'rag') {
+        const ragType = (document.getElementById('inspRagType') as HTMLSelectElement)?.value || 'hybrid';
+        const topK = parseInt((document.getElementById('inspTopK') as HTMLInputElement)?.value || '5', 10);
+        const sim = parseFloat((document.getElementById('inspSimThreshold') as HTMLInputElement)?.value || '0.78');
+        const reranker = (document.getElementById('inspReranker') as HTMLSelectElement)?.value || 'bge';
+        const budget = parseInt((document.getElementById('inspTokenBudget') as HTMLInputElement)?.value || '2048', 10);
+        const weight = parseFloat((document.getElementById('inspDenseWeight') as HTMLInputElement)?.value || '0.65');
+        const qExp = (document.getElementById('inspQueryExpansion') as HTMLSelectElement)?.value || 'none';
+
+        node.config.ragType = ragType;
+        node.config.topK = topK;
+        node.config.similarityThreshold = sim;
+        node.config.reranker = reranker;
+        node.config.tokenBudget = budget;
+        node.config.denseWeight = weight;
+        node.config.queryExpansion = qExp;
+        applyRagArchitectureChange(ragType, true);
+      } else if (node.type === 'agent') {
+        const arch = (document.getElementById('inspAgentModelArch') as HTMLSelectElement)?.value || 'lam';
+        const loop = (document.getElementById('inspAgentDecisionLoop') as HTMLSelectElement)?.value || 'react';
+        const temp = parseFloat((document.getElementById('inspAgentTemp') as HTMLInputElement)?.value || '0.1');
+        const tokens = parseInt((document.getElementById('inspAgentTokens') as HTMLInputElement)?.value || '1024', 10);
+        const steps = parseInt((document.getElementById('inspAgentMaxSteps') as HTMLInputElement)?.value || '5', 10);
+        const sys = (document.getElementById('inspAgentSystemPrompt') as HTMLTextAreaElement)?.value;
+
+        node.config.modelBlueprint = arch;
+        node.config.decisionLoop = loop;
+        node.config.temperature = temp;
+        node.config.maxTokens = tokens;
+        node.config.maxSteps = steps;
+        node.config.systemPrompt = sys;
+        applyModelArchitectureChange(arch, true);
+      } else if (node.type === 'tool') {
+        const mode = (document.getElementById('inspToolExecMode') as HTMLSelectElement)?.value || 'transactional';
+        const timeout = parseInt((document.getElementById('inspToolTimeout') as HTMLInputElement)?.value || '5000', 10);
+        const activeIds: string[] = [];
+        document.querySelectorAll('.chk-active-tool:checked').forEach(c => {
+          const tid = c.getAttribute('data-tool-id');
+          if (tid) activeIds.push(tid);
+        });
+
+        node.config.execMode = mode;
+        node.config.timeoutMs = timeout;
+        node.config.activeToolIds = activeIds;
+        node.config.toolsCount = activeIds.length;
+        node.subtitle = `${mode.toUpperCase()} · ${activeIds.length} Tools Active · ${timeout}ms`;
+      } else if (node.type === 'eval_output') {
+        const mode = (document.getElementById('inspOutputWriteMode') as HTMLSelectElement)?.value || 'atomic_2pc';
+        const target = (document.getElementById('inspOutputTargetTable') as HTMLInputElement)?.value || 'ai_audit_ledger';
+        const tol = parseFloat((document.getElementById('inspOutputTolerance') as HTMLInputElement)?.value || '0.0');
+        const digest = (document.getElementById('inspOutputDigest') as HTMLSelectElement)?.value || 'sha256';
+        const sox = (document.getElementById('chkCompSox') as HTMLInputElement)?.checked ?? true;
+        const hipaa = (document.getElementById('chkCompHipaa') as HTMLInputElement)?.checked ?? false;
+        const eu = (document.getElementById('chkCompEu') as HTMLInputElement)?.checked ?? true;
+        const gdpr = (document.getElementById('chkCompGdpr') as HTMLInputElement)?.checked ?? true;
+        const iso = (document.getElementById('chkCompIso') as HTMLInputElement)?.checked ?? true;
+
+        node.config.writeBackMode = mode;
+        node.config.targetTable = target;
+        node.config.hallucinationTolerance = tol;
+        node.config.auditDigest = digest;
+        node.config.complianceFrameworks = { sox404: sox, hipaa, eu_ai_act: eu, gdpr, iso27001: iso };
+        node.subtitle = `${tol === 0 ? '0.0% Zero-Drift' : `${tol}% Drift`} SLA · ${digest.toUpperCase()} · ${target}`;
+      }
+
+      updateAiEngRibbon();
+      renderAiEngCanvas();
+      renderAiEngCodeWorkbench();
+      renderAiEngNodeInspector(node.id);
+      showToast(`✓ Applied configuration for ${node.title}!`);
     });
 
     document.getElementById('btnInspOpenMultiAgent')?.addEventListener('click', () => {
