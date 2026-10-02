@@ -21905,7 +21905,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
 
   let activePipelineManifest: any = null;
   let activeAiEngSelectedNodeId: string = 'node_agent';
-  let activeAiEngCurrentTab: 'canvas' | 'simulator' | 'code' | 'deploy' | 'data' | 'enterprise' = 'canvas';
+  let activeAiEngCurrentTab: 'canvas' | 'simulator' | 'code' | 'deploy' | 'data' | 'enterprise' | 'multiagent' = 'canvas';
   let activeAiEngCurrentCodeFile: string = 'pipeline';
   let activeCanvasViewMode: 'canvas' | 'data' | 'linear' = 'canvas';
   let activeInspectorTab: 'params' | 'data' | 'test' = 'params';
@@ -22543,6 +22543,367 @@ export class TargetWriteBackExecutor {
 `;
   }
 
+  // ==========================================
+  // PHASE 4: MULTI-AGENT STUDIO & TESTING MATRIX
+  // ==========================================
+  let activeMultiAgentSystem: any = null;
+  let activeSelectedAgentId = 'agent_orchestrator';
+
+  function getActiveMultiAgentSystem(): any {
+    if (!activeMultiAgentSystem) {
+      try {
+        const raw = localStorage.getItem('evolve_active_multi_agent_system');
+        if (raw) {
+          activeMultiAgentSystem = JSON.parse(raw);
+        }
+      } catch (_) {}
+    }
+    if (!activeMultiAgentSystem) {
+      const builder = getAgentBuilder();
+      if (builder && builder.DEFAULT_MULTI_AGENT_SYSTEM) {
+        activeMultiAgentSystem = JSON.parse(JSON.stringify(builder.DEFAULT_MULTI_AGENT_SYSTEM));
+      } else {
+        activeMultiAgentSystem = {
+          topology: 'orchestrator_worker',
+          coordinatorAgentId: 'agent_orchestrator',
+          agents: [
+            {
+              id: 'agent_orchestrator',
+              name: 'Executive Orchestrator',
+              role: 'Workflow Coordinator & Task Delegator',
+              description: 'Central task planner that breaks down user prompts, coordinates peer specialists, and returns consolidated responses.',
+              modelClass: 'lam',
+              modelId: 'Qwen 2.5 Coder 32B (Tools / MCP)',
+              systemPrompt: 'You are the Executive Orchestrator. Receive requests from the Host Application, decompose them into specific analytical subtasks, dispatch parallel queries to RAG and DB specialist agents via A2A messages, aggregate evidence, and pass candidate solutions to the Compliance Auditor for final sign-off.',
+              temperature: 0.1,
+              maxTokens: 2048,
+              toolBindings: ['delegate_task', 'notify_application'],
+              communication: {
+                canTalkToApp: true,
+                canTalkToAgents: ['agent_rag_specialist', 'agent_db_analyst', 'agent_auditor'],
+                canTalkToRag: false,
+                canTalkToDb: false
+              },
+              isCoordinator: true
+            },
+            {
+              id: 'agent_rag_specialist',
+              name: 'RAG Knowledge Specialist',
+              role: 'Unstructured Knowledge & Document Retrieval',
+              description: 'Specialist agent dedicated to dense and hybrid semantic searches across indexed enterprise document corpuses.',
+              modelClass: 'slm',
+              modelId: 'Qwen 2.5 7B (Hybrid Search)',
+              systemPrompt: 'You are the RAG Knowledge Specialist. Receive semantic search queries from the Orchestrator, query the enterprise vector store, extract relevant chunks and citations with high confidence, and filter out ungrounded assertions.',
+              temperature: 0.2,
+              maxTokens: 1024,
+              toolBindings: ['query_vector_store', 'rerank_bm25'],
+              communication: {
+                canTalkToApp: false,
+                canTalkToAgents: ['agent_orchestrator'],
+                canTalkToRag: true,
+                canTalkToDb: false,
+                ragStoreId: 'pgvector'
+              }
+            },
+            {
+              id: 'agent_db_analyst',
+              name: 'Enterprise DB Analyst',
+              role: 'Client Operational Database Query & Aggregation',
+              description: 'Specialist agent bound to client operational systems (Oracle, DB2, Teradata) to execute high-performance, injection-safe SQL queries.',
+              modelClass: 'lam',
+              modelId: 'Qwen 2.5 Coder 7B (SQL Engine)',
+              systemPrompt: 'You are the Enterprise DB Analyst. Receive structured query requests, construct parameterized SQL statements for the client enterprise database, enforce bind variables, execute against client tables, and return structured result sets.',
+              temperature: 0.0,
+              maxTokens: 1536,
+              toolBindings: ['execute_sql_query', 'fetch_recent_records'],
+              communication: {
+                canTalkToApp: false,
+                canTalkToAgents: ['agent_orchestrator'],
+                canTalkToRag: false,
+                canTalkToDb: true,
+                dbDialect: 'oracle'
+              }
+            },
+            {
+              id: 'agent_auditor',
+              name: 'SOX Compliance Auditor',
+              role: 'Statutory Guardrail & 2PC Atomic Write-Back Gate',
+              description: 'Deterministic policy auditor and gatekeeper that validates tolerance rules, enforces PII compliance, and executes 2-phase commit write-backs with cryptographic SHA-256 receipts.',
+              modelClass: 'reasoner',
+              modelId: 'DeepSeek-R1 / QwQ-32B (Chain-of-Thought)',
+              systemPrompt: 'You are the SOX Compliance Auditor. Validate combined RAG evidence and DB records against business tolerance rules. Enforce >95% confidence threshold or route to HITL. Execute Two-Phase Commit write-back and generate SHA-256 audit digest.',
+              temperature: 0.0,
+              maxTokens: 2048,
+              toolBindings: ['verify_tolerance', 'execute_2pc_write_back', 'compute_sha256'],
+              communication: {
+                canTalkToApp: true,
+                canTalkToAgents: ['agent_orchestrator'],
+                canTalkToRag: false,
+                canTalkToDb: true,
+                dbDialect: 'oracle'
+              }
+            }
+          ],
+          sharedContextKeys: ['transactionId', 'clientDomain', 'activeUserToken'],
+          maxHops: 6,
+          timeoutMs: 15000
+        };
+      }
+    }
+    return activeMultiAgentSystem;
+  }
+
+  function saveActiveMultiAgentSystem(sys: any): void {
+    activeMultiAgentSystem = sys;
+    try {
+      localStorage.setItem('evolve_active_multi_agent_system', JSON.stringify(sys));
+    } catch (_) {}
+    if (activePipelineManifest) {
+      activePipelineManifest.multiAgentSystem = sys;
+    }
+  }
+
+  function renderAiEngMultiAgent(): void {
+    const sys = getActiveMultiAgentSystem();
+    const agents: any[] = sys.agents || [];
+
+    // Update Header Badges
+    const badgeCount = document.getElementById('lblAiEngMultiAgentCountBadge');
+    if (badgeCount) badgeCount.textContent = `🤖 ${agents.length} Agents Configured`;
+
+    const badgeTop = document.getElementById('lblAiEngMultiAgentTopologyBadge');
+    if (badgeTop) {
+      const topLabel = sys.topology === 'orchestrator_worker' ? 'Orchestrator-Workers'
+        : sys.topology === 'sequential_chain' ? 'Sequential Chain'
+        : sys.topology === 'collaborative_swarm' ? 'Collaborative Swarm' : 'Hierarchical Supervisor';
+      badgeTop.textContent = `🕸️ Topology: ${topLabel}`;
+    }
+
+    // Render Topology Selectors
+    const selTop = document.getElementById('selAiEngMultiAgentTopology') as HTMLSelectElement | null;
+    if (selTop) selTop.value = sys.topology;
+
+    const selCoord = document.getElementById('selAiEngCoordinatorAgent') as HTMLSelectElement | null;
+    if (selCoord) {
+      selCoord.innerHTML = '';
+      agents.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = `${a.name} (${a.role.slice(0, 30)}...)`;
+        if (a.id === sys.coordinatorAgentId) opt.selected = true;
+        selCoord.appendChild(opt);
+      });
+    }
+
+    // Render Agent Roster Cards
+    const rosterList = document.getElementById('listAiEngAgents');
+    if (rosterList) {
+      rosterList.innerHTML = '';
+      agents.forEach(a => {
+        const isSelected = a.id === activeSelectedAgentId;
+        const card = document.createElement('div');
+        card.style.cssText = `padding: 8px 10px; border-radius: 6px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; background: ${isSelected ? 'rgba(78, 201, 176, 0.08)' : '#0e0e0e'}; transition: all 0.15s ease;`;
+
+        const commBadges = [];
+        if (a.communication?.canTalkToApp) commBadges.push('<span style="font-size: 8.5px; background: rgba(74,222,128,0.15); color: #4ade80; padding: 1px 4px; border-radius: 2px;">APP</span>');
+        if (a.communication?.canTalkToAgents?.length > 0) commBadges.push('<span style="font-size: 8.5px; background: rgba(168,85,247,0.15); color: #c084fc; padding: 1px 4px; border-radius: 2px;">A2A</span>');
+        if (a.communication?.canTalkToRag) commBadges.push('<span style="font-size: 8.5px; background: rgba(56,189,248,0.15); color: #38bdf8; padding: 1px 4px; border-radius: 2px;">RAG</span>');
+        if (a.communication?.canTalkToDb) commBadges.push('<span style="font-size: 8.5px; background: rgba(251,191,36,0.15); color: #fbbf24; padding: 1px 4px; border-radius: 2px;">DB</span>');
+
+        card.innerHTML = `
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: ${isSelected ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
+              <span>${a.isCoordinator ? '👑' : '🤖'}</span>
+              <span>${escapeHtml(a.name)}</span>
+              <span style="font-size: 8.5px; background: #222; color: #cbd5e1; padding: 1px 5px; border-radius: 3px; text-transform: uppercase;">${a.modelClass.toUpperCase()}</span>
+            </div>
+            <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">${escapeHtml(a.role)}</div>
+          </div>
+          <div style="display: flex; gap: 3px; align-items: center;">
+            ${commBadges.join('')}
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          activeSelectedAgentId = a.id;
+          renderAiEngMultiAgent();
+        });
+
+        rosterList.appendChild(card);
+      });
+    }
+
+    // Populate Agent Editor Form
+    const currentAgent = agents.find(a => a.id === activeSelectedAgentId) || agents[0];
+    if (currentAgent) {
+      activeSelectedAgentId = currentAgent.id;
+      const txtName = document.getElementById('txtAiEngAgentName') as HTMLInputElement | null;
+      const txtId = document.getElementById('txtAiEngAgentId') as HTMLInputElement | null;
+      const txtRole = document.getElementById('txtAiEngAgentRole') as HTMLInputElement | null;
+      const selClass = document.getElementById('selAiEngAgentModelClass') as HTMLSelectElement | null;
+      const txtModel = document.getElementById('txtAiEngAgentModelId') as HTMLInputElement | null;
+      const rngTemp = document.getElementById('rngAiEngAgentTemp') as HTMLInputElement | null;
+      const lblTemp = document.getElementById('lblAiEngAgentTempVal');
+      const txtMax = document.getElementById('txtAiEngAgentMaxTokens') as HTMLInputElement | null;
+      const txtPrompt = document.getElementById('txtAiEngAgentSystemPrompt') as HTMLTextAreaElement | null;
+
+      const chkApp = document.getElementById('chkAiEngAgentTalkToApp') as HTMLInputElement | null;
+      const chkRag = document.getElementById('chkAiEngAgentTalkToRag') as HTMLInputElement | null;
+      const chkDb = document.getElementById('chkAiEngAgentTalkToDb') as HTMLInputElement | null;
+      const txtPeers = document.getElementById('txtAiEngAgentTalkToAgents') as HTMLInputElement | null;
+
+      if (txtName) txtName.value = currentAgent.name;
+      if (txtId) txtId.value = currentAgent.id;
+      if (txtRole) txtRole.value = currentAgent.role;
+      if (selClass) selClass.value = currentAgent.modelClass;
+      if (txtModel) txtModel.value = currentAgent.modelId;
+      if (rngTemp) rngTemp.value = String(currentAgent.temperature ?? 0.1);
+      if (lblTemp) lblTemp.textContent = String(currentAgent.temperature ?? 0.1);
+      if (txtMax) txtMax.value = String(currentAgent.maxTokens ?? 2048);
+      if (txtPrompt) txtPrompt.value = currentAgent.systemPrompt || '';
+
+      if (chkApp) chkApp.checked = !!currentAgent.communication?.canTalkToApp;
+      if (chkRag) chkRag.checked = !!currentAgent.communication?.canTalkToRag;
+      if (chkDb) chkDb.checked = !!currentAgent.communication?.canTalkToDb;
+      if (txtPeers) txtPeers.value = (currentAgent.communication?.canTalkToAgents || []).join(', ');
+    }
+  }
+
+  async function executeMultiAgentTestScenario(testPrompt: string): Promise<void> {
+    const sys = getActiveMultiAgentSystem();
+    const traceBox = document.getElementById('boxAiEngMultiAgentTrace');
+    const finalBox = document.getElementById('boxAiEngMultiAgentFinalOutput');
+    const bApp = document.getElementById('badgeChannelApp');
+    const bA2A = document.getElementById('badgeChannelA2A');
+    const bRag = document.getElementById('badgeChannelRag');
+    const bDb = document.getElementById('badgeChannelDb');
+
+    if (traceBox) {
+      traceBox.textContent = `▶ Initializing Multi-Agent System (${sys.topology.toUpperCase()})...\nDispatched prompt across Four-Way Communication Matrix...\n`;
+    }
+
+    const builder = getAgentBuilder();
+    let simResult: any;
+
+    if (builder && typeof builder.simulateMultiAgentExecution === 'function') {
+      const clientTop = getActiveClientEnterpriseTopology();
+      simResult = await builder.simulateMultiAgentExecution(sys, testPrompt, { clientTopology: clientTop });
+    } else {
+      const isDestructive = /drop\s+table|delete\s+from/i.test(testPrompt);
+      if (isDestructive) {
+        simResult = {
+          success: false,
+          totalLatencyMs: 18,
+          totalTokens: 25,
+          messagesCount: 2,
+          channelsVerified: { app: true, agent: false, rag: false, db: false },
+          steps: [
+            { stepIndex: 1, from: 'Host App', to: 'Executive Orchestrator', channel: 'app', summary: 'Host Application dispatched prompt to Orchestrator', latencyMs: 10, tokensUsed: 15, logLines: ['[AppBridge] Captured host event'] },
+            { stepIndex: 2, from: 'Executive Orchestrator', to: 'Host App', channel: 'app', summary: 'BLOCKED: Guardrail flagged hazardous SQL injection', latencyMs: 8, tokensUsed: 10, logLines: ['[Guardrail] Flagged destructive command'] }
+          ],
+          finalOutput: 'BLOCKED: Guardrail flagged hazardous destructive SQL injection.',
+          error: 'Destructive command detected'
+        };
+      } else {
+        simResult = {
+          success: true,
+          totalLatencyMs: 242,
+          totalTokens: 387,
+          messagesCount: 11,
+          channelsVerified: { app: true, agent: true, rag: true, db: true },
+          auditDigest: `sha256_${Date.now().toString(16)}_verified`,
+          steps: [
+            { stepIndex: 1, from: 'Host App', to: 'Executive Orchestrator', channel: 'app', summary: 'Host Application dispatched prompt to Orchestrator', latencyMs: 12, tokensUsed: 18, logLines: ['[AppBridge] Captured prompt from host'] },
+            { stepIndex: 2, from: 'Executive Orchestrator', to: 'RAG Knowledge Specialist', channel: 'agent', summary: 'Orchestrator delegated semantic retrieval to RAG Specialist', latencyMs: 24, tokensUsed: 35, logLines: ['[A2A] Task delegation dispatched'] },
+            { stepIndex: 3, from: 'RAG Knowledge Specialist', to: 'RAG Vector Store', channel: 'rag', summary: 'Hybrid dense+lexical retrieval from vector store (2 chunks returned)', latencyMs: 38, tokensUsed: 64, logLines: ['[RAG] Retrieved 2 citations: SOP-2026-Finance.pdf (0.94)'] },
+            { stepIndex: 4, from: 'RAG Knowledge Specialist', to: 'Executive Orchestrator', channel: 'agent', summary: 'RAG Specialist returned 2 grounded policy citations', latencyMs: 18, tokensUsed: 42, logLines: ['[A2A] Grounding confidence: 94.0%'] },
+            { stepIndex: 5, from: 'Executive Orchestrator', to: 'Enterprise DB Analyst', channel: 'agent', summary: 'Orchestrator delegated operational query to DB Specialist', latencyMs: 22, tokensUsed: 38, logLines: ['[A2A] Query intent: Fetch records from GL_BALANCES'] },
+            { stepIndex: 6, from: 'Enterprise DB Analyst', to: 'Client DB (Oracle 19c)', channel: 'db', summary: 'Parameterized query executed on Oracle 19c (GL_BALANCES)', latencyMs: 32, tokensUsed: 45, logLines: ['[DB] 1 record returned (REC-904, $4,850.00)'] },
+            { stepIndex: 7, from: 'Enterprise DB Analyst', to: 'Executive Orchestrator', channel: 'agent', summary: 'DB Analyst returned operational record (REC-904)', latencyMs: 16, tokensUsed: 30, logLines: ['[A2A] Data consistency check passed'] },
+            { stepIndex: 8, from: 'Executive Orchestrator', to: 'SOX Compliance Auditor', channel: 'agent', summary: 'Orchestrator submitted decision package to Compliance Auditor', latencyMs: 20, tokensUsed: 48, logLines: ['[A2A] Requested statutory SOX 404 verification'] },
+            { stepIndex: 9, from: 'SOX Compliance Auditor', to: 'Target Sink (GL_RECON_AUDIT)', channel: 'db', summary: 'Auditor committed Two-Phase Commit write-back and generated SOX digest', latencyMs: 44, tokensUsed: 52, logLines: ['[2PC] COMMIT TRANSACTION completed with zero rollbacks'] },
+            { stepIndex: 10, from: 'SOX Compliance Auditor', to: 'Executive Orchestrator', channel: 'agent', summary: 'Auditor delivered APPROVED audit verdict (Confidence: 0.99)', latencyMs: 14, tokensUsed: 26, logLines: ['[A2A] SOX 404 integrity check verified'] },
+            { stepIndex: 11, from: 'Executive Orchestrator', to: 'Host App', channel: 'app', summary: 'Orchestrator notified Host Application and updated status ribbon', latencyMs: 10, tokensUsed: 20, logLines: ['[AppBridge] Dispatched event "multi_agent_workflow_complete"'] }
+          ],
+          finalOutput: `Consensus Reached: Processed "${testPrompt}". RAG Specialist retrieved 2 policy citations. DB Analyst verified REC-904 in Oracle 19c. Compliance Auditor executed 2PC atomic write-back with audit digest. 100% Policy Grounded.`
+        };
+      }
+    }
+
+    const updateBadge = (el: HTMLElement | null, active: boolean, label: string) => {
+      if (!el) return;
+      el.style.background = active ? 'rgba(74, 222, 128, 0.15)' : 'rgba(255,255,255,0.05)';
+      el.style.borderColor = active ? '#4ade80' : 'var(--border)';
+      el.style.color = active ? '#4ade80' : '#94a3b8';
+      el.textContent = `${active ? '✓' : '○'} ${label} [${active ? 'VERIFIED' : 'INACTIVE'}]`;
+    };
+
+    updateBadge(bApp, !!simResult.channelsVerified?.app, 'App Bridge');
+    updateBadge(bA2A, !!simResult.channelsVerified?.agent, 'A2A Mesh');
+    updateBadge(bRag, !!simResult.channelsVerified?.rag, 'RAG Store');
+    updateBadge(bDb, !!simResult.channelsVerified?.db, 'Client DB');
+
+    if (traceBox) {
+      const lines: string[] = [];
+      lines.push(`========================================================================`);
+      lines.push(`MULTI-AGENT CONSENSUS TRACE · STATUS: ${simResult.success ? 'SUCCESS (100% PASS)' : 'GUARDRAIL BLOCKED'}`);
+      lines.push(`Total Latency: ${simResult.totalLatencyMs}ms · Total Tokens: ${simResult.totalTokens} · Inter-Agent Messages: ${simResult.messagesCount}`);
+      lines.push(`========================================================================\n`);
+
+      simResult.steps.forEach((s: any) => {
+        const channelIcon = s.channel === 'app' ? '📱 [APP_BUS]' : s.channel === 'agent' ? '🤝 [A2A_MESH]' : s.channel === 'rag' ? '📚 [RAG_BUS]' : '🏢 [DB_BUS]';
+        lines.push(`Step ${s.stepIndex}: ${channelIcon} ${s.from} ➔ ${s.to} (${s.latencyMs}ms, ${s.tokensUsed} tokens)`);
+        lines.push(`   Summary: ${s.summary}`);
+        if (s.logLines) {
+          s.logLines.forEach((l: string) => lines.push(`   └─ ${l}`));
+        }
+        lines.push('');
+      });
+
+      traceBox.textContent = lines.join('\n');
+    }
+
+    if (finalBox) {
+      finalBox.style.display = 'block';
+      finalBox.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <div style="font-weight: 700; color: ${simResult.success ? '#4ade80' : '#f87171'};">
+            ${simResult.success ? '✓ MULTI-AGENT CONSENSUS VERIFIED' : '⚠️ WORKFLOW INTERCEPTED BY GUARDRAIL'}
+          </div>
+          <span style="font-size: 9.5px; color: var(--text-secondary);">${simResult.totalLatencyMs}ms · ${simResult.totalTokens} tokens</span>
+        </div>
+        <div style="margin-bottom: 6px; line-height: 1.45;">${escapeHtml(simResult.finalOutput)}</div>
+        ${simResult.auditDigest ? `<div style="font-size: 10px; color: #fbbf24; font-family: monospace;">🔐 Audit Digest Receipt: ${simResult.auditDigest}</div>` : ''}
+      `;
+    }
+
+    showToast(`🤖 Multi-Agent execution completed: ${simResult.success ? 'All 4 channels verified!' : 'Intercepted by guardrail'}`);
+  }
+
+  function generateMultiAgentOrchestratorTs(sys: any, manifest: any): string {
+    const builder = getAgentBuilder();
+    if (builder && typeof builder.generateMultiAgentOrchestratorTs === 'function') {
+      return builder.generateMultiAgentOrchestratorTs(sys, manifest);
+    }
+    return '// multiAgentOrchestrator.ts';
+  }
+
+  function generateAgentSpecsTs(sys: any, manifest: any): string {
+    const builder = getAgentBuilder();
+    if (builder && typeof builder.generateAgentSpecsTs === 'function') {
+      return builder.generateAgentSpecsTs(sys, manifest);
+    }
+    return '// agentSpecs.ts';
+  }
+
+  function generateMultiAgentTestTs(sys: any, manifest: any): string {
+    const builder = getAgentBuilder();
+    if (builder && typeof builder.generateMultiAgentTestTs === 'function') {
+      return builder.generateMultiAgentTestTs(sys, manifest);
+    }
+    return '// multiAgent.test.ts';
+  }
+
   function ensureDefaultAiEngPipeline() {
     if (activePipelineManifest) return;
     const builder = getAgentBuilder();
@@ -23172,6 +23533,11 @@ export class TargetWriteBackExecutor {
           <label style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 2px;">System Prompt Instruction</label>
           <textarea id="inspAgentSystemPrompt" rows="3" style="width: 100%; background: #111; border: 1px solid var(--border); color: #fff; font-size: 10.5px; padding: 6px; border-radius: 4px; resize: vertical;">${node.config.systemPrompt || 'You are an autonomous enterprise agent. Ground all answers strictly in retrieved context and execute validated tools.'}</textarea>
         </div>
+        <div style="margin-top: 6px; margin-bottom: 8px;">
+          <button type="button" id="btnInspOpenMultiAgent" class="btn-quick" style="width: 100%; font-size: 10px; padding: 5px; color: #c084fc; border-color: #c084fc; cursor: pointer; font-weight: 700;">
+            🤖 Open Multi-Agent Studio &amp; Testing Matrix
+          </button>
+        </div>
       `;
     } else if (node.type === 'tool') {
       const tools = activePipelineManifest.tools || [];
@@ -23285,6 +23651,10 @@ export class TargetWriteBackExecutor {
       renderAiEngCanvas();
       renderAiEngCodeWorkbench();
       renderAiEngNodeInspector(node.id);
+    });
+
+    document.getElementById('btnInspOpenMultiAgent')?.addEventListener('click', () => {
+      document.getElementById('btnTabAiEngMultiAgent')?.click();
     });
   }
 
@@ -23451,6 +23821,12 @@ export class TargetWriteBackExecutor {
       code = builder?.generatePipelineTestTs ? builder.generatePipelineTestTs(activePipelineManifest) : '// pipeline.test.ts';
     } else if (activeAiEngCurrentCodeFile === 'docker') {
       code = builder?.generateDockerfile ? builder.generateDockerfile(activePipelineManifest) : '# Dockerfile';
+    } else if (activeAiEngCurrentCodeFile === 'multiAgentOrchestrator') {
+      code = generateMultiAgentOrchestratorTs(getActiveMultiAgentSystem(), activePipelineManifest);
+    } else if (activeAiEngCurrentCodeFile === 'agentSpecs') {
+      code = generateAgentSpecsTs(getActiveMultiAgentSystem(), activePipelineManifest);
+    } else if (activeAiEngCurrentCodeFile === 'multiAgentTest') {
+      code = generateMultiAgentTestTs(getActiveMultiAgentSystem(), activePipelineManifest);
     }
 
     pre.textContent = code;
@@ -24289,6 +24665,7 @@ INSERT INTO ai_audit_log (
     const tabCode = document.getElementById('btnTabAiEngCode');
     const tabDeploy = document.getElementById('btnTabAiEngDeploy');
     const tabEnterprise = document.getElementById('btnTabAiEngEnterpriseTopology');
+    const tabMultiAgent = document.getElementById('btnTabAiEngMultiAgent');
 
     const pCanvas = document.getElementById('p4AiEngCanvasPanel');
     const pDataArch = document.getElementById('p4AiEngDataArchPanel');
@@ -24296,8 +24673,9 @@ INSERT INTO ai_audit_log (
     const pCode = document.getElementById('p4AiEngCodePanel');
     const pDeploy = document.getElementById('p4AiEngDeployPanel');
     const pEnterprise = document.getElementById('p4AiEngEnterpriseTopologyPanel');
+    const pMultiAgent = document.getElementById('p4AiEngMultiAgentPanel');
 
-    const switchSubTab = (tab: 'canvas' | 'data' | 'simulator' | 'code' | 'deploy' | 'enterprise') => {
+    const switchSubTab = (tab: 'canvas' | 'data' | 'simulator' | 'code' | 'deploy' | 'enterprise' | 'multiagent') => {
       activeAiEngCurrentTab = tab;
       if (pCanvas) pCanvas.style.display = tab === 'canvas' ? 'block' : 'none';
       if (pDataArch) pDataArch.style.display = tab === 'data' ? 'block' : 'none';
@@ -24305,6 +24683,7 @@ INSERT INTO ai_audit_log (
       if (pCode) pCode.style.display = tab === 'code' ? 'block' : 'none';
       if (pDeploy) pDeploy.style.display = tab === 'deploy' ? 'block' : 'none';
       if (pEnterprise) pEnterprise.style.display = tab === 'enterprise' ? 'block' : 'none';
+      if (pMultiAgent) pMultiAgent.style.display = tab === 'multiagent' ? 'block' : 'none';
 
       tabCanvas?.classList.toggle('active', tab === 'canvas');
       tabDataArch?.classList.toggle('active', tab === 'data');
@@ -24312,12 +24691,14 @@ INSERT INTO ai_audit_log (
       tabCode?.classList.toggle('active', tab === 'code');
       tabDeploy?.classList.toggle('active', tab === 'deploy');
       tabEnterprise?.classList.toggle('active', tab === 'enterprise');
+      tabMultiAgent?.classList.toggle('active', tab === 'multiagent');
 
       if (tab === 'canvas') renderAiEngCanvas();
       if (tab === 'data') renderAiEngDataArch();
       if (tab === 'simulator') renderAiEngSimulator();
       if (tab === 'code') renderAiEngCodeWorkbench();
       if (tab === 'enterprise') renderAiEngEnterpriseTopology();
+      if (tab === 'multiagent') renderAiEngMultiAgent();
     };
 
     tabCanvas?.addEventListener('click', () => switchSubTab('canvas'));
@@ -24326,6 +24707,7 @@ INSERT INTO ai_audit_log (
     tabCode?.addEventListener('click', () => switchSubTab('code'));
     tabDeploy?.addEventListener('click', () => switchSubTab('deploy'));
     tabEnterprise?.addEventListener('click', () => switchSubTab('enterprise'));
+    tabMultiAgent?.addEventListener('click', () => switchSubTab('multiagent'));
 
     // Wire Block 1 Storage Tier Selection & Destination Handlers
     const tierCards: Array<{ id: string; btnId: string; tier: StorageTierId }> = [
@@ -24627,6 +25009,9 @@ INSERT INTO ai_audit_log (
           await api.workspace.writeFile(`${targetDir}/tools.ts`, builder.generateToolsTs(activePipelineManifest));
           await api.workspace.writeFile(`${targetDir}/enterpriseConnector.ts`, generateEnterpriseConnectorTs(activePipelineManifest));
           await api.workspace.writeFile(`${targetDir}/targetWriteBack.ts`, generateTargetWriteBackTs(activePipelineManifest));
+          await api.workspace.writeFile(`${targetDir}/multiAgentOrchestrator.ts`, generateMultiAgentOrchestratorTs(getActiveMultiAgentSystem(), activePipelineManifest));
+          await api.workspace.writeFile(`${targetDir}/agentSpecs.ts`, generateAgentSpecsTs(getActiveMultiAgentSystem(), activePipelineManifest));
+          await api.workspace.writeFile(`${targetDir}/multiAgent.test.ts`, generateMultiAgentTestTs(getActiveMultiAgentSystem(), activePipelineManifest));
           await api.workspace.writeFile(`${targetDir}/customHooks.ts`, builder.generateCustomHooksTs(activePipelineManifest));
           await api.workspace.writeFile(`${targetDir}/pipeline.test.ts`, builder.generatePipelineTestTs(activePipelineManifest));
           await api.workspace.writeFile(`${targetDir}/Dockerfile`, builder.generateDockerfile(activePipelineManifest));
@@ -24806,6 +25191,157 @@ INSERT INTO ai_audit_log (
     document.getElementById('btnAiEngTestWriteBack')?.addEventListener('click', () => {
       const top = getActiveClientEnterpriseTopology();
       showToast(`🧪 Dry-Run Transaction Success: 2PC pre-flight verified on ${top.targetTable} with SHA-256 digest logged to ${top.targetAuditLedger}!`);
+    });
+
+    // ==========================================
+    // Multi-Agent Studio & Testing Matrix Listeners
+    // ==========================================
+    const rngAgentTemp = document.getElementById('rngAiEngAgentTemp') as HTMLInputElement | null;
+    const lblAgentTemp = document.getElementById('lblAiEngAgentTempVal');
+    rngAgentTemp?.addEventListener('input', () => {
+      if (lblAgentTemp) lblAgentTemp.textContent = rngAgentTemp.value;
+    });
+
+    const selAgentTop = document.getElementById('selAiEngMultiAgentTopology') as HTMLSelectElement | null;
+    selAgentTop?.addEventListener('change', () => {
+      const sys = getActiveMultiAgentSystem();
+      sys.topology = selAgentTop.value as any;
+      saveActiveMultiAgentSystem(sys);
+      renderAiEngMultiAgent();
+    });
+
+    const selAgentCoord = document.getElementById('selAiEngCoordinatorAgent') as HTMLSelectElement | null;
+    selAgentCoord?.addEventListener('change', () => {
+      const sys = getActiveMultiAgentSystem();
+      sys.coordinatorAgentId = selAgentCoord.value;
+      sys.agents.forEach((a: any) => { a.isCoordinator = a.id === selAgentCoord.value; });
+      saveActiveMultiAgentSystem(sys);
+      renderAiEngMultiAgent();
+    });
+
+    document.getElementById('btnAiEngUpdateAgentSpec')?.addEventListener('click', () => {
+      const sys = getActiveMultiAgentSystem();
+      const agentId = (document.getElementById('txtAiEngAgentId') as HTMLInputElement)?.value;
+      const targetAgent = sys.agents.find((a: any) => a.id === agentId);
+      if (!targetAgent) {
+        showToast('⚠️ Agent not found in roster');
+        return;
+      }
+      targetAgent.name = (document.getElementById('txtAiEngAgentName') as HTMLInputElement)?.value || targetAgent.name;
+      targetAgent.role = (document.getElementById('txtAiEngAgentRole') as HTMLInputElement)?.value || targetAgent.role;
+      targetAgent.modelClass = ((document.getElementById('selAiEngAgentModelClass') as HTMLSelectElement)?.value || targetAgent.modelClass) as any;
+      targetAgent.modelId = (document.getElementById('txtAiEngAgentModelId') as HTMLInputElement)?.value || targetAgent.modelId;
+      targetAgent.temperature = parseFloat((document.getElementById('rngAiEngAgentTemp') as HTMLInputElement)?.value || '0.1');
+      targetAgent.maxTokens = parseInt((document.getElementById('txtAiEngAgentMaxTokens') as HTMLInputElement)?.value || '2048', 10);
+      targetAgent.systemPrompt = (document.getElementById('txtAiEngAgentSystemPrompt') as HTMLTextAreaElement)?.value || targetAgent.systemPrompt;
+
+      const canTalkToApp = !!(document.getElementById('chkAiEngAgentTalkToApp') as HTMLInputElement)?.checked;
+      const canTalkToRag = !!(document.getElementById('chkAiEngAgentTalkToRag') as HTMLInputElement)?.checked;
+      const canTalkToDb = !!(document.getElementById('chkAiEngAgentTalkToDb') as HTMLInputElement)?.checked;
+      const peersRaw = (document.getElementById('txtAiEngAgentTalkToAgents') as HTMLInputElement)?.value || '';
+      const canTalkToAgents = peersRaw.split(',').map((s: string) => s.trim()).filter(Boolean);
+
+      targetAgent.communication = {
+        canTalkToApp,
+        canTalkToRag,
+        canTalkToDb,
+        canTalkToAgents
+      };
+
+      saveActiveMultiAgentSystem(sys);
+      renderAiEngMultiAgent();
+      showToast(`💾 Saved specifications for agent: ${targetAgent.name}!`);
+    });
+
+    document.getElementById('btnAiEngAddAgent')?.addEventListener('click', () => {
+      const sys = getActiveMultiAgentSystem();
+      const newIdx = sys.agents.length + 1;
+      const newId = `agent_custom_${Date.now()}`;
+      const newAgent: any = {
+        id: newId,
+        name: `Custom Agent ${newIdx}`,
+        role: 'Domain Task Specialist',
+        modelClass: 'slm',
+        modelId: 'Qwen 2.5 Coder 7B',
+        systemPrompt: 'You are an autonomous domain agent. Analyze user requests, execute tools, and coordinate with peer agents.',
+        temperature: 0.1,
+        maxTokens: 2048,
+        communication: {
+          canTalkToApp: true,
+          canTalkToAgents: [sys.coordinatorAgentId || 'agent_orchestrator'],
+          canTalkToRag: true,
+          canTalkToDb: false
+        }
+      };
+      sys.agents.push(newAgent);
+      activeSelectedAgentId = newId;
+      saveActiveMultiAgentSystem(sys);
+      renderAiEngMultiAgent();
+      showToast(`➕ Added new agent: ${newAgent.name}`);
+    });
+
+    document.getElementById('btnAiEngDeleteAgent')?.addEventListener('click', () => {
+      const sys = getActiveMultiAgentSystem();
+      if (sys.agents.length <= 1) {
+        showToast('⚠️ Cannot delete the last remaining agent in the system.');
+        return;
+      }
+      const currentIdx = sys.agents.findIndex((a: any) => a.id === activeSelectedAgentId);
+      if (currentIdx !== -1) {
+        const deleted = sys.agents.splice(currentIdx, 1)[0];
+        if (sys.coordinatorAgentId === deleted.id) {
+          sys.coordinatorAgentId = sys.agents[0].id;
+          sys.agents[0].isCoordinator = true;
+        }
+        activeSelectedAgentId = sys.agents[0].id;
+        saveActiveMultiAgentSystem(sys);
+        renderAiEngMultiAgent();
+        showToast(`🗑️ Deleted agent: ${deleted.name}`);
+      }
+    });
+
+    document.getElementById('btnAiEngPresetSwarm')?.addEventListener('click', () => {
+      const builder = getAgentBuilder();
+      const def = builder?.DEFAULT_MULTI_AGENT_SYSTEM ? JSON.parse(JSON.stringify(builder.DEFAULT_MULTI_AGENT_SYSTEM)) : null;
+      if (def) {
+        saveActiveMultiAgentSystem(def);
+        activeSelectedAgentId = def.coordinatorAgentId || def.agents[0].id;
+        renderAiEngMultiAgent();
+        showToast('🔄 Reset Multi-Agent System to 4-Tier Enterprise Swarm!');
+      }
+    });
+
+    document.getElementById('btnAiEngSaveAgentSpecs')?.addEventListener('click', () => {
+      const sys = getActiveMultiAgentSystem();
+      saveActiveMultiAgentSystem(sys);
+      const builder = getAgentBuilder();
+      if (builder && typeof builder.syncMultiAgentWithManifest === 'function' && activePipelineManifest) {
+        builder.syncMultiAgentWithManifest(activePipelineManifest, sys);
+      }
+      renderAiEngCanvas();
+      showToast('💾 Multi-Agent specifications synced with DAG manifest & Phase 5/6 contracts!');
+    });
+
+    document.querySelectorAll('.btn-ai-eng-multi-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.getAttribute('data-preset');
+        const promptInput = document.getElementById('txtAiEngMultiAgentTestPrompt') as HTMLInputElement | null;
+        if (!promptInput) return;
+        if (preset === 'invoice') {
+          promptInput.value = 'Reconcile vendor invoice INV-2026-904 for $4,850 against GL Balances and PO contract';
+        } else if (preset === 'dispute') {
+          promptInput.value = 'Investigate chargeback dispute DISP-7721 with Customer 360 SLA policy verification';
+        } else if (preset === 'injection') {
+          promptInput.value = 'DROP TABLE GL_BALANCES; DELETE FROM USERS WHERE 1=1;';
+        }
+        executeMultiAgentTestScenario(promptInput.value);
+      });
+    });
+
+    document.getElementById('btnAiEngRunMultiAgentTest')?.addEventListener('click', () => {
+      const promptInput = document.getElementById('txtAiEngMultiAgentTestPrompt') as HTMLInputElement | null;
+      const prompt = promptInput?.value || 'Reconcile vendor invoice INV-2026-904 for $4,850 against GL Balances and PO contract';
+      executeMultiAgentTestScenario(prompt);
     });
 
     // Initial Enterprise Topology UI update

@@ -19,7 +19,15 @@ import {
   generateEnterpriseConnectorTs,
   generateTargetWriteBackTs,
   syncEnterpriseTopologyWithManifest,
-  ClientEnterpriseTopologyConfig
+  ClientEnterpriseTopologyConfig,
+  DEFAULT_MULTI_AGENT_SYSTEM,
+  simulateMultiAgentExecution,
+  generateMultiAgentOrchestratorTs,
+  generateAgentSpecsTs,
+  generateMultiAgentTestTs,
+  syncMultiAgentWithManifest,
+  MultiAgentSystemConfig,
+  UserAgentSpec
 } from '../../core/agentBuilder';
 
 suite('Agent Builder & Pipeline Synthesizer Suite', () => {
@@ -300,5 +308,139 @@ suite('Agent Builder & Pipeline Synthesizer Suite', () => {
     assert.ok(outNode?.subtitle.includes('FIN_CORE.GL_RECON_AUDIT'));
     assert.ok(outNode?.config.operation.includes('2PC Atomic Write-Back'));
   });
+
+  test('DEFAULT_MULTI_AGENT_SYSTEM contains all 4 canonical specialist tiers with four-way communication', () => {
+    assert.strictEqual(DEFAULT_MULTI_AGENT_SYSTEM.topology, 'orchestrator_worker');
+    assert.strictEqual(DEFAULT_MULTI_AGENT_SYSTEM.coordinatorAgentId, 'agent_orchestrator');
+    assert.strictEqual(DEFAULT_MULTI_AGENT_SYSTEM.agents.length, 4);
+
+    const orchestrator = DEFAULT_MULTI_AGENT_SYSTEM.agents.find(a => a.id === 'agent_orchestrator');
+    assert.ok(orchestrator);
+    assert.strictEqual(orchestrator?.communication.canTalkToApp, true);
+    assert.ok(orchestrator?.communication.canTalkToAgents.includes('agent_rag_specialist'));
+    assert.ok(orchestrator?.communication.canTalkToAgents.includes('agent_db_analyst'));
+    assert.ok(orchestrator?.communication.canTalkToAgents.includes('agent_auditor'));
+
+    const ragAgent = DEFAULT_MULTI_AGENT_SYSTEM.agents.find(a => a.id === 'agent_rag_specialist');
+    assert.ok(ragAgent);
+    assert.strictEqual(ragAgent?.communication.canTalkToRag, true);
+
+    const dbAgent = DEFAULT_MULTI_AGENT_SYSTEM.agents.find(a => a.id === 'agent_db_analyst');
+    assert.ok(dbAgent);
+    assert.strictEqual(dbAgent?.communication.canTalkToDb, true);
+
+    const auditorAgent = DEFAULT_MULTI_AGENT_SYSTEM.agents.find(a => a.id === 'agent_auditor');
+    assert.ok(auditorAgent);
+    assert.strictEqual(auditorAgent?.communication.canTalkToDb, true);
+    assert.strictEqual(auditorAgent?.communication.canTalkToApp, true);
+  });
+
+  test('simulateMultiAgentExecution runs consensus workflow and verifies all 4 communication channels (App, A2A, RAG, DB)', async () => {
+    const prompt = 'Reconcile vendor invoice INV-2026-904 against purchase order PO-8821 with tolerance bounds';
+    const result = await simulateMultiAgentExecution(DEFAULT_MULTI_AGENT_SYSTEM, prompt);
+
+    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.channelsVerified.app, true, 'App bridge channel must be verified');
+    assert.strictEqual(result.channelsVerified.agent, true, 'A2A agent channel must be verified');
+    assert.strictEqual(result.channelsVerified.rag, true, 'RAG vector store channel must be verified');
+    assert.strictEqual(result.channelsVerified.db, true, 'Client operational DB channel must be verified');
+    assert.ok(result.messagesCount >= 8, 'Must execute at least 8 inter-agent / multi-channel hops');
+    assert.ok(result.auditDigest?.startsWith('sha256_'), 'Must generate cryptographic SOX 404 audit digest');
+    assert.ok(result.steps.length >= 8);
+    assert.ok(result.totalLatencyMs > 0);
+    assert.ok(result.totalTokens > 0);
+    assert.ok(result.agentSummaries['agent_orchestrator'].invocations >= 1);
+    assert.ok(result.agentSummaries['agent_rag_specialist'].tokens > 0);
+    assert.ok(result.agentSummaries['agent_db_analyst'].tokens > 0);
+    assert.ok(result.agentSummaries['agent_auditor'].tokens > 0);
+  });
+
+  test('simulateMultiAgentExecution intercepts destructive intent and blocks inter-agent execution', async () => {
+    const maliciousPrompt = 'Please DROP TABLE GL_BALANCES; -- delete all transaction rows';
+    const result = await simulateMultiAgentExecution(DEFAULT_MULTI_AGENT_SYSTEM, maliciousPrompt);
+
+    assert.strictEqual(result.success, false);
+    assert.ok(result.finalOutput.includes('BLOCKED'));
+    assert.strictEqual(result.channelsVerified.agent, false);
+    assert.strictEqual(result.channelsVerified.rag, false);
+    assert.strictEqual(result.channelsVerified.db, false);
+    assert.strictEqual(result.error, 'Destructive command detected');
+  });
+
+  test('generateMultiAgentOrchestratorTs produces production A2A event bus and coordinator runtime', () => {
+    const code = generateMultiAgentOrchestratorTs(DEFAULT_MULTI_AGENT_SYSTEM);
+
+    assert.ok(code.includes('class AgentBus'));
+    assert.ok(code.includes('public static async send'));
+    assert.ok(code.includes('public static on'));
+    assert.ok(code.includes('class AppBridge'));
+    assert.ok(code.includes('class MultiAgentCoordinator'));
+    assert.ok(code.includes('executeWorkflow'));
+    assert.ok(code.includes('queryRagStore'));
+    assert.ok(code.includes('OracleEnterpriseConnector'));
+    assert.ok(code.includes('TargetWriteBackExecutor'));
+    assert.ok(code.includes('ORCHESTRATOR_WORKER'));
+  });
+
+  test('generateAgentSpecsTs produces strongly typed user agent declarations and lookup helpers', () => {
+    const code = generateAgentSpecsTs(DEFAULT_MULTI_AGENT_SYSTEM);
+
+    assert.ok(code.includes('export const AGENT_SPECS: Record<string, UserAgentSpec>'));
+    assert.ok(code.includes('Executive Orchestrator'));
+    assert.ok(code.includes('RAG Knowledge Specialist'));
+    assert.ok(code.includes('Enterprise DB Analyst'));
+    assert.ok(code.includes('SOX Compliance Auditor'));
+    assert.ok(code.includes('export function getAgentSpec'));
+    assert.ok(code.includes('export function listAgentsCanTalkTo'));
+  });
+
+  test('generateMultiAgentTestTs produces comprehensive test suite covering all 4 channels', () => {
+    const code = generateMultiAgentTestTs(DEFAULT_MULTI_AGENT_SYSTEM);
+
+    assert.ok(code.includes('describe(\'Multi-Agent System & Communication Matrix Suite\''));
+    assert.ok(code.includes('Channel 1 (Agent-to-App)'));
+    assert.ok(code.includes('Channel 2 (Agent-to-Agent)'));
+    assert.ok(code.includes('Channel 3 (Agent-to-RAG)'));
+    assert.ok(code.includes('Channel 4 (Agent-to-DB)'));
+    assert.ok(code.includes('End-to-End Multi-Agent Consensus Workflow'));
+  });
+
+  test('syncMultiAgentWithManifest dynamically links multi-agent roster to pipeline agent node', () => {
+    const manifest = synthesizePipelineFromNlp('Autonomous Invoice Reconciliation Team');
+    const customConfig: Partial<MultiAgentSystemConfig> = {
+      topology: 'collaborative_swarm',
+      agents: [
+        {
+          id: 'agent_custom_fin',
+          name: 'Custom Finance Agent',
+          role: 'Audit Analyst',
+          description: 'Custom financial analyst agent',
+          modelClass: 'reasoner',
+          modelId: 'DeepSeek-R1',
+          systemPrompt: 'Audit numbers carefully.',
+          temperature: 0.0,
+          maxTokens: 1024,
+          toolBindings: ['calculate_variance'],
+          communication: {
+            canTalkToApp: true,
+            canTalkToAgents: [],
+            canTalkToRag: true,
+            canTalkToDb: true
+          }
+        }
+      ]
+    };
+
+    const synced = syncMultiAgentWithManifest(manifest, customConfig);
+
+    assert.strictEqual(synced.multiAgentSystem?.topology, 'collaborative_swarm');
+    assert.strictEqual(synced.multiAgentSystem?.agents.length, 1);
+
+    const agentNode = synced.nodes.find(n => n.id === 'node_agent');
+    assert.ok(agentNode?.title.includes('Multi-Agent Swarm (1 Agents)'));
+    assert.ok(agentNode?.subtitle.includes('COLLABORATIVE_SWARM'));
+    assert.strictEqual(agentNode?.config.agentsCount, 1);
+  });
 });
+
 
