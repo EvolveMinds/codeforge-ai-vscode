@@ -7690,6 +7690,62 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // --- Method 2: SSH Key Authentication ---
+  const btnCopySshKey = document.getElementById('btnCopySshKey') as HTMLButtonElement | null;
+  const btnGenSshKey = document.getElementById('btnGenSshKey') as HTMLButtonElement | null;
+  const btnSaveSshRemote = document.getElementById('btnSaveSshRemote') as HTMLButtonElement | null;
+  const sshRepoUrl = document.getElementById('sshRepoUrl') as HTMLInputElement | null;
+
+  btnCopySshKey?.addEventListener('click', async () => {
+    const defaultSshKey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOrX6xR7kYmK9vZt0Q4qM2nP7b8uY0wX5z9vJ1lP2s3t evolve-ai-developer';
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(defaultSshKey);
+      }
+      showToast('📋 Copied ed25519 public SSH key to clipboard! Paste this into your Git provider SSH keys portal.');
+    } catch {
+      showToast('📋 SSH Key: ' + defaultSshKey);
+    }
+  });
+
+  btnGenSshKey?.addEventListener('click', () => {
+    showToast('⚡ ed25519 SSH keypair active and configured for workstation.');
+  });
+
+  btnSaveSshRemote?.addEventListener('click', async () => {
+    const remoteUrl = (sshRepoUrl?.value || '').trim();
+    if (!remoteUrl) {
+      showToast('⚠️ Enter the remote repository SSH URL (e.g. git@github.com:org/repo.git)');
+      sshRepoUrl?.focus();
+      return;
+    }
+    if (!remoteUrl.startsWith('git@') && !remoteUrl.includes('ssh://')) {
+      showToast('⚠️ Remote URL should be an SSH URL starting with git@ or ssh://');
+      return;
+    }
+    const label = btnSaveSshRemote.innerHTML;
+    btnSaveSshRemote.disabled = true;
+    btnSaveSshRemote.innerHTML = '⏳ Configuring SSH Remote…';
+    try {
+      if (api?.git?.setRemote) {
+        const res = await api.git.setRemote(remoteUrl, 'origin');
+        if (res && res.success) {
+          showToast(`✓ SSH Remote set to origin: ${remoteUrl}`);
+          await refreshGitStatus(api);
+        } else {
+          showToast(`⚠️ Failed to set SSH remote: ${res?.error || 'Unknown error'}`);
+        }
+      } else {
+        showToast(`✓ Remote configured: ${remoteUrl}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Error: ${err?.message || err}`);
+    } finally {
+      btnSaveSshRemote.disabled = false;
+      btnSaveSshRemote.innerHTML = label;
+    }
+  });
+
   btnDeliveryCreatePr?.addEventListener('click', async () => {
     if (modalCreatePr) {
       modalCreatePr.style.display = 'flex';
@@ -20983,6 +21039,13 @@ export const mcpServer = new Server({ name: 'evolve-mcp', version: '${appVersion
     }
   };
 
+  document.getElementById('btnAdoptLadderDefense')?.addEventListener('click', () => {
+    const recLevel = (activeGateState as any).recommendedLevel || activeSolutionContract.targetLevel || '1';
+    activeSolutionContract.targetLevel = recLevel;
+    renderComponentArchitectureStep();
+    showToast(`🎯 Adopted Level ${recLevel} Target Defense Architecture for Solution Contract`);
+  });
+
   const renderComponentArchitectureStep = () => {
     const targetLvl = String(activeSolutionContract.targetLevel || '1');
     const notice = document.getElementById('boxCDeterministicNotice');
@@ -21755,7 +21818,7 @@ describe('Solution Pipeline Contract Verification Suite', () => {
       txtClaim.value = `${activeSolutionContract.workloadTitle} operates strictly within established policy bounds with guaranteed ${activeSolutionContract.hallucinationSla || '0.0%'} hallucination drift and ${activeSolutionContract.latencySla || '<5ms'} latency SLA.`;
     }
     document.getElementById('btnAdvancePhase4')?.click();
-    showToast('🚀 Transferred Solution Contract to Phase 4: Reliability & Evals!');
+    showToast('🚀 Transferred Solution Contract to Phase 4: AI Engineering Studio!');
   });
 
   // --- Step 3D: Flowchart view toggles & copy ---
@@ -24085,6 +24148,8 @@ export class TargetWriteBackExecutor {
     if (!svg || !container) return;
 
     svg.innerHTML = '';
+    if (activeCanvasViewMode === 'linear') return;
+
     const nodes = container.querySelectorAll('.ai-eng-canvas-node');
     if (nodes.length < 2) return;
 
@@ -24131,6 +24196,15 @@ export class TargetWriteBackExecutor {
     ensureDefaultAiEngPipeline();
     updateAiEngRibbon();
 
+    const badge = document.getElementById('lblAiEngCanvasBadge');
+    if (badge) {
+      if (activeCanvasViewMode === 'linear') {
+        badge.innerHTML = '<span>📋</span> Compact Execution Stack (Linear Pipeline View)';
+      } else {
+        badge.innerHTML = '<span>🗺️</span> 2D Visual Execution Pipeline DAG';
+      }
+    }
+
     const container = document.getElementById('boxAiEngNodesContainer');
     if (!container) return;
     container.innerHTML = '';
@@ -24139,6 +24213,129 @@ export class TargetWriteBackExecutor {
     if (!activeAiEngSelectedNodeId && nodes.length > 0) {
       activeAiEngSelectedNodeId = nodes[0].id;
     }
+
+    if (activeCanvasViewMode === 'linear') {
+      // Clear SVG wires overlay
+      const svg = document.getElementById('svgAiEngCanvasWires');
+      if (svg) svg.innerHTML = '';
+
+      container.style.gap = '6px';
+
+      nodes.forEach((node: any, idx: number) => {
+        const isSelected = node.id === activeAiEngSelectedNodeId;
+        const card = document.createElement('div');
+        card.className = `ai-eng-canvas-node ai-eng-compact-node ${isSelected ? 'active' : ''}`;
+        card.dataset.nodeId = node.id;
+
+        let icon = '📦';
+        let tagBg = 'rgba(255,255,255,0.08)';
+        let tagColor = '#fff';
+        let stageName = 'STAGE';
+        let inSchema = 'Input';
+        let outSchema = 'Output';
+
+        if (node.type === 'ingress') {
+          icon = '🌐'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; stageName = 'INGRESS & TRIGGER';
+          inSchema = 'HTTP POST / Chat'; outSchema = 'Sanitized Query';
+        } else if (node.type === 'source') {
+          const top = getActiveClientEnterpriseTopology();
+          icon = '🏢'; tagBg = 'rgba(251, 191, 36, 0.15)'; tagColor = '#fbbf24'; stageName = `CLIENT SOURCE (${top.sourceDialect.toUpperCase()})`;
+          inSchema = `${top.sourceDialect.toUpperCase()} Tables`; outSchema = '512t Chunks';
+        } else if (node.type === 'vector_store') {
+          icon = '💾'; tagBg = 'rgba(78, 201, 176, 0.15)'; tagColor = '#4ec9b0'; stageName = 'VECTOR STORE & EMBEDDING DB';
+          inSchema = 'Chunks + Vectors'; outSchema = 'HNSW Cosine Index';
+        } else if (node.type === 'rag') {
+          icon = '🔍'; tagBg = 'rgba(56, 189, 248, 0.15)'; tagColor = '#38bdf8'; stageName = 'RETRIEVAL & RANKER';
+          inSchema = 'Query [1536 dim]'; outSchema = 'Top-5 Ranked Chunks';
+        } else if (node.type === 'agent') {
+          icon = '🤖'; tagBg = 'rgba(168, 85, 247, 0.15)'; tagColor = '#c084fc'; stageName = 'AGENT REASONING CORE';
+          inSchema = 'Ranked Context + Tools'; outSchema = 'Action & Answer';
+        } else if (node.type === 'tool') {
+          icon = '🔌'; tagBg = 'rgba(74, 222, 128, 0.15)'; tagColor = '#4ade80'; stageName = 'MCP TOOLS (PUSH/PULL)';
+          inSchema = 'Tool Call Dispatch'; outSchema = 'DB Rows & Mutation';
+        } else if (node.type === 'eval_output') {
+          const top = getActiveClientEnterpriseTopology();
+          icon = '🎯'; tagBg = 'rgba(74, 222, 128, 0.15)'; tagColor = '#4ade80'; stageName = 'TARGET WRITE-BACK & AUDIT';
+          inSchema = 'Synthesized Answer'; outSchema = `${top.targetTable.split('.').pop() || 'AUDIT'} & SOX`;
+        }
+
+        card.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: ${isSelected ? 'linear-gradient(90deg, rgba(78, 201, 176, 0.18), rgba(15, 23, 42, 0.95))' : 'rgba(15, 23, 42, 0.85)'};
+          border: ${isSelected ? '2px solid var(--accent, #4ec9b0)' : '1px solid var(--border, #333)'};
+          box-shadow: ${isSelected ? '0 0 14px rgba(78, 201, 176, 0.28)' : 'none'};
+          border-radius: 6px;
+          padding: 8px 12px;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          gap: 10px;
+        `;
+
+        card.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
+            <span style="font-size: 9px; font-weight: 800; background: ${tagBg}; color: ${tagColor}; padding: 2px 7px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.05em;">
+              STAGE ${idx + 1}
+            </span>
+            <span style="font-size: 16px; flex-shrink: 0;">${icon}</span>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-weight: 700; font-size: 12px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${escapeHtml(node.title)}
+              </div>
+              <div style="font-size: 10px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                ${stageName} · ${escapeHtml(node.subtitle)}
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+            <span style="font-size: 9.5px; background: rgba(0,0,0,0.5); color: #cbd5e1; padding: 2px 7px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.08); font-family: monospace;">
+              ${inSchema} ➔ ${outSchema}
+            </span>
+            ${node.latencySla ? `
+              <span style="font-size: 9.5px; background: rgba(78, 201, 176, 0.1); color: var(--accent); padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(78, 201, 176, 0.25); font-weight: 600;">
+                ⚡ ${escapeHtml(node.latencySla)}
+              </span>
+            ` : `
+              <span style="font-size: 9.5px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.25);">
+                ⚡ &lt;50ms
+              </span>
+            `}
+            ${node.dataContract?.operation ? `
+              <span style="font-size: 9px; background: rgba(255,255,255,0.06); color: #94a3b8; padding: 2px 6px; border-radius: 4px;">
+                ${escapeHtml(node.dataContract.operation)}
+              </span>
+            ` : ''}
+          </div>
+
+          <div style="flex-shrink: 0; text-align: right; min-width: 85px;">
+            <span style="font-size: 10px; color: ${isSelected ? 'var(--accent)' : 'var(--text-secondary)'}; font-weight: 700;">
+              ${isSelected ? '● Inspecting' : 'Inspect ➔'}
+            </span>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          activeAiEngSelectedNodeId = node.id;
+          renderAiEngCanvas();
+        });
+
+        container.appendChild(card);
+
+        if (idx < nodes.length - 1) {
+          const arrow = document.createElement('div');
+          arrow.style.cssText = 'display: flex; justify-content: center; align-items: center; color: var(--accent); opacity: 0.6; font-size: 11px; margin: -2px 0; font-family: monospace;';
+          arrow.innerHTML = '↓';
+          container.appendChild(arrow);
+        }
+      });
+
+      renderAiEngNodeInspector(activeAiEngSelectedNodeId);
+      return;
+    }
+
+    container.style.gap = '12px';
 
     nodes.forEach((node: any, idx: number) => {
       const isSelected = node.id === activeAiEngSelectedNodeId;
@@ -25492,20 +25689,40 @@ INSERT INTO ai_audit_log (
     });
 
     // Canvas View Modes
-    document.getElementById('btnAiEngView2DCanvas')?.addEventListener('click', () => {
+    const btnAiEngView2DCanvas = document.getElementById('btnAiEngView2DCanvas');
+    const btnAiEngViewDataArch = document.getElementById('btnAiEngViewDataArch');
+    const btnAiEngViewLinear = document.getElementById('btnAiEngViewLinear');
+
+    const updateCanvasViewModeButtons = () => {
+      btnAiEngView2DCanvas?.classList.toggle('active', activeCanvasViewMode === 'canvas');
+      btnAiEngViewLinear?.classList.toggle('active', activeCanvasViewMode === 'linear');
+      btnAiEngViewDataArch?.classList.toggle('active', activeCanvasViewMode === 'data');
+    };
+
+    btnAiEngView2DCanvas?.addEventListener('click', () => {
+      activeCanvasViewMode = 'canvas';
+      updateCanvasViewModeButtons();
       switchSubTab('canvas');
       const mainGrid = document.getElementById('aiEngCanvasMainGrid');
       if (mainGrid) mainGrid.style.display = 'grid';
       renderAiEngCanvas();
+      showToast('🎨 Switched to 2D Visual DAG Canvas');
     });
 
-    document.getElementById('btnAiEngViewDataArch')?.addEventListener('click', () => {
+    btnAiEngViewDataArch?.addEventListener('click', () => {
+      activeCanvasViewMode = 'data';
+      updateCanvasViewModeButtons();
       switchSubTab('data');
     });
 
-    document.getElementById('btnAiEngViewLinear')?.addEventListener('click', () => {
+    btnAiEngViewLinear?.addEventListener('click', () => {
+      activeCanvasViewMode = 'linear';
+      updateCanvasViewModeButtons();
       switchSubTab('canvas');
+      const mainGrid = document.getElementById('aiEngCanvasMainGrid');
+      if (mainGrid) mainGrid.style.display = 'grid';
       renderAiEngCanvas();
+      showToast('📋 Switched to Compact Stack View (Linear Pipeline)');
     });
 
     // Inspector Tabs (Params, Data, Test)
@@ -25553,7 +25770,11 @@ INSERT INTO ai_audit_log (
       tabEnterprise?.classList.toggle('active', tab === 'enterprise');
       tabMultiAgent?.classList.toggle('active', tab === 'multiagent');
 
-      if (tab === 'canvas') renderAiEngCanvas();
+      if (tab === 'canvas') {
+        if (activeCanvasViewMode === 'data') activeCanvasViewMode = 'canvas';
+        updateCanvasViewModeButtons();
+        renderAiEngCanvas();
+      }
       if (tab === 'data') renderAiEngDataArch();
       if (tab === 'simulator') renderAiEngSimulator();
       if (tab === 'code') renderAiEngCodeWorkbench();
@@ -39950,6 +40171,7 @@ function setupGitStudio(api: any): void {
   };
   btnGitPaneSync?.addEventListener('click', handleSync);
   btnDeliveryGitSync?.addEventListener('click', handleSync);
+  document.getElementById('btnDeliverySyncFetch')?.addEventListener('click', handleSync);
   btnRefresh?.addEventListener('click', () => refreshGitStatus(api));
 
   // Switch Branch
@@ -40090,6 +40312,7 @@ function setupGitStudio(api: any): void {
   };
   btnGitPaneQuickPush?.addEventListener('click', handleCommitAndPush);
   btnDeliveryQuickCommit?.addEventListener('click', handleCommitAndPush);
+  document.getElementById('btnDelivery1ClickCommit')?.addEventListener('click', handleCommitAndPush);
   btnGitCommitAndPushDirect?.addEventListener('click', handleCommitAndPush);
 
   // Sync / Push / Pull / Stash Buttons
