@@ -764,6 +764,7 @@ export interface HelpGuideReply {
     subTab?: string;
     subStep?: string;
     activityTab?: string;
+    actionType?: 'livedb' | 'terminal' | 'modal' | 'tab';
     description?: string;
   }>;
 }
@@ -790,7 +791,13 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
   // Anti-leak filter: Rejects any attempt to view, dump, reconstruct, or discuss
   // the internal source code, implementation files, proprietary algorithms,
   // or electron architecture of Evolve AI itself.
+  // Note: Legitimate user inquiries about building/configuring their own app's
+  // security guardrails (prompt injection, toxicity, PII) are routed to the
+  // guardrail guide rather than triggering the IP refusal banner.
   // =========================================================================
+  const isSecurityFeatureQuery = /\b(guardrail|guardrails|safety|filter|defense|protect|stage\s*2|prevent)\b/i.test(q) &&
+    !/\b(your\s*code|internal\s*code|system\s*prompt|dump|inspect\s*source|view\s*source|reverse\s*engineer|how\s*are\s*you\s*(coded|built)|ipcHandlers|renderer\.ts)\b/i.test(q);
+
   const antiLeakPatterns = [
     /source\s*code/i,
     /internal\s*(code|design|architecture|implementation|file)/i,
@@ -803,7 +810,6 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     /preload\.(ts|js)/i,
     /main\.(ts|js)/i,
     /system\s*prompt/i,
-    /prompt\s*injection/i,
     /dump\s*code/i,
     /inspect\s*source/i,
     /view\s*source/i,
@@ -815,9 +821,10 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     /your\s*implementation/i
   ];
 
-  const isAntiLeakTriggered = antiLeakPatterns.some(pattern => pattern.test(query));
+  const isAntiLeakTriggered = antiLeakPatterns.some(pattern => pattern.test(query)) ||
+    (!isSecurityFeatureQuery && /prompt\s*injection/i.test(query) && /\b(show|dump|inspect|your|internal)\b/i.test(query));
 
-  if (isAntiLeakTriggered) {
+  if (isAntiLeakTriggered && !isSecurityFeatureQuery) {
     return {
       success: true,
       guardrailTriggered: true,
@@ -897,8 +904,9 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
 
   // C. Greenfield vs Brownfield & automated building from architecture
   if (
-    q.includes('greenfield') || q.includes('brownfield') ||
-    (q.includes('automated') && (q.includes('build') || q.includes('architecture')))
+    (q.includes('greenfield') && q.includes('brownfield')) ||
+    (q.includes('brownfield') && !q.includes('fresh')) ||
+    (q.includes('greenfield') && (q.includes('automate') || q.includes('architecture') || q.includes('moderniz')))
   ) {
     return {
       success: true,
@@ -922,10 +930,399 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     };
   }
 
-  // D. User is stuck or asking what step / where to go next
+  // D. Process Flow to Build a Fresh New Application (Greenfield Build Process)
+  const isProcessFlowNewApp =
+    /\b(fresh\s*(new\s*)?app|fresh\s*(new\s*)?application|new\s*application|new\s*app|fresh\s*project|new\s*project|from\s*scratch|start\s*(a\s*)?new\s*project|create\s*(a\s*)?(fresh|new)\s*app)\b/i.test(q) ||
+    (/\b(process\s*flow|steps\s*to\s*build|how\s*to\s*build|build\s*(a\s*)?(fresh|new)\s*app|how\s*do\s*i\s*build)\b/i.test(q) && /\b(app|application|project|fresh|new|scratch)\b/i.test(q)) ||
+    q.includes('fresh new application') ||
+    q.includes('process flow to build') ||
+    q.includes('start from scratch');
+
+  if (isProcessFlowNewApp) {
+    return {
+      success: true,
+      reply: `### 🚀 Process Flow: Building a Fresh New Application (Greenfield)\n\n` +
+             `In Evolve AI, building a brand-new application from scratch follows an automated **5-Stage Architectural Process Flow** spanning our 7 Delivery Phases:\n\n` +
+             `#### 1️⃣ Stage 1: Enterprise Framing & Capability Level (Phase 1)\n` +
+             `• **Step 1 (Intake & Reframing)**: State the business objective, decompose raw stakeholder requests, and establish quantitative ROI targets.\n` +
+             `• **Step 2 (Capability Ladder)**: Position your application on the 5-level intelligence ladder (L1 Deterministic Rules ➔ L2 Augmented Search / RAG ➔ L3 Human-Gated Copilot ➔ L4 Multi-Agent Swarm ➔ L5 Fully Autonomous Orchestrator).\n` +
+             `• **Step 3 (Greenfield Setup)**: Set the engagement type to **Greenfield** to initialize a clean-slate domain architecture with zero legacy constraints.\n\n` +
+             `#### 2️⃣ Stage 2: Data Readiness & Vectorization (Phase 2)\n` +
+             `• **Live Database Connection**: Click **🔌 Live DB** in the top navigation bar to connect to PostgreSQL, MySQL, Snowflake, BigQuery, Oracle, or SQL Server.\n` +
+             `• **Schema Mapping**: Introspect enterprise schemas and apply automated PII masking.\n` +
+             `• **Vector Store Ingestion**: Upload domain documents, PDFs, and manuals into vector embeddings (Chroma / Pinecone / pgvector) for semantic retrieval.\n\n` +
+             `#### 3️⃣ Stage 3: AI Solutioning & UI/UX Scaffolding (Phase 3)\n` +
+             `• **Step A (AI Patterns)**: Select your architectural pattern (Direct Prompt, Hybrid RAG, Multi-Turn Copilot, or Multi-Agent Swarm).\n` +
+             `• **Step B (Context Bridge)**: Configure enterprise security, VPC peering, and zero-drift database tolerance.\n` +
+             `• **Step C (Model Matrix)**: Benchmark models (Gemini, Claude, GPT, Mistral, Ollama/local SLM) against token costs and latency SLAs.\n` +
+             `• **Step D (UI & UX Design)**: Define client screens, component styling (React / Tailwind), and click **"Generate UI Prototype"** to produce interactive wireframe mockups.\n\n` +
+             `#### 4️⃣ Stage 4: Visual Architecture Studio & Code Scaffolding (Phase 4)\n` +
+             `• **Phase 4A (Visual Canvas)**: Drag and drop nodes onto the interactive canvas:\n` +
+             `  \`Client ➔ API Gateway ➔ Safety Guardrail ➔ Agent Swarm ➔ Vector Store ➔ Database\`\n` +
+             `• **Phase 4B (Multi-Agent Swarm)**: Configure specialized agent teams (Leader, Router, Coder, Reviewer).\n` +
+             `• **Phase 4C (Full-Stack Scaffolding)**: Click **"Generate Full-Stack Scaffolding"**. Evolve AI emits the complete runnable repository (React/Next.js frontend, FastAPI/Express backend microservices, schemas, Dockerfiles, and tests) directly into your workspace!\n` +
+             `• **Phase 4D (Cloud Deployment)**: Export production Kubernetes manifests, Terraform IaC, and Docker Compose configurations.\n\n` +
+             `#### 5️⃣ Stage 5: Reliability, Evals & Production Ops (Phase 5, 6, 7)\n` +
+             `• **Phase 5 (Evals & HITL)**: Run golden dataset benchmarks to measure hallucination drift, accuracy, and configure Human-in-the-Loop approvals.\n` +
+             `• **Phase 6 (Shadow & Canary Testing)**: Dual-run live traffic in shadow mode to verify outputs without risk, then execute progressive percentage traffic splits (5% ➔ 25% ➔ 100%).\n` +
+             `• **Phase 7 (Continuous Ops)**: Monitor live token throughput, model drift, latency percentiles, and emit cryptographic release git tags.`,
+      actions: [
+        { label: '🚀 Start in Phase 1 (Greenfield Discovery)', phase: 1, subStep: '3', description: 'Begin problem framing and select Greenfield mode' },
+        { label: '📊 Phase 2 (Data Readiness & Live DB)', phase: 2, actionType: 'livedb', description: 'Connect database and index documents' },
+        { label: '🎨 Phase 3 Step D (UI & UX Design)', phase: 3, subStep: 'D', description: 'Generate UI wireframes and user interaction flows' },
+        { label: '🏗️ Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Visually assemble pipeline and nodes' },
+        { label: '💻 Phase 4 Step C (Generate Code)', phase: 4, subTab: 'code', description: 'Emit runnable full-stack code repository' }
+      ]
+    };
+  }
+
+  // E. "WHERE IT IS" - Navigation & Location Lookups
+  const isLocationQuery = /\b(where\s*(is|are|can\s*i|do\s*i)|how\s*do\s*i\s*(find|open|access|reach|see)|locate|show\s*me\s*where)\b/i.test(q) ||
+    q.startsWith('where');
+
+  if (isLocationQuery) {
+    // 1. Database / Live DB / Tables
+    if (/\b(db|database|postgres|mysql|snowflake|bigquery|oracle|sql|sqlite|connector|tables?|schema)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🔌 Where to Connect & Manage Databases in Evolve AI\n\n` +
+               `Database integration is accessible through multiple convenient entry points:\n\n` +
+               `• **Header Quick Action (🔌 Live DB button)**: Located at the top right header bar of the application window. Clicking this opens the modal to connect live relational databases (PostgreSQL, MySQL, Snowflake, BigQuery, Oracle, SQL Server, SQLite).\n` +
+               `• **Phase 2 (Data Readiness & Vectorization)**: Navigate to Phase 2 in the top delivery ribbon to inspect database schemas, configure data hygiene, mask PII, and convert raw data into vector embeddings.\n` +
+               `• **Data Studio Tab**: Click the **Data** icon in the left activity bar to inspect workspace data tables, execute SQL queries, and preview dbt marts.`,
+        actions: [
+          { label: '🔌 Open Live DB Connector', phase: 2, actionType: 'livedb', description: 'Open the database connection modal' },
+          { label: '📊 Open Phase 2 (Data Readiness)', phase: 2, description: 'View data readiness and schema introspections' },
+          { label: '📁 Open Data Studio', phase: 2, activityTab: 'data', description: 'Browse workspace data files and tables' }
+        ]
+      };
+    }
+
+    // 2. Safety Guardrails / Stage 2 Guardrail Node
+    if (/\b(guardrail|guardrails|safety|stage\s*2|moderation|pii|prompt\s*injection)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🛡️ Where to Find & Configure Safety Guardrails\n\n` +
+               `Safety Guardrails in Evolve AI are located in two primary areas:\n\n` +
+               `• **Phase 4 Step A (AI Engineering Visual Canvas - STAGE 2 Node)**: In the interactive visual architecture canvas, the **Stage 2: Safety Guardrail Node** sits immediately between Client Ingress and Model Execution. Selecting this node allows you to apply recommended AI guardrails or add custom rules for prompt injection defense, toxicity scanning, PII redaction, token budgets, and latency limits.\n` +
+               `• **Phase 5 (Reliability & Evals - HITL Governance)**: Navigate to Phase 5 to configure Human-in-the-Loop approval policies, confidence thresholds, and cryptographic audit logging.`,
+        actions: [
+          { label: '🛡️ Open Architecture Canvas (Guardrails)', phase: 4, subTab: 'canvas', description: 'Configure Stage 2 Guardrail Node in visual canvas' },
+          { label: '⚖️ Open Phase 5 (Governance & HITL)', phase: 5, description: 'Configure Human-in-the-Loop policies' }
+        ]
+      };
+    }
+
+    // 3. Architecture Canvas / Visual Designer
+    if (/\b(canvas|architecture|pipeline|designer|topology|nodes?)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🏗️ Where to Find the Visual Architecture Canvas\n\n` +
+               `The Visual Canvas is located in **Phase 4 Step A (AI Engineering Visual Canvas)**:\n\n` +
+               `• **Navigation**: Click **Phase 4** in the top ribbon and ensure the **"Canvas"** sub-tab is active.\n` +
+               `• **Features**: Drag and drop nodes (Ingress, Guardrail, Source, Vector Store, RAG, Agent, Tool, Eval), simulate live latency and cost budgets, and visually wire your full application pipeline from client to database.\n` +
+               `• **Data Architecture View**: Switch sub-tabs to inspect the data flow topology and context bridge diagrams.`,
+        actions: [
+          { label: '🏗️ Open Visual Canvas (Phase 4A)', phase: 4, subTab: 'canvas', description: 'Open interactive node canvas' },
+          { label: '📊 Open Data Architecture View', phase: 4, subTab: 'dataarch', description: 'View data flow topology' }
+        ]
+      };
+    }
+
+    // 4. Terminal / CLI
+    if (/\b(terminal|cli|shell|command\s*line|bash|powershell)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### ⚡ Where to Find the Built-In Terminal\n\n` +
+               `The built-in developer terminal is accessible at any time:\n\n` +
+               `• **Top Header Button**: Click the **⚡ Terminal** button in the top navigation bar to toggle the integrated terminal drawer.\n` +
+               `• **Capabilities**: Run shell commands (PowerShell/Bash), execute git operations, run automated test suites, or execute scaffolding scripts directly inside your workspace repository.`,
+        actions: [
+          { label: '⚡ Open Terminal', phase: 4, actionType: 'terminal', description: 'Toggle embedded terminal drawer' }
+        ]
+      };
+    }
+
+    // 5. Code Scaffolding / Code Generation
+    if (/\b(code\s*gen|scaffold|scaffolding|generate\s*code|export\s*code|source\s*code)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 💻 Where to Generate & Scaffold Application Code\n\n` +
+               `Full-stack code generation is located in **Phase 4 Step C (Microservices & Agent Scaffolding)**:\n\n` +
+               `• **Navigation**: Click **Phase 4** in the top ribbon and switch to the **"Code Scaffolding"** tab.\n` +
+               `• **How to use**: Click **"Generate Full-Stack Scaffolding"**. Evolve AI emits complete frontend components (React/Next.js/Tailwind), backend APIs (FastAPI/Express), MCP tool servers, Dockerfiles, and test harnesses directly into your workspace repository!`,
+        actions: [
+          { label: '💻 Open Code Scaffolding (Phase 4C)', phase: 4, subTab: 'code', description: 'Generate runnable application source code' },
+          { label: '🏗️ Open Architecture Canvas', phase: 4, subTab: 'canvas', description: 'Verify topology before generating code' }
+        ]
+      };
+    }
+
+    // 6. UI / UX / Frontend / Wireframes
+    if (/\b(ui|ux|wireframe|prototype|frontend|screens?|mockup)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🎨 Where UI & UX are Defined and Scaffolding Lives\n\n` +
+               `User interface prototyping lives in **Phase 3 Step D (Multi-Modal & UI Prototype Scaffolding)**:\n\n` +
+               `• **Navigation**: Click **Phase 3** in the top ribbon and select **Step D**.\n` +
+               `• **Features**: Specify component libraries (React, Tailwind, Material), screen layouts, and user journeys. Click **"Generate UI Prototype"** to visually preview the rendered screen mockups.`,
+        actions: [
+          { label: '🎨 Open Phase 3 Step D (UI Wireframes)', phase: 3, subStep: 'D', description: 'Scaffold frontend templates and user interaction flows' }
+        ]
+      };
+    }
+
+    // 7. Multi-Agent Swarm
+    if (/\b(swarm|multi-agent|agents?|leader|router|orchestrator)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🤖 Where to Configure Multi-Agent Swarms\n\n` +
+               `Multi-Agent Swarm configuration is in **Phase 4 Step B (Multi-Agent Swarm Orchestrator)**:\n\n` +
+               `• **Navigation**: Click **Phase 4** in the top ribbon and switch to the **"Multi-Agent Swarm"** tab.\n` +
+               `• **Features**: Configure Leader, Router, Coder, Reviewer, and Planner agent teams with task graphs and shared memory.`,
+        actions: [
+          { label: '🤖 Open Multi-Agent Swarms (Phase 4B)', phase: 4, subTab: 'multiagent', description: 'Configure specialist agent roles' }
+        ]
+      };
+    }
+
+    // 8. AI Copilot / Chat
+    if (/\b(chat|copilot|ai\s*chat|assistant)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 💬 Where to Find the AI Copilot Chat\n\n` +
+               `The interactive AI Copilot is located in the **left activity bar**:\n\n` +
+               `• **Navigation**: Click the **💬 Chat** icon in the far-left sidebar to open the full-height AI Copilot chat drawer.\n` +
+               `• **Capabilities**: Pair-program, run prompt experiments, ask coding questions, or request surgical git diffs on workspace files.`,
+        actions: [
+          { label: '💬 Open AI Copilot Chat', phase: 1, activityTab: 'chat', description: 'Switch to AI Copilot chat drawer' }
+        ]
+      };
+    }
+
+    // 9. Evals / Benchmarks / Testing
+    if (/\b(eval|evals|benchmark|golden|tests?|testing|reliability)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🛡️ Where to Find Evaluations & Reliability Testing\n\n` +
+               `Evaluation and testing are located in **Phase 5 (Reliability & Evals)**:\n\n` +
+               `• **Navigation**: Click **Phase 5** in the top ribbon or click the **Evals** icon in the left activity bar.\n` +
+               `• **Capabilities**: Run golden benchmark test suites, measure hallucination rates and accuracy, benchmark latency percentiles (p50/p95/p99), and review Human-in-the-Loop audit logs.`,
+        actions: [
+          { label: '🛡️ Open Phase 5 (Reliability & Evals)', phase: 5, description: 'Run golden benchmarks and test suites' }
+        ]
+      };
+    }
+
+    // 10. Models / Model Matrix
+    if (/\b(models?|registry|llm|slm|matrix)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🧠 Where to Find the Model & Inference Matrix\n\n` +
+               `Model selection and benchmarking live in **Phase 3 Step C (Model & Inference Matrix)**:\n\n` +
+               `• **Navigation**: Click **Phase 3** in the top ribbon and select **Step C**, or click the **Models** tab in the left activity bar.\n` +
+               `• **Capabilities**: Benchmark Gemini, Claude, GPT, Mistral, and local SLMs across token costs, context window size, and latency SLAs.`,
+        actions: [
+          { label: '🧠 Open Phase 3 Step C (Model Matrix)', phase: 3, subStep: 'C', description: 'Benchmark and select models' }
+        ]
+      };
+    }
+
+    // 11. Cloud Deployment / Docker / Kubernetes
+    if (/\b(deploy|deployment|cloud|docker|kubernetes|k8s|terraform)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### ☁️ Where to Find Cloud Deployment Blueprints\n\n` +
+               `Cloud deployment configurations live in **Phase 4 Step D (Cloud Deployment Blueprints)**:\n\n` +
+               `• **Navigation**: Click **Phase 4** in the top ribbon and switch to the **"Cloud Deployment"** tab.\n` +
+               `• **Capabilities**: Export production Docker Compose recipes, Kubernetes manifests, and Terraform IaC ready for AWS, GCP, or Azure.`,
+        actions: [
+          { label: '☁️ Open Cloud Deployment (Phase 4D)', phase: 4, subTab: 'deploy', description: 'Export Kubernetes and Terraform blueprints' }
+        ]
+      };
+    }
+
+    // 12. Canary & Shadow Testing
+    if (/\b(canary|shadow|traffic\s*split|dual\s*run)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🚀 Where to Find Shadow Testing & Canary Deployment\n\n` +
+               `Canary and shadow rollouts live in **Phase 6 (Shadow & Canary Testing)**:\n\n` +
+               `• **Navigation**: Click **Phase 6** in the top ribbon.\n` +
+               `• **Capabilities**: Configure dual-run shadow traffic to compare new AI outputs with legacy systems without risk, then execute progressive canary splits (5% ➔ 20% ➔ 50% ➔ 100%).`,
+        actions: [
+          { label: '🚀 Open Phase 6 (Canary Testing)', phase: 6, description: 'Configure shadow traffic and canary rollouts' }
+        ]
+      };
+    }
+
+    // 13. Telemetry & Continuous Operations
+    if (/\b(telemetry|ops|operations|monitoring|drift|metrics)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 📈 Where to Find Production Telemetry & Ops\n\n` +
+               `Continuous operations live in **Phase 7 (Full Production & Operations)**:\n\n` +
+               `• **Navigation**: Click **Phase 7** in the top ribbon.\n` +
+               `• **Capabilities**: Monitor real-time throughput, token consumption, model drift alerts, and cryptographic release git tags.`,
+        actions: [
+          { label: '📈 Open Phase 7 (Continuous Ops)', phase: 7, description: 'Live telemetry and drift alerts' }
+        ]
+      };
+    }
+  }
+
+  // F. "HOW IT WORKS" - Architectural Deep-Dives
+  const isHowItWorksQuery = /\b(how\s*does\s*.*?\s*work|how\s*do\s*.*?\s*work|how\s*it\s*works?|explain|tell\s*me\s*about|what\s*is\s*the\s*concept)\b/i.test(q);
+
+  if (isHowItWorksQuery || isSecurityFeatureQuery) {
+    // 1. Safety Guardrails & Stage 2 Node
+    if (/\b(guardrail|guardrails|safety|stage\s*2)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🛡️ How Safety Guardrails Work in Evolve AI\n\n` +
+               `Safety Guardrails in Evolve AI provide a multi-layered defense architecture deployed in **Phase 4 Step A (Stage 2 Node)** and governed in **Phase 5**:\n\n` +
+               `#### 1. Ingress & Pre-Execution Guardrails (Input Filtering)\n` +
+               `• **Prompt Injection & Jailbreak Defense**: Detects adversarial jailbreak patterns, system prompt overrides, and evasive token encodings before input reaches the LLM.\n` +
+               `• **PII Redaction**: Automatically scans and masks sensitive data (emails, SSNs, credit cards, API keys) based on enterprise compliance policies.\n` +
+               `• **Toxicity & Content Moderation**: Blocks toxic, harassing, or out-of-scope customer queries.\n\n` +
+               `#### 2. Runtime & Budget Caps\n` +
+               `• **Latency SLA Budgets**: Sets hard ceilings (e.g. 1500ms max) to prevent pipeline hangs.\n` +
+               `• **Token Consumption Ceilings**: Enforces per-request token caps to prevent runaway inference costs.\n\n` +
+               `#### 3. Egress & Post-Execution Guardrails (Output Verification)\n` +
+               `• **Hallucination Detection**: Compares generated responses against retrieved grounding context from the Vector Store.\n` +
+               `• **Schema Enforcement**: Validates that output JSON adheres strictly to defined API schemas.\n\n` +
+               `#### 4. Applying Recommended vs. Custom Rules\n` +
+               `• Select the **Stage 2: Safety Guardrail Node** in Phase 4A Canvas. You can 1-click apply **AI Recommended Guardrails** or add **Custom Regex / Model Rules** with bespoke risk thresholds.`,
+        actions: [
+          { label: '🛡️ Open Canvas (Stage 2 Guardrail)', phase: 4, subTab: 'canvas', description: 'Configure guardrail rules in visual canvas' },
+          { label: '⚖️ Open Phase 5 (Governance & HITL)', phase: 5, description: 'Set up Human-in-the-Loop policies' }
+        ]
+      };
+    }
+
+    // 2. RAG (Retrieval-Augmented Generation)
+    if (/\b(rag|retrieval|vector\s*store|embeddings|hybrid\s*search)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 📚 How RAG (Retrieval-Augmented Generation) Works in Evolve AI\n\n` +
+               `RAG grounds generative models in proprietary enterprise data across 3 integrated phases:\n\n` +
+               `#### 1. Ingestion & Vector Indexing (Phase 2)\n` +
+               `• Domain documents (PDFs, manuals, support tickets) are parsed and partitioned using semantic chunking.\n` +
+               `• Chunks are transformed into high-dimensional vector embeddings and stored in Chroma, Pinecone, or pgvector.\n\n` +
+               `#### 2. Pattern Selection (Phase 3 Step A)\n` +
+               `• Choose between **Single-Turn RAG** (for knowledge Q&A) or **Hybrid Search RAG** (combining dense vector semantic search with sparse BM25 keyword matching for high precision).\n\n` +
+               `#### 3. Visual Pipeline Execution (Phase 4 Step A)\n` +
+               `• On the Architecture Canvas, link: \`Client ➔ API Gateway ➔ Guardrail ➔ Vector Store Node ➔ RAG Node ➔ Model Execution\`.\n` +
+               `• The RAG Node automatically executes top-k similarity retrieval, applies reranking, and injects verified context into the model prompt.`,
+        actions: [
+          { label: '📊 Open Phase 2 (Data Readiness & Vector)', phase: 2, description: 'Index documents into vector stores' },
+          { label: '📐 Open Phase 3 Step A (AI Patterns)', phase: 3, subStep: 'A', description: 'Select RAG architectural pattern' },
+          { label: '🏗️ Open Architecture Canvas (4A)', phase: 4, subTab: 'canvas', description: 'Wire RAG node in visual canvas' }
+        ]
+      };
+    }
+
+    // 3. Multi-Agent Swarms
+    if (/\b(swarm|multi-agent|agents?)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🤖 How Multi-Agent Swarms Work in Evolve AI\n\n` +
+               `Evolve AI coordinates specialized AI agent swarms configured in **Phase 4 Step B**:\n\n` +
+               `• **Leader / Orchestrator Agent**: Decomposes complex user goals into dependency-ordered subtasks.\n` +
+               `• **Router Agent**: Dynamically classifies tasks and routes them to the optimal agent or tool.\n` +
+               `• **Specialist Coder Agent**: Implements frontend components, backend endpoints, and SQL queries.\n` +
+               `• **Reviewer / Auditor Agent**: Inspects generated artifacts against security, performance, and correctness standards before synthesizing final responses.\n` +
+               `• **State Machine & Shared Memory**: Agents exchange structured messages over a shared state graph with deterministic loop prevention.`,
+        actions: [
+          { label: '🤖 Open Multi-Agent Swarm (Phase 4B)', phase: 4, subTab: 'multiagent', description: 'Configure specialized agent roles' },
+          { label: '🏗️ Open Visual Canvas (Phase 4A)', phase: 4, subTab: 'canvas', description: 'Connect agent swarm node to pipeline' }
+        ]
+      };
+    }
+
+    // 4. Automated Code Scaffolding
+    if (/\b(scaffold|scaffolding|code\s*gen|code\s*generation)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 💻 How Automated Code Scaffolding Works in Evolve AI\n\n` +
+               `Evolve AI compiles visual architecture into runnable, production code in **Phase 4 Step C**:\n\n` +
+               `• **Architecture Translation**: The code generator inspects your visual canvas nodes (Clients, Gateways, Guardrails, Vector Stores, Databases, Tools) and schema definitions.\n` +
+               `• **Multi-Tier Scaffolding**: It generates complete repository structures:\n` +
+               `  - **Frontend**: React / Next.js with Tailwind CSS and responsive component journeys.\n` +
+               `  - **Backend**: FastAPI or Express microservices with OpenAPI documentation and route validation.\n` +
+               `  - **Database & Data**: Prisma / SQLAlchemy ORM models, migration scripts, and seed files.\n` +
+               `  - **Deployment**: Multi-stage Dockerfiles and Docker Compose orchestration recipes.\n` +
+               `• **Direct Workspace Delivery**: Code is written directly into your active project workspace repository, ready for instant \`npm install\` or \`docker compose up\`!`,
+        actions: [
+          { label: '💻 Open Code Scaffolding (Phase 4C)', phase: 4, subTab: 'code', description: 'Generate runnable application source code' },
+          { label: '🏗️ Open Architecture Canvas', phase: 4, subTab: 'canvas', description: 'Review architecture before scaffolding' }
+        ]
+      };
+    }
+
+    // 5. Shadow Testing & Canary Deployment
+    if (/\b(shadow|canary|traffic\s*split)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🚀 How Shadow Testing & Canary Deployment Work in Evolve AI\n\n` +
+               `Phase 6 eliminates deployment risk using two enterprise rollout mechanisms:\n\n` +
+               `• **Shadow Dual-Run (0% User Impact)**: Replicates live incoming production traffic to both the legacy system and the new AI service in parallel. The legacy system handles the user response, while Evolve AI benchmarks output quality, latency, and hallucination rates silently in the background.\n` +
+               `• **Canary Traffic Split**: Gradually transitions live customer traffic (5% ➔ 20% ➔ 50% ➔ 100%) with automated circuit breakers that immediately rollback traffic if latency exceeds SLAs or error rates spike.`,
+        actions: [
+          { label: '🚀 Open Phase 6 (Canary Testing)', phase: 6, description: 'Set up shadow dual-run and canary splits' },
+          { label: '📈 Open Phase 7 (Continuous Ops)', phase: 7, description: 'Monitor live production metrics' }
+        ]
+      };
+    }
+
+    // 6. Capability Ladder
+    if (/\b(capability\s*ladder|levels?|l1|l2|l3|l4|l5)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🪜 How the AI Capability Ladder Works in Evolve AI\n\n` +
+               `The Capability Ladder (Phase 1 Step 2) provides enterprise architects with a rigorous framework to match business risk to AI autonomy:\n\n` +
+               `• **Level 1 (Deterministic Rules)**: High predictability, zero LLM hallucinations, rigid rule engines.\n` +
+               `• **Level 2 (Augmented Search / RAG)**: Information retrieval grounded strictly in enterprise document knowledge bases.\n` +
+               `• **Level 3 (Human-Gated Copilot)**: AI drafts complex actions or code, but requires explicit human operator sign-off before committing.\n` +
+               `• **Level 4 (Multi-Agent Swarm)**: Coordinated agent teams executing multi-step workflows with specialized roles and shared state.\n` +
+               `• **Level 5 (Autonomous Orchestrator)**: Closed-loop self-healing systems operating with continuous telemetry and adaptive routing.`,
+        actions: [
+          { label: '🧭 Open Phase 1 Step 2 (Capability Ladder)', phase: 1, subStep: '2', description: 'Select your application capability level' },
+          { label: '📐 Open Phase 3 Step A (AI Patterns)', phase: 3, subStep: 'A', description: 'Map capability level to architectural patterns' }
+        ]
+      };
+    }
+
+    // 7. Overall Application / What is Evolve AI
+    if (/\b(evolve|evolve\s*ai|application|platform|this\s*app)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🌐 How Evolve AI Works: The Enterprise Delivery Operating System\n\n` +
+               `Evolve AI is an end-to-end delivery platform designed to take enterprise AI applications from raw idea to hardened production operations:\n\n` +
+               `• **Phase 1: Framing & Discovery**: Define business value, position on the Capability Ladder (L1-L5), and select Greenfield or Brownfield mode.\n` +
+               `• **Phase 2: Data Readiness**: Connect live databases (🔌 Live DB), introspect schemas, mask PII, and generate vector embeddings.\n` +
+               `• **Phase 3: AI Solutioning**: Select AI patterns, establish enterprise context bridges, benchmark models, and scaffold UI/UX wireframes.\n` +
+               `• **Phase 4: AI Engineering Studio**: Visually design pipeline topology on the Architecture Canvas, orchestrate agent swarms, and generate full-stack runnable code.\n` +
+               `• **Phase 5: Reliability & Evals**: Run golden benchmarks, measure hallucination rates, and configure Human-in-the-Loop gates.\n` +
+               `• **Phase 6: Canary & Shadow**: Dual-run live traffic in shadow mode and execute progressive canary split rollouts.\n` +
+               `• **Phase 7: Full Production & Ops**: Monitor live throughput, model drift, token costs, and tag production releases.`,
+        actions: [
+          { label: '1️⃣ Phase 1 (Discovery)', phase: 1, description: 'Intake and Capability Ladder' },
+          { label: '2️⃣ Phase 2 (Data Readiness)', phase: 2, description: 'Live DB and vectorization' },
+          { label: '3️⃣ Phase 3 (AI Solutioning)', phase: 3, description: 'AI patterns and UI prototyping' },
+          { label: '4️⃣ Phase 4 (AI Engineering)', phase: 4, description: 'Visual canvas and code generation' },
+          { label: '5️⃣ Phase 5 (Evals & Reliability)', phase: 5, description: 'Golden benchmarks and HITL' }
+        ]
+      };
+    }
+  }
+
+  // G. User is stuck or asking what step / where to go next
   if (
     q.includes('stuck') || q.includes('what next') || q.includes('where to go') ||
-    q.includes('next step') || q.includes('how do i start') || q.includes('guide me') || q.includes('workflow')
+    q.includes('next step') || q.includes('how do i start') || q.includes('guide me') ||
+    q.includes('workflow') || q.includes('where do i begin') || q.includes('lost') ||
+    q.includes('confused') || q.includes('help me navigate') || q.includes('roadmap')
   ) {
     return {
       success: true,
@@ -949,7 +1346,7 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     };
   }
 
-  // E. Phase specific queries
+  // H. Phase specific queries (Phase 1 through Phase 7)
   if (q.includes('phase 1') || q.includes('discovery') || q.includes('refram') || q.includes('capability ladder')) {
     return {
       success: true,
@@ -975,7 +1372,8 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
              `• **Data Hygiene & Masking**: Auto-detect sensitive PII columns and define masking rules before passing data to AI models.\n` +
              `• **Vector Embeddings & RAG Indexing**: Chunk and vectorize unstructured manuals, policies, and tickets into vector stores.`,
       actions: [
-        { label: '📊 Open Phase 2 (Data Readiness)', phase: 2 }
+        { label: '📊 Open Phase 2 (Data Readiness)', phase: 2 },
+        { label: '🔌 Connect Live Database', phase: 2, actionType: 'livedb' }
       ]
     };
   }
@@ -1056,21 +1454,54 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     };
   }
 
-  // Default intelligent fallback assistance
+  // I. Keyword / Topic-aware fallback assistance
+  if (/\b(data|table|schema|ingest|sql)\b/i.test(q)) {
+    return {
+      success: true,
+      reply: `### 📊 Data Management & Preparation in Evolve AI\n\n` +
+             `For data readiness, schema mapping, and vectorization:\n\n` +
+             `• **Connect Databases**: Use the **🔌 Live DB** button in the top navigation bar to connect to PostgreSQL, Snowflake, BigQuery, MySQL, Oracle, or SQL Server.\n` +
+             `• **Data Readiness (Phase 2)**: Introspect tables, configure PII masking rules, and generate vector embeddings for semantic RAG search.\n` +
+             `• **Data Studio**: Explore workspace tables, SQL scripts, and dbt models from the left activity bar.`,
+      actions: [
+        { label: '🔌 Open Live DB Connector', phase: 2, actionType: 'livedb' },
+        { label: '📊 Open Phase 2 (Data Readiness)', phase: 2 },
+        { label: '📁 Open Data Studio', phase: 2, activityTab: 'data' }
+      ]
+    };
+  }
+
+  if (/\b(deploy|cloud|docker|k8s|kubernetes|terraform)\b/i.test(q)) {
+    return {
+      success: true,
+      reply: `### ☁️ Cloud Deployment & Infrastructure in Evolve AI\n\n` +
+             `To export and run your application in cloud environments:\n\n` +
+             `• **Cloud Deployment Blueprints (Phase 4 Step D)**: Export production Kubernetes manifests, Terraform IaC, and Docker Compose files.\n` +
+             `• **Canary & Shadow Rollouts (Phase 6)**: Safely stage deployments using dual-run traffic splits before opening full production traffic.`,
+      actions: [
+        { label: '☁️ Open Phase 4 Step D (Cloud Deployment)', phase: 4, subTab: 'deploy' },
+        { label: '🚀 Open Phase 6 (Canary Testing)', phase: 6 }
+      ]
+    };
+  }
+
+  // J. General Intelligent Guide Overview
   return {
     success: true,
     reply: `### 💡 Evolve AI Virtual Assistant\n\n` +
-           `I can assist you with any stage of using Evolve AI to build and deliver enterprise applications:\n\n` +
-           `• **UI & UX Definition & Updates**: Learn how frontend, backend, wireframes, and UX are designed in Phase 3 Step D and Phase 4.\n` +
-           `• **Greenfield vs. Brownfield**: Structure new products from scratch or modernize existing enterprise codebases.\n` +
-           `• **Full-Stack Automated Scaffolding**: Generate running React/Next.js frontend and Node/Python backend code in Phase 4 Step C.\n` +
-           `• **Navigating the 7 Phases**: Get step-by-step guidance on what to do if you are stuck.\n\n` +
-           `*(Note: For enterprise security, Evolve AI internal source code and design implementation are strictly protected by our in-app guardrail).*`,
+           `I am here to help you navigate, understand, and build applications with Evolve AI across all 7 Delivery Phases:\n\n` +
+           `• **🚀 Build New Applications**: Ask *"What is the process flow to build a fresh new application?"* to learn the 5-stage greenfield build path.\n` +
+           `• **🔌 Locate Features ("Where is it?")**: Ask where to find the **Live Database**, **Visual Architecture Canvas**, **Safety Guardrails**, **Terminal**, or **Code Scaffolding**.\n` +
+           `• **⚙️ Understand Architecture ("How does it work?")**: Ask how **Safety Guardrails**, **RAG**, **Multi-Agent Swarms**, or **Canary Rollouts** work.\n` +
+           `• **🧭 Get Unstuck**: Ask *"I am stuck, what is my next step?"* for a customized diagnostic delivery roadmap.\n\n` +
+           `Click any quick action below to immediately jump into that delivery stage!`,
     actions: [
-      { label: '🎨 Where are UI & UX Defined?', phase: 3, subStep: 'D' },
-      { label: '🏗️ Phase 4 Architecture Canvas', phase: 4, subTab: 'canvas' },
-      { label: '💻 Phase 4 Code Scaffolding', phase: 4, subTab: 'code' },
-      { label: '🧭 Delivery Lifecycle Roadmap', phase: 1 }
+      { label: '🚀 Process Flow for New App', phase: 1, subStep: '3' },
+      { label: '🔌 Connect Live Database', phase: 2, actionType: 'livedb' },
+      { label: '🎨 UI & UX Prototypes', phase: 3, subStep: 'D' },
+      { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
+      { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
+      { label: '🛡️ Reliability & Evals', phase: 5 }
     ]
   };
 }

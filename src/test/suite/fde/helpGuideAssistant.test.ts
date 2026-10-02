@@ -79,6 +79,104 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
     assert.ok(phaseList.includes(5));
   });
 
+  test('explains the process flow to build a fresh new application from scratch', () => {
+    const queries = [
+      'what is the process flow to build a fresh new application?',
+      'How to build a fresh new app from scratch?',
+      'What are the steps to build a fresh application?',
+      'How do I build a new application in Evolve AI?'
+    ];
+
+    for (const q of queries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined);
+      assert.ok(res.reply.includes('Process Flow: Building a Fresh New Application (Greenfield)'), `Query "${q}" should explain process flow`);
+      assert.ok(res.reply.includes('Stage 1: Enterprise Framing'));
+      assert.ok(res.reply.includes('Stage 2: Data Readiness'));
+      assert.ok(res.reply.includes('Stage 3: AI Solutioning'));
+      assert.ok(res.reply.includes('Stage 4: Visual Architecture Studio'));
+      assert.ok(res.reply.includes('Stage 5: Reliability'));
+      assert.ok(res.actions && res.actions.length >= 4);
+
+      const phases = res.actions!.map(a => a.phase);
+      assert.ok(phases.includes(1), 'Must offer Phase 1 jump');
+      assert.ok(phases.includes(3), 'Must offer Phase 3 UI jump');
+      assert.ok(phases.includes(4), 'Must offer Phase 4 Canvas jump');
+    }
+  });
+
+  test('answers where features are located (Where it is lookups)', () => {
+    // 1. Live DB
+    const dbRes = generateHelpGuideReply('Where is the Live Database connector?');
+    assert.strictEqual(dbRes.success, true);
+    assert.ok(dbRes.reply.includes('Where to Connect & Manage Databases'));
+    assert.ok(dbRes.reply.includes('Live DB button'));
+    assert.ok(dbRes.actions && dbRes.actions.some(a => a.actionType === 'livedb' || a.phase === 2));
+
+    // 2. Safety Guardrails
+    const guardRes = generateHelpGuideReply('Where can I configure safety guardrails?');
+    assert.strictEqual(guardRes.success, true);
+    assert.strictEqual(guardRes.guardrailTriggered, undefined, 'Must not trigger anti-leak guardrail');
+    assert.ok(guardRes.reply.includes('Where to Find & Configure Safety Guardrails'));
+    assert.ok(guardRes.reply.includes('Stage 2: Safety Guardrail Node'));
+    assert.ok(guardRes.actions && guardRes.actions.some(a => a.phase === 4 && a.subTab === 'canvas'));
+
+    // 3. Canvas
+    const canvasRes = generateHelpGuideReply('Where is the visual architecture canvas?');
+    assert.strictEqual(canvasRes.success, true);
+    assert.ok(canvasRes.reply.includes('Where to Find the Visual Architecture Canvas'));
+    assert.ok(canvasRes.actions && canvasRes.actions.some(a => a.phase === 4 && a.subTab === 'canvas'));
+
+    // 4. Terminal
+    const termRes = generateHelpGuideReply('Where is the terminal?');
+    assert.strictEqual(termRes.success, true);
+    assert.ok(termRes.reply.includes('Where to Find the Built-In Terminal'));
+    assert.ok(termRes.actions && termRes.actions.some(a => a.actionType === 'terminal'));
+
+    // 5. Code Scaffolding
+    const codeRes = generateHelpGuideReply('Where do I scaffold or generate code?');
+    assert.strictEqual(codeRes.success, true);
+    assert.ok(codeRes.reply.includes('Where to Generate & Scaffold Application Code'));
+    assert.ok(codeRes.actions && codeRes.actions.some(a => a.phase === 4 && a.subTab === 'code'));
+  });
+
+  test('explains how core architecture mechanisms work (How it works deep-dives)', () => {
+    // 1. Guardrails
+    const guardRes = generateHelpGuideReply('How do Safety Guardrails work in Evolve AI?');
+    assert.strictEqual(guardRes.success, true);
+    assert.strictEqual(guardRes.guardrailTriggered, undefined);
+    assert.ok(guardRes.reply.includes('How Safety Guardrails Work in Evolve AI'));
+    assert.ok(guardRes.reply.includes('Prompt Injection & Jailbreak Defense'));
+    assert.ok(guardRes.reply.includes('PII Redaction'));
+    assert.ok(guardRes.reply.includes('Stage 2: Safety Guardrail Node'));
+
+    // 2. RAG
+    const ragRes = generateHelpGuideReply('How does RAG work in Evolve AI?');
+    assert.strictEqual(ragRes.success, true);
+    assert.ok(ragRes.reply.includes('How RAG (Retrieval-Augmented Generation) Works'));
+    assert.ok(ragRes.reply.includes('Vector Indexing'));
+
+    // 3. Multi-Agent Swarms
+    const swarmRes = generateHelpGuideReply('How does the multi-agent swarm work?');
+    assert.strictEqual(swarmRes.success, true);
+    assert.ok(swarmRes.reply.includes('How Multi-Agent Swarms Work'));
+    assert.ok(swarmRes.reply.includes('Leader / Orchestrator Agent'));
+
+    // 4. Automated Code Scaffolding
+    const scaffoldRes = generateHelpGuideReply('How does automated code scaffolding work?');
+    assert.strictEqual(scaffoldRes.success, true);
+    assert.ok(scaffoldRes.reply.includes('How Automated Code Scaffolding Works'));
+    assert.ok(scaffoldRes.reply.includes('React / Next.js'));
+
+    // 5. Shadow Testing & Canary
+    const canaryRes = generateHelpGuideReply('How do shadow testing and canary deployment work?');
+    assert.strictEqual(canaryRes.success, true);
+    assert.ok(canaryRes.reply.includes('How Shadow Testing & Canary Deployment Work'));
+    assert.ok(canaryRes.reply.includes('Shadow Dual-Run'));
+    assert.ok(canaryRes.reply.includes('Canary Traffic Split'));
+  });
+
   test('handles empty or whitespace query gracefully', () => {
     const res = generateHelpGuideReply('   ');
     assert.strictEqual(res.success, false);

@@ -2047,34 +2047,48 @@ function setupHelpGuide(api: any): void {
     return escaped;
   };
 
-  const handleActionClick = (action: { phase: number; subTab?: string; subStep?: string; activityTab?: string }) => {
+  const handleActionClick = (action: { phase: number; subTab?: string; subStep?: string; activityTab?: string; actionType?: string }) => {
     try {
+      if (action.actionType === 'livedb' || action.subTab === 'livedb') {
+        (window as any).openLiveDbConnectModal?.();
+        showToast('🔌 Opened Live Database Connector');
+        return;
+      }
+      if (action.actionType === 'terminal') {
+        document.getElementById('btnOpenTerminal')?.click();
+        showToast('⚡ Opened Terminal Drawer');
+        return;
+      }
       if (action.activityTab && action.activityTab !== 'delivery') {
         switchActivityTab(action.activityTab, api);
-      } else {
-        switchActivityTab('delivery', api);
-        switchDeliveryPhase(action.phase);
-
-        if (action.phase === 1 && action.subStep) {
-          const btn = document.getElementById(`btnFdeStep${action.subStep}`);
-          btn?.click();
-        } else if (action.phase === 3 && action.subStep) {
-          const btn = document.getElementById(`btnP3Step${action.subStep}`);
-          btn?.click();
-        } else if (action.phase === 4 && action.subTab) {
-          const tabMap: Record<string, string> = {
-            canvas: 'btnTabAiEngCanvas',
-            multiagent: 'btnTabAiEngMultiAgent',
-            code: 'btnTabAiEngCode',
-            deploy: 'btnTabAiEngDeploy',
-            sim: 'btnTabAiEngSimulator',
-            dataarch: 'btnTabAiEngDataArch'
-          };
-          const btnId = tabMap[action.subTab];
-          if (btnId) document.getElementById(btnId)?.click();
-        }
+        showToast(`🧭 Navigated to ${action.activityTab.toUpperCase()} tab`);
+        return;
       }
-      showToast(`🧭 Navigated to Phase ${action.phase}${action.subStep ? ' Step ' + action.subStep : ''}`);
+      switchActivityTab('delivery', api);
+      switchDeliveryPhase(action.phase);
+
+      if (action.phase === 1 && action.subStep) {
+        const btn = document.getElementById(`btnFdeStep${action.subStep}`);
+        btn?.click();
+      } else if (action.phase === 3 && action.subStep) {
+        const btn = document.getElementById(`btnP3Step${action.subStep}`);
+        btn?.click();
+      } else if (action.phase === 4 && action.subTab) {
+        const tabMap: Record<string, string> = {
+          canvas: 'btnTabAiEngCanvas',
+          multiagent: 'btnTabAiEngMultiAgent',
+          code: 'btnTabAiEngCode',
+          deploy: 'btnTabAiEngDeploy',
+          sim: 'btnTabAiEngSimulator',
+          dataarch: 'btnTabAiEngDataArch'
+        };
+        const btnId = tabMap[action.subTab];
+        if (btnId) document.getElementById(btnId)?.click();
+      } else if (action.phase === 5 && action.subStep) {
+        const btn = document.getElementById(`btnP5Step${action.subStep}`);
+        btn?.click();
+      }
+      showToast(`🧭 Navigated to Phase ${action.phase}${action.subStep ? ' Step ' + action.subStep : (action.subTab ? ' (' + action.subTab + ')' : '')}`);
     } catch (e) {
       console.warn('Action click navigation warning:', e);
     }
@@ -2140,16 +2154,18 @@ function setupHelpGuide(api: any): void {
     const welcome = `### 👋 Welcome to Evolve Virtual Assistant\n\n` +
       `I am your in-app guide for building, architecting, and delivering enterprise AI applications across the **7 Delivery Phases**.\n\n` +
       `**How I can help you:**\n` +
-      `• **UI & UX Architecture**: Clarify where client interfaces, wireframes, and backend APIs are defined and generated.\n` +
-      `• **UI/UX Iterations**: Guide you through modifying screens, updating layouts, and executing surgical diffs.\n` +
-      `• **Greenfield & Brownfield Delivery**: Guide automated scaffolding for new builds or modernization of legacy systems.\n` +
-      `• **Smart Navigation**: If you're stuck, ask me where to go next!\n\n` +
+      `• **🚀 Build New Applications**: Step-by-step guidance on creating a fresh greenfield app or modernizing brownfield systems.\n` +
+      `• **🔌 Locate Features ("Where is it?")**: Instant navigation to Live DB, Visual Canvas, Code Gen, Guardrails, Terminal, or Swarms.\n` +
+      `• **⚙️ Understand Architecture ("How does it work?")**: Deep architectural insights on RAG, Agents, Guardrails, Evals, and Deployments.\n` +
+      `• **🧭 Unblock Your Workflow**: If you are stuck at any point, ask me where to go next!\n\n` +
       `*🛡️ Note: Evolve AI internal source code & design files are protected under enterprise guardrail policies.*`;
 
     appendAssistantBubble(welcome, [
-      { label: '🎨 Where are UI & UX defined?', phase: 3, subStep: 'D' },
-      { label: '🔄 How do I update UI & UX?', phase: 3, subStep: 'D' },
-      { label: '🚀 Greenfield Automated Build', phase: 4, subTab: 'code' },
+      { label: '🚀 Process Flow for New App', phase: 1, subStep: '3' },
+      { label: '🔌 Connect Live Database', phase: 2, actionType: 'livedb' },
+      { label: '🎨 UI & UX Architecture', phase: 3, subStep: 'D' },
+      { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
+      { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
       { label: '🧭 Where do I go next?', phase: 1 }
     ]);
   };
