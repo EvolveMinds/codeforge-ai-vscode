@@ -1653,6 +1653,7 @@
                       </select>
                       <button class="btn-quick" id="btnFdeAnimateFlow" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(16, 185, 129, 0.25)); border: 1px solid #06b6d4; color: #22d3ee; font-weight: 700;" aria-label="Animate Step Flow">▶ Animate Flow</button>
                       <button class="btn-quick" id="btnFdeAiGenTopology" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(59, 130, 246, 0.25)); border: 1px solid #a855f7; color: #c084fc; font-weight: 700;" aria-label="AI Synthesize Topology">✨ AI Synthesize Topology</button>
+                      <button class="btn-quick" id="btnFdeImportClientArch" style="font-size: 10.5px; background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; color: #38bdf8; font-weight: 700;" aria-label="Import Client Architecture Document or Spec" title="Import customer runbooks, markdown specs, PlantUML, or Mermaid into Current and/or Future topologies">📥 Import Client Spec</button>
                       <button class="btn-quick active" id="btnFdeTabFutureDiagram" style="font-size: 10.5px; border-color: #10b981; color: #34d399;" aria-label="Proposed AI Workflow">🟢 Proposed AI Workflow</button>
                       <button class="btn-quick" id="btnFdeTabLegacyDiagram" style="font-size: 10.5px; border-color: #ef4444; color: #f87171;" aria-label="Legacy Bottlenecks">🔴 Legacy Bottlenecks</button>
                       <button class="btn-quick" id="btnFdeCopyDiagram" style="font-size: 10.5px; border-color: var(--accent); color: var(--accent);" aria-label="Copy Mermaid source to clipboard">📋 Copy Mermaid</button>
@@ -1852,6 +1853,78 @@
                     <div style="padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
                       <button class="btn-quick" id="btnFdeCancelSave" aria-label="Cancel and do not write any files">Cancel</button>
                       <button class="btn" id="btnFdeConfirmSave" style="padding: 5px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Write these files to the workspace">Save these files</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- IMPORT CLIENT ARCHITECTURE MODAL -->
+                <div id="modalFdeImportClientArch" hidden role="dialog" aria-modal="true" aria-labelledby="fdeImportClientArchTitle" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+                  <div style="background: var(--bg-secondary); border: 1px solid #38bdf8; border-radius: 10px; width: 780px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7), 0 0 25px rgba(56,189,248,0.25);">
+                    <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                      <div>
+                        <h3 id="fdeImportClientArchTitle" style="margin: 0; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                          <span>📥</span> <span>Import Client Architecture Document or Spec</span>
+                        </h3>
+                        <p style="margin: 4px 0 0; font-size: 11.5px; color: var(--text-secondary);">Ingest client runbooks, markdown specs, PlantUML, or Mermaid into Current (As-Is) and/or Target (To-Be) topologies.</p>
+                      </div>
+                      <button type="button" id="btnFdeCloseImportClientArch" style="background: none; border: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 4px;" aria-label="Close modal">✕</button>
+                    </div>
+                    <div style="padding: 14px 18px; overflow: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                      <!-- Target Selection -->
+                      <div>
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 5px;">1. Assign To Workflow State</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                          <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #f87171; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 5px 10px; border-radius: 6px; cursor: pointer;">
+                            <input type="radio" name="radFdeClientDocTarget" value="legacy" id="radFdeClientDocTargetLegacy">
+                            <span>🔴 Current State (As-Is / Legacy Bottlenecks)</span>
+                          </label>
+                          <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #34d399; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 5px 10px; border-radius: 6px; cursor: pointer;">
+                            <input type="radio" name="radFdeClientDocTarget" value="future" id="radFdeClientDocTargetFuture" checked>
+                            <span>🟢 Future State (To-Be / Target Architecture)</span>
+                          </label>
+                          <label style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); padding: 5px 10px; border-radius: 6px; cursor: pointer;">
+                            <input type="radio" name="radFdeClientDocTarget" value="both" id="radFdeClientDocTargetBoth">
+                            <span>⇄ Both (Comparative As-Is &amp; To-Be Spec)</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <!-- Document Name / Tag -->
+                      <div>
+                        <label for="txtFdeClientDocName" style="display: block; font-size: 11px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">2. Document / Source Name (Provenance Tag)</label>
+                        <input type="text" id="txtFdeClientDocName" placeholder="e.g. Enterprise Architecture Runbook v2.4, CISO Mandate, Confluence Spec" style="width: 100%; box-sizing: border-box; padding: 6px 10px; background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                      </div>
+
+                      <!-- Spec Content Input -->
+                      <div style="flex: 1; display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                          <label for="txtFdeClientDocContent" style="font-size: 11px; font-weight: 700; color: var(--text-primary);">3. Paste Architecture Spec, Runbook, PlantUML, or Mermaid</label>
+                          <div style="display: flex; gap: 6px; align-items: center;">
+                            <select id="selFdeWorkspaceArchDoc" style="padding: 3px 6px; font-size: 10.5px; background: var(--bg-input); color: #38bdf8; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
+                              <option value="">📂 Load Workspace File...</option>
+                              <option value="docs/WORKFLOW_TOPOLOGY.md">docs/WORKFLOW_TOPOLOGY.md</option>
+                              <option value="docs/ARCHITECTURE.md">docs/ARCHITECTURE.md</option>
+                              <option value="docs/DEPLOYMENT_RUNBOOK.md">docs/DEPLOYMENT_RUNBOOK.md</option>
+                            </select>
+                          </div>
+                        </div>
+                        <textarea id="txtFdeClientDocContent" rows="11" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #e2e8f0; resize: vertical; line-height: 1.45;" placeholder="Paste customer architecture document text, PlantUML (@startuml ... @enduml), Mermaid sequence/flowchart, or prose describing actors, systems, APIs, queues, and databases..."></textarea>
+                      </div>
+
+                      <!-- Quick Template Pills -->
+                      <div style="display: flex; gap: 6px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-size: 10.5px; color: var(--text-secondary);">Sample presets:</span>
+                        <button type="button" class="btn-quick" id="btnFdeSamplePlantUml" style="font-size: 10px; padding: 2px 7px;">Sample PlantUML</button>
+                        <button type="button" class="btn-quick" id="btnFdeSampleLegacyProse" style="font-size: 10px; padding: 2px 7px;">Sample Legacy Runbook</button>
+                        <button type="button" class="btn-quick" id="btnFdeSampleFutureProse" style="font-size: 10px; padding: 2px 7px;">Sample CISO Mandate</button>
+                      </div>
+                    </div>
+                    <div style="padding: 12px 18px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                      <span id="fdeImportClientArchStatus" style="font-size: 11px; color: var(--text-secondary);">Ready to parse.</span>
+                      <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-quick" id="btnFdeCancelImportClientArch">Cancel</button>
+                        <button type="button" class="btn" id="btnFdeSubmitImportClientArch" style="padding: 5px 14px; font-size: 11.5px; background: linear-gradient(135deg, #0284c7, #06b6d4); color: #fff; font-weight: 700; border: none; cursor: pointer;">✨ Parse &amp; Apply to Topology</button>
+                      </div>
                     </div>
                   </div>
                 </div>

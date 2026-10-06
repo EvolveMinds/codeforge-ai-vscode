@@ -51,6 +51,7 @@ import { DeployScriptScaffolder } from '../../deployment/deployScriptScaffolder'
 import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
 import { McpScaffolder, McpScaffoldOptions } from '../../fde/mcpScaffolder';
+import { ClientTopologyParser, ClientTopologyParseOptions } from '../../fde/clientTopologyParser';
 import { presentDocument } from '../../fde/documentPresenter';
 import { DataScientistEngine } from '../../offline/dataScientistEngine';
 import {
@@ -1014,7 +1015,42 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     };
   }
 
-  // E. "WHERE IT IS" - Navigation & Location Lookups
+  // E. Ingesting Client-Provided Architecture Documents (Current / Future / PlantUML / Mermaid / Specs)
+  const isClientArchDocQuery = /\b(client\s*(?:doc|document|architecture|spec|diagram)|existing\s*(?:topology|architecture|diagram|doc)|current\s*and\s*(?:target|future)\s*topology|import\s*(?:architecture|topology|spec|doc)|company\s*(?:has|gives|gave|provided|architecture)|use\s*their\s*(?:architecture|topology|document)|as-is\s*and\s*to-be)\b/i.test(q) ||
+    (/\b(topology)\b/i.test(q) && /\b(document|doc|import|company|client|spec|file|current|future|target|give|given)\b/i.test(q));
+
+  if (isClientArchDocQuery) {
+    return {
+      success: true,
+      reply: `### 🏢 Ingesting Client-Provided Architecture Documents & Specifications\n\n` +
+             `In enterprise engagements, clients often have their own documented architecture or mandated target state. Evolve AI allows you to ingest and adopt client documents directly as the canonical **Current State (As-Is / Legacy)** and/or **Target State (To-Be / Future)** topologies:\n\n` +
+             `#### 1️⃣ Where to Access It (Phase 1 Step 3)\n` +
+             `• Navigate to **Phase 1 Step 3 (Workflow Topology Studio)**.\n` +
+             `• In the top action bar, click **"📥 Import Client Spec"**.\n\n` +
+             `#### 2️⃣ Assigning to Workflow State\n` +
+             `You can assign the client's document to whichever state it represents:\n` +
+             `• 🔴 **Current State (As-Is / Legacy Bottlenecks)**: Select this if the company provided an architectural runbook, network diagram, or process spec detailing their existing legacy systems, batch scripts, spreadsheets, or manual silos.\n` +
+             `• 🟢 **Future State (To-Be / Target Architecture)**: Select this if the company's Enterprise Architecture Review Board (ARB) or CISO has already prescribed a mandatory future architecture (e.g. Apigee Gateway ➔ Kafka ➔ Private Kubernetes ➔ PostgreSQL + pgvector, with ServiceNow approval).\n` +
+             `• ⇄ **Both (Comparative Specification)**: Ingests a document that details both current pain points and desired future state, generating synchronized sequence topologies.\n\n` +
+             `#### 3️⃣ Supported Document Formats\n` +
+             `• **Unstructured & Semi-Structured Specs**: Paste text from Confluence, Word/PDF exports, Jira epics, or Markdown runbooks. Evolve AI extracts actors, gateways, queues, databases, and message flows into valid Mermaid sequence diagrams.\n` +
+             `• **Existing Diagram Code**: PlantUML (\`@startuml ... @enduml\`) is automatically transpiled to Mermaid. Native Mermaid (\`sequenceDiagram\`, \`flowchart\`) is directly parsed and verified.\n` +
+             `• **Direct Source & Canvas Editing**: Switch to the **✎ Source** tab to paste raw Mermaid code directly, or use **☰ Arrange** to drag, reorder, or rename participants.\n` +
+             `• **Conversational In-Place Alignment**: In the diagram prompt bar, type: *"Align with client doc: replace message broker with Apache Kafka and add PingFederate OAuth2"*.\n\n` +
+             `#### 4️⃣ Downstream Propagation\n` +
+             `Once imported, the architecture is stamped as **"🏢 Client Spec: [Name]"**, saved to \`.evolve/fde_state.json\`, versioned in \`scope_versions.json\`, and automatically embedded into:\n` +
+             `• **Client Scope Alignment Memorandum** (\`docs/SCOPE_ALIGNMENT_MEMO.html\` / \`.md\`)\n` +
+             `• **Phase 3 Solutioning Ladder & MCP Server Studio**\n` +
+             `• **Phase 4 Visual Architecture Canvas**`,
+      actions: [
+        { label: '🗺️ Open Phase 1 Step 3 (Workflow Topology)', phase: 1, subStep: '3', description: 'Import and inspect client-provided topology specs' },
+        { label: '🏗️ View Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Wire client microservices and databases on visual canvas' },
+        { label: '📑 View Scope Version History', phase: 1, subStep: '3', description: 'Snapshot or rollback architecture versions' }
+      ]
+    };
+  }
+
+  // F. "WHERE IT IS" - Navigation & Location Lookups
   const isLocationQuery = /\b(where\s*(is|are|can\s*i|do\s*i)|how\s*do\s*i\s*(find|open|access|reach|see)|locate|show\s*me\s*where)\b/i.test(q) ||
     q.startsWith('where');
 
@@ -8280,6 +8316,40 @@ Establish clean staging schema models and compiled rule gates for all determinis
         legacyDiagram,
         futureDiagram
       };
+    });
+
+    // --- CLIENT ARCHITECTURE SPEC & DOCUMENT INGESTION ---
+    ipc.handle(DESKTOP_CHANNELS.FDE.PARSE_CLIENT_TOPOLOGY_DOC, async (_: any, req: {
+      content?: string;
+      target?: 'legacy' | 'future' | 'both';
+      docName?: string;
+      rawAsk?: string;
+      reframedGoal?: string;
+    }) => {
+      try {
+        const content = (req?.content || '').trim();
+        const target = req?.target || 'both';
+        const docName = (req?.docName || '').trim() || 'Client Architecture Specification';
+        const rawAsk = req?.rawAsk;
+        const reframedGoal = req?.reframedGoal;
+
+        const result = ClientTopologyParser.parse({
+          content,
+          target,
+          docName,
+          rawAsk,
+          reframedGoal
+        });
+
+        return result;
+      } catch (err: any) {
+        return {
+          success: false,
+          error: (err && err.message) ? err.message : String(err),
+          target: req?.target || 'both',
+          docName: req?.docName || 'Client Architecture Spec'
+        };
+      }
     });
 
     // --- DISCOVERY VERSION CONTROL & SNAPSHOT MANAGEMENT ---

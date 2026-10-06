@@ -7204,6 +7204,178 @@ function setupPhase1Discovery(api: any): void {
     }
   });
 
+  // --- CLIENT ARCHITECTURE SPEC & DOCUMENT INGESTION MODAL ---
+  const btnImportClientArch = document.getElementById('btnFdeImportClientArch');
+  const modalImportClientArch = document.getElementById('modalFdeImportClientArch');
+  const btnCloseImportClientArch = document.getElementById('btnFdeCloseImportClientArch');
+  const btnCancelImportClientArch = document.getElementById('btnFdeCancelImportClientArch');
+  const btnSubmitImportClientArch = document.getElementById('btnFdeSubmitImportClientArch');
+  const txtClientDocName = document.getElementById('txtFdeClientDocName') as HTMLInputElement;
+  const txtClientDocContent = document.getElementById('txtFdeClientDocContent') as HTMLTextAreaElement;
+  const selWorkspaceArchDoc = document.getElementById('selFdeWorkspaceArchDoc') as HTMLSelectElement;
+  const lblImportStatus = document.getElementById('fdeImportClientArchStatus');
+
+  const btnSamplePlantUml = document.getElementById('btnFdeSamplePlantUml');
+  const btnSampleLegacyProse = document.getElementById('btnFdeSampleLegacyProse');
+  const btnSampleFutureProse = document.getElementById('btnFdeSampleFutureProse');
+
+  const openImportClientModal = () => {
+    if (modalImportClientArch) {
+      modalImportClientArch.hidden = false;
+      modalImportClientArch.style.display = 'flex';
+      if (lblImportStatus) lblImportStatus.textContent = 'Ready to parse.';
+      setTimeout(() => txtClientDocContent?.focus(), 50);
+    }
+  };
+
+  const closeImportClientModal = () => {
+    if (modalImportClientArch) {
+      modalImportClientArch.hidden = true;
+      modalImportClientArch.style.display = 'none';
+    }
+  };
+
+  btnImportClientArch?.addEventListener('click', openImportClientModal);
+  btnCloseImportClientArch?.addEventListener('click', closeImportClientModal);
+  btnCancelImportClientArch?.addEventListener('click', closeImportClientModal);
+
+  // Quick template samples
+  btnSamplePlantUml?.addEventListener('click', () => {
+    if (txtClientDocContent) {
+      txtClientDocContent.value = `@startuml
+autonumber
+actor "Customer / User" as Client
+participant "Enterprise API Gateway" as Gateway
+participant "Validation & Staging Service" as Validator
+participant "Evolve AI Copilot" as AI
+database "PostgreSQL & pgvector" as DB
+actor "Supervisor Gate" as HITL
+
+Client -> Gateway: POST /v1/process-loan (Application payload)
+Gateway -> Validator: Forward with tenant claims
+Validator -> AI: Enrich with enterprise credit handbook
+AI --> Validator: Grounded recommendation with confidence score
+alt High-Value Transaction (> $100k)
+    Validator -> HITL: Request underwriter sign-off
+    HITL --> Validator: 1-Click approval token
+end
+Validator -> DB: Commit audited record & vector embedding
+DB --> Client: 200 OK Execution Receipt
+@enduml`;
+    }
+    if (txtClientDocName && !txtClientDocName.value) txtClientDocName.value = 'Client PlantUML Architecture';
+  });
+
+  btnSampleLegacyProse?.addEventListener('click', () => {
+    const radLegacy = document.getElementById('radFdeClientDocTargetLegacy') as HTMLInputElement;
+    if (radLegacy) radLegacy.checked = true;
+    if (txtClientDocContent) {
+      txtClientDocContent.value = `# Current Operating Topology (Legacy As-Is)
+1. Business users receive invoices and claims as PDF email attachments.
+2. Users manually type data into shared Excel spreadsheets on an unencrypted SFTP drive.
+3. Every midnight, a legacy batch script ingests the spreadsheet into the AS400 core database.
+4. If discrepancies occur, operators send email chains back and forth to get supervisor approval.
+5. Zero audit log of manual overrides; high error rate and 48-hour batch processing lag.`;
+    }
+    if (txtClientDocName) txtClientDocName.value = 'Legacy As-Is Operating Manual';
+  });
+
+  btnSampleFutureProse?.addEventListener('click', () => {
+    const radFuture = document.getElementById('radFdeClientDocTargetFuture') as HTMLInputElement;
+    if (radFuture) radFuture.checked = true;
+    if (txtClientDocContent) {
+      txtClientDocContent.value = `# Mandated Target Architecture (CISO & ARB)
+All requests must enter through Apigee API Gateway with OAuth2 and mTLS.
+Apigee routes requests to Kafka topic 'claims-intake'.
+Evolve AI worker service consumes message, validates against JSON Schema, and queries pgvector store.
+Human supervisor reviews exceptions in ServiceNow before final commit.
+Final transactions written to Oracle RAC with signed cryptographic hash receipt.`;
+    }
+    if (txtClientDocName) txtClientDocName.value = 'Mandated Target Architecture (ARB)';
+  });
+
+  // Load from workspace dropdown
+  selWorkspaceArchDoc?.addEventListener('change', async () => {
+    const relPath = selWorkspaceArchDoc.value;
+    if (!relPath) return;
+    if (api?.workspace?.readFile) {
+      try {
+        const fileContent = await api.workspace.readFile(relPath);
+        if (fileContent && txtClientDocContent) {
+          txtClientDocContent.value = fileContent;
+          if (txtClientDocName) txtClientDocName.value = relPath;
+          showToast(`✓ Loaded ${relPath}`);
+        }
+      } catch (e: any) {
+        showToast(`⚠️ Could not read ${relPath}: ${e.message}`);
+      }
+    }
+  });
+
+  btnSubmitImportClientArch?.addEventListener('click', async () => {
+    const content = (txtClientDocContent?.value || '').trim();
+    if (!content) {
+      showToast('⚠️ Please paste or load client architecture content.');
+      txtClientDocContent?.focus();
+      return;
+    }
+
+    const radLegacy = document.getElementById('radFdeClientDocTargetLegacy') as HTMLInputElement;
+    const radBoth = document.getElementById('radFdeClientDocTargetBoth') as HTMLInputElement;
+    const target: 'legacy' | 'future' | 'both' = radLegacy?.checked ? 'legacy' : (radBoth?.checked ? 'both' : 'future');
+    const docName = (txtClientDocName?.value || '').trim() || 'Client Architecture Spec';
+
+    if (lblImportStatus) lblImportStatus.textContent = 'Parsing and validating architecture spec...';
+
+    try {
+      if (api?.fde?.parseClientTopologyDoc) {
+        const res = await api.fde.parseClientTopologyDoc({
+          content,
+          target,
+          docName,
+          rawAsk: txtRawAsk?.value,
+          reframedGoal: txtReframed?.value
+        });
+
+        if (!res || !res.success) {
+          if (lblImportStatus) lblImportStatus.textContent = `❌ ${res?.error || 'Failed to parse document.'}`;
+          showToast(`⚠️ Parsing error: ${res?.error || 'Failed to parse'}`);
+          return;
+        }
+
+        // Apply parsed diagrams
+        if (res.futureDiagram) cachedDiagrams.futureDiagram = res.futureDiagram;
+        if (res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
+
+        // Switch active tab according to target
+        if (target === 'legacy') {
+          setDiagramMode('legacy');
+        } else {
+          setDiagramMode('future');
+        }
+
+        if (topologyContainer) {
+          topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+        }
+
+        activeTopologyPresetKey = 'custom';
+        activeTopologyPresetName = `🏢 Client Spec: ${docName}`;
+        activeTopologyPresetModified = false;
+        persistDiagramsLocally();
+        paintDiagram();
+        fitToView();
+        paintCompare();
+        updateActiveTemplateUI();
+        closeImportClientModal();
+
+        showToast(`✓ Ingested "${docName}" (${res.participantCount} systems, ${res.messageCount} steps)!`);
+      }
+    } catch (err: any) {
+      if (lblImportStatus) lblImportStatus.textContent = `❌ Error: ${err.message}`;
+      showToast(`⚠️ Error importing architecture: ${err.message}`);
+    }
+  });
+
   // --- VERSION CONTROL & SNAPSHOT MANAGEMENT ---
   const badgeVersion = document.getElementById('badgeActiveScopeVersion');
   const selVersionHistory = document.getElementById('selScopeVersionHistory') as HTMLSelectElement;

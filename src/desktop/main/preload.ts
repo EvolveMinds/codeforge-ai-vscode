@@ -193,6 +193,7 @@ const desktopApi = {
     aiAnalyzeRawAsk: (req: { rawAsk: string; archetype?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_ANALYZE_RAW_ASK, req),
     aiGenerateTopology: (req: { rawAsk: string; reframedGoal: string; archetype?: string; engagementNature?: 'brownfield' | 'greenfield' }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, req),
     aiEditTopology: (req: { instruction: string; diagram: string; mode: 'future' | 'legacy'; model?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_EDIT_TOPOLOGY, req),
+    parseClientTopologyDoc: (req: { content: string; target: 'legacy' | 'future' | 'both'; docName?: string; rawAsk?: string; reframedGoal?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.PARSE_CLIENT_TOPOLOGY_DOC, req),
     previewDiscovery: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.PREVIEW_DISCOVERY, data),
     revealPath: (p: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.REVEAL_PATH, p),
     snapshotScopeVersion: (req: { message: string; data: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SNAPSHOT_SCOPE_VERSION, req),

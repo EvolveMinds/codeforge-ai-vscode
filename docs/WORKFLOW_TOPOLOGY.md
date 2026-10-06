@@ -1,24 +1,24 @@
 # 🗺️ Workflow Topology Architecture
-> **Active Architecture Preset**: `custom`
+> **Active Architecture Preset**: `greenfield-event`
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor User as Business Operator / User
-    participant Gateway as Secure Ingest & Webhook Gateway
-    participant Staging as Deterministic Schema Staging & Rule Gate
-    participant AI as Evolve AI Copilot (Air-Gapped)
-    actor Supervisor as Human-in-the-Loop (HITL) Gate
-    participant ProdDB as Production Warehouse & Signed Audit Log
+    actor Producer as Upstream Service / Kafka
+    participant Queue as Pub/Sub Event Ingress
+    participant Worker as Event Processor Worker
+    participant Model as Small Language Model (SLM)
+    participant Lake as Apache Iceberg / BigLake
+    actor Audit as Compliance Verification Gate
     
-    User->>Gateway: Submit structured request payload
-    Gateway->>Staging: Normalize & execute compiled SQL validation (<10ms)
-    alt High-Confidence Deterministic Operation
-        Staging->>ProdDB: Instant verified commit with audit trail
-    else Requires Policy Interpretation or Exceeds Threshold
-        Staging->>AI: Enrich with 128-token grounded handbook context
-        AI->>Supervisor: Draft verified recommendation with citations
-        Supervisor->>ProdDB: 1-Click Cryptographically Signed Approval
+    Producer->>Queue: Publish domain event payload
+    Queue->>Worker: Pull event batch
+    Worker->>Model: Fast deterministic extraction & classification (<20ms)
+    Model-->>Worker: Structured typed schema entity
+    alt Anomaly or Threshold Exceeded
+        Worker->>Audit: Escalate exception to review queue
+        Audit-->>Worker: Certified resolution stamp
     end
-    ProdDB-->>User: Verified execution receipt generated
+    Worker->>Lake: Append parquet micro-batch with SHA-256 seal
+    Worker-->>Queue: Acknowledge message processed
 ```

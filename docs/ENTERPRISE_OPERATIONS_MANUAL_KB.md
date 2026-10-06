@@ -106,9 +106,22 @@ The primary cockpit for leading a client engagement from Day 1 to Day 14.
   * FTE Capacity Unlocked.
   * Error Rate Drop Percentage.
 
-#### Step 3: Workflow Topology (Mermaid Diagram)
-* **Action**: Toggle between **As-Is Legacy Topology** (fragmented, manual spreadsheets) and **To-Be Automated Architecture** (deterministic staging core, LLM draft generator, human approval gate).
-* **Action: Generate / Edit Diagram**: Edit Mermaid sequence diagrams with live syntax-checked canvas rendering.
+#### Step 3: Workflow Topology (Mermaid Diagram & Client Spec Ingestion)
+* **Action: State Toggle**: Toggle between **As-Is Legacy Topology** (fragmented, manual spreadsheets, batch silos) and **To-Be Automated Architecture** (deterministic staging core, LLM draft generator, human approval gate).
+* **Action: Ingesting Client-Provided Architecture Documents (`📥 Import Client Spec`)**:
+  * In enterprise settings, clients frequently supply their own architectural runbooks, Confluence pages, PlantUML diagrams, or CISO-mandated future topologies.
+  * Click **"📥 Import Client Spec"** in the Step 3 toolbar to open the ingestion engine.
+  * **Target Assignment**:
+    * 🔴 **Current State (As-Is / Legacy Bottlenecks)**: Ingests client operational documents describing legacy AS400, SFTP drops, unvalidated spreadsheets, and email handoffs as the baseline.
+    * 🟢 **Future State (To-Be / Target Architecture)**: Adopts client ARB/CISO prescribed architectural constraints (e.g. Apigee ➔ Kafka ➔ Private Kubernetes ➔ Oracle RAC + pgvector with ServiceNow approval).
+    * ⇄ **Both (Comparative Specification)**: Ingests documents with both current and future sections to generate synchronized topologies.
+  * **Supported Formats**: Unstructured Markdown/text, PlantUML (`@startuml ... @enduml`), native Mermaid (`sequenceDiagram`), or workspace architectural files (`docs/*.md`).
+  * **Provenance**: Automatically stamps active architecture as `🏢 Client Spec: [Name]`, saves to `.evolve/fde_state.json`, and records provenance in `scope_versions.json`.
+* **Action: Live Diagram & Canvas Editing**:
+  * **`✎ Source` Tab**: Directly edit or paste raw Mermaid syntax with instant compilation and syntax validation.
+  * **`☰ Arrange` Tab**: Drag, reorder, or rename participants, systems, and message flow steps without touching code.
+  * **`✨ Conversational AI Editing`**: Prompt the diagram editor (e.g., *"Align with client secops: replace message broker with Apache Kafka and add PingFederate OAuth2"*).
+  * **`▶ Animate Flow`**: Step-through visual message animation tracing data through the sequence topology.
 
 #### Scope Versioning & Revision Management
 * **Autosave**: Any text modification automatically triggers a 2.5-second debounce autosave into `.evolve/fde_state.json`.
