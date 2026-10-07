@@ -1,5 +1,29 @@
 # Evolve AI — Release Notes
 
+## Version 2.28.0 — October 7, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.28.0 introduces enterprise client architecture document ingestion, dual-state topology synthesis, comprehensive 7-tool Virtual Guide conversational assistance, and hardened desktop core file system watchers.
+
+* **Client Document Ingestion Engine:** Native parsing of customer-provided architectural specifications, runbooks, and sequence diagrams in Markdown, PlantUML, and Mermaid (`clientTopologyParser.ts`).
+* **Dual-State Topology Synthesis:** Supports importing client-provided current state (Legacy) and future state (Target) topologies, or synthesizing structured topologies from operational runbook prose.
+* **PlantUML Transpiler:** Transpiles legacy enterprise PlantUML sequence diagrams directly into clean, compliant Mermaid sequence syntax.
+* **Delivery Studio "📥 Import Client Spec" Action:** Dedicated Phase 1 button allowing FDEs to ingest client specs directly into the workspace, updating schema badges and persisting state to `.evolve/fde_state.json`.
+* **7-Tool Enterprise Catalog in Virtual Guide:** Interactive guide detailing exact inputs, outputs, and safety guards for `introspect_schema`, `execute_safe_sql`, `vector_search`, `call_enterprise_api`, `mask_sensitive_payload`, and `read_workspace_document`.
+* **Full Process Flow & Stuck Guides:** Complete navigational guidance for building greenfield vs brownfield applications, modifying UI/UX components, and unblocking stuck phases.
+* **Section 3C MCP Tool Server Studio:** Dual-runtime scaffolding for TypeScript (stdio & Express SSE) and Python (FastMCP with Pydantic v2) with automatic database table tool bindings, Claude Desktop configuration JSON export, and Architectural Decision Records.
+* **Dedicated Git & DevOps Activity Hub:** Promoted Git Hub to a dedicated Green Leaf activity pane, streamlining Delivery Studio into 6 focused phases.
+* **Core Desktop Engine Hardening:** Enhanced `DesktopWorkspaceManager` with safe error-boundary listeners on `fs.FSWatcher` instances, preventing uncaught EPERM crashes upon directory deletion on Windows workstations.
+
+---
+
 ## Version 2.27.0 — September 28, 2026
 
 **Publisher:** `codeforge-ai`  

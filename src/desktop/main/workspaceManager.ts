@@ -346,6 +346,9 @@ export class DesktopWorkspaceManager {
           try { cb(event, filename); } catch {}
         }
       });
+      this._watcher.on('error', () => {
+        // Suppress watcher errors e.g. EPERM when directory is deleted or modified externally
+      });
     } catch {}
   }
 

@@ -2,6 +2,36 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.28.0] — 2026-10-07
+
+### Enterprise Client Architecture Document Ingestion Engine & Dual-State Topology
+
+* **Client Document Ingestion Engine:** Integrated native support for importing client-provided architectural specifications, runbooks, and diagrams in Markdown, PlantUML, and Mermaid formats (`clientTopologyParser.ts`).
+* **Dual-State Topology Synthesis:** Enables engineering teams to ingest client-provided legacy (current state) topologies, future target topologies, or bifurcated specs defining both. Unstructured operational prose is deterministically synthesized into validated Mermaid sequence diagrams.
+* **PlantUML Transpiler:** Transpiles legacy PlantUML sequence diagrams to clean Mermaid sequence syntax with automatic normalization of activations, notes, and lifeline participants.
+* **Interactive Studio Action:** Added "📥 Import Client Spec" action button directly in Delivery Studio Phase 1, updating dynamic schema badges and persisting state to `.evolve/fde_state.json`.
+
+### Conversational Virtual Guide & Enterprise Knowledge Base (Phase 1–5)
+
+* **7-Tool Enterprise Catalog in Virtual Guide:** Added full interactive documentation and contextual assistance for all core platform tools: `introspect_schema`, `execute_safe_sql`, `vector_search`, `call_enterprise_api`, `mask_sensitive_payload`, `read_workspace_document`.
+* **Enterprise Operations & Stuck Guide:** Added complete process flow breakdowns for building greenfield vs brownfield applications from scratch, modifying UI/UX components, and navigating stuck workflows.
+* **Client Topology Guidance:** Virtual Guide routes and guides users on how to import and validate client-supplied current and future state architecture topologies.
+
+### Section 3C MCP Tool Server Studio & Enterprise Scaffolding
+
+* **Dual-Runtime Microservice Scaffolding:** Scaffolds both TypeScript (stdio & Express SSE microservice) and Python (FastMCP with Pydantic v2 schemas) Model Context Protocol servers.
+* **Dynamic Database Table Binding:** Automatically maps introspected enterprise database tables to typed MCP tool definitions.
+* **Claude Desktop & ADR Generation:** Exports standard Claude Desktop configuration manifests (`claude_desktop_config.json`) and Architectural Decision Records (`ADR-MCP-001`).
+
+### Git & DevOps Activity Hub Elevation
+
+* **Dedicated Green Leaf Activity Pane:** Promoted Git & DevOps Hub to a dedicated primary navigation pane, streamlining Delivery Studio into 6 focused phases.
+* **Multi-Provider CI/CD Scaffolder:** Generates production-ready pipelines for GitHub Actions, GitLab CI, Bitbucket Pipelines, and Azure DevOps with OIDC and secret manager bindings.
+
+### Core Desktop Engine Hardening
+
+* **Resilient File Watcher Error Boundaries:** Added safe error listeners to `DesktopWorkspaceManager`'s `fs.FSWatcher` instances, preventing uncaught EPERM crashes upon directory deletion on Windows workstations.
+
 ## [2.27.0] — 2026-09-28
 
 ### Security Hardening · Zero-Secret Cryptographic Key Rotation & Decoupled Trials

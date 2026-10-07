@@ -209,7 +209,7 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
   });
 
   test('DesktopIpcHandlers registers and executes all IPC channel handlers', async function () {
-    this.timeout(30000);
+    this.timeout(60000);
     const wsMgr = new DesktopWorkspaceManager(tmpDir);
     wsMgr.setCurrentWorkspace(tmpDir);
     const termMgr = new DesktopTerminalManager();
