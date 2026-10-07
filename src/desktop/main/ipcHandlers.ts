@@ -52,6 +52,7 @@ import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
 import { McpScaffolder, McpScaffoldOptions } from '../../fde/mcpScaffolder';
 import { ClientTopologyParser, ClientTopologyParseOptions } from '../../fde/clientTopologyParser';
+import { EnterpriseFeature } from '../../enterprise/license/licenseTypes';
 import { presentDocument } from '../../fde/documentPresenter';
 import { DataScientistEngine } from '../../offline/dataScientistEngine';
 import {
@@ -1720,6 +1721,16 @@ export class DesktopIpcHandlers {
     this._licenseAuth = options.licenseAuth;
     this._secretVault = options.secretVault;
     this._updater = options.updater;
+  }
+
+  private _assertEntitlement(feature?: EnterpriseFeature, actionName?: string): void {
+    const state = this._licenseAuth.getLicenseState();
+    if (!state.isLicensed) {
+      throw new Error(`Enterprise License Required: Action "${actionName || 'Commercial Feature'}" requires an active Evolve AI Enterprise license or evaluation trial.`);
+    }
+    if (feature && !this._licenseAuth.hasFeature(feature)) {
+      throw new Error(`Feature Unlicensed: Feature "${feature}" is not included in your current license plan (${state.plan}).`);
+    }
   }
 
   public registerAll(customIpcMain?: any): void {
@@ -4100,38 +4111,47 @@ export async function executeTask() {
 
     // --- ENTERPRISE & FDE CORE ENGINES ---
     ipc.handle(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL, async (_: any, req: any) => {
+      this._assertEntitlement(undefined, 'SQL Transpiler');
       return SqlTranspiler.transpile(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.PII_MASKING, async (_: any, req: any) => {
+      this._assertEntitlement(undefined, 'PII Sanitizer & Data Masking');
       return PiiSanitizer.generatePiiMaskingSuite(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.REVERSE_ETL, async (_: any, req: any) => {
+      this._assertEntitlement(undefined, 'Reverse ETL Sync');
       return ReverseEtlGenerator.generateReverseEtlSync(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.RLS_POLICIES, async (_: any, req: any) => {
+      this._assertEntitlement(undefined, 'RLS Policy Generator');
       return RlsPolicyGenerator.generateRlsPolicies(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.SYNTHETIC_DATA, async (_: any, req: any) => {
+      this._assertEntitlement(undefined, 'Synthetic Data Generator');
       return SyntheticDataGenerator.generateDataset(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.MOCK_SERVER, async (_: any, req: any) => {
+      this._assertEntitlement(undefined, 'Mock Server Generator');
       return MockServerGenerator.generateMockServer(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.DATA_QUALITY, async (_: any, req: any) => {
+      this._assertEntitlement('data_quality', 'Data Quality Engine');
       return DataQualityGenerator.generateQualityPackage(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.LOAD_TEST, async (_: any, req: any) => {
+      this._assertEntitlement('load_testing', 'Load Test Suite Generator');
       return LoadTestGenerator.generateSuite(req);
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.RAG_PIPELINE, async (_: any, req: any) => {
+      this._assertEntitlement('rag_scaffolder', 'RAG Pipeline Scaffolder');
       try {
         const result = RagPipelineScaffolder.scaffold(req || {});
         const ws = workspaceMgr.getCurrentWorkspace();
@@ -4154,11 +4174,13 @@ export async function executeTask() {
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.SIEM_AUDIT, async (_: any, event: any) => {
+      this._assertEntitlement('siem_logging', 'SIEM Audit Forwarder');
       const fwd = SiemAuditForwarder.getInstance();
       return fwd.createEvent(event.action || 'system_access', event.severity || 'info', event.options || {});
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.PRIVATE_SERVING, async (_: any, config: any) => {
+      this._assertEntitlement(undefined, 'Private Model Serving');
       const client = new PrivateModelClient(config);
       return await client.checkHealth();
     });
@@ -4226,6 +4248,7 @@ export async function executeTask() {
     });
 
     ipc.handle(DESKTOP_CHANNELS.ENGINES.SCAFFOLD_DEPLOY, async (_: any, config: any) => {
+      this._assertEntitlement(undefined, 'Deployment Script Scaffolder');
       const opts = {
         ...config,
         targetVpc: config?.targetVpc || config?.provider || 'gcp-firebase'
@@ -6683,6 +6706,7 @@ describe('Level ${level} Architecture Target Verification', () => {
     });
 
     ipc.handle(DESKTOP_CHANNELS.FDE.SCAFFOLD_MCP_TOOL_SERVER, async (_: any, req?: McpScaffoldOptions) => {
+      this._assertEntitlement(undefined, 'MCP Tool Server Scaffolder');
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
 
@@ -8327,6 +8351,7 @@ Establish clean staging schema models and compiled rule gates for all determinis
       reframedGoal?: string;
     }) => {
       try {
+        this._assertEntitlement(undefined, 'Client Architecture Spec Ingestion');
         const content = (req?.content || '').trim();
         const target = req?.target || 'both';
         const docName = (req?.docName || '').trim() || 'Client Architecture Specification';

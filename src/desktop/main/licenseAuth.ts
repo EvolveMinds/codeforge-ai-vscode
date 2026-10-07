@@ -14,12 +14,15 @@ import {
 } from '../shared/desktopTypes';
 import { LicenseValidator } from '../../enterprise/license/licenseValidator';
 import { LicenseManager } from '../../enterprise/license/licenseManager';
+import { DesktopSecretVault } from './secretVault';
+import { EnterpriseFeature } from '../../enterprise/license/licenseTypes';
 
 export class DesktopLicenseAuth {
   private _storageDir: string;
   private _licenseFile: string;
   private _profileFile: string;
   private _licenseMgr: LicenseManager;
+  private _vault: DesktopSecretVault;
 
   constructor(customStorageDir?: string) {
     this._storageDir = customStorageDir || path.join(os.homedir(), '.evolve');
@@ -28,6 +31,7 @@ export class DesktopLicenseAuth {
     }
     this._licenseFile = path.join(this._storageDir, 'license.json');
     this._profileFile = path.join(this._storageDir, 'profile.json');
+    this._vault = new DesktopSecretVault(this._storageDir);
 
     const mockStorage: any = {
       get: async (key: string) => {
@@ -82,8 +86,29 @@ export class DesktopLicenseAuth {
     this._syncFromStorage();
   }
 
+  private _computeTrialSignature(firstActivated: string, expiresAt: string): string {
+    const entropy = `evolve:trial:${os.platform()}:${os.hostname()}:${os.userInfo().username}:${firstActivated}:${expiresAt}`;
+    return crypto.createHash('sha256').update(entropy).digest('hex');
+  }
+
   private _syncFromStorage(): void {
     try {
+      let activeVaultTrial = false;
+      const vaultStart = this._vault.getSecret('trial_first_activated');
+      const vaultExpiry = this._vault.getSecret('trial_expires_at');
+      const vaultSig = this._vault.getSecret('trial_signature');
+
+      if (vaultStart && vaultExpiry && vaultSig) {
+        const expectedSig = this._computeTrialSignature(vaultStart, vaultExpiry);
+        if (vaultSig === expectedSig) {
+          const now = Date.now();
+          const expiryTime = new Date(vaultExpiry).getTime();
+          if (now < expiryTime) {
+            activeVaultTrial = true;
+          }
+        }
+      }
+
       if (fs.existsSync(this._licenseFile)) {
         const rawContent = fs.readFileSync(this._licenseFile, 'utf8').trim();
         let key = (rawContent || '').replace(/[\r\n\s\t]+/g, '').trim();
@@ -91,24 +116,28 @@ export class DesktopLicenseAuth {
         if (rawContent.startsWith('{')) {
           try {
             const parsed = JSON.parse(rawContent);
-            if (parsed.isTrial && parsed.expiresAt) {
-              const now = new Date();
-              const expiresAt = new Date(parsed.expiresAt);
-              if (now < expiresAt) {
+
+            // Gated Trial Check: rawContent claiming isTrial is ONLY trusted if vault confirms active trial
+            if (parsed.isTrial) {
+              if (activeVaultTrial && vaultExpiry) {
+                const now = new Date();
+                const expiresAt = new Date(vaultExpiry);
                 const diffMs = expiresAt.getTime() - now.getTime();
                 const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                const org = this._vault.getSecret('trial_org') || parsed.organization || 'Trial Partner';
+
                 (this._licenseMgr as any)._state = {
                   isLicensed: true,
                   isTrial: true,
                   plan: 'enterprise_platinum',
-                  organization: parsed.organization || 'Trial Partner',
-                  licenseId: parsed.licenseId || 'EM-TRIAL-LOCAL',
-                  expiresAt: parsed.expiresAt,
+                  organization: org,
+                  licenseId: 'EM-TRIAL-LOCAL',
+                  expiresAt: vaultExpiry,
                   daysRemaining: daysRemaining,
-                  maxSeats: parsed.maxSeats || 25,
-                  seats: parsed.maxSeats || 25,
+                  maxSeats: 25,
+                  seats: 25,
                   licenseScope: 'seat',
-                  features: parsed.features || [
+                  features: [
                     'load_testing',
                     'rag_scaffolder',
                     'data_quality',
@@ -120,14 +149,35 @@ export class DesktopLicenseAuth {
                   rawKey: 'LOCAL_TRIAL_ACTIVE',
                 };
                 return;
+              } else {
+                // license.json trial has no backing vault entitlement or is expired
+                (this._licenseMgr as any)._state = {
+                  isLicensed: false,
+                  isTrial: false,
+                  plan: 'community',
+                  organization: 'Community User',
+                  licenseId: '',
+                  expiresAt: '',
+                  daysRemaining: 0,
+                  maxSeats: 0,
+                  seats: 0,
+                  licenseScope: 'seat',
+                  features: []
+                };
+                return;
               }
             }
+
             const extracted = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
             key = (extracted || '').replace(/[\r\n\s\t]+/g, '').trim();
             claimantEmail = parsed.claimedBy || parsed.userEmail || parsed.email;
           } catch {}
         }
+
         if (typeof key === 'string' && key.startsWith('EM-ENT-V1.')) {
+          if (claimantEmail && (claimantEmail.includes('BEGIN PUBLIC KEY') || claimantEmail.includes('KEY-----'))) {
+            claimantEmail = undefined;
+          }
           const res = LicenseValidator.verify(key, claimantEmail);
           if (res.valid && res.payload) {
             (this._licenseMgr as any)._state = {
@@ -152,7 +202,41 @@ export class DesktopLicenseAuth {
           }
         }
       }
-      // If no valid license found
+
+      // If no valid license.json, but vault has an active trial
+      if (activeVaultTrial && vaultExpiry) {
+        const now = new Date();
+        const expiresAt = new Date(vaultExpiry);
+        const diffMs = expiresAt.getTime() - now.getTime();
+        const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+        const org = this._vault.getSecret('trial_org') || 'Trial Partner';
+
+        (this._licenseMgr as any)._state = {
+          isLicensed: true,
+          isTrial: true,
+          plan: 'enterprise_platinum',
+          organization: org,
+          licenseId: 'EM-TRIAL-LOCAL',
+          expiresAt: vaultExpiry,
+          daysRemaining: daysRemaining,
+          maxSeats: 25,
+          seats: 25,
+          licenseScope: 'seat',
+          features: [
+            'load_testing',
+            'rag_scaffolder',
+            'data_quality',
+            'siem_logging',
+            'co_branding',
+            'multi_tenant_sync',
+            'priority_sla',
+          ],
+          rawKey: 'LOCAL_TRIAL_ACTIVE',
+        };
+        return;
+      }
+
+      // Default: unlicensed community state
       (this._licenseMgr as any)._state = {
         isLicensed: false,
         isTrial: false,
@@ -233,7 +317,11 @@ export class DesktopLicenseAuth {
 
   public async activateLicenseKey(licenseKey: string, userEmail?: string): Promise<{ valid: boolean; error?: string; state: EnterpriseLicenseState }> {
     const cleanKey = (licenseKey || '').replace(/[\r\n\s\t]+/g, '').trim();
-    const result = await this._licenseMgr.activateLicense(cleanKey, userEmail);
+    let sanitizedEmail = userEmail;
+    if (sanitizedEmail && (sanitizedEmail.includes('BEGIN PUBLIC KEY') || sanitizedEmail.includes('KEY-----'))) {
+      sanitizedEmail = undefined;
+    }
+    const result = await this._licenseMgr.activateLicense(cleanKey, sanitizedEmail);
     if (result.valid && result.payload) {
       try {
         const bundle = {
@@ -251,7 +339,7 @@ export class DesktopLicenseAuth {
           features: result.payload.features,
           contactEmail: result.payload.contactEmail,
           ...(result.payload.allowedEmailDomains ? { allowedEmailDomains: result.payload.allowedEmailDomains } : {}),
-          ...(result.payload.claimantEmail || userEmail ? { claimedBy: result.payload.claimantEmail || userEmail, claimedAt: new Date().toISOString() } : {}),
+          ...(result.payload.claimantEmail || sanitizedEmail ? { claimedBy: result.payload.claimantEmail || sanitizedEmail, claimedAt: new Date().toISOString() } : {}),
         };
         const dir = path.dirname(this._licenseFile);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -278,9 +366,71 @@ export class DesktopLicenseAuth {
   }
 
   public async activateLocalTrial(orgName: string = 'Enterprise Partner', days: number = 30): Promise<EnterpriseLicenseState> {
+    const existingStart = this._vault.getSecret('trial_first_activated');
+    const existingExpiry = this._vault.getSecret('trial_expires_at');
+    const existingSig = this._vault.getSecret('trial_signature');
+
+    const now = Date.now();
+
+    if (existingStart && existingExpiry && existingSig) {
+      const expectedSig = this._computeTrialSignature(existingStart, existingExpiry);
+      if (existingSig === expectedSig) {
+        const expiryTime = new Date(existingExpiry).getTime();
+        if (now > expiryTime) {
+          throw new Error('Evaluation trial period has already expired on this workstation. To continue using Evolve AI Enterprise, please enter a valid enterprise license key.');
+        }
+        // Still within original 30-day window; return current active state
+        this._syncFromStorage();
+        return this.getLicenseState();
+      }
+    }
+
+    if (existingStart) {
+      throw new Error('Evaluation trial period has already expired on this workstation. To continue using Evolve AI Enterprise, please enter a valid enterprise license key.');
+    }
+
+    const startDate = new Date();
+    const expiryDate = new Date(startDate.getTime() + Math.min(days, 30) * 86400000);
+    const startIso = startDate.toISOString();
+    const expiryIso = expiryDate.toISOString();
+    const sig = this._computeTrialSignature(startIso, expiryIso);
+
+    this._vault.setSecret('trial_first_activated', startIso);
+    this._vault.setSecret('trial_expires_at', expiryIso);
+    this._vault.setSecret('trial_signature', sig);
+    this._vault.setSecret('trial_org', orgName);
+
     await this._licenseMgr.activateLocalTrial(orgName, days);
+
+    try {
+      const bundle = {
+        isTrial: true,
+        organization: orgName,
+        plan: 'enterprise_platinum',
+        licenseId: 'EM-TRIAL-LOCAL',
+        startedAt: startIso,
+        expiresAt: expiryIso,
+        trialSignature: sig,
+        features: [
+          'load_testing',
+          'rag_scaffolder',
+          'data_quality',
+          'siem_logging',
+          'co_branding',
+          'multi_tenant_sync',
+          'priority_sla',
+        ]
+      };
+      fs.writeFileSync(this._licenseFile, JSON.stringify(bundle, null, 2), 'utf8');
+    } catch {}
+
     this._syncFromStorage();
     return this.getLicenseState();
+  }
+
+  public hasFeature(feature: EnterpriseFeature): boolean {
+    this._syncFromStorage();
+    return this._licenseMgr.hasFeature(feature);
   }
 
   public async generateTrialKey(orgName: string = 'Enterprise Partner', days: number = 30): Promise<string> {

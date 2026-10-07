@@ -938,7 +938,12 @@ async function setupLicenseGate(api: any): Promise<boolean> {
           const parsed = JSON.parse(content);
           key = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || content;
           if (parsed.claimedBy) {
-            (window as any)._evolveClaimedBy = parsed.claimedBy;
+            const rawClaimed = String(parsed.claimedBy).trim();
+            if (!rawClaimed.includes('BEGIN PUBLIC KEY') && !rawClaimed.includes('KEY-----')) {
+              (window as any)._evolveClaimedBy = rawClaimed;
+            } else {
+              delete (window as any)._evolveClaimedBy;
+            }
           }
         } catch {}
       }

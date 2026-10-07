@@ -3,6 +3,7 @@
  */
 
 import * as assert from 'assert';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -15,6 +16,7 @@ import { DesktopUpdater } from '../../../desktop/main/updater';
 import { getAppVersion, _setAppVersionForTests } from '../../../desktop/shared/appVersion';
 import { DesktopIpcHandlers } from '../../../desktop/main/ipcHandlers';
 import { DESKTOP_CHANNELS } from '../../../desktop/shared/eventChannels';
+import { LicenseValidator } from '../../../enterprise/license/licenseValidator';
 
 suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function () {
   this.timeout(20000);
@@ -277,8 +279,22 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.ok(!sasConvRes.convertedCode.includes('// Transpiled target code'), 'Must not produce // comment in SAS');
     assert.ok(sasConvRes.targetFileName.endsWith('.sas'));
 
-    // Test invoking SQL Transpiler IPC handler directly
+    // Test invoking SQL Transpiler IPC handler directly (assert license entitlement guard)
     const transpileFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL)!;
+    await assert.rejects(
+      async () => await transpileFn(null, {
+        sourceSql: 'SELECT NVL(cust_id, 0) FROM orders;',
+        sourceDialect: 'oracle',
+        targetDialect: 'bigquery',
+        materialization: 'table',
+        targetModelName: 'stg_orders'
+      }),
+      /Enterprise License Required/
+    );
+
+    // Activate trial to unlock commercial engines
+    await licAuth.activateLocalTrial('Acme Corporation', 30);
+
     const transpileRes = await transpileFn(null, {
       sourceSql: 'SELECT NVL(cust_id, 0) FROM orders;',
       sourceDialect: 'oracle',
@@ -616,6 +632,143 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     const hitlAuditEntries = JSON.parse(fs.readFileSync(hitlAuditPath, 'utf8'));
     assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'TX-9482' && e.action === 'APPROVED'));
     assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'CALL-8921' && e.dualSigned === true && e.domain === 'agentic_mcp'));
+
+    wsMgr.dispose();
+    termMgr.dispose();
+  });
+
+  test('DesktopLicenseAuth rejects forged trial in license.json without machine vault record', () => {
+    const fakeDir = path.join(tmpDir, 'fake-trial-test');
+    fs.mkdirSync(fakeDir, { recursive: true });
+
+    // Attacker crafts a fake trial claiming Platinum until 2099
+    fs.writeFileSync(
+      path.join(fakeDir, 'license.json'),
+      JSON.stringify({
+        isTrial: true,
+        expiresAt: '2099-12-31T23:59:59.000Z',
+        organization: 'Illegitimate Entity',
+        plan: 'enterprise_platinum'
+      }),
+      'utf8'
+    );
+
+    const licAuth = new DesktopLicenseAuth(fakeDir);
+    const state = licAuth.getLicenseState();
+
+    assert.strictEqual(state.isLicensed, false, 'Forged trial without machine vault signature must be rejected');
+    assert.strictEqual(state.plan, 'community');
+  });
+
+  test('DesktopLicenseAuth prevents trial reactivation once expired on workstation', async () => {
+    const trialDir = path.join(tmpDir, 'trial-expiration-test');
+    fs.mkdirSync(trialDir, { recursive: true });
+
+    const licAuth = new DesktopLicenseAuth(trialDir);
+
+    // Initial trial activation succeeds
+    const state1 = await licAuth.activateLocalTrial('Legit Partner', 30);
+    assert.strictEqual(state1.isLicensed, true);
+    assert.strictEqual(state1.plan, 'enterprise_platinum');
+
+    // Simulate expiration in vault
+    const vault = new DesktopSecretVault(trialDir);
+    const pastStart = new Date(Date.now() - 35 * 86400000).toISOString();
+    const pastExpiry = new Date(Date.now() - 5 * 86400000).toISOString();
+    vault.setSecret('trial_first_activated', pastStart);
+    vault.setSecret('trial_expires_at', pastExpiry);
+    const entropy = `evolve:trial:${process.platform}:${os.hostname()}:${os.userInfo().username}:${pastStart}:${pastExpiry}`;
+    const sig = crypto.createHash('sha256').update(entropy).digest('hex');
+    vault.setSecret('trial_signature', sig);
+
+    // Should now report as expired / unlicensed
+    const expiredState = licAuth.getLicenseState();
+    assert.strictEqual(expiredState.isLicensed, false);
+
+    // Re-clicking "Start Trial" must be refused and throw error
+    await assert.rejects(
+      async () => await licAuth.activateLocalTrial('Legit Partner', 30),
+      /Evaluation trial period has already expired on this workstation/
+    );
+  });
+
+  test('LicenseValidator rejects PEM public key injection in claimant identity', () => {
+    const maliciousPubKey = `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEALZPafF2acKzjX3gMi1Jha9JQgXk+UQXVi81/jUMM/8w=\n-----END PUBLIC KEY-----`;
+    const dummyToken = 'EM-ENT-V1.eyJvcmciOiJ0ZXN0In0.c2lnbmF0dXJl';
+
+    const result = LicenseValidator.verify(dummyToken, maliciousPubKey);
+    assert.strictEqual(result.valid, false);
+    assert.strictEqual(result.status, 'malformed');
+    assert.ok(result.error?.includes('Public key injection is prohibited'));
+  });
+
+  test('DesktopIpcHandlers guards all commercial engines when unlicensed', async () => {
+    const unlicDir = path.join(tmpDir, 'unlic-handlers-test');
+    fs.mkdirSync(unlicDir, { recursive: true });
+
+    const wsMgr = new DesktopWorkspaceManager(unlicDir);
+    wsMgr.setCurrentWorkspace(unlicDir);
+    const termMgr = new DesktopTerminalManager();
+    const licAuth = new DesktopLicenseAuth(unlicDir);
+    const secretVault = new DesktopSecretVault(unlicDir);
+    const updater = new DesktopUpdater(unlicDir);
+
+    const handlers = new DesktopIpcHandlers({
+      workspaceMgr: wsMgr,
+      terminalMgr: termMgr,
+      licenseAuth: licAuth,
+      secretVault: secretVault,
+      updater: updater
+    });
+
+    const registeredChannels = new Map<string, Function>();
+    handlers.registerAll({
+      handle: (ch: string, fn: Function) => registeredChannels.set(ch, fn)
+    });
+
+    // 1. TRANSPILE_SQL
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TRANSPILE_SQL)!(null, {}), /Enterprise License Required/);
+
+    // 2. PII_MASKING
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.PII_MASKING)!(null, {}), /Enterprise License Required/);
+
+    // 3. REVERSE_ETL
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.REVERSE_ETL)!(null, {}), /Enterprise License Required/);
+
+    // 4. RLS_POLICIES
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RLS_POLICIES)!(null, {}), /Enterprise License Required/);
+
+    // 5. SYNTHETIC_DATA
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.SYNTHETIC_DATA)!(null, {}), /Enterprise License Required/);
+
+    // 6. MOCK_SERVER
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.MOCK_SERVER)!(null, {}), /Enterprise License Required/);
+
+    // 7. DATA_QUALITY
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.DATA_QUALITY)!(null, {}), /Enterprise License Required/);
+
+    // 8. LOAD_TEST
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.LOAD_TEST)!(null, {}), /Enterprise License Required/);
+
+    // 9. RAG_PIPELINE
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RAG_PIPELINE)!(null, {}), /Enterprise License Required/);
+
+    // 10. SIEM_AUDIT
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.SIEM_AUDIT)!(null, {}), /Enterprise License Required/);
+
+    // 11. PRIVATE_SERVING
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.PRIVATE_SERVING)!(null, {}), /Enterprise License Required/);
+
+    // 12. SCAFFOLD_DEPLOY
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.ENGINES.SCAFFOLD_DEPLOY)!(null, {}), /Enterprise License Required/);
+
+    // 13. SCAFFOLD_MCP_TOOL_SERVER
+    await assert.rejects(async () => await registeredChannels.get(DESKTOP_CHANNELS.FDE.SCAFFOLD_MCP_TOOL_SERVER)!(null, {}), /Enterprise License Required/);
+
+    // 14. PARSE_CLIENT_TOPOLOGY_DOC (returns { success: false, error: ... })
+    const topoRes = await registeredChannels.get(DESKTOP_CHANNELS.FDE.PARSE_CLIENT_TOPOLOGY_DOC)!(null, { content: 'test' });
+    assert.strictEqual(topoRes.success, false);
+    assert.ok(topoRes.error.includes('Enterprise License Required'));
 
     wsMgr.dispose();
     termMgr.dispose();

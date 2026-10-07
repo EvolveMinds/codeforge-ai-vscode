@@ -91,16 +91,85 @@ export class DesktopUpdater {
   }
 
   private async _fetchLatestRelease(): Promise<ReleaseFetchResult> {
-    const updateUrl = process.env.EVOLVE_UPDATE_URL || 'https://raw.githubusercontent.com/EvolveMinds/codeforge-ai-vscode/main/package.json';
+    const customUpdateUrl = process.env.EVOLVE_UPDATE_URL;
+    if (customUpdateUrl) {
+      return this._fetchFromUrl(customUpdateUrl);
+    }
+
+    // Query GitHub Releases API to resolve the exact desktop portable .exe binary asset
+    const releasesApiUrl = 'https://api.github.com/repos/EvolveMinds/codeforge-ai-vscode/releases';
+    const fallbackPackageUrl = 'https://raw.githubusercontent.com/EvolveMinds/codeforge-ai-vscode/main/package.json';
+
+    return new Promise<ReleaseFetchResult>((resolve) => {
+      const https = require('https');
+      try {
+        const req = https.get(
+          releasesApiUrl,
+          {
+            timeout: 4000,
+            headers: { 'User-Agent': 'Evolve-AI-Desktop-Updater' }
+          },
+          (res: any) => {
+            if (res.statusCode === 200) {
+              let rawData = '';
+              res.on('data', (chunk: any) => { rawData += chunk; });
+              res.on('end', () => {
+                try {
+                  const releases = JSON.parse(rawData);
+                  if (Array.isArray(releases) && releases.length > 0) {
+                    const desktopRel = releases.find(
+                      (r: any) => (r.tag_name && r.tag_name.includes('desktop')) ||
+                                  (r.assets && r.assets.some((a: any) => a.name.endsWith('.exe')))
+                    ) || releases[0];
+
+                    const rawTag = desktopRel.tag_name || desktopRel.name || this._currentVersion;
+                    const cleanVer = String(rawTag).replace('-desktop', '').replace(/^v/, '');
+                    const exeAsset = desktopRel.assets?.find((a: any) => a.name.endsWith('.exe'));
+                    const directDownload = exeAsset
+                      ? exeAsset.browser_download_url
+                      : `https://github.com/EvolveMinds/codeforge-ai-vscode/releases/download/v${cleanVer}-desktop/evolve-ai-enterprise-portable-${cleanVer}-win32-x64.exe`;
+
+                    resolve({
+                      kind: 'success',
+                      version: cleanVer,
+                      notes: desktopRel.body || desktopRel.name || 'Maintenance and security update.',
+                      date: desktopRel.published_at || new Date().toISOString(),
+                      downloadUrl: directDownload
+                    });
+                    return;
+                  }
+                } catch {}
+                this._fetchFromUrl(fallbackPackageUrl).then(resolve);
+              });
+              return;
+            }
+            this._fetchFromUrl(fallbackPackageUrl).then(resolve);
+          }
+        );
+
+        req.on('error', () => {
+          this._fetchFromUrl(fallbackPackageUrl).then(resolve);
+        });
+        req.on('timeout', () => {
+          req.destroy();
+          resolve({ kind: 'offline', reason: 'Network connection timed out' });
+        });
+      } catch (err: any) {
+        resolve({ kind: 'offline', reason: err.message || String(err) });
+      }
+    });
+  }
+
+  private async _fetchFromUrl(url: string): Promise<ReleaseFetchResult> {
     const https = require('https');
     const http = require('http');
 
     return new Promise<ReleaseFetchResult>((resolve) => {
       try {
-        const parsed = new URL(updateUrl);
+        const parsed = new URL(url);
         const protocol = parsed.protocol === 'http:' ? http : https;
 
-        const req = protocol.get(updateUrl, { timeout: 4000 }, (res: any) => {
+        const req = protocol.get(url, { timeout: 4000 }, (res: any) => {
           if (res.statusCode && (res.statusCode < 200 || res.statusCode >= 300)) {
             resolve({ kind: 'offline', reason: `HTTP status ${res.statusCode}` });
             return;
@@ -111,12 +180,14 @@ export class DesktopUpdater {
             try {
               const parsedJson = JSON.parse(rawData);
               const latestVer = parsedJson.version || parsedJson.tag_name || this._currentVersion;
+              const cleanVer = String(latestVer).replace(/^v/, '').replace('-desktop', '');
+              const directExeUrl = `https://github.com/EvolveMinds/codeforge-ai-vscode/releases/download/v${cleanVer}-desktop/evolve-ai-enterprise-portable-${cleanVer}-win32-x64.exe`;
               resolve({
                 kind: 'success',
-                version: latestVer,
+                version: cleanVer,
                 notes: parsedJson.description || 'Maintenance and stability update.',
                 date: new Date().toISOString(),
-                downloadUrl: 'https://github.com/EvolveMinds/codeforge-ai-vscode/releases'
+                downloadUrl: directExeUrl
               });
             } catch {
               resolve({ kind: 'offline', reason: 'Invalid JSON payload received' });

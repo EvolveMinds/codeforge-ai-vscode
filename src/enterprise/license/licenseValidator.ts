@@ -23,17 +23,19 @@ export class LicenseValidator {
    */
   public static verify(
     rawKey: string,
-    claimantEmailOrPubKey?: string,
+    claimantEmail?: string,
     customPublicKey?: string
   ): LicenseVerificationResult {
-    let claimantEmail: string | undefined = undefined;
-    let resolvedPubKey = customPublicKey;
+    const resolvedPubKey = customPublicKey;
 
-    if (claimantEmailOrPubKey) {
-      if (claimantEmailOrPubKey.includes('BEGIN PUBLIC KEY')) {
-        resolvedPubKey = claimantEmailOrPubKey;
-      } else {
-        claimantEmail = claimantEmailOrPubKey;
+    if (claimantEmail) {
+      if (claimantEmail.includes('BEGIN PUBLIC KEY') || claimantEmail.includes('KEY-----')) {
+        return {
+          valid: false,
+          isExpired: false,
+          status: 'malformed',
+          error: 'Invalid claimant identity format. Public key injection is prohibited.',
+        };
       }
     }
 
