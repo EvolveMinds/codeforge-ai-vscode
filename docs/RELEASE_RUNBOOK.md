@@ -461,12 +461,13 @@ Copy into the release PR or issue before beginning every version upgrade:
 **5. Update Company Website**
 - [ ] Switch to `Company` repo: `git checkout main && git pull origin main`
 - [ ] Create branch `release/evolve-ai-X.Y.Z`
-- [ ] Update `src/content/site.ts`: `downloadUrl`, `downloadVersion`, `downloadSize`, `downloadSha256`
-- [ ] Move outgoing release into `releaseHistory` array at the top
+- [ ] Update `src/content/evolveAiReleases.ts` with new release entry, verified assets, size, SHA-256, and changelog
+- [ ] Update `src/content/site.ts`: `downloadUrl` to `/products/evolve-ai/releases/assets/...` (ZERO raw GitHub download URLs exposed!), `downloadVersion`, `downloadSize`, `downloadSha256`, and `releaseHistory`
+- [ ] Update `amplify-redirects.json` with 302 rules mapping `/products/evolve-ai/releases/assets/<file>` to GitHub releases asset target (placed ABOVE the 404 rule). Never use `/downloads/`.
 - [ ] Update `fileSize` (bytes) and `newFeatures` in `src/app/products/evolve-ai/download/page.tsx`
 - [ ] `pnpm exec tsc --noEmit` exits 0
 - [ ] `pnpm run build` exits 0
-- [ ] Built HTML verification: new version on all pages; only `versions.html` lists superseded ones
+- [ ] Built HTML verification: new version on all pages; `/products/evolve-ai/releases/` renders all releases; zero GitHub download links
 - [ ] PR created, reviewed, and merged to `main` (`gh pr merge --merge --delete-branch`)
 - [ ] Amplify production deployment completed; live URLs & downloads verified against SHA-256
 

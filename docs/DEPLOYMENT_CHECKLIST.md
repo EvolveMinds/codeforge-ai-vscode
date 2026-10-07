@@ -129,27 +129,39 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
   git checkout main && git pull origin main
   git checkout -b release/evolve-ai-X.Y.Z
   ```
-- [ ] **Update `src/content/site.ts`:**
-  - `downloadUrl`: URL to published GitHub release `.exe`
+- [ ] **Update Release Data Registry (`src/content/evolveAiReleases.ts`):**
+  - Add new release entry at index 0 with `version: "vX.Y.Z"`, `tag: "vX.Y.Z-desktop"`, `isLatest: true`.
+  - Register all release assets with exact size, bytes, and uppercase SHA-256 checksum:
+    - Portable Executable (.exe)
+    - Offline Patch Archive (.zip)
+    - VS Code Extension (.vsix)
+  - Ensure all asset download URLs use domain-native routes: `/products/evolve-ai/releases/assets/<filename>`.
+  - Replicate full feature changelog and binary verification blocks.
+- [ ] **Update Product Configuration (`src/content/site.ts`):**
+  - `downloadUrl`: Set to domain-native route `/products/evolve-ai/releases/assets/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` (**ZERO** raw GitHub download URLs exposed to users!).
   - `downloadVersion`: `"vX.Y.Z"`
-  - `downloadSize`: Human readable size (e.g., `"78.8 MB"`)
+  - `downloadSize`: Human readable size (e.g., `"79.0 MB"`)
   - `downloadSha256`: Measured uppercase SHA-256 hash
-  - `releaseHistory`: Prepend outgoing version at top with `version`, `released`, `url`, `size`, `sha256`, `summary`, `notesUrl`.
-- [ ] **Update Download Page & Structured Data:**  
-  In `src/app/products/evolve-ai/download/page.tsx`:
+  - `releaseHistory`: Prepend outgoing version at top with domain-native `url` and notesUrl pointing to `/products/evolve-ai/releases/#v...`.
+  - **Strict Path Constraint:** Never use `/downloads/`. All assets are under `/products/evolve-ai/releases/assets/`.
+- [ ] **Configure Domain-Native Asset Rewrites (`amplify-redirects.json`):**
+  - Add 302 rules mapping each `/products/evolve-ai/releases/assets/<filename>` to its GitHub release asset download URL.
+  - **Crucial:** Place rules *above* the catch-all `404-200` rewrite rule.
+- [ ] **Update Download Page & Structured Data (`src/app/products/evolve-ai/download/page.tsx`):**
   - Update `fileSize` in schema to exact binary bytes.
   - Update `newFeatures` array to reflect current release highlights.
+  - Link version archive references to `/products/evolve-ai/releases/`.
 - [ ] **Typecheck & Static Export:**  
   ```bash
   pnpm exec tsc --noEmit     # must exit 0
   pnpm run build             # must exit 0
   ```
 - [ ] **Verify Built HTML Output:**  
-  Inspect `.next/server/app/**/*.html`: current version `vX.Y.Z` renders on all product and download pages; older versions only appear in `versions.html` (Version Archive).
+  Inspect `out/products/evolve-ai/releases/index.html` and `out/products/evolve-ai/download/index.html`. Verify zero GitHub links exist on any download button.
 - [ ] **PR & Merge to Production:**  
   ```bash
-  git add src/content/site.ts src/app/products/evolve-ai/download/page.tsx src/components/EditionComparison.tsx
-  git commit -m "feat(release): update Evolve AI Enterprise Desktop to vX.Y.Z"
+  git add src/content/site.ts src/content/evolveAiReleases.ts amplify-redirects.json src/app/products/evolve-ai/download/page.tsx src/app/products/evolve-ai/releases/
+  git commit -m "feat(release): update Evolve AI Enterprise Desktop to vX.Y.Z with domain-native releases"
   git push -u origin release/evolve-ai-X.Y.Z
   gh pr create --repo EvolveMinds/Company --fill
   gh pr merge <PR_NUMBER> --repo EvolveMinds/Company --merge --delete-branch
@@ -160,17 +172,18 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
 
 ### Phase 6 · Production Verification & Audit Sign-Off
 
-- [ ] **Verify Live Website Content:**  
+- [ ] **Verify Live Website Content & Releases Page:**  
   ```bash
-  curl -s "https://www.evolveminds.com.au/products/evolve-ai/download/" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | sort -u
+  curl -s "https://www.evolveminds.com.au/products/evolve-ai/releases/" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | sort -u
   ```
-- [ ] **Live Customer Download & Integrity Match:**  
+- [ ] **Live Customer Download & Integrity Match (Domain-Native Endpoint):**  
   ```powershell
-  Invoke-WebRequest -Uri "https://github.com/EvolveMinds/codeforge-ai-vscode/releases/download/vX.Y.Z-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe" -OutFile "$env:TEMP\verify_dl.exe"
+  Invoke-WebRequest -Uri "https://www.evolveminds.com.au/products/evolve-ai/releases/assets/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe" -OutFile "$env:TEMP\verify_dl.exe"
   $hash = (Get-FileHash "$env:TEMP\verify_dl.exe" -Algorithm SHA256).Hash
   Remove-Item "$env:TEMP\verify_dl.exe"
   # Must equal downloadSha256
   ```
+- [ ] **Confirm Zero Leaked Git URLs:** Verify users never see raw github.com links when downloading .exe or .zip files.
 - [ ] **Update Execution Audit Log:** Append sign-off record to table below and to `RELEASE_RUNBOOK.md` §11.
 
 ---
