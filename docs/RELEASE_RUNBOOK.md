@@ -461,7 +461,7 @@ Copy into the release PR or issue before beginning every version upgrade:
 **5. Update Company Website**
 - [ ] Switch to `Company` repo: `git checkout main && git pull origin main`
 - [ ] Create branch `release/evolve-ai-X.Y.Z`
-- [ ] Update `src/content/evolveAiReleases.ts` with new release entry, verified assets, size, SHA-256, and changelog
+- [ ] Update `src/content/evolveAiReleases.ts` with new release entry, verified assets (Portable .exe & patch .zip only; exclude .vsix), size, SHA-256, and changelog
 - [ ] Update `src/content/site.ts`: `downloadUrl` to `/products/evolve-ai/releases/assets/...` (ZERO raw GitHub download URLs exposed!), `downloadVersion`, `downloadSize`, `downloadSha256`, and `releaseHistory`
 - [ ] Update `amplify-redirects.json` with 302 rules mapping `/products/evolve-ai/releases/assets/<file>` to GitHub releases asset target (placed ABOVE the 404 rule). Never use `/downloads/`.
 - [ ] Update `fileSize` (bytes) and `newFeatures` in `src/app/products/evolve-ai/download/page.tsx`

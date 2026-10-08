@@ -133,8 +133,8 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
   - Add new release entry at index 0 with `version: "vX.Y.Z"`, `tag: "vX.Y.Z-desktop"`, `isLatest: true`.
   - Register all release assets with exact size, bytes, and uppercase SHA-256 checksum:
     - Portable Executable (.exe)
-    - Offline Patch Archive (.zip)
-    - VS Code Extension (.vsix)
+    - Offline Patch Archive (.zip) (where applicable)
+    - *(Note: Do NOT include .vsix in enterprise downloads — website downloads focus exclusively on Desktop Portable .exe and offline patch .zip)*
   - Ensure all asset download URLs use domain-native routes: `/products/evolve-ai/releases/assets/<filename>`.
   - Replicate full feature changelog and binary verification blocks.
 - [ ] **Update Product Configuration (`src/content/site.ts`):**
