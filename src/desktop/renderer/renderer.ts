@@ -50117,7 +50117,17 @@ Enterprise Quality Standards:
             prompt: systemInstruction
           });
           if (res && res.content) {
-            proposedCode = res.content.replace(/^```[a-z]*\s*/i, '').replace(/```$/i, '').trim();
+            const raw = res.content;
+            const codeBlockMatch = raw.match(/```(?:[a-z0-9_-]+)?\s*([\s\S]*?)```/i);
+            if (codeBlockMatch) {
+              proposedCode = codeBlockMatch[1].trim();
+            } else {
+              proposedCode = raw
+                .replace(/^```[a-z0-9_-]*\s*/i, '')
+                .replace(/\n```[\s\S]*$/i, '')
+                .replace(/\n---[\s\S]*$/i, '')
+                .trim();
+            }
           }
         } catch (_) {}
       }
@@ -50883,8 +50893,11 @@ impl Calculator {
       showToast(`▶️ Executing Python Sandbox (${benchmarkRounds > 1 ? `${benchmarkRounds}x benchmark` : 'live run'})...`);
 
       // Prepare executable code with test harness if needed
-      let executableCode = code;
-      if (code.includes('input(')) {
+      let executableCode = code
+        .replace(/\n```[\s\S]*$/i, '')
+        .replace(/\n---[\s\S]*$/i, '')
+        .trimEnd();
+      if (executableCode.includes('input(')) {
         // Inject non-blocking simulated stdin so interactive CLI programs (e.g. calculators) execute without hanging or EOFError
         const simInputs = ['1', '15', '25', '2', '50', '18', '3', '7', '8', '4', '100', '4', '5', 'add', '15', '25', 'subtract', '50', '18', 'multiply', '7', '8', 'divide', '100', '4', 'quit', 'exit', 'n', 'no', 'q'];
         executableCode = `import sys, io\nsys.stdin = io.StringIO("${simInputs.join('\\n')}\\n")\n` + executableCode;
@@ -52003,8 +52016,12 @@ Return ONLY clean valid Python code without markdown commentary.`;
       const txtProposed = document.getElementById('txtDesktopPyDiffProposed') as HTMLTextAreaElement;
       if (txtProposed && txtDesktopPyCode) {
         codeHistory.push(txtDesktopPyCode.value);
-        // Clean excessive consecutive blank lines and trailing whitespace
-        const cleanProposed = txtProposed.value.replace(/\n{3,}/g, '\n\n').trimEnd();
+        // Clean excessive consecutive blank lines, trailing whitespace, and markdown commentary
+        const cleanProposed = txtProposed.value
+          .replace(/\n```[\s\S]*$/i, '')
+          .replace(/\n---[\s\S]*$/i, '')
+          .replace(/\n{3,}/g, '\n\n')
+          .trimEnd();
         txtDesktopPyCode.value = cleanProposed;
         txtDesktopPyCode.selectionStart = 0;
         txtDesktopPyCode.selectionEnd = 0;
