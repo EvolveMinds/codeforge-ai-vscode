@@ -11,7 +11,7 @@ import * as assert from 'assert';
 import * as crypto from 'crypto';
 import { LicenseValidator } from '../../../enterprise/license/licenseValidator';
 import { LicenseGenerator } from '../../../enterprise/license/licenseGenerator';
-import { LicenseManager } from '../../../enterprise/license/licenseManager';
+import { LicenseManager, isTrialLicence } from '../../../enterprise/license/licenseManager';
 import { EnterpriseLicensePayload } from '../../../enterprise/license/licenseTypes';
 
 suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
@@ -249,38 +249,44 @@ suite('Enterprise Suite — Cryptographic License Engine (Ed25519)', () => {
     assert.ok(bobResult.error?.includes('Seat Identity Mismatch'), 'Error message must state seat identity mismatch');
   });
 
-  test('LicenseManager activates zero-secret local evaluation trial and unlocks enterprise features', async () => {
+  test('LicenseManager cannot self-activate a trial and discards an old local trial record', async () => {
     const storageMap = new Map<string, string>();
     const mockSecrets: any = {
       get: async (k: string) => storageMap.get(k),
       store: async (k: string, v: string) => storageMap.set(k, v),
       delete: async (k: string) => storageMap.delete(k),
     };
+    // Exactly what older versions stored after an instant trial.
+    storageMap.set('evolve.enterprise.trialInfo', JSON.stringify({
+      licenseId: 'EM-TRIAL-1', organization: 'Acme', plan: 'enterprise_platinum',
+      expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+    }));
 
     const mgr = new LicenseManager(mockSecrets);
-    await mgr.initialize();
-    assert.strictEqual(mgr.getState().isLicensed, false, 'Initial state must be unlicensed community');
+    const state = await mgr.initialize();
+    assert.strictEqual(state.isLicensed, false, 'A local trial record must not grant access');
     assert.strictEqual(mgr.isFeatureUnlocked('load_testing'), false);
+    assert.strictEqual(storageMap.has('evolve.enterprise.trialInfo'), false, 'The stale record is removed');
+    assert.strictEqual((mgr as any).activateLocalTrial, undefined, 'No API may grant a trial locally');
+  });
 
-    // Activate local evaluation trial
-    const trialState = await mgr.activateLocalTrial('Acme Test Org', 30);
-    assert.strictEqual(trialState.isLicensed, true);
-    assert.strictEqual(trialState.isTrial, true);
-    assert.strictEqual(trialState.plan, 'enterprise_platinum');
-    assert.strictEqual(trialState.daysRemaining, 30);
-    assert.strictEqual(mgr.isFeatureUnlocked('load_testing'), true, 'Features must unlock during trial');
-    assert.strictEqual(mgr.isFeatureUnlocked('rag_scaffolder'), true);
+  test('a trial is a signed key with an EM-TRIAL- id', () => {
+    const now = new Date();
+    const payload: EnterpriseLicensePayload = {
+      organization: 'Requester Org', licenseId: 'EM-TRIAL-1700000000000-1234', plan: 'enterprise_platinum',
+      maxSeats: 1, licenseScope: 'seat', issuedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + 30 * 86400000).toISOString(),
+      features: ['load_testing'],
+    };
+    const token = LicenseGenerator.sign(payload, testPrivKey);
+    const res = LicenseValidator.verify(token, undefined, testPubKey);
+    assert.strictEqual(res.valid, true);
+    assert.strictEqual(isTrialLicence(res.payload?.licenseId), true);
+    assert.strictEqual(isTrialLicence('EM-LIC-1700000000000-1234'), false);
 
-    // Re-initialize from storage to simulate app restart
-    const restartedMgr = new LicenseManager(mockSecrets);
-    const restoredState = await restartedMgr.initialize();
-    assert.strictEqual(restoredState.isLicensed, true, 'Restored trial must be licensed');
-    assert.strictEqual(restoredState.isTrial, true);
-    assert.strictEqual(restoredState.daysRemaining, 30);
-
-    // Deactivate trial
-    await restartedMgr.deactivateLicense();
-    assert.strictEqual(restartedMgr.getState().isLicensed, false);
-    assert.strictEqual(restartedMgr.isFeatureUnlocked('load_testing'), false);
+    // A trial key signed by anyone else is rejected like any other forged licence.
+    const other = crypto.generateKeyPairSync('ed25519');
+    const forged = LicenseGenerator.sign(payload, other.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString());
+    assert.strictEqual(LicenseValidator.verify(forged, undefined, testPubKey).valid, false);
   });
 });

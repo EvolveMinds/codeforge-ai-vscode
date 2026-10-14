@@ -29,6 +29,7 @@ import { runCommand, runForStdout, findDockerDesktopPath, getDockerLaunchCommand
 import { LicenseValidator } from '../enterprise/license/licenseValidator';
 import type { RagPipelineOptions } from '../enterprise/rag/ragTypes';
 import { checkEnterpriseAccess, EnterpriseModules, PaidCapability } from '../core/enterpriseGate';
+import { requestEnterpriseTrial, TRIAL_REQUEST_EMAIL } from './enterpriseTrialRequest';
 
 const ENTERPRISE_INFO_URL = 'https://www.evolveminds.com.au/products/evolve-ai/download/';
 
@@ -273,22 +274,20 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
-      case 'startTrial': {
-        try {
-          if (this._svc?.license) {
-            await this._svc.license.activateLocalTrial('VS Code FDE Community User', 30);
-          }
-          vscode.window.showInformationMessage(
-            `⚡ 30-Day Enterprise Trial Activated!\nValid for 30 days (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Client POC Pack.`,
-            'Launch Desktop Edition'
-          ).then(async (choice) => {
-            if (choice === 'Launch Desktop Edition') {
-              vscode.commands.executeCommand('aiForge.fde.launchDesktop');
-            }
+      // Trials are requested, never self-activated: Evolve Mind Solutions approves the
+      // request and emails a signed trial key, which is activated via 'enterLicenseKey'.
+      case 'startTrial':
+      case 'generateDemoEnterpriseKey': {
+        const outcome = await requestEnterpriseTrial('FDE Cockpit', this._vsCtx.extension.packageJSON.version);
+        if (outcome === 'enter-key') {
+          await this._handleMessage({ command: 'enterLicenseKey' });
+        } else if (outcome === 'sent') {
+          this._panel.webview.postMessage({
+            type: 'enterpriseLicenseResult',
+            success: true,
+            message: `Trial request drafted to ${TRIAL_REQUEST_EMAIL}. Once approved, activate the emailed key with Enter Key.`,
+            state: this._svc?.license?.getState(),
           });
-          this._update();
-        } catch (err: any) {
-          vscode.window.showErrorMessage(`Trial activation error: ${err?.message || err}`);
         }
         break;
       }
@@ -1929,19 +1928,6 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
-      case 'generateDemoEnterpriseKey': {
-        if (!this._svc?.license) return;
-        const state = await this._svc.license.activateLocalTrial(msg.orgName || 'Demo Enterprise Partner', 30);
-        vscode.window.showInformationMessage(`✓ 30-Day Enterprise Platinum Trial Activated for ${state.organization}!`);
-        this._panel.webview.postMessage({
-          type: 'enterpriseLicenseResult',
-          success: true,
-          message: '✓ 30-Day Enterprise Platinum Trial Activated!',
-          state: this._svc.license.getState(),
-        });
-        break;
-      }
-
       case 'generateLoadTestSuite': {
         if (!ws) return;
         const ent = this._requireEnterprise('load_testing', 'k6 & Locust load testing');
@@ -2804,8 +2790,8 @@ Output ONLY the message without markdown code fences.`;
         if (choice) vscode.env.openExternal(vscode.Uri.parse(ENTERPRISE_INFO_URL));
       });
     } else {
-      vscode.window.showWarningMessage(message, 'Start 30-Day Trial', 'Enter Licence Key').then(choice => {
-        if (choice === 'Start 30-Day Trial') this._handleMessage({ command: 'startTrial' });
+      vscode.window.showWarningMessage(message, 'Request Trial', 'Enter Licence Key').then(choice => {
+        if (choice === 'Request Trial') this._handleMessage({ command: 'startTrial' });
         else if (choice === 'Enter Licence Key') this._handleMessage({ command: 'enterLicenseKey' });
       });
     }
@@ -3640,7 +3626,7 @@ Output ONLY the message without markdown code fences.`;
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <button class="btn-quick" style="background: #6366f1; color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="switchPhase1Mode('cosmos')">🌐 Open 3D Topology View</button>
               <button class="btn-quick" style="border-color: rgba(56, 189, 248, 0.6); color: #38bdf8; font-weight: 700; padding: 5px 12px;" onclick="openEnterpriseModal()">⚖️ Compare Editions</button>
-              <button class="btn-quick" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'startTrial' })">⚡ Enterprise Trial</button>
+              <button class="btn-quick" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 5px 12px;" onclick="vscode.postMessage({ command: 'startTrial' })">⚡ Request Trial</button>
               <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'enterLicenseKey' })">🔑 Enter Key</button>
               <button class="btn-quick" style="border-color: var(--border); padding: 5px 10px;" onclick="vscode.postMessage({ command: 'launchDesktopStudio' })">🖥️ Desktop App</button>
             </div>
@@ -4690,7 +4676,7 @@ Output ONLY the message without markdown code fences.`;
               <label style="font-size: 11px; font-weight: bold;">Quick Actions</label>
               <div style="display: flex; gap: 6px; margin-top: 2px;">
                 <button class="btn" style="padding: 6px 12px; font-size: 11px;" onclick="activateEnterpriseKey()">🚀 Activate Key</button>
-                <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 11px;" onclick="generateTrialKey()">⚡ 30-Day Trial</button>
+                <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 11px;" onclick="generateTrialKey()">⚡ Request Trial</button>
                 <button class="btn-quick" style="padding: 6px 8px; font-size: 11px; margin-bottom: 0;" onclick="deactivateEnterpriseKey()">✕ Deactivate</button>
               </div>
             </div>
@@ -6461,7 +6447,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function generateTrialLicense() {
-      showToast('⚡ Generating 30-Day Enterprise Platinum Key...');
+      showToast('⚡ Opening Enterprise trial request...');
       vscode.postMessage({ command: 'generateDemoEnterpriseKey' });
     }
 
@@ -7659,7 +7645,7 @@ Output ONLY the message without markdown code fences.`;
     }
 
     function generateTrialKey() {
-      showToast('⚡ Generating 30-Day Platinum Trial Key...');
+      showToast('⚡ Opening Enterprise trial request...');
       vscode.postMessage({ command: 'generateDemoEnterpriseKey', orgName: 'Enterprise Partner' });
     }
 
