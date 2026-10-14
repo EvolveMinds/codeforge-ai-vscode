@@ -8277,14 +8277,14 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <option value="json">📄 JSON / YAML</option>
                 </select>
                 <button class="btn-quick" id="btnDesktopPyRefreshScripts" title="Scan workspace for code files" style="font-size: 11px; padding: 4px 10px;">🔄 Refresh</button>
-                <button class="btn-quick" id="btnDesktopPyNewScript" title="New blank script" style="font-size: 11px; padding: 4px 10px;">✨ New Script</button>
+                <button class="btn-quick" id="btnDesktopPyNewScript" title="New blank script (clean canvas)" style="font-size: 11px; padding: 4px 10px;">✨ New Script</button>
                 <button class="btn btn-primary" id="btnDesktopPySaveScript" style="font-size: 11px; padding: 4px 14px;">💾 Save to Workspace</button>
                 <span id="lblDesktopPyFileStatus" style="font-size: 11px; font-weight: 600; color: #4ec9b0;">Saved ✓</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 11px; color: var(--text-secondary);">Template:</span>
                 <select id="selDesktopPyPreset" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11px; cursor: pointer;">
-                  <option value="none">-- Select Template --</option>
+                  <option value="blank" selected>✨ Blank Script (Clean Canvas)</option>
                   <option value="js_express">🟨 Express.js API &amp; Health Service</option>
                   <option value="pytorch_model">🧠 PyTorch Neural Network (Linear + ReLU)</option>
                   <option value="fastapi_service">🚀 FastAPI Async Microservice with Pydantic</option>
@@ -8301,12 +8301,14 @@ WHERE order_date >= SYSDATE - 30;</textarea>
 
             <!-- Git Context Mini-Strip -->
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 8px 14px; background: rgba(30, 41, 59, 0.45); border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.2); font-size: 11.5px; flex-wrap: wrap; gap: 8px;">
-              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <span>🌿 Branch: <strong id="lblDesktopPyBranch" style="color: #38bdf8;">main</strong></span>
                 <span style="color: var(--border);">|</span>
                 <span>Git Status: <strong id="lblDesktopPyGitDirty" style="color: #4ade80;">Checking...</strong></span>
                 <span style="color: var(--border);">|</span>
                 <span>Active Target: <code id="lblDesktopPyActiveFilePath" style="color: #f1f5f9; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px;">(New Script)</code></span>
+                <button class="btn-quick" id="btnDesktopPyRenameActive" title="Rename script according to standard naming conventions" style="font-size: 10px; padding: 2px 7px; cursor: pointer;">✏️ Rename</button>
+                <span id="lblDesktopPySuggestedNamePill" class="brand-pill" style="display:none; cursor: pointer; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); font-size: 10px;" title="Click to apply standard suggested name">💡 Suggest: calculator.py</span>
               </div>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <button class="btn-quick" id="btnDesktopPyQuickCommit" style="font-size: 11px; padding: 3px 10px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border-color: #22c55e;">🚀 1-Click Commit</button>
@@ -8414,6 +8416,14 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 </div>
                 <div id="divDesktopPyDiffActionList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 6px; color: #cbd5e1;">
                   <!-- Dynamic bullet items rendered by showDiffProposal -->
+                </div>
+                <div id="rowDesktopPyDiffSuggestedName" style="display: none; align-items: center; justify-content: space-between; margin-top: 8px; padding: 7px 12px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 4px; font-size: 11px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span>🏷️</span>
+                    <span>Recommended File Name: <strong id="lblDesktopPyDiffSuggestedName" style="color: #38bdf8; font-family: monospace;">calculator.py</strong></span>
+                    <span id="lblDesktopPyDiffNamingStandard" style="color: #94a3b8; font-size: 10px;">(PEP 8 snake_case)</span>
+                  </div>
+                  <button type="button" class="btn-quick" id="btnDesktopPyDiffApplyName" style="font-size: 10.5px; padding: 3px 10px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.5); cursor: pointer;">🏷️ Set As Target Name</button>
                 </div>
               </div>
 

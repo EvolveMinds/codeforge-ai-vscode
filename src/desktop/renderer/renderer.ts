@@ -48245,15 +48245,511 @@ function setupModals(api: any): void {
     selDesktopPyLanguage?.addEventListener('change', () => {
       const selectedLang = selDesktopPyLanguage.value;
       updatePolyglotActionButtons(selectedLang);
+      updateSuggestedNamePill();
       showToast(`✓ Language mode switched to ${selDesktopPyLanguage.options[selDesktopPyLanguage.selectedIndex].text}`);
     });
+
+    // =========================================================================
+    // LANGUAGE NAMING STANDARDS & SEMANTIC FILENAME SUGGESTION ENGINE
+    // =========================================================================
+
+    function getLanguageDisplayName(lang: string): string {
+      switch (lang) {
+        case 'python': return 'Python';
+        case 'typescript': return 'TypeScript';
+        case 'javascript': return 'JavaScript';
+        case 'go': return 'Go';
+        case 'rust': return 'Rust';
+        case 'sql': return 'SQL';
+        case 'json': return 'JSON/YAML';
+        default: return 'Python';
+      }
+    }
+
+    function isBoilerplateTemplate(code: string): boolean {
+      if (!code) return false;
+      const markers = [
+        'EnterpriseClassifier',
+        'Production PyTorch neural network',
+        'process_transactions(filepath',
+        'ScaledDotProductAttention',
+        'Numerical Instabilities: Div-by-variance',
+        'IngressPayloadSchema',
+        'type PipelineEvent',
+        'VectorNormalizer',
+        'mv_pipeline_delivery_metrics',
+        'const express = require(\'express\');',
+        'AI Model Serving Microservice'
+      ];
+      return markers.some(m => code.includes(m));
+    }
+
+    function isNewCodeGenerationIntent(prompt: string, currentCode: string): boolean {
+      const p = prompt.trim().toLowerCase();
+      const code = currentCode.trim();
+
+      // 1. If editor is empty or minimal starter (< 50 chars or comment) -> generation
+      if (!code || code.length < 50 || /^(?:#|\"\"\"|\/\/|\/\*)\s*(?:new|untitled|script|python|workspace)/i.test(code)) {
+        return true;
+      }
+
+      // 2. If current code is unedited preset boilerplate -> generation
+      if (isBoilerplateTemplate(code)) {
+        return true;
+      }
+
+      // 3. Prompt starts with code generation requests:
+      // "can you write...", "write a...", "create a...", "generate...", "build...", "implement..."
+      const creationRegex = /^(?:can\s+you\s+)?(?:please\s+)?(?:write|create|generate|build|code|make|implement|give\s+me|start|draft|new)\b/i;
+      if (creationRegex.test(p)) {
+        if (/\b(code|script|program|application|calculator|service|model|utility|tool|app|pipeline|agent|class|module|function)\b/i.test(p)) {
+          return true;
+        }
+      }
+
+      // 4. Prompt specifies fresh / from scratch
+      if (/\b(from\s+scratch|fresh|brand\s+new|start\s+over|replace\s+(all|everything|this))\b/i.test(p)) {
+        return true;
+      }
+
+      return false;
+    }
+
+    interface FileNamingStandard {
+      standard: string;
+      rulesSummary: string;
+      extension: string;
+      validate: (name: string) => { isValid: boolean; warning?: string; error?: string; formattedName?: string };
+    }
+
+    function getLanguageNamingStandard(lang: string): FileNamingStandard {
+      switch (lang) {
+        case 'python':
+          return {
+            standard: 'PEP 8 (snake_case.py)',
+            rulesSummary: 'Modules should have short, all-lowercase names with underscores (e.g. calculator.py, data_processor.py). Avoid spaces, hyphens, and PascalCase.',
+            extension: 'py',
+            validate: (name: string) => {
+              const base = name.split(/[\\/]/).pop() || name;
+              if (/\s/.test(base)) {
+                return { isValid: false, error: 'Spaces are invalid in Python script filenames. Use underscores (_).' };
+              }
+              if (/-/.test(base)) {
+                return { isValid: false, error: 'Hyphens (-) cause import syntax errors in Python. Use underscores (_).' };
+              }
+              if (/[A-Z]/.test(base)) {
+                const fixed = base.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+                return { isValid: true, warning: `PEP 8 recommends all-lowercase for Python module files. Consider: ${fixed}`, formattedName: fixed };
+              }
+              if (!base.endsWith('.py')) {
+                return { isValid: false, error: 'Python scripts must end with .py extension.' };
+              }
+              return { isValid: true };
+            }
+          };
+        case 'typescript':
+          return {
+            standard: 'kebab-case.ts / camelCase.ts',
+            rulesSummary: 'Standard TypeScript naming prefers kebab-case (calc-service.ts) or camelCase (calcService.ts). PascalCase is reserved for class exports.',
+            extension: 'ts',
+            validate: (name: string) => {
+              const base = name.split(/[\\/]/).pop() || name;
+              if (/\s/.test(base)) return { isValid: false, error: 'Spaces are invalid in TypeScript filenames.' };
+              if (!base.endsWith('.ts') && !base.endsWith('.tsx')) return { isValid: false, error: 'Must end with .ts or .tsx.' };
+              return { isValid: true };
+            }
+          };
+        case 'javascript':
+          return {
+            standard: 'kebab-case.js / camelCase.js',
+            rulesSummary: 'Standard JavaScript naming prefers kebab-case (calculator.js) or camelCase.',
+            extension: 'js',
+            validate: (name: string) => {
+              const base = name.split(/[\\/]/).pop() || name;
+              if (/\s/.test(base)) return { isValid: false, error: 'Spaces are invalid in JavaScript filenames.' };
+              if (!base.endsWith('.js') && !base.endsWith('.mjs')) return { isValid: false, error: 'Must end with .js or .mjs.' };
+              return { isValid: true };
+            }
+          };
+        case 'go':
+          return {
+            standard: 'Effective Go (snake_case.go)',
+            rulesSummary: 'Go source files should be lowercase with underscores (e.g. calculator.go, calc_worker.go).',
+            extension: 'go',
+            validate: (name: string) => {
+              const base = name.split(/[\\/]/).pop() || name;
+              if (/[A-Z\s-]/.test(base.replace(/\.go$/, ''))) {
+                return { isValid: true, warning: 'Effective Go standard recommends all-lowercase with underscores.' };
+              }
+              if (!base.endsWith('.go')) return { isValid: false, error: 'Must end with .go extension.' };
+              return { isValid: true };
+            }
+          };
+        case 'rust':
+          return {
+            standard: 'Rust API Guidelines (snake_case.rs)',
+            rulesSummary: 'Rust module files must be lowercase snake_case (e.g. calculator.rs).',
+            extension: 'rs',
+            validate: (name: string) => {
+              const base = name.split(/[\\/]/).pop() || name;
+              if (/[A-Z\s-]/.test(base.replace(/\.rs$/, ''))) {
+                return { isValid: true, warning: 'Rust convention recommends lowercase snake_case.' };
+              }
+              if (!base.endsWith('.rs')) return { isValid: false, error: 'Must end with .rs extension.' };
+              return { isValid: true };
+            }
+          };
+        case 'sql':
+          return {
+            standard: 'SQL snake_case.sql',
+            rulesSummary: 'SQL scripts and views should use lowercase snake_case (e.g. calculator_metrics.sql).',
+            extension: 'sql',
+            validate: (name: string) => {
+              const base = name.split(/[\\/]/).pop() || name;
+              if (!base.endsWith('.sql')) return { isValid: false, error: 'Must end with .sql extension.' };
+              return { isValid: true };
+            }
+          };
+        default:
+          return {
+            standard: 'Standard Naming',
+            rulesSummary: 'Use concise, descriptive naming without spaces.',
+            extension: 'py',
+            validate: () => ({ isValid: true })
+          };
+      }
+    }
+
+    function inferSemanticName(code: string, prompt: string): string {
+      const p = prompt.trim().toLowerCase();
+      // Priority 1: Semantic extraction from NLP prompt
+      if (/\bcalculator\b/.test(p)) return 'calculator';
+      if (/\b(?:binary\s*search\s*tree|bst)\b/.test(p)) return 'binary_search_tree';
+      if (/\b(?:quicksort|sorting|sort)\b/.test(p)) return 'sorting_algorithm';
+      if (/\b(?:fibonacci)\b/.test(p)) return 'fibonacci';
+      if (/\b(?:todo|task\s*manager)\b/.test(p)) return 'todo_manager';
+      if (/\b(?:web\s*scraper|crawler)\b/.test(p)) return 'web_scraper';
+      if (/\b(?:fastapi|microservice|rest\s*api)\b/.test(p)) return 'api_service';
+      if (/\b(?:data\s*profiler|profiling)\b/.test(p)) return 'data_profiler';
+      if (/\b(?:matrix|tensor|linear\s*algebra)\b/.test(p)) return 'matrix_ops';
+      if (/\b(?:auth|jwt|token)\b/.test(p)) return 'auth_service';
+      if (/\b(?:etl|pipeline|polars|pandas)\b/.test(p)) return 'data_pipeline';
+
+      const promptMatch = p.match(/(?:work\s+as\s+a|script\s+for\s+a?|code\s+for\s+a?|write\s+(?:a|an)?|create\s+(?:a|an)?|generate\s+(?:a|an)?|build\s+(?:a|an)?)\s+([a-z0-9_-]+(?:\s+[a-z0-9_-]+)?)/i);
+      if (promptMatch && promptMatch[1]) {
+        const cleaned = promptMatch[1].replace(/\b(python|script|code|program|app|application|in|that|can|simple|fast|clean)\b/gi, '').trim();
+        if (cleaned && cleaned.length > 2) {
+          return cleaned.replace(/\s+/g, '_');
+        }
+      }
+
+      // Priority 2: Extract from code AST / class / function
+      const classMatch = code.match(/class\s+([A-Za-z0-9_]+)/);
+      if (classMatch && classMatch[1] && !classMatch[1].toLowerCase().includes('enterpriseclassifier')) {
+        return classMatch[1].replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+      }
+
+      const funcMatch = code.match(/def\s+([a-z0-9_]+)\s*\(/);
+      if (funcMatch && funcMatch[1] && funcMatch[1] !== 'main' && funcMatch[1] !== '__init__') {
+        return funcMatch[1].toLowerCase();
+      }
+
+      return 'main';
+    }
+
+    interface FileNamingRecommendation {
+      suggestedName: string;
+      relativePath: string;
+      alternatives: string[];
+      standard: string;
+      rulesSummary: string;
+      validate: (name: string) => { isValid: boolean; warning?: string; error?: string; formattedName?: string };
+    }
+
+    function analyzeAndSuggestFileName(code: string, prompt: string, currentPath: string, lang: string): FileNamingRecommendation {
+      const namingStd = getLanguageNamingStandard(lang);
+      const semanticBase = inferSemanticName(code, prompt);
+      const ext = namingStd.extension;
+
+      let primary = `${semanticBase}.${ext}`;
+      let alternatives: string[] = [];
+
+      if (lang === 'python') {
+        primary = `${semanticBase}.py`;
+        alternatives = [
+          `${semanticBase}.py`,
+          `${semanticBase}_service.py`,
+          `test_${semanticBase}.py`,
+          `run_${semanticBase}.py`
+        ];
+      } else if (lang === 'typescript') {
+        primary = `${semanticBase}.ts`;
+        alternatives = [
+          `${semanticBase}.ts`,
+          `${semanticBase}.service.ts`,
+          `${semanticBase}.test.ts`,
+          `index.ts`
+        ];
+      } else if (lang === 'javascript') {
+        primary = `${semanticBase}.js`;
+        alternatives = [
+          `${semanticBase}.js`,
+          `${semanticBase}.service.js`,
+          `${semanticBase}.test.js`
+        ];
+      } else if (lang === 'go') {
+        primary = `${semanticBase}.go`;
+        alternatives = [
+          `${semanticBase}.go`,
+          `${semanticBase}_worker.go`,
+          `${semanticBase}_test.go`
+        ];
+      } else if (lang === 'rust') {
+        primary = `${semanticBase}.rs`;
+        alternatives = [
+          `${semanticBase}.rs`,
+          `${semanticBase}_engine.rs`,
+          `lib.rs`
+        ];
+      } else if (lang === 'sql') {
+        primary = `${semanticBase}.sql`;
+        alternatives = [
+          `${semanticBase}.sql`,
+          `mv_${semanticBase}.sql`,
+          `${semanticBase}_mart.sql`
+        ];
+      } else {
+        primary = `${semanticBase}.${ext}`;
+        alternatives = [
+          `${semanticBase}.${ext}`
+        ];
+      }
+
+      alternatives = Array.from(new Set(alternatives));
+
+      return {
+        suggestedName: primary,
+        relativePath: `src/${primary}`,
+        alternatives,
+        standard: namingStd.standard,
+        rulesSummary: namingStd.rulesSummary,
+        validate: namingStd.validate
+      };
+    }
+
+    function updateSuggestedNamePill(): void {
+      const pill = document.getElementById('lblDesktopPySuggestedNamePill');
+      if (!pill) return;
+
+      const currentPath = activePythonFilePath || activePythonTabPath || '';
+      const isGeneric = !currentPath || currentPath === '__custom__' || currentPath.startsWith('untitled_') || currentPath.startsWith('new_script_') || currentPath === 'workspace_script.py';
+
+      const code = txtDesktopPyCode ? txtDesktopPyCode.value : '';
+      const prompt = txtPyNlpPrompt ? txtPyNlpPrompt.value : '';
+      const lang = getActiveLanguage();
+
+      if (!isGeneric || (!code.trim() && !prompt.trim())) {
+        pill.style.display = 'none';
+        return;
+      }
+
+      const recommendation = analyzeAndSuggestFileName(code, prompt, currentPath, lang);
+      if (recommendation.suggestedName && recommendation.suggestedName !== 'script.py' && recommendation.suggestedName !== 'main.py') {
+        pill.style.display = 'inline-block';
+        pill.textContent = `💡 Suggest: ${recommendation.suggestedName}`;
+        pill.title = `Click to rename active script to ${recommendation.suggestedName} (${recommendation.standard})`;
+      } else {
+        pill.style.display = 'none';
+      }
+    }
+
+    function renameActiveScriptTo(newNameOrPath: string): void {
+      const baseName = newNameOrPath.split(/[\\/]/).pop() || newNameOrPath;
+      const tab = openPythonStudioTabs.find(t => t.path === activePythonTabPath);
+      if (tab) {
+        tab.path = newNameOrPath;
+        tab.name = baseName;
+      }
+      activePythonTabPath = newNameOrPath;
+      activePythonFilePath = newNameOrPath;
+      if (lblDesktopPyActiveFilePath) lblDesktopPyActiveFilePath.textContent = newNameOrPath;
+      renderPythonStudioTabs();
+      updateSuggestedNamePill();
+      showToast(`🏷️ Renamed active script to: ${baseName}`);
+    }
+
+    async function promptRenameActiveScript(): Promise<void> {
+      const code = txtDesktopPyCode ? txtDesktopPyCode.value : '';
+      const prompt = txtPyNlpPrompt ? txtPyNlpPrompt.value : '';
+      const lang = getActiveLanguage();
+      const currentName = activePythonFilePath || activePythonTabPath || 'untitled_1.py';
+
+      const entered = await showSaveScriptWithNamingStandardModal(currentName, code, prompt, lang);
+      if (!entered) return;
+      renameActiveScriptTo(entered.trim());
+    }
+
+    async function showSaveScriptWithNamingStandardModal(
+      initialPath: string,
+      code: string,
+      prompt: string,
+      lang: string
+    ): Promise<string | null> {
+      return new Promise((resolve) => {
+        const existing = document.getElementById('evolveSaveScriptModal');
+        if (existing) existing.remove();
+
+        const namingInfo = analyzeAndSuggestFileName(code, prompt, initialPath, lang);
+        const namingStd = getLanguageNamingStandard(lang);
+
+        let defaultVal = initialPath;
+        if (!defaultVal || defaultVal.startsWith('untitled_') || defaultVal.startsWith('new_script_') || defaultVal === '__custom__' || defaultVal === 'workspace_script.py') {
+          defaultVal = namingInfo.relativePath;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'evolveSaveScriptModal';
+        overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(5px); display: flex; align-items: center; justify-content: center; z-index: 100000; animation: fadeIn 0.15s ease;';
+
+        const dialog = document.createElement('div');
+        dialog.style.cssText = 'background: #181b20; border: 1px solid #3b82f6; border-radius: 8px; padding: 22px 24px; width: 520px; max-width: 92vw; box-shadow: 0 20px 48px rgba(0, 0, 0, 0.75); display: flex; flex-direction: column; gap: 14px; font-family: inherit; color: #f1f5f9; box-sizing: border-box;';
+
+        dialog.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 16px;">💾</span>
+              <strong style="font-size: 14px; color: #38bdf8;">Save Script to Workspace</strong>
+            </div>
+            <span class="brand-pill" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 10px; border: 1px solid rgba(56, 189, 248, 0.3);">${namingInfo.standard}</span>
+          </div>
+
+          <!-- Naming Standard Guidance Box -->
+          <div style="background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px; padding: 10px 12px; font-size: 11px; line-height: 1.45; color: #94a3b8;">
+            <div style="font-weight: 700; color: #cbd5e1; margin-bottom: 3px; display: flex; align-items: center; gap: 5px;">
+              <span>📜</span> Naming Convention Guide (${namingInfo.standard})
+            </div>
+            <div>${namingInfo.rulesSummary}</div>
+          </div>
+
+          <!-- 1-Click Recommended Names Chips -->
+          <div>
+            <div style="font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+              <span>💡</span> Recommended Names (Click to Apply):
+            </div>
+            <div id="modalSuggestedPillContainer" style="display: flex; gap: 6px; flex-wrap: wrap;">
+              ${namingInfo.alternatives.map(alt => `
+                <button type="button" class="btn-quick modal-name-chip" data-name="${alt}" style="font-size: 11px; padding: 3px 9px; font-family: monospace; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8; background: rgba(56, 189, 248, 0.08); cursor: pointer;">
+                  ${alt}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Path Input Field -->
+          <div>
+            <label style="display: block; font-size: 11.5px; color: #cbd5e1; margin-bottom: 5px; font-weight: 600;">
+              Workspace Relative Path:
+            </label>
+            <input type="text" id="txtModalSavePath" value="${defaultVal}" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid #475569; border-radius: 5px; color: #f8fafc; font-size: 12.5px; padding: 8px 12px; font-family: monospace; outline: none; transition: border-color 0.15s ease;" placeholder="e.g. src/calculator.py" />
+            <div id="lblModalSaveValidation" style="font-size: 11px; margin-top: 5px; min-height: 16px;"></div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 12px;">
+            <button type="button" class="btn-quick" id="btnModalSaveCancel" style="padding: 6px 14px; font-size: 12px; cursor: pointer;">Cancel</button>
+            <button type="button" class="btn btn-primary" id="btnModalSaveConfirm" style="background: #38bdf8; border-color: #38bdf8; color: #0f172a; font-weight: 700; padding: 6px 18px; font-size: 12px; cursor: pointer;">💾 Save Script</button>
+          </div>
+        `;
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        const input = dialog.querySelector('#txtModalSavePath') as HTMLInputElement;
+        const valBox = dialog.querySelector('#lblModalSaveValidation') as HTMLElement;
+        const btnConfirm = dialog.querySelector('#btnModalSaveConfirm') as HTMLButtonElement;
+        const btnCancel = dialog.querySelector('#btnModalSaveCancel') as HTMLButtonElement;
+
+        const validateCurrentInput = () => {
+          const val = (input.value || '').trim();
+          const validation = namingStd.validate(val);
+          if (validation.error) {
+            valBox.style.color = '#f87171';
+            valBox.innerHTML = `❌ ${validation.error}`;
+            btnConfirm.disabled = true;
+            btnConfirm.style.opacity = '0.5';
+          } else if (validation.warning) {
+            valBox.style.color = '#fbbf24';
+            valBox.innerHTML = `⚠️ ${validation.warning}`;
+            btnConfirm.disabled = false;
+            btnConfirm.style.opacity = '1';
+          } else {
+            valBox.style.color = '#4ade80';
+            valBox.innerHTML = `✓ Standard Compliant (${namingInfo.standard})`;
+            btnConfirm.disabled = false;
+            btnConfirm.style.opacity = '1';
+          }
+        };
+
+        // Wire chips
+        dialog.querySelectorAll('.modal-name-chip').forEach(chip => {
+          chip.addEventListener('click', () => {
+            const chosen = chip.getAttribute('data-name');
+            if (chosen) {
+              const currentDir = input.value.includes('/') ? input.value.substring(0, input.value.lastIndexOf('/') + 1) : (input.value.includes('\\') ? input.value.substring(0, input.value.lastIndexOf('\\') + 1) : 'src/');
+              input.value = `${currentDir}${chosen}`;
+              validateCurrentInput();
+            }
+          });
+        });
+
+        input.addEventListener('input', validateCurrentInput);
+        validateCurrentInput();
+
+        const cleanup = () => {
+          window.removeEventListener('keydown', onKeyDown);
+          overlay.remove();
+        };
+
+        const onKeyDown = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            cleanup();
+            resolve(null);
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            const val = input.value.trim();
+            if (val && !btnConfirm.disabled) {
+              cleanup();
+              resolve(val);
+            }
+          }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+
+        btnCancel.addEventListener('click', () => {
+          cleanup();
+          resolve(null);
+        });
+
+        btnConfirm.addEventListener('click', () => {
+          const val = input.value.trim();
+          if (val) {
+            cleanup();
+            resolve(val);
+          }
+        });
+
+        input.focus();
+        input.select();
+      });
+    }
 
     function renderPythonStudioTabs(): void {
       if (!pyEditorTabsContainer) return;
       pyEditorTabsContainer.innerHTML = '';
 
       if (openPythonStudioTabs.length === 0) {
-        const initialPath = activePythonFilePath || 'workspace_script.py';
+        const initialPath = activePythonFilePath || 'untitled_1.py';
         const initialName = initialPath.split(/[\\/]/).pop() || initialPath;
         const initialContent = txtDesktopPyCode ? txtDesktopPyCode.value : '';
         const fallbackTab: PythonStudioTab = {
@@ -48286,6 +48782,12 @@ function setupModals(api: any): void {
           const target = e.target as HTMLElement;
           if (target.classList.contains('tab-close') || target.getAttribute('data-close-path')) return;
           switchToPythonStudioTab(tab.path);
+        });
+
+        tabEl.addEventListener('dblclick', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.classList.contains('tab-close') || target.getAttribute('data-close-path')) return;
+          promptRenameActiveScript();
         });
 
         const closeBtn = tabEl.querySelector('.tab-close');
@@ -48336,6 +48838,7 @@ function setupModals(api: any): void {
       updatePolyglotActionButtons(detectedLang);
       updateEditorMetrics();
       updatePyEditorGutter();
+      updateSuggestedNamePill();
       renderPythonStudioTabs();
     }
 
@@ -48347,10 +48850,10 @@ function setupModals(api: any): void {
 
       if (openPythonStudioTabs.length === 0) {
         const freshTab: PythonStudioTab = {
-          path: 'workspace_script.py',
-          name: 'workspace_script.py',
-          content: PRESET_TEMPLATES.pytorch_model,
-          savedContent: PRESET_TEMPLATES.pytorch_model,
+          path: 'untitled_1.py',
+          name: 'untitled_1.py',
+          content: '',
+          savedContent: '',
           isDirty: false
         };
         openPythonStudioTabs.push(freshTab);
@@ -48361,6 +48864,7 @@ function setupModals(api: any): void {
       } else {
         renderPythonStudioTabs();
       }
+      updateSuggestedNamePill();
     }
 
     function addOrActivatePythonStudioTab(path: string, content: string): void {
@@ -48431,6 +48935,7 @@ function setupModals(api: any): void {
 
     txtDesktopPyCode?.addEventListener('input', () => {
       syncPyEditorCodeChange(true);
+      updateSuggestedNamePill();
     });
 
     // Code undo history stack for NLP transformations
@@ -49493,6 +49998,16 @@ function setupModals(api: any): void {
 
       const lang = getActiveLanguage();
 
+      // Configure Accept Button label based on generation vs refactor
+      const btnAccept = document.getElementById('btnDesktopPyAcceptPatch');
+      if (btnAccept) {
+        if (patchType.includes('GENERATION') || !originalCode.trim()) {
+          btnAccept.textContent = '✓ Accept & Insert Code';
+        } else {
+          btnAccept.textContent = '✓ Accept & Apply Patch';
+        }
+      }
+
       // Populate "What was done" Action Breakdown list
       const actionList = document.getElementById('divDesktopPyDiffActionList');
       if (actionList) {
@@ -49502,6 +50017,33 @@ function setupModals(api: any): void {
             ${act}
           </div>
         `).join('');
+      }
+
+      // Populate Recommended File Name badge
+      const prompt = txtPyNlpPrompt ? txtPyNlpPrompt.value : '';
+      const namingRec = analyzeAndSuggestFileName(proposedCode, prompt, activePythonFilePath || activePythonTabPath || '', lang);
+      const rowDiffSuggested = document.getElementById('rowDesktopPyDiffSuggestedName');
+      const lblDiffSuggested = document.getElementById('lblDesktopPyDiffSuggestedName');
+      const lblDiffStd = document.getElementById('lblDesktopPyDiffNamingStandard');
+      const btnDiffApplyName = document.getElementById('btnDesktopPyDiffApplyName');
+
+      if (rowDiffSuggested && lblDiffSuggested && lblDiffStd) {
+        const curPath = activePythonFilePath || activePythonTabPath || '';
+        const isGeneric = !curPath || curPath.startsWith('untitled_') || curPath.startsWith('new_script_') || curPath === '__custom__' || curPath === 'workspace_script.py';
+        if (isGeneric && namingRec.suggestedName && namingRec.suggestedName !== 'main.py' && namingRec.suggestedName !== 'script.py') {
+          rowDiffSuggested.style.display = 'flex';
+          lblDiffSuggested.textContent = namingRec.suggestedName;
+          lblDiffStd.textContent = `(${namingRec.standard})`;
+          if (btnDiffApplyName) {
+            btnDiffApplyName.onclick = () => {
+              renameActiveScriptTo(namingRec.suggestedName);
+              rowDiffSuggested.style.display = 'none';
+              showToast(`🏷️ Target script name set to: ${namingRec.suggestedName}`);
+            };
+          }
+        } else {
+          rowDiffSuggested.style.display = 'none';
+        }
       }
 
       // Render the visual diff
@@ -49517,26 +50059,41 @@ function setupModals(api: any): void {
     async function applyNlpTransformation(): Promise<void> {
       const nlpPrompt = (txtPyNlpPrompt ? txtPyNlpPrompt.value : '').trim();
       if (!nlpPrompt) {
-        showToast('⚠️ Please enter an instruction for the AI (e.g. "Add a dropout layer of 0.2").');
+        showToast('⚠️ Please enter an instruction for the AI (e.g. "Add a dropout layer of 0.2" or "Write a python code that can work as a calculator").');
         return;
       }
       const currentCode = (txtDesktopPyCode ? txtDesktopPyCode.value : '').trim();
-      if (!currentCode) {
-        showToast('⚠️ No active code to transform. Please write or load a Python script first.');
+      const lang = getActiveLanguage();
+      const langTitle = getLanguageDisplayName(lang);
+      const isGeneration = isNewCodeGenerationIntent(nlpPrompt, currentCode);
+
+      if (!currentCode && !isGeneration) {
+        showToast(`⚠️ No active code to transform. Please write or load a ${langTitle} script first, or ask to generate new code.`);
         return;
       }
 
-      showToast(`💬 AI Copilot applying: "${nlpPrompt.substring(0, 45)}..."`);
+      showToast(`💬 AI Copilot ${isGeneration ? 'generating' : 'refactoring'}: "${nlpPrompt.substring(0, 45)}..."`);
 
       // Save for undo
-      codeHistory.push(currentCode);
+      if (currentCode) {
+        codeHistory.push(currentCode);
+      }
 
       let proposedCode = '';
       if (desktopApi?.ai?.chat) {
         try {
-          const res = await desktopApi.ai.chat({
-            prompt: `You are a Principal Python & AI Systems Architect.
-Modify the following Python code according to this exact user instruction:
+          const systemInstruction = isGeneration
+            ? `You are a Principal ${langTitle} & Software Systems Architect.
+Create a complete, clean, self-contained ${langTitle} program according to this user request:
+Request: "${nlpPrompt}"
+
+Rules:
+1. Write clean, complete, working, production-ready ${langTitle} code.
+2. Follow standard idiomatic language conventions (${lang === 'python' ? 'PEP 8 snake_case for modules, functions, variables' : 'idiomatic naming standards'}).
+3. Do NOT include boilerplate from unrelated domains (e.g. do not introduce neural networks, PyTorch, or tensors unless specifically requested).
+4. Return ONLY the code. Do not wrap in markdown code fence backticks or add introductory commentary.`
+            : `You are a Principal ${langTitle} & AI Systems Architect.
+Modify the following ${langTitle} code according to this exact user instruction:
 Instruction: "${nlpPrompt}"
 
 Current Code:
@@ -49544,11 +50101,14 @@ ${currentCode}
 
 Rules:
 1. Maintain existing imports and logic, modifying only what is requested.
-2. Return ONLY the complete, valid, updated Python code. Do not wrap in markdown code fence backticks or add introductory commentary.
-3. Keep code production-ready with type hints and numerical stability.`
+2. Return ONLY the complete, valid, updated ${langTitle} code. Do not wrap in markdown code fence backticks or add introductory commentary.
+3. Keep code production-ready with type hints and numerical stability.`;
+
+          const res = await desktopApi.ai.chat({
+            prompt: systemInstruction
           });
           if (res && res.content) {
-            proposedCode = res.content.replace(/^```python\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
+            proposedCode = res.content.replace(/^```[a-z]*\s*/i, '').replace(/```$/i, '').trim();
           }
         } catch (_) {}
       }
@@ -49556,29 +50116,222 @@ Rules:
       // Offline deterministic heuristic fallback if AI is offline
       if (!proposedCode) {
         const pLower = nlpPrompt.toLowerCase();
-        if (pLower.includes('dropout') || pLower.includes('residual')) {
-          proposedCode = currentCode
-            .replace(/self\.fc1\s*=\s*nn\.Linear\((.*?)\)/, `self.fc1 = nn.Linear($1)\n        self.dropout_nlp = nn.Dropout(p=0.2)`)
-            .replace(/h\s*=\s*(.*?self\.fc1\(x\)\))/, `h = self.dropout_nlp($1)`);
-        } else if (pLower.includes('fastapi') || pLower.includes('endpoint')) {
-          proposedCode = `from fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel\nimport typing as t\n\napp = FastAPI(title="Generated Microservice", version="1.0.0")\n\n${currentCode}\n\n@app.post("/v1/execute")\nasync def execute_endpoint(payload: dict):\n    """Asynchronous production endpoint."""\n    return {"status": "success", "result": "processed"}\n`;
-        } else if (pLower.includes('polars') || pLower.includes('vectorize')) {
-          proposedCode = `import polars as pl\n\n# Modernized zero-copy Polars pipeline\n${currentCode.replace(/import pandas as pd/g, 'import polars as pl').replace(/df\.iterrows\(\)/g, 'df.iter_rows()')}\n`;
-        } else if (pLower.includes('validation') || pLower.includes('error') || pLower.includes('logging')) {
-          proposedCode = `import logging\nimport typing as t\n\nlogging.basicConfig(level=logging.INFO)\nlogger = logging.getLogger(__name__)\n\n${currentCode}\n`;
-        } else if (pLower.includes('shape') || pLower.includes('assert')) {
-          proposedCode = currentCode.replace(/def forward\(.*?\):/i, `def forward(self, x: torch.Tensor) -> torch.Tensor:\n        assert x.shape[-1] == 768, f"Invalid tensor shape: expected 768 features, got {x.shape[-1]}"`);
+        if (isGeneration) {
+          if (pLower.includes('calculator')) {
+            if (lang === 'python') {
+              proposedCode = `"""
+Interactive Arithmetic Calculator Engine
+Compliant with PEP 8 standards.
+"""
+from decimal import Decimal, InvalidOperation
+import operator
+import sys
+import typing as t
+
+
+class Calculator:
+    """Standard multi-operation calculator engine with history tracking."""
+
+    OPERATIONS: t.Dict[str, t.Callable[[Decimal, Decimal], Decimal]] = {
+        '+': operator.add,
+        '-': operator.sub,
+        '*': operator.mul,
+        '/': operator.truediv,
+        '%': operator.mod,
+        '^': operator.pow,
+    }
+
+    def __init__(self) -> None:
+        self.history: t.List[str] = []
+
+    def calculate(self, a: float | Decimal, op: str, b: float | Decimal) -> Decimal:
+        """Executes an arithmetic operation between two operands."""
+        da = Decimal(str(a))
+        db = Decimal(str(b))
+        if op not in self.OPERATIONS:
+            raise ValueError(f"Unsupported operator: {op}. Supported: {list(self.OPERATIONS.keys())}")
+        if op == '/' and db == 0:
+            raise ZeroDivisionError("Cannot divide by zero.")
+        result = self.OPERATIONS[op](da, db)
+        entry = f"{da} {op} {db} = {result}"
+        self.history.append(entry)
+        return result
+
+    def get_history(self) -> t.List[str]:
+        """Returns the execution history."""
+        return list(self.history)
+
+    def clear_history(self) -> None:
+        """Clears calculation history."""
+        self.history.clear()
+
+
+def main() -> None:
+    """Interactive command-line entry point."""
+    calc = Calculator()
+    print("=" * 45)
+    print(" Python Calculator Engine (PEP 8 Standard)")
+    print("=" * 45)
+    print("Running initial verification suite:")
+    test_cases = [
+        (12, '+', 8),
+        (50, '-', 15),
+        (7, '*', 9),
+        (100, '/', 4),
+        (2, '^', 8)
+    ]
+    for a, op, b in test_cases:
+        res = calc.calculate(a, op, b)
+        print(f"  ✓ {a} {op} {b} = {res}")
+
+    print("\\nCalculator ready for operations.")
+
+
+if __name__ == '__main__':
+    main()
+`;
+            } else if (lang === 'typescript' || lang === 'javascript') {
+              proposedCode = `// Standard Calculator Engine
+export class Calculator {
+  private history: string[] = [];
+
+  calculate(a: number, op: '+' | '-' | '*' | '/' | '%', b: number): number {
+    let result: number;
+    switch (op) {
+      case '+': result = a + b; break;
+      case '-': result = a - b; break;
+      case '*': result = a * b; break;
+      case '/':
+        if (b === 0) throw new Error("Cannot divide by zero");
+        result = a / b;
+        break;
+      case '%': result = a % b; break;
+      default: throw new Error(\`Unsupported operator: \${op}\`);
+    }
+    this.history.push(\`\${a} \${op} \${b} = \${result}\`);
+    return result;
+  }
+
+  getHistory(): string[] {
+    return [...this.history];
+  }
+}
+`;
+            } else if (lang === 'go') {
+              proposedCode = `package main
+
+import (
+\t"errors"
+\t"fmt"
+)
+
+type Calculator struct {
+\thistory []string
+}
+
+func NewCalculator() *Calculator {
+\treturn &Calculator{history: make([]string, 0)}
+}
+
+func (c *Calculator) Calculate(a float64, op string, b float64) (float64, error) {
+\tvar res float64
+\tswitch op {
+\tcase "+":
+\t\tres = a + b
+\tcase "-":
+\t\tres = a - b
+\tcase "*":
+\t\tres = a * b
+\tcase "/":
+\t\tif b == 0 {
+\t\t\treturn 0, errors.New("cannot divide by zero")
+\t\t}
+\t\tres = a / b
+\tdefault:
+\t\treturn 0, fmt.Errorf("unsupported operator: %s", op)
+\t}
+\tc.history = append(c.history, fmt.Sprintf("%v %s %v = %v", a, op, b, res))
+\treturn res, nil
+}
+
+func main() {
+\tcalc := NewCalculator()
+\tres, _ := calc.Calculate(10, "+", 5)
+\tfmt.Printf("Result: %v\\n", res)
+}
+`;
+            } else if (lang === 'rust') {
+              proposedCode = `pub struct Calculator {
+    history: Vec<String>,
+}
+
+impl Calculator {
+    pub fn new() -> Self {
+        Self { history: Vec::new() }
+    }
+
+    pub fn calculate(&mut self, a: f64, op: &str, b: f64) -> Result<f64, String> {
+        let res = match op {
+            "+" => a + b,
+            "-" => a - b,
+            "*" => a * b,
+            "/" => {
+                if b == 0.0 {
+                    return Err("Cannot divide by zero".into());
+                }
+                a / b
+            }
+            _ => return Err(format!("Unsupported operator: {}", op)),
+        };
+        self.history.push(format!("{} {} {} = {}", a, op, b, res));
+        Ok(res)
+    }
+}
+`;
+            } else {
+              proposedCode = `# Calculator implementation for ${lang}\n# Generated from user prompt: ${nlpPrompt}\n`;
+            }
+          } else if (pLower.includes('fastapi') || pLower.includes('endpoint')) {
+            proposedCode = `from fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel\nimport typing as t\n\napp = FastAPI(title="Generated Microservice", version="1.0.0")\n\n@app.get("/healthz")\ndef health_check():\n    return {"status": "ok"}\n\n@app.post("/v1/execute")\nasync def execute_endpoint(payload: dict):\n    return {"status": "success", "data": payload}\n`;
+          } else {
+            proposedCode = `# Clean Generated ${langTitle} Script\n# Prompt: ${nlpPrompt}\n\ndef main():\n    print("Executing ${nlpPrompt}...")\n\nif __name__ == '__main__':\n    main()\n`;
+          }
         } else {
-          proposedCode = `# AI Enhanced: ${nlpPrompt}\nimport typing as t\n\n` + currentCode;
+          if (pLower.includes('dropout') || pLower.includes('residual')) {
+            proposedCode = currentCode
+              .replace(/self\.fc1\s*=\s*nn\.Linear\((.*?)\)/, `self.fc1 = nn.Linear($1)\n        self.dropout_nlp = nn.Dropout(p=0.2)`)
+              .replace(/h\s*=\s*(.*?self\.fc1\(x\)\))/, `h = self.dropout_nlp($1)`);
+          } else if (pLower.includes('fastapi') || pLower.includes('endpoint')) {
+            proposedCode = `from fastapi import FastAPI, HTTPException\nfrom pydantic import BaseModel\nimport typing as t\n\napp = FastAPI(title="Generated Microservice", version="1.0.0")\n\n${currentCode}\n\n@app.post("/v1/execute")\nasync def execute_endpoint(payload: dict):\n    """Asynchronous production endpoint."""\n    return {"status": "success", "result": "processed"}\n`;
+          } else if (pLower.includes('polars') || pLower.includes('vectorize')) {
+            proposedCode = `import polars as pl\n\n# Modernized zero-copy Polars pipeline\n${currentCode.replace(/import pandas as pd/g, 'import polars as pl').replace(/df\.iterrows\(\)/g, 'df.iter_rows()')}\n`;
+          } else if (pLower.includes('validation') || pLower.includes('error') || pLower.includes('logging')) {
+            proposedCode = `import logging\nimport typing as t\n\nlogging.basicConfig(level=logging.INFO)\nlogger = logging.getLogger(__name__)\n\n${currentCode}\n`;
+          } else if (pLower.includes('shape') || pLower.includes('assert')) {
+            proposedCode = currentCode.replace(/def forward\(.*?\):/i, `def forward(self, x: torch.Tensor) -> torch.Tensor:\n        assert x.shape[-1] == 768, f"Invalid tensor shape: expected 768 features, got {x.shape[-1]}"`);
+          } else {
+            proposedCode = `# AI Enhanced: ${nlpPrompt}\nimport typing as t\n\n` + currentCode;
+          }
         }
       }
 
-      // Open interactive color-coded diff review
-      showDiffProposal(currentCode, proposedCode, 'NLP PROMPT PATCH', [
+      // If generating code and current code is boilerplate or empty, diff against empty string
+      // so the diff shows purely green additions without deleting existing code!
+      const originalDiffCode = (isGeneration && (isBoilerplateTemplate(currentCode) || !currentCode)) ? '' : currentCode;
+      const patchType = isGeneration ? '✨ NEW CODE GENERATION' : 'NLP PROMPT PATCH';
+
+      const customActions = isGeneration ? [
+        `✨ <strong>Greenfield Generation:</strong> Created clean, standalone ${langTitle} program from prompt: "${escapeHtml(nlpPrompt)}"`,
+        `📜 <strong>Standards Compliant:</strong> Adheres to ${getLanguageNamingStandard(lang).standard} naming and architecture conventions.`
+      ] : [
         `🤖 <strong>Prompt Transformation:</strong> Applied "${escapeHtml(nlpPrompt)}" refactoring instruction.`,
         '🛡️ <strong>Interface Preservation:</strong> Retained original signatures and runtime contracts.'
-      ]);
-      showToast('✓ AI transformation proposal generated! Review and click "Accept & Apply Patch".');
+      ];
+
+      // Open interactive color-coded diff review
+      showDiffProposal(originalDiffCode, proposedCode, patchType, customActions);
+      updateSuggestedNamePill();
+      showToast(`✓ AI ${isGeneration ? 'generation' : 'transformation'} proposal ready! Review and click "Accept".`);
     }
 
     btnPyNlpSubmit?.addEventListener('click', applyNlpTransformation);
@@ -49588,6 +50341,7 @@ Rules:
         applyNlpTransformation();
       }
     });
+    txtPyNlpPrompt?.addEventListener('input', updateSuggestedNamePill);
 
     // Wire Interactive Diff View Mode Buttons & Gutter Sync
     document.getElementById('btnPyDiffModeSideBySide')?.addEventListener('click', () => setDiffViewMode('side-by-side'));
@@ -50768,21 +51522,10 @@ Requirements:
         return;
       }
       let targetPath = activePythonFilePath;
-      if (!targetPath || targetPath === '__custom__' || targetPath.startsWith('new_script_')) {
+      if (!targetPath || targetPath === '__custom__' || targetPath.startsWith('untitled_') || targetPath.startsWith('new_script_') || targetPath === 'workspace_script.py') {
         const activeLang = getActiveLanguage();
-        let defaultExt = 'py';
-        if (activeLang === 'javascript') defaultExt = 'js';
-        else if (activeLang === 'typescript') defaultExt = 'ts';
-        else if (activeLang === 'go') defaultExt = 'go';
-        else if (activeLang === 'rust') defaultExt = 'rs';
-        else if (activeLang === 'sql') defaultExt = 'sql';
-
-        const defaultName = targetPath && targetPath.startsWith('new_script_') ? targetPath : `src/main.${defaultExt}`;
-        const entered = await showPromptModal(
-          'Save Script to Workspace',
-          `Enter path relative to workspace root (e.g. src/main.${defaultExt}):`,
-          defaultName
-        );
+        const prompt = txtPyNlpPrompt ? txtPyNlpPrompt.value : '';
+        const entered = await showSaveScriptWithNamingStandardModal(targetPath || 'untitled_1.py', code, prompt, activeLang);
         if (!entered) return;
         targetPath = entered.trim();
       }
@@ -50806,6 +51549,7 @@ Requirements:
           }
           activePythonTabPath = targetPath;
           renderPythonStudioTabs();
+          updateSuggestedNamePill();
           showToast(`✓ Saved script to workspace: ${targetPath}`);
           await loadWorkspacePythonScripts();
           if (selDesktopPyWorkspaceScript) selDesktopPyWorkspaceScript.value = targetPath;
@@ -50821,50 +51565,67 @@ Requirements:
       showToast('✓ Refreshed workspace code files.');
     });
 
+    document.getElementById('btnDesktopPyRenameActive')?.addEventListener('click', promptRenameActiveScript);
+
+    const lblSuggestedPill = document.getElementById('lblDesktopPySuggestedNamePill');
+    lblSuggestedPill?.addEventListener('click', () => {
+      const code = txtDesktopPyCode ? txtDesktopPyCode.value : '';
+      const prompt = txtPyNlpPrompt ? txtPyNlpPrompt.value : '';
+      const lang = getActiveLanguage();
+      const rec = analyzeAndSuggestFileName(code, prompt, activePythonFilePath || activePythonTabPath || '', lang);
+      if (rec.suggestedName) {
+        renameActiveScriptTo(rec.suggestedName);
+      }
+    });
+
     document.getElementById('btnDesktopPyNewScript')?.addEventListener('click', () => {
       const activeLang = getActiveLanguage();
       const scriptNum = openPythonStudioTabs.length + 1;
       let ext = 'py';
-      let template = PRESET_TEMPLATES.pytorch_model;
-      if (activeLang === 'javascript') {
-        ext = 'js';
-        template = PRESET_TEMPLATES.js_express;
-      } else if (activeLang === 'typescript') {
-        ext = 'ts';
-        template = PRESET_TEMPLATES.ts_gateway;
-      } else if (activeLang === 'go') {
-        ext = 'go';
-        template = PRESET_TEMPLATES.go_worker;
-      } else if (activeLang === 'rust') {
-        ext = 'rs';
-        template = PRESET_TEMPLATES.rust_simd;
-      } else if (activeLang === 'sql') {
-        ext = 'sql';
-        template = PRESET_TEMPLATES.sql_analytics;
-      }
-      const newName = `new_script_${scriptNum}.${ext}`;
-      addOrActivatePythonStudioTab(newName, template);
+      if (activeLang === 'javascript') ext = 'js';
+      else if (activeLang === 'typescript') ext = 'ts';
+      else if (activeLang === 'go') ext = 'go';
+      else if (activeLang === 'rust') ext = 'rs';
+      else if (activeLang === 'sql') ext = 'sql';
+
+      const newName = `untitled_${scriptNum}.${ext}`;
+      addOrActivatePythonStudioTab(newName, '');
       const tab = openPythonStudioTabs.find(t => t.path === newName);
       if (tab) {
         tab.savedContent = '';
-        tab.isDirty = true;
+        tab.isDirty = false;
       }
       if (lblDesktopPyActiveFilePath) lblDesktopPyActiveFilePath.textContent = newName;
       if (lblDesktopPyFileStatus) {
-        lblDesktopPyFileStatus.textContent = 'Unsaved Changes ●';
-        lblDesktopPyFileStatus.style.color = '#f59e0b';
+        lblDesktopPyFileStatus.textContent = 'Clean / New File';
+        lblDesktopPyFileStatus.style.color = '#94a3b8';
       }
+      if (selDesktopPyPreset) selDesktopPyPreset.value = 'blank';
       renderPythonStudioTabs();
-      renderVisualTensorFlow();
-      showToast(`✨ Created new ${activeLang.toUpperCase()} script tab: ${newName}`);
+      updateSuggestedNamePill();
+      showToast(`✨ Created clean blank ${activeLang.toUpperCase()} canvas: ${newName}`);
     });
 
     selDesktopPyPreset?.addEventListener('change', () => {
+      if (selDesktopPyPreset.value === 'blank') {
+        if (txtDesktopPyCode) {
+          txtDesktopPyCode.value = '';
+          syncPyEditorCodeChange(false);
+          if (lblDesktopPyFileStatus) {
+            lblDesktopPyFileStatus.textContent = 'Clean / Blank';
+            lblDesktopPyFileStatus.style.color = '#94a3b8';
+          }
+          updateSuggestedNamePill();
+          showToast('✓ Switched to clean blank canvas.');
+        }
+        return;
+      }
       const template = PRESET_TEMPLATES[selDesktopPyPreset.value];
       if (template && txtDesktopPyCode) {
         txtDesktopPyCode.value = template;
         syncPyEditorCodeChange(true);
         renderVisualTensorFlow();
+        updateSuggestedNamePill();
         showToast(`✓ Loaded preset: ${selDesktopPyPreset.options[selDesktopPyPreset.selectedIndex].text}`);
       }
     });
@@ -51232,6 +51993,18 @@ Return ONLY clean valid Python code without markdown commentary.`;
         syncPyEditorCodeChange(true);
         renderVisualTensorFlow();
         document.getElementById('paneDesktopPyDiff')!.style.display = 'none';
+
+        // Auto-adopt semantic name if the current active tab is untitled/generic
+        const curPath = activePythonFilePath || activePythonTabPath || '';
+        const isGeneric = !curPath || curPath.startsWith('untitled_') || curPath.startsWith('new_script_') || curPath === '__custom__' || curPath === 'workspace_script.py';
+        if (isGeneric) {
+          const rec = analyzeAndSuggestFileName(txtProposed.value, (txtPyNlpPrompt?.value || ''), curPath, getActiveLanguage());
+          if (rec.suggestedName && rec.suggestedName !== 'main.py' && rec.suggestedName !== 'script.py') {
+            renameActiveScriptTo(rec.suggestedName);
+            showToast(`✓ Accepted code & set script name: ${rec.suggestedName} (${rec.standard})`);
+            return;
+          }
+        }
         showToast('✓ Accepted & applied AI patch to workspace script.');
       }
     });
