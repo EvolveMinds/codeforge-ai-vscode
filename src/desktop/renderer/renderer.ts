@@ -50823,8 +50823,49 @@ impl Calculator {
     const lblPyExecMemory = document.getElementById('lblPyExecMemory');
     const lblPyExecLineCount = document.getElementById('lblPyExecLineCount');
     const txtPyCliArgs = document.getElementById('txtPyCliArgs') as HTMLInputElement;
+    const txtPyProgramInputs = document.getElementById('txtPyProgramInputs') as HTMLInputElement;
+    const txtPyConsoleLiveStdin = document.getElementById('txtPyConsoleLiveStdin') as HTMLInputElement;
+    const btnPyConsoleSendStdin = document.getElementById('btnPyConsoleSendStdin');
     const selPyMockPayload = document.getElementById('selPyMockPayload') as HTMLSelectElement;
     const selPyExecEnvironment = document.getElementById('selPyExecEnvironment') as HTMLSelectElement;
+
+    // Quick Calculator / Interactive Stdin Presets
+    const bindInputPreset = (btnId: string, inputVal: string) => {
+      document.getElementById(btnId)?.addEventListener('click', () => {
+        if (txtPyProgramInputs) txtPyProgramInputs.value = inputVal;
+        if (txtPyConsoleLiveStdin) txtPyConsoleLiveStdin.value = inputVal;
+        showToast(`⌨️ Loaded inputs: "${inputVal}". Executing...`);
+        runSandboxExecution(false);
+      });
+    };
+
+    bindInputPreset('btnPyInputPresetAdd', 'add, 15, 25, exit');
+    bindInputPreset('btnPyInputPresetSub', 'subtract, 50, 18, exit');
+    bindInputPreset('btnPyInputPresetMul', 'multiply, 7, 8, exit');
+    bindInputPreset('btnPyInputPresetDiv', 'divide, 100, 4, exit');
+    bindInputPreset('btnPyInputPresetAll', 'add, 15, 25, subtract, 50, 18, multiply, 7, 8, divide, 100, 4, exit');
+
+    const executeWithLiveInputs = () => {
+      const liveVal = txtPyConsoleLiveStdin?.value?.trim() || txtPyProgramInputs?.value?.trim() || '';
+      if (liveVal) {
+        if (txtPyProgramInputs) txtPyProgramInputs.value = liveVal;
+      }
+      runSandboxExecution(false);
+    };
+
+    btnPyConsoleSendStdin?.addEventListener('click', executeWithLiveInputs);
+    txtPyConsoleLiveStdin?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeWithLiveInputs();
+      }
+    });
+    txtPyProgramInputs?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeWithLiveInputs();
+      }
+    });
 
     // --- Environment Prerequisite Diagnostics & 1-Click Auto-Setup ---
     let workspaceHasVenv = false;
@@ -51008,9 +51049,66 @@ impl Calculator {
         .replace(/\n---[\s\S]*$/i, '')
         .trimEnd();
       if (executableCode.includes('input(')) {
-        // Inject non-blocking simulated stdin so interactive CLI programs (e.g. calculators) execute without hanging or EOFError
-        const simInputs = ['1', '15', '25', '2', '50', '18', '3', '7', '8', '4', '100', '4', '5', 'add', '15', '25', 'subtract', '50', '18', 'multiply', '7', '8', 'divide', '100', '4', 'quit', 'exit', 'n', 'no', 'q'];
-        executableCode = `import sys, io\nsys.stdin = io.StringIO("${simInputs.join('\\n')}\\n")\n` + executableCode;
+        // Read user inputs from top bar or live console input
+        const rawUserInput = (txtPyProgramInputs ? txtPyProgramInputs.value : '').trim() ||
+                             (txtPyConsoleLiveStdin ? txtPyConsoleLiveStdin.value : '').trim();
+        let userTokens: string[] = [];
+
+        if (rawUserInput) {
+          // Check for arithmetic expression shorthand: e.g. "15 + 25" or "100 / 4"
+          const mathMatch = rawUserInput.match(/^([-+]?\d*\.?\d+)\s*([\+\-\*\/])\s*([-+]?\d*\.?\d+)$/);
+          if (mathMatch) {
+            const opMap: Record<string, string> = { '+': 'add', '-': 'subtract', '*': 'multiply', '/': 'divide' };
+            const op = opMap[mathMatch[2]] || 'add';
+            userTokens = [op, mathMatch[1], mathMatch[3], 'exit'];
+          } else {
+            userTokens = rawUserInput
+              .split(/[\n,;]+/)
+              .map(s => s.trim())
+              .filter(s => s.length > 0);
+          }
+        }
+
+        // If user typed two numbers without an operation name: e.g. "15, 25", default to 'add'
+        if (userTokens.length >= 2 && !isNaN(Number(userTokens[0])) && !isNaN(Number(userTokens[1]))) {
+          userTokens.unshift('add');
+        }
+
+        // Smart default if nothing was entered
+        if (userTokens.length === 0) {
+          const lowerCode = executableCode.toLowerCase();
+          if (lowerCode.includes('add') && lowerCode.includes('subtract')) {
+            userTokens = ['add', '15', '25', 'multiply', '7', '8', 'exit'];
+          } else {
+            userTokens = ['15', '25', 'add', 'exit'];
+          }
+        }
+
+        // Ensure clean exit signal so while loops don't hang
+        const termSignals = ['exit', 'quit', 'q', 'n', 'no'];
+        if (!userTokens.some(t => termSignals.includes(t.toLowerCase()))) {
+          userTokens.push('exit');
+        }
+
+        const serializedQueue = JSON.stringify(userTokens);
+        const interactiveShim = `
+import builtins, sys
+_evolve_stdin_queue = ${serializedQueue}
+_evolve_stdin_idx = 0
+def _evolve_interactive_input(prompt=''):
+    global _evolve_stdin_idx
+    if prompt:
+        print(prompt, end='', flush=True)
+    if _evolve_stdin_idx < len(_evolve_stdin_queue):
+        val = str(_evolve_stdin_queue[_evolve_stdin_idx])
+        _evolve_stdin_idx += 1
+        print(f"\\x1b[36m{val}\\x1b[0m", flush=True)
+        return val
+    print("\\x1b[90mexit\\x1b[0m", flush=True)
+    return "exit"
+builtins.input = _evolve_interactive_input
+`;
+        executableCode = interactiveShim + executableCode;
       }
       if (mockPayload !== 'none' || !code.includes('if __name__')) {
         if (code.includes('nn.Module') || code.includes('torch')) {
@@ -53845,6 +53943,14 @@ function setupProjectOrientationManager(api: any): void {
     // Python Studio Sub-tab 2 (Sandbox) Runbook Integration
     if (pySandboxRunbookCards) {
       const testAndRun = commands.filter((c: any) => c.category === 'test' || c.category === 'run');
+      if (!testAndRun.some((c: any) => c.command.includes('pytest'))) {
+        testAndRun.unshift({
+          category: 'test',
+          label: 'Run Python PyTest Suite',
+          command: 'pytest tests/test_calculator.py -v',
+          explanation: 'Execute Python automated unit tests & assertion contracts.'
+        });
+      }
       if (lblPySandboxRunbookCount) lblPySandboxRunbookCount.textContent = `${testAndRun.length} Commands`;
       if (testAndRun.length === 0) {
         pySandboxRunbookCards.innerHTML = '<span style="font-size:11px; color:var(--text-secondary);">No test or dev commands detected.</span>';

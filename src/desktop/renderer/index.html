@@ -8890,20 +8890,38 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 </div>
               </div>
 
-              <!-- Test Harness & CLI Arguments -->
-              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; background: rgba(15, 23, 42, 0.6); padding: 10px 14px; border-radius: 6px; border: 1px solid #1e293b;">
-                <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 250px;">
-                  <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">CLI Args:</span>
-                  <input type="text" id="txtPyCliArgs" placeholder="--batch-size 32 --device cpu --verbose" style="flex: 1; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11.5px;" />
+              <!-- Test Harness, CLI Arguments & Program Inputs (stdin) -->
+              <div style="background: rgba(15, 23, 42, 0.6); padding: 12px 14px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 200px;">
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">CLI Args:</span>
+                    <input type="text" id="txtPyCliArgs" placeholder="--batch-size 32 --device cpu --verbose" style="flex: 1; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11.5px;" />
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Synthetic Harness:</span>
+                    <select id="selPyMockPayload" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">
+                      <option value="none">Standard Execution (No Mock)</option>
+                      <option value="pytorch_tensor">Synthetic PyTorch Batch [32, 768]</option>
+                      <option value="polars_df">Synthetic 10k Polars DataFrame</option>
+                      <option value="fastapi_json">FastAPI Test Client JSON Request</option>
+                    </select>
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Synthetic Harness:</span>
-                  <select id="selPyMockPayload" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">
-                    <option value="none">Standard Execution (No Mock)</option>
-                    <option value="pytorch_tensor">Synthetic PyTorch Batch [32, 768]</option>
-                    <option value="polars_df">Synthetic 10k Polars DataFrame</option>
-                    <option value="fastapi_json">FastAPI Test Client JSON Request</option>
-                  </select>
+
+                <!-- Program Inputs (stdin) for Interactive CLI & Calculator scripts -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 8px;">
+                  <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 280px;">
+                    <span style="font-size: 11px; color: #38bdf8; font-weight: 700;">⌨️ Program Inputs (stdin):</span>
+                    <input type="text" id="txtPyProgramInputs" placeholder="e.g. add, 15, 25, exit (or expression like 15 + 25)" style="flex: 1; background: var(--bg-primary); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 4px; padding: 5px 10px; font-size: 11.5px; font-family: monospace;" />
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                    <span style="font-size: 10px; color: #94a3b8; font-weight: 600;">Quick Inputs:</span>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetAdd" style="font-size: 10.5px; padding: 3px 8px; color: #4ade80; border-color: rgba(74,222,128,0.3); cursor: pointer;" title="Input: add, 15, 25, exit">➕ 15 + 25</button>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetSub" style="font-size: 10.5px; padding: 3px 8px; color: #38bdf8; border-color: rgba(56,189,248,0.3); cursor: pointer;" title="Input: subtract, 50, 18, exit">➖ 50 - 18</button>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetMul" style="font-size: 10.5px; padding: 3px 8px; color: #fbbf24; border-color: rgba(251,191,36,0.3); cursor: pointer;" title="Input: multiply, 7, 8, exit">✖️ 7 * 8</button>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetDiv" style="font-size: 10.5px; padding: 3px 8px; color: #a78bfa; border-color: rgba(167,139,250,0.3); cursor: pointer;" title="Input: divide, 100, 4, exit">➗ 100 / 4</button>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetAll" style="font-size: 10.5px; padding: 3px 8px; color: #f43f5e; border-color: rgba(244,63,94,0.3); cursor: pointer;" title="Test all operations in sequence">⚡ Test All Operations</button>
+                  </div>
                 </div>
               </div>
 
@@ -8970,6 +8988,13 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <!-- Terminal Console View -->
               <div id="viewPyOutLogs" style="display: block;">
                 <pre id="pyExecTerminalConsole" style="background: #020617; padding: 14px; border-radius: 6px; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; line-height: 1.5; color: #a5f3fc; max-height: 380px; min-height: 220px; overflow-y: auto; border: 1px solid #1e293b; margin: 0; white-space: pre-wrap; user-select: text;">[Ready] Python AI Sandbox initialized. Click '▶️ Run Script' or '⚡ Run with Mock Data' to test execution.</pre>
+                
+                <!-- Interactive Stdin Live Input Bar -->
+                <div style="display: flex; gap: 8px; align-items: center; margin-top: 8px; background: rgba(15, 23, 42, 0.9); padding: 7px 12px; border-radius: 6px; border: 1px solid #1e293b;">
+                  <span style="font-family: monospace; font-weight: 700; color: #38bdf8; font-size: 13px;">❯</span>
+                  <input type="text" id="txtPyConsoleLiveStdin" placeholder="Type operation or numbers (e.g. 'add, 20, 30, exit' or '15 + 25') and press Enter to run..." style="flex: 1; background: transparent; border: none; outline: none; color: #38bdf8; font-family: monospace; font-size: 12px;" />
+                  <button class="btn btn-primary" id="btnPyConsoleSendStdin" style="font-size: 11px; padding: 4px 12px; background: #38bdf8; border-color: #38bdf8; color: #0f172a; font-weight: 700; cursor: pointer;">↵ Run with Inputs</button>
+                </div>
               </div>
 
               <!-- Interactive DataFrame & Tensor Grid Explorer View -->
