@@ -72,7 +72,7 @@ import { injectDataPrep } from '../core/reportBlocks';
 import type { ReportBlock, DataPrep, ReportTemplate, BlockType } from '../core/reportBlocks';
 import { extractBlock, buildBlockRefinePrompt } from '../core/reportEditor';
 import { assessModelForDataAnalysis, defaultModelFor } from '../core/modelCapability';
-import { LicenseValidator } from '../enterprise';
+import { LicenseValidator } from '../enterprise/license/licenseValidator';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 

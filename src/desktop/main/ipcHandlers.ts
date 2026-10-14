@@ -2537,10 +2537,12 @@ End Function
       const targetSpec = languageById(toLang) || LANGUAGES.find(l => l.id === toLang) || LANGUAGES[1];
       const sourceSpec = languageById(fromLang) || LANGUAGES.find(l => l.id === fromLang) || LANGUAGES[0];
 
-      // Handle SQL-to-SQL Transpilation path (only when source dialect is actually SQL)
+      // Handle SQL-to-SQL Transpilation path (only when source dialect is actually SQL).
+      // The transpiler is an Enterprise engine: without a licence the request falls
+      // through to the standard AI conversion below instead of failing.
       const isSourceSql = fromLang === 'sql' || fromLang === 'oracle' || fromLang === 'tsql';
       const isTargetSql = toLang === 'sql' || toLang === 'snowflake' || toLang === 'postgres' || toLang === 'bigquery';
-      if (isSourceSql && isTargetSql) {
+      if (isSourceSql && isTargetSql && this._licenseAuth.getLicenseState().isLicensed) {
         const sqlRes = SqlTranspiler.transpile({
           sourceSql: sourceCode,
           sourceDialect: (fromLang === 'sql' ? 'oracle' : fromLang as any),

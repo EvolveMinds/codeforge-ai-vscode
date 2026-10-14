@@ -26,7 +26,11 @@ import { DeployScriptScaffolder, DeployScriptOptions } from '../deployment/deplo
 import { CloudResourceDiscovery } from '../deployment/cloudResourceDiscovery';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { runCommand, runForStdout, findDockerDesktopPath, getDockerLaunchCommand } from '../core/processUtil';
-import { LicenseValidator, LoadTestGenerator, RagPipelineScaffolder, RagPipelineOptions, DataQualityGenerator, SiemAuditForwarder, PrivateModelClient, SqlTranspiler, PiiSanitizer, ReverseEtlGenerator, RlsPolicyGenerator, SyntheticDataGenerator, MockServerGenerator } from '../enterprise';
+import { LicenseValidator } from '../enterprise/license/licenseValidator';
+import type { RagPipelineOptions } from '../enterprise/rag/ragTypes';
+import { checkEnterpriseAccess, EnterpriseModules, PaidCapability } from '../core/enterpriseGate';
+
+const ENTERPRISE_INFO_URL = 'https://www.evolveminds.com.au/products/evolve-ai/download/';
 
 export class FdeCockpitPanel {
   public static currentPanel: FdeCockpitPanel | undefined;
@@ -1940,8 +1944,9 @@ Output ONLY the message without markdown code fences.`;
 
       case 'generateLoadTestSuite': {
         if (!ws) return;
-        const isUnlocked = this._svc?.license?.isFeatureUnlocked('load_testing') ?? true; // Allow trial generation
-        const suite = LoadTestGenerator.generateSuite({
+        const ent = this._requireEnterprise('load_testing', 'k6 & Locust load testing');
+        if (!ent) break;
+        const suite = ent.LoadTestGenerator.generateSuite({
           serviceName: msg.serviceName || 'ClientService',
           targetUrl: msg.targetUrl || 'http://localhost:8080/api/v1/invoices',
           method: msg.method || 'GET',
@@ -1977,7 +1982,7 @@ Output ONLY the message without markdown code fences.`;
         this._panel.webview.postMessage({
           type: 'loadTestSuiteGenerated',
           suite: suite,
-          isLicensed: isUnlocked,
+          isLicensed: true,
         });
         break;
       }
@@ -1997,8 +2002,9 @@ Output ONLY the message without markdown code fences.`;
 
       case 'scaffoldRagPipeline': {
         if (!ws) return;
-        const licenseMgr = this._svc?.licenseManager;
-        const isUnlocked = licenseMgr ? licenseMgr.hasFeature('rag_scaffolder') : false;
+        const ent = this._requireEnterprise('rag_scaffolder', 'the air-gapped RAG scaffolder');
+        if (!ent) break;
+        const { RagPipelineScaffolder } = ent;
 
         const options: RagPipelineOptions = {
           serviceName: msg.serviceName || 'ClientIntelApi',
@@ -2044,7 +2050,7 @@ Output ONLY the message without markdown code fences.`;
           type: 'ragPipelineScaffolded',
           files: scaffolded,
           architecture: options.architecture,
-          isLicensed: isUnlocked
+          isLicensed: true
         });
         break;
       }
@@ -2065,6 +2071,9 @@ Output ONLY the message without markdown code fences.`;
 
       case 'generateDataQualityPackage': {
         if (!ws) return;
+        const ent = this._requireEnterprise('data_quality', 'Great Expectations & Soda quality gates');
+        if (!ent) break;
+        const { DataQualityGenerator } = ent;
         const modelName = (msg.modelName || 'fct_orders_mart').trim();
         const state = await this._contextManager.getState();
         
@@ -2126,8 +2135,10 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'testSiemDispatch': {
+        const ent = this._requireEnterprise('siem_logging', 'the SIEM audit forwarder');
+        if (!ent) break;
         const dest = msg.destination || 'splunk';
-        const forwarder = SiemAuditForwarder.getInstance({
+        const forwarder = ent.SiemAuditForwarder.getInstance({
           enabled: true,
           destination: dest,
           maskSensitiveAttributes: true,
@@ -2169,6 +2180,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'testPrivateServingProbe': {
+        const ent = this._requireEnterprise('private_serving', 'the private model serving client');
+        if (!ent) break;
+        const { PrivateModelClient } = ent;
         const endpoint = msg.endpoint || 'http://127.0.0.1:11434';
         const engine = msg.engine || 'vllm';
         const model = msg.model || 'gemma4:latest';
@@ -2195,6 +2209,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'transpileSql': {
+        const ent = this._requireEnterprise('sql_transpiler', 'the enterprise SQL transpiler');
+        if (!ent) break;
+        const { SqlTranspiler } = ent;
         const srcDialect = msg.sourceDialect || 'oracle';
         const tgtDialect = msg.targetDialect || 'bigquery';
         const srcSql = msg.sql || 'SELECT NVL(id, 0), SYSDATE FROM orders';
@@ -2224,6 +2241,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'generatePiiMasking': {
+        const ent = this._requireEnterprise('pii_masking', 'PII masking');
+        if (!ent) break;
+        const { PiiSanitizer } = ent;
         const modelName = msg.modelName || 'stg_sensitive_patients';
         const sourceTable = msg.sourceTable || 'raw_patients';
         const rules = msg.rules || [
@@ -2261,6 +2281,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'generateReverseEtl': {
+        const ent = this._requireEnterprise('reverse_etl', 'the reverse ETL sync worker');
+        if (!ent) break;
+        const { ReverseEtlGenerator } = ent;
         const syncName = msg.syncName || 'sync_orders_to_salesforce';
         const sourceModel = msg.sourceModel || 'fct_orders_mart';
         const sink = msg.sink || 'salesforce';
@@ -2289,6 +2312,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'generateRlsPolicies': {
+        const ent = this._requireEnterprise('rls_policies', 'row-level security policies');
+        if (!ent) break;
+        const { RlsPolicyGenerator } = ent;
         const table = msg.tableName || 'fct_client_invoices';
         const tenantCol = msg.tenantColumn || 'tenant_id';
         const engine = msg.engine || 'postgres';
@@ -2314,6 +2340,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'generateSyntheticData': {
+        const ent = this._requireEnterprise('synthetic_data', 'the synthetic data generator');
+        if (!ent) break;
+        const { SyntheticDataGenerator } = ent;
         const rowCount = msg.rowCount || 500;
         const datasetName = msg.datasetName || 'mock_golden';
 
@@ -2342,6 +2371,9 @@ Output ONLY the message without markdown code fences.`;
       }
 
       case 'generateMockServer': {
+        const ent = this._requireEnterprise('mock_server', 'the mock API server generator');
+        if (!ent) break;
+        const { MockServerGenerator } = ent;
         const port = msg.port || 9090;
         const latency = msg.latency || 80;
 
@@ -2745,6 +2777,39 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
     }
+  }
+
+  /**
+   * Returns the Enterprise modules when this package ships them AND the active
+   * licence covers `capability`. Otherwise tells the user why and returns
+   * undefined; the caller must stop before generating or writing anything.
+   */
+  private _requireEnterprise(capability: PaidCapability, label: string): EnterpriseModules | undefined {
+    const access = checkEnterpriseAccess(this._svc?.license, capability);
+    if (access.ok) return access.modules;
+
+    const message = access.reason === 'not_installed'
+      ? `${label} is part of Evolve AI Enterprise and is not included in the free Community edition.`
+      : `${label} needs an Evolve AI Enterprise licence or an active trial.`;
+
+    this._panel.webview.postMessage({
+      type: 'enterpriseLicenseResult',
+      success: false,
+      message,
+      state: this._svc?.license?.getState(),
+    });
+
+    if (access.reason === 'not_installed') {
+      vscode.window.showInformationMessage(message, 'About Enterprise').then(choice => {
+        if (choice) vscode.env.openExternal(vscode.Uri.parse(ENTERPRISE_INFO_URL));
+      });
+    } else {
+      vscode.window.showWarningMessage(message, 'Start 30-Day Trial', 'Enter Licence Key').then(choice => {
+        if (choice === 'Start 30-Day Trial') this._handleMessage({ command: 'startTrial' });
+        else if (choice === 'Enter Licence Key') this._handleMessage({ command: 'enterLicenseKey' });
+      });
+    }
+    return undefined;
   }
 
   private _update(): void {

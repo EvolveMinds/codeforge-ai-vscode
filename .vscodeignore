@@ -3,6 +3,29 @@ src/
 **/*.ts
 tsconfig.json
 
+# Admin-only licence issuing — never ships in any package
+out/enterprise/license/licenseGenerator.*
+
+# Internal reports and local deployment drafts — never ship
+SECURITY_AUDIT_REPORT*.md
+*.stackdump
+docker-compose.*.yml
+k8s/
+
+# >>> community-only
+# Proprietary Enterprise code stays out of the free Marketplace package.
+# scripts/package-enterprise.js strips this block to build the Enterprise package.
+# The licence checker stays so the Community build can verify keys and trials;
+# core/enterpriseGate.ts handles the generators being absent.
+out/desktop/**
+out/enterprise/**
+!out/enterprise/license/licenseTypes.js
+!out/enterprise/license/licenseValidator.js
+!out/enterprise/license/licenseManager.js
+LICENSE-ENTERPRISE
+EULA.md
+# <<< community-only
+
 # Build scaffolding
 build-steps/
 build-runner.sh

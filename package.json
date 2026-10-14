@@ -310,7 +310,8 @@
       },
       {
         "command": "aiForge.model.advisor",
-        "title": "Evolve AI: Which Model Should I Use?"
+        "title": "Evolve AI: Which Model Should I Use?",
+        "icon": "$(hubot)"
       },
       {
         "command": "aiForge.setupOllama",
@@ -423,11 +424,6 @@
         "command": "aiForge.convert.model",
         "title": "Evolve AI: Choose AI Model for Code Conversion",
         "icon": "$(server-process)"
-      },
-      {
-        "command": "aiForge.model.advisor",
-        "title": "Evolve AI: Model Advisor (Which Model Should I Use?)",
-        "icon": "$(hubot)"
       },
       {
         "command": "aiForge.convert.review",

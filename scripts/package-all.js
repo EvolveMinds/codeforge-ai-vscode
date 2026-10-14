@@ -49,6 +49,9 @@ if (secretMatches.length > 0) {
 }
 console.log(`  ✓ Secret scan clean (0 sensitive patterns detected).`);
 
+// Community edition boundary: no proprietary code, no private keys, no dangling requires.
+execSync('node scripts/check-package-contents.js', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+
 // 3. Sequentially build each target
 console.log(`\n[3/3] Building 6 platform targets sequentially...\n`);
 

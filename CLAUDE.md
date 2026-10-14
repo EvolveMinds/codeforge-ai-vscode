@@ -47,6 +47,7 @@ evolve-ai-vscode/
     │   ├── modelAdvisor.ts      ← WHICH KIND of model fits a job (jobs vs attributes), Ollama capability detection, session-scoped per-job model choices
     │   ├── modelFlows.ts        ← corrected architecture diagrams per model kind, each with declared provenance
     │   ├── jsonc.ts             ← stripJsonComments — shared by the pipeline + report-theme config files
+    │   ├── enterpriseGate.ts    ← the only way extension code reaches src/enterprise: guarded load + licence check
     │   ├── interfaces.ts        ← IAIService, IContextService, IWorkspaceService
     │   ├── services.ts          ← IServices interface + ServiceContainer (DI root)
     │   ├── plugin.ts            ← IPlugin interface + PluginRegistry
@@ -210,6 +211,13 @@ Future plugin ideas (community contributions welcome):
    `ChatEditorPanel`) attach to the same provider through `attachSurface(...)`. Posts are
    broadcast to every attached surface so the two views stay in sync. Never store
    chat state directly on a surface — always go through the provider.
+
+9. **The Community package does not contain Enterprise code.** `.vscodeignore` drops
+   `out/enterprise/**` (except the three licence-checker files) and `out/desktop/**`. Extension
+   code must never statically import an Enterprise generator. Go through
+   `core/enterpriseGate.ts → checkEnterpriseAccess()` and stop before writing anything if it
+   refuses. `scripts/check-package-contents.js` fails packaging on a dangling `require`. The
+   licences follow the same line: `LICENSE` (MIT, Community) and `LICENSE-ENTERPRISE` + `EULA.md`.
 
 ---
 

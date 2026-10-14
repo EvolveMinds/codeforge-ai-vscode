@@ -46,6 +46,9 @@ for (const f of files) {
   if (/licenseGenerator|issue-license|generate-license/i.test(f)) {
     failures.push(`licence-issuing code is packaged: ${f}`);
   }
+  if (/AUDIT_REPORT|\.stackdump$/i.test(f)) {
+    failures.push(`internal report or crash dump is packaged: ${f}`);
+  }
   if (!enterprise && f.startsWith('out/desktop/')) {
     failures.push(`proprietary desktop code in Community package: ${f}`);
   }
