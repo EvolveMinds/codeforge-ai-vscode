@@ -48972,6 +48972,7 @@ function setupModals(api: any): void {
         });
 
         if (id === 'Tensor') renderVisualTensorFlow();
+        if (id === 'Sandbox') probeAndSyncPythonEnvironment();
         if (id === 'Cloud') {
           refreshPythonGitStatus();
           refreshPythonEnvironmentMatrix();
@@ -50825,6 +50826,115 @@ impl Calculator {
     const selPyMockPayload = document.getElementById('selPyMockPayload') as HTMLSelectElement;
     const selPyExecEnvironment = document.getElementById('selPyExecEnvironment') as HTMLSelectElement;
 
+    // --- Environment Prerequisite Diagnostics & 1-Click Auto-Setup ---
+    let workspaceHasVenv = false;
+    let detectedSystemPython = navigator.userAgent.includes('Windows') ? 'python.exe' : 'python3';
+
+    async function probeAndSyncPythonEnvironment(): Promise<void> {
+      const isWin = navigator.userAgent.includes('Windows');
+      if (desktopApi?.terminal) {
+        try {
+          let sessionId = 'python-sandbox-session';
+          try {
+            const spawned = await desktopApi.terminal.spawn({ name: 'Python Sandbox', cwd: '.' });
+            if (spawned?.id) sessionId = spawned.id;
+          } catch (_) {}
+
+          const testCmd = isWin ? 'Test-Path .\\.venv\\Scripts\\python.exe' : 'test -f ./.venv/bin/python';
+          const res = await desktopApi.terminal.executeCommand(sessionId, testCmd);
+          workspaceHasVenv = !!(res?.stdout && res.stdout.trim().toLowerCase().includes('true'));
+
+          const verRes = await desktopApi.terminal.executeCommand(sessionId, `${isWin ? 'python.exe' : 'python3'} --version`);
+          if (verRes?.stdout && verRes.stdout.toLowerCase().includes('python')) {
+            detectedSystemPython = verRes.stdout.trim();
+          }
+        } catch (_) {}
+      }
+
+      const banner = document.getElementById('bannerPyEnvPrereq');
+      const optSystem = selPyExecEnvironment?.querySelector('option[value="system"]');
+      const optVenv = selPyExecEnvironment?.querySelector('option[value="venv"]');
+
+      if (workspaceHasVenv) {
+        if (selPyExecEnvironment && !selPyExecEnvironment.hasAttribute('data-user-selected')) {
+          selPyExecEnvironment.value = 'venv';
+        }
+        if (optVenv) optVenv.textContent = '⚡ Workspace Environment (.venv) [Active]';
+        if (optSystem) optSystem.textContent = `🐍 System Python Runtime (${detectedSystemPython})`;
+        if (banner) banner.style.display = 'none';
+      } else {
+        if (selPyExecEnvironment && !selPyExecEnvironment.hasAttribute('data-user-selected')) {
+          selPyExecEnvironment.value = 'system';
+        }
+        if (optVenv) optVenv.textContent = '⚡ Workspace Environment (.venv) [Missing - Click Auto-Setup]';
+        if (optSystem) optSystem.textContent = `🐍 System Python Runtime (${detectedSystemPython}) [Active]`;
+        if (banner) banner.style.display = 'flex';
+      }
+    }
+
+    selPyExecEnvironment?.addEventListener('change', () => {
+      selPyExecEnvironment.setAttribute('data-user-selected', 'true');
+      const banner = document.getElementById('bannerPyEnvPrereq');
+      if (selPyExecEnvironment.value === 'venv' && !workspaceHasVenv && banner) {
+        banner.style.display = 'flex';
+      }
+    });
+
+    document.getElementById('btnPyDismissEnvBanner')?.addEventListener('click', () => {
+      const banner = document.getElementById('bannerPyEnvPrereq');
+      if (banner) banner.style.display = 'none';
+    });
+
+    document.getElementById('btnPyAutoSetupVenv')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btnPyAutoSetupVenv') as HTMLButtonElement;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Creating .venv...';
+      }
+      showToast('⚙️ Auto-configuring workspace environment: creating .venv via python -m venv .venv...');
+
+      const isWin = navigator.userAgent.includes('Windows');
+      try {
+        if (desktopApi?.terminal) {
+          let sessionId = 'python-sandbox-session';
+          try {
+            const spawned = await desktopApi.terminal.spawn({ name: 'Python Sandbox', cwd: '.' });
+            if (spawned?.id) sessionId = spawned.id;
+          } catch (_) {}
+
+          const createCmd = isWin ? 'python -m venv .venv' : 'python3 -m venv .venv';
+          const createRes = await desktopApi.terminal.executeCommand(sessionId, createCmd);
+          if (createRes && createRes.code !== 0 && isWin) {
+            await desktopApi.terminal.executeCommand(sessionId, 'py -3 -m venv .venv');
+          }
+
+          // Check if requirements.txt exists and install dependencies into .venv
+          const reqCheckCmd = isWin ? 'Test-Path .\\requirements.txt' : 'test -f ./requirements.txt';
+          const reqRes = await desktopApi.terminal.executeCommand(sessionId, reqCheckCmd);
+          if (reqRes?.stdout && reqRes.stdout.trim().toLowerCase().includes('true')) {
+            showToast('📦 Installing dependencies from requirements.txt into .venv...');
+            const pipCmd = isWin ? '.\\.venv\\Scripts\\pip install -r requirements.txt' : './.venv/bin/pip install -r requirements.txt';
+            await desktopApi.terminal.executeCommand(sessionId, pipCmd);
+          }
+
+          workspaceHasVenv = true;
+          if (selPyExecEnvironment) {
+            selPyExecEnvironment.value = 'venv';
+            selPyExecEnvironment.removeAttribute('data-user-selected');
+          }
+          await probeAndSyncPythonEnvironment();
+          showToast('✓ Workspace virtual environment (.venv) configured and activated!');
+        }
+      } catch (err: any) {
+        showToast(`⚠️ Environment setup notice: ${err?.message || err}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '⚡ 1-Click Auto Setup .venv';
+        }
+      }
+    });
+
     // Sandbox Output Deck Sub-Tabs
     const outDeckTabs = ['Logs', 'Json', 'Probe'];
     outDeckTabs.forEach(deckId => {
@@ -50923,9 +51033,19 @@ impl Calculator {
         }
 
         const isWin = navigator.userAgent.includes('Windows');
+        const selectedEnv = selPyExecEnvironment?.value || 'system';
         let pyCmd = isWin ? 'python.exe' : 'python3';
-        if (selPyExecEnvironment?.value === 'venv') {
-          pyCmd = isWin ? '.\\.venv\\Scripts\\python.exe' : './.venv/bin/python';
+        let autoRoutedToSystem = false;
+
+        if (selectedEnv === 'venv') {
+          if (!workspaceHasVenv) {
+            // Pre-flight check: .venv does not exist in workspace. Gracefully auto-route to detected system Python
+            autoRoutedToSystem = true;
+            pyCmd = isWin ? 'python.exe' : 'python3';
+            showToast('ℹ️ Workspace .venv not found — auto-routing execution through detected system Python.');
+          } else {
+            pyCmd = isWin ? '.\\.venv\\Scripts\\python.exe' : './.venv/bin/python';
+          }
         }
 
         const fullCommand = `${pyCmd} ${scratchFileName} ${cliArgs}`.trim();
@@ -50937,9 +51057,32 @@ impl Calculator {
             if (spawned?.id) sessionId = spawned.id;
           } catch (_) {}
 
-          const execRes = await desktopApi.terminal.executeCommand(sessionId, fullCommand);
-          if (execRes) {
-            terminalOutput = (execRes.stdout || '') + (execRes.stderr ? `\n\x1b[31m${execRes.stderr}\x1b[0m` : '');
+          let execRes = await desktopApi.terminal.executeCommand(sessionId, fullCommand);
+
+          // In-Flight Self-Healing: If execution failed because target runtime binary was missing or unrecognized
+          const isMissingRuntime = execRes && execRes.code !== 0 && (
+            (execRes.stderr || '').includes('is not recognized') ||
+            (execRes.stderr || '').includes('CommandNotFoundException') ||
+            (execRes.stderr || '').includes('ObjectNotFound') ||
+            (execRes.stderr || '').includes('No such file or directory')
+          );
+
+          if (isMissingRuntime && pyCmd !== (isWin ? 'python.exe' : 'python3')) {
+            const fallbackCmd = `${isWin ? 'python.exe' : 'python3'} ${scratchFileName} ${cliArgs}`.trim();
+            const healingNotice = `[Auto-Prerequisite Assistant] Virtual environment (.venv) was missing or uninitialized.\n[Auto-Prerequisite Assistant] Self-healing initiated: re-routed execution through system Python (${detectedSystemPython})...\n--------------------------------------------------------\n`;
+            const retryRes = await desktopApi.terminal.executeCommand(sessionId, fallbackCmd);
+            if (retryRes) {
+              execRes = retryRes;
+              terminalOutput = healingNotice + (retryRes.stdout || '') + (retryRes.stderr ? `\n\x1b[31m${retryRes.stderr}\x1b[0m` : '');
+              executionSuccess = retryRes.code === 0;
+            }
+            workspaceHasVenv = false;
+            probeAndSyncPythonEnvironment();
+          } else if (execRes) {
+            const prefix = autoRoutedToSystem
+              ? `[Auto-Prerequisite Assistant] Workspace .venv was not yet initialized. Auto-routed execution through system Python (${detectedSystemPython}).\n--------------------------------------------------------\n`
+              : '';
+            terminalOutput = prefix + (execRes.stdout || '') + (execRes.stderr ? `\n\x1b[31m${execRes.stderr}\x1b[0m` : '');
             executionSuccess = execRes.code === 0;
           }
         }
@@ -52627,6 +52770,7 @@ WHERE execution_sla_ms > 500.0;
       updateEditorMetrics();
       updatePyEditorGutter();
       renderPythonStudioTabs();
+      probeAndSyncPythonEnvironment();
     };
 
     // Initial load
@@ -52637,6 +52781,7 @@ WHERE execution_sla_ms > 500.0;
     updatePyEditorGutter();
     renderPythonStudioTabs();
     renderVisualTensorFlow();
+    probeAndSyncPythonEnvironment();
   }
 
   // Wire Python Studio Cockpit

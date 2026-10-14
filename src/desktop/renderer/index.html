@@ -8863,8 +8863,8 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                 </div>
                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                   <select id="selPyExecEnvironment" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;">
+                    <option value="system">🐍 System Python Runtime (Auto-Detected)</option>
                     <option value="venv">⚡ Workspace Environment (.venv)</option>
-                    <option value="system">🐍 System Python Runtime</option>
                     <option value="ast_mock">🧪 In-Memory Synthetic Harness</option>
                   </select>
                   <button class="btn btn-primary" id="btnPyRunExecution" style="font-size: 11.5px; padding: 5px 16px; background: #10b981; border-color: #10b981;">▶️ Run Script</button>
@@ -8872,6 +8872,21 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <button class="btn btn-secondary" id="btnPyRunBenchmark" style="font-size: 11.5px; padding: 5px 12px;">⏱️ Benchmark (5x)</button>
                   <button class="btn btn-primary" id="btnPyAutoFixTraceback" style="display: none; font-size: 11.5px; padding: 5px 14px; background: #ef4444; border-color: #ef4444; color: #ffffff;">✨ Auto-Diagnose &amp; Fix Traceback with AI</button>
                   <button class="btn-quick" id="btnPyClearConsole" style="font-size: 11px; padding: 4px 10px;">🧹 Clear</button>
+                </div>
+              </div>
+
+              <!-- Automatic Environment Diagnostic & Auto-Setup Banner -->
+              <div id="bannerPyEnvPrereq" style="display: none; background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 16px;">⚙️</span>
+                  <div>
+                    <div style="font-weight: 700; font-size: 11.5px; color: #fff;" id="lblPyEnvPrereqTitle">Environment Auto-Configuration: Workspace .venv Missing</div>
+                    <div style="font-size: 10.5px; color: #94a3b8;" id="lblPyEnvPrereqDesc">Execution is currently safely routed to System Python. Click to auto-generate an isolated workspace virtual environment.</div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <button class="btn btn-primary" id="btnPyAutoSetupVenv" style="font-size: 11px; padding: 5px 12px; background: #3b82f6; border-color: #3b82f6; cursor: pointer;">⚡ 1-Click Auto Setup .venv</button>
+                  <button class="btn-quick" id="btnPyDismissEnvBanner" style="font-size: 11px; padding: 5px 10px; color: #94a3b8; cursor: pointer;">Dismiss</button>
                 </div>
               </div>
 
