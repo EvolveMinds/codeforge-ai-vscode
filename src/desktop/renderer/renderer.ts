@@ -50088,26 +50088,30 @@ function setupModals(api: any): void {
       if (desktopApi?.ai?.chat) {
         try {
           const systemInstruction = isGeneration
-            ? `You are a Principal ${langTitle} & Software Systems Architect.
-Create a complete, clean, self-contained ${langTitle} program according to this user request:
+            ? `You are a Principal ${langTitle} & Enterprise Software Systems Architect.
+Create a complete, clean, self-contained, enterprise-grade ${langTitle} program according to this user request:
 Request: "${nlpPrompt}"
 
-Rules:
-1. Write clean, complete, working, production-ready ${langTitle} code.
-2. Follow standard idiomatic language conventions (${lang === 'python' ? 'PEP 8 snake_case for modules, functions, variables' : 'idiomatic naming standards'}).
-3. Do NOT include boilerplate from unrelated domains (e.g. do not introduce neural networks, PyTorch, or tensors unless specifically requested).
-4. Return ONLY the code. Do not wrap in markdown code fence backticks or add introductory commentary.`
-            : `You are a Principal ${langTitle} & AI Systems Architect.
+Enterprise Quality Standards (MANDATORY):
+1. Type Safety & Signatures: Always include explicit, production-grade type annotations (${lang === 'python' ? 'e.g. from typing import Union, Optional, List, Dict; fully typed parameters and return types such as (x: float, y: float) -> float' : 'strict static typing'}).
+2. Professional Documentation: Provide informative docstrings for all functions and classes explaining parameters, return values, and raised exceptions.
+3. Defensive Error Boundaries: Handle edge cases defensively (e.g. zero division, invalid inputs, boundary errors) with clean exceptions or robust safeguards.
+4. Idiomatic Conventions: Follow ${lang === 'python' ? 'PEP 8 standards (snake_case, 4-space indentation, no mutable default args)' : 'idiomatic modern language standards'}.
+5. Clean Architecture: Implement modular functions or classes with a clean, testable CLI execution entrypoint (__main__) if applicable.
+6. Do NOT include boilerplate from unrelated domains (do not add neural networks, PyTorch, or tensors unless requested).
+7. Return ONLY valid clean ${langTitle} code. Do not wrap in markdown code fence backticks or add introductory commentary.`
+            : `You are a Principal ${langTitle} & Enterprise AI Systems Architect.
 Modify the following ${langTitle} code according to this exact user instruction:
 Instruction: "${nlpPrompt}"
 
 Current Code:
 ${currentCode}
 
-Rules:
-1. Maintain existing imports and logic, modifying only what is requested.
-2. Return ONLY the complete, valid, updated ${langTitle} code. Do not wrap in markdown code fence backticks or add introductory commentary.
-3. Keep code production-ready with type hints and numerical stability.`;
+Enterprise Quality Standards:
+1. Maintain existing imports and architecture while applying the requested changes cleanly.
+2. Ensure explicit type hints, informative docstrings, and robust error handling are preserved or added.
+3. Keep code production-ready with defensive validation and zero regressions.
+4. Return ONLY the complete, valid, updated ${langTitle} code without markdown code fence backticks.`;
 
           const res = await desktopApi.ai.chat({
             prompt: systemInstruction
