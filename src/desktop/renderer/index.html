@@ -8869,6 +8869,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   </select>
                   <button class="btn btn-primary" id="btnPyRunExecution" style="font-size: 11.5px; padding: 5px 16px; background: #10b981; border-color: #10b981;">▶️ Run Script</button>
                   <button class="btn btn-secondary" id="btnPyRunMockData" style="font-size: 11.5px; padding: 5px 12px;">⚡ Run with Mock Data</button>
+                  <button class="btn btn-secondary" id="btnPyRunPytest" style="font-size: 11.5px; padding: 5px 12px; background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6; color: #c4b5fd; cursor: pointer;" title="Run automated contract test suite">🧪 Run Unit Tests (PyTest)</button>
                   <button class="btn btn-secondary" id="btnPyRunBenchmark" style="font-size: 11.5px; padding: 5px 12px;">⏱️ Benchmark (5x)</button>
                   <button class="btn btn-primary" id="btnPyAutoFixTraceback" style="display: none; font-size: 11.5px; padding: 5px 14px; background: #ef4444; border-color: #ef4444; color: #ffffff;">✨ Auto-Diagnose &amp; Fix Traceback with AI</button>
                   <button class="btn-quick" id="btnPyClearConsole" style="font-size: 11px; padding: 4px 10px;">🧹 Clear</button>
@@ -8900,10 +8901,15 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                   <div style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Synthetic Harness:</span>
                     <select id="selPyMockPayload" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">
-                      <option value="none">Standard Execution (No Mock)</option>
-                      <option value="pytorch_tensor">Synthetic PyTorch Batch [32, 768]</option>
-                      <option value="polars_df">Synthetic 10k Polars DataFrame</option>
-                      <option value="fastapi_json">FastAPI Test Client JSON Request</option>
+                      <option value="none">Standard Execution (Active Script)</option>
+                      <option value="auto_inspect">🔍 Auto-Discover &amp; Test Functions / Classes</option>
+                      <option value="pytorch_tensor">🧠 Synthetic PyTorch Tensor Batch [32, 768]</option>
+                      <option value="polars_df">📊 Synthetic 10k Polars/Pandas DataFrame</option>
+                      <option value="fastapi_json">🌐 REST API &amp; FastAPI JSON Client Request</option>
+                      <option value="nlp_corpus">📝 NLP Text Corpus &amp; String Tokenizer</option>
+                      <option value="sqlite_db">🗄️ In-Memory SQLite Database &amp; Tables</option>
+                      <option value="file_io">📁 Synthetic File I/O Mock (data.csv &amp; config.json)</option>
+                      <option value="edge_cases">💥 Chaos &amp; Edge Cases (0, Nulls, NaNs, Strings)</option>
                     </select>
                   </div>
                 </div>
@@ -8920,6 +8926,8 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                     <button type="button" class="btn-quick" id="btnPyInputPresetSub" style="font-size: 10.5px; padding: 3px 8px; color: #38bdf8; border-color: rgba(56,189,248,0.3); cursor: pointer;" title="Input: subtract, 50, 18, exit">➖ 50 - 18</button>
                     <button type="button" class="btn-quick" id="btnPyInputPresetMul" style="font-size: 10.5px; padding: 3px 8px; color: #fbbf24; border-color: rgba(251,191,36,0.3); cursor: pointer;" title="Input: multiply, 7, 8, exit">✖️ 7 * 8</button>
                     <button type="button" class="btn-quick" id="btnPyInputPresetDiv" style="font-size: 10.5px; padding: 3px 8px; color: #a78bfa; border-color: rgba(167,139,250,0.3); cursor: pointer;" title="Input: divide, 100, 4, exit">➗ 100 / 4</button>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetZeroDiv" style="font-size: 10.5px; padding: 3px 8px; color: #f87171; border-color: rgba(248,113,113,0.3); cursor: pointer;" title="Input: divide, 10, 0, exit (Test zero-division protection)">💥 10 / 0</button>
+                    <button type="button" class="btn-quick" id="btnPyInputPresetText" style="font-size: 10.5px; padding: 3px 8px; color: #38bdf8; border-color: rgba(56,189,248,0.3); cursor: pointer;" title="Input: Alice, 42, yes, exit">🔤 Text Prompt</button>
                     <button type="button" class="btn-quick" id="btnPyInputPresetAll" style="font-size: 10.5px; padding: 3px 8px; color: #f43f5e; border-color: rgba(244,63,94,0.3); cursor: pointer;" title="Test all operations in sequence">⚡ Test All Operations</button>
                   </div>
                 </div>
