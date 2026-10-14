@@ -18,6 +18,7 @@ export const DESKTOP_CHANNELS = {
     CREATE_DIR: 'evolve:workspace:create-dir',
     DELETE_ITEM: 'evolve:workspace:delete-item',
     RENAME_ITEM: 'evolve:workspace:rename-item',
+    OPEN_FILE: 'evolve:workspace:open-file',
     REVEAL_IN_EXPLORER: 'evolve:workspace:reveal-in-explorer',
     WATCH_EVENT: 'evolve:workspace:watch-event'
   },
@@ -63,7 +64,19 @@ export const DESKTOP_CHANNELS = {
     PUSH: 'evolve:git:push',
     PULL: 'evolve:git:pull',
     STASH: 'evolve:git:stash',
-    GET_LOG: 'evolve:git:get-log'
+    GET_LOG: 'evolve:git:get-log',
+    ANALYZE_CODEBASE: 'evolve:git:analyze-codebase',
+    GET_CODEBASE_GRAPH: 'evolve:git:get-codebase-graph',
+    GENERATE_MODERNIZATION_TOPOLOGY: 'evolve:git:generate-modernization-topology',
+    SCAN_SECURITY: 'evolve:git:scan-security',
+    APPLY_SECURITY_FIX: 'evolve:git:apply-security-fix',
+    EXPORT_SECURITY_REPORT: 'evolve:git:export-security-report',
+    AUDIT_QUALITY_GATE: 'evolve:git:audit-quality-gate',
+    APPLY_QUALITY_FIX: 'evolve:git:apply-quality-fix',
+    EXPORT_QUALITY_REPORT: 'evolve:git:export-quality-report',
+    INSTALL_PRE_PUSH_HOOK: 'evolve:git:install-pre-push-hook',
+    OPEN_FILE: 'evolve:git:open-file',
+    GET_PROJECT_ORIENTATION: 'evolve:git:get-project-orientation'
   },
 
   CLOUD: {
@@ -138,7 +151,21 @@ export const DESKTOP_CHANNELS = {
     ANALYZE_DATASET: 'evolve:engines:analyze-dataset',
     FRAME_HYPOTHESIS_QUESTIONS: 'evolve:engines:frame-hypothesis-questions',
     DISCOVER_SCHEMA_GRAPH: 'evolve:engines:discover-schema-graph',
-    QUERY_TABLE_SAMPLE: 'evolve:engines:query-table-sample'
+    QUERY_TABLE_SAMPLE: 'evolve:engines:query-table-sample',
+    RAG_EVAL_ANALYZE: 'evolve:engines:rag-eval-analyze',
+    RAG_EVAL_TRIAGE_QUEUE: 'evolve:engines:rag-eval-triage-queue',
+    RAG_EVAL_EXPORT: 'evolve:engines:rag-eval-export',
+    RAG_EVAL_GET_DEMO: 'evolve:engines:rag-eval-get-demo',
+    DPO_EVAL_GET_DEMO: 'evolve:engines:dpo-eval-get-demo',
+    DPO_EVAL_RECORD_VOTE: 'evolve:engines:dpo-eval-record-vote',
+    DPO_EVAL_COMPUTE_LEADERBOARD: 'evolve:engines:dpo-eval-compute-leaderboard',
+    DPO_EVAL_EXPORT: 'evolve:engines:dpo-eval-export',
+    TABULAR_DETECT_OUTLIERS: 'evolve:engines:tabular-detect-outliers',
+    TABULAR_RECORD_OUTLIER: 'evolve:engines:tabular-record-outlier',
+    TABULAR_RECORD_COLUMN_TAG: 'evolve:engines:tabular-record-column-tag',
+    TABULAR_EXPORT_DBT: 'evolve:engines:tabular-export-dbt',
+    TABULAR_EXPORT_SANITIZATION_SQL: 'evolve:engines:tabular-export-sanitization-sql',
+    TABULAR_EXPORT_AUDIT_MD: 'evolve:engines:tabular-export-audit-md'
   },
 
   FDE: {
@@ -168,6 +195,7 @@ export const DESKTOP_CHANNELS = {
     PARSE_CLIENT_TOPOLOGY_DOC: 'evolve:fde:parse-client-topology-doc',
     PREVIEW_DISCOVERY: 'evolve:fde:preview-discovery',
     REVEAL_PATH: 'evolve:fde:reveal-path',
+    OPEN_PATH: 'evolve:fde:open-path',
     SNAPSHOT_SCOPE_VERSION: 'evolve:fde:snapshot-scope-version',
     GET_SCOPE_VERSIONS: 'evolve:fde:get-scope-versions',
     RESTORE_SCOPE_VERSION: 'evolve:fde:restore-scope-version',
@@ -183,6 +211,8 @@ export const DESKTOP_CHANNELS = {
 
   SYSTEM: {
     OPEN_EXTERNAL: 'evolve:system:open-external',
+    OPEN_PATH: 'evolve:system:open-path',
+    REVEAL_IN_FOLDER: 'evolve:system:reveal-in-folder',
     COPY_TO_CLIPBOARD: 'evolve:system:copy-to-clipboard',
     SAVE_PDF: 'evolve:system:save-pdf',
     PRINT_HTML: 'evolve:system:print-html'

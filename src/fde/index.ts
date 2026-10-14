@@ -21,3 +21,4 @@ export * from '../deployment/firebaseConfigGen';
 export * from '../deployment/deployScriptScaffolder';
 export * from './mcpScaffolder';
 export * from './clientTopologyParser';
+export * from './codebaseGraph';

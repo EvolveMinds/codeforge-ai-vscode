@@ -4,6 +4,8 @@
  * 100% deterministic, offline statistical computation. Zero external network calls.
  */
 
+import { MicroCharts } from './microCharts';
+
 export interface ColumnProfile {
   name: string;
   inferredType: 'integer' | 'float' | 'boolean' | 'datetime' | 'date' | 'json' | 'string';
@@ -28,6 +30,10 @@ export interface ColumnProfile {
   durationDays?: number;
   // Categorical metrics
   topValues?: { value: string; count: number; percentage: number }[];
+  // Micro-visualizations
+  sparklineSvg?: string;
+  missingnessBarcodeSvg?: string;
+  diversityBarSvg?: string;
   // Quality alerts
   anomalies: string[];
 }
@@ -186,6 +192,8 @@ export class DataProfiler {
         if (negativeCount > 0 && /price|qty|quantity|amount|age|count|size/i.test(name)) {
           anomalies.push(`Detected ${negativeCount} negative values in typically positive column "${name}"`);
         }
+
+        profile.sparklineSvg = MicroCharts.generateNumericSparkline(numbers);
       }
     } else if (inferredType === 'datetime' || inferredType === 'date') {
       const timestamps = nonNullValues.map(v => Date.parse(v)).filter(t => !isNaN(t));
@@ -211,7 +219,19 @@ export class DataProfiler {
         count: cnt,
         percentage: Number(((cnt / totalRows) * 100).toFixed(2)),
       }));
+      profile.diversityBarSvg = MicroCharts.generateCategoricalDiversityBar(
+        profile.topValues.map(t => ({ label: t.value, count: t.count, percentage: t.percentage }))
+      );
     }
+
+    // 1D Missingness Barcode heat-strip across full row sequence
+    const nullMask = rawValues.map(v =>
+      v === undefined || v === null || v === '' ||
+      v.trim().toUpperCase() === 'NULL' ||
+      v.trim().toUpperCase() === 'NA' ||
+      v.trim().toUpperCase() === 'NAN'
+    );
+    profile.missingnessBarcodeSvg = MicroCharts.generateMissingnessBarcode(nullMask);
 
     return profile;
   }

@@ -237,4 +237,24 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
     assert.strictEqual(res.success, false);
     assert.ok(res.reply.length > 0);
   });
+
+  test('guides users on RAG Triad golden evaluation studio, active learning triage, and in-grid micro-charts', () => {
+    const evalQueries = [
+      'Where can I do rag eval and triad scoring?',
+      'How do I triage hallucination and verify faithfulness?',
+      'Where is the golden eval studio?',
+      'How does data annotation and uncertainty queue work?',
+      'Where are in-grid sparklines and missingness barcodes located?'
+    ];
+
+    for (const q of evalQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger guardrail`);
+      assert.ok(res.reply.includes('RAG & LLM Golden Eval Studio'), `Query "${q}" should mention Golden Eval Studio`);
+      assert.ok(res.reply.includes('RAG Triad Verification'), `Query "${q}" should mention Triad Verification`);
+      assert.ok(res.actions && res.actions.length >= 2, `Query "${q}" should provide direct action jumps`);
+      assert.ok(res.actions!.some(a => a.label.includes('RAG Golden Eval Studio')), `Query "${q}" should jump to RAG Golden Eval Studio`);
+    }
+  });
 });

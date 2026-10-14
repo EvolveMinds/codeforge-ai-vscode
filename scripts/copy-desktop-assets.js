@@ -95,18 +95,22 @@ try {
   process.exit(1);
 }
 
-// Also sync full out/ directory to VS Code installed extension directories if present
+// Also sync full out/ directory and package.json to VS Code installed extension directories if present
 try {
   const os = require('os');
   const extensionsDir = path.join(os.homedir(), '.vscode', 'extensions');
   if (fs.existsSync(extensionsDir)) {
     const extDirs = fs.readdirSync(extensionsDir).filter(d => d.includes('evolve-ai'));
     const sourceOut = path.join(__dirname, '..', 'out');
+    const sourcePkg = path.join(__dirname, '..', 'package.json');
     for (const extDir of extDirs) {
       const targetOut = path.join(extensionsDir, extDir, 'out');
       if (fs.existsSync(sourceOut)) {
         copyRecursive(sourceOut, targetOut);
-        console.log(`✓ Synchronized full out/ to VS Code extension: ${extDir}`);
+        if (fs.existsSync(sourcePkg)) {
+          fs.copyFileSync(sourcePkg, path.join(extensionsDir, extDir, 'package.json'));
+        }
+        console.log(`✓ Synchronized full out/ & package.json to VS Code extension: ${extDir}`);
       }
     }
   }

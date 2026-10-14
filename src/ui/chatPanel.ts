@@ -108,6 +108,8 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     _svc.vsCtx.subscriptions.push(
       _svc.events.on('plugin.activated',   () => this._scheduleStatus()),
       _svc.events.on('plugin.deactivated', () => this._scheduleStatus()),
+      _svc.events.on('plugin.toggled',     () => { this._statusCache = null; this._scheduleStatus(); }),
+      _svc.events.on('ui.status.update',   () => { this._statusCache = null; this._scheduleStatus(); }),
       _svc.events.on('provider.changed',   () => { this._statusCache = null; this._scheduleStatus(); }),
       _svc.events.on('ui.whatsNew.show',   ({ version }) => this._post({ type: 'whatsNew', version })),
     );
@@ -146,7 +148,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           // Allowlisted command launch from the chat UI (Analyse, Code Convertor, FDE).
           case 'runCommand':
             if (typeof msg.command === 'string' &&
-                (msg.command.startsWith('aiForge.data.') || msg.command.startsWith('aiForge.convert.') || msg.command.startsWith('aiForge.fde.') || msg.command.startsWith('aiForge.'))) {
+                (msg.command.startsWith('aiForge.data.') || msg.command.startsWith('aiForge.convert.') || msg.command.startsWith('aiForge.fde.') || msg.command.startsWith('aiForge.') || msg.command.startsWith('evolve.pythonStudio.'))) {
               await vscode.commands.executeCommand(msg.command);
             }
             break;
@@ -165,6 +167,16 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
             break;
           }
           case 'action':         await this._handleAction(msg);           break;
+          case 'togglePlugin': {
+            if (typeof msg.pluginId === 'string') {
+              await this._svc.plugins.togglePlugin(msg.pluginId);
+            }
+            break;
+          }
+          case 'managePlugins': {
+            await vscode.commands.executeCommand('aiForge.managePlugins');
+            break;
+          }
           default: console.warn('[Evolve AI] Unknown webview message type:', msg.type); break;
         }
       } catch (e) {
@@ -458,6 +470,14 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
       currentModel,
       availableModels,
       activePlugins: active.map(p => ({ id: p.id, name: p.displayName, icon: p.icon })),
+      allPlugins: this._svc.plugins.getAll().map(p => ({
+        id: p.id,
+        name: p.displayName,
+        icon: p.icon,
+        description: p.description || '',
+        enabled: this._svc.plugins.isPluginEnabled(p.id),
+        active: this._svc.plugins.isPluginActive(p.id),
+      })),
       os: process.platform,
     };
     this._statusCache = { data: statusMsg, ts: now };
@@ -650,10 +670,13 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
     <button class="hbtn" id="pluginsBtn" title="View detected workspace environments and active plugins" style="display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 6px;">
       <span>🔌</span> <span id="pluginsCountLabel">0 active</span> <span style="font-size:8px; opacity:0.7;">▾</span>
     </button>
-    <div class="popover" id="pluginsPopover" hidden style="top:100%; bottom:auto; left:0; margin-top:6px; min-width:280px; max-width:340px;">
+    <div class="popover" id="pluginsPopover" hidden style="top:100%; bottom:auto; left:0; margin-top:6px; min-width:320px; max-width:380px;">
       <div class="pop-title" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>Active Plugins &amp; Integrations</span>
-        <span id="pluginsPopoverTotal" style="font-size:9px; background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:10px;">0 active</span>
+        <span>Plugins &amp; Studios</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span id="pluginsPopoverTotal" style="font-size:9px; background:rgba(255,255,255,0.1); padding:1px 5px; border-radius:10px;">0 active</span>
+          <button id="btnOpenPluginManager" style="background:rgba(78,201,176,0.15); border:1px solid rgba(78,201,176,0.4); color:#4ec9b0; font-size:9px; padding:2px 6px; border-radius:3px; cursor:pointer; font-weight:600;">Manage All 🧩</button>
+        </div>
       </div>
       <div id="pluginsList"></div>
     </div>
@@ -691,11 +714,12 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
     </div>
 
     <p><strong>🚀 FDE Studio</strong> &mdash; live database introspection, foreign schema mapping, custom client APIs, DevOps &amp; Git repository connectivity &amp; handoff runbooks</p>
+    <p id="welcomePyStudio"><strong>🐍 Python Studio</strong> &mdash; 1-click Python setup, package sync, airtight offline wheelhouse &amp; neural debugging</p>
     <p><strong>Chat</strong> &mdash; ask questions about your code</p>
     <p><strong>Edit</strong> &mdash; describe changes to the active file</p>
     <p><strong>Create</strong> &mdash; generate new files from scratch</p>
-    <p><strong>Analyse</strong> &mdash; turn a data file or database into insights &amp; reports</p>
-    <p><strong>Code Convertor</strong> &mdash; port code to another language, reviewed side by side</p>
+    <p id="welcomeDataStudio"><strong>Analyse</strong> &mdash; turn a data file or database into insights &amp; reports</p>
+    <p id="welcomeConvertStudio"><strong>Code Convertor</strong> &mdash; port code to another language, reviewed side by side</p>
     <p style="margin-top:8px">Right-click code for inline actions</p>
     <p><kbd>${mod}+Shift+A</kbd> to open &middot; <kbd>${mod}+Alt+E</kbd> to explain selection</p>
   </div>
@@ -718,6 +742,13 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
           <div class="pop-body">
             <div class="pop-name" style="color: var(--vscode-charts-teal, #4ec9b0); font-weight: 700;">FDE Studio <span style="font-size: 9px; background: rgba(78,201,176,0.2); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">STUDIO</span></div>
             <div class="pop-desc">Forward-Deployed Engineers Delivery Studio &mdash; live DB introspection, foreign schema mapping, custom client APIs, Multi-Cloud Hub, DevOps &amp; Git repository connectivity, pilot deployment, pre-flight audits, and handoff runbooks.</div>
+          </div>
+        </div>
+        <div class="pop-item" data-mode="pythonStudio" data-action="pythonStudio" style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; background: rgba(56, 189, 248, 0.08);">
+          <div class="pop-icon">&#128013;</div>
+          <div class="pop-body">
+            <div class="pop-name" style="color: var(--vscode-charts-blue, #38bdf8); font-weight: 700;">Python AI Studio <span style="font-size: 9px; background: rgba(56,189,248,0.2); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">STUDIO</span></div>
+            <div class="pop-desc">Python AI Studio &amp; Neural Debugger &mdash; 1-click Python setup, auto package sync, airtight wheelhouse, and PyTorch tensor shape tracing.</div>
           </div>
         </div>
         <div class="pop-item" data-mode="chat">
@@ -1190,7 +1221,7 @@ window.addEventListener('message', ({ data }) => {
       const pluginsCountLabel = document.getElementById('pluginsCountLabel');
       const pluginsPopoverTotal = document.getElementById('pluginsPopoverTotal');
       
-      const rawPlugins = data.activePlugins || [];
+      const allPlugs = data.allPlugins || [];
       
       function cleanPluginIcon(ic) {
         if (!ic) return '⚡';
@@ -1205,176 +1236,98 @@ window.addEventListener('message', ({ data }) => {
         return ic;
       }
 
-      // Pre-seed the 6 primary core studio connectors & integrations
-      const baseIntegrations = [
-        {
-          id: 'databricks',
-          name: 'Databricks Lakehouse',
-          icon: 'database',
-          desc: 'Delta Lake, Unity Catalog & PySpark optimization.',
-          actionLabel: '⚡ Lakehouse Hub',
-          actionCmd: 'aiForge.databricks.openHub'
-        },
-        {
-          id: 'security',
-          name: 'Security Scanner',
-          icon: 'shield',
-          desc: 'Secret leak detection & dependency vulnerability rules.',
-          actionLabel: '🛡️ Run Audit',
-          actionCmd: 'aiForge.fde.preflightAudit'
-        },
-        {
-          id: 'git',
-          name: 'Git Intelligence',
-          icon: 'git-branch',
-          desc: 'Branch state, uncommitted diffs & commit history.',
-          actionLabel: '🌿 Connect',
-          actionCmd: 'aiForge.gitConnect.start'
-        },
-        {
-          id: 'multicloud',
-          name: 'Multi-Cloud & Pilot Deployment',
-          icon: 'cloud',
-          desc: 'AWS, GCP, Azure, Kubernetes & Terraform IaC scaffolding.',
-          actionLabel: '🚀 Cloud Hub',
-          actionCmd: 'aiForge.fde.scaffoldDeploy'
-        },
-        {
-          id: 'data',
-          name: 'Data Analysis & Reporting',
-          icon: 'graph',
-          desc: 'Data profiling, schema metrics & visual reporting.',
-          actionLabel: '📊 Open Studio',
-          actionCmd: 'aiForge.data.analyze'
-        },
-        {
-          id: 'convert',
-          name: 'Code Converter',
-          icon: 'zap',
-          desc: 'Side-by-side multi-language code translation.',
-          actionLabel: '⚡ Convert',
-          actionCmd: 'aiForge.convert.start'
-        }
-      ];
+      // Dynamic Studio Visibility in Mode & Studios Popover
+      const isEnabled = (pid) => {
+        const found = allPlugs.find(p => p.id === pid);
+        return found ? found.enabled : true;
+      };
 
-      const unifiedMap = new Map();
-      baseIntegrations.forEach(b => unifiedMap.set(b.id, b));
+      const pyItem = document.querySelector('[data-mode="pythonStudio"]');
+      if (pyItem) pyItem.style.display = isEnabled('pythonStudio') ? '' : 'none';
 
-      rawPlugins.forEach(p => {
-        const id = (p.id || '').toLowerCase();
-        const nm = (p.name || '').toLowerCase();
-        
-        let key = id;
-        let unifiedName = p.name || p.id;
-        let unifiedIcon = p.icon;
-        let unifiedDesc = 'Workspace context & domain rules active in AI prompts.';
-        let actionLabel = '';
-        let actionCmd = '';
+      const dataItem = document.querySelector('[data-mode="analyse"]');
+      if (dataItem) dataItem.style.display = isEnabled('dataAnalysis') ? '' : 'none';
 
-        if (id.includes('aws') || nm.includes('aws') || id.includes('gcp') || nm.includes('gcp') || id.includes('azure') || nm.includes('azure') || id.includes('docker') || id.includes('kubernetes') || id.includes('terraform') || id.includes('cloud')) {
-          key = 'multicloud';
-          unifiedName = 'Multi-Cloud & Pilot Deployment';
-          unifiedIcon = 'cloud';
-          unifiedDesc = 'AWS, GCP, Azure, Kubernetes & Terraform IaC scaffolding.';
-          actionLabel = '🚀 Cloud Hub';
-          actionCmd = 'aiForge.fde.scaffoldDeploy';
-        } else if (id.includes('databricks') || nm.includes('databricks')) {
-          key = 'databricks';
-          unifiedName = 'Databricks Lakehouse';
-          unifiedIcon = 'database';
-          unifiedDesc = 'Delta Lake, Unity Catalog & PySpark optimization.';
-          actionLabel = '⚡ Lakehouse Hub';
-          actionCmd = 'aiForge.databricks.openHub';
-        } else if (id.includes('dbt') || nm.includes('dbt')) {
-          key = 'dbt';
-          unifiedName = 'dbt (Models & Lineage)';
-          unifiedIcon = 'graph';
-          unifiedDesc = 'dbt models, manifest DAG lineage & SQL compilation.';
-          actionLabel = '🗺️ Lineage';
-          actionCmd = 'aiForge.lineage.showPanel';
-        } else if (id.includes('airflow') || nm.includes('airflow')) {
-          key = 'airflow';
-          unifiedName = 'Apache Airflow';
-          unifiedIcon = 'graph';
-          unifiedDesc = 'DAG parsing, task dependencies & schedule simulation.';
-          actionLabel = '⏱️ Simulate';
-          actionCmd = 'aiForge.airflow.simulate';
-        } else if (id.includes('git') || nm.includes('git')) {
-          key = 'git';
-          unifiedName = 'Git Intelligence';
-          unifiedIcon = 'git-branch';
-          unifiedDesc = 'Branch state, uncommitted diffs & commit history.';
-          actionLabel = '🌿 Connect';
-          actionCmd = 'aiForge.gitConnect.start';
-        } else if (id.includes('security') || nm.includes('security')) {
-          key = 'security';
-          unifiedName = 'Security Scanner';
-          unifiedIcon = 'shield';
-          unifiedDesc = 'Secret leak detection & dependency vulnerability rules.';
-          actionLabel = '🛡️ Run Audit';
-          actionCmd = 'aiForge.fde.preflightAudit';
-        } else if (id.includes('pytest') || nm.includes('pytest')) {
-          key = 'pytest';
-          unifiedName = 'pytest Test Suite';
-          unifiedIcon = 'zap';
-          unifiedDesc = 'Python test discovery, assertions & test generation.';
-          actionLabel = '🧪 Tests';
-          actionCmd = 'aiForge.addTests';
-        } else if (id.includes('data') || nm.includes('data')) {
-          key = 'data';
-          unifiedName = 'Data Analysis & Reporting';
-          unifiedIcon = 'graph';
-          unifiedDesc = 'Data profiling, schema metrics & visual reporting.';
-          actionLabel = '📊 Open Studio';
-          actionCmd = 'aiForge.data.analyze';
-        } else if (id.includes('convert') || nm.includes('convert')) {
-          key = 'convert';
-          unifiedName = 'Code Converter';
-          unifiedIcon = 'zap';
-          unifiedDesc = 'Side-by-side multi-language code translation.';
-          actionLabel = '⚡ Convert';
-          actionCmd = 'aiForge.convert.start';
-        }
+      const convItem = document.querySelector('[data-mode="convert"]');
+      if (convItem) convItem.style.display = isEnabled('codeConvert') ? '' : 'none';
 
-        if (!unifiedMap.has(key)) {
-          unifiedMap.set(key, {
-            id: key,
-            name: unifiedName,
-            icon: unifiedIcon,
-            desc: unifiedDesc,
-            actionLabel,
-            actionCmd
-          });
-        }
-      });
+      // Dynamic Show / Hide in Header & Welcome Banner
+      const pyWelcome = document.getElementById('welcomePyStudio');
+      if (pyWelcome) pyWelcome.style.display = isEnabled('pythonStudio') ? '' : 'none';
+      const dataWelcome = document.getElementById('welcomeDataStudio');
+      if (dataWelcome) dataWelcome.style.display = isEnabled('dataAnalysis') ? '' : 'none';
+      const convWelcome = document.getElementById('welcomeConvertStudio');
+      if (convWelcome) convWelcome.style.display = isEnabled('codeConvert') ? '' : 'none';
 
-      const unifiedList = Array.from(unifiedMap.values());
+      const dataBtn = document.getElementById('dataBtn');
+      if (dataBtn) dataBtn.style.display = isEnabled('dataAnalysis') ? '' : 'none';
+      const convertBtn = document.getElementById('convertBtn');
+      if (convertBtn) convertBtn.style.display = isEnabled('codeConvert') ? '' : 'none';
 
+      // Dynamic Count of Active Plugins
+      const activeCount = allPlugs.filter(p => p.enabled && p.active).length;
       if (pluginsBtn && pluginsCountLabel) {
         pluginsBtn.style.display = 'inline-flex';
-        pluginsCountLabel.textContent = (unifiedList.length > 0 ? unifiedList.length : 0) + ' active';
-        if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = (unifiedList.length > 0 ? unifiedList.length : 0) + ' active';
+        pluginsCountLabel.textContent = activeCount + ' active';
+        if (pluginsPopoverTotal) pluginsPopoverTotal.textContent = activeCount + ' active';
       }
 
       if (pluginsList) {
-        const itemsHtml = unifiedList.length > 0 ? unifiedList.map(p => {
-          const btnHtml = p.actionCmd ? 
-            '<button class="plugin-act-btn" data-cmd="' + esc(p.actionCmd) + '" style="background: rgba(78,201,176,0.12); border: 1px solid rgba(78,201,176,0.4); color: #4ec9b0; border-radius: 4px; font-size: 10px; padding: 2px 7px; cursor: pointer; white-space: nowrap; font-weight: 600; transition: all 0.15s;">' + esc(p.actionLabel) + '</button>' : '';
-          
-          return '<div class="pop-item" style="display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);">' +
-            '<div style="display: flex; align-items: flex-start; gap: 8px; flex: 1; min-width: 0;">' +
+        // Map action commands for primary studio plugins
+        const studioActionMap = {
+          pythonStudio: { label: '⚡ Open Studio', cmd: 'evolve.pythonStudio.openWorkspace' },
+          dataAnalysis: { label: '📊 Analyse', cmd: 'aiForge.data.analyze' },
+          codeConvert: { label: '⚡ Convert', cmd: 'aiForge.convert.start' },
+          databricks: { label: '⚡ Lakehouse', cmd: 'aiForge.databricks.openHub' },
+          airflow: { label: '⏱️ Simulate', cmd: 'aiForge.airflow.simulate' },
+          dbt: { label: '🗺️ Lineage', cmd: 'aiForge.lineage.showPanel' },
+          git: { label: '🌿 Connect', cmd: 'aiForge.gitConnect.start' },
+          security: { label: '🛡️ Audit', cmd: 'aiForge.fde.preflightAudit' },
+        };
+
+        const sortedPlugs = [...allPlugs].sort((a, b) => {
+          if (a.id === 'pythonStudio') return -1;
+          if (b.id === 'pythonStudio') return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        const itemsHtml = sortedPlugs.length > 0 ? sortedPlugs.map(p => {
+          const act = studioActionMap[p.id];
+          const actBtnHtml = (p.enabled && act) ?
+            '<button class="plugin-act-btn" data-cmd="' + esc(act.cmd) + '" style="background: rgba(78,201,176,0.12); border: 1px solid rgba(78,201,176,0.4); color: #4ec9b0; border-radius: 4px; font-size: 10px; padding: 2px 6px; cursor: pointer; white-space: nowrap; font-weight: 600;">' + esc(act.label) + '</button>' : '';
+
+          const statusBadge = !p.enabled
+            ? '<span style="font-size:9px; background:rgba(244,67,54,0.15); color:#f87171; border:1px solid rgba(244,67,54,0.3); padding:1px 4px; border-radius:3px; font-weight:700;">OFF</span>'
+            : p.active
+            ? '<span style="font-size:9px; background:rgba(78,201,176,0.2); color:#4ec9b0; border:1px solid rgba(78,201,176,0.4); padding:1px 4px; border-radius:3px; font-weight:700;">ACTIVE</span>'
+            : '<span style="font-size:9px; background:rgba(255,255,255,0.08); color:var(--muted); padding:1px 4px; border-radius:3px;">STANDBY</span>';
+
+          const toggleBtn = p.enabled
+            ? '<button class="plugin-toggle-btn" data-id="' + esc(p.id) + '" title="Disable this plugin" style="background:rgba(244,67,54,0.12); border:1px solid rgba(244,67,54,0.3); color:#f87171; border-radius:4px; font-size:9px; padding:2px 6px; cursor:pointer; font-weight:600;">Disable</button>'
+            : '<button class="plugin-toggle-btn" data-id="' + esc(p.id) + '" title="Enable this plugin" style="background:rgba(78,201,176,0.15); border:1px solid rgba(78,201,176,0.4); color:#4ec9b0; border-radius:4px; font-size:9px; padding:2px 6px; cursor:pointer; font-weight:600;">Enable</button>';
+
+          const descText = p.description || (p.enabled ? 'Active in AI Chat and editor features.' : 'Disabled — hidden from studios and menus.');
+
+          return '<div class="pop-item" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; gap: 8px; border-bottom: 1px solid rgba(255,255,255,0.05);' + (!p.enabled ? ' opacity:0.6;' : '') + '">' +
+            '<div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">' +
               '<div class="pop-icon" style="font-size: 13px; line-height: 1.2;">' + cleanPluginIcon(p.icon) + '</div>' +
               '<div class="pop-body">' +
-                '<div class="pop-name" style="font-size: 11px; font-weight: 600;">' + esc(p.name) + '</div>' +
-                '<div class="pop-desc" style="font-size: 10px; opacity: 0.8; line-height: 1.3;">' + esc(p.desc) + '</div>' +
+                '<div style="display:flex; align-items:center; gap:5px;">' +
+                  '<span class="pop-name" style="font-size: 11px; font-weight: 600;">' + esc(p.name) + '</span>' +
+                  statusBadge +
+                '</div>' +
+                '<div class="pop-desc" style="font-size: 10px; opacity: 0.8; line-height: 1.2;">' + esc(descText) + '</div>' +
               '</div>' +
             '</div>' +
-            btnHtml +
+            '<div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">' +
+              actBtnHtml +
+              toggleBtn +
+            '</div>' +
           '</div>';
-        }).join('') : '<div style="padding: 14px 10px; font-size: 11px; color: var(--muted); text-align: center; line-height: 1.4;">No plugins detected yet.<br>Open a workspace with Python, SQL, Databricks, dbt, or cloud manifests to activate plugins automatically.</div>';
+        }).join('') : '<div style="padding: 14px 10px; font-size: 11px; color: var(--muted); text-align: center;">No plugins available.</div>';
 
-        const footerHtml = '<div style="padding: 8px 10px; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 4px; background: rgba(255,255,255,0.02); line-height: 1.4;">' +
-          '💡 <strong>How it works:</strong> Active plugins inject syntax, cloud rules &amp; live context into AI Chat automatically. Click any button above to open dedicated tools.' +
+        const footerHtml = '<div style="padding: 8px 10px; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); margin-top: 4px; background: rgba(255,255,255,0.02); line-height: 1.4; display:flex; justify-content:space-between; align-items:center;">' +
+          '<span>💡 Click <strong>Disable</strong> to hide any studio instantly.</span>' +
         '</div>';
 
         pluginsList.innerHTML = itemsHtml + footerHtml;
@@ -1559,6 +1512,14 @@ on('dataBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: '
 on('convertBtn', 'click', () => vscode.postMessage({ type: 'runCommand', command: 'aiForge.convert.start' }));
 on('pluginsBtn', 'click', (e) => { e.stopPropagation(); togglePopover('pluginsPopover'); });
 on('pluginsList', 'click', (e) => {
+  const toggleBtn = e.target && e.target.closest ? e.target.closest('.plugin-toggle-btn') : null;
+  if (toggleBtn) {
+    const pid = toggleBtn.getAttribute('data-id');
+    if (pid) {
+      vscode.postMessage({ type: 'togglePlugin', pluginId: pid });
+    }
+    return;
+  }
   const btn = e.target && e.target.closest ? e.target.closest('.plugin-act-btn') : null;
   if (btn) {
     const cmd = btn.getAttribute('data-cmd');
@@ -1567,6 +1528,10 @@ on('pluginsList', 'click', (e) => {
       closeAllPopovers();
     }
   }
+});
+on('btnOpenPluginManager', 'click', () => {
+  vscode.postMessage({ type: 'managePlugins' });
+  closeAllPopovers();
 });
 on('switchBtn', 'click', () => vscode.postMessage({type:'switchProvider'}));
 on('clearBtn',  'click', () => clearHistory());
@@ -1607,6 +1572,12 @@ document.querySelectorAll('#modePopover .pop-item').forEach(item => {
     if (action === 'fdeHub') {
       // "FDE (Beta)" opens the full Forward Deployed Engineer Delivery Studio.
       vscode.postMessage({ type: 'runCommand', command: 'aiForge.fde.openCockpit' });
+      closeAllPopovers();
+      return;
+    }
+    if (action === 'pythonStudio') {
+      // Open the interactive Python AI Studio & Neural Debugger Workspace.
+      vscode.postMessage({ type: 'runCommand', command: 'evolve.pythonStudio.openWorkspace' });
       closeAllPopovers();
       return;
     }

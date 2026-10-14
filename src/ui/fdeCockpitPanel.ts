@@ -67,6 +67,13 @@ export class FdeCockpitPanel {
     this._svc = svc;
     this._contextManager = new FdeContextManager(vsCtx);
 
+    if (this._svc) {
+      this._disposables.push(
+        this._svc.events.on('plugin.toggled', () => this._update()),
+        this._svc.events.on('ui.status.update', () => this._update()),
+      );
+    }
+
     this._update();
 
     this._panel.onDidDispose(() => {
@@ -2680,6 +2687,78 @@ Output ONLY the message without markdown code fences.`;
         break;
       }
 
+      case 'runPythonSandbox': {
+        vscode.commands.executeCommand('evolve.pythonStudio.runInSandbox');
+        break;
+      }
+
+      case 'provisionPythonVenv': {
+        vscode.commands.executeCommand('evolve.pythonStudio.provisionVenv');
+        break;
+      }
+
+      case 'scanPythonGitLeaks': {
+        vscode.commands.executeCommand('evolve.pythonStudio.scanGitLeaks');
+        break;
+      }
+
+      case 'scaffoldPythonDocker': {
+        vscode.commands.executeCommand('evolve.pythonStudio.scaffoldDockerfile');
+        break;
+      }
+
+      case 'openPythonWorkspace': {
+        vscode.commands.executeCommand('evolve.pythonStudio.openWorkspace');
+        break;
+      }
+
+      case 'autoInstallPython': {
+        vscode.commands.executeCommand('evolve.pythonStudio.autoInstallPython');
+        break;
+      }
+
+      case 'installMissingPackages': {
+        vscode.commands.executeCommand('evolve.pythonStudio.installMissingPackages');
+        break;
+      }
+
+      case 'generateAirtightBundle': {
+        vscode.commands.executeCommand('evolve.pythonStudio.generateAirtightBundle');
+        break;
+      }
+
+      case 'installAirtightWheelhouse': {
+        vscode.commands.executeCommand('evolve.pythonStudio.installAirtightWheelhouse');
+        break;
+      }
+
+      case 'runSetupSelfTest': {
+        vscode.commands.executeCommand('evolve.pythonStudio.runSetupSelfTest');
+        break;
+      }
+
+      case 'togglePythonPlugin': {
+        if (this._svc) {
+          const nowEnabled = await this._svc.plugins.togglePlugin('pythonStudio');
+          if (nowEnabled) {
+            vscode.window.showInformationMessage('✓ Python AI Studio Plugin Enabled!');
+          } else {
+            vscode.window.showInformationMessage('Python AI Studio Plugin Disabled.');
+          }
+        }
+        this._update();
+        break;
+      }
+
+      case 'openPluginsManager': {
+        if (this._svc) {
+          const { PluginManager } = await import('./pluginManager');
+          await PluginManager.openQuickPick(this._svc);
+        }
+        break;
+      }
+
+
       case 'generateRunbooks': {
         if (!ws) {
           vscode.window.showWarningMessage('Open a workspace folder first to generate handoff documents.');
@@ -2775,6 +2854,7 @@ Output ONLY the message without markdown code fences.`;
     const envExists = envPath ? fs.existsSync(envPath) : false;
     const completeExists = completePath ? fs.existsSync(completePath) : false;
     const anyDocExists = archExists || deployExists || dataDictExists || envExists || completeExists;
+    const isPythonStudioEnabled = this._svc ? this._svc.plugins.isPluginEnabled('pythonStudio') : true;
 
     const initialArchDoc = archExists ? fs.readFileSync(archPath, 'utf8') : RunbookGenerator.generateArchitectureDoc(state);
     const initialDeployDoc = deployExists ? fs.readFileSync(deployPath, 'utf8') : RunbookGenerator.generateDeploymentRunbook(state);
@@ -3230,6 +3310,8 @@ Output ONLY the message without markdown code fences.`;
       <button class="btn-quick" style="margin-bottom: 0; color: var(--success); border-color: var(--success); font-weight: 700;" onclick="toggleCommitDrawer()">📦 1-Click Commit &amp; Push</button>
       <button class="btn-quick" style="margin-bottom: 0;" onclick="createPullRequest()">🚀 Create PR</button>
       <button class="btn-quick" id="btnCloudHub" style="margin-bottom: 0;" onclick="toggleCloudHubDrawer()">☁️ Cloud Hub &amp; Connect</button>
+      <button class="btn-quick" id="btnPluginsManager" style="margin-bottom: 0;" onclick="openPluginsManager()">🧩 Plugins Manager</button>
+      <button class="btn-quick" id="btnPythonStudio" style="margin-bottom: 0; color: #4ec9b0; border-color: rgba(78,201,176,0.6); ${isPythonStudioEnabled ? '' : 'display: none;'}" onclick="togglePythonStudioDrawer()">🐍 Python Studio</button>
     </div>
   </div>
 
@@ -3449,6 +3531,98 @@ Output ONLY the message without markdown code fences.`;
       <button class="btn" style="margin-bottom: 0;" onclick="testCloudConnection()">🔄 Refresh Cloud Status</button>
     </div>
   </div>
+
+  <!-- Python AI Studio & Neural Debugger Hub Drawer -->
+  <div id="pythonStudioDrawer" style="${isPythonStudioEnabled ? 'display: none;' : 'display: none !important; visibility: hidden; pointer-events: none;'} background: var(--card-bg); border: 1px solid #4ec9b0; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.35);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-weight: 700; color: #4ec9b0; font-size: 13px;">🐍 Python AI Studio &amp; Neural Debugger</span>
+        <span id="pyPluginActiveBadge" style="font-size: 10px; background: rgba(78, 201, 176, 0.15); color: #4ec9b0; padding: 2px 6px; border-radius: 10px; font-weight: 700;">ACTIVE</span>
+        <span style="font-size: 10px; opacity: 0.75;">(Greenfield &amp; Brownfield Ready)</span>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <button class="btn-quick" style="margin-bottom: 0; font-size: 11px; font-weight: 600; color: #4ec9b0; border-color: rgba(78,201,176,0.6);" onclick="openPythonWorkspace()">🖥️ Open Workspace</button>
+        <button class="btn-quick" style="margin-bottom: 0; font-size: 10px;" onclick="togglePythonPlugin()">⚙️ Toggle Plugin</button>
+        <button class="btn-quick" style="margin-bottom: 0;" onclick="togglePythonStudioDrawer()">✕ Close</button>
+      </div>
+    </div>
+
+    <!-- 4 Action Cards for Python Studio -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--accent);">
+          ▶ Execution Sandbox
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Isolated terminal with injected Cloud Hub credentials.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="runPythonSandbox()">▶ Run in Sandbox</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #4ec9b0;">
+          ⚡ Environment (uv)
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">1-Click sub-second virtualenv provisioner.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="provisionPythonVenv()">⚡ Provision .venv</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--warn);">
+          🛡️ Git Hygiene &amp; Leaks
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Audit model weights (&gt;50MB) and .gitignore.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="scanPythonGitLeaks()">🛡️ Scan Git Leaks</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--fg);">
+          🐳 Cloud Container
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Multi-stage Dockerfile for Cloud Run / ECS.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="scaffoldPythonDocker()">🐳 Scaffold Dockerfile</button>
+      </div>
+    </div>
+
+    <!-- 2nd Row: Turnkey Machine Setup & Airtight / Offline Suite -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 14px;">
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #4ec9b0;">
+          ⚡ 1-Click Python Install
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Auto-detects missing Python &amp; configures PATH.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="autoInstallPython()">⚡ Install Python (3.12)</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--accent);">
+          📦 Missing Package Sync
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Scans imports &amp; 1-click installs to venv.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="installMissingPackages()">📦 Sync Packages</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--warn);">
+          🔒 Airtight Wheelhouse
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Offline manifests &amp; zero-internet installs.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="generateAirtightBundle()">🔒 Offline Bundle</button>
+      </div>
+
+      <div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px; color: var(--success);">
+          🧪 Setup Self-Test
+        </div>
+        <div style="font-size: 10px; opacity: 0.8; margin-bottom: 8px;">Smoke test runtime, tensors &amp; dependencies.</div>
+        <button class="btn-quick" style="width: 100%; margin-bottom: 0; font-size: 10px;" onclick="runSetupSelfTest()">🧪 Test &amp; Certify</button>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid var(--border); font-size: 11px; opacity: 0.85;">
+      <span>💡 Turnkey Python Setup: 1-Click Host Install • Auto-Configured Interpreter • Zero-Internet Airtight Support.</span>
+      <span style="font-family: monospace;">uv • PyTorch • Polars • FastAPI</span>
+    </div>
+  </div>
+
 
   <!-- Overall Progress Bar -->
   <div class="progress-bar-container" title="Engagement Progress: ${progressPercent}%">
@@ -6562,6 +6736,74 @@ Output ONLY the message without markdown code fences.`;
       showToast('🚀 Initiating ' + provider.toUpperCase() + ' ' + (action || 'login') + ' in terminal...');
     }
 
+    function togglePythonStudioDrawer() {
+      const drawer = document.getElementById('pythonStudioDrawer');
+      if (drawer) {
+        const isHidden = drawer.style.display === 'none' || drawer.style.display === '' || window.getComputedStyle(drawer).display === 'none';
+        drawer.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+          drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    }
+
+    function runPythonSandbox() {
+      vscode.postMessage({ command: 'runPythonSandbox' });
+      showToast('🚀 Launching Python Sandbox in Terminal...');
+    }
+
+    function provisionPythonVenv() {
+      vscode.postMessage({ command: 'provisionPythonVenv' });
+      showToast('⚡ Provisioning uv virtual environment in terminal...');
+    }
+
+    function scanPythonGitLeaks() {
+      vscode.postMessage({ command: 'scanPythonGitLeaks' });
+      showToast('🛡️ Auditing Git Pre-Commit Hygiene & Model Weights...');
+    }
+
+    function scaffoldPythonDocker() {
+      vscode.postMessage({ command: 'scaffoldPythonDocker' });
+      showToast('🐳 Scaffolding hardened multi-stage Dockerfile...');
+    }
+
+    function openPythonWorkspace() {
+      vscode.postMessage({ command: 'openPythonWorkspace' });
+    }
+
+    function togglePythonPlugin() {
+      vscode.postMessage({ command: 'togglePythonPlugin' });
+    }
+
+    function autoInstallPython() {
+      vscode.postMessage({ command: 'autoInstallPython' });
+      showToast('⚡ Initiating 1-Click Python 3.12 Setup & PATH Configuration...');
+    }
+
+    function installMissingPackages() {
+      vscode.postMessage({ command: 'installMissingPackages' });
+      showToast('📦 Scanning imports & installing missing dependencies in sandbox...');
+    }
+
+    function generateAirtightBundle() {
+      vscode.postMessage({ command: 'generateAirtightBundle' });
+      showToast('🔒 Generating Airtight offline package bundle & fetch scripts...');
+    }
+
+    function installAirtightWheelhouse() {
+      vscode.postMessage({ command: 'installAirtightWheelhouse' });
+      showToast('📥 Installing from local wheelhouse in air-gapped mode...');
+    }
+
+    function runSetupSelfTest() {
+      vscode.postMessage({ command: 'runSetupSelfTest' });
+      showToast('🧪 Running automated Python setup & smoke test verification...');
+    }
+
+    function openPluginsManager() {
+      vscode.postMessage({ command: 'openPluginsManager' });
+    }
+
     window.switchGitBranch = switchGitBranch;
     window.promptNewBranch = promptNewBranch;
     window.toggleGitSetupDrawer = toggleGitSetupDrawer;
@@ -6577,6 +6819,19 @@ Output ONLY the message without markdown code fences.`;
     window.openExternalUrl = openExternalUrl;
     window.toggleCloudHubDrawer = toggleCloudHubDrawer;
     window.connectCloud = connectCloud;
+    window.openPluginsManager = openPluginsManager;
+    window.togglePythonStudioDrawer = togglePythonStudioDrawer;
+    window.openPythonWorkspace = openPythonWorkspace;
+    window.runPythonSandbox = runPythonSandbox;
+    window.provisionPythonVenv = provisionPythonVenv;
+    window.scanPythonGitLeaks = scanPythonGitLeaks;
+    window.scaffoldPythonDocker = scaffoldPythonDocker;
+    window.autoInstallPython = autoInstallPython;
+    window.installMissingPackages = installMissingPackages;
+    window.generateAirtightBundle = generateAirtightBundle;
+    window.installAirtightWheelhouse = installAirtightWheelhouse;
+    window.runSetupSelfTest = runSetupSelfTest;
+    window.togglePythonPlugin = togglePythonPlugin;
     window.diagnoseGit = diagnoseGit;
     window.openGitTerminal = openGitTerminal;
     window.gitFetch = gitFetch;

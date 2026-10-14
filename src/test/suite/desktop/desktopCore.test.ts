@@ -633,6 +633,86 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'TX-9482' && e.action === 'APPROVED'));
     assert.ok(hitlAuditEntries.some((e: any) => e.transactionId === 'CALL-8921' && e.dualSigned === true && e.domain === 'agentic_mcp'));
 
+    // Test invoking RAG Golden Eval Studio IPC handlers
+    const ragDemoFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_GET_DEMO)!;
+    assert.ok(ragDemoFn !== undefined, 'RAG_EVAL_GET_DEMO handler should be registered');
+    const ragDemoRes = await ragDemoFn(null, {});
+    assert.strictEqual(ragDemoRes.success, true);
+    assert.strictEqual(ragDemoRes.triplets.length, 5);
+    assert.strictEqual(ragDemoRes.summary.totalCount, 5);
+
+    const ragTriageFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_TRIAGE_QUEUE)!;
+    assert.ok(ragTriageFn !== undefined, 'RAG_EVAL_TRIAGE_QUEUE handler should be registered');
+    const triageRes = await ragTriageFn(null, { triplets: ragDemoRes.triplets });
+    assert.strictEqual(triageRes.success, true);
+    assert.strictEqual(triageRes.triplets.length, 5);
+
+    const ragExportFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_EXPORT)!;
+    assert.ok(ragExportFn !== undefined, 'RAG_EVAL_EXPORT handler should be registered');
+    const exportRagasRes = await ragExportFn(null, { triplets: ragDemoRes.triplets, format: 'ragas' });
+    assert.strictEqual(exportRagasRes.success, true);
+    assert.ok(exportRagasRes.content.includes('"question"'));
+
+    // Test invoking Pairwise DPO Preference Arena IPC handlers
+    const dpoDemoFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_GET_DEMO)!;
+    assert.ok(dpoDemoFn !== undefined, 'DPO_EVAL_GET_DEMO handler should be registered');
+    const dpoDemoRes = await dpoDemoFn(null, {});
+    assert.strictEqual(dpoDemoRes.success, true);
+    assert.strictEqual(dpoDemoRes.scenarios.length, 4);
+    assert.ok(dpoDemoRes.leaderboard !== undefined);
+
+    const dpoVoteFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_RECORD_VOTE)!;
+    assert.ok(dpoVoteFn !== undefined, 'DPO_EVAL_RECORD_VOTE handler should be registered');
+    const dpoVoteRes = await dpoVoteFn(null, {
+      scenario: dpoDemoRes.scenarios[0],
+      verdict: 'model_a',
+      critiqueTags: ['accurate_math', 'more_grounded'],
+      notes: 'Model A arithmetic matched source 10-Q filing.'
+    });
+    assert.strictEqual(dpoVoteRes.success, true);
+    assert.strictEqual(dpoVoteRes.scenario.verdict, 'model_a');
+
+    const dpoLeaderboardFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_COMPUTE_LEADERBOARD)!;
+    assert.ok(dpoLeaderboardFn !== undefined, 'DPO_EVAL_COMPUTE_LEADERBOARD handler should be registered');
+    const updatedScenarios = [...dpoDemoRes.scenarios];
+    updatedScenarios[0] = dpoVoteRes.scenario;
+    const dpoLeaderboardRes = await dpoLeaderboardFn(null, { scenarios: updatedScenarios });
+    assert.strictEqual(dpoLeaderboardRes.success, true);
+    assert.strictEqual(dpoLeaderboardRes.leaderboard.ratedComparisons, 1);
+
+    const dpoExportFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_EXPORT)!;
+    assert.ok(dpoExportFn !== undefined, 'DPO_EVAL_EXPORT handler should be registered');
+    const dpoExportRes = await dpoExportFn(null, { scenarios: updatedScenarios, format: 'dpo_jsonl' });
+    assert.strictEqual(dpoExportRes.success, true);
+    assert.ok(dpoExportRes.content.includes('"chosen"'));
+    assert.ok(dpoExportRes.content.includes('"rejected"'));
+
+    // Test TABULAR Annotation channels
+    const tabDetectFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TABULAR_DETECT_OUTLIERS)!;
+    assert.ok(tabDetectFn !== undefined, 'TABULAR_DETECT_OUTLIERS handler should be registered');
+    const tabDetectRes = await tabDetectFn(null, {
+      columns: [{ name: 'val', type: 'numeric' }],
+      rows: [{ val: 10 }, { val: 12 }, { val: 11 }, { val: 13 }, { val: 9999 }]
+    });
+    assert.strictEqual(tabDetectRes.success, true);
+    assert.strictEqual(tabDetectRes.outliers.length, 1);
+
+    const tabRecordColFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TABULAR_RECORD_COLUMN_TAG)!;
+    assert.ok(tabRecordColFn !== undefined, 'TABULAR_RECORD_COLUMN_TAG handler should be registered');
+    const tabRecordColRes = await tabRecordColFn(null, {
+      state: { tableName: 'metrics', columns: {}, outliers: {}, lastModified: '' },
+      tag: { tableName: 'metrics', columnName: 'val', sensitivity: 'internal', businessRole: 'metric' }
+    });
+    assert.strictEqual(tabRecordColRes.success, true);
+    assert.strictEqual(tabRecordColRes.state.columns.val.businessRole, 'metric');
+
+    const tabExportDbtFn = registeredChannels.get(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_DBT)!;
+    assert.ok(tabExportDbtFn !== undefined, 'TABULAR_EXPORT_DBT handler should be registered');
+    const tabExportDbtRes = await tabExportDbtFn(null, { state: tabRecordColRes.state });
+    assert.strictEqual(tabExportDbtRes.success, true);
+    assert.ok(tabExportDbtRes.content.includes('version: 2'));
+    assert.ok(tabExportDbtRes.content.includes('models:'));
+
     wsMgr.dispose();
     termMgr.dispose();
   });

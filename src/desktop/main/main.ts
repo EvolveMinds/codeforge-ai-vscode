@@ -241,6 +241,37 @@ function buildAppMenu(): void {
       ]
     },
     {
+      label: 'Plugins',
+      submenu: [
+        {
+          label: '🧩 Manage Plugins & Studios...',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:plugins:openManager');
+            }
+          }
+        },
+        { type: 'separator' },
+        {
+          label: '✓ Enable All Plugins',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:plugins:enableAll');
+            }
+          }
+        },
+        {
+          label: '⊘ Minimal Core Mode',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:plugins:minimalMode');
+            }
+          }
+        }
+      ]
+    },
+    {
       label: 'Terminal',
       submenu: [
         {

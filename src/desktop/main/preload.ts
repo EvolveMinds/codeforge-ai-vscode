@@ -23,7 +23,8 @@ const desktopApi = {
     createDir: (dirPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.CREATE_DIR, dirPath),
     deleteItem: (targetPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.DELETE_ITEM, targetPath),
     renameItem: (oldPath: string, newPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.RENAME_ITEM, oldPath, newPath),
-    revealInExplorer: (filePath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, filePath),
+    openFile: (filePath: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.OPEN_FILE, filePath, repoRoot),
+    revealInExplorer: (filePath: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, filePath, repoRoot),
     onWatchEvent: (callback: (event: string, filename: string) => void) => {
       const handler = (_: any, evt: string, file: string) => callback(evt, file);
       ipcRenderer.on(DESKTOP_CHANNELS.WORKSPACE.WATCH_EVENT, handler);
@@ -85,7 +86,36 @@ const desktopApi = {
     push: (branch?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.PUSH, branch),
     pull: (branch?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.PULL, branch),
     stash: (action: 'save' | 'pop') => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.STASH, action),
-    getLog: (limit?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_LOG, limit)
+    getLog: (limit?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_LOG, limit),
+    analyzeCodebase: (options?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.ANALYZE_CODEBASE, options),
+    getCodebaseGraph: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_CODEBASE_GRAPH),
+    generateModernizationTopology: (target?: 'as-is' | 'to-be' | 'both' | any, repoPath?: string) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GENERATE_MODERNIZATION_TOPOLOGY, target, repoPath),
+    scanSecurity: (options?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.SCAN_SECURITY, options),
+    applySecurityFix: (payload: {
+      action: 'patch_gitignore' | 'install_precommit_hook' | 'ignore_finding' | 'unignore_finding';
+      patterns?: string[];
+      findingId?: string;
+      file?: string;
+      matchedRule?: string;
+      reason?: string;
+    }) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.APPLY_SECURITY_FIX, payload),
+    exportSecurityReport: (payload: { report: any; format?: 'markdown' | 'html' | 'csv' | 'script'; targetFile?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.EXPORT_SECURITY_REPORT, payload),
+    auditQualityGate: (options?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.AUDIT_QUALITY_GATE, options),
+    applyQualityFix: (payload: {
+      action: 'fix_all_safe' | 'format_sql' | 'strip_whitespace' | 'fix_newlines' | 'remove_debug';
+      file?: string;
+      repoPath?: string;
+    }) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.APPLY_QUALITY_FIX, payload),
+    exportQualityReport: (payload: { report: any; format?: 'markdown' | 'html' | 'csv'; targetFile?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.EXPORT_QUALITY_REPORT, payload),
+    installPrePushHook: (options?: { repoPath?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.INSTALL_PRE_PUSH_HOOK, options),
+    openFile: (payload: { file: string; repoPath?: string; line?: number }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.OPEN_FILE, payload),
+    getProjectOrientation: (options?: { repoPath?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_PROJECT_ORIENTATION, options)
   },
 
   // --- MULTI-CLOUD CONNECT APIS ---
@@ -170,7 +200,48 @@ const desktopApi = {
     analyzeDataset: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.ANALYZE_DATASET, req),
     frameHypothesisQuestions: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.FRAME_HYPOTHESIS_QUESTIONS, req),
     discoverSchemaGraph: (opts?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DISCOVER_SCHEMA_GRAPH, opts),
-    queryTableSample: (opts: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.QUERY_TABLE_SAMPLE, opts)
+    queryTableSample: (opts: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.QUERY_TABLE_SAMPLE, opts),
+    ragEvalAnalyze: (req: any) => {
+      const payload = Array.isArray(req) ? { triplets: req } : req;
+      return ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_ANALYZE, payload);
+    },
+    ragEvalTriageQueue: (req: any) => {
+      const payload = Array.isArray(req) ? { triplets: req } : req;
+      return ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_TRIAGE_QUEUE, payload);
+    },
+    ragEvalExport: (formatOrReq: any, items?: any[]) => {
+      let payload = formatOrReq;
+      if (typeof formatOrReq === 'string') {
+        payload = { format: formatOrReq, triplets: items || [] };
+      }
+      return ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_EXPORT, payload);
+    },
+    ragEvalGetDemo: () => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_GET_DEMO),
+    dpoEvalGetDemo: () => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_GET_DEMO),
+    dpoEvalRecordVote: (reqOrScenario: any, maybeVerdict?: string, maybeTags?: string[], maybeNotes?: string) => {
+      let payload = reqOrScenario;
+      if (typeof maybeVerdict === 'string') {
+        payload = { scenario: reqOrScenario, verdict: maybeVerdict, critiqueTags: maybeTags, notes: maybeNotes };
+      }
+      return ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_RECORD_VOTE, payload);
+    },
+    dpoEvalComputeLeaderboard: (reqOrScenarios: any) => {
+      const payload = Array.isArray(reqOrScenarios) ? { scenarios: reqOrScenarios } : reqOrScenarios;
+      return ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_COMPUTE_LEADERBOARD, payload);
+    },
+    dpoEvalExport: (formatOrReq: any, items?: any[]) => {
+      let payload = formatOrReq;
+      if (typeof formatOrReq === 'string') {
+        payload = { format: formatOrReq, scenarios: items || [] };
+      }
+      return ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_EXPORT, payload);
+    },
+    tabularDetectOutliers: (req: { columns: any[]; rows: any[] }) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TABULAR_DETECT_OUTLIERS, req),
+    tabularRecordOutlier: (req: { state: any; disposition: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TABULAR_RECORD_OUTLIER, req),
+    tabularRecordColumnTag: (req: { state: any; tag: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TABULAR_RECORD_COLUMN_TAG, req),
+    tabularExportDbt: (req: { state: any; modelDescription?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_DBT, req),
+    tabularExportSanitizationSql: (req: { state: any; dialect?: 'postgres' | 'snowflake' | 'bigquery' }) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_SANITIZATION_SQL, req),
+    tabularExportAuditMd: (req: { state: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_AUDIT_MD, req)
   },
 
   // --- FDE ENGAGEMENT CONTEXT & DISCOVERY ---
@@ -195,7 +266,8 @@ const desktopApi = {
     aiEditTopology: (req: { instruction: string; diagram: string; mode: 'future' | 'legacy'; model?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_EDIT_TOPOLOGY, req),
     parseClientTopologyDoc: (req: { content: string; target: 'legacy' | 'future' | 'both'; docName?: string; rawAsk?: string; reframedGoal?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.PARSE_CLIENT_TOPOLOGY_DOC, req),
     previewDiscovery: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.PREVIEW_DISCOVERY, data),
-    revealPath: (p: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.REVEAL_PATH, p),
+    revealPath: (p: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.REVEAL_PATH, p, repoRoot),
+    openPath: (p: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.OPEN_PATH, p, repoRoot),
     snapshotScopeVersion: (req: { message: string; data: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SNAPSHOT_SCOPE_VERSION, req),
     getScopeVersions: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_SCOPE_VERSIONS),
     restoreScopeVersion: (versionId: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RESTORE_SCOPE_VERSION, versionId),
@@ -232,9 +304,30 @@ const desktopApi = {
     }
   },
 
+  // --- PLUGINS MANAGER APIS ---
+  plugins: {
+    onOpenManager: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('evolve:plugins:openManager', handler);
+      return () => ipcRenderer.removeListener('evolve:plugins:openManager', handler);
+    },
+    onEnableAll: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('evolve:plugins:enableAll', handler);
+      return () => ipcRenderer.removeListener('evolve:plugins:enableAll', handler);
+    },
+    onMinimalMode: (callback: () => void) => {
+      const handler = () => callback();
+      ipcRenderer.on('evolve:plugins:minimalMode', handler);
+      return () => ipcRenderer.removeListener('evolve:plugins:minimalMode', handler);
+    }
+  },
+
   // --- SYSTEM & OS UTILITIES ---
   system: {
     openExternal: (url: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.OPEN_EXTERNAL, url),
+    openPath: (targetPath: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.OPEN_PATH, targetPath, repoRoot),
+    revealInFolder: (targetPath: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.REVEAL_IN_FOLDER, targetPath, repoRoot),
     copyToClipboard: (text: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, text),
     savePdf: (opts: { html: string; filename?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.SAVE_PDF, opts),
     printHtml: (opts: { html: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.PRINT_HTML, opts)

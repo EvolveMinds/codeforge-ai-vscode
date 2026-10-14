@@ -20,6 +20,9 @@ export interface AIForgeEvents {
   /** Plugin deactivated */
   'plugin.deactivated':   { pluginId: string };
 
+  /** Plugin enabled or disabled */
+  'plugin.toggled':       { pluginId: string; enabled: boolean };
+
   /** AI request started */
   'ai.request.start':     { instruction: string; mode: string };
 

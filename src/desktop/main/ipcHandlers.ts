@@ -52,9 +52,13 @@ import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
 import { McpScaffolder, McpScaffoldOptions } from '../../fde/mcpScaffolder';
 import { ClientTopologyParser, ClientTopologyParseOptions } from '../../fde/clientTopologyParser';
+import { CodebaseGraphEngine, CodebaseAnalysisResult, RepoSecurityScanner, SecurityAuditReport, RepoQualityGatekeeper, QualityGateReport, ProjectOrientationSynthesizer } from '../../fde/codebaseGraph';
 import { EnterpriseFeature } from '../../enterprise/license/licenseTypes';
 import { presentDocument } from '../../fde/documentPresenter';
 import { DataScientistEngine } from '../../offline/dataScientistEngine';
+import { RagEvalEngine } from '../../offline/ragEvalEngine';
+import { DpoEvalEngine } from '../../offline/dpoEvalEngine';
+import { TabularAnnotationEngine } from '../../offline/tabularAnnotationEngine';
 import {
   LANGUAGES,
   languageById,
@@ -883,6 +887,54 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
         { label: '🔌 Open Section 3C (MCP Tool Server)', phase: 3, subStep: 'C', description: 'Scaffold MCP server package and configure tools' },
         { label: '📊 Open Phase 2 (Data Readiness)', phase: 2, description: 'Introspect database schema to bind to MCP tools' },
         { label: '🏗️ Open Phase 4A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Connect MCP Tool Server to Agent nodes' }
+      ]
+    };
+  }
+
+  // Codebase Cosmos, Git Architecture Intelligence, Hotspots & Brownfield
+  if (/\b(cosmos|codebase\s*cosmos|hotspot|hotspots|bus\s*factor|temporal\s*coupling|strangler|brownfield|git\s*architecture|git\s*graph|churn)\b/i.test(q)) {
+    return {
+      success: true,
+      reply: `### 🌐 Codebase Cosmos & Git Architecture Intelligence\n\n` +
+             `Evolve AI provides native, 100% offline **Codebase Cosmos & Brownfield Architecture Intelligence** directly inside your desktop studio without sending code to the cloud:\n\n` +
+             `#### 1. Door 1: 🌿 Git & Remote Repository Hub\n` +
+             `• **Scan Architecture**: Click **\`🌐 Scan Architecture & Hotspots\`** in the Git Hub header. It mines local Git commit history, churn, bug fixes, and source imports in under 1.2s.\n` +
+             `• **3D/2D Codebase Cosmos**: Interactive celestial sphere projection with glowing red/amber hotspot spheres, animated photon dependency pulses, 2D/3D toggle, turntable auto-spin, and live Node Inspector.\n` +
+             `• **Hotspots & Defect Density**: Ranked leaderboard of files with high churn, defect density, and volatility scores.\n` +
+             `• **Bus Factor & Knowledge Map**: Author ownership distribution, single-point-of-failure files, Tarjan's SCC circular dependency loops, and dead/orphaned code.\n\n` +
+             `#### 2. Door 2: 🚀 Delivery Studio Phase 1 (Step 3)\n` +
+             `• Click **\`🌿 Ingest Brownfield Git\`** to auto-synthesize **Strangler Fig As-Is (Legacy Bottlenecks)** and **To-Be (Proposed Modern AI Architecture)** Mermaid sequence topologies directly into the architecture editor.\n\n` +
+             `#### 3. Cross-Layer Lineage: 🚀 Phase 2 (3D Data Cosmos)\n` +
+             `• In the 3D Database Cosmos, toggle **\`🔗 Overlay Codebase\`** to see pulsating violet beacon rings and satellite badges showing which backend services and queries touch each database table.\n\n` +
+             `#### 🛡️ Air-Gapped Guarantee\n` +
+             `• 100% offline, zero external LLM API calls, sub-second execution directly within the standalone \`.exe\`.`,
+      actions: [
+        { label: '🌿 Open Git Hub & Codebase Cosmos', phase: 6, activityTab: 'git', description: 'Explore 3D/2D Codebase Cosmos and Hotspots' },
+        { label: '🚀 Open Phase 1 Step 3 (Brownfield Ingest)', phase: 1, subStep: '3', description: 'Ingest Git repository into As-Is & To-Be topologies' },
+        { label: '📊 Open Phase 2 (3D Data Cosmos Overlay)', phase: 2, description: 'Overlay codebase source files onto database tables' }
+      ]
+    };
+  }
+
+  // RAG & LLM Golden Eval Studio, RAG Triad, Hallucination Triage, Data Annotation & Micro-Charts
+  if (/\b(rag\s*eval|golden\s*eval|triad|faithfulness|groundedness|hallucination|uncertainty\s*queue|data\s*annotation|annotation|sparkline|sparklines|micro-chart|micro\s*charts?|missingness\s*barcode)\b/i.test(q)) {
+    return {
+      success: true,
+      reply: `### 🎯 RAG & LLM Golden Eval Studio & In-Grid Micro-Charts\n\n` +
+             `Evolve AI provides sovereign, 100% air-gapped **RAG & LLM Evaluation, Active Learning Data Annotation, and In-Grid Micro-Visualizations**:\n\n` +
+             `#### 1. 🎯 RAG & LLM Golden Eval Studio (Data Studio Tab 3)\n` +
+             `• **Navigation**: Click the **Data** icon in the left activity bar, then select the **🎯 RAG & LLM Golden Eval Studio** tab.\n` +
+             `• **RAG Triad Verification**: Automated offline scoring of **Context Relevance**, **Faithfulness / Groundedness** (sentence claim decomposition with numerical mismatch checks), and **Answer Completeness**.\n` +
+             `• **Rapid Triage Hotkeys**: High-speed human-in-the-loop review using keyboard shortcuts: <kbd>1</kbd> Grounded, <kbd>2</kbd> Hallucination, <kbd>3</kbd> Irrelevant Context, <kbd>4</kbd> Incomplete, with <kbd>J</kbd>/<kbd>K</kbd> navigation.\n` +
+             `• **Active Learning Uncertainty Queue**: One-click sort by ambiguity to triage the most critical hallucinations first.\n` +
+             `• **Export Pipelines**: Export to standard **RAGAS / DeepEval JSONL**, **Evolve AI Golden Benchmark Test Suites**, or executive Markdown scorecards.\n\n` +
+             `#### 2. 📊 In-Grid Sparklines & Missingness Micro-Charts\n` +
+             `• **Live Data Inspection**: Directly inside the **Sample Data Modal** and **Introspected Columns Preview**, table headers render inline SVG KDE distribution curves, 1D missingness barcodes, and categorical diversity strips.\n` +
+             `• **Zero Cloud Dependence**: 100% offline mathematical SVG synthesis without external dependencies.`,
+      actions: [
+        { label: '🎯 Open RAG Golden Eval Studio', phase: 2, activityTab: 'data', description: 'Evaluate RAG Triad, triage hallucinations, and export golden suites' },
+        { label: '📊 Open Data Studio (Micro-Charts)', phase: 2, activityTab: 'data', description: 'Explore datasets, in-grid sparklines, and missingness barcodes' },
+        { label: '🛡️ Open Phase 5 (Reliability & Evals)', phase: 5, description: 'Run end-to-end pipeline benchmark suites' }
       ]
     };
   }
@@ -1741,6 +1793,18 @@ export class DesktopIpcHandlers {
     const secretVault = this._secretVault;
     const updater = this._updater;
 
+    // Helper to resolve paths against workspace or repoRoot, cross-platform
+    const resolveDiskPath = (target: string, repoRoot?: string): string => {
+      if (!target || typeof target !== 'string') return '';
+      const clean = target.trim();
+      if (path.isAbsolute(clean) || /^[a-zA-Z]:[\\\/]/.test(clean)) {
+        return path.normalize(clean);
+      }
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const base = repoRoot || (ws ? ws.path : process.cwd());
+      return path.normalize(path.join(base, clean));
+    };
+
     // --- SYSTEM & OS CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.SYSTEM.OPEN_EXTERNAL, async (_: any, url: string) => {
       if (shell && url && typeof url === 'string') {
@@ -1753,6 +1817,47 @@ export class DesktopIpcHandlers {
         }
       }
       return false;
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.SYSTEM.OPEN_PATH, async (_: any, target: string, repoRoot?: string) => {
+      try {
+        if (!target) return { success: false, error: 'Target path is required' };
+        const fullPath = resolveDiskPath(target, repoRoot);
+        if (!fullPath || !fs.existsSync(fullPath)) {
+          return { success: false, error: `File not found on disk: ${fullPath || target}`, path: fullPath };
+        }
+        if (shell && typeof shell.openPath === 'function') {
+          const openErr = await shell.openPath(fullPath);
+          if (openErr) {
+            if (typeof shell.showItemInFolder === 'function') {
+              shell.showItemInFolder(fullPath);
+              return { success: true, opened: false, revealed: true, path: fullPath, note: openErr };
+            }
+            return { success: false, error: openErr, path: fullPath };
+          }
+          return { success: true, opened: true, path: fullPath };
+        }
+        return { success: false, error: 'Desktop shell service unavailable', path: fullPath };
+      } catch (err: any) {
+        return { success: false, error: err?.message || String(err) };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.SYSTEM.REVEAL_IN_FOLDER, async (_: any, target: string, repoRoot?: string) => {
+      try {
+        if (!target) return { success: false, error: 'Target path is required' };
+        const fullPath = resolveDiskPath(target, repoRoot);
+        if (!fullPath || !fs.existsSync(fullPath)) {
+          return { success: false, error: `File or folder not found on disk: ${fullPath || target}`, path: fullPath };
+        }
+        if (shell && typeof shell.showItemInFolder === 'function') {
+          shell.showItemInFolder(fullPath);
+          return { success: true, revealed: true, path: fullPath };
+        }
+        return { success: false, error: 'Desktop shell service unavailable', path: fullPath };
+      } catch (err: any) {
+        return { success: false, error: err?.message || String(err) };
+      }
     });
 
     ipc.handle(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, async (_: any, text: string) => {
@@ -2031,14 +2136,37 @@ export class DesktopIpcHandlers {
       return true;
     });
 
-    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, async (_: any, targetPath: string) => {
+    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.OPEN_FILE, async (_: any, filePath: string, repoRoot?: string) => {
+      try {
+        if (!filePath) return { success: false, error: 'File path is required' };
+        const fullPath = resolveDiskPath(filePath, repoRoot);
+        if (!fullPath || !fs.existsSync(fullPath)) {
+          return { success: false, error: `File not found on disk: ${fullPath || filePath}`, path: fullPath };
+        }
+        if (shell && typeof shell.openPath === 'function') {
+          const openErr = await shell.openPath(fullPath);
+          if (openErr) {
+            if (typeof shell.showItemInFolder === 'function') {
+              shell.showItemInFolder(fullPath);
+              return { success: true, opened: false, revealed: true, path: fullPath, note: openErr };
+            }
+            return { success: false, error: openErr, path: fullPath };
+          }
+          return { success: true, opened: true, path: fullPath };
+        }
+        return { success: false, error: 'Desktop shell unavailable', path: fullPath };
+      } catch (err: any) {
+        return { success: false, error: err?.message || String(err) };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.WORKSPACE.REVEAL_IN_EXPLORER, async (_: any, targetPath: string, repoRoot?: string) => {
       if (shell && targetPath) {
-        const ws = workspaceMgr.getCurrentWorkspace();
-        const fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(ws?.path || process.cwd(), targetPath);
+        const fullPath = resolveDiskPath(targetPath, repoRoot);
         if (fs.existsSync(fullPath)) {
           if (fs.statSync(fullPath).isDirectory()) {
             if (typeof shell.openPath === 'function') {
-              shell.openPath(fullPath);
+              await shell.openPath(fullPath);
             }
           } else {
             if (typeof shell.showItemInFolder === 'function') {
@@ -3274,6 +3402,277 @@ End Function
         prTitle: prInfo.title || 'feat: automated client delivery update',
         summary: `PR ready for ${prInfo.targetBranch || 'main'}`
       };
+    });
+
+    // --- CODEBASE COSMOS & GIT ARCHITECTURE INTELLIGENCE ---
+    let cachedCodebaseAnalysis: CodebaseAnalysisResult | null = null;
+    let cachedCodebaseRepoPath: string = '';
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.ANALYZE_CODEBASE, async (_: any, options?: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const result = await CodebaseGraphEngine.analyze(cwd, options);
+        cachedCodebaseAnalysis = result;
+        cachedCodebaseRepoPath = cwd;
+        return { success: true, result };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to analyze codebase' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.GET_CODEBASE_GRAPH, async (_: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        if (cachedCodebaseAnalysis && cachedCodebaseRepoPath === cwd) {
+          return { success: true, result: cachedCodebaseAnalysis };
+        }
+        const result = await CodebaseGraphEngine.analyze(cwd);
+        cachedCodebaseAnalysis = result;
+        cachedCodebaseRepoPath = cwd;
+        return { success: true, result };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to get codebase graph' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.GENERATE_MODERNIZATION_TOPOLOGY, async (_: any, targetOrOpts: any = 'both', explicitRepoPath?: string) => {
+      let target: 'as-is' | 'to-be' | 'both' = 'both';
+      let customRepoPath: string | undefined;
+
+      if (typeof targetOrOpts === 'object' && targetOrOpts !== null) {
+        target = targetOrOpts.target || 'both';
+        customRepoPath = targetOrOpts.repoPath;
+      } else if (typeof targetOrOpts === 'string') {
+        target = targetOrOpts as any;
+        customRepoPath = explicitRepoPath;
+      }
+
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = customRepoPath || (ws ? ws.path : process.cwd());
+      try {
+        let analysis = (cachedCodebaseRepoPath === cwd && cachedCodebaseAnalysis) ? cachedCodebaseAnalysis : null;
+        if (!analysis) {
+          analysis = await CodebaseGraphEngine.analyze(cwd);
+          cachedCodebaseAnalysis = analysis;
+          cachedCodebaseRepoPath = cwd;
+        }
+
+        const repoBaseName = path.basename(cwd);
+        const resolvedRepoName = analysis.archetype?.projectName || ((!repoBaseName || repoBaseName === '.' || repoBaseName === '') ? 'Project' : repoBaseName);
+        return {
+          success: true,
+          target,
+          repoPath: cwd,
+          repoName: resolvedRepoName,
+          domain: analysis.archetype?.domainName || '',
+          archetype: analysis.archetype,
+          asIsDiagram: analysis.asIsMermaidDiagram,
+          toBeDiagram: analysis.toBeMermaidDiagram,
+          summary: analysis.summary,
+          hotspots: analysis.hotspots.slice(0, 5),
+          totalFiles: analysis.totalFiles
+        };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to generate modernization topology' };
+      }
+    });
+
+    // --- GIT REPOSITORY SECURITY & MULTI-JURISDICTION COMPLIANCE SCANNER ---
+    ipc.handle(DESKTOP_CHANNELS.GIT.SCAN_SECURITY, async (_: any, options?: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = options?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const report = RepoSecurityScanner.scan(cwd, options);
+        return { success: true, report };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to run security scan' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.OPEN_FILE, async (_: any, payload: { file: string; repoPath?: string; line?: number }) => {
+      const file = payload?.file;
+      const repoRoot = payload?.repoPath;
+      if (!file) return { success: false, error: 'File is required' };
+      const fullPath = resolveDiskPath(file, repoRoot);
+      if (!fullPath || !fs.existsSync(fullPath)) {
+        return { success: false, error: `File not found on disk: ${fullPath || file}`, path: fullPath };
+      }
+      if (shell && typeof shell.openPath === 'function') {
+        const openErr = await shell.openPath(fullPath);
+        if (openErr && typeof shell.showItemInFolder === 'function') {
+          shell.showItemInFolder(fullPath);
+          return { success: true, opened: false, revealed: true, path: fullPath, note: openErr };
+        }
+        return { success: !openErr, opened: !openErr, error: openErr, path: fullPath };
+      }
+      return { success: false, error: 'Desktop shell service unavailable', path: fullPath };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.GET_PROJECT_ORIENTATION, async (_: any, options?: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = options?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const orientation = ProjectOrientationSynthesizer.synthesize(cwd);
+        return { success: true, orientation };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to synthesize project orientation' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.APPLY_SECURITY_FIX, async (_: any, payload: {
+      action: 'patch_gitignore' | 'install_precommit_hook' | 'ignore_finding' | 'unignore_finding';
+      repoPath?: string;
+      patterns?: string[];
+      findingId?: string;
+      file?: string;
+      matchedRule?: string;
+      reason?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        if (payload?.action === 'patch_gitignore') {
+          const res = RepoSecurityScanner.patchGitignore(cwd, payload.patterns);
+          return { success: res.success, action: 'patch_gitignore', added: res.added };
+        } else if (payload?.action === 'install_precommit_hook') {
+          const res = RepoSecurityScanner.installPreCommitHook(cwd);
+          return { success: res.success, action: 'install_precommit_hook', hookPath: res.hookPath };
+        } else if (payload?.action === 'ignore_finding') {
+          if (!payload.findingId) return { success: false, error: 'Finding ID required to ignore' };
+          const res = RepoSecurityScanner.ignoreFinding(cwd, payload.findingId, {
+            file: payload.file,
+            matchedRule: payload.matchedRule,
+            reason: payload.reason
+          });
+          return { success: res.success, action: 'ignore_finding', totalIgnored: res.totalIgnored };
+        } else if (payload?.action === 'unignore_finding') {
+          if (!payload.findingId) return { success: false, error: 'Finding ID required to unignore' };
+          const res = RepoSecurityScanner.unignoreFinding(cwd, payload.findingId);
+          return { success: res.success, action: 'unignore_finding', totalIgnored: res.totalIgnored };
+        }
+        return { success: false, error: 'Unknown security fix action' };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to apply security fix' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.EXPORT_SECURITY_REPORT, async (_: any, payload: {
+      report: SecurityAuditReport;
+      format?: 'markdown' | 'html' | 'csv' | 'script';
+      targetFile?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.report?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const format = payload.format || 'markdown';
+        let content = '';
+        let defaultFileName = 'SECURITY_AUDIT_REPORT.md';
+
+        if (format === 'html') {
+          content = RepoSecurityScanner.generateSecurityReportHtml(payload.report);
+          defaultFileName = 'SECURITY_AUDIT_REPORT.html';
+        } else if (format === 'csv') {
+          content = RepoSecurityScanner.generateSecurityReportCsv(payload.report);
+          defaultFileName = 'SECURITY_FINDINGS.csv';
+        } else if (format === 'script') {
+          const isWin = process.platform === 'win32';
+          content = RepoSecurityScanner.generateSecurityFixScript(payload.report, isWin ? 'ps1' : 'sh');
+          defaultFileName = isWin ? 'remediate-security-findings.ps1' : 'remediate-security-findings.sh';
+        } else {
+          content = RepoSecurityScanner.generateSecurityReportMarkdown(payload.report);
+          defaultFileName = 'SECURITY_AUDIT_REPORT.md';
+        }
+
+        const targetPath = payload.targetFile || path.join(cwd, defaultFileName);
+        fs.writeFileSync(targetPath, content, 'utf8');
+        return { success: true, savedPath: targetPath, content, format };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to export security report' };
+      }
+    });
+
+    // --- PRE-PUSH CODE QUALITY, LINT, SQL & PIPELINE GATEKEEPER ---
+    ipc.handle(DESKTOP_CHANNELS.GIT.AUDIT_QUALITY_GATE, async (_: any, options?: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = options?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const report = RepoQualityGatekeeper.scan(cwd, options);
+        return { success: true, report };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to run quality gatekeeper scan' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.APPLY_QUALITY_FIX, async (_: any, payload: {
+      action: 'fix_all_safe' | 'format_sql' | 'strip_whitespace' | 'fix_newlines' | 'remove_debug';
+      file?: string;
+      repoPath?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const res = RepoQualityGatekeeper.applyQualityFix(cwd, payload);
+        return { success: res.success, filesModified: res.filesModified, error: res.error };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to apply quality fix' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.EXPORT_QUALITY_REPORT, async (_: any, payload: {
+      report: QualityGateReport;
+      format?: 'markdown' | 'html' | 'csv';
+      targetFile?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.report?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const format = payload.format || 'markdown';
+        let content = '';
+        let defaultFileName = 'QUALITY_GATE_REPORT.md';
+
+        if (format === 'html') {
+          content = RepoQualityGatekeeper.generateQualityReportHtml(payload.report);
+          defaultFileName = 'QUALITY_GATE_REPORT.html';
+        } else if (format === 'csv') {
+          const rows = [
+            ['ID', 'Severity', 'Category', 'Title', 'File', 'Line', 'Rule', 'Remediation'],
+            ...payload.report.findings.map(f => [
+              f.id,
+              f.severity.toUpperCase(),
+              f.category.toUpperCase(),
+              `"${(f.title || '').replace(/"/g, '""')}"`,
+              f.file,
+              f.line.toString(),
+              f.matchedRule,
+              `"${(f.remediation || '').replace(/"/g, '""')}"`
+            ])
+          ];
+          content = rows.map(r => r.join(',')).join('\r\n');
+          defaultFileName = 'QUALITY_FINDINGS.csv';
+        } else {
+          content = RepoQualityGatekeeper.generateQualityReportMarkdown(payload.report);
+          defaultFileName = 'QUALITY_GATE_REPORT.md';
+        }
+
+        const targetPath = payload.targetFile || path.join(cwd, defaultFileName);
+        fs.writeFileSync(targetPath, content, 'utf8');
+        return { success: true, savedPath: targetPath, content, format };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to export quality report' };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.INSTALL_PRE_PUSH_HOOK, async (_: any, options?: { repoPath?: string }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = options?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const res = RepoQualityGatekeeper.installPrePushHook(cwd);
+        return { success: res.success, hookPath: res.hookPath, error: res.error };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Failed to install pre-push hook' };
+      }
     });
 
     // --- REAL DATABRICKS REST PROBER (No Fake Mocks) ---
@@ -5534,6 +5933,200 @@ export async function executeTask() {
       };
     });
 
+    // --- RAG & LLM GOLDEN EVAL STUDIO CHANNELS ---
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_ANALYZE, async (_: any, req: any) => {
+      const triplets = Array.isArray(req) ? req : (Array.isArray(req?.triplets) ? req.triplets : []);
+      const result = RagEvalEngine.analyzeBatch(triplets);
+      return {
+        success: true,
+        triplets: result.triplets,
+        summary: result.summary
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_TRIAGE_QUEUE, async (_: any, req: any) => {
+      const triplets = Array.isArray(req) ? req : (Array.isArray(req?.triplets) ? req.triplets : []);
+      const triaged = RagEvalEngine.triageUncertaintyQueue(triplets);
+      return {
+        success: true,
+        triplets: triaged
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_EXPORT, async (_: any, req: any) => {
+      const triplets = Array.isArray(req?.triplets) ? req.triplets : (Array.isArray(req) ? req : []);
+      const format = req?.format || 'ragas';
+      const suiteName = req?.suiteName;
+      if (format === 'golden_benchmark') {
+        this._assertEntitlement('rag_scaffolder', 'RAG Golden Benchmark Suite Export');
+        const suite = RagEvalEngine.exportToGoldenBenchmark(triplets, suiteName);
+        return {
+          success: true,
+          format,
+          content: JSON.stringify(suite, null, 2),
+          filename: `${suiteName || 'rag_golden_suite'}.json`
+        };
+      } else if (format === 'csv') {
+        const csv = RagEvalEngine.exportToCsv(triplets);
+        return {
+          success: true,
+          format,
+          content: csv,
+          filename: `${suiteName || 'rag_eval_export'}.csv`
+        };
+      } else if (format === 'markdown') {
+        const md = RagEvalEngine.exportExecutiveReportMarkdown(triplets);
+        return {
+          success: true,
+          format,
+          content: md,
+          filename: `${suiteName || 'rag_eval_scorecard'}.md`
+        };
+      } else {
+        // default: ragas JSONL
+        const jsonl = RagEvalEngine.exportToRagasJsonl(triplets);
+        return {
+          success: true,
+          format: 'ragas',
+          content: jsonl,
+          filename: `${suiteName || 'ragas_dataset'}.jsonl`
+        };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.RAG_EVAL_GET_DEMO, async () => {
+      const demoData = RagEvalEngine.generateDemoDataset();
+      const result = RagEvalEngine.analyzeBatch(demoData);
+      return {
+        success: true,
+        triplets: result.triplets,
+        summary: result.summary
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_GET_DEMO, async () => {
+      const scenarios = DpoEvalEngine.generateDemoScenarios();
+      const leaderboard = DpoEvalEngine.computeLeaderboard(scenarios);
+      return {
+        success: true,
+        scenarios,
+        leaderboard
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_RECORD_VOTE, async (_: any, req: { scenario: any; verdict: any; critiqueTags?: string[]; notes?: string }) => {
+      const scenario = req?.scenario;
+      if (!scenario) return { success: false, error: 'Scenario required' };
+      const updated = DpoEvalEngine.recordVerdict(scenario, req.verdict, req.critiqueTags, req.notes);
+      return {
+        success: true,
+        scenario: updated
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_COMPUTE_LEADERBOARD, async (_: any, req: any) => {
+      const scenarios = Array.isArray(req) ? req : (Array.isArray(req?.scenarios) ? req.scenarios : []);
+      const leaderboard = DpoEvalEngine.computeLeaderboard(scenarios);
+      return {
+        success: true,
+        leaderboard
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.DPO_EVAL_EXPORT, async (_: any, req: any) => {
+      const scenarios = Array.isArray(req?.scenarios) ? req.scenarios : (Array.isArray(req) ? req : []);
+      const format = req?.format || 'dpo_jsonl';
+      const suiteName = req?.suiteName;
+      if (format === 'golden_suite') {
+        this._assertEntitlement('rag_scaffolder', 'DPO Preference Golden Benchmark Suite Export');
+        const suite = DpoEvalEngine.exportEnterpriseSuite(scenarios);
+        return {
+          success: true,
+          format,
+          content: suite,
+          filename: `${suiteName || 'dpo_golden_suite'}.json`
+        };
+      } else if (format === 'markdown') {
+        const md = DpoEvalEngine.exportMarkdownReport(scenarios);
+        return {
+          success: true,
+          format,
+          content: md,
+          filename: `${suiteName || 'dpo_arena_report'}.md`
+        };
+      } else {
+        const jsonl = DpoEvalEngine.exportDpoJsonl(scenarios);
+        return {
+          success: true,
+          format: 'dpo_jsonl',
+          content: jsonl,
+          filename: `${suiteName || 'dpo_preference_dataset'}.jsonl`
+        };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TABULAR_DETECT_OUTLIERS, async (_: any, req: { columns: any[]; rows: any[] }) => {
+      const { columns = [], rows = [] } = req || {};
+      const outliers = TabularAnnotationEngine.detectOutliers(columns, rows);
+      return {
+        success: true,
+        outliers
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TABULAR_RECORD_OUTLIER, async (_: any, req: { state: any; disposition: any }) => {
+      const { state, disposition } = req || {};
+      if (!state || !disposition) return { success: false, error: 'State and disposition required' };
+      const updated = TabularAnnotationEngine.recordOutlierDisposition(state, disposition);
+      return {
+        success: true,
+        state: updated
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TABULAR_RECORD_COLUMN_TAG, async (_: any, req: { state: any; tag: any }) => {
+      const { state, tag } = req || {};
+      if (!state || !tag) return { success: false, error: 'State and column tag required' };
+      const updated = TabularAnnotationEngine.recordColumnTag(state, tag);
+      return {
+        success: true,
+        state: updated
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_DBT, async (_: any, req: { state: any; modelDescription?: string }) => {
+      const { state, modelDescription } = req || {};
+      if (!state) return { success: false, error: 'State required' };
+      const yaml = TabularAnnotationEngine.exportDbtSchemaYaml(state, modelDescription);
+      return {
+        success: true,
+        content: yaml,
+        filename: `${state.tableName || 'table'}_schema.yml`
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_SANITIZATION_SQL, async (_: any, req: { state: any; dialect?: 'postgres' | 'snowflake' | 'bigquery' }) => {
+      const { state, dialect = 'postgres' } = req || {};
+      if (!state) return { success: false, error: 'State required' };
+      const sql = TabularAnnotationEngine.exportSanitizationSql(state, dialect);
+      return {
+        success: true,
+        content: sql,
+        filename: `${state.tableName || 'table'}_sanitization.sql`
+      };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.ENGINES.TABULAR_EXPORT_AUDIT_MD, async (_: any, req: { state: any }) => {
+      const { state } = req || {};
+      if (!state) return { success: false, error: 'State required' };
+      const md = TabularAnnotationEngine.exportAuditMarkdown(state);
+      return {
+        success: true,
+        content: md,
+        filename: `${state.tableName || 'table'}_governance_audit.md`
+      };
+    });
+
     // --- FDE ENGAGEMENT CONTEXT & DISCOVERY CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.FDE.GET_STATE, async () => {
       const ws = workspaceMgr.getCurrentWorkspace();
@@ -5643,14 +6236,45 @@ export async function executeTask() {
       return { success: true, workspace: cwd, files, writable, reason, scopePreview: buildScopeMarkdown(data?.clientName || 'Client Pilot Engagement', data) };
     });
 
-    /** Opens the OS file manager at a written artefact. */
-    ipc.handle(DESKTOP_CHANNELS.FDE.REVEAL_PATH, async (_: any, target: string) => {
+    /** Opens the OS file manager at a written artefact or file path. */
+    ipc.handle(DESKTOP_CHANNELS.FDE.REVEAL_PATH, async (_: any, target: string, repoRoot?: string) => {
       try {
-        if (target && shell && typeof shell.showItemInFolder === 'function') {
+        if (!target) return { success: false, error: 'Path is required' };
+        const fullPath = resolveDiskPath(target, repoRoot);
+        if (shell && typeof shell.showItemInFolder === 'function') {
+          if (fs.existsSync(fullPath)) {
+            shell.showItemInFolder(fullPath);
+            return { success: true, path: fullPath };
+          }
           shell.showItemInFolder(target);
-          return { success: true };
+          return { success: true, path: target };
         }
         return { success: false, error: 'Reveal is unavailable in this environment.' };
+      } catch (err: any) {
+        return { success: false, error: (err && err.message) ? err.message : String(err) };
+      }
+    });
+
+    /** Opens an artefact or file in the default OS editor / application. */
+    ipc.handle(DESKTOP_CHANNELS.FDE.OPEN_PATH, async (_: any, target: string, repoRoot?: string) => {
+      try {
+        if (!target) return { success: false, error: 'Path is required' };
+        const fullPath = resolveDiskPath(target, repoRoot);
+        if (!fullPath || !fs.existsSync(fullPath)) {
+          return { success: false, error: `File not found on disk: ${fullPath || target}`, path: fullPath };
+        }
+        if (shell && typeof shell.openPath === 'function') {
+          const openErr = await shell.openPath(fullPath);
+          if (openErr) {
+            if (typeof shell.showItemInFolder === 'function') {
+              shell.showItemInFolder(fullPath);
+              return { success: true, opened: false, revealed: true, path: fullPath, note: openErr };
+            }
+            return { success: false, error: openErr, path: fullPath };
+          }
+          return { success: true, opened: true, path: fullPath };
+        }
+        return { success: false, error: 'Desktop shell service unavailable', path: fullPath };
       } catch (err: any) {
         return { success: false, error: (err && err.message) ? err.message : String(err) };
       }
@@ -6607,7 +7231,31 @@ describe('Level ${level} Architecture Target Verification', () => {
 
       let hasDocs = false;
       let hasOpenApi = false;
-      let hasEnv = fs.existsSync(path.join(cwd, '.env')) || fs.existsSync(path.join(cwd, '.env.example'));
+      const envCheckNames = ['.env', '.env.local', '.env.development', '.env.development.local', '.env.production', '.env.production.local', '.env.example', '.env.template', '.env.sample'];
+      let hasEnv = envCheckNames.some(f => fs.existsSync(path.join(cwd, f)));
+      if (!hasEnv && fs.existsSync(cwd)) {
+        try {
+          for (const sub of ['apps', 'packages', 'services', 'frontend', 'backend', 'client', 'server', 'src']) {
+            const subPath = path.join(cwd, sub);
+            if (fs.existsSync(subPath) && fs.statSync(subPath).isDirectory()) {
+              const entries = fs.readdirSync(subPath, { withFileTypes: true });
+              for (const entry of entries) {
+                if (entry.isDirectory()) {
+                  const childPath = path.join(subPath, entry.name);
+                  if (envCheckNames.some(f => fs.existsSync(path.join(childPath, f)))) {
+                    hasEnv = true;
+                    break;
+                  }
+                } else if (entry.isFile() && envCheckNames.includes(entry.name)) {
+                  hasEnv = true;
+                  break;
+                }
+              }
+            }
+            if (hasEnv) break;
+          }
+        } catch {}
+      }
       let tableCount = (state.schemaMappings || []).length + (state.dataMarts || []).length;
       let apiEndpointCount = (state.apiConnectors || []).reduce((acc: number, c: any) => acc + (c.endpoints || []).length, 0);
 

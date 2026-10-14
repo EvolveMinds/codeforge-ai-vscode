@@ -173,16 +173,27 @@ export class PreflightAuditor {
     wsPath: string,
     findings: AuditFinding[]
   ): { exampleKeysCount: number; missingProdKeys: string[]; extraProdKeys: string[] } {
-    const exampleFile = path.join(wsPath, '.env.example');
-    const prodFile = path.join(wsPath, '.env.production') || path.join(wsPath, '.env');
+    const exampleCandidates = ['.env.example', '.env.template', '.env.sample', '.env.default', '.env.defaults', '.env.dist'];
+    let exampleFile = '';
+    for (const cand of exampleCandidates) {
+      const p = path.join(wsPath, cand);
+      if (fs.existsSync(p)) { exampleFile = p; break; }
+    }
+
+    const prodCandidates = ['.env.production', '.env.production.local', '.env.local', '.env.development.local', '.env.development', '.env'];
+    let prodFile = '';
+    for (const cand of prodCandidates) {
+      const p = path.join(wsPath, cand);
+      if (fs.existsSync(p)) { prodFile = p; break; }
+    }
 
     let exampleKeys: string[] = [];
     let prodKeys: string[] = [];
 
-    if (fs.existsSync(exampleFile)) {
+    if (exampleFile && fs.existsSync(exampleFile)) {
       exampleKeys = this.parseEnvKeys(fs.readFileSync(exampleFile, 'utf8'));
     }
-    if (fs.existsSync(prodFile)) {
+    if (prodFile && fs.existsSync(prodFile)) {
       prodKeys = this.parseEnvKeys(fs.readFileSync(prodFile, 'utf8'));
     }
 

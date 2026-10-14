@@ -130,13 +130,16 @@ export class DataProfilerPanel {
       return `
         <div class="column-card">
           <div class="column-card-header">
-            <div class="column-title">
+            <div class="column-title" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span class="column-name">${this._esc(col.name)}</span>
               <span class="badge ${typeBadgeClass}">${col.inferredType}</span>
               ${col.isPrimaryKeyCandidate ? '<span class="badge badge-pk">PK Candidate</span>' : ''}
+              ${col.sparklineSvg ? `<span style="display: inline-flex; align-items: center; margin-left: 6px;" title="Distribution Shape (KDE)">${col.sparklineSvg}</span>` : ''}
+              ${col.diversityBarSvg ? `<span style="display: inline-flex; align-items: center; margin-left: 6px;" title="Categorical Diversity">${col.diversityBarSvg}</span>` : ''}
             </div>
-            <div class="column-stats-pill">
+            <div class="column-stats-pill" style="display: flex; align-items: center; gap: 10px;">
               <span>Nulls: <strong style="color:${nullColor}">${col.nullCount} (${col.nullPercentage}%)</strong></span>
+              ${col.missingnessBarcodeSvg ? `<span style="display: inline-flex; align-items: center;" title="Null Barcode Heatstrip">${col.missingnessBarcodeSvg}</span>` : ''}
               <span>Unique: <strong>${col.distinctCount.toLocaleString()}</strong> (${(col.uniquenessRatio * 100).toFixed(1)}%)</span>
             </div>
           </div>

@@ -4,21 +4,15 @@
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Producer as Upstream Service / Kafka
-    participant Queue as Pub/Sub Event Ingress
-    participant Worker as Event Processor Worker
-    participant Model as Small Language Model (SLM)
-    participant Lake as Apache Iceberg / BigLake
-    actor Audit as Compliance Verification Gate
+    actor Operator as Business Operator / User
+    participant Ingest as Secure API / Webhook Gateway
+    participant Agent as Evolve AI Production System
+    actor Supervisor as Human-in-the-Loop (HITL) Gate
+    participant Target as Production DB / Warehouse
     
-    Producer->>Queue: Publish domain event payload
-    Queue->>Worker: Pull event batch
-    Worker->>Model: Fast deterministic extraction & classification (<20ms)
-    Model-->>Worker: Structured typed schema entity
-    alt Anomaly or Threshold Exceeded
-        Worker->>Audit: Escalate exception to review queue
-        Audit-->>Worker: Certified resolution stamp
-    end
-    Worker->>Lake: Append parquet micro-batch with SHA-256 seal
-    Worker-->>Queue: Acknowledge message processed
+    Operator->>Ingest: Submit task payload
+    Ingest->>Agent: Parse & execute deterministic pipeline
+    Agent->>Supervisor: Structured draft & audit proposal
+    Supervisor->>Target: Verified 1-Click Execution
+    Target-->>Operator: Cryptographically signed confirmation
 ```

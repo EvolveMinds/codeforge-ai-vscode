@@ -237,6 +237,12 @@
         }
       },
       {
+        "command": "aiForge.managePlugins",
+        "title": "Evolve AI: Manage Plugins & Delivery Studios",
+        "category": "Evolve AI",
+        "icon": "$(extensions)"
+      },
+      {
         "command": "aiForge.analysis.runNow",
         "title": "Evolve AI: Analyze & Clean Current File",
         "icon": "$(wand)"
@@ -1518,6 +1524,76 @@
         "command": "aiForge.fde.downloadDesktop",
         "title": "Enterprise: Download Desktop Edition (Installer & Portable)",
         "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.runInSandbox",
+        "title": "Python Studio: Run in Sandbox Terminal",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.provisionVenv",
+        "title": "Python Studio: 1-Click Provision Virtual Environment (uv)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.scanGitLeaks",
+        "title": "Python Studio: Audit Git Pre-Commit Hygiene & Weight Leaks",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.scaffoldDockerfile",
+        "title": "Python Studio: Scaffold Production Multi-Stage Dockerfile",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.inspectTopology",
+        "title": "Python Studio: Show Greenfield / Brownfield Inspection Report",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.verifySyntaxOffline",
+        "title": "Python Studio: Verify Syntax & Anti-Patterns (Offline / Zero-AI)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.inspectTensorShapes",
+        "title": "Python Studio: Inspect PyTorch/JAX Tensor Shapes & NaN Checks",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.sniffDataframe",
+        "title": "Python Studio: Profile Pandas/Polars DataFrame Pipeline",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.openWorkspace",
+        "title": "Python Studio: Open Interactive AI & Neural Debugger Workspace",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.autoInstallPython",
+        "title": "Python Studio: 1-Click Auto Install Python (3.12)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.installMissingPackages",
+        "title": "Python Studio: 1-Click Auto Install Missing Packages",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.generateAirtightBundle",
+        "title": "Python Studio: Generate Airtight / Air-Gapped Offline Bundle",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.installAirtightWheelhouse",
+        "title": "Python Studio: Install from Local Airtight Wheelhouse Folder",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "evolve.pythonStudio.runSetupSelfTest",
+        "title": "Python Studio: Run Setup Verification & Self-Test",
+        "category": "Evolve AI"
       }
     ],
     "keybindings": [
@@ -1574,6 +1650,10 @@
       "editor/title": [
         {
           "command": "aiForge.openChatTab",
+          "group": "navigation"
+        },
+        {
+          "command": "aiForge.managePlugins",
           "group": "navigation"
         }
       ],

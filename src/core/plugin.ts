@@ -181,6 +181,7 @@ export interface IPlugin {
   readonly id:          string;
   readonly displayName: string;
   readonly icon:        string;
+  readonly description?: string;
 
   detect(ws: vscode.WorkspaceFolder | undefined): Promise<boolean>;
   activate(services: IServices, context: vscode.ExtensionContext): Promise<vscode.Disposable[]>;
@@ -379,6 +380,111 @@ export class PluginRegistry {
   get active(): IPlugin[] { return [...this._active.values()]; }
 
   getActive(id: string): IPlugin | undefined { return this._active.get(id); }
+
+  getAll(): IPlugin[] { return [...this._registered.values()]; }
+
+  getPlugin(id: string): IPlugin | undefined { return this._registered.get(id); }
+
+  getDisabledPluginIds(): string[] {
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    return cfg.get<string[]>('disabledPlugins', []);
+  }
+
+  isPluginEnabled(id: string): boolean {
+    return !this.getDisabledPluginIds().includes(id);
+  }
+
+  isPluginActive(id: string): boolean {
+    return this._active.has(id);
+  }
+
+  async togglePlugin(id: string): Promise<boolean> {
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    const current = cfg.get<string[]>('disabledPlugins', []);
+    let updated: string[];
+    let nowEnabled: boolean;
+    if (current.includes(id)) {
+      updated = current.filter(x => x !== id);
+      nowEnabled = true;
+    } else {
+      updated = [...current, id];
+      nowEnabled = false;
+    }
+    await cfg.update('disabledPlugins', updated, vscode.ConfigurationTarget.Global);
+    if (this._lastServices && this._lastVsCtx) {
+      const folders = vscode.workspace.workspaceFolders ?? [];
+      if (folders.length === 0) {
+        await this.refresh(undefined, this._lastServices, this._lastVsCtx);
+      } else {
+        for (const folder of folders) {
+          await this.refresh(folder, this._lastServices, this._lastVsCtx);
+        }
+      }
+    }
+    this._bus.emit('plugin.toggled', { pluginId: id, enabled: nowEnabled });
+    this._bus.emit('ui.status.update', {});
+    this._onChange.fire();
+    return nowEnabled;
+  }
+
+  async setPluginEnabled(id: string, enable: boolean): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    const current = cfg.get<string[]>('disabledPlugins', []);
+    let updated = current.filter(x => x !== id);
+    if (!enable) {
+      updated.push(id);
+    }
+    await cfg.update('disabledPlugins', updated, vscode.ConfigurationTarget.Global);
+    if (this._lastServices && this._lastVsCtx) {
+      const folders = vscode.workspace.workspaceFolders ?? [];
+      if (folders.length === 0) {
+        await this.refresh(undefined, this._lastServices, this._lastVsCtx);
+      } else {
+        for (const folder of folders) {
+          await this.refresh(folder, this._lastServices, this._lastVsCtx);
+        }
+      }
+    }
+    this._bus.emit('plugin.toggled', { pluginId: id, enabled: enable });
+    this._bus.emit('ui.status.update', {});
+    this._onChange.fire();
+  }
+
+  async enableAllPlugins(): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    await cfg.update('disabledPlugins', [], vscode.ConfigurationTarget.Global);
+    if (this._lastServices && this._lastVsCtx) {
+      const folders = vscode.workspace.workspaceFolders ?? [];
+      if (folders.length === 0) {
+        await this.refresh(undefined, this._lastServices, this._lastVsCtx);
+      } else {
+        for (const folder of folders) {
+          await this.refresh(folder, this._lastServices, this._lastVsCtx);
+        }
+      }
+    }
+    this._bus.emit('ui.status.update', {});
+    this._onChange.fire();
+  }
+
+  async disableAllPlugins(keepEssentialIds: string[] = ['git', 'security']): Promise<void> {
+    const all = this.getAll().map(p => p.id);
+    const toDisable = all.filter(id => !keepEssentialIds.includes(id));
+    const cfg = vscode.workspace.getConfiguration('aiForge');
+    await cfg.update('disabledPlugins', toDisable, vscode.ConfigurationTarget.Global);
+    if (this._lastServices && this._lastVsCtx) {
+      const folders = vscode.workspace.workspaceFolders ?? [];
+      if (folders.length === 0) {
+        await this.refresh(undefined, this._lastServices, this._lastVsCtx);
+      } else {
+        for (const folder of folders) {
+          await this.refresh(folder, this._lastServices, this._lastVsCtx);
+        }
+      }
+    }
+    this._bus.emit('ui.status.update', {});
+    this._onChange.fire();
+  }
 
   get contextHooks(): PluginContextHook[] {
     return this.active.flatMap(p => p.contextHooks ?? []);
