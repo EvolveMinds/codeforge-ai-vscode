@@ -51,6 +51,9 @@ console.log(`  ✓ Secret scan clean (0 sensitive patterns detected).`);
 
 // Community edition boundary: no proprietary code, no private keys, no dangling requires.
 execSync('node scripts/check-package-contents.js', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
+// Release checklist items a script can verify: CHANGELOG / RELEASE_NOTES / What's New / README
+// entries for this version, and docs/ARCHITECTURE.md still being the developer guide.
+execSync('node scripts/check-release-docs.js', { stdio: 'inherit', cwd: path.join(__dirname, '..') });
 
 // 3. Sequentially build each target
 console.log(`\n[3/3] Building 6 platform targets sequentially...\n`);

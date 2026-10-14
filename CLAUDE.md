@@ -71,6 +71,7 @@ evolve-ai-vscode/
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
+    │   ├── enterpriseTrialRequest.ts ← "Request Trial": drafts an email to support@evolveminds.com.au; trials are never self-activated
     │   └── inlineActions.ts     ← CodeLens + lightbulb CodeAction providers
     ├── commands/
     │   ├── coreCommands.ts      ← all core commands as a class
@@ -218,6 +219,13 @@ Future plugin ideas (community contributions welcome):
    `core/enterpriseGate.ts → checkEnterpriseAccess()` and stop before writing anything if it
    refuses. `scripts/check-package-contents.js` fails packaging on a dangling `require`. The
    licences follow the same line: `LICENSE` (MIT, Community) and `LICENSE-ENTERPRISE` + `EULA.md`.
+
+10. **A trial is a signed key, never a local switch.** "Request Trial" only drafts a request to
+    support@evolveminds.com.au (`ui/enterpriseTrialRequest.ts`). Evolve Mind Solutions issues the
+    key with `scripts/issue-license.js --trial` (an `EM-TRIAL-` id), and the user activates it with
+    Enter Licence Key. Do not add any API that grants a trial without a verified signature —
+    `LicenseManager.activateLocalTrial` was removed in v2.29.1 for exactly this reason, and the
+    desktop's local-trial methods throw.
 
 ---
 

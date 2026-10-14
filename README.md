@@ -18,7 +18,7 @@
 > 
 > For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Enterprise Edition** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
 > 
-> > 🔒 **Enterprise Evaluation Program**: The Enterprise Edition is available for 30-day technical validation and commercial licensing to evaluate production migration engines in enterprise environments.
+> > 🔒 **Enterprise Evaluation Program**: The Enterprise Edition is available for 30-day technical validation and commercial licensing to evaluate production migration engines in enterprise environments. To request a trial, click **Request Trial** in the extension or email **support@evolveminds.com.au** with your work email and organisation. Approved requests receive a signed 30-day trial key, activated with **Enter Licence Key**.
 > 
 > 🔗 **[Explore Enterprise Edition](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Enterprise Licensing](https://www.evolveminds.com.au/contact/)**
 
@@ -39,6 +39,7 @@
 
 ### Why Evolve AI?
 
+- **Enterprise trials by request** *(v2.29.1)* — **Request Trial** drafts a request to support@evolveminds.com.au instead of switching a trial on. Approved requests receive a signed 30-day trial key by email, activated with **Enter Licence Key** and verified like any Enterprise licence.
 - **Which Model Should I Use?** *(v2.29.0)* — run `Evolve AI: Which Model Should I Use?`, pick the job (chat, reasoning, code, fill-in-the-middle, embeddings, reranking, vision, documents, classification), and the Model Advisor tells you whether your current model is the right kind of tool and suggests the smallest installed model that does the job. Capabilities are detected from Ollama, and every verdict says whether it was detected, known or assumed. → [docs/MODEL_ADVISOR.md](docs/MODEL_ADVISOR.md)
 - **Clean Community / Enterprise split** *(v2.29.0)* — this free Marketplace edition is MIT-licensed and contains no Enterprise code. The Enterprise modules (load testing, RAG scaffolder, data quality, SIEM, SQL transpiler, PII masking, reverse ETL, RLS, synthetic data, mock server, private serving) ship only in the licensed Enterprise package.
 - **Free Community vs. Enterprise Delivery Studio Alignment** *(v2.20.0)* — Clear frontline boundary between the Free Community Edition (4-step Ingestion, API SDK, Pre-Flight, and Runbook factory) and the Enterprise Edition (Limited Pilot: standalone `.exe`, 8-step enterprise studio, Oracle/T-SQL transpilation, and site licensing).
