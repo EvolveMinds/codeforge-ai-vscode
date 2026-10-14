@@ -10,7 +10,7 @@
 
 ### Highlights & Summary
 
-* **Enterprise trials by request:** "Request Trial" now drafts a request to `sales@evolveminds.com.au` instead of activating a trial instantly. Approved requests receive a signed 30-day trial key by email, activated with **Enter Licence Key**.
+* **Enterprise trials by request:** "Request Trial" now drafts a request to `support@evolveminds.com.au` instead of activating a trial instantly. Approved requests receive a signed 30-day trial key by email, activated with **Enter Licence Key**.
 * **Earlier instant trials are no longer honoured**, and the Data Analysis panel's **Enter License Key** takes effect without a restart.
 
 ---

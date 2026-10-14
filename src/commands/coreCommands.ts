@@ -1069,7 +1069,7 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 const RELEASE_NOTES: Record<string, string> = {
   '2.29.1': [
     `## 🔑 Evolve AI 2.29.1 — Enterprise trials by request\n`,
-    `• **Request Trial** no longer switches a trial on instantly. It drafts a trial request to sales@evolveminds.com.au with your work email and organisation (or copies it, if you have no email app).\n`,
+    `• **Request Trial** no longer switches a trial on instantly. It drafts a trial request to support@evolveminds.com.au with your work email and organisation (or copies it, if you have no email app).\n`,
     `• Once your request is approved you receive a 30-day trial key by email. Activate it with **Enter Licence Key**; it is verified like any Enterprise licence.\n`,
     `• Trials started instantly in earlier versions are no longer honoured.\n`,
     `• The Data Analysis panel's **Enter License Key** now takes effect immediately, without restarting VS Code.\n`,

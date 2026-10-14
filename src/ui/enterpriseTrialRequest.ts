@@ -10,7 +10,7 @@
 import * as vscode from 'vscode';
 import * as os from 'os';
 
-export const TRIAL_REQUEST_EMAIL = 'sales@evolveminds.com.au';
+export const TRIAL_REQUEST_EMAIL = 'support@evolveminds.com.au';
 
 export type TrialRequestOutcome = 'sent' | 'enter-key' | 'cancelled';
 

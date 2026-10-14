@@ -11933,12 +11933,12 @@ function setupDeliveryStudio(api: any): void {
       'Work email: ', 'Organisation: ', 'Name: ', 'What I would like to evaluate: ', '',
       'Requested from: Evolve AI Enterprise Desktop',
     ].join('\n');
-    const mailto = `mailto:sales@evolveminds.com.au?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const mailto = `mailto:support@evolveminds.com.au?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     try {
       await (window as any).evolveApi.system.openExternal(mailto);
       showToast('✉️ Trial request opened in your email app. Once approved, paste the emailed trial key and click Activate.');
     } catch {
-      showToast('✉️ Email sales@evolveminds.com.au to request a trial key, then paste it here and click Activate.');
+      showToast('✉️ Email support@evolveminds.com.au to request a trial key, then paste it here and click Activate.');
     }
   });
 

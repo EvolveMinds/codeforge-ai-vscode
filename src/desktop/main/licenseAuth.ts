@@ -16,7 +16,7 @@ import { LicenseValidator } from '../../enterprise/license/licenseValidator';
 import { LicenseManager, isTrialLicence } from '../../enterprise/license/licenseManager';
 
 const TRIAL_BY_REQUEST_MESSAGE =
-  'Enterprise trials are issued by Evolve Mind Solutions. Request one from sales@evolveminds.com.au; ' +
+  'Enterprise trials are issued by Evolve Mind Solutions. Request one from support@evolveminds.com.au; ' +
   'once approved you will receive a trial key by email to activate with Activate License Key.';
 import { DesktopSecretVault } from './secretVault';
 import { EnterpriseFeature } from '../../enterprise/license/licenseTypes';

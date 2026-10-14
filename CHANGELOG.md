@@ -8,7 +8,7 @@ All notable changes to Evolve AI are documented here.
 
 * **Fixed: "Request Enterprise Trial" activated a 30-day Platinum trial instantly.**
   Every trial button (Compare Editions, FDE Cockpit, Data Analysis, and the prompt on a
-  locked Enterprise action) now drafts a trial request to `sales@evolveminds.com.au`
+  locked Enterprise action) now drafts a trial request to `support@evolveminds.com.au`
   with the user's work email and organisation. **Copy Request** is the fallback when no
   email app is configured.
 * **Trials arrive as signed keys.** Evolve Mind Solutions issues an approved trial with

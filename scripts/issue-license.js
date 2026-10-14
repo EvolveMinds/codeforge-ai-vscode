@@ -9,7 +9,7 @@
  *   node scripts/issue-license.js --out license.json --key-file ./master.key
  *   EVOLVE_MASTER_PRIVATE_KEY="-----BEGIN..." node scripts/issue-license.js --org "Acme"
  *
- * Approving a trial request (emailed to sales@evolveminds.com.au from the product):
+ * Approving a trial request (emailed to support@evolveminds.com.au from the product):
  *   node scripts/issue-license.js --trial --org "Requester Org" --email requester@company.com
  *   --trial defaults to 30 days and 1 seat (override with --days / --seats) and gives the key an
  *   EM-TRIAL- id, which the product shows as a trial. It is activated with "Enter Licence Key".

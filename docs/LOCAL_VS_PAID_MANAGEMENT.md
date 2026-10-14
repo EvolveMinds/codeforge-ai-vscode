@@ -219,7 +219,7 @@ The Evolve Mind administrator signs this challenge offline, producing a license 
 ### 4. 30-Day Enterprise Trial — by request only
 A trial is never switched on locally. Since v2.29.1 every trial is a signed key issued by Evolve Mind Solutions:
 
-1. **Request.** The user clicks **Request Trial** (FDE Cockpit, Data Analysis panel, Compare Editions, or a locked Enterprise action). The extension asks for their work email and organisation and drafts an email to `sales@evolveminds.com.au` (`src/ui/enterpriseTrialRequest.ts`). **Copy Request** is the fallback when no email app is configured.
+1. **Request.** The user clicks **Request Trial** (FDE Cockpit, Data Analysis panel, Compare Editions, or a locked Enterprise action). The extension asks for their work email and organisation and drafts an email to `support@evolveminds.com.au` (`src/ui/enterpriseTrialRequest.ts`). **Copy Request** is the fallback when no email app is configured.
 2. **Approve.** Evolve Mind Solutions issues the key from the requester's details:
    ```bash
    node scripts/issue-license.js --trial --org "Requester Org" --email requester@company.com --key-file <master.key>
