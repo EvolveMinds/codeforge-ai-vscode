@@ -1,5 +1,5 @@
 """
-Automated Contract & Unit Tests for Calculator
+Automated Contract & Unit Tests for calculator
 Can be run via:
   1. pytest tests/test_calculator.py -v
   2. python tests/test_calculator.py
@@ -11,19 +11,13 @@ try:
     import pytest
 except ImportError:
     class _MockPytestRaises:
-        def __init__(self, exc):
-            self.exc = exc
-        def __enter__(self):
-            return self
+        def __init__(self, exc): self.exc = exc
+        def __enter__(self): return self
         def __exit__(self, exc_type, exc_val, exc_tb):
-            if exc_type and issubclass(exc_type, self.exc):
-                return True
-            return False
-
+            return bool(exc_type and issubclass(exc_type, self.exc))
     class _MockPytest:
         @staticmethod
-        def raises(exc):
-            return _MockPytestRaises(exc)
+        def raises(exc): return _MockPytestRaises(exc)
     pytest = _MockPytest()
 
 try:
@@ -31,7 +25,6 @@ try:
 except ImportError:
     pass
 
-# Provide baseline contract reference implementations if standalone
 if 'add' not in globals():
     def add(a, b): return a + b
 if 'subtract' not in globals():
@@ -40,8 +33,7 @@ if 'multiply' not in globals():
     def multiply(a, b): return a * b
 if 'divide' not in globals():
     def divide(a, b):
-        if b == 0:
-            raise ZeroDivisionError("Cannot divide by zero")
+        if b == 0: raise ZeroDivisionError("Cannot divide by zero")
         return a / b
 
 def test_addition_contract():
