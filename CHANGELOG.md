@@ -2,6 +2,60 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.29.0] — 2026-10-14
+
+The first VS Code Marketplace update since 2.20.0. Versions 2.21.0 to 2.28.0 were
+Enterprise desktop releases; the extension-facing changes from them are summarised
+here.
+
+### Model Advisor — which model should I use?
+
+* **New command: `Evolve AI: Which Model Should I Use?`** (`aiForge.model.advisor`).
+  Pick the job — chat, reasoning, code, fill-in-the-middle completion, embeddings,
+  reranking, vision, documents, classification — and it reports whether your current
+  model is the right kind of tool, lists what else you have installed, and suggests
+  the smallest model that does the job.
+* **Capabilities are detected, not guessed.** Vision, embeddings, fill-in-the-middle
+  and thinking support come from Ollama's `/api/show`. Every verdict states whether it
+  rests on a detected, known or assumed fact.
+* **Forecasting answers honestly.** The advisor points to the built-in statistical
+  forecaster rather than nominating a language model.
+* **Architecture diagrams** for each kind of model, rendered offline.
+
+### Fixes
+
+* Data Analysis no longer reports capable models such as `qwen3:32b`, `llama3.2:13b` or
+  `llava:13b` as "underpowered". Parameter sizes were matched inside larger numbers
+  (`32b` contains `2b`).
+* Choosing a model for one data analysis no longer changes the model every other
+  feature uses.
+* Code Converter no longer emits placeholder code, and carries better idiom and pitfall
+  guidance across all 26 languages.
+* The local GLM default model tag is corrected to `codegeex4:9b`, which Ollama can pull.
+
+### FDE Cockpit
+
+* Live schema discovery for Oracle (via `sqlplus`), Teradata and IBM DB2 (via Python
+  `teradatasql` / `ibm_db`), using the client tools installed on your machine, plus a
+  table sample preview.
+* Generated client documents no longer state latency, accuracy or cost figures that
+  were never measured.
+
+### Community and Enterprise editions
+
+* **The free edition no longer includes the Enterprise modules** — load testing, RAG
+  scaffolder, data quality gates, SIEM forwarder, SQL transpiler, PII masking, reverse
+  ETL, RLS policies, synthetic data, mock server and private model serving. They ship
+  only in the licensed Enterprise package. In the free edition those actions explain
+  where to get them; in the Enterprise package they check the licence before
+  generating anything.
+* **Licensing.** The Community edition is MIT-licensed. `LICENSE` lists the Enterprise
+  paths it does not cover; those are under `LICENSE-ENTERPRISE` and `EULA.md`.
+* **Security.** The licence signing key has been replaced, and licences signed with the
+  previous key are no longer accepted. Packaging now refuses to build if the free
+  package contains Enterprise code, private keys or internal reports.
+* The `Which Model Should I Use?` command was listed twice in the command palette.
+
 ## [2.28.0] — 2026-10-07
 
 ### Enterprise Client Architecture Document Ingestion Engine & Dual-State Topology

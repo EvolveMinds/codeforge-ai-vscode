@@ -1,5 +1,26 @@
 # Evolve AI — Release Notes
 
+## Version 2.29.0 — October 14, 2026 (VS Code Marketplace)
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** MIT (Community Edition). Enterprise modules are licensed separately under `LICENSE-ENTERPRISE` and `EULA.md` and are not included in this package.
+
+---
+
+### Highlights & Summary
+
+The first Marketplace update since 2.20.0. Versions 2.21.0–2.28.0 below were Enterprise desktop releases; this release brings their extension-facing changes to the free edition. See `CHANGELOG.md` for the full list.
+
+* **Model Advisor — "Which Model Should I Use?":** pick the job and it tells you whether your current model is the right kind of tool, lists your installed alternatives, and suggests the smallest model that does the job. Capabilities are detected from Ollama, and every verdict says whether it was detected, known or assumed.
+* **Data Analysis fixes:** capable models such as `qwen3:32b` are no longer reported as "underpowered", and a model chosen for one analysis no longer changes every other feature.
+* **Code Converter:** no more placeholder code; better idiom and pitfall guidance across all 26 languages.
+* **FDE Cockpit:** live schema discovery for Oracle, Teradata and IBM DB2 through your installed client tools, a table sample preview, and client documents that no longer state unmeasured figures.
+* **Editions:** the Enterprise modules (load testing, RAG scaffolder, data quality, SIEM, SQL transpiler, PII masking, reverse ETL, RLS, synthetic data, mock server, private serving) now ship only in the licensed Enterprise package.
+* **Security:** the licence signing key has been replaced; licences signed with the previous key are no longer accepted.
+
+---
+
 ## Version 2.28.0 — October 7, 2026
 
 **Publisher:** `codeforge-ai`  

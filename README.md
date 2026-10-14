@@ -39,6 +39,8 @@
 
 ### Why Evolve AI?
 
+- **Which Model Should I Use?** *(v2.29.0)* — run `Evolve AI: Which Model Should I Use?`, pick the job (chat, reasoning, code, fill-in-the-middle, embeddings, reranking, vision, documents, classification), and the Model Advisor tells you whether your current model is the right kind of tool and suggests the smallest installed model that does the job. Capabilities are detected from Ollama, and every verdict says whether it was detected, known or assumed. → [docs/MODEL_ADVISOR.md](docs/MODEL_ADVISOR.md)
+- **Clean Community / Enterprise split** *(v2.29.0)* — this free Marketplace edition is MIT-licensed and contains no Enterprise code. The Enterprise modules (load testing, RAG scaffolder, data quality, SIEM, SQL transpiler, PII masking, reverse ETL, RLS, synthetic data, mock server, private serving) ship only in the licensed Enterprise package.
 - **Free Community vs. Enterprise Delivery Studio Alignment** *(v2.20.0)* — Clear frontline boundary between the Free Community Edition (4-step Ingestion, API SDK, Pre-Flight, and Runbook factory) and the Enterprise Edition (Limited Pilot: standalone `.exe`, 8-step enterprise studio, Oracle/T-SQL transpilation, and site licensing).
 - **Display Scale, Zoom Manager & High-DPI Readability** *(v2.20.0)* — Native GPU-accelerated subpixel zoom, High-DPI auto-detection (115%/125%), interactive zoom widget with slider and presets, reading comfort modes, and elevated theme luminance.
 - **Updates & Version Management Hub** *(v2.20.0)* — Embedded Settings panel for live GitHub release checking and 1-click air-gapped offline patch bundle management.
@@ -388,10 +390,10 @@ Use Google's Gemini models via the official OpenAI-compatible endpoint.
 
 ### GLM (local, offline)
 
-Run a GLM / CodeGeeX coding model **fully offline** via Ollama — no API key, no data leaves your machine. Default is `codegeex4-all-9b` (a coding model built on GLM-4-9B, ~5.5GB, 128K context).
+Run a GLM / CodeGeeX coding model **fully offline** via Ollama — no API key, no data leaves your machine. Default is `codegeex4:9b` (a coding model built on GLM-4-9B, ~5.5GB, 128K context).
 
 1. Install [Ollama](https://ollama.com/download)
-2. Run **Switch AI Provider** -> select **GLM (local)** -> pick a model (`codegeex4-all-9b`, `glm4:9b`, or `glm4`) -> it offers to download it
+2. Run **Switch AI Provider** -> select **GLM (local)** -> pick a model (`codegeex4:9b`, `glm4:9b`, or `glm4`) -> it offers to download it
 3. Runs locally from then on
 
 > Note: the 355B+ GLM-4.5 / GLM-4.6 flagships are too large to run on a normal machine — those are cloud-only (see below).
@@ -464,7 +466,7 @@ Pattern-based code analysis — works instantly with no setup, no network, no LL
 | `aiForge.openaiModel` | `gpt-4o` | OpenAI model name |
 | `aiForge.anthropicModel` | `claude-sonnet-4-6` | Anthropic model name |
 | `aiForge.geminiModel` | `gemini-2.5-flash` | Google Gemini model name |
-| `aiForge.glmModel` | `codegeex4-all-9b` | Local GLM / CodeGeeX model tag (runs offline via Ollama) |
+| `aiForge.glmModel` | `codegeex4:9b` | Local GLM / CodeGeeX model tag (runs offline via Ollama) |
 | `aiForge.colibriBaseUrl` | `http://localhost:8080/v1` | Colibri server URL (start it yourself with `coli serve`) |
 | `aiForge.colibriModel` | `glm-5.2` | Model served by Colibri (`glm-5.2`, `kimi-k3`, `inkling`, `olmoe`) |
 | `aiForge.zaiModel` | `glm-4.6` | GLM (Z.ai) cloud model name |
@@ -914,4 +916,8 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for the full g
 
 ## License
 
-[MIT](LICENSE)
+The Community Edition published on the VS Code Marketplace is [MIT](LICENSE).
+The Enterprise Edition paths listed in [LICENSE](LICENSE) (`src/enterprise/` and
+`src/desktop/`) are proprietary and licensed under
+[LICENSE-ENTERPRISE](LICENSE-ENTERPRISE) and [EULA.md](EULA.md); they are not
+included in the Marketplace package.

@@ -81,7 +81,7 @@ Your code never leaves your machine. No API key. No cost.
 
 1. Install [Ollama](https://ollama.com/download)
 2. Press `Ctrl+Shift+P` > **Evolve AI: Switch AI Provider** > **GLM (local)**
-3. Pick a model (`codegeex4-all-9b`, `glm4:9b`, or `glm4`) — it offers to download it (~5.5GB). Runs offline from then on.
+3. Pick a model (`codegeex4:9b`, `glm4:9b`, or `glm4`) — it offers to download it (~5.5GB). Runs offline from then on.
 
 ### Option G: GLM (Z.ai, cloud — flagship glm-4.6 / glm-4.5)
 
@@ -92,6 +92,10 @@ Your code never leaves your machine. No API key. No cost.
 ### Option H: No Setup (Offline Mode)
 
 Evolve AI works without any AI provider! It uses pattern-based analysis — less powerful, but instant and free. Just install the extension and go.
+
+### Not sure which model to use? *(new in v2.29)*
+
+Press `Ctrl+Shift+P` > **Evolve AI: Which Model Should I Use?** and pick what you want to do — chat, reasoning, code, fill-in-the-middle completion, embeddings, reranking, vision, documents or classification. It checks whether your current model is the right kind of tool and suggests the smallest installed model that does the job.
 
 ---
 
