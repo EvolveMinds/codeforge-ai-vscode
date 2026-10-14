@@ -14,7 +14,7 @@ Evolve AI uses a **unified single-codebase architecture** to deliver both the **
 2. **100% Air-Gapped & Offline Guarantee**: Neither edition requires an external internet connection, SaaS cloud dependency, or phone-home telemetry. All validation occurs strictly on the local machine using compiled deterministic engines, local vector databases, and offline asymmetric cryptography.
 3. **Two-Layer Boundary — Package, then Licence**:
    - **Package.** The Community `.vsix` on the Marketplace does not contain the Enterprise code. The `# >>> community-only` block in `.vscodeignore` drops `out/enterprise/**` (except the three licence-checker files) and `out/desktop/**`. `scripts/package-enterprise.js` strips that block to build the Enterprise package. `scripts/check-package-contents.js` runs in both packaging scripts and fails the build on proprietary code, private keys, internal reports, or a shipped file that `require`s something not shipped.
-   - **Licence.** In the Enterprise package, every paid action asks `core/enterpriseGate.ts → checkEnterpriseAccess()` **before** it generates or writes anything. The modules are only returned when they are installed *and* the licence covers the capability. Four capabilities have their own flag (`load_testing`, `rag_scaffolder`, `data_quality`, `siem_logging`); the rest need any valid licence or trial. The desktop app enforces the same rule in `ipcHandlers.ts → _assertEntitlement()`.
+   - **Licence.** In the Enterprise package, every paid action asks `core/enterpriseGate.ts → checkEnterpriseAccess()` **before** it generates or writes anything. The modules are only returned when they are installed *and* the licence covers the capability. Four capabilities have their own flag (`load_testing`, `rag_scaffolder`, `data_quality`, `siem_logging`); the rest need any valid licence, including an approved trial key. The desktop app enforces the same rule in `ipcHandlers.ts → _assertEntitlement()`.
    - Without a licence the Community Edition runs cleanly. A paid action explains why it is unavailable instead of failing.
 
 ---
@@ -216,8 +216,18 @@ The Evolve Mind administrator signs this challenge offline, producing a license 
 - **VS Code Extension**:
   - License key is stored in `vscode.SecretStorage` (`evolve.enterprise.licenseKey`), backed by the operating system keychain (Windows Credential Manager, macOS Keychain, Linux SecretService).
 
-### 4. 30-Day Air-Gapped Platinum Trial
-In Step 5 of the Desktop Studio, clicking **"✨ 30-Day Air-Gapped Platinum Trial"** provisions an instant in-memory evaluation license. This allows clients and FDEs to run and evaluate every single enterprise module locally without waiting for license key issuance.
+### 4. 30-Day Enterprise Trial — by request only
+A trial is never switched on locally. Since v2.29.1 every trial is a signed key issued by Evolve Mind Solutions:
+
+1. **Request.** The user clicks **Request Trial** (FDE Cockpit, Data Analysis panel, Compare Editions, or a locked Enterprise action). The extension asks for their work email and organisation and drafts an email to `sales@evolveminds.com.au` (`src/ui/enterpriseTrialRequest.ts`). **Copy Request** is the fallback when no email app is configured.
+2. **Approve.** Evolve Mind Solutions issues the key from the requester's details:
+   ```bash
+   node scripts/issue-license.js --trial --org "Requester Org" --email requester@company.com --key-file <master.key>
+   ```
+   `--trial` defaults to 30 days and 1 seat (override with `--days` / `--seats`) and gives the key an `EM-TRIAL-` id.
+3. **Activate.** The user pastes the emailed key into **Enter Licence Key** (desktop: **Activate License Key**). It is verified like any licence; `isTrialLicence()` marks it as a trial because of its `EM-TRIAL-` id.
+
+There is no API that grants a trial locally. `LicenseManager.activateLocalTrial` was removed, and the desktop's `activateLocalTrial` / `generateTrialKey` throw. Trial records written by older versions (`evolve.enterprise.trialInfo`, the desktop vault entries, an `isTrial` flag in `license.json`) are ignored and cleaned up, so deleting `~/.evolve` or forging a vault record no longer grants anything.
 
 ---
 

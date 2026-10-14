@@ -1067,6 +1067,14 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.29.1': [
+    `## 🔑 Evolve AI 2.29.1 — Enterprise trials by request\n`,
+    `• **Request Trial** no longer switches a trial on instantly. It drafts a trial request to sales@evolveminds.com.au with your work email and organisation (or copies it, if you have no email app).\n`,
+    `• Once your request is approved you receive a 30-day trial key by email. Activate it with **Enter Licence Key**; it is verified like any Enterprise licence.\n`,
+    `• Trials started instantly in earlier versions are no longer honoured.\n`,
+    `• The Data Analysis panel's **Enter License Key** now takes effect immediately, without restarting VS Code.\n`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
   '2.29.0': [
     `## 🧭 Evolve AI 2.29.0 — Which model should I use?\n`,
     `The first Marketplace update since 2.20.0.\n`,

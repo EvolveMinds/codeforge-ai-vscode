@@ -2,6 +2,25 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.29.1] — 2026-10-14
+
+### Enterprise trials are requested, not self-activated
+
+* **Fixed: "Request Enterprise Trial" activated a 30-day Platinum trial instantly.**
+  Every trial button (Compare Editions, FDE Cockpit, Data Analysis, and the prompt on a
+  locked Enterprise action) now drafts a trial request to `sales@evolveminds.com.au`
+  with the user's work email and organisation. **Copy Request** is the fallback when no
+  email app is configured.
+* **Trials arrive as signed keys.** Evolve Mind Solutions issues an approved trial with
+  `node scripts/issue-license.js --trial` (30 days, 1 seat, an `EM-TRIAL-` id). The user
+  activates it with **Enter Licence Key**, which verifies the signature like any licence.
+* **No local trial path remains.** `LicenseManager.activateLocalTrial` is removed, and
+  trial records written by earlier versions are ignored and cleaned up. In the desktop
+  app, deleting `~/.evolve` or editing its vault no longer grants a trial, and the
+  Step 5 **Activate** button verifies the key instead of always reporting success.
+* The Data Analysis panel's **Enter License Key** now takes effect immediately, without
+  restarting VS Code.
+
 ## [2.29.0] — 2026-10-14
 
 The first VS Code Marketplace update since 2.20.0. Versions 2.21.0 to 2.28.0 were

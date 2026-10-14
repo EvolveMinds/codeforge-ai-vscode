@@ -1,5 +1,20 @@
 # Evolve AI — Release Notes
 
+## Version 2.29.1 — October 14, 2026 (VS Code Marketplace)
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** MIT (Community Edition). Enterprise modules are licensed separately under `LICENSE-ENTERPRISE` and `EULA.md` and are not included in this package.
+
+---
+
+### Highlights & Summary
+
+* **Enterprise trials by request:** "Request Trial" now drafts a request to `sales@evolveminds.com.au` instead of activating a trial instantly. Approved requests receive a signed 30-day trial key by email, activated with **Enter Licence Key**.
+* **Earlier instant trials are no longer honoured**, and the Data Analysis panel's **Enter License Key** takes effect without a restart.
+
+---
+
 ## Version 2.29.0 — October 14, 2026 (VS Code Marketplace)
 
 **Publisher:** `codeforge-ai`  
