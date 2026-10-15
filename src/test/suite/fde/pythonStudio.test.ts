@@ -174,6 +174,23 @@ suite('FDE Suite — Python AI Studio & Delivery Integration', () => {
       assert.ok(azureSnippet.includes('az containerapp up'));
     });
 
+    test('generateFullStackDockerfile outputs unified frontend and backend multi-stage image', () => {
+      const dockerfile = CloudDeployHook.generateFullStackDockerfile('knowledge-rag', 'main:app');
+      assert.ok(dockerfile.includes('FROM node:20-alpine AS frontend-builder'));
+      assert.ok(dockerfile.includes('FROM python:3.12-slim AS backend-builder'));
+      assert.ok(dockerfile.includes('FROM python:3.12-slim AS runtime'));
+      assert.ok(dockerfile.includes('COPY --from=frontend-builder /app/frontend/dist /app/static'));
+      assert.ok(dockerfile.includes('HEALTHCHECK'));
+    });
+
+    test('generateFullStackDockerCompose outputs turnkey local orchestration with volumes', () => {
+      const compose = CloudDeployHook.generateFullStackDockerCompose('knowledge-rag');
+      assert.ok(compose.includes('services:'));
+      assert.ok(compose.includes('container_name: knowledge-rag'));
+      assert.ok(compose.includes('app-data:/app/data'));
+      assert.ok(compose.includes('healthcheck:'));
+    });
+
     test('inspectActiveCloudCredentials returns expected object structure', () => {
       const creds = CloudDeployHook.inspectActiveCloudCredentials();
       assert.ok(typeof creds.gcpActive === 'boolean');
@@ -284,6 +301,28 @@ loss = criterion(F.softmax(logits, dim=-1), labels)
 `;
       const report = TensorShapeEngine.analyzeTensorCode(code);
       assert.ok(report.anomalies.some(a => a.code === 'DOUBLE_SOFTMAX_CROSS_ENTROPY'));
+    });
+
+    test('detects cosine similarity division by zero without epsilon (RAG risk)', () => {
+      const code = `
+def cosine_sim(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+`;
+      const report = TensorShapeEngine.analyzeTensorCode(code);
+      assert.ok(report.anomalies.some(a => a.code === 'COSINE_SIM_DIV_ZERO_RISK'));
+    });
+
+    test('detects embedding dimension mismatch for Gemini text-embedding-004', () => {
+      const code = `
+import google.genai as genai
+# Using Gemini embedding model
+model = "models/text-embedding-004"
+collection = client.create_collection("docs", metadata={"dimension": 1536})
+`;
+      const report = TensorShapeEngine.analyzeTensorCode(code);
+      const mismatch = report.anomalies.find(a => a.code === 'EMBEDDING_DIM_MISMATCH');
+      assert.ok(mismatch);
+      assert.ok(mismatch.message.includes('768 dimensions'));
     });
   });
 

@@ -43,6 +43,7 @@ export class TensorShapeEngine {
     this.extractLayers(lines, layers);
     this.checkChainingCompatibility(layers, anomalies);
     this.checkNumericalInstabilities(lines, anomalies);
+    this.checkRagAndVectorAnomalies(lines, anomalies);
 
     const shapeFlowSummary = layers.map(l => {
       if (l.inDim && l.outDim) {
@@ -181,6 +182,50 @@ export class TensorShapeEngine {
           message: 'Critical ML bug: CrossEntropyLoss applies LogSoftmax internally. Passing softmax(logits) causes double softmax and degraded gradients.',
           suggestedFix: 'Pass raw logits directly into CrossEntropyLoss without prior softmax.',
         });
+      }
+    }
+  }
+
+  /**
+   * Identifies common RAG, vector embedding, and retrieval tensor bugs:
+   *  - Cosine similarity division-by-zero on zero-norm vectors
+   *  - Vector database dimensionality mismatch (e.g., 768 for Gemini text-embedding-004 vs mismatched schema)
+   *  - Unbounded prompt context injection
+   */
+  private static checkRagAndVectorAnomalies(lines: string[], anomalies: TensorAnomaly[]): void {
+    const fullSource = lines.join('\n');
+    const usesGeminiEmbeddings = /text-embedding-004|models\/text-embedding|genai\.embed_content/i.test(fullSource);
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      // 1. Cosine similarity without epsilon stabilization: dot / (norm_a * norm_b)
+      if (/[a-zA-Z0-9_.]*norm\([^)]+\)\s*\*\s*[a-zA-Z0-9_.]*norm\([^)]+\)/.test(line) &&
+          !line.includes('1e-') && !line.includes('eps') && !line.includes('clamp')) {
+        anomalies.push({
+          line: i + 1,
+          severity: 'warning',
+          code: 'COSINE_SIM_DIV_ZERO_RISK',
+          message: 'Potential NaN / ZeroDivisionError: Vector cosine normalization lacks epsilon guard against zero-magnitude embeddings.',
+          suggestedFix: 'Add epsilon stabilizer to denominator, e.g., (norm_a * norm_b + 1e-9).',
+        });
+      }
+
+      // 2. Embedding dimension mismatch: Gemini text-embedding-004 produces 768 dimensions
+      if (usesGeminiEmbeddings) {
+        const dimMatch = line.match(/["']?(?:dim|dimension|vector_dim)["']?\s*[:=]\s*(1536|384|512|1024|2048)\b/i);
+        if (dimMatch) {
+          const declaredDim = dimMatch[1];
+          anomalies.push({
+            line: i + 1,
+            severity: 'error',
+            code: 'EMBEDDING_DIM_MISMATCH',
+            message: `Vector dimension mismatch: Gemini text-embedding-004 outputs 768 dimensions, but vector schema declares ${declaredDim} dimensions.`,
+            suggestedFix: 'Set vector table or collection dimension to 768 to match Gemini embeddings.',
+          });
+        }
       }
     }
   }

@@ -60,3 +60,6 @@ venv/
 __pycache__/
 *.pyc
 
+
+# Greenfield applications scaffolded by Delivery Studio
+apps/
