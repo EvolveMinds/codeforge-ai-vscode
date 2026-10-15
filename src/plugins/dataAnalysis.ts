@@ -49,6 +49,7 @@ import { AzureClient }      from '../core/azureClient';
 import { AwsClient }        from '../core/awsClient';
 import { DatabricksClient } from '../core/databricksClient';
 import { DataAnalysisPanel } from '../ui/dataAnalysisPanel';
+import { requestEnterpriseTrial } from '../ui/enterpriseTrialRequest';
 import type {
   WorkspaceDataFile, ReportOptionsCatalog, PanelReportOptions, PanelPrep,
 } from '../ui/dataAnalysisPanel';
@@ -72,7 +73,7 @@ import { injectDataPrep } from '../core/reportBlocks';
 import type { ReportBlock, DataPrep, ReportTemplate, BlockType } from '../core/reportBlocks';
 import { extractBlock, buildBlockRefinePrompt } from '../core/reportEditor';
 import { assessModelForDataAnalysis, defaultModelFor } from '../core/modelCapability';
-import { LicenseValidator } from '../enterprise';
+import { LicenseValidator } from '../enterprise/license/licenseValidator';
 
 // ── Detection ───────────────────────────────────────────────────────────────
 
@@ -760,25 +761,14 @@ export class DataAnalysisPlugin implements IPlugin {
             deliverable === 'report' ? { ...spec, focus } : undefined);
           break;
         }
+        // Trials are requested, never self-activated: Evolve Mind Solutions approves the
+        // request and emails a signed trial key, which is activated via 'enterLicense'.
         case 'startTrial': {
-          try {
-            if (services.license) {
-              await services.license.activateLocalTrial('VS Code Community User', 30);
-            }
-            vscode.window.showInformationMessage(
-              `⚡ 30-Day Enterprise Trial Activated!\nValid for 30 days (Saved to Secure Vault).\nLaunch Evolve AI Desktop to experience the full 3D Data Cosmos & Touchscreen Topology.`,
-              'Launch Desktop Edition'
-            ).then(async (choice) => {
-              if (choice === 'Launch Desktop Edition') {
-                vscode.commands.executeCommand('aiForge.fde.launchDesktop');
-              }
-            });
-            panel.setStatus('⚡ 30-Day Enterprise Trial Active');
-          } catch (err: any) {
-            vscode.window.showErrorMessage(`Trial activation error: ${err?.message || err}`);
-          }
-          break;
+          const outcome = await requestEnterpriseTrial('Data Analysis', services.vsCtx.extension.packageJSON.version);
+          if (outcome === 'sent') panel.setStatus('Trial request drafted. Activate the emailed key with Enter License Key once approved.');
+          if (outcome !== 'enter-key') break;
         }
+        // falls through: the user already has a key
         case 'enterLicense': {
           const key = await vscode.window.showInputBox({
             prompt: 'Enter your Evolve AI Enterprise License Key (EM-ENT-V1...)',
@@ -788,7 +778,9 @@ export class DataAnalysisPlugin implements IPlugin {
           if (key) {
             const res = LicenseValidator.verify(key.trim());
             if (res.valid && res.payload) {
-              if (services.vsCtx?.secrets) {
+              if (services.license) {
+                await services.license.activateLicense(key.trim());
+              } else if (services.vsCtx?.secrets) {
                 await services.vsCtx.secrets.store('evolve.enterprise.licenseKey', key.trim());
               }
               vscode.window.showInformationMessage(`✓ Enterprise License Verified for ${res.payload.organization} (Plan: ${res.payload.plan})!`);

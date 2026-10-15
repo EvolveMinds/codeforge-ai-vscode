@@ -457,7 +457,7 @@ export class DataAnalysisPanel {
           </div>
           <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <button class="mini" id="btnStartTrialPromo" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-weight: 700; border: none; padding: 7px 14px; cursor: pointer;">
-              ⚡ Start 30-Day Evaluation Trial
+              ⚡ Request Evaluation Trial
             </button>
             <button class="mini" id="btnEnterLicensePromo" style="padding: 7px 12px; cursor: pointer;">
               🔑 Enter License Key

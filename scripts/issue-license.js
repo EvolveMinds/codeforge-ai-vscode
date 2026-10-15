@@ -8,6 +8,11 @@
  *   node scripts/issue-license.js --org "Client Name" --plan enterprise_platinum --days 365 --seats 50
  *   node scripts/issue-license.js --out license.json --key-file ./master.key
  *   EVOLVE_MASTER_PRIVATE_KEY="-----BEGIN..." node scripts/issue-license.js --org "Acme"
+ *
+ * Approving a trial request (emailed to support@evolveminds.com.au from the product):
+ *   node scripts/issue-license.js --trial --org "Requester Org" --email requester@company.com
+ *   --trial defaults to 30 days and 1 seat (override with --days / --seats) and gives the key an
+ *   EM-TRIAL- id, which the product shows as a trial. It is activated with "Enter Licence Key".
  */
 
 const fs = require('fs');
@@ -25,18 +30,23 @@ function parseArgs() {
     email: 'admin@evolveminds.com.au',
     key: null,
     keyFile: null,
-    out: null
+    out: null,
+    trial: false
   };
+  let daysGiven = false;
+  let seatsGiven = false;
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
-    if (a.startsWith('--org=')) options.org = a.slice('--org='.length);
+    if (a === '--trial') options.trial = true;
+    else if (a.startsWith('--org=')) options.org = a.slice('--org='.length);
     else if (a === '--org' && args[i + 1]) options.org = args[++i];
     else if (a.startsWith('--plan=')) options.plan = a.slice('--plan='.length);
     else if (a === '--plan' && args[i + 1]) options.plan = args[++i];
-    else if (a.startsWith('--days=')) options.days = parseInt(a.slice('--days='.length), 10);
-    else if (a === '--days' && args[i + 1]) options.days = parseInt(args[++i], 10);
+    else if (a.startsWith('--days=')) { options.days = parseInt(a.slice('--days='.length), 10); daysGiven = true; }
+    else if (a === '--days' && args[i + 1]) { options.days = parseInt(args[++i], 10); daysGiven = true; }
     else if (a.startsWith('--seats=')) {
+      seatsGiven = true;
       const s = a.slice('--seats='.length).toLowerCase();
       if (s === 'site' || s === 'unlimited' || s === '-1') {
         options.scope = 'site';
@@ -46,6 +56,7 @@ function parseArgs() {
       }
     }
     else if (a === '--seats' && args[i + 1]) {
+      seatsGiven = true;
       const s = args[++i].toLowerCase();
       if (s === 'site' || s === 'unlimited' || s === '-1') {
         options.scope = 'site';
@@ -74,6 +85,10 @@ function parseArgs() {
     else if (a === '--key-file' && args[i + 1]) options.keyFile = args[++i];
     else if (a.startsWith('--out=')) options.out = a.slice('--out='.length);
     else if (a === '--out' && args[i + 1]) options.out = args[++i];
+  }
+  if (options.trial) {
+    if (!daysGiven) options.days = 30;
+    if (!seatsGiven) options.seats = 1;
   }
   return options;
 }
@@ -105,7 +120,7 @@ function issueLicense(options, privateKey) {
 
   const isSiteLicense = options.scope === 'site' || options.seats === -1;
   const maxSeats = isSiteLicense ? -1 : options.seats;
-  const prefixId = isSiteLicense ? 'EM-SITE' : 'EM-LIC';
+  const prefixId = options.trial ? 'EM-TRIAL' : isSiteLicense ? 'EM-SITE' : 'EM-LIC';
 
   const payload = {
     organization: options.org,

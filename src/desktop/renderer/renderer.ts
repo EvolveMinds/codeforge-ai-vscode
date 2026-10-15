@@ -12645,17 +12645,44 @@ function setupDeliveryStudio(api: any): void {
 
 
   // --- STEP 5: ENTERPRISE COMMERCIAL SUITE (All 12 Modules) ---
-  document.getElementById('btnEntActivateKey')?.addEventListener('click', () => {
-    const key = (document.getElementById('txtEntLicenseKeyBox') as HTMLTextAreaElement).value;
-    if (key) {
-      showToast('✓ Enterprise License activated successfully! Feature flags unlocked.');
-    } else {
+  // Activates a pasted key (licence or approved trial) through the main process, which
+  // verifies the Ed25519 signature. Nothing is unlocked unless verification succeeds.
+  document.getElementById('btnEntActivateKey')?.addEventListener('click', async () => {
+    const key = ((document.getElementById('txtEntLicenseKeyBox') as HTMLTextAreaElement)?.value || '').trim();
+    if (!key) {
       showToast('⚠️ Please paste a valid cryptographic license key.');
+      return;
+    }
+    try {
+      const api = (window as any).evolveApi;
+      const res = await api.license.activateKey(key, (window as any)._evolveClaimedBy);
+      if (res?.valid && res.state?.isLicensed) {
+        showToast(`✓ ${res.state.isTrial ? 'Trial' : 'Licence'} activated for ${res.state.organization} (${res.state.daysRemaining} days remaining).`);
+      } else {
+        showToast(`⚠️ ${res?.error || 'This key could not be verified.'}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ ${err?.message || 'This key could not be verified.'}`);
     }
   });
 
-  document.getElementById('btnEnt30DayTrial')?.addEventListener('click', () => {
-    showToast('✨ Provisioned 30-Day Air-Gapped Platinum Trial!');
+  // Trials are requested, never self-activated: the request goes to Evolve Mind
+  // Solutions by email, and the approved trial key is activated above.
+  document.getElementById('btnEnt30DayTrial')?.addEventListener('click', async () => {
+    const subject = 'Evolve AI Enterprise trial request';
+    const body = [
+      'Hello Evolve Mind Solutions,', '',
+      'I would like to request a 30-day Evolve AI Enterprise trial.', '',
+      'Work email: ', 'Organisation: ', 'Name: ', 'What I would like to evaluate: ', '',
+      'Requested from: Evolve AI Enterprise Desktop',
+    ].join('\n');
+    const mailto = `mailto:support@evolveminds.com.au?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    try {
+      await (window as any).evolveApi.system.openExternal(mailto);
+      showToast('✉️ Trial request opened in your email app. Once approved, paste the emailed trial key and click Activate.');
+    } catch {
+      showToast('✉️ Email support@evolveminds.com.au to request a trial key, then paste it here and click Activate.');
+    }
   });
 
   document.getElementById('btnEntDeactivate')?.addEventListener('click', () => {

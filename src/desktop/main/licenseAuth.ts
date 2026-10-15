@@ -13,7 +13,11 @@ import {
   RegisteredUserProfile
 } from '../shared/desktopTypes';
 import { LicenseValidator } from '../../enterprise/license/licenseValidator';
-import { LicenseManager } from '../../enterprise/license/licenseManager';
+import { LicenseManager, isTrialLicence } from '../../enterprise/license/licenseManager';
+
+const TRIAL_BY_REQUEST_MESSAGE =
+  'Enterprise trials are issued by Evolve Mind Solutions. Request one from support@evolveminds.com.au; ' +
+  'once approved you will receive a trial key by email to activate with Activate License Key.';
 import { DesktopSecretVault } from './secretVault';
 import { EnterpriseFeature } from '../../enterprise/license/licenseTypes';
 
@@ -86,29 +90,13 @@ export class DesktopLicenseAuth {
     this._syncFromStorage();
   }
 
-  private _computeTrialSignature(firstActivated: string, expiresAt: string): string {
-    const entropy = `evolve:trial:${os.platform()}:${os.hostname()}:${os.userInfo().username}:${firstActivated}:${expiresAt}`;
-    return crypto.createHash('sha256').update(entropy).digest('hex');
-  }
-
+  /**
+   * Loads the licence from ~/.evolve/license.json. Only an Ed25519-signed key counts,
+   * and a trial is just such a key whose id starts with EM-TRIAL-. Older builds wrote
+   * self-activated trials (an isTrial flag here plus vault entries); those are ignored.
+   */
   private _syncFromStorage(): void {
     try {
-      let activeVaultTrial = false;
-      const vaultStart = this._vault.getSecret('trial_first_activated');
-      const vaultExpiry = this._vault.getSecret('trial_expires_at');
-      const vaultSig = this._vault.getSecret('trial_signature');
-
-      if (vaultStart && vaultExpiry && vaultSig) {
-        const expectedSig = this._computeTrialSignature(vaultStart, vaultExpiry);
-        if (vaultSig === expectedSig) {
-          const now = Date.now();
-          const expiryTime = new Date(vaultExpiry).getTime();
-          if (now < expiryTime) {
-            activeVaultTrial = true;
-          }
-        }
-      }
-
       if (fs.existsSync(this._licenseFile)) {
         const rawContent = fs.readFileSync(this._licenseFile, 'utf8').trim();
         let key = (rawContent || '').replace(/[\r\n\s\t]+/g, '').trim();
@@ -116,59 +104,7 @@ export class DesktopLicenseAuth {
         if (rawContent.startsWith('{')) {
           try {
             const parsed = JSON.parse(rawContent);
-
-            // Gated Trial Check: rawContent claiming isTrial is ONLY trusted if vault confirms active trial
-            if (parsed.isTrial) {
-              if (activeVaultTrial && vaultExpiry) {
-                const now = new Date();
-                const expiresAt = new Date(vaultExpiry);
-                const diffMs = expiresAt.getTime() - now.getTime();
-                const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-                const org = this._vault.getSecret('trial_org') || parsed.organization || 'Trial Partner';
-
-                (this._licenseMgr as any)._state = {
-                  isLicensed: true,
-                  isTrial: true,
-                  plan: 'enterprise_platinum',
-                  organization: org,
-                  licenseId: 'EM-TRIAL-LOCAL',
-                  expiresAt: vaultExpiry,
-                  daysRemaining: daysRemaining,
-                  maxSeats: 25,
-                  seats: 25,
-                  licenseScope: 'seat',
-                  features: [
-                    'load_testing',
-                    'rag_scaffolder',
-                    'data_quality',
-                    'siem_logging',
-                    'co_branding',
-                    'multi_tenant_sync',
-                    'priority_sla',
-                  ],
-                  rawKey: 'LOCAL_TRIAL_ACTIVE',
-                };
-                return;
-              } else {
-                // license.json trial has no backing vault entitlement or is expired
-                (this._licenseMgr as any)._state = {
-                  isLicensed: false,
-                  isTrial: false,
-                  plan: 'community',
-                  organization: 'Community User',
-                  licenseId: '',
-                  expiresAt: '',
-                  daysRemaining: 0,
-                  maxSeats: 0,
-                  seats: 0,
-                  licenseScope: 'seat',
-                  features: []
-                };
-                return;
-              }
-            }
-
-            const extracted = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || rawContent;
+            const extracted = parsed['evolve.enterprise.licenseKey'] || parsed.licenseKey || parsed.key || '';
             key = (extracted || '').replace(/[\r\n\s\t]+/g, '').trim();
             claimantEmail = parsed.claimedBy || parsed.userEmail || parsed.email;
           } catch {}
@@ -182,7 +118,7 @@ export class DesktopLicenseAuth {
           if (res.valid && res.payload) {
             (this._licenseMgr as any)._state = {
               isLicensed: true,
-              isTrial: false,
+              isTrial: isTrialLicence(res.payload.licenseId),
               plan: res.payload.plan,
               organization: res.payload.organization,
               licenseId: res.payload.licenseId,
@@ -201,39 +137,6 @@ export class DesktopLicenseAuth {
             return;
           }
         }
-      }
-
-      // If no valid license.json, but vault has an active trial
-      if (activeVaultTrial && vaultExpiry) {
-        const now = new Date();
-        const expiresAt = new Date(vaultExpiry);
-        const diffMs = expiresAt.getTime() - now.getTime();
-        const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-        const org = this._vault.getSecret('trial_org') || 'Trial Partner';
-
-        (this._licenseMgr as any)._state = {
-          isLicensed: true,
-          isTrial: true,
-          plan: 'enterprise_platinum',
-          organization: org,
-          licenseId: 'EM-TRIAL-LOCAL',
-          expiresAt: vaultExpiry,
-          daysRemaining: daysRemaining,
-          maxSeats: 25,
-          seats: 25,
-          licenseScope: 'seat',
-          features: [
-            'load_testing',
-            'rag_scaffolder',
-            'data_quality',
-            'siem_logging',
-            'co_branding',
-            'multi_tenant_sync',
-            'priority_sla',
-          ],
-          rawKey: 'LOCAL_TRIAL_ACTIVE',
-        };
-        return;
       }
 
       // Default: unlicensed community state
@@ -365,67 +268,12 @@ export class DesktopLicenseAuth {
     return this.getLicenseState();
   }
 
-  public async activateLocalTrial(orgName: string = 'Enterprise Partner', days: number = 30): Promise<EnterpriseLicenseState> {
-    const existingStart = this._vault.getSecret('trial_first_activated');
-    const existingExpiry = this._vault.getSecret('trial_expires_at');
-    const existingSig = this._vault.getSecret('trial_signature');
-
-    const now = Date.now();
-
-    if (existingStart && existingExpiry && existingSig) {
-      const expectedSig = this._computeTrialSignature(existingStart, existingExpiry);
-      if (existingSig === expectedSig) {
-        const expiryTime = new Date(existingExpiry).getTime();
-        if (now > expiryTime) {
-          throw new Error('Evaluation trial period has already expired on this workstation. To continue using Evolve AI Enterprise, please enter a valid enterprise license key.');
-        }
-        // Still within original 30-day window; return current active state
-        this._syncFromStorage();
-        return this.getLicenseState();
-      }
-    }
-
-    if (existingStart) {
-      throw new Error('Evaluation trial period has already expired on this workstation. To continue using Evolve AI Enterprise, please enter a valid enterprise license key.');
-    }
-
-    const startDate = new Date();
-    const expiryDate = new Date(startDate.getTime() + Math.min(days, 30) * 86400000);
-    const startIso = startDate.toISOString();
-    const expiryIso = expiryDate.toISOString();
-    const sig = this._computeTrialSignature(startIso, expiryIso);
-
-    this._vault.setSecret('trial_first_activated', startIso);
-    this._vault.setSecret('trial_expires_at', expiryIso);
-    this._vault.setSecret('trial_signature', sig);
-    this._vault.setSecret('trial_org', orgName);
-
-    await this._licenseMgr.activateLocalTrial(orgName, days);
-
-    try {
-      const bundle = {
-        isTrial: true,
-        organization: orgName,
-        plan: 'enterprise_platinum',
-        licenseId: 'EM-TRIAL-LOCAL',
-        startedAt: startIso,
-        expiresAt: expiryIso,
-        trialSignature: sig,
-        features: [
-          'load_testing',
-          'rag_scaffolder',
-          'data_quality',
-          'siem_logging',
-          'co_branding',
-          'multi_tenant_sync',
-          'priority_sla',
-        ]
-      };
-      fs.writeFileSync(this._licenseFile, JSON.stringify(bundle, null, 2), 'utf8');
-    } catch {}
-
-    this._syncFromStorage();
-    return this.getLicenseState();
+  /**
+   * Trials are not activated locally. A user requests one from Evolve Mind Solutions,
+   * receives a signed trial key by email, and activates it with activateKey().
+   */
+  public async activateLocalTrial(_orgName?: string, _days?: number): Promise<EnterpriseLicenseState> {
+    throw new Error(TRIAL_BY_REQUEST_MESSAGE);
   }
 
   public hasFeature(feature: EnterpriseFeature): boolean {
@@ -433,9 +281,8 @@ export class DesktopLicenseAuth {
     return this._licenseMgr.hasFeature(feature);
   }
 
-  public async generateTrialKey(orgName: string = 'Enterprise Partner', days: number = 30): Promise<string> {
-    await this.activateLocalTrial(orgName, days);
-    return `EM-TRIAL-ACTIVE (${days} Days Evaluation Active)`;
+  public async generateTrialKey(_orgName?: string, _days?: number): Promise<string> {
+    throw new Error(TRIAL_BY_REQUEST_MESSAGE);
   }
 
   public generateSiteLicenseKey(_orgName?: string, _days?: number): string {

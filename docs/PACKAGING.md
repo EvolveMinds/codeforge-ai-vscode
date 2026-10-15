@@ -165,12 +165,39 @@ Also confirm no stray `*.vsix` from earlier builds is being packaged (the repo r
 accumulates them; `.vscodeignore` covers this with `*.vsix`, but verify after any
 change to that file).
 
+### Enterprise code never ships in the Marketplace package (v2.29.0+)
+
+The `# >>> community-only` … `# <<< community-only` block in `.vscodeignore` drops
+`out/enterprise/**` (except `licenseTypes.js`, `licenseValidator.js`, `licenseManager.js`),
+`out/desktop/**`, `LICENSE-ENTERPRISE` and `EULA.md`. Outside that block, the licence
+generator (`out/enterprise/license/licenseGenerator.*`), `SECURITY_AUDIT_REPORT*.md`,
+`*.stackdump`, `docker-compose.*.yml` and `k8s/` never ship in any package.
+`scripts/package-enterprise.js` strips the block to build the private Enterprise package.
+
+`npm run package:all` runs `node scripts/check-package-contents.js` before building. It
+fails on proprietary code, private-key material, licence-issuing code, internal reports, or
+a shipped file that `require`s something not shipped. Run it on its own after any change to
+`.vscodeignore`:
+
+```bash
+node scripts/check-package-contents.js     # must print "Community package contents clean"
+```
+
+It deliberately skips `bin/`: Biome's binary contains `-----BEGIN … PRIVATE KEY-----`
+strings that belong to its own secret-detection rule, not to any key.
+
 ---
 
 ## 5. Pre-release checklist — discoverability surfaces
 
 Every release updates these. Skipping them means shipped features that no user can
 discover, and a Marketplace listing that misrepresents the product.
+
+`npm run package:all` enforces the mechanical part with `scripts/check-release-docs.js`.
+Packaging stops unless the `package.json` version has a `CHANGELOG.md` section, a
+`RELEASE_NOTES.md` section and a What's New entry, the README mentions its `vX.Y` line, and
+`docs/ARCHITECTURE.md` is still the developer guide. The rest of this list is judgement and
+stays manual.
 
 - [ ] **`package.json` → `version`** — bumped, following semver
 - [ ] **`package.json` → `description`** — reflects current headline capability
@@ -181,7 +208,7 @@ discover, and a Marketplace listing that misrepresents the product.
 - [ ] **`docs/`** — any guide affected by the change (`CICD.md`, `DATA_ANALYSIS.md`, etc.)
 - [ ] **`GETTING_STARTED.md`** — if setup or first-run flow changed
 - [ ] **`CLAUDE.md`** — commands table, settings table, plugin status table
-- [ ] **`docs/ARCHITECTURE.md`** — if any structural change was made
+- [ ] **`docs/ARCHITECTURE.md`** — if any structural change was made. This is the developer guide; never let the FDE document generator overwrite it (its demo output lives in `docs/client/`)
 - [ ] **What's New** (`aiForge.whatsNew`) — release notes for the new version
 - [ ] **New commands** added to `package.json` → `contributes.commands`
 - [ ] **New settings** added to `package.json` → `contributes.configuration`
@@ -243,6 +270,16 @@ npm test                  # must pass
 ```bash
 npx vsce ls | grep -iE "token|secret|\.env|credential|password|key"   # must return nothing
 npx vsce ls | head -50                                                # sanity-check the file list
+node scripts/check-package-contents.js                               # Community boundary — see §4
+```
+
+After Step 5, also confirm inside each `.vsix` that `out/desktop/` is absent and
+`out/enterprise/` holds exactly the three licence-checker files:
+
+```bash
+for f in evolve-ai-*-<version>.vsix; do
+  echo "$f enterprise=$(unzip -l "$f" | grep -c out/enterprise/) desktop=$(unzip -l "$f" | grep -c out/desktop/)"
+done   # expect enterprise=3 desktop=0 for every file
 ```
 
 ### Step 4 — Build all six packages, sequentially

@@ -47,6 +47,7 @@ evolve-ai-vscode/
     │   ├── modelAdvisor.ts      ← WHICH KIND of model fits a job (jobs vs attributes), Ollama capability detection, session-scoped per-job model choices
     │   ├── modelFlows.ts        ← corrected architecture diagrams per model kind, each with declared provenance
     │   ├── jsonc.ts             ← stripJsonComments — shared by the pipeline + report-theme config files
+    │   ├── enterpriseGate.ts    ← the only way extension code reaches src/enterprise: guarded load + licence check
     │   ├── interfaces.ts        ← IAIService, IContextService, IWorkspaceService
     │   ├── services.ts          ← IServices interface + ServiceContainer (DI root)
     │   ├── plugin.ts            ← IPlugin interface + PluginRegistry
@@ -70,6 +71,7 @@ evolve-ai-vscode/
     │   ├── chatPanel.ts         ← chat brain (sidebar WebviewView + shared state)
     │   ├── chatEditorPanel.ts   ← right-side editor-tab chat (Claude-style WebviewPanel)
     │   ├── statusBar.ts         ← status bar item (provider + active plugins)
+    │   ├── enterpriseTrialRequest.ts ← "Request Trial": drafts an email to support@evolveminds.com.au; trials are never self-activated
     │   └── inlineActions.ts     ← CodeLens + lightbulb CodeAction providers
     ├── commands/
     │   ├── coreCommands.ts      ← all core commands as a class
@@ -210,6 +212,20 @@ Future plugin ideas (community contributions welcome):
    `ChatEditorPanel`) attach to the same provider through `attachSurface(...)`. Posts are
    broadcast to every attached surface so the two views stay in sync. Never store
    chat state directly on a surface — always go through the provider.
+
+9. **The Community package does not contain Enterprise code.** `.vscodeignore` drops
+   `out/enterprise/**` (except the three licence-checker files) and `out/desktop/**`. Extension
+   code must never statically import an Enterprise generator. Go through
+   `core/enterpriseGate.ts → checkEnterpriseAccess()` and stop before writing anything if it
+   refuses. `scripts/check-package-contents.js` fails packaging on a dangling `require`. The
+   licences follow the same line: `LICENSE` (MIT, Community) and `LICENSE-ENTERPRISE` + `EULA.md`.
+
+10. **A trial is a signed key, never a local switch.** "Request Trial" only drafts a request to
+    support@evolveminds.com.au (`ui/enterpriseTrialRequest.ts`). Evolve Mind Solutions issues the
+    key with `scripts/issue-license.js --trial` (an `EM-TRIAL-` id), and the user activates it with
+    Enter Licence Key. Do not add any API that grants a trial without a verified signature —
+    `LicenseManager.activateLocalTrial` was removed in v2.29.1 for exactly this reason, and the
+    desktop's local-trial methods throw.
 
 ---
 

@@ -1,34 +1,44 @@
-Evolve AI Enterprise & Studio
-Copyright (c) 2023-2026 Evolve Mind Solutions Pty Ltd. All rights reserved.
-ABN: 41 672 546 217 · Sydney, New South Wales, Australia
+Evolve AI
+Copyright (c) 2023-2026 Evolve Mind Solutions Pty Ltd
 
-================================================================================
-  EVOLVE AI ENTERPRISE SOFTWARE LICENSE NOTICE
-================================================================================
+This repository contains two editions under two licences.
 
-The Evolve AI Enterprise Studio standalone desktop application, dialect transpilers,
-security modules, air-gapped cryptographic licensing framework, and enterprise extensions
-are proprietary software of Evolve Mind Solutions Pty Ltd.
+  COMMUNITY EDITION (MIT, below)
+    Everything in this repository except the paths listed under ENTERPRISE
+    EDITION. This is the code published as the free Evolve AI extension on the
+    Visual Studio Marketplace.
 
-USE, COPYING, DISTRIBUTION, AND DEPLOYMENT OF THIS SOFTWARE ARE STRICTLY GOVERNED
-BY THE EVOLVE AI ENTERPRISE END USER LICENSE AGREEMENT (EULA):
+  ENTERPRISE EDITION (proprietary, see LICENSE-ENTERPRISE and EULA.md)
+    - src/enterprise/, except the licence-checking files
+      src/enterprise/license/licenseTypes.ts,
+      src/enterprise/license/licenseValidator.ts and
+      src/enterprise/license/licenseManager.ts, which are Community Edition
+    - src/desktop/
+    - anything compiled or packaged from those paths, including
+      out/enterprise/ and out/desktop/
 
-  - Full EULA Document: See EULA.md in this repository
-  - Web Canonical: https://www.evolveminds.com.au/eula/
-  - Master Terms of Service: https://www.evolveminds.com.au/terms/
+  The MIT licence below does not apply to the Enterprise Edition paths.
 
-LIMITED PILOT EVALUATION:
-Subject to an active Enterprise Limited Pilot License (maximum 30-day evaluation window)
-for authorized pilot enterprise partners.
+--------------------------------------------------------------------------------
 
-COMMERCIAL ENTERPRISE LICENSING:
-Subject to procurement and activation via cryptographically signed Ed25519 license tokens
-(EM-ENT-V1.*) or license.json credential bundles issued by Evolve Mind Solutions Pty Ltd.
+MIT License
 
-CUSTOMER CODE OWNERSHIP:
-Licensee retains 100% full, unencumbered ownership of all source code, transpiled outputs,
-schemas, models, and assets generated or refactored using this software.
+Copyright (c) 2023-2026 Evolve Mind Solutions Pty Ltd
 
-For commercial licensing and pilot enquiries:
-sales@evolveminds.com.au | https://www.evolveminds.com.au
-Level 1, 63-73 Ann Street, Surry Hills NSW 2010, Australia
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

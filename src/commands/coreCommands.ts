@@ -1067,6 +1067,36 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.29.1': [
+    `## 🔑 Evolve AI 2.29.1 — Enterprise trials by request\n`,
+    `• **Request Trial** no longer switches a trial on instantly. It drafts a trial request to support@evolveminds.com.au with your work email and organisation (or copies it, if you have no email app).\n`,
+    `• Once your request is approved you receive a 30-day trial key by email. Activate it with **Enter Licence Key**; it is verified like any Enterprise licence.\n`,
+    `• Trials started instantly in earlier versions are no longer honoured.\n`,
+    `• The Data Analysis panel's **Enter License Key** now takes effect immediately, without restarting VS Code.\n`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
+  '2.29.0': [
+    `## 🧭 Evolve AI 2.29.0 — Which model should I use?\n`,
+    `The first Marketplace update since 2.20.0.\n`,
+    `### Model Advisor\n`,
+    `• New command **Evolve AI: Which Model Should I Use?** Pick the job (chat, reasoning, code, fill-in-the-middle completion, embeddings, reranking, vision, documents, classification). It tells you whether your current model is the right kind of tool, lists what else you have installed, and suggests the smallest model that does the job.\n`,
+    `• Capabilities come from Ollama itself (vision, embeddings, fill-in-the-middle, thinking), not guesses from the model name. Every verdict says whether it was detected, known or assumed.\n`,
+    `• Asked about forecasting, it points you to the built-in statistical forecaster rather than a language model.\n`,
+    `• Includes a diagram of how each kind of model works, drawn offline.\n`,
+    `### Fixes\n`,
+    `• Data Analysis no longer reports capable models such as qwen3:32b, llama3.2:13b or llava:13b as "underpowered".\n`,
+    `• Choosing a model for one data analysis no longer changes the model every other feature uses.\n`,
+    `• Code Converter no longer emits placeholder code, and has better idiom and pitfall guidance across all 26 languages.\n`,
+    `• The local GLM model tag is corrected to \`codegeex4:9b\`, so it can actually be pulled.\n`,
+    `### FDE Cockpit\n`,
+    `• Live schema discovery for Oracle (via \`sqlplus\`), Teradata and IBM DB2 (via Python \`teradatasql\` / \`ibm_db\`), using the client tools installed on your machine, plus a table sample preview.\n`,
+    `• Generated client documents no longer state latency, accuracy or cost figures that were never measured.\n`,
+    `### Community and Enterprise editions\n`,
+    `• The free edition no longer includes the Enterprise modules: load testing, RAG scaffolder, data quality gates, SIEM forwarder, SQL transpiler, PII masking, reverse ETL, RLS policies, synthetic data, mock server and private model serving. They now ship only in the licensed Enterprise package. In the free edition those buttons explain where to get them.\n`,
+    `• The Community edition is MIT-licensed; \`LICENSE\` lists the Enterprise paths it does not cover.\n`,
+    `• The licence signing key has been replaced. Licences signed with the previous key are no longer accepted.\n`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
   '2.16.0': [
     `## 🚀 Evolve AI 2.16.0 — Zero-AI Offline Developer & Data Engineering Suite\n`,
     `### Multi-Dialect SQL Formatter (Offline & Rule-Based)\n`,

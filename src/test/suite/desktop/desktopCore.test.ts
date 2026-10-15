@@ -292,8 +292,11 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
       /Enterprise License Required/
     );
 
-    // Activate trial to unlock commercial engines
-    await licAuth.activateLocalTrial('Acme Corporation', 30);
+    // Unlock as a signed licence would. Real keys need the private signing key, which
+    // tests never hold, so stand in for an activated licence on this instance.
+    const licensedState = { ...licAuth.getLicenseState(), isLicensed: true, plan: 'enterprise_platinum' } as any;
+    licAuth.getLicenseState = () => licensedState;
+    licAuth.hasFeature = () => true;
 
     const transpileRes = await transpileFn(null, {
       sourceSql: 'SELECT NVL(cust_id, 0) FROM orders;',
@@ -740,36 +743,26 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.strictEqual(state.plan, 'community');
   });
 
-  test('DesktopLicenseAuth prevents trial reactivation once expired on workstation', async () => {
-    const trialDir = path.join(tmpDir, 'trial-expiration-test');
+  test('DesktopLicenseAuth cannot self-activate a trial and ignores old local trial records', async () => {
+    const trialDir = path.join(tmpDir, 'trial-by-request-test');
     fs.mkdirSync(trialDir, { recursive: true });
 
-    const licAuth = new DesktopLicenseAuth(trialDir);
-
-    // Initial trial activation succeeds
-    const state1 = await licAuth.activateLocalTrial('Legit Partner', 30);
-    assert.strictEqual(state1.isLicensed, true);
-    assert.strictEqual(state1.plan, 'enterprise_platinum');
-
-    // Simulate expiration in vault
+    // A trial record exactly as older builds wrote it: signed vault entries plus an isTrial flag.
     const vault = new DesktopSecretVault(trialDir);
-    const pastStart = new Date(Date.now() - 35 * 86400000).toISOString();
-    const pastExpiry = new Date(Date.now() - 5 * 86400000).toISOString();
-    vault.setSecret('trial_first_activated', pastStart);
-    vault.setSecret('trial_expires_at', pastExpiry);
-    const entropy = `evolve:trial:${process.platform}:${os.hostname()}:${os.userInfo().username}:${pastStart}:${pastExpiry}`;
-    const sig = crypto.createHash('sha256').update(entropy).digest('hex');
-    vault.setSecret('trial_signature', sig);
+    const start = new Date().toISOString();
+    const expiry = new Date(Date.now() + 30 * 86400000).toISOString();
+    vault.setSecret('trial_first_activated', start);
+    vault.setSecret('trial_expires_at', expiry);
+    const entropy = `evolve:trial:${process.platform}:${os.hostname()}:${os.userInfo().username}:${start}:${expiry}`;
+    vault.setSecret('trial_signature', crypto.createHash('sha256').update(entropy).digest('hex'));
+    fs.writeFileSync(path.join(trialDir, 'license.json'), JSON.stringify({ isTrial: true, expiresAt: expiry }), 'utf8');
 
-    // Should now report as expired / unlicensed
-    const expiredState = licAuth.getLicenseState();
-    assert.strictEqual(expiredState.isLicensed, false);
+    const licAuth = new DesktopLicenseAuth(trialDir);
+    assert.strictEqual(licAuth.getLicenseState().isLicensed, false, 'Only a signed key may grant a trial');
 
-    // Re-clicking "Start Trial" must be refused and throw error
-    await assert.rejects(
-      async () => await licAuth.activateLocalTrial('Legit Partner', 30),
-      /Evaluation trial period has already expired on this workstation/
-    );
+    await assert.rejects(() => licAuth.activateLocalTrial('Partner', 30), /issued by Evolve Mind Solutions/);
+    await assert.rejects(() => licAuth.generateTrialKey('Partner', 30), /issued by Evolve Mind Solutions/);
+    assert.strictEqual(licAuth.getLicenseState().isLicensed, false);
   });
 
   test('LicenseValidator rejects PEM public key injection in claimant identity', () => {

@@ -113,7 +113,7 @@ Unlike cloud-dependent AI developer tools that route code and database metadata 
 2. Double-click to launch. No installer, no administrative privileges, and no VS Code required.
 
 ### Step 2: Activate Your Enterprise License
-* **Instant Evaluation:** Inside the app, navigate to Settings or the Enterprise Suite tab and click **"✨ 30-Day Air-Gapped Platinum Trial"** to immediately evaluate in-memory.
+* **30-Day Evaluation Trial:** Click **Request Trial** in the extension (or email support@evolveminds.com.au from the desktop app) with your work email and organisation. Once approved, Evolve Mind Solutions emails you a signed 30-day trial key (`EM-ENT-V1...`); paste it into **Enter Licence Key** to activate.
 * **Custom Pilot License:** Enter your team's signed Ed25519 key (`EM-ENT-V1...`) provided by Evolve Mind Solutions to unlock full 90-day multi-seat evaluation.
 
 ### Step 3: Test on Your Client Stack

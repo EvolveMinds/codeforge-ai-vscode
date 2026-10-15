@@ -12,7 +12,10 @@ Evolve AI uses a **unified single-codebase architecture** to deliver both the **
 ### Core Design Principles
 1. **Zero Code-Fork Overhead**: Both Community and Enterprise editions share the same Git branch (`main`) and core compilation pipeline (`npm run compile`). This guarantees that bug fixes, security patches, and performance optimizations are immediately available across all tiers without cherry-picking or merge conflicts.
 2. **100% Air-Gapped & Offline Guarantee**: Neither edition requires an external internet connection, SaaS cloud dependency, or phone-home telemetry. All validation occurs strictly on the local machine using compiled deterministic engines, local vector databases, and offline asymmetric cryptography.
-3. **Clean Runtime Feature Flag Boundary**: Enterprise capabilities are gated through an in-memory license state manager (`LicenseManager`) and hardware-encrypted local secret storage. If no license key is present, the app runs cleanly as the **Local Community Edition** without errors, warnings, or missing dependencies.
+3. **Two-Layer Boundary — Package, then Licence**:
+   - **Package.** The Community `.vsix` on the Marketplace does not contain the Enterprise code. The `# >>> community-only` block in `.vscodeignore` drops `out/enterprise/**` (except the three licence-checker files) and `out/desktop/**`. `scripts/package-enterprise.js` strips that block to build the Enterprise package. `scripts/check-package-contents.js` runs in both packaging scripts and fails the build on proprietary code, private keys, internal reports, or a shipped file that `require`s something not shipped.
+   - **Licence.** In the Enterprise package, every paid action asks `core/enterpriseGate.ts → checkEnterpriseAccess()` **before** it generates or writes anything. The modules are only returned when they are installed *and* the licence covers the capability. Four capabilities have their own flag (`load_testing`, `rag_scaffolder`, `data_quality`, `siem_logging`); the rest need any valid licence, including an approved trial key. The desktop app enforces the same rule in `ipcHandlers.ts → _assertEntitlement()`.
+   - Without a licence the Community Edition runs cleanly. A paid action explains why it is unavailable instead of failing.
 
 ---
 
@@ -124,7 +127,7 @@ d:\EvolveMInds\EvolveAI\
 
 | Capability / Module | Local (Community) Edition | Paid (Enterprise) Edition | Code Implementation Path |
 | :--- | :---: | :---: | :--- |
-| **Price & Licensing** | **Free & Open** (MIT) | **Commercial Tier** (`pro`, `standard`, `platinum`) | `src/enterprise/license/` |
+| **Price & Licensing** | **Free & Open** (MIT — see `LICENSE`) | **Commercial Tier** (`pro`, `standard`, `platinum`) — `LICENSE-ENTERPRISE` + `EULA.md` | `src/enterprise/license/` |
 | **Network Requirement** | 100% Offline / Local | 100% Offline / Air-Gapped | Both run without internet |
 | **Phase 1: Discovery & Problem Framing** | Full Access | Full Access | `src/desktop/main/ipcHandlers.ts` |
 | **Phase 1: AI Scope & Risk Drafter** | Full Access | Full Access | `src/desktop/main/ipcHandlers.ts` |
@@ -136,17 +139,17 @@ d:\EvolveMInds\EvolveAI\
 | **Phase 3: Rule vs Model Gate Evaluator** | Full Access | Full Access | `src/desktop/renderer/renderer.ts` |
 | **Phase 4: Runbook & Diagram Factory** | Full Access | Full Access | `src/fde/runbookGenerator.ts` |
 | **Offline Developer Suite (SQL, Linters, Regex)** | Full Access | Full Access | `src/tools/` |
-| **Air-Gapped RAG Studio Scaffolder** | Preview Mode | **Unlocked** (`rag_scaffolder`) | `src/enterprise/rag/` |
-| **Distributed k6 & Locust Load Testing** | Preview Mode | **Unlocked** (`load_testing`) | `src/enterprise/loadTesting/` |
-| **Great Expectations & Soda Quality Gates** | Preview Mode | **Unlocked** (`data_quality`) | `src/enterprise/dataQuality/` |
-| **SIEM Forwarder (Splunk, Datadog, Sentinel)** | Preview Mode | **Unlocked** (`siem_logging`) | `src/enterprise/security/siemForwarder.ts` |
-| **SQL Transpiler (Oracle/T-SQL to BigQuery)** | Preview Mode | **Unlocked** | `src/enterprise/migration/sqlTranspiler.ts` |
-| **Automated PII Masking & Data Sanitizer** | Preview Mode | **Unlocked** | `src/enterprise/security/piiSanitizer.ts` |
-| **Reverse ETL Sync Worker (Idempotent)** | Preview Mode | **Unlocked** | `src/enterprise/sync/reverseEtlGen.ts` |
-| **Row-Level Security (RLS) Policy Gen** | Preview Mode | **Unlocked** | `src/enterprise/security/rlsPolicyGen.ts` |
-| **Referential Synthetic Data Generator** | Preview Mode | **Unlocked** | `src/enterprise/synthetic/syntheticDataGen.ts` |
-| **Standalone Mock API Server Generator** | Preview Mode | **Unlocked** | `src/enterprise/mockServer/mockServerGen.ts` |
-| **Private Model Serving Client (vLLM/Triton)** | Preview Mode | **Unlocked** | `src/enterprise/serving/privateModelClient.ts` |
+| **Air-Gapped RAG Studio Scaffolder** | Not included | **Licensed** (`rag_scaffolder`) | `src/enterprise/rag/` |
+| **Distributed k6 & Locust Load Testing** | Not included | **Licensed** (`load_testing`) | `src/enterprise/loadTesting/` |
+| **Great Expectations & Soda Quality Gates** | Not included | **Licensed** (`data_quality`) | `src/enterprise/dataQuality/` |
+| **SIEM Forwarder (Splunk, Datadog, Sentinel)** | Not included | **Licensed** (`siem_logging`) | `src/enterprise/security/siemForwarder.ts` |
+| **SQL Transpiler (Oracle/T-SQL to BigQuery)** | Not included | **Licensed** | `src/enterprise/migration/sqlTranspiler.ts` |
+| **Automated PII Masking & Data Sanitizer** | Not included | **Licensed** | `src/enterprise/security/piiSanitizer.ts` |
+| **Reverse ETL Sync Worker (Idempotent)** | Not included | **Licensed** | `src/enterprise/sync/reverseEtlGen.ts` |
+| **Row-Level Security (RLS) Policy Gen** | Not included | **Licensed** | `src/enterprise/security/rlsPolicyGen.ts` |
+| **Referential Synthetic Data Generator** | Not included | **Licensed** | `src/enterprise/synthetic/syntheticDataGen.ts` |
+| **Standalone Mock API Server Generator** | Not included | **Licensed** | `src/enterprise/mockServer/mockServerGen.ts` |
+| **Private Model Serving Client (vLLM/Triton)** | Not included | **Licensed** | `src/enterprise/serving/privateModelClient.ts` |
 | **White-Label Co-Branding & Priority SLA** | N/A | **Unlocked** (`co_branding`, `priority_sla`) | `src/enterprise/license/` |
 
 ---
@@ -213,8 +216,18 @@ The Evolve Mind administrator signs this challenge offline, producing a license 
 - **VS Code Extension**:
   - License key is stored in `vscode.SecretStorage` (`evolve.enterprise.licenseKey`), backed by the operating system keychain (Windows Credential Manager, macOS Keychain, Linux SecretService).
 
-### 4. 30-Day Air-Gapped Platinum Trial
-In Step 5 of the Desktop Studio, clicking **"✨ 30-Day Air-Gapped Platinum Trial"** provisions an instant in-memory evaluation license. This allows clients and FDEs to run and evaluate every single enterprise module locally without waiting for license key issuance.
+### 4. 30-Day Enterprise Trial — by request only
+A trial is never switched on locally. Since v2.29.1 every trial is a signed key issued by Evolve Mind Solutions:
+
+1. **Request.** The user clicks **Request Trial** (FDE Cockpit, Data Analysis panel, Compare Editions, or a locked Enterprise action). The extension asks for their work email and organisation and drafts an email to `support@evolveminds.com.au` (`src/ui/enterpriseTrialRequest.ts`). **Copy Request** is the fallback when no email app is configured.
+2. **Approve.** Evolve Mind Solutions issues the key from the requester's details:
+   ```bash
+   node scripts/issue-license.js --trial --org "Requester Org" --email requester@company.com --key-file <master.key>
+   ```
+   `--trial` defaults to 30 days and 1 seat (override with `--days` / `--seats`) and gives the key an `EM-TRIAL-` id.
+3. **Activate.** The user pastes the emailed key into **Enter Licence Key** (desktop: **Activate License Key**). It is verified like any licence; `isTrialLicence()` marks it as a trial because of its `EM-TRIAL-` id.
+
+There is no API that grants a trial locally. `LicenseManager.activateLocalTrial` was removed, and the desktop's `activateLocalTrial` / `generateTrialKey` throw. Trial records written by older versions (`evolve.enterprise.trialInfo`, the desktop vault entries, an `isTrial` flag in `license.json`) are ignored and cleaned up, so deleting `~/.evolve` or forging a vault record no longer grants anything.
 
 ---
 
@@ -251,8 +264,8 @@ npm run compile
 # Run the complete test suite (629 unit & integration tests)
 npm test
 
-# Build standard Community VS Code VSIX package
-npm run package
+# Build the six Community VS Code VSIX packages (no Enterprise code; contents check runs first)
+npm run package:all
 
 # Build proprietary Enterprise Commercial VS Code VSIX packages (with automated secret scans)
 npm run package:enterprise

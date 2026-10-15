@@ -2,7 +2,7 @@
   "name": "evolve-ai",
   "displayName": "Evolve AI",
   "description": "Forward-Deployed Engineers Delivery Studio & AI Data Platform: Live Database Introspector, Schema Mapping, dbt Marts, API SDKs & Multi-Cloud Runbooks.",
-  "version": "2.28.0",
+  "version": "2.29.1",
   "publisher": "codeforge-ai",
   "author": "Evolve Mind Solutions Pty Ltd <info@evolveminds.com.au>",
   "icon": "media/icon.png",
@@ -159,7 +159,14 @@
     "notebook",
     "jupyter",
     "pdf report",
-    "modernization"
+    "modernization",
+    "model advisor",
+    "which model",
+    "model picker",
+    "choose llm",
+    "embeddings",
+    "reranking",
+    "fill in the middle"
   ],
   "homepage": "https://github.com/EvolveMinds/codeforge-ai-vscode#readme",
   "bugs": {
@@ -316,7 +323,8 @@
       },
       {
         "command": "aiForge.model.advisor",
-        "title": "Evolve AI: Which Model Should I Use?"
+        "title": "Evolve AI: Which Model Should I Use?",
+        "icon": "$(hubot)"
       },
       {
         "command": "aiForge.setupOllama",
@@ -429,11 +437,6 @@
         "command": "aiForge.convert.model",
         "title": "Evolve AI: Choose AI Model for Code Conversion",
         "icon": "$(server-process)"
-      },
-      {
-        "command": "aiForge.model.advisor",
-        "title": "Evolve AI: Model Advisor (Which Model Should I Use?)",
-        "icon": "$(hubot)"
       },
       {
         "command": "aiForge.convert.review",

@@ -53,9 +53,26 @@ execSync('npm run compile', { stdio: 'inherit', cwd: rootDir });
 console.log(`\n[2/4] Running Enterprise automated test suite...`);
 execSync('npx mocha --ui tdd out/test/suite/enterprise/*.test.js', { stdio: 'inherit', cwd: rootDir });
 
+// The Enterprise package is the Community file list plus the proprietary code, so its
+// ignore file is .vscodeignore with the "community-only" block removed.
+const enterpriseIgnore = path.join(rootDir, '.vscodeignore.enterprise.tmp');
+const communityIgnore = fs.readFileSync(path.join(rootDir, '.vscodeignore'), 'utf8');
+if (!/^# >>> community-only\r?$/m.test(communityIgnore) || !/^# <<< community-only\r?$/m.test(communityIgnore)) {
+  console.error(`\n[ERROR] .vscodeignore has no "# >>> community-only" / "# <<< community-only" block.`);
+  process.exit(1);
+}
+fs.writeFileSync(
+  enterpriseIgnore,
+  communityIgnore.replace(/^# >>> community-only\r?$[\s\S]*?^# <<< community-only\r?$\r?\n?/m, '') +
+    '\n.vscodeignore.enterprise.tmp\n',
+  'utf8'
+);
+process.on('exit', () => fs.rmSync(enterpriseIgnore, { force: true }));
+
 // 3. Security & Secret Scan
 console.log(`\n[3/4] Performing enterprise packaging security scan...`);
-const vsceList = execSync('npx vsce ls', { encoding: 'utf8', cwd: rootDir });
+execSync(`node scripts/check-package-contents.js --enterprise --ignoreFile="${enterpriseIgnore}"`, { stdio: 'inherit', cwd: rootDir });
+const vsceList = execSync(`npx vsce ls --ignoreFile "${enterpriseIgnore}"`, { encoding: 'utf8', cwd: rootDir });
 const secretMatches = vsceList.split('\n')
   .filter(line => /token|secret|\.env|credential|password/i.test(line))
   .filter(line => !/secretVault\.(js|js\.map|ts)/i.test(line));
@@ -93,7 +110,7 @@ for (let i = 0; i < TARGETS.length; i++) {
   // Package with vsce
   const outName = `evolve-ai-enterprise-${target}-${version}.vsix`;
   console.log(`  Packaging ${outName}...`);
-  execSync(`npx vsce package --target ${target} --out ${outName} --allow-missing-repository`, {
+  execSync(`npx vsce package --target ${target} --out ${outName} --allow-missing-repository --ignoreFile "${enterpriseIgnore}"`, {
     stdio: 'inherit',
     cwd: rootDir
   });
