@@ -81,7 +81,10 @@ const IGNORE_LINE_PATTERNS = [
   /Evaluator Baseline|golden|benchmark/i,
   /FastAPI\(|app\s*=\s*FastAPI/i,
   /\btag:\s*['"]v/,       // scaffolded release-tag samples
-  /\bid:\s*['"]v\d/       // scaffolded id samples
+  /\bid:\s*['"]v\d/,      // scaffolded id samples
+  /python_version/i,      // python runtime version
+  /\bver:\s*['"][0-9]/i,  // third-party python package matrix version
+  /EvolveAI-Sandbox/i     // mock sandbox test payload
 ];
 
 /**

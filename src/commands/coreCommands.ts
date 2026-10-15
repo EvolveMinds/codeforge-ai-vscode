@@ -1067,6 +1067,16 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.30.0': [
+    `## 🐍 Evolve AI 2.30.0 — Python AI Studio & Neural Debugger\n`,
+    `• **Python AI Studio & AST Analyzer**: Deep static syntax analysis, node visitor pattern, variable scoping, imports, and fault-tolerant parsing.\n`,
+    `• **Interactive Neural Debugger**: Layer-by-layer dynamic tensor shape flow tracking, broadcasting anomaly detection, and interactive DataFrame schema sniffer.\n`,
+    `• **PyTest Contract Generator**: Automated zero-boilerplate test generation from function signatures and mock fixtures.\n`,
+    `• **Full-Stack Containerization**: Production multi-stage Dockerfiles (React 18 SPA + FastAPI) and dual-engine Docker Compose (PostgreSQL 16 + ChromaDB).\n`,
+    `• **AWS Cloud Runbooks**: Step-by-step ECR publishing, IAM task role configuration, and AWS App Runner deployment runbooks.\n`,
+    `• **Virtual Guide AI Coding Intent**: Conversational assistance with prompt chips for AI coding capabilities, Python Studio, and containerized deployment.\n`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
   '2.29.1': [
     `## 🔑 Evolve AI 2.29.1 — Enterprise trials by request\n`,
     `• **Request Trial** no longer switches a trial on instantly. It drafts a trial request to support@evolveminds.com.au with your work email and organisation (or copies it, if you have no email app).\n`,

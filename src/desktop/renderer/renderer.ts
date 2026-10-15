@@ -51539,7 +51539,7 @@ if __name__ == '__main__':
         with open(json_path, 'w', encoding='utf-8') as f:
             json.dump({
                 "app": "EvolveAI-Sandbox",
-                "version": "2.4.0",
+                "version": "2.4.0", // ALLOW_VERSION_LITERAL: mock sandbox test fixture
                 "pipeline": {"batch_size": 32, "device": "cpu", "retries": 3},
                 "features": ["auto_inspect", "sqlite_db", "fastapi_json", "chaos_matrix"]
             }, f, indent=2)

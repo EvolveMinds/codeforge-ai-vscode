@@ -2,6 +2,32 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.30.0] — 2026-10-15
+
+### Python AI Studio & Interactive Neural Debugger
+
+* **Python AST Analyzer:** Deep static syntax analysis, node visitor pattern, variable scoping, imports, classes, functions, and fault-tolerant parsing (`pythonAstAnalyzer.ts`).
+* **Interactive Neural Debugger:**
+  * **Dynamic Tensor Shape Flow Visualizer:** Multidimensional tensor shape tracking, detecting broadcasting anomalies and tensor rank mismatches across neural layers (`tensorShapeVisualizer.ts`).
+  * **Interactive DataFrame Schema Sniffer:** Automated tabular schema profiling, missing value distribution, memory footprint calculation, and schema drift checks.
+  * **PyTest Automated Contract Generator:** Instant zero-boilerplate unit and regression test suite generation with typed mock fixtures directly from analyzed AST structures.
+  * **Airtight Python Wheelhouse & Test Sandbox:** Isolated Python execution sandbox with dependency caching, simulated file I/O mocks, and execution timeout protection.
+
+### Full-Stack Containerization & Multi-Cloud Deployment Engine
+
+* **Multi-Stage Docker Scaffolding:** Scaffolds production-grade multi-stage Docker builds bundling React 18 SPA (Vite) frontend with FastAPI backend.
+* **Dual-Engine Docker Compose:** Production Docker Compose orchestration combining PostgreSQL 16 (pgvector), ChromaDB vector store, FastAPI app, and healthcheck monitors.
+* **Production AWS App Runner & ECR Runbook:** Complete enterprise deployment runbook covering ECR repository provisioning, Docker image build & tag, IAM task roles, App Runner service creation, and zero-downtime rolling updates.
+
+### Greenfield RAG Application Simulation & Delivery Verification
+
+* **Greenfield RAG Simulation (`apps/docupulse-ai`):** Validated end-to-end 7-phase delivery workflow: problem framing, dual-engine PostgreSQL + ChromaDB schema introspection, hybrid RAG pipeline with cross-encoder reranking, Python AI Studio implementation, automated PyTest suite, Docker containerization, and AWS App Runner deployment.
+
+### Conversational Virtual Guide AI Coding Intent Routing & Quick Chips
+
+* **Direct AI Coding Intent Routing:** Added high-precision intent matching for queries like *"can this app do coding?"*, *"Python Studio & Debugger?"*, and *"Docker & AWS Deployment?"*.
+* **Interactive UI Quick Action Chips:** Integrated prompt chips into the desktop studio guide panel (`renderer/index.html`) providing 1-click navigation to Python AI Studio, Neural Debugger, and Cloud Deployment runbooks.
+
 ## [2.29.1] — 2026-10-14
 
 ### Enterprise trials are requested, not self-activated

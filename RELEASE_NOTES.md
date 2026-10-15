@@ -1,5 +1,32 @@
 # Evolve AI — Release Notes
 
+## Version 2.30.0 — October 15, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.30.0 delivers the Python AI Studio and Interactive Neural Debugger, full-stack containerization with production multi-stage Dockerfiles and dual-engine Docker Compose (PostgreSQL 16 + ChromaDB), AWS App Runner and ECR deployment runbooks, end-to-end greenfield RAG simulation verification, and conversational Virtual Guide AI coding intent routing.
+
+* **Python AI Studio & AST Analyzer:** Deep static syntax parsing (`pythonAstAnalyzer.ts`), AST node visitor, function signature extraction, variable scoping, and fault-tolerant parsing.
+* **Interactive Neural Debugger:**
+  * **Dynamic Tensor Shape Flow:** Visualizes multidimensional tensor flow, detects broadcasting errors and tensor rank mismatches across neural layers (`tensorShapeVisualizer.ts`).
+  * **Interactive DataFrame Schema Sniffer:** Automated tabular schema profiling, missing value distribution, memory footprint calculation, and schema drift checks.
+  * **PyTest Automated Contract Generator:** Generates comprehensive unit and regression tests with typed mock fixtures directly from analyzed AST structures.
+  * **Airtight Python Wheelhouse & Test Sandbox:** Isolated Python execution sandbox with dependency caching, simulated file I/O mocks, and execution timeout protection.
+* **Full-Stack Containerization Engine:**
+  * **Multi-Stage Docker Scaffolding:** Builds lean, production-ready container images combining React 18 SPA (Vite) frontend with FastAPI backend.
+  * **Dual-Engine Docker Compose:** Orchestrates PostgreSQL 16 (with pgvector), ChromaDB vector store, FastAPI server, and automated health checks in a unified local stack.
+* **Production AWS App Runner & ECR Runbook:** Complete enterprise guide for pushing container images to AWS ECR, configuring IAM task policies, deploying to AWS App Runner with auto-scaling, and verifying live endpoints.
+* **Greenfield RAG Simulation Verification (`apps/docupulse-ai`):** Validated end-to-end 7-phase delivery workflow: problem framing, schema introspection, hybrid RAG pipeline with cross-encoder reranking, Python implementation, automated PyTest suite, Docker containerization, and AWS App Runner deployment.
+* **Conversational Virtual Guide AI Coding Intent Routing:** High-precision intent matching and UI prompt chips in the desktop studio guide panel answering *"can this app do coding?"*, *"Python Studio & Debugger?"*, and *"Docker & AWS Deployment?"*.
+
+---
+
 ## Version 2.29.1 — October 14, 2026 (VS Code Marketplace)
 
 **Publisher:** `codeforge-ai`  
