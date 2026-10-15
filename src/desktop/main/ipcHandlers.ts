@@ -857,6 +857,50 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
   // 2. DOMAIN KNOWLEDGE BASE & WORKFLOW ROUTING
   // =========================================================================
 
+  // AI Coding, Software Engineering & Code Generation Capabilities
+  const isCodingCapabilityQuery =
+    /\b(?:can|does|could|will)\s*(?:this\s*app|you|it|evolve(?:\s*ai)?)\s*(?:do\s*)?(?:coding|code|programming|write\s*code|generate\s*code|build\s*code|scaffold\s*code)\b/i.test(q) ||
+    /\b(?:can\s*(?:i|we)\s*(?:use\s*(?:this\s*app|evolve)\s*to\s*)?(?:code|write\s*code|generate\s*code|do\s*coding))\b/i.test(q) ||
+    /\b(?:how\s*do\s*i\s*(?:code|write\s*code|generate\s*code)\s*(?:with|in|using)\s*(?:this\s*app|evolve))\b/i.test(q) ||
+    (/\b(?:coding|code\s*generation|write\s*code|programming|ai\s*coder)\b/i.test(q) && /\b(?:can|does|support|capabilities?|capable|features?|possible|how)\b/i.test(q)) ||
+    /\b(?:is\s*this\s*(?:an?\s*)?(?:ai\s*)?coding\s*(?:app|tool|studio|platform|assistant))\b/i.test(q);
+
+  if (isCodingCapabilityQuery) {
+    return {
+      success: true,
+      reply: `### 💻 Yes! Evolve AI is an Automated Software Engineering & AI Coding Studio\n\n` +
+             `**Evolve AI is built specifically to architect, scaffold, write, debug, and test production-grade code for your applications.**\n\n` +
+             `Whether you are building a brand-new greenfield application from scratch or modernizing an existing codebase, Evolve AI provides 5 integrated coding mechanisms:\n\n` +
+             `#### 1. 🚀 Automated Full-Stack Code Scaffolding (Phase 4 Step C)\n` +
+             `• **One-Click Code Generation**: From your visual architecture diagram, Evolve AI emits complete, runnable code repositories directly into your project workspace:\n` +
+             `  - **Frontend**: Responsive React 18 / Next.js with Tailwind CSS, TypeScript, and state management.\n` +
+             `  - **Backend**: Python FastAPI or TypeScript Express REST APIs with typed schemas and OpenAPI documentation.\n` +
+             `  - **Databases**: PostgreSQL and SQLite schemas with unified SQLAlchemy or Prisma ORM models and automated migration scripts.\n` +
+             `  - **Containers**: Multi-stage production \`Dockerfile\` and turnkey \`docker-compose.yml\` orchestration stacks.\n\n` +
+             `#### 2. 💬 Interactive AI Pair-Programming Copilot (Left Activity Bar)\n` +
+             `• **Workspace-Aware Coding**: Click the **💬 Chat** icon in the far-left activity bar to pair-program with an AI developer.\n` +
+             `• **Surgical Code Diffs**: Prompt the copilot to implement new features, refactor existing functions, optimize SQL queries, or fix bugs. Changes are applied as clean, non-destructive git diffs directly to your workspace files.\n\n` +
+             `#### 3. 🐍 Python AI Studio & Interactive Neural Debugger (Activity Bar / Header)\n` +
+             `• **3-Mode IDE**: Work in **Manual**, **On-Demand AI**, or **Continuous AI** mode with real-time assistance.\n` +
+             `• **AST Deterministic Linter**: Offline syntax verification, undefined variable catching, and missing package detection before execution.\n` +
+             `• **Tensor Shape Flow Engine**: Traces PyTorch, TensorFlow, and NumPy tensor dimensions and catches shape mismatches or NaN/Inf numerical hazards.\n` +
+             `• **DataFrame Sniffer**: Real-time schema inspection for Pandas and Polars data pipelines.\n` +
+             `• **1-Click PyTest Synthesis**: Automatically generates parameterized unit test contract suites (\`tests/test_*.py\`) based on execution traces.\n\n` +
+             `#### 4. 🤖 Multi-Agent Swarm Orchestrator (Phase 4 Step B)\n` +
+             `• **Autonomous Agent Teams**: Deploy specialized multi-agent software engineering swarms where a **Leader** breaks down tasks, a **Router** directs calls, a **Coder Agent** writes the code, and a **Reviewer/Auditor Agent** validates security, performance, and unit tests before committing.\n\n` +
+             `#### 5. ⚡ Embedded Developer Terminal (Header Quick Action)\n` +
+             `• **Instant Test & Run**: Open the built-in terminal (**⚡ Terminal** in the top navigation bar) to execute \`pytest\`, run development servers (\`npm run dev\`, \`uvicorn\`), or push commits with Git.\n\n` +
+             `Where would you like to start coding?`,
+      actions: [
+        { label: '💻 Open Phase 4C (Code Generation)', phase: 4, subTab: 'code', description: 'Scaffold full-stack React & FastAPI code' },
+        { label: '🐍 Open Python AI Studio', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace', description: 'Interactive Python coding & Neural Debugger' },
+        { label: '💬 Open AI Copilot Chat', phase: 1, activityTab: 'chat', description: 'Pair-program and generate surgical code diffs' },
+        { label: '🏗️ Open Phase 4A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Visually layout microservices and APIs before generating code' },
+        { label: '⚡ Open Terminal', phase: 4, actionType: 'terminal', description: 'Execute tests and run development servers' }
+      ]
+    };
+  }
+
   // A. MCP (Model Context Protocol) Server & Standardized Enterprise Tools (Section 3C)
   const isMcpQuery =
     /\b(mcp|model\s*context\s*protocol|introspect_schema|execute_safe_sql|vector_search|call_enterprise_api|mask_sensitive_payload|read_workspace_document)\b/i.test(q) ||

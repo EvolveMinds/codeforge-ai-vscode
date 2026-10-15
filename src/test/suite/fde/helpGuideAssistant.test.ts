@@ -320,4 +320,34 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
     assert.ok(labels.some(l => l.includes('Python AI Studio')), 'Should include Python AI Studio action');
     assert.ok(labels.some(l => l.includes('Cloud Deployment')), 'Should include Cloud Deployment action');
   });
+
+  test('answers whether this app can do coding with direct engineering studio workflows', () => {
+    const codingQueries = [
+      'can this app do coding?',
+      'can you code?',
+      'can evolve ai do coding?',
+      'does this app write code?',
+      'can it generate code?',
+      'how do i code with this app?',
+      'is this an ai coding tool?'
+    ];
+
+    for (const q of codingQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger IP refusal banner`);
+      assert.ok(
+        res.reply.includes('Automated Software Engineering & AI Coding Studio') || res.reply.includes('Full-Stack Code Scaffolding'),
+        `Query "${q}" should confirm coding capability`
+      );
+      assert.ok(res.reply.includes('Interactive AI Pair-Programming Copilot'));
+      assert.ok(res.reply.includes('Python AI Studio & Interactive Neural Debugger'));
+      assert.ok(res.actions && res.actions.length >= 4, `Query "${q}" should provide direct action jumps`);
+
+      const labels = res.actions!.map(a => a.label);
+      assert.ok(labels.some(l => l.includes('Code Generation')), `Query "${q}" should include Code Generation action`);
+      assert.ok(labels.some(l => l.includes('Python AI Studio')), `Query "${q}" should include Python Studio action`);
+      assert.ok(labels.some(l => l.includes('AI Copilot Chat')), `Query "${q}" should include Chat action`);
+    }
+  });
 });
