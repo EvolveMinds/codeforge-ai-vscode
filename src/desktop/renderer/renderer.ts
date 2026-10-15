@@ -2168,6 +2168,16 @@ function setupHelpGuide(api: any): void {
         showToast('⚡ Opened Terminal Drawer');
         return;
       }
+      if (action.actionType === 'pythonStudio' || (action as any).command === 'evolve.pythonStudio.openWorkspace') {
+        const btn = document.getElementById('btnPythonStudio');
+        if (btn) {
+          btn.click();
+        } else if ((window as any).togglePythonStudioDrawer) {
+          (window as any).togglePythonStudioDrawer();
+        }
+        showToast('🐍 Opened Python AI Studio');
+        return;
+      }
       if (action.activityTab && action.activityTab !== 'delivery') {
         switchActivityTab(action.activityTab, api);
         showToast(`🧭 Navigated to ${action.activityTab.toUpperCase()} tab`);
@@ -2261,9 +2271,11 @@ function setupHelpGuide(api: any): void {
   const renderWelcomeMessage = () => {
     chatLog.innerHTML = '';
     const welcome = `### 👋 Welcome to Evolve Virtual Assistant\n\n` +
-      `I am your in-app guide for building, architecting, and delivering enterprise AI applications across our **6 Delivery Phases** plus **3 Dedicated Activity Hubs** (🌿 Git & Remote Repository Hub, ☁️ Multi-Cloud Connect Matrix, 🤖 Local AI Hardware Sizer).\n\n` +
+      `I am your in-app guide for building, architecting, and delivering enterprise AI applications across our **6 Delivery Phases** plus **3 Dedicated Activity Hubs** (🌿 Git & Remote Repository Hub, ☁️ Multi-Cloud Connect Matrix, 🤖 Local AI Hardware Sizer) and **🐍 Python AI Studio & Neural Debugger**.\n\n` +
       `**How I can help you:**\n` +
       `• **🚀 Build New Applications**: Step-by-step guidance on creating a fresh greenfield app or modernizing brownfield systems.\n` +
+      `• **🐍 Python Studio & Neural Debugger**: AST static checks, tensor shape flow tracing, NaN/Inf hazard detection, DataFrame sniffing, and 1-click PyTest contracts.\n` +
+      `• **🐳 Full-Stack Containerization**: Multi-stage Docker, PostgreSQL/SQLite dual database, and AWS App Runner / ECR deploy runbooks.\n` +
       `• **🔌 Locate Features ("Where is it?")**: Instant navigation to Live DB, Visual Canvas, Code Gen, Guardrails, Git Hub, Terminal, or Swarms.\n` +
       `• **⚙️ Understand Architecture ("How does it work?")**: Deep architectural insights on RAG, Agents, Guardrails, Evals, Deployments, and Git.\n` +
       `• **🧭 Unblock Your Workflow**: If you are stuck at any point, ask me where to go next!\n\n` +
@@ -2275,6 +2287,8 @@ function setupHelpGuide(api: any): void {
       { label: '🎨 UI & UX Architecture', phase: 3, subStep: 'D' },
       { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
       { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
+      { label: '🐍 Python Studio & Neural Debugger', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace' },
+      { label: '☁️ Cloud Deployment & Runbooks', phase: 4, subTab: 'deploy' },
       { label: '🔌 MCP Tool Server (3C)', phase: 3, subStep: 'C' },
       { label: '🌿 Git & Remote Repository Hub', phase: 6, activityTab: 'git' },
       { label: '🧭 Where do I go next?', phase: 1 }

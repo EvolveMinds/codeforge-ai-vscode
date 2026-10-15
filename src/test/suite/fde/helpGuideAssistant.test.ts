@@ -257,4 +257,67 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
       assert.ok(res.actions!.some(a => a.label.includes('RAG Golden Eval Studio')), `Query "${q}" should jump to RAG Golden Eval Studio`);
     }
   });
+
+  test('guides users on Python AI Studio, Neural Debugger, Tensor Shape Flow, and Sandbox test harnesses', () => {
+    const pyQueries = [
+      'How do I use Python Studio & Neural Debugger?',
+      'What does the Tensor Shape Flow Engine do?',
+      'Tell me about the DataFrame Sniffer and Airtight Wheelhouse',
+      'How does 1-click pytest contract generation work?',
+      'Where is the Neural Debugger located?',
+      'How does Python Studio work?'
+    ];
+
+    for (const q of pyQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger guardrail`);
+      assert.ok(
+        res.reply.includes('Python AI Studio') || res.reply.includes('Neural Debugger'),
+        `Query "${q}" should mention Python AI Studio or Neural Debugger`
+      );
+      assert.ok(res.actions && res.actions.length >= 2, `Query "${q}" should provide direct action jumps`);
+      assert.ok(
+        res.actions!.some(a => a.label.includes('Python') || a.actionType === 'pythonStudio' || a.subTab === 'code'),
+        `Query "${q}" should offer jump to Python Studio or Code Scaffolding`
+      );
+    }
+  });
+
+  test('guides users on Full-Stack Containerization, Dual-Engine DB, and AWS App Runner & ECR deployment', () => {
+    const deployQueries = [
+      'How do I containerize and deploy my RAG app to AWS?',
+      'Tell me about the full-stack docker compose and AWS App Runner runbook',
+      'How does the PostgreSQL and SQLite dual-engine database work?',
+      'Where are cloud deployment runbooks?'
+    ];
+
+    for (const q of deployQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger guardrail`);
+      assert.ok(
+        res.reply.includes('Full-Stack Containerization') || res.reply.includes('Cloud Deployment') || res.reply.includes('Docker Compose'),
+        `Query "${q}" should mention Containerization or Cloud Deployment`
+      );
+      assert.ok(res.actions && res.actions.length >= 2, `Query "${q}" should provide direct action jumps`);
+      assert.ok(
+        res.actions!.some(a => a.subTab === 'deploy' || a.activityTab === 'cloud'),
+        `Query "${q}" should offer jump to Cloud Deployment or Multi-Cloud Matrix`
+      );
+    }
+  });
+
+  test('verifies Greenfield Process Flow includes Dual-Engine DB, Python Studio, and Cloud Deployment actions', () => {
+    const res = generateHelpGuideReply('what is the process flow to build a fresh new application?');
+    assert.strictEqual(res.success, true);
+    assert.ok(res.reply.includes('Dual Relational Database') || res.reply.includes('Dual-Engine'));
+    assert.ok(res.reply.includes('Python AI Studio & Neural Debugger'));
+    assert.ok(res.reply.includes('AWS App Runner'));
+    assert.ok(res.actions && res.actions.length >= 6);
+
+    const labels = res.actions!.map(a => a.label);
+    assert.ok(labels.some(l => l.includes('Python AI Studio')), 'Should include Python AI Studio action');
+    assert.ok(labels.some(l => l.includes('Cloud Deployment')), 'Should include Cloud Deployment action');
+  });
 });

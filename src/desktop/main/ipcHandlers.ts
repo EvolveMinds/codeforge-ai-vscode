@@ -771,7 +771,8 @@ export interface HelpGuideReply {
     subTab?: string;
     subStep?: string;
     activityTab?: string;
-    actionType?: 'livedb' | 'terminal' | 'modal' | 'tab';
+    actionType?: 'livedb' | 'terminal' | 'modal' | 'tab' | 'pythonStudio' | 'command';
+    command?: string;
     description?: string;
   }>;
 }
@@ -939,6 +940,82 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     };
   }
 
+  // Python AI Studio, Interactive Neural Debugger, Tensor Shape Flow & Python Sandbox
+  const isPythonStudioQuery =
+    /\b(python\s*studio|neural\s*debugger|tensor\s*(?:shape|flow)?|data\s*frame\s*sniffer|dataframe\s*sniffer|pandas\s*sniffer|polars|airtight\s*wheelhouse|wheelhouse|pytest\s*contract|python\s*sandbox|sandbox\s*harness|test\s*harness|nan[\s/]*inf|cosine_sim_div_zero_risk|embedding_dim_mismatch)\b/i.test(q) ||
+    (/\b(python|debugger|sandbox)\b/i.test(q) && /\b(studio|tensor|shape|ast|wheelhouse|pytest|harness)\b/i.test(q));
+
+  if (isPythonStudioQuery) {
+    return {
+      success: true,
+      reply: `### 🐍 Python AI Studio & Interactive Neural Debugger\n\n` +
+             `Evolve AI features a native **Python AI Studio & Neural Debugger Workspace** (\`src/plugins/pythonStudio/\`) providing 100% offline, zero-cloud deterministic analysis, tensor validation, and isolated sandbox execution:\n\n` +
+             `#### 1. 🎛️ 3-Mode Execution Switcher\n` +
+             `• **Manual Mode**: Direct code authoring and on-demand AST static checks without automatic background triggers.\n` +
+             `• **On-Demand AI Mode**: Calls the AI Advisor on request to synthesize surgical diffs, refactorings, or explanations.\n` +
+             `• **Continuous AI Mode**: Proactively inspects active code changes in the background, streaming real-time tensor shape transitions, variable scope graphs, and numerical stability warnings.\n\n` +
+             `#### 2. 🔬 Interactive Neural Debugger & AST Deterministic Engine\n` +
+             `• **Sub-Millisecond AST Linting**: Parses abstract syntax trees locally, detects syntax errors, undefined variables, missing package imports, and unhandled exception paths before runtime.\n` +
+             `• **Hazardous Code Invariants**: Flags unsafe shell invocations, infinite loop constructs, and un-sanitized file operations.\n\n` +
+             `#### 3. 📐 Tensor Shape Flow Engine & RAG Vector Dimension Invariants\n` +
+             `• **Multi-Dimensional Shape Tracing**: Tracks tensor dimensions step-by-step through PyTorch, TensorFlow, and NumPy operations (\`matmul\`, \`conv2d\`, \`reshape\`, \`einsum\`, \`transpose\`).\n` +
+             `• **Numerical Instability Guard**: Flags division-by-zero risks, floating-point NaN/Inf hazards, and vanishing gradient patterns.\n` +
+             `• **RAG Vector Guardrails**: Validates vector embeddings against vector store schemas. Automatically catches \`COSINE_SIM_DIV_ZERO_RISK\` (unnormalized / zero vectors) and \`EMBEDDING_DIM_MISMATCH\` (e.g. passing 768-dim Gemini \`text-embedding-004\` vectors into a mismatched 1536-dim collection).\n\n` +
+             `#### 4. 🐼 DataFrame Sniffer (Pandas & Polars)\n` +
+             `• **Deep Schema Introspection**: Instantly inspects DataFrame column names, dtypes, null/missing counts, unique cardinalities, and memory footprints without running heavy cloud profiling.\n\n` +
+             `#### 5. 📦 1-Click Python 3.12 & Airtight Wheelhouse\n` +
+             `• **Automated Environment Provisioning**: 1-click Python 3.12 installation and isolated virtualenv (\`.venv\`) management.\n` +
+             `• **Airtight Wheelhouse**: Pre-compiled, cryptographically-hashed offline wheel cache designed for air-gapped enterprise environments. Eliminates corporate proxy blocks, SSL certificate rejections, and pip network timeouts.\n\n` +
+             `#### 6. 🧪 Interactive Sandbox & 1-Click PyTest Contracts\n` +
+             `• **Multi-Modal Test Harness**: Executes Python scripts in an isolated sandbox with file I/O mocks, stdout/stderr capture, and strict timeout guards.\n` +
+             `• **1-Click PyTest Generation**: Automatically synthesizes comprehensive, parameterized \`tests/test_*.py\` contract test suites with edge case coverage based on execution traces.`,
+      actions: [
+        { label: '🐍 Open Python AI Studio', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace', description: 'Launch Python Studio & Neural Debugger Workspace' },
+        { label: '💻 Open Phase 4C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Inspect generated Python code & PyTest contracts' },
+        { label: '🏗️ Open Phase 4A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Inspect service topology and tensor pipeline' },
+        { label: '⚡ Open Terminal Drawer', phase: 4, actionType: 'terminal', description: 'Execute sandbox pytest suites in terminal' }
+      ]
+    };
+  }
+
+  // Full-Stack Containerization, Dual-Engine DB & AWS Cloud Deployment
+  const isDockerAwsDeployQuery =
+    /\b(full-stack\s*docker|docker-compose|docker\s*compose|app\s*runner|aws\s*deploy|aws\s*deployment|ecr|containeriz(?:e|ation)|dual[\s-]*engine(?:\s*(?:db|database|storage))?|postgres(?:ql)?\s*(?:and|or|\/)\s*sqlite|deployment\s*runbook|aws\s*runbook|cloud\s*deploy\s*runbook)\b/i.test(q) ||
+    (/\b(docker|container|aws|deploy|cloud)\b/i.test(q) && /\b(runbook|compose|app\s*runner|ecr|postgres(?:ql)?|sqlite|dual)\b/i.test(q));
+
+  if (isDockerAwsDeployQuery) {
+    return {
+      success: true,
+      reply: `### 🐳 Full-Stack Containerization & Cloud Deployment Runbooks\n\n` +
+             `Evolve AI provides production-ready, full-stack containerization and multi-cloud deployment blueprints spanning React, FastAPI, Dual Relational Databases, and Vector Stores:\n\n` +
+             `#### 1. 🐳 Multi-Stage Distroless Docker Architecture\n` +
+             `• **Stage 1 (Frontend Builder)**: Node 20 alpine compiling React 18 + Vite + Tailwind CSS into optimized static assets.\n` +
+             `• **Stage 2 (Backend Builder)**: Python 3.11/3.12 resolving dependencies via high-speed \`uv\` or pip into an isolated wheelhouse.\n` +
+             `• **Stage 3 (Hardened Production Runner)**: Minimal distroless/slim runtime hosting FastAPI with non-root security privileges, internal static mounting for the React SPA, and automated healthchecks (\`/api/health\`).\n\n` +
+             `#### 2. 🗄️ Dual-Engine Relational Storage (PostgreSQL 16 & SQLite)\n` +
+             `• **Production PostgreSQL 16**: High-concurrency enterprise storage with pgvector, automated connection pooling, and schema migration hooks.\n` +
+             `• **Local SQLite Fallback**: Zero-dependency \`sqlite+aiosqlite:///app.db\` for instantaneous local testing, offline developer workstations, and ephemeral CI pipelines.\n` +
+             `• **1-Line Switching**: Seamlessly toggle between PostgreSQL and SQLite simply by updating \`DATABASE_URL\` with zero application code changes.\n\n` +
+             `#### 3. 📦 Docker Compose Orchestration Stack\n` +
+             `• **Single-Command Launch**: \`docker compose up --build\` orchestrates the entire application tier:\n` +
+             `  - **Web & API Gateway**: React SPA + FastAPI on port \`8000\`.\n` +
+             `  - **Relational DB**: PostgreSQL 16 on port \`5432\` with persistent volume mounts.\n` +
+             `  - **Vector DB**: ChromaDB on port \`8001\` for 768-dim Gemini semantic embeddings.\n` +
+             `  - **Pre-Flight Healthchecks**: Depend-on conditions ensuring the database and vector store are healthy before API startup.\n\n` +
+             `#### 4. ☁️ AWS App Runner & Amazon ECR Deploy Runbook\n` +
+             `• **ECR Authentication**: \`aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account>.dkr.ecr.<region>.amazonaws.com\`.\n` +
+             `• **Push Image**: Tag and push multi-stage container to Amazon ECR private repository.\n` +
+             `• **App Runner Service**: Fully managed serverless container service with automatic scaling (1-10 instances), zero cold-start HTTP healthchecks, and VPC connector for private RDS PostgreSQL access.\n` +
+             `• **Secrets & Environment**: Secure runtime injection of \`GEMINI_API_KEY\`, \`DATABASE_URL\`, and \`CHROMA_HOST\` via AWS Systems Manager Parameter Store or Secrets Manager.`,
+      actions: [
+        { label: '☁️ Open Phase 4D (Cloud Deployment)', phase: 4, subTab: 'deploy', description: 'Export Docker, AWS App Runner & Kubernetes blueprints' },
+        { label: '💻 Open Phase 4C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Inspect generated Dockerfiles & compose stack' },
+        { label: '☁️ Open Multi-Cloud Matrix', phase: 4, activityTab: 'cloud', description: 'Check AWS/GCP/Azure credentials' },
+        { label: '🌿 Open Git & CI/CD Hub', phase: 6, activityTab: 'git', description: 'Configure GitHub Actions CI/CD workflows' }
+      ]
+    };
+  }
+
   const mentionsUiUx = /\b(frontend|backend|ui|ux)\b/i.test(q);
   const mentionsDefinition = /\b(where|define|defined|build|built|deliver|delivered|generate|generated)\b/i.test(q);
   const mentionsGreenfieldBrownfield = /\b(greenfield|brownfield)\b/i.test(q);
@@ -1039,31 +1116,34 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
              `• **Step 1 (Intake & Reframing)**: State the business objective, decompose raw stakeholder requests, and establish quantitative ROI targets.\n` +
              `• **Step 2 (Capability Ladder)**: Position your application on the 5-level intelligence ladder (L1 Deterministic Rules ➔ L2 Augmented Search / RAG ➔ L3 Human-Gated Copilot ➔ L4 Multi-Agent Swarm ➔ L5 Fully Autonomous Orchestrator).\n` +
              `• **Step 3 (Greenfield Setup)**: Set the engagement type to **Greenfield** to initialize a clean-slate domain architecture with zero legacy constraints.\n\n` +
-             `#### 2️⃣ Stage 2: Data Readiness & Vectorization (Phase 2)\n` +
-             `• **Live Database Connection**: Click **🔌 Live DB** in the top navigation bar to connect to PostgreSQL, MySQL, Snowflake, BigQuery, Oracle, or SQL Server.\n` +
+             `#### 2️⃣ Stage 2: Data Readiness & Dual-Engine Storage (Phase 2)\n` +
+             `• **Dual Relational Database**: Connect enterprise PostgreSQL (or MySQL, Snowflake, BigQuery) for production, with zero-dependency SQLite fallback for instantaneous local and CI testing.\n` +
              `• **Schema Mapping**: Introspect enterprise schemas and apply automated PII masking.\n` +
-             `• **Vector Store Ingestion**: Upload domain documents, PDFs, and manuals into vector embeddings (Chroma / Pinecone / pgvector) for semantic retrieval.\n\n` +
+             `• **Vector Store Ingestion**: Upload domain documents, PDFs, and manuals into ChromaDB, Pinecone, or pgvector using 768-dim embeddings.\n\n` +
              `#### 3️⃣ Stage 3: AI Solutioning & UI/UX Scaffolding (Phase 3)\n` +
              `• **Step A (AI Patterns)**: Select your architectural pattern (Direct Prompt, Hybrid RAG, Multi-Turn Copilot, or Multi-Agent Swarm).\n` +
              `• **Step B (Context Bridge)**: Configure enterprise security, VPC peering, and zero-drift database tolerance.\n` +
-             `• **Step C (Model Matrix)**: Benchmark models (Gemini, Claude, GPT, Mistral, Ollama/local SLM) against token costs and latency SLAs.\n` +
+             `• **Step C (Model Matrix)**: Benchmark models (Gemini 2.5 Flash, Claude 3.7 Sonnet, GPT-4o, Mistral, Ollama) against token costs and latency SLAs.\n` +
              `• **Step D (UI & UX Design)**: Define client screens, component styling (React / Tailwind), and click **"Generate UI Prototype"** to produce interactive wireframe mockups.\n\n` +
-             `#### 4️⃣ Stage 4: Visual Architecture Studio & Code Scaffolding (Phase 4)\n` +
+             `#### 4️⃣ Stage 4: Visual Architecture Studio, Python AI Studio & Scaffolding (Phase 4)\n` +
              `• **Phase 4A (Visual Canvas)**: Drag and drop nodes onto the interactive canvas:\n` +
              `  \`Client ➔ API Gateway ➔ Safety Guardrail ➔ Agent Swarm ➔ Vector Store ➔ Database\`\n` +
              `• **Phase 4B (Multi-Agent Swarm)**: Configure specialized agent teams (Leader, Router, Coder, Reviewer).\n` +
-             `• **Phase 4C (Full-Stack Scaffolding)**: Click **"Generate Full-Stack Scaffolding"**. Evolve AI emits the complete runnable repository (React/Next.js frontend, FastAPI/Express backend microservices, schemas, Dockerfiles, and tests) directly into your workspace!\n` +
-             `• **Phase 4D (Cloud Deployment)**: Export production Kubernetes manifests, Terraform IaC, and Docker Compose configurations.\n\n` +
+             `• **Python AI Studio & Neural Debugger**: Validate code with AST static checks, trace tensor shape flows, verify DataFrame schemas (Pandas/Polars), catch NaN/Inf instability hazards, and generate 1-click PyTest contract suites in an isolated sandbox.\n` +
+             `• **Phase 4C (Full-Stack Scaffolding)**: Click **"Generate Full-Stack Scaffolding"**. Evolve AI emits the complete runnable repository (React/Next.js frontend, FastAPI backend, SQLAlchemy ORM, multi-stage Dockerfile, and docker-compose.yml) directly into your workspace!\n` +
+             `• **Phase 4D (Cloud Deployment)**: Export AWS App Runner & Amazon ECR deploy runbooks, Kubernetes manifests, and Terraform IaC.\n\n` +
              `#### 5️⃣ Stage 5: Reliability, Evals & Production Ops (Phase 5, 6, 7)\n` +
-             `• **Phase 5 (Evals & HITL)**: Run golden dataset benchmarks to measure hallucination drift, accuracy, and configure Human-in-the-Loop approvals.\n` +
-             `• **Phase 6 (Shadow & Canary Testing)**: Dual-run live traffic in shadow mode to verify outputs without risk, then execute progressive percentage traffic splits (5% ➔ 25% ➔ 100%).\n` +
+             `• **Phase 5 (Evals & HITL)**: Run golden dataset benchmarks, measure hallucination drift, verify RAG Triad scores, and run automated PyTest test suites.\n` +
+             `• **Phase 6 (Shadow & Canary Testing & CI/CD)**: Push to GitHub/Bitbucket with automated GitHub Actions CI, execute dual-run shadow testing, and run progressive canary splits (5% ➔ 25% ➔ 100%).\n` +
              `• **Phase 7 (Continuous Ops)**: Monitor live token throughput, model drift, latency percentiles, and emit cryptographic release git tags.`,
       actions: [
         { label: '🚀 Start in Phase 1 (Greenfield Discovery)', phase: 1, subStep: '3', description: 'Begin problem framing and select Greenfield mode' },
         { label: '📊 Phase 2 (Data Readiness & Live DB)', phase: 2, actionType: 'livedb', description: 'Connect database and index documents' },
         { label: '🎨 Phase 3 Step D (UI & UX Design)', phase: 3, subStep: 'D', description: 'Generate UI wireframes and user interaction flows' },
         { label: '🏗️ Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Visually assemble pipeline and nodes' },
-        { label: '💻 Phase 4 Step C (Generate Code)', phase: 4, subTab: 'code', description: 'Emit runnable full-stack code repository' }
+        { label: '💻 Phase 4 Step C (Generate Code)', phase: 4, subTab: 'code', description: 'Emit runnable full-stack code repository' },
+        { label: '🐍 Python AI Studio & Neural Debugger', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace', description: 'Launch Python Studio & Neural Debugger' },
+        { label: '☁️ Phase 4 Step D (Cloud Deployment)', phase: 4, subTab: 'deploy', description: 'Export Docker & AWS App Runner runbooks' }
       ]
     };
   }
@@ -1185,6 +1265,24 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
       };
     }
 
+    // 5b. Python AI Studio & Neural Debugger
+    if (/\b(python\s*studio|neural\s*debugger|tensor|debugger|sandbox|wheelhouse|sniffer)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🐍 Where to Find Python AI Studio & Neural Debugger\n\n` +
+               `The **Python AI Studio & Neural Debugger Workspace** is accessible through multiple integrated entry points:\n\n` +
+               `• **Header Quick Action**: Click the **🐍 Python Studio** button in the top header toolbar to toggle the Python AI Studio workspace drawer.\n` +
+               `• **Phase 4 Step C (Microservices & Scaffolding)**: Navigate to Phase 4 and switch to the **"Code Scaffolding"** tab to inspect Python microservices, AST diagnostics, and generated test harnesses.\n` +
+               `• **Command Palette & Chat**: Trigger command \`evolve.pythonStudio.openWorkspace\` or prompt the AI Copilot to launch the Neural Debugger.\n` +
+               `• **Capabilities**: 3-Mode execution switcher (Manual/On-Demand/Continuous AI), AST deterministic analyzer, Tensor Shape Flow Engine, DataFrame sniffer (Pandas/Polars), 1-click Python 3.12 provisioning with airtight wheelhouse, and interactive sandbox test contracts.`,
+        actions: [
+          { label: '🐍 Open Python AI Studio', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace', description: 'Launch Python Studio & Neural Debugger' },
+          { label: '💻 Open Phase 4C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Inspect Python code & PyTest test contracts' },
+          { label: '🏗️ Open Architecture Canvas (4A)', phase: 4, subTab: 'canvas', description: 'Inspect service and tensor topology' }
+        ]
+      };
+    }
+
     // 6. UI / UX / Frontend / Wireframes
     if (/\b(ui|ux|wireframe|prototype|frontend|screens?|mockup)\b/i.test(q)) {
       return {
@@ -1255,16 +1353,19 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
       };
     }
 
-    // 11. Cloud Deployment / Docker / Kubernetes
-    if (/\b(deploy|deployment|cloud|docker|kubernetes|k8s|terraform)\b/i.test(q)) {
+    // 11. Cloud Deployment / Docker / Kubernetes / AWS
+    if (/\b(deploy|deployment|cloud|docker|kubernetes|k8s|terraform|aws|app\s*runner|ecr|runbook)\b/i.test(q)) {
       return {
         success: true,
-        reply: `### ☁️ Where to Find Cloud Deployment Blueprints\n\n` +
-               `Cloud deployment configurations live in **Phase 4 Step D (Cloud Deployment Blueprints)**:\n\n` +
+        reply: `### ☁️ Where to Find Cloud Deployment Blueprints & Runbooks\n\n` +
+               `Cloud deployment configurations and container runbooks live in **Phase 4 Step D (Cloud Deployment Blueprints)**:\n\n` +
                `• **Navigation**: Click **Phase 4** in the top ribbon and switch to the **"Cloud Deployment"** tab.\n` +
-               `• **Capabilities**: Export production Docker Compose recipes, Kubernetes manifests, and Terraform IaC ready for AWS, GCP, or Azure.`,
+               `• **Capabilities**: Export production Docker Compose recipes, multi-stage Dockerfiles (React 18 + FastAPI), AWS App Runner and Amazon ECR deploy runbooks, Kubernetes manifests, and Terraform IaC ready for AWS, GCP, or Azure.\n` +
+               `• **Multi-Cloud Matrix**: Click the **☁️** icon in the far-left activity bar to verify cloud provider credentials and discovered clusters.`,
         actions: [
-          { label: '☁️ Open Cloud Deployment (Phase 4D)', phase: 4, subTab: 'deploy', description: 'Export Kubernetes and Terraform blueprints' }
+          { label: '☁️ Open Cloud Deployment (Phase 4D)', phase: 4, subTab: 'deploy', description: 'Export Docker, AWS App Runner & Kubernetes blueprints' },
+          { label: '💻 Open Phase 4C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Inspect generated Dockerfiles & compose stack' },
+          { label: '☁️ Open Multi-Cloud Matrix', phase: 4, activityTab: 'cloud', description: 'Open Multi-Cloud Matrix' }
         ]
       };
     }
@@ -1431,6 +1532,52 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
         actions: [
           { label: '💻 Open Code Scaffolding (Phase 4C)', phase: 4, subTab: 'code', description: 'Generate runnable application source code' },
           { label: '🏗️ Open Architecture Canvas', phase: 4, subTab: 'canvas', description: 'Review architecture before scaffolding' }
+        ]
+      };
+    }
+
+    // 4b. Python AI Studio & Neural Debugger
+    if (/\b(python\s*studio|neural\s*debugger|tensor|sniffer|wheelhouse)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🐍 How Python AI Studio & Neural Debugger Work in Evolve AI\n\n` +
+               `The Python AI Studio provides end-to-end deterministic code analysis, tensor shape flow checking, and sandboxed validation:\n\n` +
+               `#### 1. Deterministic AST Analysis (Zero LLM Hallucinations)\n` +
+               `• Inspects Python syntax trees locally to detect undefined variables, missing imports, and hazardous execution patterns before running code.\n\n` +
+               `#### 2. Tensor Shape Flow & Numerical Stability\n` +
+               `• Simulates PyTorch, TensorFlow, and NumPy dimension transforms (\`matmul\`, \`conv2d\`, \`reshape\`, \`einsum\`).\n` +
+               `• Catches broadcast mismatches, NaN/Inf floating-point hazards, \`COSINE_SIM_DIV_ZERO_RISK\`, and RAG embedding dimension discrepancies (e.g. 768-dim Gemini embeddings vs vector collection).\n\n` +
+               `#### 3. DataFrame Sniffer\n` +
+               `• Analyzes Pandas and Polars schemas, tracking column types, null percentages, and memory footprints.\n\n` +
+               `#### 4. Sandbox Test Harness & PyTest Contracts\n` +
+               `• Safely executes code in a sandboxed subprocess with mocked file I/O and timeout guards, then generates parameterized PyTest contract suites ready for CI/CD.`,
+        actions: [
+          { label: '🐍 Open Python AI Studio', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace', description: 'Open Python Studio & Neural Debugger' },
+          { label: '💻 Open Phase 4C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Inspect generated code & test contracts' },
+          { label: '🏗️ Open Architecture Canvas (4A)', phase: 4, subTab: 'canvas', description: 'Inspect service and tensor topology' }
+        ]
+      };
+    }
+
+    // 4c. Full-Stack Containerization & Cloud Deployment
+    if (/\b(full-stack\s*docker|docker-compose|docker\s*compose|app\s*runner|ecr|aws\s*deploy|dual[\s-]*engine|postgres(?:ql)?\s*(?:and|or|\/)\s*sqlite)\b/i.test(q)) {
+      return {
+        success: true,
+        reply: `### 🐳 How Full-Stack Containerization & AWS Deployment Work in Evolve AI\n\n` +
+               `Evolve AI packages and deploys enterprise full-stack AI applications with high reproducibility:\n\n` +
+               `#### 1. Multi-Stage Distroless Build\n` +
+               `• Stage 1 builds the React 18 / Vite frontend; Stage 2 packages FastAPI microservices; Stage 3 creates a hardened distroless runtime mounting static assets with zero bloat.\n\n` +
+               `#### 2. Dual-Engine Database Flexibility\n` +
+               `• Production uses PostgreSQL 16 (or AWS RDS) with automated connection pooling and pgvector support.\n` +
+               `• Local development and automated testing utilize zero-dependency SQLite fallback without modifying application code.\n\n` +
+               `#### 3. Docker Compose Stack\n` +
+               `• One command (\`docker compose up --build\`) spins up the React SPA + FastAPI backend (port 8000), PostgreSQL 16 (port 5432), and ChromaDB (port 8001) with automated healthchecks.\n\n` +
+               `#### 4. AWS App Runner & Amazon ECR Runbook\n` +
+               `• Authenticates against Amazon ECR, tags and pushes container images, and provisions AWS App Runner services with automatic scaling and secure parameter injection.`,
+        actions: [
+          { label: '☁️ Open Phase 4D (Cloud Deployment)', phase: 4, subTab: 'deploy', description: 'View Docker & AWS App Runner blueprints' },
+          { label: '💻 Open Phase 4C (Code Scaffolding)', phase: 4, subTab: 'code', description: 'Inspect generated Dockerfiles & compose stack' },
+          { label: '☁️ Open Multi-Cloud Matrix', phase: 4, activityTab: 'cloud', description: 'Verify AWS credentials' }
         ]
       };
     }
@@ -1743,8 +1890,10 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     reply: `### 💡 Evolve AI Virtual Assistant\n\n` +
            `I am here to help you navigate, understand, and build applications with Evolve AI across our **6 Delivery Phases** and **3 Dedicated Activity Hubs**:\n\n` +
            `• **🚀 Build New Applications**: Ask *"What is the process flow to build a fresh new application?"* to learn the 5-stage greenfield build path.\n` +
-           `• **🔌 Locate Features ("Where is it?")**: Ask where to find the **Live Database**, **Visual Architecture Canvas**, **Safety Guardrails**, **Git Hub (🌿)**, **Terminal**, or **Code Scaffolding**.\n` +
-           `• **⚙️ Understand Architecture ("How does it work?")**: Ask how **Safety Guardrails**, **RAG**, **Multi-Agent Swarms**, **Canary Rollouts**, or **Git Remote Setup** work.\n` +
+           `• **🐍 Python Studio & Neural Debugger**: Ask *"How does the Neural Debugger work?"* or *"Tell me about the Tensor Shape Flow Engine and DataFrame Sniffer"*.\n` +
+           `• **🐳 Cloud Deployment & Docker**: Ask *"How do I containerize and deploy to AWS App Runner?"* or *"What is the full-stack docker compose stack?"*.\n` +
+           `• **🔌 Locate Features ("Where is it?")**: Ask where to find the **Python Studio**, **Live Database**, **Visual Architecture Canvas**, **Safety Guardrails**, **Git Hub (🌿)**, **Terminal**, or **Code Scaffolding**.\n` +
+           `• **⚙️ Understand Architecture ("How does it work?")**: Ask how **Neural Debugger**, **Safety Guardrails**, **RAG**, **Multi-Agent Swarms**, **Canary Rollouts**, or **Git Remote Setup** work.\n` +
            `• **🧭 Get Unstuck**: Ask *"I am stuck, what is my next step?"* for a customized diagnostic delivery roadmap.\n\n` +
            `Click any quick action below to immediately jump into that delivery stage or activity hub!`,
     actions: [
@@ -1753,6 +1902,8 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
       { label: '🎨 UI & UX Prototypes', phase: 3, subStep: 'D' },
       { label: '🏗️ Visual Architecture Canvas', phase: 4, subTab: 'canvas' },
       { label: '💻 Full-Stack Code Generation', phase: 4, subTab: 'code' },
+      { label: '🐍 Python Studio & Neural Debugger', phase: 4, subTab: 'code', actionType: 'pythonStudio', command: 'evolve.pythonStudio.openWorkspace', description: 'Launch Python Studio' },
+      { label: '☁️ Cloud Deployment & Runbooks', phase: 4, subTab: 'deploy', description: 'Docker & AWS App Runner blueprints' },
       { label: '🌿 Git & Remote Repository Hub', phase: 6, activityTab: 'git' },
       { label: '🛡️ Reliability & Evals', phase: 5 },
       { label: '🚀 Canary & Deployment', phase: 6 }
