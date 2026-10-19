@@ -63,3 +63,7 @@ __pycache__/
 
 # Greenfield applications scaffolded by Delivery Studio
 apps/
+
+# Code signing private keys
+build-certs/*.pfx
+build-certs/.cert-password

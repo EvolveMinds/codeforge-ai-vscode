@@ -7,6 +7,8 @@ directories:
   output: dist-desktop
   buildResources: media
 
+afterPack: scripts/apply-fuses.js
+
 extraMetadata:
   main: out/desktop/main/main.js
 
@@ -42,9 +44,8 @@ portable:
 
 appx:
   applicationId: EvolveAIEnterpriseStudio
-  identityName: EvolveMindSolutions.EvolveAI
-  # Replace with exact Publisher ID from Microsoft Partner Center (e.g. CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)
-  publisher: "CN=EvolveMindSolutions"
+  identityName: EvolveMindSolutionsPtyLtd.EvolveAIEnterpriseStudio
+  publisher: "CN=30EABD61-4873-4D1D-9CC6-17F79E3943F6"
   publisherDisplayName: "Evolve Mind Solutions Pty Ltd"
   backgroundColor: "#1e1e1e"
   artifactName: "evolve-ai-enterprise-${version}-msstore-${arch}.${ext}"

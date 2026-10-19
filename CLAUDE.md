@@ -27,6 +27,7 @@ evolve-ai-vscode/
 │   ├── ARCHITECTURE.md          ← full structural design, data flows, interfaces
 │   ├── PLUGIN_GUIDE.md         ← how to build a new plugin (with full template)
 │   ├── RELEASE_RUNBOOK.md      ← desktop EXE/ZIP release: build, publish, website, checklist
+│   ├── MICROSOFT_STORE_CONFIG.md ← Microsoft Store MSIX identity, publisher IDs & build guide
 │   ├── FDE_TODO.md             ← outstanding work carried between releases
 │   ├── GIT_CONNECT.md          ← Git/Bitbucket Connect Wizard user guide (v2.0.0)
 │   ├── CICD.md                 ← CI/CD plugin + Setup Wizard user guide (v2.4.0 — pre-push gating hook)
@@ -632,8 +633,11 @@ npm test
 >   GitHub releases, company website) — **`docs/RELEASE_RUNBOOK.md`**. Read it
 >   before shipping a desktop release; it carries the end-to-end procedure, the
 >   verification steps and the traps that have actually bitten.
+> * **Microsoft Store (MSIX / `.appx`)** — **`docs/MICROSOFT_STORE_CONFIG.md`**.
+>   Automated store package with Microsoft-managed root signing. Built with
+>   `npm run desktop:build:appx`.
 >
-> These are two separate pipelines. The six-target `.vsix` rule below applies
+> These are separate pipelines. The six-target `.vsix` rule below applies
 > only to the extension.
 
 1. **Native Binaries Bundled**: Evolve AI bundles platform-specific binaries for **Biome (1.9.4)** and **Ruff (0.7.4)**.
