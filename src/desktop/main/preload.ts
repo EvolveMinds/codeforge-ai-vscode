@@ -247,6 +247,7 @@ const desktopApi = {
   // --- FDE ENGAGEMENT CONTEXT & DISCOVERY ---
   fde: {
     getState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_STATE),
+    resetState: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.RESET_STATE),
     saveDiscovery: (discoveryData: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SAVE_DISCOVERY, discoveryData),
     savePhaseState: (req: { key: string; data: any; merge?: boolean }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SAVE_PHASE_STATE, req),
     setStudioMode: (mode: 'DEMO' | 'LIVE') => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.SET_STUDIO_MODE, mode),

@@ -6617,6 +6617,61 @@ export async function executeTask() {
       }
     });
 
+    ipc.handle(DESKTOP_CHANNELS.FDE.RESET_STATE, async () => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      const evolveDir = path.join(cwd, '.evolve');
+      const stateFile = path.join(evolveDir, 'fde_state.json');
+
+      const cleanState = {
+        id: 'proj-fde-1',
+        clientName: 'Client Pilot Engagement',
+        activePhase: 1,
+        completedPhases: [],
+        studioMode: 'DEMO',
+        discovery: {
+          standard: 'simple',
+          rawClientAsk: '',
+          riskAnalysis: '',
+          reframedProblem: '',
+          floorObservations: '',
+          archetype: 'custom',
+          inquiryProbes: [],
+          firstPrinciplesDeconstruction: [],
+          linkedArtifacts: [],
+          outOfScope: [],
+          outOfScopeRules: [],
+          customFutureDiagram: '',
+          customLegacyDiagram: '',
+          activeTopologyTemplate: 'custom',
+          controllersThreeNumbers: {
+            volume: 0,
+            handleTimeMins: 0,
+            hourlyWage: 0,
+            monthlyCostSavedUsd: 0,
+            annualSavingsUsd: 0
+          },
+          roiAssumptions: {
+            automationRatioPct: 70,
+            loadedCostMultiplier: 1.3,
+            productiveHoursPerMonth: 135,
+            baselineErrorRatePct: 0,
+            residualErrorRatePct: 0,
+            reworkCostPerError: 0
+          }
+        },
+        updatedAt: Date.now()
+      };
+
+      try {
+        if (!fs.existsSync(evolveDir)) fs.mkdirSync(evolveDir, { recursive: true });
+        fs.writeFileSync(stateFile, JSON.stringify(cleanState, null, 2), 'utf-8');
+        return { success: true, cleanState };
+      } catch (err: any) {
+        return { success: false, error: (err && err.message) ? err.message : String(err) };
+      }
+    });
+
     ipc.handle(DESKTOP_CHANNELS.FDE.CALCULATE_ROI, async (_: any, params: {
       volume: number;
       handleTimeMins: number;

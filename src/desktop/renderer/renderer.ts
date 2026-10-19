@@ -3155,10 +3155,14 @@ function setupEngagementManager(api: any): void {
     showToast(`✓ Created new engagement: ${name}`);
   });
 
-  btnResetEngagement?.addEventListener('click', () => {
-    if (confirm('Reset active delivery phases and re-run ingestion steps?')) {
-      switchDeliveryPhase(1);
-      showToast('✓ Engagement reset to Step 1.');
+  btnResetEngagement?.addEventListener('click', async () => {
+    if (confirm('Are you sure you want to reset this engagement to a clean slate? This will clear all cached discovery inputs, custom topologies, and ROI calculations so you can start fresh.')) {
+      if (typeof (window as any).resetFdeEngagementToCleanSlate === 'function') {
+        await (window as any).resetFdeEngagementToCleanSlate();
+      } else {
+        switchDeliveryPhase(1);
+      }
+      showToast('✓ Engagement reset to a clean slate. Ready for new requirements.');
     }
   });
 }
@@ -9288,6 +9292,83 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
     if (currentDiscoveryStep === 3) { saveScopeHandler(false); return; }
     goToStep(currentDiscoveryStep + 1);
   });
+
+  const resetEngagementToCleanSlate = async () => {
+    // 1. Reset backend .evolve/fde_state.json
+    try {
+      if (api?.fde?.resetState) {
+        await api.fde.resetState();
+      }
+    } catch (err) {
+      console.warn('Failed to call api.fde.resetState:', err);
+    }
+
+    // 2. Clear localStorage caches
+    try {
+      localStorage.removeItem(LOCAL_STORAGE_DIAGRAMS_KEY);
+      localStorage.removeItem('evolve_fde_cached_diagrams');
+      localStorage.removeItem('evolve_fde_current_phase');
+    } catch (err) {
+      console.warn('Failed to clear localStorage:', err);
+    }
+
+    // 3. Reset in-memory cached diagrams and undo/redo stacks
+    cachedDiagrams.futureDiagram = '';
+    cachedDiagrams.legacyDiagram = '';
+    cachedDiagrams.repoName = '';
+    cachedDiagrams.domain = '';
+    cachedDiagrams.archetype = null;
+    (window as any).cachedDiagrams = cachedDiagrams;
+    diagramUndoStack = [];
+    diagramRedoStack = [];
+    activeTopologyPresetKey = 'custom';
+    activeTopologyPresetName = '📝 Custom Prompt Studio';
+    activeTopologyPresetModified = false;
+
+    // 4. Reset in-memory discovery structures
+    currentInquiryProbes = [];
+    currentInvariants = [];
+    currentLinkedArtifacts = [];
+    currentScopeRules = [];
+
+    // 5. Reset DOM input fields
+    if (txtRawAsk) txtRawAsk.value = '';
+    if (txtFloorObservations) txtFloorObservations.value = '';
+    if (txtRisk) txtRisk.value = '';
+    if (txtReframed) txtReframed.value = '';
+    if (txtInstruction) txtInstruction.value = '';
+    const txtDiagramInst = document.getElementById('txtFdeDiagramInstruction') as HTMLInputElement | null;
+    if (txtDiagramInst) txtDiagramInst.value = '';
+    const txtModalInst = document.getElementById('txtFdeModalFullInstruction') as HTMLTextAreaElement | null;
+    if (txtModalInst) txtModalInst.value = '';
+    if (topologyContainer) topologyContainer.value = '';
+    if (selArchetype) selArchetype.value = 'custom';
+
+    setThreeNumbers(0, 0, 0);
+    if (kpiRangeBar) kpiRangeBar.innerText = 'Pick an archetype above, or describe the ask, to compute a range';
+    if (roiPill) roiPill.title = 'Load an archetype preset or enter the three numbers to calculate ROI.';
+
+    // 6. Reset UI views and panels
+    renderScopeRules();
+    renderInquiryProbes();
+    renderInvariants();
+    renderLinkedArtifacts();
+    computeRoi();
+    if (renderedPane) {
+      renderedPane.innerHTML = '<div style="color: var(--text-muted); font-size: 11.5px; padding: 24px; text-align: center;">Clean slate ready. Enter requirements or instructions above, then click ✨ Build / Update Topology.</div>';
+    }
+    if (diagramStatus) diagramStatus.textContent = 'Reset';
+    paintCompare();
+    renderArrangePanel();
+    updateEditingBanner();
+    refreshUndoRedoState();
+    showAutosaveBadge('Clean Slate');
+    markScopeSaved();
+    goToStep(1);
+    switchDeliveryPhase(1);
+  };
+
+  (window as any).resetFdeEngagementToCleanSlate = resetEngagementToCleanSlate;
 
   loadSavedState();
 }

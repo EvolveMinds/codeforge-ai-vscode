@@ -171,6 +171,7 @@ export const DESKTOP_CHANNELS = {
   FDE: {
     GET_STATE: 'evolve:fde:get-state',
     SAVE_DISCOVERY: 'evolve:fde:save-discovery',
+    RESET_STATE: 'evolve:fde:reset-state',
     /**
      * Merge a block of state for any phase into .evolve/fde_state.json.
      * SAVE_DISCOVERY was the only persistence channel, so Phases 2-5 computed
