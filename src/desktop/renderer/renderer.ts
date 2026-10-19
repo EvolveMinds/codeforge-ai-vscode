@@ -5459,6 +5459,15 @@ function setupPhase1Discovery(api: any): void {
     if (mode === 'diagram') { paintDiagram(); fitToView(); }
     if (mode === 'compare') paintCompare();
     if (mode === 'arrange') renderArrangePanel();
+
+    const selTarget = document.getElementById('selFdeInstructionTarget') as HTMLSelectElement | null;
+    if (selTarget) {
+      if (mode === 'compare') {
+        selTarget.value = 'both';
+      } else if (mode === 'diagram' && selTarget.value === 'both') {
+        selTarget.value = currentDiagramMode;
+      }
+    }
   };
 
   btnViewDiagram?.addEventListener('click', () => setTopologyView('diagram'));
@@ -5940,15 +5949,15 @@ function setupPhase1Discovery(api: any): void {
           pushDiagramHistory(`Synthesize ${singleMode}: ${instruction.slice(0, 30)}`);
           const res = await api.fde.parseClientTopologyDoc({
             content: instruction,
-            target: singleMode,
+            target: 'both',
             docName: 'Instruction Requirements',
             rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
             reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
           });
 
           if (res && res.success) {
-            if (singleMode === 'future' && res.futureDiagram) cachedDiagrams.futureDiagram = res.futureDiagram;
-            if (singleMode === 'legacy' && res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
+            if (res.futureDiagram) cachedDiagrams.futureDiagram = res.futureDiagram;
+            if (res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
 
             if (currentDiagramMode !== singleMode) {
               setDiagramMode(singleMode);
@@ -5989,19 +5998,16 @@ function setupPhase1Discovery(api: any): void {
         pushDiagramHistory(`Synthesize: ${instruction.slice(0, 30)}`);
         const parseRes = await api.fde.parseClientTopologyDoc({
           content: instruction,
-          target: singleMode,
+          target: 'both',
           docName: 'Instruction Requirements',
           rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
           reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
         });
 
         if (parseRes && parseRes.success && (parseRes.futureDiagram || parseRes.legacyDiagram)) {
+          if (parseRes.futureDiagram) cachedDiagrams.futureDiagram = parseRes.futureDiagram;
+          if (parseRes.legacyDiagram) cachedDiagrams.legacyDiagram = parseRes.legacyDiagram;
           const newDiag = (singleMode === 'future' ? parseRes.futureDiagram : parseRes.legacyDiagram) || '';
-          if (singleMode === 'future') {
-            cachedDiagrams.futureDiagram = newDiag;
-          } else {
-            cachedDiagrams.legacyDiagram = newDiag;
-          }
 
           if (currentDiagramMode !== singleMode) {
             setDiagramMode(singleMode);
@@ -6043,15 +6049,15 @@ function setupPhase1Discovery(api: any): void {
         if (isRequirementSpec && api?.fde?.parseClientTopologyDoc) {
           const fallbackRes = await api.fde.parseClientTopologyDoc({
             content: instruction,
-            target: singleMode,
+            target: 'both',
             docName: 'Instruction Requirements',
             rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
             reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
           });
 
           if (fallbackRes && fallbackRes.success) {
-            if (singleMode === 'future' && fallbackRes.futureDiagram) cachedDiagrams.futureDiagram = fallbackRes.futureDiagram;
-            if (singleMode === 'legacy' && fallbackRes.legacyDiagram) cachedDiagrams.legacyDiagram = fallbackRes.legacyDiagram;
+            if (fallbackRes.futureDiagram) cachedDiagrams.futureDiagram = fallbackRes.futureDiagram;
+            if (fallbackRes.legacyDiagram) cachedDiagrams.legacyDiagram = fallbackRes.legacyDiagram;
 
             if (currentDiagramMode !== singleMode) {
               setDiagramMode(singleMode);
@@ -7435,10 +7441,38 @@ function setupPhase1Discovery(api: any): void {
     renderArrangePanel();
     updateEditingBanner();
     updateInstructionTargetLabel();
+
+    const selTarget = document.getElementById('selFdeInstructionTarget') as HTMLSelectElement | null;
+    if (selTarget && selTarget.value !== 'auto') {
+      selTarget.value = mode;
+    }
   };
 
-  btnTabFuture?.addEventListener('click', () => setDiagramMode('future'));
-  btnTabLegacy?.addEventListener('click', () => setDiagramMode('legacy'));
+  btnTabFuture?.addEventListener('click', () => {
+    setTopologyView('diagram');
+    setDiagramMode('future');
+  });
+  btnTabLegacy?.addEventListener('click', () => {
+    setTopologyView('diagram');
+    setDiagramMode('legacy');
+  });
+
+  const selInstructionTargetEl = document.getElementById('selFdeInstructionTarget') as HTMLSelectElement | null;
+  selInstructionTargetEl?.addEventListener('change', () => {
+    const val = selInstructionTargetEl.value;
+    if (val === 'future') {
+      setTopologyView('diagram');
+      setDiagramMode('future');
+    } else if (val === 'legacy') {
+      setTopologyView('diagram');
+      setDiagramMode('legacy');
+    } else if (val === 'both') {
+      setTopologyView('compare');
+    } else if (val === 'auto') {
+      setTopologyView('diagram');
+      setDiagramMode(currentDiagramMode);
+    }
+  });
 
   applyEngagementNature = (nature: 'brownfield' | 'greenfield') => {
     currentEngagementNature = nature;
@@ -8134,7 +8168,7 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
       if (api?.fde?.parseClientTopologyDoc) {
         const res = await api.fde.parseClientTopologyDoc({
           content,
-          target,
+          target: target === 'legacy' ? 'legacy' : 'both',
           docName,
           rawAsk: txtRawAsk?.value,
           reframedGoal: txtReframed?.value
@@ -8152,8 +8186,12 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
 
         // Switch active tab according to target
         if (target === 'legacy') {
+          setTopologyView('diagram');
           setDiagramMode('legacy');
+        } else if (target === 'both') {
+          setTopologyView('compare');
         } else {
+          setTopologyView('diagram');
           setDiagramMode('future');
         }
 
@@ -8457,7 +8495,7 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
 
       const res = await api.fde.parseClientTopologyDoc({
         content,
-        target,
+        target: target === 'legacy' ? 'legacy' : 'both',
         docName,
         rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
         reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
@@ -8478,8 +8516,12 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
       if (res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
 
       if (target === 'legacy') {
+        setTopologyView('diagram');
         setDiagramMode('legacy');
+      } else if (target === 'both') {
+        setTopologyView('compare');
       } else {
+        setTopologyView('diagram');
         setDiagramMode('future');
       }
 
@@ -8652,7 +8694,7 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
       if (api?.fde?.parseClientTopologyDoc) {
         const parseRes = await api.fde.parseClientTopologyDoc({
           content: fullText,
-          target: targetMode,
+          target: targetMode === 'legacy' ? 'legacy' : 'both',
           docName: 'Prompt Studio Spec',
           rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
           reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
@@ -8665,8 +8707,12 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
           if (parseRes.legacyDiagram) cachedDiagrams.legacyDiagram = parseRes.legacyDiagram;
 
           if (targetMode === 'legacy') {
+            setTopologyView('diagram');
             setDiagramMode('legacy');
+          } else if (targetMode === 'both') {
+            setTopologyView('compare');
           } else {
+            setTopologyView('diagram');
             setDiagramMode('future');
           }
 
