@@ -2352,7 +2352,11 @@
                       <div style="flex: 1; display: flex; flex-direction: column;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                           <label for="txtFdeModalFullInstruction" style="font-size: 11px; font-weight: 700; color: var(--text-primary);">Paste Full Requirements / Architecture Text:</label>
-                          <span style="font-size: 10.5px; color: #94a3b8;">Chars: <strong id="lblFdeModalCharCount">0</strong></span>
+                          <div style="display: flex; gap: 8px; align-items: center;">
+                            <button type="button" class="btn-quick" id="btnFdeModalUploadReqDoc" style="font-size: 10px; padding: 2px 8px; border-color: #38bdf8; color: #38bdf8; font-weight: 600;" title="Upload requirements file (.docx, .pdf, .txt, .md, .json, .puml) into this editor">📁 Upload Requirements Doc...</button>
+                            <input type="file" id="fileFdeModalUploadReqDoc" accept=".txt,.md,.markdown,.json,.yaml,.yml,.puml,.plantuml,.mermaid,.mmd,.pdf,.docx,.doc,.rtf,.csv,.html" style="display: none;">
+                            <span style="font-size: 10.5px; color: #94a3b8;">Chars: <strong id="lblFdeModalCharCount">0</strong></span>
+                          </div>
                         </div>
                         <textarea id="txtFdeModalFullInstruction" rows="13" style="width: 100%; box-sizing: border-box; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 11.5px; color: #e2e8f0; resize: vertical; line-height: 1.45;" placeholder="Paste customer requirements text, user stories, numbered operational steps (1. Customer submits... 2. Gateway routes to...), or architecture specification..."></textarea>
                       </div>

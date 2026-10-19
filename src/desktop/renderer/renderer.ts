@@ -3556,6 +3556,50 @@ function getParticipantRoleMeta(p: SeqParticipant) {
       glowId: 'glow-amber'
     };
   }
+  if (/(mule|chib|broker|esb|middleware|connector|eip)/i.test(s)) {
+    return {
+      role: 'INTEGRATION',
+      icon: '🔀',
+      badge: 'INTEGRATION BROKER',
+      color: '#06b6d4',
+      border: '#0891b2',
+      gradId: 'sq-grad-gw',
+      glowId: 'glow-cyan'
+    };
+  }
+  if (/(emr|ehr|epic|cerner|sunrise|clinical|hipaa)/i.test(s)) {
+    return {
+      role: 'CLINICAL',
+      icon: '🏥',
+      badge: 'CLINICAL EMR CORE',
+      color: '#38bdf8',
+      border: '#0284c7',
+      gradId: 'sq-grad-db',
+      glowId: 'glow-cyan'
+    };
+  }
+  if (/(xamplify|consolidat)/i.test(s)) {
+    return {
+      role: 'DOCUMENT',
+      icon: '📑',
+      badge: 'DOCUMENT ENGINE',
+      color: '#a855f7',
+      border: '#7e22ce',
+      gradId: 'sq-grad-sys',
+      glowId: 'glow-violet'
+    };
+  }
+  if (/(salesforce|sfdc|crm)/i.test(s)) {
+    return {
+      role: 'CRM',
+      icon: '☁️',
+      badge: 'CRM PLATFORM',
+      color: '#38bdf8',
+      border: '#0284c7',
+      gradId: 'sq-grad-gw',
+      glowId: 'glow-cyan'
+    };
+  }
   if (/(gateway|api|waf|proxy|ingress|router|loadbalancer|firewall)/i.test(s)) {
     return {
       role: 'GATEWAY',
@@ -8458,6 +8502,78 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
   txtModalFullInstruction?.addEventListener('input', () => {
     if (lblModalCharCount && txtModalFullInstruction) {
       lblModalCharCount.textContent = (txtModalFullInstruction.value.length).toLocaleString();
+    }
+  });
+
+  const btnModalUploadReqDoc = document.getElementById('btnFdeModalUploadReqDoc');
+  const fileModalUploadReqDoc = document.getElementById('fileFdeModalUploadReqDoc') as HTMLInputElement | null;
+
+  btnModalUploadReqDoc?.addEventListener('click', () => {
+    fileModalUploadReqDoc?.click();
+  });
+
+  fileModalUploadReqDoc?.addEventListener('change', async () => {
+    const file = fileModalUploadReqDoc?.files?.[0];
+    if (!file) return;
+
+    if (lblModalStatus) {
+      lblModalStatus.textContent = `Reading and extracting ${file.name}...`;
+      lblModalStatus.style.color = 'var(--text-secondary)';
+    }
+
+    try {
+      let fileBufferBase64: string | undefined;
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const len = bytes.byteLength;
+      const CHUNK = 8192;
+      for (let i = 0; i < len; i += CHUNK) {
+        const sub = bytes.subarray(i, Math.min(i + CHUNK, len));
+        for (let j = 0; j < sub.length; j++) {
+          binary += String.fromCharCode(sub[j]);
+        }
+      }
+      fileBufferBase64 = btoa(binary);
+
+      if (api?.fde?.ingestRequirementsFile) {
+        const res = await api.fde.ingestRequirementsFile({
+          filePath: (file as any).path || undefined,
+          fileBufferBase64,
+          fileName: file.name
+        });
+
+        if (res && res.success && res.extractedText) {
+          if (txtModalFullInstruction) {
+            txtModalFullInstruction.value = res.extractedText;
+            if (lblModalCharCount) lblModalCharCount.textContent = (res.extractedText.length).toLocaleString();
+          }
+          if (lblModalStatus) {
+            lblModalStatus.textContent = `✓ Loaded ${file.name} (${res.wordCount || 0} words, ${(res.format || 'doc').toUpperCase()})`;
+            lblModalStatus.style.color = 'var(--success)';
+          }
+          showToast(`✓ Extracted requirements from ${file.name} (${res.wordCount || 0} words)`);
+          return;
+        }
+      }
+
+      // Plain text fallback
+      const text = await file.text();
+      if (txtModalFullInstruction) {
+        txtModalFullInstruction.value = text;
+        if (lblModalCharCount) lblModalCharCount.textContent = (text.length).toLocaleString();
+      }
+      if (lblModalStatus) {
+        lblModalStatus.textContent = `✓ Loaded ${file.name}`;
+        lblModalStatus.style.color = 'var(--success)';
+      }
+    } catch (err: any) {
+      if (lblModalStatus) {
+        lblModalStatus.textContent = `⚠️ Error reading ${file.name}: ${err.message}`;
+        lblModalStatus.style.color = 'var(--warn)';
+      }
+    } finally {
+      if (fileModalUploadReqDoc) fileModalUploadReqDoc.value = '';
     }
   });
 

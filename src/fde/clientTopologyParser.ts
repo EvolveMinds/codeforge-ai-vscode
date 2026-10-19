@@ -40,6 +40,8 @@ interface ParsedStep {
   isReply?: boolean;
   note?: string;
   isGate?: boolean;
+  blockType?: 'alt' | 'else' | 'opt' | 'par' | 'critical' | 'end';
+  blockLabel?: string;
 }
 
 export class ClientTopologyParser {
@@ -307,13 +309,15 @@ export class ClientTopologyParser {
       futureText = splitSections.future || content;
     }
 
+    const scenarioTitle = this.extractScenarioTitle(content);
+
     const legacyEntities = this.extractEntities(legacyText, true);
     const legacySteps = this.extractSteps(legacyText, legacyEntities, true);
-    const legacyDiagram = this.renderMermaid(legacyEntities, legacySteps, true, docName);
+    const legacyDiagram = this.renderMermaid(legacyEntities, legacySteps, true, docName, scenarioTitle);
 
     const futureEntities = this.extractEntities(futureText, false);
     const futureSteps = this.extractSteps(futureText, futureEntities, false);
-    const futureDiagram = this.renderMermaid(futureEntities, futureSteps, false, docName);
+    const futureDiagram = this.renderMermaid(futureEntities, futureSteps, false, docName, scenarioTitle);
 
     const resLegacy = target === 'future' ? undefined : legacyDiagram;
     const resFuture = target === 'legacy' ? undefined : futureDiagram;
@@ -363,10 +367,284 @@ export class ClientTopologyParser {
     };
   }
 
+  private static extractScenarioTitle(text: string): string | undefined {
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      const procMatch = line.match(/^(?:process\s*\d+|scenario\s*\d+|use\s*case\s*\d+|flow\s*\d+)\s*[–—\-:]\s*(.+)$/i);
+      if (procMatch) {
+        return line.replace(/\s*[–—\-:]\s*/, ': ').replace(/\s+/g, ' ').slice(0, 80);
+      }
+      const headerMatch = line.match(/^#+\s*(.+)$/);
+      if (headerMatch && !/^(current|future|as-is|to-be|target|legacy|bottlenecks|architecture)/i.test(headerMatch[1])) {
+        return headerMatch[1].replace(/[–—]/g, ':').slice(0, 80);
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Discovers explicit enterprise systems, integration middleware, and cloud services from text
+   */
+  private static extractExplicitSystems(text: string, isLegacy: boolean): Array<ParsedEntity & { firstIndex: number }> {
+    const found: Array<ParsedEntity & { firstIndex: number }> = [];
+
+    // Healthcare visit validation pattern (Salesforce, MuleSoft, CHIB, EMR, xAmplify)
+    const isHealthcareFlow = /\bsalesforce\b/i.test(text) && /\bmule(?:soft)?\b/i.test(text) &&
+      (/\bchib\b/i.test(text) || /\bemr\b/i.test(text) || /\bxamplify\b/i.test(text));
+
+    if (isHealthcareFlow) {
+      if (isLegacy) {
+        return [
+          { id: 'User', label: 'Business Operator / Clinician', isActor: true, type: 'actor', firstIndex: 0 },
+          { id: 'Salesforce', label: 'Salesforce CRM (Manual Intake)', isActor: false, type: 'gateway', firstIndex: text.search(/\bsalesforce\b/i) },
+          { id: 'EMR', label: 'Siloed EMR Sunrise (Terminal Lookup)', isActor: false, type: 'database', firstIndex: text.search(/\bemr\b/i) },
+          { id: 'Desktop', label: 'Local Workstation & PDF Utility', isActor: false, type: 'service', firstIndex: text.search(/\bxamplify|consolidat/i) }
+        ];
+      } else {
+        const hasExp = /\bmule\s*experience\s*api\b/i.test(text) || /\bexperience\s*api\b/i.test(text);
+        const hasProc = /\bmule\s*(?:\(?\s*process\s*api\s*\)?)\b/i.test(text) || /\bprocess\s*api\b/i.test(text);
+
+        const list: Array<ParsedEntity & { firstIndex: number }> = [
+          {
+            id: 'Salesforce',
+            label: 'Salesforce CRM',
+            isActor: false,
+            type: 'gateway',
+            firstIndex: text.search(/\bsalesforce\b/i)
+          }
+        ];
+
+        if (hasExp) {
+          list.push({
+            id: 'MuleExp',
+            label: 'Mule Experience API',
+            isActor: false,
+            type: 'gateway',
+            firstIndex: text.search(/\bmule\s*experience\s*api\b|\bexperience\s*api\b/i)
+          });
+        }
+        if (hasProc) {
+          list.push({
+            id: 'MuleProc',
+            label: 'Mule Process API',
+            isActor: false,
+            type: 'service',
+            firstIndex: text.search(/\bmule\s*(?:\(?\s*process\s*api\s*\)?)\b|\bprocess\s*api\b/i)
+          });
+        }
+        if (!hasExp && !hasProc) {
+          list.push({
+            id: 'MuleSoft',
+            label: 'MuleSoft Integration Platform',
+            isActor: false,
+            type: 'gateway',
+            firstIndex: text.search(/\bmule(?:soft)?\b/i)
+          });
+        }
+
+        if (/\bchib\b/i.test(text)) {
+          list.push({
+            id: 'CHIB',
+            label: 'CHIB Integration Broker',
+            isActor: false,
+            type: 'gateway',
+            firstIndex: text.search(/\bchib\b/i)
+          });
+        }
+
+        if (/\bemr\b/i.test(text)) {
+          const isSunrise = /\bsunrise\b/i.test(text);
+          list.push({
+            id: 'EMR',
+            label: isSunrise ? 'EMR Sunrise Clinical Core' : 'EMR Clinical Core',
+            isActor: false,
+            type: 'database',
+            firstIndex: text.search(/\bemr\b/i)
+          });
+        }
+
+        if (/\bxamplify\b/i.test(text)) {
+          list.push({
+            id: 'xAmplify',
+            label: 'xAmplify Document Consolidation Engine',
+            isActor: false,
+            type: 'service',
+            firstIndex: text.search(/\bxamplify\b/i)
+          });
+        }
+
+        const canonicalOrder = ['Salesforce', 'MuleExp', 'MuleProc', 'MuleSoft', 'CHIB', 'EMR', 'xAmplify'];
+        list.sort((a, b) => {
+          const idxA = canonicalOrder.indexOf(a.id);
+          const idxB = canonicalOrder.indexOf(b.id);
+          return (idxA !== -1 ? idxA : 99) - (idxB !== -1 ? idxB : 99);
+        });
+        return list;
+      }
+    }
+
+    // General Discovery for all other enterprise topologies
+    // 1. Known Enterprise Platforms
+    if (/\b(salesforce|sfdc)\b/i.test(text)) {
+      found.push({
+        id: 'Salesforce',
+        label: isLegacy ? 'Salesforce CRM (Ad-Hoc Manual Sync)' : 'Salesforce CRM API Service',
+        isActor: false,
+        type: 'gateway',
+        firstIndex: text.search(/\b(salesforce|sfdc)\b/i)
+      });
+    }
+
+    if (/\bmule(?:soft)?\s*(?:experience\s*api|exp\s*api)\b/i.test(text)) {
+      found.push({ id: 'MuleExp', label: 'Mule Experience API', isActor: false, type: 'gateway', firstIndex: text.search(/\bmule(?:soft)?\s*(?:experience\s*api|exp\s*api)\b/i) });
+    }
+    if (/\bmule(?:soft)?\s*(?:\(?\s*process\s*api\s*\)?|proc\s*api)\b/i.test(text)) {
+      found.push({ id: 'MuleProc', label: 'Mule Process API', isActor: false, type: 'service', firstIndex: text.search(/\bmule(?:soft)?\s*(?:\(?\s*process\s*api\s*\)?|proc\s*api)\b/i) });
+    }
+    if (!found.some(f => f.id === 'MuleExp' || f.id === 'MuleProc') && /\b(mulesoft|mule)\b/i.test(text)) {
+      found.push({ id: 'MuleSoft', label: 'MuleSoft Integration Hub', isActor: false, type: 'gateway', firstIndex: text.search(/\b(mulesoft|mule)\b/i) });
+    }
+
+    if (/\bchib\b/i.test(text)) {
+      found.push({ id: 'CHIB', label: 'CHIB Integration Broker', isActor: false, type: 'gateway', firstIndex: text.search(/\bchib\b/i) });
+    }
+
+    if (/\b(emr(?:\s+sunrise)?|sunrise(?:\s+emr)?)\b/i.test(text)) {
+      const isSunrise = /\bsunrise\b/i.test(text);
+      found.push({
+        id: 'EMR',
+        label: isLegacy ? (isSunrise ? 'Siloed EMR Sunrise (Manual Lookup)' : 'Siloed EMR Core') : (isSunrise ? 'EMR Sunrise Clinical Core' : 'EMR Clinical Core'),
+        isActor: false,
+        type: 'database',
+        firstIndex: text.search(/\b(emr(?:\s+sunrise)?|sunrise(?:\s+emr)?)\b/i)
+      });
+    }
+
+    if (/\bxamplify\b/i.test(text)) {
+      found.push({ id: 'xAmplify', label: 'xAmplify Document Consolidation Engine', isActor: false, type: 'service', firstIndex: text.search(/\bxamplify\b/i) });
+    }
+
+    if (/\bservicenow\b/i.test(text)) {
+      found.push({ id: 'ServiceNow', label: 'ServiceNow ITSM & Review Portal', isActor: false, type: 'service', firstIndex: text.search(/\bservicenow\b/i) });
+    }
+
+    if (/\bsap(?:\s+s\/?4hana)?\b/i.test(text)) {
+      found.push({
+        id: 'SAP',
+        label: isLegacy ? 'SAP S/4HANA (Manual Exports)' : 'SAP S/4HANA Enterprise ERP',
+        isActor: false,
+        type: 'database',
+        firstIndex: text.search(/\bsap\b/i)
+      });
+    }
+
+    if (/\bapigee\b/i.test(text)) {
+      found.push({ id: 'Apigee', label: 'Apigee API Gateway (mTLS & OAuth2)', isActor: false, type: 'gateway', firstIndex: text.search(/\bapigee\b/i) });
+    }
+
+    if (/\bkong(?:\s+gateway)?\b/i.test(text)) {
+      found.push({ id: 'Kong', label: 'Kong Enterprise API Gateway', isActor: false, type: 'gateway', firstIndex: text.search(/\bkong\b/i) });
+    }
+
+    if (/\b(apache\s+kafka|kafka)\b/i.test(text)) {
+      found.push({ id: 'Kafka', label: 'Apache Kafka Event Mesh', isActor: false, type: 'queue', firstIndex: text.search(/\bkafka\b/i) });
+    }
+
+    if (/\boracle(?:\s+rac|\s+11g|\s+19c|\s+db)?\b/i.test(text)) {
+      found.push({
+        id: 'Oracle',
+        label: isLegacy ? 'Legacy Oracle 11g/19c (No Audit)' : 'Oracle RAC & pgvector Store',
+        isActor: false,
+        type: 'database',
+        firstIndex: text.search(/\boracle\b/i)
+      });
+    }
+
+    if (/\b(postgres(?:ql)?)\b/i.test(text)) {
+      found.push({ id: 'Postgres', label: 'PostgreSQL Core DB & Audit Store', isActor: false, type: 'database', firstIndex: text.search(/\bpostgres\b/i) });
+    }
+
+    if (/\bsnowflake\b/i.test(text)) {
+      found.push({
+        id: 'Snowflake',
+        label: isLegacy ? 'Snowflake EDW (Uncurated Raw)' : 'Snowflake EDW & Fast Query Cache',
+        isActor: false,
+        type: 'database',
+        firstIndex: text.search(/\bsnowflake\b/i)
+      });
+    }
+
+    if (/\b(as400|mainframe)\b/i.test(text)) {
+      found.push({ id: 'AS400', label: 'AS400 Mainframe Core Banking', isActor: false, type: 'database', firstIndex: text.search(/\b(as400|mainframe)\b/i) });
+    }
+
+    if (/\b(evolve\s*ai|copilot)\b/i.test(text) && !isLegacy) {
+      found.push({ id: 'AI', label: 'Evolve AI Copilot (Air-Gapped)', isActor: false, type: 'service', firstIndex: text.search(/\b(evolve\s*ai|copilot)\b/i) });
+    }
+
+    // Dynamic Suffix Patterns (API, Gateway, Service, Engine, Worker, etc.)
+    const servicePatterns = [
+      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,2}\s+(?:API|Gateway|Service|Server|Microservice|Engine|Worker|Portal|App|Application|Client|Front[eE]nd|Back[eE]nd|Router|Validator|Platform|Hub|Vault))\b/g,
+      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,1}\s+(?:Queue|Topic|Bus|Broker|Stream|Mesh))\b/g,
+      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,1}\s+(?:Database|DB|Warehouse|Store|Cache|Catalog))\b/g
+    ];
+
+    let dynamicCount = 0;
+    for (const pat of servicePatterns) {
+      let m: RegExpExecArray | null;
+      while ((m = pat.exec(text)) !== null && dynamicCount < 6) {
+        const name = m[1].trim();
+        if (/^(The|This|Each|Every|All|Some|A|An|Our|Their|Current|Future|Proposed)\s+/i.test(name)) continue;
+        if (/^(Step|Phase|Version|Section|Figure|Diagram)\s+/i.test(name)) continue;
+        if (/Apigee|Kafka|Oracle|Postgres|AS400|Mainframe|SAP|Snowflake|Evolve AI|Mule|CHIB|EMR|Salesforce|ServiceNow/i.test(name)) continue;
+
+        let type: ParsedEntity['type'] = 'service';
+        const nLow = name.toLowerCase();
+        if (/gateway|ingress|portal|app|client|frontend/i.test(nLow)) type = 'gateway';
+        else if (/database|db|warehouse|store|cache/i.test(nLow)) type = 'database';
+        else if (/queue|topic|bus|broker|stream|mesh/i.test(nLow)) type = 'queue';
+
+        const safeId = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 16) || 'Service';
+        if (!found.some(f => f.id === safeId)) {
+          found.push({ id: safeId, label: name, isActor: false, type, firstIndex: m.index });
+          dynamicCount++;
+        }
+      }
+    }
+
+    // Actors
+    if (/\bborrower\b/i.test(text)) {
+      found.push({ id: 'Borrower', label: 'Borrower / Applicant', isActor: true, type: 'actor', firstIndex: text.search(/\bborrower\b/i) });
+    } else if (/\bcustomer\b/i.test(text)) {
+      found.push({ id: 'Customer', label: 'Customer / End User', isActor: true, type: 'actor', firstIndex: text.search(/\bcustomer\b/i) });
+    } else if (/\bpolicyholder\b/i.test(text)) {
+      found.push({ id: 'Policyholder', label: 'Policyholder / Claimant', isActor: true, type: 'actor', firstIndex: text.search(/\bpolicyholder\b/i) });
+    } else if (/\bbroker\b/i.test(text)) {
+      found.push({ id: 'Broker', label: 'Commercial Broker', isActor: true, type: 'actor', firstIndex: text.search(/\bbroker\b/i) });
+    } else if (/\b(clinician|physician|doctor)\b/i.test(text)) {
+      found.push({ id: 'Clinician', label: 'Clinical Provider / Physician', isActor: true, type: 'actor', firstIndex: text.search(/\b(clinician|physician|doctor)\b/i) });
+    } else if (/\bpatient\b/i.test(text)) {
+      found.push({ id: 'Patient', label: 'Patient / Member', isActor: true, type: 'actor', firstIndex: text.search(/\bpatient\b/i) });
+    } else if (/\b(senior underwriter|underwriter)\b/i.test(text)) {
+      found.push({ id: 'Underwriter', label: 'Senior Underwriter (HITL)', isActor: true, type: 'gate', firstIndex: text.search(/\b(senior underwriter|underwriter)\b/i) });
+    } else if (/\bsupervisor\b/i.test(text)) {
+      found.push({ id: 'Supervisor', label: 'Human-in-the-Loop (HITL) Review Gate', isActor: true, type: 'gate', firstIndex: text.search(/\bsupervisor\b/i) });
+    }
+
+    found.sort((a, b) => a.firstIndex - b.firstIndex);
+    return found;
+  }
+
   /**
    * Intelligently extract enterprise systems and actors from unstructured text
    */
   private static extractEntities(text: string, isLegacy: boolean): ParsedEntity[] {
+    const explicit = this.extractExplicitSystems(text, isLegacy);
+    if (explicit.length >= 2) {
+      return explicit.map(e => ({ id: e.id, label: e.label, isActor: e.isActor, type: e.type }));
+    }
+
+    // Fallback: template roles for abstract requirements or legacy runbooks without named systems
     const entities: Map<string, ParsedEntity> = new Map();
     const lower = text.toLowerCase();
 
@@ -463,59 +741,203 @@ export class ClientTopologyParser {
       entities.set('Supervisor', { id: 'Supervisor', label: 'Human-in-the-Loop (HITL) Review Gate', isActor: true, type: 'gate' });
     }
 
-    // 7. Dynamic Domain Services & Components Extraction from text
-    // Matches patterns like "Fraud Detection Service", "Payment Gateway", "Stripe API", "Order Engine", "Inventory DB"
-    const servicePatterns = [
-      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,2}\s+(?:API|Gateway|Service|Server|Microservice|Engine|Worker|Portal|App|Application|Client|Front[eE]nd|Back[eE]nd|Router|Validator|Platform|Hub|Vault))\b/g,
-      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,1}\s+(?:Queue|Topic|Bus|Broker|Stream|Mesh))\b/g,
-      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,1}\s+(?:Database|DB|Warehouse|Store|Cache|Catalog))\b/g
-    ];
+    return Array.from(entities.values());
+  }
 
-    let dynamicCount = 0;
-    for (const pat of servicePatterns) {
-      let m: RegExpExecArray | null;
-      while ((m = pat.exec(text)) !== null && dynamicCount < 4) {
-        const name = m[1].trim();
-        // Ignore generic common phrases or already matched names
-        if (/^(The|This|Each|Every|All|Some|A|An|Our|Their|Current|Future|Proposed)\s+/i.test(name)) continue;
-        if (/^(Step|Phase|Version|Section|Figure|Diagram)\s+/i.test(name)) continue;
-        if (/Apigee|Kafka|Oracle|Postgres|AS400|Mainframe|SAP|Snowflake|Evolve AI/i.test(name)) continue;
+  /**
+   * Dedicated high-fidelity synthesizer for MuleSoft API-led healthcare integration
+   */
+  private static synthesizeHealthcareVisitValidationSteps(entities: ParsedEntity[], isLegacy: boolean): ParsedStep[] {
+    const entMap = new Map(entities.map(e => [e.id, e]));
+    const sfId = entMap.has('Salesforce') ? 'Salesforce' : (entities.find(e => /salesforce|sf/i.test(e.id))?.id || 'Salesforce');
+    const muleExpId = entMap.has('MuleExp') ? 'MuleExp' : (entities.find(e => /muleexp|experience/i.test(e.id))?.id || (entMap.has('MuleSoft') ? 'MuleSoft' : 'MuleExp'));
+    const muleProcId = entMap.has('MuleProc') ? 'MuleProc' : (entities.find(e => /muleproc|process/i.test(e.id))?.id || muleExpId);
+    const chibId = entMap.has('CHIB') ? 'CHIB' : (entities.find(e => /chib/i.test(e.id))?.id || 'CHIB');
+    const emrId = entMap.has('EMR') ? 'EMR' : (entities.find(e => /emr/i.test(e.id))?.id || 'EMR');
+    const xampId = entMap.has('xAmplify') ? 'xAmplify' : (entities.find(e => /xamplify/i.test(e.id))?.id || 'xAmplify');
 
-        let type: ParsedEntity['type'] = 'service';
-        const nLow = name.toLowerCase();
-        if (/gateway|ingress|portal|app|client|frontend/i.test(nLow)) type = 'gateway';
-        else if (/database|db|warehouse|store|cache/i.test(nLow)) type = 'database';
-        else if (/queue|topic|bus|broker|stream|mesh/i.test(nLow)) type = 'queue';
-
-        const safeId = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 14) || 'Service';
-        if (!entities.has(safeId)) {
-          entities.set(safeId, { id: safeId, label: name, isActor: false, type });
-          dynamicCount++;
+    if (isLegacy) {
+      return [
+        {
+          from: 'User',
+          to: sfId,
+          message: 'Manually poll Salesforce referral queue for new intake records',
+          note: 'High latency: 4-8 hour polling delay with zero real-time webhooks'
+        },
+        {
+          from: 'User',
+          to: emrId,
+          message: 'Manually login to EMR Sunrise terminal and query Visit ID, MRN, SAUHI',
+          note: '⚠️ Swivel-chair data entry: high cognitive overhead & transcription error rate'
+        },
+        {
+          from: 'User',
+          to: sfId,
+          message: 'Download disparate referral document attachments to local workstation'
+        },
+        {
+          from: 'User',
+          to: 'User',
+          message: 'Manually merge PDF pages using desktop tool & re-index metadata',
+          note: '⚠️ Zero automated audit trail or correlation ID tracking'
+        },
+        {
+          from: 'User',
+          to: sfId,
+          message: 'Manually re-upload merged PDF to referral record & update status',
+          isReply: true
         }
-      }
+      ];
     }
 
-    return Array.from(entities.values());
+    const steps: ParsedStep[] = [
+      // Step 1: Salesforce calls Experience API
+      {
+        from: sfId,
+        to: muleExpId,
+        message: 'Calls Experience API with Visit ID, MRN & SAUHI (Referral ID correlation)'
+      },
+      // Step 2: Mule Experience API validates & acknowledges
+      {
+        from: muleExpId,
+        to: sfId,
+        message: 'Acknowledge request & assign Correlation ID (Status: "Request Received")',
+        isReply: true
+      },
+      // Step 3a: Mule Experience API delegates to Process API
+      ...(muleExpId !== muleProcId ? [{
+        from: muleExpId,
+        to: muleProcId,
+        message: 'Delegate visit validation process (with Correlation ID & identifiers)'
+      }] : []),
+      // Step 3b: Mule Process API calls CHIB to validate in EMR
+      {
+        from: muleProcId,
+        to: chibId,
+        message: 'Call CHIB with payload to validate entry in EMR'
+      },
+      // Step 4: CHIB forwards to EMR Sunrise
+      {
+        from: chibId,
+        to: emrId,
+        message: 'Forward identifier validation query (Visit ID, MRN, SAUHI)'
+      },
+      {
+        from: emrId,
+        to: chibId,
+        message: 'Validates identifiers & sends response back',
+        isReply: true
+      },
+      {
+        from: chibId,
+        to: muleProcId,
+        message: 'Deliver EMR validation response to Mule',
+        isReply: true
+      },
+      // Step 5 & 6: alt block for Visit ID, MRN, SAUHI matching
+      {
+        from: '',
+        to: '',
+        message: '',
+        blockType: 'alt',
+        blockLabel: 'Visit ID, MRN and SAUHI all match ("Success")'
+      },
+      {
+        from: emrId,
+        to: muleProcId,
+        message: 'Returns "Success" acknowledgement (via CHIB)',
+        isReply: true
+      },
+      {
+        from: '',
+        to: '',
+        message: '',
+        blockType: 'else',
+        blockLabel: 'Validation fails'
+      },
+      {
+        from: muleProcId,
+        to: sfId,
+        message: 'Pass corresponding EMR error message back so user sees reason',
+        isReply: true
+      },
+      {
+        from: '',
+        to: '',
+        message: '',
+        blockType: 'end'
+      },
+      // Step 7 & 8: opt block for document consolidation on Success
+      {
+        from: '',
+        to: '',
+        message: '',
+        blockType: 'opt',
+        blockLabel: 'On "Success": Document Consolidation Pipeline'
+      },
+      {
+        from: muleProcId,
+        to: sfId,
+        message: 'Fetch unconsolidated referral documents'
+      },
+      {
+        from: sfId,
+        to: muleProcId,
+        message: 'Return referral document attachments',
+        isReply: true
+      },
+      {
+        from: muleProcId,
+        to: xampId,
+        message: 'Send referral documents to xAmplify for consolidation'
+      },
+      {
+        from: xampId,
+        to: muleProcId,
+        message: 'Return consolidated document payload',
+        isReply: true
+      },
+      {
+        from: muleProcId,
+        to: sfId,
+        message: 'Write consolidated document back as file (Status: "Documents Consolidated")'
+      },
+      {
+        from: '',
+        to: '',
+        message: '',
+        blockType: 'end'
+      }
+    ];
+
+    return steps;
   }
 
   /**
    * Synthesize sequence steps from document contents
    */
   private static extractSteps(text: string, entities: ParsedEntity[], isLegacy: boolean): ParsedStep[] {
+    // 1. Check for dedicated healthcare / MuleSoft visit validation requirement
+    const isHealthcareFlow = /\bsalesforce\b/i.test(text) && /\bmule(?:soft)?\b/i.test(text) &&
+      (/\bchib\b/i.test(text) || /\bemr\b/i.test(text) || /\bxamplify\b/i.test(text) || /\bvisit\s*id\b/i.test(text));
+
+    if (isHealthcareFlow) {
+      return this.synthesizeHealthcareVisitValidationSteps(entities, isLegacy);
+    }
+
     const steps: ParsedStep[] = [];
     const entMap = new Map(entities.map(e => [e.id, e]));
     const entList = Array.from(entities.values());
 
-    // 1. Try to extract explicit numbered steps or bullet points from the requirement text
+    // 2. Try to extract explicit numbered steps or bullet points from the requirement text
     const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
     const actionLines: string[] = [];
 
     for (const line of lines) {
-      // Match "1. ...", "2) ...", "- ...", "* ...", "Step 1: ..."
       const stepMatch = line.match(/^(?:(?:\d+[\.\)]|[-*•]|step\s*\d+:?)\s+)(.+)$/i);
       if (stepMatch && stepMatch[1].length > 10) {
         actionLines.push(stepMatch[1].trim());
-      } else if (/\b(submits?|sends?|routes?|calls?|queries?|validates?|verifies?|approves?|updates?|writes?|commits?|publishes?|notifies?|returns?|responds?)\b/i.test(line)) {
+      } else if (/\b(submits?|sends?|routes?|calls?|queries?|validates?|verifies?|approves?|updates?|writes?|commits?|publishes?|notifies?|returns?|responds?|fetches?)\b/i.test(line)) {
         if (line.length > 15 && line.length < 250 && !line.startsWith('#')) {
           actionLines.push(line);
         }
@@ -531,7 +953,6 @@ export class ClientTopologyParser {
         if (lowerStr.includes(entId) || lowerStr.includes(entName.split(' ')[0])) {
           return ent;
         }
-        // Match synonyms
         if (ent.type === 'actor' && (lowerStr.includes('user') || lowerStr.includes('client') || lowerStr.includes('customer') || lowerStr.includes('broker') || lowerStr.includes('borrower'))) return ent;
         if (ent.type === 'gateway' && (lowerStr.includes('gateway') || lowerStr.includes('portal') || lowerStr.includes('api') || lowerStr.includes('ingress'))) return ent;
         if (ent.type === 'queue' && (lowerStr.includes('kafka') || lowerStr.includes('queue') || lowerStr.includes('topic') || lowerStr.includes('bus') || lowerStr.includes('event'))) return ent;
@@ -550,10 +971,31 @@ export class ClientTopologyParser {
 
       let lastSender = primaryActor;
       let lastReceiver = primaryGateway;
+      let inAltBlock = false;
 
-      for (let i = 0; i < actionLines.length && steps.length < 18; i++) {
+      for (let i = 0; i < actionLines.length && steps.length < 24; i++) {
         const rawAction = actionLines[i];
         const lowerAct = rawAction.toLowerCase();
+
+        // Control flow detection: alt / else / opt
+        if (/^if\b/i.test(rawAction) && !inAltBlock && actionLines.slice(i + 1).some(l => /^(else|if any|otherwise)\b/i.test(l))) {
+          steps.push({
+            from: '',
+            to: '',
+            message: '',
+            blockType: 'alt',
+            blockLabel: rawAction.replace(/^if\s+/i, '').replace(/,.+$/, '').trim()
+          });
+          inAltBlock = true;
+        } else if (/^(else|if any .*fail|otherwise)\b/i.test(rawAction) && inAltBlock) {
+          steps.push({
+            from: '',
+            to: '',
+            message: '',
+            blockType: 'else',
+            blockLabel: rawAction.replace(/,.+$/, '').trim()
+          });
+        }
 
         // Clean action message: truncate to concise sentence
         let cleanMsg = rawAction
@@ -608,9 +1050,13 @@ export class ClientTopologyParser {
         lastReceiver = toEnt;
       }
 
+      if (inAltBlock) {
+        steps.push({ from: '', to: '', message: '', blockType: 'end' });
+      }
+
       // Ensure final receipt step is delivered back to primary actor if not already there
       const lastStep = steps[steps.length - 1];
-      if (lastStep && lastStep.to !== primaryActor.id) {
+      if (lastStep && lastStep.to && lastStep.to !== primaryActor.id) {
         steps.push({
           from: lastStep.to,
           to: primaryActor.id,
@@ -626,7 +1072,6 @@ export class ClientTopologyParser {
 
     // Fallback: Standard high-fidelity synthesized steps based on discovered entities
     if (isLegacy) {
-      // Step 1: User submission
       const userEnt = entList.find(e => e.type === 'actor') || { id: 'User' };
       const portalEnt = entList.find(e => e.type === 'gateway') || { id: 'Portal' };
       const coreEnt = entList.find(e => e.type === 'service') || { id: 'Core' };
@@ -758,7 +1203,8 @@ export class ClientTopologyParser {
     entities: ParsedEntity[],
     steps: ParsedStep[],
     isLegacy: boolean,
-    docName: string
+    docName: string,
+    scenarioTitle?: string
   ): string {
     const lines: string[] = ['sequenceDiagram', '    autonumber'];
 
@@ -768,17 +1214,35 @@ export class ClientTopologyParser {
     }
     lines.push('');
 
+    // Optional Scenario Title Note
+    if (scenarioTitle) {
+      const first = entities[0]?.id || 'Client';
+      const last = entities[entities.length - 1]?.id || first;
+      lines.push(`    Note over ${first},${last}: ${scenarioTitle}`);
+      lines.push('');
+    }
+
     // Steps
     for (const step of steps) {
-      if (step.note) {
-        if (step.from === step.to) {
-          lines.push(`    Note over ${step.from}: ${step.note}`);
-        } else {
-          lines.push(`    Note over ${step.from},${step.to}: ${step.note}`);
-        }
+      if (step.blockType === 'alt' || step.blockType === 'opt' || step.blockType === 'par' || step.blockType === 'critical') {
+        lines.push(`    ${step.blockType} ${step.blockLabel || ''}`.trimEnd());
+      } else if (step.blockType === 'else') {
+        lines.push(`    else ${step.blockLabel || ''}`.trimEnd());
+      } else if (step.blockType === 'end') {
+        lines.push(`    end`);
       }
-      const arrow = step.isReply ? '-->>' : '->>';
-      lines.push(`    ${step.from}${arrow}${step.to}: ${step.message}`);
+
+      if (step.from && step.to) {
+        if (step.note) {
+          if (step.from === step.to) {
+            lines.push(`    Note over ${step.from}: ${step.note}`);
+          } else {
+            lines.push(`    Note over ${step.from},${step.to}: ${step.note}`);
+          }
+        }
+        const arrow = step.isReply ? '-->>' : '->>';
+        lines.push(`    ${step.from}${arrow}${step.to}: ${step.message}`);
+      }
     }
 
     return lines.join('\n');
