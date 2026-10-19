@@ -553,6 +553,43 @@ export const LANGUAGES: LanguageSpec[] = [
       'Missing values in SAS: numeric missing is represented as a period (.) and character missing is a blank space (\' \').',
     ],
   },
+  {
+    id: 'dotnet-cil', label: '.NET CIL / Assembly', group: 'Legacy',
+    ext: '.il', altExts: ['.dll', '.exe'], vsLang: 'cil', fence: 'cil', naming: 'pascal',
+    idioms: [
+      'Disassembled Common Intermediate Language (CIL/MSIL) opcode instructions.',
+      'Object-oriented stack evaluation: ldarg loads arguments, call/callvirt invokes methods, ret returns.',
+      'Value types (valuetype) vs reference types (class), strongly typed method signatures.'
+    ],
+    pitfalls: [
+      'Stack evaluation order: operands must be pushed in left-to-right order before opcode invocation.',
+      'Dynamic reflection calls (Type.GetType, Assembly.Load) must be flagged for runtime resolution.'
+    ]
+  },
+  {
+    id: 'jvm-bytecode', label: 'Java Bytecode', group: 'JVM',
+    ext: '.class', altExts: ['.jar'], vsLang: 'java', fence: 'java', naming: 'pascal',
+    idioms: [
+      'Compiled JVM bytecode representations of Java / Kotlin / Scala classes.',
+      'Constant pool references for classes, methods, and field descriptors.'
+    ],
+    pitfalls: [
+      'Inner and anonymous classes have synthetic parent references (this$0).',
+      'Bridge methods generated for generic erasure must be merged with their primary definition.'
+    ]
+  },
+  {
+    id: 'wasm-binary', label: 'WebAssembly (WAT)', group: 'Systems',
+    ext: '.wat', altExts: ['.wasm'], vsLang: 'wasm', fence: 'wat', naming: 'snake',
+    idioms: [
+      'S-expression syntax for WebAssembly modules.',
+      'Strict linear memory, typed parameters (i32, i64, f32, f64), and explicit exports.'
+    ],
+    pitfalls: [
+      'All memory access is bounds-checked against linear memory pages.',
+      'Indirect calls require valid table index elements.'
+    ]
+  }
 ];
 
 const BY_ID = new Map(LANGUAGES.map(l => [l.id, l]));
@@ -579,6 +616,9 @@ const FENCE_ALIASES: Record<string, string> = {
   perl: 'perl', pl: 'perl', pm: 'perl',
   r: 'r', rscript: 'r',
   elixir: 'elixir', ex: 'elixir', exs: 'elixir',
+  cil: 'dotnet-cil', il: 'dotnet-cil', msil: 'dotnet-cil',
+  wat: 'wasm-binary', wasm: 'wasm-binary',
+  bytecode: 'jvm-bytecode',
 };
 
 /** Detect the source language from a path and/or a VS Code language id. */

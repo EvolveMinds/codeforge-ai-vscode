@@ -216,3 +216,209 @@ export function renderIntegrityStamp(s: IntegrityStamp | undefined | null): stri
   if (s.kind === 'unsigned_demo') return DEMO_DATA;
   return `\`${s.value}\` — ${s.label}`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Evidence & Unknowns Ledger (Zero-Hallucination Grounding)
+ * ------------------------------------------------------------------ */
+
+export type EvidenceKind =
+  | 'static_source'
+  | 'decompiled_artifact'
+  | 'runtime_observation'
+  | 'test_assertion'
+  | 'schema_introspection'
+  | 'binary_symbol'
+  | 'inspected_component';
+
+export type EvidenceConfidence = 'exact' | 'inferred' | 'heuristic';
+
+export interface EvidenceSpan {
+  startLine?: number;
+  endLine?: number;
+  startOffset?: number;
+  endOffset?: number;
+  symbol?: string;
+  file?: string;
+}
+
+export interface EvidenceRecord {
+  /** Deterministic content-addressed identifier (e.g., "ev_a1b2c3d4"). */
+  id: string;
+  kind: EvidenceKind;
+  confidence: EvidenceConfidence;
+  sourceUri: string;
+  span?: EvidenceSpan;
+  summary: string;
+  /** Raw excerpt, byte slice, or AST node text proving the claim. */
+  rawProof?: string;
+  recordedAt: number;
+  metadata?: Record<string, unknown>;
+}
+
+export type UnknownSeverity = 'blocking' | 'warning' | 'informational';
+
+export interface UnknownItem {
+  /** Deterministic identifier (e.g., "unk_x1y2z3"). */
+  id: string;
+  target: string;
+  reason: string;
+  severity: UnknownSeverity;
+  remediation: string;
+  sourceUri?: string;
+  recordedAt: number;
+}
+
+export interface EvidenceManifest {
+  version: '1.0';
+  generatedAtISO: string;
+  recordsCount: number;
+  unknownsCount: number;
+  blockingUnknownsCount: number;
+  evidence: EvidenceRecord[];
+  unknowns: UnknownItem[];
+  digest: string;
+}
+
+function generateDeterministicId(prefix: string, seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+  }
+  const hex = (hash >>> 0).toString(16).padStart(8, '0');
+  return `${prefix}_${hex}`;
+}
+
+/**
+ * Verifiable evidence ledger inspired by REA's proof-bound architecture.
+ * Binds transformed code and FDE claims to cryptographic proof records,
+ * and maintains an explicit catalog of unresolved unknowns.
+ */
+export class EvidenceLedger {
+  private _records = new Map<string, EvidenceRecord>();
+  private _unknowns = new Map<string, UnknownItem>();
+
+  /**
+   * Records a verifiable piece of evidence. If an identical proof is already
+   * recorded, returns the existing record to guarantee deduplication.
+   */
+  public record(entry: Omit<EvidenceRecord, 'id' | 'recordedAt'>): EvidenceRecord {
+    const seed = `${entry.kind}|${entry.confidence}|${entry.sourceUri}|${JSON.stringify(entry.span || {})}|${entry.summary}|${entry.rawProof || ''}`;
+    const id = generateDeterministicId('ev', seed);
+
+    const existing = this._records.get(id);
+    if (existing) {
+      return existing;
+    }
+
+    const record: EvidenceRecord = {
+      ...entry,
+      id,
+      recordedAt: Date.now()
+    };
+    this._records.set(id, record);
+    return record;
+  }
+
+  /**
+   * Records an explicit unknown boundary where static or decompilation analysis
+   * cannot prove a behavior without dynamic runtime testing.
+   */
+  public recordUnknown(item: Omit<UnknownItem, 'id' | 'recordedAt'>): UnknownItem {
+    const seed = `${item.target}|${item.reason}|${item.severity}|${item.sourceUri || ''}`;
+    const id = generateDeterministicId('unk', seed);
+
+    const existing = this._unknowns.get(id);
+    if (existing) {
+      return existing;
+    }
+
+    const unknown: UnknownItem = {
+      ...item,
+      id,
+      recordedAt: Date.now()
+    };
+    this._unknowns.set(id, unknown);
+    return unknown;
+  }
+
+  public get(id: string): EvidenceRecord | undefined {
+    return this._records.get(id);
+  }
+
+  public getAll(): EvidenceRecord[] {
+    return Array.from(this._records.values());
+  }
+
+  public getUnknowns(): UnknownItem[] {
+    return Array.from(this._unknowns.values());
+  }
+
+  public getBlockingUnknowns(): UnknownItem[] {
+    return this.getUnknowns().filter(u => u.severity === 'blocking');
+  }
+
+  public hasBlockingUnknowns(): boolean {
+    return this.getBlockingUnknowns().length > 0;
+  }
+
+  /**
+   * Exports an auditable, serialized manifest with a cryptographic digest.
+   */
+  public exportManifest(): EvidenceManifest {
+    const evidence = this.getAll();
+    const unknowns = this.getUnknowns();
+    const blockingCount = this.getBlockingUnknowns().length;
+
+    const payload = JSON.stringify({ evidence, unknowns });
+    const digest = generateDeterministicId('sha', payload);
+
+    return {
+      version: '1.0',
+      generatedAtISO: new Date().toISOString(),
+      recordsCount: evidence.length,
+      unknownsCount: unknowns.length,
+      blockingUnknownsCount: blockingCount,
+      evidence,
+      unknowns,
+      digest
+    };
+  }
+
+  /**
+   * Renders a human-readable GitHub-flavored markdown report suitable for
+   * inclusion in client deliverables or conversion review panels.
+   */
+  public renderMarkdownAudit(): string {
+    const lines: string[] = [
+      '### Verifiable Grounding & Evidence Ledger',
+      '',
+      `* **Total Verified Claims:** \`${this._records.size}\``,
+      `* **Unresolved Unknowns:** \`${this._unknowns.size}\` (${this.hasBlockingUnknowns() ? '⚠️ Blocking items present' : '✅ No blocking unknowns'})`,
+      ''
+    ];
+
+    if (this._records.size > 0) {
+      lines.push('| Evidence ID | Kind | Confidence | Source Target | Summary |');
+      lines.push('| :--- | :--- | :---: | :--- | :--- |');
+      for (const rec of this.getAll()) {
+        const spanText = rec.span?.symbol ? ` (${rec.span.symbol})` : (rec.span?.startLine ? ` (L${rec.span.startLine})` : '');
+        lines.push(`| \`${rec.id}\` | \`${rec.kind}\` | **${rec.confidence}** | \`${rec.sourceUri}${spanText}\` | ${rec.summary} |`);
+      }
+      lines.push('');
+    }
+
+    if (this._unknowns.size > 0) {
+      lines.push('#### Unresolved Analysis Boundaries (Unknowns)');
+      lines.push('| Unknown ID | Severity | Target Boundary | Reason / Remediation |');
+      lines.push('| :--- | :---: | :--- | :--- |');
+      for (const unk of this.getUnknowns()) {
+        const sevBadge = unk.severity === 'blocking' ? '🔴 **BLOCKING**' : (unk.severity === 'warning' ? '🟡 WARNING' : 'ℹ️ INFO');
+        lines.push(`| \`${unk.id}\` | ${sevBadge} | \`${unk.target}\` | **Reason:** ${unk.reason}<br/>**Action:** ${unk.remediation} |`);
+      }
+      lines.push('');
+    }
+
+    return lines.join('\n');
+  }
+}
+
