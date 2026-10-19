@@ -261,5 +261,120 @@ Salesforce gets an immediate "Request Received" acknowledgement; MuleSoft then v
     assert.ok(res.futureDiagram.includes('xAmplify-->>MuleProc: Return consolidated document payload'));
     assert.ok(res.futureDiagram.includes('MuleProc->>Salesforce: Write consolidated document back as file (Status: "Documents Consolidated")'));
   });
+
+  test('synthesizes universal e-commerce microservices architecture (Cloudflare, FastAPI, RabbitMQ, DynamoDB, Stripe, SendGrid)', () => {
+    const ecommerceDoc = `Process 1: Order Checkout and Inventory Reservation
+1. Customer submits checkout form on React Web App.
+2. React Web App sends payment token to Cloudflare Ingress.
+3. Cloudflare Ingress routes order payload to FastAPI Gateway.
+4. FastAPI Gateway validates HMAC signature and pushes order event to RabbitMQ OrdersQueue.
+5. Inventory Worker consumes message from RabbitMQ OrdersQueue.
+6. Inventory Worker queries DynamoDB to check stock availability.
+7. Inventory Worker calls Stripe API to authorize credit card charge.
+8. Stripe API returns payment authorization token to Inventory Worker.
+9. If payment authorized, Inventory Worker commits stock reduction in DynamoDB.
+10. If payment declined, Inventory Worker alerts Customer via SendGrid Service.
+`;
+
+    const res = ClientTopologyParser.parse({
+      content: ecommerceDoc,
+      target: 'future',
+      docName: 'E-Commerce Microservices Spec v1'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.target, 'future');
+    assert.ok(res.futureDiagram && res.futureDiagram.startsWith('sequenceDiagram'));
+    assert.ok(res.futureDiagram.includes('actor Customer as Customer'));
+    assert.ok(res.futureDiagram.includes('participant ReactWebApp as React Web App'));
+    assert.ok(res.futureDiagram.includes('participant CloudflareIngress as Cloudflare Ingress'));
+    assert.ok(res.futureDiagram.includes('participant FastAPIGateway as FastAPI Gateway'));
+    assert.ok(res.futureDiagram.includes('participant RabbitMQOrdersQueue as RabbitMQ OrdersQueue'));
+    assert.ok(res.futureDiagram.includes('participant InventoryWorker as Inventory Worker'));
+    assert.ok(res.futureDiagram.includes('participant DynamoDB as DynamoDB'));
+    assert.ok(res.futureDiagram.includes('participant StripeAPI as Stripe API'));
+
+    // Check steps and control flow
+    assert.ok(res.futureDiagram.includes('Customer->>ReactWebApp: Submits checkout form on React Web App'));
+    assert.ok(res.futureDiagram.includes('ReactWebApp->>CloudflareIngress: Sends payment token to Cloudflare Ingress'));
+    assert.ok(res.futureDiagram.includes('CloudflareIngress->>FastAPIGateway: Routes order payload to FastAPI Gateway'));
+    assert.ok(res.futureDiagram.includes('InventoryWorker->>DynamoDB'));
+    assert.ok(res.futureDiagram.includes('StripeAPI-->>InventoryWorker: Returns payment authorization token to Inventory Worker'));
+    assert.ok(res.futureDiagram.includes('alt payment authorized'));
+    assert.ok(res.futureDiagram.includes('else payment declined'));
+    assert.ok(res.futureDiagram.includes('end'));
+  });
+
+  test('synthesizes universal banking core wire settlement architecture (Teller, Finacle, Kafka, AML, Neo4j, Postgres, Fedwire)', () => {
+    const bankingDoc = `Core Banking Wire Settlement:
+1. Teller logs into Finacle Core with Biometric Key.
+2. Finacle Core sends payment instruction to Kafka WireTopic.
+3. AML Screening Service consumes message from Kafka WireTopic.
+4. AML Screening Service queries sanction list in Neo4j Graph DB.
+5. If sanction hit found: AML Screening Service freezes transfer in Postgres Ledger.
+6. If clean: AML Screening Service forwards payment to Fedwire Terminal.
+7. Fedwire Terminal confirms clearing to AML Screening Service.
+`;
+
+    const res = ClientTopologyParser.parse({
+      content: bankingDoc,
+      target: 'future',
+      docName: 'Banking Wire Clearing Architecture'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.target, 'future');
+    assert.ok(res.futureDiagram && res.futureDiagram.startsWith('sequenceDiagram'));
+    assert.ok(res.futureDiagram.includes('actor Teller as Teller'));
+    assert.ok(res.futureDiagram.includes('participant FinacleCore as Finacle Core'));
+    assert.ok(res.futureDiagram.includes('participant KafkaWireTopic as Kafka WireTopic'));
+    assert.ok(res.futureDiagram.includes('participant AMLScreeningService as AML Screening Service'));
+    assert.ok(res.futureDiagram.includes('participant Neo4j as Neo4j') || res.futureDiagram.includes('participant Neo4jGraphDB as Neo4j Graph DB'));
+    assert.ok(res.futureDiagram.includes('participant PostgresLedger as Postgres Ledger'));
+    assert.ok(res.futureDiagram.includes('participant FedwireTerminal as Fedwire Terminal'));
+
+    // Check sequence interactions
+    assert.ok(res.futureDiagram.includes('Teller->>FinacleCore: Logs into Finacle Core with Biometric Key') || res.futureDiagram.includes('Teller->>FinacleCore'));
+    assert.ok(res.futureDiagram.includes('FinacleCore->>KafkaWireTopic: Sends payment instruction to Kafka WireTopic'));
+    assert.ok(res.futureDiagram.includes('AMLScreeningService->>KafkaWireTopic: Consumes message from Kafka WireTopic'));
+    assert.ok(res.futureDiagram.includes('alt sanction hit found'));
+    assert.ok(res.futureDiagram.includes('AMLScreeningService->>PostgresLedger: Freezes transfer in Postgres Ledger'));
+    assert.ok(res.futureDiagram.includes('else clean'));
+    assert.ok(res.futureDiagram.includes('AMLScreeningService->>FedwireTerminal: Forwards payment to Fedwire Terminal'));
+    assert.ok(res.futureDiagram.includes('FedwireTerminal-->>AMLScreeningService: Confirms clearing to AML Screening Service'));
+    assert.ok(res.futureDiagram.includes('end'));
+  });
+
+  test('synthesizes universal IoT industrial stream analytics topology (Vehicle Telematics Unit, EMQX MQTT, Kafka, Flink, InfluxDB, PagerDuty)', () => {
+    const iotDoc = `Fleet Telematics Stream Pipeline:
+1. Vehicle Telematics Unit sends GPS telemetry to EMQX Broker.
+2. EMQX Broker forwards telematics stream to Kafka TelematicsTopic.
+3. Flink Stream Processor consumes telematics stream from Kafka TelematicsTopic.
+4. Flink Stream Processor writes engine metrics to InfluxDB TimeSeries Store.
+5. If engine temperature exceeds threshold, Flink Stream Processor alerts Operations Dispatcher via PagerDuty Engine.
+6. Operations Dispatcher acknowledges alert to Flink Stream Processor.
+`;
+
+    const res = ClientTopologyParser.parse({
+      content: iotDoc,
+      target: 'future',
+      docName: 'Fleet Telematics Architecture'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.target, 'future');
+    assert.ok(res.futureDiagram && res.futureDiagram.startsWith('sequenceDiagram'));
+    assert.ok(res.futureDiagram.includes('VehicleTelematicsUnit') || res.futureDiagram.includes('Vehicle Telematics Unit'));
+    assert.ok(res.futureDiagram.includes('EMQXBroker') || res.futureDiagram.includes('EMQX Broker'));
+    assert.ok(res.futureDiagram.includes('KafkaTelematicsTopic') || res.futureDiagram.includes('Kafka TelematicsTopic'));
+    assert.ok(res.futureDiagram.includes('FlinkStreamProcessor') || res.futureDiagram.includes('Flink Stream Processor'));
+    assert.ok(res.futureDiagram.includes('InfluxDB') || res.futureDiagram.includes('InfluxDB TimeSeries Store'));
+    assert.ok(res.futureDiagram.includes('PagerDutyEngine') || res.futureDiagram.includes('PagerDuty Engine') || res.futureDiagram.includes('Operations Dispatcher'));
+
+    assert.ok(res.futureDiagram.includes('VehicleTelematicsUnit->>EMQXBroker'));
+    assert.ok(res.futureDiagram.includes('EMQXBroker->>KafkaTelematicsTopic'));
+    assert.ok(res.futureDiagram.includes('FlinkStreamProcessor->>InfluxDB'));
+    assert.ok(res.futureDiagram.includes('alt engine temperature exceeds threshold'));
+  });
 });
 

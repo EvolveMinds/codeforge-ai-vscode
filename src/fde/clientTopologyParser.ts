@@ -311,18 +311,13 @@ export class ClientTopologyParser {
 
     const scenarioTitle = this.extractScenarioTitle(content);
 
-    const legacyEntities = this.extractEntities(legacyText, true);
-    const legacySteps = this.extractSteps(legacyText, legacyEntities, true);
-    const legacyDiagram = this.renderMermaid(legacyEntities, legacySteps, true, docName, scenarioTitle);
+    const legacyParsed = this.synthesizeTopologyForSpec(legacyText, true, docName, scenarioTitle);
+    const futureParsed = this.synthesizeTopologyForSpec(futureText, false, docName, scenarioTitle);
 
-    const futureEntities = this.extractEntities(futureText, false);
-    const futureSteps = this.extractSteps(futureText, futureEntities, false);
-    const futureDiagram = this.renderMermaid(futureEntities, futureSteps, false, docName, scenarioTitle);
-
-    const resLegacy = target === 'future' ? undefined : legacyDiagram;
-    const resFuture = target === 'legacy' ? undefined : futureDiagram;
-    const activeEntities = target === 'legacy' ? legacyEntities : futureEntities;
-    const activeSteps = target === 'legacy' ? legacySteps : futureSteps;
+    const resLegacy = target === 'future' ? undefined : legacyParsed.diagram;
+    const resFuture = target === 'legacy' ? undefined : futureParsed.diagram;
+    const activeEntities = target === 'legacy' ? legacyParsed.entities : futureParsed.entities;
+    const activeSteps = target === 'legacy' ? legacyParsed.steps : futureParsed.steps;
 
     return {
       success: true,
@@ -380,6 +375,380 @@ export class ClientTopologyParser {
       }
     }
     return undefined;
+  }
+
+  /**
+   * Helper: Sanitizes a candidate entity name to a safe Mermaid identifier
+   */
+  private static sanitizeId(name: string): string {
+    let id = name
+      .replace(/\(.*?\)/g, '')
+      .replace(/[^A-Za-z0-9]/g, '')
+      .trim();
+    if (!id) id = 'System';
+    if (/^[0-9]/.test(id)) id = 'S_' + id;
+    return id.slice(0, 24);
+  }
+
+  /**
+   * Universal Entity Classifier: categorizes entities by role and infrastructure type
+   */
+  private static classifyEntity(name: string): { isActor: boolean; type: ParsedEntity['type'] } {
+    const low = name.toLowerCase();
+
+    // Check if it's an infrastructure/message broker vs a human broker
+    const isInfraBroker = /\b(integration|message|event|service|mqtt|emqx|activemq|brokerage\s+api)\s+broker\b/i.test(low);
+    const isActor = !isInfraBroker && /\b(user|customer|client|borrower|teller|commercial\s+broker|mortgage\s+broker|insurance\s+broker|clinician|physician|doctor|patient|underwriter|supervisor|dispatcher|compliance\s+officer|operator|admin|buyer|seller|driver|merchant|support\s+agent|csr|clerk|auditor|trader|analyst)\b/i.test(low) &&
+      !/\b(service|api|gateway|system|app|portal|db|database|queue|topic|core|engine)\b/i.test(low);
+
+    let type: ParsedEntity['type'] = 'service';
+    if (isActor) {
+      type = 'actor';
+    } else if (/\b(gateway|ingress|portal|web\s*app|mobile\s*app|ios|android|frontend|ui|cloudflare|kong|apigee|traefik|envoy|reverse\s*proxy|router|client\s*app)\b/i.test(low)) {
+      type = 'gateway';
+    } else if (/\b(queue|topic|bus|broker|stream|mesh|kafka|rabbitmq|activemq|sqs|sns|eventbridge|pubsub|mqtt|emqx|kinesis|nats)\b/i.test(low)) {
+      type = 'queue';
+    } else if (/\b(database|db|store|warehouse|cache|dynamodb|postgres|postgresql|oracle|mysql|neo4j|mongodb|redis|snowflake|bigquery|influxdb|cassandra|s3|bucket|catalog|ledger)\b/i.test(low)) {
+      type = 'database';
+    } else if (/\b(supervisor|hitl|approval\s*gate|sign-off|review\s*gate)\b/i.test(low)) {
+      type = 'gate';
+    }
+
+    return { isActor, type };
+  }
+
+  /**
+   * Cleans a raw entity candidate string, extracting target from payload clauses
+   */
+  private static cleanEntityCandidate(raw: string): string | null {
+    if (!raw || typeof raw !== 'string') return null;
+    let clean = raw.trim()
+      .replace(/^(?:the|a|an|each|every|all|this|that|their|our)\s+/i, '')
+      .replace(/[.:,;]+$/, '')
+      .trim();
+
+    // If it has "payload in Target" where payload is a noun phrase, extract Target
+    const payloadInTarget = clean.match(/^(?:sanction\s*list|transaction\s*history|credit\s*score|entry|records?|data|documents?|files?|events?|status|payload|token|tokens)\s+in\s+([A-Z].+)$/i);
+    if (payloadInTarget) {
+      clean = payloadInTarget[1].trim();
+    }
+
+    // Strip trailing purpose, conjunction, and preposition clauses
+    clean = clean.replace(/\s+(?:to\b|and\b|with\b|for\b|via\b|as\b|using\b|by\b|plus\b|so\s+that\b).*$/i, '').trim();
+    clean = clean.replace(/\s+topic$/i, '');
+
+    if (!clean || clean.length < 2) return null;
+    if (/^(if|then|else|when|where|there|it|this|that|all|each|every|some|step|process|flow|case|scenario|note|status|reason|payload|event|message|request|response|file|document|documents|order|orders|payment|payments|data|entry|identifiers|record|records|token|tokens|detail|details|info|success|failure)$/i.test(clean)) {
+      return null;
+    }
+    return clean;
+  }
+
+  /**
+   * Universal Subject-Verb-Object Architecture Engine:
+   * Parses arbitrary specifications, architectures, microservices, cloud pipelines, or business flows.
+   */
+  private static parseUniversalSvoTopology(
+    content: string,
+    isLegacy: boolean,
+    docName: string,
+    scenarioTitle?: string
+  ): { diagram: string; entities: ParsedEntity[]; steps: ParsedStep[] } {
+    const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const steps: ParsedStep[] = [];
+    const entities = new Map<string, ParsedEntity & { firstOrder: number }>();
+    const aliases = new Map<string, string>();
+    let orderCounter = 0;
+
+    const registerEntity = (rawName: string, explicitType?: ParsedEntity['type']): ParsedEntity | null => {
+      const clean = this.cleanEntityCandidate(rawName);
+      if (!clean) return null;
+
+      const low = clean.toLowerCase();
+      if (aliases.has(low)) {
+        return entities.get(aliases.get(low)!) || null;
+      }
+
+      for (const [alias, id] of aliases.entries()) {
+        if (alias === low || (low.length >= 4 && alias.startsWith(low))) {
+          return entities.get(id) || null;
+        }
+      }
+
+      let id = this.sanitizeId(clean);
+      let label = clean;
+
+      // Platform normalization mappings
+      if (/\bmule\s*experience\s*api\b|\bexperience\s*api\b/i.test(clean)) {
+        id = 'MuleExp'; label = 'Mule Experience API';
+      } else if (/\bmule\s*(?:\(?\s*process\s*api\s*\)?)\b|\bprocess\s*api\b/i.test(clean)) {
+        id = 'MuleProc'; label = 'Mule Process API';
+      } else if (/\bmule(?:soft)?\b/i.test(clean) && !entities.has('MuleExp') && !entities.has('MuleProc')) {
+        id = 'MuleSoft'; label = 'MuleSoft Integration Platform';
+      } else if (/\bchib\b/i.test(clean)) {
+        id = 'CHIB'; label = 'CHIB Integration Broker';
+      } else if (/\bemr\s*sunrise\b|\bsunrise\s*emr\b|\bsunrise\b/i.test(clean)) {
+        id = 'EMR'; label = 'EMR Sunrise Clinical Core';
+      } else if (/\bemr\b/i.test(clean)) {
+        id = 'EMR'; label = 'EMR Clinical Core';
+      } else if (/\bxamplify\b/i.test(clean)) {
+        id = 'xAmplify'; label = 'xAmplify Document Consolidation Engine';
+      } else if (/\bsalesforce\b|\bsfdc\b/i.test(clean)) {
+        id = 'Salesforce'; label = 'Salesforce CRM';
+      } else if (/\bsap(?:\s+s\/?4hana)?\b/i.test(clean)) {
+        id = 'SAP'; label = 'SAP S/4HANA Enterprise ERP';
+      } else if (/\bservicenow\b/i.test(clean)) {
+        id = 'ServiceNow'; label = 'ServiceNow ITSM Portal';
+      } else if (/\bapigee\b/i.test(clean)) {
+        id = 'Apigee'; label = 'Apigee API Gateway';
+      } else if (/\bkong\b/i.test(clean)) {
+        id = 'Kong'; label = 'Kong Enterprise Gateway';
+      } else if (/^(?:apache\s+)?kafka(?:\s+(?:event\s+mesh|message\s+queue))?$/i.test(clean)) {
+        id = 'Kafka'; label = 'Apache Kafka Event Mesh';
+      } else if (/^rabbitmq(?:\s+(?:message\s+broker|broker))?$/i.test(clean)) {
+        id = 'RabbitMQ'; label = 'RabbitMQ Message Broker';
+      } else if (/^postgres(?:ql)?(?:\s+(?:database|db|core|store))?$/i.test(clean)) {
+        id = 'Postgres'; label = 'PostgreSQL Core DB';
+      } else if (/\b(evolve\s*ai|copilot)\b/i.test(clean)) {
+        id = 'AI'; label = 'Evolve AI Copilot (Air-Gapped)';
+      } else if (/\b(human\s*in\s*the\s*loop|hitl|supervisor)\b/i.test(clean)) {
+        id = 'Supervisor'; label = 'Human-in-the-Loop (HITL) Review Gate';
+      } else if (/^oracle(?:\s+(?:database|db|rac))?$/i.test(clean)) {
+        id = 'Oracle'; label = 'Oracle RAC & pgvector Store';
+      } else if (/\bsnowflake\b/i.test(clean)) {
+        id = 'Snowflake'; label = 'Snowflake EDW';
+      } else if (/\bas400|mainframe\b/i.test(clean)) {
+        id = 'AS400'; label = 'AS400 Mainframe Core';
+      }
+
+      if (entities.has(id)) {
+        const existing = entities.get(id)!;
+        aliases.set(low, id);
+        return existing;
+      }
+
+      const { isActor, type } = this.classifyEntity(label);
+      const ent: ParsedEntity & { firstOrder: number } = {
+        id,
+        label,
+        isActor,
+        type: explicitType || type,
+        firstOrder: orderCounter++
+      };
+
+      entities.set(id, ent);
+      aliases.set(low, id);
+      aliases.set(id.toLowerCase(), id);
+      aliases.set(label.toLowerCase(), id);
+
+      const words = label.split(/\s+/);
+      if (words.length > 1) {
+        aliases.set(words[0].toLowerCase(), id);
+        aliases.set(words.slice(-1)[0].toLowerCase(), id);
+      }
+
+      return ent;
+    };
+
+    const resolveEntityInText = (str: string, fallback: ParsedEntity | null): ParsedEntity | null => {
+      if (!str) return fallback;
+      for (const [alias, id] of aliases.entries()) {
+        if (alias.length >= 3) {
+          const regex = new RegExp(`\\b${alias.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'i');
+          if (regex.test(str)) {
+            return entities.get(id) || null;
+          }
+        }
+      }
+      return fallback;
+    };
+
+    // Extract action lines
+    const rawActions: string[] = [];
+    for (const line of lines) {
+      const numMatch = line.match(/^(?:(?:\d+[\.\)]|[-*•]|step\s*\d+:?)\s+)(.+)$/i);
+      if (numMatch) {
+        rawActions.push(numMatch[1].trim());
+      } else if (/\b(calls?|called|invokes?|invoked|sends?|sent|routes?|routed|validates?|validated|verifies?|verified|queries|queried|fetches?|fetched|writes?|wrote|written|updates?|updated|returns?|returned|responds?|responded|confirms?|confirmed|alerts?|alerted|notifies?|notified|publishes?|published|commits?|committed|reviews?|reviewed|approves?|approved|enters?|entered|transcribes?|loads?|logs?\s+(?:in|into))\b/i.test(line)) {
+        if (!line.startsWith('#') && line.length > 12) {
+          rawActions.push(line);
+        }
+      }
+    }
+
+    let inAltBlock = false;
+    let inOptBlock = false;
+    let lastSender: ParsedEntity | null = null;
+    let lastReceiver: ParsedEntity | null = null;
+
+    for (let i = 0; i < rawActions.length; i++) {
+      let line = rawActions[i];
+
+      // 1. Control flow
+      if (/^if\s+(.+?)(?:,|\bmatch\b|\s+returns|\s+passes|\bthen\b|:|$)/i.test(line)) {
+        const condMatch = line.match(/^if\s+(.+?)(?:,|\s+then\b|:|$)/i);
+        const condText = condMatch ? condMatch[1].trim() : 'Condition';
+        if (inAltBlock) {
+          steps.push({ from: '', to: '', message: '', blockType: 'else', blockLabel: condText });
+        } else {
+          steps.push({ from: '', to: '', message: '', blockType: 'alt', blockLabel: condText });
+          inAltBlock = true;
+        }
+        line = line.replace(/^if\s+.+?(?:,|\s+then\b|:)\s*/i, '');
+      } else if (/^(?:else\b|if any\s+.+?\bfails?\b|otherwise\b)(?:,|\s+then\b|:|$)/i.test(line)) {
+        const elseText = line.replace(/^(?:else\b|otherwise\b)\s*[:,]?\s*/i, '').trim() || 'Validation fails';
+        steps.push({ from: '', to: '', message: '', blockType: 'else', blockLabel: elseText.slice(0, 60) });
+        inAltBlock = true;
+        line = line.replace(/^(?:else\b|if any\s+.+?\bfails?\b|otherwise\b)\s*[:,]?\s*/i, '');
+      } else if (/^(?:on\s*["']?success["']?|opt\b|when verified)\s*[:,]?\s*/i.test(line)) {
+        if (inAltBlock) {
+          steps.push({ from: '', to: '', message: '', blockType: 'end' });
+          inAltBlock = false;
+        }
+        steps.push({ from: '', to: '', message: '', blockType: 'opt', blockLabel: 'On "Success" Pipeline' });
+        inOptBlock = true;
+        line = line.replace(/^(?:on\s*["']?success["']?|opt\b|when verified)\s*[:,]?\s*/i, '');
+      }
+
+      if (!line || line.length < 5) continue;
+
+      const isReply = /\b(returns?|responds?|acknowledges?|sends?\s*back|delivers?\s*response|confirms?)\b/i.test(line);
+
+      let fromEnt: ParsedEntity | null = null;
+      let toEnt: ParsedEntity | null = null;
+      let msg = line;
+
+      // 5 Canonical Architecture SVO Patterns
+      const dativeMatch = line.match(/^(.+?)\s+(?:(?:validates|verifies|processes)\s+[^.]+?\s+and\s+)?(?:sends?|routes?|pushes?|dispatches?|forwards?|passes?|posts?|transmits?|submits?|publishes?|enters?)\s+(?:.+?\s+)?(?:to|via|through)\s+([A-Z][A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+){0,3})(.*)$/i);
+      const replyMatch = line.match(/^(.+?)\s+(?:returns?|responds?|acknowledges?|confirms?|delivers?)(?:\s+.+?)?\s+to\s+([A-Z][A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+){0,3})(.*)$/i);
+      const fetchMatch = line.match(/^(.+?)\s+(?:fetches?|consumes?|reads?|polls?|retrieves?)\s+(?:.+?\s+)?from\s+([A-Z][A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+){0,3})(.*)$/i);
+      const persistMatch = line.match(/^(.+?)\s+(?:writes?|written|commits?|committed|saves?|saved|inserts?|inserted|updates?|updated|freezes?|frozen|persists?|persisted|issues?|issued|reviews?|reviewed|approves?|approved)\s+(?:.+?\s+)?(?:in|into|to|on)\s+([A-Z][A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+){0,3})(.*)$/i);
+      const directMatch = line.match(/^(.+?)\s+(calls|invokes|queries|notifies|alerts|logs?\s+(?:in|into))\s+(?:the\s+)?([A-Z][A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+){0,3})(.*)$/i);
+      const submitOnMatch = line.match(/^(.+?)\s+submits?(?:\s+.+?)?\s+(?:on|via)\s+([A-Z][A-Za-z0-9_]+(?:\s+[A-Za-z0-9_]+){0,3})(.*)$/i);
+
+      if (replyMatch) {
+        fromEnt = registerEntity(replyMatch[1]);
+        toEnt = registerEntity(replyMatch[2]);
+        msg = line.replace(new RegExp(`^${replyMatch[1].replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+`, 'i'), '');
+      } else if (dativeMatch) {
+        fromEnt = registerEntity(dativeMatch[1]);
+        toEnt = registerEntity(dativeMatch[2]);
+        msg = line.replace(new RegExp(`^${dativeMatch[1].replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+`, 'i'), '');
+      } else if (fetchMatch) {
+        fromEnt = registerEntity(fetchMatch[1]);
+        toEnt = registerEntity(fetchMatch[2]);
+        msg = line.replace(new RegExp(`^${fetchMatch[1].replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+`, 'i'), '');
+      } else if (persistMatch) {
+        fromEnt = registerEntity(persistMatch[1]);
+        toEnt = registerEntity(persistMatch[2]);
+        msg = line.replace(new RegExp(`^${persistMatch[1].replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+`, 'i'), '');
+      } else if (submitOnMatch) {
+        fromEnt = registerEntity(submitOnMatch[1]);
+        toEnt = registerEntity(submitOnMatch[2]);
+        msg = line.replace(new RegExp(`^${submitOnMatch[1].replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s+`, 'i'), '');
+      } else if (directMatch) {
+        fromEnt = registerEntity(directMatch[1]);
+        toEnt = registerEntity(directMatch[3]);
+        msg = `${directMatch[2]} ${directMatch[3]} ${directMatch[4]}`.trim();
+      } else {
+        fromEnt = resolveEntityInText(line.slice(0, 30), lastReceiver || lastSender);
+        toEnt = resolveEntityInText(line.slice(30), null);
+      }
+
+      // Universal Fallback: extract leading capitalized words as fromEnt if still missing
+      if (!fromEnt) {
+        const leadMatch = line.match(/^([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,2})/);
+        if (leadMatch) {
+          fromEnt = registerEntity(leadMatch[1]);
+        }
+      }
+
+      if (!fromEnt) fromEnt = lastReceiver || lastSender || Array.from(entities.values())[0];
+      if (!toEnt) toEnt = isReply ? (lastSender || fromEnt) : (lastReceiver || fromEnt);
+
+      if (fromEnt && toEnt && fromEnt.id === toEnt.id && entities.size > 1) {
+        if (isReply && lastSender && lastSender.id !== fromEnt.id) {
+          toEnt = lastSender;
+        } else if (lastReceiver && lastReceiver.id !== fromEnt.id) {
+          toEnt = lastReceiver;
+        }
+      }
+
+      msg = msg.replace(/[.;]+$/, '').trim();
+      msg = msg.charAt(0).toUpperCase() + msg.slice(1);
+      if (msg.length > 95) msg = msg.slice(0, 92) + '...';
+
+      if (fromEnt && toEnt) {
+        steps.push({
+          from: fromEnt.id,
+          to: toEnt.id,
+          message: msg,
+          isReply
+        });
+        lastSender = fromEnt;
+        lastReceiver = toEnt;
+      }
+    }
+
+    if (inAltBlock) steps.push({ from: '', to: '', message: '', blockType: 'end' });
+    if (inOptBlock) steps.push({ from: '', to: '', message: '', blockType: 'end' });
+
+    const sortedEntities = Array.from(entities.values()).sort((a, b) => a.firstOrder - b.firstOrder);
+    const cleanEntities: ParsedEntity[] = sortedEntities.map(e => ({
+      id: e.id,
+      label: e.label,
+      isActor: e.isActor,
+      type: e.type
+    }));
+
+    const diagram = this.renderMermaid(cleanEntities, steps, isLegacy, docName, scenarioTitle);
+    return {
+      diagram,
+      entities: cleanEntities,
+      steps
+    };
+  }
+
+  /**
+   * Synthesizes topology for a specification document, using dedicated domain pipelines
+   * or the universal SVO architecture engine for greenfield/arbitrary client designs.
+   */
+  private static synthesizeTopologyForSpec(
+    text: string,
+    isLegacy: boolean,
+    docName: string,
+    scenarioTitle?: string
+  ): { diagram: string; entities: ParsedEntity[]; steps: ParsedStep[] } {
+    // 1. Dedicated healthcare visit validation pattern check
+    const isHealthcareFlow = /\bsalesforce\b/i.test(text) && /\bmule(?:soft)?\b/i.test(text) &&
+      (/\bchib\b/i.test(text) || /\bemr\b/i.test(text) || /\bxamplify\b/i.test(text) || /\bvisit\s*id\b/i.test(text));
+
+    if (isHealthcareFlow) {
+      const explicitEntities = this.extractExplicitSystems(text, isLegacy);
+      const steps = this.synthesizeHealthcareVisitValidationSteps(explicitEntities, isLegacy);
+      const diagram = this.renderMermaid(explicitEntities, steps, isLegacy, docName, scenarioTitle);
+      return {
+        entities: explicitEntities,
+        steps,
+        diagram
+      };
+    }
+
+    // 2. Universal SVO Architecture Engine: for any tech, process, or design
+    const universal = this.parseUniversalSvoTopology(text, isLegacy, docName, scenarioTitle);
+    if (universal.entities.length >= 2 && universal.steps.length >= 2) {
+      return universal;
+    }
+
+    // 3. Fallback: Archetype / prose extraction for abstract runbooks or legacy narratives
+    const entities = this.extractEntities(text, isLegacy);
+    const steps = this.extractSteps(text, entities, isLegacy);
+    const diagram = this.renderMermaid(entities, steps, isLegacy, docName, scenarioTitle);
+    return {
+      entities,
+      steps,
+      diagram
+    };
   }
 
   /**
