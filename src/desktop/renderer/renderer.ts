@@ -5974,6 +5974,58 @@ function setupPhase1Discovery(api: any): void {
       return;
     }
 
+    // If the user entered a full requirements specification or numbered process flow,
+    // synthesize directly with high-fidelity domain intelligence without letting Ollama
+    // contaminate the new architecture with the old template participants!
+    if (isRequirementSpec && api?.fde?.parseClientTopologyDoc) {
+      if (diagramStatus) { diagramStatus.textContent = 'Synthesizing topology from requirements...'; diagramStatus.style.color = 'var(--text-secondary)'; }
+      if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
+
+      try {
+        pushDiagramHistory(`Synthesize: ${instruction.slice(0, 30)}`);
+        const parseRes = await api.fde.parseClientTopologyDoc({
+          content: instruction,
+          target: singleMode,
+          docName: 'Instruction Requirements',
+          rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+          reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+        });
+
+        if (parseRes && parseRes.success && (parseRes.futureDiagram || parseRes.legacyDiagram)) {
+          const newDiag = (singleMode === 'future' ? parseRes.futureDiagram : parseRes.legacyDiagram) || '';
+          if (singleMode === 'future') {
+            cachedDiagrams.futureDiagram = newDiag;
+          } else {
+            cachedDiagrams.legacyDiagram = newDiag;
+          }
+
+          if (currentDiagramMode !== singleMode) {
+            setDiagramMode(singleMode);
+          } else {
+            if (topologyContainer) topologyContainer.value = newDiag;
+            paintDiagram();
+            paintCompare();
+            renderArrangePanel();
+          }
+
+          activeTopologyPresetKey = 'custom';
+          activeTopologyPresetName = '📝 Custom Prompt Studio';
+          activeTopologyPresetModified = false;
+          persistDiagramsLocally();
+          markScopeDirty();
+          checkDiagramModification();
+          if (txtInstruction) txtInstruction.value = '';
+          if (diagramStatus) { diagramStatus.textContent = 'Updated'; diagramStatus.style.color = 'var(--success)'; }
+          showToast(`✓ Generated ${singleMode === 'future' ? 'Proposed' : 'Legacy'} workflow (${parseRes.participantCount || 6} systems, ${parseRes.messageCount || 6} steps)!`);
+          return;
+        }
+      } catch (err) {
+        console.warn('Requirements synthesis failed, trying AI edit:', err);
+      } finally {
+        if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = false;
+      }
+    }
+
     if (diagramStatus) { diagramStatus.textContent = 'Asking the model...'; diagramStatus.style.color = 'var(--text-secondary)'; }
     if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
 

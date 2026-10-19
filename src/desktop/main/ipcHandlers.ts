@@ -9010,10 +9010,36 @@ Establish clean staging schema models and compiled rule gates for all determinis
         return { success: false, error: 'There is no diagram to edit yet. Generate one first.', diagram: current };
       }
 
-      // Check if user provided a comprehensive requirement / spec text
-      const isComplexRequirement = instruction.length > 100 || 
-        instruction.includes('\n') || 
-        /\b(requirement|requirements|architecture|spec|flow|process|system|service|database|api|user|step|portal|gateway|queue|table|workflow|steps)\b/i.test(instruction);
+      // Check if user provided a comprehensive requirement / spec text or standalone multi-step workflow
+      const isNumberedSpec = /^\s*(?:\d+[\.\)]|step\s*\d+|process\s*\d+)\s+/im.test(instruction);
+      const hasEnterpriseSystems = /\b(salesforce|mulesoft|mule|chib|emr|xamplify|sap|servicenow|kafka|apigee|kong|oracle|postgres|snowflake)\b/i.test(instruction);
+      const isComplexRequirement = instruction.length > 70 && (isNumberedSpec || hasEnterpriseSystems || instruction.includes('\n'));
+
+      // If this is a standalone requirements specification or multi-step architecture description:
+      // Synthesize directly using ClientTopologyParser! This completely eliminates hallucinated
+      // template entities and ensures exact enterprise-grade topology fidelity.
+      if (isComplexRequirement) {
+        try {
+          const parseRes = ClientTopologyParser.parse({
+            content: instruction,
+            target: mode,
+            docName: 'User Requirement Specification',
+            rawAsk: instruction
+          });
+          const diag = mode === 'legacy' ? parseRes.legacyDiagram : parseRes.futureDiagram;
+          if (parseRes.success && diag && diag.trim() && parseRes.participantCount >= 2) {
+            return {
+              success: true,
+              diagram: diag,
+              participants: parseRes.participantCount,
+              messages: parseRes.messageCount,
+              synthesizedBy: 'requirements_engine'
+            };
+          }
+        } catch (err: any) {
+          console.warn('[AI_EDIT_TOPOLOGY] Requirements parser error:', err?.message || err);
+        }
+      }
 
       const system = [
         'You are an expert solutions architect editing a Mermaid sequenceDiagram.',
