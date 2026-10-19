@@ -5743,12 +5743,57 @@ function setupPhase1Discovery(api: any): void {
     const targetMode = (selInstructionTarget?.value || 'auto') as 'auto' | 'future' | 'legacy' | 'both';
     const effectiveMode: 'future' | 'legacy' | 'both' = targetMode === 'auto' ? currentDiagramMode : targetMode;
 
-    if (!api?.fde?.aiEditTopology) { showToast('Diagram editing is unavailable in this build.'); return; }
+    if (!api?.fde?.aiEditTopology && !api?.fde?.parseClientTopologyDoc) {
+      showToast('Diagram editing is unavailable in this build.');
+      return;
+    }
+
+    const isRequirementSpec = instruction.length >= 35 || instruction.includes('\n') ||
+      instruction.toLowerCase().includes('requirement') || instruction.toLowerCase().includes('workflow') ||
+      instruction.toLowerCase().includes('process') || instruction.toLowerCase().includes('step ');
 
     if (effectiveMode === 'both') {
       const curFuture = cachedDiagrams.futureDiagram || '';
       const curLegacy = cachedDiagrams.legacyDiagram || '';
+
       if (!curFuture.trim() && !curLegacy.trim()) {
+        if (api?.fde?.parseClientTopologyDoc) {
+          if (diagramStatus) { diagramStatus.textContent = 'Synthesizing workflows from requirements...'; diagramStatus.style.color = 'var(--text-secondary)'; }
+          if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
+
+          try {
+            pushDiagramHistory(`Synthesize Both: ${instruction.slice(0, 30)}`);
+            const res = await api.fde.parseClientTopologyDoc({
+              content: instruction,
+              target: 'both',
+              docName: 'Instruction Requirements',
+              rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+              reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+            });
+
+            if (res && res.success) {
+              if (res.futureDiagram) cachedDiagrams.futureDiagram = res.futureDiagram;
+              if (res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
+              if (topologyContainer) {
+                topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+              }
+              persistDiagramsLocally();
+              paintDiagram();
+              paintCompare();
+              renderArrangePanel();
+              markScopeDirty();
+              checkDiagramModification();
+              if (txtInstruction) txtInstruction.value = '';
+              if (diagramStatus) { diagramStatus.textContent = 'Updated both'; diagramStatus.style.color = 'var(--success)'; }
+              showToast(`✓ Synthesized Proposed & Legacy workflows (${res.participantCount || 6} systems, ${res.messageCount || 6} steps)!`);
+              return;
+            }
+          } catch (err) {
+            console.warn('Dual synthesis from instructions failed:', err);
+          } finally {
+            if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = false;
+          }
+        }
         showToast('Generate or select a diagram before applying changes.');
         return;
       }
@@ -5775,6 +5820,34 @@ function setupPhase1Discovery(api: any): void {
         }
 
         if (!anySuccess) {
+          // If both AI edits failed, try ClientTopologyParser fallback for large requirements
+          if (isRequirementSpec && api?.fde?.parseClientTopologyDoc) {
+            const fallbackRes = await api.fde.parseClientTopologyDoc({
+              content: instruction,
+              target: 'both',
+              docName: 'Instruction Requirements',
+              rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+              reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+            });
+            if (fallbackRes && fallbackRes.success) {
+              if (fallbackRes.futureDiagram) cachedDiagrams.futureDiagram = fallbackRes.futureDiagram;
+              if (fallbackRes.legacyDiagram) cachedDiagrams.legacyDiagram = fallbackRes.legacyDiagram;
+              if (topologyContainer) {
+                topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+              }
+              persistDiagramsLocally();
+              paintDiagram();
+              paintCompare();
+              renderArrangePanel();
+              markScopeDirty();
+              checkDiagramModification();
+              if (txtInstruction) txtInstruction.value = '';
+              if (diagramStatus) { diagramStatus.textContent = 'Updated both'; diagramStatus.style.color = 'var(--success)'; }
+              showToast('Both Proposed and Legacy workflows updated from requirements.');
+              return;
+            }
+          }
+
           if (diagramStatus) { diagramStatus.textContent = 'Unchanged'; diagramStatus.style.color = 'var(--warn)'; }
           showToast((resFuture?.error || resLegacy?.error) || 'The diagrams could not be edited.');
           return;
@@ -5811,7 +5884,49 @@ function setupPhase1Discovery(api: any): void {
       : (cachedDiagrams.legacyDiagram || topologyContainer?.value || '');
 
     if (!targetDiagram.trim()) {
-      showToast(`No ${singleMode === 'future' ? 'proposed' : 'current legacy'} diagram available to edit. Generate one first.`);
+      if (api?.fde?.parseClientTopologyDoc) {
+        if (diagramStatus) { diagramStatus.textContent = `Synthesizing ${singleMode} workflow...`; diagramStatus.style.color = 'var(--text-secondary)'; }
+        if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = true;
+
+        try {
+          pushDiagramHistory(`Synthesize ${singleMode}: ${instruction.slice(0, 30)}`);
+          const res = await api.fde.parseClientTopologyDoc({
+            content: instruction,
+            target: singleMode,
+            docName: 'Instruction Requirements',
+            rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+            reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+          });
+
+          if (res && res.success) {
+            if (singleMode === 'future' && res.futureDiagram) cachedDiagrams.futureDiagram = res.futureDiagram;
+            if (singleMode === 'legacy' && res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
+
+            if (currentDiagramMode !== singleMode) {
+              setDiagramMode(singleMode);
+            } else {
+              if (topologyContainer) topologyContainer.value = (singleMode === 'future' ? res.futureDiagram : res.legacyDiagram) || '';
+              paintDiagram();
+              paintCompare();
+              renderArrangePanel();
+            }
+
+            persistDiagramsLocally();
+            markScopeDirty();
+            checkDiagramModification();
+            if (txtInstruction) txtInstruction.value = '';
+            if (diagramStatus) { diagramStatus.textContent = 'Updated'; diagramStatus.style.color = 'var(--success)'; }
+            showToast(`✓ Generated ${singleMode === 'future' ? 'Proposed' : 'Legacy'} workflow (${res.participantCount || 6} systems, ${res.messageCount || 6} steps)!`);
+            return;
+          }
+        } catch (err) {
+          console.warn('Single synthesis from instructions failed:', err);
+        } finally {
+          if (btnAskDiagram) (btnAskDiagram as HTMLButtonElement).disabled = false;
+        }
+      }
+
+      showToast(`No ${singleMode === 'future' ? 'proposed' : 'current legacy'} diagram available to edit. Enter requirements or generate one first.`);
       return;
     }
 
@@ -5824,6 +5939,39 @@ function setupPhase1Discovery(api: any): void {
       const res = await api.fde.aiEditTopology({ instruction, diagram: targetDiagram, mode: singleMode });
 
       if (!res || !res.success) {
+        // Fallback for large requirements instructions
+        if (isRequirementSpec && api?.fde?.parseClientTopologyDoc) {
+          const fallbackRes = await api.fde.parseClientTopologyDoc({
+            content: instruction,
+            target: singleMode,
+            docName: 'Instruction Requirements',
+            rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+            reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+          });
+
+          if (fallbackRes && fallbackRes.success) {
+            if (singleMode === 'future' && fallbackRes.futureDiagram) cachedDiagrams.futureDiagram = fallbackRes.futureDiagram;
+            if (singleMode === 'legacy' && fallbackRes.legacyDiagram) cachedDiagrams.legacyDiagram = fallbackRes.legacyDiagram;
+
+            if (currentDiagramMode !== singleMode) {
+              setDiagramMode(singleMode);
+            } else {
+              if (topologyContainer) topologyContainer.value = (singleMode === 'future' ? fallbackRes.futureDiagram : fallbackRes.legacyDiagram) || '';
+              paintDiagram();
+              paintCompare();
+              renderArrangePanel();
+            }
+
+            persistDiagramsLocally();
+            markScopeDirty();
+            checkDiagramModification();
+            if (txtInstruction) txtInstruction.value = '';
+            if (diagramStatus) { diagramStatus.textContent = 'Updated'; diagramStatus.style.color = 'var(--success)'; }
+            showToast(`✓ Updated ${singleMode === 'future' ? 'Proposed AI workflow' : 'Legacy workflow'} from requirements!`);
+            return;
+          }
+        }
+
         if (diagramStatus) { diagramStatus.textContent = 'Unchanged'; diagramStatus.style.color = 'var(--warn)'; }
         showToast((res && res.error) || 'The diagram could not be edited.');
         return;
@@ -7928,6 +8076,464 @@ Final transactions written to Oracle RAC with signed cryptographic hash receipt.
     } catch (err: any) {
       if (lblImportStatus) lblImportStatus.textContent = `❌ Error: ${err.message}`;
       showToast(`⚠️ Error importing architecture: ${err.message}`);
+    }
+  });
+
+  // --- BROWSE / UPLOAD DOCUMENT IN CLIENT ARCHITECTURE MODAL ---
+  const btnModalBrowseDoc = document.getElementById('btnFdeModalBrowseDoc');
+  const fileModalDocUpload = document.getElementById('fileFdeModalDocUpload') as HTMLInputElement | null;
+
+  btnModalBrowseDoc?.addEventListener('click', () => {
+    fileModalDocUpload?.click();
+  });
+
+  fileModalDocUpload?.addEventListener('change', async () => {
+    const file = fileModalDocUpload?.files?.[0];
+    if (!file) return;
+
+    if (lblImportStatus) {
+      lblImportStatus.textContent = `Reading and extracting ${file.name}...`;
+      lblImportStatus.style.color = 'var(--text-secondary)';
+    }
+
+    try {
+      let fileBufferBase64: string | undefined;
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const len = bytes.byteLength;
+      const CHUNK = 8192;
+      for (let i = 0; i < len; i += CHUNK) {
+        const sub = bytes.subarray(i, Math.min(i + CHUNK, len));
+        for (let j = 0; j < sub.length; j++) {
+          binary += String.fromCharCode(sub[j]);
+        }
+      }
+      fileBufferBase64 = btoa(binary);
+
+      if (api?.fde?.ingestRequirementsFile) {
+        const res = await api.fde.ingestRequirementsFile({
+          filePath: (file as any).path || undefined,
+          fileBufferBase64,
+          fileName: file.name
+        });
+
+        if (res && res.success && res.extractedText) {
+          if (txtClientDocContent) txtClientDocContent.value = res.extractedText;
+          if (txtClientDocName) txtClientDocName.value = file.name;
+          if (lblImportStatus) {
+            lblImportStatus.textContent = `✓ Loaded ${file.name} (${res.wordCount || 0} words, ${(res.format || 'doc').toUpperCase()})`;
+            lblImportStatus.style.color = 'var(--success)';
+          }
+          showToast(`✓ Extracted requirements from ${file.name} (${res.wordCount || 0} words)`);
+          return;
+        }
+      }
+
+      // Plain text fallback
+      const text = await file.text();
+      if (txtClientDocContent) txtClientDocContent.value = text;
+      if (txtClientDocName) txtClientDocName.value = file.name;
+      if (lblImportStatus) {
+        lblImportStatus.textContent = `✓ Loaded ${file.name}`;
+        lblImportStatus.style.color = 'var(--success)';
+      }
+      showToast(`✓ Loaded ${file.name}`);
+    } catch (err: any) {
+      if (lblImportStatus) {
+        lblImportStatus.textContent = `❌ Error reading file: ${err.message}`;
+        lblImportStatus.style.color = 'var(--warn)';
+      }
+      showToast(`⚠️ Could not read ${file.name}: ${err.message}`);
+    } finally {
+      if (fileModalDocUpload) fileModalDocUpload.value = '';
+    }
+  });
+
+  // --- REQUIREMENTS DOCUMENT UPLOAD & TOPOLOGY SYNTHESIS MODAL ---
+  const btnUploadReqDoc = document.getElementById('btnFdeUploadReqDoc');
+  const fileReqDocUpload = document.getElementById('fileFdeReqDocUpload') as HTMLInputElement | null;
+  const modalReqDocPreview = document.getElementById('modalFdeReqDocPreview');
+  const btnCloseReqDocModal = document.getElementById('btnFdeCloseReqDocModal');
+  const btnCancelReqDocModal = document.getElementById('btnFdeCancelReqDocModal');
+  const btnSubmitReqDocModal = document.getElementById('btnFdeSubmitReqDocModal');
+  const lblReqDocFileName = document.getElementById('fdeReqDocPreviewFileName');
+  const lblReqDocFormatTag = document.getElementById('fdeReqDocPreviewFormatTag');
+  const lblReqDocCharCount = document.getElementById('fdeReqDocPreviewCharCount');
+  const lblReqDocWordCount = document.getElementById('fdeReqDocPreviewWordCount');
+  const txtReqDocContent = document.getElementById('txtFdeReqDocExtractedContent') as HTMLTextAreaElement | null;
+  const lblReqDocStatus = document.getElementById('fdeReqDocModalStatus');
+
+  let pendingDocFileName = '';
+
+  const openReqDocModal = () => {
+    if (modalReqDocPreview) {
+      modalReqDocPreview.hidden = false;
+      modalReqDocPreview.style.display = 'flex';
+      setTimeout(() => txtReqDocContent?.focus(), 50);
+    }
+  };
+
+  const closeReqDocModal = () => {
+    if (modalReqDocPreview) {
+      modalReqDocPreview.hidden = true;
+      modalReqDocPreview.style.display = 'none';
+    }
+    if (fileReqDocUpload) fileReqDocUpload.value = '';
+  };
+
+  btnCloseReqDocModal?.addEventListener('click', closeReqDocModal);
+  btnCancelReqDocModal?.addEventListener('click', closeReqDocModal);
+  modalReqDocPreview?.addEventListener('click', (e) => {
+    if (e.target === modalReqDocPreview) closeReqDocModal();
+  });
+
+  btnUploadReqDoc?.addEventListener('click', () => {
+    fileReqDocUpload?.click();
+  });
+
+  const handleRequirementsDocFile = async (file: File) => {
+    if (!file) return;
+    const fileName = file.name;
+    const filePath = (file as any).path || undefined;
+
+    openReqDocModal();
+    if (lblReqDocFileName) lblReqDocFileName.textContent = fileName;
+    if (lblReqDocStatus) {
+      lblReqDocStatus.textContent = 'Extracting requirements document content...';
+      lblReqDocStatus.style.color = 'var(--text-secondary)';
+    }
+    if (txtReqDocContent) txtReqDocContent.value = 'Reading document and extracting text...';
+
+    try {
+      let fileBufferBase64: string | undefined;
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      const len = bytes.byteLength;
+      const CHUNK = 8192;
+      for (let i = 0; i < len; i += CHUNK) {
+        const sub = bytes.subarray(i, Math.min(i + CHUNK, len));
+        for (let j = 0; j < sub.length; j++) {
+          binary += String.fromCharCode(sub[j]);
+        }
+      }
+      fileBufferBase64 = btoa(binary);
+
+      if (api?.fde?.ingestRequirementsFile) {
+        const res = await api.fde.ingestRequirementsFile({
+          filePath,
+          fileBufferBase64,
+          fileName,
+          target: 'both',
+          rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+          reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+        });
+
+        if (res && res.success && res.extractedText) {
+          pendingDocFileName = fileName;
+          if (lblReqDocFormatTag) lblReqDocFormatTag.textContent = (res.format || 'DOC').toUpperCase();
+          if (lblReqDocCharCount) lblReqDocCharCount.textContent = (res.charCount || res.extractedText.length).toLocaleString();
+          if (lblReqDocWordCount) lblReqDocWordCount.textContent = (res.wordCount || 0).toLocaleString();
+          if (txtReqDocContent) txtReqDocContent.value = res.extractedText;
+          if (lblReqDocStatus) {
+            lblReqDocStatus.textContent = `✓ Extracted ${res.wordCount || 0} words. Review content and click "Build Topology".`;
+            lblReqDocStatus.style.color = 'var(--success)';
+          }
+          showToast(`✓ Extracted ${res.wordCount || 0} words from ${fileName}`);
+          return;
+        } else if (res && !res.success) {
+          if (lblReqDocStatus) {
+            lblReqDocStatus.textContent = `❌ ${res.error || 'Failed to extract text.'}`;
+            lblReqDocStatus.style.color = 'var(--warn)';
+          }
+          showToast(`⚠️ Could not extract requirements: ${res?.error || 'Unknown error'}`);
+          return;
+        }
+      }
+
+      // Plain text fallback
+      const text = await file.text();
+      pendingDocFileName = fileName;
+      if (lblReqDocFormatTag) lblReqDocFormatTag.textContent = 'TEXT';
+      if (lblReqDocCharCount) lblReqDocCharCount.textContent = text.length.toLocaleString();
+      if (lblReqDocWordCount) lblReqDocWordCount.textContent = text.split(/\s+/).filter(Boolean).length.toLocaleString();
+      if (txtReqDocContent) txtReqDocContent.value = text;
+      if (lblReqDocStatus) {
+        lblReqDocStatus.textContent = '✓ Ready to synthesize. Review content and click "Build Topology".';
+        lblReqDocStatus.style.color = 'var(--success)';
+      }
+    } catch (err: any) {
+      console.error('File extraction error:', err);
+      if (lblReqDocStatus) {
+        lblReqDocStatus.textContent = `❌ Error reading file: ${err.message}`;
+        lblReqDocStatus.style.color = 'var(--warn)';
+      }
+      showToast(`⚠️ Error reading file: ${err.message}`);
+    }
+  };
+
+  fileReqDocUpload?.addEventListener('change', async () => {
+    const file = fileReqDocUpload?.files?.[0];
+    if (file) {
+      await handleRequirementsDocFile(file);
+    }
+  });
+
+  // Drag and drop requirements file onto canvas
+  const dropOverlay = document.getElementById('fdeTopologyDropOverlay');
+  const renderedPaneEl = document.getElementById('fdeTopologyRendered');
+
+  let dragCounter = 0;
+
+  renderedPaneEl?.addEventListener('dragenter', (e: DragEvent) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dropOverlay) {
+      dropOverlay.hidden = false;
+      dropOverlay.style.display = 'flex';
+    }
+  });
+
+  renderedPaneEl?.addEventListener('dragover', (e: DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    if (dropOverlay) {
+      dropOverlay.hidden = false;
+      dropOverlay.style.display = 'flex';
+    }
+  });
+
+  renderedPaneEl?.addEventListener('dragleave', (e: DragEvent) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      if (dropOverlay) {
+        dropOverlay.hidden = true;
+        dropOverlay.style.display = 'none';
+      }
+    }
+  });
+
+  renderedPaneEl?.addEventListener('drop', async (e: DragEvent) => {
+    e.preventDefault();
+    dragCounter = 0;
+    if (dropOverlay) {
+      dropOverlay.hidden = true;
+      dropOverlay.style.display = 'none';
+    }
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      await handleRequirementsDocFile(files[0]);
+    }
+  });
+
+  btnSubmitReqDocModal?.addEventListener('click', async () => {
+    const content = (txtReqDocContent?.value || '').trim();
+    if (!content) {
+      showToast('⚠️ No requirements content to synthesize.');
+      txtReqDocContent?.focus();
+      return;
+    }
+
+    const radFuture = document.getElementById('radFdeReqDocTargetFuture') as HTMLInputElement | null;
+    const radLegacy = document.getElementById('radFdeReqDocTargetLegacy') as HTMLInputElement | null;
+    const target: 'future' | 'legacy' | 'both' = radLegacy?.checked ? 'legacy' : (radFuture?.checked ? 'future' : 'both');
+    const docName = pendingDocFileName || 'Requirements Document';
+
+    if (lblReqDocStatus) {
+      lblReqDocStatus.textContent = 'Building topology from requirements...';
+      lblReqDocStatus.style.color = 'var(--text-secondary)';
+    }
+
+    try {
+      if (!api?.fde?.parseClientTopologyDoc) {
+        showToast('⚠️ Topology builder unavailable in this build.');
+        return;
+      }
+
+      const res = await api.fde.parseClientTopologyDoc({
+        content,
+        target,
+        docName,
+        rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+        reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+      });
+
+      if (!res || !res.success) {
+        if (lblReqDocStatus) {
+          lblReqDocStatus.textContent = `❌ ${res?.error || 'Failed to synthesize topology.'}`;
+          lblReqDocStatus.style.color = 'var(--warn)';
+        }
+        showToast(`⚠️ Error synthesizing topology: ${res?.error || 'Failed'}`);
+        return;
+      }
+
+      pushDiagramHistory(`Ingest Doc: ${docName}`);
+
+      if (res.futureDiagram) cachedDiagrams.futureDiagram = res.futureDiagram;
+      if (res.legacyDiagram) cachedDiagrams.legacyDiagram = res.legacyDiagram;
+
+      if (target === 'legacy') {
+        setDiagramMode('legacy');
+      } else {
+        setDiagramMode('future');
+      }
+
+      if (topologyContainer) {
+        topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+      }
+
+      activeTopologyPresetKey = 'custom';
+      activeTopologyPresetName = `📄 Req Doc: ${docName}`;
+      activeTopologyPresetModified = false;
+      persistDiagramsLocally();
+      paintDiagram();
+      fitToView();
+      paintCompare();
+      updateActiveTemplateUI();
+      closeReqDocModal();
+
+      showToast(`✓ Generated workflow topology from "${docName}" (${res.participantCount || 6} systems, ${res.messageCount || 6} steps)!`);
+    } catch (err: any) {
+      if (lblReqDocStatus) {
+        lblReqDocStatus.textContent = `❌ Error: ${err.message}`;
+        lblReqDocStatus.style.color = 'var(--warn)';
+      }
+      showToast(`⚠️ Error building topology: ${err.message}`);
+    }
+  });
+
+  // --- MULTILINE REQUIREMENTS & PROMPT STUDIO MODAL ---
+  const btnExpandInstruction = document.getElementById('btnFdeExpandInstruction');
+  const modalExpandInstruction = document.getElementById('modalFdeExpandInstruction');
+  const btnCloseExpandInstruction = document.getElementById('btnFdeCloseExpandInstruction');
+  const btnCancelExpandInstruction = document.getElementById('btnFdeCancelExpandInstruction');
+  const btnSubmitExpandInstruction = document.getElementById('btnFdeSubmitExpandInstruction');
+  const selModalInstructionTarget = document.getElementById('selFdeModalInstructionTarget') as HTMLSelectElement | null;
+  const txtModalFullInstruction = document.getElementById('txtFdeModalFullInstruction') as HTMLTextAreaElement | null;
+  const lblModalCharCount = document.getElementById('lblFdeModalCharCount');
+  const lblModalStatus = document.getElementById('fdeModalInstructionStatus');
+
+  const openExpandInstructionModal = () => {
+    if (modalExpandInstruction) {
+      modalExpandInstruction.hidden = false;
+      modalExpandInstruction.style.display = 'flex';
+      if (txtModalFullInstruction) {
+        if (!txtModalFullInstruction.value && txtInstruction?.value) {
+          txtModalFullInstruction.value = txtInstruction.value;
+        }
+        if (lblModalCharCount) {
+          lblModalCharCount.textContent = (txtModalFullInstruction.value.length).toLocaleString();
+        }
+        setTimeout(() => txtModalFullInstruction.focus(), 50);
+      }
+      if (selModalInstructionTarget && selInstructionTarget) {
+        selModalInstructionTarget.value = selInstructionTarget.value === 'auto' ? currentDiagramMode : selInstructionTarget.value;
+      }
+      if (lblModalStatus) {
+        lblModalStatus.textContent = 'Enter instructions or paste requirements.';
+        lblModalStatus.style.color = 'var(--text-secondary)';
+      }
+    }
+  };
+
+  const closeExpandInstructionModal = () => {
+    if (modalExpandInstruction) {
+      modalExpandInstruction.hidden = true;
+      modalExpandInstruction.style.display = 'none';
+    }
+  };
+
+  btnExpandInstruction?.addEventListener('click', openExpandInstructionModal);
+  btnCloseExpandInstruction?.addEventListener('click', closeExpandInstructionModal);
+  btnCancelExpandInstruction?.addEventListener('click', closeExpandInstructionModal);
+  modalExpandInstruction?.addEventListener('click', (e) => {
+    if (e.target === modalExpandInstruction) closeExpandInstructionModal();
+  });
+
+  txtModalFullInstruction?.addEventListener('input', () => {
+    if (lblModalCharCount && txtModalFullInstruction) {
+      lblModalCharCount.textContent = (txtModalFullInstruction.value.length).toLocaleString();
+    }
+  });
+
+  btnSubmitExpandInstruction?.addEventListener('click', async () => {
+    const fullText = (txtModalFullInstruction?.value || '').trim();
+    if (!fullText) {
+      showToast('⚠️ Please enter instructions or requirements.');
+      txtModalFullInstruction?.focus();
+      return;
+    }
+
+    const targetMode = (selModalInstructionTarget?.value || 'future') as 'future' | 'legacy' | 'both';
+
+    if (lblModalStatus) {
+      lblModalStatus.textContent = 'Synthesizing sequence topology from instructions...';
+      lblModalStatus.style.color = 'var(--text-secondary)';
+    }
+
+    try {
+      if (api?.fde?.parseClientTopologyDoc) {
+        const parseRes = await api.fde.parseClientTopologyDoc({
+          content: fullText,
+          target: targetMode,
+          docName: 'Prompt Studio Spec',
+          rawAsk: (document.getElementById('txtFdeRawAsk') as HTMLInputElement | null)?.value,
+          reframedGoal: (document.getElementById('txtFdeReframed') as HTMLInputElement | null)?.value
+        });
+
+        if (parseRes && parseRes.success) {
+          pushDiagramHistory(`Studio Spec (${targetMode}): ${fullText.slice(0, 30)}`);
+
+          if (parseRes.futureDiagram) cachedDiagrams.futureDiagram = parseRes.futureDiagram;
+          if (parseRes.legacyDiagram) cachedDiagrams.legacyDiagram = parseRes.legacyDiagram;
+
+          if (targetMode === 'legacy') {
+            setDiagramMode('legacy');
+          } else {
+            setDiagramMode('future');
+          }
+
+          if (topologyContainer) {
+            topologyContainer.value = (currentDiagramMode === 'future' ? cachedDiagrams.futureDiagram : cachedDiagrams.legacyDiagram) || '';
+          }
+
+          if (txtInstruction) {
+            txtInstruction.value = fullText.length > 80 ? fullText.slice(0, 77) + '...' : fullText;
+          }
+
+          activeTopologyPresetKey = 'custom';
+          activeTopologyPresetName = '📝 Custom Prompt Studio';
+          activeTopologyPresetModified = false;
+          persistDiagramsLocally();
+          paintDiagram();
+          fitToView();
+          paintCompare();
+          renderArrangePanel();
+          markScopeDirty();
+          checkDiagramModification();
+          closeExpandInstructionModal();
+
+          showToast(`✓ Generated workflow topology (${parseRes.participantCount || 6} systems, ${parseRes.messageCount || 6} steps)!`);
+          return;
+        }
+      }
+
+      // Fallback: put in txtInstruction and call applyDiagramEdit
+      if (txtInstruction) txtInstruction.value = fullText;
+      if (selInstructionTarget) selInstructionTarget.value = targetMode;
+      closeExpandInstructionModal();
+      await applyDiagramEdit();
+    } catch (err: any) {
+      if (lblModalStatus) {
+        lblModalStatus.textContent = `❌ Error: ${err.message}`;
+        lblModalStatus.style.color = 'var(--warn)';
+      }
+      showToast(`⚠️ Error processing instructions: ${err.message}`);
     }
   });
 

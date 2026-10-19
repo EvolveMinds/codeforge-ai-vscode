@@ -24,6 +24,9 @@ win:
     - target: portable
       arch:
         - x64
+    - target: appx
+      arch:
+        - x64
   icon: media/icon-512.png
   artifactName: "evolve-ai-enterprise-${version}-${target}-${arch}.${ext}"
 
@@ -36,6 +39,16 @@ nsis:
 
 portable:
   artifactName: "evolve-ai-enterprise-portable-${version}-win32-x64.exe"
+
+appx:
+  applicationId: EvolveAIEnterpriseStudio
+  identityName: EvolveMindSolutions.EvolveAI
+  # Replace with exact Publisher ID from Microsoft Partner Center (e.g. CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX)
+  publisher: "CN=EvolveMindSolutions"
+  publisherDisplayName: "Evolve Mind Solutions Pty Ltd"
+  backgroundColor: "#1e1e1e"
+  artifactName: "evolve-ai-enterprise-${version}-msstore-${arch}.${ext}"
+  showNameOnTiles: true
 
 mac:
   target:

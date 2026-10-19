@@ -193,6 +193,7 @@ export const DESKTOP_CHANNELS = {
     AI_GENERATE_TOPOLOGY: 'evolve:fde:ai-generate-topology',
     AI_EDIT_TOPOLOGY: 'evolve:fde:ai-edit-topology',
     PARSE_CLIENT_TOPOLOGY_DOC: 'evolve:fde:parse-client-topology-doc',
+    INGEST_REQUIREMENTS_FILE: 'evolve:fde:ingest-requirements-file',
     PREVIEW_DISCOVERY: 'evolve:fde:preview-discovery',
     REVEAL_PATH: 'evolve:fde:reveal-path',
     OPEN_PATH: 'evolve:fde:open-path',

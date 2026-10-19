@@ -159,15 +159,14 @@ than like a policy decision.
 
 | Option | Cost | Clears SmartScreen | Notes |
 |---|---|---|---|
+| **Microsoft Store (MSIX / .appx)** | **$0 / yr** (One-off ~$99 USD Partner Center registration) | **Immediately** | **Recommended.** Ingested via Partner Center; Microsoft signs the binary with their official root certificate. Zero ongoing CA costs, zero SmartScreen prompt, automated updates. |
 | **Azure Trusted Signing** | ~US$9.99/mo (~A$180/yr) | Yes | No hardware token. **Requires the business to be 3+ years old** — check the ABN registration date first, as this is much the cheapest route if we qualify. |
 | **EV certificate** | ~A$600–1,200/yr | Immediately | Hardware token required |
 | **OV certificate** | ~A$300–600/yr | After reputation builds (weeks) | Hardware token required |
 | Self-signed | Free | **No** | Windows does not trust the issuer, so SmartScreen and allow-listing still block it. Arguably worse than unsigned: it looks solved and stops anyone revisiting it. |
 | SignPath Foundation | Free | Yes | **Open-source projects only** — the Enterprise Edition is proprietary, so we do not qualify. |
 
-There is no free option that clears SmartScreen for proprietary commercial
-software. All certificates have required hardware key storage since June 2023,
-so there is a physical cost floor regardless of CA.
+For direct standalone `.exe` downloads outside the Store, there is no free option that clears SmartScreen. All external certificates require hardware key storage or identity age thresholds. However, publishing to the **Microsoft Store (MSIX)** provides an official, zero-certificate-cost distribution channel where Microsoft provides root cryptographic trust.
 
 ### Interim mitigations (free, and worth doing regardless)
 
@@ -175,17 +174,16 @@ so there is a physical cost floor regardless of CA.
    in the GitHub release body, so a security-conscious client can verify the
    binary is exactly what we built. This is the honest substitute for a
    signature and matches the posture we already sell.
-2. **Document the first-launch SmartScreen prompt** on the download page. A
-   warning we predicted reads as professionalism; an unexpected one reads as
-   malware.
+2. **Document the first-launch SmartScreen prompt** on the download page and point
+   users to the **Microsoft Store** version if they wish to bypass warnings entirely.
 3. **Submit the EXE to Microsoft** via the Defender submission portal as a
    false positive. Reduces AV quarantining; does not clear SmartScreen.
 
 ### Next action
 
-Check when Evolve Mind Solutions Pty Ltd was registered. 3+ years → pursue
-Azure Trusted Signing and stop looking. Under 3 years → plan for an OV/EV
-certificate and rely on the mitigations above meanwhile.
+1. Register Evolve Mind Solutions Pty Ltd on Microsoft Partner Center (~$99 USD one-time).
+2. Build the MSIX package (`npm run desktop:build:appx`) and submit to the Store.
+3. Include the "Get on Microsoft Store" option and the SmartScreen explanatory note on the download page.
 
 ---
 

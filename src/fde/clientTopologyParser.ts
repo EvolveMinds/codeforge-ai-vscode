@@ -372,16 +372,33 @@ export class ClientTopologyParser {
 
     // 1. Primary Actor / User
     let actorLabel = 'Business User / Operator';
-    if (lower.includes('customer') || lower.includes('borrower') || lower.includes('policyholder')) {
+    let actorId = 'User';
+    if (lower.includes('borrower')) {
+      actorLabel = 'Borrower / Applicant';
+      actorId = 'Borrower';
+    } else if (lower.includes('customer') || lower.includes('client') || lower.includes('consumer')) {
       actorLabel = 'Customer / End User';
+      actorId = 'Customer';
+    } else if (lower.includes('policyholder')) {
+      actorLabel = 'Policyholder / Claimant';
+      actorId = 'Policyholder';
+    } else if (lower.includes('broker')) {
+      actorLabel = 'Commercial Broker';
+      actorId = 'Broker';
     } else if (lower.includes('clinician') || lower.includes('physician') || lower.includes('doctor')) {
       actorLabel = 'Clinical Provider / Physician';
+      actorId = 'Clinician';
+    } else if (lower.includes('patient')) {
+      actorLabel = 'Patient / Member';
+      actorId = 'Patient';
     } else if (lower.includes('trader') || lower.includes('analyst')) {
       actorLabel = 'Financial Analyst / Trader';
+      actorId = 'Trader';
     } else if (lower.includes('support agent') || lower.includes('tier-1') || lower.includes('csr')) {
       actorLabel = 'Support Operator / CSR';
+      actorId = 'Support';
     }
-    entities.set('User', { id: 'User', label: actorLabel, isActor: true, type: 'actor' });
+    entities.set(actorId, { id: actorId, label: actorLabel, isActor: true, type: 'actor' });
 
     // 2. Ingress / Gateway / Portal
     if (isLegacy) {
@@ -441,9 +458,41 @@ export class ClientTopologyParser {
     }
     entities.set('DB', { id: 'DB', label: dbLabel, isActor: false, type: 'database' });
 
-    // 6. Human in the Loop (HITL) Supervisor
+    // 6. Human in the Loop (HITL) Supervisor (Always present in Future state)
     if (!isLegacy) {
       entities.set('Supervisor', { id: 'Supervisor', label: 'Human-in-the-Loop (HITL) Review Gate', isActor: true, type: 'gate' });
+    }
+
+    // 7. Dynamic Domain Services & Components Extraction from text
+    // Matches patterns like "Fraud Detection Service", "Payment Gateway", "Stripe API", "Order Engine", "Inventory DB"
+    const servicePatterns = [
+      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,2}\s+(?:API|Gateway|Service|Server|Microservice|Engine|Worker|Portal|App|Application|Client|Front[eE]nd|Back[eE]nd|Router|Validator|Platform|Hub|Vault))\b/g,
+      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,1}\s+(?:Queue|Topic|Bus|Broker|Stream|Mesh))\b/g,
+      /\b([A-Z][A-Za-z0-9_]+(?:\s+[A-Z][A-Za-z0-9_]+){0,1}\s+(?:Database|DB|Warehouse|Store|Cache|Catalog))\b/g
+    ];
+
+    let dynamicCount = 0;
+    for (const pat of servicePatterns) {
+      let m: RegExpExecArray | null;
+      while ((m = pat.exec(text)) !== null && dynamicCount < 4) {
+        const name = m[1].trim();
+        // Ignore generic common phrases or already matched names
+        if (/^(The|This|Each|Every|All|Some|A|An|Our|Their|Current|Future|Proposed)\s+/i.test(name)) continue;
+        if (/^(Step|Phase|Version|Section|Figure|Diagram)\s+/i.test(name)) continue;
+        if (/Apigee|Kafka|Oracle|Postgres|AS400|Mainframe|SAP|Snowflake|Evolve AI/i.test(name)) continue;
+
+        let type: ParsedEntity['type'] = 'service';
+        const nLow = name.toLowerCase();
+        if (/gateway|ingress|portal|app|client|frontend/i.test(nLow)) type = 'gateway';
+        else if (/database|db|warehouse|store|cache/i.test(nLow)) type = 'database';
+        else if (/queue|topic|bus|broker|stream|mesh/i.test(nLow)) type = 'queue';
+
+        const safeId = name.replace(/[^A-Za-z0-9]/g, '').slice(0, 14) || 'Service';
+        if (!entities.has(safeId)) {
+          entities.set(safeId, { id: safeId, label: name, isActor: false, type });
+          dynamicCount++;
+        }
+      }
     }
 
     return Array.from(entities.values());
@@ -454,129 +503,252 @@ export class ClientTopologyParser {
    */
   private static extractSteps(text: string, entities: ParsedEntity[], isLegacy: boolean): ParsedStep[] {
     const steps: ParsedStep[] = [];
-    const lower = text.toLowerCase();
-
     const entMap = new Map(entities.map(e => [e.id, e]));
+    const entList = Array.from(entities.values());
 
+    // 1. Try to extract explicit numbered steps or bullet points from the requirement text
+    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const actionLines: string[] = [];
+
+    for (const line of lines) {
+      // Match "1. ...", "2) ...", "- ...", "* ...", "Step 1: ..."
+      const stepMatch = line.match(/^(?:(?:\d+[\.\)]|[-*•]|step\s*\d+:?)\s+)(.+)$/i);
+      if (stepMatch && stepMatch[1].length > 10) {
+        actionLines.push(stepMatch[1].trim());
+      } else if (/\b(submits?|sends?|routes?|calls?|queries?|validates?|verifies?|approves?|updates?|writes?|commits?|publishes?|notifies?|returns?|responds?)\b/i.test(line)) {
+        if (line.length > 15 && line.length < 250 && !line.startsWith('#')) {
+          actionLines.push(line);
+        }
+      }
+    }
+
+    // Helper: find best matching entity in text
+    const matchEntity = (str: string, fallback: ParsedEntity): ParsedEntity => {
+      const lowerStr = str.toLowerCase();
+      for (const ent of entList) {
+        const entName = ent.label.toLowerCase();
+        const entId = ent.id.toLowerCase();
+        if (lowerStr.includes(entId) || lowerStr.includes(entName.split(' ')[0])) {
+          return ent;
+        }
+        // Match synonyms
+        if (ent.type === 'actor' && (lowerStr.includes('user') || lowerStr.includes('client') || lowerStr.includes('customer') || lowerStr.includes('broker') || lowerStr.includes('borrower'))) return ent;
+        if (ent.type === 'gateway' && (lowerStr.includes('gateway') || lowerStr.includes('portal') || lowerStr.includes('api') || lowerStr.includes('ingress'))) return ent;
+        if (ent.type === 'queue' && (lowerStr.includes('kafka') || lowerStr.includes('queue') || lowerStr.includes('topic') || lowerStr.includes('bus') || lowerStr.includes('event'))) return ent;
+        if (ent.type === 'database' && (lowerStr.includes('db') || lowerStr.includes('database') || lowerStr.includes('store') || lowerStr.includes('warehouse') || lowerStr.includes('sql') || lowerStr.includes('oracle') || lowerStr.includes('as400') || lowerStr.includes('postgres'))) return ent;
+        if (ent.type === 'gate' && (lowerStr.includes('supervisor') || lowerStr.includes('underwriter') || lowerStr.includes('hitl') || lowerStr.includes('sign-off') || lowerStr.includes('approv'))) return ent;
+      }
+      return fallback;
+    };
+
+    // If we extracted at least 3 distinct action lines from the requirement doc, build dynamic sequence flow!
+    if (actionLines.length >= 3) {
+      const primaryActor = entList.find(e => e.type === 'actor') || entList[0];
+      const primaryGateway = entList.find(e => e.type === 'gateway') || entList[1] || entList[0];
+      const primaryDb = entList.find(e => e.type === 'database') || entList[entList.length - 1];
+      const primarySupervisor = entList.find(e => e.type === 'gate');
+
+      let lastSender = primaryActor;
+      let lastReceiver = primaryGateway;
+
+      for (let i = 0; i < actionLines.length && steps.length < 18; i++) {
+        const rawAction = actionLines[i];
+        const lowerAct = rawAction.toLowerCase();
+
+        // Clean action message: truncate to concise sentence
+        let cleanMsg = rawAction
+          .replace(/^(?:the\s+|a\s+|an\s+)/i, '')
+          .replace(/[.;]+$/, '')
+          .slice(0, 95);
+
+        // Detect if this is an approval / gate action
+        const isGateAction = /approval|sign-off|underwriter|manual\s*review|supervisor|hitl/i.test(lowerAct);
+        const isReplyAction = /returns?|responds?|sends?\s*back|receipt|confirmation|200\s*ok/i.test(lowerAct);
+
+        let fromEnt = lastReceiver;
+        let toEnt = primaryGateway;
+
+        if (i === 0) {
+          fromEnt = primaryActor;
+          toEnt = primaryGateway;
+        } else if (isGateAction && primarySupervisor) {
+          fromEnt = lastReceiver;
+          toEnt = primarySupervisor;
+        } else if (isReplyAction) {
+          fromEnt = lastReceiver;
+          toEnt = lastSender;
+        } else if (lowerAct.includes('database') || lowerAct.includes('store') || lowerAct.includes('commit') || lowerAct.includes('save') || lowerAct.includes('update')) {
+          fromEnt = lastReceiver;
+          toEnt = primaryDb;
+        } else {
+          // Attempt contextual match
+          const found = matchEntity(rawAction, entList[(i + 1) % entList.length]);
+          if (found.id !== fromEnt.id) {
+            toEnt = found;
+          } else {
+            toEnt = entList[(i + 2) % entList.length];
+          }
+        }
+
+        // Avoid self-messages unless explicitly recursive
+        if (fromEnt.id === toEnt.id) {
+          toEnt = primaryDb.id !== fromEnt.id ? primaryDb : primaryGateway;
+        }
+
+        steps.push({
+          from: fromEnt.id,
+          to: toEnt.id,
+          message: cleanMsg,
+          isReply: isReplyAction,
+          isGate: isGateAction,
+          note: isGateAction ? '🔒 Human sign-off threshold required' : undefined
+        });
+
+        lastSender = fromEnt;
+        lastReceiver = toEnt;
+      }
+
+      // Ensure final receipt step is delivered back to primary actor if not already there
+      const lastStep = steps[steps.length - 1];
+      if (lastStep && lastStep.to !== primaryActor.id) {
+        steps.push({
+          from: lastStep.to,
+          to: primaryActor.id,
+          message: isLegacy ? 'Unconfirmed completion notice (high rework rate)' : 'Verified execution receipt delivered (<50ms)',
+          isReply: true
+        });
+      }
+
+      if (steps.length >= 3) {
+        return steps;
+      }
+    }
+
+    // Fallback: Standard high-fidelity synthesized steps based on discovered entities
     if (isLegacy) {
       // Step 1: User submission
+      const userEnt = entList.find(e => e.type === 'actor') || { id: 'User' };
+      const portalEnt = entList.find(e => e.type === 'gateway') || { id: 'Portal' };
+      const coreEnt = entList.find(e => e.type === 'service') || { id: 'Core' };
+      const dbEnt = entList.find(e => e.type === 'database') || { id: 'DB' };
+
       steps.push({
-        from: 'User',
-        to: 'Portal',
+        from: userEnt.id,
+        to: portalEnt.id,
         message: 'Submit unvalidated request (PDF attachments / Email)',
         note: 'High cognitive overhead & manual data transcription'
       });
 
-      // Step 2: Ingress to Core
-      if (entMap.has('Core')) {
+      if (entMap.has(coreEnt.id) || coreEnt.id !== portalEnt.id) {
         steps.push({
-          from: 'Portal',
-          to: 'Core',
+          from: portalEnt.id,
+          to: coreEnt.id,
           message: 'Ad-hoc batch export or manual copy-paste into spreadsheets'
         });
         steps.push({
-          from: 'Core',
-          to: 'Core',
+          from: coreEnt.id,
+          to: coreEnt.id,
           message: 'Manual macro calculation without automated validation',
           note: '⚠️ Bottleneck: 24-48h batch delay and zero regression tests'
         });
       }
 
-      // Step 3: Core to DB
-      if (entMap.has('DB')) {
+      if (entMap.has(dbEnt.id)) {
         steps.push({
-          from: 'Core',
-          to: 'DB',
+          from: coreEnt.id,
+          to: dbEnt.id,
           message: 'Direct un-audited database mutation / manual ERP update',
           note: '⚠️ Data integrity & hallucination risk without schema guards'
         });
         steps.push({
-          from: 'DB',
-          to: 'User',
+          from: dbEnt.id,
+          to: userEnt.id,
           message: 'Unconfirmed completion notice (high downstream rework rate)',
           isReply: true
         });
       }
     } else {
       // Future Target Architecture
-      const hasBus = entMap.has('Bus');
-      const hasStaging = entMap.has('Staging');
-      const hasAi = entMap.has('AI');
-      const hasGate = entMap.has('Supervisor');
-      const hasDb = entMap.has('DB');
+      const userEnt = entList.find(e => e.type === 'actor') || { id: 'User' };
+      const gwEnt = entList.find(e => e.type === 'gateway') || { id: 'Gateway' };
+      const queueEnt = entList.find(e => e.type === 'queue');
+      const serviceEnts = entList.filter(e => e.type === 'service');
+      const gateEnt = entList.find(e => e.type === 'gate');
+      const dbEnt = entList.find(e => e.type === 'database') || { id: 'DB' };
 
       // Step 1: Request
       steps.push({
-        from: 'User',
-        to: 'Gateway',
+        from: userEnt.id,
+        to: gwEnt.id,
         message: 'Structured JSON payload with mTLS tenant token'
       });
 
-      // Step 2: Gateway to Staging / Bus
-      if (hasBus) {
+      let currentPoint = gwEnt.id;
+
+      // Event Bus
+      if (queueEnt) {
         steps.push({
-          from: 'Gateway',
-          to: 'Bus',
+          from: currentPoint,
+          to: queueEnt.id,
           message: 'Publish verified event to partitioned topic'
         });
+        const nextTarget = serviceEnts[0]?.id || dbEnt.id;
         steps.push({
-          from: 'Bus',
-          to: 'Staging',
+          from: queueEnt.id,
+          to: nextTarget,
           message: 'Stream consumer pull (<5ms latency)'
         });
-      } else if (hasStaging) {
-        steps.push({
-          from: 'Gateway',
-          to: 'Staging',
-          message: 'Forward request through AST Schema Guard'
-        });
+        currentPoint = nextTarget;
       }
 
-      // Step 3: Staging rules & AI Copilot
-      if (hasStaging && hasAi) {
+      // Services / Staging / AI
+      for (const svc of serviceEnts) {
+        if (svc.id === currentPoint) continue;
         steps.push({
-          from: 'Staging',
-          to: 'AI',
-          message: 'Enrich payload with grounded enterprise embeddings'
+          from: currentPoint,
+          to: svc.id,
+          message: svc.id === 'AI' ? 'Enrich payload with grounded enterprise embeddings' : `Forward to ${svc.label.split(' ')[0]}`
         });
-        steps.push({
-          from: 'AI',
-          to: 'Staging',
-          message: 'Synthesize deterministic proposal with citations (<50ms)',
-          isReply: true
-        });
+        if (svc.id === 'AI') {
+          steps.push({
+            from: svc.id,
+            to: currentPoint,
+            message: 'Synthesize deterministic proposal with citations (<50ms)',
+            isReply: true
+          });
+        } else {
+          currentPoint = svc.id;
+        }
       }
 
-      // Step 4: HITL gate
-      if (hasGate && hasStaging) {
+      // HITL gate
+      if (gateEnt) {
         steps.push({
-          from: 'Staging',
-          to: 'Supervisor',
+          from: currentPoint,
+          to: gateEnt.id,
           message: 'Route high-impact threshold action for sign-off',
           isGate: true
         });
         steps.push({
-          from: 'Supervisor',
-          to: 'Staging',
+          from: gateEnt.id,
+          to: currentPoint,
           message: '1-Click Cryptographically Signed Approval',
           isReply: true
         });
       }
 
-      // Step 5: DB commit
-      if (hasStaging && hasDb) {
-        steps.push({
-          from: 'Staging',
-          to: 'DB',
-          message: 'Atomic commit with tamper-evident audit receipt'
-        });
-        steps.push({
-          from: 'DB',
-          to: 'User',
-          message: 'Instant verified execution receipt delivered',
-          isReply: true
-        });
-      }
+      // DB commit
+      steps.push({
+        from: currentPoint,
+        to: dbEnt.id,
+        message: 'Atomic commit with tamper-evident audit receipt'
+      });
+      steps.push({
+        from: dbEnt.id,
+        to: userEnt.id,
+        message: 'Instant verified execution receipt delivered (<50ms)',
+        isReply: true
+      });
     }
 
     return steps;
@@ -599,7 +771,11 @@ export class ClientTopologyParser {
     // Steps
     for (const step of steps) {
       if (step.note) {
-        lines.push(`    Note over ${step.from},${step.to}: ${step.note}`);
+        if (step.from === step.to) {
+          lines.push(`    Note over ${step.from}: ${step.note}`);
+        } else {
+          lines.push(`    Note over ${step.from},${step.to}: ${step.note}`);
+        }
       }
       const arrow = step.isReply ? '-->>' : '->>';
       lines.push(`    ${step.from}${arrow}${step.to}: ${step.message}`);

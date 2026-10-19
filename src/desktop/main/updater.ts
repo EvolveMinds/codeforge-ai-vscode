@@ -43,6 +43,18 @@ export class DesktopUpdater {
 
   public async checkForUpdates(): Promise<UpdateCheckResult> {
     try {
+      if ((process as any).windowsStore) {
+        return {
+          currentVersion: this._currentVersion,
+          latestVersion: this._currentVersion,
+          updateAvailable: false,
+          isAirGapped: false,
+          networkStatus: 'online',
+          statusMessage: `Installed via Microsoft Store. Background updates are managed automatically by Windows Store (v${this._currentVersion}).`,
+          releaseNotes: 'The Microsoft Store package is cryptographically verified and kept up to date by Windows Store automatically.'
+        };
+      }
+
       const releaseInfo = await this._fetchLatestRelease();
       if (releaseInfo && releaseInfo.kind === 'offline') {
         return {

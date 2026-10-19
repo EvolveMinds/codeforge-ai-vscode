@@ -156,4 +156,48 @@ Transactions committed to Oracle RAC database with cryptographic receipts.
       assert.ok(p1Step3Action, 'Must include link to Phase 1 Step 3');
     }
   });
+
+  test('handles massive complex requirements document and synthesizes multi-step workflow topology', () => {
+    const hugeRequirement = `
+# Global Commercial Lending & Credit Assessment Platform Specification
+Document Version: 3.2.0-PROD
+Classification: Internal Enterprise Mandate
+
+1. Executive Summary & Architecture Overview
+This specification defines the end-to-end automated loan intake, scoring, and servicing topology.
+All interactions must be authenticated, tenant-isolated, and cryptographically signed.
+
+2. Interaction Steps and Operational Flows
+1. Borrower submits loan application via the Mobile React Native App with KYC documents.
+2. API Gateway validates OAuth2 tenant claims and executes mTLS verification.
+3. API Gateway routes verified application payload to the Underwriting Service.
+4. Underwriting Service queries the Credit Bureau API to fetch consumer risk scores and history.
+5. Underwriting Service calls the Fraud Detection Service to evaluate synthetic identity risks.
+6. If fraud score exceeds risk threshold, Underwriting Service routes to Senior Underwriter for review.
+7. Senior Underwriter issues cryptographic 1-click approval token in ServiceNow portal.
+8. Underwriting Service dispatches approved event to Apache Kafka topic 'commercial-loans-approved'.
+9. Loan Servicing Service consumes approval event and commits loan balance to PostgreSQL Core DB.
+10. Notification Service sends SMS and email confirmation receipts with contract PDF to Borrower.
+
+3. Out-of-Scope Constraints
+- No manual paper re-keying allowed in production.
+- Direct database mutation without API schema validation is strictly blocked.
+`;
+
+    const res = ClientTopologyParser.parse({
+      content: hugeRequirement,
+      target: 'future',
+      docName: 'Lending_Platform_Reqs_v3.2.docx'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.target, 'future');
+    assert.ok(res.futureDiagram && res.futureDiagram.startsWith('sequenceDiagram'));
+    assert.ok(res.futureDiagram.includes('autonumber'));
+    assert.ok(res.participantCount >= 4, `Expected at least 4 participants, got ${res.participantCount}`);
+    assert.ok(res.messageCount >= 5, `Expected at least 5 messages, got ${res.messageCount}`);
+    assert.ok(res.futureDiagram.includes('Underwriting Service') || res.futureDiagram.includes('API Gateway') || res.futureDiagram.includes('Borrower'));
+    assert.ok(res.futureDiagram.includes('Kafka') || res.futureDiagram.includes('PostgreSQL') || res.futureDiagram.includes('Supervisor') || res.futureDiagram.includes('Underwriter'));
+  });
 });
+

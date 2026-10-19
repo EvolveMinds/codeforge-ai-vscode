@@ -265,6 +265,7 @@ const desktopApi = {
     aiGenerateTopology: (req: { rawAsk: string; reframedGoal: string; archetype?: string; engagementNature?: 'brownfield' | 'greenfield' }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_GENERATE_TOPOLOGY, req),
     aiEditTopology: (req: { instruction: string; diagram: string; mode: 'future' | 'legacy'; model?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.AI_EDIT_TOPOLOGY, req),
     parseClientTopologyDoc: (req: { content: string; target: 'legacy' | 'future' | 'both'; docName?: string; rawAsk?: string; reframedGoal?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.PARSE_CLIENT_TOPOLOGY_DOC, req),
+    ingestRequirementsFile: (req: { filePath?: string; fileBufferBase64?: string; fileName?: string; target?: 'legacy' | 'future' | 'both'; rawAsk?: string; reframedGoal?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.INGEST_REQUIREMENTS_FILE, req),
     previewDiscovery: (data: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.PREVIEW_DISCOVERY, data),
     revealPath: (p: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.REVEAL_PATH, p, repoRoot),
     openPath: (p: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.OPEN_PATH, p, repoRoot),

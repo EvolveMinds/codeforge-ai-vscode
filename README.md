@@ -16,11 +16,15 @@
 > 
 > The Community Edition provides core AI assistance, local offline LLM execution, and our foundational 4-step Forward-Deployed Engineers delivery studio with limited features.
 > 
-> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Enterprise Edition** — available as both a **Zero-Installation Standalone Desktop Application (.exe)** and an **Enterprise VS Code Suite**.
+> For corporate data teams, systems integrators, and regulated banking/defense enclaves, we provide the **Enterprise Edition** — available as both a **Zero-Installation Standalone Desktop Application (.exe / Microsoft Store)** and an **Enterprise VS Code Suite**.
 > 
 > > 🔒 **Enterprise Evaluation Program**: The Enterprise Edition is available for 30-day technical validation and commercial licensing to evaluate production migration engines in enterprise environments. To request a trial, click **Request Trial** in the extension or email **support@evolveminds.com.au** with your work email and organisation. Approved requests receive a signed 30-day trial key, activated with **Enter Licence Key**.
 > 
-> 🔗 **[Explore Enterprise Edition](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Contact Us for Enterprise Licensing](https://www.evolveminds.com.au/contact/)**
+> > 🛡️ **Windows Trust & SmartScreen Notice for Desktop Users**:
+> > - **Microsoft Store (Recommended — Instant Trust)**: To bypass Windows Defender SmartScreen warnings and receive automatic background updates, install **Evolve AI Enterprise Studio directly from the Microsoft Store**. The Store package is cryptographically signed and verified by Microsoft with zero administrator rights required.
+> > - **Direct Standalone Portable (.exe)**: If running the standalone portable `.exe` directly in air-gapped enclaves, Windows SmartScreen may show an initial un-notarized publisher prompt. Click **More info → Run anyway** and verify the release SHA-256 hash.
+> 
+> 🔗 **[Explore Enterprise Edition](https://www.evolveminds.com.au/products/evolve-ai/)** • **[Download Standalone Desktop App](https://www.evolveminds.com.au/products/evolve-ai/download/)** • **[Get on Microsoft Store](https://apps.microsoft.com/detail/evolve-ai)** • **[Contact Us for Enterprise Licensing](https://www.evolveminds.com.au/contact/)**
 
 ### 📊 Edition Comparison Matrix: Free Community vs. Enterprise Edition
 

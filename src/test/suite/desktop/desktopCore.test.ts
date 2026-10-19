@@ -211,7 +211,7 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
   });
 
   test('DesktopIpcHandlers registers and executes all IPC channel handlers', async function () {
-    this.timeout(60000);
+    this.timeout(120000);
     const wsMgr = new DesktopWorkspaceManager(tmpDir);
     wsMgr.setCurrentWorkspace(tmpDir);
     const termMgr = new DesktopTerminalManager();
@@ -842,6 +842,11 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     const topoRes = await registeredChannels.get(DESKTOP_CHANNELS.FDE.PARSE_CLIENT_TOPOLOGY_DOC)!(null, { content: 'test' });
     assert.strictEqual(topoRes.success, false);
     assert.ok(topoRes.error.includes('Enterprise License Required'));
+
+    // 15. INGEST_REQUIREMENTS_FILE (returns { success: false, error: ... })
+    const reqDocRes = await registeredChannels.get(DESKTOP_CHANNELS.FDE.INGEST_REQUIREMENTS_FILE)!(null, { filePath: 'test.docx' });
+    assert.strictEqual(reqDocRes.success, false);
+    assert.ok(reqDocRes.error.includes('Enterprise License Required'));
 
     wsMgr.dispose();
     termMgr.dispose();

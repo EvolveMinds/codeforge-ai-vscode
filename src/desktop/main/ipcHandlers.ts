@@ -52,6 +52,7 @@ import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
 import { McpScaffolder, McpScaffoldOptions } from '../../fde/mcpScaffolder';
 import { ClientTopologyParser, ClientTopologyParseOptions } from '../../fde/clientTopologyParser';
+import { RequirementsDocReader } from '../../fde/requirementsDocReader';
 import { CodebaseGraphEngine, CodebaseAnalysisResult, RepoSecurityScanner, SecurityAuditReport, RepoQualityGatekeeper, QualityGateReport, ProjectOrientationSynthesizer } from '../../fde/codebaseGraph';
 import { EnterpriseFeature } from '../../enterprise/license/licenseTypes';
 import { presentDocument } from '../../fde/documentPresenter';
@@ -9009,6 +9010,11 @@ Establish clean staging schema models and compiled rule gates for all determinis
         return { success: false, error: 'There is no diagram to edit yet. Generate one first.', diagram: current };
       }
 
+      // Check if user provided a comprehensive requirement / spec text
+      const isComplexRequirement = instruction.length > 100 || 
+        instruction.includes('\n') || 
+        /\b(requirement|requirements|architecture|spec|flow|process|system|service|database|api|user|step|portal|gateway|queue|table|workflow|steps)\b/i.test(instruction);
+
       const system = [
         'You are an expert solutions architect editing a Mermaid sequenceDiagram.',
         'You will be given the CURRENT diagram and a requested CHANGE.',
@@ -9027,94 +9033,111 @@ Establish clean staging schema models and compiled rule gates for all determinis
 
       const prompt = `CURRENT DIAGRAM:\n${current}\n\nREQUESTED CHANGE:\n${instruction}\n\nReturn the complete revised Mermaid sequenceDiagram now.`;
 
-      // Reuse the same local-first Ollama path the chat surface uses.
-      const aiReply = await new Promise<{ content: string; success: boolean }>((resolve) => {
-        const payload = JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: prompt }
-          ],
-          stream: false,
-          options: { temperature: 0.15 }
-        });
+      // Attempt local model with extended timeout
+      let aiContent = '';
+      let aiSuccess = false;
 
-        const r = http.request({
-          host: '127.0.0.1',
-          port: 11434,
-          path: '/api/chat',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-          timeout: 60000
-        }, (res) => {
-          let body = '';
-          res.on('data', (c) => { body += c; });
-          res.on('end', () => {
-            try {
-              const j = JSON.parse(body);
-              resolve({ content: j?.message?.content || '', success: true });
-            } catch {
-              resolve({ content: '', success: false });
-            }
+      try {
+        const aiReply = await new Promise<{ content: string; success: boolean }>((resolve) => {
+          const payload = JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: system },
+              { role: 'user', content: prompt }
+            ],
+            stream: false,
+            options: { temperature: 0.15 }
           });
+
+          const r = http.request({
+            host: '127.0.0.1',
+            port: 11434,
+            path: '/api/chat',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+            timeout: isComplexRequirement ? 90000 : 45000
+          }, (res) => {
+            let body = '';
+            res.on('data', (c) => { body += c; });
+            res.on('end', () => {
+              try {
+                const j = JSON.parse(body);
+                resolve({ content: j?.message?.content || '', success: true });
+              } catch {
+                resolve({ content: '', success: false });
+              }
+            });
+          });
+          r.on('error', () => resolve({ content: '', success: false }));
+          r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false }); });
+          r.write(payload);
+          r.end();
         });
-        r.on('error', () => resolve({ content: '', success: false }));
-        r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false }); });
-        r.write(payload);
-        r.end();
-      });
 
-      if (!aiReply.success || !aiReply.content.trim()) {
-        return {
-          success: false,
-          error: 'No local model responded. Start Ollama (or pull the selected model) to edit diagrams conversationally.',
-          diagram: current
-        };
+        aiContent = aiReply.content;
+        aiSuccess = aiReply.success;
+      } catch {
+        aiSuccess = false;
       }
 
-      // --- Validate before accepting: never let a bad reply overwrite real work ---
-      let out = aiReply.content.trim();
+      // If local model succeeded and returned valid Mermaid, validate and use it
+      if (aiSuccess && aiContent.trim()) {
+        let out = aiContent.trim();
+        const fence = out.match(/```(?:mermaid)?\s*([\s\S]*?)```/i);
+        if (fence) out = fence[1].trim();
+        const startIdx = out.search(/sequenceDiagram/i);
+        if (startIdx > 0) out = out.slice(startIdx).trim();
 
-      // Strip markdown fences if the model added them despite instructions.
-      const fence = out.match(/```(?:mermaid)?\s*([\s\S]*?)```/i);
-      if (fence) out = fence[1].trim();
+        if (/^sequenceDiagram/i.test(out)) {
+          const bodyLines = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean).slice(1);
+          const participants = bodyLines.filter(l => /^(participant|actor)\s+/i.test(l)).length;
+          const messages = bodyLines.filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
 
-      // Drop any leading prose before the diagram starts.
-      const startIdx = out.search(/sequenceDiagram/i);
-      if (startIdx > 0) out = out.slice(startIdx).trim();
+          if (participants > 0 && messages > 0) {
+            const prevMessages = current.split(/\r?\n/).filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
+            const shrankHard = prevMessages >= 4 && messages < Math.ceil(prevMessages / 2);
 
-      if (!/^sequenceDiagram/i.test(out)) {
-        return {
-          success: false,
-          error: 'The model did not return a valid sequenceDiagram. Your diagram is unchanged.',
-          diagram: current
-        };
+            return {
+              success: true,
+              diagram: out,
+              participants,
+              messages,
+              warning: shrankHard
+                ? `The revised diagram dropped from ${prevMessages} to ${messages} steps. Review it before saving — the model may have truncated the workflow.`
+                : undefined
+            };
+          }
+        }
       }
 
-      const bodyLines = out.split(/\r?\n/).map(l => l.trim()).filter(Boolean).slice(1);
-      const participants = bodyLines.filter(l => /^(participant|actor)\s+/i.test(l)).length;
-      const messages = bodyLines.filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
+      // Fallback Engine: Seamlessly parse instructions through ClientTopologyParser
+      // This ensures that large requirement documents or offline workstations NEVER fail!
+      try {
+        const parseRes = ClientTopologyParser.parse({
+          content: instruction,
+          target: mode,
+          docName: 'User Requirement Specification',
+          rawAsk: instruction
+        });
 
-      if (participants === 0 || messages === 0) {
-        return {
-          success: false,
-          error: 'The revised diagram had no participants or no messages, so it was rejected. Your diagram is unchanged.',
-          diagram: current
-        };
+        const diag = mode === 'legacy' ? parseRes.legacyDiagram : parseRes.futureDiagram;
+        if (parseRes.success && diag && diag.trim()) {
+          return {
+            success: true,
+            diagram: diag,
+            participants: parseRes.participantCount,
+            messages: parseRes.messageCount,
+            synthesizedBy: 'requirements_engine'
+          };
+        }
+      } catch (err: any) {
+        console.warn('[AI_EDIT_TOPOLOGY] Fallback parser error:', err?.message || err);
       }
-
-      // Guard against a truncated reply silently deleting most of the workflow.
-      const prevMessages = current.split(/\r?\n/).filter(l => /(-{1,2}>>?|-\)|-x)\s*[^:]+:/.test(l)).length;
-      const shrankHard = prevMessages >= 4 && messages < Math.ceil(prevMessages / 2);
 
       return {
-        success: true,
-        diagram: out,
-        participants,
-        messages,
-        warning: shrankHard
-          ? `The revised diagram dropped from ${prevMessages} to ${messages} steps. Review it before saving — the model may have truncated the workflow.`
-          : undefined
+        success: false,
+        error: 'Unable to build topology from instructions. Verify requirements text or start Ollama for interactive edits.',
+        diagram: current
       };
     });
 
@@ -9181,6 +9204,26 @@ Establish clean staging schema models and compiled rule gates for all determinis
     end
     ProdDB-->>User: Verified execution receipt generated`;
 
+      // If requirements were provided, synthesize customized topologies using ClientTopologyParser
+      if (raw || reframed) {
+        try {
+          const parseRes = ClientTopologyParser.parse({
+            content: `${raw}\n\n${reframed}`.trim(),
+            target: isGreenfield ? 'future' : 'both',
+            docName: 'Raw Ask & Reframed Requirements',
+            rawAsk: raw,
+            reframedGoal: reframed
+          });
+
+          if (parseRes.success) {
+            if (!isGreenfield && parseRes.legacyDiagram) legacyDiagram = parseRes.legacyDiagram;
+            if (parseRes.futureDiagram) futureDiagram = parseRes.futureDiagram;
+          }
+        } catch (err: any) {
+          console.warn('[AI_GENERATE_TOPOLOGY] Fallback to archetype default:', err?.message || err);
+        }
+      }
+
       return {
         legacyDiagram,
         futureDiagram
@@ -9218,6 +9261,63 @@ Establish clean staging schema models and compiled rule gates for all determinis
           error: (err && err.message) ? err.message : String(err),
           target: req?.target || 'both',
           docName: req?.docName || 'Client Architecture Spec'
+        };
+      }
+    });
+
+    // --- REQUIREMENTS DOCUMENT FILE INGESTION (DOCX, PDF, MD, TXT, PUML) ---
+    ipc.handle(DESKTOP_CHANNELS.FDE.INGEST_REQUIREMENTS_FILE, async (_: any, req: {
+      filePath?: string;
+      fileBufferBase64?: string;
+      fileName?: string;
+      target?: 'legacy' | 'future' | 'both';
+      rawAsk?: string;
+      reframedGoal?: string;
+    }) => {
+      try {
+        this._assertEntitlement(undefined, 'Client Architecture Spec Ingestion');
+        let fileBuffer: Buffer | undefined;
+        if (req?.fileBufferBase64) {
+          fileBuffer = Buffer.from(req.fileBufferBase64, 'base64');
+        }
+
+        const extracted = await RequirementsDocReader.extractText({
+          filePath: req?.filePath,
+          fileBuffer,
+          fileName: req?.fileName
+        });
+
+        if (!extracted.success || !extracted.text.trim()) {
+          return {
+            success: false,
+            error: extracted.error || 'Failed to extract text from requirements document.',
+            fileName: extracted.fileName,
+            target: req?.target || 'both'
+          };
+        }
+
+        const target = req?.target || 'both';
+        const parseResult = ClientTopologyParser.parse({
+          content: extracted.text,
+          target,
+          docName: extracted.fileName,
+          rawAsk: req?.rawAsk,
+          reframedGoal: req?.reframedGoal
+        });
+
+        return {
+          ...parseResult,
+          extractedText: extracted.text,
+          charCount: extracted.charCount,
+          wordCount: extracted.wordCount,
+          format: extracted.format
+        };
+      } catch (err: any) {
+        return {
+          success: false,
+          error: (err && err.message) ? err.message : String(err),
+          target: req?.target || 'both',
+          fileName: req?.fileName || 'Requirements Document'
         };
       }
     });

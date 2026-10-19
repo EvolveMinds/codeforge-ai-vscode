@@ -84,6 +84,11 @@ Before touching version numbers or code:
   (Get-Item 'evolve-ai-X.Y.Z.vsix').Length
   ```
 
+#### 3.3 Microsoft Store Package (.appx / MSIX)
+- [ ] **Build Store Package:** `npm run desktop:build:appx`
+- [ ] **Verify Artifact:** `dist-desktop/evolve-ai-enterprise-X.Y.Z-msstore-x64.appx`
+- [ ] **Partner Center Ingestion:** Upload `.appx` to Microsoft Partner Center for automated verification and official Microsoft Store root signing (clears SmartScreen with $0 CA cost).
+
 ---
 
 ### Phase 4 · Dual GitHub Releases Publishing

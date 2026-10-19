@@ -490,12 +490,27 @@ Things that do *not* fix it, so nobody repeats the investigation:
 `no code signing certificate configured, signing is skipped` and packaging
 normally. That is the fix.
 
-### Signing status
+### Signing status & Microsoft Store MSIX bypass
 
-Desktop executables are currently **unsigned** — see TODO 3 in
+Desktop standalone portable executables (`.exe`) are currently **unsigned** — see TODO 3 in
 `docs/FDE_TODO.md` for the impact on customers and the options. Publish the
 SHA-256 with every release so clients can verify the download:
 
 ```bash
 powershell -Command "(Get-FileHash '<path-to-exe>' -Algorithm SHA256).Hash"
 ```
+
+#### Microsoft Store (MSIX / `.appx`) Zero-Cost Signing Bypass
+
+To bypass SmartScreen warnings, avoid ongoing certificate costs (~A$600+/yr), and provide
+automated background updates, build the Microsoft Store MSIX package:
+
+```bash
+npm run desktop:build:appx
+# -> dist-desktop/evolve-ai-enterprise-<version>-msstore-x64.appx
+```
+
+When ingested through the **Microsoft Partner Center**, Microsoft validates the package and
+**re-signs it with Microsoft's official Windows Store root certificate** ($0 commercial
+certificate cost). Store users experience immediate trust with zero SmartScreen or AV
+reputation delays.
