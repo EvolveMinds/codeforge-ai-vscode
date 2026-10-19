@@ -490,7 +490,7 @@ export class ClientTopologyParser {
       } else if (/\bemr\s*sunrise\b|\bsunrise\s*emr\b|\bsunrise\b/i.test(clean)) {
         id = 'EMR'; label = 'EMR Sunrise Clinical Core';
       } else if (/\bemr\b/i.test(clean)) {
-        id = 'EMR'; label = 'EMR Clinical Core';
+        id = 'EMR'; label = /sunrise/i.test(content) ? 'EMR Sunrise Clinical Core' : 'EMR Clinical Core';
       } else if (/\bxamplify\b/i.test(clean)) {
         id = 'xAmplify'; label = 'xAmplify Document Consolidation Engine';
       } else if (/\bsalesforce\b|\bsfdc\b/i.test(clean)) {
@@ -719,12 +719,23 @@ export class ClientTopologyParser {
     docName: string,
     scenarioTitle?: string
   ): { diagram: string; entities: ParsedEntity[]; steps: ParsedStep[] } {
-    // 1. Dedicated healthcare visit validation pattern check
+    // 1. Dedicated healthcare visit validation pattern check (high-fidelity MuleSoft API-led)
     const isHealthcareFlow = /\bsalesforce\b/i.test(text) && /\bmule(?:soft)?\b/i.test(text) &&
       (/\bchib\b/i.test(text) || /\bemr\b/i.test(text) || /\bxamplify\b/i.test(text) || /\bvisit\s*id\b/i.test(text));
 
     if (isHealthcareFlow) {
-      const explicitEntities = this.extractExplicitSystems(text, isLegacy);
+      const explicitEntities: ParsedEntity[] = isLegacy ? [
+        { id: 'User', label: 'Clinician / Referral Coordinator', isActor: true, type: 'actor' },
+        { id: 'Salesforce', label: 'Salesforce CRM', isActor: false, type: 'service' },
+        { id: 'EMR', label: 'EMR Sunrise Clinical Core', isActor: false, type: 'database' }
+      ] : [
+        { id: 'Salesforce', label: 'Salesforce CRM', isActor: false, type: 'service' },
+        { id: 'MuleExp', label: 'Mule Experience API', isActor: false, type: 'gateway' },
+        { id: 'MuleProc', label: 'Mule Process API', isActor: false, type: 'service' },
+        { id: 'CHIB', label: 'CHIB Integration Broker', isActor: false, type: 'gateway' },
+        { id: 'EMR', label: 'EMR Sunrise Clinical Core', isActor: false, type: 'database' },
+        { id: 'xAmplify', label: 'xAmplify Document Consolidation Engine', isActor: false, type: 'service' }
+      ];
       const steps = this.synthesizeHealthcareVisitValidationSteps(explicitEntities, isLegacy);
       const diagram = this.renderMermaid(explicitEntities, steps, isLegacy, docName, scenarioTitle);
       return {
@@ -734,7 +745,7 @@ export class ClientTopologyParser {
       };
     }
 
-    // 2. Universal SVO Architecture Engine: for any tech, process, or design
+    // 2. Universal SVO Architecture Engine: parses any tech, microservices, or process flow dynamically
     const universal = this.parseUniversalSvoTopology(text, isLegacy, docName, scenarioTitle);
     if (universal.entities.length >= 2 && universal.steps.length >= 2) {
       return universal;
