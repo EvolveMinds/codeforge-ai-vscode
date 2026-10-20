@@ -1314,7 +1314,7 @@ export class C4TopologyEngine {
         systems: [
           { id: 'Clinician', label: 'Referring Clinician', category: 'actor', zone: 'client', icon: '👤', role: 'Clinical User / Intake Agent', description: 'Initiates referral intake and handles exception reconciliations.', technologies: ['Salesforce UI', 'Health Cloud Portal'], containerCount: 2 },
           { id: 'Salesforce', label: 'Salesforce Health Cloud', category: 'saas', zone: 'client', icon: '☁️', role: 'Referral System of Record', description: 'Manages patient referral records, file attachments, and status transitions.', technologies: ['Apex REST', 'Platform Events', 'OAuth2', 'S3 File Store'], containerCount: 4 },
-          { id: 'MuleSoft', label: 'MuleSoft Anypoint Platform', category: 'gateway', zone: 'integration', icon: '⚡', role: 'API-Led Integration Core', description: '3-tier API-led orchestrator executing visit validation and document flows.', technologies: ['CloudHub 2.0', 'DataWeave 2.0', 'Experience API', 'Process API'], containerCount: 4 },
+          { id: 'MuleSoft', label: 'MuleSoft Anypoint Platform', category: 'gateway', zone: 'integration', icon: '⚡', role: 'API-Led Integration Core', description: '3-tier API-led orchestrator executing visit validation and document flows.', technologies: ['CloudHub 2.0', 'DataWeave 2.0', 'Experience API', 'Process API'], containerCount: 5 },
           { id: 'CHIB', label: 'CHIB Integration Broker', category: 'gateway', zone: 'integration', icon: '🔄', role: 'Clinical Message Hub', description: 'Translates enterprise JSON payloads to clinical HL7/FHIR message protocols.', technologies: ['HL7 v2.5.1', 'FHIR R4', 'mTLS Gateway'], containerCount: 2 },
           { id: 'EMR', label: 'EMR Sunrise Clinical Core', category: 'ehr', zone: 'core', icon: '🏥', role: 'Enterprise Clinical Registry', description: 'Validates Visit ID, MRN, and SAUHI against official inpatient encounters.', technologies: ['Allscripts Sunrise', 'MS SQL / Oracle DB', 'MPI Engine'], containerCount: 3 },
           { id: 'xAmplify', label: 'xAmplify Document Engine', category: 'saas', zone: 'thirdparty', icon: '📄', role: 'Document Consolidation Core', description: 'Merges multi-format referral documents into a single canonical clinical PDF.', technologies: ['xAmplify REST API', 'PDF Linearization', 'OCR Engine'], containerCount: 2 },
@@ -1366,18 +1366,20 @@ export class C4TopologyEngine {
             role: 'API-Led Integration Core',
             description: '3-Tier API architecture separating Experience, Process, and System concerns.',
             technologies: ['CloudHub 2.0', 'DataWeave 2.0', 'ObjectStore v2'],
-            containerCount: 4
+            containerCount: 5
           },
           containers: [
             { id: 'Mule_Exp', parentSystemId: 'MuleSoft', label: 'Mule Experience API', type: 'api', endpoint: '/api/v1/referrals/validate', technology: 'HTTP Listener, OAuth2 Token Validation, Policy Gate', description: 'Exposes secure ingress, assigns Correlation ID, and delivers immediate 200 Ack.', componentCount: 2 },
             { id: 'Mule_Proc', parentSystemId: 'MuleSoft', label: 'Mule Process API (Visit Orchestrator)', type: 'orchestrator', endpoint: 'internal://visit-validation-process', technology: 'DataWeave 2.0, Flow Orchestration, State Machine', description: 'Coordinates EMR query, evaluates match criteria, and orchestrates doc consolidation.', componentCount: 3 },
             { id: 'Mule_Sys_CHIB', parentSystemId: 'MuleSoft', label: 'CHIB System Connector API', type: 'adapter', endpoint: 'https://chib.internal/api/v2/query', technology: 'HTTP Requestor with mTLS & Circuit Breaker', description: 'Handles connection pooling, payload transformation, and retry policy to CHIB.', componentCount: 2 },
+            { id: 'Mule_Store', parentSystemId: 'MuleSoft', label: 'Object Store / In-Flight State Cache', type: 'store', technology: 'Mule ObjectStore v2 (TTL 4h, AES-256)', description: 'Maintains correlation state, idempotency keys, and document tracking tokens.', componentCount: 1 },
             { id: 'Mule_Sys_Sunrise', parentSystemId: 'MuleSoft', label: 'Sunrise Document System API', type: 'adapter', endpoint: 'https://sunrise-api.internal/v1/documents', technology: 'REST / HL7 MDM_T02 Provider', description: 'Uploads consolidated PDF against validated Visit ID with metadata, author, and timestamp.', componentCount: 2 }
           ],
           connections: [
             { from: 'Mule_Exp', to: 'Mule_Proc', label: 'Delegate Process (Async Flow)', protocol: 'VM Queue / Direct', order: 1 },
-            { from: 'Mule_Proc', to: 'Mule_Sys_CHIB', label: 'Execute EMR Validation', protocol: 'Internal REST', order: 2 },
-            { from: 'Mule_Proc', to: 'Mule_Sys_Sunrise', label: 'Upload Consolidated Doc', protocol: 'HTTPS / REST', order: 3 }
+            { from: 'Mule_Proc', to: 'Mule_Store', label: 'Store Correlation Context', protocol: 'Binary Serialization', order: 2 },
+            { from: 'Mule_Proc', to: 'Mule_Sys_CHIB', label: 'Execute EMR Validation', protocol: 'Internal REST', order: 3 },
+            { from: 'Mule_Proc', to: 'Mule_Sys_Sunrise', label: 'Upload Consolidated Doc', protocol: 'HTTPS / REST', order: 4 }
           ]
         },
         Salesforce: {
@@ -1571,6 +1573,31 @@ export class C4TopologyEngine {
                 { field: 'Visit_ID', type: 'String', required: true, source: 'Mule Process API', destination: 'CHIB Broker', description: 'Hospital encounter ID.' },
                 { field: 'MRN', type: 'String', required: true, source: 'Mule Process API', destination: 'CHIB Broker', description: 'Medical Record Number.' },
                 { field: 'Client_Cert_Thumbprint', type: 'SHA-256', required: true, source: 'MuleSoft Keystore', destination: 'CHIB Ingress Gateway', description: 'Client mutual TLS certificate thumbprint.' }
+              ]
+            }
+          ]
+        },
+        Mule_Store: {
+          parentContainer: {
+            id: 'Mule_Store',
+            parentSystemId: 'MuleSoft',
+            label: 'Object Store / In-Flight State Cache',
+            type: 'store',
+            technology: 'Mule ObjectStore v2 (TTL 4h, AES-256)',
+            description: 'Maintains correlation state, idempotency keys, and document tracking tokens.',
+            componentCount: 1
+          },
+          components: [
+            {
+              id: 'Mule_Store_Cache',
+              parentContainerId: 'Mule_Store',
+              label: 'Correlation State Store',
+              role: 'Idempotency & State Cache',
+              description: 'Persists in-flight referral IDs and visit keys to prevent duplicate processing.',
+              slaMs: 25,
+              contracts: [
+                { field: 'Correlation_Key', type: 'String (Referral_ID + Visit_ID)', required: true, source: 'Mule Process API', destination: 'ObjectStore v2', description: 'Compound deduplication cache key.' },
+                { field: 'Visit_Status', type: 'String', required: true, source: 'Mule Process API', destination: 'ObjectStore v2', description: 'Current validation state machine status.' }
               ]
             }
           ]
