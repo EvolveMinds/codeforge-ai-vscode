@@ -370,52 +370,173 @@ export class C4TopologyEngine {
   ): string {
     const systems = model.level1.systems;
     const connections = model.level1.connections;
-    const zones = model.level1.zones;
-
-    const width = 1400;
-    const height = 820;
+    const zones = model.level1.zones || [
+      { id: 'client', label: 'Client & Ingress' },
+      { id: 'integration', label: 'Integration & Compute' },
+      { id: 'core', label: 'Core Data & Storage' },
+      { id: 'governance', label: 'Human Governance & Exception Review' }
+    ];
 
     const nodePositions: Record<string, { x: number; y: number; w: number; h: number }> = {};
 
-    const leftCol = systems.filter(s => s.zone === 'client' || s.category === 'actor');
-    const midCol = systems.filter(s => s.zone === 'integration' || s.category === 'gateway');
-    const rightCol = systems.filter(s => s.zone === 'core' || s.zone === 'thirdparty' || s.category === 'database' || s.category === 'ehr');
-    const hitlNodes = systems.filter(s => s.zone === 'governance' || s.category === 'hitl');
+    const NODE_H = 144;
+    const NODE_GAP = 28;
+    const Y_START = 165;
+
+    // Filter systems cleanly according to their zone
+    const clientSystems = systems.filter(s => s.zone === 'client' || (!s.zone && s.category === 'actor'));
+    const intSystems = systems.filter(s => s.zone === 'integration' || (!s.zone && s.category !== 'actor' && s.category !== 'database' && s.category !== 'hitl'));
+    const coreSystems = systems.filter(s => s.zone === 'core' || s.zone === 'thirdparty' || (!s.zone && s.category === 'database'));
+    const govSystems = systems.filter(s => s.zone === 'governance' || s.category === 'hitl');
 
     // Layout left col: Client & Ingress
-    leftCol.forEach((s, i) => {
-      nodePositions[s.id] = { x: 55, y: 155 + i * 180, w: 300, h: 140 };
+    clientSystems.forEach((s, i) => {
+      nodePositions[s.id] = { x: 55, y: Y_START + i * (NODE_H + NODE_GAP), w: 310, h: NODE_H };
     });
 
-    // Layout mid col: Integration Mesh
-    midCol.forEach((s, i) => {
-      nodePositions[s.id] = { x: 440, y: 155 + i * 180, w: 400, h: 140 };
+    // Layout mid col: Integration Mesh & AI Core
+    intSystems.forEach((s, i) => {
+      nodePositions[s.id] = { x: 420, y: Y_START + i * (NODE_H + NODE_GAP), w: 410, h: NODE_H };
     });
 
     // Layout right col: Core Data & Storage
-    rightCol.forEach((s, i) => {
-      nodePositions[s.id] = { x: 930, y: 155 + i * 180, w: 410, h: 140 };
+    coreSystems.forEach((s, i) => {
+      nodePositions[s.id] = { x: 915, y: Y_START + i * (NODE_H + NODE_GAP), w: 420, h: NODE_H };
     });
 
-    // Layout HITL nodes at bottom
-    hitlNodes.forEach((s, idx) => {
-      nodePositions[s.id] = { x: 440 + idx * 470, y: 615, w: 480, h: 140 };
+    // Compute dynamic column heights
+    const clientH = Math.max(1, clientSystems.length) * (NODE_H + NODE_GAP);
+    const intH = Math.max(1, intSystems.length) * (NODE_H + NODE_GAP);
+    const coreH = Math.max(1, coreSystems.length) * (NODE_H + NODE_GAP);
+    const maxTopH = Math.max(clientH, intH, coreH);
+
+    const mainBoundaryHeight = Math.max(450, maxTopH + 85);
+    const govY = 110 + mainBoundaryHeight + 35;
+    const govCount = Math.max(1, govSystems.length);
+    const govBoundaryHeight = Math.max(200, govCount <= 2 ? 200 : Math.ceil(govCount / 2) * 190);
+
+    // Layout HITL nodes at bottom inside Governance Boundary
+    govSystems.forEach((s, idx) => {
+      const col = idx % 2;
+      const row = Math.floor(idx / 2);
+      nodePositions[s.id] = {
+        x: 420 + col * 460,
+        y: govY + 45 + row * (NODE_H + 25),
+        w: 430,
+        h: NODE_H
+      };
     });
 
     // Apply custom positions if node was dragged by user
     if (customPositions) {
       for (const [id, pos] of Object.entries(customPositions)) {
-        if (nodePositions[id]) {
+        if (nodePositions[id] && !id.startsWith('boundary_')) {
           nodePositions[id].x = pos.x;
           nodePositions[id].y = pos.y;
         }
       }
     }
 
-    const clientZoneLabel = (zones.find(z => z.id === 'client')?.label || 'CLIENT & INGRESS').toUpperCase();
-    const intZoneLabel = (zones.find(z => z.id === 'integration')?.label || 'INTEGRATION & COMPUTE').toUpperCase();
-    const coreZoneLabel = (zones.find(z => z.id === 'core')?.label || 'CORE DATA & STORAGE').toUpperCase();
-    const govZoneLabel = (zones.find(z => z.id === 'governance')?.label || 'HUMAN GOVERNANCE & EXCEPTION REVIEW').toUpperCase();
+    const width = 1400;
+    const height = Math.max(860, govY + govBoundaryHeight + 45);
+
+    // Build Boundary Boxes
+    const boundaryBoxes: Array<{
+      id: string;
+      label: string;
+      theme: string;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      stroke: string;
+      fill: string;
+      headerBg: string;
+      text: string;
+    }> = [];
+
+    const getThemeStyle = (theme: string) => {
+      switch (theme) {
+        case 'client':
+          return { stroke: 'rgba(56, 189, 248, 0.4)', fill: 'rgba(30, 41, 59, 0.22)', headerBg: 'rgba(56, 189, 248, 0.12)', text: '#38bdf8' };
+        case 'integration':
+          return { stroke: 'rgba(168, 85, 247, 0.4)', fill: 'rgba(139, 92, 246, 0.05)', headerBg: 'rgba(168, 85, 247, 0.12)', text: '#c084fc' };
+        case 'core':
+          return { stroke: 'rgba(245, 158, 11, 0.4)', fill: 'rgba(245, 158, 11, 0.04)', headerBg: 'rgba(245, 158, 11, 0.12)', text: '#fbbf24' };
+        case 'governance':
+          return { stroke: 'rgba(239, 68, 68, 0.45)', fill: 'rgba(239, 68, 68, 0.07)', headerBg: 'rgba(239, 68, 68, 0.15)', text: '#f87171' };
+        case 'cloud':
+        default:
+          return { stroke: 'rgba(16, 185, 129, 0.4)', fill: 'rgba(16, 185, 129, 0.05)', headerBg: 'rgba(16, 185, 129, 0.12)', text: '#34d399' };
+      }
+    };
+
+    // Client Boundary
+    const clientZone = zones.find(z => z.id === 'client') || { id: 'client', label: 'Client & Ingress' };
+    boundaryBoxes.push({
+      id: clientZone.id,
+      label: clientZone.label,
+      theme: 'client',
+      x: 30, y: 110, w: 350, h: mainBoundaryHeight,
+      ...getThemeStyle('client')
+    });
+
+    // Integration Boundary
+    const intZone = zones.find(z => z.id === 'integration') || { id: 'integration', label: 'Integration & Compute' };
+    boundaryBoxes.push({
+      id: intZone.id,
+      label: intZone.label,
+      theme: 'integration',
+      x: 395, y: 110, w: 465, h: mainBoundaryHeight,
+      ...getThemeStyle('integration')
+    });
+
+    // Core Boundary
+    const coreZone = zones.find(z => z.id === 'core') || { id: 'core', label: 'Core Data & Storage' };
+    boundaryBoxes.push({
+      id: coreZone.id,
+      label: coreZone.label,
+      theme: 'core',
+      x: 880, y: 110, w: 490, h: mainBoundaryHeight,
+      ...getThemeStyle('core')
+    });
+
+    // Governance Boundary
+    const govZone = zones.find(z => z.id === 'governance') || { id: 'governance', label: 'Human Governance & Exception Review' };
+    boundaryBoxes.push({
+      id: govZone.id,
+      label: govZone.label,
+      theme: 'governance',
+      x: 395, y: govY, w: 975, h: govBoundaryHeight,
+      ...getThemeStyle('governance')
+    });
+
+    // Any other custom zones added by the user!
+    const customZones = zones.filter(z => !['client', 'integration', 'core', 'governance'].includes(z.id));
+    customZones.forEach((cz, i) => {
+      const czStyle = getThemeStyle((cz as any).theme || 'cloud');
+      boundaryBoxes.push({
+        id: cz.id,
+        label: cz.label,
+        theme: (cz as any).theme || 'cloud',
+        x: 30,
+        y: govY + i * 220,
+        w: 350,
+        h: 200,
+        ...czStyle
+      });
+    });
+
+    // Apply custom positions for boundaries if user dragged them!
+    if (customPositions) {
+      for (const b of boundaryBoxes) {
+        const customPos = customPositions['boundary_' + b.id];
+        if (customPos) {
+          b.x = customPos.x;
+          b.y = customPos.y;
+        }
+      }
+    }
 
     let svg = `<svg id="fdeTopologySvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" style="width: 100%; height: auto; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; user-select: none;">
       <defs>
@@ -500,17 +621,25 @@ export class C4TopologyEngine {
 
       <!-- Dynamic Domain Trust Boundaries (Starts cleanly at y=110) -->
       <g class="c4-zones">
-        <rect x="30" y="110" width="350" height="430" rx="12" fill="rgba(30, 41, 59, 0.22)" stroke="rgba(148, 163, 184, 0.25)" stroke-dasharray="6 4"/>
-        <text x="45" y="135" fill="#94a3b8" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(clientZoneLabel)}</text>
-
-        <rect x="410" y="110" width="460" height="430" rx="12" fill="rgba(139, 92, 246, 0.05)" stroke="rgba(139, 92, 246, 0.28)" stroke-dasharray="6 4"/>
-        <text x="425" y="135" fill="#c084fc" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(intZoneLabel)}</text>
-
-        <rect x="900" y="110" width="470" height="430" rx="12" fill="rgba(245, 158, 11, 0.04)" stroke="rgba(245, 158, 11, 0.25)" stroke-dasharray="6 4"/>
-        <text x="915" y="135" fill="#fbbf24" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(coreZoneLabel)}</text>
-
-        <rect x="410" y="565" width="560" height="235" rx="12" fill="rgba(239, 68, 68, 0.07)" stroke="rgba(239, 68, 68, 0.35)" stroke-dasharray="6 4"/>
-        <text x="425" y="590" fill="#f87171" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(govZoneLabel)}</text>
+      ${boundaryBoxes.map(b => `
+        <g class="c4-boundary-group" data-c4-boundary-id="${b.id}" transform="translate(${b.x}, ${b.y})" style="cursor: grab;">
+          <!-- Dashed boundary card -->
+          <rect class="c4-boundary-card" width="${b.w}" height="${b.h}" rx="14" fill="${b.fill}" stroke="${b.stroke}" stroke-width="1.8" stroke-dasharray="7 5"/>
+          <!-- Boundary Header Drag Bar -->
+          <rect class="c4-boundary-header" x="0" y="0" width="${b.w}" height="32" rx="14" fill="${b.headerBg}" style="cursor: move;"/>
+          <text x="14" y="21" fill="${b.text}" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(b.label.toUpperCase())}</text>
+          
+          <!-- Boundary Action Pills -->
+          <g class="c4-edit-boundary-pill" data-c4-edit-boundary-id="${b.id}" transform="translate(${b.w - 116}, 6)" style="cursor: pointer;">
+            <rect width="52" height="20" rx="4" fill="rgba(255, 255, 255, 0.08)" stroke="${b.stroke}" stroke-width="0.8"/>
+            <text x="26" y="14" fill="${b.text}" font-size="10" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          </g>
+          <g class="c4-delete-boundary-pill" data-c4-delete-boundary-id="${b.id}" transform="translate(${b.w - 58}, 6)" style="cursor: pointer;">
+            <rect width="48" height="20" rx="4" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" stroke-width="0.8"/>
+            <text x="24" y="14" fill="#f87171" font-size="10" font-weight="700" text-anchor="middle">🗑️ Del</text>
+          </g>
+        </g>
+      `).join('')}
       </g>
 
       <!-- Connections / Links -->
@@ -615,31 +744,36 @@ export class C4TopologyEngine {
         <g class="c4-node-group" data-c4-id="${s.id}" data-c4-level="1" style="cursor: grab;" transform="translate(${pos.x}, ${pos.y})">
           <rect class="c4-node-card" width="${pos.w}" height="${pos.h}" rx="10" fill="url(#${gradId})" stroke="${strokeColor}" stroke-width="2.0" ${glowFilter}/>
           
-          <rect x="0" y="0" width="${pos.w}" height="34" rx="10" fill="rgba(255, 255, 255, 0.05)"/>
-          <text x="14" y="24" font-size="18">${s.icon}</text>
-          <text x="42" y="22" fill="#ffffff" font-size="14.5" font-weight="800">${escapeXml(s.label)}</text>
-          <text x="${pos.w - 14}" y="22" fill="${strokeColor}" font-size="11.5" font-weight="700" text-anchor="end">[${escapeXml(s.role)}]</text>
+          <rect x="0" y="0" width="${pos.w}" height="32" rx="10" fill="rgba(255, 255, 255, 0.05)"/>
+          <text x="14" y="22" font-size="16">${s.icon}</text>
+          <text x="38" y="21" fill="#ffffff" font-size="13.5" font-weight="800">${escapeXml(s.label.slice(0, 32))}${s.label.length > 32 ? '…' : ''}</text>
 
-          <text x="14" y="58" fill="#e2e8f0" font-size="11.5" font-weight="500">${escapeXml(s.description.slice(0, 52))}</text>
-          <text x="14" y="76" fill="#94a3b8" font-size="11">${escapeXml(s.description.slice(52, 105)) || ''}</text>
-          <text x="14" y="100" fill="#64748b" font-size="10.5">Tech: ${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
+          <!-- Dedicated Role Badge: NEVER collides with title! -->
+          <g transform="translate(14, 38)">
+            <rect width="${Math.min(pos.w - 28, Math.max(60, escapeXml(s.role).length * 6.5 + 16))}" height="18" rx="4" fill="rgba(255,255,255,0.06)" stroke="${strokeColor}" stroke-width="0.8"/>
+            <text x="8" y="13" fill="${strokeColor}" font-size="10.5" font-weight="700">[${escapeXml(s.role)}]</text>
+          </g>
+
+          <text x="14" y="74" fill="#cbd5e1" font-size="11.5" font-weight="500">${escapeXml(s.description.slice(0, 52))}</text>
+          <text x="14" y="92" fill="#94a3b8" font-size="11">${escapeXml(s.description.slice(52, 105)) || ''}</text>
+          <text x="14" y="112" fill="#64748b" font-size="10.5">Tech: ${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
 
           <!-- Edit Pill -->
-          <g class="c4-edit-node-pill" data-c4-edit-id="${s.id}" transform="translate(14, ${pos.h - 30})" style="cursor: pointer;">
-            <rect width="64" height="22" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1"/>
-            <text x="32" y="15" fill="#38bdf8" font-size="11" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          <g class="c4-edit-node-pill" data-c4-edit-id="${s.id}" transform="translate(14, ${pos.h - 26})" style="cursor: pointer;">
+            <rect width="64" height="20" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1"/>
+            <text x="32" y="14" fill="#38bdf8" font-size="10.5" font-weight="700" text-anchor="middle">✏️ Edit</text>
           </g>
 
           ${s.containerCount > 0 ? `
-            <g class="c4-drill-pill" transform="translate(${pos.w - 120}, ${pos.h - 30})" style="cursor: pointer;">
-              <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="${strokeColor}" stroke-width="1.2"/>
-              <text x="55" y="15" fill="${strokeColor}" font-size="11" font-weight="800" text-anchor="middle">🔍 Drill Down (${s.containerCount})</text>
+            <g class="c4-drill-pill" transform="translate(${pos.w - 116}, ${pos.h - 26})" style="cursor: pointer;">
+              <rect width="106" height="20" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="${strokeColor}" stroke-width="1.2"/>
+              <text x="53" y="14" fill="${strokeColor}" font-size="10.5" font-weight="800" text-anchor="middle">🔍 Drill Down (${s.containerCount})</text>
             </g>
           ` : ''}
           ${isHitl ? `
-            <g class="c4-drill-pill" transform="translate(${pos.w - 128}, ${pos.h - 30})" style="cursor: pointer;">
-              <rect width="118" height="22" rx="4" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="1.2"/>
-              <text x="59" y="15" fill="#fca5a5" font-size="11" font-weight="800" text-anchor="middle">🚨 HITL GATE</text>
+            <g class="c4-drill-pill" transform="translate(${pos.w - 124}, ${pos.h - 26})" style="cursor: pointer;">
+              <rect width="114" height="20" rx="4" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="1.2"/>
+              <text x="57" y="14" fill="#fca5a5" font-size="10.5" font-weight="800" text-anchor="middle">🚨 HITL GATE</text>
             </g>
           ` : ''}
         </g>
@@ -808,13 +942,18 @@ export class C4TopologyEngine {
           <rect class="c4-container-card" width="${pos.w}" height="${pos.h}" rx="10" fill="url(#c4-l2-grad)" stroke="${strokeColor}" stroke-width="2.0"/>
           
           <rect x="0" y="0" width="${pos.w}" height="32" rx="10" fill="rgba(168, 85, 247, 0.12)"/>
-          <text x="14" y="22" fill="#ffffff" font-size="14.5" font-weight="800">${escapeXml(c.label)}</text>
-          <text x="${pos.w - 14}" y="22" fill="${strokeColor}" font-size="11.5" font-weight="700" text-anchor="end">[${c.type.toUpperCase()}]</text>
+          <text x="14" y="21" fill="#ffffff" font-size="13.5" font-weight="800">${escapeXml(c.label.slice(0, 32))}${c.label.length > 32 ? '…' : ''}</text>
+          
+          <!-- Dedicated Type Badge on Line 2: Never collides with label! -->
+          <g transform="translate(14, 34)">
+            <rect width="68" height="18" rx="4" fill="rgba(255,255,255,0.06)" stroke="${strokeColor}" stroke-width="0.8"/>
+            <text x="34" y="13" fill="${strokeColor}" font-size="10" font-weight="700" text-anchor="middle">[${c.type.toUpperCase()}]</text>
+          </g>
 
-          <text x="14" y="56" fill="#38bdf8" font-size="12" font-weight="700" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
-          <text x="14" y="78" fill="#cbd5e1" font-size="11.5">${escapeXml(c.description.slice(0, 52))}</text>
-          <text x="14" y="96" fill="#94a3b8" font-size="11">${escapeXml(c.description.slice(52, 105)) || ''}</text>
-          <text x="14" y="118" fill="#64748b" font-size="10.5">Technology: ${escapeXml(c.technology)}</text>
+          <text x="90" y="47" fill="#38bdf8" font-size="11" font-weight="700" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
+          <text x="14" y="74" fill="#cbd5e1" font-size="11.5">${escapeXml(c.description.slice(0, 52))}</text>
+          <text x="14" y="92" fill="#94a3b8" font-size="11">${escapeXml(c.description.slice(52, 105)) || ''}</text>
+          <text x="14" y="114" fill="#64748b" font-size="10.5">Technology: ${escapeXml(c.technology)}</text>
 
           <!-- Edit Container Pill -->
           <g class="c4-edit-container-pill" data-c4-edit-container-id="${c.id}" transform="translate(14, ${pos.h - 28})" style="cursor: pointer;">

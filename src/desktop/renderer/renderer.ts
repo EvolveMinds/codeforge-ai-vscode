@@ -5993,6 +5993,11 @@ function setupPhase1Discovery(api: any): void {
       if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit System: ${sys.label}`;
       if (txtC4EditLabel) txtC4EditLabel.value = sys.label || '';
       if (txtC4EditRole) txtC4EditRole.value = sys.role || '';
+      if (selC4EditZone && cachedC4Model.level1?.zones) {
+        selC4EditZone.innerHTML = cachedC4Model.level1.zones.map((z: any) =>
+          `<option value="${z.id}">${z.label}</option>`
+        ).join('');
+      }
       if (selC4EditZone) selC4EditZone.value = sys.zone || 'integration';
       if (txtC4EditDesc) txtC4EditDesc.value = sys.description || '';
       if (txtC4EditTech) txtC4EditTech.value = (sys.technologies || []).join(', ');
@@ -6173,6 +6178,142 @@ function setupPhase1Discovery(api: any): void {
 
     closeC4EditModal();
     paintC4Topology();
+  });
+
+  // --- C4 Domain Boundary Editor & Creation Modal ---
+  const modalC4Boundary = document.getElementById('fdeC4BoundaryModal');
+  const btnCloseC4Boundary = document.getElementById('btnFdeC4BoundaryClose');
+  const btnCancelC4Boundary = document.getElementById('btnFdeC4BoundaryCancel');
+  const btnSaveC4Boundary = document.getElementById('btnFdeC4BoundarySave');
+  const btnDeleteC4Boundary = document.getElementById('btnFdeC4BoundaryDelete');
+  const txtC4BoundaryLabel = document.getElementById('txtC4BoundaryLabel') as HTMLInputElement | null;
+  const txtC4BoundaryId = document.getElementById('txtC4BoundaryId') as HTMLInputElement | null;
+  const selC4BoundaryTheme = document.getElementById('selC4BoundaryTheme') as HTMLSelectElement | null;
+  const txtC4BoundaryDesc = document.getElementById('txtC4BoundaryDesc') as HTMLTextAreaElement | null;
+  const lblC4BoundaryTitle = document.getElementById('fdeC4BoundaryModalTitle');
+  const btnCanvasAddBoundary = document.getElementById('btnFdeCanvasAddBoundary');
+
+  let editingC4BoundaryId: string | null = null;
+  let isDraggingC4Boundary = false;
+  let draggedC4BoundaryId: string | null = null;
+  let dragC4OrigBoundaryPos = { x: 0, y: 0 };
+
+  const closeC4BoundaryModal = () => {
+    if (modalC4Boundary) {
+      modalC4Boundary.hidden = true;
+      modalC4Boundary.style.display = 'none';
+    }
+    editingC4BoundaryId = null;
+  };
+
+  const openC4BoundaryModal = (boundaryId?: string) => {
+    if (!modalC4Boundary || !cachedC4Model) return;
+    editingC4BoundaryId = boundaryId || null;
+
+    if (boundaryId) {
+      const z = (cachedC4Model.level1.zones || []).find((zone: any) => zone.id === boundaryId);
+      if (lblC4BoundaryTitle) lblC4BoundaryTitle.textContent = `Edit Architecture Boundary: ${z?.label || boundaryId}`;
+      if (txtC4BoundaryLabel) txtC4BoundaryLabel.value = z?.label || '';
+      if (txtC4BoundaryId) {
+        txtC4BoundaryId.value = z?.id || boundaryId;
+        txtC4BoundaryId.disabled = true;
+      }
+      if (selC4BoundaryTheme) selC4BoundaryTheme.value = z?.theme || z?.id || 'integration';
+      if (txtC4BoundaryDesc) txtC4BoundaryDesc.value = z?.description || '';
+      if (btnDeleteC4Boundary) btnDeleteC4Boundary.style.display = 'inline-block';
+    } else {
+      if (lblC4BoundaryTitle) lblC4BoundaryTitle.textContent = 'Add New Architecture Boundary';
+      const newId = `zone_${Date.now().toString(36)}`;
+      if (txtC4BoundaryLabel) txtC4BoundaryLabel.value = '';
+      if (txtC4BoundaryId) {
+        txtC4BoundaryId.value = newId;
+        txtC4BoundaryId.disabled = false;
+      }
+      if (selC4BoundaryTheme) selC4BoundaryTheme.value = 'client';
+      if (txtC4BoundaryDesc) txtC4BoundaryDesc.value = '';
+      if (btnDeleteC4Boundary) btnDeleteC4Boundary.style.display = 'none';
+    }
+
+    modalC4Boundary.hidden = false;
+    modalC4Boundary.style.display = 'flex';
+  };
+
+  btnCanvasAddBoundary?.addEventListener('click', () => openC4BoundaryModal());
+  btnCloseC4Boundary?.addEventListener('click', closeC4BoundaryModal);
+  btnCancelC4Boundary?.addEventListener('click', closeC4BoundaryModal);
+  modalC4Boundary?.addEventListener('click', (e) => {
+    if (e.target === modalC4Boundary) closeC4BoundaryModal();
+  });
+
+  btnSaveC4Boundary?.addEventListener('click', () => {
+    if (!cachedC4Model) return;
+    const label = (txtC4BoundaryLabel?.value || '').trim();
+    const id = (txtC4BoundaryId?.value || '').trim().toLowerCase().replace(/\s+/g, '_');
+    const theme = selC4BoundaryTheme?.value || 'client';
+    const desc = (txtC4BoundaryDesc?.value || '').trim();
+
+    if (!label) {
+      showToast('⚠️ Please enter a boundary label/name.');
+      return;
+    }
+    if (!id) {
+      showToast('⚠️ Please enter a unique boundary ID.');
+      return;
+    }
+
+    if (!cachedC4Model.level1.zones) {
+      cachedC4Model.level1.zones = [];
+    }
+
+    if (editingC4BoundaryId) {
+      const existing = cachedC4Model.level1.zones.find((z: any) => z.id === editingC4BoundaryId);
+      if (existing) {
+        existing.label = label;
+        existing.theme = theme;
+        existing.description = desc;
+        showToast(`✓ Updated boundary: ${label}`);
+      }
+    } else {
+      cachedC4Model.level1.zones.push({
+        id,
+        label,
+        theme,
+        description: desc
+      });
+      showToast(`✓ Added boundary: ${label}`);
+    }
+
+    closeC4BoundaryModal();
+    paintC4Topology();
+  });
+
+  const deleteC4Boundary = (boundaryId: string) => {
+    if (!cachedC4Model) return;
+    const z = (cachedC4Model.level1.zones || []).find((zone: any) => zone.id === boundaryId);
+    const ok = window.confirm(`Are you sure you want to delete boundary "${z?.label || boundaryId}"?`);
+    if (!ok) return;
+
+    // Reassign any systems in this zone to integration or first available zone
+    if (cachedC4Model.level1?.systems) {
+      cachedC4Model.level1.systems.forEach((s: any) => {
+        if (s.zone === boundaryId) {
+          s.zone = 'integration';
+        }
+      });
+    }
+
+    cachedC4Model.level1.zones = (cachedC4Model.level1.zones || []).filter((zone: any) => zone.id !== boundaryId);
+    delete c4CustomPositions['boundary_' + boundaryId];
+
+    showToast(`🗑️ Deleted boundary: ${z?.label || boundaryId}`);
+    closeC4BoundaryModal();
+    paintC4Topology();
+  };
+
+  btnDeleteC4Boundary?.addEventListener('click', () => {
+    if (editingC4BoundaryId) {
+      deleteC4Boundary(editingC4BoundaryId);
+    }
   });
 
   // Pillar 4: Executive Presentation vs Architect Deep-Dive Toggle
@@ -7999,6 +8140,23 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
+      // Boundary Edit & Delete Pills
+      const editBoundaryPill = target.closest('.c4-edit-boundary-pill') as SVGElement | null;
+      if (editBoundaryPill) {
+        e.stopPropagation();
+        const bId = editBoundaryPill.getAttribute('data-c4-edit-boundary-id');
+        if (bId) openC4BoundaryModal(bId);
+        return;
+      }
+
+      const delBoundaryPill = target.closest('.c4-delete-boundary-pill') as SVGElement | null;
+      if (delBoundaryPill) {
+        e.stopPropagation();
+        const bId = delBoundaryPill.getAttribute('data-c4-delete-boundary-id');
+        if (bId) deleteC4Boundary(bId);
+        return;
+      }
+
       // 2. HITL Review Console
       const c4Hitl = target.closest('.c4-hitl-gate') as SVGElement | null;
       if (c4Hitl) {
@@ -8161,7 +8319,7 @@ function setupPhase1Discovery(api: any): void {
     if (!target) return;
     didDragOnCanvas = false;
 
-    const isOverElement = target.closest('.sq-part-group') || target.closest('.sq-msg-group') || target.closest('.sq-btn') || target.closest('#fdeTopologyInlineEditor') || target.closest('.c4-node-group') || target.closest('.c4-container-group') || target.closest('.c4-edge') || target.closest('.c4-l2-edge') || target.closest('.c4-hitl-gate') || target.closest('.c4-l2-nodes');
+    const isOverElement = target.closest('.sq-part-group') || target.closest('.sq-msg-group') || target.closest('.sq-btn') || target.closest('#fdeTopologyInlineEditor') || target.closest('.c4-node-group') || target.closest('.c4-container-group') || target.closest('.c4-boundary-group') || target.closest('.c4-boundary-header') || target.closest('.c4-boundary-card') || target.closest('.c4-edge') || target.closest('.c4-l2-edge') || target.closest('.c4-hitl-gate') || target.closest('.c4-l2-nodes');
     
     if (e.button === 1 || isPanningActive() || !isOverElement) {
       isPanDragging = true;
@@ -8217,6 +8375,27 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
     }
+
+    // C4 Topology Boundary Dragging
+    const c4BoundaryGroup = target.closest('.c4-boundary-group') as SVGElement | null;
+    const isBoundaryPill = target.closest('.c4-edit-boundary-pill, .c4-delete-boundary-pill');
+    if (currentTopologyViewMode === 'c4' && c4BoundaryGroup && !isBoundaryPill && currentInteractionMode === 'select' && e.button === 0 && !target.closest('.c4-node-group')) {
+      const bId = c4BoundaryGroup.getAttribute('data-c4-boundary-id');
+      if (bId) {
+        dragKind = 'c4-boundary' as any;
+        draggedC4BoundaryId = bId;
+        isDraggingC4Boundary = true;
+        dragC4StartX = e.clientX;
+        dragC4StartY = e.clientY;
+        const tf = c4BoundaryGroup.getAttribute('transform') || '';
+        const m = tf.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
+        dragC4OrigBoundaryPos = m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
+        isDraggingOnCanvas = false;
+        try { renderedPane.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+        return;
+      }
+    }
   });
 
   renderedPane?.addEventListener('pointermove', (e: PointerEvent) => {
@@ -8245,6 +8424,25 @@ function setupPhase1Discovery(api: any): void {
         if (nodeEl) {
           nodeEl.setAttribute('transform', `translate(${nx}, ${ny})`);
           nodeEl.style.cursor = 'grabbing';
+        }
+      }
+      return;
+    }
+
+    if (dragKind === ('c4-boundary' as any) && draggedC4BoundaryId) {
+      const dx = (e.clientX - dragC4StartX) / canvasZoom;
+      const dy = (e.clientY - dragC4StartY) / canvasZoom;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        isDraggingOnCanvas = true;
+        didDragOnCanvas = true;
+      }
+      if (isDraggingOnCanvas) {
+        const nx = Math.round(dragC4OrigBoundaryPos.x + dx);
+        const ny = Math.round(dragC4OrigBoundaryPos.y + dy);
+        const bEl = renderedPane?.querySelector(`[data-c4-boundary-id="${draggedC4BoundaryId}"]`) as SVGElement | null;
+        if (bEl) {
+          bEl.setAttribute('transform', `translate(${nx}, ${ny})`);
+          bEl.style.cursor = 'grabbing';
         }
       }
       return;
@@ -8298,6 +8496,25 @@ function setupPhase1Discovery(api: any): void {
       dragKind = null;
       draggedC4NodeId = null;
       isDraggingC4Node = false;
+      isDraggingOnCanvas = false;
+      setTimeout(() => { didDragOnCanvas = false; }, 80);
+      return;
+    }
+
+    if (dragKind === ('c4-boundary' as any) && draggedC4BoundaryId) {
+      try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (didDragOnCanvas) {
+        const dx = (e.clientX - dragC4StartX) / canvasZoom;
+        const dy = (e.clientY - dragC4StartY) / canvasZoom;
+        const nx = Math.round(dragC4OrigBoundaryPos.x + dx);
+        const ny = Math.round(dragC4OrigBoundaryPos.y + dy);
+        c4CustomPositions['boundary_' + draggedC4BoundaryId] = { x: nx, y: ny };
+        paintC4Topology();
+        showToast(`📌 Repositioned boundary: ${draggedC4BoundaryId}`);
+      }
+      dragKind = null;
+      draggedC4BoundaryId = null;
+      isDraggingC4Boundary = false;
       isDraggingOnCanvas = false;
       setTimeout(() => { didDragOnCanvas = false; }, 80);
       return;
