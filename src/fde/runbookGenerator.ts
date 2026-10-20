@@ -522,5 +522,202 @@ ${env}
 ${demo}
 `;
   }
+
+  /**
+   * Generates an authoritative CLAUDE.md workspace manifest for Claude Code.
+   * Encapsulates the untouched DB2 schema contract, architectural constraints,
+   * HITL boundaries, and verification runbooks.
+   */
+  static generateClaudePromptManifest(state: FdeEngagementState, introspected?: any): string {
+    const s = state || ({} as any);
+    const client = s.clientName || 'IBM HCM Modernization Client';
+    const disc = s.discovery || {};
+    const dbSchema = introspected?.schema || 'DB2ADMIN';
+    const tables: any[] = introspected?.tables || [];
+    const routines: any[] = introspected?.routines || [];
+    const sequences: any[] = introspected?.sequences || [];
+
+    let tableContract = '';
+    if (tables.length > 0) {
+      tableContract = tables.map((t: any) => {
+        const cols = (t.columns || []).map((c: any) => `  - \`${c.name}\` (${c.type}${c.isPrimaryKey ? ', PRIMARY KEY' : ''}${c.isNullable === false ? ', NOT NULL' : ''})`).join('\n');
+        return `### Table: \`${t.tableName}\`\nSchema: \`${t.schema || dbSchema}\`\nColumns:\n${cols}`;
+      }).join('\n\n');
+    } else {
+      tableContract = `*Schema contracts will be populated dynamically from DB2 introspection.*`;
+    }
+
+    let routineContract = '';
+    if (routines.length > 0) {
+      routineContract = routines.map((r: any) => {
+        const parms = (r.parameters || []).map((p: any) => `${p.mode} ${p.name} ${p.type}`).join(', ');
+        return `- \`${r.routineName}(${parms})\` [${r.routineType}]`;
+      }).join('\n');
+    } else {
+      routineContract = `- \`SP_CALCULATE_PAYROLL_ACCRUAL(IN P_EMP_ID INT, IN P_PAY_PERIOD_END VARCHAR(10), OUT P_GROSS_AMT DECIMAL(15,2), OUT P_NET_AMT DECIMAL(15,2), OUT P_STATUS_CD VARCHAR(20))\`\n- \`SP_PROCESS_PROMOTION_TIER(IN P_EMP_ID INT, IN P_NEW_JOB_CODE VARCHAR(20), IN P_NEW_SALARY DECIMAL(15,2), IN P_APPROVER_USER_ID VARCHAR(50), OUT P_RESULT_MSG VARCHAR(100))\``;
+    }
+
+    let seqContract = '';
+    if (sequences.length > 0) {
+      seqContract = sequences.map((sq: any) => `- \`${sq.sequenceName}\` (Schema: \`${sq.schema || dbSchema}\`, Type: \`${sq.dataType || 'INTEGER'}\`)`).join('\n');
+    } else {
+      seqContract = `- \`SEQ_HCM_EMP_ID\`\n- \`SEQ_HCM_PAYROLL_RUN_ID\`\n- \`SEQ_HCM_ENROLLMENT_ID\``;
+    }
+
+    return `# CLAUDE.md — Workspace Construction & Architecture Contract
+
+> **Target Engagement:** ${client} — Like-for-Like IBM HCM Modernization Replica  
+> **Backend Architecture:** IBM DB2 Engine (LUW / z/OS Mainframe) — **UNTOUCHED & ZERO DDL MUTATION**  
+> **Orchestrator & System of Record:** Evolve AI Delivery Studio  
+> **Autonomous Code Builder:** Claude Code  
+
+---
+
+## 1. The Immutable Core Constraint: Untouched DB2 Backend
+
+You are building a modernized like-for-like replica of the legacy IBM HCM application.
+**CRITICAL RULE:** The existing IBM DB2 backend database schema MUST NOT be modified:
+1. **ZERO DDL MUTATION**: Never generate or execute \`ALTER TABLE\`, \`DROP TABLE\`, or \`ADD COLUMN\` queries. Never configure ORMs with \`ddl-auto=update\` or auto-migrations.
+2. **ZERO ASSUMPTIONS ON SEQUENCES**: Primary keys that use DB2 sequences must strictly use \`SELECT NEXT VALUE FOR <SEQUENCE_NAME> FROM SYSIBM.SYSDUMMY1\` (or DB2 native identity insertion).
+3. **STORED PROCEDURE PRESERVATION**: High-impact payroll calculations and compensation adjustments are executed directly via existing DB2 SQL PL stored procedures to guarantee 100% calculation parity with legacy systems.
+4. **TRANSACTION ISOLATION**: Maintain DB2 Cursor Stability (\`CS\`) transaction semantics. Never hold long-lived transactions across HTTP requests.
+
+---
+
+## 2. Introspected DB2 Schema & Stored Procedure Contracts
+
+### Stored Procedures & Routines
+${routineContract}
+
+### Sequences
+${seqContract}
+
+### Tables & Column Definitions
+${tableContract}
+
+---
+
+## 3. Target Modern Architecture Pattern
+
+* **Presentation Layer**: React 19 / TypeScript with enterprise design system (Accessible, WCAG AA, Mobile-responsive ESS & MSS).
+* **API & BFF Layer**: Clean REST / OpenAPI 3.0 specification with strict schema validation.
+* **Hexagonal Persistence Adapter**:
+  - All DB2 operations isolated behind strict domain repository interfaces.
+  - Parameterized SQL queries only — zero raw SQL string concatenation.
+  - Native DB2 JDBC / Wire driver connection pooling (\`HikariCP\` / \`ibm_db\`).
+* **Human-in-the-Loop (HITL) Exception Gates**:
+  - Salary updates exceeding threshold (\`> $150,000\` or \`> 15%\` adjustment) require two-factor cryptographic supervisor approval before committing to DB2.
+  - Terminations and severance calculations require HR Director approval gate.
+
+---
+
+## 4. Verification & Quality Commands
+
+When building or updating code in this workspace, verify your implementation with:
+\`\`\`bash
+# Run local test suite against DB2 sandbox
+npm test
+
+# Verify TypeScript type safety
+npx tsc --noEmit
+
+# Start local IBM DB2 container sandbox (Offline Verification)
+docker-compose -f docker-compose.db2-test.yml up -d
+\`\`\`
+
+---
+
+## 5. Evolve AI Pre-Push & Pre-Flight Compliance
+Before committing code, verify:
+- No hardcoded secrets or database passwords in source code.
+- No dynamic SQL concatenation without bind variables.
+- All database field names match DB2 catalog definitions exactly in UPPERCASE or mapped aliases.
+`;
+  }
+
+  /**
+   * Generates a local offline DB2 container sandbox docker-compose manifest.
+   */
+  static generateDb2DockerCompose(introspected?: any): string {
+    const dbName = introspected?.database || 'SAMPLE';
+    return `version: '3.8'
+
+services:
+  db2-local:
+    image: icr.io/db2_free/db2:latest
+    container_name: db2_hcm_test
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - "50000:50000"
+      - "50001:50001"
+    environment:
+      - LICENSE=accept
+      - DB2INSTANCE=db2inst1
+      - DB2PASSWORD=db2adminPassword123!
+      - DBNAME=${dbName}
+      - BLU=false
+      - ENABLE_ORACLE_COMPATIBILITY=false
+      - AUTOCONFIG=false
+      - ARCHIVE_LOGS=false
+    volumes:
+      - ./scripts/init-db2.sql:/var/custom/init-db2.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "su - db2inst1 -c 'db2 connect to ${dbName}' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+`;
+  }
+
+  /**
+   * Generates the initialization SQL DDL script for the local DB2 test container.
+   */
+  static generateDb2InitSql(introspected?: any): string {
+    const schema = introspected?.schema || 'DB2ADMIN';
+    const tables: any[] = introspected?.tables || [];
+    const routines: any[] = introspected?.routines || [];
+    const sequences: any[] = introspected?.sequences || [];
+
+    let sql = `-- IBM DB2 Offline Sandbox Initialization Script
+-- Generated by Evolve AI Forward Deployed Engineering Studio
+-- Schema: ${schema}
+
+CREATE SCHEMA ${schema};
+SET CURRENT SCHEMA = '${schema}';
+
+`;
+
+    // Sequences
+    for (const sq of sequences) {
+      sql += `CREATE SEQUENCE ${schema}.${sq.sequenceName} AS ${sq.dataType || 'INTEGER'} START WITH ${sq.startValue || 1} INCREMENT BY ${sq.incrementBy || 1};\n`;
+    }
+    sql += '\n';
+
+    // Tables
+    for (const t of tables) {
+      sql += `CREATE TABLE ${schema}.${t.tableName} (\n`;
+      const colDefs = (t.columns || []).map((c: any) => {
+        let typeStr = 'VARCHAR(255)';
+        if (c.type === 'integer') typeStr = 'INTEGER';
+        else if (c.type === 'numeric') typeStr = 'DECIMAL(15,2)';
+        else if (c.type === 'timestamp') typeStr = 'TIMESTAMP';
+        else if (c.type === 'boolean') typeStr = 'SMALLINT';
+        return `    ${c.name} ${typeStr}${c.isPrimaryKey ? ' NOT NULL PRIMARY KEY' : (c.isNullable === false ? ' NOT NULL' : '')}`;
+      }).join(',\n');
+      sql += `${colDefs}\n);\n\n`;
+    }
+
+    // Routines Stubs
+    for (const r of routines) {
+      if (r.routineType === 'PROCEDURE') {
+        const parms = (r.parameters || []).map((p: any) => `${p.mode} ${p.name} ${p.type}`).join(', ');
+        sql += `CREATE OR REPLACE PROCEDURE ${schema}.${r.routineName}(${parms})\nLANGUAGE SQL\nBEGIN\n    -- DB2 Stored Procedure Stub for Local Testing\nEND;\n\n`;
+      }
+    }
+
+    return sql;
+  }
 }
 

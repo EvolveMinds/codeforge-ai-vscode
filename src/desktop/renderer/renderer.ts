@@ -4968,6 +4968,155 @@ function setupPhase1Discovery(api: any): void {
 
   // --- Showcase Architecture Templates ---
   const topologyPresets: Record<string, { name: string; future: string; legacy: string }> = {
+    'data-engineering': {
+      name: 'Data Engineering Lakehouse & Quality Gate',
+      future: `sequenceDiagram
+    autonumber
+    actor DataProducer as OLTP DBs & Kafka Streams
+    participant Airflow as Apache Airflow DAG Orchestrator
+    participant Spark as Apache Spark / Dataproc Fleet
+    participant DQ as Great Expectations Quality Gate
+    participant Lakehouse as Apache Iceberg ACID Lakehouse
+    actor DataLead as DataOps Engineer (HITL)
+    participant BI as Snowflake / BigQuery Analytics
+    
+    DataProducer->>Airflow: Emit hourly raw partition trigger
+    Airflow->>Spark: Dispatch PySpark batch transformation
+    Spark->>Lakehouse: Stage Bronze parquet partitions
+    Spark->>DQ: Profile statistical invariants & schema drift
+    alt Data Quality Anomaly or Schema Drift (>5% nulls)
+        DQ->>DataLead: Quarantine partition & alert on-call
+        DataLead->>Lakehouse: Sign authorized schema migration
+    else Clean Ingestion
+        DQ->>Lakehouse: Commit ACID snapshot manifest
+    end
+    Lakehouse-->>BI: Refresh downstream gold dimensional views`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor DataProducer as Legacy DB
+    participant Cron as Unmonitored Cron Script
+    participant RawCSV as Shared Network Folder
+    participant Analyst as Data Analyst
+    participant Warehouse as Old SQL Server DB
+    
+    DataProducer->>Cron: Midnight mysqldump flat export
+    Cron->>RawCSV: Dump uncompressed CSV file
+    Note over RawCSV: Silent schema change breaks column order
+    RawCSV->>Warehouse: BCP bulk insert fails silently
+    Analyst->>Warehouse: Discovers corrupted dashboard 3 days later
+    Analyst-->>DataProducer: File ticket to manually re-run export`
+    },
+    'insurance-claims': {
+      name: 'Insurance Claims & Actuarial Gate',
+      future: `sequenceDiagram
+    autonumber
+    actor Claimant as Policyholder / Broker Portal
+    participant Gateway as Kong Enterprise WAF (mTLS)
+    participant ClaimsCore as Automated Claims Adjudication
+    participant Actuarial as Neo4j Fraud & Actuarial Graph
+    actor Adjuster as Senior Claims Adjuster (HITL)
+    participant Guidewire as Guidewire ClaimCenter Core
+    participant Clearing as NACHA / Fedwire Settlement
+    
+    Claimant->>Gateway: Submit FNOL claim ($38,500 USD)
+    Gateway->>ClaimsCore: Ingest verified claim payload
+    ClaimsCore->>Actuarial: Query telematics & fraud syndicate score
+    alt Claim > $25k OR Fraud Risk Index > 0.65
+        Actuarial->>Adjuster: Four-Eyes Review Gate: Intercept payout
+        Adjuster->>Guidewire: 1-Click Dual-Custody signed approval
+    end
+    Guidewire->>Clearing: Dispatch direct settlement wire payout
+    Clearing-->>Claimant: Electronic funds transfer receipt`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor Claimant as Policyholder / Broker
+    participant Mail as Paper Mail / Fax Desk
+    participant Clerk as Junior Claims Clerk
+    participant Adjuster as Senior Claims Adjuster
+    participant Check as Paper Check Printer
+    
+    Claimant->>Mail: Fax 25-page claim forms & police report
+    Mail->>Clerk: Physical folder placed on review desk
+    Note over Clerk: 14-day backlog before initial review
+    Clerk->>Adjuster: Inter-office mail folder for sign-off
+    Adjuster->>Check: Print physical bank check
+    Check-->>Claimant: Check mailed via standard post (avg 28 days)`
+    },
+    'education-lms': {
+      name: 'Higher Ed LMS & Academic Integrity',
+      future: `sequenceDiagram
+    autonumber
+    actor Student as Student / Faculty Portal
+    participant LMS as Canvas LMS Gateway (LTI 1.3)
+    participant RubricCore as Automated Curriculum & Rubric Core
+    participant IntegrityAI as Turnitin & AI Detection Core
+    actor Ombudsman as Academic Integrity Ombudsman (HITL)
+    participant BannerSIS as Ellucian Banner SIS Registrar
+    participant CredVault as Verifiable Credentials Registry
+    
+    Student->>LMS: Submit Capstone Thesis (PDF/Git)
+    LMS->>RubricCore: Forward LTI 1.3 assignment token
+    RubricCore->>IntegrityAI: Scan document for plagiarism & AI
+    alt Similarity Score > 35% OR Grade Grievance
+        IntegrityAI->>Ombudsman: Hold grade & convene hearing review
+        Ombudsman->>RubricCore: Sign formal hearing resolution
+    end
+    RubricCore->>BannerSIS: Post certified final grade to transcript
+    BannerSIS->>CredVault: Issue W3C digital diploma credential`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor Student as Student / Faculty
+    participant Paper as Physical Printed Paper
+    participant TA as Graduate Teaching Assistant
+    participant Prof as Course Professor
+    participant Registrar as University Registrar Window
+    
+    Student->>Paper: Print 40-page report at computer lab
+    Paper->>TA: Drop in physical homework slot
+    TA->>Prof: Hand paper stack for manual review
+    Note over Prof: Unstandardized subjective grading
+    Prof->>Registrar: Walk hand-signed Scantron grade sheet
+    Registrar-->>Student: Mailed grade report 3 weeks after finals`
+    },
+    'payroll-automation': {
+      name: 'Enterprise Payroll & HCM Automation',
+      future: `sequenceDiagram
+    autonumber
+    actor Employee as Employees & Supervisors
+    participant Workday as Workday HCM Core (RaaS/EIB)
+    participant PayrollCore as Automated Gross-to-Net Engine
+    participant TaxCompliance as Multi-State Tax & Garnishment
+    actor Controller as Corporate Payroll Controller (HITL)
+    participant NACHA as Federal Reserve ACH Network
+    participant ERP as NetSuite / SAP General Ledger
+    
+    Employee->>Workday: Submit & approve bi-weekly timesheets
+    Workday->>PayrollCore: Stream raw hours batch payload
+    PayrollCore->>TaxCompliance: Calculate withholding & statutory garnishments
+    alt Total Variance > 3.5% OR New Garnishment Summons
+        TaxCompliance->>Controller: Variance Pre-Commit Gate: Hold ACH
+        Controller->>PayrollCore: Dual-custody FIDO2 authorization
+    end
+    PayrollCore->>NACHA: Dispatch 94-char fixed-width ACH file ($1.48M)
+    PayrollCore->>ERP: Post balanced payroll journal entry
+    NACHA-->>Employee: Direct deposit funds cleared to checking account`,
+      legacy: `sequenceDiagram
+    autonumber
+    actor Employee as Employees
+    participant Punch as Mechanical Time Clock / Paper Slip
+    participant PayrollClerk as Manual Payroll Clerk
+    participant Excel as Payroll Master Spreadsheet
+    participant Signer as CFO Wet-Ink Signature
+    participant BankRunner as Courier to Bank Branch
+    
+    Employee->>Punch: Punch paper timecard on wall clock
+    Punch->>PayrollClerk: Gather physical cards from factory floor
+    PayrollClerk->>Excel: Manually re-enter hours row by row
+    Note over Excel: Transposition typos & miscalculated overtime
+    Excel->>Signer: Walk printed check batch for physical signature
+    Signer->>BankRunner: Drive check box to commercial bank branch
+    BankRunner-->>Employee: Distribute paper paychecks on payday`
+    },
     'support-copilot': {
       name: 'Support Operations Co-Pilot',
       future: `sequenceDiagram
@@ -5320,6 +5469,10 @@ function setupPhase1Discovery(api: any): void {
   };
 
   const presetDisplayLabels: Record<string, string> = {
+    'data-engineering': '📊 Data Engineering Lakehouse & Quality Gate',
+    'insurance-claims': '🛡️ Insurance Claims & Actuarial Gate',
+    'education-lms': '🎓 Higher Ed LMS & Academic Integrity',
+    'payroll-automation': '💼 Enterprise Payroll & HCM Automation',
     'greenfield-agentic': '🌱 Greenfield Multi-Agent System',
     'greenfield-saas': '🚀 Net-New AI SaaS Application',
     'greenfield-event': '⚡ Event-Driven Microservice',
@@ -5448,12 +5601,8 @@ function setupPhase1Discovery(api: any): void {
         </div>
 
         <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 10.5px;">
-          <div style="color: #38bdf8; font-weight: 700; font-size: 10px; margin-bottom: 4px; text-transform: uppercase;">Reconciliation Payload Mismatch:</div>
-          <div style="font-family: monospace; font-size: 10px; color: #cbd5e1; line-height: 1.5;">
-            • Salesforce Inbound: <span style="color: #34d399;">Referral ID #REF-90412, MRN: 49281, Status: Pending</span><br>
-            • EMR Sunrise Query: <span style="color: #f87171;">MRN 49281, Encounter ID #ENC-1092, Status: Discharged (3 days ago)</span><br>
-            • Policy Rule: <span style="color: #fbbf24;">Discharged encounters cannot receive automated ambulatory referral attachment without physician review.</span>
-          </div>
+          <div style="color: #38bdf8; font-weight: 700; font-size: 10px; margin-bottom: 4px; text-transform: uppercase;">Diagnostic Exception Payload:</div>
+          <div style="font-family: monospace; font-size: 10px; color: #cbd5e1; line-height: 1.6; white-space: pre-wrap;">${escXml(gate.diagnosticDetails || '• System Exception: Automated reconciliation threshold breached.\n• Safety Action: Automation paused pending authorized review.')}</div>
         </div>
 
         <div style="font-size: 9.5px; color: #94a3b8;">

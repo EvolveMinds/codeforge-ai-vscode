@@ -3,9 +3,19 @@
  * 
  * Provides:
  * 1. 3-Level Hierarchical C4 Architecture Model (Context -> Container -> Component)
- * 2. First-class Human-in-the-Loop (HITL) Exception & Review Gate Modeling
- * 3. Interactive SVG Renderer with Trust Boundaries, Protocol Badges, and Photon Animation
- * 4. Deep Component Contract & Payload Schema Inspector
+ * 2. Extensive Domain Expertise:
+ *    - Data Engineering & Lakehouse Pipelines (Airflow, Spark, dbt, Iceberg, BigQuery, Schema Drift Gate)
+ *    - Banking & Wire Clearing (Finacle, Kafka, Neo4j AML, Fedwire, ISO 20022, Sanctions Gate)
+ *    - Insurance Claims & Underwriting (Guidewire, FNOL, Actuarial Risk, Four-Eyes Gate)
+ *    - Higher Education & LMS (Canvas, Banner SIS, Turnitin AI, Academic Integrity Ombudsman Gate)
+ *    - Enterprise Payroll & HCM Automation (Workday, Gross-to-Net, NACHA ACH, Payroll Variance Gate)
+ *    - Healthcare & Clinical Integration (Salesforce, MuleSoft, CHIB, EMR Sunrise, Clinician Gate)
+ *    - E-Commerce Microservices & Fraud Operations Gate
+ *    - Industrial IoT Streaming & Plant Safety Gate
+ *    - Greenfield & Autonomous Multi-Agent AI Core
+ * 3. First-Class Human-in-the-Loop (HITL) Exception & Review Gate Modeling
+ * 4. Interactive SVG Renderer with Dynamic Trust Boundaries, Protocol Badges, and Glow Filters
+ * 5. Deep Component Contract & Payload Schema Inspector
  * 
  * Pure functions, zero network dependencies, completely air-gapped.
  */
@@ -73,6 +83,7 @@ export interface C4HitlGate {
   reviewSurface: string;
   reviewRole: string;
   slaMinutes: number;
+  diagnosticDetails?: string;
   humanActions: Array<{
     name: string;
     action: 'approve' | 'override' | 'reject' | 'escalate';
@@ -109,21 +120,50 @@ export class C4TopologyEngine {
     const raw = (text || '').toLowerCase();
     const scenarioTitle = title || 'Enterprise Architecture Topology';
 
-    // 1. Detect Domain Archetype
-    const isHealthcare = raw.includes('mule') || raw.includes('emr') || raw.includes('chib') || raw.includes('salesforce') || raw.includes('referral') || raw.includes('visit id');
-    const isBanking = raw.includes('finacle') || raw.includes('core banking') || raw.includes('teller') || raw.includes('fedwire') || raw.includes('aml');
-    const isEcommerce = raw.includes('dynamodb') || raw.includes('fastapi') || raw.includes('stripe') || raw.includes('cart') || raw.includes('checkout');
-    const isIot = raw.includes('telematics') || raw.includes('emqx') || raw.includes('mqtt') || raw.includes('flink');
-
-    if (isHealthcare) {
-      return this.buildHealthcareModel(scenarioTitle);
+    // 1. Data Engineering & Lakehouse Pipelines
+    const isDataEng = raw.includes('data engineering') || raw.includes('lakehouse') || raw.includes('iceberg') || raw.includes('spark') || raw.includes('airflow') || raw.includes('dbt') || raw.includes('bigquery') || raw.includes('dataproc') || raw.includes('schema drift') || raw.includes('parquet') || raw.includes('pipeline') || raw.includes('etl') || raw.includes('elt');
+    if (isDataEng) {
+      return this.buildDataEngineeringModel(scenarioTitle);
     }
+
+    // 2. Enterprise Payroll & Automation Space
+    const isPayroll = raw.includes('payroll') || raw.includes('hcm') || raw.includes('workday') || raw.includes('timesheet') || raw.includes('garnishment') || raw.includes('gross-to-net') || raw.includes('nacha') || raw.includes('direct deposit') || raw.includes('wage');
+    if (isPayroll) {
+      return this.buildPayrollAutomationModel(scenarioTitle);
+    }
+
+    // 3. Higher Education & LMS Space
+    const isEducation = raw.includes('education') || raw.includes('student') || raw.includes('canvas') || raw.includes('lms') || raw.includes('curriculum') || raw.includes('grade') || raw.includes('transcript') || raw.includes('rubric') || raw.includes('plagiarism') || raw.includes('academic') || raw.includes('ombudsman');
+    if (isEducation) {
+      return this.buildEducationModel(scenarioTitle);
+    }
+
+    // 4. Insurance Claims & Underwriting
+    const isInsurance = raw.includes('insurance') || raw.includes('claim') || raw.includes('policy') || raw.includes('guidewire') || raw.includes('actuar') || raw.includes('underwriting') || raw.includes('fnol');
+    if (isInsurance) {
+      return this.buildInsuranceModel(scenarioTitle);
+    }
+
+    // 5. Core Banking & Wire Settlement
+    const isBanking = raw.includes('finacle') || raw.includes('core banking') || raw.includes('teller') || raw.includes('fedwire') || raw.includes('aml') || raw.includes('swift') || raw.includes('wire');
     if (isBanking) {
       return this.buildBankingModel(scenarioTitle);
     }
+
+    // 6. Healthcare & Clinical Integrations
+    const isHealthcare = raw.includes('mule') || raw.includes('emr') || raw.includes('chib') || raw.includes('salesforce') || raw.includes('referral') || raw.includes('visit id') || raw.includes('clinical') || raw.includes('hipaa');
+    if (isHealthcare) {
+      return this.buildHealthcareModel(scenarioTitle);
+    }
+
+    // 7. E-Commerce Microservices
+    const isEcommerce = raw.includes('dynamodb') || raw.includes('fastapi') || raw.includes('stripe') || raw.includes('cart') || raw.includes('checkout') || raw.includes('shopper');
     if (isEcommerce) {
       return this.buildEcommerceModel(scenarioTitle);
     }
+
+    // 8. Industrial IoT & Stream Analytics
+    const isIot = raw.includes('telematics') || raw.includes('emqx') || raw.includes('mqtt') || raw.includes('flink') || raw.includes('sensor');
     if (isIot) {
       return this.buildIotModel(scenarioTitle);
     }
@@ -152,12 +192,11 @@ export class C4TopologyEngine {
   private static renderLevel1ContextSvg(model: C4ArchitectureModel, showHitlException: boolean): string {
     const systems = model.level1.systems;
     const connections = model.level1.connections;
+    const zones = model.level1.zones;
 
     const width = 960;
     const height = 480;
 
-    // Node layout positions: 3 columns (Client/Ingress -> Integration/Middleware -> Core EHR/Data)
-    // plus a top/bottom governance row for HITL
     const nodePositions: Record<string, { x: number; y: number; w: number; h: number }> = {};
 
     const leftCol = systems.filter(s => s.zone === 'client' || s.category === 'actor');
@@ -186,10 +225,15 @@ export class C4TopologyEngine {
       ry += 110;
     });
 
-    // Layout HITL nodes at bottom or dedicated right position
+    // Layout HITL nodes at bottom
     hitlNodes.forEach((s, idx) => {
       nodePositions[s.id] = { x: 300 + idx * 260, y: 340, w: 240, h: 92 };
     });
+
+    const clientZoneLabel = (zones.find(z => z.id === 'client')?.label || 'CLIENT & INGRESS').toUpperCase();
+    const intZoneLabel = (zones.find(z => z.id === 'integration')?.label || 'INTEGRATION & COMPUTE').toUpperCase();
+    const coreZoneLabel = (zones.find(z => z.id === 'core')?.label || 'CORE DATA & STORAGE').toUpperCase();
+    const govZoneLabel = (zones.find(z => z.id === 'governance')?.label || 'HUMAN GOVERNANCE & EXCEPTION REVIEW').toUpperCase();
 
     let svg = `<svg id="fdeTopologySvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" style="width: 100%; height: auto; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; user-select: none;">
       <defs>
@@ -244,19 +288,19 @@ export class C4TopologyEngine {
         </marker>
       </defs>
 
-      <!-- Trust Boundaries -->
+      <!-- Dynamic Domain Trust Boundaries -->
       <g class="c4-zones">
         <rect x="20" y="45" width="220" height="390" rx="10" fill="rgba(30, 41, 59, 0.25)" stroke="rgba(148, 163, 184, 0.2)" stroke-dasharray="6 4"/>
-        <text x="32" y="65" fill="#94a3b8" font-size="10" font-weight="700" letter-spacing="0.5">BOUNDARY: CLIENT INGRESS / SAAS</text>
+        <text x="32" y="65" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.5">BOUNDARY: ${escapeXml(clientZoneLabel)}</text>
 
         <rect x="270" y="45" width="280" height="270" rx="10" fill="rgba(139, 92, 246, 0.06)" stroke="rgba(139, 92, 246, 0.25)" stroke-dasharray="6 4"/>
-        <text x="282" y="65" fill="#c084fc" font-size="10" font-weight="700" letter-spacing="0.5">BOUNDARY: INTEGRATION CLOUD (MTLS / VPC)</text>
+        <text x="282" y="65" fill="#c084fc" font-size="9" font-weight="700" letter-spacing="0.5">BOUNDARY: ${escapeXml(intZoneLabel)}</text>
 
         <rect x="580" y="45" width="260" height="390" rx="10" fill="rgba(245, 158, 11, 0.05)" stroke="rgba(245, 158, 11, 0.22)" stroke-dasharray="6 4"/>
-        <text x="592" y="65" fill="#fbbf24" font-size="10" font-weight="700" letter-spacing="0.5">BOUNDARY: CORE CLINICAL EHR / RECORDS</text>
+        <text x="592" y="65" fill="#fbbf24" font-size="9" font-weight="700" letter-spacing="0.5">BOUNDARY: ${escapeXml(coreZoneLabel)}</text>
 
         <rect x="270" y="325" width="280" height="110" rx="10" fill="rgba(239, 68, 68, 0.08)" stroke="rgba(239, 68, 68, 0.35)" stroke-dasharray="4 4"/>
-        <text x="282" y="342" fill="#f87171" font-size="9.5" font-weight="800" letter-spacing="0.5">BOUNDARY: HUMAN GOVERNANCE &amp; EXCEPTION REVIEW</text>
+        <text x="282" y="342" fill="#f87171" font-size="8.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(govZoneLabel)}</text>
       </g>
 
       <!-- Connections / Links -->
@@ -277,20 +321,17 @@ export class C4TopologyEngine {
       let dash = c.isAsync || isRed ? 'stroke-dasharray="6 4"' : '';
       let filter = isRed && showHitlException ? 'filter="url(#c4-glow-red)"' : '';
 
-      // Compute start and end points
       let x1 = fromPos.x + fromPos.w;
       let y1 = fromPos.y + fromPos.h / 2;
       let x2 = toPos.x;
       let y2 = toPos.y + toPos.h / 2;
 
-      // Handle downward routing to HITL
       if (toPos.y > fromPos.y + 100) {
         x1 = fromPos.x + fromPos.w / 2;
         y1 = fromPos.y + fromPos.h;
         x2 = toPos.x + toPos.w / 2;
         y2 = toPos.y;
       } else if (fromPos.x > toPos.x) {
-        // Reverse direction
         x1 = fromPos.x;
         x2 = toPos.x + toPos.w;
       }
@@ -302,8 +343,8 @@ export class C4TopologyEngine {
         <g class="c4-edge" data-order="${c.order}" style="cursor: pointer;">
           <path d="M ${x1} ${y1} Q ${midX} ${midY - 12} ${x2} ${y2}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${dash} ${filter} marker-end="url(#${markerId})"/>
           <!-- Label Pill -->
-          <rect x="${midX - 55}" y="${midY - 16}" width="110" height="15" rx="3" fill="#0f172a" stroke="${strokeColor}" stroke-width="0.8" opacity="0.95"/>
-          <text x="${midX}" y="${midY - 5}" fill="${isRed ? '#fca5a5' : '#e2e8f0'}" font-size="8" font-weight="700" text-anchor="middle">${c.order}. ${escapeXml(c.protocol)}</text>
+          <rect x="${midX - 58}" y="${midY - 16}" width="116" height="15" rx="3" fill="#0f172a" stroke="${strokeColor}" stroke-width="0.8" opacity="0.95"/>
+          <text x="${midX}" y="${midY - 5}" fill="${isRed ? '#fca5a5' : '#e2e8f0'}" font-size="7.5" font-weight="700" text-anchor="middle">${c.order}. ${escapeXml(c.protocol)}</text>
         </g>
       `;
     });
@@ -312,7 +353,6 @@ export class C4TopologyEngine {
       <!-- Systems Nodes (Level 1) -->
       <g class="c4-nodes">`;
 
-    // Draw systems
     systems.forEach((s) => {
       const pos = nodePositions[s.id];
       if (!pos) return;
@@ -341,16 +381,13 @@ export class C4TopologyEngine {
         <g class="c4-node-group" data-c4-id="${s.id}" data-c4-level="1" style="cursor: pointer;" transform="translate(${pos.x}, ${pos.y})">
           <rect width="${pos.w}" height="${pos.h}" rx="8" fill="url(#${gradId})" stroke="${strokeColor}" stroke-width="1.8" ${glowFilter}/>
           
-          <!-- Header Bar with Icon & Badge -->
           <text x="12" y="24" font-size="16">${s.icon}</text>
           <text x="36" y="20" fill="#f8fafc" font-size="11" font-weight="700">${escapeXml(s.label)}</text>
           <text x="36" y="32" fill="${strokeColor}" font-size="8.5" font-weight="600">[${escapeXml(s.role)}]</text>
 
-          <!-- Description line -->
           <text x="12" y="52" fill="#94a3b8" font-size="8" font-weight="500">${escapeXml(s.description.slice(0, 44))}</text>
           <text x="12" y="64" fill="#64748b" font-size="7.5">${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
 
-          <!-- Drill-down indicator pill -->
           ${s.containerCount > 0 ? `
             <g transform="translate(${pos.w - 82}, ${pos.h - 18})">
               <rect width="74" height="14" rx="3" fill="rgba(56, 189, 248, 0.15)" stroke="${strokeColor}" stroke-width="0.8"/>
@@ -390,9 +427,7 @@ export class C4TopologyEngine {
     const height = 480;
 
     const nodePositions: Record<string, { x: number; y: number; w: number; h: number }> = {};
-    const count = containers.length;
 
-    // Distribute containers in a clean 2-row grid or horizontal pipeline
     containers.forEach((c, i) => {
       const row = Math.floor(i / 3);
       const col = i % 3;
@@ -431,11 +466,6 @@ export class C4TopologyEngine {
       const toPos = nodePositions[c.to];
       if (!fromPos || !toPos) return;
 
-      const x1 = fromPos.x + fromPos.w / 2;
-      const y1 = fromPos.y + fromPos.h;
-      const x2 = toPos.x + toPos.w / 2;
-      const y2 = toPos.y;
-
       svg += `
         <g class="c4-l2-edge" style="cursor: pointer;">
           <path d="M ${fromPos.x + fromPos.w} ${fromPos.y + fromPos.h / 2} L ${toPos.x} ${toPos.y + toPos.h / 2}" fill="none" stroke="#a855f7" stroke-width="1.8" marker-end="url(#c4-l2-arrow)"/>
@@ -465,7 +495,7 @@ export class C4TopologyEngine {
           <text x="12" y="17" fill="#f8fafc" font-size="11" font-weight="700">${escapeXml(c.label)}</text>
           <text x="${pos.w - 12}" y="17" fill="${strokeColor}" font-size="8.5" font-weight="700" text-anchor="end">[${c.type.toUpperCase()}]</text>
 
-          <text x="12" y="44" fill="#38bdf8" font-size="8.5" font-weight="600 font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
+          <text x="12" y="44" fill="#38bdf8" font-size="8.5" font-weight="600" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
           <text x="12" y="62" fill="#94a3b8" font-size="8" font-weight="400">${escapeXml(c.description.slice(0, 52))}</text>
           <text x="12" y="76" fill="#64748b" font-size="7.5">Technology: ${escapeXml(c.technology)}</text>
 
@@ -487,7 +517,693 @@ export class C4TopologyEngine {
     return svg;
   }
 
-  // ── Pre-built Healthcare Architecture Model ─────────────────────────────────
+  // ── 1. Data Engineering & Modern Lakehouse Architecture Model ────────────────
+
+  private static buildDataEngineeringModel(title: string): C4ArchitectureModel {
+    return {
+      title,
+      scenarioDescription: 'Modern Lakehouse Data Platform with Apache Airflow orchestration, Spark/Dataproc distributed compute, dbt Core semantic modeling, Apache Iceberg ACID metadata catalog on S3/GCS, and a dedicated Great Expectations Schema Drift & Quality Quarantine Gate.',
+      level1: {
+        zones: [
+          { id: 'client', label: 'Data Sources & Stream Ingest' },
+          { id: 'integration', label: 'Orchestration & Compute (Airflow / Spark)' },
+          { id: 'core', label: 'Lakehouse & Storage (Iceberg / BigQuery)' },
+          { id: 'governance', label: 'Data Quality & Schema Drift Governance' }
+        ],
+        systems: [
+          { id: 'DataSources', label: 'OLTP DBs & Kafka Event Streams', category: 'actor', zone: 'client', icon: '📡', role: 'Data Producers', description: 'Emits CDC changelogs and raw JSON telemetry streams.', technologies: ['PostgreSQL CDC', 'Debezium', 'Kafka Connect'], containerCount: 0 },
+          { id: 'Airflow', label: 'Apache Airflow / Cloud Composer', category: 'gateway', zone: 'integration', icon: '🌪️', role: 'DAG Pipeline Orchestrator', description: 'Orchestrates hourly batch dependencies, retries, and data SLAs.', technologies: ['Airflow 2.10', 'CeleryExecutor', 'Astronomer'], containerCount: 3 },
+          { id: 'SparkCompute', label: 'Apache Spark / Dataproc Serverless', category: 'service', zone: 'integration', icon: '⚡', role: 'Distributed Processing Core', description: 'Executes high-throughput Bronze to Silver ETL transformations.', technologies: ['PySpark 3.5', 'Catalyst Optimizer', 'YARN / K8s'], containerCount: 3 },
+          { id: 'DbtCore', label: 'dbt Core / Dataform Semantic Core', category: 'service', zone: 'integration', icon: '🧱', role: 'SQL Transformation Layer', description: 'Builds dimensional star schema, fact models, and data lineage.', technologies: ['dbt Core 1.8', 'Jinja', 'Semantic Layer'], containerCount: 2 },
+          { id: 'IcebergLakehouse', label: 'Apache Iceberg ACID Lakehouse', category: 'database', zone: 'core', icon: '🧊', role: 'Transactional Lakehouse Store', description: 'Stores ACID parquet partitions with time travel and hidden partitioning.', technologies: ['Iceberg REST Catalog', 'Parquet', 'AWS S3 / GCS'], containerCount: 3 },
+          { id: 'AnalyticsBI', label: 'Snowflake / BigQuery & BI', category: 'database', zone: 'thirdparty', icon: '📊', role: 'Consumption & Analytics Layer', description: 'Serves low-latency executive dashboards and ML feature stores.', technologies: ['BigQuery / Snowflake', 'Cube.js', 'Looker'], containerCount: 1 },
+          { id: 'HITL_Gate', label: 'Schema Drift & Quality Quarantine Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'DataOps Human Decision Gate', description: 'Intercepts critical null violations and schema breaks before gold partition write.', technologies: ['Great Expectations', 'Monte Carlo', 'Slack Webhook'], containerCount: 1 }
+        ],
+        connections: [
+          { from: 'DataSources', to: 'Airflow', label: 'Trigger Hourly Micro-Batch', protocol: 'Cloud Storage Sensor / Webhook', order: 1 },
+          { from: 'Airflow', to: 'SparkCompute', label: 'Dispatch PySpark Job Run', protocol: 'Dataproc / EMR Job API', order: 2 },
+          { from: 'SparkCompute', to: 'IcebergLakehouse', label: 'Stage Bronze Parquet Partitions', protocol: 'Iceberg REST (mTLS)', order: 3 },
+          { from: 'SparkCompute', to: 'DbtCore', label: 'Trigger Dimensional Model Transforms', protocol: 'dbt Cloud / CLI Runner', order: 4 },
+          { from: 'DbtCore', to: 'HITL_Gate', label: 'On Null > 5% or Schema Drift: Halt Pipeline', protocol: 'Quarantine Event', isException: true, isHitl: true, order: 5 },
+          { from: 'HITL_Gate', to: 'IcebergLakehouse', label: 'Authorized Schema Migration & Re-run', protocol: 'Signed Approval Token', isHitl: true, order: 6 },
+          { from: 'DbtCore', to: 'IcebergLakehouse', label: 'Commit Gold Fact & Dimension Snapshot', protocol: 'ACID Manifest Commit', order: 7 },
+          { from: 'IcebergLakehouse', to: 'AnalyticsBI', label: 'Federated Query & BI Dashboard Refresh', protocol: 'Trino / BigLake Connector', order: 8 }
+        ]
+      },
+      level2: {
+        SparkCompute: {
+          parentSystem: {
+            id: 'SparkCompute',
+            label: 'Apache Spark / Dataproc Serverless',
+            category: 'service',
+            zone: 'integration',
+            icon: '⚡',
+            role: 'Distributed Processing Core',
+            description: 'Scalable cluster executing distributed in-memory data processing.',
+            technologies: ['PySpark 3.5', 'Adaptive Query Execution (AQE)', 'RocksDB'],
+            containerCount: 3
+          },
+          containers: [
+            { id: 'Spark_Driver', parentSystemId: 'SparkCompute', label: 'Spark Driver & Job Coordinator', type: 'orchestrator', technology: 'JVM Spark Driver, Catalyst Optimizer', endpoint: 'spark://master:7077', description: 'Plans DAG stages, coordinates partition tasks, and negotiates cluster memory.', componentCount: 2 },
+            { id: 'Spark_Executors', parentSystemId: 'SparkCompute', label: 'Distributed Executor Worker Fleet', type: 'adapter', technology: 'Containerized PySpark Pods (Kubernetes / Dataproc)', description: 'Executes parallel transformations, broadcast joins, and columnar aggregations.', componentCount: 2 },
+            { id: 'DQ_Profiler', parentSystemId: 'SparkCompute', label: 'Great Expectations Profiling Engine', type: 'gate', technology: 'Great Expectations 0.18 + Soda Core', description: 'Computes statistical distributions, null fractions, and regex compliance.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Spark_Driver', to: 'Spark_Executors', label: 'Distribute Task Partitions', protocol: 'RPC / Netty Stream', order: 1 },
+            { from: 'Spark_Executors', to: 'DQ_Profiler', label: 'Stream Partition Metrics', protocol: 'In-Memory Arrow Buffer', order: 2 }
+          ]
+        },
+        Airflow: {
+          parentSystem: {
+            id: 'Airflow',
+            label: 'Apache Airflow / Cloud Composer',
+            category: 'gateway',
+            zone: 'integration',
+            icon: '🌪️',
+            role: 'Pipeline Orchestrator',
+            description: 'Enterprise DAG scheduler with dynamic retry policies.',
+            technologies: ['Airflow 2.10', 'CeleryExecutor', 'Postgres Metadata'],
+            containerCount: 3
+          },
+          containers: [
+            { id: 'Airflow_Scheduler', parentSystemId: 'Airflow', label: 'Airflow DAG Scheduler', type: 'orchestrator', technology: 'Airflow Scheduler & Triggerer', description: 'Evaluates task dependencies and enqueues DAG runs.', componentCount: 2 },
+            { id: 'Airflow_Workers', parentSystemId: 'Airflow', label: 'Celery / K8s Worker Nodes', type: 'api', technology: 'Python 3.11 Execution Runners', description: 'Executes Bash, Python, and Dataproc operators.', componentCount: 1 },
+            { id: 'Airflow_StateDB', parentSystemId: 'Airflow', label: 'Airflow State & Metadata DB', type: 'store', technology: 'Cloud SQL PostgreSQL 15', description: 'Maintains task states, XCom variables, and connection credentials.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Airflow_Scheduler', to: 'Airflow_Workers', label: 'Dispatch Job Queue', protocol: 'RabbitMQ / Redis Broker', order: 1 }
+          ]
+        },
+        IcebergLakehouse: {
+          parentSystem: {
+            id: 'IcebergLakehouse',
+            label: 'Apache Iceberg ACID Lakehouse',
+            category: 'database',
+            zone: 'core',
+            icon: '🧊',
+            role: 'Transactional Lakehouse Store',
+            description: 'Open table format providing snapshot isolation and ACID transactions.',
+            technologies: ['Iceberg REST Catalog', 'Snappy Parquet', 'Object Storage'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'Iceberg_Catalog', parentSystemId: 'IcebergLakehouse', label: 'Iceberg REST / Polaris Catalog', type: 'api', technology: 'REST Table Catalog v1', description: 'Tracks active table metadata pointers and snapshot history.', componentCount: 2 },
+            { id: 'Parquet_Lake', parentSystemId: 'IcebergLakehouse', label: 'Columnar Parquet Storage Tier', type: 'store', technology: 'AWS S3 / Google Cloud Storage', description: 'Stores immutable, compressed parquet files organized by date partitions.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Iceberg_Catalog', to: 'Parquet_Lake', label: 'Write Metadata Manifest List', protocol: 'S3 API / GCS JSON', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        Spark_Driver: {
+          parentContainer: {
+            id: 'Spark_Driver',
+            parentSystemId: 'SparkCompute',
+            label: 'Spark Driver & Job Coordinator',
+            type: 'orchestrator',
+            technology: 'JVM Spark Driver',
+            description: 'Coordinates distributed partition execution and schema contracts.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'SchemaValidatorStep',
+              parentContainerId: 'Spark_Driver',
+              label: 'Schema Evolution & Quarantine Filter',
+              role: 'Schema Contract Validator',
+              description: 'Ensures inbound partition matches registered Iceberg schema version.',
+              slaMs: 120,
+              retryPolicy: 'Zero retry — Hard quarantine on breaking schema drift',
+              contracts: [
+                { field: 'event_timestamp', type: 'Timestamp (UTC ISO 8601)', required: true, source: 'Ingest Kafka Payload', destination: 'Bronze Iceberg Table', description: 'Universal event occurrence timestamp.', validationRule: 'Within 24h of current time' },
+                { field: 'tenant_id', type: 'UUIDv4 String', required: true, source: 'JWT Auth Header', destination: 'Partition Key', description: 'Enterprise customer isolation key.', validationRule: 'Matches ^[0-9a-f-]{36}$' },
+                { field: 'revenue_usd', type: 'Decimal(18,4)', required: true, source: 'Payment Transaction Payload', destination: 'Fact Ledger Partition', description: 'Normalized monetary transaction amount in USD.', validationRule: 'Non-negative; null rate < 0.1%' },
+                { field: 'schema_hash', type: 'SHA-256 Hex', required: true, source: 'Avro Schema Registry', destination: 'Iceberg Table Manifest', description: 'Cryptographic fingerprint of partition schema.', validationRule: 'Must match schema catalog ID' }
+              ]
+            },
+            {
+              id: 'PartitionPruningStep',
+              parentContainerId: 'Spark_Driver',
+              label: 'Adaptive Partition & Min/Max Pruner',
+              role: 'Query Optimizer Component',
+              description: 'Prunes untouched parquet files using file-level min/max column statistics.',
+              slaMs: 45,
+              contracts: [
+                { field: 'partition_date', type: 'Date (YYYY-MM-DD)', required: true, source: 'DAG Run Context', destination: 'Parquet File Path', description: 'Temporal partition folder.' }
+              ]
+            }
+          ]
+        }
+      },
+      hitlGates: [
+        {
+          id: 'HITL_DataQuality',
+          systemId: 'DbtCore',
+          title: 'Data Quality Anomaly & Schema Drift Quarantine Gate',
+          triggerCondition: 'Great Expectations detects null rate > 5.0% on critical business columns or schema drift introduces breaking type mismatch.',
+          reviewSurface: 'Monte Carlo / Great Expectations DataOps Observability Portal',
+          reviewRole: 'Lead Data Platform Engineer / Analytics Architect',
+          slaMinutes: 20,
+          diagnosticDetails: `• Ingestion Pipeline: Bronze S3 Partition s3://lakehouse/bronze/orders/dt=2026-10-20/
+• Great Expectations Assertion: column 'revenue_usd' null_percentage = 18.4% (Threshold: < 0.5%)
+• Schema Drift: Field 'customer_tax_code' detected with incompatible type change INT64 -> STRING
+• Safety Action: Ingestion paused at Silver transform; partition quarantined pending schema review.`,
+          humanActions: [
+            { name: 'Approve Migration & Auto-Backfill', action: 'override', impact: 'Evolves Iceberg table schema, updates gold models, and un-pauses downstream DAGs.' },
+            { name: 'Quarantine Partition & Alert Producers', action: 'reject', impact: 'Diverts corrupted partition to Dead Letter Queue (DLQ) and files P1 incident.' },
+            { name: 'Escalate to VP of Data', action: 'escalate', impact: 'Triggers on-call escalation after 20-minute SLA timeout.' }
+          ],
+          auditProvenance: 'DataOps engineer SSO signature, schema delta diff, and approval hash written to Iceberg audit catalog.'
+        }
+      ]
+    };
+  }
+
+  // ── 2. Insurance Claims & Underwriting Architecture Model ────────────────────
+
+  private static buildInsuranceModel(title: string): C4ArchitectureModel {
+    return {
+      title,
+      scenarioDescription: 'Enterprise Insurance Claims Adjudication & Actuarial Underwriting ecosystem with multi-channel FNOL intake, Guidewire ClaimCenter, Neo4j actuarial fraud graph, and a mandatory Four-Eyes Senior Claims Adjuster HITL Gate.',
+      level1: {
+        zones: [
+          { id: 'client', label: 'Policyholder & Broker Ingress' },
+          { id: 'integration', label: 'Rules & Actuarial Engine (mTLS)' },
+          { id: 'core', label: 'Claims Ledger & Clearing (Guidewire)' },
+          { id: 'governance', label: 'Four-Eyes Claims & Actuarial Governance' }
+        ],
+        systems: [
+          { id: 'Claimant', label: 'Policyholder / Broker Portal', category: 'actor', zone: 'client', icon: '👤', role: 'Claimant / Broker', description: 'Submits First Notice of Loss (FNOL) with police report and photos.', technologies: ['React Portal', 'Mobile App', 'OAuth2'], containerCount: 0 },
+          { id: 'InsuranceGW', label: 'Kong Enterprise Gateway', category: 'gateway', zone: 'client', icon: '🛡️', role: 'Security Ingress Controller', description: 'mTLS termination, API rate limiting, and document virus scanning.', technologies: ['Kong EE', 'WAF', 'ClamAV'], containerCount: 2 },
+          { id: 'ClaimsEngine', label: 'Automated Claims Adjudication Core', category: 'service', zone: 'integration', icon: '⚙️', role: 'Rules & Deductible Engine', description: 'Validates policy active status, coverage limits, and deductible rules.', technologies: ['FastAPI', 'Drools Rule Engine'], containerCount: 3 },
+          { id: 'ActuarialGraph', label: 'Neo4j Fraud & Actuarial Risk Graph', category: 'service', zone: 'integration', icon: '🧠', role: 'Fraud Ring & Actuarial Scorer', description: 'Calculates claim risk score and cross-checks organized ring syndicates.', technologies: ['Neo4j Enterprise', 'Graph Data Science (GDS)'], containerCount: 2 },
+          { id: 'Guidewire', label: 'Guidewire ClaimCenter Core', category: 'database', zone: 'core', icon: '🏛️', role: 'Enterprise Claims Ledger', description: 'System of record for policy reserves, payouts, and legal subrogation.', technologies: ['Guidewire Cloud', 'Oracle RAC'], containerCount: 3 },
+          { id: 'ClearingBank', label: 'Federal Reserve NACHA / Wire Payout', category: 'service', zone: 'thirdparty', icon: '💳', role: 'Claims Settlement Network', description: 'Dispatches real-time claimant EFT / direct deposit settlements.', technologies: ['ISO 20022', 'Fedwire', 'NACHA ACH'], containerCount: 1 },
+          { id: 'HITL_Gate', label: 'Four-Eyes Claims Adjudication Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'Senior Adjuster Decision Gate', description: 'Mandatory human approval gate for claims > $25k or fraud risk index > 0.65.', technologies: ['Guidewire Adjuster Console', 'Dual-Key Auth'], containerCount: 1 }
+        ],
+        connections: [
+          { from: 'Claimant', to: 'InsuranceGW', label: 'Submit FNOL Claim ($38,500)', protocol: 'HTTPS / REST (TLS 1.3)', order: 1 },
+          { from: 'InsuranceGW', to: 'ClaimsEngine', label: 'Forward Validated Claim Payload', protocol: 'mTLS Private VPC', order: 2 },
+          { from: 'ClaimsEngine', to: 'ActuarialGraph', label: 'Evaluate Fraud Ring & Telematics Risk', protocol: 'gRPC / Cypher Query', order: 3 },
+          { from: 'ActuarialGraph', to: 'HITL_Gate', label: 'Claim > $25k OR Risk > 0.65: Route to Senior Adjuster', protocol: 'Escalation Event', isException: true, isHitl: true, order: 4 },
+          { from: 'HITL_Gate', to: 'Guidewire', label: 'Signed Dual-Custody Approval Token', protocol: 'Signed JWT Token', isHitl: true, order: 5 },
+          { from: 'ClaimsEngine', to: 'Guidewire', label: 'Allocate Loss Reserve & Adjust Policy', protocol: 'REST / SOAP Enterprise', order: 6 },
+          { from: 'Guidewire', to: 'ClearingBank', label: 'Execute Direct Settlement Wire Payout', protocol: 'NACHA / Fedwire pacs.008', order: 7 }
+        ]
+      },
+      level2: {
+        ClaimsEngine: {
+          parentSystem: {
+            id: 'ClaimsEngine',
+            label: 'Automated Claims Adjudication Core',
+            category: 'service',
+            zone: 'integration',
+            icon: '⚙️',
+            role: 'Rules & Deductible Engine',
+            description: 'Executes automated policy verification and loss evaluation.',
+            technologies: ['FastAPI', 'Drools Business Rules', 'Pydantic'],
+            containerCount: 3
+          },
+          containers: [
+            { id: 'FNOL_Ingest', parentSystemId: 'ClaimsEngine', label: 'FNOL Ingestion & Doc OCR', type: 'api', technology: 'FastAPI + Tesseract OCR', description: 'Extracts loss date, estimated damage, and driver details from police PDF.', componentCount: 2 },
+            { id: 'Policy_Matcher', parentSystemId: 'ClaimsEngine', label: 'Coverage & Limit Evaluator', type: 'orchestrator', technology: 'Drools Rule Engine v8', description: 'Verifies premium payment status and deductibles under policy terms.', componentCount: 2 },
+            { id: 'Reserve_Allocator', parentSystemId: 'ClaimsEngine', label: 'Actuarial Reserve Calculator', type: 'adapter', technology: 'Python Actuarial Framework', description: 'Calculates recommended indemnity and medical loss reserve amounts.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'FNOL_Ingest', to: 'Policy_Matcher', label: 'Pass Normalized Claim', protocol: 'Internal REST', order: 1 },
+            { from: 'Policy_Matcher', to: 'Reserve_Allocator', label: 'Calculate Loss Reserves', protocol: 'In-Memory RPC', order: 2 }
+          ]
+        },
+        Guidewire: {
+          parentSystem: {
+            id: 'Guidewire',
+            label: 'Guidewire ClaimCenter Core',
+            category: 'database',
+            zone: 'core',
+            icon: '🏛️',
+            role: 'Enterprise Claims Ledger',
+            description: 'Guidewire Cloud platform managing active claims lifecycle and payments.',
+            technologies: ['Guidewire ClaimCenter v10', 'Oracle RAC Database'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'GW_ClaimService', parentSystemId: 'Guidewire', label: 'ClaimCenter Integration API', type: 'api', technology: 'Guidewire REST APIs', description: 'Exposes claims creation, note history, and reserve adjustment endpoints.', componentCount: 1 },
+            { id: 'GW_LedgerDB', parentSystemId: 'Guidewire', label: 'Claims Ledger & Reserve DB', type: 'store', technology: 'Oracle RAC 19c Multi-Tenant', description: 'Persistent financial ledger holding legal claim records and reserves.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'GW_ClaimService', to: 'GW_LedgerDB', label: 'Commit Transaction', protocol: 'Oracle OCI / JDBC', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        ClaimsEngine: {
+          parentContainer: {
+            id: 'FNOL_Ingest',
+            parentSystemId: 'ClaimsEngine',
+            label: 'FNOL Ingestion & Doc OCR',
+            type: 'api',
+            technology: 'FastAPI + Pydantic',
+            description: 'Validates inbound First Notice of Loss schema against insurance contracts.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'FNOLValidator',
+              parentContainerId: 'FNOL_Ingest',
+              label: 'Claim Payload & Invariant Evaluator',
+              role: 'Contract Validator Component',
+              description: 'Enforces coverage validity and statutory claim filing constraints.',
+              slaMs: 180,
+              contracts: [
+                { field: 'Claim_ID', type: 'String (CLM-YYYYMM-XXXXX)', required: true, source: 'FNOL Intake Portal', destination: 'Guidewire ClaimCenter', description: 'Universal claim identifier.', validationRule: 'Matches ^CLM-[0-9]{6}-[A-Z0-9]{5}$' },
+                { field: 'Policy_Number', type: 'String (Alphanumeric 10)', required: true, source: 'Insurance Portal', destination: 'Policy Registry', description: 'Underwritten active policy account number.', validationRule: 'Must resolve to in-force policy' },
+                { field: 'Loss_Date', type: 'Date (YYYY-MM-DD)', required: true, source: 'Police Report / Claimant', destination: 'Coverage Matcher', description: 'Exact date incident occurred.', validationRule: 'Loss_Date <= Today AND Loss_Date >= Policy_Start_Date' },
+                { field: 'Claimed_Amount_USD', type: 'Decimal(12,2)', required: true, source: 'Claimant Estimate', destination: 'Reserve Allocator', description: 'Estimated loss amount claimed by insured.', validationRule: 'Claimed_Amount > 0.00' },
+                { field: 'Fraud_Risk_Index', type: 'Float (0.000 to 1.000)', required: true, source: 'Neo4j Actuarial Graph', destination: 'HITL Review Trigger', description: 'Machine learning fraud propensity score.', validationRule: 'Scores > 0.650 force mandatory HITL gate' }
+              ]
+            }
+          ]
+        }
+      },
+      hitlGates: [
+        {
+          id: 'HITL_Insurance_Adjuster',
+          systemId: 'ClaimsEngine',
+          title: 'Four-Eyes Senior Claims Adjuster & Fraud Review Gate',
+          triggerCondition: 'Claim amount exceeds $25,000 threshold OR Neo4j fraud ring risk index > 0.65.',
+          reviewSurface: 'Guidewire ClaimCenter Senior Adjuster Adjudication Workbench',
+          reviewRole: 'Certified Senior Claims Adjuster / Special Investigation Unit (SIU)',
+          slaMinutes: 60,
+          diagnosticDetails: `• Policyholder: Robert Chen (Policy #POL-AUTO-88194)
+• Loss Event: Major collision on I-95, estimated claim $38,500.00 USD (Comprehensive Coverage)
+• Actuarial Invariant: Claim amount exceeds autonomous threshold ($25,000.00 USD).
+• Fraud Risk Model: Vehicle telematics indicates speed = 0mph at alleged incident timestamp.
+• Safety Action: Claim flagged for four-eyes senior adjuster review before reserve allocation.`,
+          humanActions: [
+            { name: 'Approve & Release Settlement Wire', action: 'approve', impact: 'Signs dual-custody authorization; unlocks Guidewire payout for Fedwire dispatch.' },
+            { name: 'Refer to Special Investigation Unit (SIU)', action: 'override', impact: 'Freezes claim; assigns investigator to subpoena dashcam footage and interview witnesses.' },
+            { name: 'Deny Claim with Formal Notice', action: 'reject', impact: 'Issues certified formal letter of denial citing telematics variance; closes claim.' }
+          ],
+          auditProvenance: 'Senior Adjuster digital certificate, license number, and cryptographic signature anchored in claims ledger.'
+        }
+      ]
+    };
+  }
+
+  // ── 3. Higher Education & LMS Academic Integrity Architecture Model ──────────
+
+  private static buildEducationModel(title: string): C4ArchitectureModel {
+    return {
+      title,
+      scenarioDescription: 'Higher Education Digital Academic Platform with Canvas LMS LTI 1.3 integration, automated competency rubric calculation, Turnitin / AI similarity detection, Ellucian Banner SIS transcript updates, and an Academic Integrity Ombudsman Review Gate.',
+      level1: {
+        zones: [
+          { id: 'client', label: 'Student & Faculty Ingress' },
+          { id: 'integration', label: 'LMS & Evaluation Core (LTI 1.3)' },
+          { id: 'core', label: 'Registrar & Transcripts (Banner SIS)' },
+          { id: 'governance', label: 'Academic Integrity & Ombudsman Board' }
+        ],
+        systems: [
+          { id: 'StudentFaculty', label: 'Students & Faculty Portal', category: 'actor', zone: 'client', icon: '🎓', role: 'Academic Users', description: 'Submits assignments, final capstone papers, and course grades.', technologies: ['Canvas Student UI', 'Mobile App', 'SAML 2.0'], containerCount: 0 },
+          { id: 'CanvasLMS', label: 'Canvas / Blackboard LMS Gateway', category: 'gateway', zone: 'client', icon: '📚', role: 'LMS Ingress Gateway', description: 'Handles course enrollment, assignment dispatch, and LTI 1.3 token exchange.', technologies: ['Canvas LMS', 'IMS Global LTI 1.3', 'OAuth2'], containerCount: 2 },
+          { id: 'CurriculumCore', label: 'Automated Curriculum & Rubric Core', category: 'service', zone: 'integration', icon: '📝', role: 'Grading & Competency Engine', description: 'Evaluates rubric weights, calculates curved grade averages, and tracks student progress.', technologies: ['FastAPI', 'Celery Workers', 'PostgreSQL'], containerCount: 3 },
+          { id: 'IntegrityAI', label: 'Turnitin & AI Detection Core', category: 'service', zone: 'integration', icon: '🔍', role: 'Academic Integrity Scanner', description: 'Analyzes semantic embeddings, citation graphs, and AI hallucination patterns.', technologies: ['Turnitin API', 'Vector Embeddings', 'Cosine Similarity'], containerCount: 2 },
+          { id: 'BannerSIS', label: 'Ellucian Banner SIS Registrar Core', category: 'database', zone: 'core', icon: '🏛️', role: 'Official Student Record System', description: 'Permanent student transcript, GPA standing, and degree conferral database.', technologies: ['Ellucian Banner 9', 'Oracle Database', 'REST APIs'], containerCount: 2 },
+          { id: 'CredentialVault', label: 'Verifiable Credentials Registry', category: 'service', zone: 'thirdparty', icon: '📜', role: 'Digital Diploma Trust Network', description: 'Issues tamper-evident W3C digital diplomas and cryptographic micro-credentials.', technologies: ['W3C Verifiable Credentials', 'Open Badges 3.0'], containerCount: 1 },
+          { id: 'HITL_Gate', label: 'Academic Integrity Ombudsman Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'Academic Senate Ombudsman Board', description: 'Reviews flagged similarity violations > 35% or contested grade appeal filings.', technologies: ['Senate Hearing Portal', 'Case Management'], containerCount: 1 }
+        ],
+        connections: [
+          { from: 'StudentFaculty', to: 'CanvasLMS', label: 'Submit Capstone Thesis (PDF/Git)', protocol: 'HTTPS / LTI 1.3', order: 1 },
+          { from: 'CanvasLMS', to: 'CurriculumCore', label: 'Forward Submission Payload', protocol: 'REST / Webhook Event', order: 2 },
+          { from: 'CurriculumCore', to: 'IntegrityAI', label: 'Scan Document for Plagiarism & AI', protocol: 'HTTPS / JSON API', order: 3 },
+          { from: 'IntegrityAI', to: 'HITL_Gate', label: 'Similarity > 35%: Trigger Ombudsman Gate', protocol: 'Violation Event', isException: true, isHitl: true, order: 4 },
+          { from: 'HITL_Gate', to: 'CurriculumCore', label: 'Formal Hearing Ruling / Clear Allegation', protocol: 'Signed Adjudication Token', isHitl: true, order: 5 },
+          { from: 'CurriculumCore', to: 'BannerSIS', label: 'Commit Official Grade & GPA Standing', protocol: 'Banner REST API / SQL', order: 6 },
+          { from: 'BannerSIS', to: 'CredentialVault', label: 'Issue Verifiable Digital Diploma', protocol: 'W3C VC JSON-LD', order: 7 }
+        ]
+      },
+      level2: {
+        CurriculumCore: {
+          parentSystem: {
+            id: 'CurriculumCore',
+            label: 'Automated Curriculum & Rubric Core',
+            category: 'service',
+            zone: 'integration',
+            icon: '📝',
+            role: 'Grading & Competency Engine',
+            description: 'Core microservices calculating weighted syllabus rubrics and degree milestones.',
+            technologies: ['FastAPI', 'Python 3.11', 'Redis Cache'],
+            containerCount: 3
+          },
+          containers: [
+            { id: 'LTI_Bridge', parentSystemId: 'CurriculumCore', label: 'IMS LTI 1.3 Tool Consumer Bridge', type: 'api', technology: 'LTI Advantage REST Provider', description: 'Authenticates student identity and extracts course CRN context.', componentCount: 2 },
+            { id: 'Rubric_Calculator', parentSystemId: 'CurriculumCore', label: 'Weighted Rubric Calculation Engine', type: 'orchestrator', technology: 'Deterministic Scoring Service', description: 'Applies course grading curves, late penalties, and extra credit allowances.', componentCount: 2 },
+            { id: 'Competency_Tracker', parentSystemId: 'CurriculumCore', label: 'ABET / Accreditation Progress Ledger', type: 'store', technology: 'PostgreSQL 16 Multi-Tenant', description: 'Tracks course learning objectives (CLOs) and departmental accreditation audits.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'LTI_Bridge', to: 'Rubric_Calculator', label: 'Deliver Raw Scores', protocol: 'In-Memory Stream', order: 1 }
+          ]
+        },
+        BannerSIS: {
+          parentSystem: {
+            id: 'BannerSIS',
+            label: 'Ellucian Banner SIS Registrar Core',
+            category: 'database',
+            zone: 'core',
+            icon: '🏛️',
+            role: 'Official Student Record System',
+            description: 'Institutional system of record for university transcripts and academic honors.',
+            technologies: ['Banner 9 Student', 'Oracle RAC Database'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'SIS_RegistrarAPI', parentSystemId: 'BannerSIS', label: 'Banner Student Registrar API', type: 'api', technology: 'Ellucian Ethos Integration REST', description: 'Receives signed final grade batches from department heads.', componentCount: 1 },
+            { id: 'SIS_TranscriptDB', parentSystemId: 'BannerSIS', label: 'Student Transcript & Degree DB', type: 'store', technology: 'Oracle Database Enterprise', description: 'Permanent, immutable ledger of course credits and conferred degrees.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'SIS_RegistrarAPI', to: 'SIS_TranscriptDB', label: 'Write Certified Transcript', protocol: 'SQL Stored Procedure', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        CurriculumCore: {
+          parentContainer: {
+            id: 'LTI_Bridge',
+            parentSystemId: 'CurriculumCore',
+            label: 'IMS LTI 1.3 Tool Consumer Bridge',
+            type: 'api',
+            technology: 'FastAPI + LTI Advantage',
+            description: 'Component evaluating academic submission contracts and plagiarism metrics.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'AcademicContractStep',
+              parentContainerId: 'LTI_Bridge',
+              label: 'Academic Submission Evaluator',
+              role: 'Academic Schema Validator',
+              description: 'Validates student ID, course section, and Turnitin similarity index constraints.',
+              slaMs: 250,
+              contracts: [
+                { field: 'Student_ID', type: 'String (STU-XXXXXX)', required: true, source: 'Canvas SAML Token', destination: 'Banner SIS', description: 'Unique institutional student matriculation identifier.', validationRule: 'Matches ^STU-[0-9]{6}$' },
+                { field: 'Course_CRN', type: 'String (5 Digits)', required: true, source: 'LMS Context', destination: 'Registrar Ledger', description: 'Course Reference Number in university catalog.', validationRule: 'Matches ^[0-9]{5}$' },
+                { field: 'Similarity_Score_Pct', type: 'Decimal(5,2)', required: true, source: 'Turnitin AI Engine', destination: 'Integrity Ombudsman Gate', description: 'Measured plagiarism & artificial text similarity ratio.', validationRule: 'Score > 35.0% forces automatic Ombudsman hold' },
+                { field: 'Final_Grade_Letter', type: 'String (A, B, C, D, F, I)', required: true, source: 'Rubric Calculator', destination: 'Official Transcript', description: 'Calculated letter grade abiding by university scale.', validationRule: 'Valid grade designation' }
+              ]
+            }
+          ]
+        }
+      },
+      hitlGates: [
+        {
+          id: 'HITL_Ombudsman',
+          systemId: 'CurriculumCore',
+          title: 'Academic Integrity & Grade Appeal Ombudsman Review Gate',
+          triggerCondition: 'Turnitin / AI similarity score > 35% on capstone project or formal grade grievance filed by student.',
+          reviewSurface: 'Academic Senate Ombudsman Hearing & Adjudication Board Portal',
+          reviewRole: 'Academic Department Chair & University Ombudsman',
+          slaMinutes: 2880,
+          diagnosticDetails: `• Student: Sarah Jenkins (Student ID STU-992814)
+• Course: CS-480 Distributed Systems Capstone (CRN: 50291)
+• Submission: Final Architecture Paper (final_report_v2.pdf)
+• Turnitin AI Detection: 42.8% similarity to peer submission in Fall 2025 semester.
+• Academic Invariant: Submissions with similarity > 30% require Department Chair approval.`,
+          humanActions: [
+            { name: 'Dismiss Allegation & Release Grade', action: 'override', impact: 'Clears academic record; authorizes immediate Banner SIS grade posting.' },
+            { name: 'Issue Academic Sanction (Grade Penalty)', action: 'approve', impact: 'Applies reduction according to syllabus; logs educational integrity warning.' },
+            { name: 'Convene Academic Senate Hearing', action: 'escalate', impact: 'Freezes degree conferral; schedules formal hearing with student and counsel.' }
+          ],
+          auditProvenance: 'Ombudsman board decision, hearing transcript hash, and Department Chair signature anchored in registrar vault.'
+        }
+      ]
+    };
+  }
+
+  // ── 4. Enterprise Payroll & Automation Space Architecture Model ──────────────
+
+  private static buildPayrollAutomationModel(title: string): C4ArchitectureModel {
+    return {
+      title,
+      scenarioDescription: 'Enterprise Automated Payroll & Compensation platform with Workday timesheet ingestion, multi-state gross-to-net tax calculation, wage garnishment compliance, NACHA ACH direct deposit generation, and a Corporate Controller Variance Review Gate.',
+      level1: {
+        zones: [
+          { id: 'client', label: 'Employee & Supervisor Ingress' },
+          { id: 'integration', label: 'Gross-to-Net & Tax Compliance Core' },
+          { id: 'core', label: 'Bank Clearing & ERP (NACHA / SAP)' },
+          { id: 'governance', label: 'Corporate Controller Payroll Governance' }
+        ],
+        systems: [
+          { id: 'Timekeeper', label: 'Employees & Shift Supervisors', category: 'actor', zone: 'client', icon: '👥', role: 'Timekeeping Users', description: 'Submits bi-weekly timesheets, PTO requests, and shift overtime.', technologies: ['Workday Mobile', 'Kiosk Badge Reader'], containerCount: 0 },
+          { id: 'WorkdayHRIS', label: 'Workday / SuccessFactors HCM Core', category: 'gateway', zone: 'client', icon: '🏢', role: 'Human Capital System of Record', description: 'Maintains base salaries, employee benefit enrollments, and organizational hierarchies.', technologies: ['Workday RaaS', 'Enterprise Interface Builder (EIB)'], containerCount: 3 },
+          { id: 'PayrollEngine', label: 'Automated Gross-to-Net Calculation Engine', category: 'service', zone: 'integration', icon: '🧮', role: 'Payroll Compute Core', description: 'Calculates gross pay, FLSA overtime multipliers, 401(k) pre-tax deductions, and net deposits.', technologies: ['Python FastAPI', 'In-Memory Compute Engine'], containerCount: 4 },
+          { id: 'TaxCompliance', label: 'Multi-Jurisdiction Tax & Garnishment Worker', category: 'service', zone: 'integration', icon: '⚖️', role: 'Statutory Compliance Core', description: 'Computes Federal, State, and Local withholding taxes plus court-ordered child support levies.', technologies: ['Vertex / ADP SmartCompliance API'], containerCount: 2 },
+          { id: 'BankClearing', label: 'Federal Reserve NACHA Direct Deposit Network', category: 'service', zone: 'core', icon: '🏦', role: 'Interbank Settlement Network', description: 'Processes 94-character fixed-width ACH PPD/CCD batch files for direct deposit clearance.', technologies: ['NACHA ACH Network', 'SFTP mTLS'], containerCount: 2 },
+          { id: 'NetSuiteERP', label: 'SAP S/4HANA / NetSuite General Ledger', category: 'database', zone: 'core', icon: '📑', role: 'Corporate Accounting System', description: 'Records balanced double-entry payroll expense journal entries and tax liabilities.', technologies: ['SAP S/4HANA Finance', 'REST / OData'], containerCount: 1 },
+          { id: 'HITL_Gate', label: 'Payroll Variance & Wage Garnishment Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'Corporate Controller Decision Gate', description: 'Mandatory sign-off when batch variance exceeds 3.5% or new garnishment summons is received.', technologies: ['Workday Payroll Console', 'Dual-Custody FIDO2'], containerCount: 1 }
+        ],
+        connections: [
+          { from: 'Timekeeper', to: 'WorkdayHRIS', label: 'Approve Bi-Weekly Timesheets', protocol: 'HTTPS / Web UI', order: 1 },
+          { from: 'WorkdayHRIS', to: 'PayrollEngine', label: 'Stream Unprocessed Timesheet Batch', protocol: 'mTLS Workday EIB (JSON)', order: 2 },
+          { from: 'PayrollEngine', to: 'TaxCompliance', label: 'Compute Withholding & Garnishment Rules', protocol: 'gRPC / JSON API', order: 3 },
+          { from: 'TaxCompliance', to: 'PayrollEngine', label: 'Return Net Calculations & Tax Lines', protocol: 'Structured Response', order: 4 },
+          { from: 'PayrollEngine', to: 'HITL_Gate', label: 'Variance > 3.5% OR Garnishment: Trigger Controller Gate', protocol: 'Variance Alert', isException: true, isHitl: true, order: 5 },
+          { from: 'HITL_Gate', to: 'BankClearing', label: '1-Click Signed Dual-Custody Release Token', protocol: 'Cryptographic Auth', isHitl: true, order: 6 },
+          { from: 'PayrollEngine', to: 'BankClearing', label: 'Dispatch 94-Char NACHA ACH File ($1.48M)', protocol: 'mTLS SFTP Direct Transmission', order: 7 },
+          { from: 'PayrollEngine', to: 'NetSuiteERP', label: 'Post Balanced Payroll Journal Entry', protocol: 'OData / REST Accounting API', order: 8 }
+        ]
+      },
+      level2: {
+        PayrollEngine: {
+          parentSystem: {
+            id: 'PayrollEngine',
+            label: 'Automated Gross-to-Net Calculation Engine',
+            category: 'service',
+            zone: 'integration',
+            icon: '🧮',
+            role: 'Payroll Compute Core',
+            description: 'High-speed deterministic arithmetic calculation pipeline enforcing labor laws.',
+            technologies: ['Python 3.11', 'FastAPI', 'Pandas', 'Pydantic'],
+            containerCount: 4
+          },
+          containers: [
+            { id: 'Timesheet_Ingest', parentSystemId: 'PayrollEngine', label: 'Timesheet Normalization Worker', type: 'api', technology: 'FastAPI Stream Ingestion', description: 'Ingests regular, overtime, holiday, and paid-time-off hours per cost center.', componentCount: 2 },
+            { id: 'GrossToNet_Calculator', parentSystemId: 'PayrollEngine', label: 'Gross-to-Net Arithmetic Engine', type: 'orchestrator', technology: 'Deterministic Pay Calculator', description: 'Computes base salary, 1.5x/2.0x overtime premiums, and pre-tax 401(k)/HSA deductions.', componentCount: 2 },
+            { id: 'Garnishment_Worker', parentSystemId: 'PayrollEngine', label: 'Statutory Wage Garnishment Worker', type: 'adapter', technology: 'CCPA Title III Garnishment Adapter', description: 'Enforces federal disposable earnings limits (25% maximum) for court orders.', componentCount: 1 },
+            { id: 'NACHA_Formatter', parentSystemId: 'PayrollEngine', label: '94-Character NACHA ACH Generator', type: 'store', technology: 'Fixed-Width ACH Generator', description: 'Constructs validated NACHA batch headers, entry detail records, and control totals.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Timesheet_Ingest', to: 'GrossToNet_Calculator', label: 'Send Verified Hours', protocol: 'In-Memory Pipeline', order: 1 },
+            { from: 'GrossToNet_Calculator', to: 'Garnishment_Worker', label: 'Calculate Disposable Earnings', protocol: 'Direct Function Call', order: 2 },
+            { from: 'GrossToNet_Calculator', to: 'NACHA_Formatter', label: 'Build Payment Records', protocol: 'Binary Stream', order: 3 }
+          ]
+        },
+        BankClearing: {
+          parentSystem: {
+            id: 'BankClearing',
+            label: 'Federal Reserve NACHA Direct Deposit Network',
+            category: 'service',
+            zone: 'core',
+            icon: '🏦',
+            role: 'Interbank Settlement Network',
+            description: 'Direct interface to banking partner clearing direct deposit funds.',
+            technologies: ['NACHA ACH', 'SFTP with PGP Encryption'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'ACH_Sender', parentSystemId: 'BankClearing', label: 'Secure Banking SFTP Dispatcher', type: 'adapter', technology: 'OpenSSH SFTP + PGP Signer', description: 'Encrypts and transfers ACH files to bank transit dropboxes.', componentCount: 1 },
+            { id: 'ACH_ReturnListener', parentSystemId: 'BankClearing', label: 'ACH Return (NOC / R-Code) Listener', type: 'api', technology: 'Webhook / Polling Worker', description: 'Catches R01 (Insufficient Funds) and R03 (No Account) rejection notices.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'ACH_Sender', to: 'ACH_ReturnListener', label: 'Monitor Batch Reconciliation', protocol: 'Bank Status Feed', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        PayrollEngine: {
+          parentContainer: {
+            id: 'GrossToNet_Calculator',
+            parentSystemId: 'PayrollEngine',
+            label: 'Gross-to-Net Arithmetic Engine',
+            type: 'orchestrator',
+            technology: 'FastAPI + Pydantic',
+            description: 'Component enforcing payroll contracts and statutory calculation rules.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'PayrollContractStep',
+              parentContainerId: 'GrossToNet_Calculator',
+              label: 'Payroll Computation & Schema Validator',
+              role: 'Compensation Schema Invariant',
+              description: 'Enforces wage accuracy, tax withholding bounds, and banking checksums.',
+              slaMs: 150,
+              contracts: [
+                { field: 'Employee_ID', type: 'String (EMP-XXXXXX)', required: true, source: 'Workday HRIS', destination: 'Payroll Engine', description: 'Universal corporate employee identifier.', validationRule: 'Matches ^EMP-[0-9]{6}$' },
+                { field: 'Gross_Hours_Worked', type: 'Decimal(5,2)', required: true, source: 'Timesheet Worker', destination: 'Gross Calculator', description: 'Total bi-weekly hours logged.', validationRule: 'Non-negative; hours > 80.0 trigger overtime review' },
+                { field: 'Gross_Pay_USD', type: 'Decimal(10,2)', required: true, source: 'Rate Multiplier', destination: 'Tax Compliance', description: 'Total pre-deduction compensation.', validationRule: 'Gross_Pay == (Base_Salary + Overtime_Pay + Bonus)' },
+                { field: 'Total_Tax_Withheld_USD', type: 'Decimal(10,2)', required: true, source: 'Vertex Tax Engine', destination: 'General Ledger', description: 'Combined Federal, State, and FICA statutory withholdings.', validationRule: 'Withholding <= 60% of Gross_Pay' },
+                { field: 'Net_Deposit_USD', type: 'Decimal(10,2)', required: true, source: 'GrossToNet Calculator', destination: 'NACHA Direct Deposit', description: 'Net take-home pay deposited into employee checking account.', validationRule: 'Net_Deposit == Gross_Pay - Taxes - Deductions' },
+                { field: 'ABA_Routing_Number', type: 'String (9 Digits)', required: true, source: 'Employee Direct Deposit Form', destination: 'NACHA Batch File', description: 'Federal Reserve Transit Routing Number.', validationRule: 'Valid Mod-10 Checksum' }
+              ]
+            }
+          ]
+        }
+      },
+      hitlGates: [
+        {
+          id: 'HITL_Payroll_Controller',
+          systemId: 'PayrollEngine',
+          title: 'Corporate Controller Payroll Variance & Wage Garnishment Gate',
+          triggerCondition: 'Total payroll run variance exceeds 3.5% vs prior cycle, individual pay fluctuation > $2,500, or new garnishment summons is received.',
+          reviewSurface: 'Workday Enterprise Pre-Commit Payroll Dashboard',
+          reviewRole: 'Corporate Payroll Controller / VP of Total Rewards',
+          slaMinutes: 240,
+          diagnosticDetails: `• Pay Period: Bi-Weekly Ending 2026-10-24 (Batch ID: PAY-2026-B21)
+• Total Payroll Volume: $1,482,900.00 USD (+6.8% variance vs prior cycle; threshold > 3.5%)
+• Anomaly Trigger: 14 employees in Engineering logged 42+ overtime hours exceeding cap.
+• Statutory Compliance: New court-ordered wage garnishment summons for Employee EMP-09412.
+• Safety Action: Direct deposit ACH file generation paused pending Controller dual-custody authorization.`,
+          humanActions: [
+            { name: 'Dual-Custody Sign & Release Batch', action: 'approve', impact: 'Applies cryptographic FIDO2 corporate signature; triggers immediate NACHA transmission.' },
+            { name: 'Quarantine Flagged Employees & Release Balance', action: 'override', impact: 'Splits payroll run; releases 98% unaffected salaries and holds flagged timesheets for manual audit.' },
+            { name: 'Reject Batch & Force Recalculation', action: 'reject', impact: 'Reopens timesheets for department manager correction and cancels pending ACH draft.' }
+          ],
+          auditProvenance: 'Controller FIDO2 WebAuthn biometric key, IP address, and SHA-256 batch hash recorded in immutable corporate payroll journal.'
+        }
+      ]
+    };
+  }
+
+  // ── 5. Core Banking Wire Transfer & AML Architecture Model ───────────────────
+
+  private static buildBankingModel(title: string): C4ArchitectureModel {
+    return {
+      title,
+      scenarioDescription: 'Universal high-speed core banking wire transfer with Kafka event mesh, automated Neo4j graph fraud detection, Finacle core banking, and a mandatory Compliance Officer Human-in-the-Loop review gate for transactions exceeding $10,000.',
+      level1: {
+        zones: [
+          { id: 'client', label: 'Branch & Commercial Ingress' },
+          { id: 'integration', label: 'Event Mesh & AML Core (mTLS)' },
+          { id: 'core', label: 'Core Banking Ledger & Fedwire' },
+          { id: 'governance', label: 'Compliance & AML Governance' }
+        ],
+        systems: [
+          { id: 'Teller', label: 'Branch Teller / Commercial Client', category: 'actor', zone: 'client', icon: '👤', role: 'Initiating User', description: 'Submits commercial wire transfer ($250,000 USD).', technologies: ['Teller UI', 'Omni-Channel API'], containerCount: 0 },
+          { id: 'Kong', label: 'Kong Enterprise Gateway', category: 'gateway', zone: 'client', icon: '🛡️', role: 'API Ingress Gateway', description: 'mTLS verification, rate limiting, and JWT validation.', technologies: ['Kong EE', 'mTLS', 'OAuth2'], containerCount: 2 },
+          { id: 'Kafka', label: 'Apache Kafka Event Mesh', category: 'queue', zone: 'integration', icon: '⚡', role: 'Real-Time Event Bus', description: 'Distributes transaction events with guaranteed ordering.', technologies: ['Kafka Cluster', 'Schema Registry'], containerCount: 3 },
+          { id: 'AML', label: 'AML & Fraud Detection Core', category: 'service', zone: 'integration', icon: '🧠', role: 'Sanctions & Graph Screening', description: 'Evaluates sanction lists and graph money-laundering rings.', technologies: ['Python FastAPI', 'Neo4j Graph DB'], containerCount: 2 },
+          { id: 'CoreBank', label: 'Finacle Core Banking DB', category: 'database', zone: 'core', icon: '🏦', role: 'General Ledger System', description: 'Debits originator and credits beneficiary accounts.', technologies: ['Oracle RAC', 'Finacle Core'], containerCount: 2 },
+          { id: 'Fedwire', label: 'Fedwire Clearing Gateway', category: 'service', zone: 'thirdparty', icon: '🌐', role: 'Interbank Settlement Network', description: 'Settles funds with central clearing bank via ISO 20022.', technologies: ['ISO 20022', 'SWIFT Alliance'], containerCount: 1 },
+          { id: 'HITL_Gate', label: 'AML Compliance Review Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'Human-in-the-Loop Gate', description: 'Required sign-off for transactions > $10k or sanctions hits.', technologies: ['ServiceNow Compliance', 'FIDO2 Auth'], containerCount: 1 }
+        ],
+        connections: [
+          { from: 'Teller', to: 'Kong', label: 'Submit Wire ($250,000)', protocol: 'HTTPS / REST', order: 1 },
+          { from: 'Kong', to: 'Kafka', label: 'Publish wire.initiated topic', protocol: 'Kafka Producer (Avro)', order: 2 },
+          { from: 'Kafka', to: 'AML', label: 'Consume for Fraud Analysis', protocol: 'Event Consumer', order: 3 },
+          { from: 'AML', to: 'HITL_Gate', label: 'Threshold > $10,000: Trigger HITL Sign-Off', protocol: 'Exception Event', isHitl: true, isException: true, order: 4 },
+          { from: 'HITL_Gate', to: 'Kafka', label: '1-Click Cryptographic Approval', protocol: 'Signed Approval Event', isHitl: true, order: 5 },
+          { from: 'Kafka', to: 'CoreBank', label: 'Commit Ledger Balance', protocol: '2-Phase Commit (2PC)', order: 6 },
+          { from: 'CoreBank', to: 'Fedwire', label: 'Dispatch Fedwire MT103/pacs.008', protocol: 'ISO 20022 XML', order: 7 }
+        ]
+      },
+      level2: {
+        CoreBank: {
+          parentSystem: {
+            id: 'CoreBank',
+            label: 'Finacle Core Banking DB',
+            category: 'database',
+            zone: 'core',
+            icon: '🏦',
+            role: 'General Ledger System',
+            description: 'Core banking platform executing transactional debits and credits.',
+            technologies: ['Infosys Finacle 11', 'Oracle RAC Database'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'Finacle_Ledger', parentSystemId: 'CoreBank', label: 'Double-Entry Ledger Engine', type: 'store', technology: 'Finacle Core Service Engine', description: 'Performs atomic debit and credit balanced account postings.', componentCount: 2 },
+            { id: 'Finacle_Audit', parentSystemId: 'CoreBank', label: 'Immutable Audit Journal', type: 'store', technology: 'Oracle Blockchain Table', description: 'Cryptographic tamper-evident transaction journal.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Finacle_Ledger', to: 'Finacle_Audit', label: 'Append Cryptographic Receipt', protocol: 'Internal SQL', order: 1 }
+          ]
+        },
+        AML: {
+          parentSystem: {
+            id: 'AML',
+            label: 'AML & Fraud Detection Core',
+            category: 'service',
+            zone: 'integration',
+            icon: '🧠',
+            role: 'Sanctions & Graph Screening',
+            description: 'Real-time sanctions screening and graph-based money laundering detector.',
+            technologies: ['Python FastAPI', 'Neo4j Graph Database', 'OFAC Watchlist'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'Sanction_Scanner', parentSystemId: 'AML', label: 'OFAC & PEP Sanction Matcher', type: 'api', technology: 'FastAPI + Fuzzy Levenshtein Matcher', description: 'Screens beneficiary and remitter against global sanctions lists.', componentCount: 2 },
+            { id: 'Graph_Analyzer', parentSystemId: 'AML', label: 'Neo4j Smurfing & Layering Detector', type: 'adapter', technology: 'Neo4j GDS Engine', description: 'Detects circular transactions and structuring patterns across accounts.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Sanction_Scanner', to: 'Graph_Analyzer', label: 'Cross-Query Entity Neighbors', protocol: 'Bolt / Cypher', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        CoreBank: {
+          parentContainer: {
+            id: 'Finacle_Ledger',
+            parentSystemId: 'CoreBank',
+            label: 'Double-Entry Ledger Engine',
+            type: 'store',
+            technology: 'Finacle Core Service Engine',
+            description: 'Component enforcing ISO 20022 wire transfer contracts.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'WireContractStep',
+              parentContainerId: 'Finacle_Ledger',
+              label: 'Wire Transfer Contract Validator',
+              role: 'Financial Schema Contract',
+              description: 'Enforces ISO 20022 pacs.008 customer credit transfer specifications.',
+              slaMs: 90,
+              contracts: [
+                { field: 'Transaction_ID', type: 'String (UUID / EndToEndId)', required: true, source: 'Teller Terminal', destination: 'Fedwire Clearing', description: 'Unique end-to-end payment identifier.', validationRule: 'Matches ^[A-Z0-9-]{16,35}$' },
+                { field: 'Originator_Account', type: 'String (Account Number)', required: true, source: 'Commercial Customer', destination: 'Debit Account Ledger', description: 'Account number to be debited.', validationRule: 'Must be active with sufficient available funds' },
+                { field: 'Beneficiary_IBAN', type: 'String (IBAN / Routing)', required: true, source: 'Wire Request', destination: 'Interbank Gateway', description: 'International Bank Account Number of payee.', validationRule: 'Valid IBAN Mod-97 Checksum' },
+                { field: 'Transfer_Amount_USD', type: 'Decimal(15,2)', required: true, source: 'Wire Request', destination: 'General Ledger', description: 'Settlement amount in USD.', validationRule: 'Amount > 0.00; values > 10,000 force AML gate' },
+                { field: 'OFAC_Match_Score', type: 'Float (0.000 to 1.000)', required: true, source: 'Sanctions Scanner', destination: 'AML Review Gate', description: 'Fuzzy match confidence against OFAC Specially Designated Nationals list.' }
+              ]
+            }
+          ]
+        }
+      },
+      hitlGates: [
+        {
+          id: 'HITL_AML',
+          systemId: 'AML',
+          title: 'High-Value Wire Compliance Review Gate',
+          triggerCondition: 'Wire transfer amount exceeds $10,000 or Neo4j AML graph score > 0.72.',
+          reviewSurface: 'ServiceNow Financial Compliance Portal',
+          reviewRole: 'Certified AML Compliance Officer',
+          slaMinutes: 15,
+          diagnosticDetails: `• Initiator: Commercial Teller #4029, Branch #108 (New York Financial District)
+• Originator: Acme Corp Holdings LLC (Account #8829-4102-99)
+• Beneficiary: Apex Global Trading Ltd (IBAN: CH93-0000-0000-0000-0000-0)
+• Amount: $250,000.00 USD (Threshold: > $10,000.00 USD)
+• AML Graph Screening: Flagged by Neo4j — 3-hop connection to sanctioned entity watchlist.`,
+          humanActions: [
+            { name: 'Approve Wire', action: 'approve', impact: 'Releases funds for immediate Fedwire clearance.' },
+            { name: 'Freeze & File SAR', action: 'reject', impact: 'Blocks transaction and files Suspicious Activity Report.' }
+          ],
+          auditProvenance: 'FIDO2 WebAuthn biometric signature stamped into immutable transaction ledger.'
+        }
+      ]
+    };
+  }
+
+  // ── 6. Healthcare Clinical Integration Architecture Model ────────────────────
 
   private static buildHealthcareModel(title: string): C4ArchitectureModel {
     return {
@@ -501,83 +1217,13 @@ export class C4TopologyEngine {
           { id: 'governance', label: 'Human Governance' }
         ],
         systems: [
-          {
-            id: 'Clinician',
-            label: 'Referring Clinician',
-            category: 'actor',
-            zone: 'client',
-            icon: '👤',
-            role: 'Clinical User / Intake Agent',
-            description: 'Initiates referral intake and handles exception reconciliations.',
-            technologies: ['Salesforce UI', 'Health Cloud Portal'],
-            containerCount: 0
-          },
-          {
-            id: 'Salesforce',
-            label: 'Salesforce Health Cloud',
-            category: 'saas',
-            zone: 'client',
-            icon: '☁️',
-            role: 'Referral System of Record',
-            description: 'Manages patient referral records, file attachments, and status transitions.',
-            technologies: ['Apex REST', 'Platform Events', 'OAuth2', 'S3 File Store'],
-            containerCount: 4
-          },
-          {
-            id: 'MuleSoft',
-            label: 'MuleSoft Anypoint Platform',
-            category: 'gateway',
-            zone: 'integration',
-            icon: '⚡',
-            role: 'API-Led Integration Core',
-            description: '3-tier API-led orchestrator executing visit validation and document flows.',
-            technologies: ['CloudHub 2.0', 'DataWeave 2.0', 'Experience API', 'Process API'],
-            containerCount: 4
-          },
-          {
-            id: 'CHIB',
-            label: 'CHIB Integration Broker',
-            category: 'gateway',
-            zone: 'integration',
-            icon: '🔄',
-            role: 'Clinical Message Hub',
-            description: 'Translates enterprise JSON payloads to clinical HL7/FHIR message protocols.',
-            technologies: ['HL7 v2.5.1', 'FHIR R4', 'mTLS Gateway'],
-            containerCount: 2
-          },
-          {
-            id: 'EMR',
-            label: 'EMR Sunrise Clinical Core',
-            category: 'ehr',
-            zone: 'core',
-            icon: '🏥',
-            role: 'Enterprise Clinical Registry',
-            description: 'Validates Visit ID, MRN, and SAUHI against official inpatient encounters.',
-            technologies: ['Allscripts Sunrise', 'MS SQL / Oracle DB', 'MPI Engine'],
-            containerCount: 3
-          },
-          {
-            id: 'xAmplify',
-            label: 'xAmplify Document Engine',
-            category: 'saas',
-            zone: 'thirdparty',
-            icon: '📄',
-            role: 'Document Consolidation Core',
-            description: 'Merges multi-format referral documents into a single canonical clinical PDF.',
-            technologies: ['xAmplify REST API', 'PDF Linearization', 'OCR Engine'],
-            containerCount: 2
-          },
-          {
-            id: 'HITL_Gate',
-            label: 'Clinician Exception Review Gate',
-            category: 'hitl',
-            zone: 'governance',
-            icon: '🚨',
-            role: 'Human-in-the-Loop Decision Gate',
-            description: 'Intercepts validation mismatches; enables manual clinical override or referral rejection.',
-            technologies: ['Task Queue', 'Dual-Key Approval', 'Tamper-Evident Audit'],
-            containerCount: 1
-          }
+          { id: 'Clinician', label: 'Referring Clinician', category: 'actor', zone: 'client', icon: '👤', role: 'Clinical User / Intake Agent', description: 'Initiates referral intake and handles exception reconciliations.', technologies: ['Salesforce UI', 'Health Cloud Portal'], containerCount: 0 },
+          { id: 'Salesforce', label: 'Salesforce Health Cloud', category: 'saas', zone: 'client', icon: '☁️', role: 'Referral System of Record', description: 'Manages patient referral records, file attachments, and status transitions.', technologies: ['Apex REST', 'Platform Events', 'OAuth2', 'S3 File Store'], containerCount: 4 },
+          { id: 'MuleSoft', label: 'MuleSoft Anypoint Platform', category: 'gateway', zone: 'integration', icon: '⚡', role: 'API-Led Integration Core', description: '3-tier API-led orchestrator executing visit validation and document flows.', technologies: ['CloudHub 2.0', 'DataWeave 2.0', 'Experience API', 'Process API'], containerCount: 4 },
+          { id: 'CHIB', label: 'CHIB Integration Broker', category: 'gateway', zone: 'integration', icon: '🔄', role: 'Clinical Message Hub', description: 'Translates enterprise JSON payloads to clinical HL7/FHIR message protocols.', technologies: ['HL7 v2.5.1', 'FHIR R4', 'mTLS Gateway'], containerCount: 2 },
+          { id: 'EMR', label: 'EMR Sunrise Clinical Core', category: 'ehr', zone: 'core', icon: '🏥', role: 'Enterprise Clinical Registry', description: 'Validates Visit ID, MRN, and SAUHI against official inpatient encounters.', technologies: ['Allscripts Sunrise', 'MS SQL / Oracle DB', 'MPI Engine'], containerCount: 3 },
+          { id: 'xAmplify', label: 'xAmplify Document Engine', category: 'saas', zone: 'thirdparty', icon: '📄', role: 'Document Consolidation Core', description: 'Merges multi-format referral documents into a single canonical clinical PDF.', technologies: ['xAmplify REST API', 'PDF Linearization', 'OCR Engine'], containerCount: 2 },
+          { id: 'HITL_Gate', label: 'Clinician Exception Review Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'Human-in-the-Loop Decision Gate', description: 'Intercepts validation mismatches; enables manual clinical override or referral rejection.', technologies: ['Task Queue', 'Dual-Key Approval', 'Tamper-Evident Audit'], containerCount: 1 }
         ],
         connections: [
           { from: 'Clinician', to: 'Salesforce', label: 'Create Referral', protocol: 'Web UI', order: 1 },
@@ -608,45 +1254,10 @@ export class C4TopologyEngine {
             containerCount: 4
           },
           containers: [
-            {
-              id: 'Mule_Exp',
-              parentSystemId: 'MuleSoft',
-              label: 'Mule Experience API',
-              type: 'api',
-              endpoint: '/api/v1/referrals/validate',
-              technology: 'HTTP Listener, OAuth2 Token Validation, Policy Gate',
-              description: 'Exposes secure ingress, assigns Correlation ID, and delivers immediate 200 Ack.',
-              componentCount: 2
-            },
-            {
-              id: 'Mule_Proc',
-              parentSystemId: 'MuleSoft',
-              label: 'Mule Process API (Visit Orchestrator)',
-              type: 'orchestrator',
-              endpoint: 'internal://visit-validation-process',
-              technology: 'DataWeave 2.0, Flow Orchestration, State Machine',
-              description: 'Coordinates EMR query, evaluates match criteria, and orchestrates doc consolidation.',
-              componentCount: 3
-            },
-            {
-              id: 'Mule_Sys_CHIB',
-              parentSystemId: 'MuleSoft',
-              label: 'CHIB System Connector API',
-              type: 'adapter',
-              endpoint: 'https://chib.internal/api/v2/query',
-              technology: 'HTTP Requestor with mTLS & Circuit Breaker',
-              description: 'Handles connection pooling, payload transformation, and retry policy to CHIB.',
-              componentCount: 2
-            },
-            {
-              id: 'Mule_Store',
-              parentSystemId: 'MuleSoft',
-              label: 'Object Store / In-Flight State Cache',
-              type: 'store',
-              technology: 'Mule ObjectStore v2 (TTL 4h, AES-256)',
-              description: 'Maintains correlation state, idempotency keys, and document tracking tokens.',
-              componentCount: 1
-            }
+            { id: 'Mule_Exp', parentSystemId: 'MuleSoft', label: 'Mule Experience API', type: 'api', endpoint: '/api/v1/referrals/validate', technology: 'HTTP Listener, OAuth2 Token Validation, Policy Gate', description: 'Exposes secure ingress, assigns Correlation ID, and delivers immediate 200 Ack.', componentCount: 2 },
+            { id: 'Mule_Proc', parentSystemId: 'MuleSoft', label: 'Mule Process API (Visit Orchestrator)', type: 'orchestrator', endpoint: 'internal://visit-validation-process', technology: 'DataWeave 2.0, Flow Orchestration, State Machine', description: 'Coordinates EMR query, evaluates match criteria, and orchestrates doc consolidation.', componentCount: 3 },
+            { id: 'Mule_Sys_CHIB', parentSystemId: 'MuleSoft', label: 'CHIB System Connector API', type: 'adapter', endpoint: 'https://chib.internal/api/v2/query', technology: 'HTTP Requestor with mTLS & Circuit Breaker', description: 'Handles connection pooling, payload transformation, and retry policy to CHIB.', componentCount: 2 },
+            { id: 'Mule_Store', parentSystemId: 'MuleSoft', label: 'Object Store / In-Flight State Cache', type: 'store', technology: 'Mule ObjectStore v2 (TTL 4h, AES-256)', description: 'Maintains correlation state, idempotency keys, and document tracking tokens.', componentCount: 1 }
           ],
           connections: [
             { from: 'Mule_Exp', to: 'Mule_Proc', label: 'Delegate Process (Async Flow)', protocol: 'VM Queue / Direct', order: 1 },
@@ -667,35 +1278,9 @@ export class C4TopologyEngine {
             containerCount: 4
           },
           containers: [
-            {
-              id: 'SF_Intake',
-              parentSystemId: 'Salesforce',
-              label: 'Referral Intake Controller',
-              type: 'api',
-              endpoint: 'Referral__c Custom Object',
-              technology: 'Apex REST / Lightning Web Component',
-              description: 'Captures Visit ID, MRN, SAUHI, and triggers outbound validation callout.',
-              componentCount: 2
-            },
-            {
-              id: 'SF_TaskQueue',
-              parentSystemId: 'Salesforce',
-              label: 'Clinician Exception Task Queue',
-              type: 'gate',
-              endpoint: 'Task / Case Exception View',
-              technology: 'Omni-Channel Routing & SLA Timers',
-              description: 'Surfaces validation discrepancies directly to clinicians for 1-click override.',
-              componentCount: 2
-            },
-            {
-              id: 'SF_FileStore',
-              parentSystemId: 'Salesforce',
-              label: 'ContentVersion File Store',
-              type: 'store',
-              technology: 'Salesforce Files Storage & S3 Vault',
-              description: 'Holds unconsolidated referral attachments and final merged clinical document.',
-              componentCount: 1
-            }
+            { id: 'SF_Intake', parentSystemId: 'Salesforce', label: 'Referral Intake Controller', type: 'api', endpoint: 'Referral__c Custom Object', technology: 'Apex REST / Lightning Web Component', description: 'Captures Visit ID, MRN, SAUHI, and triggers outbound validation callout.', componentCount: 2 },
+            { id: 'SF_TaskQueue', parentSystemId: 'Salesforce', label: 'Clinician Exception Task Queue', type: 'gate', endpoint: 'Task / Case Exception View', technology: 'Omni-Channel Routing & SLA Timers', description: 'Surfaces validation discrepancies directly to clinicians for 1-click override.', componentCount: 2 },
+            { id: 'SF_FileStore', parentSystemId: 'Salesforce', label: 'ContentVersion File Store', type: 'store', technology: 'Salesforce Files Storage & S3 Vault', description: 'Holds unconsolidated referral attachments and final merged clinical document.', componentCount: 1 }
           ],
           connections: [
             { from: 'SF_Intake', to: 'SF_TaskQueue', label: 'Route Exception Task', protocol: 'Platform Event', order: 1 }
@@ -714,24 +1299,8 @@ export class C4TopologyEngine {
             containerCount: 3
           },
           containers: [
-            {
-              id: 'EMR_Adapter',
-              parentSystemId: 'EMR',
-              label: 'Sunrise HL7/FHIR Engine',
-              type: 'adapter',
-              technology: 'HL7 v2.5.1 MLLP & FHIR REST Provider',
-              description: 'Ingests clinical queries and translates identifier verification requests.',
-              componentCount: 2
-            },
-            {
-              id: 'EMR_MPI',
-              parentSystemId: 'EMR',
-              label: 'Master Patient Index (MPI) & Visit DB',
-              type: 'store',
-              technology: 'Relational Encounters Database (MSSQL)',
-              description: 'Deterministic store verifying exact match of Visit ID, MRN, and SAUHI.',
-              componentCount: 2
-            }
+            { id: 'EMR_Adapter', parentSystemId: 'EMR', label: 'Sunrise HL7/FHIR Engine', type: 'adapter', technology: 'HL7 v2.5.1 MLLP & FHIR REST Provider', description: 'Ingests clinical queries and translates identifier verification requests.', componentCount: 2 },
+            { id: 'EMR_MPI', parentSystemId: 'EMR', label: 'Master Patient Index (MPI) & Visit DB', type: 'store', technology: 'Relational Encounters Database (MSSQL)', description: 'Deterministic store verifying exact match of Visit ID, MRN, and SAUHI.', componentCount: 2 }
           ],
           connections: [
             { from: 'EMR_Adapter', to: 'EMR_MPI', label: 'Query Encounter Record', protocol: 'SQL / Stored Proc', order: 1 }
@@ -790,22 +1359,13 @@ export class C4TopologyEngine {
           reviewSurface: 'Salesforce Health Cloud Clinical Task Queue & Exception Portal',
           reviewRole: 'Referring Clinician / Medical Records Specialist',
           slaMinutes: 30,
+          diagnosticDetails: `• Salesforce Inbound: Referral ID #REF-90412, MRN: 49281, Status: Pending
+• EMR Sunrise Query: MRN 49281, Encounter ID #ENC-1092, Status: Discharged (3 days ago)
+• Policy Rule: Discharged encounters cannot receive automated ambulatory referral attachment without physician review.`,
           humanActions: [
-            {
-              name: 'Verify & Manual Override',
-              action: 'override',
-              impact: 'Injects cryptographically signed clinical authorization token; forces document consolidation to proceed.'
-            },
-            {
-              name: 'Reject Referral',
-              action: 'reject',
-              impact: 'Halts process; updates Salesforce status to "Referral Rejected - Identifier Mismatch" and notifies provider.'
-            },
-            {
-              name: 'Escalate to Senior Supervisor',
-              action: 'escalate',
-              impact: 'Transfers case to Head of Medical Administration after 30-minute SLA expiration.'
-            }
+            { name: 'Verify & Manual Override', action: 'override', impact: 'Injects cryptographically signed clinical authorization token; forces document consolidation to proceed.' },
+            { name: 'Reject Referral', action: 'reject', impact: 'Halts process; updates Salesforce status to "Referral Rejected - Identifier Mismatch" and notifies provider.' },
+            { name: 'Escalate to Senior Supervisor', action: 'escalate', impact: 'Transfers case to Head of Medical Administration after 30-minute SLA expiration.' }
           ],
           auditProvenance: 'Captures Clinician Staff ID, timestamp, IP, reason code, and SHA-256 signature in immutable audit log.'
         }
@@ -813,60 +1373,7 @@ export class C4TopologyEngine {
     };
   }
 
-  // ── Pre-built Banking Architecture Model ────────────────────────────────────
-
-  private static buildBankingModel(title: string): C4ArchitectureModel {
-    return {
-      title,
-      scenarioDescription: 'Universal high-speed core banking wire transfer with Kafka event mesh, automated Neo4j graph fraud detection, and a mandatory Compliance Officer Human-in-the-Loop review gate for transactions exceeding $10,000.',
-      level1: {
-        zones: [
-          { id: 'client', label: 'Branch / Teller' },
-          { id: 'integration', label: 'Event Mesh' },
-          { id: 'core', label: 'Core Banking' },
-          { id: 'governance', label: 'Compliance Governance' }
-        ],
-        systems: [
-          { id: 'Teller', label: 'Branch Teller / Client', category: 'actor', zone: 'client', icon: '👤', role: 'Initiating User', description: 'Submits commercial wire transfer.', technologies: ['Teller UI', 'Omni-Channel API'], containerCount: 0 },
-          { id: 'Kong', label: 'Kong Enterprise Gateway', category: 'gateway', zone: 'client', icon: '🛡️', role: 'API Ingress Gateway', description: 'mTLS verification, rate limiting, and JWT validation.', technologies: ['Kong EE', 'mTLS', 'OAuth2'], containerCount: 2 },
-          { id: 'Kafka', label: 'Apache Kafka Event Mesh', category: 'queue', zone: 'integration', icon: '⚡', role: 'Real-Time Event Bus', description: 'Distributes transaction events with guaranteed ordering.', technologies: ['Kafka Cluster', 'Schema Registry'], containerCount: 3 },
-          { id: 'AML', label: 'AML & Fraud Detection Core', category: 'service', zone: 'integration', icon: '🧠', role: 'Sanctions & Graph Screening', description: 'Evaluates sanction lists and graph money-laundering rings.', technologies: ['Python FastAPI', 'Neo4j Graph DB'], containerCount: 2 },
-          { id: 'CoreBank', label: 'Finacle Core Banking DB', category: 'database', zone: 'core', icon: '🏦', role: 'General Ledger System', description: 'Debits originator and credits beneficiary accounts.', technologies: ['Oracle RAC', 'Finacle Core'], containerCount: 2 },
-          { id: 'Fedwire', label: 'Fedwire Clearing Gateway', category: 'service', zone: 'thirdparty', icon: '🌐', role: 'Interbank Settlement Network', description: 'Settles funds with central clearing bank.', technologies: ['ISO 20022', 'SWIFT Alliance'], containerCount: 1 },
-          { id: 'HITL_Gate', label: 'AML Compliance Review Gate', category: 'hitl', zone: 'governance', icon: '🚨', role: 'Human-in-the-Loop Gate', description: 'Required sign-off for transactions > $10k or sanctions hits.', technologies: ['ServiceNow Compliance', 'FIDO2 Auth'], containerCount: 1 }
-        ],
-        connections: [
-          { from: 'Teller', to: 'Kong', label: 'Submit Wire ($250,000)', protocol: 'HTTPS / REST', order: 1 },
-          { from: 'Kong', to: 'Kafka', label: 'Publish wire.initiated topic', protocol: 'Kafka Producer (Avro)', order: 2 },
-          { from: 'Kafka', to: 'AML', label: 'Consume for Fraud Analysis', protocol: 'Event Consumer', order: 3 },
-          { from: 'AML', to: 'HITL_Gate', label: 'Threshold > $10,000: Trigger HITL Sign-Off', protocol: 'Exception Event', isHitl: true, isException: true, order: 4 },
-          { from: 'HITL_Gate', to: 'Kafka', label: '1-Click Cryptographic Approval', protocol: 'Signed Approval Event', isHitl: true, order: 5 },
-          { from: 'Kafka', to: 'CoreBank', label: 'Commit Ledger Balance', protocol: '2-Phase Commit (2PC)', order: 6 },
-          { from: 'CoreBank', to: 'Fedwire', label: 'Dispatch Fedwire MT103/pacs.008', protocol: 'ISO 20022 XML', order: 7 }
-        ]
-      },
-      level2: {},
-      level3: {},
-      hitlGates: [
-        {
-          id: 'HITL_AML',
-          systemId: 'AML',
-          title: 'High-Value Wire Compliance Review Gate',
-          triggerCondition: 'Wire transfer amount exceeds $10,000 or Neo4j AML graph score > 0.72.',
-          reviewSurface: 'ServiceNow Financial Compliance Portal',
-          reviewRole: 'Certified AML Compliance Officer',
-          slaMinutes: 15,
-          humanActions: [
-            { name: 'Approve Wire', action: 'approve', impact: 'Releases funds for immediate Fedwire clearance.' },
-            { name: 'Freeze & File SAR', action: 'reject', impact: 'Blocks transaction and files Suspicious Activity Report.' }
-          ],
-          auditProvenance: 'FIDO2 WebAuthn biometric signature stamped into immutable transaction ledger.'
-        }
-      ]
-    };
-  }
-
-  // ── Pre-built E-Commerce Architecture Model ─────────────────────────────────
+  // ── 7. E-Commerce Microservices Architecture Model ───────────────────────────
 
   private static buildEcommerceModel(title: string): C4ArchitectureModel {
     return {
@@ -874,7 +1381,7 @@ export class C4TopologyEngine {
       scenarioDescription: 'Scalable microservices checkout topology with Cloudflare edge, FastAPI order service, RabbitMQ queues, DynamoDB, Stripe, and a Fraud Supervisor HITL review gate.',
       level1: {
         zones: [
-          { id: 'client', label: 'Edge / CDN' },
+          { id: 'client', label: 'Edge & Ingress' },
           { id: 'integration', label: 'Microservices & Queues' },
           { id: 'core', label: 'Databases & Payments' },
           { id: 'governance', label: 'Fraud Operations' }
@@ -897,8 +1404,55 @@ export class C4TopologyEngine {
           { from: 'OrderAPI', to: 'RabbitMQ', label: 'Publish order.confirmed Event', protocol: 'AMQP', order: 6 }
         ]
       },
-      level2: {},
-      level3: {},
+      level2: {
+        OrderAPI: {
+          parentSystem: {
+            id: 'OrderAPI',
+            label: 'FastAPI Order Service',
+            category: 'service',
+            zone: 'integration',
+            icon: '⚡',
+            role: 'Checkout Microservice',
+            description: 'Order management microservice validating shopping cart items.',
+            technologies: ['FastAPI', 'Pydantic v2', 'Uvicorn'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'Order_Controller', parentSystemId: 'OrderAPI', label: 'Order REST Controller', type: 'api', technology: 'FastAPI Router', description: 'Processes order submission payloads and handles idempotency keys.', componentCount: 2 },
+            { id: 'Inventory_Worker', parentSystemId: 'OrderAPI', label: 'Inventory Reservation Worker', type: 'adapter', technology: 'Redis Distributed Lock', description: 'Locks warehouse inventory for 15 minutes during payment.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Order_Controller', to: 'Inventory_Worker', label: 'Reserve SKU Stock', protocol: 'Redis TCP', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        OrderAPI: {
+          parentContainer: {
+            id: 'Order_Controller',
+            parentSystemId: 'OrderAPI',
+            label: 'Order REST Controller',
+            type: 'api',
+            technology: 'FastAPI Router',
+            description: 'Component validating order contracts.',
+            componentCount: 1
+          },
+          components: [
+            {
+              id: 'OrderSchemaContract',
+              parentContainerId: 'Order_Controller',
+              label: 'Checkout Contract Validator',
+              role: 'Schema Validator',
+              description: 'Enforces cart pricing and customer address contracts.',
+              slaMs: 40,
+              contracts: [
+                { field: 'Order_ID', type: 'String (UUIDv4)', required: true, source: 'Web Checkout', destination: 'DynamoDB Table', description: 'Unique order identifier.' },
+                { field: 'Total_Amount_Cents', type: 'Integer (Positive)', required: true, source: 'Cart Calculator', destination: 'Stripe Payment', description: 'Final charge amount in currency cents.' }
+              ]
+            }
+          ]
+        }
+      },
       hitlGates: [
         {
           id: 'HITL_Fraud',
@@ -908,6 +1462,9 @@ export class C4TopologyEngine {
           reviewSurface: 'Fraud Operations Dashboard',
           reviewRole: 'Fraud Risk Analyst',
           slaMinutes: 60,
+          diagnosticDetails: `• Order ID: ORD-99214-US (Amount: $1,899.00 USD)
+• Risk Flag: Radar Score 82/100 (IP geolocation: Lagos, Nigeria; Shipping address: Miami, FL)
+• Card Status: Billing address mismatch; 3 failed CVV attempts in 10 minutes.`,
           humanActions: [
             { name: 'Release Order', action: 'approve', impact: 'Clears order for immediate warehouse packing.' },
             { name: 'Cancel & Refund', action: 'reject', impact: 'Voids authorization and restocks items.' }
@@ -918,7 +1475,7 @@ export class C4TopologyEngine {
     };
   }
 
-  // ── Pre-built IoT Architecture Model ────────────────────────────────────────
+  // ── 8. Industrial IoT & Streaming Analytics Architecture Model ───────────────
 
   private static buildIotModel(title: string): C4ArchitectureModel {
     return {
@@ -949,8 +1506,55 @@ export class C4TopologyEngine {
           { from: 'HITL_Gate', to: 'PagerDuty', label: 'Trigger Operator Field Dispatch', protocol: 'Alert Trigger', isHitl: true, order: 6 }
         ]
       },
-      level2: {},
-      level3: {},
+      level2: {
+        Flink: {
+          parentSystem: {
+            id: 'Flink',
+            label: 'Apache Flink CEP Engine',
+            category: 'service',
+            zone: 'integration',
+            icon: '🧠',
+            role: 'Complex Event Processing',
+            description: 'Low-latency stateful stream computing engine.',
+            technologies: ['Apache Flink 1.18', 'Flink SQL', 'RocksDB State Store'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'Flink_JobManager', parentSystemId: 'Flink', label: 'Flink JobManager Coordinator', type: 'orchestrator', technology: 'JVM JobManager', description: 'Manages checkpoints, failure recovery, and stream partitioning.', componentCount: 1 },
+            { id: 'Flink_TaskManagers', parentSystemId: 'Flink', label: 'Flink TaskManager Fleet', type: 'adapter', technology: 'Slot Worker Cluster', description: 'Executes sliding-window aggregations and statistical anomaly filters.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Flink_JobManager', to: 'Flink_TaskManagers', label: 'Assign Execution Slots', protocol: 'Akka RPC', order: 1 }
+          ]
+        }
+      },
+      level3: {
+        Flink: {
+          parentContainer: {
+            id: 'Flink_TaskManagers',
+            parentSystemId: 'Flink',
+            label: 'Flink TaskManager Fleet',
+            type: 'adapter',
+            technology: 'Flink Task Slots',
+            description: 'Component evaluating sensor metrics against thermal thresholds.',
+            componentCount: 1
+          },
+          components: [
+            {
+              id: 'ThermalTelemetryStep',
+              parentContainerId: 'Flink_TaskManagers',
+              label: 'Turbine Vibration & Temp Filter',
+              role: 'Stream Threshold Filter',
+              description: 'Monitors turbine vibration and heat gradient in 100ms micro-windows.',
+              slaMs: 15,
+              contracts: [
+                { field: 'turbine_id', type: 'String (TURB-XXX)', required: true, source: 'CAN Bus Sensor', destination: 'InfluxDB', description: 'Identifier of physical turbine.' },
+                { field: 'temperature_celsius', type: 'Float', required: true, source: 'Thermal Probe', destination: 'Safety Interlock', description: 'Core bearing temperature.', validationRule: 'Readings > 180°C trigger emergency safety gate' }
+              ]
+            }
+          ]
+        }
+      },
       hitlGates: [
         {
           id: 'HITL_Safety',
@@ -960,6 +1564,9 @@ export class C4TopologyEngine {
           reviewSurface: 'Control Room SCADA Safety Terminal',
           reviewRole: 'Chief Plant Operations Engineer',
           slaMinutes: 5,
+          diagnosticDetails: `• Unit: Steam Turbine Unit #4 (Bay Area Generation Facility)
+• Telemetry Reading: Bearing temperature = 192.4°C (Safe limit: < 165°C); Vibration: 142Hz
+• Pattern Breached: Sustained thermal excursion across 3 consecutive 10-second tumbling windows.`,
           humanActions: [
             { name: 'Authorize Emergency Shutdown', action: 'override', impact: 'Triggers emergency mechanical trip valve to prevent catastrophic turbine failure.' },
             { name: 'Acknowledge Sensor Glitch', action: 'reject', impact: 'Logs instrument recalibration ticket and bypasses shutdown.' }
@@ -970,7 +1577,7 @@ export class C4TopologyEngine {
     };
   }
 
-  // ── Generic Enterprise Architecture Model ───────────────────────────────────
+  // ── 9. Generic Enterprise AI Core Architecture Model ─────────────────────────
 
   private static buildGenericEnterpriseModel(title: string, content: string): C4ArchitectureModel {
     return {
@@ -1022,7 +1629,33 @@ export class C4TopologyEngine {
           connections: []
         }
       },
-      level3: {},
+      level3: {
+        Staging: {
+          parentContainer: {
+            id: 'Staging_Schema',
+            parentSystemId: 'Staging',
+            label: 'Schema Validator',
+            type: 'api',
+            technology: 'JSON Schema Draft 7',
+            description: 'Validates operational payload structures.',
+            componentCount: 1
+          },
+          components: [
+            {
+              id: 'PayloadValidator',
+              parentContainerId: 'Staging_Schema',
+              label: 'Payload Invariant Evaluator',
+              role: 'Schema Gate',
+              description: 'Validates tenant bounds and operational parameters.',
+              slaMs: 25,
+              contracts: [
+                { field: 'request_id', type: 'UUIDv4', required: true, source: 'Gateway Ingress', destination: 'Audit Store', description: 'Unique request tracking ID.' },
+                { field: 'operation_type', type: 'String', required: true, source: 'Client Action', destination: 'Rule Engine', description: 'Requested state mutation command.' }
+              ]
+            }
+          ]
+        }
+      },
       hitlGates: [
         {
           id: 'HITL_Supervisor',
@@ -1032,6 +1665,9 @@ export class C4TopologyEngine {
           reviewSurface: 'Enterprise Review Console / Slack Interactive Card',
           reviewRole: 'Authorized Lead Supervisor',
           slaMinutes: 15,
+          diagnosticDetails: `• Action Request: Mutate production state across 1,420 user entities
+• AI Confidence Score: 87.2% (Threshold: >= 92.0%)
+• Safety Policy: Autonomous execution blocked; supervisor sign-off required.`,
           humanActions: [
             { name: 'Approve & Execute', action: 'approve', impact: 'Signs transaction and triggers atomic database commit.' },
             { name: 'Reject with Feedback', action: 'reject', impact: 'Aborts operation and logs correction to model tuning ledger.' }

@@ -1519,6 +1519,11 @@
         "category": "Evolve AI"
       },
       {
+        "command": "aiForge.fde.exportClaudeManifest",
+        "title": "FDE: Export Claude Code Build Manifest (CLAUDE.md & DB2 Sandbox)",
+        "category": "Evolve AI"
+      },
+      {
         "command": "aiForge.fde.launchDesktop",
         "title": "Enterprise: Launch Standalone Desktop Studio",
         "category": "Evolve AI"

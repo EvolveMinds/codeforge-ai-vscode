@@ -30,6 +30,7 @@ export type DatabaseDialect =
   | 'mongodb'
   | 'snowflake'
   | 'bigquery'
+  | 'db2'
   | 'generic';
 
 export interface ExtractedConnection {
@@ -119,8 +120,10 @@ export class AppIntrospector {
     '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
     '.py',
     '.cs', '.vb',
-    '.json', '.env', '.config', '.properties', '.yaml', '.yml',
-    '.sql', '.prisma',
+    '.java', '.jsp',
+    '.xml', '.properties',
+    '.sql', '.sqlpl', '.ddl', '.prisma',
+    '.json', '.env', '.config', '.yaml', '.yml',
     '.asar'
   ]);
 
@@ -361,6 +364,41 @@ export class AppIntrospector {
           });
         }
       }
+
+      // 3. Scan IBM DB2 JDBC & Connection Strings
+      const db2JdbcRegex = /jdbc:db2:\/\/([^:/]+):(\d+)\/([a-zA-Z0-9_\-]+)(?::(?:user=([^;]+);)?(?:password=([^;]+);)?)?/gi;
+      while ((match = db2JdbcRegex.exec(file.content)) !== null) {
+        const host = match[1];
+        const port = parseInt(match[2], 10);
+        const database = match[3];
+        const user = match[4] || 'db2admin';
+        const rawPassword = match[5] || '';
+        const sanitizedUri = `jdbc:db2://${host}:${port}/${database}`;
+
+        if (!seenUris.has(sanitizedUri)) {
+          seenUris.add(sanitizedUri);
+          const isPlaintextPasswordExposed = rawPassword.length > 0 && !rawPassword.includes('${');
+
+          connections.push({
+            dialect: 'db2',
+            sourceFile: file.relativePath,
+            sanitizedUri,
+            host,
+            port,
+            database,
+            user,
+            isPlaintextPasswordExposed
+          });
+
+          ledger.record({
+            kind: 'schema_introspection',
+            confidence: 'exact',
+            sourceUri: `${file.relativePath}#DB2Connection`,
+            summary: `Discovered IBM DB2 JDBC connection string (${sanitizedUri})`,
+            rawProof: sanitizedUri
+          });
+        }
+      }
     }
 
     return connections;
@@ -387,10 +425,12 @@ export class AppIntrospector {
     const deleteRegex = /\bDELETE\s+FROM\s+["`]?([a-zA-Z0-9_\.]+)["`]?/gi;
     const createTableRegex = /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["`]?([a-zA-Z0-9_\.]+)["`]?\s*\(([\s\S]+?)\)/gi;
 
-    // ORM models: TypeORM, Prisma, Sequelize, SQLAlchemy
+    // ORM models: TypeORM, Prisma, Sequelize, SQLAlchemy, JPA / Hibernate
     const typeOrmEntityRegex = /@Entity\s*\(\s*['"]?([a-zA-Z0-9_]+)['"]?\s*\)/gi;
+    const jpaTableRegex = /@Table\s*\(\s*(?:name\s*=\s*)?['"]([a-zA-Z0-9_]+)['"]\s*\)/gi;
     const prismaModelRegex = /\bmodel\s+([a-zA-Z0-9_]+)\s*\{([\s\S]*?)\}/gi;
     const sqlalchemyTableRegex = /__tablename__\s*=\s*['"]([a-zA-Z0-9_]+)['"]/gi;
+    const db2ProcedureCallRegex = /\b(?:CALL|\{call)\s+([a-zA-Z0-9_\.]+)\s*\(?/gi;
 
     for (const file of files) {
       // Check for dangerous dynamic SQL concatenation
@@ -496,6 +536,27 @@ export class AppIntrospector {
           entry.operations.add('CREATE');
         }
       }
+
+      // 8. JPA / Hibernate @Table annotations in Java classes
+      while ((m = jpaTableRegex.exec(file.content)) !== null) {
+        const tblName = m[1].trim();
+        if (this.isValidTableName(tblName)) {
+          const entry = this.getOrCreateTable(tableMap, tblName);
+          entry.sourceFiles.add(file.relativePath);
+          entry.operations.add('CREATE');
+        }
+      }
+
+      // 9. IBM DB2 Stored Procedure Calls (CALL SP_...)
+      while ((m = db2ProcedureCallRegex.exec(file.content)) !== null) {
+        const rawProc = m[1].trim().replace(/^DB2ADMIN\./i, '');
+        if (this.isValidTableName(rawProc)) {
+          const entry = this.getOrCreateTable(tableMap, rawProc);
+          entry.sourceFiles.add(file.relativePath);
+          entry.operations.add('SELECT');
+          if (!entry.sampleQuery) entry.sampleQuery = `CALL ${rawProc}(...)`;
+        }
+      }
     }
 
     const tables: ExtractedTable[] = [];
@@ -542,6 +603,12 @@ export class AppIntrospector {
     const pythonRouteRegex = /@(?:app|router|api)\.(get|post|put|delete|patch|route)\(\s*['"`]([^'"`]+)['"`]/gi;
     // ASP.NET / C#: [HttpGet("/api/orders")] or [Route("api/[controller]")]
     const aspNetActionRegex = /\[Http(Get|Post|Put|Delete|Patch)\s*(?:\(\s*['"]([^'"]*)['"]\s*\))?\]/gi;
+    // Java Spring: @GetMapping("/api/employees"), @PostMapping("/api/payroll")
+    const springRouteRegex = /@(Get|Post|Put|Delete|Patch)Mapping\s*(?:\(\s*(?:(?:value|path)\s*=\s*)?['"]([^'"]+)['"]\s*\))?/gi;
+    // Java JAX-RS / WebSphere: @Path("/employees")
+    const jaxRsPathRegex = /@Path\s*\(\s*['"]([^'"]+)['"]\s*\)/gi;
+    // Java Struts 1.x/2.x XML action mapping: <action path="/employee/view" ...>
+    const strutsActionRegex = /<action\s+[^>]*path=['"]([^'"]+)['"]/gi;
 
     for (const file of files) {
       let m: RegExpExecArray | null;
@@ -573,6 +640,25 @@ export class AppIntrospector {
         const method = m[1].toUpperCase() as ExtractedApiRoute['method'];
         const routePath = m[2]?.trim() || '/';
         this.addRoute(routes, seen, method, routePath, file.relativePath, 'http', ledger);
+      }
+
+      // 5. Java Spring Boot annotations
+      while ((m = springRouteRegex.exec(file.content)) !== null) {
+        const method = m[1].toUpperCase() as ExtractedApiRoute['method'];
+        const routePath = m[2]?.trim() || '/';
+        this.addRoute(routes, seen, method, routePath, file.relativePath, 'http', ledger);
+      }
+
+      // 6. Java JAX-RS / WebSphere paths
+      while ((m = jaxRsPathRegex.exec(file.content)) !== null) {
+        const routePath = m[1]?.trim() || '/';
+        this.addRoute(routes, seen, 'GET', routePath, file.relativePath, 'http', ledger);
+      }
+
+      // 7. Java Struts XML actions
+      while ((m = strutsActionRegex.exec(file.content)) !== null) {
+        const routePath = m[1]?.trim() || '/';
+        this.addRoute(routes, seen, 'POST', routePath, file.relativePath, 'http', ledger);
       }
     }
 

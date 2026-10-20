@@ -12,6 +12,7 @@ import { FirebaseConfigGenerator } from '../deployment/firebaseConfigGen';
 import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { FdeContextManager } from '../fde/fdeContext';
+import { DbIntrospector } from '../fde/dbIntrospector';
 
 export class FdeCommands {
   constructor(private readonly _svc: IServices) {}
@@ -34,6 +35,7 @@ export class FdeCommands {
     r('aiForge.fde.preflightAudit', () => this.runPreflightAudit());
     r('aiForge.fde.scaffoldDeploy', () => this.scaffoldDeployment());
     r('aiForge.fde.generateRunbook', () => this.generateRunbooks());
+    r('aiForge.fde.exportClaudeManifest', () => this.exportClaudeManifest());
     r('aiForge.fde.launchDesktop', () => this.launchDesktop());
     r('aiForge.fde.downloadDesktop', () => this.downloadDesktop());
   }
@@ -368,6 +370,41 @@ resource "azurerm_container_app" "app" {
     fs.writeFileSync(path.join(docsDir, 'DEPLOYMENT_RUNBOOK.md'), deployRunbook, 'utf8');
     fs.writeFileSync(path.join(docsDir, 'DATA_DICTIONARY.md'), dataDict, 'utf8');
 
-    vscode.window.showInformationMessage('✓ Generated ARCHITECTURE.md, DEPLOYMENT_RUNBOOK.md, and DATA_DICTIONARY.md in docs/');
+    // Also export Claude Code Manifest and DB2 Sandbox artifacts
+    await this.exportClaudeManifest(false);
+
+    vscode.window.showInformationMessage('✓ Generated ARCHITECTURE.md, DEPLOYMENT_RUNBOOK.md, DATA_DICTIONARY.md in docs/, and CLAUDE.md in workspace root.');
+  }
+
+  async exportClaudeManifest(showNotification = true): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) return;
+
+    const ctxManager = new FdeContextManager(this._svc.vsCtx);
+    const state = ctxManager.getState();
+
+    const dbMeta = {
+      dialect: 'db2',
+      schema: 'DB2ADMIN',
+      tables: DbIntrospector.generateDb2HcmTables('DB2ADMIN'),
+      routines: DbIntrospector.generateDb2HcmRoutines('DB2ADMIN'),
+      sequences: DbIntrospector.generateDb2HcmSequences('DB2ADMIN'),
+      constraints: DbIntrospector.generateDb2HcmConstraints('DB2ADMIN'),
+    };
+
+    const claudeMd = RunbookGenerator.generateClaudePromptManifest(state, dbMeta);
+    const dockerCompose = RunbookGenerator.generateDb2DockerCompose(dbMeta);
+    const initSql = RunbookGenerator.generateDb2InitSql(dbMeta);
+
+    fs.writeFileSync(path.join(ws, 'CLAUDE.md'), claudeMd, 'utf8');
+    fs.writeFileSync(path.join(ws, 'docker-compose.db2-test.yml'), dockerCompose, 'utf8');
+
+    const scriptsDir = path.join(ws, 'scripts');
+    if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
+    fs.writeFileSync(path.join(scriptsDir, 'init-db2.sql'), initSql, 'utf8');
+
+    if (showNotification) {
+      vscode.window.showInformationMessage('✓ Exported CLAUDE.md, docker-compose.db2-test.yml, and scripts/init-db2.sql for Claude Code workspace build!');
+    }
   }
 }

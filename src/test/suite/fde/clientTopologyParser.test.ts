@@ -435,6 +435,133 @@ Salesforce gets an immediate "Request Received" acknowledgement; MuleSoft then v
     assert.ok(hitl.auditProvenance.includes('SHA-256'), 'Must enforce immutable audit trail');
   });
 
+  test('synthesizes Data Engineering modern Lakehouse architecture with Schema Drift & Quality Quarantine Gate', () => {
+    const dataEngSpec = `Data Engineering Lakehouse pipeline orchestrating Kafka event streams, Apache Airflow hourly DAGs, Apache Spark batch compute on Dataproc, dbt Core dimensional models, and Apache Iceberg ACID metadata on S3. Great Expectations halts pipeline on schema drift or null rates > 5%.`;
+
+    const res = ClientTopologyParser.parse({
+      content: dataEngSpec,
+      target: 'future',
+      docName: 'Enterprise Data Platform Architecture Spec'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.ok(res.c4Model, 'Must synthesize C4 model for data engineering');
+    const m = res.c4Model!;
+
+    // Level 1 systems
+    const ids = m.level1.systems.map(s => s.id);
+    assert.ok(ids.includes('DataSources'), 'Must have DataSources');
+    assert.ok(ids.includes('Airflow'), 'Must have Airflow');
+    assert.ok(ids.includes('SparkCompute'), 'Must have SparkCompute');
+    assert.ok(ids.includes('DbtCore'), 'Must have DbtCore');
+    assert.ok(ids.includes('IcebergLakehouse'), 'Must have IcebergLakehouse');
+    assert.ok(ids.includes('HITL_Gate'), 'Must have Quality Quarantine Gate');
+
+    // Level 2 containers
+    assert.ok(m.level2['SparkCompute'], 'Must have Level 2 for SparkCompute');
+    assert.ok(m.level2['Airflow'], 'Must have Level 2 for Airflow');
+    const sparkConts = m.level2['SparkCompute'].containers.map(c => c.id);
+    assert.ok(sparkConts.includes('Spark_Driver'));
+    assert.ok(sparkConts.includes('Spark_Executors'));
+
+    // Level 3 component data contracts
+    assert.ok(m.level3['Spark_Driver'], 'Must have Level 3 contracts for Spark_Driver');
+    const contracts = m.level3['Spark_Driver'].components[0].contracts;
+    assert.ok(contracts.some(c => c.field === 'event_timestamp'));
+    assert.ok(contracts.some(c => c.field === 'revenue_usd'));
+    assert.ok(contracts.some(c => c.field === 'schema_hash'));
+
+    // HITL Gate
+    const gate = m.hitlGates[0];
+    assert.ok(gate.title.includes('Schema Drift'));
+    assert.strictEqual(gate.reviewRole, 'Lead Data Platform Engineer / Analytics Architect');
+    assert.strictEqual(gate.slaMinutes, 20);
+    assert.ok(gate.humanActions.some(a => a.name.includes('Approve Migration')));
+  });
+
+  test('synthesizes Insurance Claims & Actuarial architecture with Four-Eyes Claims Adjudication Gate', () => {
+    const insuranceSpec = `Insurance claims adjudication workflow with First Notice of Loss (FNOL), policy coverage limits, Neo4j actuarial fraud ring scoring, and Guidewire ClaimCenter reserve ledger with direct Fedwire settlement payout.`;
+
+    const res = ClientTopologyParser.parse({
+      content: insuranceSpec,
+      target: 'future',
+      docName: 'Commercial Insurance Claims Pipeline'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.ok(res.c4Model);
+    const m = res.c4Model!;
+
+    const ids = m.level1.systems.map(s => s.id);
+    assert.ok(ids.includes('Claimant'));
+    assert.ok(ids.includes('ClaimsEngine'));
+    assert.ok(ids.includes('ActuarialGraph'));
+    assert.ok(ids.includes('Guidewire'));
+    assert.ok(ids.includes('HITL_Gate'));
+
+    assert.ok(m.level2['ClaimsEngine']);
+    assert.ok(m.hitlGates.length >= 1);
+    assert.strictEqual(m.hitlGates[0].reviewRole, 'Certified Senior Claims Adjuster / Special Investigation Unit (SIU)');
+    assert.strictEqual(m.hitlGates[0].slaMinutes, 60);
+  });
+
+  test('synthesizes Higher Education & LMS architecture with Academic Integrity Ombudsman Gate', () => {
+    const eduSpec = `Higher education digital curriculum platform with Canvas LMS LTI 1.3 assignments, automated rubric grading curves, Turnitin AI plagiarism detection, and Ellucian Banner SIS official transcripts.`;
+
+    const res = ClientTopologyParser.parse({
+      content: eduSpec,
+      target: 'future',
+      docName: 'University Academic Core Platform'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.ok(res.c4Model);
+    const m = res.c4Model!;
+
+    const ids = m.level1.systems.map(s => s.id);
+    assert.ok(ids.includes('StudentFaculty'));
+    assert.ok(ids.includes('CanvasLMS'));
+    assert.ok(ids.includes('CurriculumCore'));
+    assert.ok(ids.includes('IntegrityAI'));
+    assert.ok(ids.includes('BannerSIS'));
+    assert.ok(ids.includes('HITL_Gate'));
+
+    assert.ok(m.hitlGates.length >= 1);
+    assert.strictEqual(m.hitlGates[0].reviewRole, 'Academic Department Chair & University Ombudsman');
+    assert.strictEqual(m.hitlGates[0].slaMinutes, 2880);
+  });
+
+  test('synthesizes Enterprise Payroll & HCM Automation architecture with Controller Variance Gate', () => {
+    const payrollSpec = `Enterprise payroll automation engine with Workday timesheet intake, multi-state gross-to-net calculations, court wage garnishments, and Federal Reserve NACHA ACH direct deposit settlement.`;
+
+    const res = ClientTopologyParser.parse({
+      content: payrollSpec,
+      target: 'future',
+      docName: 'Enterprise Payroll Modernization Spec'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.ok(res.c4Model);
+    const m = res.c4Model!;
+
+    const ids = m.level1.systems.map(s => s.id);
+    assert.ok(ids.includes('Timekeeper'));
+    assert.ok(ids.includes('WorkdayHRIS'));
+    assert.ok(ids.includes('PayrollEngine'));
+    assert.ok(ids.includes('TaxCompliance'));
+    assert.ok(ids.includes('BankClearing'));
+    assert.ok(ids.includes('HITL_Gate'));
+
+    assert.ok(m.level2['PayrollEngine']);
+    assert.ok(m.level3['PayrollEngine']);
+    const contracts = m.level3['PayrollEngine'].components[0].contracts;
+    assert.ok(contracts.some(c => c.field === 'Gross_Pay_USD'));
+    assert.ok(contracts.some(c => c.field === 'ABA_Routing_Number'));
+
+    assert.strictEqual(m.hitlGates[0].reviewRole, 'Corporate Payroll Controller / VP of Total Rewards');
+    assert.strictEqual(m.hitlGates[0].slaMinutes, 240);
+  });
+
   test('renders Level 1 System Context and Level 2 Container SVGs with drill-down metadata', () => {
     const model = C4TopologyEngine.synthesizeModel('Salesforce, MuleSoft, CHIB, EMR Sunrise, xAmplify');
     
