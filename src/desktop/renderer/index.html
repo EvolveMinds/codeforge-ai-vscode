@@ -1993,7 +1993,8 @@
                   <!-- Diagram / Source toggle. The rendered view is the default because
                        the point of this section is to SEE the workflow, not read Mermaid. -->
                   <div role="tablist" aria-label="Topology view mode" style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
-                    <button role="tab" id="btnFdeViewDiagram" aria-selected="true" aria-controls="fdeTopologyRendered" class="btn-quick active" style="font-size: 10.5px;" aria-label="Show the single rendered diagram">🗺 Diagram</button>
+                    <button role="tab" id="btnFdeViewC4Topology" aria-selected="true" class="btn-quick active" style="font-size: 10.5px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.2)); border: 1px solid #38bdf8; color: #38bdf8; font-weight: 700;" aria-label="2D System Topology Graph (C4 Model & Drill-Down)">🌐 2D System Topology (C4)</button>
+                    <button role="tab" id="btnFdeViewDiagram" aria-selected="false" aria-controls="fdeTopologyRendered" class="btn-quick" style="font-size: 10.5px;" aria-label="End-to-End Execution Sequence Flow">⏱️ Execution Flow (Sequence)</button>
                     <button role="tab" id="btnFdeViewCompare" aria-selected="false" aria-controls="fdeTopologyCompare" class="btn-quick" style="font-size: 10.5px;" aria-label="Show current and future state side by side">⇄ Compare Current vs Future</button>
                     <button role="tab" id="btnFdeViewArrange" aria-selected="false" aria-controls="fdeTopologyArrange" class="btn-quick" style="font-size: 10.5px;" aria-label="Rearrange participants and steps by dragging">☰ Arrange</button>
                     <button role="tab" id="btnFdeViewSource" aria-selected="false" aria-controls="fdeTopologyPreviewContainer" class="btn-quick" style="font-size: 10.5px;" aria-label="Show and edit Mermaid source">✎ Source</button>
@@ -2085,7 +2086,59 @@
                         background: #1e293b;
                       }
                     </style>
+                    <!-- Interactive C4 Drill-Down Breadcrumbs & HITL Simulation Bar -->
+                    <div id="fdeC4Toolbar" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 6px 10px;">
+                      <!-- Hierarchical Breadcrumb Navigation -->
+                      <div id="fdeC4Breadcrumbs" style="display: flex; align-items: center; gap: 6px; font-size: 11px;">
+                        <button type="button" class="btn-quick active" id="btnFdeC4BreadcrumbL1" style="font-size: 10px; padding: 2px 8px; font-weight: 700; color: #38bdf8; border-color: #0284c7;">🌐 System Context</button>
+                        <span id="fdeC4BreadcrumbSep1" style="color: #64748b; font-size: 9px;" hidden>➔</span>
+                        <button type="button" class="btn-quick" id="btnFdeC4BreadcrumbL2" style="font-size: 10px; padding: 2px 8px; font-weight: 700; color: #c084fc; border-color: #7c3aed;" hidden>📦 Container</button>
+                        <span id="fdeC4BreadcrumbSep2" style="color: #64748b; font-size: 9px;" hidden>➔</span>
+                        <span id="fdeC4BreadcrumbL3" style="font-size: 10px; font-weight: 700; color: #fbbf24;" hidden>🧩 Component</span>
+                      </div>
+
+                      <!-- Right side controls: Level badge, Back button, and Simulate HITL Exception -->
+                      <div style="display: flex; align-items: center; gap: 6px;">
+                        <span id="fdeC4LevelBadge" style="font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Level 1: System Context</span>
+                        <button type="button" class="btn-quick" id="btnFdeC4BackUp" style="font-size: 10px; padding: 2px 8px;" hidden title="Go up one hierarchy level">⬆ Back Up</button>
+                        <button type="button" class="btn-quick" id="btnFdeSimulateHitl" style="font-size: 10px; padding: 2px 8px; border-color: #ef4444; color: #f87171; font-weight: 700; background: rgba(239, 68, 68, 0.1);" title="Simulate validation mismatch and highlight the red Human-in-the-Loop review path">🚨 Simulate HITL Exception</button>
+                      </div>
+                    </div>
+
                     <div id="fdeTopologyRendered" role="tabpanel" aria-labelledby="btnFdeViewDiagram" style="width: 100%; box-sizing: border-box; background: linear-gradient(180deg, #1e293b 0%, #111827 100%); border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 8px; padding: 14px; overflow: auto; max-height: 520px; min-height: 240px; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,0.3); scrollbar-color: rgba(148, 163, 184, 0.45) #1e293b; scrollbar-width: thin; transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1); user-select: none; -webkit-user-select: none; touch-action: none;"></div>
+
+                    <!-- Slide-out C4 Component & Contract Inspector Drawer -->
+                    <div id="fdeC4InspectorDrawer" hidden style="display: none; position: absolute; right: 0; top: 0; bottom: 0; width: 380px; max-width: 95vw; background: rgba(15, 23, 42, 0.98); border-left: 2px solid #38bdf8; z-index: 600; box-shadow: -10px 0 30px rgba(0,0,0,0.8); backdrop-filter: blur(12px); overflow-y: auto; padding: 14px; box-sizing: border-box; color: #f8fafc; border-top-right-radius: 8px; border-bottom-right-radius: 8px;">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(56, 189, 248, 0.3); padding-bottom: 6px;">
+                        <div>
+                          <span style="font-size: 9.5px; font-weight: 700; color: #38bdf8; text-transform: uppercase;">LEVEL 3 INSPECTOR</span>
+                          <h4 id="fdeC4InspectorTitle" style="margin: 2px 0 0 0; font-size: 13px; color: #f8fafc;">Component Data Contract</h4>
+                        </div>
+                        <button type="button" id="btnFdeC4InspectorClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px;">✕</button>
+                      </div>
+                      <div id="fdeC4InspectorBody"></div>
+                    </div>
+
+                    <!-- Modal: Human-in-the-Loop (HITL) Review & Override Console -->
+                    <div id="fdeC4HitlModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+                      <div style="background: #0f172a; border: 2px solid #ef4444; border-radius: 10px; width: 560px; max-width: 92vw; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 25px rgba(239, 68, 68, 0.3); color: #f8fafc;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding-bottom: 8px;">
+                          <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 20px;">🚨</span>
+                            <div>
+                              <h3 style="margin: 0; font-size: 14px; color: #f87171;">Human-in-the-Loop Exception Review Console</h3>
+                              <span style="font-size: 10px; color: #94a3b8;">Deterministic Exception Gate — Automation Paused for Clinical Review</span>
+                            </div>
+                          </div>
+                          <button type="button" id="btnFdeC4HitlModalClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer;">✕</button>
+                        </div>
+                        <div id="fdeC4HitlModalBody" style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 16px;"></div>
+                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                          <button type="button" id="btnFdeHitlReject" class="btn-quick" style="border-color: #ef4444; color: #f87171; font-weight: 700;">✕ Reject Referral &amp; Notify</button>
+                          <button type="button" id="btnFdeHitlOverride" class="btn-quick" style="border-color: #10b981; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.15);">✓ Sign &amp; Authorize Manual Override</button>
+                        </div>
+                      </div>
+                    </div>
 
                     <!-- Drag & Drop Requirements Document Overlay -->
                     <div id="fdeTopologyDropOverlay" hidden style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.94); border: 2px dashed #38bdf8; border-radius: 8px; z-index: 500; align-items: center; justify-content: center; flex-direction: column; gap: 8px; pointer-events: none;">
@@ -13824,6 +13877,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
   -->
   <script src="flowchart.js"></script>
   <script src="agentBuilder.js"></script>
+  <script src="c4Topology.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

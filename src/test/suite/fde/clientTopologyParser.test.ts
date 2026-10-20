@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import { ClientTopologyParser } from '../../../fde/clientTopologyParser';
+import { C4TopologyEngine } from '../../../fde/c4TopologyEngine';
 import { generateHelpGuideReply } from '../../../desktop/main/ipcHandlers';
 
 suite('FDE Suite — Client Architecture Document Ingestion Engine', () => {
@@ -375,6 +376,87 @@ Salesforce gets an immediate "Request Received" acknowledgement; MuleSoft then v
     assert.ok(res.futureDiagram.includes('EMQXBroker->>KafkaTelematicsTopic'));
     assert.ok(res.futureDiagram.includes('FlinkStreamProcessor->>InfluxDB'));
     assert.ok(res.futureDiagram.includes('alt engine temperature exceeds threshold'));
+  });
+
+  test('synthesizes 3-level C4 hierarchical architecture model with Human-in-the-Loop exception gate', () => {
+    const healthcareDoc = `Process 1 – Visit validation and document consolidation:
+1. Salesforce calls the Mule Experience API with Visit ID, MRN and SAUHI.
+2. Mule validates the request, assigns a correlation ID and acknowledges.
+3. Mule Process API calls CHIB with the same payload to validate the entry in EMR.
+4. EMR validates the identifiers and sends the response back to Mule via CHIB.
+5. If Visit ID, MRN and SAUHI all match, EMR returns Success as acknowledgement to Mule.
+6. If any validation fails, Mule routes exception to Clinician Review Gate.
+7. On Success, Mule fetches referral documents and sends to xAmplify for consolidation.
+8. Mule writes consolidated document back to Salesforce.
+`;
+
+    const res = ClientTopologyParser.parse({
+      content: healthcareDoc,
+      target: 'both',
+      docName: 'Healthcare Integration Spec'
+    });
+
+    assert.strictEqual(res.success, true);
+    assert.ok(res.c4Model, 'C4 Model should be generated');
+
+    const m = res.c4Model!;
+    // Level 1 System Context validation
+    assert.ok(m.level1.systems.length >= 6, 'Must have at least 6 core systems in context');
+    const systemIds = m.level1.systems.map(s => s.id);
+    assert.ok(systemIds.includes('Salesforce'), 'Must include Salesforce');
+    assert.ok(systemIds.includes('MuleSoft'), 'Must include MuleSoft');
+    assert.ok(systemIds.includes('CHIB'), 'Must include CHIB');
+    assert.ok(systemIds.includes('EMR'), 'Must include EMR');
+    assert.ok(systemIds.includes('xAmplify'), 'Must include xAmplify');
+    assert.ok(systemIds.includes('HITL_Gate'), 'Must include Human-in-the-Loop Review Gate');
+
+    // Level 2 Container Drill-Down validation
+    assert.ok(m.level2['MuleSoft'], 'Must support Level 2 drill-down into MuleSoft');
+    const muleContainers = m.level2['MuleSoft'].containers.map(c => c.id);
+    assert.ok(muleContainers.includes('Mule_Exp'), 'Must have Experience API container');
+    assert.ok(muleContainers.includes('Mule_Proc'), 'Must have Process API orchestrator');
+    assert.ok(muleContainers.includes('Mule_Sys_CHIB'), 'Must have System API connector');
+    assert.ok(muleContainers.includes('Mule_Store'), 'Must have Object Store state cache');
+
+    // Level 3 Component & Contract validation
+    assert.ok(m.level3['Mule_Proc'], 'Must support Level 3 drill-down into Mule_Proc');
+    const contracts = m.level3['Mule_Proc'].components[0].contracts;
+    assert.ok(contracts.some(c => c.field === 'Visit_ID'), 'Must define Visit_ID contract');
+    assert.ok(contracts.some(c => c.field === 'MRN'), 'Must define MRN contract');
+    assert.ok(contracts.some(c => c.field === 'Correlation_ID'), 'Must define Correlation_ID contract');
+
+    // Human-in-the-Loop (HITL) Gate validation
+    assert.ok(m.hitlGates.length >= 1, 'Must define at least 1 HITL gate');
+    const hitl = m.hitlGates[0];
+    assert.strictEqual(hitl.reviewRole, 'Referring Clinician / Medical Records Specialist');
+    assert.ok(hitl.humanActions.some(a => a.action === 'override'), 'Must support manual clinical override');
+    assert.ok(hitl.humanActions.some(a => a.action === 'reject'), 'Must support referral rejection');
+    assert.strictEqual(hitl.slaMinutes, 30);
+    assert.ok(hitl.auditProvenance.includes('SHA-256'), 'Must enforce immutable audit trail');
+  });
+
+  test('renders Level 1 System Context and Level 2 Container SVGs with drill-down metadata', () => {
+    const model = C4TopologyEngine.synthesizeModel('Salesforce, MuleSoft, CHIB, EMR Sunrise, xAmplify');
+    
+    // Level 1 SVG
+    const svgL1 = C4TopologyEngine.renderTopologySvg(model, 1, undefined, false);
+    assert.ok(svgL1.includes('LEVEL 1: SYSTEM CONTEXT TOPOLOGY'));
+    assert.ok(svgL1.includes('BOUNDARY: INTEGRATION CLOUD'));
+    assert.ok(svgL1.includes('BOUNDARY: HUMAN GOVERNANCE'));
+    assert.ok(svgL1.includes('HITL GATE'));
+    assert.ok(svgL1.includes('MuleSoft'));
+
+    // Level 1 SVG with HITL exception path simulated
+    const svgL1Exception = C4TopologyEngine.renderTopologySvg(model, 1, undefined, true);
+    assert.ok(svgL1Exception.includes('c4-glow-red'));
+
+    // Level 2 SVG for MuleSoft
+    const svgL2 = C4TopologyEngine.renderTopologySvg(model, 2, 'MuleSoft', false);
+    assert.ok(svgL2.includes('LEVEL 2: CONTAINER TOPOLOGY'));
+    assert.ok(svgL2.includes('SYSTEM CONTAINER BOUNDARY: MULESOFT'));
+    assert.ok(svgL2.includes('Mule Experience API'));
+    assert.ok(svgL2.includes('Mule Process API'));
+    assert.ok(svgL2.includes('Object Store'));
   });
 });
 

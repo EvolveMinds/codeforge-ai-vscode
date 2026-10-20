@@ -4889,6 +4889,33 @@ function setupPhase1Discovery(api: any): void {
   const diagramStatus = document.getElementById('fdeDiagramStatus');
   const btnExportSvg = document.getElementById('btnFdeExportDiagramSvg');
 
+  // --- C4 Topology Model & Multi-Level Architectural Navigation ---
+  const btnViewC4Topology = document.getElementById('btnFdeViewC4Topology');
+  const c4Toolbar = document.getElementById('fdeC4Toolbar');
+  const btnC4BreadcrumbL1 = document.getElementById('btnFdeC4BreadcrumbL1');
+  const sepC4Breadcrumb1 = document.getElementById('fdeC4BreadcrumbSep1');
+  const btnC4BreadcrumbL2 = document.getElementById('btnFdeC4BreadcrumbL2');
+  const sepC4Breadcrumb2 = document.getElementById('fdeC4BreadcrumbSep2');
+  const spanC4BreadcrumbL3 = document.getElementById('fdeC4BreadcrumbL3');
+  const c4LevelBadge = document.getElementById('fdeC4LevelBadge');
+  const btnC4BackUp = document.getElementById('btnFdeC4BackUp');
+  const btnSimulateHitl = document.getElementById('btnFdeSimulateHitl');
+  const c4InspectorDrawer = document.getElementById('fdeC4InspectorDrawer');
+  const btnC4InspectorClose = document.getElementById('btnFdeC4InspectorClose');
+  const c4InspectorTitle = document.getElementById('fdeC4InspectorTitle');
+  const c4InspectorBody = document.getElementById('fdeC4InspectorBody');
+  const c4HitlModal = document.getElementById('fdeC4HitlModal');
+  const btnC4HitlModalClose = document.getElementById('btnFdeC4HitlModalClose');
+  const c4HitlModalBody = document.getElementById('fdeC4HitlModalBody');
+  const btnHitlReject = document.getElementById('btnFdeHitlReject');
+  const btnHitlOverride = document.getElementById('btnFdeHitlOverride');
+
+  let currentTopologyViewMode: 'c4' | 'diagram' | 'source' | 'compare' | 'arrange' = 'c4';
+  let activeC4Level: 1 | 2 = 1;
+  let activeC4SystemId: string | undefined = undefined;
+  let showHitlExceptionPath = false;
+  let cachedC4Model: any = null;
+
   let canvasZoom = 1.0;
   const applyZoom = () => {
     const svgEl = renderedPane?.querySelector('svg#fdeTopologySvg') as SVGSVGElement | null;
@@ -5389,7 +5416,238 @@ function setupPhase1Discovery(api: any): void {
     return { key: 'custom', name: '✏️ Custom Architecture', isModified: true };
   };
 
+  const escXml = (s?: string) => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const openHitlReviewConsole = () => {
+    if (!c4HitlModal) return;
+    const gate = cachedC4Model?.hitlGates?.[0] || {
+      title: 'Clinical Patient Record Exception Gate',
+      triggerCondition: 'Referral patient MRN does not reconcile with EMR Sunrise active encounter or visit status is Discharged.',
+      reviewSurface: 'Clinical Supervisor Intake Dashboard (EMR Sunrise + Salesforce Health Cloud)',
+      reviewRole: 'Lead Clinical Informatics Officer / Attending Physician',
+      slaMinutes: 15,
+      auditProvenance: 'Cryptographic SHA-256 HMAC signed by Clinician Private Key'
+    };
+
+    if (c4HitlModalBody) {
+      c4HitlModalBody.innerHTML = `
+        <div style="background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+          <div style="font-weight: 700; color: #f87171; font-size: 12px; margin-bottom: 4px;">⚠️ Trigger Condition Activated</div>
+          <div style="color: #fca5a5; font-size: 11px;">${escXml(gate.triggerCondition)}</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; font-size: 10.5px;">
+          <div style="background: rgba(30, 41, 59, 0.6); padding: 8px; border-radius: 6px;">
+            <div style="color: #64748b; font-size: 9px; text-transform: uppercase; font-weight: 700;">Designated Review Role</div>
+            <div style="color: #f8fafc; font-weight: 600; margin-top: 2px;">${escXml(gate.reviewRole)}</div>
+          </div>
+          <div style="background: rgba(30, 41, 59, 0.6); padding: 8px; border-radius: 6px;">
+            <div style="color: #64748b; font-size: 9px; text-transform: uppercase; font-weight: 700;">Resolution SLA</div>
+            <div style="color: #fbbf24; font-weight: 700; margin-top: 2px;">⚡ ${gate.slaMinutes} Minutes (Escalates to Chief of Medicine)</div>
+          </div>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 10.5px;">
+          <div style="color: #38bdf8; font-weight: 700; font-size: 10px; margin-bottom: 4px; text-transform: uppercase;">Reconciliation Payload Mismatch:</div>
+          <div style="font-family: monospace; font-size: 10px; color: #cbd5e1; line-height: 1.5;">
+            • Salesforce Inbound: <span style="color: #34d399;">Referral ID #REF-90412, MRN: 49281, Status: Pending</span><br>
+            • EMR Sunrise Query: <span style="color: #f87171;">MRN 49281, Encounter ID #ENC-1092, Status: Discharged (3 days ago)</span><br>
+            • Policy Rule: <span style="color: #fbbf24;">Discharged encounters cannot receive automated ambulatory referral attachment without physician review.</span>
+          </div>
+        </div>
+
+        <div style="font-size: 9.5px; color: #94a3b8;">
+          🔒 <strong>Audit Provenance:</strong> ${escXml(gate.auditProvenance)}
+        </div>
+      `;
+    }
+
+    c4HitlModal.hidden = false;
+    c4HitlModal.style.display = 'flex';
+  };
+
+  const openC4Inspector = (containerId: string) => {
+    if (!c4InspectorDrawer || !cachedC4Model) return;
+    const l3Data = cachedC4Model.level3?.[containerId];
+    const parentContainer = l3Data?.parentContainer || cachedC4Model.level2?.[activeC4SystemId || '']?.containers?.find((c: any) => c.id === containerId);
+
+    if (c4InspectorTitle) {
+      c4InspectorTitle.textContent = parentContainer ? `${parentContainer.label} (Level 3 Component Contracts)` : 'Component Contracts';
+    }
+
+    if (sepC4Breadcrumb2) sepC4Breadcrumb2.hidden = false;
+    if (spanC4BreadcrumbL3) {
+      spanC4BreadcrumbL3.hidden = false;
+      spanC4BreadcrumbL3.textContent = `🧩 ${parentContainer?.label || containerId}`;
+    }
+
+    let html = `
+      <div style="font-size: 11px; margin-bottom: 12px; color: #94a3b8; line-height: 1.4;">
+        <p style="margin: 0 0 6px 0;"><strong style="color: #f8fafc;">Container:</strong> ${escXml(parentContainer?.label || containerId)}</p>
+        <p style="margin: 0 0 6px 0;"><strong style="color: #f8fafc;">Technology:</strong> <code style="background: rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; color: #38bdf8;">${escXml(parentContainer?.technology || 'Internal')}</code></p>
+        <p style="margin: 0;"><strong style="color: #f8fafc;">Role:</strong> ${escXml(parentContainer?.description || 'Internal service orchestrator')}</p>
+      </div>
+    `;
+
+    if (!l3Data || !l3Data.components || l3Data.components.length === 0) {
+      html += `
+        <div style="padding: 16px; background: rgba(30, 41, 59, 0.5); border-radius: 6px; border: 1px dashed rgba(148, 163, 184, 0.3); text-align: center; color: #94a3b8; font-size: 11px;">
+          No sub-components or data contracts defined for this container.
+        </div>
+      `;
+    } else {
+      html += `<div style="display: flex; flex-direction: column; gap: 14px;">`;
+      l3Data.components.forEach((comp: any) => {
+        html += `
+          <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 6px; padding: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-weight: 700; color: #f8fafc; font-size: 11.5px;">${escXml(comp.label)}</span>
+              <span style="font-size: 9px; padding: 2px 6px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">${comp.slaMs ? `${comp.slaMs}ms SLA` : 'Deterministic'}</span>
+            </div>
+            <div style="font-size: 10.5px; color: #94a3b8; margin-bottom: 8px;">${escXml(comp.description)}</div>
+        `;
+
+        if (comp.contracts && comp.contracts.length > 0) {
+          html += `
+            <div style="font-size: 9.5px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; text-transform: uppercase;">Data Contracts &amp; Payload Schema:</div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; text-align: left; background: rgba(15, 23, 42, 0.6); border-radius: 4px; overflow: hidden;">
+              <thead>
+                <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.2); color: #cbd5e1;">
+                  <th style="padding: 4px 6px;">Field</th>
+                  <th style="padding: 4px 6px;">Type</th>
+                  <th style="padding: 4px 6px;">Req</th>
+                  <th style="padding: 4px 6px;">Source ➔ Dest</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+          comp.contracts.forEach((c: any) => {
+            html += `
+              <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                <td style="padding: 4px 6px; font-family: monospace; color: #fbbf24;">${escXml(c.field)}</td>
+                <td style="padding: 4px 6px; font-family: monospace; color: #a855f7;">${escXml(c.type)}</td>
+                <td style="padding: 4px 6px;">${c.required ? '<span style="color: #ef4444; font-weight: 700;">YES</span>' : '<span style="color: #64748b;">opt</span>'}</td>
+                <td style="padding: 4px 6px; color: #94a3b8;">${escXml(c.source)} ➔ ${escXml(c.destination)}</td>
+              </tr>
+            `;
+          });
+          html += `</tbody></table>`;
+        }
+
+        if (comp.retryPolicy) {
+          html += `<div style="font-size: 9px; color: #64748b; margin-top: 6px;">🔄 Retry Policy: ${escXml(comp.retryPolicy)}</div>`;
+        }
+
+        html += `</div>`;
+      });
+      html += `</div>`;
+    }
+
+    if (c4InspectorBody) c4InspectorBody.innerHTML = html;
+    c4InspectorDrawer.hidden = false;
+    c4InspectorDrawer.style.display = 'block';
+  };
+
+  const paintC4Topology = () => {
+    if (!renderedPane) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    const src = topologyContainer?.value || '';
+    const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+
+    if (!c4Engine) {
+      return;
+    }
+
+    try {
+      cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
+      const svg = c4Engine.renderTopologySvg(cachedC4Model, activeC4Level, activeC4SystemId, showHitlExceptionPath);
+      renderedPane.innerHTML = svg;
+      applyZoom();
+
+      if (diagramStatus) {
+        diagramStatus.textContent = activeC4Level === 1 ? 'Level 1: System Context' : `Level 2: ${activeC4SystemId} Container`;
+        diagramStatus.style.color = '#38bdf8';
+      }
+
+      // Update Toolbar & Breadcrumbs
+      if (btnC4BreadcrumbL1) {
+        btnC4BreadcrumbL1.classList.toggle('active', activeC4Level === 1);
+      }
+      if (activeC4Level === 1) {
+        if (sepC4Breadcrumb1) sepC4Breadcrumb1.hidden = true;
+        if (btnC4BreadcrumbL2) btnC4BreadcrumbL2.hidden = true;
+        if (sepC4Breadcrumb2) sepC4Breadcrumb2.hidden = true;
+        if (spanC4BreadcrumbL3) spanC4BreadcrumbL3.hidden = true;
+        if (btnC4BackUp) btnC4BackUp.hidden = true;
+        if (c4LevelBadge) {
+          c4LevelBadge.textContent = 'Level 1: System Context';
+          c4LevelBadge.style.color = '#38bdf8';
+          c4LevelBadge.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+          c4LevelBadge.style.background = 'rgba(56, 189, 248, 0.15)';
+        }
+      } else {
+        const sys = cachedC4Model?.level1?.systems?.find((s: any) => s.id === activeC4SystemId);
+        if (sepC4Breadcrumb1) sepC4Breadcrumb1.hidden = false;
+        if (btnC4BreadcrumbL2) {
+          btnC4BreadcrumbL2.hidden = false;
+          btnC4BreadcrumbL2.textContent = `📦 ${sys?.label || 'Container'}`;
+          btnC4BreadcrumbL2.classList.add('active');
+        }
+        if (btnC4BackUp) btnC4BackUp.hidden = false;
+        if (c4LevelBadge) {
+          c4LevelBadge.textContent = `Level 2: ${sys?.label || 'Container'} Topology`;
+          c4LevelBadge.style.color = '#c084fc';
+          c4LevelBadge.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+          c4LevelBadge.style.background = 'rgba(168, 85, 247, 0.15)';
+        }
+      }
+
+      // Wire SVG Level 1 node clicks
+      const nodeGroups = renderedPane.querySelectorAll('.c4-node-group');
+      nodeGroups.forEach(node => {
+        node.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const sysId = node.getAttribute('data-c4-id');
+          if (!sysId) return;
+
+          const isHitl = sysId === 'hitl' || sysId.includes('hitl');
+          if (isHitl || sysId === 'gov') {
+            openHitlReviewConsole();
+            return;
+          }
+
+          if (cachedC4Model?.level2?.[sysId]) {
+            activeC4Level = 2;
+            activeC4SystemId = sysId;
+            paintC4Topology();
+            fitToView();
+          } else {
+            showToast(`No sub-containers configured for ${sysId}. Showing System Context.`);
+          }
+        });
+      });
+
+      // Wire SVG Level 2 container clicks
+      const containerGroups = renderedPane.querySelectorAll('.c4-container-group');
+      containerGroups.forEach(node => {
+        node.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const contId = node.getAttribute('data-c4-id');
+          if (!contId) return;
+          openC4Inspector(contId);
+        });
+      });
+
+    } catch (err: any) {
+      console.error('[C4 Topology] Error rendering topology:', err);
+    }
+  };
+
   const paintDiagram = (renderOpts?: SeqRenderOptions) => {
+    if (currentTopologyViewMode === 'c4') {
+      paintC4Topology();
+      return;
+    }
     if (!renderedPane) return;
     const src = topologyContainer?.value || '';
     if (!src.trim()) {
@@ -5439,39 +5697,132 @@ function setupPhase1Discovery(api: any): void {
     updateActiveTemplateUI();
   };
 
-  const setTopologyView = (mode: 'diagram' | 'source' | 'compare' | 'arrange') => {
-    if (renderedPane) renderedPane.hidden = mode !== 'diagram';
-    if (topologyContainer) topologyContainer.hidden = mode !== 'source';
+  const setTopologyView = (mode: 'c4' | 'diagram' | 'source' | 'compare' | 'arrange') => {
+    currentTopologyViewMode = mode;
+    const isC4 = mode === 'c4';
+    const isDiagram = mode === 'diagram';
+    const isSource = mode === 'source';
+    const isCompare = mode === 'compare';
+    const isArrange = mode === 'arrange';
+
+    if (renderedPane) renderedPane.hidden = !isC4 && !isDiagram;
+    if (c4Toolbar) c4Toolbar.hidden = !isC4;
+    if (!isC4 && c4InspectorDrawer) {
+      c4InspectorDrawer.hidden = true;
+      c4InspectorDrawer.style.display = 'none';
+    }
+    if (topologyContainer) topologyContainer.hidden = !isSource;
     const cmp = document.getElementById('fdeTopologyCompare');
-    if (cmp) cmp.hidden = mode !== 'compare';
+    if (cmp) cmp.hidden = !isCompare;
     const arr = document.getElementById('fdeTopologyArrange');
-    if (arr) arr.hidden = mode !== 'arrange';
-    const arrBtn = document.getElementById('btnFdeViewArrange');
-    arrBtn?.classList.toggle('active', mode === 'arrange');
-    arrBtn?.setAttribute('aria-selected', String(mode === 'arrange'));
-    btnViewDiagram?.classList.toggle('active', mode === 'diagram');
-    btnViewSource?.classList.toggle('active', mode === 'source');
+    if (arr) arr.hidden = !isArrange;
+
+    btnViewC4Topology?.classList.toggle('active', isC4);
+    btnViewC4Topology?.setAttribute('aria-selected', String(isC4));
+    btnViewDiagram?.classList.toggle('active', isDiagram);
+    btnViewDiagram?.setAttribute('aria-selected', String(isDiagram));
+    btnViewSource?.classList.toggle('active', isSource);
+    btnViewSource?.setAttribute('aria-selected', String(isSource));
     const cmpBtn = document.getElementById('btnFdeViewCompare');
-    cmpBtn?.classList.toggle('active', mode === 'compare');
-    btnViewDiagram?.setAttribute('aria-selected', String(mode === 'diagram'));
-    btnViewSource?.setAttribute('aria-selected', String(mode === 'source'));
-    cmpBtn?.setAttribute('aria-selected', String(mode === 'compare'));
-    if (mode === 'diagram') { paintDiagram(); fitToView(); }
-    if (mode === 'compare') paintCompare();
-    if (mode === 'arrange') renderArrangePanel();
+    cmpBtn?.classList.toggle('active', isCompare);
+    cmpBtn?.setAttribute('aria-selected', String(isCompare));
+    const arrBtn = document.getElementById('btnFdeViewArrange');
+    arrBtn?.classList.toggle('active', isArrange);
+    arrBtn?.setAttribute('aria-selected', String(isArrange));
+
+    if (isC4) { paintC4Topology(); fitToView(); }
+    if (isDiagram) { paintDiagram(); fitToView(); }
+    if (isCompare) paintCompare();
+    if (isArrange) renderArrangePanel();
 
     const selTarget = document.getElementById('selFdeInstructionTarget') as HTMLSelectElement | null;
     if (selTarget) {
-      if (mode === 'compare') {
+      if (isCompare) {
         selTarget.value = 'both';
-      } else if (mode === 'diagram' && selTarget.value === 'both') {
+      } else if ((isC4 || isDiagram) && selTarget.value === 'both') {
         selTarget.value = currentDiagramMode;
       }
     }
   };
 
+  btnViewC4Topology?.addEventListener('click', () => setTopologyView('c4'));
   btnViewDiagram?.addEventListener('click', () => setTopologyView('diagram'));
   btnViewSource?.addEventListener('click', () => setTopologyView('source'));
+
+  btnC4BreadcrumbL1?.addEventListener('click', () => {
+    activeC4Level = 1;
+    activeC4SystemId = undefined;
+    if (c4InspectorDrawer) {
+      c4InspectorDrawer.hidden = true;
+      c4InspectorDrawer.style.display = 'none';
+    }
+    paintC4Topology();
+    fitToView();
+  });
+  btnC4BreadcrumbL2?.addEventListener('click', () => {
+    if (activeC4SystemId) {
+      activeC4Level = 2;
+      if (c4InspectorDrawer) {
+        c4InspectorDrawer.hidden = true;
+        c4InspectorDrawer.style.display = 'none';
+      }
+      paintC4Topology();
+      fitToView();
+    }
+  });
+  btnC4BackUp?.addEventListener('click', () => {
+    activeC4Level = 1;
+    activeC4SystemId = undefined;
+    if (c4InspectorDrawer) {
+      c4InspectorDrawer.hidden = true;
+      c4InspectorDrawer.style.display = 'none';
+    }
+    paintC4Topology();
+    fitToView();
+  });
+  btnC4InspectorClose?.addEventListener('click', () => {
+    if (c4InspectorDrawer) {
+      c4InspectorDrawer.hidden = true;
+      c4InspectorDrawer.style.display = 'none';
+    }
+    if (sepC4Breadcrumb2) sepC4Breadcrumb2.hidden = true;
+    if (spanC4BreadcrumbL3) spanC4BreadcrumbL3.hidden = true;
+  });
+  btnSimulateHitl?.addEventListener('click', () => {
+    showHitlExceptionPath = !showHitlExceptionPath;
+    btnSimulateHitl.classList.toggle('active', showHitlExceptionPath);
+    if (showHitlExceptionPath) {
+      btnSimulateHitl.style.background = 'rgba(239, 68, 68, 0.35)';
+      btnSimulateHitl.style.borderColor = '#ef4444';
+      btnSimulateHitl.textContent = '🚨 HITL Simulation Active';
+      openHitlReviewConsole();
+    } else {
+      btnSimulateHitl.style.background = 'rgba(239, 68, 68, 0.1)';
+      btnSimulateHitl.style.borderColor = '#ef4444';
+      btnSimulateHitl.textContent = '🚨 Simulate HITL Exception';
+    }
+    paintC4Topology();
+  });
+  btnC4HitlModalClose?.addEventListener('click', () => {
+    if (c4HitlModal) {
+      c4HitlModal.hidden = true;
+      c4HitlModal.style.display = 'none';
+    }
+  });
+  btnHitlReject?.addEventListener('click', () => {
+    showToast('🚨 Referral Rejected: Rejection notice dispatched & recorded to audit log');
+    if (c4HitlModal) {
+      c4HitlModal.hidden = true;
+      c4HitlModal.style.display = 'none';
+    }
+  });
+  btnHitlOverride?.addEventListener('click', () => {
+    showToast('✓ Manual Override Authorized: Cryptographically signed & posted to EMR');
+    if (c4HitlModal) {
+      c4HitlModal.hidden = true;
+      c4HitlModal.style.display = 'none';
+    }
+  });
 
   /** Inlines theme tokens so an exported file stands alone outside the app. */
   const standaloneSvg = (svg: string): string => {

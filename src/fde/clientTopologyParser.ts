@@ -4,6 +4,8 @@
  * into canonical Current (As-Is / Legacy) and Target (To-Be / Future) Workflow Topologies.
  */
 
+import { C4ArchitectureModel, C4TopologyEngine } from './c4TopologyEngine';
+
 export interface ClientTopologyParseOptions {
   content: string;
   target: 'legacy' | 'future' | 'both';
@@ -23,6 +25,7 @@ export interface ClientTopologyParseResult {
   messageCount: number;
   extractedEntities: string[];
   summary: string;
+  c4Model?: C4ArchitectureModel;
   error?: string;
 }
 
@@ -164,6 +167,7 @@ export class ClientTopologyParser {
     const participantCount = this.countParticipants(primaryDiagram);
     const messageCount = this.countMessages(primaryDiagram);
     const extractedEntities = this.extractEntityLabels(primaryDiagram);
+    const c4Model = C4TopologyEngine.synthesizeModel(rawContent, docName);
 
     return {
       success: true,
@@ -175,6 +179,7 @@ export class ClientTopologyParser {
       participantCount,
       messageCount,
       extractedEntities,
+      c4Model,
       summary: `Successfully ingested native Mermaid topology (${participantCount} participants, ${messageCount} steps) from "${docName}".`
     };
   }
@@ -271,6 +276,7 @@ export class ClientTopologyParser {
 
     const participantCount = participants.size;
     const messageCount = steps.filter(s => s.includes('->>')).length;
+    const c4Model = C4TopologyEngine.synthesizeModel(content, docName);
 
     return {
       success: true,
@@ -282,6 +288,7 @@ export class ClientTopologyParser {
       participantCount,
       messageCount,
       extractedEntities: Array.from(participants.values()).map(p => p.label),
+      c4Model,
       summary: `Transpiled PlantUML specification to Mermaid sequence diagram (${participantCount} participants, ${messageCount} steps).`
     };
   }
@@ -318,6 +325,7 @@ export class ClientTopologyParser {
     const resFuture = target === 'legacy' ? undefined : futureParsed.diagram;
     const activeEntities = target === 'legacy' ? legacyParsed.entities : futureParsed.entities;
     const activeSteps = target === 'legacy' ? legacyParsed.steps : futureParsed.steps;
+    const c4Model = C4TopologyEngine.synthesizeModel(content, scenarioTitle || docName);
 
     return {
       success: true,
@@ -329,6 +337,7 @@ export class ClientTopologyParser {
       participantCount: activeEntities.length,
       messageCount: activeSteps.length,
       extractedEntities: activeEntities.map(e => e.label),
+      c4Model,
       summary: `Synthesized production workflow topology from "${docName}" (${activeEntities.length} enterprise systems, ${activeSteps.length} interaction steps).`
     };
   }
