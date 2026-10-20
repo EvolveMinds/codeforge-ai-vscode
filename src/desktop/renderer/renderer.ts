@@ -91,19 +91,22 @@ let chatHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
 
 // Runbook generated documents store
 let runbookDocs: {
+  [key: string]: string | undefined;
   arch: string;
   deploy: string;
   dataDict: string;
   env: string;
   demo: string;
   complete: string;
+  claude?: string;
 } = {
   arch: '',
   deploy: '',
   dataDict: '',
   env: '',
   demo: '',
-  complete: ''
+  complete: '',
+  claude: ''
 };
 let activeRunbookTab = 'arch';
 let currentIntrospectedTables: any[] = [];
@@ -5765,14 +5768,22 @@ function setupPhase1Discovery(api: any): void {
             return;
           }
 
-          if (cachedC4Model?.level2?.[sysId]) {
-            activeC4Level = 2;
-            activeC4SystemId = sysId;
-            paintC4Topology();
-            fitToView();
-          } else {
-            showToast(`No sub-containers configured for ${sysId}. Showing System Context.`);
+          if (cachedC4Model) {
+            if (!cachedC4Model.level2?.[sysId] && c4Engine.ensureLevel2) {
+              c4Engine.ensureLevel2(cachedC4Model, sysId);
+            }
+            if (cachedC4Model.level2?.[sysId]) {
+              activeC4Level = 2;
+              activeC4SystemId = sysId;
+              paintC4Topology();
+              fitToView();
+              return;
+            }
           }
+          activeC4Level = 2;
+          activeC4SystemId = sysId;
+          paintC4Topology();
+          fitToView();
         });
       });
 
@@ -7575,6 +7586,58 @@ function setupPhase1Discovery(api: any): void {
     const target = e.target as HTMLElement | SVGElement | null;
     if (!target) return;
 
+    // C4 Topology Delegated Drill-Down & Inspector Click Handlers
+    if (currentTopologyViewMode === 'c4') {
+      const c4Hitl = target.closest('.c4-hitl-gate') as SVGElement | null;
+      if (c4Hitl) {
+        e.stopPropagation();
+        openHitlReviewConsole();
+        return;
+      }
+
+      const c4Node = target.closest('.c4-node-group') as SVGElement | null;
+      if (c4Node && activeC4Level === 1) {
+        e.stopPropagation();
+        const sysId = c4Node.getAttribute('data-c4-id');
+        if (!sysId) return;
+
+        const isHitl = sysId === 'hitl' || sysId.toLowerCase().includes('hitl') || sysId === 'gov' || sysId === 'HITL_Gate';
+        if (isHitl) {
+          openHitlReviewConsole();
+          return;
+        }
+
+        const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+        if (cachedC4Model) {
+          if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
+            c4Engine.ensureLevel2(cachedC4Model, sysId);
+          }
+          if (cachedC4Model.level2?.[sysId]) {
+            activeC4Level = 2;
+            activeC4SystemId = sysId;
+            paintC4Topology();
+            fitToView();
+            return;
+          }
+        }
+        activeC4Level = 2;
+        activeC4SystemId = sysId;
+        paintC4Topology();
+        fitToView();
+        return;
+      }
+
+      const c4Container = target.closest('.c4-container-group') as SVGElement | null;
+      if (c4Container && activeC4Level === 2) {
+        e.stopPropagation();
+        const contId = c4Container.getAttribute('data-c4-id');
+        if (!contId) return;
+        openC4Inspector(contId);
+        return;
+      }
+      return;
+    }
+
     // Participant buttons
     const btnPartDel = target.closest('.sq-btn-part-del') as SVGElement | null;
     if (btnPartDel) {
@@ -7688,7 +7751,7 @@ function setupPhase1Discovery(api: any): void {
     if (!target) return;
     didDragOnCanvas = false;
 
-    const isOverElement = target.closest('.sq-part-group') || target.closest('.sq-msg-group') || target.closest('.sq-btn') || target.closest('#fdeTopologyInlineEditor');
+    const isOverElement = target.closest('.sq-part-group') || target.closest('.sq-msg-group') || target.closest('.sq-btn') || target.closest('#fdeTopologyInlineEditor') || target.closest('.c4-node-group') || target.closest('.c4-container-group') || target.closest('.c4-edge') || target.closest('.c4-l2-edge') || target.closest('.c4-hitl-gate') || target.closest('.c4-l2-nodes');
     
     if (e.button === 1 || isPanningActive() || !isOverElement) {
       isPanDragging = true;
@@ -10652,6 +10715,21 @@ function setupDeliveryStudio(api: any): void {
   dbTableSelect?.addEventListener('change', () => applySelectedTableToMapper(dbTableSelect.value));
   btnLoadSchemaIntoMapper?.addEventListener('click', () => applySelectedTableToMapper(dbTableSelect.value));
 
+  document.getElementById('btnExportClaudeManifest')?.addEventListener('click', async () => {
+    showToast('🤖 Exporting Claude Code Build Manifest & DB2 Sandbox...');
+    if (api?.engines?.generateRunbooks) {
+      let state: any = {};
+      if (api?.fde?.getState) {
+        try { state = await api.fde.getState() || {}; } catch {}
+      }
+      const res = await api.engines.generateRunbooks(state);
+      (runbookDocs as any).claude = res.claudePromptManifest;
+      updateDocBadges(['claude']);
+      showToast('✓ Exported CLAUDE.md, docker-compose.db2-test.yml, and scripts/init-db2.sql!');
+      if (api?.workspace) renderFileTree(api);
+    }
+  });
+
   btnAutoDetectDb?.addEventListener('click', async () => {
     showToast('⚡ Scanning workspace for .env, dbt, prisma & supabase configs...');
     if (api?.engines?.detectDb) {
@@ -13025,7 +13103,7 @@ function setupDeliveryStudio(api: any): void {
     });
 
     // Update cards border active style
-    ['cardDocArch', 'cardDocDeploy', 'cardDocDataDict', 'cardDocEnv', 'cardDocDemo', 'cardDocComplete'].forEach(c => {
+    ['cardDocArch', 'cardDocDeploy', 'cardDocDataDict', 'cardDocEnv', 'cardDocDemo', 'cardDocComplete', 'cardDocClaude'].forEach(c => {
       const card = document.getElementById(c);
       if (card) {
         const isMatch = c.toLowerCase().includes(keyLower);
@@ -13374,6 +13452,33 @@ function setupDeliveryStudio(api: any): void {
     showDocPreview('complete');
   });
 
+  // Card 7: CLAUDE.md & DB2 Sandbox handlers
+  document.getElementById('cardDocClaude')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showDocPreview('claude');
+  });
+  document.getElementById('btnSingleGenClaude')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    showToast('⚡ Generating CLAUDE.md & DB2 Sandbox...');
+    if (api?.engines) {
+      const st = api?.fde?.getState ? await api.fde.getState() : {};
+      const res = await api.engines.generateRunbooks(st);
+      (runbookDocs as any).claude = res.claudePromptManifest;
+    }
+    updateDocBadges(['claude']);
+    showDocPreview('claude');
+    showToast('✓ Generated CLAUDE.md & docker-compose.db2-test.yml!');
+  });
+  document.getElementById('btnSingleOpenClaude')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showDocPreview('claude');
+    document.getElementById('btnOpenActiveDoc')?.click();
+  });
+  document.getElementById('btnSinglePrevClaude')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showDocPreview('claude');
+  });
+
   // Batch Generation Actions
   document.getElementById('btnP4GenerateAll')?.addEventListener('click', async () => {
     showToast('🚀 Generating All Client Handoff Documents...');
@@ -13391,11 +13496,12 @@ function setupDeliveryStudio(api: any): void {
         dataDict: res.dataDictionary,
         env: res.environmentCatalog,
         demo: res.executiveDemoScript,
-        complete: res.completeHandoffPackage
+        complete: res.completeHandoffPackage,
+        claude: res.claudePromptManifest
       };
-      updateDocBadges(['arch', 'deploy', 'dataDict', 'env', 'demo', 'complete']);
+      updateDocBadges(['arch', 'deploy', 'dataDict', 'env', 'demo', 'complete', 'claude']);
       showDocPreview('arch');
-      showToast('✓ All 6 client handoff documents generated on disk in docs/!');
+      showToast('✓ All 7 client handoff documents & CLAUDE.md generated on disk in docs/ & workspace root!');
       hasGeneratedRunbooks = true;
       refreshP5Rail?.();
       if (api?.workspace) renderFileTree(api);
@@ -13411,6 +13517,7 @@ function setupDeliveryStudio(api: any): void {
     if ((document.getElementById('chkDocEnv') as HTMLInputElement)?.checked) selected.push('env');
     if ((document.getElementById('chkDocDemo') as HTMLInputElement)?.checked) selected.push('demo');
     if ((document.getElementById('chkDocComplete') as HTMLInputElement)?.checked) selected.push('complete');
+    if ((document.getElementById('chkDocClaude') as HTMLInputElement)?.checked) selected.push('claude');
 
     if (selected.length === 0) {
       showToast('⚠️ Please select at least one document checkbox to generate.');

@@ -117,6 +117,18 @@ export class C4TopologyEngine {
    * Synthesizes a full 3-level C4 architectural topology model from text or diagram source
    */
   public static synthesizeModel(text: string, title?: string): C4ArchitectureModel {
+    const model = this.synthesizeRawModel(text, title);
+    if (model && model.level1 && model.level1.systems) {
+      for (const sys of model.level1.systems) {
+        if (sys.category !== 'hitl' && sys.id !== 'HITL_Gate' && sys.id !== 'hitl') {
+          this.ensureLevel2(model, sys.id);
+        }
+      }
+    }
+    return model;
+  }
+
+  private static synthesizeRawModel(text: string, title?: string): C4ArchitectureModel {
     const raw = (text || '').toLowerCase();
     const scenarioTitle = title || 'Enterprise Architecture Topology';
 
@@ -175,6 +187,89 @@ export class C4TopologyEngine {
   /**
    * Renders high-fidelity Level 1 System Context or Level 2 Container SVG
    */
+
+  /**
+   * Guarantees that a system node has a populated Level 2 container model
+   * and that all its containers have populated Level 3 component data contracts.
+   */
+  public static ensureLevel2(model: C4ArchitectureModel, systemId: string): void {
+    if (!model.level2) model.level2 = {};
+    if (!model.level3) model.level3 = {};
+
+    const sys = model.level1.systems.find(s => s.id === systemId);
+    if (!sys || sys.category === 'hitl' || sys.id === 'HITL_Gate') return;
+
+    if (!model.level2[systemId]) {
+      const tech1 = sys.technologies[0] || 'REST / HTTPS API';
+      const tech2 = sys.technologies[1] || 'Async Worker / Orchestrator';
+      const tech3 = sys.technologies[2] || 'State Store / Database';
+
+      model.level2[systemId] = {
+        parentSystem: { ...sys },
+        containers: [
+          {
+            id: `${systemId}_Ingress`,
+            parentSystemId: systemId,
+            label: `${sys.label} API Ingress`,
+            type: 'api',
+            endpoint: `/api/v1/${systemId.toLowerCase()}`,
+            technology: tech1,
+            description: `Secure gateway accepting requests and enforcing mTLS authentication for ${sys.label}.`,
+            componentCount: 2
+          },
+          {
+            id: `${systemId}_Worker`,
+            parentSystemId: systemId,
+            label: `${sys.label} Core Worker`,
+            type: 'orchestrator',
+            endpoint: `internal://${systemId.toLowerCase()}-worker`,
+            technology: tech2,
+            description: `Core orchestration engine and business logic processor for ${sys.label}.`,
+            componentCount: 2
+          },
+          {
+            id: `${systemId}_Store`,
+            parentSystemId: systemId,
+            label: `${sys.label} Data Store`,
+            type: 'store',
+            technology: tech3,
+            description: `Persistent database and state ledger maintaining transactional integrity for ${sys.label}.`,
+            componentCount: 1
+          }
+        ],
+        connections: [
+          { from: `${systemId}_Ingress`, to: `${systemId}_Worker`, label: 'Process Request', protocol: 'Internal Event', order: 1 },
+          { from: `${systemId}_Worker`, to: `${systemId}_Store`, label: 'Commit Transaction', protocol: 'State Sync / SQL', order: 2 }
+        ]
+      };
+    }
+
+    // Ensure all containers in Level 2 have Level 3 contracts
+    for (const c of model.level2[systemId].containers) {
+      if (!model.level3[c.id]) {
+        model.level3[c.id] = {
+          parentContainer: { ...c },
+          components: [
+            {
+              id: `${c.id}_Validator`,
+              parentContainerId: c.id,
+              label: `${c.label} Payload Contract`,
+              role: 'Schema Validation & Serialization',
+              description: `Validates strict enterprise schema compliance, field types, and tenant isolation for ${c.label}.`,
+              slaMs: 150,
+              retryPolicy: 'Max 3 retries (100ms backoff)',
+              contracts: [
+                { field: 'Transaction_ID', type: 'UUIDv4', required: true, source: 'Ingress Client', destination: c.label, description: 'Unique idempotent transaction identifier.', validationRule: 'RFC 4122 UUID' },
+                { field: 'Payload_Body', type: 'JSON / Avro Schema', required: true, source: 'Upstream Caller', destination: c.label, description: 'Validated structured domain payload payload.', validationRule: 'Strict schema adherence' },
+                { field: 'Authorization_Token', type: 'JWT Bearer', required: true, source: 'OAuth2 / mTLS', destination: c.label, description: 'Scoped enterprise authentication token.' }
+              ]
+            }
+          ]
+        };
+      }
+    }
+  }
+
   public static renderTopologySvg(
     model: C4ArchitectureModel,
     level: 1 | 2,
@@ -1217,7 +1312,7 @@ export class C4TopologyEngine {
           { id: 'governance', label: 'Human Governance' }
         ],
         systems: [
-          { id: 'Clinician', label: 'Referring Clinician', category: 'actor', zone: 'client', icon: '👤', role: 'Clinical User / Intake Agent', description: 'Initiates referral intake and handles exception reconciliations.', technologies: ['Salesforce UI', 'Health Cloud Portal'], containerCount: 0 },
+          { id: 'Clinician', label: 'Referring Clinician', category: 'actor', zone: 'client', icon: '👤', role: 'Clinical User / Intake Agent', description: 'Initiates referral intake and handles exception reconciliations.', technologies: ['Salesforce UI', 'Health Cloud Portal'], containerCount: 2 },
           { id: 'Salesforce', label: 'Salesforce Health Cloud', category: 'saas', zone: 'client', icon: '☁️', role: 'Referral System of Record', description: 'Manages patient referral records, file attachments, and status transitions.', technologies: ['Apex REST', 'Platform Events', 'OAuth2', 'S3 File Store'], containerCount: 4 },
           { id: 'MuleSoft', label: 'MuleSoft Anypoint Platform', category: 'gateway', zone: 'integration', icon: '⚡', role: 'API-Led Integration Core', description: '3-tier API-led orchestrator executing visit validation and document flows.', technologies: ['CloudHub 2.0', 'DataWeave 2.0', 'Experience API', 'Process API'], containerCount: 4 },
           { id: 'CHIB', label: 'CHIB Integration Broker', category: 'gateway', zone: 'integration', icon: '🔄', role: 'Clinical Message Hub', description: 'Translates enterprise JSON payloads to clinical HL7/FHIR message protocols.', technologies: ['HL7 v2.5.1', 'FHIR R4', 'mTLS Gateway'], containerCount: 2 },
@@ -1241,6 +1336,26 @@ export class C4TopologyEngine {
         ]
       },
       level2: {
+        Clinician: {
+          parentSystem: {
+            id: 'Clinician',
+            label: 'Referring Clinician',
+            category: 'actor',
+            zone: 'client',
+            icon: '👤',
+            role: 'Clinical User / Intake Agent',
+            description: 'Healthcare provider initiating patient referrals and reviewing clinical exceptions.',
+            technologies: ['Salesforce Health Cloud UI', 'Lightning Web Components'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'Clinician_Portal', parentSystemId: 'Clinician', label: 'Provider Intake Portal', type: 'api', endpoint: 'https://healthcloud.hospital.org/referrals', technology: 'Lightning Web Components (LWC) / SSO', description: 'Web interface for submitting patient referrals with Visit ID, MRN, and attached medical files.', componentCount: 1 },
+            { id: 'Clinician_TaskView', parentSystemId: 'Clinician', label: 'Clinical Exception Inbox', type: 'gate', endpoint: 'healthcloud://clinical-exceptions', technology: 'Salesforce Omni-Channel Workspaces', description: 'Dedicated review interface displaying validation discrepancies with 1-click override or reject actions.', componentCount: 1 }
+          ],
+          connections: [
+            { from: 'Clinician_Portal', to: 'Clinician_TaskView', label: 'Surfaces Rejection / Exception', protocol: 'In-App Notification', order: 1 }
+          ]
+        },
         MuleSoft: {
           parentSystem: {
             id: 'MuleSoft',
@@ -1257,12 +1372,12 @@ export class C4TopologyEngine {
             { id: 'Mule_Exp', parentSystemId: 'MuleSoft', label: 'Mule Experience API', type: 'api', endpoint: '/api/v1/referrals/validate', technology: 'HTTP Listener, OAuth2 Token Validation, Policy Gate', description: 'Exposes secure ingress, assigns Correlation ID, and delivers immediate 200 Ack.', componentCount: 2 },
             { id: 'Mule_Proc', parentSystemId: 'MuleSoft', label: 'Mule Process API (Visit Orchestrator)', type: 'orchestrator', endpoint: 'internal://visit-validation-process', technology: 'DataWeave 2.0, Flow Orchestration, State Machine', description: 'Coordinates EMR query, evaluates match criteria, and orchestrates doc consolidation.', componentCount: 3 },
             { id: 'Mule_Sys_CHIB', parentSystemId: 'MuleSoft', label: 'CHIB System Connector API', type: 'adapter', endpoint: 'https://chib.internal/api/v2/query', technology: 'HTTP Requestor with mTLS & Circuit Breaker', description: 'Handles connection pooling, payload transformation, and retry policy to CHIB.', componentCount: 2 },
-            { id: 'Mule_Store', parentSystemId: 'MuleSoft', label: 'Object Store / In-Flight State Cache', type: 'store', technology: 'Mule ObjectStore v2 (TTL 4h, AES-256)', description: 'Maintains correlation state, idempotency keys, and document tracking tokens.', componentCount: 1 }
+            { id: 'Mule_Sys_Sunrise', parentSystemId: 'MuleSoft', label: 'Sunrise Document System API', type: 'adapter', endpoint: 'https://sunrise-api.internal/v1/documents', technology: 'REST / HL7 MDM_T02 Provider', description: 'Uploads consolidated PDF against validated Visit ID with metadata, author, and timestamp.', componentCount: 2 }
           ],
           connections: [
             { from: 'Mule_Exp', to: 'Mule_Proc', label: 'Delegate Process (Async Flow)', protocol: 'VM Queue / Direct', order: 1 },
-            { from: 'Mule_Proc', to: 'Mule_Store', label: 'Store Correlation Context', protocol: 'Binary Serialization', order: 2 },
-            { from: 'Mule_Proc', to: 'Mule_Sys_CHIB', label: 'Execute EMR Validation', protocol: 'Internal REST', order: 3 }
+            { from: 'Mule_Proc', to: 'Mule_Sys_CHIB', label: 'Execute EMR Validation', protocol: 'Internal REST', order: 2 },
+            { from: 'Mule_Proc', to: 'Mule_Sys_Sunrise', label: 'Upload Consolidated Doc', protocol: 'HTTPS / REST', order: 3 }
           ]
         },
         Salesforce: {
@@ -1279,11 +1394,34 @@ export class C4TopologyEngine {
           },
           containers: [
             { id: 'SF_Intake', parentSystemId: 'Salesforce', label: 'Referral Intake Controller', type: 'api', endpoint: 'Referral__c Custom Object', technology: 'Apex REST / Lightning Web Component', description: 'Captures Visit ID, MRN, SAUHI, and triggers outbound validation callout.', componentCount: 2 },
+            { id: 'SF_DocApi', parentSystemId: 'Salesforce', label: 'Salesforce Document System API', type: 'api', endpoint: '/services/data/v59.0/sobjects/ContentVersion', technology: 'Salesforce REST API / ContentDocumentLink', description: 'Retrieves referral document attachments and metadata for consolidation in Process 2.', componentCount: 2 },
             { id: 'SF_TaskQueue', parentSystemId: 'Salesforce', label: 'Clinician Exception Task Queue', type: 'gate', endpoint: 'Task / Case Exception View', technology: 'Omni-Channel Routing & SLA Timers', description: 'Surfaces validation discrepancies directly to clinicians for 1-click override.', componentCount: 2 },
             { id: 'SF_FileStore', parentSystemId: 'Salesforce', label: 'ContentVersion File Store', type: 'store', technology: 'Salesforce Files Storage & S3 Vault', description: 'Holds unconsolidated referral attachments and final merged clinical document.', componentCount: 1 }
           ],
           connections: [
-            { from: 'SF_Intake', to: 'SF_TaskQueue', label: 'Route Exception Task', protocol: 'Platform Event', order: 1 }
+            { from: 'SF_Intake', to: 'SF_DocApi', label: 'Query Attachments', protocol: 'SOQL Query', order: 1 },
+            { from: 'SF_Intake', to: 'SF_TaskQueue', label: 'Route Exception Task', protocol: 'Platform Event', order: 2 },
+            { from: 'SF_DocApi', to: 'SF_FileStore', label: 'Fetch Binary VersionData', protocol: 'Internal Storage Bus', order: 3 }
+          ]
+        },
+        CHIB: {
+          parentSystem: {
+            id: 'CHIB',
+            label: 'CHIB Integration Broker',
+            category: 'gateway',
+            zone: 'integration',
+            icon: '🔄',
+            role: 'Clinical Message Hub',
+            description: 'Enterprise integration gateway bridging enterprise JSON payloads with hospital clinical HL7/FHIR backends.',
+            technologies: ['HL7 v2.5.1', 'FHIR R4', 'mTLS Gateway'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'CHIB_Broker', parentSystemId: 'CHIB', label: 'Clinical Message Broker', type: 'orchestrator', endpoint: 'https://chib.hospital.net/inbound', technology: 'Apache Camel / Mule Clinical Engine', description: 'Transforms inbound JSON visit validation requests into HL7 v2.5.1 QBP_Q21 encounter queries.', componentCount: 2 },
+            { id: 'CHIB_HL7Adapter', parentSystemId: 'CHIB', label: 'HL7 / FHIR mTLS Gateway', type: 'adapter', endpoint: 'mllp://chib-mllp.internal:2575', technology: 'MLLP Protocol Adapter with Mutual TLS', description: 'Maintains encrypted socket sessions with EMR Sunrise clinical core.', componentCount: 2 }
+          ],
+          connections: [
+            { from: 'CHIB_Broker', to: 'CHIB_HL7Adapter', label: 'Forward QBP Query', protocol: 'MLLP Socket', order: 1 }
           ]
         },
         EMR: {
@@ -1300,14 +1438,75 @@ export class C4TopologyEngine {
           },
           containers: [
             { id: 'EMR_Adapter', parentSystemId: 'EMR', label: 'Sunrise HL7/FHIR Engine', type: 'adapter', technology: 'HL7 v2.5.1 MLLP & FHIR REST Provider', description: 'Ingests clinical queries and translates identifier verification requests.', componentCount: 2 },
-            { id: 'EMR_MPI', parentSystemId: 'EMR', label: 'Master Patient Index (MPI) & Visit DB', type: 'store', technology: 'Relational Encounters Database (MSSQL)', description: 'Deterministic store verifying exact match of Visit ID, MRN, and SAUHI.', componentCount: 2 }
+            { id: 'EMR_MPI', parentSystemId: 'EMR', label: 'Master Patient Index (MPI) & Visit DB', type: 'store', technology: 'Relational Encounters Database (MSSQL)', description: 'Deterministic store verifying exact match of Visit ID, MRN, and SAUHI.', componentCount: 2 },
+            { id: 'EMR_DocService', parentSystemId: 'EMR', label: 'Sunrise Clinical Document Ingest', type: 'api', endpoint: 'https://sunrise-ehr.internal/api/docs', technology: 'HL7 MDM_T02 Document Management Service', description: 'Attaches certified consolidated PDF documents against verified clinical encounter records.', componentCount: 2 }
           ],
           connections: [
-            { from: 'EMR_Adapter', to: 'EMR_MPI', label: 'Query Encounter Record', protocol: 'SQL / Stored Proc', order: 1 }
+            { from: 'EMR_Adapter', to: 'EMR_MPI', label: 'Query Encounter Record', protocol: 'SQL / Stored Proc', order: 1 },
+            { from: 'EMR_DocService', to: 'EMR_MPI', label: 'Index Attached File', protocol: 'Database Transaction', order: 2 }
+          ]
+        },
+        xAmplify: {
+          parentSystem: {
+            id: 'xAmplify',
+            label: 'xAmplify Document Engine',
+            category: 'saas',
+            zone: 'thirdparty',
+            icon: '📄',
+            role: 'Document Consolidation Core',
+            description: 'Automated clinical document transformation and multi-page PDF/A linearization platform.',
+            technologies: ['xAmplify REST API', 'PDF Linearization', 'OCR Engine'],
+            containerCount: 2
+          },
+          containers: [
+            { id: 'xAmplify_Ingress', parentSystemId: 'xAmplify', label: 'Document Intake REST Gateway', type: 'api', endpoint: 'https://api.xamplify.io/v2/merge', technology: 'REST API with Multipart Stream Handling', description: 'Accepts raw referral document streams (PDF, TIFF, JPEG) and validates size limits.', componentCount: 2 },
+            { id: 'xAmplify_PdfEngine', parentSystemId: 'xAmplify', label: 'PDF/A Consolidation & OCR Engine', type: 'orchestrator', endpoint: 'internal://xamplify-linearizer', technology: 'Linearized PDF/A-1b Compiler & Tesseract OCR', description: 'Merges multi-format referral documents into a single searchable canonical PDF with checksum validation.', componentCount: 2 }
+          ],
+          connections: [
+            { from: 'xAmplify_Ingress', to: 'xAmplify_PdfEngine', label: 'Submit Stream for Merge', protocol: 'Binary Memory Pipe', order: 1 }
           ]
         }
       },
       level3: {
+        Mule_Exp: {
+          parentContainer: {
+            id: 'Mule_Exp',
+            parentSystemId: 'MuleSoft',
+            label: 'Mule Experience API',
+            type: 'api',
+            technology: 'HTTP Listener, OAuth2 Token Validation',
+            description: 'Exposes secure ingress, assigns Correlation ID, and delivers immediate 200 Ack.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'Mule_Exp_Listener',
+              parentContainerId: 'Mule_Exp',
+              label: 'Referral Ingress Listener',
+              role: 'API Gateway Ingress',
+              description: 'Authenticates incoming Salesforce HTTPS request via mTLS and assigns global Correlation ID.',
+              slaMs: 120,
+              contracts: [
+                { field: 'Visit_ID', type: 'String (Alphanumeric 12)', required: true, source: 'Salesforce Referral', destination: 'MuleSoft Ingress', description: 'Patient inpatient/outpatient hospital encounter ID.', validationRule: 'Matches ^[A-Z0-9]{8,12}$' },
+                { field: 'MRN', type: 'String (Medical Record Number)', required: true, source: 'Salesforce Patient Record', destination: 'MuleSoft Ingress', description: 'Patient Medical Record Number.' },
+                { field: 'SAUHI', type: 'String (Hospital Unit ID)', required: true, source: 'Salesforce Referral', destination: 'MuleSoft Ingress', description: 'Specialist Ambulatory Unit Hospital Identifier.' },
+                { field: 'Referral_ID', type: 'String (SF ID)', required: true, source: 'Salesforce Referral', destination: 'MuleSoft Ingress', description: 'Salesforce unique record identifier for correlation.' }
+              ]
+            },
+            {
+              id: 'Mule_Exp_AckGenerator',
+              parentContainerId: 'Mule_Exp',
+              label: 'Immediate 200 Ack Producer',
+              role: 'Non-Blocking Acknowledgment',
+              description: 'Returns instant "Request Received" status to Salesforce so UI is never blocked.',
+              slaMs: 50,
+              contracts: [
+                { field: 'Status', type: 'String', required: true, source: 'MuleSoft Experience API', destination: 'Salesforce Health Cloud', description: 'Initial referral acknowledgment status ("Request Received").' },
+                { field: 'Correlation_ID', type: 'UUIDv4', required: true, source: 'MuleSoft Experience API', destination: 'Salesforce Health Cloud', description: 'Distributed tracing UUID propagated across all logs and downstream calls.' }
+              ]
+            }
+          ]
+        },
         Mule_Proc: {
           parentContainer: {
             id: 'Mule_Proc',
@@ -1345,6 +1544,190 @@ export class C4TopologyEngine {
               contracts: [
                 { field: 'Referral_ID', type: 'String (SF ID)', required: true, source: 'Salesforce Referral', destination: 'MuleSoft File Fetcher', description: 'Salesforce object record ID for attachment retrieval.' },
                 { field: 'Consolidated_File', type: 'Binary Stream (PDF)', required: true, source: 'xAmplify Engine', destination: 'Salesforce ContentVersion', description: 'Single merged linear clinical PDF ready for Process 2.' }
+              ]
+            }
+          ]
+        },
+        Mule_Sys_CHIB: {
+          parentContainer: {
+            id: 'Mule_Sys_CHIB',
+            parentSystemId: 'MuleSoft',
+            label: 'CHIB System Connector API',
+            type: 'adapter',
+            technology: 'HTTP Requestor with mTLS & Circuit Breaker',
+            description: 'Handles connection pooling, payload transformation, and retry policy to CHIB.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'CHIB_QueryWorker',
+              parentContainerId: 'Mule_Sys_CHIB',
+              label: 'CHIB Query Dispatcher',
+              role: 'mTLS Client Adapter',
+              description: 'Dispatches JSON visit validation payload to CHIB broker over mutual TLS 1.3.',
+              slaMs: 800,
+              retryPolicy: 'Circuit breaker trips after 5 consecutive timeouts (open 30s)',
+              contracts: [
+                { field: 'Visit_ID', type: 'String', required: true, source: 'Mule Process API', destination: 'CHIB Broker', description: 'Hospital encounter ID.' },
+                { field: 'MRN', type: 'String', required: true, source: 'Mule Process API', destination: 'CHIB Broker', description: 'Medical Record Number.' },
+                { field: 'Client_Cert_Thumbprint', type: 'SHA-256', required: true, source: 'MuleSoft Keystore', destination: 'CHIB Ingress Gateway', description: 'Client mutual TLS certificate thumbprint.' }
+              ]
+            }
+          ]
+        },
+        Mule_Sys_Sunrise: {
+          parentContainer: {
+            id: 'Mule_Sys_Sunrise',
+            parentSystemId: 'MuleSoft',
+            label: 'Sunrise Document System API',
+            type: 'adapter',
+            technology: 'REST / HL7 MDM_T02 Provider',
+            description: 'Uploads consolidated PDF against validated Visit ID with metadata, author, and timestamp.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'Sunrise_Uploader',
+              parentContainerId: 'Mule_Sys_Sunrise',
+              label: 'Encounter Document Ingest Adapter',
+              role: 'Binary Document Ingestion',
+              description: 'Streams verified consolidated PDF/A directly into Allscripts Sunrise EHR against the patient encounter.',
+              slaMs: 1500,
+              contracts: [
+                { field: 'Validated_Visit_ID', type: 'String (Alphanumeric 12)', required: true, source: 'Mule Process API', destination: 'EMR Sunrise Core', description: 'Validated inpatient visit encounter ID.' },
+                { field: 'Document_Type', type: 'String (e.g., CLINICAL_REFERRAL)', required: true, source: 'Salesforce Metadata', destination: 'EMR Sunrise Document Catalog', description: 'Encounter document taxonomy code.' },
+                { field: 'Author_ID', type: 'String (Provider NPI)', required: true, source: 'Salesforce Referral User', destination: 'EMR Sunrise Document Registry', description: 'Referring clinician identifier.' },
+                { field: 'Binary_Payload', type: 'PDF/A Binary Stream', required: true, source: 'xAmplify Engine', destination: 'EMR Sunrise File Store', description: 'Consolidated clinical document payload.' }
+              ]
+            }
+          ]
+        },
+        SF_Intake: {
+          parentContainer: {
+            id: 'SF_Intake',
+            parentSystemId: 'Salesforce',
+            label: 'Referral Intake Controller',
+            type: 'api',
+            technology: 'Apex REST / Lightning Web Component',
+            description: 'Captures Visit ID, MRN, SAUHI, and triggers outbound validation callout.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'SF_Intake_Trigger',
+              parentContainerId: 'SF_Intake',
+              label: 'Referral Creation Trigger',
+              role: 'Apex Trigger & REST Dispatcher',
+              description: 'Intercepts new Referral__c records and executes asynchronous HTTP callout to Mule Experience API.',
+              slaMs: 200,
+              contracts: [
+                { field: 'Id', type: 'Id (Salesforce 18-char)', required: true, source: 'Salesforce Database', destination: 'Apex Callout', description: 'Referral record unique identifier.' },
+                { field: 'Visit_ID__c', type: 'String(12)', required: true, source: 'Clinician Intake Form', destination: 'MuleSoft Exp API', description: 'Hospital encounter ID.' },
+                { field: 'Patient_MRN__c', type: 'String(20)', required: true, source: 'Patient Master Index', destination: 'MuleSoft Exp API', description: 'Medical Record Number.' }
+              ]
+            }
+          ]
+        },
+        SF_DocApi: {
+          parentContainer: {
+            id: 'SF_DocApi',
+            parentSystemId: 'Salesforce',
+            label: 'Salesforce Document System API',
+            type: 'api',
+            technology: 'Salesforce REST API / ContentDocumentLink',
+            description: 'Retrieves referral document attachments and metadata for consolidation in Process 2.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'SF_Doc_Query',
+              parentContainerId: 'SF_DocApi',
+              label: 'ContentVersion SOQL Provider',
+              role: 'Attachment Data Provider',
+              description: 'Queries and returns all document attachments linked to Referral__c record.',
+              slaMs: 350,
+              contracts: [
+                { field: 'ContentDocumentId', type: 'Id', required: true, source: 'Salesforce SOQL', destination: 'MuleSoft Process API', description: 'Parent document container identifier.' },
+                { field: 'VersionData', type: 'Base64 / Binary Stream', required: true, source: 'Salesforce Files', destination: 'xAmplify Stream Ingest', description: 'Raw document bytes.' },
+                { field: 'FileType', type: 'String (PDF/TIFF/JPEG)', required: true, source: 'ContentVersion Record', destination: 'xAmplify Validator', description: 'MIME file extension.' }
+              ]
+            }
+          ]
+        },
+        CHIB_Broker: {
+          parentContainer: {
+            id: 'CHIB_Broker',
+            parentSystemId: 'CHIB',
+            label: 'Clinical Message Broker',
+            type: 'orchestrator',
+            technology: 'Apache Camel / Mule Clinical Engine',
+            description: 'Transforms inbound JSON visit validation requests into HL7 v2.5.1 QBP_Q21 encounter queries.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'CHIB_HL7Translator',
+              parentContainerId: 'CHIB_Broker',
+              label: 'JSON to HL7 v2.5.1 Transformer',
+              role: 'Message Protocol Translation',
+              description: 'Generates standard QBP^Q21 encounter query message with PID and PV1 segments.',
+              slaMs: 180,
+              contracts: [
+                { field: 'MSH_Control_ID', type: 'String (Alphanumeric 20)', required: true, source: 'CHIB Broker', destination: 'EMR Sunrise Adapter', description: 'Unique HL7 message control ID.' },
+                { field: 'PID_3_MRN', type: 'String', required: true, source: 'JSON MRN field', destination: 'EMR Sunrise MPI', description: 'Patient identifier in PID-3.' },
+                { field: 'PV1_19_Visit_Number', type: 'String', required: true, source: 'JSON Visit_ID field', destination: 'EMR Sunrise Encounters', description: 'Hospital encounter visit number in PV1-19.' }
+              ]
+            }
+          ]
+        },
+        EMR_Adapter: {
+          parentContainer: {
+            id: 'EMR_Adapter',
+            parentSystemId: 'EMR',
+            label: 'Sunrise HL7/FHIR Engine',
+            type: 'adapter',
+            technology: 'HL7 v2.5.1 MLLP & FHIR REST Provider',
+            description: 'Ingests clinical queries and translates identifier verification requests.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'EMR_EncounterMatcher',
+              parentContainerId: 'EMR_Adapter',
+              label: 'Encounter Reconciliation Worker',
+              role: 'Database Query & Match Engine',
+              description: 'Queries Sunrise Master Patient Index to verify Visit ID, MRN, and SAUHI all point to an active valid encounter.',
+              slaMs: 300,
+              contracts: [
+                { field: 'Match_Result', type: 'Boolean', required: true, source: 'EMR Sunrise Database', destination: 'CHIB Broker', description: 'True only if Visit ID, MRN, and SAUHI all match.' },
+                { field: 'Encounter_Status', type: 'String (ADMITTED / DISCHARGED / PENDING)', required: true, source: 'EMR Sunrise Database', destination: 'MuleSoft Process API', description: 'Current encounter status.' },
+                { field: 'Ack_Code', type: 'String (AA / AE / AR)', required: true, source: 'EMR Sunrise Adapter', destination: 'CHIB Broker', description: 'HL7 MSA-1 acknowledgment code.' }
+              ]
+            }
+          ]
+        },
+        xAmplify_PdfEngine: {
+          parentContainer: {
+            id: 'xAmplify_PdfEngine',
+            parentSystemId: 'xAmplify',
+            label: 'PDF/A Consolidation & OCR Engine',
+            type: 'orchestrator',
+            technology: 'Linearized PDF/A-1b Compiler & Tesseract OCR',
+            description: 'Merges multi-format referral documents into a single searchable canonical PDF with checksum validation.',
+            componentCount: 2
+          },
+          components: [
+            {
+              id: 'xAmplify_Linearizer',
+              parentContainerId: 'xAmplify_PdfEngine',
+              label: 'PDF/A Merger & Linearizer',
+              role: 'Document Compiler & Quality Gate',
+              description: 'Combines multiple attachments into one continuous ISO 19005-1 PDF/A document with optical character recognition.',
+              slaMs: 2500,
+              contracts: [
+                { field: 'Page_Count', type: 'Integer (> 0)', required: true, source: 'xAmplify Engine', destination: 'MuleSoft Process API', description: 'Total page count of merged document.' },
+                { field: 'SHA256_Checksum', type: 'Hex String (64 chars)', required: true, source: 'xAmplify Engine', destination: 'MuleSoft Process API', description: 'Cryptographic hash verifying file integrity.' },
+                { field: 'PDF_A_Compliant', type: 'Boolean (true)', required: true, source: 'xAmplify Engine', destination: 'EMR Sunrise File Store', description: 'Guarantees archival clinical standard compliance.' }
               ]
             }
           ]

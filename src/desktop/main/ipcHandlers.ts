@@ -4958,6 +4958,18 @@ export async function executeTask() {
       const executiveDemoScript = RunbookGenerator.generateExecutiveDemoScript(mergedState);
       const completeHandoffPackage = RunbookGenerator.generateCompleteHandoffPackage(mergedState);
 
+      const dbMeta = {
+        dialect: 'db2',
+        schema: 'DB2ADMIN',
+        tables: DbIntrospector.generateDb2HcmTables('DB2ADMIN'),
+        routines: DbIntrospector.generateDb2HcmRoutines('DB2ADMIN'),
+        sequences: DbIntrospector.generateDb2HcmSequences('DB2ADMIN'),
+        constraints: DbIntrospector.generateDb2HcmConstraints('DB2ADMIN'),
+      };
+      const claudePromptManifest = RunbookGenerator.generateClaudePromptManifest(mergedState, dbMeta);
+      const db2DockerCompose = RunbookGenerator.generateDb2DockerCompose(dbMeta);
+      const db2InitSql = RunbookGenerator.generateDb2InitSql(dbMeta);
+
       // Titles for the client-facing HTML twins. A .md file full of `**bold**`
       // and raw mermaid is a working artifact; what gets emailed to a CIO needs
       // to be a formatted, printable page.
@@ -5003,6 +5015,21 @@ export async function executeTask() {
             }), 'utf8');
             writtenPaths.push(htmlPath);
           }
+
+          // Always write CLAUDE.md manifest and local DB2 docker test sandbox
+          const claudePath = path.join(cwd, 'CLAUDE.md');
+          fs.writeFileSync(claudePath, claudePromptManifest, 'utf8');
+          writtenPaths.push(claudePath);
+
+          const composePath = path.join(cwd, 'docker-compose.db2-test.yml');
+          fs.writeFileSync(composePath, db2DockerCompose, 'utf8');
+          writtenPaths.push(composePath);
+
+          const scriptsDir = path.join(cwd, 'scripts');
+          if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
+          const initSqlPath = path.join(scriptsDir, 'init-db2.sql');
+          fs.writeFileSync(initSqlPath, db2InitSql, 'utf8');
+          writtenPaths.push(initSqlPath);
         } catch (e: any) {
           // A silent `catch {}` here meant a failed write still reported success
           // and the FDE believed the handoff pack existed.
@@ -5020,7 +5047,10 @@ export async function executeTask() {
         dataDictionary,
         environmentCatalog,
         executiveDemoScript,
-        completeHandoffPackage
+        completeHandoffPackage,
+        claudePromptManifest,
+        db2DockerCompose,
+        db2InitSql
       };
     });
 

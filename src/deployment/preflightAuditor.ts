@@ -52,6 +52,8 @@ const SECRET_PATTERNS = [
   /glpat-[a-zA-Z0-9-_]{20,}/, // GitLab PAT
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/, // RSA/SSH key
   /postgres:\/\/[^:]+:[^@]+@/, // Raw postgres connection string with password
+  /jdbc:db2:\/\/[^:]+:\d+\/[^:;]+:(?:user|password)=/i, // Raw DB2 JDBC connection string with credentials
+  /(?:db2|jdbc:db2):\/\/[^:]+:[^@\s]+@/, // Raw DB2 URL with password
 ];
 
 export class PreflightAuditor {
@@ -80,6 +82,9 @@ export class PreflightAuditor {
 
     // 4. Check Docker & Firebase configuration
     this.auditDeploymentConfigs(wsPath, findings);
+
+    // 5. Check DB2 backend immutability and Claude Code manifest contracts
+    this.auditDb2BackendAndContracts(wsPath, findings);
 
     // Calculate score: 100 - 15 per error - 5 per warning
     const errorCount = findings.filter(f => f.severity === 'error').length;
@@ -252,6 +257,63 @@ export class PreflightAuditor {
           });
         }
       }
+    }
+  }
+
+  private static auditDb2BackendAndContracts(wsPath: string, findings: AuditFinding[]): void {
+    const claudeMdPath = path.join(wsPath, 'CLAUDE.md');
+    const isUntouchedDb2Mandate = fs.existsSync(claudeMdPath) &&
+      fs.readFileSync(claudeMdPath, 'utf8').includes('UNTOUCHED & ZERO DDL MUTATION');
+
+    // 1. Scan for forbidden DDL mutations (ALTER TABLE, DROP TABLE, DROP COLUMN, TRUNCATE)
+    const sqlFiles: string[] = [];
+    const scanDirs = (dir: string, depth = 0) => {
+      if (depth > 4) return;
+      let entries: fs.Dirent[] = [];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        if (e.name === 'node_modules' || e.name === '.git' || e.name === 'dist' || e.name === 'out') continue;
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) {
+          scanDirs(full, depth + 1);
+        } else if (e.isFile() && (e.name.endsWith('.sql') || e.name.endsWith('.ddl'))) {
+          // Ignore local mock init script
+          if (!full.replace(/\\/g, '/').includes('scripts/init-db2.sql')) {
+            sqlFiles.push(full);
+          }
+        }
+      }
+    };
+    scanDirs(wsPath);
+
+    const forbiddenDdlRegex = /\b(ALTER\s+TABLE|DROP\s+TABLE|DROP\s+COLUMN|TRUNCATE\s+TABLE)\b/i;
+    for (const sqlFile of sqlFiles) {
+      try {
+        const text = fs.readFileSync(sqlFile, 'utf8');
+        const match = text.match(forbiddenDdlRegex);
+        if (match && isUntouchedDb2Mandate) {
+          findings.push({
+            code: 'PRE-DB2-MUTATION',
+            category: 'build',
+            severity: 'error',
+            message: `Forbidden DDL statement '${match[0]}' found in ${path.relative(wsPath, sqlFile)}. IBM DB2 backend is immutable; schema mutations are strictly prohibited.`,
+            file: sqlFile,
+            fixable: false,
+          });
+        }
+      } catch {}
+    }
+
+    // 2. Check for Claude Code workspace contract readiness
+    if (!fs.existsSync(claudeMdPath)) {
+      findings.push({
+        code: 'PRE-CLAUDE-01',
+        category: 'build',
+        severity: 'info',
+        message: 'No CLAUDE.md manifest found in workspace root. Use "FDE: Export Claude Code Build Manifest" to lock DB2 schema contracts.',
+        file: claudeMdPath,
+        fixable: true,
+      });
     }
   }
 

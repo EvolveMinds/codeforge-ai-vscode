@@ -46,4 +46,13 @@ suite('FDE Suite — PreflightAuditor', () => {
     assert.ok(report.environmentSummary.missingProdKeys.includes('PORT'));
     assert.ok(report.findings.some(f => f.code === 'PRE-ENV-01'));
   });
+
+  test('detects forbidden DB2 DDL mutation when untouched DB2 contract is mandated', () => {
+    fs.writeFileSync(path.join(tempDir, 'CLAUDE.md'), '# Target\nUNTOUCHED & ZERO DDL MUTATION\n', 'utf8');
+    fs.writeFileSync(path.join(tempDir, 'migration_v2.sql'), 'ALTER TABLE DB2_HCM_EMP_MASTER ADD COLUMN SALARY_NEW DECIMAL(15,2);', 'utf8');
+
+    const report = PreflightAuditor.scanWorkspace(tempDir);
+    assert.strictEqual(report.pass, false);
+    assert.ok(report.findings.some(f => f.code === 'PRE-DB2-MUTATION'));
+  });
 });
