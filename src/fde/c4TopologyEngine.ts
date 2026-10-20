@@ -314,6 +314,26 @@ export class C4TopologyEngine {
   /**
    * Exports the architecture model to official Structurizr C4 DSL
    */
+  /**
+   * Generates a synchronized Mermaid sequence diagram from the C4 architecture model
+   */
+  public static toMermaidSequence(model: C4ArchitectureModel): string {
+    let seq = 'sequenceDiagram\n    autonumber\n';
+    for (const sys of model.level1.systems) {
+      const isActor = sys.category === 'actor' || sys.category === 'hitl';
+      seq += `    ${isActor ? 'actor' : 'participant'} ${sys.id} as ${sys.label}\n`;
+    }
+    const firstSys = model.level1.systems[0]?.id || 'Client';
+    const lastSys = model.level1.systems[model.level1.systems.length - 1]?.id || 'Core';
+    seq += `\n    Note over ${firstSys},${lastSys}: ${model.title} — End-to-End Execution Flow\n\n`;
+    for (const conn of model.level1.connections) {
+      const arrow = conn.isAsync ? '-->>' : '->>';
+      const lbl = conn.protocol ? `${conn.label} (${conn.protocol})` : conn.label;
+      seq += `    ${conn.from}${arrow}${conn.to}: ${lbl}\n`;
+    }
+    return seq;
+  }
+
   public static toStructurizrDsl(model: C4ArchitectureModel): string {
     let dsl = `workspace "${model.title}" "Enterprise Architecture Specification" {\n\n  model {\n`;
     for (const sys of model.level1.systems) {
@@ -604,14 +624,20 @@ export class C4TopologyEngine {
           <text x="14" y="76" fill="#94a3b8" font-size="11">${escapeXml(s.description.slice(52, 105)) || ''}</text>
           <text x="14" y="100" fill="#64748b" font-size="10.5">Tech: ${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
 
+          <!-- Edit Pill -->
+          <g class="c4-edit-node-pill" data-c4-edit-id="${s.id}" transform="translate(14, ${pos.h - 30})" style="cursor: pointer;">
+            <rect width="64" height="22" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1"/>
+            <text x="32" y="15" fill="#38bdf8" font-size="11" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          </g>
+
           ${s.containerCount > 0 ? `
-            <g class="c4-drill-pill" transform="translate(${pos.w - 120}, ${pos.h - 30})">
+            <g class="c4-drill-pill" transform="translate(${pos.w - 120}, ${pos.h - 30})" style="cursor: pointer;">
               <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="${strokeColor}" stroke-width="1.2"/>
               <text x="55" y="15" fill="${strokeColor}" font-size="11" font-weight="800" text-anchor="middle">🔍 Drill Down (${s.containerCount})</text>
             </g>
           ` : ''}
           ${isHitl ? `
-            <g class="c4-drill-pill" transform="translate(${pos.w - 128}, ${pos.h - 30})">
+            <g class="c4-drill-pill" transform="translate(${pos.w - 128}, ${pos.h - 30})" style="cursor: pointer;">
               <rect width="118" height="22" rx="4" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="1.2"/>
               <text x="59" y="15" fill="#fca5a5" font-size="11" font-weight="800" text-anchor="middle">🚨 HITL GATE</text>
             </g>
@@ -790,8 +816,14 @@ export class C4TopologyEngine {
           <text x="14" y="96" fill="#94a3b8" font-size="11">${escapeXml(c.description.slice(52, 105)) || ''}</text>
           <text x="14" y="118" fill="#64748b" font-size="10.5">Technology: ${escapeXml(c.technology)}</text>
 
+          <!-- Edit Container Pill -->
+          <g class="c4-edit-container-pill" data-c4-edit-container-id="${c.id}" transform="translate(14, ${pos.h - 28})" style="cursor: pointer;">
+            <rect width="64" height="22" rx="4" fill="rgba(168, 85, 247, 0.15)" stroke="#a855f7" stroke-width="1"/>
+            <text x="32" y="15" fill="#c084fc" font-size="11" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          </g>
+
           <!-- Component Inspector Pill -->
-          <g class="c4-contract-pill" transform="translate(${pos.w - 120}, ${pos.h - 28})">
+          <g class="c4-contract-pill" transform="translate(${pos.w - 120}, ${pos.h - 28})" style="cursor: pointer;">
             <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="1.2"/>
             <text x="55" y="15" fill="#38bdf8" font-size="11" font-weight="800" text-anchor="middle">🔍 View Contract</text>
           </g>

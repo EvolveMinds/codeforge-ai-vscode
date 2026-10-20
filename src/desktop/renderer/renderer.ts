@@ -5724,6 +5724,15 @@ function setupPhase1Discovery(api: any): void {
       if (!cachedC4Model || cachedC4ModelSrc !== src) {
         cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
         cachedC4ModelSrc = src;
+        if (cachedC4Model && c4Engine?.toMermaidSequence) {
+          const syncedSeq = c4Engine.toMermaidSequence(cachedC4Model);
+          if (typeof cachedDiagrams !== 'undefined' && cachedDiagrams) {
+            cachedDiagrams.futureDiagram = syncedSeq;
+          }
+          if (topologyContainer && (currentDiagramMode === 'future' || !topologyContainer.value.trim() || activeTopologyPresetKey === 'custom')) {
+            topologyContainer.value = syncedSeq;
+          }
+        }
       }
       const svg = c4Engine.renderTopologySvg(
         cachedC4Model,
@@ -5984,6 +5993,142 @@ function setupPhase1Discovery(api: any): void {
     }
     paintC4Topology();
   });
+  // --- C4 System, Container & Step Interactive Editor Modal ---
+  const modalC4Edit = document.getElementById('fdeC4EditModal');
+  const btnCloseC4Edit = document.getElementById('btnFdeC4EditModalClose');
+  const btnCancelC4Edit = document.getElementById('btnFdeC4EditCancel');
+  const btnSaveC4Edit = document.getElementById('btnFdeC4EditSave');
+  const btnDeleteC4Edit = document.getElementById('btnFdeC4EditDelete');
+
+  const txtC4EditLabel = document.getElementById('txtC4EditLabel') as HTMLInputElement | null;
+  const txtC4EditRole = document.getElementById('txtC4EditRole') as HTMLInputElement | null;
+  const selC4EditZone = document.getElementById('selC4EditZone') as HTMLSelectElement | null;
+  const txtC4EditDesc = document.getElementById('txtC4EditDesc') as HTMLTextAreaElement | null;
+  const txtC4EditTech = document.getElementById('txtC4EditTech') as HTMLInputElement | null;
+  const lblC4EditTitle = document.getElementById('fdeC4EditModalTitle');
+
+  let editingC4NodeId: string | null = null;
+  let isEditingContainer = false;
+
+  const closeC4EditModal = () => {
+    if (modalC4Edit) {
+      modalC4Edit.hidden = true;
+      modalC4Edit.style.display = 'none';
+    }
+    editingC4NodeId = null;
+  };
+
+  const openC4EditModal = (nodeId: string, isContainer = false) => {
+    if (!modalC4Edit || !cachedC4Model) return;
+    editingC4NodeId = nodeId;
+    isEditingContainer = isContainer;
+
+    if (!isContainer) {
+      const sys = cachedC4Model.level1.systems.find((s: any) => s.id === nodeId);
+      if (!sys) return;
+      if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit System: ${sys.label}`;
+      if (txtC4EditLabel) txtC4EditLabel.value = sys.label || '';
+      if (txtC4EditRole) txtC4EditRole.value = sys.role || '';
+      if (selC4EditZone) selC4EditZone.value = sys.zone || 'integration';
+      if (txtC4EditDesc) txtC4EditDesc.value = sys.description || '';
+      if (txtC4EditTech) txtC4EditTech.value = (sys.technologies || []).join(', ');
+    } else {
+      if (!activeC4SystemId) return;
+      const l2 = cachedC4Model.level2?.[activeC4SystemId];
+      const cont = l2?.containers.find((c: any) => c.id === nodeId);
+      if (!cont) return;
+      if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit Container: ${cont.label}`;
+      if (txtC4EditLabel) txtC4EditLabel.value = cont.label || '';
+      if (txtC4EditRole) txtC4EditRole.value = cont.type?.toUpperCase() || 'API';
+      if (selC4EditZone) selC4EditZone.value = 'integration';
+      if (txtC4EditDesc) txtC4EditDesc.value = cont.description || '';
+      if (txtC4EditTech) txtC4EditTech.value = cont.technology || '';
+    }
+
+    modalC4Edit.hidden = false;
+    modalC4Edit.style.display = 'flex';
+  };
+
+  btnCloseC4Edit?.addEventListener('click', closeC4EditModal);
+  btnCancelC4Edit?.addEventListener('click', closeC4EditModal);
+  modalC4Edit?.addEventListener('click', (e) => {
+    if (e.target === modalC4Edit) closeC4EditModal();
+  });
+
+  btnSaveC4Edit?.addEventListener('click', () => {
+    if (!editingC4NodeId || !cachedC4Model) return;
+    const newLabel = (txtC4EditLabel?.value || '').trim();
+    if (!newLabel) {
+      showToast('⚠️ Please enter a node label.');
+      return;
+    }
+
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+
+    if (!isEditingContainer) {
+      const sys = cachedC4Model.level1.systems.find((s: any) => s.id === editingC4NodeId);
+      if (sys) {
+        sys.label = newLabel;
+        sys.role = (txtC4EditRole?.value || '').trim() || sys.role;
+        sys.zone = (selC4EditZone?.value as any) || sys.zone;
+        sys.description = (txtC4EditDesc?.value || '').trim();
+        sys.technologies = (txtC4EditTech?.value || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+        showToast(`✓ Updated system: ${sys.label}`);
+      }
+    } else {
+      if (activeC4SystemId) {
+        const l2 = cachedC4Model.level2?.[activeC4SystemId];
+        const cont = l2?.containers.find((c: any) => c.id === editingC4NodeId);
+        if (cont) {
+          cont.label = newLabel;
+          cont.description = (txtC4EditDesc?.value || '').trim();
+          cont.technology = (txtC4EditTech?.value || '').trim();
+          showToast(`✓ Updated container: ${cont.label}`);
+        }
+      }
+    }
+
+    // Synchronize the sequence diagram so both views match
+    if (topologyContainer && c4Engine?.toMermaidSequence) {
+      topologyContainer.value = c4Engine.toMermaidSequence(cachedC4Model);
+    }
+
+    closeC4EditModal();
+    paintC4Topology();
+  });
+
+  btnDeleteC4Edit?.addEventListener('click', () => {
+    if (!editingC4NodeId || !cachedC4Model) return;
+    const ok = window.confirm(`Are you sure you want to delete "${editingC4NodeId}" from the architecture?`);
+    if (!ok) return;
+
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+
+    if (!isEditingContainer) {
+      cachedC4Model.level1.systems = cachedC4Model.level1.systems.filter((s: any) => s.id !== editingC4NodeId);
+      cachedC4Model.level1.connections = cachedC4Model.level1.connections.filter((c: any) => c.from !== editingC4NodeId && c.to !== editingC4NodeId);
+      delete c4CustomPositions[editingC4NodeId];
+      showToast(`🗑️ Deleted system: ${editingC4NodeId}`);
+    } else {
+      if (activeC4SystemId) {
+        const l2 = cachedC4Model.level2?.[activeC4SystemId];
+        if (l2) {
+          l2.containers = l2.containers.filter((c: any) => c.id !== editingC4NodeId);
+          l2.connections = l2.connections.filter((c: any) => c.from !== editingC4NodeId && c.to !== editingC4NodeId);
+          delete c4CustomPositions[editingC4NodeId];
+          showToast(`🗑️ Deleted container: ${editingC4NodeId}`);
+        }
+      }
+    }
+
+    if (topologyContainer && c4Engine?.toMermaidSequence) {
+      topologyContainer.value = c4Engine.toMermaidSequence(cachedC4Model);
+    }
+
+    closeC4EditModal();
+    paintC4Topology();
+  });
+
   // Pillar 4: Executive Presentation vs Architect Deep-Dive Toggle
   const btnC4ModeToggle = document.getElementById('btnFdeC4ModeToggle');
   btnC4ModeToggle?.addEventListener('click', () => {
@@ -7791,6 +7936,24 @@ function setupPhase1Discovery(api: any): void {
 
     // C4 Topology Delegated Drill-Down & Inspector Click Handlers
     if (currentTopologyViewMode === 'c4') {
+      // 1. Edit Pill clicks
+      const editNodePill = target.closest('.c4-edit-node-pill') as SVGElement | null;
+      if (editNodePill) {
+        e.stopPropagation();
+        const sysId = editNodePill.getAttribute('data-c4-edit-id');
+        if (sysId) openC4EditModal(sysId, false);
+        return;
+      }
+
+      const editContPill = target.closest('.c4-edit-container-pill') as SVGElement | null;
+      if (editContPill) {
+        e.stopPropagation();
+        const contId = editContPill.getAttribute('data-c4-edit-container-id');
+        if (contId) openC4EditModal(contId, true);
+        return;
+      }
+
+      // 2. HITL Review Console
       const c4Hitl = target.closest('.c4-hitl-gate') as SVGElement | null;
       if (c4Hitl) {
         e.stopPropagation();
@@ -7798,10 +7961,12 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
+      // 3. Drill Down Pill (or direct node click)
+      const drillPill = target.closest('.c4-drill-pill') as SVGElement | null;
       const c4Node = target.closest('.c4-node-group') as SVGElement | null;
-      if (c4Node && activeC4Level === 1) {
+      if ((drillPill || c4Node) && activeC4Level === 1) {
         e.stopPropagation();
-        const sysId = c4Node.getAttribute('data-c4-id');
+        const sysId = (drillPill ? drillPill.closest('.c4-node-group') : c4Node)?.getAttribute('data-c4-id');
         if (!sysId) return;
 
         const isHitl = sysId === 'hitl' || sysId.toLowerCase().includes('hitl') || sysId === 'gov' || sysId === 'HITL_Gate';
@@ -7810,32 +7975,41 @@ function setupPhase1Discovery(api: any): void {
           return;
         }
 
-        const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
-        if (cachedC4Model) {
-          if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
-            c4Engine.ensureLevel2(cachedC4Model, sysId);
+        // If clicked on drill-down pill, drill down to Level 2
+        if (drillPill) {
+          const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+          if (cachedC4Model) {
+            if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
+              c4Engine.ensureLevel2(cachedC4Model, sysId);
+            }
           }
-          if (cachedC4Model.level2?.[sysId]) {
-            activeC4Level = 2;
-            activeC4SystemId = sysId;
-            paintC4Topology();
-            fitToView();
-            return;
-          }
+          activeC4Level = 2;
+          activeC4SystemId = sysId;
+          paintC4Topology();
+          fitToView();
+          return;
         }
-        activeC4Level = 2;
-        activeC4SystemId = sysId;
-        paintC4Topology();
-        fitToView();
+
+        // If clicked on node body (not pill), open Edit Modal
+        openC4EditModal(sysId, false);
         return;
       }
 
+      // 4. Container Clicks in Level 2
+      const contractPill = target.closest('.c4-contract-pill') as SVGElement | null;
       const c4Container = target.closest('.c4-container-group') as SVGElement | null;
-      if (c4Container && activeC4Level === 2) {
+      if ((contractPill || c4Container) && activeC4Level === 2) {
         e.stopPropagation();
-        const contId = c4Container.getAttribute('data-c4-id');
+        const contId = (contractPill ? contractPill.closest('.c4-container-group') : c4Container)?.getAttribute('data-c4-id');
         if (!contId) return;
-        openC4Inspector(contId);
+
+        if (contractPill) {
+          openC4Inspector(contId);
+          return;
+        }
+
+        // If clicked on container body, open edit
+        openC4EditModal(contId, true);
         return;
       }
       return;
@@ -7992,8 +8166,8 @@ function setupPhase1Discovery(api: any): void {
 
     // C4 Topology Node & Container Dragging
     const c4Group = target.closest('.c4-node-group, .c4-container-group') as SVGElement | null;
-    const isPill = target.closest('.c4-drill-pill, .c4-contract-pill');
-    if (currentTopologyViewMode === 'c4' && c4Group && !isPill && currentInteractionMode === 'select') {
+    const isPill = target.closest('.c4-drill-pill, .c4-contract-pill, .c4-edit-node-pill, .c4-edit-container-pill');
+    if (currentTopologyViewMode === 'c4' && c4Group && !isPill && currentInteractionMode === 'select' && e.button === 0) {
       const id = c4Group.getAttribute('data-c4-id');
       if (id) {
         dragKind = 'c4-node' as any;
@@ -8005,7 +8179,8 @@ function setupPhase1Discovery(api: any): void {
         const m = tf.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
         dragC4OrigNodePos = m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
         isDraggingOnCanvas = false;
-        try { (e.target as Element).setPointerCapture(e.pointerId); } catch (_) {}
+        try { renderedPane.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
         return;
       }
     }
@@ -8077,6 +8252,7 @@ function setupPhase1Discovery(api: any): void {
       return;
     }
     if (dragKind === ('c4-node' as any) && draggedC4NodeId) {
+      try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
       if (didDragOnCanvas) {
         const dx = (e.clientX - dragC4StartX) / canvasZoom;
         const dy = (e.clientY - dragC4StartY) / canvasZoom;
@@ -8090,7 +8266,7 @@ function setupPhase1Discovery(api: any): void {
       draggedC4NodeId = null;
       isDraggingC4Node = false;
       isDraggingOnCanvas = false;
-      setTimeout(() => { didDragOnCanvas = false; }, 60);
+      setTimeout(() => { didDragOnCanvas = false; }, 80);
       return;
     }
 

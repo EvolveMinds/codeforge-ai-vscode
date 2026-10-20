@@ -2,7 +2,7 @@
 **Client Engagement**: Client Pilot Engagement
 **Engagement Archetype**: Custom Engagement
 **Project Delivery Nature**: 🌱 Greenfield (Net-New Application from Scratch — Single Canonical State)
-**Updated**: 2026-10-20T05:33:15.226Z
+**Updated**: 2026-10-20T09:25:24.076Z
 
 ---
 
@@ -13,10 +13,25 @@
 * **Operational Risk & Failure Modes**: Pending risk analysis
 * **Agreed Production Target**: Pending reframed goal
 
+### Diagnostic Gemba Inquiry Probes
+- [x] **[Shadow IT]** What offline spreadsheets, sticky notes, or WhatsApp chats are consulted before approval?
+- [x] **[Failure Mode]** If an edge-case transaction executes incorrectly, what is the recovery SLA and legal blast radius?
+- [x] **[Exception Iceberg]** What percentage of tasks deviate from standard process and who resolves them?
+- [x] **[Regulatory Gate]** Is cryptographic audit logging or multi-party authorization legally required?
+
+### First-Principles Invariant Gates
+| Naive Client Assumption | Fundamental Physics / Constraint | Hard Invariant |
+| :--- | :--- | :--- |
+| AI can calculate decimal currency amounts and balances | LLMs are probabilistic token predictors, mathematically incapable of guaranteed decimal arithmetic | Zero LLM arithmetic: all calculations executed in compiled SQL tolerance models (<5ms) |
+| Autonomous transaction mutations can proceed without review | Direct external API writes without authorization violate statutory compliance and create liability | Autonomous payouts locked; transactions route to Human-in-the-Loop Controller approval |
+
 ---
 
 ## 2. Dynamic Out-of-Scope Boundary Locks
-- _No custom boundaries defined._
+- [x] **LOCKED**: No automated write access to production database without explicit audit log
+- [x] **LOCKED**: No external customer email dispatch without human supervisor gate
+- [x] **LOCKED**: No processing of unredacted PII (must enforce masking stage)
+- [x] **LOCKED**: No ungrounded responses (must cite verified documents)
 
 ---
 
