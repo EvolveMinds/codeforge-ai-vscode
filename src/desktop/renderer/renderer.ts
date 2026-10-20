@@ -4919,6 +4919,13 @@ function setupPhase1Discovery(api: any): void {
   let showHitlExceptionPath = false;
   let isC4ExecutiveMode = false;
   let activeC4ContainerId: string | undefined;
+  let cachedC4ModelSrc = '';
+  let c4CustomPositions: Record<string, { x: number; y: number }> = {};
+  let isDraggingC4Node = false;
+  let draggedC4NodeId: string | null = null;
+  let dragC4StartX = 0;
+  let dragC4StartY = 0;
+  let dragC4OrigNodePos = { x: 0, y: 0 };
   let cachedC4Model: any = null;
 
   let canvasZoom = 1.0;
@@ -5703,7 +5710,7 @@ function setupPhase1Discovery(api: any): void {
     c4InspectorDrawer.style.display = 'block';
   };
 
-  const paintC4Topology = () => {
+  const paintC4Topology = (animationOpts?: { activeStep: number; photonRatio: number }) => {
     if (!renderedPane) return;
     const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
     const src = topologyContainer?.value || '';
@@ -5714,8 +5721,19 @@ function setupPhase1Discovery(api: any): void {
     }
 
     try {
-      cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
-      const svg = c4Engine.renderTopologySvg(cachedC4Model, activeC4Level, activeC4SystemId, showHitlExceptionPath, isC4ExecutiveMode);
+      if (!cachedC4Model || cachedC4ModelSrc !== src) {
+        cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
+        cachedC4ModelSrc = src;
+      }
+      const svg = c4Engine.renderTopologySvg(
+        cachedC4Model,
+        activeC4Level,
+        activeC4SystemId,
+        showHitlExceptionPath,
+        isC4ExecutiveMode,
+        c4CustomPositions,
+        animationOpts
+      );
       renderedPane.innerHTML = svg;
       applyZoom();
 
@@ -7235,13 +7253,50 @@ function setupPhase1Discovery(api: any): void {
       btnAnimateFlow.style.borderColor = '#06b6d4';
       btnAnimateFlow.style.color = '#22d3ee';
     }
-    paintDiagram();
+    if (currentTopologyViewMode === 'c4') {
+      paintC4Topology();
+    } else {
+      paintDiagram();
+    }
   };
 
   const startFlowAnimation = () => {
+    if (currentTopologyViewMode === 'c4') {
+      const connections = activeC4Level === 1
+        ? (cachedC4Model?.level1?.connections || [])
+        : (cachedC4Model?.level2?.[activeC4SystemId || '']?.connections || []);
+      if (!connections.length) {
+        showToast('No C4 flow connections to animate.');
+        return;
+      }
+      isAnimatingFlow = true;
+      if (btnAnimateFlow) {
+        btnAnimateFlow.textContent = '⏹ Stop Flow';
+        btnAnimateFlow.style.borderColor = '#f59e0b';
+        btnAnimateFlow.style.color = '#fbbf24';
+      }
+
+      let curStep = 0;
+      let photonRatio = 0.0;
+      const runC4Frame = () => {
+        if (!isAnimatingFlow) return;
+        photonRatio += 0.08;
+        if (photonRatio >= 1.0) {
+          photonRatio = 0.0;
+          curStep++;
+          if (curStep >= connections.length) {
+            showToast('✅ C4 workflow simulation cycle complete');
+            curStep = 0;
+          }
+        }
+        paintC4Topology({ activeStep: curStep, photonRatio });
+        flowTimer = setTimeout(runC4Frame, 60);
+      };
+      runC4Frame();
+      return;
+    }
+
     const src = topologyContainer?.value || '';
-    // Counts edges for a flowchart and messages for a sequence diagram, so the
-    // step-through works for both kinds.
     const msgCount = diagramStepCount(src);
     if (!msgCount) {
       showToast('No message steps to animate.');
@@ -7612,14 +7667,44 @@ function setupPhase1Discovery(api: any): void {
       document.getElementById('btnInlineDoAddPart')?.addEventListener('click', () => {
         const val = txtInp?.value || '';
         if (!val.trim()) { showToast('Enter a name first.'); return; }
+        const cleanName = val.trim();
+        if (currentTopologyViewMode === 'c4' && cachedC4Model) {
+          const sysId = cleanName.replace(/[^a-zA-Z0-9_]/g, '_');
+          const newSys = {
+            id: sysId,
+            label: cleanName,
+            role: isActor ? 'User / Client Actor' : 'Enterprise Service',
+            category: isActor ? 'actor' : 'system',
+            zone: isActor ? 'client' : 'integration',
+            description: `Enterprise ${cleanName} capability`,
+            technologies: ['REST API', 'JSON'],
+            icon: isActor ? '👤' : '🖥️',
+            containerCount: 0
+          };
+          cachedC4Model.level1.systems.push(newSys as any);
+          const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+          if (c4Engine?.ensureLevel2) {
+            c4Engine.ensureLevel2(cachedC4Model, sysId);
+          }
+          addParticipant(cleanName, isActor);
+          paintC4Topology();
+          showToast(`✅ Added ${isActor ? 'Actor' : 'System'} "${cleanName}" to C4 Architecture!`);
+          closeInlineEditor();
+          return;
+        }
         addParticipant(val, isActor);
         closeInlineEditor();
       });
     } else if (mode === 'add-msg') {
       inlineEditorTitle.textContent = '+ Add Workflow Step';
       let isDashed = false;
-      const fromOptions = parts.map(p => `<option value="${p.id}">${escSvg(p.label)}</option>`).join('');
-      const toOptions = parts.map((p, i) => `<option value="${p.id}" ${i === 1 ? 'selected' : ''}>${escSvg(p.label)}</option>`).join('');
+      let fromOptions = parts.map(p => `<option value="${p.id}">${escSvg(p.label)}</option>`).join('');
+      let toOptions = parts.map((p, i) => `<option value="${p.id}" ${i === 1 ? 'selected' : ''}>${escSvg(p.label)}</option>`).join('');
+
+      if (currentTopologyViewMode === 'c4' && cachedC4Model && cachedC4Model.level1.systems.length > 0) {
+        fromOptions = cachedC4Model.level1.systems.map((s: any) => `<option value="${s.id}">${escSvg(s.label)}</option>`).join('');
+        toOptions = cachedC4Model.level1.systems.map((s: any, i: number) => `<option value="${s.id}" ${i === 1 ? 'selected' : ''}>${escSvg(s.label)}</option>`).join('');
+      }
 
       inlineEditorBody.innerHTML = `
         <div style="display: flex; gap: 4px; align-items: center; margin-bottom: 8px;">
@@ -7664,7 +7749,25 @@ function setupPhase1Discovery(api: any): void {
       document.getElementById('btnInlineDoAddStep')?.addEventListener('click', () => {
         const fromVal = (document.getElementById('selInlineAddFrom') as HTMLSelectElement)?.value || '';
         const toVal = (document.getElementById('selInlineAddTo') as HTMLSelectElement)?.value || '';
-        const desc = txtInp?.value || '';
+        const desc = txtInp?.value || 'API Flow / Integration';
+        if (!fromVal || !toVal) { showToast('Select both endpoints.'); return; }
+
+        if (currentTopologyViewMode === 'c4' && cachedC4Model) {
+          const newOrder = (cachedC4Model.level1.connections.length || 0) + 1;
+          cachedC4Model.level1.connections.push({
+            from: fromVal,
+            to: toVal,
+            label: desc,
+            protocol: isDashed ? 'Async Event' : 'HTTPS / REST',
+            order: newOrder,
+            isAsync: isDashed
+          });
+          paintC4Topology();
+          showToast(`✅ Added step: ${fromVal} ➔ ${toVal}`);
+          closeInlineEditor();
+          return;
+        }
+
         if (!desc.trim()) { showToast('Describe what happens.'); return; }
         addStep(fromVal, toVal, desc, isDashed);
         closeInlineEditor();
@@ -7886,6 +7989,26 @@ function setupPhase1Discovery(api: any): void {
       isDraggingOnCanvas = false;
       return;
     }
+
+    // C4 Topology Node & Container Dragging
+    const c4Group = target.closest('.c4-node-group, .c4-container-group') as SVGElement | null;
+    const isPill = target.closest('.c4-drill-pill, .c4-contract-pill');
+    if (currentTopologyViewMode === 'c4' && c4Group && !isPill && currentInteractionMode === 'select') {
+      const id = c4Group.getAttribute('data-c4-id');
+      if (id) {
+        dragKind = 'c4-node' as any;
+        draggedC4NodeId = id;
+        isDraggingC4Node = true;
+        dragC4StartX = e.clientX;
+        dragC4StartY = e.clientY;
+        const tf = c4Group.getAttribute('transform') || '';
+        const m = tf.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
+        dragC4OrigNodePos = m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
+        isDraggingOnCanvas = false;
+        try { (e.target as Element).setPointerCapture(e.pointerId); } catch (_) {}
+        return;
+      }
+    }
   });
 
   renderedPane?.addEventListener('pointermove', (e: PointerEvent) => {
@@ -7897,6 +8020,25 @@ function setupPhase1Discovery(api: any): void {
       }
       renderedPane.scrollLeft = panScrollLeft - dx;
       renderedPane.scrollTop = panScrollTop - dy;
+      return;
+    }
+
+    if (dragKind === ('c4-node' as any) && draggedC4NodeId) {
+      const dx = (e.clientX - dragC4StartX) / canvasZoom;
+      const dy = (e.clientY - dragC4StartY) / canvasZoom;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        isDraggingOnCanvas = true;
+        didDragOnCanvas = true;
+      }
+      if (isDraggingOnCanvas) {
+        const nx = Math.round(dragC4OrigNodePos.x + dx);
+        const ny = Math.round(dragC4OrigNodePos.y + dy);
+        const nodeEl = renderedPane?.querySelector(`[data-c4-id="${draggedC4NodeId}"]`) as SVGElement | null;
+        if (nodeEl) {
+          nodeEl.setAttribute('transform', `translate(${nx}, ${ny})`);
+          nodeEl.style.cursor = 'grabbing';
+        }
+      }
       return;
     }
 
@@ -7934,6 +8076,24 @@ function setupPhase1Discovery(api: any): void {
       setTimeout(() => { didDragOnCanvas = false; }, 60);
       return;
     }
+    if (dragKind === ('c4-node' as any) && draggedC4NodeId) {
+      if (didDragOnCanvas) {
+        const dx = (e.clientX - dragC4StartX) / canvasZoom;
+        const dy = (e.clientY - dragC4StartY) / canvasZoom;
+        const nx = Math.round(dragC4OrigNodePos.x + dx);
+        const ny = Math.round(dragC4OrigNodePos.y + dy);
+        c4CustomPositions[draggedC4NodeId] = { x: nx, y: ny };
+        paintC4Topology();
+        showToast(`📌 Repositioned box: ${draggedC4NodeId}`);
+      }
+      dragKind = null;
+      draggedC4NodeId = null;
+      isDraggingC4Node = false;
+      isDraggingOnCanvas = false;
+      setTimeout(() => { didDragOnCanvas = false; }, 60);
+      return;
+    }
+
     if (!dragKind || dragFromIdx < 0) {
       dragKind = null;
       dragFromIdx = -1;

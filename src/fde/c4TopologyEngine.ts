@@ -275,15 +275,17 @@ export class C4TopologyEngine {
     level: 1 | 2,
     activeSystemId?: string,
     showHitlExceptionPath = false,
-    isExecutiveMode = false
+    isExecutiveMode = false,
+    customPositions?: Record<string, { x: number; y: number }>,
+    animationOpts?: { activeStep: number; photonRatio: number }
   ): string {
     if (level === 2 && activeSystemId) {
       this.ensureLevel2(model, activeSystemId);
       if (model.level2[activeSystemId]) {
-        return this.renderLevel2ContainerSvg(model.level2[activeSystemId], showHitlExceptionPath, isExecutiveMode);
+        return this.renderLevel2ContainerSvg(model.level2[activeSystemId], showHitlExceptionPath, isExecutiveMode, customPositions, animationOpts);
       }
     }
-    return this.renderLevel1ContextSvg(model, showHitlExceptionPath, isExecutiveMode);
+    return this.renderLevel1ContextSvg(model, showHitlExceptionPath, isExecutiveMode, customPositions, animationOpts);
   }
 
 
@@ -337,15 +339,21 @@ export class C4TopologyEngine {
     return dsl;
   }
 
-  // ── Level 1 System Context SVG ──────────────────────────────────────────────
+  // ── Level 1 System Context SVG (High-Definition 1400x820 Canvas) ─────────────
 
-  private static renderLevel1ContextSvg(model: C4ArchitectureModel, showHitlException: boolean, isExecutiveMode = false): string {
+  private static renderLevel1ContextSvg(
+    model: C4ArchitectureModel,
+    showHitlException: boolean,
+    isExecutiveMode = false,
+    customPositions?: Record<string, { x: number; y: number }>,
+    animationOpts?: { activeStep: number; photonRatio: number }
+  ): string {
     const systems = model.level1.systems;
     const connections = model.level1.connections;
     const zones = model.level1.zones;
 
-    const width = 960;
-    const height = 480;
+    const width = 1400;
+    const height = 820;
 
     const nodePositions: Record<string, { x: number; y: number; w: number; h: number }> = {};
 
@@ -354,31 +362,35 @@ export class C4TopologyEngine {
     const rightCol = systems.filter(s => s.zone === 'core' || s.zone === 'thirdparty' || s.category === 'database' || s.category === 'ehr');
     const hitlNodes = systems.filter(s => s.zone === 'governance' || s.category === 'hitl');
 
-    // Layout left col
-    let ly = 100;
-    leftCol.forEach(s => {
-      nodePositions[s.id] = { x: 40, y: ly, w: 180, h: 84 };
-      ly += 110;
+    // Layout left col: Client & Ingress
+    leftCol.forEach((s, i) => {
+      nodePositions[s.id] = { x: 55, y: 155 + i * 180, w: 300, h: 140 };
     });
 
-    // Layout mid col
-    let my = 80;
-    midCol.forEach(s => {
-      nodePositions[s.id] = { x: 300, y: my, w: 220, h: 90 };
-      my += 120;
+    // Layout mid col: Integration Mesh
+    midCol.forEach((s, i) => {
+      nodePositions[s.id] = { x: 440, y: 155 + i * 180, w: 400, h: 140 };
     });
 
-    // Layout right col
-    let ry = 80;
-    rightCol.forEach(s => {
-      nodePositions[s.id] = { x: 600, y: ry, w: 210, h: 84 };
-      ry += 110;
+    // Layout right col: Core Data & Storage
+    rightCol.forEach((s, i) => {
+      nodePositions[s.id] = { x: 930, y: 155 + i * 180, w: 410, h: 140 };
     });
 
     // Layout HITL nodes at bottom
     hitlNodes.forEach((s, idx) => {
-      nodePositions[s.id] = { x: 300 + idx * 260, y: 340, w: 240, h: 92 };
+      nodePositions[s.id] = { x: 440 + idx * 470, y: 615, w: 480, h: 140 };
     });
+
+    // Apply custom positions if node was dragged by user
+    if (customPositions) {
+      for (const [id, pos] of Object.entries(customPositions)) {
+        if (nodePositions[id]) {
+          nodePositions[id].x = pos.x;
+          nodePositions[id].y = pos.y;
+        }
+      }
+    }
 
     const clientZoneLabel = (zones.find(z => z.id === 'client')?.label || 'CLIENT & INGRESS').toUpperCase();
     const intZoneLabel = (zones.find(z => z.id === 'integration')?.label || 'INTEGRATION & COMPUTE').toUpperCase();
@@ -387,6 +399,20 @@ export class C4TopologyEngine {
 
     let svg = `<svg id="fdeTopologySvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" style="width: 100%; height: auto; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; user-select: none;">
       <defs>
+        <style>
+          @keyframes c4-hitl-pulse {
+            0% { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4)); stroke: #ef4444; }
+            50% { filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.9)); stroke: #ff8888; }
+            100% { filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.4)); stroke: #ef4444; }
+          }
+          .c4-hitl-pulse-active {
+            animation: c4-hitl-pulse 1.8s infinite ease-in-out;
+          }
+          .c4-node-group:hover rect.c4-node-card {
+            stroke-width: 2.8px;
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+          }
+        </style>
         <!-- Gradients -->
         <linearGradient id="c4-grad-actor" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#1e293b"/>
@@ -394,89 +420,117 @@ export class C4TopologyEngine {
         </linearGradient>
         <linearGradient id="c4-grad-saas" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#1e3a5f"/>
-          <stop offset="100%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#0b1329"/>
         </linearGradient>
         <linearGradient id="c4-grad-ipaas" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#2e1065"/>
-          <stop offset="100%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#0b0f19"/>
         </linearGradient>
         <linearGradient id="c4-grad-core" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#451a03"/>
-          <stop offset="100%" stop-color="#0f172a"/>
+          <stop offset="100%" stop-color="#130e08"/>
         </linearGradient>
         <linearGradient id="c4-grad-hitl" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#450a0a"/>
-          <stop offset="100%" stop-color="#1c1917"/>
+          <stop offset="100%" stop-color="#180e0e"/>
         </linearGradient>
 
         <!-- Filters -->
         <filter id="c4-glow-cyan" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="3" result="blur"/>
-          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-        </filter>
-        <filter id="c4-glow-amber" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="4" result="blur"/>
           <feComposite in="SourceGraphic" in2="blur" operator="over"/>
         </filter>
-        <filter id="c4-glow-red" x="-20%" y="-20%" width="140%" height="140%">
+        <filter id="c4-glow-amber" x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="5" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+        <filter id="c4-glow-red" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="6" result="blur"/>
           <feComposite in="SourceGraphic" in2="blur" operator="over"/>
         </filter>
 
         <!-- Markers -->
-        <marker id="c4-arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="c4-arrow-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1 L 9 5 L 0 9 z" fill="#38bdf8"/>
         </marker>
-        <marker id="c4-arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="c4-arrow-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1 L 9 5 L 0 9 z" fill="#a855f7"/>
         </marker>
-        <marker id="c4-arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="c4-arrow-red" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1 L 9 5 L 0 9 z" fill="#ef4444"/>
         </marker>
-        <marker id="c4-arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="c4-arrow-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1 L 9 5 L 0 9 z" fill="#34d399"/>
         </marker>
       </defs>
 
-      <!-- Dynamic Domain Trust Boundaries -->
+      <!-- TOP HEADER (Cleanly Separated From Boundaries) -->
+      ${isExecutiveMode ? `
+      <!-- Executive KPI Overlay Ribbon -->
+      <g class="c4-executive-ribbon">
+        <rect x="30" y="12" width="1340" height="34" rx="6" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="700" y="34" fill="#fbbf24" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="0.5">👔 EXECUTIVE ROI OVERVIEW: ⚡ 85% Process Cycle Reduction • 🛡️ 100% Audit Compliance • ⏱️ 30-min Max SLA • 0 Unreconciled Discrepancies</text>
+      </g>
+      <text x="30" y="70" fill="#fbbf24" font-size="18" font-weight="800" letter-spacing="0.5">👔 EXECUTIVE SYSTEM LANDSCAPE &amp; VALUE CHAIN</text>
+      <text x="30" y="90" fill="#94a3b8" font-size="12" font-weight="500">${escapeXml(model.title)} — High-level business capabilities, security boundaries, and exception handling governance</text>
+      ` : `
+      <text x="30" y="42" fill="#38bdf8" font-size="18" font-weight="800" letter-spacing="0.5">🌐 LEVEL 1: SYSTEM CONTEXT TOPOLOGY</text>
+      <text x="30" y="65" fill="#94a3b8" font-size="12" font-weight="500">${escapeXml(model.title)} — Drag boxes to reposition • Click any system to drill down 1 level deeper into internal containers</text>
+      `}
+
+      <!-- Dynamic Domain Trust Boundaries (Starts cleanly at y=110) -->
       <g class="c4-zones">
-        <rect x="20" y="45" width="220" height="390" rx="10" fill="rgba(30, 41, 59, 0.25)" stroke="rgba(148, 163, 184, 0.2)" stroke-dasharray="6 4"/>
-        <text x="32" y="65" fill="#94a3b8" font-size="9" font-weight="700" letter-spacing="0.5">BOUNDARY: ${escapeXml(clientZoneLabel)}</text>
+        <rect x="30" y="110" width="350" height="430" rx="12" fill="rgba(30, 41, 59, 0.22)" stroke="rgba(148, 163, 184, 0.25)" stroke-dasharray="6 4"/>
+        <text x="45" y="135" fill="#94a3b8" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(clientZoneLabel)}</text>
 
-        <rect x="270" y="45" width="280" height="270" rx="10" fill="rgba(139, 92, 246, 0.06)" stroke="rgba(139, 92, 246, 0.25)" stroke-dasharray="6 4"/>
-        <text x="282" y="65" fill="#c084fc" font-size="9" font-weight="700" letter-spacing="0.5">BOUNDARY: ${escapeXml(intZoneLabel)}</text>
+        <rect x="410" y="110" width="460" height="430" rx="12" fill="rgba(139, 92, 246, 0.05)" stroke="rgba(139, 92, 246, 0.28)" stroke-dasharray="6 4"/>
+        <text x="425" y="135" fill="#c084fc" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(intZoneLabel)}</text>
 
-        <rect x="580" y="45" width="260" height="390" rx="10" fill="rgba(245, 158, 11, 0.05)" stroke="rgba(245, 158, 11, 0.22)" stroke-dasharray="6 4"/>
-        <text x="592" y="65" fill="#fbbf24" font-size="9" font-weight="700" letter-spacing="0.5">BOUNDARY: ${escapeXml(coreZoneLabel)}</text>
+        <rect x="900" y="110" width="470" height="430" rx="12" fill="rgba(245, 158, 11, 0.04)" stroke="rgba(245, 158, 11, 0.25)" stroke-dasharray="6 4"/>
+        <text x="915" y="135" fill="#fbbf24" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(coreZoneLabel)}</text>
 
-        <rect x="270" y="325" width="280" height="110" rx="10" fill="rgba(239, 68, 68, 0.08)" stroke="rgba(239, 68, 68, 0.35)" stroke-dasharray="4 4"/>
-        <text x="282" y="342" fill="#f87171" font-size="8.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(govZoneLabel)}</text>
+        <rect x="410" y="565" width="560" height="235" rx="12" fill="rgba(239, 68, 68, 0.07)" stroke="rgba(239, 68, 68, 0.35)" stroke-dasharray="6 4"/>
+        <text x="425" y="590" fill="#f87171" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(govZoneLabel)}</text>
       </g>
 
       <!-- Connections / Links -->
       <g class="c4-connections">`;
 
     // Draw connection lines
-    connections.forEach((c) => {
+    connections.forEach((c, idx) => {
       const fromPos = nodePositions[c.from];
       const toPos = nodePositions[c.to];
       if (!fromPos || !toPos) return;
 
-      const isHitlEdge = c.isHitl || toPos.y > 300 || fromPos.y > 300;
+      const isHitlEdge = c.isHitl || toPos.y > 500 || fromPos.y > 500;
       const isRed = c.isException || (isHitlEdge && showHitlException);
 
       let strokeColor = isRed ? '#ef4444' : '#38bdf8';
       let markerId = isRed ? 'c4-arrow-red' : 'c4-arrow-blue';
-      let strokeWidth = isRed ? (showHitlException ? '2.8' : '1.8') : '1.6';
-      let dash = c.isAsync || isRed ? 'stroke-dasharray="6 4"' : '';
+      let strokeWidth = isRed ? (showHitlException ? '3.2' : '2.2') : '2.0';
+      let dash = c.isAsync || isRed ? 'stroke-dasharray="7 5"' : '';
       let filter = isRed && showHitlException ? 'filter="url(#c4-glow-red)"' : '';
+
+      // Check if actively animated
+      let isAnimActive = false;
+      let photonCx = 0;
+      let photonCy = 0;
+      if (animationOpts && connections.length > 0) {
+        const activeIdx = animationOpts.activeStep % connections.length;
+        if (activeIdx === idx) {
+          isAnimActive = true;
+          strokeColor = '#22d3ee';
+          strokeWidth = '3.8';
+          filter = 'filter="url(#c4-glow-cyan)"';
+        }
+      }
 
       let x1 = fromPos.x + fromPos.w;
       let y1 = fromPos.y + fromPos.h / 2;
       let x2 = toPos.x;
       let y2 = toPos.y + toPos.h / 2;
 
-      if (toPos.y > fromPos.y + 100) {
+      if (toPos.y > fromPos.y + 120) {
         x1 = fromPos.x + fromPos.w / 2;
         y1 = fromPos.y + fromPos.h;
         x2 = toPos.x + toPos.w / 2;
@@ -489,12 +543,22 @@ export class C4TopologyEngine {
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
 
+      if (isAnimActive && animationOpts) {
+        const r = animationOpts.photonRatio;
+        photonCx = x1 + (x2 - x1) * r;
+        photonCy = y1 + (y2 - y1) * r;
+      }
+
       svg += `
         <g class="c4-edge" data-order="${c.order}" style="cursor: pointer;">
-          <path d="M ${x1} ${y1} Q ${midX} ${midY - 12} ${x2} ${y2}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${dash} ${filter} marker-end="url(#${markerId})"/>
+          <path d="M ${x1} ${y1} Q ${midX} ${midY - 14} ${x2} ${y2}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${dash} ${filter} marker-end="url(#${markerId})"/>
           <!-- Label Pill -->
-          <rect x="${midX - 58}" y="${midY - 16}" width="116" height="15" rx="3" fill="#0f172a" stroke="${strokeColor}" stroke-width="0.8" opacity="0.95"/>
-          <text x="${midX}" y="${midY - 5}" fill="${isRed ? '#fca5a5' : '#e2e8f0'}" font-size="7.5" font-weight="700" text-anchor="middle">${c.order}. ${escapeXml(c.protocol)}</text>
+          <rect x="${midX - 70}" y="${midY - 18}" width="140" height="20" rx="4" fill="#090d16" stroke="${strokeColor}" stroke-width="1" opacity="0.95"/>
+          <text x="${midX}" y="${midY - 4}" fill="${isRed ? '#fca5a5' : '#e2e8f0'}" font-size="10.5" font-weight="700" text-anchor="middle">${c.order}. ${escapeXml(c.protocol || c.label)}</text>
+          ${isAnimActive ? `
+            <circle cx="${photonCx}" cy="${photonCy}" r="8" fill="#38bdf8" stroke="#ffffff" stroke-width="2" filter="url(#c4-glow-cyan)"/>
+            <circle cx="${photonCx}" cy="${photonCy}" r="15" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.7"/>
+          ` : ''}
         </g>
       `;
     });
@@ -528,61 +592,70 @@ export class C4TopologyEngine {
       }
 
       svg += `
-        <g class="c4-node-group" data-c4-id="${s.id}" data-c4-level="1" style="cursor: pointer;" transform="translate(${pos.x}, ${pos.y})">
-          <rect width="${pos.w}" height="${pos.h}" rx="8" fill="url(#${gradId})" stroke="${strokeColor}" stroke-width="1.8" ${glowFilter}/>
+        <g class="c4-node-group" data-c4-id="${s.id}" data-c4-level="1" style="cursor: grab;" transform="translate(${pos.x}, ${pos.y})">
+          <rect class="c4-node-card" width="${pos.w}" height="${pos.h}" rx="10" fill="url(#${gradId})" stroke="${strokeColor}" stroke-width="2.0" ${glowFilter}/>
           
-          <text x="12" y="24" font-size="16">${s.icon}</text>
-          <text x="36" y="20" fill="#f8fafc" font-size="11" font-weight="700">${escapeXml(s.label)}</text>
-          <text x="36" y="32" fill="${strokeColor}" font-size="8.5" font-weight="600">[${escapeXml(s.role)}]</text>
+          <rect x="0" y="0" width="${pos.w}" height="34" rx="10" fill="rgba(255, 255, 255, 0.05)"/>
+          <text x="14" y="24" font-size="18">${s.icon}</text>
+          <text x="42" y="22" fill="#ffffff" font-size="14.5" font-weight="800">${escapeXml(s.label)}</text>
+          <text x="${pos.w - 14}" y="22" fill="${strokeColor}" font-size="11.5" font-weight="700" text-anchor="end">[${escapeXml(s.role)}]</text>
 
-          <text x="12" y="52" fill="#94a3b8" font-size="8" font-weight="500">${escapeXml(s.description.slice(0, 44))}</text>
-          <text x="12" y="64" fill="#64748b" font-size="7.5">${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
+          <text x="14" y="58" fill="#e2e8f0" font-size="11.5" font-weight="500">${escapeXml(s.description.slice(0, 52))}</text>
+          <text x="14" y="76" fill="#94a3b8" font-size="11">${escapeXml(s.description.slice(52, 105)) || ''}</text>
+          <text x="14" y="100" fill="#64748b" font-size="10.5">Tech: ${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
 
           ${s.containerCount > 0 ? `
-            <g transform="translate(${pos.w - 82}, ${pos.h - 18})">
-              <rect width="74" height="14" rx="3" fill="rgba(56, 189, 248, 0.15)" stroke="${strokeColor}" stroke-width="0.8"/>
-              <text x="37" y="10" fill="${strokeColor}" font-size="7.5" font-weight="700" text-anchor="middle">🔍 Drill Down (${s.containerCount})</text>
+            <g class="c4-drill-pill" transform="translate(${pos.w - 120}, ${pos.h - 30})">
+              <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="${strokeColor}" stroke-width="1.2"/>
+              <text x="55" y="15" fill="${strokeColor}" font-size="11" font-weight="800" text-anchor="middle">🔍 Drill Down (${s.containerCount})</text>
             </g>
           ` : ''}
           ${isHitl ? `
-            <g transform="translate(${pos.w - 88}, ${pos.h - 18})">
-              <rect width="80" height="14" rx="3" fill="rgba(239, 68, 68, 0.25)" stroke="#ef4444" stroke-width="1"/>
-              <text x="40" y="10" fill="#fca5a5" font-size="7.5" font-weight="800" text-anchor="middle">🚨 HITL GATE</text>
+            <g class="c4-drill-pill" transform="translate(${pos.w - 128}, ${pos.h - 30})">
+              <rect width="118" height="22" rx="4" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="1.2"/>
+              <text x="59" y="15" fill="#fca5a5" font-size="11" font-weight="800" text-anchor="middle">🚨 HITL GATE</text>
             </g>
           ` : ''}
         </g>
       `;
     });
 
+    // If flow simulation is active, render the HUD banner
+    if (animationOpts && connections.length > 0) {
+      const activeIdx = animationOpts.activeStep % connections.length;
+      const activeConn = connections[activeIdx];
+      svg += `
+        <g class="c4-anim-hud" transform="translate(420, 24)">
+          <rect width="560" height="34" rx="6" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" filter="url(#c4-glow-cyan)"/>
+          <circle cx="20" cy="17" r="5" fill="#22d3ee">
+            <animate attributeName="opacity" values="1;0.2;1" dur="1s" repeatCount="indefinite"/>
+          </circle>
+          <text x="35" y="22" fill="#22d3ee" font-size="12" font-weight="800">SIMULATING STEP ${activeIdx + 1}/${connections.length}: [${activeConn.from}] ➔ [${activeConn.to}] — ${escapeXml(activeConn.label)}</text>
+        </g>
+      `;
+    }
+
     svg += `</g>
-      ${isExecutiveMode ? `
-      <!-- Executive KPI Overlay Ribbon -->
-      <g class="c4-executive-ribbon">
-        <rect x="20" y="6" width="920" height="28" rx="6" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.2"/>
-        <text x="480" y="24" fill="#fbbf24" font-size="10.5" font-weight="800" text-anchor="middle" letter-spacing="0.5">👔 EXECUTIVE ROI OVERVIEW: ⚡ 85% Process Cycle Reduction • 🛡️ 100% Audit Compliance • ⏱️ 30-min Max SLA • 0 Unreconciled Discrepancies</text>
-      </g>
-      ` : ''}
-      <!-- Title & Watermark -->
-      <text x="20" y="${isExecutiveMode ? 48 : 24}" fill="${isExecutiveMode ? '#fbbf24' : '#38bdf8'}" font-size="13" font-weight="800" letter-spacing="0.5">${isExecutiveMode ? '👔 EXECUTIVE SYSTEM LANDSCAPE & VALUE CHAIN' : '🌐 LEVEL 1: SYSTEM CONTEXT TOPOLOGY'}</text>
-      <text x="20" y="${isExecutiveMode ? 62 : 38}" fill="#94a3b8" font-size="9" font-weight="500">${escapeXml(model.title)} — ${isExecutiveMode ? 'High-level business capabilities, security boundaries, and exception handling governance' : 'Click any system to drill down 1 level deeper into internal containers'}</text>
     </svg>`;
 
     return svg;
   }
 
-  // ── Level 2 Container SVG ───────────────────────────────────────────────────
+  // ── Level 2 Container SVG (High-Definition 1400x820 Canvas) ───────────────────
 
   private static renderLevel2ContainerSvg(
     l2: { parentSystem: C4SystemNode; containers: C4ContainerNode[]; connections: C4Connection[] },
     showHitlException: boolean,
-    isExecutiveMode = false
+    isExecutiveMode = false,
+    customPositions?: Record<string, { x: number; y: number }>,
+    animationOpts?: { activeStep: number; photonRatio: number }
   ): string {
     const parent = l2.parentSystem;
     const containers = l2.containers;
     const connections = l2.connections;
 
-    const width = 960;
-    const height = 480;
+    const width = 1400;
+    const height = 820;
 
     const nodePositions: Record<string, { x: number; y: number; w: number; h: number }> = {};
 
@@ -590,45 +663,104 @@ export class C4TopologyEngine {
       const row = Math.floor(i / 3);
       const col = i % 3;
       nodePositions[c.id] = {
-        x: 60 + col * 280,
-        y: 100 + row * 160,
-        w: 240,
-        h: 110
+        x: 60 + col * 435,
+        y: 170 + row * 190,
+        w: 390,
+        h: 155
       };
     });
 
+    // Apply custom positions if container was dragged
+    if (customPositions) {
+      for (const [id, pos] of Object.entries(customPositions)) {
+        if (nodePositions[id]) {
+          nodePositions[id].x = pos.x;
+          nodePositions[id].y = pos.y;
+        }
+      }
+    }
+
     let svg = `<svg id="fdeTopologySvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" style="width: 100%; height: auto; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; user-select: none;">
       <defs>
+        <style>
+          .c4-container-group:hover rect.c4-container-card {
+            stroke-width: 2.8px;
+            filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5));
+          }
+        </style>
         <linearGradient id="c4-l2-grad" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#1e1e38"/>
           <stop offset="100%" stop-color="#0b0f19"/>
         </linearGradient>
-        <marker id="c4-l2-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="c4-l2-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1 L 9 5 L 0 9 z" fill="#a855f7"/>
         </marker>
-        <marker id="c4-l2-arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <marker id="c4-l2-arrow-cyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 1 L 9 5 L 0 9 z" fill="#38bdf8"/>
         </marker>
       </defs>
 
+      <!-- TOP HEADER -->
+      ${isExecutiveMode ? `
+      <!-- Executive Container KPI Ribbon -->
+      <g class="c4-executive-ribbon">
+        <rect x="30" y="12" width="1340" height="34" rx="6" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="700" y="34" fill="#fbbf24" font-size="12" font-weight="800" text-anchor="middle" letter-spacing="0.5">👔 EXECUTIVE CONTAINER VIEW: ${escapeXml(parent.label.toUpperCase())} — 99.99% Availability • End-to-End Encryption • Fully Audited Execution</text>
+      </g>
+      <text x="30" y="70" fill="#fbbf24" font-size="18" font-weight="800" letter-spacing="0.5">👔 EXECUTIVE CONTAINER VIEW — ${escapeXml(parent.label.toUpperCase())}</text>
+      <text x="30" y="90" fill="#94a3b8" font-size="12">Key internal microservices, message queues, and high-availability architecture</text>
+      ` : `
+      <text x="30" y="42" fill="#a855f7" font-size="18" font-weight="800" letter-spacing="0.5">📦 LEVEL 2: CONTAINER TOPOLOGY — ${escapeXml(parent.label.toUpperCase())}</text>
+      <text x="30" y="65" fill="#94a3b8" font-size="12">Click "⬆ Back Up" to return, or click any container to inspect Level 3 Data Contracts</text>
+      `}
+
       <!-- Parent Subsystem Boundary Box -->
-      <rect x="30" y="55" width="900" height="395" rx="12" fill="rgba(139, 92, 246, 0.05)" stroke="rgba(168, 85, 247, 0.4)" stroke-width="1.8" stroke-dasharray="8 5"/>
-      <text x="50" y="80" fill="#c084fc" font-size="11" font-weight="800">SYSTEM CONTAINER BOUNDARY: ${escapeXml(parent.label.toUpperCase())}</text>
-      <text x="50" y="94" fill="#94a3b8" font-size="9">${escapeXml(parent.description)}</text>
+      <rect x="30" y="110" width="1340" height="680" rx="14" fill="rgba(139, 92, 246, 0.05)" stroke="rgba(168, 85, 247, 0.4)" stroke-width="2.0" stroke-dasharray="8 5"/>
+      <text x="50" y="138" fill="#c084fc" font-size="13.5" font-weight="800">SYSTEM CONTAINER BOUNDARY: ${escapeXml(parent.label.toUpperCase())}</text>
+      <text x="50" y="156" fill="#94a3b8" font-size="11.5">${escapeXml(parent.description)}</text>
 
       <!-- Connections between internal containers -->
       <g class="c4-l2-connections">`;
 
-    connections.forEach((c) => {
+    connections.forEach((c, idx) => {
       const fromPos = nodePositions[c.from];
       const toPos = nodePositions[c.to];
       if (!fromPos || !toPos) return;
 
+      let isAnimActive = false;
+      let photonCx = 0;
+      let photonCy = 0;
+      let strokeColor = '#a855f7';
+      let strokeWidth = '2.0';
+
+      if (animationOpts && connections.length > 0) {
+        const activeIdx = animationOpts.activeStep % connections.length;
+        if (activeIdx === idx) {
+          isAnimActive = true;
+          strokeColor = '#38bdf8';
+          strokeWidth = '3.5';
+        }
+      }
+
+      const x1 = fromPos.x + fromPos.w;
+      const y1 = fromPos.y + fromPos.h / 2;
+      const x2 = toPos.x;
+      const y2 = toPos.y + toPos.h / 2;
+
+      if (isAnimActive && animationOpts) {
+        const r = animationOpts.photonRatio;
+        photonCx = x1 + (x2 - x1) * r;
+        photonCy = y1 + (y2 - y1) * r;
+      }
+
       svg += `
         <g class="c4-l2-edge" style="cursor: pointer;">
-          <path d="M ${fromPos.x + fromPos.w} ${fromPos.y + fromPos.h / 2} L ${toPos.x} ${toPos.y + toPos.h / 2}" fill="none" stroke="#a855f7" stroke-width="1.8" marker-end="url(#c4-l2-arrow)"/>
-          <rect x="${(fromPos.x + toPos.x + fromPos.w) / 2 - 40}" y="${fromPos.y + fromPos.h / 2 - 10}" width="80" height="14" rx="3" fill="#0f172a" stroke="#a855f7" stroke-width="0.8"/>
-          <text x="${(fromPos.x + toPos.x + fromPos.w) / 2}" y="${fromPos.y + fromPos.h / 2 + 1}" fill="#e2e8f0" font-size="7.5" font-weight="700" text-anchor="middle">${escapeXml(c.protocol)}</text>
+          <path d="M ${x1} ${y1} L ${x2} ${y2}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" marker-end="url(#c4-l2-arrow)"/>
+          <rect x="${(x1 + x2) / 2 - 50}" y="${(y1 + y2) / 2 - 12}" width="100" height="20" rx="4" fill="#0f172a" stroke="${strokeColor}" stroke-width="1"/>
+          <text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 + 2}" fill="#e2e8f0" font-size="10.5" font-weight="700" text-anchor="middle">${escapeXml(c.protocol)}</text>
+          ${isAnimActive ? `
+            <circle cx="${photonCx}" cy="${photonCy}" r="7" fill="#38bdf8" stroke="#ffffff" stroke-width="1.8"/>
+          ` : ''}
         </g>
       `;
     });
@@ -646,37 +778,28 @@ export class C4TopologyEngine {
       const strokeColor = isApi ? '#38bdf8' : (isStore ? '#f59e0b' : '#a855f7');
 
       svg += `
-        <g class="c4-container-group" data-c4-id="${c.id}" data-c4-level="2" style="cursor: pointer;" transform="translate(${pos.x}, ${pos.y})">
-          <rect width="${pos.w}" height="${pos.h}" rx="8" fill="url(#c4-l2-grad)" stroke="${strokeColor}" stroke-width="1.6"/>
+        <g class="c4-container-group" data-c4-id="${c.id}" data-c4-level="2" style="cursor: grab;" transform="translate(${pos.x}, ${pos.y})">
+          <rect class="c4-container-card" width="${pos.w}" height="${pos.h}" rx="10" fill="url(#c4-l2-grad)" stroke="${strokeColor}" stroke-width="2.0"/>
           
-          <rect x="0" y="0" width="${pos.w}" height="26" rx="8" fill="rgba(168, 85, 247, 0.12)"/>
-          <text x="12" y="17" fill="#f8fafc" font-size="11" font-weight="700">${escapeXml(c.label)}</text>
-          <text x="${pos.w - 12}" y="17" fill="${strokeColor}" font-size="8.5" font-weight="700" text-anchor="end">[${c.type.toUpperCase()}]</text>
+          <rect x="0" y="0" width="${pos.w}" height="32" rx="10" fill="rgba(168, 85, 247, 0.12)"/>
+          <text x="14" y="22" fill="#ffffff" font-size="14.5" font-weight="800">${escapeXml(c.label)}</text>
+          <text x="${pos.w - 14}" y="22" fill="${strokeColor}" font-size="11.5" font-weight="700" text-anchor="end">[${c.type.toUpperCase()}]</text>
 
-          <text x="12" y="44" fill="#38bdf8" font-size="8.5" font-weight="600" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
-          <text x="12" y="62" fill="#94a3b8" font-size="8" font-weight="400">${escapeXml(c.description.slice(0, 52))}</text>
-          <text x="12" y="76" fill="#64748b" font-size="7.5">Technology: ${escapeXml(c.technology)}</text>
+          <text x="14" y="56" fill="#38bdf8" font-size="12" font-weight="700" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
+          <text x="14" y="78" fill="#cbd5e1" font-size="11.5">${escapeXml(c.description.slice(0, 52))}</text>
+          <text x="14" y="96" fill="#94a3b8" font-size="11">${escapeXml(c.description.slice(52, 105)) || ''}</text>
+          <text x="14" y="118" fill="#64748b" font-size="10.5">Technology: ${escapeXml(c.technology)}</text>
 
           <!-- Component Inspector Pill -->
-          <g transform="translate(${pos.w - 95}, ${pos.h - 20})">
-            <rect width="85" height="14" rx="3" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="0.8"/>
-            <text x="42" y="10" fill="#38bdf8" font-size="7.5" font-weight="700" text-anchor="middle">🔍 View Contract</text>
+          <g class="c4-contract-pill" transform="translate(${pos.w - 120}, ${pos.h - 28})">
+            <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="1.2"/>
+            <text x="55" y="15" fill="#38bdf8" font-size="11" font-weight="800" text-anchor="middle">🔍 View Contract</text>
           </g>
         </g>
       `;
     });
 
     svg += `</g>
-      ${isExecutiveMode ? `
-      <!-- Executive Container KPI Ribbon -->
-      <g class="c4-executive-ribbon">
-        <rect x="20" y="6" width="920" height="26" rx="6" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.2"/>
-        <text x="480" y="23" fill="#fbbf24" font-size="10" font-weight="800" text-anchor="middle" letter-spacing="0.5">👔 EXECUTIVE CONTAINER VIEW: ${escapeXml(parent.label.toUpperCase())} — 99.99% Availability • End-to-End Encryption • Fully Audited Execution</text>
-      </g>
-      ` : ''}
-      <!-- Title & Breadcrumb Link -->
-      <text x="30" y="${isExecutiveMode ? 48 : 26}" fill="${isExecutiveMode ? '#fbbf24' : '#a855f7'}" font-size="13" font-weight="800" letter-spacing="0.5">${isExecutiveMode ? '👔 EXECUTIVE CONTAINER VIEW' : '📦 LEVEL 2: CONTAINER TOPOLOGY'} — ${escapeXml(parent.label.toUpperCase())}</text>
-      <text x="30" y="${isExecutiveMode ? 62 : 42}" fill="#94a3b8" font-size="9">${isExecutiveMode ? 'Key service components and secure communications' : 'Click "⬆ Back to System Context" on the toolbar to return, or click any container to inspect contracts'}</text>
     </svg>`;
 
     return svg;
