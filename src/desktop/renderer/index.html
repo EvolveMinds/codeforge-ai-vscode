@@ -2131,6 +2131,7 @@
                           <h4 id="fdeC4InspectorTitle" style="margin: 2px 0 0 0; font-size: 13px; color: #f8fafc;">Component Data Contract</h4>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
+                          <button type="button" id="btnFdeEditContractFromDrawer" class="btn-quick" style="font-size: 9.5px; padding: 2px 8px; border-color: #f59e0b; color: #f59e0b; font-weight: 600;" title="Edit this container & component details">✏️ Edit Details</button>
                           <button type="button" id="btnFdeCopyContractJson" class="btn-quick" style="font-size: 9.5px; padding: 2px 6px; border-color: #38bdf8; color: #38bdf8;" title="Copy Level 3 Contract JSON to clipboard">📋 Copy JSON</button>
                           <button type="button" id="btnFdeC4InspectorClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px;">✕</button>
                         </div>
@@ -2196,6 +2197,24 @@
                           <div style="margin-bottom: 12px;">
                             <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Technologies (comma-separated)</label>
                             <input type="text" id="txtC4EditTech" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+                          </div>
+                          <!-- Container-specific Component Contracts & SLA editing -->
+                          <div id="c4EditContractSection" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.25);">
+                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                              <div style="flex: 1;">
+                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">SLA Target (ms)</label>
+                                <input type="number" id="txtC4EditSla" placeholder="150" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+                              </div>
+                              <div style="flex: 1;">
+                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Retry Policy</label>
+                                <input type="text" id="txtC4EditRetry" placeholder="Max 3 retries (100ms backoff)" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+                              </div>
+                            </div>
+                            <div>
+                              <label style="font-size: 11px; color: #38bdf8; display: block; margin-bottom: 4px; font-weight: 600;">Data Contracts &amp; Schema (JSON)</label>
+                              <textarea id="txtC4EditContracts" rows="5" placeholder='[{"field":"Visit_ID","type":"String","required":true,"source":"Salesforce","destination":"EMR"}]' style="width: 100%; box-sizing: border-box; background: #0f172a; color: #fbbf24; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px 10px; font-size: 11px; font-family: monospace; resize: vertical;"></textarea>
+                              <span style="font-size: 10px; color: #64748b; margin-top: 3px; display: block;">Edit the Level 3 contracts payload array directly or leave blank to keep existing contracts.</span>
+                            </div>
                           </div>
                         </div>
                         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.6);">

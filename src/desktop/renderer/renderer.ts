@@ -5783,51 +5783,6 @@ function setupPhase1Discovery(api: any): void {
           c4LevelBadge.style.background = 'rgba(168, 85, 247, 0.15)';
         }
       }
-
-      // Wire SVG Level 1 node clicks
-      const nodeGroups = renderedPane.querySelectorAll('.c4-node-group');
-      nodeGroups.forEach(node => {
-        node.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const sysId = node.getAttribute('data-c4-id');
-          if (!sysId) return;
-
-          const isHitl = sysId === 'hitl' || sysId.includes('hitl');
-          if (isHitl || sysId === 'gov') {
-            openHitlReviewConsole();
-            return;
-          }
-
-          if (cachedC4Model) {
-            if (!cachedC4Model.level2?.[sysId] && c4Engine.ensureLevel2) {
-              c4Engine.ensureLevel2(cachedC4Model, sysId);
-            }
-            if (cachedC4Model.level2?.[sysId]) {
-              activeC4Level = 2;
-              activeC4SystemId = sysId;
-              paintC4Topology();
-              fitToView();
-              return;
-            }
-          }
-          activeC4Level = 2;
-          activeC4SystemId = sysId;
-          paintC4Topology();
-          fitToView();
-        });
-      });
-
-      // Wire SVG Level 2 container clicks
-      const containerGroups = renderedPane.querySelectorAll('.c4-container-group');
-      containerGroups.forEach(node => {
-        node.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const contId = node.getAttribute('data-c4-id');
-          if (!contId) return;
-          openC4Inspector(contId);
-        });
-      });
-
     } catch (err: any) {
       console.error('[C4 Topology] Error rendering topology:', err);
     }
@@ -6006,6 +5961,11 @@ function setupPhase1Discovery(api: any): void {
   const txtC4EditDesc = document.getElementById('txtC4EditDesc') as HTMLTextAreaElement | null;
   const txtC4EditTech = document.getElementById('txtC4EditTech') as HTMLInputElement | null;
   const lblC4EditTitle = document.getElementById('fdeC4EditModalTitle');
+  const c4EditContractSection = document.getElementById('c4EditContractSection');
+  const txtC4EditSla = document.getElementById('txtC4EditSla') as HTMLInputElement | null;
+  const txtC4EditRetry = document.getElementById('txtC4EditRetry') as HTMLInputElement | null;
+  const txtC4EditContracts = document.getElementById('txtC4EditContracts') as HTMLTextAreaElement | null;
+  const btnEditContractFromDrawer = document.getElementById('btnFdeEditContractFromDrawer');
 
   let editingC4NodeId: string | null = null;
   let isEditingContainer = false;
@@ -6024,6 +5984,10 @@ function setupPhase1Discovery(api: any): void {
     isEditingContainer = isContainer;
 
     if (!isContainer) {
+      if (c4EditContractSection) {
+        c4EditContractSection.hidden = true;
+        c4EditContractSection.style.display = 'none';
+      }
       const sys = cachedC4Model.level1.systems.find((s: any) => s.id === nodeId);
       if (!sys) return;
       if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit System: ${sys.label}`;
@@ -6033,9 +5997,24 @@ function setupPhase1Discovery(api: any): void {
       if (txtC4EditDesc) txtC4EditDesc.value = sys.description || '';
       if (txtC4EditTech) txtC4EditTech.value = (sys.technologies || []).join(', ');
     } else {
-      if (!activeC4SystemId) return;
-      const l2 = cachedC4Model.level2?.[activeC4SystemId];
-      const cont = l2?.containers.find((c: any) => c.id === nodeId);
+      if (c4EditContractSection) {
+        c4EditContractSection.hidden = false;
+        c4EditContractSection.style.display = 'block';
+      }
+      let cont: any = null;
+      if (activeC4SystemId && cachedC4Model.level2?.[activeC4SystemId]) {
+        cont = cachedC4Model.level2[activeC4SystemId].containers.find((c: any) => c.id === nodeId);
+      }
+      if (!cont && cachedC4Model.level2) {
+        for (const sysId of Object.keys(cachedC4Model.level2)) {
+          const found = cachedC4Model.level2[sysId]?.containers?.find((c: any) => c.id === nodeId);
+          if (found) {
+            cont = found;
+            activeC4SystemId = sysId;
+            break;
+          }
+        }
+      }
       if (!cont) return;
       if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit Container: ${cont.label}`;
       if (txtC4EditLabel) txtC4EditLabel.value = cont.label || '';
@@ -6043,11 +6022,25 @@ function setupPhase1Discovery(api: any): void {
       if (selC4EditZone) selC4EditZone.value = 'integration';
       if (txtC4EditDesc) txtC4EditDesc.value = cont.description || '';
       if (txtC4EditTech) txtC4EditTech.value = cont.technology || '';
+
+      const l3 = cachedC4Model.level3?.[nodeId];
+      const comp = l3?.components?.[0];
+      if (txtC4EditSla) txtC4EditSla.value = comp?.slaMs ? String(comp.slaMs) : '150';
+      if (txtC4EditRetry) txtC4EditRetry.value = comp?.retryPolicy || 'Max 3 retries (100ms backoff)';
+      if (txtC4EditContracts) {
+        txtC4EditContracts.value = comp?.contracts ? JSON.stringify(comp.contracts, null, 2) : '[]';
+      }
     }
 
     modalC4Edit.hidden = false;
     modalC4Edit.style.display = 'flex';
   };
+
+  btnEditContractFromDrawer?.addEventListener('click', () => {
+    if (activeC4ContainerId) {
+      openC4EditModal(activeC4ContainerId, true);
+    }
+  });
 
   btnCloseC4Edit?.addEventListener('click', closeC4EditModal);
   btnCancelC4Edit?.addEventListener('click', closeC4EditModal);
@@ -6076,14 +6069,67 @@ function setupPhase1Discovery(api: any): void {
         showToast(`✓ Updated system: ${sys.label}`);
       }
     } else {
-      if (activeC4SystemId) {
-        const l2 = cachedC4Model.level2?.[activeC4SystemId];
-        const cont = l2?.containers.find((c: any) => c.id === editingC4NodeId);
-        if (cont) {
-          cont.label = newLabel;
-          cont.description = (txtC4EditDesc?.value || '').trim();
-          cont.technology = (txtC4EditTech?.value || '').trim();
-          showToast(`✓ Updated container: ${cont.label}`);
+      let cont: any = null;
+      if (activeC4SystemId && cachedC4Model.level2?.[activeC4SystemId]) {
+        cont = cachedC4Model.level2[activeC4SystemId].containers.find((c: any) => c.id === editingC4NodeId);
+      }
+      if (!cont && cachedC4Model.level2) {
+        for (const sysId of Object.keys(cachedC4Model.level2)) {
+          const found = cachedC4Model.level2[sysId]?.containers?.find((c: any) => c.id === editingC4NodeId);
+          if (found) {
+            cont = found;
+            activeC4SystemId = sysId;
+            break;
+          }
+        }
+      }
+      if (cont) {
+        cont.label = newLabel;
+        cont.description = (txtC4EditDesc?.value || '').trim();
+        cont.technology = (txtC4EditTech?.value || '').trim();
+
+        if (!cachedC4Model.level3) cachedC4Model.level3 = {};
+        if (!cachedC4Model.level3[editingC4NodeId]) {
+          cachedC4Model.level3[editingC4NodeId] = {
+            parentContainer: { ...cont },
+            components: [{
+              id: `${editingC4NodeId}_Core`,
+              parentContainerId: editingC4NodeId,
+              label: `${newLabel} Core Service`,
+              role: 'Business Logic & Contracts',
+              description: cont.description,
+              slaMs: 150,
+              retryPolicy: 'Max 3 retries (100ms backoff)',
+              contracts: []
+            }]
+          };
+        }
+
+        const l3 = cachedC4Model.level3[editingC4NodeId];
+        l3.parentContainer = { ...cont };
+        if (l3.components && l3.components.length > 0) {
+          const comp = l3.components[0];
+          comp.label = `${newLabel} Contract`;
+          comp.description = cont.description;
+          if (txtC4EditSla?.value) comp.slaMs = parseInt(txtC4EditSla.value, 10) || comp.slaMs;
+          if (txtC4EditRetry?.value) comp.retryPolicy = txtC4EditRetry.value.trim();
+          if (txtC4EditContracts?.value) {
+            try {
+              const parsedContracts = JSON.parse(txtC4EditContracts.value);
+              if (Array.isArray(parsedContracts)) {
+                comp.contracts = parsedContracts;
+              }
+            } catch (e) {
+              console.warn('[C4 Edit] Invalid JSON contracts, retaining existing contracts:', e);
+            }
+          }
+        }
+
+        showToast(`✓ Updated container & contracts: ${cont.label}`);
+
+        // If inspector drawer is currently showing this container, refresh it!
+        if (c4InspectorDrawer && !c4InspectorDrawer.hidden && activeC4ContainerId === editingC4NodeId) {
+          openC4Inspector(editingC4NodeId);
         }
       }
     }
@@ -7961,7 +8007,7 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
-      // 3. Drill Down Pill (or direct node click)
+      // 3. Drill Down Pill or direct node card click in Level 1
       const drillPill = target.closest('.c4-drill-pill') as SVGElement | null;
       const c4Node = target.closest('.c4-node-group') as SVGElement | null;
       if ((drillPill || c4Node) && activeC4Level === 1) {
@@ -7975,27 +8021,20 @@ function setupPhase1Discovery(api: any): void {
           return;
         }
 
-        // If clicked on drill-down pill, drill down to Level 2
-        if (drillPill) {
-          const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
-          if (cachedC4Model) {
-            if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
-              c4Engine.ensureLevel2(cachedC4Model, sysId);
-            }
+        const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+        if (cachedC4Model) {
+          if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
+            c4Engine.ensureLevel2(cachedC4Model, sysId);
           }
-          activeC4Level = 2;
-          activeC4SystemId = sysId;
-          paintC4Topology();
-          fitToView();
-          return;
         }
-
-        // If clicked on node body (not pill), open Edit Modal
-        openC4EditModal(sysId, false);
+        activeC4Level = 2;
+        activeC4SystemId = sysId;
+        paintC4Topology();
+        fitToView();
         return;
       }
 
-      // 4. Container Clicks in Level 2
+      // 4. View Contract Pill or direct container card click in Level 2
       const contractPill = target.closest('.c4-contract-pill') as SVGElement | null;
       const c4Container = target.closest('.c4-container-group') as SVGElement | null;
       if ((contractPill || c4Container) && activeC4Level === 2) {
@@ -8003,13 +8042,7 @@ function setupPhase1Discovery(api: any): void {
         const contId = (contractPill ? contractPill.closest('.c4-container-group') : c4Container)?.getAttribute('data-c4-id');
         if (!contId) return;
 
-        if (contractPill) {
-          openC4Inspector(contId);
-          return;
-        }
-
-        // If clicked on container body, open edit
-        openC4EditModal(contId, true);
+        openC4Inspector(contId);
         return;
       }
       return;
