@@ -4917,6 +4917,8 @@ function setupPhase1Discovery(api: any): void {
   let activeC4Level: 1 | 2 = 1;
   let activeC4SystemId: string | undefined = undefined;
   let showHitlExceptionPath = false;
+  let isC4ExecutiveMode = false;
+  let activeC4ContainerId: string | undefined;
   let cachedC4Model: any = null;
 
   let canvasZoom = 1.0;
@@ -5620,6 +5622,7 @@ function setupPhase1Discovery(api: any): void {
 
   const openC4Inspector = (containerId: string) => {
     if (!c4InspectorDrawer || !cachedC4Model) return;
+    activeC4ContainerId = containerId;
     const l3Data = cachedC4Model.level3?.[containerId];
     const parentContainer = l3Data?.parentContainer || cachedC4Model.level2?.[activeC4SystemId || '']?.containers?.find((c: any) => c.id === containerId);
 
@@ -5712,7 +5715,7 @@ function setupPhase1Discovery(api: any): void {
 
     try {
       cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
-      const svg = c4Engine.renderTopologySvg(cachedC4Model, activeC4Level, activeC4SystemId, showHitlExceptionPath);
+      const svg = c4Engine.renderTopologySvg(cachedC4Model, activeC4Level, activeC4SystemId, showHitlExceptionPath, isC4ExecutiveMode);
       renderedPane.innerHTML = svg;
       applyZoom();
 
@@ -5963,6 +5966,103 @@ function setupPhase1Discovery(api: any): void {
     }
     paintC4Topology();
   });
+  // Pillar 4: Executive Presentation vs Architect Deep-Dive Toggle
+  const btnC4ModeToggle = document.getElementById('btnFdeC4ModeToggle');
+  btnC4ModeToggle?.addEventListener('click', () => {
+    isC4ExecutiveMode = !isC4ExecutiveMode;
+    if (btnC4ModeToggle) {
+      if (isC4ExecutiveMode) {
+        btnC4ModeToggle.textContent = '👔 Executive Mode (KPIs)';
+        btnC4ModeToggle.style.color = '#fbbf24';
+        btnC4ModeToggle.style.borderColor = '#f59e0b';
+        btnC4ModeToggle.style.background = 'rgba(245, 158, 11, 0.2)';
+        showToast('👔 Executive Presentation View: technical details hidden, business KPIs & governance highlighted.');
+      } else {
+        btnC4ModeToggle.textContent = '📐 Architect Deep-Dive';
+        btnC4ModeToggle.style.color = '#38bdf8';
+        btnC4ModeToggle.style.borderColor = '#0284c7';
+        btnC4ModeToggle.style.background = 'rgba(56, 189, 248, 0.1)';
+        showToast('📐 Architect / Engineering Deep-Dive: full container wiring, protocols, and contracts shown.');
+      }
+    }
+    paintC4Topology();
+  });
+
+  // Pillar 4: C4 Export Dropdown & Standalone Outputs
+  const btnC4ExportMenuBtn = document.getElementById('btnFdeC4ExportMenuBtn');
+  const c4ExportMenu = document.getElementById('fdeC4ExportMenu');
+  const closeC4ExportMenu = () => {
+    if (c4ExportMenu) c4ExportMenu.hidden = true;
+  };
+
+  btnC4ExportMenuBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!c4ExportMenu) return;
+    c4ExportMenu.hidden = !c4ExportMenu.hidden;
+  });
+  c4ExportMenu?.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', () => { if (c4ExportMenu && !c4ExportMenu.hidden) closeC4ExportMenu(); });
+
+  // Export Interactive SVG
+  document.getElementById('btnFdeExportC4Svg')?.addEventListener('click', () => {
+    closeC4ExportMenu();
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine) return;
+    const svg = c4Engine.renderTopologySvg(cachedC4Model, activeC4Level, activeC4SystemId, showHitlExceptionPath, isC4ExecutiveMode);
+    downloadSvg(standaloneSvg(svg), `${(cachedC4Model.title || 'c4').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-level${activeC4Level}.svg`);
+    showToast('⬇ Exported standalone interactive C4 SVG!');
+  });
+
+  // Export PDF Presentation Slide
+  document.getElementById('btnFdeExportC4Pdf')?.addEventListener('click', () => {
+    closeC4ExportMenu();
+    window.print();
+    showToast('📄 Opened Presentation Slide Print / PDF Dialog!');
+  });
+
+  // Export Structurizr C4 DSL
+  document.getElementById('btnFdeExportStructurizr')?.addEventListener('click', () => {
+    closeC4ExportMenu();
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine || !c4Engine.toStructurizrDsl) return;
+    const dsl = c4Engine.toStructurizrDsl(cachedC4Model);
+    navigator.clipboard.writeText(dsl);
+    showToast('📋 Copied Structurizr C4 DSL to clipboard! Compatible with Structurizr & LikeC4.');
+  });
+
+  // Export Mermaid C4 Code
+  document.getElementById('btnFdeExportMermaidC4')?.addEventListener('click', () => {
+    closeC4ExportMenu();
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine || !c4Engine.toMermaidC4) return;
+    const mmd = c4Engine.toMermaidC4(cachedC4Model);
+    navigator.clipboard.writeText(mmd);
+    showToast('📋 Copied Mermaid C4 diagram syntax to clipboard!');
+  });
+
+  // Copy Level 3 Contract JSON
+  document.getElementById('btnFdeCopyContractJson')?.addEventListener('click', () => {
+    if (!activeC4ContainerId || !cachedC4Model) {
+      showToast('No active component contract open.');
+      return;
+    }
+    const l3Data = cachedC4Model.level3?.[activeC4ContainerId];
+    if (l3Data) {
+      navigator.clipboard.writeText(JSON.stringify(l3Data, null, 2));
+      showToast(`📋 Copied Level 3 Data Contract for ${activeC4ContainerId} as JSON!`);
+    }
+  });
+
+  // Pillar 2: Clickable Level 3 Breadcrumb to reopen Inspector
+  document.getElementById('btnFdeC4BreadcrumbL3')?.addEventListener('click', () => {
+    if (activeC4ContainerId) {
+      openC4Inspector(activeC4ContainerId);
+    }
+  });
+
   btnC4HitlModalClose?.addEventListener('click', () => {
     if (c4HitlModal) {
       c4HitlModal.hidden = true;

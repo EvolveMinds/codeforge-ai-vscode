@@ -2098,14 +2098,26 @@
                         <span id="fdeC4BreadcrumbSep1" style="color: #64748b; font-size: 9px;" hidden>➔</span>
                         <button type="button" class="btn-quick" id="btnFdeC4BreadcrumbL2" style="font-size: 10px; padding: 2px 8px; font-weight: 700; color: #c084fc; border-color: #7c3aed;" hidden>📦 Container</button>
                         <span id="fdeC4BreadcrumbSep2" style="color: #64748b; font-size: 9px;" hidden>➔</span>
-                        <span id="fdeC4BreadcrumbL3" style="font-size: 10px; font-weight: 700; color: #fbbf24;" hidden>🧩 Component</span>
+                        <button type="button" class="btn-quick" id="btnFdeC4BreadcrumbL3" style="font-size: 10px; padding: 2px 8px; font-weight: 700; color: #fbbf24; border-color: #d97706;" hidden title="Click to open Level 3 Component Contract Inspector">🧩 Component Contract</button>
                       </div>
 
-                      <!-- Right side controls: Level badge, Back button, and Simulate HITL Exception -->
-                      <div style="display: flex; align-items: center; gap: 6px;">
+                      <!-- Right side controls: Presentation Mode Toggle, Level badge, Back button, Simulate HITL, and C4 Export Dropdown -->
+                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <button type="button" class="btn-quick" id="btnFdeC4ModeToggle" style="font-size: 10px; padding: 2px 8px; font-weight: 700; color: #38bdf8; border-color: #0284c7; background: rgba(56, 189, 248, 0.1);" title="Toggle between Executive KPI Presentation and Architect Technical Deep-Dive (Pillar 4)">📐 Architect Deep-Dive</button>
                         <span id="fdeC4LevelBadge" style="font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 12px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">Level 1: System Context</span>
                         <button type="button" class="btn-quick" id="btnFdeC4BackUp" style="font-size: 10px; padding: 2px 8px;" hidden title="Go up one hierarchy level">⬆ Back Up</button>
                         <button type="button" class="btn-quick" id="btnFdeSimulateHitl" style="font-size: 10px; padding: 2px 8px; border-color: #ef4444; color: #f87171; font-weight: 700; background: rgba(239, 68, 68, 0.1);" title="Simulate validation mismatch and highlight the red Human-in-the-Loop review path">🚨 Simulate HITL Exception</button>
+
+                        <!-- C4 Export Dropdown (Pillar 4) -->
+                        <span style="position: relative; display: inline-block;">
+                          <button type="button" class="btn-quick" id="btnFdeC4ExportMenuBtn" style="font-size: 10px; padding: 2px 8px; border-color: #10b981; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.1);" title="Export C4 as interactive SVG, PDF presentation slide, or Structurizr/Mermaid code">⬇ Export C4 ▾</button>
+                          <span id="fdeC4ExportMenu" hidden style="position: absolute; right: 0; top: 100%; margin-top: 4px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 4px; min-width: 220px; z-index: 700; box-shadow: 0 8px 24px rgba(0,0,0,0.8);">
+                            <button type="button" id="btnFdeExportC4Svg" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">🖼️ Standalone Interactive SVG</button>
+                            <button type="button" id="btnFdeExportC4Pdf" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">📄 Presentation Slide (Print / PDF)</button>
+                            <button type="button" id="btnFdeExportStructurizr" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">📜 Structurizr C4 DSL (Copy)</button>
+                            <button type="button" id="btnFdeExportMermaidC4" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">📋 Mermaid C4 Diagram Code (Copy)</button>
+                          </span>
+                        </span>
                       </div>
                     </div>
 
@@ -2118,7 +2130,10 @@
                           <span style="font-size: 9.5px; font-weight: 700; color: #38bdf8; text-transform: uppercase;">LEVEL 3 INSPECTOR</span>
                           <h4 id="fdeC4InspectorTitle" style="margin: 2px 0 0 0; font-size: 13px; color: #f8fafc;">Component Data Contract</h4>
                         </div>
-                        <button type="button" id="btnFdeC4InspectorClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px;">✕</button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <button type="button" id="btnFdeCopyContractJson" class="btn-quick" style="font-size: 9.5px; padding: 2px 6px; border-color: #38bdf8; color: #38bdf8;" title="Copy Level 3 Contract JSON to clipboard">📋 Copy JSON</button>
+                          <button type="button" id="btnFdeC4InspectorClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px;">✕</button>
+                        </div>
                       </div>
                       <div id="fdeC4InspectorBody"></div>
                     </div>

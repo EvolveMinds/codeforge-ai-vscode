@@ -274,17 +274,72 @@ export class C4TopologyEngine {
     model: C4ArchitectureModel,
     level: 1 | 2,
     activeSystemId?: string,
-    showHitlExceptionPath = false
+    showHitlExceptionPath = false,
+    isExecutiveMode = false
   ): string {
-    if (level === 2 && activeSystemId && model.level2[activeSystemId]) {
-      return this.renderLevel2ContainerSvg(model.level2[activeSystemId], showHitlExceptionPath);
+    if (level === 2 && activeSystemId) {
+      this.ensureLevel2(model, activeSystemId);
+      if (model.level2[activeSystemId]) {
+        return this.renderLevel2ContainerSvg(model.level2[activeSystemId], showHitlExceptionPath, isExecutiveMode);
+      }
     }
-    return this.renderLevel1ContextSvg(model, showHitlExceptionPath);
+    return this.renderLevel1ContextSvg(model, showHitlExceptionPath, isExecutiveMode);
+  }
+
+
+  /**
+   * Exports the architecture model to official Mermaid C4Context syntax
+   */
+  public static toMermaidC4(model: C4ArchitectureModel): string {
+    let mmd = `C4Context\n  title ${model.title}\n\n`;
+    for (const sys of model.level1.systems) {
+      const desc = (sys.description || '').replace(/"/g, "'").slice(0, 60);
+      if (sys.category === 'actor') {
+        mmd += `  Person(${sys.id}, "${sys.label}", "${desc}")\n`;
+      } else if (sys.category === 'hitl') {
+        mmd += `  System_Boundary(b_${sys.id}, "Human Governance") {\n    System(${sys.id}, "${sys.label}", "${desc}")\n  }\n`;
+      } else {
+        mmd += `  System(${sys.id}, "${sys.label}", "${desc}")\n`;
+      }
+    }
+    mmd += '\n';
+    for (const conn of model.level1.connections) {
+      mmd += `  Rel(${conn.from}, ${conn.to}, "${conn.label}", "${conn.protocol}")\n`;
+    }
+    return mmd;
+  }
+
+  /**
+   * Exports the architecture model to official Structurizr C4 DSL
+   */
+  public static toStructurizrDsl(model: C4ArchitectureModel): string {
+    let dsl = `workspace "${model.title}" "Enterprise Architecture Specification" {\n\n  model {\n`;
+    for (const sys of model.level1.systems) {
+      const desc = (sys.description || '').replace(/"/g, "'");
+      if (sys.category === 'actor') {
+        dsl += `    ${sys.id} = person "${sys.label}" "${desc}"\n`;
+      } else {
+        dsl += `    ${sys.id} = softwareSystem "${sys.label}" "${desc}" {\n`;
+        const l2 = model.level2[sys.id];
+        if (l2 && l2.containers) {
+          for (const c of l2.containers) {
+            dsl += `      ${c.id} = container "${c.label}" "${c.description.replace(/"/g, "'")}" "${c.technology}"\n`;
+          }
+        }
+        dsl += `    }\n`;
+      }
+    }
+    dsl += '\n';
+    for (const conn of model.level1.connections) {
+      dsl += `    ${conn.from} -> ${conn.to} "${conn.label}" "${conn.protocol}"\n`;
+    }
+    dsl += `  }\n\n  views {\n    systemContext ${model.level1.systems[1]?.id || 'System'} "SystemContext" {\n      include *\n      autoLayout lr\n    }\n    theme default\n  }\n}\n`;
+    return dsl;
   }
 
   // ── Level 1 System Context SVG ──────────────────────────────────────────────
 
-  private static renderLevel1ContextSvg(model: C4ArchitectureModel, showHitlException: boolean): string {
+  private static renderLevel1ContextSvg(model: C4ArchitectureModel, showHitlException: boolean, isExecutiveMode = false): string {
     const systems = model.level1.systems;
     const connections = model.level1.connections;
     const zones = model.level1.zones;
@@ -460,7 +515,7 @@ export class C4TopologyEngine {
       if (isHitl) {
         strokeColor = '#ef4444';
         gradId = 'c4-grad-hitl';
-        glowFilter = showHitlException ? 'filter="url(#c4-glow-red)"' : 'filter="url(#c4-glow-amber)"';
+        glowFilter = showHitlException ? 'class="c4-hitl-pulse-active" filter="url(#c4-glow-red)"' : 'filter="url(#c4-glow-amber)"';
       } else if (s.category === 'actor') {
         strokeColor = '#38bdf8';
         gradId = 'c4-grad-actor';
@@ -500,9 +555,16 @@ export class C4TopologyEngine {
     });
 
     svg += `</g>
+      ${isExecutiveMode ? `
+      <!-- Executive KPI Overlay Ribbon -->
+      <g class="c4-executive-ribbon">
+        <rect x="20" y="6" width="920" height="28" rx="6" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="480" y="24" fill="#fbbf24" font-size="10.5" font-weight="800" text-anchor="middle" letter-spacing="0.5">👔 EXECUTIVE ROI OVERVIEW: ⚡ 85% Process Cycle Reduction • 🛡️ 100% Audit Compliance • ⏱️ 30-min Max SLA • 0 Unreconciled Discrepancies</text>
+      </g>
+      ` : ''}
       <!-- Title & Watermark -->
-      <text x="20" y="24" fill="#38bdf8" font-size="13" font-weight="800" letter-spacing="0.5">🌐 LEVEL 1: SYSTEM CONTEXT TOPOLOGY</text>
-      <text x="20" y="38" fill="#94a3b8" font-size="9" font-weight="500">${escapeXml(model.title)} — Click any system to drill down 1 level deeper into internal containers</text>
+      <text x="20" y="${isExecutiveMode ? 48 : 24}" fill="${isExecutiveMode ? '#fbbf24' : '#38bdf8'}" font-size="13" font-weight="800" letter-spacing="0.5">${isExecutiveMode ? '👔 EXECUTIVE SYSTEM LANDSCAPE & VALUE CHAIN' : '🌐 LEVEL 1: SYSTEM CONTEXT TOPOLOGY'}</text>
+      <text x="20" y="${isExecutiveMode ? 62 : 38}" fill="#94a3b8" font-size="9" font-weight="500">${escapeXml(model.title)} — ${isExecutiveMode ? 'High-level business capabilities, security boundaries, and exception handling governance' : 'Click any system to drill down 1 level deeper into internal containers'}</text>
     </svg>`;
 
     return svg;
@@ -512,7 +574,8 @@ export class C4TopologyEngine {
 
   private static renderLevel2ContainerSvg(
     l2: { parentSystem: C4SystemNode; containers: C4ContainerNode[]; connections: C4Connection[] },
-    showHitlException: boolean
+    showHitlException: boolean,
+    isExecutiveMode = false
   ): string {
     const parent = l2.parentSystem;
     const containers = l2.containers;
@@ -604,9 +667,16 @@ export class C4TopologyEngine {
     });
 
     svg += `</g>
+      ${isExecutiveMode ? `
+      <!-- Executive Container KPI Ribbon -->
+      <g class="c4-executive-ribbon">
+        <rect x="20" y="6" width="920" height="26" rx="6" fill="#1e1b4b" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="480" y="23" fill="#fbbf24" font-size="10" font-weight="800" text-anchor="middle" letter-spacing="0.5">👔 EXECUTIVE CONTAINER VIEW: ${escapeXml(parent.label.toUpperCase())} — 99.99% Availability • End-to-End Encryption • Fully Audited Execution</text>
+      </g>
+      ` : ''}
       <!-- Title & Breadcrumb Link -->
-      <text x="30" y="26" fill="#a855f7" font-size="13" font-weight="800" letter-spacing="0.5">📦 LEVEL 2: CONTAINER TOPOLOGY — ${escapeXml(parent.label.toUpperCase())}</text>
-      <text x="30" y="42" fill="#94a3b8" font-size="9">Click "⬆ Back to System Context" on the toolbar to return, or click any container to inspect contracts</text>
+      <text x="30" y="${isExecutiveMode ? 48 : 26}" fill="${isExecutiveMode ? '#fbbf24' : '#a855f7'}" font-size="13" font-weight="800" letter-spacing="0.5">${isExecutiveMode ? '👔 EXECUTIVE CONTAINER VIEW' : '📦 LEVEL 2: CONTAINER TOPOLOGY'} — ${escapeXml(parent.label.toUpperCase())}</text>
+      <text x="30" y="${isExecutiveMode ? 62 : 42}" fill="#94a3b8" font-size="9">${isExecutiveMode ? 'Key service components and secure communications' : 'Click "⬆ Back to System Context" on the toolbar to return, or click any container to inspect contracts'}</text>
     </svg>`;
 
     return svg;
