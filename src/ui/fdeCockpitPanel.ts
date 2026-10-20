@@ -2823,6 +2823,30 @@ Output ONLY the message without markdown code fences.`;
           generatedFiles.push('docs/CLIENT_HANDOFF_COMPLETE.md');
         }
 
+        // Always sync CLAUDE.md workspace manifest and local DB2 testcontainer
+        try {
+          const dbMeta = {
+            dialect: 'db2',
+            schema: 'DB2ADMIN',
+            tables: DbIntrospector.generateDb2HcmTables('DB2ADMIN'),
+            routines: DbIntrospector.generateDb2HcmRoutines('DB2ADMIN'),
+            sequences: DbIntrospector.generateDb2HcmSequences('DB2ADMIN'),
+            constraints: DbIntrospector.generateDb2HcmConstraints('DB2ADMIN'),
+          };
+          const claudeMd = RunbookGenerator.generateClaudePromptManifest(state, dbMeta);
+          fs.writeFileSync(path.join(ws, 'CLAUDE.md'), claudeMd, 'utf8');
+          generatedFiles.push('CLAUDE.md');
+
+          const dockerCompose = RunbookGenerator.generateDb2DockerCompose(dbMeta);
+          fs.writeFileSync(path.join(ws, 'docker-compose.db2-test.yml'), dockerCompose, 'utf8');
+          generatedFiles.push('docker-compose.db2-test.yml');
+
+          const scriptsDir = path.join(ws, 'scripts');
+          if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
+          fs.writeFileSync(path.join(scriptsDir, 'init-db2.sql'), RunbookGenerator.generateDb2InitSql(dbMeta), 'utf8');
+          generatedFiles.push('scripts/init-db2.sql');
+        } catch {}
+
         await this._contextManager.recordRunbooksGenerated();
 
         const countText = requestedTypes.length === 5 ? 'all 5' : `${generatedFiles.length}`;
