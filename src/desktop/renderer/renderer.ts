@@ -4921,6 +4921,7 @@ function setupPhase1Discovery(api: any): void {
   let activeC4SystemId: string | undefined = undefined;
   let showHitlExceptionPath = false;
   let isC4ExecutiveMode = false;
+  let activeC4Lens: 'all' | 'system' | 'application' | 'data' = 'all';
   let activeC4ContainerId: string | undefined;
   let cachedC4ModelSrc = '';
   let c4CustomPositions: Record<string, { x: number; y: number }> = {};
@@ -5744,7 +5745,8 @@ function setupPhase1Discovery(api: any): void {
         showHitlExceptionPath,
         isC4ExecutiveMode,
         c4CustomPositions,
-        animationOpts
+        animationOpts,
+        activeC4Lens
       );
       renderedPane.innerHTML = svg;
       applyZoom();
@@ -5951,6 +5953,7 @@ function setupPhase1Discovery(api: any): void {
     }
     paintC4Topology();
   });
+
   // --- C4 System, Container & Step Interactive Editor Modal ---
   const modalC4Edit = document.getElementById('fdeC4EditModal');
   const btnCloseC4Edit = document.getElementById('btnFdeC4EditModalClose');
@@ -6339,6 +6342,335 @@ function setupPhase1Discovery(api: any): void {
       }
     }
     paintC4Topology();
+  });
+
+  // --- Tri-Architect Lens Filter (System, Application, Data, Unified) ---
+  document.querySelectorAll('.btn-fde-lens').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lens = (btn.getAttribute('data-lens') || 'all') as 'all' | 'system' | 'application' | 'data';
+      activeC4Lens = lens;
+      document.querySelectorAll('.btn-fde-lens').forEach(b => {
+        const isActive = b.getAttribute('data-lens') === lens;
+        b.classList.toggle('active', isActive);
+        (b as HTMLElement).style.background = isActive ? 'rgba(56, 189, 248, 0.2)' : 'none';
+        (b as HTMLElement).style.color = isActive ? '#38bdf8' : '#cbd5e1';
+        (b as HTMLElement).style.fontWeight = isActive ? '700' : '400';
+      });
+      const lensLabels: Record<string, string> = {
+        all: '🌐 Unified Architecture View',
+        system: '🏛️ System Architect Lens (Trust Boundaries & Security)',
+        application: '⚙️ Application Architect Lens (APIs, Queues & Modularity)',
+        data: '📊 Data Architect Lens (Data Assets, Contracts & Lineage)'
+      };
+      showToast(`Switched view: ${lensLabels[lens] || lens}`);
+      paintC4Topology();
+    });
+  });
+
+  // --- Enterprise Atlassian Synchronization Modal (Jira & Confluence) ---
+  const modalAtlassian = document.getElementById('fdeAtlassianSyncModal');
+  const btnOpenAtlassian = document.getElementById('btnFdeAtlassianSync');
+  const btnCloseAtlassian = document.getElementById('btnFdeAtlassianModalClose');
+  const btnDoneAtlassian = document.getElementById('btnFdeAtlassianModalDone');
+
+  const openAtlassianModal = () => {
+    if (!modalAtlassian) return;
+    try {
+      const saved = localStorage.getItem('evolve_atlassian_creds');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const txtBaseUrl = document.getElementById('txtAtlassianBaseUrl') as HTMLInputElement;
+        const txtEmail = document.getElementById('txtAtlassianEmail') as HTMLInputElement;
+        const txtToken = document.getElementById('txtAtlassianToken') as HTMLInputElement;
+        const txtConfSpace = document.getElementById('txtAtlassianConfSpace') as HTMLInputElement;
+        const txtJiraProj = document.getElementById('txtAtlassianJiraProject') as HTMLInputElement;
+        const chkDc = document.getElementById('chkAtlassianIsDc') as HTMLInputElement;
+        if (txtBaseUrl && parsed.baseUrl) txtBaseUrl.value = parsed.baseUrl;
+        if (txtEmail && parsed.email) txtEmail.value = parsed.email;
+        if (txtToken && parsed.apiToken) txtToken.value = parsed.apiToken;
+        if (txtConfSpace && parsed.confluenceSpaceKey) txtConfSpace.value = parsed.confluenceSpaceKey;
+        if (txtJiraProj && parsed.jiraProjectKey) txtJiraProj.value = parsed.jiraProjectKey;
+        if (chkDc && parsed.isDataCenter) chkDc.checked = Boolean(parsed.isDataCenter);
+      }
+    } catch (_) {}
+
+    const txtTitle = document.getElementById('txtAtlassianConfTitle') as HTMLInputElement;
+    if (txtTitle && cachedC4Model?.title) {
+      txtTitle.value = `${cachedC4Model.title} — Target Architecture Specification`;
+    }
+
+    modalAtlassian.hidden = false;
+    modalAtlassian.style.display = 'flex';
+  };
+
+  const closeAtlassianModal = () => {
+    if (!modalAtlassian) return;
+    modalAtlassian.hidden = true;
+    modalAtlassian.style.display = 'none';
+  };
+
+  btnOpenAtlassian?.addEventListener('click', openAtlassianModal);
+  btnCloseAtlassian?.addEventListener('click', closeAtlassianModal);
+  btnDoneAtlassian?.addEventListener('click', closeAtlassianModal);
+  modalAtlassian?.addEventListener('click', (e) => {
+    if (e.target === modalAtlassian) closeAtlassianModal();
+  });
+
+  // Tab switching in Atlassian modal
+  document.querySelectorAll('.btn-atlassian-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+      const tab = tabBtn.getAttribute('data-tab');
+      document.querySelectorAll('.btn-atlassian-tab').forEach(b => b.classList.toggle('active', b === tabBtn));
+      const tabConf = document.getElementById('tabAtlassianConfluenceContent');
+      const tabJira = document.getElementById('tabAtlassianJiraContent');
+      const tabSec = document.getElementById('tabAtlassianSecurityContent');
+      if (tabConf) { tabConf.hidden = tab !== 'confluence'; tabConf.style.display = tab === 'confluence' ? 'block' : 'none'; }
+      if (tabJira) { tabJira.hidden = tab !== 'jira'; tabJira.style.display = tab === 'jira' ? 'block' : 'none'; }
+      if (tabSec) { tabSec.hidden = tab !== 'security'; tabSec.style.display = tab === 'security' ? 'block' : 'none'; }
+    });
+  });
+
+  const getAtlassianCredsFromUI = () => {
+    const baseUrl = (document.getElementById('txtAtlassianBaseUrl') as HTMLInputElement)?.value || '';
+    const email = (document.getElementById('txtAtlassianEmail') as HTMLInputElement)?.value || '';
+    const apiToken = (document.getElementById('txtAtlassianToken') as HTMLInputElement)?.value || '';
+    const confluenceSpaceKey = (document.getElementById('txtAtlassianConfSpace') as HTMLInputElement)?.value || '';
+    const jiraProjectKey = (document.getElementById('txtAtlassianJiraProject') as HTMLInputElement)?.value || '';
+    const isDataCenter = (document.getElementById('chkAtlassianIsDc') as HTMLInputElement)?.checked || false;
+
+    const creds = { baseUrl, email, apiToken, confluenceSpaceKey, jiraProjectKey, isDataCenter };
+    try {
+      localStorage.setItem('evolve_atlassian_creds', JSON.stringify(creds));
+    } catch (_) {}
+    return creds;
+  };
+
+  // Test Connection & Permissions
+  document.getElementById('btnAtlassianTestConnection')?.addEventListener('click', async () => {
+    const creds = getAtlassianCredsFromUI();
+    const banner = document.getElementById('atlassianDiagBanner');
+    if (banner) {
+      banner.hidden = false;
+      banner.style.display = 'block';
+      banner.style.background = 'rgba(56, 189, 248, 0.15)';
+      banner.style.border = '1px solid #38bdf8';
+      banner.style.color = '#38bdf8';
+      banner.textContent = '⏳ Testing connection to Confluence & Jira...';
+    }
+
+    try {
+      const res = await (api as any)?.fde?.atlassianTestConnection?.(creds);
+      if (banner) {
+        if (res?.success) {
+          banner.style.background = 'rgba(16, 185, 129, 0.15)';
+          banner.style.border = '1px solid #10b981';
+          banner.style.color = '#34d399';
+          banner.innerHTML = `<strong>✅ Connected Successfully!</strong><br/>Authenticated as: <code>${res.userDisplayName || creds.email}</code> &bull; Confluence Space & Jira Project permissions verified.`;
+          showToast('✅ Atlassian connection verified!');
+        } else {
+          banner.style.background = 'rgba(239, 68, 68, 0.15)';
+          banner.style.border = '1px solid #ef4444';
+          banner.style.color = '#f87171';
+          const diag = res?.securityDiagnosis;
+          banner.innerHTML = `<strong>${diag?.headline || 'Connection Failed'}</strong><br/>${diag?.recommendation || res?.error || 'Please check URL and token.'}`;
+          showToast('⚠️ Atlassian connection issue detected.');
+        }
+      }
+    } catch (err: any) {
+      if (banner) {
+        banner.style.background = 'rgba(239, 68, 68, 0.15)';
+        banner.style.border = '1px solid #ef4444';
+        banner.style.color = '#f87171';
+        banner.textContent = `Error: ${err?.message || 'Connection failed'}`;
+      }
+    }
+  });
+
+  // Publish to Confluence (Live REST API)
+  document.getElementById('btnAtlassianPublishConfLive')?.addEventListener('click', async () => {
+    if (!cachedC4Model) { showToast('No architecture model loaded.'); return; }
+    const creds = getAtlassianCredsFromUI();
+    const pageTitle = (document.getElementById('txtAtlassianConfTitle') as HTMLInputElement)?.value || cachedC4Model.title;
+
+    showToast('⏳ Publishing Architecture Blueprint to Confluence...');
+    try {
+      const res = await (api as any)?.fde?.atlassianPublishConfluence?.({ creds, model: cachedC4Model, options: { pageTitle } });
+      if (res?.success) {
+        showToast(`✅ Published to Confluence: "${pageTitle}"!`);
+        if (res.pageUrl) {
+          (window as any).open?.(res.pageUrl, '_blank');
+        }
+      } else {
+        const diag = res?.securityDiagnosis;
+        showToast(`⚠️ Publish failed: ${diag?.headline || res?.error}`);
+        const banner = document.getElementById('atlassianDiagBanner');
+        if (banner && diag) {
+          banner.hidden = false;
+          banner.style.display = 'block';
+          banner.style.background = 'rgba(239, 68, 68, 0.15)';
+          banner.style.border = '1px solid #ef4444';
+          banner.style.color = '#f87171';
+          banner.innerHTML = `<strong>${diag.headline}</strong><br/>${diag.recommendation}`;
+        }
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message}`);
+    }
+  });
+
+  // Download Confluence Storage Format (.xhtml)
+  document.getElementById('btnAtlassianExportConfXhtml')?.addEventListener('click', async () => {
+    if (!cachedC4Model) { showToast('No architecture model loaded.'); return; }
+    const creds = getAtlassianCredsFromUI();
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine?.toConfluenceStorageFormat) { showToast('C4 engine format generator unavailable.'); return; }
+
+    const pageTitle = (document.getElementById('txtAtlassianConfTitle') as HTMLInputElement)?.value || cachedC4Model.title;
+    const xhtml = c4Engine.toConfluenceStorageFormat(cachedC4Model, { spaceKey: creds.confluenceSpaceKey, pageTitle });
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_confluence_blueprint.xhtml`;
+
+    try {
+      const res = await (api as any)?.fde?.atlassianSaveFile?.({ filename, content: xhtml, fileType: 'xhtml' });
+      if (res?.success) {
+        showToast(`📄 Saved Confluence Storage Format to: ${res.filePath}`);
+      } else {
+        downloadSvg(xhtml, filename);
+        showToast('📄 Downloaded Confluence Storage Format XHTML!');
+      }
+    } catch (_) {
+      downloadSvg(xhtml, filename);
+    }
+  });
+
+  // Download Confluence Markdown (.md)
+  document.getElementById('btnAtlassianExportConfMd')?.addEventListener('click', async () => {
+    if (!cachedC4Model) { showToast('No architecture model loaded.'); return; }
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_confluence_spec.md`;
+    const mmdSeq = c4Engine?.toMermaidSequence ? c4Engine.toMermaidSequence(cachedC4Model) : '';
+    const puml = c4Engine?.toC4PlantUml ? c4Engine.toC4PlantUml(cachedC4Model) : '';
+
+    let md = `# ${cachedC4Model.title} — Target Architecture Specification\n\n`;
+    md += `> ${cachedC4Model.scenarioDescription || 'Enterprise Architecture Specification'}\n\n`;
+    md += `## 1. System Execution Sequence Flow\n\`\`\`mermaid\n${mmdSeq}\n\`\`\`\n\n`;
+    md += `## 2. Standard C4-PlantUML Model\n\`\`\`plantuml\n${puml}\n\`\`\`\n\n`;
+    md += `## 3. Systems Catalog\n| System | Role | Boundary | Technologies |\n|---|---|---|---|\n`;
+    for (const s of cachedC4Model.level1?.systems || []) {
+      md += `| **${s.label}** | ${s.role} | ${s.zone} | ${s.technologies?.join(', ')} |\n`;
+    }
+
+    try {
+      const res = await (api as any)?.fde?.atlassianSaveFile?.({ filename, content: md, fileType: 'md' });
+      if (res?.success) showToast(`📝 Saved Confluence Markdown to: ${res.filePath}`);
+      else downloadSvg(md, filename);
+    } catch (_) {
+      downloadSvg(md, filename);
+    }
+  });
+
+  // Copy Confluence Markup
+  document.getElementById('btnAtlassianCopyConfMarkup')?.addEventListener('click', async () => {
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    const xhtml = c4Engine?.toConfluenceStorageFormat ? c4Engine.toConfluenceStorageFormat(cachedC4Model) : '';
+    await navigator.clipboard.writeText(xhtml);
+    showToast('📋 Copied Confluence Storage Format XHTML to clipboard!');
+  });
+
+  // Sync to Jira (Live REST API)
+  document.getElementById('btnAtlassianExportJiraLive')?.addEventListener('click', async () => {
+    if (!cachedC4Model) { showToast('No architecture model loaded.'); return; }
+    const creds = getAtlassianCredsFromUI();
+    showToast('⏳ Exporting Architecture Epics & Stories to Jira...');
+    try {
+      const res = await (api as any)?.fde?.atlassianExportJira?.({ creds, model: cachedC4Model });
+      if (res?.success) {
+        showToast(`✅ Created ${res.issuesCreated} Jira issues (Epic: ${res.epicKey || 'Created'})!`);
+      } else {
+        const diag = res?.securityDiagnosis;
+        showToast(`⚠️ Jira sync failed: ${diag?.headline || res?.error}`);
+        const banner = document.getElementById('atlassianDiagBanner');
+        if (banner && diag) {
+          banner.hidden = false;
+          banner.style.display = 'block';
+          banner.style.background = 'rgba(239, 68, 68, 0.15)';
+          banner.style.border = '1px solid #ef4444';
+          banner.style.color = '#f87171';
+          banner.innerHTML = `<strong>${diag.headline}</strong><br/>${diag.recommendation}`;
+        }
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message}`);
+    }
+  });
+
+  // Download Jira Bulk Import CSV (.csv)
+  document.getElementById('btnAtlassianExportJiraCsv')?.addEventListener('click', async () => {
+    if (!cachedC4Model) { showToast('No architecture model loaded.'); return; }
+    const creds = getAtlassianCredsFromUI();
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine?.toJiraBulkCsv) { showToast('Jira CSV generator unavailable.'); return; }
+
+    const csv = c4Engine.toJiraBulkCsv(cachedC4Model, { projectKey: creds.jiraProjectKey });
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_jira_bulk_import.csv`;
+
+    try {
+      const res = await (api as any)?.fde?.atlassianSaveFile?.({ filename, content: csv, fileType: 'csv' });
+      if (res?.success) {
+        showToast(`📊 Saved Jira Import CSV to: ${res.filePath}`);
+      } else {
+        downloadSvg(csv, filename);
+        showToast('📊 Downloaded Jira Bulk Import CSV!');
+      }
+    } catch (_) {
+      downloadSvg(csv, filename);
+    }
+  });
+
+  // Copy Jira Wiki Markup
+  document.getElementById('btnAtlassianCopyJiraWiki')?.addEventListener('click', async () => {
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    const wiki = c4Engine?.toJiraWikiMarkup ? c4Engine.toJiraWikiMarkup(cachedC4Model) : '';
+    await navigator.clipboard.writeText(wiki);
+    showToast('📋 Copied Jira Wiki Markup to clipboard!');
+  });
+
+  // Import from Confluence
+  document.getElementById('btnAtlassianDoImportConf')?.addEventListener('click', async () => {
+    const creds = getAtlassianCredsFromUI();
+    const pageIdOrUrl = (document.getElementById('txtAtlassianImportConfPage') as HTMLInputElement)?.value || '';
+    if (!pageIdOrUrl.trim()) { showToast('Enter a Confluence Page URL or Page ID.'); return; }
+
+    showToast('⏳ Fetching specification from Confluence...');
+    try {
+      const res = await (api as any)?.fde?.atlassianImportConfluence?.({ creds, pageIdOrUrl });
+      if (res?.success) {
+        if (res.extractedMermaid && topologyContainer) {
+          topologyContainer.value = res.extractedMermaid;
+          showToast(`✅ Imported Mermaid sequence from Confluence: "${res.title}"!`);
+        } else if (res.rawSpec && topologyContainer) {
+          const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+          if (c4Engine?.synthesizeModel) {
+            cachedC4Model = c4Engine.synthesizeModel(res.rawSpec, res.title);
+            if (c4Engine.toMermaidSequence) {
+              topologyContainer.value = c4Engine.toMermaidSequence(cachedC4Model);
+            }
+          }
+          showToast(`✅ Synthesized architecture from Confluence: "${res.title}"!`);
+        }
+        closeAtlassianModal();
+        paintC4Topology();
+      } else {
+        const diag = res?.securityDiagnosis;
+        showToast(`⚠️ Confluence import failed: ${diag?.headline || res?.error}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message}`);
+    }
   });
 
   // Pillar 4: C4 Export Dropdown & Standalone Outputs

@@ -5,6 +5,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { OfflinePatchApplyResult, UpdateCheckResult } from '../shared/desktopTypes';
 import { getAppVersion } from '../shared/appVersion';
 
@@ -245,43 +246,136 @@ export class DesktopUpdater {
       };
     }
 
+    const tempExtractDir = path.join(os.tmpdir(), `evolve-patch-staging-${Date.now()}`);
     try {
-      const stat = fs.statSync(patchZipPath);
-      let templatesCount = 12;
-      let patchVersionTag = this._currentVersion + '-patch-' + Math.round(stat.mtimeMs);
+      fs.mkdirSync(tempExtractDir, { recursive: true });
 
-      // Extract template overrides if archive
+      // 1. Calculate archive SHA-256
+      const archiveBytes = fs.readFileSync(patchZipPath);
+      const archiveHash = crypto.createHash('sha256').update(archiveBytes).digest('hex');
+
+      // 2. Extract into quarantine temp directory
+      const { execSync } = require('child_process');
       try {
-        if (!fs.existsSync(this._templatesDir)) {
-          fs.mkdirSync(this._templatesDir, { recursive: true });
-        }
-        const { execSync } = require('child_process');
-        execSync(`tar -xf "${patchZipPath}" -C "${this._templatesDir}"`, { stdio: 'ignore' });
+        execSync(`tar -xf "${patchZipPath}" -C "${tempExtractDir}"`, { stdio: 'pipe' });
+      } catch (tarErr: any) {
+        return {
+          success: false,
+          patchedVersion: this._currentVersion,
+          templatesUpdated: 0,
+          enginesReloaded: [],
+          error: `Archive extraction failed: ${tarErr.message || String(tarErr)}`
+        };
+      }
 
-        const manifestPath = path.join(this._templatesDir, 'manifest.json');
-        if (fs.existsSync(manifestPath)) {
-          try {
-            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-            if (manifest.patchVersion) patchVersionTag = manifest.patchVersion;
-            if (Array.isArray(manifest.templatesUpdated)) templatesCount = manifest.templatesUpdated.length;
-          } catch {}
-        }
-      } catch {}
+      // 3. Verify manifest.json
+      const manifestPath = path.join(tempExtractDir, 'manifest.json');
+      if (!fs.existsSync(manifestPath)) {
+        return {
+          success: false,
+          patchedVersion: this._currentVersion,
+          templatesUpdated: 0,
+          enginesReloaded: [],
+          error: 'Corrupt patch archive: manifest.json missing from root of archive.'
+        };
+      }
 
-      const reloadedEngines = [
-        'SqlTranspiler',
-        'PiiSanitizer',
-        'ReverseEtlGenerator',
-        'RlsPolicyGenerator',
-        'SyntheticDataGenerator',
-        'MockServerGenerator'
-      ];
+      let manifest: any;
+      try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      } catch (parseErr: any) {
+        return {
+          success: false,
+          patchedVersion: this._currentVersion,
+          templatesUpdated: 0,
+          enginesReloaded: [],
+          error: `Invalid manifest.json: ${parseErr.message}`
+        };
+      }
+
+      // 4. Validate base version compatibility
+      if (manifest.baseVersion && typeof manifest.baseVersion === 'string') {
+        const majorRunning = this._currentVersion.split('.')[0];
+        const majorBase = manifest.baseVersion.split('.')[0];
+        if (majorRunning !== majorBase) {
+          return {
+            success: false,
+            patchedVersion: this._currentVersion,
+            templatesUpdated: 0,
+            enginesReloaded: [],
+            error: `Incompatible patch: target version ${manifest.baseVersion} does not match active version ${this._currentVersion}.`
+          };
+        }
+      }
+
+      // 5. Verify file checksums and prevent path traversal
+      const checksums = manifest.checksums || {};
+      const updatedFiles: string[] = Array.isArray(manifest.templatesUpdated) ? manifest.templatesUpdated : [];
+
+      for (const relFile of updatedFiles) {
+        // Prevent path traversal
+        const normalizedRel = path.normalize(relFile).replace(/^(\.\.[\/\\])+/, '');
+        if (relFile.includes('..') || path.isAbsolute(relFile)) {
+          return {
+            success: false,
+            patchedVersion: this._currentVersion,
+            templatesUpdated: 0,
+            enginesReloaded: [],
+            error: `Security violation: Path traversal detected in archive entry "${relFile}".`
+          };
+        }
+
+        const extractedFile = path.join(tempExtractDir, normalizedRel);
+        if (!fs.existsSync(extractedFile)) {
+          return {
+            success: false,
+            patchedVersion: this._currentVersion,
+            templatesUpdated: 0,
+            enginesReloaded: [],
+            error: `Missing file in patch archive: "${relFile}" declared in manifest but not found.`
+          };
+        }
+
+        if (checksums[relFile]) {
+          const fileBytes = fs.readFileSync(extractedFile);
+          const computedHash = crypto.createHash('sha256').update(fileBytes).digest('hex');
+          if (computedHash !== checksums[relFile]) {
+            return {
+              success: false,
+              patchedVersion: this._currentVersion,
+              templatesUpdated: 0,
+              enginesReloaded: [],
+              error: `Integrity check failed: Checksum mismatch for "${relFile}". Archive may be corrupt or tampered.`
+            };
+          }
+        }
+      }
+
+      // 6. Safe atomic installation into templatesDir
+      if (!fs.existsSync(this._templatesDir)) {
+        fs.mkdirSync(this._templatesDir, { recursive: true });
+      }
+
+      let copiedCount = 0;
+      for (const relFile of updatedFiles) {
+        const src = path.join(tempExtractDir, relFile);
+        const dest = path.join(this._templatesDir, relFile);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(src, dest);
+        copiedCount++;
+      }
+
+      // Also copy manifest
+      fs.copyFileSync(manifestPath, path.join(this._templatesDir, 'manifest.json'));
+
+      const enginesReloaded = Array.isArray(manifest.enginesReloaded) ? manifest.enginesReloaded : [];
+      const patchVersionTag = manifest.patchVersion || `${this._currentVersion}-patch-${archiveHash.slice(0, 8)}`;
 
       return {
         success: true,
         patchedVersion: patchVersionTag,
-        templatesUpdated: templatesCount,
-        enginesReloaded: reloadedEngines
+        templatesUpdated: copiedCount,
+        enginesReloaded
       };
     } catch (err: any) {
       return {
@@ -289,8 +383,15 @@ export class DesktopUpdater {
         patchedVersion: this._currentVersion,
         templatesUpdated: 0,
         enginesReloaded: [],
-        error: err.message || String(err)
+        error: `Patch apply error: ${err.message || String(err)}`
       };
+    } finally {
+      // Clean up quarantine temp directory
+      try {
+        if (fs.existsSync(tempExtractDir)) {
+          fs.rmSync(tempExtractDir, { recursive: true, force: true });
+        }
+      } catch {}
     }
   }
 }

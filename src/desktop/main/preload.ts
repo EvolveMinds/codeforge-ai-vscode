@@ -280,7 +280,13 @@ const desktopApi = {
     logHitlAction: (req: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.LOG_HITL_ACTION, req),
     getHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.GET_HITL_LOG),
     clearHitlLog: () => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CLEAR_HITL_LOG),
-    chatHelpGuide: (req: { query: string; history?: any[] }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CHAT_HELP_GUIDE, req)
+    chatHelpGuide: (req: { query: string; history?: any[] }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.CHAT_HELP_GUIDE, req),
+    atlassianTestConnection: (creds: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ATLASSIAN_TEST_CONNECTION, creds),
+    atlassianPublishConfluence: (req: { creds: any; model: any; options?: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ATLASSIAN_PUBLISH_CONFLUENCE, req),
+    atlassianExportJira: (req: { creds: any; model: any }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ATLASSIAN_EXPORT_JIRA, req),
+    atlassianImportConfluence: (req: { creds: any; pageIdOrUrl: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ATLASSIAN_IMPORT_CONFLUENCE, req),
+    atlassianImportJira: (req: { creds: any; jqlOrKey: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ATLASSIAN_IMPORT_JIRA, req),
+    atlassianSaveFile: (req: { filename: string; content: string; fileType: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.FDE.ATLASSIAN_SAVE_FILE, req)
   },
 
   // --- DISPLAY SCALE & ZOOM APIS ---

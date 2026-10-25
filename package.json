@@ -1534,6 +1534,26 @@
         "category": "Evolve AI"
       },
       {
+        "command": "aiForge.fde.startLoop",
+        "title": "FDE: Start Iterative Quality Loop (Risk-Scaled Minima)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.runScrub",
+        "title": "FDE: Run Anti-Slop Hygiene Scanner (Deslop)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.conveneCouncil",
+        "title": "FDE: Convene 3-Model Architecture Council (ADR Debate)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.fde.installQualityLoopHook",
+        "title": "FDE: Install Quality Loop Pre-Commit Gate Hook",
+        "category": "Evolve AI"
+      },
+      {
         "command": "evolve.pythonStudio.runInSandbox",
         "title": "Python Studio: Run in Sandbox Terminal",
         "category": "Evolve AI"
@@ -2340,7 +2360,12 @@
     "test:fde": "mocha --ui tdd out/test/suite/fde/*.test.js",
     "test:phase3": "mocha --ui tdd out/test/suite/fde/*.test.js out/test/suite/mcp/*.test.js",
     "security:audit": "node scripts/security-audit.js",
-    "verify:honest": "node scripts/verify-honest-mode.js"
+    "verify:honest": "node scripts/verify-honest-mode.js",
+    "check:loop": "node scripts/check-quality-loop.js",
+    "scrub": "node bin/evolve.js scrub"
+  },
+  "bin": {
+    "evolve": "bin/evolve.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.0",

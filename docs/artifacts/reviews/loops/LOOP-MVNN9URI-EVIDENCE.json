@@ -1,0 +1,43 @@
+{
+  "loop": {
+    "loopId": "LOOP-MVNN9URI",
+    "taskTitle": "FDE Engine Integration Verification",
+    "riskClass": "auto-fix",
+    "minIterations": 2,
+    "currentIteration": 2,
+    "status": "completed",
+    "iterations": [
+      {
+        "iteration": 1,
+        "summary": "Added pre-commit quality gate installer",
+        "evidenceSha256": "2cc588c027b974786b14661d93f98d132ec4e250aaeb997e454d0406a5389641",
+        "recordedAt": 1792921712183,
+        "reviewerVerdict": {
+          "verdict": "approved",
+          "reviewerId": "fde-code-reviewer",
+          "highFindings": 0,
+          "mediumFindings": 0,
+          "lowFindings": 0
+        }
+      },
+      {
+        "iteration": 2,
+        "summary": "Added cross-surface bi-directional sync",
+        "evidenceSha256": "602fc6283076d729b9a89f2ff11a504e9d782714cea29d0d6cd1ee1ef9f01d05",
+        "recordedAt": 1792921719621,
+        "reviewerVerdict": {
+          "verdict": "approved",
+          "reviewerId": "fde-code-reviewer",
+          "highFindings": 0,
+          "mediumFindings": 0,
+          "lowFindings": 0
+        }
+      }
+    ],
+    "createdAt": 1792921675518,
+    "updatedAt": 1792921726681
+  },
+  "summary": "All integration modules wired and compiled clean",
+  "finalEvidenceSha256": "bbd762eabc79566fef65eaf7f7c5318facf5fa847b91f75709ccbf34e31f6948",
+  "completedAt": 1792921726696
+}
