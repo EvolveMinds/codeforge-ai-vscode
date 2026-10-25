@@ -1684,7 +1684,7 @@ function switchActivityTab(tabName: string, api?: any): void {
     return;
   }
   if (tabName === 'editor') {
-    switchActivityTab('python', api);
+    switchActivityTab('polyglot', api);
     return;
   }
 
@@ -50964,6 +50964,14 @@ function setupModals(api: any): void {
       targetTab: 'mainframe',
     },
     {
+      id: 'polyglotStudio',
+      name: 'Polyglot AI Coding Studio & Delivery Cockpit',
+      icon: '💻',
+      category: 'Engineering Cockpit',
+      description: 'Multi-language code copilot (TypeScript, Go, Rust, SQL, Python), delivery pipeline breadcrumbs, live wire probes, and payload harness.',
+      targetTab: 'polyglot',
+    },
+    {
       id: 'pythonStudio',
       name: 'Python AI Studio & Neural Debugger',
       icon: '🐍',
@@ -51081,6 +51089,9 @@ function setupModals(api: any): void {
     }
 
     // Dynamic Activity Bar Visibility ("Show Up or Go Off")
+    const polyBtn = document.getElementById('actBtnPolyglotStudio');
+    if (polyBtn) polyBtn.style.display = isDesktopPluginEnabled('polyglotStudio') ? 'flex' : 'none';
+
     const pyBtn = document.getElementById('actBtnPythonStudio');
     if (pyBtn) pyBtn.style.display = isDesktopPluginEnabled('pythonStudio') ? 'flex' : 'none';
 
@@ -51103,6 +51114,7 @@ function setupModals(api: any): void {
     if (hwBtn) hwBtn.style.display = isDesktopPluginEnabled('hardware') ? 'flex' : 'none';
 
     // If currently on a disabled tab, fallback to 'delivery'
+    if (currentActiveTab === 'polyglot' && !isDesktopPluginEnabled('polyglotStudio')) switchActivityTab('delivery', api);
     if (currentActiveTab === 'python' && !isDesktopPluginEnabled('pythonStudio')) switchActivityTab('delivery', api);
     if (currentActiveTab === 'data' && !isDesktopPluginEnabled('dataAnalysis')) switchActivityTab('delivery', api);
     if (currentActiveTab === 'converter' && !isDesktopPluginEnabled('codeConvert')) switchActivityTab('delivery', api);
@@ -52112,12 +52124,12 @@ function setupModals(api: any): void {
     // Code undo history stack for NLP transformations
     const codeHistory: string[] = [];
 
-    // --- 1. SUB-TAB SWITCHING (6 POLYGLOT TABS) ---
-    const subTabIds = ['Code', 'Connect', 'Data', 'Sandbox', 'Tensor', 'Cloud'];
-    subTabIds.forEach(id => {
+    // --- 1. SUB-TAB SWITCHING (POLYGLOT & PYTHON WORKSPACES) ---
+    const polySubTabs = ['Code', 'Connect', 'Data', 'Cloud'];
+    polySubTabs.forEach(id => {
       const btn = document.getElementById(`btnPySubTab${id}`);
       btn?.addEventListener('click', () => {
-        subTabIds.forEach(other => {
+        polySubTabs.forEach(other => {
           const otherBtn = document.getElementById(`btnPySubTab${other}`);
           const otherPane = document.getElementById(`subPanePy${other}`);
           if (otherBtn && otherPane) {
@@ -52136,11 +52148,38 @@ function setupModals(api: any): void {
             }
           }
         });
-
-        if (id === 'Tensor') renderVisualTensorFlow();
-        if (id === 'Sandbox') probeAndSyncPythonEnvironment();
         if (id === 'Cloud') {
           refreshPythonGitStatus();
+        }
+      });
+    });
+
+    const pySubTabs = ['Tensor', 'Sandbox', 'Env'];
+    pySubTabs.forEach(id => {
+      const btn = document.getElementById(`btnPySubTab${id}`);
+      btn?.addEventListener('click', () => {
+        pySubTabs.forEach(other => {
+          const otherBtn = document.getElementById(`btnPySubTab${other}`);
+          const otherPane = document.getElementById(`subPanePy${other}`);
+          if (otherBtn && otherPane) {
+            const isMatch = other === id;
+            otherPane.style.display = isMatch ? 'block' : 'none';
+            if (isMatch) {
+              otherBtn.className = 'btn-quick active';
+              otherBtn.style.background = 'var(--accent)';
+              otherBtn.style.color = '#1e1e1e';
+              otherBtn.style.border = 'none';
+            } else {
+              otherBtn.className = 'btn-quick';
+              otherBtn.style.background = 'rgba(255, 255, 255, 0.05)';
+              otherBtn.style.color = 'var(--text-secondary)';
+              otherBtn.style.border = '1px solid var(--border)';
+            }
+          }
+        });
+        if (id === 'Tensor') renderVisualTensorFlow();
+        if (id === 'Sandbox') probeAndSyncPythonEnvironment();
+        if (id === 'Env') {
           refreshPythonEnvironmentMatrix();
         }
       });
@@ -52151,7 +52190,25 @@ function setupModals(api: any): void {
       document.getElementById('btnPySubTabCloud')?.click();
     });
     document.getElementById('btnPySubTabDeps')?.addEventListener('click', () => {
-      document.getElementById('btnPySubTabCloud')?.click();
+      document.getElementById('btnPySubTabEnv')?.click();
+    });
+
+    // Bridge navigation between Polyglot Studio and Python Studio
+    document.getElementById('btnPolySwitchToPyStudio')?.addEventListener('click', () => {
+      switchActivityTab('python', desktopApi);
+      const tensorBtn = document.getElementById('btnPySubTabTensor');
+      if (tensorBtn) tensorBtn.click();
+    });
+    document.getElementById('btnPySwitchToPolyglot')?.addEventListener('click', () => {
+      switchActivityTab('polyglot', desktopApi);
+      const codeBtn = document.getElementById('btnPySubTabCode');
+      if (codeBtn) codeBtn.click();
+    });
+    document.getElementById('btnDesktopPolySelfTest')?.addEventListener('click', () => {
+      document.getElementById('btnDesktopPySelfTest')?.click();
+    });
+    document.getElementById('btnDesktopPolyAirtight')?.addEventListener('click', () => {
+      document.getElementById('btnDesktopPyAirtight')?.click();
     });
 
     // --- PROPOSED CLIENT DELIVERY PIPELINE BREADCRUMB BAR ---
@@ -56521,31 +56578,20 @@ if __name__ == '__main__':
       }
     });
 
-    // Expose global openInPythonStudio hook for opening code in Python AI Studio & Neural Debugger
+    // Expose global openInPythonStudio hook for opening code in Python AI Studio or Polyglot AI Coding Studio
     (window as any).openInPythonStudio = async (filePath: string, fileData?: any) => {
-      switchActivityTab('python', desktopApi);
+      const ext = (filePath.split('.').pop() || '').toLowerCase();
+      const isPython = ['py', 'pyw', 'ipynb'].includes(ext);
+      const targetTab = isPython ? 'python' : 'polyglot';
+      switchActivityTab(targetTab, desktopApi);
 
-      // Ensure Sub-Tab 1: Code & NLP Copilot is selected
-      const subTabIds = ['Code', 'Sandbox', 'Tensor', 'Deps', 'Git', 'Cloud'];
-      subTabIds.forEach(other => {
-        const otherBtn = document.getElementById(`btnPySubTab${other}`);
-        const otherPane = document.getElementById(`subPanePy${other}`);
-        if (otherBtn && otherPane) {
-          const isMatch = other === 'Code';
-          otherPane.style.display = isMatch ? 'block' : 'none';
-          if (isMatch) {
-            otherBtn.className = 'btn-quick active';
-            otherBtn.style.background = 'var(--accent)';
-            otherBtn.style.color = '#1e1e1e';
-            otherBtn.style.border = 'none';
-          } else {
-            otherBtn.className = 'btn-quick';
-            otherBtn.style.background = 'rgba(255, 255, 255, 0.05)';
-            otherBtn.style.color = 'var(--text-secondary)';
-            otherBtn.style.border = '1px solid var(--border)';
-          }
-        }
-      });
+      if (targetTab === 'polyglot') {
+        const codeBtn = document.getElementById('btnPySubTabCode');
+        if (codeBtn) codeBtn.click();
+      } else {
+        const tensorBtn = document.getElementById('btnPySubTabTensor');
+        if (tensorBtn) tensorBtn.click();
+      }
 
       let content = '';
       if (fileData !== undefined) {

@@ -975,7 +975,8 @@
       <!-- Top Primary Studio Tools (up to Chat) -->
       <button class="activity-btn active" data-tab="delivery" id="actBtnDelivery" title="Forward-Deployed Engineers Delivery Studio (Phases 1-5)" aria-label="Forward-Deployed Engineers Delivery Studio (Phases 1-5)">🚀</button>
       <button class="activity-btn" data-tab="editor" id="actBtnStudioEditor" title="Studio Code &amp; Document Editor (Full Middle Studio)" aria-label="Studio Code &amp; Document Editor" style="display: none;">📝</button>
-      <button class="activity-btn" data-tab="python" id="actBtnPythonStudio" title="AI Coding Studio &amp; Neural Debugger (Polyglot Engineering Cockpit)" aria-label="AI Coding Studio &amp; Neural Debugger">💻</button>
+      <button class="activity-btn" data-tab="polyglot" id="actBtnPolyglotStudio" title="Polyglot AI Coding Studio &amp; Engineering Cockpit (TypeScript, Go, Rust, SQL, Python)" aria-label="Polyglot AI Coding Studio">💻</button>
+      <button class="activity-btn" data-tab="python" id="actBtnPythonStudio" title="Python AI Studio &amp; Neural Debugger (Python 3.12, PyTorch Tensors, AST, uv venvs)" aria-label="Python AI Studio &amp; Neural Debugger">🐍</button>
       <button class="activity-btn" data-tab="data" id="actBtnDataStudio" title="Data Analysis &amp; Reporting Studio" aria-label="Data Analysis &amp; Reporting Studio">📊</button>
       <button class="activity-btn" data-tab="converter" id="actBtnConverterStudio" title="Code Converter STUDIO (26 Languages)" aria-label="Code Converter STUDIO (26 Languages)">🔀</button>
       <button class="activity-btn" data-tab="mainframe" id="actBtnMainframeStudio" title="IBM Mainframe (z/OS) &amp; DB2 Modernization Studio" aria-label="IBM Mainframe (z/OS) &amp; DB2 Modernization Studio">🖥️</button>
@@ -8628,7 +8629,9 @@ WHERE order_date >= SYSDATE - 30;</textarea>
         <!-- =================================================================== -->
         <!-- MODE: PYTHON AI STUDIO & NEURAL DEBUGGER -->
         <!-- =================================================================== -->
-        <section id="pane-python" class="phase-pane" style="display: none;">
+        <!-- POLYGLOT AI CODING STUDIO & CLIENT DELIVERY COCKPIT (TS, GO, RUST, SQL, PYTHON) -->
+        <!-- =================================================================== -->
+        <section id="pane-polyglot" class="phase-pane" style="display: none;">
           <style>
             .py-editor-tab {
               display: inline-flex;
@@ -8682,16 +8685,17 @@ WHERE order_date >= SYSDATE - 30;</textarea>
             <div>
               <div style="display: flex; align-items: center; gap: 8px;">
                 <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
-                  💻 AI Coding Studio &amp; Neural Debugger <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">POLYGLOT COCKPIT</span>
+                  💻 Polyglot AI Coding Studio <span class="brand-pill" style="background: rgba(78, 201, 176, 0.15); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.4);">POLYGLOT COCKPIT</span>
                 </h1>
               </div>
               <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
-                Direct Workspace &amp; Git Repository Integration &bull; Polyglot Tech Stack (Python, TS/React, Go, Rust, SQL) &bull; Client Delivery Workflow &bull; Live Wire Probes &amp; Data Harness
+                Direct Workspace &amp; Git Repository Integration &bull; Polyglot Tech Stack (TypeScript/React, Go, Rust, SQL, Python, JSON) &bull; Client Delivery Workflow &bull; Live Wire Probes &amp; Data Harness
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <button class="btn btn-secondary" id="btnDesktopPySelfTest" style="font-size: 11.5px; padding: 5px 12px;">🧪 Run Smoke Self-Test</button>
-              <button class="btn btn-secondary" id="btnDesktopPyAirtight" style="font-size: 11.5px; padding: 5px 12px;">📦 Export Airtight Bundle</button>
+              <button class="btn btn-secondary" id="btnPolySwitchToPyStudio" style="font-size: 11.5px; padding: 5px 12px; background: rgba(99, 102, 241, 0.18); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.45); font-weight: 600;">🐍 Open Python AI Studio &amp; Neural Debugger ➔</button>
+              <button class="btn btn-secondary" id="btnDesktopPolySelfTest" style="font-size: 11.5px; padding: 5px 12px;">🧪 Run Smoke Self-Test</button>
+              <button class="btn btn-secondary" id="btnDesktopPolyAirtight" style="font-size: 11.5px; padding: 5px 12px;">📦 Export Airtight Bundle</button>
             </div>
           </div>
 
@@ -8729,7 +8733,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
             </div>
           </div>
 
-          <!-- Studio Navigation Tabs (6 Polyglot Tabs) -->
+          <!-- Studio Navigation Tabs (4 Polyglot Tabs) -->
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; gap: 8px;">
             <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
               <button class="btn-quick active" id="btnPySubTabCode" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: var(--accent); color: #1e1e1e; border: none; cursor: pointer;">
@@ -8741,14 +8745,8 @@ WHERE order_date >= SYSDATE - 30;</textarea>
               <button class="btn-quick" id="btnPySubTabData" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid #10b981; cursor: pointer;">
                 📥 3 · Data Workbench &amp; Payload Harness
               </button>
-              <button class="btn-quick" id="btnPySubTabSandbox" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; cursor: pointer;">
-                ▶️ 4 · Multi-Runtime Sandbox &amp; REPL
-              </button>
-              <button class="btn-quick" id="btnPySubTabTensor" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid #6366f1; cursor: pointer;">
-                📊 5 · Neural, AST &amp; Flow Debugger
-              </button>
               <button class="btn-quick" id="btnPySubTabCloud" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid #22c55e; cursor: pointer;">
-                🌿 6 · Git Delivery &amp; Multi-Cloud Deploy
+                🌿 4 · Git Delivery &amp; Multi-Cloud Deploy
               </button>
             </div>
           </div>
@@ -9347,7 +9345,196 @@ WHERE order_date >= SYSDATE - 30;</textarea>
           </div>
 
           <!-- ================================================================= -->
-          <!-- SUB-TAB 4: LIVE TESTING & REPL SANDBOX -->
+          <!-- SUB-TAB 4: GIT DELIVERY & MULTI-CLOUD DEPLOY -->
+          <!-- ================================================================= -->
+          <div id="subPanePyCloud" style="display: none;">
+            <!-- 1. Git Pre-Commit Hygiene & 1-Click Commit Gate -->
+            <div class="content-card" style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <h3 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                    <span>🛡️</span> Git Delivery Gate &amp; Pre-Commit Hygiene
+                  </h3>
+                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                    Protects the repository from accidental commits of large model weights (>50MB), unredacted API secrets, and isolated virtual environment artifacts.
+                  </div>
+                </div>
+                <button class="btn btn-primary" id="btnPyRunGitHygiene" style="font-size: 11.5px; padding: 4px 14px;">🛡️ Run Hygiene Scan</button>
+              </div>
+
+              <div id="pyGitHygieneResults" style="display: block; background: #0b0f19; padding: 14px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 14px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
+                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
+                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ Model Weights Gate</div>
+                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">No unversioned .pt / .safetensors &gt; 50MB</div>
+                  </div>
+                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
+                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ Virtual Env Gate</div>
+                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">.venv and __pycache__ gitignored</div>
+                  </div>
+                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
+                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ Secret Leak Gate</div>
+                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">No unencrypted .env credentials</div>
+                  </div>
+                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
+                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ AST Syntax Gate</div>
+                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Clean AST parse across repository</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 1-Click Commit Box -->
+              <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 6px; border: 1px solid #1e293b;">
+                <h4 style="margin: 0 0 8px 0; font-size: 12.5px; font-weight: 700; color: #fff;">🚀 1-Click Conventional Commit &amp; Push</h4>
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Modified Deliverables in Repo:</label>
+                  <div id="pyGitModifiedList" style="background: #0f172a; padding: 10px; border-radius: 4px; font-size: 11px; font-family: monospace; max-height: 120px; overflow-y: auto; border: 1px solid #1e293b; color: #94a3b8;">
+                    Scanning git repository...
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
+                  <input type="text" id="txtPyGitCommitMsg" value="feat(delivery): modernize pipeline, add wire probes and contract tests" style="flex: 1; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; font-size: 12px;">
+                  <button class="btn-quick" id="btnPyDraftGitCommit" style="font-size: 11px; padding: 7px 12px;">🤖 Auto-Draft</button>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary" id="btnPyGitStageCommit" style="font-size: 11.5px; padding: 6px 16px;">🚀 Stage &amp; Commit</button>
+                  <button class="btn btn-secondary" id="btnPyGitPush" style="font-size: 11.5px; padding: 6px 16px;">⬆️ Push to Remote</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Cloud Containerization & Deployment Manifests -->
+            <div class="content-card" style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <h3 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #fff;">🐳 Cloud Containerization &amp; Deployment Manifests</h3>
+                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                    Multi-stage Dockerfile scaffolding with ultra-fast uv caching and target cloud deployment runbooks.
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label style="font-size: 11px; color: #94a3b8;">Target Cloud:</label>
+                  <select id="selPyTargetCloud" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;">
+                    <option value="gcp">Google Cloud Run (Port 8080, Stateless)</option>
+                    <option value="aws">AWS ECS / App Runner (Port 8000, VPC Private)</option>
+                    <option value="azure">Azure Container Apps</option>
+                    <option value="databricks">Databricks Job Wheel</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Dockerfile Preview Box -->
+              <div style="margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-size: 11px; font-weight: 700; color: #94a3b8;">SCAFFOLDED DOCKERFILE (MULTI-STAGE + UV CACHE):</span>
+                  <button class="btn-quick" id="btnPyCopyDocker" style="font-size: 10px; padding: 2px 8px;">📋 Copy</button>
+                </div>
+                <pre id="prePyDockerfile" style="background: #020617; padding: 12px; border-radius: 4px; font-size: 11.5px; max-height: 240px; overflow: auto; border: 1px solid #1e293b; margin: 0; font-family: monospace; color: #93c5fd; white-space: pre-wrap;">FROM python:3.12-slim-bookworm AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+WORKDIR /app
+COPY pyproject.toml requirements.txt* ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system --no-cache -r requirements.txt
+
+FROM python:3.12-slim-bookworm AS runner
+WORKDIR /app
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+COPY . /app
+
+EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')" || exit 1
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]</pre>
+              </div>
+
+              <div style="display: flex; gap: 8px;">
+                <button class="btn btn-primary" id="btnPySaveDocker" style="font-size: 11px; padding: 5px 14px;">💾 Save Dockerfile to Workspace</button>
+                <button class="btn btn-secondary" id="btnPySaveDeployScript" style="font-size: 11px; padding: 5px 14px;">💾 Save deploy.sh &amp; deploy.ps1</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- PYTHON AI STUDIO & NEURAL DEBUGGER (PYTHON 3.12, PYTORCH TENSORS, AST, UV VENVS) -->
+        <!-- =================================================================== -->
+        <section id="pane-python" class="phase-pane" style="display: none;">
+          <style>
+            .py-tensor-card {
+              transition: all 0.15s ease;
+            }
+            .py-tensor-card:hover {
+              border-color: rgba(99, 102, 241, 0.45) !important;
+            }
+          </style>
+          <!-- Top Header -->
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <div>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <h1 style="margin: 0; font-size: 19px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  🐍 Python AI Studio &amp; Neural Debugger <span class="brand-pill" style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.4);">NEURAL DEBUGGER &amp; AST</span>
+                </h1>
+              </div>
+              <div style="font-size: 11.5px; opacity: 0.8; margin-top: 4px;">
+                100% Offline Deterministic Python 3.12 Environment &bull; Virtual Environments (uv) &bull; PyTorch Tensor Layer Flow &bull; NaN/Inf Risk Scanner &bull; Airtight Wheelhouse &bull; PyTest Contracts
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button class="btn btn-secondary" id="btnPySwitchToPolyglot" style="font-size: 11.5px; padding: 5px 12px; background: rgba(78, 201, 176, 0.18); color: #4ec9b0; border: 1px solid rgba(78, 201, 176, 0.45); font-weight: 600;">💻 Open Polyglot AI Coding Studio ➔</button>
+              <button class="btn btn-secondary" id="btnDesktopPySelfTest" style="font-size: 11.5px; padding: 5px 12px;">🧪 Run Smoke Self-Test</button>
+              <button class="btn btn-secondary" id="btnDesktopPyAirtight" style="font-size: 11.5px; padding: 5px 12px;">📦 Export Airtight Bundle</button>
+            </div>
+          </div>
+
+          <!-- Studio Navigation Tabs (3 Dedicated Python Tabs) -->
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button class="btn-quick active" id="btnPySubTabTensor" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: var(--accent); color: #1e1e1e; border: none; cursor: pointer;">
+                📊 1 · Neural, AST &amp; Flow Debugger
+              </button>
+              <button class="btn-quick" id="btnPySubTabSandbox" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; cursor: pointer;">
+                ▶️ 2 · Python 3.12 Sandbox &amp; REPL
+              </button>
+              <button class="btn-quick" id="btnPySubTabEnv" style="padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid #6366f1; cursor: pointer;">
+                📦 3 · Turnkey Environment &amp; Airtight Wheelhouse
+              </button>
+            </div>
+          </div>
+
+          <!-- ================================================================= -->
+          <!-- SUB-TAB 1: VISUAL TENSOR SHAPE FLOW (ACTIVE BY DEFAULT) -->
+          <!-- ================================================================= -->
+          <div id="subPanePyTensor" style="display: block;">
+            <div class="content-card" style="margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                  <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">📊 PyTorch Layer Dimension Flow &amp; Shape Propagation</h3>
+                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                    Validates tensor dimension compatibility across neural network layers to eliminate runtime shape mismatches before training or inference.
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <label style="font-size: 11px; color: #94a3b8;">Batch Size:</label>
+                  <input type="number" id="numPyBatchSize" value="32" min="1" max="8192" style="width: 65px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11.5px;">
+                  <label style="font-size: 11px; color: #94a3b8;">Input Feat Dim:</label>
+                  <input type="number" id="numPyInputDim" value="768" min="1" max="131072" style="width: 75px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11.5px;">
+                  <button class="btn btn-primary" id="btnPyPropagateShapes" style="font-size: 11.5px; padding: 5px 14px;">⚡ Propagate Shapes</button>
+                  <button class="btn btn-secondary" id="btnPyInjectShapeAssertions" style="font-size: 11.5px; padding: 5px 12px;">💉 Inject Assertions</button>
+                </div>
+              </div>
+
+              <!-- Visual Flow Board Container -->
+              <div id="pyTensorFlowBoard" style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #0b0f19; border-radius: 6px; border: 1px solid #1e293b;">
+                <!-- Populated dynamically by renderer -->
+              </div>
+            </div>
+          </div>
+
+          <!-- ================================================================= -->
+          <!-- SUB-TAB 2: LIVE TESTING & REPL SANDBOX -->
           <!-- ================================================================= -->
           <div id="subPanePySandbox" style="display: none;">
             <div class="content-card" style="margin-bottom: 16px;">
@@ -9559,151 +9746,9 @@ WHERE order_date >= SYSDATE - 30;</textarea>
           </div>
 
           <!-- ================================================================= -->
-          <!-- SUB-TAB 2: VISUAL TENSOR SHAPE FLOW -->
+          <!-- SUB-TAB 3: TURNKEY ENVIRONMENT & AIRTIGHT WHEELHOUSE -->
           <!-- ================================================================= -->
-          <div id="subPanePyTensor" style="display: none;">
-            <div class="content-card" style="margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">📊 PyTorch Layer Dimension Flow &amp; Shape Propagation</h3>
-                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                    Validates tensor dimension compatibility across neural network layers to eliminate runtime shape mismatches before training or inference.
-                  </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <label style="font-size: 11px; color: #94a3b8;">Batch Size:</label>
-                  <input type="number" id="numPyBatchSize" value="32" min="1" max="8192" style="width: 65px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11.5px;">
-                  <label style="font-size: 11px; color: #94a3b8;">Input Feat Dim:</label>
-                  <input type="number" id="numPyInputDim" value="768" min="1" max="131072" style="width: 75px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11.5px;">
-                  <button class="btn btn-primary" id="btnPyPropagateShapes" style="font-size: 11.5px; padding: 5px 14px;">⚡ Propagate Shapes</button>
-                  <button class="btn btn-secondary" id="btnPyInjectShapeAssertions" style="font-size: 11.5px; padding: 5px 12px;">💉 Inject Assertions</button>
-                </div>
-              </div>
-
-              <!-- Visual Flow Board Container -->
-              <div id="pyTensorFlowBoard" style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #0b0f19; border-radius: 6px; border: 1px solid #1e293b;">
-                <!-- Populated dynamically by renderer -->
-              </div>
-            </div>
-          </div>
-
-          <!-- Hidden Compatibility Placeholders -->
-          <div id="subPanePyDeps" style="display: none;"></div>
-          <div id="subPanePyGit" style="display: none;"></div>
-
-          <!-- ================================================================= -->
-          <!-- SUB-TAB 6: GIT DELIVERY & MULTI-CLOUD DEPLOY -->
-          <!-- ================================================================= -->
-          <div id="subPanePyCloud" style="display: none;">
-            <!-- 1. Git Pre-Commit Hygiene & 1-Click Commit Gate -->
-            <div class="content-card" style="margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h3 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                    <span>🛡️</span> Git Delivery Gate &amp; Pre-Commit Hygiene
-                  </h3>
-                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                    Protects the repository from accidental commits of large model weights (>50MB), unredacted API secrets, and isolated virtual environment artifacts.
-                  </div>
-                </div>
-                <button class="btn btn-primary" id="btnPyRunGitHygiene" style="font-size: 11.5px; padding: 4px 14px;">🛡️ Run Hygiene Scan</button>
-              </div>
-
-              <div id="pyGitHygieneResults" style="display: block; background: #0b0f19; padding: 14px; border-radius: 6px; border: 1px solid #1e293b; margin-bottom: 14px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px;">
-                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
-                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ Model Weights Gate</div>
-                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">No unversioned .pt / .safetensors &gt; 50MB</div>
-                  </div>
-                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
-                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ Virtual Env Gate</div>
-                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">.venv and __pycache__ gitignored</div>
-                  </div>
-                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
-                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ Secret Leak Gate</div>
-                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">No unencrypted .env credentials</div>
-                  </div>
-                  <div style="background: #111827; padding: 10px; border-radius: 4px; border-left: 3px solid #10b981;">
-                    <div style="font-weight: 700; font-size: 11px; color: #34d399;">✓ AST Syntax Gate</div>
-                    <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Clean AST parse across repository</div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 1-Click Commit Box -->
-              <div style="background: rgba(15, 23, 42, 0.6); padding: 12px; border-radius: 6px; border: 1px solid #1e293b;">
-                <h4 style="margin: 0 0 8px 0; font-size: 12.5px; font-weight: 700; color: #fff;">🚀 1-Click Conventional Commit &amp; Push</h4>
-                <div style="margin-bottom: 10px;">
-                  <label style="font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Modified Deliverables in Repo:</label>
-                  <div id="pyGitModifiedList" style="background: #0f172a; padding: 10px; border-radius: 4px; font-size: 11px; font-family: monospace; max-height: 120px; overflow-y: auto; border: 1px solid #1e293b; color: #94a3b8;">
-                    Scanning git repository...
-                  </div>
-                </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 10px; align-items: center;">
-                  <input type="text" id="txtPyGitCommitMsg" value="feat(delivery): modernize pipeline, add wire probes and contract tests" style="flex: 1; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 8px 12px; font-size: 12px;">
-                  <button class="btn-quick" id="btnPyDraftGitCommit" style="font-size: 11px; padding: 7px 12px;">🤖 Auto-Draft</button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn btn-primary" id="btnPyGitStageCommit" style="font-size: 11.5px; padding: 6px 16px;">🚀 Stage &amp; Commit</button>
-                  <button class="btn btn-secondary" id="btnPyGitPush" style="font-size: 11.5px; padding: 6px 16px;">⬆️ Push to Remote</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 2. Cloud Containerization & Deployment Manifests -->
-            <div class="content-card" style="margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h3 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #fff;">🐳 Cloud Containerization &amp; Deployment Manifests</h3>
-                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                    Multi-stage Dockerfile scaffolding with ultra-fast uv caching and target cloud deployment runbooks.
-                  </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <label style="font-size: 11px; color: #94a3b8;">Target Cloud:</label>
-                  <select id="selPyTargetCloud" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;">
-                    <option value="gcp">Google Cloud Run (Port 8080, Stateless)</option>
-                    <option value="aws">AWS ECS / App Runner (Port 8000, VPC Private)</option>
-                    <option value="azure">Azure Container Apps</option>
-                    <option value="databricks">Databricks Job Wheel</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Dockerfile Preview Box -->
-              <div style="margin-bottom: 12px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <span style="font-size: 11px; font-weight: 700; color: #94a3b8;">SCAFFOLDED DOCKERFILE (MULTI-STAGE + UV CACHE):</span>
-                  <button class="btn-quick" id="btnPyCopyDocker" style="font-size: 10px; padding: 2px 8px;">📋 Copy</button>
-                </div>
-                <pre id="prePyDockerfile" style="background: #020617; padding: 12px; border-radius: 4px; font-size: 11.5px; max-height: 240px; overflow: auto; border: 1px solid #1e293b; margin: 0; font-family: monospace; color: #93c5fd; white-space: pre-wrap;">FROM python:3.12-slim-bookworm AS builder
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
-
-WORKDIR /app
-COPY pyproject.toml requirements.txt* ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install --system --no-cache -r requirements.txt
-
-FROM python:3.12-slim-bookworm AS runner
-WORKDIR /app
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY . /app
-
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/healthz')" || exit 1
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]</pre>
-              </div>
-
-              <div style="display: flex; gap: 8px;">
-                <button class="btn btn-primary" id="btnPySaveDocker" style="font-size: 11px; padding: 5px 14px;">💾 Save Dockerfile to Workspace</button>
-                <button class="btn btn-secondary" id="btnPySaveDeployScript" style="font-size: 11px; padding: 5px 14px;">💾 Save deploy.sh &amp; deploy.ps1</button>
-              </div>
-            </div>
-
-            <!-- 3. Runtime Environment & Package Health Matrix -->
+          <div id="subPanePyEnv" style="display: none;">
             <div class="content-card" style="margin-bottom: 16px;">
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px;">
                 <div style="background: var(--bg-primary); padding: 12px; border-radius: 6px; border: 1px solid var(--border);">

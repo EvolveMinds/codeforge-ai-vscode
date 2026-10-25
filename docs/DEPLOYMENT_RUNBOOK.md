@@ -6,7 +6,7 @@
 > describe no real system. It must not be shared with a client, attached to a
 > proposal, or used as evidence of testing.
 >
-> _Generated 2026-10-25T12:25:20.078Z_
+> _Generated 2026-10-25T12:42:27.524Z_
 # Client Pilot Engagement — Operations & Deployment Runbook
 
 > **Audience:** Client IT, DevOps, and Platform Engineering Teams  

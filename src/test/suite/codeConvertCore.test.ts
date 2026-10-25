@@ -16,17 +16,18 @@ import {
   SourceFile
 } from '../../core/codeConvert';
 
-suite('Code Converter Core Engine — 26-Language Multi-Target Specifications', function () {
+suite('Code Converter Core Engine — Multi-Target Specifications', function () {
   this.timeout(15000);
 
-  test('Catalogue contains exactly 26 enterprise languages with valid specifications', () => {
-    assert.strictEqual(LANGUAGES.length, 26, 'Should define exactly 26 supported languages');
+  test('Catalogue contains enterprise languages with valid specifications', () => {
+    assert.strictEqual(LANGUAGES.length, 29, 'Should define all supported languages');
 
     const expectedLanguages = [
       'python', 'typescript', 'javascript', 'java', 'csharp',
       'go', 'rust', 'cpp', 'c', 'kotlin', 'swift', 'scala',
       'ruby', 'php', 'dart', 'elixir', 'r', 'sql', 'bash',
-      'powershell', 'lua', 'perl', 'vba', 'cobol', 'matlab', 'sas'
+      'powershell', 'lua', 'perl', 'vba', 'cobol', 'matlab', 'sas',
+      'dotnet-cil', 'jvm-bytecode', 'wasm-binary'
     ];
 
     for (const id of expectedLanguages) {
