@@ -338,4 +338,44 @@ print(f"Generated Signature: {sig}")
 
     return `export interface InferredWebhookEvent {\n${fields.join('\n')}\n}`;
   }
+
+  public static verifyHmacSignature(
+    payload: string,
+    signature: string,
+    secret: string,
+    algorithm = 'sha256'
+  ): boolean {
+    try {
+      const crypto = require('crypto');
+      const expected = crypto.createHmac(algorithm, secret).update(payload, 'utf8').digest('hex');
+      const expectedBuf = Buffer.from(expected, 'hex');
+      const receivedBuf = Buffer.from(signature, 'hex');
+      if (expectedBuf.length !== receivedBuf.length) return false;
+      return crypto.timingSafeEqual(expectedBuf, receivedBuf);
+    } catch {
+      return false;
+    }
+  }
+
+  public static generateReceiver(opts: {
+    provider: 'stripe' | 'github' | 'slack' | 'generic_hmac';
+    language?: 'typescript' | 'python';
+    framework?: 'express' | 'fastapi';
+    routePath?: string;
+    samplePayload?: string;
+    samplePayloadJson?: string;
+  }): { serverCode: string; testCode: string; receiverCode: string; testHarnessCode: string } {
+    const res = this.scaffold({
+      provider: opts.provider,
+      targetFramework: opts.framework || (opts.language === 'python' ? 'fastapi' : 'express'),
+      routePath: opts.routePath || '/api/webhooks',
+      samplePayloadJson: opts.samplePayloadJson || opts.samplePayload || '{}'
+    });
+    return {
+      serverCode: res.receiverCode,
+      testCode: res.testHarnessCode,
+      receiverCode: res.receiverCode,
+      testHarnessCode: res.testHarnessCode
+    };
+  }
 }

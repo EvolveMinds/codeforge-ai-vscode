@@ -1524,6 +1524,52 @@
         "category": "Evolve AI"
       },
       {
+        "command": "aiForge.mainframe.menu",
+        "title": "IBM Mainframe: Open Control Center Menu",
+        "category": "Evolve AI",
+        "icon": "$(server-process)"
+      },
+      {
+        "command": "aiForge.mainframe.connect",
+        "title": "IBM Mainframe: Connect / Select Profile",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.extractWorkflow",
+        "title": "IBM Mainframe: Extract Workflow (JCL Batch & CICS)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.browseDatasets",
+        "title": "IBM Mainframe: Browse Partitioned Datasets (PDS)",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.inspectSpool",
+        "title": "IBM Mainframe: Inspect JES Spool & Return Codes",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.exportClaudeBlueprint",
+        "title": "IBM Mainframe: Export Workflow Blueprint to CLAUDE.md",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.racfSecurityGuide",
+        "title": "IBM Mainframe: Generate RACF Security Clearance Guide",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.testSandbox",
+        "title": "IBM Mainframe: Run Offline HCM Sandbox Simulation",
+        "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.mainframe.disconnect",
+        "title": "IBM Mainframe: Disconnect Session",
+        "category": "Evolve AI"
+      },
+      {
         "command": "aiForge.fde.launchDesktop",
         "title": "Enterprise: Launch Standalone Desktop Studio",
         "category": "Evolve AI"

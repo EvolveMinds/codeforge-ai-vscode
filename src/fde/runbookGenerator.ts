@@ -13,6 +13,7 @@
 
 import { FdeEngagementState } from './fdeContext';
 import { NOT_MEASURED, documentBanner, StudioMode } from './provenance';
+import { MainframeWorkflowParser } from './mainframeWorkflowParser';
 
 /** Renders a discovery field, or a visible placeholder when it was never filled in. */
 function discovered(value: string | undefined, what: string): string {
@@ -597,7 +598,21 @@ ${tableContract}
 
 ---
 
-## 3. Target Modern Architecture Pattern
+## 3. Extracted IBM Mainframe Workflows (As-Is Source Contracts)
+
+### A. Batch Payroll Workflow DAG (from JCL & DB2 Stored Procedures)
+\`\`\`mermaid
+${MainframeWorkflowParser.getOfflineHcmSandboxWorkflow().batchJobs[0].mermaidDiagram}
+\`\`\`
+
+### B. Online Transaction Sequence (from CICS EM01 & BMS Screen Maps)
+\`\`\`mermaid
+${MainframeWorkflowParser.getOfflineHcmSandboxWorkflow().onlineTransactions[0].mermaidSequence}
+\`\`\`
+
+---
+
+## 4. Target Modern Architecture Pattern
 
 * **Presentation Layer**: React 19 / TypeScript with enterprise design system (Accessible, WCAG AA, Mobile-responsive ESS & MSS).
 * **API & BFF Layer**: Clean REST / OpenAPI 3.0 specification with strict schema validation.
@@ -611,7 +626,7 @@ ${tableContract}
 
 ---
 
-## 4. Verification & Quality Commands
+## 5. Verification & Quality Commands
 
 When building or updating code in this workspace, verify your implementation with:
 \`\`\`bash
@@ -627,7 +642,7 @@ docker-compose -f docker-compose.db2-test.yml up -d
 
 ---
 
-## 5. Evolve AI Pre-Push & Pre-Flight Compliance
+## 6. Evolve AI Pre-Push & Pre-Flight Compliance
 Before committing code, verify:
 - No hardcoded secrets or database passwords in source code.
 - No dynamic SQL concatenation without bind variables.

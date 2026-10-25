@@ -31,6 +31,7 @@ import { AzureConnectedPlugin }      from './azureConnected';
 import { DataAnalysisPlugin }        from './dataAnalysis';
 import { CodeConvertPlugin }         from './codeConvert';
 import { PythonStudioPlugin }       from './pythonStudio';
+import { MainframeConnectedPlugin }  from './mainframeConnected';
 
 // ── Register all plugins ──────────────────────────────────────────────────────
 
@@ -59,9 +60,9 @@ export function registerPlugins(registry: PluginRegistry): void {
   registry.register(new DataAnalysisPlugin());
   registry.register(new CodeConvertPlugin());
   registry.register(new PythonStudioPlugin());
+  registry.register(new MainframeConnectedPlugin());
 
   // Add more plugins here as they are built:
 
-  console.log('[Evolve AI] Plugins registered: Databricks, Databricks Connected, dbt, Airflow, pytest, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, CI/CD, AWS, GCP, Azure, AWS Connected, GCP Connected, Azure Connected, Data Analysis, Code Converter, Python Studio');
+  console.log('[Evolve AI] Plugins registered: Databricks, Databricks Connected, dbt, Airflow, pytest, FastAPI, Django, Terraform, Kubernetes, Docker, Jupyter, PyTorch, Security, Git, CI/CD, AWS, GCP, Azure, AWS Connected, GCP Connected, Azure Connected, Data Analysis, Code Converter, Python Studio, IBM Mainframe (z/OS) Connected');
 }
-
