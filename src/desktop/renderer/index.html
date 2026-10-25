@@ -2121,12 +2121,32 @@
 
                         <!-- C4 Export Dropdown (Pillar 4) -->
                         <span style="position: relative; display: inline-block;">
-                          <button type="button" class="btn-quick" id="btnFdeC4ExportMenuBtn" style="font-size: 10px; padding: 2px 8px; border-color: #10b981; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.1);" title="Export C4 as interactive SVG, PDF presentation slide, or Structurizr/Mermaid code">⬇ Export C4 ▾</button>
-                          <span id="fdeC4ExportMenu" hidden style="position: absolute; right: 0; top: 100%; margin-top: 4px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 4px; min-width: 220px; z-index: 700; box-shadow: 0 8px 24px rgba(0,0,0,0.8);">
-                            <button type="button" id="btnFdeExportC4Svg" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">🖼️ Standalone Interactive SVG</button>
-                            <button type="button" id="btnFdeExportC4Pdf" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">📄 Presentation Slide (Print / PDF)</button>
-                            <button type="button" id="btnFdeExportStructurizr" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">📜 Structurizr C4 DSL (Copy)</button>
-                            <button type="button" id="btnFdeExportMermaidC4" class="fde-export-item" style="width: 100%; text-align: left; padding: 5px 8px; font-size: 10.5px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 4px;">📋 Mermaid C4 Diagram Code (Copy)</button>
+                          <button type="button" class="btn-quick" id="btnFdeC4ExportMenuBtn" style="font-size: 10px; padding: 2px 8px; border-color: #10b981; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.1);" title="Export C4 as presentation slide, interactive SVG, PNG image, or Structurizr/PlantUML/Mermaid code">⬇ Export C4 ▾</button>
+                          <span id="fdeC4ExportMenu" hidden style="position: absolute; right: 0; top: 100%; margin-top: 4px; background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; padding: 6px; min-width: 260px; z-index: 700; box-shadow: 0 12px 30px rgba(0,0,0,0.85); backdrop-filter: blur(12px);">
+                            <div style="padding: 4px 8px; font-size: 9.5px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(56, 189, 248, 0.2); margin-bottom: 4px;">Executive Presentation</div>
+                            <button type="button" id="btnFdeExportC4Pdf" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>📄</span> <span>Presentation Slide (PDF)</span>
+                            </button>
+                            <button type="button" id="btnFdeExportC4Png" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>🖼️</span> <span>Presentation Slide (PNG 1920x1080)</span>
+                            </button>
+                            <button type="button" id="btnFdeExportC4Html" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>🌐</span> <span>Interactive Slide (Standalone HTML)</span>
+                            </button>
+
+                            <div style="padding: 4px 8px; font-size: 9.5px; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid rgba(56, 189, 248, 0.2); margin: 6px 0 4px 0;">Architecture Standards &amp; Code</div>
+                            <button type="button" id="btnFdeExportC4Svg" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>📐</span> <span>Standalone Interactive SVG</span>
+                            </button>
+                            <button type="button" id="btnFdeExportPlantUml" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>📜</span> <span>C4-PlantUML Source (.puml / Copy)</span>
+                            </button>
+                            <button type="button" id="btnFdeExportStructurizr" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>📦</span> <span>Structurizr C4 DSL (.dsl / Copy)</span>
+                            </button>
+                            <button type="button" id="btnFdeExportMermaidC4" class="fde-export-item" style="width: 100%; text-align: left; padding: 6px 10px; font-size: 11px; background: none; border: none; color: #f8fafc; cursor: pointer; border-radius: 5px; display: flex; align-items: center; gap: 8px;">
+                              <span>📋</span> <span>Mermaid C4 Diagram (.mmd / Copy)</span>
+                            </button>
                           </span>
                         </span>
                       </div>

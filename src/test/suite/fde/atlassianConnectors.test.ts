@@ -203,4 +203,36 @@ EMR-->>MuleSoft: Status OK]]></ac:plain-text-body>
     assert.ok(extracted.extractedMermaid.includes('Salesforce->>MuleSoft: Validate Visit'));
     assert.ok(extracted.plainText.includes('System requirements description text'));
   });
+
+  // --- 9. Widescreen 16:9 Presentation Slide SVG Generation ---
+  test('generates widescreen 16:9 presentation slide SVG with badges, stage, and legend', () => {
+    const slideSvg = C4TopologyEngine.toPresentationSlideSvg(model, {
+      level: 1,
+      lens: 'system',
+      scopeVersion: 'v1.0 (Draft Baseline)'
+    });
+
+    assert.ok(slideSvg.includes('viewBox="0 0 1920 1080"'), 'Must have 16:9 widescreen 1920x1080 viewBox');
+    assert.ok(slideSvg.includes('Healthcare Referral &amp; Visit Validation') || slideSvg.includes('Healthcare Referral'), 'Must include architecture title');
+    assert.ok(slideSvg.includes('SYSTEM ARCHITECT LENS'), 'Must display active architect lens badge');
+    assert.ok(slideSvg.includes('Scope: v1.0 (Draft Baseline)'), 'Must display target scope version');
+    assert.ok(slideSvg.includes('Client Ingress') && slideSvg.includes('Integration Core'), 'Must display trust zone legend');
+    assert.ok(slideSvg.includes('C4 Level 1: System Context'), 'Must display C4 level indicator');
+  });
+
+  // --- 10. Self-Contained Presentation Slide HTML (PDF / Print / Slide Delivery) ---
+  test('generates self-contained 16:9 presentation slide HTML with landscape print rules and toolbar', () => {
+    const slideHtml = C4TopologyEngine.toPresentationSlideHtml(model, {
+      level: 1,
+      lens: 'application'
+    });
+
+    assert.ok(slideHtml.includes('<!DOCTYPE html>'), 'Must be valid HTML5 document');
+    assert.ok(slideHtml.includes('size: 16in 9in landscape;'), 'Must specify 16:9 landscape page size for PDF');
+    assert.ok(slideHtml.includes('@media print'), 'Must include print media query');
+    assert.ok(slideHtml.includes('.slide-toolbar {'), 'Must include presentation action toolbar');
+    assert.ok(slideHtml.includes('window.print()'), 'Must include print / save PDF trigger');
+    assert.ok(slideHtml.includes('viewBox="0 0 1920 1080"'), 'Must embed widescreen slide SVG');
+    assert.ok(slideHtml.includes('APPLICATION ARCHITECT LENS'), 'Must render application architect lens in embedded SVG');
+  });
 });

@@ -597,3 +597,80 @@ body.resizing-v .resizer-vertical {
     min-width: 130px;
   }
 }
+
+/* ==========================================================================
+   Print Optimization & Isolation Guard
+   Prevents IDE chrome, terminal, sidebars, and modals from leaking into prints.
+   ========================================================================== */
+@media print {
+  @page {
+    size: 16in 9in landscape;
+    margin: 0;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide entire application chrome */
+  .app-header,
+  .activity-bar,
+  .sidebar-pane,
+  .terminal-pane,
+  .status-bar,
+  .phase-header,
+  .view-tabs,
+  .btn-quick,
+  .btn-action,
+  .fde-modal,
+  #terminalPanel,
+  #fdeAtlassianSyncModal,
+  #fdeC4EditModal,
+  #fdeC4HitlModal,
+  #fdeC4InspectorDrawer,
+  #btnFdeC4ExportMenuBtn,
+  #fdeC4ExportMenu,
+  .fde-export-item {
+    display: none !important;
+  }
+
+  body {
+    background: #0b132b !important;
+    color: #f8fafc !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+  }
+
+  .main-content,
+  .workspace-pane,
+  .tab-content,
+  .phase-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  #fdeTopologyRendered {
+    width: 100% !important;
+    max-height: none !important;
+    min-height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  #fdeTopologyRendered svg {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 100vh !important;
+  }
+}

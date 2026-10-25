@@ -600,6 +600,356 @@ export class C4TopologyEngine {
     return dsl;
   }
 
+  /**
+   * Generates a 16:9 widescreen presentation slide SVG (1920x1080)
+   * Suitable for direct export to PNG, PowerPoint, Keynote, or vector embedding.
+   */
+  public static toPresentationSlideSvg(
+    model: C4ArchitectureModel,
+    options?: {
+      level?: 1 | 2;
+      activeSystemId?: string;
+      showHitlExceptionPath?: boolean;
+      isExecutiveMode?: boolean;
+      lens?: 'all' | 'system' | 'application' | 'data';
+      scopeVersion?: string;
+    }
+  ): string {
+    const level = options?.level || 1;
+    const lens = options?.lens || 'all';
+    const isExecutive = Boolean(options?.isExecutiveMode);
+    const scopeVer = options?.scopeVersion || 'v1.0 (Draft Baseline)';
+    const diagramSvg = this.renderTopologySvg(
+      model,
+      level,
+      options?.activeSystemId,
+      options?.showHitlExceptionPath,
+      isExecutive,
+      undefined,
+      undefined,
+      lens
+    );
+
+    // Extract viewBox of the inner diagram SVG
+    const vbMatch = diagramSvg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/i);
+    const origW = vbMatch ? parseFloat(vbMatch[1]) : 1400;
+    const origH = vbMatch ? parseFloat(vbMatch[2]) : 780;
+
+    // Slide dimensions: 1920 x 1080 (16:9 widescreen standard)
+    const SLIDE_W = 1920;
+    const SLIDE_H = 1080;
+
+    // Available diagram stage rect
+    const STAGE_X = 60;
+    const STAGE_Y = 130;
+    const STAGE_W = 1800;
+    const STAGE_H = 860;
+
+    // Calculate scale to fit inside stage while maintaining aspect ratio
+    const scale = Math.min(STAGE_W / origW, STAGE_H / origH, 1.25);
+    const scaledW = origW * scale;
+    const scaledH = origH * scale;
+    const offsetX = STAGE_X + (STAGE_W - scaledW) / 2;
+    const offsetY = STAGE_Y + (STAGE_H - scaledH) / 2;
+
+    const innerContent = diagramSvg.replace(/^<svg[^>]*>/i, '').replace(/<\/svg>$/i, '');
+
+    const lensLabels: Record<string, string> = {
+      all: '🌐 UNIFIED ARCHITECTURE VIEW',
+      system: '🏛️ SYSTEM ARCHITECT LENS (TRUST BOUNDARIES & SECURITY)',
+      application: '⚙️ APPLICATION ARCHITECT LENS (APIS & MODULARITY)',
+      data: '📊 DATA ARCHITECT LENS (DATA ASSETS & CONTRACTS)'
+    };
+    const lensLabel = lensLabels[lens] || lensLabels.all;
+    const levelLabel = level === 2
+      ? `C4 Level 2: Container Decomposition (${options?.activeSystemId || 'Core Services'})`
+      : 'C4 Level 1: System Context & Integration Architecture';
+
+    const timestamp = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    const gridLinesX: string[] = [];
+    for (let i = 0; i < 39; i++) {
+      gridLinesX.push(`<line x1="${i * 50}" y1="0" x2="${i * 50}" y2="${SLIDE_H}"/>`);
+    }
+    const gridLinesY: string[] = [];
+    for (let i = 0; i < 22; i++) {
+      gridLinesY.push(`<line x1="0" y1="${i * 50}" x2="${SLIDE_W}" y2="${i * 50}"/>`);
+    }
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SLIDE_W} ${SLIDE_H}" width="${SLIDE_W}" height="${SLIDE_H}" style="background:#0b132b; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <radialGradient id="slideBgGrad" cx="50%" cy="25%" r="75%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="65%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#0b132b"/>
+    </radialGradient>
+    <filter id="slideShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <rect width="${SLIDE_W}" height="${SLIDE_H}" fill="url(#slideBgGrad)"/>
+
+  <!-- Subtle Blueprint Grid Pattern -->
+  <g opacity="0.05" stroke="#38bdf8" stroke-width="1">
+    ${gridLinesX.join('')}
+    ${gridLinesY.join('')}
+  </g>
+
+  <!-- Top Presentation Header Bar -->
+  <rect x="50" y="30" width="1820" height="84" rx="10" fill="rgba(15, 23, 42, 0.75)" stroke="rgba(56, 189, 248, 0.25)" stroke-width="1.2"/>
+
+  <!-- Title & Subtitle -->
+  <text x="75" y="65" font-size="24" font-weight="800" fill="#f8fafc" letter-spacing="-0.02em">
+    🚀 ${escapeXml(model.title)}
+  </text>
+  <text x="75" y="94" font-size="13" font-weight="500" fill="#94a3b8">
+    ${escapeXml((model.scenarioDescription || 'End-to-End Enterprise Architecture Specification').slice(0, 140))}
+  </text>
+
+  <!-- Badges in Header Right -->
+  <g transform="translate(1320, 48)">
+    <!-- Lens Badge -->
+    <rect x="0" y="0" width="310" height="26" rx="13" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1.2"/>
+    <text x="155" y="17" text-anchor="middle" font-size="10.5" font-weight="700" fill="#38bdf8">${lensLabel}</text>
+
+    <!-- Scope Version Badge -->
+    <rect x="320" y="0" width="190" height="26" rx="13" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" stroke-width="1.2"/>
+    <text x="415" y="17" text-anchor="middle" font-size="11" font-weight="700" fill="#34d399">Scope: ${escapeXml(scopeVer)}</text>
+  </g>
+
+  <!-- Diagram Stage Container -->
+  <rect x="${STAGE_X}" y="${STAGE_Y}" width="${STAGE_W}" height="${STAGE_H}" rx="14" fill="rgba(15, 23, 42, 0.5)" stroke="rgba(148, 163, 184, 0.18)" stroke-width="1.4" filter="url(#slideShadow)"/>
+
+  <!-- Scaled Architecture Diagram SVG -->
+  <g transform="translate(${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}) scale(${scale.toFixed(4)})">
+    ${innerContent}
+  </g>
+
+  <!-- Bottom Slide Footer Bar -->
+  <rect x="50" y="1005" width="1820" height="50" rx="8" fill="rgba(15, 23, 42, 0.85)" stroke="rgba(148, 163, 184, 0.2)" stroke-width="1"/>
+  
+  <text x="75" y="1035" font-size="12" font-weight="600" fill="#64748b">
+    📐 <tspan fill="#94a3b8">${levelLabel}</tspan> &bull; Generated by <tspan fill="#38bdf8">Evolve AI Enterprise Architecture Studio</tspan>
+  </text>
+
+  <!-- Trust Zones Color Legend -->
+  <g transform="translate(920, 1024)">
+    <circle cx="0" cy="8" r="5" fill="#38bdf8"/>
+    <text x="10" y="12" font-size="11" font-weight="600" fill="#94a3b8">Client Ingress</text>
+
+    <circle cx="120" cy="8" r="5" fill="#818cf8"/>
+    <text x="130" y="12" font-size="11" font-weight="600" fill="#94a3b8">Integration Core</text>
+
+    <circle cx="270" cy="8" r="5" fill="#34d399"/>
+    <text x="280" y="12" font-size="11" font-weight="600" fill="#94a3b8">Data &amp; Storage</text>
+
+    <circle cx="410" cy="8" r="5" fill="#ef4444"/>
+    <text x="420" y="12" font-size="11" font-weight="600" fill="#f87171">HITL Review Gate</text>
+  </g>
+
+  <!-- Date / Confidentiality -->
+  <text x="1840" y="1035" text-anchor="end" font-size="11" font-weight="500" fill="#64748b">
+    ${timestamp} &bull; Confidential &bull; ARB Approved
+  </text>
+</svg>`;
+  }
+
+  /**
+   * Generates a complete, self-contained HTML presentation slide page (16:9 widescreen)
+   * Suitable for printing to PDF, physical presentation display, or direct delivery to executives.
+   */
+  public static toPresentationSlideHtml(
+    model: C4ArchitectureModel,
+    options?: {
+      level?: 1 | 2;
+      activeSystemId?: string;
+      showHitlExceptionPath?: boolean;
+      isExecutiveMode?: boolean;
+      lens?: 'all' | 'system' | 'application' | 'data';
+      scopeVersion?: string;
+    }
+  ): string {
+    const slideSvg = this.toPresentationSlideSvg(model, options);
+    const title = escapeXml(model.title || 'Architecture Blueprint');
+    const slug = (model.title || 'presentation').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title} — Architecture Presentation Slide</title>
+  <style>
+    @page {
+      size: 16in 9in landscape;
+      margin: 0;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #0b132b;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide-wrapper {
+      width: 100vw;
+      height: 100vh;
+      max-width: 177.78vh;
+      max-height: 56.25vw;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b132b;
+    }
+    .slide-svg-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide-svg-container svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .slide-toolbar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      padding: 6px 10px;
+      border-radius: 8px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    }
+    .btn-slide {
+      background: #38bdf8;
+      color: #0b132b;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-slide:hover {
+      background: #7dd3fc;
+      transform: translateY(-1px);
+    }
+    .btn-slide-sec {
+      background: rgba(148, 163, 184, 0.15);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .btn-slide-sec:hover {
+      background: rgba(148, 163, 184, 0.3);
+      color: #fff;
+    }
+    @media print {
+      .slide-toolbar {
+        display: none !important;
+      }
+      body, .slide-wrapper {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #0b132b !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="slide-toolbar">
+    <button class="btn-slide" onclick="window.print()" title="Print slide or save as PDF">🖨️ Print / Save PDF</button>
+    <button class="btn-slide btn-slide-sec" id="btnDlPng" title="Download slide as 1920x1080 PNG image">🖼️ Download PNG</button>
+    <button class="btn-slide btn-slide-sec" id="btnDlSvg" title="Download standalone SVG">⬇️ Download SVG</button>
+  </div>
+
+  <div class="slide-wrapper">
+    <div class="slide-svg-container" id="slideSvgContainer">
+      ${slideSvg}
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('btnDlSvg')?.addEventListener('click', function() {
+      var svgEl = document.querySelector('.slide-svg-container svg');
+      if (!svgEl) return;
+      var serializer = new XMLSerializer();
+      var svgStr = serializer.serializeToString(svgEl);
+      var blob = new Blob([svgStr], { type: 'image/svg+xml' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '${slug}_slide.svg';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    document.getElementById('btnDlPng')?.addEventListener('click', function() {
+      var svgEl = document.querySelector('.slide-svg-container svg');
+      if (!svgEl) return;
+      var serializer = new XMLSerializer();
+      var svgStr = serializer.serializeToString(svgEl);
+      var img = new Image();
+      var blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      img.onload = function() {
+        var canvas = document.createElement('canvas');
+        canvas.width = 1920;
+        canvas.height = 1080;
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.fillStyle = '#0b132b';
+        ctx.fillRect(0, 0, 1920, 1080);
+        ctx.drawImage(img, 0, 0, 1920, 1080);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function(pngBlob) {
+          if (!pngBlob) return;
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(pngBlob);
+          a.download = '${slug}_slide_1920x1080.png';
+          a.click();
+          URL.revokeObjectURL(a.href);
+        }, 'image/png');
+      };
+      img.src = url;
+    });
+  </script>
+</body>
+</html>`;
+  }
+
   // ── Level 1 System Context SVG (High-Definition 1400x820 Canvas) ─────────────
 
   private static renderLevel1ContextSvg(

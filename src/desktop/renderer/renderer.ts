@@ -6699,14 +6699,183 @@ function setupPhase1Discovery(api: any): void {
     showToast('⬇ Exported standalone interactive C4 SVG!');
   });
 
-  // Export PDF Presentation Slide
-  document.getElementById('btnFdeExportC4Pdf')?.addEventListener('click', () => {
+  // Export Presentation Slide as PDF
+  document.getElementById('btnFdeExportC4Pdf')?.addEventListener('click', async () => {
     closeC4ExportMenu();
-    window.print();
-    showToast('📄 Opened Presentation Slide Print / PDF Dialog!');
+    if (!cachedC4Model) {
+      showToast('No architecture model loaded.');
+      return;
+    }
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine?.toPresentationSlideHtml) {
+      showToast('Presentation slide engine unavailable.');
+      return;
+    }
+
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_level${activeC4Level}_presentation_slide.pdf`;
+    const html = c4Engine.toPresentationSlideHtml(cachedC4Model, {
+      level: activeC4Level,
+      activeSystemId: activeC4SystemId,
+      showHitlExceptionPath,
+      isExecutiveMode: isC4ExecutiveMode,
+      lens: activeC4Lens,
+      scopeVersion: (document.getElementById('selFdeScopeVersion') as HTMLSelectElement)?.value || 'v1.0 (Draft Baseline)'
+    });
+
+    showToast('📄 Generating 16:9 Presentation Slide PDF...');
+    try {
+      if ((api as any)?.system?.savePdf) {
+        const res = await (api as any).system.savePdf({
+          html,
+          filename,
+          defaultPath: filename,
+          landscape: true
+        });
+        if (res?.success && res.filePath) {
+          showToast(`✅ Saved Presentation Slide PDF: ${res.filePath.split(/[\\/]/).pop()}`);
+          return;
+        } else if (res?.canceled) {
+          return;
+        } else if (res?.error) {
+          console.warn('[C4 Slide PDF] savePdf error:', res.error);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[C4 Slide PDF] direct savePdf failed:', err);
+    }
+
+    // Clean fallback: open dedicated slide window for printing/PDF
+    try {
+      if ((api as any)?.system?.printHtml) {
+        await (api as any).system.printHtml({ html, title: `${cachedC4Model.title} — Slide`, landscape: true });
+        showToast('🖨️ Opened Presentation Slide Print Preview');
+        return;
+      }
+      const printWin = window.open('', '_blank');
+      if (printWin) {
+        printWin.document.write(html);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(() => printWin.print(), 500);
+        showToast('✓ Opened Slide in print window — select "Save as PDF"');
+        return;
+      }
+    } catch (_) {}
+    showToast('⚠️ Could not open slide print dialog.');
   });
 
-  // Export Structurizr C4 DSL
+  // Export Presentation Slide as 1920x1080 PNG Image
+  document.getElementById('btnFdeExportC4Png')?.addEventListener('click', async () => {
+    closeC4ExportMenu();
+    if (!cachedC4Model) {
+      showToast('No architecture model loaded.');
+      return;
+    }
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine?.toPresentationSlideSvg) {
+      showToast('Presentation slide engine unavailable.');
+      return;
+    }
+
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_level${activeC4Level}_slide_1920x1080.png`;
+    const slideSvg = c4Engine.toPresentationSlideSvg(cachedC4Model, {
+      level: activeC4Level,
+      activeSystemId: activeC4SystemId,
+      showHitlExceptionPath,
+      isExecutiveMode: isC4ExecutiveMode,
+      lens: activeC4Lens,
+      scopeVersion: (document.getElementById('selFdeScopeVersion') as HTMLSelectElement)?.value || 'v1.0 (Draft Baseline)'
+    });
+
+    showToast('🖼️ Rendering 1920x1080 High-Definition Slide Image...');
+    try {
+      const img = new Image();
+      const svgBlob = new Blob([slideSvg], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1920;
+        canvas.height = 1080;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          URL.revokeObjectURL(url);
+          showToast('Canvas context unavailable.');
+          return;
+        }
+        ctx.fillStyle = '#0b132b';
+        ctx.fillRect(0, 0, 1920, 1080);
+        ctx.drawImage(img, 0, 0, 1920, 1080);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((pngBlob) => {
+          if (!pngBlob) return;
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(pngBlob);
+          a.download = filename;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          showToast(`🖼️ Exported ${filename} (Ready to paste in PowerPoint/Google Slides)!`);
+        }, 'image/png');
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        showToast('⚠️ Could not rasterize slide to PNG.');
+      };
+      img.src = url;
+    } catch (err: any) {
+      showToast(`Error: ${err?.message}`);
+    }
+  });
+
+  // Export Standalone Interactive HTML Slide
+  document.getElementById('btnFdeExportC4Html')?.addEventListener('click', () => {
+    closeC4ExportMenu();
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine?.toPresentationSlideHtml) return;
+
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_interactive_slide.html`;
+    const html = c4Engine.toPresentationSlideHtml(cachedC4Model, {
+      level: activeC4Level,
+      activeSystemId: activeC4SystemId,
+      showHitlExceptionPath,
+      isExecutiveMode: isC4ExecutiveMode,
+      lens: activeC4Lens,
+      scopeVersion: (document.getElementById('selFdeScopeVersion') as HTMLSelectElement)?.value || 'v1.0 (Draft Baseline)'
+    });
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`🌐 Exported standalone presentation slide: ${filename}`);
+  });
+
+  // Export C4-PlantUML (.puml file & copy)
+  document.getElementById('btnFdeExportPlantUml')?.addEventListener('click', () => {
+    closeC4ExportMenu();
+    if (!cachedC4Model) return;
+    const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+    if (!c4Engine?.toC4PlantUml) return;
+
+    const puml = c4Engine.toC4PlantUml(cachedC4Model);
+    navigator.clipboard.writeText(puml);
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_c4.puml`;
+    const blob = new Blob([puml], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`📋 Copied C4-PlantUML & saved ${filename}!`);
+  });
+
+  // Export Structurizr C4 DSL (.dsl file & copy)
   document.getElementById('btnFdeExportStructurizr')?.addEventListener('click', () => {
     closeC4ExportMenu();
     if (!cachedC4Model) return;
@@ -6714,10 +6883,18 @@ function setupPhase1Discovery(api: any): void {
     if (!c4Engine || !c4Engine.toStructurizrDsl) return;
     const dsl = c4Engine.toStructurizrDsl(cachedC4Model);
     navigator.clipboard.writeText(dsl);
-    showToast('📋 Copied Structurizr C4 DSL to clipboard! Compatible with Structurizr & LikeC4.');
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_structurizr.dsl`;
+    const blob = new Blob([dsl], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`📋 Copied Structurizr C4 DSL & saved ${filename}!`);
   });
 
-  // Export Mermaid C4 Code
+  // Export Mermaid C4 Code (.mmd file & copy)
   document.getElementById('btnFdeExportMermaidC4')?.addEventListener('click', () => {
     closeC4ExportMenu();
     if (!cachedC4Model) return;
@@ -6725,7 +6902,15 @@ function setupPhase1Discovery(api: any): void {
     if (!c4Engine || !c4Engine.toMermaidC4) return;
     const mmd = c4Engine.toMermaidC4(cachedC4Model);
     navigator.clipboard.writeText(mmd);
-    showToast('📋 Copied Mermaid C4 diagram syntax to clipboard!');
+    const slug = (cachedC4Model.title || 'architecture').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const filename = `${slug}_c4.mmd`;
+    const blob = new Blob([mmd], { type: 'text/plain;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast(`📋 Copied Mermaid C4 code & saved ${filename}!`);
   });
 
   // Copy Level 3 Contract JSON
