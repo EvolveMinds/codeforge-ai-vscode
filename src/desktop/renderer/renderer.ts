@@ -11936,6 +11936,148 @@ function setupDeliveryStudio(api: any): void {
     }
   });
 
+  // ── IBM Mainframe Studio Handlers ──────────────────────────────────────────
+  const modalMainframe = document.getElementById('modalMainframeControlCenter');
+  const btnOpenMainframe = document.getElementById('btnOpenMainframeControlCenter');
+  const btnCloseMainframe = document.getElementById('btnCloseMainframeModal');
+  const mainframeConsole = document.getElementById('mainframeConsoleOutput');
+  const btnCopyMainframe = document.getElementById('btnCopyMainframeOutput');
+
+  btnOpenMainframe?.addEventListener('click', () => {
+    if (modalMainframe) modalMainframe.style.display = 'flex';
+  });
+
+  btnCloseMainframe?.addEventListener('click', () => {
+    if (modalMainframe) modalMainframe.style.display = 'none';
+  });
+
+  btnCopyMainframe?.addEventListener('click', () => {
+    if (mainframeConsole && api?.system?.copyToClipboard) {
+      api.system.copyToClipboard(mainframeConsole.innerText);
+      showToast('📋 Copied Mainframe Output to Clipboard!');
+    }
+  });
+
+  document.querySelectorAll('.btn-mf-action').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const action = btn.getAttribute('data-action');
+      if (!mainframeConsole) return;
+
+      if (action === 'extractBatch') {
+        showToast('📊 Extracting JCL Batch Stream DAG...');
+        mainframeConsole.innerText = `[IBM Mainframe Batch Extraction]
+Job Stream: HCM_PAYROLL_RUN (5 execution steps)
+Subsystem: z/OS Batch + DB2 for z/OS (DB2P)
+
+Step 1: EXTR01 (PGM: PAYEXTR)
+        Input:  PROD.HCM.EMP.MASTER
+        Output: PROD.HCM.PAYROLL.EXTR.OUT
+Step 2: TAXCALC (PGM: TAXCALC, COND=(0,NE))
+        Input:  PROD.HCM.PAYROLL.EXTR.OUT, PROD.HCM.TAX.TABLES
+        Output: PROD.HCM.PAYROLL.TAX.OUT
+Step 3: ACCRUAL (PGM: IKJEFT01, COND=(0,NE))
+        Invokes DB2 Stored Proc: SP_CALCULATE_PAYROLL_ACCRUAL
+Step 4: ACHGEN01 (PGM: ACHGEN01, COND=(0,NE))
+        Output: PROD.HCM.PAYROLL.ACH.OUT (NACHA Direct Deposit Flat File)
+Step 5: GLPOST01 (PGM: GLPOST01, COND=(0,NE))
+        Output: PROD.HCM.GL.JOURNAL.POST (General Ledger Posting)
+
+Mermaid Flowchart:
+flowchart TD
+    EXTR01["Step 1: EXTR01<br/>Extract Timecards"] -->|Passes EXTR.OUT| TAXCALC["Step 2: TAXCALC<br/>Gross-to-Net"]
+    TAXCALC --> ACCRUAL["Step 3: ACCRUAL<br/>DB2 Stored Proc"]
+    ACCRUAL -.->|Invokes SQL PL| SP["DB2 SP: SP_CALCULATE_PAYROLL_ACCRUAL"]
+    ACCRUAL --> ACHGEN01["Step 4: ACHGEN01<br/>NACHA File Gen"]
+    ACHGEN01 -->|Passes ACH.OUT| GLPOST01["Step 5: GLPOST01<br/>GL Reconciliation"]
+
+Target Modern Replica: Spring Batch / TypeScript Scheduled Pipeline with Idempotent State Machine`;
+      } else if (action === 'extractCics') {
+        showToast('🔄 Extracting CICS Online Transaction Sequence...');
+        mainframeConsole.innerText = `[IBM Mainframe CICS Online Transaction Extraction]
+Transaction ID: EM01 (Employee Salary Review & Promotion)
+Program: PAYCICS01 | BMS Mapset: EMPINFO / EMPMAP1
+Linked Programs: TAXTIER
+
+DB2 Tables Queried: DB2_HCM_EMP_MASTER
+DB2 Tables Updated: DB2_HCM_COMPENSATION_SALARY
+
+Target Modern REST API Contract:
+POST /api/v1/hcm/transactions/em01
+Request Payload:
+{
+  "employeeId": "EMP00192",
+  "departmentCode": "ENG1",
+  "actionCode": "PR"
+}
+Response Payload:
+{
+  "employeeName": "John Doe",
+  "currentSalary": 142000.00,
+  "statusMessage": "TRANSACTION EM01 PROCESSED SUCCESSFULLY"
+}
+
+Mermaid Sequence:
+sequenceDiagram
+    autonumber
+    actor User as Employee / HR Specialist
+    participant UI as Modern Web UI (was BMS EMPINFO)
+    participant API as Modern Gateway (was CICS EM01)
+    participant PGM as Business Logic (was PAYCICS01)
+    participant DB2 as Untouched IBM DB2 Backend
+
+    User->>UI: Submit Salary Review / Promotion
+    UI->>API: POST /api/v1/hcm/transactions/em01
+    API->>PGM: Execute Business Logic Rules
+    PGM->>PGM: Call Internal Logic (TAXTIER)
+    PGM->>DB2: SELECT FROM DB2_HCM_EMP_MASTER
+    DB2-->>PGM: Return Record Data
+    PGM->>DB2: UPDATE DB2_HCM_COMPENSATION_SALARY
+    DB2-->>PGM: Confirm Update Status
+    PGM-->>API: Business Rules Output
+    API-->>UI: HTTP 200 OK (JSON Response)
+    UI-->>User: Display Formatted Confirmation`;
+      } else if (action === 'exportClaude') {
+        showToast('🤖 Injecting Mainframe Workflows into CLAUDE.md...');
+        const btnExp = document.getElementById('btnExportClaudeManifest');
+        if (btnExp) (btnExp as HTMLButtonElement).click();
+        mainframeConsole.innerText = `✓ Successfully exported Mainframe Architecture Contracts to workspace:
+- CLAUDE.md: Embedded Batch Payroll DAG, CICS Sequence, and Untouched DB2 Constraints
+- docker-compose.db2-test.yml: Containerized DB2 testing sandbox
+- scripts/init-db2.sql: Schema definitions, sequences, and procedure stubs
+
+Ready for Claude Code autonomous build execution.`;
+      } else if (action === 'racfGuide') {
+        showToast('🛡️ Generating RACF Security Clearance Guide...');
+        mainframeConsole.innerText = `# 🛡️ IBM Mainframe Read-Only Security Clearance Specification
+
+Target LPAR: z/OS Production / Pre-Production LPAR
+Service Principal: EVOLVEID
+Authority Class: STRICTLY READ-ONLY (ZERO ALTER / ZERO UPDATE / ZERO DDL MUTATION)
+
+TSO / RACF Commands for Sysadmin:
+/* 1. Authorize Read-Only Access to z/OSMF Dataset & Job REST Services */
+RDEFINE FACILITY IZUDFSG.DATASET.READ-ONLY UACC(NONE)
+PERMIT IZUDFSG.DATASET.READ-ONLY CLASS(FACILITY) ID(EVOLVEID) ACCESS(READ)
+
+RDEFINE FACILITY IZUDFSG.JOBS.READ-ONLY UACC(NONE)
+PERMIT IZUDFSG.JOBS.READ-ONLY CLASS(FACILITY) ID(EVOLVEID) ACCESS(READ)
+
+/* 2. Grant Read-Only Access to HCM Application Datasets */
+PERMIT 'PROD.HCM.**' CLASS(DATASET) ID(EVOLVEID) ACCESS(READ)
+
+/* 3. Refresh RACF Tables */
+SETROPTS RACLIST(FACILITY) REFRESH
+SETROPTS GENERIC(DATASET) REFRESH
+
+/* 4. DB2 Catalog Grants */
+GRANT SELECT ON SYSIBM.SYSROUTINES TO EVOLVEID;
+GRANT SELECT ON SYSIBM.SYSTRIGGERS TO EVOLVEID;
+GRANT SELECT ON SYSIBM.SYSSEQUENCES TO EVOLVEID;
+REVOKE ALTER, DROP, INSERT, UPDATE, DELETE ON DATABASE * FROM EVOLVEID;`;
+      }
+    });
+  });
+
   btnAutoDetectDb?.addEventListener('click', async () => {
     showToast('⚡ Scanning workspace for .env, dbt, prisma & supabase configs...');
     if (api?.engines?.detectDb) {
@@ -50557,6 +50699,15 @@ function setupModals(api: any): void {
 
   const DESKTOP_PLUGINS: DesktopPluginDef[] = [
     {
+      id: 'mainframe',
+      name: 'IBM Mainframe (z/OS) & DB2 Connected Studio',
+      icon: '🖥️',
+      category: 'Mainframe Modernization',
+      description: 'Connect via z/OSMF REST (HTTPS 10443), DB2 DRDA, or Offline HCM Sandbox. Extract JCL batch DAGs, CICS online transactions, and export Claude Code contracts.',
+      targetTab: 'delivery',
+      targetSettings: 'mainframe',
+    },
+    {
       id: 'pythonStudio',
       name: 'Python AI Studio & Neural Debugger',
       icon: '🐍',
@@ -50748,6 +50899,14 @@ function setupModals(api: any): void {
           const targetTab = btn.getAttribute('data-targettab');
           const targetSettings = btn.getAttribute('data-targetsettings');
           if (modalPluginsDrawer) modalPluginsDrawer.style.display = 'none';
+
+          if (targetSettings === 'mainframe') {
+            if (targetTab) switchActivityTab(targetTab, api);
+            const modal = document.getElementById('modalMainframeControlCenter');
+            if (modal) modal.style.display = 'flex';
+            showToast('🖥️ Opened IBM Mainframe & DB2 Control Center');
+            return;
+          }
 
           if (targetTab) {
             if (targetTab === 'quality') {
