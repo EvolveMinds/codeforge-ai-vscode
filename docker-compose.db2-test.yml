@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  db2-local:
+    image: icr.io/db2_free/db2:latest
+    container_name: db2_hcm_test
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - "50000:50000"
+      - "50001:50001"
+    environment:
+      - LICENSE=accept
+      - DB2INSTANCE=db2inst1
+      - DB2PASSWORD=db2adminPassword123!
+      - DBNAME=SAMPLE
+      - BLU=false
+      - ENABLE_ORACLE_COMPATIBILITY=false
+      - AUTOCONFIG=false
+      - ARCHIVE_LOGS=false
+    volumes:
+      - ./scripts/init-db2.sql:/var/custom/init-db2.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "su - db2inst1 -c 'db2 connect to SAMPLE' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
