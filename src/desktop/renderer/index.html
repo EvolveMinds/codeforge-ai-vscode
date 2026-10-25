@@ -978,6 +978,7 @@
       <button class="activity-btn" data-tab="python" id="actBtnPythonStudio" title="AI Coding Studio &amp; Neural Debugger (Polyglot Engineering Cockpit)" aria-label="AI Coding Studio &amp; Neural Debugger">💻</button>
       <button class="activity-btn" data-tab="data" id="actBtnDataStudio" title="Data Analysis &amp; Reporting Studio" aria-label="Data Analysis &amp; Reporting Studio">📊</button>
       <button class="activity-btn" data-tab="converter" id="actBtnConverterStudio" title="Code Converter STUDIO (26 Languages)" aria-label="Code Converter STUDIO (26 Languages)">🔀</button>
+      <button class="activity-btn" data-tab="mainframe" id="actBtnMainframeStudio" title="IBM Mainframe (z/OS) &amp; DB2 Modernization Studio" aria-label="IBM Mainframe (z/OS) &amp; DB2 Modernization Studio">🖥️</button>
       <button class="activity-btn" data-tab="lakehouse" id="actBtnLakehouseStudio" title="Databricks Lakehouse &amp; Unity Catalog Hub" aria-label="Databricks Lakehouse &amp; Unity Catalog Hub">🗄️</button>
       <button class="activity-btn" data-tab="security" id="actBtnSecurityStudio" title="Security Scanner &amp; Pre-Flight Health Auditor" aria-label="Security Scanner &amp; Pre-Flight Health Auditor">🛡️</button>
       <button class="activity-btn" data-tab="chat" id="actBtnChat" title="AI Copilot &amp; Multi-Engine Chat" aria-label="AI Copilot &amp; Multi-Engine Chat">💬</button>
@@ -11276,6 +11277,126 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px;">📊 Translation Quality &amp; Fidelity Report:</div>
               <div id="convReportContent" style="font-size: 11.5px; color: #fff; line-height: 1.5;"></div>
             </div>
+          </div>
+        </section>
+
+        <!-- =================================================================== -->
+        <!-- MODE: IBM MAINFRAME (z/OS) & DB2 MODERNIZATION STUDIO -->
+        <!-- =================================================================== -->
+        <section id="pane-mainframe" class="phase-pane" style="display: none;">
+          <!-- Top Hero Card -->
+          <div class="content-card" style="margin-bottom: 16px; border-left: 4px solid #a855f7;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 style="margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 10px;">
+                  <span>🖥️</span> IBM Mainframe (z/OS) &amp; DB2 Modernization Studio
+                  <span id="badgeMainframeStatus" style="font-size: 10.5px; font-weight: 700; background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 10px; border-radius: 12px;">🟢 Offline HCM Sandbox Active</span>
+                </h3>
+                <p class="desc" style="margin: 6px 0 0 0; font-size: 12px; color: var(--text-secondary);">
+                  Enterprise z/OSMF REST gateway, JCL batch stream DAG extraction, CICS online transaction sequence modeling, RACF least-privilege governance, and untouched DB2 schema guardrails.
+                </p>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-quick" id="btnMainframeSwitchSandbox" style="font-size: 11px; padding: 5px 12px; color: #a855f7; border-color: rgba(168,85,247,0.4); cursor: pointer;">🧪 Load Offline Sandbox</button>
+                <button class="btn-quick" id="btnMainframeRacfGuide" style="font-size: 11px; padding: 5px 12px; color: #fbbf24; border-color: rgba(245,158,11,0.4); cursor: pointer;">🛡️ RACF Clearance Guide</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Grid: Connection Config & Action Matrix -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+            <!-- Left Card: Subsystem Profile & Credentials -->
+            <div class="content-card" style="margin-bottom: 0;">
+              <h4 style="margin: 0 0 10px 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                <span>🔌</span> Subsystem Connection &amp; Authentication
+              </h4>
+              <div style="margin-bottom: 10px;">
+                <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selMainframeConnMode">Connection Mode</label>
+                <select id="selMainframeConnMode" style="width: 100%; padding: 7px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+                  <option value="offline_sandbox">Built-in Offline Enterprise HCM Sandbox (Instant Day-1 Productivity)</option>
+                  <option value="zowe_autodetect">Auto-Discovered Zowe CLI Profile (~/.zowe/zowe.config.json)</option>
+                  <option value="live_zosmf">Live z/OSMF REST Endpoint (HTTPS Port 10443)</option>
+                  <option value="db2_drda">Direct DB2 for z/OS DRDA (Port 446 / 5021)</option>
+                </select>
+              </div>
+
+              <div id="grpMainframeLiveFields" style="display: none; margin-bottom: 10px;">
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeHost">Host / LPAR</label>
+                    <input type="text" id="txtMainframeHost" placeholder="mainframe.bank.internal" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePort">Port</label>
+                    <input type="number" id="txtMainframePort" value="10443" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeUser">User ID (RACF)</label>
+                    <input type="text" id="txtMainframeUser" placeholder="HCMDEV01" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePass">Passphrase / PassTicket</label>
+                    <input type="password" id="txtMainframePass" placeholder="••••••••" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                </div>
+                <label style="font-size: 10.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" id="chkMainframeTrustCert" checked> Trust Corporate Internal Root CA / Self-Signed Testbed
+                </label>
+              </div>
+
+              <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                <button class="btn" id="btnMainframeTestConnection" style="font-size: 11px; padding: 6px 14px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;">🔌 Test Connection</button>
+                <button class="btn-quick" id="btnMainframeBrowseDatasets" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📁 Browse Datasets</button>
+                <button class="btn-quick" id="btnMainframeCheckSpool" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📋 Check Spool</button>
+              </div>
+            </div>
+
+            <!-- Right Card: Workflow Extraction Operations -->
+            <div class="content-card" style="margin-bottom: 0;">
+              <h4 style="margin: 0 0 10px 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                <span>⚡</span> Automated Workflow Extraction Engine
+              </h4>
+              <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
+                Extract end-to-end business workflows from JCL batch job decks, CICS transaction maps, and DB2 stored procedures.
+              </p>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                <button class="btn-quick btn-mf-studio-action" data-action="batchDag" style="text-align: left; padding: 8px 10px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.35); cursor: pointer;">
+                  <div style="font-size: 11.5px; font-weight: 700; color: #60a5fa;">📊 Extract Batch DAG</div>
+                  <div style="font-size: 9.5px; color: var(--text-secondary);">Parse JCL job steps &amp; dataflow</div>
+                </button>
+                <button class="btn-quick btn-mf-studio-action" data-action="cicsSeq" style="text-align: left; padding: 8px 10px; background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.35); cursor: pointer;">
+                  <div style="font-size: 11.5px; font-weight: 700; color: #c084fc;">🔄 Extract CICS Trans</div>
+                  <div style="font-size: 9.5px; color: var(--text-secondary);">Parse BMS maps &amp; REST APIs</div>
+                </button>
+                <button class="btn-quick btn-mf-studio-action" data-action="db2Introspect" style="text-align: left; padding: 8px 10px; background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.35); cursor: pointer;">
+                  <div style="font-size: 11.5px; font-weight: 700; color: #34d399;">🗄️ Introspect DB2</div>
+                  <div style="font-size: 9.5px; color: var(--text-secondary);">Stored procs, sequences, tables</div>
+                </button>
+                <button class="btn-quick btn-mf-studio-action" data-action="exportClaude" style="text-align: left; padding: 8px 10px; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.35); cursor: pointer;">
+                  <div style="font-size: 11.5px; font-weight: 700; color: #38bdf8;">🤖 Export to Claude</div>
+                  <div style="font-size: 9.5px; color: var(--text-secondary);">Inject into CLAUDE.md</div>
+                </button>
+              </div>
+              <div style="font-size: 10px; color: var(--text-muted); background: rgba(255,255,255,0.02); padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border);">
+                🔒 <b>Untouched DB2 Rule:</b> Preflight auditor strictly blocks any ALTER, DROP, or CREATE TABLE in DB2.
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Console & Architecture Output -->
+          <div class="content-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h4 style="margin: 0; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+                <span>📋</span> Mainframe Workflow Blueprint &amp; Sequence Diagrams
+              </h4>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-quick" id="btnMainframeCopyStudioOutput" style="font-size: 11px; padding: 3px 10px; cursor: pointer;">📋 Copy Blueprint</button>
+                <button class="btn-quick" id="btnMainframeClearStudioOutput" style="font-size: 11px; padding: 3px 10px; cursor: pointer;">✕ Clear</button>
+              </div>
+            </div>
+            <div id="mainframeStudioConsole" style="background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-family: monospace; font-size: 11.5px; color: #e2e8f0; min-height: 280px; max-height: 480px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;">Ready. Click "Extract Batch DAG" or "Extract CICS Trans" above to inspect mainframe workflows and generate modernization blueprints.</div>
           </div>
         </section>
 
