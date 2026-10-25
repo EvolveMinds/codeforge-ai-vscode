@@ -337,8 +337,8 @@ const desktopApi = {
     openPath: (targetPath: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.OPEN_PATH, targetPath, repoRoot),
     revealInFolder: (targetPath: string, repoRoot?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.REVEAL_IN_FOLDER, targetPath, repoRoot),
     copyToClipboard: (text: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.COPY_TO_CLIPBOARD, text),
-    savePdf: (opts: { html: string; filename?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.SAVE_PDF, opts),
-    printHtml: (opts: { html: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.PRINT_HTML, opts)
+    savePdf: (opts: { html: string; filename?: string; defaultPath?: string; landscape?: boolean; pageSize?: string; title?: string }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.SAVE_PDF, opts),
+    printHtml: (opts: { html: string; title?: string; landscape?: boolean }) => ipcRenderer.invoke(DESKTOP_CHANNELS.SYSTEM.PRINT_HTML, opts)
   }
 };
 

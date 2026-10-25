@@ -2245,10 +2245,11 @@ export class DesktopIpcHandlers {
         tempPath = path.join(os.tmpdir(), `evolve_pdf_${Date.now()}_${Math.random().toString(36).slice(2)}.html`);
         fs.writeFileSync(tempPath, opts?.html || '', 'utf8');
 
+        const isLandscape = Boolean((opts as any)?.landscape);
         win = new electronModule.BrowserWindow({
           show: false,
-          width: 1200,
-          height: 800,
+          width: isLandscape ? 1920 : 1200,
+          height: isLandscape ? 1080 : 800,
           webPreferences: {
             nodeIntegration: false,
             contextIsolation: true
@@ -2260,8 +2261,8 @@ export class DesktopIpcHandlers {
 
         const pdfBuffer = await win.webContents.printToPDF({
           printBackground: true,
-          landscape: false,
-          pageSize: 'A4',
+          landscape: isLandscape,
+          pageSize: (opts as any)?.pageSize || 'A4',
           preferCSSPageSize: true,
           margins: { marginType: 'default' }
         });
@@ -2316,9 +2317,10 @@ export class DesktopIpcHandlers {
         tempPath = path.join(os.tmpdir(), `evolve_print_${Date.now()}_${Math.random().toString(36).slice(2)}.html`);
         fs.writeFileSync(tempPath, opts?.html || '', 'utf8');
 
+        const isLandscape = Boolean((opts as any)?.landscape);
         win = new electronModule.BrowserWindow({
-          width: 1100,
-          height: 850,
+          width: isLandscape ? 1280 : 1100,
+          height: isLandscape ? 720 : 850,
           title: opts?.title || 'Evolve AI — Print Deliverable',
           show: true,
           webPreferences: {
@@ -2333,7 +2335,8 @@ export class DesktopIpcHandlers {
 
         win.webContents.print({
           silent: false,
-          printBackground: true
+          printBackground: true,
+          landscape: isLandscape
         }, () => {
           try {
             if (win && !win.isDestroyed()) {
