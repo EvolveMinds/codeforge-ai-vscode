@@ -16,6 +16,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
 const { execSync } = require('child_process');
 
 const rootDir = path.join(__dirname, '..');
@@ -144,6 +145,17 @@ fs.writeFileSync(
   'utf8'
 );
 
+// 2b. Compute SHA-256 for all updated templates and attach to manifest
+manifest.checksums = {};
+for (const relFile of manifest.templatesUpdated) {
+  const filePath = path.join(stagingDir, relFile);
+  if (fs.existsSync(filePath)) {
+    const fileBytes = fs.readFileSync(filePath);
+    manifest.checksums[relFile] = crypto.createHash('sha256').update(fileBytes).digest('hex');
+  }
+}
+fs.writeFileSync(path.join(stagingDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+
 // 3. Compress into .zip
 const zipName = `evolve-ai-enterprise-patch-${version}.zip`;
 const outputZip = path.join(distDir, zipName);
@@ -151,6 +163,7 @@ const outputZip = path.join(distDir, zipName);
 console.log(`[1/3] Assembling patch components into staging directory...`);
 console.log(`      Patch ID: ${patchId}`);
 console.log(`      Base Version: ${version}`);
+console.log(`      Templates with SHA-256 digests: ${Object.keys(manifest.checksums).length}`);
 
 console.log(`\n[2/3] Compressing archive into ${zipName}...`);
 try {
@@ -166,13 +179,20 @@ try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch {}
 
 const stats = fs.statSync(outputZip);
 const sizeKB = (stats.size / 1024).toFixed(1);
+const zipBytes = fs.readFileSync(outputZip);
+const zipSha256 = crypto.createHash('sha256').update(zipBytes).digest('hex');
+fs.writeFileSync(outputZip + '.sha256', `${zipSha256} *${zipName}\n`, 'utf8');
+
 console.log(`  ✓ Successfully built patch bundle: ${zipName} (${sizeKB} KB)`);
+console.log(`  ✓ Archive SHA-256: ${zipSha256}`);
+console.log(`  ✓ Wrote checksum file: ${zipName}.sha256`);
 
 // Also copy to user's Downloads folder if accessible for instant UI testing
 const userDownloads = path.join(os.homedir(), 'Downloads');
 if (fs.existsSync(userDownloads)) {
   const sampleDownloadZip = path.join(userDownloads, `evolve-ai-enterprise-patch-${version}-sample.zip`);
   fs.copyFileSync(outputZip, sampleDownloadZip);
+  fs.copyFileSync(outputZip + '.sha256', sampleDownloadZip + '.sha256');
   console.log(`\n[3/3] Copied sample patch bundle directly to Downloads folder:`);
   console.log(`      ${sampleDownloadZip}`);
   console.log(`      (You can now immediately pick this in the Evolve AI file selector!)`);

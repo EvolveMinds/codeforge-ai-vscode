@@ -8,7 +8,8 @@
 
 ## TODO 1 — Real benchmark execution engine
 
-**Status:** Not started. **Priority:** High — this is the largest remaining gap.
+**Status:** Completed in v2.30.0. **Priority:** High.
+**Implementation:** `src/fde/benchmarkEngine.ts` and `src/core/ai/coreAiService.ts`, integrated into IPC handler `RUN_GOLDEN_BENCHMARK` (`src/desktop/main/ipcHandlers.ts`). Executes genuine SUT adapters across Ollama, REST APIs, scripts, rules, and frontier AI providers with `process.hrtime` latency measurement and real token billing.
 
 ### The problem
 
@@ -71,7 +72,8 @@ metric off `evals.benchmarkExecuted`, so an unexecuted benchmark renders
 
 ## TODO 2 — Webhook Ingest Studio
 
-**Status:** Not started. **Priority:** Medium — currently advertised but absent.
+**Status:** Completed in v2.30.0. **Priority:** Medium.
+**Implementation:** `src/fde/webhookStudio.ts` and IPC handler `GENERATE_WEBHOOK_RECEIVER` (`src/desktop/main/ipcHandlers.ts`). Supports constant-time HMAC verification across Stripe (`t=`/`v1=`), GitHub (`X-Hub-Signature-256`), Slack, and generic HMAC-SHA256, alongside replay window rejection and idempotency deduplication cache.
 
 ### The problem
 
@@ -189,8 +191,8 @@ For direct standalone `.exe` downloads outside the Store, there is no free optio
 
 ## TODO 4 — Offline hot patch: publish the archive, and make the claims true
 
-**Status:** Not started. **Priority:** High — the feature is advertised in the UI
-and there is nothing for a customer to apply. **Raised:** 2026-09-22.
+**Status:** Completed in v2.30.0. **Priority:** High.
+**Implementation:** `scripts/create-offline-patch.js` generates per-template SHA-256 digests in `manifest.json`, outputs `evolve-ai-enterprise-patch-<version>.zip.sha256`, and `DesktopUpdater.applyOfflinePatch` (`src/desktop/main/updater.ts`) verifies archive format, quarantine extraction, manifest presence, version compatibility, path traversal prevention, and per-file SHA-256 checksums before updating templates.
 
 ### The problem
 

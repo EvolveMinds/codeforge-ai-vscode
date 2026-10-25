@@ -12,6 +12,7 @@ export function registerFdeSuite(vsCtx: vscode.ExtensionContext, services: IServ
 }
 
 export * from './fdeContext';
+export * from './fdeStateStore';
 export * from './schemaMapper';
 export * from './aiEngine';
 export * from './apiConnectorGen';

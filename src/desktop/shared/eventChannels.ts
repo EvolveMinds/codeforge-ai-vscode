@@ -141,6 +141,7 @@ export const DESKTOP_CHANNELS = {
     DISCOVER_MART_RECIPES: 'evolve:engines:discover-mart-recipes',
     GENERATE_MART_PROMPT: 'evolve:engines:generate-mart-prompt',
     GENERATE_API_SDK: 'evolve:engines:generate-api-sdk',
+    GENERATE_WEBHOOK_RECEIVER: 'evolve:engines:generate-webhook-receiver',
     PARSE_CURL: 'evolve:engines:parse-curl',
     PARSE_OPENAPI: 'evolve:engines:parse-openapi',
     SCAFFOLD_DEPLOY: 'evolve:engines:scaffold-deploy',
@@ -186,6 +187,12 @@ export const DESKTOP_CHANNELS = {
     SCAFFOLD_LADDER_LEVEL: 'evolve:fde:scaffold-ladder-level',
     SCAFFOLD_MCP_TOOL_SERVER: 'evolve:fde:scaffold-mcp-tool-server',
     RUN_GOLDEN_BENCHMARK: 'evolve:fde:run-golden-benchmark',
+    RUN_DESLOP_SCRUB: 'evolve:fde:run-deslop-scrub',
+    CONVENE_MODEL_COUNCIL: 'evolve:fde:convene-model-council',
+    GET_QUALITY_LOOP_STATUS: 'evolve:fde:get-quality-loop-status',
+    START_QUALITY_LOOP: 'evolve:fde:start-quality-loop',
+    RECORD_QUALITY_LOOP_ITERATION: 'evolve:fde:record-quality-loop-iteration',
+    COMPLETE_QUALITY_LOOP: 'evolve:fde:complete-quality-loop',
     EXPORT_BENCHMARK_REPORT: 'evolve:fde:export-benchmark-report',
     EXPORT_BENCHMARK_RUNNER: 'evolve:fde:export-benchmark-runner',
     GENERATE_BENCHMARK_CASES: 'evolve:fde:generate-benchmark-cases',
@@ -208,7 +215,13 @@ export const DESKTOP_CHANNELS = {
     LOG_HITL_ACTION: 'evolve:fde:log-hitl-action',
     GET_HITL_LOG: 'evolve:fde:get-hitl-log',
     CLEAR_HITL_LOG: 'evolve:fde:clear-hitl-log',
-    CHAT_HELP_GUIDE: 'evolve:fde:chat-help-guide'
+    CHAT_HELP_GUIDE: 'evolve:fde:chat-help-guide',
+    ATLASSIAN_TEST_CONNECTION: 'evolve:fde:atlassian:test-connection',
+    ATLASSIAN_PUBLISH_CONFLUENCE: 'evolve:fde:atlassian:publish-confluence',
+    ATLASSIAN_EXPORT_JIRA: 'evolve:fde:atlassian:export-jira',
+    ATLASSIAN_IMPORT_CONFLUENCE: 'evolve:fde:atlassian:import-confluence',
+    ATLASSIAN_IMPORT_JIRA: 'evolve:fde:atlassian:import-jira',
+    ATLASSIAN_SAVE_FILE: 'evolve:fde:atlassian:save-file'
   },
 
   SYSTEM: {

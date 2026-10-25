@@ -37,6 +37,7 @@ export * from './workspaceArchetypeMiner';
 export * from './repoSecurityScanner';
 export * from './repoQualityGatekeeper';
 export * from './projectOrientationSynthesizer';
+export * from './cosmosContextBridge';
 
 export class CodebaseGraphEngine {
   /**

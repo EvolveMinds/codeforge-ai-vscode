@@ -13,6 +13,10 @@ import { DeployScriptScaffolder } from '../deployment/deployScriptScaffolder';
 import { RunbookGenerator } from '../fde/runbookGenerator';
 import { FdeContextManager } from '../fde/fdeContext';
 import { DbIntrospector } from '../fde/dbIntrospector';
+import { LoopEngine, LoopRiskClass } from '../fde/loopEngine';
+import { DeslopScrubber } from '../fde/deslopScrubber';
+import { ModelCouncilEngine } from '../fde/modelCouncil';
+import { installQualityLoopHook } from '../core/hookInstaller';
 
 export class FdeCommands {
   constructor(private readonly _svc: IServices) {}
@@ -38,6 +42,111 @@ export class FdeCommands {
     r('aiForge.fde.exportClaudeManifest', () => this.exportClaudeManifest());
     r('aiForge.fde.launchDesktop', () => this.launchDesktop());
     r('aiForge.fde.downloadDesktop', () => this.downloadDesktop());
+    r('aiForge.fde.startLoop', () => this.startQualityLoop());
+    r('aiForge.fde.runScrub', () => this.runDeslopScrub());
+    r('aiForge.fde.conveneCouncil', () => this.conveneModelCouncil());
+    r('aiForge.fde.installQualityLoopHook', () => this.installQualityHook());
+  }
+
+  async startQualityLoop(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) {
+      vscode.window.showWarningMessage('Please open a workspace folder first to initialize a Quality Loop.');
+      return;
+    }
+
+    const title = await vscode.window.showInputBox({
+      prompt: 'Enter task or feature title for this Quality Loop',
+      placeHolder: 'e.g. Implement resilient webhook receiver & signature verifier'
+    });
+    if (!title) return;
+
+    const riskPick = await vscode.window.showQuickPick(
+      [
+        { label: 'standard', description: 'Default task (min 2 iterations required)' },
+        { label: 'auto-fix', description: 'Deterministic mechanical fix (min 1 iteration required)' },
+        { label: 'complex-delivery', description: 'Cross-system architectural integration (min 3 iterations required)' },
+        { label: 'high-risk', description: 'Financial / Auth / Data mutation critical path (min 5 iterations required)' }
+      ],
+      { placeHolder: 'Select risk classification to determine minimum required iterations' }
+    );
+    if (!riskPick) return;
+
+    const engine = LoopEngine.getInstance(ws);
+    const loop = await engine.startLoop({ taskTitle: title, riskClass: riskPick.label as LoopRiskClass });
+    vscode.window.showInformationMessage(
+      `🔄 Initialized Quality Loop [${loop.loopId}] for "${title}" (${loop.minIterations} minimum iterations required). State tracked in .evolve/state/loop-state.json`
+    );
+  }
+
+  async runDeslopScrub(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) {
+      vscode.window.showWarningMessage('Please open a workspace folder first to run Deslop Scrub.');
+      return;
+    }
+
+    const report = DeslopScrubber.scrubDirectory(ws);
+    if (report.isClean) {
+      vscode.window.showInformationMessage(`✨ Deslop Scrub Clean: Scanned ${report.scannedFilesCount} files — zero LLM smells or anti-patterns detected.`);
+    } else {
+      const choice = await vscode.window.showWarningMessage(
+        `🧹 Deslop Scrub: ${report.blockingCount} blocking and ${report.advisoryCount} advisory findings across ${report.totalFindings} instances.`,
+        'View Findings'
+      );
+      if (choice === 'View Findings') {
+        const doc = await vscode.workspace.openTextDocument({
+          content: DeslopScrubber.formatMarkdownReport(report),
+          language: 'markdown'
+        });
+        await vscode.window.showTextDocument(doc);
+      }
+    }
+  }
+
+  async conveneModelCouncil(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) {
+      vscode.window.showWarningMessage('Please open a workspace folder first to convene the Model Council.');
+      return;
+    }
+
+    const topic = await vscode.window.showInputBox({
+      prompt: 'Architecture topic or decision for debate',
+      placeHolder: 'e.g. Rule Engine vs RAG Vector Pipeline vs Fine-Tuned SLM'
+    });
+    if (!topic) return;
+
+    const context = await vscode.window.showInputBox({
+      prompt: 'Optional business context, SLA constraints, or latency requirements',
+      placeHolder: 'e.g. Sub-200ms latency SLA, zero external network egress'
+    });
+
+    vscode.window.showInformationMessage(`🏛️ Convening 3-Model Architecture Council on: "${topic}"...`);
+    const debate = await ModelCouncilEngine.conveneCouncil({
+      topic,
+      context: context || '',
+      workspaceRoot: ws
+    });
+
+    vscode.window.showInformationMessage(`✓ Model Council synthesized ADR: ${debate.adrPath}`);
+    const doc = await vscode.workspace.openTextDocument(path.join(ws, debate.adrPath));
+    await vscode.window.showTextDocument(doc);
+  }
+
+  async installQualityHook(): Promise<void> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!ws) {
+      vscode.window.showWarningMessage('Please open a workspace folder first to install the pre-commit hook.');
+      return;
+    }
+
+    const res = installQualityLoopHook(ws);
+    if (res.ok) {
+      vscode.window.showInformationMessage(`✓ ${res.message}`);
+    } else {
+      vscode.window.showErrorMessage(`❌ ${res.message}`);
+    }
   }
 
   async launchDesktop(): Promise<void> {

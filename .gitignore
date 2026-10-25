@@ -36,7 +36,8 @@ desktop.ini
 .ovsx-token
 
 # Bundled code-analysis binaries (downloaded by scripts/download-binaries.js)
-bin/
+bin/*
+!bin/evolve.js
 
 # Local simulation / test harnesses (not shipped)
 .de1-sim/

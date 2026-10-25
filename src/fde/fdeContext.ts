@@ -12,6 +12,7 @@
  */
 
 import * as vscode from 'vscode';
+import { FdeStateStore } from './fdeStateStore';
 
 export interface MappedColumn {
   sourceColumn: string;
@@ -237,7 +238,32 @@ const FDE_STORE_KEY = 'evolve.fde.workspaceStore';
 const FDE_LEGACY_KEY = 'evolve.fde.engagementState';
 
 export class FdeContextManager {
-  constructor(private readonly _vsCtx: vscode.ExtensionContext) {}
+  constructor(private readonly _vsCtx: vscode.ExtensionContext) {
+    const wsRoot = this._getWorkspaceRoot();
+    if (wsRoot) {
+      try {
+        const storeInstance = FdeStateStore.getInstance(wsRoot);
+        storeInstance.on('state:changed', (diskState) => {
+          try {
+            const currentStore = this._vsCtx.workspaceState.get<FdeWorkspaceStore>(FDE_STORE_KEY);
+            if (currentStore && currentStore.projects) {
+              const idx = currentStore.projects.findIndex(p => p.id === diskState.id);
+              if (idx >= 0) {
+                currentStore.projects[idx] = diskState;
+              } else {
+                currentStore.projects.push(diskState);
+              }
+              this._vsCtx.workspaceState.update(FDE_STORE_KEY, currentStore);
+            }
+          } catch {}
+        });
+      } catch {}
+    }
+  }
+
+  private _getWorkspaceRoot(): string | undefined {
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  }
 
   private _createDefaultProject(id = 'proj-default', name = 'Client Pilot Engagement'): FdeEngagementState {
     return {
@@ -257,6 +283,29 @@ export class FdeContextManager {
   }
 
   getStore(): FdeWorkspaceStore {
+    const wsRoot = this._getWorkspaceRoot();
+    if (wsRoot) {
+      try {
+        const diskState = FdeStateStore.getInstance(wsRoot).getState();
+        const rawStore = this._vsCtx.workspaceState.get<FdeWorkspaceStore>(FDE_STORE_KEY);
+        if (rawStore && rawStore.projects && rawStore.projects.length > 0) {
+          const activeIdx = rawStore.projects.findIndex(p => p.id === rawStore.activeProjectId);
+          if (activeIdx >= 0 && (diskState.updatedAt || 0) > (rawStore.projects[activeIdx].updatedAt || 0)) {
+            rawStore.projects[activeIdx] = { ...rawStore.projects[activeIdx], ...diskState };
+            this._vsCtx.workspaceState.update(FDE_STORE_KEY, rawStore);
+          }
+          return rawStore;
+        } else if (diskState && diskState.clientName) {
+          const store: FdeWorkspaceStore = {
+            activeProjectId: diskState.id,
+            projects: [diskState]
+          };
+          this._vsCtx.workspaceState.update(FDE_STORE_KEY, store);
+          return store;
+        }
+      } catch {}
+    }
+
     const rawStore = this._vsCtx.workspaceState.get<FdeWorkspaceStore>(FDE_STORE_KEY);
     if (rawStore && rawStore.projects && rawStore.projects.length > 0) {
       // Ensure active project exists
@@ -293,6 +342,15 @@ export class FdeContextManager {
 
   async saveStore(store: FdeWorkspaceStore): Promise<void> {
     await this._vsCtx.workspaceState.update(FDE_STORE_KEY, store);
+    const wsRoot = this._getWorkspaceRoot();
+    if (wsRoot) {
+      try {
+        const active = store.projects.find(p => p.id === store.activeProjectId) || store.projects[0];
+        if (active) {
+          FdeStateStore.getInstance(wsRoot).setState(active, 'vscode');
+        }
+      } catch {}
+    }
   }
 
   getAllProjects(): FdeEngagementState[] {
