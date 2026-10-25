@@ -350,4 +350,91 @@ suite('FDE Suite — Help Guide Assistant & IP Guardrails', () => {
       assert.ok(labels.some(l => l.includes('AI Copilot Chat')), `Query "${q}" should include Chat action`);
     }
   });
+
+  test('answers differences between Execution Flow and 2D System Topology and how they connect', () => {
+    const topologyQueries = [
+      'what is the difference between Execution flow and 2d System Topology? and how they are connected to each other when a design is built for the user to correct the flow and explain to the team',
+      'what is execution flow and 2d system topology',
+      'why are there two topologies in phase 1 step 3',
+      'how are execution flow and 2d topology connected',
+      'difference between execution flow and 2d system topology'
+    ];
+
+    for (const q of topologyQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger IP refusal banner`);
+      assert.ok(
+        res.reply.includes('2D System Topology vs. ⏱️ Execution Flow'),
+        `Query "${q}" should explain dual-lens principle`
+      );
+      assert.ok(res.reply.includes('City Map'), 'Must include City Map analogy for topology');
+      assert.ok(res.reply.includes('GPS'), 'Must include GPS analogy for execution flow');
+      assert.ok(res.reply.includes('Bi-Directional Synchronization'), 'Must explain bi-directional sync');
+      assert.ok(res.reply.includes('Animate Flow'), 'Must explain animated flow connection');
+      assert.ok(res.reply.includes('Human-in-the-Loop'), 'Must explain HITL gate relationship');
+      assert.ok(res.actions && res.actions.length >= 3, 'Must include quick navigation actions');
+
+      const labels = res.actions!.map(a => a.label);
+      assert.ok(labels.some(l => l.includes('Phase 1 Step 3') || l.includes('Topology Studio')));
+      assert.ok(labels.some(l => l.includes('2D System Topology')));
+      assert.ok(labels.some(l => l.includes('Execution Flow')));
+    }
+  });
+
+  test('guides users on how to drill down, edit boundaries, and customize 2D System Topology', () => {
+    const editQueries = [
+      'how to use 2d system topology',
+      'How do I drill down, edit boundaries, and customize 2D System Topology?',
+      'how do i drill down in topology',
+      'how do i move or edit boundaries in topology',
+      'how to inspect data contract and simulate hitl in topology'
+    ];
+
+    for (const q of editQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger IP refusal banner`);
+      assert.ok(
+        res.reply.includes('Navigating, Drilling Down & Editing 2D System Topology'),
+        `Query "${q}" should guide on topology interaction`
+      );
+      assert.ok(res.reply.includes('Level 1 (System Context)'), 'Must explain Level 1');
+      assert.ok(res.reply.includes('Level 2 (Containers)'), 'Must explain Level 2');
+      assert.ok(res.reply.includes('Contract'), 'Must explain Data Contracts');
+      assert.ok(res.reply.includes('Move (Drag) Boundaries'), 'Must explain boundary dragging');
+      assert.ok(res.reply.includes('+ Boundary'), 'Must explain adding boundaries');
+      assert.ok(res.reply.includes('Animate Flow'), 'Must explain flow animation');
+      assert.ok(res.reply.includes('Human-in-the-Loop Simulation'), 'Must explain HITL simulation');
+      assert.ok(res.actions && res.actions.length >= 3);
+    }
+  });
+
+  test('explains the enterprise playbook for presenting architecture and correcting flows with teams across multi-domain environments', () => {
+    const playbookQueries = [
+      'How do I present the architecture to my team and correct the flow?',
+      'how to explain the design to the team and correct the flow',
+      'how to present system design to stakeholders and architects',
+      'enterprise playbook for presenting architecture to teams'
+    ];
+
+    for (const q of playbookQueries) {
+      const res = generateHelpGuideReply(q);
+      assert.strictEqual(res.success, true);
+      assert.strictEqual(res.guardrailTriggered, undefined, `Query "${q}" must not trigger IP refusal banner`);
+      assert.ok(
+        res.reply.includes('Enterprise Playbook: Presenting Architecture & Correcting Flows with Teams'),
+        `Query "${q}" should explain 4-step playbook`
+      );
+      assert.ok(res.reply.includes('Step 1: Align on Scope & Boundaries'), 'Must include Step 1');
+      assert.ok(res.reply.includes('Step 2: Correct Timing, Asynchrony & Bottlenecks'), 'Must include Step 2');
+      assert.ok(res.reply.includes('Step 3: Drill Down for Implementation Clarity'), 'Must include Step 3');
+      assert.ok(res.reply.includes('Step 4: Executive & Leadership Playback'), 'Must include Step 4');
+      assert.ok(res.reply.includes('Healthcare'), 'Must mention healthcare domain');
+      assert.ok(res.reply.includes('Banking'), 'Must mention banking domain');
+      assert.ok(res.reply.includes('Data Engineering Lakehouse'), 'Must mention data engineering domain');
+      assert.ok(res.reply.includes('Enterprise Payroll'), 'Must mention payroll domain');
+      assert.ok(res.actions && res.actions.length >= 3);
+    }
+  });
 });

@@ -1193,6 +1193,168 @@ export function generateHelpGuideReply(rawQuery: string, history?: any[]): HelpG
     };
   }
 
+  // E1. 2D System Topology vs. Execution Flow (The Dual-Lens Architecture Principle)
+  const isTopologyVsExecutionFlowQuery =
+    (/\b(execution\s*flow|sequence\s*(?:flow|diagram)?)\b/i.test(q) &&
+      /\b(2d\s*(?:system\s*)?topology|topology|c4|graph|system\s*context)\b/i.test(q) &&
+      /\b(difference|different|vs|versus|compare|comparison|between|both|connect|connected|relation|relationship|why|what\s*(?:is|are))\b/i.test(q)) ||
+    /\b(why\s*(?:are\s*there\s*)?(?:these\s*)?2\s*topologies|what\s*does\s*it\s*mean\s*by\s*(?:these\s*)?2\s*topologies|why\s*two\s*topologies|what\s*are\s*the\s*2\s*topologies)\b/i.test(q) ||
+    /\b(difference\s*between\s*(?:the\s*)?(?:2d\s*)?(?:system\s*)?topology\s*and\s*(?:the\s*)?execution\s*flow)\b/i.test(q) ||
+    /\b(difference\s*between\s*(?:the\s*)?execution\s*flow\s*and\s*(?:the\s*)?(?:2d\s*)?(?:system\s*)?topology)\b/i.test(q) ||
+    (q.includes('execution flow') && q.includes('system topology')) ||
+    (q.includes('execution flow') && q.includes('2d')) ||
+    (q.includes('two topologies') || q.includes('2 topologies'));
+
+  if (isTopologyVsExecutionFlowQuery) {
+    return {
+      success: true,
+      reply: `### 🌐 2D System Topology vs. ⏱️ Execution Flow: The Dual-Lens Principle\n\n` +
+             `In Evolve AI, **2D System Topology** and **Execution Flow** represent two complementary lenses of the exact same enterprise architecture: the **Spatial/Structural View** (*Space*) and the **Temporal/Behavioral View** (*Time*).\n\n` +
+             `An architect cannot explain or validate a complex enterprise system using only one view. Together, they provide the complete architectural blueprint required for engineering rigor and team presentation:\n\n` +
+             `#### 1️⃣ 🌐 2D System Topology (C4 Model — Structural & Spatial View)\n` +
+             `• **The Analogy**: **The City Map** — Shows physical borders, zones, buildings, highways, and zoning regulations.\n` +
+             `• **What it Answers**: *What systems exist, where are the security trust boundaries, who owns what, and how are responsibilities partitioned?*\n` +
+             `• **Core Architectural Elements**:\n` +
+             `  - **Macro Security Boundaries**: Visual isolation zones (e.g. *Cloud SaaS*, *Enterprise Core*, *On-Premises DMZ*, *Partner VPC*, *Audit Quarantine*). Boundaries can be dragged, edited, added, or deleted.\n` +
+             `  - **Hierarchical C4 Levels**:\n` +
+             `    - **Level 1 (System Context)**: External users, client systems, enterprise platforms, and the Human-in-the-Loop (HITL) Governance Gate.\n` +
+             `    - **Level 2 (Containers)**: Internal microservices, API Gateway tiers (Experience, Process, System APIs), queues (Kafka, Anypoint MQ), and databases.\n` +
+             `    - **Level 3 (Components & Data Contracts)**: Internal controllers, event handlers, and exact JSON/OpenAPI schema payloads with SLA badges.\n` +
+             `  - **Data Contracts (\`📋 Contract\`)**: Inspect and define request/response schemas, required headers, correlation IDs, and target SLAs.\n\n` +
+             `#### 2️⃣ ⏱️ Execution Flow (Sequence Diagram — Temporal & Behavioral View)\n` +
+             `• **The Analogy**: **The GPS Turn-by-Turn Route** — Shows step 1, step 2, step 3, arrival times, and detour instructions.\n` +
+             `• **What it Answers**: *In what exact chronological order do systems interact over time, which calls block, and where are errors handled?*\n` +
+             `• **Core Execution Elements**:\n` +
+             `  - **Autonumbered Steps**: Chronological execution order (1, 2, 3... N) reading top-to-bottom.\n` +
+             `  - **Synchronous vs. Asynchronous Calls**: Solid arrows (\`->>\`) represent blocking request/response calls; dashed arrows (\`-->>\`) represent non-blocking asynchronous event messages and queue consumers.\n` +
+             `  - **Error Handling & Branching**: Notes and conditional alternate blocks that demonstrate what happens when validation fails (e.g., EMR lookup failure or schema drift).\n\n` +
+             `#### 3️⃣ 🔄 How They Are Connected & Synchronized in Evolve AI\n` +
+             `Both views are driven by a **single unified underlying architectural state engine** (\`C4ArchitectureModel\`):\n` +
+             `• **Bi-Directional Synchronization**:\n` +
+             `  - When you add a step (\`+ Step\`), edit a system, or reassign a boundary in the 2D Topology, Evolve AI automatically regenerates the synchronized Mermaid Sequence Diagram via \`toMermaidSequence()\`.\n` +
+             `  - When you edit the sequence source or import a client runbook/PlantUML spec, Evolve AI synthesizes updated 2D system cards, boundaries, and connections via \`synthesizeModel()\`.\n` +
+             `• **Interactive Runtime Simulation (\`▶ Animate Flow\`)**:\n` +
+             `  - Clicking **\`▶ Animate Flow\`** visually pulses the chronological sequence steps (1 ➔ 2 ➔ 3...) directly across the 2D Topology cards, bridging space and time on screen.\n` +
+             `• **Human-in-the-Loop (HITL) Governance Gate Bridge**:\n` +
+             `  - In the 2D Topology, the HITL Gate appears as an interactive visual policy barrier separating raw ingestion from the trusted enterprise core.\n` +
+             `  - In the Execution Flow, this corresponds to the review escalation branch where an exception is held for human approval before proceeding.`,
+      actions: [
+        { label: '🗺️ Phase 1 Step 3 (Workflow Topology Studio)', phase: 1, subStep: '3', description: 'Open Topology Studio with dual-lens views' },
+        { label: '🌐 2D System Topology (C4)', phase: 1, subStep: '3', description: 'Inspect Level 1 & Level 2 C4 Architecture' },
+        { label: '⏱️ Execution Flow (Sequence)', phase: 1, subStep: '3', description: 'Inspect end-to-end execution sequence steps' },
+        { label: '▶ Animate Flow Simulation', phase: 1, subStep: '3', description: 'Simulate runtime step execution across topology' }
+      ]
+    };
+  }
+
+  // E2. 2D System Topology: Drill-Down, Boundaries, Contracts, and Canvas Interaction
+  const isTopologyDrillDownAndEditQuery =
+    (/\b(drill\s*down|drilldown|level\s*[123]|l1|l2|l3|container\s*topology|system\s*context)\b/i.test(q) &&
+      /\b(topology|c4|system|container|node|how|navigate|view)\b/i.test(q)) ||
+    (/\b(boundary|boundaries)\b/i.test(q) && /\b(edit|move|drag|add|delete|reposition|custom|zone)\b/i.test(q)) ||
+    (/\b(how\s*(?:do\s*i|to)\s*(?:use|edit|navigate|interact\s*with|customize))\b/i.test(q) &&
+      /\b(2d\s*topology|c4\s*topology|topology\s*studio|workflow\s*topology|system\s*topology)\b/i.test(q)) ||
+    (/\b(animate\s*flow|flow\s*animation|simulation|hitl\s*gate|hitl\s*simulation|data\s*contract|inspect\s*contract)\b/i.test(q) &&
+      /\b(topology|c4|step|system|how)\b/i.test(q));
+
+  if (isTopologyDrillDownAndEditQuery) {
+    return {
+      success: true,
+      reply: `### 🛠️ Interactive Guide: Navigating, Drilling Down & Editing 2D System Topology\n\n` +
+             `The **Workflow Topology Studio (Phase 1 Step 3)** provides full visual interactivity, multi-level C4 drill-down, and architectural governance controls:\n\n` +
+             `#### 1️⃣ 🔍 3-Level Hierarchical Drill-Down\n` +
+             `• **Level 1 (System Context)**: Macro software systems (e.g. Salesforce, MuleSoft, EMR Sunrise, xAmplify) and boundary groupings.\n` +
+             `• **Drill Down to Level 2 (Containers)**:\n` +
+             `  - Click the **\`🔍 Drill Down\`** button on any system card (or double-click the card).\n` +
+             `  - The canvas zooms into that system's internal container architecture — exposing its Experience APIs, Process APIs, System APIs, message brokers, and databases.\n` +
+             `• **Inspect Level 3 (Components & Data Contracts)**:\n` +
+             `  - Click **\`📋 Contract\`** on any container card.\n` +
+             `  - Inspect the JSON schema payload, required headers, correlation IDs, and SLA contracts (e.g., \`< 250ms\`, \`p99 = 1.2s\`).\n` +
+             `• **Navigate Back Up**:\n` +
+             `  - Click the **\`⬆ Back to L1\`** button in the canvas toolbar or use the breadcrumb bar (\`Level 1 > [System] > Container\`).\n\n` +
+             `#### 2️⃣ 🔲 Interactive & Moveable Architecture Boundaries\n` +
+             `Boundaries represent security perimeters, cloud environments, or trust zones:\n` +
+             `• **Move (Drag) Boundaries**: Click and drag the boundary header bar (\`.c4-boundary-header\`, cursor displays as a grab hand) to reposition any boundary across the canvas.\n` +
+             `• **Edit Boundaries (\`✏️ Edit\`)**: Click the pencil icon on any boundary header to open the **Boundary Modal**. Customize the boundary name, isolation notes, and color theme (*Cyan Core*, *Purple Cloud*, *Amber DMZ*, *Red Legacy*, *Emerald SaaS*).\n` +
+             `• **Add Custom Boundaries (\`+ Boundary\`)**: Click the **\`+ Boundary\`** button in the top toolbar to instantiate new security zones (e.g. *DMZ Ingress*, *Audit Quarantine*, *Partner VPC*).\n` +
+             `• **Delete Boundaries (\`🗑️ Del\`)**: Click \`🗑️ Del\` on any boundary header. Member systems are safely preserved and reassigned to the primary enterprise boundary.\n\n` +
+             `#### 3️⃣ ✏️ Editing Systems, Adding Steps & Flow Simulation\n` +
+             `• **Edit System Cards (\`✏️ Edit\`)**: Click the edit pill on any card to update its system name, technology stack, role badge, or reassign it to a different boundary zone.\n` +
+             `• **Add New System (\`+ System\`)**: Click \`+ System\` in the toolbar to introduce a new external participant or internal microservice.\n` +
+             `• **Add Interaction Step (\`+ Step\`)**: Select the source system, destination system, protocol (HTTPS / REST vs. Async Event Queue), and describe the action.\n` +
+             `• **Step-by-Step Simulation (\`▶ Animate Flow\`)**: Click \`▶ Animate Flow\` to watch data packets pulse along connection lines in numbered sequence (1 ➔ 2 ➔ 3...). Click \`⏹ Stop Flow\` to reset.\n` +
+             `• **Human-in-the-Loop Simulation (\`🛡️ HITL Simulation Active\`)**: Click the red HITL badge or governance gate on the canvas to open the HITL Simulation Modal. Test approving, rejecting, or auditing anomalous payloads.`,
+      actions: [
+        { label: '🗺️ Open Phase 1 Step 3 (Topology Studio)', phase: 1, subStep: '3', description: 'Launch interactive C4 topology canvas' },
+        { label: '🔍 Level 2 Container Drill-Down', phase: 1, subStep: '3', description: 'Explore internal APIs, queues, and DBs' },
+        { label: '🏗️ Phase 4 Step A (Visual Canvas)', phase: 4, subTab: 'canvas', description: 'Assemble full-stack nodes and model routes' },
+        { label: '🛡️ HITL Policy Gate (Phase 5)', phase: 5, description: 'Configure human-in-the-loop review policies' }
+      ]
+    };
+  }
+
+  // E3. Enterprise Playbook: Presenting Architecture & Correcting Flows with Teams
+  const isArchitecturePresentationAndTeamExplanationQuery =
+    (/\b(present(?:ing|ation)?|explain(?:ing)?|walkthrough|pitch(?:ing)?|review(?:ing)?|share|sharing)\b/i.test(q) &&
+      /\b(team|teams|client|clients|stakeholders?|architects?|leadership|management|engineers?|developers?)\b/i.test(q) &&
+      /\b(topology|architecture|design|flow|system)\b/i.test(q)) ||
+    (/\b(correct\s*(?:the\s*)?flow|refine\s*(?:the\s*)?flow|adjust\s*(?:the\s*)?flow)\b/i.test(q) &&
+      /\b(team|teams|user|users|design|architect|architects|how)\b/i.test(q)) ||
+    (/\b(domain\s*expertise|multi-domain|banking|insurance|healthcare|payroll|data\s*engineering|education)\b/i.test(q) &&
+      /\b(topology|architecture|c4|flow)\b/i.test(q)) ||
+    (/\bplaybook\b/i.test(q) && /\b(present|architecture|topology|flow|team)\b/i.test(q)) ||
+    (q.includes('explain to the team') || q.includes('correct the flow'));
+
+  if (isArchitecturePresentationAndTeamExplanationQuery) {
+    return {
+      success: true,
+      reply: `### 👥 Enterprise Playbook: Presenting Architecture & Correcting Flows with Teams\n\n` +
+             `When presenting system designs to cross-functional stakeholders and refining workflows, use this **4-Step Architectural Walkthrough Playbook**:\n\n` +
+             `#### 1️⃣ Step 1: Align on Scope & Boundaries (2D Topology Level 1)\n` +
+             `• **Audience**: Enterprise Architects, CISO, Security & Infrastructure Leads.\n` +
+             `• **Goal**: Establish consensus on system ownership, external vendor touchpoints, and network trust perimeters.\n` +
+             `• **Interactive Actions**:\n` +
+             `  - Show the **Level 1 System Context**.\n` +
+             `  - Adjust boundaries (e.g. *SaaS Zone*, *Internal VPC*, *On-Premises DMZ*) by dragging boundary headers to reflect actual network segregation.\n` +
+             `  - Point out third-party cloud SaaS systems (e.g., Salesforce, xAmplify) vs. internal protected cores (e.g., EMR Sunrise, Core Banking).\n\n` +
+             `#### 2️⃣ Step 2: Correct Timing, Asynchrony & Bottlenecks (Execution Flow)\n` +
+             `• **Audience**: Integration Engineers, API Developers, Business Analysts.\n` +
+             `• **Goal**: Identify latency bottlenecks, eliminate unnecessary synchronous blocking, and formalize error recovery.\n` +
+             `• **Interactive Actions**:\n` +
+             `  - Switch to **\`⏱️ Execution Flow\`**.\n` +
+             `  - Review the sequence steps (1, 2, 3... N). Verify whether slow third-party calls (like PDF consolidation or credit scoring) block the user experience.\n` +
+             `  - If a call should be decoupled, change the call from synchronous (\`->>\`) to an asynchronous queue consumer (\`-->>\`).\n` +
+             `  - Use **\`+ Step\`** to insert missing validation checks, retry handshakes, or failure notifications.\n\n` +
+             `#### 3️⃣ Step 3: Drill Down for Implementation Clarity (Level 2 & Level 3 C4)\n` +
+             `• **Audience**: Backend Developers, API Engineers, Data Engineers.\n` +
+             `• **Goal**: Hand off concrete engineering specifications, container boundaries, and payload contracts.\n` +
+             `• **Interactive Actions**:\n` +
+             `  - In the 2D Topology, click **\`🔍 Drill Down\`** on any system (e.g., MuleSoft or Kafka Pipeline).\n` +
+             `  - Walk developers through the Level 2 container tiers (Experience API, Process API, System API, Queues, DBs).\n` +
+             `  - Click **\`📋 Contract\`** to review OpenAPI / JSON schema payloads, required headers, correlation IDs, and latency SLAs.\n\n` +
+             `#### 4️⃣ Step 4: Executive & Leadership Playback (Interactive Simulation)\n` +
+             `• **Audience**: Product Managers, Business Stakeholders, C-Level Leadership.\n` +
+             `• **Goal**: Tell a compelling, visual end-to-end story that proves system resilience and operational governance.\n` +
+             `• **Interactive Actions**:\n` +
+             `  - Click **\`▶ Animate Flow\`**. Stakeholders can watch data packets light up across systems in real time.\n` +
+             `  - Explain how the **Human-in-the-Loop (HITL) Gate** safeguards the business by intercepting validation failures, schema drift, or clinical discrepancies before they contaminate core enterprise records.\n\n` +
+             `#### 🌐 Universal Multi-Domain Adaptability\n` +
+             `This dual-lens framework supports any enterprise industry vertical:\n` +
+             `• 🏥 **Healthcare**: Salesforce CRM ➔ MuleSoft API-led ➔ CHIB ➔ EMR Sunrise ➔ xAmplify (Clinical Validation Gate).\n` +
+             `• 🏦 **Banking & Core Settlement**: Teller Portal ➔ Finacle Core ➔ Kafka ➔ AML Scoring ➔ Neo4j ➔ Fedwire (Four-Eyes Approval Gate).\n` +
+             `• 📊 **Data Engineering Lakehouse**: Event Stream ➔ Kafka ➔ Spark/Databricks ➔ Quarantine Gate ➔ Iceberg / Delta Lake ➔ BigQuery.\n` +
+             `• 🛡️ **Insurance & Actuarial**: Portal ➔ Claims Intake ➔ Fraud Scoring ➔ Adjudication Gate ➔ Settlement Engine.\n` +
+             `• 🎓 **Higher Education & EdTech**: Canvas LMS ➔ SIS ➔ Gradebook ➔ Academic Integrity Ombudsman Gate ➔ Degree Registry.\n` +
+             `• 💼 **Enterprise Payroll & HCM**: Workday ➔ Calculation Engine ➔ Controller Variance Gate ➔ Direct Deposit ACH.`,
+      actions: [
+        { label: '🗺️ Phase 1 Step 3 (Workflow Topology Studio)', phase: 1, subStep: '3', description: 'Open topology studio for team presentation' },
+        { label: '▶ Animate Flow Simulation', phase: 1, subStep: '3', description: 'Demonstrate animated end-to-end execution' },
+        { label: '📑 Client Scope Alignment Memo', phase: 1, subStep: '3', description: 'Export client architecture sign-off memo' },
+        { label: '🏗️ Phase 4 Step A (Architecture Canvas)', phase: 4, subTab: 'canvas', description: 'Review backend microservices and databases' }
+      ]
+    };
+  }
+
   // E. Ingesting Client-Provided Architecture Documents (Current / Future / PlantUML / Mermaid / Specs)
   const isClientArchDocQuery = /\b(client\s*(?:doc|document|architecture|spec|diagram)|existing\s*(?:topology|architecture|diagram|doc)|current\s*and\s*(?:target|future)\s*topology|import\s*(?:architecture|topology|spec|doc)|company\s*(?:has|gives|gave|provided|architecture)|use\s*their\s*(?:architecture|topology|document)|as-is\s*and\s*to-be)\b/i.test(q) ||
     (/\b(topology)\b/i.test(q) && /\b(document|doc|import|company|client|spec|file|current|future|target|give|given)\b/i.test(q));

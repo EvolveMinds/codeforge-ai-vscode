@@ -2276,6 +2276,7 @@ function setupHelpGuide(api: any): void {
     const welcome = `### 👋 Welcome to Evolve Virtual Assistant\n\n` +
       `I am your in-app guide for building, architecting, and delivering enterprise AI applications across our **6 Delivery Phases** plus **3 Dedicated Activity Hubs** (🌿 Git & Remote Repository Hub, ☁️ Multi-Cloud Connect Matrix, 🤖 Local AI Hardware Sizer) and **🐍 Python AI Studio & Neural Debugger**.\n\n` +
       `**How I can help you:**\n` +
+      `• **🌐 2D System Topology & Execution Flow**: Dual-lens C4 architectural modeling (Level 1–3 drill-down, moveable boundaries, payload contracts) and step-by-step animated execution flow.\n` +
       `• **🚀 Build New Applications**: Step-by-step guidance on creating a fresh greenfield app or modernizing brownfield systems.\n` +
       `• **🐍 Python Studio & Neural Debugger**: AST static checks, tensor shape flow tracing, NaN/Inf hazard detection, DataFrame sniffing, and 1-click PyTest contracts.\n` +
       `• **🐳 Full-Stack Containerization**: Multi-stage Docker, PostgreSQL/SQLite dual database, and AWS App Runner / ECR deploy runbooks.\n` +
@@ -2285,6 +2286,8 @@ function setupHelpGuide(api: any): void {
       `*🛡️ Note: Evolve AI internal source code & design files are protected under enterprise guardrail policies.*`;
 
     appendAssistantBubble(welcome, [
+      { label: '🌐 2D Topology vs Execution Flow', phase: 1, subStep: '3', description: 'Dual-lens architecture comparison' },
+      { label: '👥 Team Presentation Playbook', phase: 1, subStep: '3', description: 'Guide on presenting and correcting flows' },
       { label: '🚀 Process Flow for New App', phase: 1, subStep: '3' },
       { label: '🔌 Connect Live Database', phase: 2, actionType: 'livedb' },
       { label: '🎨 UI & UX Architecture', phase: 3, subStep: 'D' },
