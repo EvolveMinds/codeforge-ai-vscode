@@ -17,7 +17,7 @@ import { RacfSecurityGuide } from '../../../fde/racfSecurityGuide';
 describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
 
   describe('1. Auto-Discovery & Profile Management', () => {
-    it('always discovers the built-in Offline HCM Mainframe Sandbox profile', () => {
+    it('always discovers the built-in Offline Enterprise Mainframe Sandbox profile', () => {
       const profiles = ZosmfClient.discoverProfiles();
       assert.ok(profiles.length >= 1, 'Should discover at least 1 profile');
 
@@ -25,7 +25,7 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
       assert.ok(sandbox, 'Should include offline sandbox profile');
       assert.strictEqual(sandbox!.port, 10443);
       assert.strictEqual(sandbox!.user, 'HCMDEV01');
-      assert.ok(sandbox!.name.includes('Offline IBM HCM Mainframe Sandbox'));
+      assert.ok(sandbox!.name.includes('Offline IBM Enterprise Mainframe Sandbox'));
     });
   });
 

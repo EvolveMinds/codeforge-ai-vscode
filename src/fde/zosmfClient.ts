@@ -163,7 +163,7 @@ export class ZosmfClient {
   public static getOfflineSandboxProfile(): MainframeProfile {
     return {
       id: 'offline-hcm-sandbox',
-      name: 'Offline IBM HCM Mainframe Sandbox (Instant Day-1 Productivity)',
+      name: 'Offline IBM Enterprise Mainframe Sandbox (Instant Day-1 Productivity)',
       host: 'zos-sandbox.internal',
       port: 10443,
       user: 'HCMDEV01',

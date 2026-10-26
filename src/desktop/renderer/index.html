@@ -11334,7 +11334,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <div>
                 <h3 style="margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 10px;">
                   <span>📟</span> IBM Mainframe (z/OS) &amp; DB2 Modernization Studio
-                  <span id="badgeMainframeStatus" style="font-size: 10.5px; font-weight: 700; background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 10px; border-radius: 12px;">🟢 Offline HCM Sandbox Active</span>
+                  <span id="badgeMainframeStatus" style="font-size: 10.5px; font-weight: 700; background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 10px; border-radius: 12px;">🟢 Offline Enterprise Sandbox Active</span>
                 </h3>
                 <p class="desc" style="margin: 6px 0 0 0; font-size: 12px; color: var(--text-secondary);">
                   Enterprise z/OSMF REST gateway, JCL batch stream DAG extraction, CICS online transaction sequence modeling, RACF least-privilege governance, and untouched DB2 schema guardrails.
@@ -11357,7 +11357,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <div style="margin-bottom: 10px;">
                 <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selMainframeConnMode">Connection Mode</label>
                 <select id="selMainframeConnMode" style="width: 100%; padding: 7px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                  <option value="offline_sandbox">Built-in Offline Enterprise HCM Sandbox (Instant Day-1 Productivity)</option>
+                  <option value="offline_sandbox">Built-in Offline Enterprise z/OS Sandbox (Instant Day-1 Productivity)</option>
                   <option value="zowe_autodetect">Auto-Discovered Zowe CLI Profile (~/.zowe/zowe.config.json)</option>
                   <option value="live_zosmf">Live z/OSMF REST Endpoint (HTTPS Port 10443)</option>
                   <option value="db2_drda">Direct DB2 for z/OS DRDA (Port 446 / 5021)</option>
@@ -11378,7 +11378,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                   <div>
                     <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeUser">User ID (RACF)</label>
-                    <input type="text" id="txtMainframeUser" placeholder="HCMDEV01" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <input type="text" id="txtMainframeUser" placeholder="IBMUSER / SYS1" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
                   </div>
                   <div>
                     <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePass">Passphrase / PassTicket</label>
@@ -12928,7 +12928,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
       <div id="mainframeConsoleOutput" style="flex: 1; min-height: 220px; max-height: 380px; overflow-y: auto; background: #0f172a; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #e2e8f0; white-space: pre-wrap;">Ready. Click any action above to extract workflows or export specifications.</div>
 
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border);">
-        <span style="font-size: 10.5px; color: var(--text-muted);">Mode: Built-in Offline HCM Sandbox (Zero Network Friction)</span>
+        <span style="font-size: 10.5px; color: var(--text-muted);">Mode: Built-in Offline Enterprise Sandbox (Zero Network Friction)</span>
         <button class="btn-quick" id="btnCopyMainframeOutput" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">📋 Copy Output</button>
       </div>
     </div>

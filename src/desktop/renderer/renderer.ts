@@ -12109,7 +12109,7 @@ REVOKE ALTER, DROP, INSERT, UPDATE, DELETE ON DATABASE * FROM EVOLVEID;`;
     }
     const badge = document.getElementById('badgeMainframeStatus');
     if (badge) {
-      if (val === 'offline_sandbox') badge.innerText = '🟢 Offline HCM Sandbox Active';
+      if (val === 'offline_sandbox') badge.innerText = '🟢 Offline Enterprise Sandbox Active';
       else if (val === 'zowe_autodetect') badge.innerText = '🟡 Zowe CLI Auto-Detect Active';
       else if (val === 'live_zosmf') badge.innerText = '🔵 Live z/OSMF Mode (Port 10443)';
       else if (val === 'db2_drda') badge.innerText = '🟣 DB2 for z/OS DRDA (Port 446)';
@@ -12122,10 +12122,10 @@ REVOKE ALTER, DROP, INSERT, UPDATE, DELETE ON DATABASE * FROM EVOLVEID;`;
     const consoleOut = document.getElementById('mainframeStudioConsole');
     if (!consoleOut) return;
     if (mode === 'offline_sandbox') {
-      consoleOut.innerText = `✓ [SIMULATION SUCCESSFUL] Connected to Offline IBM HCM Mainframe Sandbox
-Target LPAR:   ZOS_HCM_PROD (Simulated z/OS V2R5)
+      consoleOut.innerText = `✓ [SIMULATION SUCCESSFUL] Connected to Offline IBM z/OS & DB2 Enterprise Sandbox
+Target LPAR:   ZOS_PROD1 (Simulated z/OS V2R5)
 Subsystem:     JES2 + DB2 for z/OS Subsystem DB2P (DRDA Port 446)
-Active CICS:   CICS Transaction Region HCMREG01 (EM01 Active)
+Active CICS:   CICS Transaction Region CICSREG1 (Online Active)
 Status:        100% Ready for Batch & Online Workflow Extraction.`;
     } else {
       consoleOut.innerText = `✓ [AT-TLS CONNECTIVITY VERIFIED]
@@ -12141,7 +12141,7 @@ Authorization: READ-ONLY SAF Profile (IZUDFSG.DATASET.READ-ONLY)`;
       selConnMode.value = 'offline_sandbox';
       selConnMode.dispatchEvent(new Event('change'));
     }
-    showToast('🧪 Switched to Offline Enterprise HCM Sandbox');
+    showToast('🧪 Switched to Offline Enterprise Sandbox');
   });
 
   document.getElementById('btnMainframeRacfGuide')?.addEventListener('click', () => {
@@ -50981,7 +50981,7 @@ function setupModals(api: any): void {
       name: 'IBM Mainframe (z/OS) & DB2 Connected Studio',
       icon: '📟',
       category: 'Mainframe Modernization',
-      description: 'Connect via z/OSMF REST (HTTPS 10443), DB2 DRDA, or Offline HCM Sandbox. Extract JCL batch DAGs, CICS online transactions, and export Claude Code contracts.',
+      description: 'Connect via z/OSMF REST (HTTPS 10443), DB2 DRDA, or Offline Enterprise Sandbox. Extract JCL batch DAGs, CICS online transactions, and export Claude Code contracts.',
       targetTab: 'mainframe',
     },
     {
