@@ -530,6 +530,19 @@ export class DesktopUpdater {
           };
         }
 
+        // Strict extension allowlist: only declarative data assets permitted, zero executable or script payloads
+        const allowedExtensions = ['.json', '.sql', '.yaml', '.yml', '.md', '.txt'];
+        const ext = path.extname(relFile).toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+          return {
+            success: false,
+            patchedVersion: this._currentVersion,
+            templatesUpdated: 0,
+            enginesReloaded: [],
+            error: `Security violation: Disallowed file extension "${ext}" in patch entry "${relFile}". Only declarative data files (.json, .sql, .yaml, .yml, .md, .txt) are permitted.`
+          };
+        }
+
         const extractedFile = path.join(tempExtractDir, normalizedRel);
         if (!fs.existsSync(extractedFile)) {
           return {
