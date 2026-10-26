@@ -275,6 +275,15 @@ function buildAppMenu(): void {
       label: 'Terminal',
       submenu: [
         {
+          label: 'Toggle Terminal Drawer',
+          accelerator: 'CmdOrCtrl+`',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('evolve:terminal:toggle-drawer');
+            }
+          }
+        },
+        {
           label: 'New Terminal Tab',
           accelerator: 'CmdOrCtrl+Shift+`',
           click: () => {

@@ -49,6 +49,11 @@ const desktopApi = {
       const handler = (_: any, id: string, code: number) => callback(id, code);
       ipcRenderer.on(DESKTOP_CHANNELS.TERMINAL.EXIT_EVENT, handler);
       return () => ipcRenderer.removeListener(DESKTOP_CHANNELS.TERMINAL.EXIT_EVENT, handler);
+    },
+    onToggleDrawer: (callback: (forceOpen?: boolean) => void) => {
+      const handler = (_: any, forceOpen?: boolean) => callback(forceOpen);
+      ipcRenderer.on('evolve:terminal:toggle-drawer', handler);
+      return () => ipcRenderer.removeListener('evolve:terminal:toggle-drawer', handler);
     }
   },
 

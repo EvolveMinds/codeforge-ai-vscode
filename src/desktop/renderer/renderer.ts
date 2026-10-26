@@ -1973,6 +1973,23 @@ function setupTerminal(api: any): void {
     }
   };
 
+  (window as any).toggleTerminalDrawer = toggleTerminal;
+
+  if (api?.terminal?.onToggleDrawer) {
+    api.terminal.onToggleDrawer((forceOpen?: boolean) => {
+      if (terminalDrawer) {
+        if (forceOpen === true) {
+          terminalDrawer.style.display = 'flex';
+          const terminalResizer = document.getElementById('terminalResizer');
+          if (terminalResizer) terminalResizer.style.display = 'block';
+          if (terminalCmdInput) setTimeout(() => terminalCmdInput.focus(), 60);
+        } else {
+          toggleTerminal();
+        }
+      }
+    });
+  }
+
   btnOpenTerminal?.addEventListener('click', toggleTerminal);
   btnToggleTermDrawer?.addEventListener('click', toggleTerminal);
 
@@ -2167,7 +2184,11 @@ function setupHelpGuide(api: any): void {
         return;
       }
       if (action.actionType === 'terminal') {
-        document.getElementById('btnOpenTerminal')?.click();
+        if ((window as any).toggleTerminalDrawer) {
+          (window as any).toggleTerminalDrawer();
+        } else {
+          document.getElementById('btnToggleTermDrawer')?.click();
+        }
         showToast('⚡ Opened Terminal Drawer');
         return;
       }
