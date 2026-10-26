@@ -100,6 +100,16 @@ Before touching version numbers or code:
   ```
 - [ ] **Verify Trust Tool Archive:** Verify `dist-desktop/evolve-ai-pilot-trust-tool.zip` exists, test extraction, and record exact SHA-256 and byte length.
   - *Function:* Installs `evolve-enterprise-dev.cer` into Windows `TrustedPublisher` and `Root` stores and strips Mark-of-the-Web (Zone.Identifier) streams from all downloaded binaries on test machines to prevent SmartScreen blocks.
+- [ ] **Verify In-App Desktop Trust & Asset Hub:**
+  - Launch Desktop app, open `⚙️ Settings & License Identity` → `Updates & Version` tab.
+  - Verify Corporate Pilot Trust Kit card is prominently visible with:
+    - `[ ⚡ 1-Click Run Trust Setup (.bat) ]` (executes with Windows UAC administrative elevation directly from inside the app).
+    - `[ 📥 Save Trust Tool (.zip & .bat) to Downloads ]` (exports all files to `%USERPROFILE%\Downloads\Evolve-AI-Pilot-Trust-Tool` and opens File Explorer).
+    - `[ 📋 View Script Code ]` (opens modal displaying full batch script code with copy to clipboard).
+    - `[ 🌐 Download via Company Website ]` (links to `https://www.evolveminds.com.au/products/evolve-ai/releases/assets/evolve-ai-pilot-trust-tool.zip`).
+  - Verify Release Assets & Offline Hot Patch Hub card provides:
+    - `[ 📥 Save .exe to Downloads ]` (direct in-app background download without external browser redirects).
+    - `[ 📥 Download Patch .zip ]` and `[ 📁 Apply from Disk ]`.
 
 #### 3.4 Air-Gapped Offline Hot Patch Bundle (`evolve-ai-enterprise-patch-X.Y.Z.zip`)
 - [ ] **Build Patch Bundle:** `npm run patch:create`

@@ -13388,7 +13388,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
       </div>
 
       <!-- Tab 5: Updates & Version Lifecycle -->
-      <div id="settingsTabUpdates" class="settings-tab-pane" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 440px; padding-right: 4px;">
+      <div id="settingsTabUpdates" class="settings-tab-pane" style="display: none; flex-direction: column; gap: 12px; overflow-y: auto; flex: 1 1 auto; max-height: 520px; padding-right: 4px;">
         <!-- Current Version Header Card -->
         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -13411,42 +13411,159 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           </div>
         </div>
 
+        <!-- 🛡️ Windows SmartScreen & Corporate Pilot Trust Tool Card -->
+        <div style="background: var(--bg-primary); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 14px; position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: #34d399; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+              <span>🛡️</span> <span>CORPORATE PILOT TRUST TOOL (SMARTSCREEN BYPASS &amp; CERTIFICATE SETUP)</span>
+            </div>
+            <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+              ✓ Authenticode Signed
+            </span>
+          </div>
+          <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.45;">
+            Our binary is digitally signed with the official <b>Evolve Mind Solutions Pty Ltd (Enterprise Pilot)</b> Authenticode certificate. On corporate test workstations, use our 1-click tools below to install the root certificate into <i>Trusted Publishers</i> and strip NTFS Mark-of-the-Web (Zone.Identifier) blocks, preventing SmartScreen popups permanently.
+          </p>
+
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px;">
+            <button class="btn" id="btnRunTrustToolDirect" style="background: #10b981; color: #042f2e; font-weight: 700; font-size: 11px; padding: 6px 14px; border-radius: 4px; cursor: pointer; border: none;" title="Execute the trust configuration script with Administrator privileges on this machine">
+              ⚡ 1-Click Run Trust Setup (.bat)
+            </button>
+            <button class="btn-quick" id="btnExportTrustKit" style="font-size: 11px; font-weight: 700; border-color: rgba(16, 185, 129, 0.5); color: #34d399;" title="Export trust-pilot-cert.bat, PowerShell script, certificate, and zip bundle to your Downloads folder">
+              📥 Save Trust Tool (.zip &amp; .bat) to Downloads
+            </button>
+            <button class="btn-quick" id="btnViewTrustBatScript" style="font-size: 11px; font-weight: 600; border-color: var(--border); color: #cbd5e1;" title="Inspect the source code of trust-pilot-cert.bat">
+              📋 View Script Code
+            </button>
+            <a id="btnWebTrustToolLink" href="https://www.evolveminds.com.au/products/evolve-ai/releases/assets/evolve-ai-pilot-trust-tool.zip" target="_blank" class="btn-quick" style="font-size: 11px; font-weight: 600; border-color: var(--border); color: #94a3b8; text-decoration: none;" title="Download zip bundle from the official company website">
+              🌐 Download via Company Website
+            </a>
+          </div>
+
+          <div id="trustToolActionStatus" style="display: none; margin-top: 10px; font-size: 11.5px; padding: 8px 12px; border-radius: 6px;"></div>
+        </div>
+
         <!-- Online GitHub Releases Update Check Card -->
         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">ONLINE RELEASE MANIFEST CHECK</div>
-            <button class="btn" id="btnCheckForUpdates" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 5px 12px;" aria-label="Check for Updates">🔄 Check for Updates</button>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn" id="btnCheckForUpdates" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11px; padding: 5px 12px; cursor: pointer; border: none; border-radius: 4px;" aria-label="Check for Updates">🔄 Check for Updates</button>
+              <a href="https://www.evolveminds.com.au/products/evolve-ai/download/" target="_blank" class="btn-quick" style="font-size: 11px; padding: 5px 10px; text-decoration: none; border-color: var(--border); color: #38bdf8;" title="Open official company website download page">🌐 Company Download Page</a>
+            </div>
           </div>
           <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
-            Queries the official Evolve AI Enterprise release registry (GitHub Releases) for newer signed portable binaries and security patches.
+            Queries the official Evolve AI Enterprise release channel for newer signed portable binaries and security patches.
           </p>
           <div id="updateCheckStatus" style="font-size: 12px; padding: 10px 12px; border-radius: 6px; background: #111; border: 1px solid var(--border); color: #94a3b8; display: flex; align-items: center; gap: 8px;">
             <span>ℹ️</span> <span>Click <b>"Check for Updates"</b> to inspect the upstream release channel.</span>
           </div>
-          <div id="updateDownloadArea" style="display: none; margin-top: 10px; padding: 12px; border-radius: 6px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <div style="font-weight: 700; color: #fff; font-size: 12px;" id="lblNewVersionTag">New Version Available</div>
-                <div style="font-size: 11px; color: var(--text-secondary);" id="lblNewVersionNotes">Release notes summary...</div>
+
+          <!-- Update Found Download Area -->
+          <div id="updateDownloadArea" style="display: none; margin-top: 12px; padding: 14px; border-radius: 6px; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap;">
+              <div style="flex: 1 1 300px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-weight: 800; color: #fff; font-size: 13px;" id="lblNewVersionTag">New Version Available</span>
+                  <span style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: rgba(56, 189, 248, 0.2); color: #38bdf8;">NEW RELEASE</span>
+                </div>
+                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 4px; line-height: 1.45; max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.25); padding: 8px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.06);" id="lblNewVersionNotes">
+                  Release notes summary...
+                </div>
               </div>
-              <a id="btnDownloadNewRelease" href="#" target="_blank" class="btn" style="background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 11px; padding: 6px 14px; text-decoration: none; border-radius: 4px;">⬇️ Download New .exe</a>
+              <div style="display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 180px;">
+                <button id="btnDownloadExeDirect" class="btn" style="background: #38bdf8; color: #0f172a; font-weight: 700; font-size: 11px; padding: 7px 14px; border-radius: 4px; text-align: center; border: none; cursor: pointer;">
+                  📥 Save .exe to Downloads
+                </button>
+                <a id="btnDownloadNewRelease" href="https://www.evolveminds.com.au/products/evolve-ai/download/" target="_blank" class="btn-quick" style="text-align: center; font-size: 11px; font-weight: 600; text-decoration: none; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
+                  🌐 View on Company Website
+                </a>
+              </div>
+            </div>
+            <div id="exeDownloadProgressBar" style="display: none; margin-top: 10px; font-size: 11px; color: #38bdf8;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span id="exeDownloadProgressText">Downloading update...</span>
+              </div>
+              <div style="width: 100%; height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden;">
+                <div id="exeDownloadProgressFill" style="width: 0%; height: 100%; background: #38bdf8; transition: width 0.3s;"></div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Air-Gapped Offline Hot Patch Card -->
+        <!-- 📦 Release Assets & Offline Hot Patch Hub -->
         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
-          <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">AIR-GAPPED OFFLINE HOT PATCHING (.ZIP)</div>
-          <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
-            For banking, defense, and high-assurance enclaves without public internet access. Import a cryptographically signed patch archive to hot-reload dbt templates, regex schema mappers, and transpilation engines without restarting or re-licensing.
-          </p>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <input type="file" id="fileInputOfflinePatch" accept=".zip,.tar.gz" style="display: none;" />
-            <button class="btn-quick" id="btnApplyOfflinePatch" style="font-size: 11px; font-weight: 700; border-color: var(--accent); color: var(--accent);" aria-label="Select Offline Patch Archive">📁 Apply Offline Patch (.zip)</button>
-            <span id="lblPatchFileSelected" style="font-size: 11px; color: var(--text-muted);">No patch selected</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">AIR-GAPPED OFFLINE HOT PATCH &amp; ASSETS HUB</div>
+            <a href="https://www.evolveminds.com.au/products/evolve-ai/releases/" target="_blank" class="btn-quick" style="font-size: 10.5px; padding: 2px 8px; text-decoration: none; border-color: var(--border); color: #94a3b8;">
+              🌐 All Releases &amp; Checksums
+            </a>
           </div>
+          <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.4;">
+            For banking, defense, and high-assurance enclaves without public internet access. Download and apply verified <code>.zip</code> hotfix archives or export deployment bundles directly to local disk.
+          </p>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+            <!-- Box A: Offline Patch (.zip) -->
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+              <div style="font-weight: 700; color: #fff; font-size: 11.5px; margin-bottom: 4px;">📦 Offline Hot Patch Archive (.zip)</div>
+              <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px;">Contains updated AST rules, PII patterns, and transpilers.</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" id="btnDownloadPatchDirect" style="font-size: 10.5px; font-weight: 700; border-color: var(--accent); color: var(--accent);" title="Download patch archive directly to Downloads folder">
+                  📥 Download Patch .zip
+                </button>
+                <input type="file" id="fileInputOfflinePatch" accept=".zip,.tar.gz" style="display: none;" />
+                <button class="btn-quick" id="btnApplyOfflinePatch" style="font-size: 10.5px; font-weight: 600; border-color: var(--border); color: #cbd5e1;" title="Select an existing patch zip from disk and apply it">
+                  📁 Apply from Disk
+                </button>
+              </div>
+              <div id="lblPatchFileSelected" style="font-size: 10.5px; color: var(--text-muted); margin-top: 6px;">No patch selected</div>
+            </div>
+
+            <!-- Box B: Corporate Pilot Trust Kit (.zip) -->
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+              <div style="font-weight: 700; color: #fff; font-size: 11.5px; margin-bottom: 4px;">🛡️ 1-Click Trust Tool (.zip)</div>
+              <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px;">Includes trust-pilot-cert.bat, PowerShell script, and CER.</div>
+              <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                <button class="btn-quick" id="btnDownloadTrustZipDirect" style="font-size: 10.5px; font-weight: 700; border-color: #10b981; color: #34d399;" title="Download trust tool archive directly to Downloads folder">
+                  📥 Download Tool .zip
+                </button>
+                <a href="https://www.evolveminds.com.au/products/evolve-ai/releases/assets/trust-pilot-cert.bat" download="trust-pilot-cert.bat" class="btn-quick" style="font-size: 10.5px; font-weight: 600; border-color: var(--border); color: #cbd5e1; text-decoration: none;" title="Download standalone batch script">
+                  📜 Download .bat Only
+                </a>
+              </div>
+              <div style="font-size: 10.5px; color: #10b981; margin-top: 6px;">✓ 100% Air-Gapped Trust Setup</div>
+            </div>
+          </div>
+
           <div id="patchResultBox" style="display: none; margin-top: 10px; font-size: 11.5px; padding: 10px 12px; border-radius: 6px;"></div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trust Script Inspector Modal -->
+  <div id="modalTrustScriptViewer" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px); z-index: 99999; justify-content: center; align-items: center;">
+    <div style="background: #0f172a; border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 12px; width: 90vw; max-width: 800px; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8); overflow: hidden;">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(30, 41, 59, 0.5);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">🛡️</span>
+          <span style="font-size: 13.5px; font-weight: 700; color: #fff;">1-Click Pilot Trust Setup Script (trust-pilot-cert.bat)</span>
+        </div>
+        <button id="btnCloseTrustScriptModal" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px 8px;">✕</button>
+      </div>
+      <div style="padding: 16px 20px; overflow-y: auto; flex: 1 1 auto;">
+        <p style="font-size: 12px; color: #94a3b8; margin: 0 0 10px 0; line-height: 1.4;">
+          This batch script installs the official Evolve AI Enterprise certificate into <code>Cert:\LocalMachine\TrustedPublisher</code> and <code>Cert:\LocalMachine\Root</code> and removes the NTFS Mark-of-the-Web (Zone.Identifier) stream to eliminate Windows SmartScreen prompts.
+        </p>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 6px;">
+          <button id="btnCopyTrustBatCode" class="btn-quick" style="font-size: 11px; padding: 4px 10px; border-color: rgba(16, 185, 129, 0.5); color: #34d399;">📋 Copy Code</button>
+        </div>
+        <pre id="trustBatScriptCodeBlock" style="margin: 0; padding: 12px; background: #020617; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; font-family: monospace; font-size: 11px; color: #38bdf8; overflow-x: auto; max-height: 360px; line-height: 1.45; white-space: pre-wrap;"></pre>
+      </div>
+      <div style="padding: 12px 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.8);">
+        <span style="font-size: 11px; color: #64748b;">Evolve Mind Solutions Pty Ltd • Enterprise Evaluation Kit</span>
+        <button id="btnTrustScriptModalRunNow" class="btn" style="background: #10b981; color: #042f2e; font-weight: 700; font-size: 11px; padding: 6px 16px; border-radius: 4px; cursor: pointer; border: none;">⚡ Run As Administrator Now</button>
       </div>
     </div>
   </div>

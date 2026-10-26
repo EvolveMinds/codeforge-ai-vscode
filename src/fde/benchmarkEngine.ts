@@ -35,9 +35,10 @@ export interface BenchmarkCase {
 }
 
 export interface BenchmarkTargetConfig {
-  type: 'llm_ollama' | 'llm_cloud' | 'rest_api' | 'workspace_script' | 'rule_engine';
+  type: 'llm_ollama' | 'llm_cloud' | 'rest_api' | 'workspace_script' | 'rule_engine' | string;
   modelId?: string;
   provider?: string;
+  apiKey?: string;
   ollamaHost?: string;
   numCtx?: number;
   endpointUrl?: string;
@@ -61,7 +62,7 @@ export interface BenchmarkCaseResult {
 }
 
 export interface BenchmarkSuiteReport {
-  benchmarkExecuted: true;
+  benchmarkExecuted: boolean;
   domain: string;
   timestamp: number;
   targetConfig: BenchmarkTargetConfig;
@@ -77,6 +78,7 @@ export interface BenchmarkSuiteReport {
   isSlaMet: boolean;
   slaBreaches: string[];
   cases: BenchmarkCaseResult[];
+  error?: string;
 }
 
 export class BenchmarkExecutionEngine {
@@ -96,6 +98,28 @@ export class BenchmarkExecutionEngine {
     },
     concurrency = 3
   ): Promise<BenchmarkSuiteReport> {
+    if (target && (['llm_openai', 'llm_gemini', 'llm_anthropic', 'llm_cloud'].includes(target.type) || (target.type === 'llm' && target.provider !== 'ollama')) && !target.apiKey) {
+      return {
+        benchmarkExecuted: false,
+        domain: 'Production Golden Benchmark',
+        timestamp: Date.now(),
+        targetConfig: target,
+        totalCases: 0,
+        passedCases: 0,
+        failedCases: 0,
+        accuracyScorePct: 0,
+        p50LatencyMs: 0,
+        p95LatencyMs: 0,
+        p99LatencyMs: 0,
+        averageCostPerTaskUsd: 0,
+        groundedCitationRatePct: 0,
+        isSlaMet: false,
+        slaBreaches: ['Missing required API key for target provider'],
+        cases: [],
+        error: `Target provider ${target.type} requires an API key.`
+      };
+    }
+
     const results: BenchmarkCaseResult[] = [];
     const queue = [...rawCases];
 

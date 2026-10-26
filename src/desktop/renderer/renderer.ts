@@ -58223,8 +58223,8 @@ if __name__ == '__main__':
         if (updateDownloadArea) updateDownloadArea.style.display = 'block';
         if (lblNewVersionTag) lblNewVersionTag.innerText = `Evolve AI Enterprise v${res.latestVersion}`;
         if (lblNewVersionNotes) lblNewVersionNotes.innerText = res.releaseNotes || 'New enhancements and security updates.';
-        if (btnDownloadNewRelease && res.downloadUrl) btnDownloadNewRelease.href = res.downloadUrl;
-        showToast(`🚀 New version v${res.latestVersion} available! Click Download to update.`);
+        if (btnDownloadNewRelease) btnDownloadNewRelease.href = res.portalUrl || res.downloadUrl || 'https://www.evolveminds.com.au/products/evolve-ai/download/';
+        showToast(`🚀 New version v${res.latestVersion} available! Click to download or view on company website.`);
       } else {
         setHeaderVersionPillState('up-to-date', res?.currentVersion || runningVersion);
         if (updateCheckStatus) {
@@ -58246,6 +58246,165 @@ if __name__ == '__main__':
       }
     } finally {
       if (btnCheckUpdates) (btnCheckUpdates as HTMLButtonElement).disabled = false;
+    }
+  });
+
+  // 1-Click Pilot Trust Setup & Unblocker Handler
+  const btnRunTrustToolDirect = document.getElementById('btnRunTrustToolDirect');
+  const btnExportTrustKit = document.getElementById('btnExportTrustKit');
+  const btnViewTrustBatScript = document.getElementById('btnViewTrustBatScript');
+  const trustToolActionStatus = document.getElementById('trustToolActionStatus');
+  const modalTrustScriptViewer = document.getElementById('modalTrustScriptViewer');
+  const btnCloseTrustScriptModal = document.getElementById('btnCloseTrustScriptModal');
+  const btnCopyTrustBatCode = document.getElementById('btnCopyTrustBatCode');
+  const trustBatScriptCodeBlock = document.getElementById('trustBatScriptCodeBlock');
+  const btnTrustScriptModalRunNow = document.getElementById('btnTrustScriptModalRunNow');
+
+  const executeTrustToolAction = async () => {
+    if (trustToolActionStatus) {
+      trustToolActionStatus.style.display = 'block';
+      trustToolActionStatus.style.background = 'rgba(56, 189, 248, 0.15)';
+      trustToolActionStatus.style.border = '1px solid rgba(56, 189, 248, 0.4)';
+      trustToolActionStatus.style.color = '#38bdf8';
+      trustToolActionStatus.innerHTML = '<span>⏳</span> <span>Requesting Windows Administrator elevation to install pilot certificate & unblock binaries...</span>';
+    }
+    showToast('🛡️ Launching 1-Click Trust Setup (Administrator elevation required)...');
+
+    try {
+      const res = await api?.updater?.runTrustTool();
+      if (trustToolActionStatus) {
+        if (res?.success) {
+          trustToolActionStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+          trustToolActionStatus.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+          trustToolActionStatus.style.color = '#34d399';
+          trustToolActionStatus.innerHTML = `<b>✓ Trust Setup Succeeded:</b> ${res.message}`;
+          showToast('✓ Evolve Enterprise certificate installed & executables unblocked!');
+        } else {
+          trustToolActionStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+          trustToolActionStatus.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+          trustToolActionStatus.style.color = '#f87171';
+          trustToolActionStatus.innerHTML = `<b>⚠️ Trust Setup Cancelled / Failed:</b> ${res?.error || res?.message || 'UAC elevation declined.'}`;
+          showToast(`⚠️ Trust setup failed: ${res?.error || 'UAC elevation required'}`);
+        }
+      }
+    } catch (err: any) {
+      if (trustToolActionStatus) {
+        trustToolActionStatus.style.display = 'block';
+        trustToolActionStatus.style.background = 'rgba(239, 68, 68, 0.15)';
+        trustToolActionStatus.style.color = '#f87171';
+        trustToolActionStatus.innerText = `Error: ${err.message || String(err)}`;
+      }
+      showToast(`⚠️ Trust tool error: ${err.message}`);
+    }
+  };
+
+  btnRunTrustToolDirect?.addEventListener('click', executeTrustToolAction);
+  btnTrustScriptModalRunNow?.addEventListener('click', async () => {
+    if (modalTrustScriptViewer) modalTrustScriptViewer.style.display = 'none';
+    await executeTrustToolAction();
+  });
+
+  // Export Trust Kit to Downloads
+  btnExportTrustKit?.addEventListener('click', async () => {
+    showToast('⏳ Exporting Trust Tool bundle to Downloads folder...');
+    try {
+      const res = await api?.updater?.exportTrustTool();
+      if (res?.success) {
+        if (trustToolActionStatus) {
+          trustToolActionStatus.style.display = 'block';
+          trustToolActionStatus.style.background = 'rgba(16, 185, 129, 0.15)';
+          trustToolActionStatus.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+          trustToolActionStatus.style.color = '#34d399';
+          trustToolActionStatus.innerHTML = `<b>✓ Trust Kit Exported:</b> Saved <code>trust-pilot-cert.bat</code>, PowerShell script, certificate, and zip to <code>${res.folderPath}</code>. Explorer window opened.`;
+        }
+        showToast(`✓ Trust Tool (.zip & .bat) saved to Downloads folder!`);
+      } else {
+        showToast(`⚠️ Export failed: ${res?.error || 'Could not export'}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Export error: ${err.message}`);
+    }
+  });
+
+  // View Trust Script Code Modal
+  btnViewTrustBatScript?.addEventListener('click', async () => {
+    if (!modalTrustScriptViewer) return;
+    modalTrustScriptViewer.style.display = 'flex';
+    try {
+      const scriptData = await api?.updater?.getTrustToolScript();
+      if (trustBatScriptCodeBlock && scriptData?.batScript) {
+        trustBatScriptCodeBlock.innerText = scriptData.batScript;
+      }
+    } catch {}
+  });
+
+  btnCloseTrustScriptModal?.addEventListener('click', () => {
+    if (modalTrustScriptViewer) modalTrustScriptViewer.style.display = 'none';
+  });
+
+  btnCopyTrustBatCode?.addEventListener('click', async () => {
+    if (trustBatScriptCodeBlock?.innerText) {
+      try {
+        await navigator.clipboard.writeText(trustBatScriptCodeBlock.innerText);
+        showToast('✓ trust-pilot-cert.bat code copied to clipboard!');
+      } catch {}
+    }
+  });
+
+  // Direct In-App Asset Downloaders
+  const btnDownloadExeDirect = document.getElementById('btnDownloadExeDirect');
+  const exeDownloadProgressBar = document.getElementById('exeDownloadProgressBar');
+  const exeDownloadProgressText = document.getElementById('exeDownloadProgressText');
+  const exeDownloadProgressFill = document.getElementById('exeDownloadProgressFill');
+
+  btnDownloadExeDirect?.addEventListener('click', async () => {
+    if (exeDownloadProgressBar) exeDownloadProgressBar.style.display = 'block';
+    if (exeDownloadProgressText) exeDownloadProgressText.innerText = 'Downloading signed portable .exe to Downloads folder...';
+    if (exeDownloadProgressFill) exeDownloadProgressFill.style.width = '35%';
+    showToast('⏳ Downloading portable executable to your Downloads folder...');
+
+    try {
+      const res = await api?.updater?.downloadAsset('exe');
+      if (res?.success) {
+        if (exeDownloadProgressFill) exeDownloadProgressFill.style.width = '100%';
+        if (exeDownloadProgressText) exeDownloadProgressText.innerText = `✓ Download complete! Saved to: ${res.filePath}`;
+        showToast(`✓ Evolve AI Enterprise portable .exe saved to Downloads!`);
+      } else {
+        if (exeDownloadProgressText) exeDownloadProgressText.innerText = `⚠️ Download failed: ${res?.error || 'Network error'}`;
+        showToast(`⚠️ Download error: ${res?.error}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Download error: ${err.message}`);
+    }
+  });
+
+  const btnDownloadPatchDirect = document.getElementById('btnDownloadPatchDirect');
+  btnDownloadPatchDirect?.addEventListener('click', async () => {
+    showToast('⏳ Downloading offline patch archive (.zip) to Downloads folder...');
+    try {
+      const res = await api?.updater?.downloadAsset('patch');
+      if (res?.success) {
+        showToast(`✓ Offline patch archive saved to ${res.filePath}!`);
+      } else {
+        showToast(`⚠️ Patch download error: ${res?.error}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Download error: ${err.message}`);
+    }
+  });
+
+  const btnDownloadTrustZipDirect = document.getElementById('btnDownloadTrustZipDirect');
+  btnDownloadTrustZipDirect?.addEventListener('click', async () => {
+    showToast('⏳ Downloading 1-Click Pilot Trust Tool (.zip) to Downloads folder...');
+    try {
+      const res = await api?.updater?.downloadAsset('trust-tool');
+      if (res?.success) {
+        showToast(`✓ Trust Tool (.zip) saved to ${res.filePath}!`);
+      } else {
+        showToast(`⚠️ Trust tool download error: ${res?.error}`);
+      }
+    } catch (err: any) {
+      showToast(`⚠️ Download error: ${err.message}`);
     }
   });
 

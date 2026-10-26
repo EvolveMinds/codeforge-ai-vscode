@@ -163,7 +163,11 @@ const desktopApi = {
   updater: {
     checkUpdate: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.CHECK_UPDATE),
     getVersion: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.GET_VERSION),
-    applyOfflinePatch: (patchPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.APPLY_OFFLINE_PATCH, patchPath)
+    applyOfflinePatch: (patchPath: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.APPLY_OFFLINE_PATCH, patchPath),
+    runTrustTool: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.RUN_TRUST_TOOL),
+    exportTrustTool: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.EXPORT_TRUST_TOOL),
+    downloadAsset: (assetType: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.DOWNLOAD_ASSET, assetType),
+    getTrustToolScript: () => ipcRenderer.invoke(DESKTOP_CHANNELS.UPDATER.GET_TRUST_TOOL_SCRIPT)
   },
 
   // --- LOCAL AI & LLM INFERENCE APIS ---

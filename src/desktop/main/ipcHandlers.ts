@@ -4448,6 +4448,22 @@ End Function
       return updater.applyOfflinePatch(patchPath);
     });
 
+    ipc.handle(DESKTOP_CHANNELS.UPDATER.RUN_TRUST_TOOL, async () => {
+      return await updater.runTrustTool();
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.UPDATER.EXPORT_TRUST_TOOL, async () => {
+      return await updater.exportTrustTool();
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.UPDATER.DOWNLOAD_ASSET, async (_: any, assetType: string) => {
+      return await updater.downloadAsset(assetType as any);
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.UPDATER.GET_TRUST_TOOL_SCRIPT, async () => {
+      return updater.getTrustToolScript();
+    });
+
     // --- REAL LOCAL AI & LLM INFERENCE CHANNELS ---
     ipc.handle(DESKTOP_CHANNELS.AI.GET_MODELS, async () => {
       // 1. Probe Ollama tags
@@ -8119,7 +8135,6 @@ describe('Level ${level} Architecture Target Verification', () => {
       let targetProvider: string = (targetConfig as any).provider || '';
       if (targetType.startsWith('llm_')) {
         targetProvider = targetType.replace('llm_', '');
-        targetType = 'llm';
       }
       if (!targetProvider && targetType === 'llm') {
         targetProvider = 'ollama';
@@ -8127,9 +8142,10 @@ describe('Level ${level} Architecture Target Verification', () => {
 
       const benchmarkEngine = new BenchmarkExecutionEngine(cwd);
       const benchmarkTargetConfig: any = {
-        type: targetType === 'llm' ? (targetProvider === 'ollama' ? 'llm_ollama' : 'llm_cloud') : targetType,
+        type: (targetConfig as any).type || (targetType === 'llm' ? (targetProvider === 'ollama' ? 'llm_ollama' : 'llm_cloud') : targetType),
         modelId: targetConfig.model,
         provider: targetProvider,
+        apiKey: (targetConfig as any).apiKey,
         ollamaHost: (targetConfig as any).ollamaHost || 'http://127.0.0.1:11434',
         numCtx: (targetConfig as any).numCtx || 4096,
         endpointUrl: targetConfig.endpointUrl,
@@ -8143,6 +8159,35 @@ describe('Level ${level} Architecture Target Verification', () => {
         maxCost: req?.slaTargets?.maxCost ?? 0.0020,
         minGroundedness: req?.slaTargets?.minGroundedness ?? 98.0
       });
+
+      if (suiteResult.error) {
+        return {
+          domain: req?.domain || 'Enterprise Baseline',
+          targetConfig,
+          totalCases: 0,
+          passedCases: 0,
+          failedCases: 0,
+          accuracyScorePct: 0,
+          p50LatencyMs: 0,
+          p95LatencyMs: 0,
+          p99LatencyMs: 0,
+          averageCostPerTaskUsd: 0,
+          groundedCitationRatePct: 0,
+          isSlaMet: false,
+          slaBreaches: suiteResult.slaBreaches || [suiteResult.error],
+          slaTargets: {
+            minAccuracy: req?.slaTargets?.minAccuracy ?? 95.0,
+            maxLatencyP95: req?.slaTargets?.maxLatencyP95 ?? 200,
+            maxCost: req?.slaTargets?.maxCost ?? 0.0020,
+            minGroundedness: req?.slaTargets?.minGroundedness ?? 98.0
+          },
+          timestamp: new Date().toISOString(),
+          simulated: false,
+          benchmarkExecuted: false,
+          cases: [],
+          error: suiteResult.error
+        };
+      }
 
       const cases = suiteResult.cases;
       const passed = suiteResult.passedCases;

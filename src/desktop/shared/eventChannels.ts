@@ -112,7 +112,11 @@ export const DESKTOP_CHANNELS = {
   UPDATER: {
     CHECK_UPDATE: 'evolve:updater:check-update',
     GET_VERSION: 'evolve:updater:get-version',
-    APPLY_OFFLINE_PATCH: 'evolve:updater:apply-offline-patch'
+    APPLY_OFFLINE_PATCH: 'evolve:updater:apply-offline-patch',
+    RUN_TRUST_TOOL: 'evolve:updater:run-trust-tool',
+    EXPORT_TRUST_TOOL: 'evolve:updater:export-trust-tool',
+    DOWNLOAD_ASSET: 'evolve:updater:download-asset',
+    GET_TRUST_TOOL_SCRIPT: 'evolve:updater:get-trust-tool-script'
   },
 
   AI: {

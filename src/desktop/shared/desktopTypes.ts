@@ -132,6 +132,11 @@ export interface UpdateCheckResult {
   isAirGapped?: boolean;
   networkStatus?: 'online' | 'offline' | 'blocked';
   statusMessage?: string;
+  exeUrl?: string;
+  trustToolUrl?: string;
+  patchUrl?: string;
+  portalUrl?: string;
+  releasesUrl?: string;
 }
 
 export interface OfflinePatchApplyResult {
