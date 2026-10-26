@@ -598,8 +598,11 @@ from pydantic import BaseModel
     let bus: any;
 
     setup(() => {
-      mockStore = { disabledPlugins: [] };
-      (global as any).__mockVscodeStore = mockStore;
+      if (!(global as any).__mockVscodeStore) {
+        (global as any).__mockVscodeStore = { disabledPlugins: [] };
+      }
+      mockStore = (global as any).__mockVscodeStore;
+      mockStore.disabledPlugins = [];
 
       // Ensure vscode is stubbed in Module._resolveFilename and require.cache for headless Mocha
       const Module = require('module');

@@ -15,13 +15,20 @@ try {
   const orig = Module._load;
   Module._load = function(request: string, parent: any, isMain: boolean) {
     if (request === 'vscode') {
-      const store = (global as any).__mockVscodeStore || { disabledPlugins: [] };
       return {
         ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
         workspace: {
           getConfiguration: () => ({
-            get: (k: string, d: any) => store[k] !== undefined ? store[k] : (d ?? []),
-            update: async (k: string, v: any) => { store[k] = v; },
+            get: (k: string, d: any) => {
+              const store = (global as any).__mockVscodeStore || {};
+              return store[k] !== undefined ? store[k] : (d ?? []);
+            },
+            update: async (k: string, v: any) => {
+              if (!(global as any).__mockVscodeStore) {
+                (global as any).__mockVscodeStore = {};
+              }
+              (global as any).__mockVscodeStore[k] = v;
+            },
           }),
           workspaceFolders: [],
         },

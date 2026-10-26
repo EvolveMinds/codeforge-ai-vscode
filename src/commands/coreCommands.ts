@@ -1067,6 +1067,17 @@ function extractBlock(doc: vscode.TextDocument, startLine: number): string {
 // ── Release notes ─────────────────────────────────────────────────────────────
 // Add a new entry here for each version. The `whatsNew` command reads from this map.
 const RELEASE_NOTES: Record<string, string> = {
+  '2.31.0': [
+    `## 🖥️ Evolve AI 2.31.0 — IBM Mainframe (z/OS) & iSeries (AS/400 TN5250) Modernization Studio\n`,
+    `• **IBM iSeries (AS/400 TN5250) & z/OS Modernization**: Full terminal emulation engine supporting IBM iSeries TN5250 and z/OS TN3270 environments.\n`,
+    `• **Dual-View Cockpit (Phosphor CRT ⇄ Modern Web Card View)**: Seamlessly toggle between authentic phosphor green-screen CRT terminals with clickable hotspot badges and responsive modern card interfaces with live metric tiles.\n`,
+    `• **Ask Copilot Natural Language CL Command Navigator**: Translate conversational requests (e.g., 'show active jobs', 'check system status', 'view printed reports') into native Control Language commands (WRKACTJOB, WRKSYSSTS, WRKSPLF, STRSQL, DSPMSG).\n`,
+    `• **1-Click Modernization Artifact Generation**: Instant generation of OpenAPI 3.0 REST specifications and production React 18 frontend components for active mainframe screens.\n`,
+    `• **Strict Connection Parameters Validation**: Real-time validation for Host, User, and Password parameters across TN5250, TN3270, and z/OSMF protocols with dedicated inline diagnostic deck.\n`,
+    `• **Pre-Flight Neural, AST & Flow Debugger Cockpit**: Clean, intuitive visual debugger layout with dedicated pre-flight checks, tensor shape visualizer, and DataFrame schema sniffer.\n`,
+    `• **Dedicated Plugin Navigation & Icon Differentiation**: Distinct branding and sidebar navigation for IBM Mainframe Modernization Studio and Polyglot AI Coding Studio.\n`,
+    `Report issues: [GitHub Issues](https://github.com/EvolveMinds/codeforge-ai-vscode/issues)`,
+  ].join('\n'),
   '2.30.0': [
     `## 🐍 Evolve AI 2.30.0 — Python AI Studio & Neural Debugger\n`,
     `• **Python AI Studio & AST Analyzer**: Deep static syntax analysis, node visitor pattern, variable scoping, imports, and fault-tolerant parsing.\n`,

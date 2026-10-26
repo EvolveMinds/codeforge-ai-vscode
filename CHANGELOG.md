@@ -2,6 +2,22 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.31.0] — 2026-10-26
+
+### IBM Mainframe (z/OS) & iSeries (AS/400 TN5250) Modernization Studio
+
+* **IBM iSeries (AS/400 TN5250) & z/OS Terminal Engine:** Built-in terminal emulation state machine (`mainframeScreenEngine.ts`) supporting IBM iSeries TN5250 and z/OS TN3270 systems, screen definitions (`MAIN`, `WRKACTJOB`, `WRKSYSSTS`, `WRKSPLF`, `DSPMSG`, `STRSQL`, `ISPF_PRIM`, `SDSF_DA`, `CICS_CEMT`), clickable menu hotspots, and F-key navigation.
+* **Dual-View Phosphor CRT ⇄ Modern Web Card View:** Interactive dual-view terminal in the desktop cockpit allowing FDEs to switch between classic green phosphor CRT and responsive modern card view with metric tiles and styled data tables.
+* **Ask Copilot Natural Language CL Navigator:** Natural language intent resolver translating plain-English queries (e.g., *"show active jobs"*, *"check system status"*, *"query db2 database sql"*) directly into native IBM i Control Language (CL) and z/OS commands.
+* **1-Click OpenAPI 3.0 & React 18 Modernization Scaffolding:** Automated extraction of screen states into clean OpenAPI 3.0 REST specifications and modern React 18 TypeScript components.
+* **Strict Connection Parameters & Diagnostics Deck:** Rigorous validation of connection parameters (Host, Port, User, Password, TLS/SSL) with dedicated inline diagnostic alerts preventing unverified empty execution.
+
+### Polyglot Coding Studio & Neural Debugger Improvements
+
+* **Pre-Flight Neural, AST & Flow Debugger Cockpit:** Re-engineered Python and Polyglot Neural Debugger into an intuitive pre-flight audit deck featuring AST inspection, tensor shape flow visualizer, DataFrame schema sniffer, and automated PyTest contract generation.
+* **Dedicated Plugin Navigation & Stack Icon Separation:** Distinct sidebar icons and navigation controls separating the IBM Mainframe Modernization Studio from the AI Coding Studio & Neural Debugger.
+* **Streamlined Desktop Header:** Removed redundant terminal button from top right in favor of unified top-left navigation menu.
+
 ## [2.30.0] — 2026-10-15
 
 ### Python AI Studio & Interactive Neural Debugger

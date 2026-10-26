@@ -1,5 +1,27 @@
 # Evolve AI — Release Notes
 
+## Version 2.31.0 — October 26, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.31.0 introduces the **IBM Mainframe (z/OS) & iSeries (AS/400 TN5250) Modernization Studio**, bringing enterprise terminal emulation, natural language Control Language (CL) command navigation, dual-view CRT/modern cards, 1-click OpenAPI 3.0 and React component scaffolding, robust connection validation decks, and an enhanced Pre-Flight Neural & AST Debugger cockpit.
+
+* **IBM iSeries (AS/400 TN5250) & z/OS Modernization Engine:** Integrated terminal emulation engine (`mainframeScreenEngine.ts`) with out-of-the-box screen templates (`MAIN`, `WRKACTJOB`, `WRKSYSSTS`, `WRKSPLF`, `DSPMSG`, `STRSQL`, `ISPF_PRIM`, `SDSF_DA`, `CICS_CEMT`), clickable menu hotspots, and keyboard F-key navigation.
+* **Dual-View Cockpit (Phosphor CRT ⇄ Modern Web Card View):** Real-time dual display allowing forward-deployed engineers to inspect raw terminal greenscreens or interact with modern card interfaces and data tables.
+* **Ask Copilot Natural Language Command Navigator:** Natural language intent resolver translating plain English into AS/400 CL and z/OS commands.
+* **1-Click OpenAPI 3.0 & React 18 Scaffolder:** Generates production-ready REST API specifications and React 18 modernization components directly from active mainframe screens.
+* **Strict Connection Parameters Validation:** Pre-flight credential checks ensuring Host, Port, User, and Password fields are validated before live TN5250, TN3270, or z/OSMF attempts.
+* **Pre-Flight Neural, AST & Flow Debugger Cockpit:** Re-engineered visual layout with dedicated pre-flight checks, tensor shape visualizer, and DataFrame schema sniffer.
+* **Dedicated Plugin Navigation & Stack Icon Separation:** Distinct sidebar branding and menu separation between the IBM Mainframe Modernization Studio and Polyglot AI Coding Studio.
+
+---
+
 ## Version 2.30.0 — October 15, 2026
 
 **Publisher:** `codeforge-ai`  

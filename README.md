@@ -43,6 +43,8 @@
 
 ### Why Evolve AI?
 
+- **IBM Mainframe (z/OS) & iSeries (AS/400 TN5250) Modernization Studio** *(v2.31.0)* — Full terminal emulation engine supporting IBM iSeries TN5250 and z/OS TN3270 environments, Dual-View (Phosphor CRT ⇄ Modern Web Card View), Ask Copilot Natural Language CL Command Navigator, 1-click OpenAPI 3.0 & React 18 modernization scaffolding, strict connection parameter validation, and Pre-Flight Neural & AST Debugger cockpit.
+
 - **Python AI Studio & Interactive Neural Debugger** *(v2.30.0)* — Python AST analyzer, layer-by-layer dynamic tensor shape flow tracking, automated DataFrame schema sniffer, airtight Python wheelhouse sandbox, full-stack multi-stage Docker containerization, dual-engine PostgreSQL 16 + ChromaDB Docker Compose, and production AWS App Runner & ECR deployment runbooks.
 - **Enterprise trials by request** *(v2.29.1)* — **Request Trial** drafts a request to support@evolveminds.com.au instead of switching a trial on. Approved requests receive a signed 30-day trial key by email, activated with **Enter Licence Key** and verified like any Enterprise licence.
 - **Which Model Should I Use?** *(v2.29.0)* — run `Evolve AI: Which Model Should I Use?`, pick the job (chat, reasoning, code, fill-in-the-middle, embeddings, reranking, vision, documents, classification), and the Model Advisor tells you whether your current model is the right kind of tool and suggests the smallest installed model that does the job. Capabilities are detected from Ollama, and every verdict says whether it was detected, known or assumed. → [docs/MODEL_ADVISOR.md](docs/MODEL_ADVISOR.md)
