@@ -12,20 +12,29 @@ Version 2.31.0 introduces the **IBM Mainframe (z/OS) & iSeries (AS/400 TN5250) M
 * **Pre-Flight Neural, AST & Flow Debugger Cockpit:** Re-engineered visual layout with dedicated pre-flight checks, tensor shape visualizer, and DataFrame schema sniffer.
 * **Dedicated Plugin Navigation & Stack Icon Separation:** Distinct sidebar branding and menu separation between the IBM Mainframe Modernization Studio (`🖥️`) and Polyglot AI Coding Studio (`💻`).
 
-### ⚠️ First Launch on Windows
+### 🛡️ Windows SmartScreen & Corporate Pilot Trust Tool
 
-This executable is **not code-signed**. On first run, Windows SmartScreen will show *"Windows protected your PC"*.
+The executable is digitally signed with the official **Evolve Mind Solutions Pty Ltd (Enterprise Pilot)** Authenticode certificate. 
 
-To proceed: click **More info** → **Run anyway**.
+On test workstations and corporate machines where commercial public root CAs are enforced, you have two simple options to run without SmartScreen interruption:
 
-This is expected for an unsigned binary and does not indicate a problem with the download. Verify the SHA-256 below to confirm the file is exactly what we published.
+* **Option 1 (Instant Click-Through)**: Click **More info** → **Run anyway** on the initial SmartScreen notification.
+* **Option 2 (1-Click Trust Tool — Recommended for Test Machines)**:
+  1. Download the bundled **`evolve-ai-pilot-trust-tool.zip`** from the release assets.
+  2. Extract and right-click **`trust-pilot-cert.bat`** → **Run as administrator**.
+  3. The batch script installs the certificate into *Trusted Publishers* & *Trusted Root CA* and clears Mark-of-the-Web on downloaded binaries.
+  4. Subsequent launches will run directly with **Verified Publisher: Evolve Mind Solutions Pty Ltd (Enterprise Pilot)** and zero SmartScreen prompts!
 
 ### 📦 Binary Verification
 
-* **Desktop Executable**: `evolve-ai-enterprise-portable-2.31.0-win32-x64.exe`
+* **Desktop Executable (Signed)**: `evolve-ai-enterprise-portable-2.31.0-win32-x64.exe`
 * **Architecture**: `win32-x64` (Windows 10 / 11 64-bit)
-* **Size**: 79.6 MB (83,486,697 bytes)
-* **SHA-256**: `3B63A47CB371AB41A67BF2EEA2BA640569D26AF45A677B3F027F637D7C113386`
+* **Size**: 79.6 MB (83,488,216 bytes)
+* **SHA-256**: `A5D4CDB1FB870E40002A64B6BCBF44B3F32BC8CC435F079408130C652F3698FF`
+
+* **1-Click Pilot Trust Tool**: `evolve-ai-pilot-trust-tool.zip`
+* **Size**: 4.8 KB (4,772 bytes)
+* **SHA-256**: `B69ED6B226AE7B720C2F58F26B14EFFF49C23DDB07EA0089C86015D503DA165D`
 
 * **Air-Gapped Patch Archive**: `evolve-ai-enterprise-patch-2.31.0.zip`
 * **Size**: 4.2 KB (4,257 bytes)

@@ -4,11 +4,21 @@
 
 [CmdletBinding()]
 param (
-    [string]$CerPath = "$PSScriptRoot\..\build-certs\evolve-enterprise-dev.cer",
-    [string]$DistDir = "$PSScriptRoot\..\dist-desktop"
+    [string]$CerPath = "",
+    [string]$DistDir = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($CerPath)) {
+    if (Test-Path "$PSScriptRoot\evolve-enterprise-dev.cer") {
+        $CerPath = "$PSScriptRoot\evolve-enterprise-dev.cer"
+    } elseif (Test-Path "$PSScriptRoot\..\build-certs\evolve-enterprise-dev.cer") {
+        $CerPath = "$PSScriptRoot\..\build-certs\evolve-enterprise-dev.cer"
+    } else {
+        $CerPath = "$PSScriptRoot\evolve-enterprise-dev.cer"
+    }
+}
 
 Write-Host "======================================================================" -ForegroundColor Cyan
 Write-Host "  Evolve AI Enterprise Studio — Windows Trust Configuration" -ForegroundColor Cyan
@@ -51,11 +61,17 @@ Write-Host "      ✓ Added to Trusted Root CA" -ForegroundColor Green
 
 # 3. Unblock executables
 Write-Host "[3/3] Stripping Mark-of-the-Web (Zone.Identifier) from binaries..." -ForegroundColor White
-if (Test-Path $DistDir) {
-    $exes = Get-ChildItem -Path $DistDir -Recurse -Filter "*.exe"
-    foreach ($exe in $exes) {
-        Unblock-File -Path $exe.FullName -ErrorAction SilentlyContinue
-        Write-Host "      ✓ Unblocked: $($exe.Name)" -ForegroundColor Green
+$searchDirs = @($PSScriptRoot, "$env:USERPROFILE\Downloads", "$PSScriptRoot\..\dist-desktop")
+if (-not [string]::IsNullOrWhiteSpace($DistDir) -and (Test-Path $DistDir)) {
+    $searchDirs += $DistDir
+}
+foreach ($d in $searchDirs) {
+    if (Test-Path $d) {
+        $exes = Get-ChildItem -Path $d -Filter "evolve-ai-enterprise-*.exe" -Recurse -ErrorAction SilentlyContinue
+        foreach ($exe in $exes) {
+            Unblock-File -Path $exe.FullName -ErrorAction SilentlyContinue
+            Write-Host "      ✓ Unblocked: $($exe.Name)" -ForegroundColor Green
+        }
     }
 }
 

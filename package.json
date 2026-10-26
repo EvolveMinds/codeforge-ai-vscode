@@ -2402,6 +2402,7 @@
     "desktop:cert:generate": "node scripts/generate-dev-cert.js",
     "desktop:sign": "node scripts/sign-windows-binary.js",
     "desktop:verify-signature": "node scripts/verify-signature.js",
+    "trust:package": "node scripts/package-trust-tool.js",
     "test": "node ./out/test/runTest.js",
     "test:fde": "mocha --exit --ui tdd out/test/suite/fde/*.test.js",
     "test:phase3": "mocha --exit --ui tdd out/test/suite/fde/*.test.js out/test/suite/mcp/*.test.js",

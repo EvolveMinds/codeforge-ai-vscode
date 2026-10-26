@@ -16,9 +16,12 @@ if %errorLevel% neq 0 (
     exit /b
 )
 
-set CER_PATH=%~dp0..\build-certs\evolve-enterprise-dev.cer
+set CER_PATH=%~dp0evolve-enterprise-dev.cer
 if not exist "%CER_PATH%" (
-    echo [ERROR] Certificate file not found at: %CER_PATH%
+    set CER_PATH=%~dp0..\build-certs\evolve-enterprise-dev.cer
+)
+if not exist "%CER_PATH%" (
+    echo [ERROR] Certificate file not found (checked %~dp0evolve-enterprise-dev.cer and %~dp0..\build-certs\evolve-enterprise-dev.cer)
     pause
     exit /b 1
 )
@@ -40,11 +43,7 @@ if %errorLevel% equ 0 (
 )
 
 echo [3/3] Unblocking executable binaries (removing Mark-of-the-Web)...
-set DIST_DIR=%~dp0..\dist-desktop
-if exist "%DIST_DIR%" (
-    powershell -NoProfile -Command "Get-ChildItem -Path '%DIST_DIR%' -Recurse -Filter '*.exe' | ForEach-Object { Unblock-File -Path $_.FullName -ErrorAction SilentlyContinue }"
-    echo       - All executables in dist-desktop unblocked: SUCCESS
-)
+powershell -NoProfile -Command "$paths = @('%~dp0', '%USERPROFILE%\Downloads', '%~dp0..\dist-desktop'); foreach ($p in $paths) { if (Test-Path $p) { Get-ChildItem -Path $p -Filter 'evolve-ai-enterprise-*.exe' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Unblock-File -Path $_.FullName -ErrorAction SilentlyContinue; Write-Host '      - Unblocked: ' $_.Name } } }"
 
 echo.
 echo ======================================================================

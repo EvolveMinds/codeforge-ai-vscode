@@ -76,7 +76,36 @@ Before touching version numbers or code:
   npx asar list dist-desktop/win-unpacked/resources/app.asar | grep -c node_modules   # must be 0
   ```
 
-#### 3.2 VS Code Extension Package (.vsix)
+#### 3.2 Authenticode Code Signing & Corporate Trust Verification
+- [ ] **Apply Authenticode Code Signing:** Sign the portable executable with the Enterprise Pilot certificate:
+  ```powershell
+  npm run desktop:sign
+  # or: powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/sign-windows-binary.ps1 -FilePath dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe
+  ```
+- [ ] **Verify Digital Signature Block:**  
+  ```powershell
+  Get-AuthenticodeSignature 'dist-desktop\evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe' | Format-List SignerCertificate,Status,StatusMessage
+  ```
+- [ ] **Measure Exact Signed Binary Hash & Size:**
+  ```powershell
+  $exe = Get-Item 'dist-desktop\evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe'
+  (Get-FileHash $exe.FullName -Algorithm SHA256).Hash
+  $exe.Length
+  ```
+
+#### 3.3 1-Click Pilot Trust Tool Packaging (`evolve-ai-pilot-trust-tool.zip`)
+- [ ] **Package Pilot Trust Tool:** Bundle `scripts/trust-pilot-cert.bat`, `scripts/trust-pilot-cert.ps1`, `build-certs/evolve-enterprise-dev.cer`, and `README.txt`:
+  ```bash
+  npm run trust:package
+  ```
+- [ ] **Verify Trust Tool Archive:** Verify `dist-desktop/evolve-ai-pilot-trust-tool.zip` exists, test extraction, and record exact SHA-256 and byte length.
+  - *Function:* Installs `evolve-enterprise-dev.cer` into Windows `TrustedPublisher` and `Root` stores and strips Mark-of-the-Web (Zone.Identifier) streams from all downloaded binaries on test machines to prevent SmartScreen blocks.
+
+#### 3.4 Air-Gapped Offline Hot Patch Bundle (`evolve-ai-enterprise-patch-X.Y.Z.zip`)
+- [ ] **Build Patch Bundle:** `npm run patch:create`
+- [ ] **Verify Patch Artifact:** Confirm `dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip` contains updated AST rules, PII patterns, and signed manifest.json with SHA-256 checksums.
+
+#### 3.5 VS Code Extension Package (.vsix)
 - [ ] **Package Extension:** `npx @vscode/vsce package --no-dependencies -o evolve-ai-X.Y.Z.vsix`
 - [ ] **Hash & Size Verification:**
   ```powershell
@@ -84,7 +113,7 @@ Before touching version numbers or code:
   (Get-Item 'evolve-ai-X.Y.Z.vsix').Length
   ```
 
-#### 3.3 Microsoft Store Package (.appx / MSIX)
+#### 3.6 Microsoft Store Package (.appx / MSIX)
 - [ ] **Build Store Package:** `npm run desktop:build:appx`
 - [ ] **Verify Artifact:** `dist-desktop/evolve-ai-enterprise-X.Y.Z-msstore-x64.appx`
 - [ ] **Partner Center Ingestion:** Upload `.appx` to Microsoft Partner Center for automated verification and official Microsoft Store root signing (clears SmartScreen with $0 CA cost).
@@ -108,6 +137,8 @@ Both GitHub remotes must receive identical code, tags, and release binaries:
     --title "Evolve AI Enterprise Desktop vX.Y.Z (Windows x64 Portable & VSIX)" \
     --notes-file /tmp/release-body.md --latest \
     dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe \
+    dist-desktop/evolve-ai-pilot-trust-tool.zip \
+    dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip \
     evolve-ai-X.Y.Z.vsix
   ```
 - [ ] **Create Enterprise Release (`evolve-ai-enterprise`):**
@@ -117,10 +148,12 @@ Both GitHub remotes must receive identical code, tags, and release binaries:
     --title "Evolve AI Enterprise Desktop vX.Y.Z (Windows x64 Portable & VSIX)" \
     --notes-file /tmp/release-body.md --latest \
     dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe \
+    dist-desktop/evolve-ai-pilot-trust-tool.zip \
+    dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip \
     evolve-ai-X.Y.Z.vsix
   ```
 - [ ] **Asset Availability Verification:**  
-  `gh release view vX.Y.Z-desktop --repo EvolveMinds/codeforge-ai-vscode --json assets` confirms both assets have `state == uploaded` and download URLs return HTTP 200.
+  `gh release view vX.Y.Z-desktop --repo EvolveMinds/codeforge-ai-vscode --json assets` confirms all 3+ assets have `state == uploaded` and download URLs return HTTP 200.
 
 ---
 
@@ -137,16 +170,19 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
 - [ ] **Update Release Data Registry (`src/content/evolveAiReleases.ts`):**
   - Add new release entry at index 0 with `version: "vX.Y.Z"`, `tag: "vX.Y.Z-desktop"`, `isLatest: true`.
   - Register all release assets with exact size, bytes, and uppercase SHA-256 checksum:
-    - Portable Executable (.exe)
+    - Portable Executable (.exe, Authenticode signed)
+    - 1-Click Pilot Trust Tool (.zip, containing batch + PowerShell + cert + README)
     - Offline Patch Archive (.zip) (where applicable)
-    - *(Note: Do NOT include .vsix in enterprise downloads — website downloads focus exclusively on Desktop Portable .exe and offline patch .zip)*
+    - *(Note: Do NOT include .vsix in enterprise downloads — website downloads focus exclusively on Desktop Portable .exe, 1-Click Pilot Trust Tool, and offline patch .zip)*
   - Ensure all asset download URLs use domain-native routes: `/products/evolve-ai/releases/assets/<filename>`.
   - Replicate full feature changelog and binary verification blocks.
 - [ ] **Update Product Configuration (`src/content/site.ts`):**
   - `downloadUrl`: Set to domain-native route `/products/evolve-ai/releases/assets/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` (**ZERO** raw GitHub download URLs exposed to users!).
   - `downloadVersion`: `"vX.Y.Z"`
-  - `downloadSize`: Human readable size (e.g., `"79.0 MB"`)
-  - `downloadSha256`: Measured uppercase SHA-256 hash
+  - `downloadSize`: Human readable size (e.g., `"79.6 MB"`)
+  - `downloadSha256`: Measured uppercase SHA-256 hash of signed binary
+  - `downloadSigned`: `true` (when Authenticode signed with enterprise pilot cert)
+  - `trustToolUrl`: `/products/evolve-ai/releases/assets/evolve-ai-pilot-trust-tool.zip`
   - `releaseHistory`: Prepend outgoing version at top with domain-native `url` and notesUrl pointing to `/products/evolve-ai/releases/#v...`.
   - **Strict Path Constraint:** Never use `/downloads/`. All assets are under `/products/evolve-ai/releases/assets/`.
 - [ ] **Configure Domain-Native Asset Rewrites (`amplify-redirects.json`):**
@@ -197,7 +233,7 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
 
 | Version | Release Date | Desktop EXE SHA-256 (Size) | VSIX SHA-256 (Size) | GitHub Releases | Website Status | Verified By |
 |---|---|---|---|---|---|---|
-| **v2.31.0** | 2026-10-26 | `3B63A47CB371AB41A67BF2EEA2BA640569D26AF45A677B3F027F637D7C113386`<br>(79.6 MB / 83,486,697 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Staged & Updated | Antigravity AI Engine |
+| **v2.31.0** | 2026-10-26 | `A5D4CDB1FB870E40002A64B6BCBF44B3F32BC8CC435F079408130C652F3698FF`<br>(79.6 MB / 83,488,216 B)<br>*Authenticode Signed* | Trust Tool:<br>`B69ED6B226AE7B720C2F58F26B14EFFF49C23DDB07EA0089C86015D503DA165D`<br>(4.8 KB / 4,772 B)<br><br>Patch Bundle:<br>`68C852857CD134CB125F99B2E41063FF00586BD0D65BC19BBA8C9A913A62D0C7`<br>(4.2 KB / 4,257 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Verified & Live on AWS Amplify | Antigravity AI Engine |
 | **v2.30.0** | 2026-10-15 | `A3AB286B7C8A610A9B0B2FA0572D205D97715FB4953C4E99675EA27AD3ACB17D`<br>(79.4 MB / 83,259,726 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.30.0-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.30.0-desktop) | Staged & Updated | Antigravity AI Engine |
 | **v2.29.1** | 2026-10-14 | N/A (Marketplace Patch) | VS Code Marketplace | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.29.1) | Marketplace Published | Engineering Team |
 | **v2.29.0** | 2026-10-14 | N/A (Marketplace Release) | VS Code Marketplace | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.29.0) | Marketplace Published | Engineering Team |
