@@ -165,14 +165,9 @@ console.log(`      Patch ID: ${patchId}`);
 console.log(`      Base Version: ${version}`);
 console.log(`      Templates with SHA-256 digests: ${Object.keys(manifest.checksums).length}`);
 
-console.log(`\n[2/3] Compressing archive into ${zipName}...`);
-try {
-  // Use tar or powershell Compress-Archive
-  execSync(`tar -a -c -f "${outputZip}" -C "${stagingDir}" .`, { stdio: 'inherit' });
-} catch (err) {
-  // Fallback to powershell Compress-Archive
-  execSync(`powershell -NoProfile -Command "Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${outputZip}' -Force"`, { stdio: 'inherit' });
-}
+console.log(`\n[2/3] Compressing archive into ${zipName} (native Windows zip structure)...`);
+// Use PowerShell Compress-Archive for native Windows Explorer zip compatibility (no leading './' entries)
+execSync(`powershell -NoProfile -Command "$ProgressPreference = 'SilentlyContinue'; Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${outputZip}' -Force"`, { stdio: 'inherit' });
 
 // Clean up staging
 try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch {}

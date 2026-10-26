@@ -29,8 +29,8 @@ fs.copyFileSync(path.join(rootDir, 'build-certs', 'evolve-enterprise-dev.cer'), 
 
 // Create README.txt
 const readme = `======================================================================
-  Evolve AI Enterprise Studio — 1-Click Pilot Trust Tool
-  Evolve Mind Solutions Pty Ltd • Enterprise Evaluation & Pilot Kit
+  Evolve AI Enterprise Studio — 1-Click Corporate Trust Tool
+  Evolve Mind Solutions Pty Ltd • Enterprise Edition
 ======================================================================
 
 PURPOSE:
@@ -39,7 +39,7 @@ to trust Evolve AI Enterprise Studio binaries, preventing Windows Defender
 SmartScreen warnings ("Windows protected your PC") and Mark-of-the-Web blocks.
 
 WHAT THIS SCRIPT DOES:
-1. Installs the official Evolve AI Enterprise Pilot Certificate 
+1. Installs the official Evolve AI Enterprise Certificate 
    (evolve-enterprise-dev.cer) into:
    - Windows Local Machine \\ Trusted Publishers
    - Windows Local Machine \\ Trusted Root Certification Authorities
@@ -47,7 +47,7 @@ WHAT THIS SCRIPT DOES:
    from downloaded Evolve AI executable binaries (evolve-ai-enterprise-*.exe)
    in your Downloads folder and current folder.
 3. Windows SmartScreen and Defender will recognize the binary as signed by 
-   "Evolve Mind Solutions Pty Ltd (Enterprise Pilot)" and execute directly.
+   "Evolve Mind Solutions Pty Ltd" and execute directly.
 
 HOW TO RUN:
 Option A (Recommended):
@@ -76,11 +76,8 @@ if (fs.existsSync(outputZip)) {
   fs.unlinkSync(outputZip);
 }
 
-try {
-  execSync(`tar -a -c -f "${outputZip}" -C "${stagingDir}" .`, { stdio: 'inherit' });
-} catch {
-  execSync(`powershell -NoProfile -Command "Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${outputZip}' -Force"`, { stdio: 'inherit' });
-}
+// Use PowerShell Compress-Archive for native Windows Explorer zip compatibility (no leading './' entries)
+execSync(`powershell -NoProfile -Command "$ProgressPreference = 'SilentlyContinue'; Compress-Archive -Path '${stagingDir}\\*' -DestinationPath '${outputZip}' -Force"`, { stdio: 'inherit' });
 
 // Clean staging
 try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch {}

@@ -601,11 +601,11 @@
   <div id="licenseGateOverlay" class="license-gate-overlay" style="display: flex;">
     <div class="license-gate-card">
       <div class="license-gate-badge">
-        <span>🔒</span> ENTERPRISE SECURITY ENCLAVE · LIMITED PILOT
+        <span>🔒</span> ENTERPRISE SECURITY ENCLAVE · ENTERPRISE EDITION
       </div>
       <h2 class="license-gate-title">Evolve AI Enterprise Studio</h2>
       <p class="license-gate-subtitle">
-        Exclusive Limited Pilot Edition. Enter your cryptographically signed Ed25519 enterprise license key to validate and unlock this workstation.
+        Commercial Enterprise Edition. Enter your cryptographically signed Ed25519 enterprise license key to validate and unlock this workstation.
       </p>
 
       <!-- Hardware Fingerprint Box -->
@@ -634,7 +634,7 @@
           <span>🔑</span> Validate License &amp; Open Application
         </button>
         <button id="btnGateBuyLicense" class="btn-gate-buy" type="button" style="flex: 1;">
-          <span>💬</span> Request Pilot Access / Contact
+          <span>💬</span> Request Enterprise Access / Contact
         </button>
       </div>
 
@@ -649,7 +649,7 @@
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: #94a3b8;">
         <button class="btn-gate-link" id="btnGateImportFile" type="button">📁 Import license.json</button>
         <input type="file" id="gateFileInput" accept=".json,.bin,.txt" style="display: none;">
-        <span style="font-size: 11px; color: #64748b; display: inline-flex; align-items: center; gap: 4px;">🔒 Pilot key provided on request</span>
+        <span style="font-size: 11px; color: #64748b; display: inline-flex; align-items: center; gap: 4px;">🔒 License key provided on request</span>
       </div>
 
       <!-- Legal Agreement Disclosure -->
@@ -667,8 +667,8 @@
           <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 22px;">💎</span>
             <div>
-              <h3 style="margin: 0; font-size: 15px; color: #fff; font-weight: 700;">Evolve AI Enterprise — Limited Pilot Access Request</h3>
-              <div style="font-size: 11px; color: #94a3b8;">Pilot inquiry &amp; hardware-bound licensing for selected enterprise partners</div>
+              <h3 style="margin: 0; font-size: 15px; color: #fff; font-weight: 700;">Evolve AI Enterprise — Access &amp; Licensing Request</h3>
+              <div style="font-size: 11px; color: #94a3b8;">Commercial inquiry &amp; hardware-bound licensing for enterprise partners</div>
             </div>
           </div>
           <button class="btn-quick" id="btnBuyClose" type="button" style="padding: 4px 10px; font-size: 13px;" aria-label="Close">✕</button>
@@ -703,12 +703,12 @@
                 EDITION / PLAN TIER
               </label>
               <select id="selBuyPlan" class="buy-modal-input" disabled style="opacity: 0.9; cursor: not-allowed; background: rgba(15, 23, 42, 0.8);">
-                <option value="enterprise_pilot" selected>Enterprise Limited Pilot (Full Suite Unlocked)</option>
+                <option value="enterprise_license" selected>Enterprise Edition (Full Suite Unlocked)</option>
               </select>
             </div>
             <div>
               <label for="numBuySeats" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
-                PILOT SEATS / SCOPE
+                ENTERPRISE SEATS / SCOPE
               </label>
               <select id="numBuySeats" class="buy-modal-input">
                 <option value="1">1 Developer (Single Seat)</option>
@@ -722,10 +722,10 @@
             </div>
             <div>
               <label for="selBuyDuration" style="font-size: 11px; font-weight: 700; color: #94a3b8; display: block; margin-bottom: 5px;">
-                PILOT TERM
+                LICENSE TERM
               </label>
               <select id="selBuyDuration" class="buy-modal-input" disabled style="opacity: 0.9; cursor: not-allowed; background: rgba(15, 23, 42, 0.8);">
-                <option value="30" selected>30 Days (Maximum Pilot Window)</option>
+                <option value="30" selected>30 Days (Standard Evaluation Window)</option>
               </select>
             </div>
           </div>
@@ -817,8 +817,8 @@
           <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">1. PARTIES &amp; ACCEPTANCE</h4>
           <p>This End User License Agreement (&quot;EULA&quot;) is a legal contract between Evolve Mind Solutions Pty Ltd (ABN 41 672 546 217, Level 1, 63-73 Ann Street, Surry Hills NSW 2010, Australia) (&quot;Licensor&quot;) and your enterprise or organisation (&quot;Licensee&quot;). By activating, copying, or executing the software, Licensee agrees to be bound by these terms.</p>
           
-          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. LICENSE GRANTS &amp; EVALUATION PILOTS</h4>
-          <p><strong>2.1 Enterprise Evaluation &amp; Pilot:</strong> Grants a non-exclusive, non-transferable, revocable license strictly for internal evaluation, operational testing, and technical validation by Authorized Users for an evaluation period not exceeding <strong>thirty (30) days</strong> unless extended in writing by Licensor.</p>
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. LICENSE GRANTS &amp; EVALUATION</h4>
+          <p><strong>2.1 Enterprise Evaluation:</strong> Grants a non-exclusive, non-transferable, revocable license strictly for internal evaluation, operational testing, and technical validation by Authorized Users for an evaluation period not exceeding <strong>thirty (30) days</strong> unless extended in writing by Licensor.</p>
           <p><strong>2.2 Commercial Licenses:</strong> Available as Seat-Based or Enterprise Site Licenses. Organization / Team licenses cover all developer workstations within Licensee&apos;s organisation without requiring individual machine IDs.</p>
           <p><strong>2.3 Air-Gapped Enclave Licenses:</strong> Where requested for classified defense, sovereign, or air-gapped enclaves, the cryptographic token is bound to host CPU/motherboard hardware entropy.</p>
 
@@ -832,15 +832,15 @@
           <p>The Software is provided &quot;AS IS&quot;. Licensee maintains sole responsibility for reviewing, testing, and verifying all AI code suggestions and automated transpilation outputs before production deployment.</p>
 
           <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">6. LIMITATION OF LIABILITY &amp; GOVERNING LAW</h4>
-          <p>Licensor&apos;s cumulative liability is limited to license fees paid in the preceding 12 months (or $100 AUD for unpaid pilots), subject to the Australian Consumer Law. This EULA is governed by the laws of <strong>New South Wales, Australia</strong>.</p>
+          <p>Licensor&apos;s cumulative liability is limited to license fees paid in the preceding 12 months (or $100 AUD for unpaid evaluations), subject to the Australian Consumer Law. This EULA is governed by the laws of <strong>New South Wales, Australia</strong>.</p>
         </div>
 
         <div id="termsTextSection" style="display: none;">
           <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">1. MASTER TERMS &amp; CONDITIONS</h4>
           <p>These Terms govern all products, platforms, and forward-deployed engineering engagements provided by Evolve Mind Solutions Pty Ltd (ABN 41 672 546 217). In commercial licensing, these Terms operate in conjunction with the Evolve AI EULA.</p>
 
-          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. CONFIDENTIALITY &amp; PILOT PARTICIPATION</h4>
-          <p>All pilot evaluations are limited to internal validation for up to 30 days. Non-public compiler grammars and tokens are deemed confidential. Resale or bureau use is strictly prohibited.</p>
+          <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">2. CONFIDENTIALITY &amp; COMMERCIAL EVALUATION</h4>
+          <p>All enterprise evaluations are limited to internal validation for up to 30 days. Non-public compiler grammars and tokens are deemed confidential. Resale or bureau use is strictly prohibited.</p>
 
           <h4 style="color: #fff; margin: 14px 0 6px 0; font-size: 13.5px;">3. PRIVACY ACT 1988 (CTH) COMPLIANCE</h4>
           <p>Evolve Mind Solutions adheres strictly to the Australian Privacy Principles. The standalone desktop application operates client-side and offline, ensuring zero cloud exfiltration of proprietary code.</p>
@@ -1261,7 +1261,7 @@
             <div style="display: flex; gap: 8px; align-items: center;">
               <button class="btn-quick" id="btnDeliveryPlaybook" style="background: rgba(78, 201, 176, 0.1); border-color: var(--accent); color: var(--accent); font-weight: bold;" aria-label="Roadmap & Playbook">📖 Roadmap &amp; Playbook</button>
               <button class="btn-quick" style="color: var(--accent); border-color: var(--accent);" aria-label="Desktop Standalone">🖥️ Desktop Standalone</button>
-              <span style="font-size: 11.5px; color: var(--text-secondary);">Client: <strong id="lblDeliveryClientName" style="color: #fff;">Client Pilot Engagement</strong></span>
+              <span style="font-size: 11.5px; color: var(--text-secondary);">Client: <strong id="lblDeliveryClientName" style="color: #fff;">Client Enterprise Engagement</strong></span>
             </div>
           </div>
 
@@ -1335,7 +1335,7 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
               <span style="font-weight: 700; color: var(--text-secondary); font-size: 11px;">ENGAGEMENT:</span>
               <select id="selEngagement" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 12px;">
-                <option value="pilot-gcp">🏢 Client Pilot Engagement (gcp-firebase)</option>
+                <option value="enterprise-gcp">🏢 Client Enterprise Engagement (gcp-firebase)</option>
                 <option value="fin-aws">🏦 Financial Core Migration (aws-ecs)</option>
                 <option value="health-azure">🏥 Healthcare Data Lakehouse (azure-container)</option>
               </select>
@@ -7019,7 +7019,7 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                       <span>🚀</span> Phase 6 · Deploy &amp; Influence ("Cloud MLOps, Runbooks, Controller's 3 Numbers &amp; 5-Min Demo")
                     </h3>
                     <p class="desc" style="margin: 4px 0 0 0; font-size: 11.5px; color: var(--text-secondary);">
-                      Multi-cloud automated pilot deployment, comprehensive architecture runbooks, executive 5-minute presentation demo, and air-gapped commercial enterprise suite.
+                      Multi-cloud automated enterprise deployment, comprehensive architecture runbooks, executive 5-minute presentation demo, and air-gapped commercial enterprise suite.
                     </p>
                   </div>
                   <div style="display: flex; gap: 8px;">
@@ -7077,7 +7077,7 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                           <label for="selAuditTargetMode" style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">Target:</label>
                           <select id="selAuditTargetMode" style="padding: 5px 10px; font-size: 11.5px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; cursor: pointer;">
                             <option value="live" selected>⚡ Live Workspace Scan</option>
-                            <option value="pristine">🟢 Pristine Pilot Repo (100/100)</option>
+                            <option value="pristine">🟢 Pristine Production Repo (100/100)</option>
                             <option value="dirty">🟠 Dirty Workspace (Backups &amp; Env Drift - 75/100)</option>
                             <option value="compromised">🔴 Compromised Secret Leak (Blocked - 40/100)</option>
                           </select>
@@ -7235,7 +7235,7 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                       <div style="display: flex; align-items: center; gap: 8px;">
                         <label for="selDeploySizingPreset" style="font-size: 11px; font-weight: bold; color: var(--text-secondary);">Preset:</label>
                         <select id="selDeploySizingPreset" style="padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--accent); border-radius: 4px; font-size: 11.5px; font-weight: 600;">
-                          <option value="pilot" selected>🚀 Pilot Sandbox (Scale-to-Zero, 1 CPU, 1Gi, Direct HTTPS)</option>
+                          <option value="sandbox" selected>🚀 Dev / Staging Sandbox (Scale-to-Zero, 1 CPU, 1Gi, Direct HTTPS)</option>
                           <option value="enterprise_ha">🏢 Enterprise HA (2-10 Instances, 4 CPU, 8Gi, Private VPC + Secrets)</option>
                           <option value="ai_gpu">🧠 GPU Inference (1-4 Instances, 4 CPU, 16Gi, NVIDIA L4/A100)</option>
                           <option value="air_gapped">🔒 Air-Gapped On-Prem (Docker Compose, Zero Egress, Bridge)</option>
@@ -7286,11 +7286,11 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                       </div>
                       <div>
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeploySubnet" for="deploySubnetId">Subnet ID / Subnetwork</label>
-                        <input type="text" id="deploySubnetId" placeholder="e.g. pilot-subnet or subnet-0a1b2c" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. pilot-subnet or subnet-0a1b2c">
+                        <input type="text" id="deploySubnetId" placeholder="e.g. corp-subnet or subnet-0a1b2c" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. corp-subnet or subnet-0a1b2c">
                       </div>
                       <div>
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblDeploySg" for="deploySecurityGroups">Security Groups / Firewall Tags</label>
-                        <input type="text" id="deploySecurityGroups" placeholder="e.g. allow-internal-pilot, sg-0123456789" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. allow-internal-pilot, sg-0123456789">
+                        <input type="text" id="deploySecurityGroups" placeholder="e.g. allow-internal-corp, sg-0123456789" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="e.g. allow-internal-corp, sg-0123456789">
                       </div>
                     </div>
 
@@ -7329,7 +7329,7 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                       <div>
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" id="lblTargetProjId" for="gcpProjId">Target Cloud Project ID / Account</label>
-                        <input type="text" id="gcpProjId" value="acme-pilot-2026" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
+                        <input type="text" id="gcpProjId" value="acme-corp-2026" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
                       </div>
                       <div>
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="deployRegion">Deployment Region / Location</label>
@@ -7418,7 +7418,7 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                           <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
                             <td style="padding: 6px 8px;"><code style="color: var(--accent);">GCP_PROJECT_ID</code></td>
                             <td style="padding: 6px 8px;">Repository Variable / Secret</td>
-                            <td style="padding: 6px 8px;">Target Google Cloud Project ID (e.g. <code>acme-pilot-2026</code>)</td>
+                            <td style="padding: 6px 8px;">Target Google Cloud Project ID (e.g. <code>acme-corp-2026</code>)</td>
                             <td style="padding: 6px 8px; text-align: right;"><span style="color: var(--accent); font-weight: 600;">Configured</span></td>
                           </tr>
                           <tr>
@@ -7459,12 +7459,12 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                       </div>
                       <div>
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="cicdBranch">Deployment Target Branch</label>
-                        <input type="text" id="cicdBranch" value="main" placeholder="main or pilot" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="main or pilot">
+                        <input type="text" id="cicdBranch" value="main" placeholder="main or staging" style="width: 100%; box-sizing: border-box; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" aria-label="main or staging">
                       </div>
                       <div>
                         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="selCicdTier">Deployment Tier</label>
                         <select id="selCicdTier" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--card-bg); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;">
-                          <option value="pilot" selected>Pilot / Pre-Production</option>
+                          <option value="staging" selected>Staging / Pre-Production</option>
                           <option value="prod">Production</option>
                           <option value="dev">Development / Staging</option>
                         </select>
@@ -8239,7 +8239,7 @@ WHERE order_date >= SYSDATE - 30;</textarea>
                               <span>⚡</span> Multi-Protocol Distributed SLA Load Testing (k6 &amp; Locust)
                             </h4>
                             <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">
-                              Stress-test pilot services under heavy concurrency with automated SLA gates (p95, p99, error rate thresholds).
+                              Stress-test enterprise services under heavy concurrency with automated SLA gates (p95, p99, error rate thresholds).
                             </div>
                           </div>
                           <span class="brand-pill" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; font-size: 9.5px;">k6 &amp; LOCUST</span>
@@ -12446,8 +12446,8 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 <button class="btn-quick" id="btnPaneCloudOpenTerm" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);" aria-label="Terminal Drawer">
                   ⚡ Terminal Drawer
                 </button>
-                <button class="btn-quick" id="btnPaneCloudGoPhase3" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);" aria-label="Pilot Deployment Studio">
-                  🚀 Pilot Deployment Studio ↗
+                <button class="btn-quick" id="btnPaneCloudGoPhase3" style="padding: 6px 12px; font-size: 12px; border-color: var(--accent); color: var(--accent);" aria-label="Deployment Studio">
+                  🚀 Deployment Studio ↗
                 </button>
               </div>
             </div>
@@ -12671,7 +12671,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                     <button class="btn" id="btnPaneDockerStart" style="flex: 1 1 45%; padding: 6px 10px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Start Docker Desktop">🚀 Start Docker Desktop</button>
                     <button class="btn-quick" id="btnPaneDockerInfo" style="flex: 1 1 45%; font-size: 11px;" aria-label="docker info">🐳 docker info</button>
                     <button class="btn-quick" id="btnPaneDockerPs" style="flex: 1 1 45%; font-size: 11px;" aria-label="docker ps -a">📋 docker ps -a</button>
-                    <button class="btn-quick" id="btnPaneDockerBuild" style="flex: 1 1 45%; font-size: 11px;" aria-label="Build Pilot Image">📦 Build Pilot Image</button>
+                    <button class="btn-quick" id="btnPaneDockerBuild" style="flex: 1 1 45%; font-size: 11px;" aria-label="Build Container Image">📦 Build Container Image</button>
                     <button class="btn-quick" id="btnPaneDockerInstall" style="flex: 1 1 100%; font-size: 11px; display: none; color: var(--error); border-color: var(--error);" aria-label="Install Docker Desktop">⬇️ Install Docker Desktop</button>
                   </div>
                 </div>
@@ -12777,7 +12777,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
 
       <div style="margin-bottom: 12px;">
         <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary);" for="txtPrTitle">Pull Request Title</label>
-        <input type="text" id="txtPrTitle" value="feat(fde): client pilot deliverables &amp; data marts" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
+        <input type="text" id="txtPrTitle" value="feat(fde): client deliverables &amp; data marts" style="width: 100%; margin-top: 4px; padding: 6px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
       </div>
 
       <div style="margin-bottom: 16px;">
@@ -13245,7 +13245,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px;">PASTE LICENSE KEY / ACTIVATION STRING</div>
           <textarea id="txtModalLicenseKey" placeholder="Paste your base64 or Ed25519 signed enterprise license key here..." style="width: 100%; box-sizing: border-box; height: 50px; font-family: monospace; font-size: 11px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; resize: none; margin-bottom: 8px;" aria-label="Paste your base64 or Ed25519 signed enterprise license key here..."></textarea>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
-            <span style="font-size: 11px; color: var(--text-secondary);">🔒 Pilot licenses issued on request for selected partners</span>
+            <span style="font-size: 11px; color: var(--text-secondary);">🔒 Enterprise licenses issued on request for verified partners</span>
             <div style="display: flex; gap: 8px;">
               <button class="btn-quick" id="btnModalDeactivateLicense" style="font-size: 11px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);" aria-label="Deactivate License">🔓 Deactivate</button>
               <button class="btn" id="btnModalActivateLicense" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;" aria-label="Activate Key">🔑 Activate Key</button>
@@ -13355,7 +13355,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           </div>
           <div style="margin-bottom: 10px;">
             <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 4px;" for="cfgProfileClient">ACTIVE CLIENT ENGAGEMENT NAME</label>
-            <input type="text" id="cfgProfileClient" value="Client Pilot Engagement" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
+            <input type="text" id="cfgProfileClient" value="Client Enterprise Engagement" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px;" />
           </div>
           <div style="display: flex; justify-content: flex-end;">
             <button class="btn" id="btnSaveProfileSettings" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;" aria-label="Save Identity Profile">💾 Save Identity Profile</button>
@@ -13411,18 +13411,18 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           </div>
         </div>
 
-        <!-- 🛡️ Windows SmartScreen & Corporate Pilot Trust Tool Card -->
+        <!-- 🛡️ Windows SmartScreen & Corporate Trust Tool Card -->
         <div style="background: var(--bg-primary); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; padding: 14px; position: relative;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div style="font-size: 11px; font-weight: 700; color: #34d399; text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
-              <span>🛡️</span> <span>CORPORATE PILOT TRUST TOOL (SMARTSCREEN BYPASS &amp; CERTIFICATE SETUP)</span>
+              <span>🛡️</span> <span>CORPORATE TRUST TOOL (SMARTSCREEN &amp; CERTIFICATE SETUP)</span>
             </div>
             <span style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
               ✓ Authenticode Signed
             </span>
           </div>
           <p style="font-size: 11.5px; color: var(--text-secondary); margin: 0 0 10px 0; line-height: 1.45;">
-            Our binary is digitally signed with the official <b>Evolve Mind Solutions Pty Ltd (Enterprise Pilot)</b> Authenticode certificate. On corporate test workstations, use our 1-click tools below to install the root certificate into <i>Trusted Publishers</i> and strip NTFS Mark-of-the-Web (Zone.Identifier) blocks, preventing SmartScreen popups permanently.
+            Our binary is digitally signed with the official <b>Evolve Mind Solutions Pty Ltd</b> Authenticode certificate. On corporate workstations, use our 1-click tools below to install the root certificate into <i>Trusted Publishers</i> and strip NTFS Mark-of-the-Web (Zone.Identifier) blocks, preventing SmartScreen popups permanently.
           </p>
 
           <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px;">
@@ -13520,7 +13520,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <div id="lblPatchFileSelected" style="font-size: 10.5px; color: var(--text-muted); margin-top: 6px;">No patch selected</div>
             </div>
 
-            <!-- Box B: Corporate Pilot Trust Kit (.zip) -->
+            <!-- Box B: Corporate Trust Kit (.zip) -->
             <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
               <div style="font-weight: 700; color: #fff; font-size: 11.5px; margin-bottom: 4px;">🛡️ 1-Click Trust Tool (.zip)</div>
               <div style="font-size: 10.5px; color: var(--text-muted); margin-bottom: 8px;">Includes trust-pilot-cert.bat, PowerShell script, and CER.</div>
@@ -13548,7 +13548,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
       <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); background: rgba(30, 41, 59, 0.5);">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span style="font-size: 18px;">🛡️</span>
-          <span style="font-size: 13.5px; font-weight: 700; color: #fff;">1-Click Pilot Trust Setup Script (trust-pilot-cert.bat)</span>
+          <span style="font-size: 13.5px; font-weight: 700; color: #fff;">1-Click Trust Setup Script (trust-pilot-cert.bat)</span>
         </div>
         <button id="btnCloseTrustScriptModal" style="background: transparent; border: none; color: #94a3b8; font-size: 18px; cursor: pointer; padding: 4px 8px;">✕</button>
       </div>
@@ -14222,7 +14222,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           <input type="text" id="txtPocClientOrg" value="Global Retail Enterprises" style="width: 100%; margin-top: 2px; padding: 4px 8px; font-size: 11.5px; background: #0b0f19; color: #fff; border: 1px solid #334155; border-radius: 4px;">
         </div>
         <div>
-          <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Target Pilot VPC</label>
+          <label style="font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">Target Enterprise VPC</label>
           <input type="text" id="txtPocTargetVpc" value="client-prod-vpc-ap-southeast-2" style="width: 100%; margin-top: 2px; padding: 4px 8px; font-size: 11.5px; background: #0b0f19; color: #fff; border: 1px solid #334155; border-radius: 4px;">
         </div>
         <div>

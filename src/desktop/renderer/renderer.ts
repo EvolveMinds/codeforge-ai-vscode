@@ -135,7 +135,7 @@ interface EngagementProject {
 }
 
 let activeProjects: EngagementProject[] = [
-  { id: 'pilot-gcp', name: 'Client Pilot Engagement', targetVpc: 'gcp-firebase', goal: 'Deploy standard platform integration & data pipeline' },
+  { id: 'enterprise-gcp', name: 'Client Enterprise Engagement', targetVpc: 'gcp-firebase', goal: 'Deploy standard platform integration & data pipeline' },
   { id: 'fin-aws', name: 'Financial Core Migration', targetVpc: 'aws-ecs', goal: 'Migrate Oracle core transactions to AWS Aurora & Snowflake' },
   { id: 'health-azure', name: 'Healthcare Data Lakehouse', targetVpc: 'azure-container', goal: 'HIPAA compliant Delta Lakehouse with automated PII masking' }
 ];
@@ -1144,14 +1144,14 @@ async function setupLicenseGate(api: any): Promise<boolean> {
 
     const lines = [
       '================================================================================',
-      '  EVOLVE AI ENTERPRISE — LIMITED PILOT ACCESS REQUEST',
+      '  EVOLVE AI ENTERPRISE — ACCESS & LICENSING REQUEST',
       '================================================================================',
       `Organization : ${org}`,
       `Contact Email: ${email}`,
-      'Pilot Edition: Enterprise Limited Pilot (Full Enterprise Suite Unlocked)',
-      `Licensing    : ${isSite ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers)' : `👥 TEAM PILOT (${rawSeats} Developer Seats)`}`,
+      'Edition      : Enterprise Edition (Full Enterprise Suite Unlocked)',
+      `Licensing    : ${isSite ? '🏢 ENTERPRISE SITE LICENSE (Unlimited Developers)' : `👥 TEAM LICENSE (${rawSeats} Developer Seats)`}`,
       `Scope / Seats: ${seatsLabel}`,
-      'Term Duration: 30 Days (Maximum Pilot Evaluation Window)',
+      'Term Duration: 30 Days (Standard Evaluation Window)',
       `Binding Model: ${isTeam ? 'Organization / Team License (Valid across all developer machines in org)' : 'Single Dedicated Node (Air-Gapped Enclave)'}`,
       isTeam
         ? 'HW Policy    : Organization-Wide — Valid across all developer machines in org.\n               Individual workstation hardware IDs are NOT required.'
@@ -1160,7 +1160,7 @@ async function setupLicenseGate(api: any): Promise<boolean> {
       'Vendor Entity: Evolve Mind Solutions Pty Ltd (sales@evolveminds.com.au)',
       'Legal & EULA : Subject to Evolve AI Enterprise EULA & Terms (https://www.evolveminds.com.au/eula)',
       '================================================================================',
-      'Please issue an official cryptographically signed Ed25519 pilot license token',
+      'Please issue an official cryptographically signed Ed25519 enterprise license token',
       isTeam
         ? '(EM-ENT-V1.*) or license.json file valid for all developer workstations in this organization.'
         : '(EM-ENT-V1.*) or license.json file locked to this air-gapped node.'
@@ -1215,7 +1215,7 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     if (txtBuyRequestPreview?.value) {
       const ok = await copyTextToClipboard(txtBuyRequestPreview.value);
       if (ok) {
-        showToast('✓ Enterprise Pilot Request copied to clipboard!');
+        showToast('✓ Enterprise License Request copied to clipboard!');
         const origText = btnBuyCopyRequest.innerText;
         btnBuyCopyRequest.innerText = '✓ Copied!';
         setTimeout(() => {
@@ -1233,7 +1233,7 @@ async function setupLicenseGate(api: any): Promise<boolean> {
     const rawSeats = numBuySeats ? numBuySeats.value : '10';
     const isSite = rawSeats === 'site' || rawSeats === 'unlimited' || rawSeats === '-1';
     const seatsSubject = isSite ? 'Enterprise Site License' : `${rawSeats} Seats`;
-    const subject = encodeURIComponent(`Evolve AI Enterprise Pilot Request: ${org} (${seatsSubject})`);
+    const subject = encodeURIComponent(`Evolve AI Enterprise Access Request: ${org} (${seatsSubject})`);
     const body = encodeURIComponent(txtBuyRequestPreview?.value || '');
     const mailto = `mailto:sales@evolveminds.com.au?subject=${subject}&body=${body}`;
 
@@ -4455,7 +4455,7 @@ function setupPhase1Discovery(api: any): void {
       reframed: 'Tier-1 Operations Co-Pilot: Auto-triage, SQL customer lookup, and grounded draft generation with Human-in-the-Loop (HITL) approval gate before dispatch.',
       rules: [
         'No automated refunds > $100 without Human-in-the-Loop gate',
-        'No direct external customer email dispatch in pilot phase',
+        'No direct external customer email dispatch in initial deployment phase',
         'No DB write access without cryptographically signed audit logging',
         'No ungrounded responses (must cite handbook)'
       ],
@@ -11526,7 +11526,7 @@ function setupDeliveryStudio(api: any): void {
     showToast('🚀 Synthesizing Pull Request & Opening Browser Portal...');
     if (api?.git) {
       const git = await api.git.inspect();
-      let remoteUrl = git.remoteUrl || 'https://github.com/EvolveMinds/client-pilot';
+      let remoteUrl = git.remoteUrl || 'https://github.com/EvolveMinds/client-app';
       let prUrl = remoteUrl.replace(/\.git$/, '');
 
       if (prUrl.includes('github.com')) {
@@ -14138,7 +14138,7 @@ Ready for Claude Code autonomous build execution.`;
   let hasRunEnterpriseModule = false;
   let refreshP5Rail: () => void;
 
-  // --- STEP 3: MULTI-CLOUD PILOT DEPLOYMENT & CI/CD HUB ---
+  // --- STEP 3: MULTI-CLOUD DEPLOYMENT & CI/CD HUB ---
   const deployTabs = [
     { id: 'tabProvGcp', prov: 'gcp-firebase' },
     { id: 'tabProvAws', prov: 'aws' },
@@ -14189,7 +14189,7 @@ Ready for Claude Code autonomous build execution.`;
     } else if (prov === 'azure') {
       if (titleEl) titleEl.innerText = '⚙️ Azure Container Apps Deployment Parameter Matrix';
       if (apiProvEl) apiProvEl.innerText = 'Azure';
-      if (targetProjEl) targetProjEl.innerText = 'Azure Resource Group (rg-pilot)';
+      if (targetProjEl) targetProjEl.innerText = 'Azure Resource Group (rg-corp)';
       if (cpuLabel) cpuLabel.innerText = 'Container Apps CPU (e.g. 1.0, 2.0)';
       if (memLabel) memLabel.innerText = 'Container Apps Memory (e.g. 2.0Gi)';
       if (vpcLabel) vpcLabel.innerText = 'Azure VNet Name';
@@ -14238,6 +14238,17 @@ Ready for Claude Code autonomous build execution.`;
     summary: string;
     cost: string;
   }> = {
+    sandbox: {
+      cpu: '1',
+      memory: '1Gi',
+      gpu: 'none',
+      minInst: '0',
+      maxInst: '10',
+      ingress: 'all',
+      secrets: 'gcp-secret-manager',
+      summary: 'Profile: Serverless Managed Container · Autoscale 0-10 instances · Single Region · Public HTTPS',
+      cost: 'Est. Spend: $0 - $15 / month (Scale-to-Zero)'
+    },
     pilot: {
       cpu: '1',
       memory: '1Gi',
@@ -14342,7 +14353,7 @@ Ready for Claude Code autonomous build execution.`;
       cloudName: 'Google Cloud (GCP/Firebase)',
       secrets: [
         { name: 'GCP_SA_KEY', scope: 'Repository Secret', purpose: 'Base64 Service Account JSON with Cloud Run Admin & Storage roles', status: 'Required' },
-        { name: 'GCP_PROJECT_ID', scope: 'Repository Variable', purpose: 'Target Google Cloud Project ID (e.g. acme-pilot-2026)', status: 'Configured' },
+        { name: 'GCP_PROJECT_ID', scope: 'Repository Variable', purpose: 'Target Google Cloud Project ID (e.g. acme-corp-2026)', status: 'Configured' },
         { name: 'GCP_REGION', scope: 'Repository Variable', purpose: 'Compute Region (e.g. australia-southeast1, us-central1)', status: 'Configured' }
       ]
     },
@@ -14453,7 +14464,7 @@ Ready for Claude Code autonomous build execution.`;
   const PREFLIGHT_PRESETS: Record<string, PreflightReportData> = {
     pristine: {
       timestamp: Date.now(),
-      workspacePath: '/workspace/acme-pilot-prod',
+      workspacePath: '/workspace/acme-corp-prod',
       score: 100,
       pass: true,
       findings: [],
@@ -14467,7 +14478,7 @@ Ready for Claude Code autonomous build execution.`;
     },
     dirty: {
       timestamp: Date.now(),
-      workspacePath: '/workspace/acme-pilot-dev',
+      workspacePath: '/workspace/acme-corp-dev',
       score: 75,
       pass: true,
       findings: [
@@ -14526,7 +14537,7 @@ Ready for Claude Code autonomous build execution.`;
     },
     compromised: {
       timestamp: Date.now(),
-      workspacePath: '/workspace/acme-pilot-leaked',
+      workspacePath: '/workspace/acme-corp-leaked',
       score: 40,
       pass: false,
       findings: [
@@ -14630,7 +14641,7 @@ Ready for Claude Code autonomous build execution.`;
           <div style="text-align: center; padding: 22px 14px; background: rgba(137, 209, 133, 0.08); border: 1px solid var(--success); border-radius: 6px;">
             <div style="font-size: 20px;">🛡️ ✓</div>
             <div style="font-weight: 700; color: var(--success); font-size: 13px; margin-top: 4px;">Clean Pre-Flight Bill of Health across all 5 Pillars</div>
-            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Zero secret leaks, zero dangling files, 100% environment parity, non-root Docker, and clean git repository ignore. Ready for pilot deployment.</div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">Zero secret leaks, zero dangling files, 100% environment parity, non-root Docker, and clean git repository ignore. Ready for production deployment.</div>
           </div>
         `;
       } else {
@@ -14942,13 +14953,13 @@ Ready for Claude Code autonomous build execution.`;
   });
 
   const getDeployConfig = () => {
-    const projId = (document.getElementById('gcpProjId') as HTMLInputElement)?.value || 'acme-pilot-2026';
+    const projId = (document.getElementById('gcpProjId') as HTMLInputElement)?.value || 'acme-corp-2026';
     const cpu = (document.getElementById('deployCpu') as HTMLInputElement)?.value || '1';
     const mem = (document.getElementById('deployMemory') as HTMLInputElement)?.value || '1Gi';
     const gpu = (document.getElementById('deployGpu') as HTMLSelectElement)?.value || 'none';
     const vpc = (document.getElementById('deployVpcId') as HTMLInputElement)?.value || 'default';
-    const sub = (document.getElementById('deploySubnetId') as HTMLInputElement)?.value || 'pilot-subnet';
-    const sg = (document.getElementById('deploySecurityGroups') as HTMLInputElement)?.value || 'allow-internal-pilot';
+    const sub = (document.getElementById('deploySubnetId') as HTMLInputElement)?.value || 'corp-subnet';
+    const sg = (document.getElementById('deploySecurityGroups') as HTMLInputElement)?.value || 'allow-internal-corp';
     const ingress = (document.getElementById('deployIngress') as HTMLSelectElement)?.value || 'internal';
     const minInst = (document.getElementById('deployMinInst') as HTMLInputElement)?.value || '0';
     const maxInst = (document.getElementById('deployMaxInst') as HTMLInputElement)?.value || '10';
@@ -14970,7 +14981,7 @@ Ready for Claude Code autonomous build execution.`;
       minInstances: parseInt(minInst, 10) || 0,
       maxInstances: parseInt(maxInst, 10) || 10,
       secretsProvider: secrets,
-      appName: 'client-pilot'
+      appName: 'client-app'
     };
   };
 
@@ -15211,7 +15222,7 @@ Ready for Claude Code autonomous build execution.`;
   // CI/CD Actions
   document.getElementById('btnScaffoldCicd')?.addEventListener('click', async () => {
     const platform = (document.getElementById('selCicdPlatform') as HTMLSelectElement)?.value || 'github';
-    const tier = (document.getElementById('selCicdTier') as HTMLSelectElement)?.value || 'pilot';
+    const tier = (document.getElementById('selCicdTier') as HTMLSelectElement)?.value || 'staging';
     const branch = (document.getElementById('cicdBranch') as HTMLInputElement)?.value || 'main';
     const cfg = { ...getDeployConfig(), platform, tier, branch };
 
@@ -15335,7 +15346,7 @@ Ready for Claude Code autonomous build execution.`;
   document.getElementById('btnRunDeployScriptTerminal')?.addEventListener('click', () => {
     const termInput = document.getElementById('terminalCmdInput') as HTMLInputElement;
     const isWin = navigator.platform.toLowerCase().includes('win');
-    const cmd = isWin ? 'powershell -ExecutionPolicy Bypass -File .\\scripts\\deploy.ps1 -Environment pilot -Component all' : './scripts/deploy.sh pilot all';
+    const cmd = isWin ? 'powershell -ExecutionPolicy Bypass -File .\\scripts\\deploy.ps1 -Environment prod -Component all' : './scripts/deploy.sh prod all';
     if (termInput) {
       termInput.value = cmd;
       termInput.focus();
@@ -16086,7 +16097,7 @@ Ready for Claude Code autonomous build execution.`;
         '- **Retry Policy:** Exponential backoff with jitter up to 3 attempts.\n';
     } else if (template === 'sla') {
       initialContent = '# ' + cleanTitle + ' — Service Level Agreement & Operational Playbook\n\n' +
-        '> **Engagement Target:** Production Pilot SLA\n\n' +
+        '> **Engagement Target:** Enterprise Production SLA\n\n' +
         '---\n\n' +
         '## 1. Reliability & Latency Targets\n' +
         '* **P50 Latency:** <20ms (compiled deterministic SQL rule gates)\n' +
@@ -16387,7 +16398,7 @@ Ready for Claude Code autonomous build execution.`;
     if (!runbookDocs.arch) {
       runbookDocs.arch = '# Acme Enterprise — System Architecture & Integration Blueprint\n\n' +
         '> **Generated by Evolve AI (Forward Deployed Engineer Suite)**\n' +
-        '> **Engagement Target:** Acme Enterprise Production & Pilot Deployment\n' +
+        '> **Engagement Target:** Acme Enterprise Production Deployment\n' +
         '> **Infrastructure Target:** GCP Cloud Run (VPC: vpc-prod-01)\n' +
         '> **Canonical Delivery Standard:** 5-Phase Forward-Deployed Engineering Curriculum\n\n' +
         '---\n\n' +
@@ -16452,9 +16463,9 @@ Ready for Claude Code autonomous build execution.`;
         'To deploy updates to the client environment, execute the cross-platform deployment script from the project root:\n\n' +
         '```bash\n' +
         '# Linux / macOS (Bash)\n' +
-        './scripts/deploy.sh pilot all\n\n' +
+        './scripts/deploy.sh prod all\n\n' +
         '# Windows (PowerShell)\n' +
-        '.\\scripts\\deploy.ps1 -Environment pilot -Component all\n' +
+        '.\\scripts\\deploy.ps1 -Environment prod -Component all\n' +
         '```\n\n' +
         '---\n\n' +
         '## 2. Pre-Deployment Health & Sanity Checklist\n\n' +
@@ -16471,7 +16482,7 @@ Ready for Claude Code autonomous build execution.`;
         'If an issue is detected post-deployment:\n\n' +
         '### Frontend (Firebase Hosting):\n' +
         '```bash\n' +
-        'npx firebase-tools hosting:rollback --project acme-pilot-prod\n' +
+        'npx firebase-tools hosting:rollback --project acme-corp-prod\n' +
         '```\n\n' +
         '### Backend (Cloud Run):\n' +
         '```bash\n' +
@@ -16503,7 +16514,7 @@ Ready for Claude Code autonomous build execution.`;
 
       runbookDocs.env = '# Acme Enterprise — Environment Variables & Secrets Reference\n\n' +
         '> **Maintained by:** Forward Deployed Engineering (FDE)\n' +
-        '> **Target Environment:** pilot-staging\n\n' +
+        '> **Target Environment:** production-staging\n\n' +
         '---\n\n' +
         '## 1. Required Runtime Configuration\n\n' +
         '| Variable Name | Required | Secret? | Description / Expected Value |\n' +
@@ -16521,7 +16532,7 @@ Ready for Claude Code autonomous build execution.`;
         '# Fill in local secrets safely\n' +
         '```\n\n' +
         '### CI/CD Deployment:\n' +
-        'Configure all secrets under GitHub Actions / GitLab CI pipeline settings before triggering automated pilot builds.\n';
+        'Configure all secrets under GitHub Actions / GitLab CI pipeline settings before triggering automated production builds.\n';
 
       runbookDocs.demo = '# 🎤 Acme Enterprise — 5-Minute Executive Demo Presentation Script\n\n' +
         '> **Purpose:** Forward Deployed Engineer Executive Presentation Script for client CFO, CIO, and Business Unit Leaders.\n' +
@@ -16556,7 +16567,7 @@ Ready for Claude Code autonomous build execution.`;
         '* **Speaker:** "Finally, this is not a slide deck—it is deployable code.\n' +
         '* We have generated your complete Multi-Cloud Infrastructure as Code—ready for GCP Cloud Run and Kubernetes.\n' +
         '* Your engineering team receives the complete operations runbook, data dictionary, and single-command rollback procedure today.\n' +
-        '* We are ready to begin pilot traffic rollout on Monday. Any questions?"\n';
+        '* We are ready to begin production traffic rollout on Monday. Any questions?"\n';
 
       runbookDocs.complete = '# 📦 Acme Enterprise — Complete Engagement Handoff Bundle\n' +
         '> **Generated on:** ' + new Date().toISOString().split('T')[0] + '\n' +
@@ -17286,7 +17297,7 @@ Ready for Claude Code autonomous build execution.`;
   document.getElementById('btnSaveLoadTest')?.addEventListener('click', async () => {
     if (!entCache.loadTest) return;
     if (entCache.loadTest.k6Script) {
-      await safeWriteFile('tests/load/k6_pilot_api.js', entCache.loadTest.k6Script, 'k6 Script');
+      await safeWriteFile('tests/load/k6_load_api.js', entCache.loadTest.k6Script, 'k6 Script');
     }
     if (entCache.loadTest.locustScript) {
       await safeWriteFile('tests/load/locustfile.py', entCache.loadTest.locustScript, 'Locust Script');
@@ -25165,7 +25176,7 @@ class AgenticRagPipeline:
           { id: 'm1', label: 'Documents Ingested & HNSW Indexed', done: true },
           { id: 'm2', label: 'Phase 4 Golden Set (50 Cases) Evaluated', done: false },
           { id: 'm3', label: 'ARB Security & Architecture Approved', done: false },
-          { id: 'm4', label: 'Air-Gapped Docker Pilot Deployed', done: false },
+          { id: 'm4', label: 'Air-Gapped Docker Container Deployed', done: false },
           { id: 'm5', label: 'Phase 6 Ed25519 Audit Logging Active', done: false }
         ]
       }
@@ -26128,7 +26139,7 @@ class AgenticRagPipeline:
 
     const adrContent = `# Architectural Decision Record (ADR): RAG Architecture Selection
 **Document Ref:** ADR-RAG-001  
-**Status:** Approved for Client Pilot  
+**Status:** Approved for Production Deployment  
 **Date:** ${new Date().toISOString().split('T')[0]}  
 **Architecture Selected:** ${arch.num} ${arch.name}  
 **Primary Paradigm:** ${arch.badge}  
@@ -26286,7 +26297,7 @@ ${arch.watchOut.map(w => `- ${w}`).join('\n')}
 
     const adrContent = `# Architectural Decision Record (ADR): Enterprise Model Context Protocol (MCP) Server
 **Document Ref:** ADR-MCP-001  
-**Status:** Approved for Client Pilot  
+**Status:** Approved for Production Deployment  
 **Date:** ${date}  
 **Protocol Standard:** Model Context Protocol (MCP 2024-11-05 Specification)  
 **Target Runtime:** ${lang.toUpperCase()}  
@@ -36213,7 +36224,7 @@ function setupCloudHub(api: any): void {
     switchActivityTab('delivery');
     const phase3Btn = document.querySelector('.phase-nav-btn[data-phase="3"]') as HTMLElement;
     if (phase3Btn) phase3Btn.click();
-    showToast('🚀 Switched to Pilot Deployment Studio (Phase 3)');
+    showToast('🚀 Switched to Deployment Studio (Phase 3)');
   });
 
   let cloudAuthWatcherTimer: any = null;
@@ -44687,7 +44698,7 @@ function setupDataCosmosStudio(api: any): void {
     try {
       showToast('📑 Generating Enterprise Client Approval Pack...');
       const clientName = txtPocClientOrg?.value || 'Enterprise Client Organization';
-      const targetVpc = txtPocTargetVpc?.value || 'client-pilot-vpc-ap-southeast-2';
+      const targetVpc = txtPocTargetVpc?.value || 'client-corp-vpc-ap-southeast-2';
       const fdeName = txtPocLeadFde?.value || 'Lead Forward-Deployed Engineer';
 
       const res = await api?.fde?.generatePocPack?.({
@@ -58108,7 +58119,7 @@ if __name__ == '__main__':
   document.getElementById('btnSaveProfileSettings')?.addEventListener('click', async () => {
     const user = (document.getElementById('cfgProfileUser') as HTMLInputElement)?.value.trim() || 'Balav';
     const org = (document.getElementById('cfgProfileOrg') as HTMLInputElement)?.value.trim() || 'Evolve Mind Solutions Pty Ltd';
-    const client = (document.getElementById('cfgProfileClient') as HTMLInputElement)?.value.trim() || 'Client Pilot Engagement';
+    const client = (document.getElementById('cfgProfileClient') as HTMLInputElement)?.value.trim() || 'Client Enterprise Engagement';
 
     if (api?.license) {
       await api.license.saveProfile({ userName: user, organization: org, clientName: client });
@@ -58249,7 +58260,7 @@ if __name__ == '__main__':
     }
   });
 
-  // 1-Click Pilot Trust Setup & Unblocker Handler
+  // 1-Click Trust Setup & Unblocker Handler
   const btnRunTrustToolDirect = document.getElementById('btnRunTrustToolDirect');
   const btnExportTrustKit = document.getElementById('btnExportTrustKit');
   const btnViewTrustBatScript = document.getElementById('btnViewTrustBatScript');
@@ -58266,7 +58277,7 @@ if __name__ == '__main__':
       trustToolActionStatus.style.background = 'rgba(56, 189, 248, 0.15)';
       trustToolActionStatus.style.border = '1px solid rgba(56, 189, 248, 0.4)';
       trustToolActionStatus.style.color = '#38bdf8';
-      trustToolActionStatus.innerHTML = '<span>⏳</span> <span>Requesting Windows Administrator elevation to install pilot certificate & unblock binaries...</span>';
+      trustToolActionStatus.innerHTML = '<span>⏳</span> <span>Requesting Windows Administrator elevation to install enterprise certificate & unblock binaries...</span>';
     }
     showToast('🛡️ Launching 1-Click Trust Setup (Administrator elevation required)...');
 
@@ -58395,7 +58406,7 @@ if __name__ == '__main__':
 
   const btnDownloadTrustZipDirect = document.getElementById('btnDownloadTrustZipDirect');
   btnDownloadTrustZipDirect?.addEventListener('click', async () => {
-    showToast('⏳ Downloading 1-Click Pilot Trust Tool (.zip) to Downloads folder...');
+    showToast('⏳ Downloading 1-Click Trust Tool (.zip) to Downloads folder...');
     try {
       const res = await api?.updater?.downloadAsset('trust-tool');
       if (res?.success) {

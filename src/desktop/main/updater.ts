@@ -13,11 +13,11 @@ const EMBEDDED_DEV_CERT_BASE64 = 'MIIDRjCCAi6gAwIBAgIQaQQYdD9LYJ9HRRCmlWoxnTANBg
 
 const TRUST_BAT_SCRIPT = `@echo off
 setlocal enabledelayedexpansion
-title Evolve AI Enterprise Studio - 1-Click Pilot Trust Setup
+title Evolve AI Enterprise Studio - 1-Click Trust Setup
 
 echo ======================================================================
 echo   Evolve AI Enterprise Studio — Windows Trust Configuration Tool
-echo   Evolve Mind Solutions Pty Ltd • Corporate Pilot Kit
+echo   Evolve Mind Solutions Pty Ltd • Corporate Trust Kit
 echo ======================================================================
 echo.
 
@@ -146,8 +146,8 @@ Write-Host "====================================================================
 `;
 
 const TRUST_README = `======================================================================
-  Evolve AI Enterprise Studio — 1-Click Pilot Trust Tool
-  Evolve Mind Solutions Pty Ltd • Enterprise Evaluation & Pilot Kit
+  Evolve AI Enterprise Studio — 1-Click Corporate Trust Tool
+  Evolve Mind Solutions Pty Ltd • Enterprise Edition
 ======================================================================
 
 PURPOSE:
@@ -156,7 +156,7 @@ to trust Evolve AI Enterprise Studio binaries, preventing Windows Defender
 SmartScreen warnings ("Windows protected your PC") and Mark-of-the-Web blocks.
 
 WHAT THIS SCRIPT DOES:
-1. Installs the official Evolve AI Enterprise Pilot Certificate 
+1. Installs the official Evolve AI Enterprise Certificate 
    (evolve-enterprise-dev.cer) into:
    - Windows Local Machine \\ Trusted Publishers
    - Windows Local Machine \\ Trusted Root Certification Authorities
@@ -164,7 +164,7 @@ WHAT THIS SCRIPT DOES:
    from downloaded Evolve AI executable binaries (evolve-ai-enterprise-*.exe)
    in your Downloads folder and current folder.
 3. Windows SmartScreen and Defender will recognize the binary as signed by 
-   "Evolve Mind Solutions Pty Ltd (Enterprise Pilot)" and execute directly.
+   "Evolve Mind Solutions Pty Ltd" and execute directly.
 
 HOW TO RUN:
 Option A (Recommended):
@@ -614,7 +614,7 @@ export class DesktopUpdater {
   }
 
   /**
-   * 1-Click Trust Setup: Installs the Enterprise Pilot certificate into Trusted Publishers
+   * 1-Click Trust Setup: Installs the Enterprise certificate into Trusted Publishers
    * and Trusted Root CA and unblocks executable binaries using administrative privilege elevation.
    */
   public async runTrustTool(): Promise<{ success: boolean; message: string; error?: string }> {
@@ -659,7 +659,7 @@ export class DesktopUpdater {
    */
   public async exportTrustTool(targetDir?: string): Promise<{ success: boolean; folderPath: string; files: string[]; error?: string }> {
     try {
-      const dest = targetDir || path.join(os.homedir(), 'Downloads', 'Evolve-AI-Pilot-Trust-Tool');
+      const dest = targetDir || path.join(os.homedir(), 'Downloads', 'Evolve-AI-Trust-Tool');
       if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
 
       const batPath = path.join(dest, 'trust-pilot-cert.bat');
