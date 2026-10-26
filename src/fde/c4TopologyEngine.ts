@@ -1163,6 +1163,10 @@ export class C4TopologyEngine {
           <stop offset="0%" stop-color="#451a03"/>
           <stop offset="100%" stop-color="#130e08"/>
         </linearGradient>
+        <linearGradient id="c4-grad-data" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#064e3b"/>
+          <stop offset="100%" stop-color="#022c22"/>
+        </linearGradient>
         <linearGradient id="c4-grad-hitl" x1="0%" y1="0%" x2="100%" y2="100%">
           <stop offset="0%" stop-color="#450a0a"/>
           <stop offset="100%" stop-color="#180e0e"/>
@@ -1221,25 +1225,46 @@ export class C4TopologyEngine {
 
       <!-- Dynamic Domain Trust Boundaries (Starts cleanly at y=110) -->
       <g class="c4-zones">
-      ${boundaryBoxes.map(b => `
+      ${boundaryBoxes.map(b => {
+        const isSystemLens = lens === 'system';
+        const isDataLens = lens === 'data';
+        const isAppLens = lens === 'application';
+        const perimeterTag = isSystemLens
+          ? (b.id === 'client' ? ' • [DMZ / TLS 1.3 INGRESS]' :
+             b.id === 'governance' ? ' • [SOX / HIPAA HITL AUDIT]' :
+             b.id === 'core' ? ' • [ZERO-TRUST VPC / AES-256]' :
+             ' • [mTLS & IAM SCOPED]')
+          : (isDataLens
+             ? (b.id === 'core' ? ' • [ACID STORAGE & LINEAGE]' :
+                b.id === 'governance' ? ' • [QUALITY QUARANTINE & AUDIT]' :
+                ' • [DATA STREAM & PIPELINE]')
+             : (isAppLens
+                ? (b.id === 'client' ? ' • [CLIENT APPS & INGRESS]' :
+                   b.id === 'integration' ? ' • [SERVICES & QUEUES]' :
+                   ' • [CORE CAPABILITIES]')
+                : ''));
+
+        const strokeWidth = isSystemLens ? '2.4' : '1.8';
+        const glow = isSystemLens ? 'filter="url(#c4-glow-cyan)"' : '';
+        return `
         <g class="c4-boundary-group" data-c4-boundary-id="${b.id}" transform="translate(${b.x}, ${b.y})" style="cursor: grab;">
           <!-- Dashed boundary card -->
-          <rect class="c4-boundary-card" width="${b.w}" height="${b.h}" rx="14" fill="${b.fill}" stroke="${b.stroke}" stroke-width="1.8" stroke-dasharray="7 5"/>
+          <rect class="c4-boundary-card" width="${b.w}" height="${b.h}" rx="14" fill="${b.fill}" stroke="${b.stroke}" stroke-width="${strokeWidth}" stroke-dasharray="7 5" ${glow}/>
           <!-- Boundary Header Drag Bar -->
           <rect class="c4-boundary-header" x="0" y="0" width="${b.w}" height="32" rx="14" fill="${b.headerBg}" style="cursor: move;"/>
-          <text x="14" y="21" fill="${b.text}" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(b.label.toUpperCase())}</text>
+          <text x="14" y="21" fill="${b.text}" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(b.label.toUpperCase())}${perimeterTag}</text>
           
           <!-- Boundary Action Pills -->
-          <g class="c4-edit-boundary-pill" data-c4-edit-boundary-id="${b.id}" transform="translate(${b.w - 116}, 6)" style="cursor: pointer;">
-            <rect width="52" height="20" rx="4" fill="rgba(255, 255, 255, 0.08)" stroke="${b.stroke}" stroke-width="0.8"/>
-            <text x="26" y="14" fill="${b.text}" font-size="10" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          <g class="c4-edit-boundary-pill" data-c4-edit-boundary-id="${b.id}" transform="translate(${b.w - 116}, 6)" style="cursor: pointer; pointer-events: all;">
+            <rect width="52" height="20" rx="4" fill="rgba(255, 255, 255, 0.08)" stroke="${b.stroke}" stroke-width="0.8" style="pointer-events: all;"/>
+            <text x="26" y="14" fill="${b.text}" font-size="10" font-weight="700" text-anchor="middle" style="pointer-events: all;">✏️ Edit</text>
           </g>
-          <g class="c4-delete-boundary-pill" data-c4-delete-boundary-id="${b.id}" transform="translate(${b.w - 58}, 6)" style="cursor: pointer;">
-            <rect width="48" height="20" rx="4" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" stroke-width="0.8"/>
-            <text x="24" y="14" fill="#f87171" font-size="10" font-weight="700" text-anchor="middle">🗑️ Del</text>
+          <g class="c4-delete-boundary-pill" data-c4-delete-boundary-id="${b.id}" transform="translate(${b.w - 58}, 6)" style="cursor: pointer; pointer-events: all;">
+            <rect width="48" height="20" rx="4" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" stroke-width="0.8" style="pointer-events: all;"/>
+            <text x="24" y="14" fill="#f87171" font-size="10" font-weight="700" text-anchor="middle" style="pointer-events: all;">🗑️ Del</text>
           </g>
         </g>
-      `).join('')}
+      `;}).join('')}
       </g>
 
       <!-- Connections / Links -->
@@ -1298,12 +1323,25 @@ export class C4TopologyEngine {
         photonCy = y1 + (y2 - y1) * r;
       }
 
+      // Lens tailored edge labels
+      let edgeLabel = `${c.order}. ${escapeXml(c.protocol || c.label)}`;
+      if (lens === 'system') {
+        const proto = c.protocol || 'mTLS / OAuth 2.0';
+        edgeLabel = `${c.order}. 🔒 ${escapeXml(proto)}`;
+      } else if (lens === 'application') {
+        const syncTag = c.isAsync ? 'Async MQ Event' : 'Sync REST <120ms';
+        edgeLabel = `${c.order}. ⚡ ${syncTag}`;
+      } else if (lens === 'data') {
+        const dataTag = /read|query|fetch|get/i.test(c.label) ? 'Read Replica Query' : (/write|commit|store|insert/i.test(c.label) ? 'ACID Transaction WAL' : 'CDC Stream Ingestion');
+        edgeLabel = `${c.order}. 📊 ${dataTag}`;
+      }
+
       svg += `
         <g class="c4-edge" data-order="${c.order}" style="cursor: pointer;">
           <path d="M ${x1} ${y1} Q ${midX} ${midY - 14} ${x2} ${y2}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${dash} ${filter} marker-end="url(#${markerId})"/>
           <!-- Label Pill -->
-          <rect x="${midX - 70}" y="${midY - 18}" width="140" height="20" rx="4" fill="#090d16" stroke="${strokeColor}" stroke-width="1" opacity="0.95"/>
-          <text x="${midX}" y="${midY - 4}" fill="${isRed ? '#fca5a5' : '#e2e8f0'}" font-size="10.5" font-weight="700" text-anchor="middle">${c.order}. ${escapeXml(c.protocol || c.label)}</text>
+          <rect x="${midX - 85}" y="${midY - 18}" width="170" height="20" rx="4" fill="#090d16" stroke="${strokeColor}" stroke-width="1" opacity="0.95"/>
+          <text x="${midX}" y="${midY - 4}" fill="${isRed ? '#fca5a5' : '#e2e8f0'}" font-size="10.5" font-weight="700" text-anchor="middle">${edgeLabel}</text>
           ${isAnimActive ? `
             <circle cx="${photonCx}" cy="${photonCy}" r="8" fill="#38bdf8" stroke="#ffffff" stroke-width="2" filter="url(#c4-glow-cyan)"/>
             <circle cx="${photonCx}" cy="${photonCy}" r="15" fill="none" stroke="#22d3ee" stroke-width="1.5" opacity="0.7"/>
@@ -1321,6 +1359,7 @@ export class C4TopologyEngine {
       if (!pos) return;
 
       const isHitl = s.category === 'hitl';
+      const isDataStore = s.category === 'database' || /db|database|storage|lakehouse|warehouse|audit|postgres|sql/i.test(s.label + ' ' + s.id);
       let strokeColor = '#38bdf8';
       let gradId = 'c4-grad-saas';
       let glowFilter = '';
@@ -1332,6 +1371,10 @@ export class C4TopologyEngine {
       } else if (s.category === 'actor') {
         strokeColor = '#38bdf8';
         gradId = 'c4-grad-actor';
+      } else if (lens === 'data' && isDataStore) {
+        strokeColor = '#10b981';
+        gradId = 'c4-grad-data';
+        glowFilter = 'filter="url(#c4-glow-amber)"';
       } else if (s.zone === 'integration') {
         strokeColor = '#a855f7';
         gradId = 'c4-grad-ipaas';
@@ -1339,6 +1382,48 @@ export class C4TopologyEngine {
         strokeColor = '#f59e0b';
         gradId = 'c4-grad-core';
       }
+
+      // Dynamic Lens Role Badge
+      let displayRole = s.role;
+      let roleColor = strokeColor;
+      if (lens === 'system') {
+        if (isHitl) {
+          displayRole = '🛡️ HITL SECURITY & AUDIT GATE';
+        } else if (s.category === 'actor') {
+          displayRole = '👤 Authenticated Principal';
+        } else if (s.zone === 'client') {
+          displayRole = '🔒 Ingress Perimeter (TLS 1.3)';
+        } else if (s.zone === 'core') {
+          displayRole = '🛡️ Isolated Core VPC (AES-256)';
+        } else {
+          displayRole = '🔒 mTLS & IAM Scoped Service';
+        }
+        roleColor = '#38bdf8';
+      } else if (lens === 'application') {
+        if (s.category === 'actor') {
+          displayRole = '👤 Client App / Frontend';
+        } else if (isHitl) {
+          displayRole = '🚨 Exception Workflow Router';
+        } else if (s.zone === 'integration') {
+          displayRole = '⚡ Microservice (SLA <120ms)';
+        } else {
+          displayRole = `⚡ ${s.role}`;
+        }
+        roleColor = '#c084fc';
+      } else if (lens === 'data') {
+        if (isDataStore) {
+          displayRole = '💾 ACID Persistent Store';
+          roleColor = '#34d399';
+        } else if (isHitl) {
+          displayRole = '📊 Data Quality Quarantine Gate';
+        } else {
+          displayRole = '📥 Data Stream / Producer';
+          roleColor = '#6ee7b7';
+        }
+      }
+
+      const roleBadgeText = `[${escapeXml(displayRole)}]`;
+      const techDisplay = (lens === 'system' ? '🔒 ' : (lens === 'application' ? '⚡ ' : (lens === 'data' ? '📊 ' : ''))) + s.technologies.slice(0, 3).join(' • ');
 
       svg += `
         <g class="c4-node-group" data-c4-id="${s.id}" data-c4-level="1" style="cursor: grab;" transform="translate(${pos.x}, ${pos.y})">
@@ -1350,30 +1435,30 @@ export class C4TopologyEngine {
 
           <!-- Dedicated Role Badge: NEVER collides with title! -->
           <g transform="translate(14, 38)">
-            <rect width="${Math.min(pos.w - 28, Math.max(60, escapeXml(s.role).length * 6.5 + 16))}" height="18" rx="4" fill="rgba(255,255,255,0.06)" stroke="${strokeColor}" stroke-width="0.8"/>
-            <text x="8" y="13" fill="${strokeColor}" font-size="10.5" font-weight="700">[${escapeXml(s.role)}]</text>
+            <rect width="${Math.min(pos.w - 28, Math.max(70, escapeXml(displayRole).length * 6.8 + 18))}" height="18" rx="4" fill="rgba(255,255,255,0.06)" stroke="${roleColor}" stroke-width="0.8"/>
+            <text x="8" y="13" fill="${roleColor}" font-size="10.5" font-weight="700">${roleBadgeText}</text>
           </g>
 
           <text x="14" y="74" fill="#cbd5e1" font-size="11.5" font-weight="500">${escapeXml(s.description.slice(0, 52))}</text>
           <text x="14" y="92" fill="#94a3b8" font-size="11">${escapeXml(s.description.slice(52, 105)) || ''}</text>
-          <text x="14" y="112" fill="#64748b" font-size="10.5">Tech: ${escapeXml(s.technologies.slice(0, 3).join(' • '))}</text>
+          <text x="14" y="112" fill="#64748b" font-size="10.5">Tech: ${escapeXml(techDisplay)}</text>
 
           <!-- Edit Pill -->
-          <g class="c4-edit-node-pill" data-c4-edit-id="${s.id}" transform="translate(14, ${pos.h - 26})" style="cursor: pointer;">
-            <rect width="64" height="20" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1"/>
-            <text x="32" y="14" fill="#38bdf8" font-size="10.5" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          <g class="c4-edit-node-pill" data-c4-edit-id="${s.id}" transform="translate(14, ${pos.h - 26})" style="cursor: pointer; pointer-events: all;">
+            <rect width="64" height="20" rx="4" fill="rgba(56, 189, 248, 0.15)" stroke="#38bdf8" stroke-width="1" style="pointer-events: all;"/>
+            <text x="32" y="14" fill="#38bdf8" font-size="10.5" font-weight="700" text-anchor="middle" style="pointer-events: all;">✏️ Edit</text>
           </g>
 
-          ${s.containerCount > 0 ? `
-            <g class="c4-drill-pill" transform="translate(${pos.w - 116}, ${pos.h - 26})" style="cursor: pointer;">
-              <rect width="106" height="20" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="${strokeColor}" stroke-width="1.2"/>
-              <text x="53" y="14" fill="${strokeColor}" font-size="10.5" font-weight="800" text-anchor="middle">🔍 Drill Down (${s.containerCount})</text>
+          ${(s.containerCount > 0 || s.category !== 'actor') && !isHitl ? `
+            <g class="c4-drill-pill" data-c4-drill-id="${s.id}" transform="translate(${pos.w - 116}, ${pos.h - 26})" style="cursor: pointer; pointer-events: all;">
+              <rect width="106" height="20" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="${strokeColor}" stroke-width="1.2" style="pointer-events: all;"/>
+              <text x="53" y="14" fill="${strokeColor}" font-size="10.5" font-weight="800" text-anchor="middle" style="pointer-events: all;">🔍 Drill Down (${s.containerCount || 2})</text>
             </g>
           ` : ''}
           ${isHitl ? `
-            <g class="c4-drill-pill" transform="translate(${pos.w - 124}, ${pos.h - 26})" style="cursor: pointer;">
-              <rect width="114" height="20" rx="4" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="1.2"/>
-              <text x="57" y="14" fill="#fca5a5" font-size="10.5" font-weight="800" text-anchor="middle">🚨 HITL GATE</text>
+            <g class="c4-drill-pill" data-c4-drill-id="${s.id}" transform="translate(${pos.w - 124}, ${pos.h - 26})" style="cursor: pointer; pointer-events: all;">
+              <rect width="114" height="20" rx="4" fill="rgba(239, 68, 68, 0.3)" stroke="#ef4444" stroke-width="1.2" style="pointer-events: all;"/>
+              <text x="57" y="14" fill="#fca5a5" font-size="10.5" font-weight="800" text-anchor="middle" style="pointer-events: all;">🚨 HITL GATE</text>
             </g>
           ` : ''}
         </g>
@@ -1475,6 +1560,14 @@ export class C4TopologyEngine {
       <text x="30" y="65" fill="#94a3b8" font-size="12">Click "⬆ Back Up" to return, or click any container to inspect Level 3 Data Contracts</text>
       `}
 
+      <!-- Active Architect Lens Indicator in Level 2 -->
+      <g class="c4-lens-indicator" transform="translate(1080, ${isExecutiveMode ? '68' : '32'})">
+        <rect width="290" height="28" rx="14" fill="rgba(15, 23, 42, 0.9)" stroke="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#10b981' : 'rgba(148, 163, 184, 0.4)'))}" stroke-width="1.4"/>
+        <text x="145" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#34d399' : '#e2e8f0'))}">
+          ${lens === 'system' ? '🏛️ SYSTEM ARCHITECT VIEW' : (lens === 'application' ? '⚙️ APPLICATION ARCHITECT VIEW' : (lens === 'data' ? '📊 DATA ARCHITECT VIEW' : '🌐 UNIFIED ARCHITECTURE VIEW'))}
+        </text>
+      </g>
+
       <!-- Parent Subsystem Boundary Box -->
       <rect x="30" y="110" width="1340" height="680" rx="14" fill="rgba(139, 92, 246, 0.05)" stroke="rgba(168, 85, 247, 0.4)" stroke-width="2.0" stroke-dasharray="8 5"/>
       <text x="50" y="138" fill="#c084fc" font-size="13.5" font-weight="800">SYSTEM CONTAINER BOUNDARY: ${escapeXml(parent.label.toUpperCase())}</text>
@@ -1514,11 +1607,16 @@ export class C4TopologyEngine {
         photonCy = y1 + (y2 - y1) * r;
       }
 
+      let edgeProto = c.protocol;
+      if (lens === 'system') edgeProto = `🔒 ${c.protocol || 'mTLS Encrypted'}`;
+      else if (lens === 'application') edgeProto = `⚡ ${c.protocol || 'REST API (P99 <120ms)'}`;
+      else if (lens === 'data') edgeProto = `📊 ${c.protocol || 'Schema Payload / WAL'}`;
+
       svg += `
         <g class="c4-l2-edge" style="cursor: pointer;">
           <path d="M ${x1} ${y1} L ${x2} ${y2}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" marker-end="url(#c4-l2-arrow)"/>
-          <rect x="${(x1 + x2) / 2 - 50}" y="${(y1 + y2) / 2 - 12}" width="100" height="20" rx="4" fill="#0f172a" stroke="${strokeColor}" stroke-width="1"/>
-          <text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 + 2}" fill="#e2e8f0" font-size="10.5" font-weight="700" text-anchor="middle">${escapeXml(c.protocol)}</text>
+          <rect x="${(x1 + x2) / 2 - 60}" y="${(y1 + y2) / 2 - 12}" width="120" height="20" rx="4" fill="#0f172a" stroke="${strokeColor}" stroke-width="1"/>
+          <text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 + 2}" fill="#e2e8f0" font-size="10.5" font-weight="700" text-anchor="middle">${escapeXml(edgeProto)}</text>
           ${isAnimActive ? `
             <circle cx="${photonCx}" cy="${photonCy}" r="7" fill="#38bdf8" stroke="#ffffff" stroke-width="1.8"/>
           ` : ''}
@@ -1536,7 +1634,26 @@ export class C4TopologyEngine {
 
       const isApi = c.type === 'api';
       const isStore = c.type === 'store';
-      const strokeColor = isApi ? '#38bdf8' : (isStore ? '#f59e0b' : '#a855f7');
+      let strokeColor = isApi ? '#38bdf8' : (isStore ? '#f59e0b' : '#a855f7');
+      if (lens === 'data' && isStore) strokeColor = '#10b981';
+
+      // Lens tailored type badge and tech info
+      let typeBadge = `[${c.type.toUpperCase()}]`;
+      let typeColor = strokeColor;
+      let techInfo = c.technology;
+      if (lens === 'system') {
+        typeBadge = '[🔒 ISOLATED CONTAINER]';
+        typeColor = '#38bdf8';
+        techInfo = `🔒 VPC Subnet • ${c.technology}`;
+      } else if (lens === 'application') {
+        typeBadge = isApi ? '[⚡ REST API SERVICE]' : (isStore ? '[⚡ PERSISTENT STORE]' : '[⚡ WORKER / QUEUE]');
+        typeColor = '#c084fc';
+        techInfo = `⚡ P99 <120ms • ${c.technology}`;
+      } else if (lens === 'data') {
+        typeBadge = isStore ? '[💾 DATA ASSET / STORE]' : '[📊 SCHEMA TRANSFORMER]';
+        typeColor = '#34d399';
+        techInfo = `📊 Schema Contract • ${c.technology}`;
+      }
 
       svg += `
         <g class="c4-container-group" data-c4-id="${c.id}" data-c4-level="2" style="cursor: grab;" transform="translate(${pos.x}, ${pos.y})">
@@ -1547,25 +1664,25 @@ export class C4TopologyEngine {
           
           <!-- Dedicated Type Badge on Line 2: Never collides with label! -->
           <g transform="translate(14, 34)">
-            <rect width="68" height="18" rx="4" fill="rgba(255,255,255,0.06)" stroke="${strokeColor}" stroke-width="0.8"/>
-            <text x="34" y="13" fill="${strokeColor}" font-size="10" font-weight="700" text-anchor="middle">[${c.type.toUpperCase()}]</text>
+            <rect width="${Math.min(pos.w - 28, Math.max(70, escapeXml(typeBadge).length * 6.8 + 16))}" height="18" rx="4" fill="rgba(255,255,255,0.06)" stroke="${typeColor}" stroke-width="0.8"/>
+            <text x="8" y="13" fill="${typeColor}" font-size="10" font-weight="700">${escapeXml(typeBadge)}</text>
           </g>
 
-          <text x="90" y="47" fill="#38bdf8" font-size="11" font-weight="700" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
+          <text x="${Math.min(pos.w - 28, Math.max(70, escapeXml(typeBadge).length * 6.8 + 16)) + 24}" y="47" fill="#38bdf8" font-size="11" font-weight="700" font-family="monospace">${escapeXml(c.endpoint || c.technology)}</text>
           <text x="14" y="74" fill="#cbd5e1" font-size="11.5">${escapeXml(c.description.slice(0, 52))}</text>
           <text x="14" y="92" fill="#94a3b8" font-size="11">${escapeXml(c.description.slice(52, 105)) || ''}</text>
-          <text x="14" y="114" fill="#64748b" font-size="10.5">Technology: ${escapeXml(c.technology)}</text>
+          <text x="14" y="114" fill="#64748b" font-size="10.5">Technology: ${escapeXml(techInfo)}</text>
 
           <!-- Edit Container Pill -->
-          <g class="c4-edit-container-pill" data-c4-edit-container-id="${c.id}" transform="translate(14, ${pos.h - 28})" style="cursor: pointer;">
-            <rect width="64" height="22" rx="4" fill="rgba(168, 85, 247, 0.15)" stroke="#a855f7" stroke-width="1"/>
-            <text x="32" y="15" fill="#c084fc" font-size="11" font-weight="700" text-anchor="middle">✏️ Edit</text>
+          <g class="c4-edit-container-pill" data-c4-edit-container-id="${c.id}" transform="translate(14, ${pos.h - 28})" style="cursor: pointer; pointer-events: all;">
+            <rect width="64" height="22" rx="4" fill="rgba(168, 85, 247, 0.15)" stroke="#a855f7" stroke-width="1" style="pointer-events: all;"/>
+            <text x="32" y="15" fill="#c084fc" font-size="11" font-weight="700" text-anchor="middle" style="pointer-events: all;">✏️ Edit</text>
           </g>
 
           <!-- Component Inspector Pill -->
-          <g class="c4-contract-pill" transform="translate(${pos.w - 120}, ${pos.h - 28})" style="cursor: pointer;">
-            <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="1.2"/>
-            <text x="55" y="15" fill="#38bdf8" font-size="11" font-weight="800" text-anchor="middle">🔍 View Contract</text>
+          <g class="c4-contract-pill" data-c4-contract-id="${c.id}" transform="translate(${pos.w - 120}, ${pos.h - 28})" style="cursor: pointer; pointer-events: all;">
+            <rect width="110" height="22" rx="4" fill="rgba(56, 189, 248, 0.2)" stroke="#38bdf8" stroke-width="1.2" style="pointer-events: all;"/>
+            <text x="55" y="15" fill="#38bdf8" font-size="11" font-weight="800" text-anchor="middle" style="pointer-events: all;">🔍 View Contract</text>
           </g>
         </g>
       `;

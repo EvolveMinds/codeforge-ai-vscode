@@ -100,19 +100,47 @@ Flow 2 runs asynchronously off a queue, so a slow xAmplify or Sunrise call never
     assert.ok(wiki.includes('h2. 2. End-to-End Execution Sequence Flow'), 'Should include Execution Flow section');
   });
 
-  // --- 5. Tri-Architect Lens SVG Rendering ---
+  // --- 5. Tri-Architect Lens SVG Rendering & Interactive Drill-Down / Edit Hooks ---
   test('renders SVG with appropriate badges and styling for each Architect Lens', () => {
+    const lenses: Array<'all' | 'system' | 'application' | 'data'> = ['all', 'system', 'application', 'data'];
+
+    // Verify all 4 lenses in Level 1 System Context
+    for (const lens of lenses) {
+      const svgL1 = C4TopologyEngine.renderTopologySvg(model, 1, undefined, false, false, undefined, undefined, lens);
+      assert.ok(svgL1.includes('c4-lens-indicator'), `Level 1 must contain lens indicator for ${lens}`);
+      assert.ok(svgL1.includes('c4-drill-pill'), `Level 1 must contain drill-down pills for ${lens}`);
+      assert.ok(svgL1.includes('data-c4-drill-id='), `Level 1 must have data-c4-drill-id attribute for ${lens}`);
+      assert.ok(svgL1.includes('c4-edit-node-pill'), `Level 1 must contain edit node pills for ${lens}`);
+      assert.ok(svgL1.includes('data-c4-edit-id='), `Level 1 must have data-c4-edit-id attribute for ${lens}`);
+      assert.ok(svgL1.includes('c4-edit-boundary-pill'), `Level 1 must contain edit boundary pills for ${lens}`);
+      assert.ok(svgL1.includes('data-c4-edit-boundary-id='), `Level 1 must have data-c4-edit-boundary-id attribute for ${lens}`);
+    }
+
+    // Verify all 4 lenses in Level 2 Container Topology
+    const targetSystemId = model.level1.systems.find(s => s.category !== 'actor')?.id || 'mulesoft';
+    for (const lens of lenses) {
+      const svgL2 = C4TopologyEngine.renderTopologySvg(model, 2, targetSystemId, false, false, undefined, undefined, lens);
+      assert.ok(svgL2.includes('c4-lens-indicator'), `Level 2 must contain lens indicator for ${lens}`);
+      assert.ok(svgL2.includes('c4-contract-pill'), `Level 2 must contain contract pills for ${lens}`);
+      assert.ok(svgL2.includes('data-c4-contract-id='), `Level 2 must have data-c4-contract-id attribute for ${lens}`);
+      assert.ok(svgL2.includes('c4-edit-container-pill'), `Level 2 must contain edit container pills for ${lens}`);
+      assert.ok(svgL2.includes('data-c4-edit-container-id='), `Level 2 must have data-c4-edit-container-id attribute for ${lens}`);
+    }
+
     // Lens: system (System Architect: Trust Boundaries & Security)
     const svgSystem = C4TopologyEngine.renderTopologySvg(model, 1, undefined, false, false, undefined, undefined, 'system');
     assert.ok(svgSystem.includes('SYSTEM ARCHITECT VIEW'), 'Should show System Architect badge');
+    assert.ok(svgSystem.includes('mTLS') || svgSystem.includes('Zero-Trust') || svgSystem.includes('Perimeter'), 'System lens must highlight mTLS / Zero-Trust security perimeters');
 
     // Lens: application (Application Architect: APIs, Queues & Modularity)
     const svgApp = C4TopologyEngine.renderTopologySvg(model, 1, undefined, false, false, undefined, undefined, 'application');
     assert.ok(svgApp.includes('APPLICATION ARCHITECT VIEW'), 'Should show Application Architect badge');
+    assert.ok(svgApp.includes('Microservice') || svgApp.includes('REST') || svgApp.includes('SLA'), 'App lens must highlight microservice interfaces & REST APIs');
 
     // Lens: data (Data Architect: Data Assets, Contracts & Lineage)
     const svgData = C4TopologyEngine.renderTopologySvg(model, 1, undefined, false, false, undefined, undefined, 'data');
     assert.ok(svgData.includes('DATA ARCHITECT VIEW'), 'Should show Data Architect badge');
+    assert.ok(svgData.includes('ACID') || svgData.includes('Store') || svgData.includes('Storage') || svgData.includes('Data'), 'Data lens must highlight ACID storage & data assets');
 
     // Lens: all (Unified View)
     const svgAll = C4TopologyEngine.renderTopologySvg(model, 1, undefined, false, false, undefined, undefined, 'all');

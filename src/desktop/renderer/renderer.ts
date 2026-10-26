@@ -5931,8 +5931,16 @@ function setupPhase1Discovery(api: any): void {
     fitToView();
   });
   btnC4BreadcrumbL2?.addEventListener('click', () => {
+    if (!activeC4SystemId && cachedC4Model?.level1?.systems) {
+      const firstSys = cachedC4Model.level1.systems.find((s: any) => s.category !== 'actor' && s.category !== 'hitl');
+      if (firstSys) activeC4SystemId = firstSys.id;
+    }
     if (activeC4SystemId) {
       activeC4Level = 2;
+      const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+      if (cachedC4Model && !cachedC4Model.level2?.[activeC4SystemId] && c4Engine?.ensureLevel2) {
+        c4Engine.ensureLevel2(cachedC4Model, activeC4SystemId);
+      }
       if (c4InspectorDrawer) {
         c4InspectorDrawer.hidden = true;
         c4InspectorDrawer.style.display = 'none';
@@ -6949,6 +6957,22 @@ function setupPhase1Discovery(api: any): void {
 
   // Pillar 2: Clickable Level 3 Breadcrumb to reopen Inspector
   document.getElementById('btnFdeC4BreadcrumbL3')?.addEventListener('click', () => {
+    if (!activeC4ContainerId && activeC4SystemId && cachedC4Model?.level2?.[activeC4SystemId]?.containers?.length) {
+      activeC4ContainerId = cachedC4Model.level2[activeC4SystemId].containers[0].id;
+    }
+    if (!activeC4ContainerId && cachedC4Model?.level1?.systems) {
+      const firstSys = cachedC4Model.level1.systems.find((s: any) => s.category !== 'actor' && s.category !== 'hitl');
+      if (firstSys) {
+        activeC4SystemId = firstSys.id;
+        const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+        if (!cachedC4Model.level2?.[firstSys.id] && c4Engine?.ensureLevel2) {
+          c4Engine.ensureLevel2(cachedC4Model, firstSys.id);
+        }
+        if (cachedC4Model.level2?.[firstSys.id]?.containers?.length) {
+          activeC4ContainerId = cachedC4Model.level2[firstSys.id].containers[0].id;
+        }
+      }
+    }
     if (activeC4ContainerId) {
       openC4Inspector(activeC4ContainerId);
     }
@@ -8668,7 +8692,7 @@ function setupPhase1Discovery(api: any): void {
       const editNodePill = target.closest('.c4-edit-node-pill') as SVGElement | null;
       if (editNodePill) {
         e.stopPropagation();
-        const sysId = editNodePill.getAttribute('data-c4-edit-id');
+        const sysId = editNodePill.getAttribute('data-c4-edit-id') || editNodePill.closest('.c4-node-group')?.getAttribute('data-c4-id');
         if (sysId) openC4EditModal(sysId, false);
         return;
       }
@@ -8676,7 +8700,7 @@ function setupPhase1Discovery(api: any): void {
       const editContPill = target.closest('.c4-edit-container-pill') as SVGElement | null;
       if (editContPill) {
         e.stopPropagation();
-        const contId = editContPill.getAttribute('data-c4-edit-container-id');
+        const contId = editContPill.getAttribute('data-c4-edit-container-id') || editContPill.closest('.c4-container-group')?.getAttribute('data-c4-id');
         if (contId) openC4EditModal(contId, true);
         return;
       }
@@ -8685,7 +8709,7 @@ function setupPhase1Discovery(api: any): void {
       const editBoundaryPill = target.closest('.c4-edit-boundary-pill') as SVGElement | null;
       if (editBoundaryPill) {
         e.stopPropagation();
-        const bId = editBoundaryPill.getAttribute('data-c4-edit-boundary-id');
+        const bId = editBoundaryPill.getAttribute('data-c4-edit-boundary-id') || editBoundaryPill.closest('.c4-boundary-group')?.getAttribute('data-c4-boundary-id');
         if (bId) openC4BoundaryModal(bId);
         return;
       }
@@ -8693,7 +8717,7 @@ function setupPhase1Discovery(api: any): void {
       const delBoundaryPill = target.closest('.c4-delete-boundary-pill') as SVGElement | null;
       if (delBoundaryPill) {
         e.stopPropagation();
-        const bId = delBoundaryPill.getAttribute('data-c4-delete-boundary-id');
+        const bId = delBoundaryPill.getAttribute('data-c4-delete-boundary-id') || delBoundaryPill.closest('.c4-boundary-group')?.getAttribute('data-c4-boundary-id');
         if (bId) deleteC4Boundary(bId);
         return;
       }
@@ -8711,7 +8735,7 @@ function setupPhase1Discovery(api: any): void {
       const c4Node = target.closest('.c4-node-group') as SVGElement | null;
       if ((drillPill || c4Node) && activeC4Level === 1) {
         e.stopPropagation();
-        const sysId = (drillPill ? drillPill.closest('.c4-node-group') : c4Node)?.getAttribute('data-c4-id');
+        const sysId = (drillPill ? (drillPill.getAttribute('data-c4-drill-id') || drillPill.closest('.c4-node-group')?.getAttribute('data-c4-id')) : c4Node?.getAttribute('data-c4-id'));
         if (!sysId) return;
 
         const isHitl = sysId === 'hitl' || sysId.toLowerCase().includes('hitl') || sysId === 'gov' || sysId === 'HITL_Gate';
@@ -8738,7 +8762,7 @@ function setupPhase1Discovery(api: any): void {
       const c4Container = target.closest('.c4-container-group') as SVGElement | null;
       if ((contractPill || c4Container) && activeC4Level === 2) {
         e.stopPropagation();
-        const contId = (contractPill ? contractPill.closest('.c4-container-group') : c4Container)?.getAttribute('data-c4-id');
+        const contId = (contractPill ? (contractPill.getAttribute('data-c4-contract-id') || contractPill.closest('.c4-container-group')?.getAttribute('data-c4-id')) : c4Container?.getAttribute('data-c4-id'));
         if (!contId) return;
 
         openC4Inspector(contId);
@@ -8911,8 +8935,6 @@ function setupPhase1Discovery(api: any): void {
         const m = tf.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
         dragC4OrigNodePos = m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
         isDraggingOnCanvas = false;
-        try { renderedPane.setPointerCapture(e.pointerId); } catch (_) {}
-        e.preventDefault();
         return;
       }
     }
@@ -8932,8 +8954,6 @@ function setupPhase1Discovery(api: any): void {
         const m = tf.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
         dragC4OrigBoundaryPos = m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
         isDraggingOnCanvas = false;
-        try { renderedPane.setPointerCapture(e.pointerId); } catch (_) {}
-        e.preventDefault();
         return;
       }
     }
@@ -8954,9 +8974,10 @@ function setupPhase1Discovery(api: any): void {
     if (dragKind === ('c4-node' as any) && draggedC4NodeId) {
       const dx = (e.clientX - dragC4StartX) / canvasZoom;
       const dy = (e.clientY - dragC4StartY) / canvasZoom;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      if (!isDraggingOnCanvas && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         isDraggingOnCanvas = true;
         didDragOnCanvas = true;
+        try { renderedPane?.setPointerCapture(e.pointerId); } catch (_) {}
       }
       if (isDraggingOnCanvas) {
         const nx = Math.round(dragC4OrigNodePos.x + dx);
@@ -8973,9 +8994,10 @@ function setupPhase1Discovery(api: any): void {
     if (dragKind === ('c4-boundary' as any) && draggedC4BoundaryId) {
       const dx = (e.clientX - dragC4StartX) / canvasZoom;
       const dy = (e.clientY - dragC4StartY) / canvasZoom;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      if (!isDraggingOnCanvas && (Math.abs(dx) > 6 || Math.abs(dy) > 6)) {
         isDraggingOnCanvas = true;
         didDragOnCanvas = true;
+        try { renderedPane?.setPointerCapture(e.pointerId); } catch (_) {}
       }
       if (isDraggingOnCanvas) {
         const nx = Math.round(dragC4OrigBoundaryPos.x + dx);
@@ -9020,44 +9042,83 @@ function setupPhase1Discovery(api: any): void {
       isPanDragging = false;
       try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
       updateCanvasCursor();
-      setTimeout(() => { didDragOnCanvas = false; }, 60);
+      setTimeout(() => { didDragOnCanvas = false; }, 40);
       return;
     }
     if (dragKind === ('c4-node' as any) && draggedC4NodeId) {
+      const sysId = draggedC4NodeId;
       try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
       if (didDragOnCanvas) {
         const dx = (e.clientX - dragC4StartX) / canvasZoom;
         const dy = (e.clientY - dragC4StartY) / canvasZoom;
         const nx = Math.round(dragC4OrigNodePos.x + dx);
         const ny = Math.round(dragC4OrigNodePos.y + dy);
-        c4CustomPositions[draggedC4NodeId] = { x: nx, y: ny };
+        c4CustomPositions[sysId] = { x: nx, y: ny };
         paintC4Topology();
-        showToast(`📌 Repositioned box: ${draggedC4NodeId}`);
+        showToast(`📌 Repositioned box: ${sysId}`);
+      } else {
+        // Direct click on C4 node card or pills
+        const target = (document.elementFromPoint(e.clientX, e.clientY) || e.target) as HTMLElement | SVGElement | null;
+        const editNodePill = target?.closest('.c4-edit-node-pill') || (target?.getAttribute && target.getAttribute('data-c4-edit-id') === sysId);
+        const editContPill = target?.closest('.c4-edit-container-pill') || (target?.getAttribute && target.getAttribute('data-c4-edit-container-id') === sysId);
+
+        if (editNodePill) {
+          openC4EditModal(sysId, false);
+        } else if (editContPill) {
+          openC4EditModal(sysId, true);
+        } else if (activeC4Level === 1) {
+          const isHitl = sysId === 'hitl' || sysId.toLowerCase().includes('hitl') || sysId === 'gov' || sysId === 'HITL_Gate';
+          if (isHitl) {
+            openHitlReviewConsole();
+          } else {
+            const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+            if (cachedC4Model) {
+              if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
+                c4Engine.ensureLevel2(cachedC4Model, sysId);
+              }
+            }
+            activeC4Level = 2;
+            activeC4SystemId = sysId;
+            paintC4Topology();
+            fitToView();
+          }
+        } else if (activeC4Level === 2) {
+          openC4Inspector(sysId);
+        }
       }
       dragKind = null;
       draggedC4NodeId = null;
       isDraggingC4Node = false;
       isDraggingOnCanvas = false;
-      setTimeout(() => { didDragOnCanvas = false; }, 80);
+      didDragOnCanvas = false;
       return;
     }
 
     if (dragKind === ('c4-boundary' as any) && draggedC4BoundaryId) {
+      const bId = draggedC4BoundaryId;
       try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
       if (didDragOnCanvas) {
         const dx = (e.clientX - dragC4StartX) / canvasZoom;
         const dy = (e.clientY - dragC4StartY) / canvasZoom;
         const nx = Math.round(dragC4OrigBoundaryPos.x + dx);
         const ny = Math.round(dragC4OrigBoundaryPos.y + dy);
-        c4CustomPositions['boundary_' + draggedC4BoundaryId] = { x: nx, y: ny };
+        c4CustomPositions['boundary_' + bId] = { x: nx, y: ny };
         paintC4Topology();
-        showToast(`📌 Repositioned boundary: ${draggedC4BoundaryId}`);
+        showToast(`📌 Repositioned boundary: ${bId}`);
+      } else {
+        const target = (document.elementFromPoint(e.clientX, e.clientY) || e.target) as HTMLElement | SVGElement | null;
+        const delPill = target?.closest('.c4-delete-boundary-pill');
+        if (delPill) {
+          deleteC4Boundary(bId);
+        } else {
+          openC4BoundaryModal(bId);
+        }
       }
       dragKind = null;
       draggedC4BoundaryId = null;
       isDraggingC4Boundary = false;
       isDraggingOnCanvas = false;
-      setTimeout(() => { didDragOnCanvas = false; }, 80);
+      didDragOnCanvas = false;
       return;
     }
 
