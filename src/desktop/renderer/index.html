@@ -9504,30 +9504,129 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           </div>
 
           <!-- ================================================================= -->
-          <!-- SUB-TAB 1: VISUAL TENSOR SHAPE FLOW (ACTIVE BY DEFAULT) -->
+          <!-- SUB-TAB 1: NEURAL, AST & FLOW DEBUGGER (STATIC VERIFICATION) -->
           <!-- ================================================================= -->
           <div id="subPanePyTensor" style="display: block;">
-            <div class="content-card" style="margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-                <div>
-                  <h3 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">📊 PyTorch Layer Dimension Flow &amp; Shape Propagation</h3>
-                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
-                    Validates tensor dimension compatibility across neural network layers to eliminate runtime shape mismatches before training or inference.
+            <!-- Studio Objective & Purpose Banner -->
+            <div style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95)); border: 1px solid rgba(99, 102, 241, 0.35); border-left: 4px solid #818cf8; border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+              <div style="flex: 1; min-width: 300px;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>🎯</span> Purpose: Pre-Flight Static Deep Learning &amp; AST Verification
+                  <span style="font-size: 10px; background: rgba(99, 102, 241, 0.2); color: #c7d2fe; border: 1px solid rgba(99, 102, 241, 0.4); padding: 1px 8px; border-radius: 10px; font-weight: 600;">100% Offline · Zero GPU Cost</span>
+                </div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px; line-height: 1.4;">
+                  Mathematically validates PyTorch layer dimension compatibility, detects silent NaN/Inf numerical hazards (missing epsilon, unclamped log), and audits AST syntax before executing scripts or launching expensive training runs.
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Model Blueprint:</span>
+                <select id="selPyNeuralPreset" style="background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;">
+                  <option value="classifier_clean">🧠 PyTorch Classifier (Clean 768 ➔ 256 ➔ 10)</option>
+                  <option value="mismatch_bug">❌ Layer Shape Mismatch Bug (768 ➔ 256 / 512 ➔ 10)</option>
+                  <option value="nan_hazard">⚠️ NaN Div-by-Zero Hazard (Missing Epsilon in Variance)</option>
+                  <option value="log_inf_hazard">🔥 Unclamped torch.log (-Inf Gradient Explosion)</option>
+                  <option value="double_softmax">⚠️ Double Softmax Bug (with CrossEntropyLoss)</option>
+                  <option value="slow_pandas">⚡ Pandas iterrows() Bottleneck (100x Slowdown Demo)</option>
+                </select>
+                <button class="btn btn-secondary" id="btnPyLoadActiveFile" style="font-size: 11.5px; padding: 5px 12px;" title="Load code from active workspace file">📂 Load Workspace File</button>
+              </div>
+            </div>
+
+            <!-- Two-Column Interactive Workspace -->
+            <div style="display: grid; grid-template-columns: 46% 54%; gap: 14px; align-items: start;">
+              <!-- Left Column: Source Code Editor -->
+              <div class="content-card" style="margin-bottom: 0; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 13px;">📝</span>
+                    <strong style="color: #fff; font-size: 12.5px;">Python / Neural Architecture Code</strong>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="lblPyNeuralLineCount" style="font-size: 10.5px; color: var(--text-muted);">18 lines</span>
+                    <button class="btn-quick" id="btnPyFormatCode" style="font-size: 10.5px; padding: 2px 8px;" title="Format code with PEP 8 spacing">Format</button>
                   </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                  <label style="font-size: 11px; color: #94a3b8;">Batch Size:</label>
-                  <input type="number" id="numPyBatchSize" value="32" min="1" max="8192" style="width: 65px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11.5px;">
-                  <label style="font-size: 11px; color: #94a3b8;">Input Feat Dim:</label>
-                  <input type="number" id="numPyInputDim" value="768" min="1" max="131072" style="width: 75px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 11.5px;">
-                  <button class="btn btn-primary" id="btnPyPropagateShapes" style="font-size: 11.5px; padding: 5px 14px;">⚡ Propagate Shapes</button>
-                  <button class="btn btn-secondary" id="btnPyInjectShapeAssertions" style="font-size: 11.5px; padding: 5px 12px;">💉 Inject Assertions</button>
+                <div style="position: relative; flex: 1; min-height: 440px; background: #020617; border: 1px solid #1e293b; border-radius: 6px; overflow: hidden; display: flex; flex-direction: column;">
+                  <textarea id="txtPyNeuralCode" rows="22" spellcheck="false" style="flex: 1; width: 100%; height: 100%; min-height: 420px; background: transparent; color: #e2e8f0; font-family: 'Consolas', 'Fira Code', monospace; font-size: 12px; line-height: 1.5; padding: 12px; border: none; outline: none; resize: none; tab-size: 4; caret-color: #38bdf8; box-sizing: border-box;"></textarea>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; flex-wrap: wrap; gap: 8px;">
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" id="btnPyRunNeuralScan" style="font-size: 12px; padding: 6px 16px; background: #3b82f6; border-color: #3b82f6; cursor: pointer;">⚡ Run Diagnostic Pass</button>
+                    <button class="btn btn-secondary" id="btnPyAutoFixHazards" style="font-size: 12px; padding: 6px 14px; background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.4); cursor: pointer;">✨ 1-Click Auto-Fix</button>
+                  </div>
+                  <button class="btn btn-secondary" id="btnPyGenPytestContract" style="font-size: 11.5px; padding: 5px 12px; background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6; color: #c4b5fd; cursor: pointer;">🧪 Export PyTest Contract</button>
                 </div>
               </div>
 
-              <!-- Visual Flow Board Container -->
-              <div id="pyTensorFlowBoard" style="display: flex; flex-direction: column; gap: 10px; padding: 14px; background: #0b0f19; border-radius: 6px; border: 1px solid #1e293b;">
-                <!-- Populated dynamically by renderer -->
+              <!-- Right Column: Multi-Engine Diagnostic Results -->
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <!-- 1. Visual Tensor Shape Propagation Card -->
+                <div class="content-card" style="margin-bottom: 0;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                      <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>📊</span> Layer Dimension Flow &amp; Shape Propagation
+                      </h4>
+                      <div style="font-size: 10.5px; color: var(--text-muted); margin-top: 2px;">
+                        Verifies tensor shape compatibility through consecutive neural layers
+                      </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <label style="font-size: 10.5px; color: #94a3b8;">Batch:</label>
+                      <input type="number" id="numPyBatchSize" value="32" min="1" max="4096" style="width: 55px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px; font-size: 11px;">
+                      <label style="font-size: 10.5px; color: #94a3b8;">In Dim:</label>
+                      <input type="number" id="numPyInputDim" value="768" min="1" max="131072" style="width: 65px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; padding: 3px 6px; font-size: 11px;">
+                      <button class="btn btn-primary" id="btnPyPropagateShapes" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">⚡ Propagate</button>
+                    </div>
+                  </div>
+
+                  <!-- Visual Flow Pipeline Output -->
+                  <div id="pyTensorFlowBoard" style="display: flex; flex-direction: column; gap: 8px; padding: 10px; background: #020617; border-radius: 6px; border: 1px solid #1e293b; max-height: 220px; overflow-y: auto;">
+                    <!-- Rendered dynamically -->
+                  </div>
+                </div>
+
+                <!-- 2. Numerical Instability & Mathematical Bug Scanner -->
+                <div class="content-card" style="margin-bottom: 0;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                      <span>🚨</span> Numerical Instability &amp; NaN/Inf Scanner
+                    </h4>
+                    <span id="badgePyNumericalStatus" style="font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);">✓ 0 Numerical Hazards</span>
+                  </div>
+                  <div id="pyNumericalFindings" style="font-size: 11.5px; color: #cbd5e1; background: #020617; border: 1px solid #1e293b; border-radius: 6px; padding: 10px; max-height: 120px; overflow-y: auto;">
+                    <!-- Populated dynamically -->
+                  </div>
+                </div>
+
+                <!-- 3. AST Syntax & Performance Hygiene Deck -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                  <!-- AST & Syntax Card -->
+                  <div class="content-card" style="margin-bottom: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <h5 style="margin: 0; font-size: 12px; color: #fff; display: flex; align-items: center; gap: 5px;">
+                        <span>🛡️</span> AST &amp; Syntax Hygiene
+                      </h5>
+                      <span id="badgePyAstStatus" style="font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: rgba(34, 197, 94, 0.15); color: #4ade80;">Clean</span>
+                    </div>
+                    <div id="pyAstFindings" style="font-size: 11px; color: #94a3b8; background: #020617; border: 1px solid #1e293b; border-radius: 6px; padding: 8px; max-height: 90px; overflow-y: auto;">
+                      ✓ No mutable default arguments, wildcard imports, or syntax errors detected.
+                    </div>
+                  </div>
+
+                  <!-- DataFrame & Perf Card -->
+                  <div class="content-card" style="margin-bottom: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <h5 style="margin: 0; font-size: 12px; color: #fff; display: flex; align-items: center; gap: 5px;">
+                        <span>⚡</span> Data Pipeline Sniffer
+                      </h5>
+                      <span id="badgePyDataStatus" style="font-size: 9.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: rgba(56, 189, 248, 0.15); color: #38bdf8;">Optimal</span>
+                    </div>
+                    <div id="pyDataFindings" style="font-size: 11px; color: #94a3b8; background: #020617; border: 1px solid #1e293b; border-radius: 6px; padding: 8px; max-height: 90px; overflow-y: auto;">
+                      ✓ Zero row-by-row iterrows() loops detected. Vectorized pipeline active.
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
