@@ -483,7 +483,7 @@ Historical record of verified production releases:
 
 | Version | Release Date | Desktop EXE SHA-256 (Size) | VSIX SHA-256 (Size) | GitHub Releases | Website Status |
 |---|---|---|---|---|---|
-| **v2.31.0** | 2026-10-26 | `482D2D7981D9254CA882C7C4EE70D5FE877477123A86BEF637C8875AA22A267A` (79.5 MB / 83,418,240 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Staged & Updated |
+| **v2.31.0** | 2026-10-26 | `3B63A47CB371AB41A67BF2EEA2BA640569D26AF45A677B3F027F637D7C113386` (79.6 MB / 83,486,697 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Staged & Updated |
 | **v2.30.0** | 2026-10-15 | `A3AB286B7C8A610A9B0B2FA0572D205D97715FB4953C4E99675EA27AD3ACB17D` (79.4 MB / 83,259,726 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.30.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.30.0-desktop) | Staged & Updated |
 | **v2.29.1** | 2026-10-14 | N/A (Marketplace Patch) | VS Code Marketplace | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.29.1) | Marketplace Published |
 | **v2.29.0** | 2026-10-14 | N/A (Marketplace Release) | VS Code Marketplace | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.29.0) | Marketplace Published |
