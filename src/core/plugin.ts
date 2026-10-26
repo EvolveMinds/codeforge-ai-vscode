@@ -410,7 +410,7 @@ export class PluginRegistry {
       updated = [...current, id];
       nowEnabled = false;
     }
-    await cfg.update('disabledPlugins', updated, vscode.ConfigurationTarget.Global);
+    await cfg.update('disabledPlugins', updated, vscode.ConfigurationTarget?.Global ?? 1);
     if (this._lastServices && this._lastVsCtx) {
       const folders = vscode.workspace.workspaceFolders ?? [];
       if (folders.length === 0) {
@@ -434,7 +434,7 @@ export class PluginRegistry {
     if (!enable) {
       updated.push(id);
     }
-    await cfg.update('disabledPlugins', updated, vscode.ConfigurationTarget.Global);
+    await cfg.update('disabledPlugins', updated, vscode.ConfigurationTarget?.Global ?? 1);
     if (this._lastServices && this._lastVsCtx) {
       const folders = vscode.workspace.workspaceFolders ?? [];
       if (folders.length === 0) {
@@ -452,7 +452,7 @@ export class PluginRegistry {
 
   async enableAllPlugins(): Promise<void> {
     const cfg = vscode.workspace.getConfiguration('aiForge');
-    await cfg.update('disabledPlugins', [], vscode.ConfigurationTarget.Global);
+    await cfg.update('disabledPlugins', [], vscode.ConfigurationTarget?.Global ?? 1);
     if (this._lastServices && this._lastVsCtx) {
       const folders = vscode.workspace.workspaceFolders ?? [];
       if (folders.length === 0) {
@@ -471,7 +471,7 @@ export class PluginRegistry {
     const all = this.getAll().map(p => p.id);
     const toDisable = all.filter(id => !keepEssentialIds.includes(id));
     const cfg = vscode.workspace.getConfiguration('aiForge');
-    await cfg.update('disabledPlugins', toDisable, vscode.ConfigurationTarget.Global);
+    await cfg.update('disabledPlugins', toDisable, vscode.ConfigurationTarget?.Global ?? 1);
     if (this._lastServices && this._lastVsCtx) {
       const folders = vscode.workspace.workspaceFolders ?? [];
       if (folders.length === 0) {

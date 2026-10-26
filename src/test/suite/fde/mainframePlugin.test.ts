@@ -14,10 +14,10 @@ import { ZosmfClient } from '../../../fde/zosmfClient';
 import { MainframeWorkflowParser } from '../../../fde/mainframeWorkflowParser';
 import { RacfSecurityGuide } from '../../../fde/racfSecurityGuide';
 
-describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
+suite('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
 
-  describe('1. Auto-Discovery & Profile Management', () => {
-    it('always discovers the built-in Offline Enterprise Mainframe Sandbox profile', () => {
+  suite('1. Auto-Discovery & Profile Management', () => {
+    test('always discovers the built-in Offline Enterprise Mainframe Sandbox profile', () => {
       const profiles = ZosmfClient.discoverProfiles();
       assert.ok(profiles.length >= 1, 'Should discover at least 1 profile');
 
@@ -29,8 +29,8 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
     });
   });
 
-  describe('2. Plain-English Cryptic Error Diagnostics', () => {
-    it('diagnoses RACF Insufficient Authority (ICH408I) with copy-paste remediation', () => {
+  suite('2. Plain-English Cryptic Error Diagnostics', () => {
+    test('diagnoses RACF Insufficient Authority (ICH408I) with copy-paste remediation', () => {
       const rawError = 'ICH408I USER(HCMDEV01) GROUP(SYS1) NAME(DOE, JOHN) CL(FACILITY) INSUFFICIENT ACCESS AUTHORITY FROM IZUDFSG.DATASET.READ-ONLY(G) ACCESS INTENT(READ) - FAILED';
       const diag = ZosmfClient.diagnoseError(rawError);
 
@@ -42,7 +42,7 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
       assert.ok(diag.remediationCommand?.includes('SETROPTS RACLIST(FACILITY) REFRESH'));
     });
 
-    it('diagnoses COBOL Data Exception ABEND (S0C7 / 0C7)', () => {
+    test('diagnoses COBOL Data Exception ABEND (S0C7 / 0C7)', () => {
       const rawError = 'CEE3207S The system detected a data exception (SYSABEND S0C7). From compile unit PAY001.';
       const diag = ZosmfClient.diagnoseError(rawError);
 
@@ -52,7 +52,7 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
       assert.ok(diag.recommendedAction.includes('COMP-3'));
     });
 
-    it('diagnoses JCL Batch Execution Severe Error (MAXCC=0008)', () => {
+    test('diagnoses JCL Batch Execution Severe Error (MAXCC=0008)', () => {
       const rawError = 'JOB PAYRUN01(JOB08921) ENDED. MAXCC=0008 BYTES=14092';
       const diag = ZosmfClient.diagnoseError(rawError);
 
@@ -61,7 +61,7 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
       assert.ok(diag.title.includes('MAXCC=0008'));
     });
 
-    it('diagnoses Enterprise AT-TLS Certificate Failure', () => {
+    test('diagnoses Enterprise AT-TLS Certificate Failure', () => {
       const rawError = 'Error: PKIX path building failed: unable to find valid certification path to requested target';
       const diag = ZosmfClient.diagnoseError(rawError);
 
@@ -71,8 +71,8 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
     });
   });
 
-  describe('3. JCL Batch Job Stream DAG Parser', () => {
-    it('parses multi-step JCL and extracts step dependencies and DB2 procedure calls', () => {
+  suite('3. JCL Batch Job Stream DAG Parser', () => {
+    test('parses multi-step JCL and extracts step dependencies and DB2 procedure calls', () => {
       const sampleJcl = `//HCM_TEST JOB (HCM),'PAYROLL TEST',CLASS=A
 //STEP01   EXEC PGM=EXTRACT1
 //EXTROUT  DD DSN=PROD.HCM.EXTR.DATA,DISP=(NEW,CATLG)
@@ -106,8 +106,8 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
     });
   });
 
-  describe('4. CICS Online Transaction Parser', () => {
-    it('parses COBOL CICS source and maps to modern REST API contract', () => {
+  suite('4. CICS Online Transaction Parser', () => {
+    test('parses COBOL CICS source and maps to modern REST API contract', () => {
       const sampleCobol = `       IDENTIFICATION DIVISION.
        PROGRAM-ID. EM01PGM.
        DATA DIVISION.
@@ -142,8 +142,8 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
     });
   });
 
-  describe('5. Built-in Offline Enterprise HCM Sandbox', () => {
-    it('delivers complete end-to-end batch and online workflows out of the box', () => {
+  suite('5. Built-in Offline Enterprise HCM Sandbox', () => {
+    test('delivers complete end-to-end batch and online workflows out of the box', () => {
       const sandbox = MainframeWorkflowParser.getOfflineHcmSandboxWorkflow();
 
       assert.strictEqual(sandbox.sourceType, 'offline_sandbox');
@@ -159,8 +159,8 @@ describe('IBM Mainframe (z/OS) Connected Plugin & Workflow Engine', () => {
     });
   });
 
-  describe('6. RACF Least-Privilege Security Clearance Guide', () => {
-    it('generates an auditable markdown document with read-only SAF/RACF commands', () => {
+  suite('6. RACF Least-Privilege Security Clearance Guide', () => {
+    test('generates an auditable markdown document with read-only SAF/RACF commands', () => {
       const md = RacfSecurityGuide.generateMarkdown({
         userId: 'TESTUSER',
         hlqPrefix: 'PROD.HCM',

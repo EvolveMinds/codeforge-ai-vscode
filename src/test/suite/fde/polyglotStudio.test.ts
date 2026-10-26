@@ -7,6 +7,7 @@
  */
 
 // Install vscode mock for standalone mocha execution if not loaded in extension host
+(global as any).__mockVscodeStore = (global as any).__mockVscodeStore || { disabledPlugins: [] };
 try {
   require.resolve('vscode');
 } catch {
@@ -14,19 +15,27 @@ try {
   const orig = Module._load;
   Module._load = function(request: string, parent: any, isMain: boolean) {
     if (request === 'vscode') {
+      const store = (global as any).__mockVscodeStore || { disabledPlugins: [] };
       return {
+        ConfigurationTarget: { Global: 1, Workspace: 2, WorkspaceFolder: 3 },
         workspace: {
-          getConfiguration: () => ({ get: () => [] }),
+          getConfiguration: () => ({
+            get: (k: string, d: any) => store[k] !== undefined ? store[k] : (d ?? []),
+            update: async (k: string, v: any) => { store[k] = v; },
+          }),
+          workspaceFolders: [],
         },
         commands: {
           registerCommand: () => ({ dispose: () => {} }),
         },
         EventEmitter: class {
-          event = () => ({ dispose: () => {} });
-          fire() {}
+          private listeners: any[] = [];
+          event = (l: any) => { this.listeners.push(l); return { dispose: () => {} }; };
+          fire = (d: any) => { this.listeners.forEach(l => l(d)); };
         },
         window: {
           showErrorMessage: () => {},
+          showInformationMessage: () => {},
         },
       };
     }
@@ -39,8 +48,8 @@ import { PolyglotStudioPlugin } from '../../../plugins/polyglotStudio';
 import { PluginRegistry } from '../../../core/plugin';
 import { registerPlugins } from '../../../plugins/index';
 
-describe('Polyglot AI Coding Studio Plugin & Workspace Cockpit', () => {
-  it('instantiates PolyglotStudioPlugin with correct metadata and icon', () => {
+suite('Polyglot AI Coding Studio Plugin & Workspace Cockpit', () => {
+  test('instantiates PolyglotStudioPlugin with correct metadata and icon', () => {
     const plugin = new PolyglotStudioPlugin();
     assert.strictEqual(plugin.id, 'polyglotStudio');
     assert.ok(plugin.displayName.includes('Polyglot AI Coding Studio'), 'displayName should reference Polyglot AI Coding Studio');
@@ -48,13 +57,13 @@ describe('Polyglot AI Coding Studio Plugin & Workspace Cockpit', () => {
     assert.ok(plugin.description.includes('TypeScript') && plugin.description.includes('Python'), 'description should outline polyglot tech stack');
   });
 
-  it('detects workspace as available by default', async () => {
+  test('detects workspace as available by default', async () => {
     const plugin = new PolyglotStudioPlugin();
     const detected = await plugin.detect(undefined);
     assert.strictEqual(detected, true, 'detect() should return true');
   });
 
-  it('activates and deactivates cleanly without side-effects', async () => {
+  test('activates and deactivates cleanly without side-effects', async () => {
     const plugin = new PolyglotStudioPlugin();
     const mockServices = {} as any;
     const mockContext = { subscriptions: [] } as any;
@@ -65,7 +74,7 @@ describe('Polyglot AI Coding Studio Plugin & Workspace Cockpit', () => {
     await plugin.deactivate();
   });
 
-  it('is registered in the core PluginRegistry alongside PythonStudioPlugin and MainframeConnectedPlugin', () => {
+  test('is registered in the core PluginRegistry alongside PythonStudioPlugin and MainframeConnectedPlugin', () => {
     const registry = new PluginRegistry({ emit: () => {} } as any);
     registerPlugins(registry);
 

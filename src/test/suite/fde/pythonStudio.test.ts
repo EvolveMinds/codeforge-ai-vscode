@@ -599,6 +599,7 @@ from pydantic import BaseModel
 
     setup(() => {
       mockStore = { disabledPlugins: [] };
+      (global as any).__mockVscodeStore = mockStore;
 
       // Ensure vscode is stubbed in Module._resolveFilename and require.cache for headless Mocha
       const Module = require('module');
