@@ -69,6 +69,56 @@ export interface MainframeScreen {
   reactSnippet: string;
 }
 
+export interface ConnectionValidationResult {
+  valid: boolean;
+  isSandbox: boolean;
+  missingFields: string[];
+  message: string;
+}
+
+export function validateMainframeConnectionParams(
+  mode: string,
+  params: { host?: string; port?: number | string; user?: string; password?: string }
+): ConnectionValidationResult {
+  if (mode === 'offline_sandbox' || mode === 'zowe_autodetect') {
+    return {
+      valid: true,
+      isSandbox: mode === 'offline_sandbox',
+      missingFields: [],
+      message: mode === 'offline_sandbox'
+        ? 'Offline Enterprise Sandbox active. Zero credentials required.'
+        : 'Auto-discovered Zowe profile active.'
+    };
+  }
+
+  const missing: string[] = [];
+  if (!params.host || !params.host.trim()) {
+    missing.push('Host / LPAR / IP Address');
+  }
+  if (!params.user || !params.user.trim()) {
+    missing.push('User Profile / RACF ID');
+  }
+  if (!params.password || !params.password.trim()) {
+    missing.push('Password / Passphrase');
+  }
+
+  if (missing.length > 0) {
+    return {
+      valid: false,
+      isSandbox: false,
+      missingFields: missing,
+      message: `Connection validation failed. Missing required credentials: ${missing.join(', ')}.`
+    };
+  }
+
+  return {
+    valid: true,
+    isSandbox: false,
+    missingFields: [],
+    message: `All required credentials verified for mode ${mode}. Ready to connect.`
+  };
+}
+
 export class MainframeScreenEngine {
   private _screens: Map<string, MainframeScreen> = new Map();
   private _currentScreenId: string = 'MAIN';

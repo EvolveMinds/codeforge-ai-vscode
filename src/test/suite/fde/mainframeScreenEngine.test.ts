@@ -13,7 +13,7 @@
  */
 
 import * as assert from 'assert';
-import { MainframeScreenEngine } from '../../../fde/mainframeScreenEngine';
+import { MainframeScreenEngine, validateMainframeConnectionParams } from '../../../fde/mainframeScreenEngine';
 
 suite('IBM Mainframe (z/OS & iSeries AS/400) Screen Engine & Modernization', () => {
   let engine: MainframeScreenEngine;
@@ -200,6 +200,57 @@ suite('IBM Mainframe (z/OS & iSeries AS/400) Screen Engine & Modernization', () 
 
       assert.ok(screen.reactSnippet.includes('export const ActiveJobsTable'));
       assert.ok(screen.reactSnippet.includes('/api/v1/iseries/jobs/active'));
+    });
+  });
+
+  suite('7. Connection Parameters Validation & Checks and Balances', () => {
+    test('passes offline sandbox without any credentials', () => {
+      const res = validateMainframeConnectionParams('offline_sandbox', {});
+      assert.strictEqual(res.valid, true);
+      assert.strictEqual(res.isSandbox, true);
+      assert.strictEqual(res.missingFields.length, 0);
+      assert.ok(res.message.includes('Offline Enterprise Sandbox'));
+    });
+
+    test('fails live TN5250 connection when all required fields are empty', () => {
+      const res = validateMainframeConnectionParams('iseries_5250', { host: '', user: '', password: '' });
+      assert.strictEqual(res.valid, false);
+      assert.strictEqual(res.missingFields.length, 3);
+      assert.ok(res.missingFields.includes('Host / LPAR / IP Address'));
+      assert.ok(res.missingFields.includes('User Profile / RACF ID'));
+      assert.ok(res.missingFields.includes('Password / Passphrase'));
+      assert.ok(res.message.includes('Missing required credentials'));
+    });
+
+    test('fails live connection when only host is provided without user or password', () => {
+      const res = validateMainframeConnectionParams('iseries_5250', { host: 'as400.corp.internal', user: '', password: '' });
+      assert.strictEqual(res.valid, false);
+      assert.strictEqual(res.missingFields.length, 2);
+      assert.ok(res.missingFields.includes('User Profile / RACF ID'));
+      assert.ok(res.missingFields.includes('Password / Passphrase'));
+    });
+
+    test('passes live connection when host, user, and password are all provided', () => {
+      const res = validateMainframeConnectionParams('iseries_5250', {
+        host: 'as400.corp.internal',
+        port: 23,
+        user: 'QSECOFR',
+        password: 'SecretPassword123'
+      });
+      assert.strictEqual(res.valid, true);
+      assert.strictEqual(res.missingFields.length, 0);
+      assert.ok(res.message.includes('verified'));
+    });
+
+    test('passes live z/OSMF connection when required credentials are provided', () => {
+      const res = validateMainframeConnectionParams('live_zosmf', {
+        host: 'zos.bank.internal',
+        port: 10443,
+        user: 'IBMUSER',
+        password: 'RacfPassword'
+      });
+      assert.strictEqual(res.valid, true);
+      assert.strictEqual(res.missingFields.length, 0);
     });
   });
 });

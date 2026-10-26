@@ -11181,8 +11181,9 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
             <!-- Left Card: Subsystem Profile & Credentials -->
             <div class="content-card" style="margin-bottom: 0;">
-              <h4 style="margin: 0 0 10px 0; font-size: 13.5px; color: #fff; display: flex; align-items: center; gap: 6px;">
-                <span>🔌</span> Subsystem Connection &amp; Authentication
+              <h4 style="margin: 0 0 10px 0; font-size: 13.5px; color: #fff; display: flex; justify-content: space-between; align-items: center; gap: 6px;">
+                <span style="display: flex; align-items: center; gap: 6px;"><span>🔌</span> Subsystem Connection &amp; Authentication</span>
+                <span id="badgeSubsystemConnected" style="font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3);">UNVERIFIED</span>
               </h4>
               <div style="margin-bottom: 10px;">
                 <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selMainframeConnMode">Connection Mode &amp; Protocol</label>
@@ -11200,22 +11201,25 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <div id="grpMainframeLiveFields" style="display: none; margin-bottom: 10px;">
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px;">
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeHost">Host / LPAR / IP Address</label>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeHost">Host / LPAR / IP Address <span style="color:#f87171;">*</span></label>
                     <input type="text" id="txtMainframeHost" placeholder="as400.corp.internal or zos.bank.net" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <div id="errMainframeHost" style="color: #f87171; font-size: 9.5px; display: none; margin-top: 2px;">⚠️ Host or IP address is required</div>
                   </div>
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePort">Port</label>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePort">Port <span style="color:#f87171;">*</span></label>
                     <input type="number" id="txtMainframePort" value="23" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
                   </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeUser">User Profile / RACF ID</label>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeUser">User Profile / RACF ID <span style="color:#f87171;">*</span></label>
                     <input type="text" id="txtMainframeUser" placeholder="QSECOFR / IBMUSER / PRODUSER" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <div id="errMainframeUser" style="color: #f87171; font-size: 9.5px; display: none; margin-top: 2px;">⚠️ User Profile or RACF ID is required</div>
                   </div>
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePass">Password / Passphrase</label>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePass">Password / Passphrase <span style="color:#f87171;">*</span></label>
                     <input type="password" id="txtMainframePass" placeholder="••••••••" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <div id="errMainframePass" style="color: #f87171; font-size: 9.5px; display: none; margin-top: 2px;">⚠️ Password or Passphrase is required</div>
                   </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
@@ -11243,6 +11247,22 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 <button class="btn" id="btnMainframeTestConnection" style="font-size: 11px; padding: 6px 14px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;">🔌 Connect &amp; Verify</button>
                 <button class="btn-quick" id="btnMainframeBrowseDatasets" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📁 Browse Datasets / Libraries</button>
                 <button class="btn-quick" id="btnMainframeCheckSpool" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📋 Check Spool / Outq</button>
+              </div>
+
+              <!-- Inline Verification & Diagnostics Deck -->
+              <div id="mainframeConnectionFeedbackBox" style="margin-top: 12px; background: #0b121e; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 11px; color: #e2e8f0; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px;">
+                  <div id="mainframeFeedbackHeader" style="font-weight: 700; font-size: 11.5px; display: flex; align-items: center; gap: 6px;">
+                    <!-- Injected dynamically -->
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button class="btn-quick" id="btnCopyMainframeFeedback" style="font-size: 10px; padding: 2px 8px; cursor: pointer;">📋 Copy</button>
+                    <button class="btn-quick" id="btnDismissMainframeFeedback" style="font-size: 10px; padding: 2px 6px; cursor: pointer;">✕</button>
+                  </div>
+                </div>
+                <div id="mainframeFeedbackBody" style="line-height: 1.5; white-space: pre-wrap; max-height: 220px; overflow-y: auto;">
+                  <!-- Injected dynamically -->
+                </div>
               </div>
             </div>
 
