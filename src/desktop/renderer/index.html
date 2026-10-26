@@ -11162,16 +11162,17 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
               <div>
                 <h3 style="margin: 0; font-size: 18px; color: #fff; display: flex; align-items: center; gap: 10px;">
-                  <span>📟</span> IBM Mainframe (z/OS) &amp; DB2 Modernization Studio
+                  <span>📟</span> IBM Mainframe (z/OS &amp; iSeries AS/400) &amp; DB2 Modernization Studio
                   <span id="badgeMainframeStatus" style="font-size: 10.5px; font-weight: 700; background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 10px; border-radius: 12px;">🟢 Offline Enterprise Sandbox Active</span>
                 </h3>
                 <p class="desc" style="margin: 6px 0 0 0; font-size: 12px; color: var(--text-secondary);">
-                  Enterprise z/OSMF REST gateway, JCL batch stream DAG extraction, CICS online transaction sequence modeling, RACF least-privilege governance, and untouched DB2 schema guardrails.
+                  Interactive IBM iSeries (TN5250 / AS400) &amp; z/OS (TN3270) green screen modernization, z/OSMF REST gateway, JCL/CL batch DAG extraction, CICS transactions, and untouched Db2 for i / z/OS schema guardrails.
                 </p>
               </div>
               <div style="display: flex; gap: 8px;">
+                <button class="btn-quick" id="btnMainframeJumpTerminal" style="font-size: 11px; padding: 5px 12px; color: #38bdf8; border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.08); cursor: pointer; font-weight: 700;">🖥️ Open Interactive Screen</button>
                 <button class="btn-quick" id="btnMainframeSwitchSandbox" style="font-size: 11px; padding: 5px 12px; color: #a855f7; border-color: rgba(168,85,247,0.4); cursor: pointer;">🧪 Load Offline Sandbox</button>
-                <button class="btn-quick" id="btnMainframeRacfGuide" style="font-size: 11px; padding: 5px 12px; color: #fbbf24; border-color: rgba(245,158,11,0.4); cursor: pointer;">🛡️ RACF Clearance Guide</button>
+                <button class="btn-quick" id="btnMainframeRacfGuide" style="font-size: 11px; padding: 5px 12px; color: #fbbf24; border-color: rgba(245,158,11,0.4); cursor: pointer;">🛡️ Security Clearance Guide</button>
               </div>
             </div>
           </div>
@@ -11184,45 +11185,64 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 <span>🔌</span> Subsystem Connection &amp; Authentication
               </h4>
               <div style="margin-bottom: 10px;">
-                <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selMainframeConnMode">Connection Mode</label>
+                <label style="font-size: 11px; font-weight: bold; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selMainframeConnMode">Connection Mode &amp; Protocol</label>
                 <select id="selMainframeConnMode" style="width: 100%; padding: 7px 10px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 12px;">
-                  <option value="offline_sandbox">Built-in Offline Enterprise z/OS Sandbox (Instant Day-1 Productivity)</option>
-                  <option value="zowe_autodetect">Auto-Discovered Zowe CLI Profile (~/.zowe/zowe.config.json)</option>
+                  <option value="offline_sandbox">Built-in Offline Enterprise z/OS &amp; iSeries Sandbox (Instant Day-1 Productivity)</option>
+                  <option value="iseries_5250">IBM iSeries / AS/400 (TN5250 Telnet Stream - Port 23 / 992 SSL)</option>
+                  <option value="iseries_db2">IBM iSeries Db2 for i (DRDA / JT400 Socket - Port 446 / 8471)</option>
+                  <option value="iseries_pase">IBM i PASE SSH / Open-Source Environment (Port 22)</option>
                   <option value="live_zosmf">Live z/OSMF REST Endpoint (HTTPS Port 10443)</option>
                   <option value="db2_drda">Direct DB2 for z/OS DRDA (Port 446 / 5021)</option>
+                  <option value="zowe_autodetect">Auto-Discovered Zowe CLI Profile (~/.zowe/zowe.config.json)</option>
                 </select>
               </div>
 
               <div id="grpMainframeLiveFields" style="display: none; margin-bottom: 10px;">
                 <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-bottom: 8px;">
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeHost">Host / LPAR</label>
-                    <input type="text" id="txtMainframeHost" placeholder="mainframe.bank.internal" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeHost">Host / LPAR / IP Address</label>
+                    <input type="text" id="txtMainframeHost" placeholder="as400.corp.internal or zos.bank.net" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
                   </div>
                   <div>
                     <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePort">Port</label>
-                    <input type="number" id="txtMainframePort" value="10443" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <input type="number" id="txtMainframePort" value="23" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
                   </div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeUser">User ID (RACF)</label>
-                    <input type="text" id="txtMainframeUser" placeholder="IBMUSER / SYS1" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeUser">User Profile / RACF ID</label>
+                    <input type="text" id="txtMainframeUser" placeholder="QSECOFR / IBMUSER / PRODUSER" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
                   </div>
                   <div>
-                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePass">Passphrase / PassTicket</label>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframePass">Password / Passphrase</label>
                     <input type="password" id="txtMainframePass" placeholder="••••••••" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
                   </div>
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="txtMainframeWorkstation">Device / Workstation ID</label>
+                    <input type="text" id="txtMainframeWorkstation" placeholder="QPADEV0001 (Auto-negotiate)" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  </div>
+                  <div>
+                    <label style="font-size: 10.5px; font-weight: bold; color: var(--text-secondary); display: block;" for="selMainframeCcsid">EBCDIC Code Page (CCSID)</label>
+                    <select id="selMainframeCcsid" style="width: 100%; padding: 6px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                      <option value="37" selected>37 - US / Canada EBCDIC</option>
+                      <option value="273">273 - Germany / Austria</option>
+                      <option value="285">285 - United Kingdom</option>
+                      <option value="500">500 - International EBCDIC</option>
+                      <option value="1047">1047 - Open Systems (z/OS)</option>
+                    </select>
+                  </div>
+                </div>
                 <label style="font-size: 10.5px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-                  <input type="checkbox" id="chkMainframeTrustCert" checked> Trust Corporate Internal Root CA / Self-Signed Testbed
+                  <input type="checkbox" id="chkMainframeTrustCert" checked> Trust Corporate Internal Root CA / AT-TLS Self-Signed
                 </label>
               </div>
 
               <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
-                <button class="btn" id="btnMainframeTestConnection" style="font-size: 11px; padding: 6px 14px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;">🔌 Test Connection</button>
-                <button class="btn-quick" id="btnMainframeBrowseDatasets" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📁 Browse Datasets</button>
-                <button class="btn-quick" id="btnMainframeCheckSpool" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📋 Check Spool</button>
+                <button class="btn" id="btnMainframeTestConnection" style="font-size: 11px; padding: 6px 14px; background: var(--accent); color: #1e1e1e; font-weight: 700; cursor: pointer;">🔌 Connect &amp; Verify</button>
+                <button class="btn-quick" id="btnMainframeBrowseDatasets" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📁 Browse Datasets / Libraries</button>
+                <button class="btn-quick" id="btnMainframeCheckSpool" style="font-size: 11px; padding: 6px 12px; cursor: pointer;">📋 Check Spool / Outq</button>
               </div>
             </div>
 
@@ -11254,6 +11274,149 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               </div>
               <div style="font-size: 10px; color: var(--text-muted); background: rgba(255,255,255,0.02); padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border);">
                 🔒 <b>Untouched DB2 Rule:</b> Preflight auditor strictly blocks any ALTER, DROP, or CREATE TABLE in DB2.
+              </div>
+            </div>
+          </div>
+
+          <!-- INTERACTIVE SCREEN & MODERN SCREEN NAVIGATOR -->
+          <div class="content-card" id="cardMainframeScreenStudio" style="margin-bottom: 16px; border-left: 4px solid #38bdf8; background: #0c131d;">
+            <!-- Header Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <h4 style="margin: 0; font-size: 14.5px; color: #fff; display: flex; align-items: center; gap: 8px;">
+                  <span>🖥️</span> Interactive Screen Terminal &amp; Modern Navigator
+                </h4>
+                <span id="badgeActiveScreenId" style="font-size: 10.5px; font-weight: 700; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 10px; border-radius: 12px;">IBM i: MAIN (5250)</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <!-- System Selector -->
+                <select id="selMainframeScreenSystem" style="padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  <option value="iseries_5250">IBM iSeries (AS/400 - TN5250)</option>
+                  <option value="zos_3270">IBM z/OS (Mainframe - TN3270)</option>
+                </select>
+                <!-- Preset Dropdown -->
+                <select id="selMainframeScreenPreset" style="padding: 5px 8px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+                  <!-- Populated dynamically -->
+                </select>
+                <!-- Dual-View Toggle -->
+                <div style="display: flex; background: rgba(255,255,255,0.06); padding: 2px; border-radius: 4px; border: 1px solid var(--border);">
+                  <button class="btn-quick active" id="btnMainframeViewCrt" style="font-size: 10.5px; padding: 4px 8px; margin: 0; cursor: pointer;">📟 CRT Screen</button>
+                  <button class="btn-quick" id="btnMainframeViewModern" style="font-size: 10.5px; padding: 4px 8px; margin: 0; cursor: pointer;">✨ Modern Card View</button>
+                </div>
+                <!-- Phosphor Color Switcher -->
+                <select id="selMainframePhosphorTheme" style="padding: 4px 6px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 10.5px;">
+                  <option value="green">🟢 Phosphor Green</option>
+                  <option value="amber">🟡 Amber 3179</option>
+                  <option value="blue">🔵 Ice Blue Matrix</option>
+                  <option value="white">⚪ Paper White</option>
+                </select>
+                <button class="btn-quick" id="btnMainframeResetScreen" title="Reset to Root Screen" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">🔄 Reset</button>
+              </div>
+            </div>
+
+            <!-- 2-Column Cockpit -->
+            <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 14px;">
+              <!-- Left Column: Terminal & Navigation -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- CRT Viewport -->
+                <div id="mainframeCrtViewport" style="background: #060e08; border: 2px solid rgba(0, 255, 102, 0.4); border-radius: 8px; padding: 12px; box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 0 10px rgba(0,255,102,0.15); overflow-x: auto; min-height: 380px; max-height: 480px; overflow-y: auto;">
+                  <div id="mainframeCrtContent" style="color: #00ff66; text-shadow: 0 0 4px rgba(0,255,102,0.45); font-family: 'Consolas', 'Courier New', monospace; font-size: 11.5px; line-height: 1.35; user-select: text;">
+                    <!-- Injected by MainframeScreenEngine -->
+                  </div>
+                </div>
+
+                <!-- Modern Web Card Viewport (Hidden by default) -->
+                <div id="mainframeModernViewport" style="display: none; background: #0b121e; border: 1px solid var(--border); border-radius: 8px; padding: 14px; min-height: 380px; max-height: 480px; overflow-y: auto;">
+                  <!-- Injected by MainframeScreenEngine -->
+                </div>
+
+                <!-- Function Key Action Strip -->
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; background: rgba(255,255,255,0.03); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); align-items: center;">
+                  <span style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-right: 4px;">F-Keys:</span>
+                  <button class="btn-quick btn-mf-fkey" data-key="F1" style="font-size: 10.5px; padding: 3px 8px; cursor: pointer;">F1 Help</button>
+                  <button class="btn-quick btn-mf-fkey" data-key="F3" style="font-size: 10.5px; padding: 3px 8px; color: #fbbf24; border-color: rgba(251,191,36,0.4); cursor: pointer;">F3 Exit</button>
+                  <button class="btn-quick btn-mf-fkey" data-key="F4" style="font-size: 10.5px; padding: 3px 8px; cursor: pointer;">F4 Prompt</button>
+                  <button class="btn-quick btn-mf-fkey" data-key="F5" style="font-size: 10.5px; padding: 3px 8px; color: #34d399; border-color: rgba(52,211,153,0.4); cursor: pointer;">F5 Refresh</button>
+                  <button class="btn-quick btn-mf-fkey" data-key="F9" style="font-size: 10.5px; padding: 3px 8px; cursor: pointer;">F9 Retrieve</button>
+                  <button class="btn-quick btn-mf-fkey" data-key="F12" style="font-size: 10.5px; padding: 3px 8px; color: #f87171; border-color: rgba(248,113,113,0.4); cursor: pointer;">F12 Cancel</button>
+                  <button class="btn-quick btn-mf-fkey" data-key="Enter" style="font-size: 10.5px; padding: 3px 12px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.5); font-weight: 700; cursor: pointer;">Enter ↵</button>
+                  <span style="flex: 1;"></span>
+                  <span style="font-size: 9.5px; color: var(--text-muted);">💡 Click any underlined option on the screen to navigate instantly!</span>
+                </div>
+
+                <!-- Command Entry Bar with Natural Language Auto-Prompt -->
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <div style="position: relative; flex: 1;">
+                    <input type="text" id="txtMainframeCommandInput" placeholder="Enter CL command (e.g. WRKACTJOB) or ask in plain English (e.g. 'show running jobs')..." style="width: 100%; box-sizing: border-box; padding: 8px 12px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;">
+                  </div>
+                  <button class="btn" id="btnMainframeRunCommand" style="padding: 8px 16px; font-size: 11px; font-weight: 700; background: var(--accent); color: #1e1e1e; cursor: pointer; white-space: nowrap;">Send ↵</button>
+                </div>
+
+                <!-- Quick Command Chips -->
+                <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                  <span style="font-size: 10px; color: var(--text-muted); font-weight: 700;">Quick Commands:</span>
+                  <button class="btn-quick btn-mf-chip" data-cmd="WRKACTJOB" style="font-size: 10px; padding: 2px 7px; color: #38bdf8;">WRKACTJOB</button>
+                  <button class="btn-quick btn-mf-chip" data-cmd="WRKSYSSTS" style="font-size: 10px; padding: 2px 7px; color: #a855f7;">WRKSYSSTS</button>
+                  <button class="btn-quick btn-mf-chip" data-cmd="WRKSPLF" style="font-size: 10px; padding: 2px 7px; color: #34d399;">WRKSPLF</button>
+                  <button class="btn-quick btn-mf-chip" data-cmd="DSPMSG" style="font-size: 10px; padding: 2px 7px; color: #fbbf24;">DSPMSG</button>
+                  <button class="btn-quick btn-mf-chip" data-cmd="STRSQL" style="font-size: 10px; padding: 2px 7px; color: #f472b6;">STRSQL</button>
+                  <button class="btn-quick btn-mf-chip" data-cmd="ISPF" style="font-size: 10px; padding: 2px 7px; color: #e2e8f0;">z/OS ISPF</button>
+                  <button class="btn-quick btn-mf-chip" data-cmd="SDSF" style="font-size: 10px; padding: 2px 7px; color: #60a5fa;">z/OS SDSF</button>
+                </div>
+              </div>
+
+              <!-- Right Column: AI Modernization & REST Blueprint -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                <!-- Telemetry & Screen Specs -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #fff;">📡 Emulation Channel Telemetry</span>
+                    <span id="lblMainframeLockStatus" style="font-size: 9.5px; font-weight: 700; color: #4ade80;">KEYBOARD UNLOCKED</span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 10px; color: var(--text-secondary);">
+                    <div>Protocol: <span id="lblEmulProto" style="color: #38bdf8; font-weight: bold;">TN5250 (Model 11)</span></div>
+                    <div>Host: <span id="lblEmulHost" style="color: #fff;">ISYSTEM1 (Power10)</span></div>
+                    <div>Encoding: <span id="lblEmulCcsid" style="color: #a855f7; font-weight: bold;">EBCDIC CCSID 37</span></div>
+                    <div>Cursor: <span id="lblEmulCursor" style="color: #34d399; font-weight: bold;">Row 20, Col 7</span></div>
+                  </div>
+                </div>
+
+                <!-- Generated REST API Specification -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 4px;">
+                      <span>⚡</span> Modern REST API Specification
+                    </span>
+                    <button class="btn-quick" id="btnCopyMainframeApiSpec" style="font-size: 10px; padding: 2px 8px; cursor: pointer;">📋 Copy API</button>
+                  </div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;" id="lblMainframeApiSummary">
+                    Auto-generated OpenAPI endpoint replacing this green screen.
+                  </div>
+                  <div id="mainframeApiSpecBox" style="background: #090e17; border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 10px; color: #93c5fd; overflow-y: auto; max-height: 125px; white-space: pre-wrap; line-height: 1.4;">
+                    // API Spec will appear here
+                  </div>
+                </div>
+
+                <!-- Generated Modern React / Web Component Blueprint -->
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; flex-direction: column; flex: 1;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11px; font-weight: 700; color: #a855f7; display: flex; align-items: center; gap: 4px;">
+                      <span>⚛️</span> Modern React / Web Component
+                    </span>
+                    <button class="btn-quick" id="btnCopyMainframeReactCode" style="font-size: 10px; padding: 2px 8px; cursor: pointer;">📋 Copy React</button>
+                  </div>
+                  <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 6px;">
+                    TypeScript/React web component that turns this screen into a web card.
+                  </div>
+                  <div id="mainframeReactCodeBox" style="background: #090e17; border: 1px solid rgba(255,255,255,0.06); border-radius: 4px; padding: 8px; font-family: monospace; font-size: 10px; color: #c084fc; overflow-y: auto; max-height: 125px; white-space: pre-wrap; line-height: 1.4;">
+                    // React Component will appear here
+                  </div>
+                </div>
+
+                <!-- Export Action Button -->
+                <button class="btn" id="btnExportScreenContracts" style="background: linear-gradient(135deg, #0284c7, #0369a1); color: #fff; font-size: 11px; font-weight: 700; padding: 7px 14px; cursor: pointer; border: 1px solid rgba(56,189,248,0.4);">
+                  💾 Export OpenAPI &amp; React Blueprint to Workspace
+                </button>
               </div>
             </div>
           </div>
@@ -14524,6 +14687,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
   <script src="flowchart.js"></script>
   <script src="agentBuilder.js"></script>
   <script src="c4Topology.js"></script>
+  <script src="mainframeScreen.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

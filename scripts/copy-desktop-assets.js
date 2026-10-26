@@ -118,6 +118,29 @@ try {
   process.exit(1);
 }
 
+try {
+  const mfScreenModulePath = path.join(__dirname, '..', 'out', 'fde', 'mainframeScreenEngine.js');
+  if (fs.existsSync(mfScreenModulePath)) {
+    const body = fs.readFileSync(mfScreenModulePath, 'utf8');
+    if (/\brequire\s*\(/.test(body)) {
+      console.error('[Desktop Assets] mainframeScreenEngine.js contains require() — it cannot be loaded as a classic script.');
+      process.exit(1);
+    }
+    const shimmed =
+      '(function(){var exports={};var module={exports:exports};\n' +
+      body +
+      '\nglobalThis.EvolveMainframeScreen=exports;})();\n';
+
+    const dest = path.join(__dirname, '..', 'out', 'desktop', 'renderer', 'mainframeScreen.js');
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, shimmed);
+    console.log('[Desktop Assets] Emitted: mainframeScreen.js (classic-script shim)');
+  }
+} catch (e) {
+  console.error('[Desktop Assets] Could not emit mainframeScreen.js:', e.message);
+  process.exit(1);
+}
+
 // Also sync full out/ directory and package.json to VS Code installed extension directories if present
 try {
   const os = require('os');
@@ -140,4 +163,3 @@ try {
 } catch (e) {
   // non-fatal
 }
-

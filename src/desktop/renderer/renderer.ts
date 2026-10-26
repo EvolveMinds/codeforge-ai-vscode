@@ -12221,14 +12221,30 @@ REVOKE ALTER, DROP, INSERT, UPDATE, DELETE ON DATABASE * FROM EVOLVEID;`;
   // ── Mainframe Studio (pane-mainframe) Interactive Controls ─────────────────
   const selConnMode = document.getElementById('selMainframeConnMode') as HTMLSelectElement;
   const grpLiveFields = document.getElementById('grpMainframeLiveFields');
+  const txtPortInput = document.getElementById('txtMainframePort') as HTMLInputElement;
+
   selConnMode?.addEventListener('change', () => {
     const val = selConnMode.value;
+    const isLive = val !== 'offline_sandbox' && val !== 'zowe_autodetect';
     if (grpLiveFields) {
-      grpLiveFields.style.display = (val === 'live_zosmf' || val === 'db2_drda') ? 'block' : 'none';
+      grpLiveFields.style.display = isLive ? 'block' : 'none';
     }
+
+    // Automatically update default port based on subsystem protocol
+    if (txtPortInput) {
+      if (val === 'iseries_5250') txtPortInput.value = '23';
+      else if (val === 'iseries_db2') txtPortInput.value = '446';
+      else if (val === 'iseries_pase') txtPortInput.value = '22';
+      else if (val === 'live_zosmf') txtPortInput.value = '10443';
+      else if (val === 'db2_drda') txtPortInput.value = '446';
+    }
+
     const badge = document.getElementById('badgeMainframeStatus');
     if (badge) {
       if (val === 'offline_sandbox') badge.innerText = '🟢 Offline Enterprise Sandbox Active';
+      else if (val === 'iseries_5250') badge.innerText = '🟢 IBM iSeries TN5250 (Port 23 / 992)';
+      else if (val === 'iseries_db2') badge.innerText = '🟣 Db2 for i DRDA (Port 446)';
+      else if (val === 'iseries_pase') badge.innerText = '🟡 IBM i PASE SSH (Port 22)';
       else if (val === 'zowe_autodetect') badge.innerText = '🟡 Zowe CLI Auto-Detect Active';
       else if (val === 'live_zosmf') badge.innerText = '🔵 Live z/OSMF Mode (Port 10443)';
       else if (val === 'db2_drda') badge.innerText = '🟣 DB2 for z/OS DRDA (Port 446)';
@@ -12237,21 +12253,328 @@ REVOKE ALTER, DROP, INSERT, UPDATE, DELETE ON DATABASE * FROM EVOLVEID;`;
 
   document.getElementById('btnMainframeTestConnection')?.addEventListener('click', () => {
     const mode = selConnMode?.value || 'offline_sandbox';
-    showToast('🔌 Testing Mainframe Subsystem Connectivity...');
+    showToast('🔌 Testing Subsystem Connectivity & Screen Gateway...');
     const consoleOut = document.getElementById('mainframeStudioConsole');
     if (!consoleOut) return;
+
+    const host = (document.getElementById('txtMainframeHost') as HTMLInputElement)?.value || 'as400.corp.internal';
+    const port = txtPortInput?.value || '23';
+    const user = (document.getElementById('txtMainframeUser') as HTMLInputElement)?.value || 'QSECOFR';
+    const ccsid = (document.getElementById('selMainframeCcsid') as HTMLSelectElement)?.value || '37';
+
     if (mode === 'offline_sandbox') {
-      consoleOut.innerText = `✓ [SIMULATION SUCCESSFUL] Connected to Offline IBM z/OS & DB2 Enterprise Sandbox
-Target LPAR:   ZOS_PROD1 (Simulated z/OS V2R5)
-Subsystem:     JES2 + DB2 for z/OS Subsystem DB2P (DRDA Port 446)
-Active CICS:   CICS Transaction Region CICSREG1 (Online Active)
-Status:        100% Ready for Batch & Online Workflow Extraction.`;
+      consoleOut.innerText = `✓ [SIMULATION SUCCESSFUL] Connected to Offline IBM z/OS & iSeries Enterprise Sandbox
+Target Systems: IBM iSeries (AS/400 V7R5M0 on Power10) & IBM z/OS V2R5 (z16)
+Protocols:      TN5250 (Port 23) + TN3270 (Port 23) + DRDA (Port 446) + z/OSMF (Port 10443)
+Active Subsys:  QSYS, QBATCH, QINTER, JES2, DB2P, CICSREG1
+Status:         100% Ready for Interactive Screen Navigation & Workflow Extraction.`;
+    } else if (mode === 'iseries_5250') {
+      consoleOut.innerText = `✓ [TN5250 TELNET STREAM VERIFIED]
+Host:          ${host}:${port} (SSL/TLS Available on Port 992)
+Terminal:      IBM 5250 Model 11 (24x80 Phosphor Matrix)
+Subsystem:     QSYS / Base Operating System V7R5 on IBM Power10
+User Profile:  ${user} (Authority Level: *SECOFR / *SYSOPR)
+Workstation:   QPADEV0001 (Negotiated via Telnet Option 24 Terminal-Type)
+CCSID:         ${ccsid} (Hardware EBCDIC to UTF-8 Translation Active)
+Status:        Keyboard Unlocked. Interactive 5250 screen ready for navigation below.`;
+    } else if (mode === 'iseries_db2') {
+      consoleOut.innerText = `✓ [Db2 FOR i DRDA WIRE PROTOCOL VERIFIED]
+Host:          ${host}:${port} (Central Service Port 8471 / SSL 9471)
+Relational DB: ISYSTEM1 (Integrated Db2 for i)
+Wire Client:   IBM Toolbox for Java (JT400) / DRDA Protocol
+Catalog State: Access granted to SYSIBM.SQLTABLES, SYSCOLUMNS, SYSPROCS
+DDL Policy:    STRICTLY READ-ONLY (Zero Alter / Zero Drop / Zero Create).`;
+    } else if (mode === 'iseries_pase') {
+      consoleOut.innerText = `✓ [IBM i PASE SSH ENVIRONMENT VERIFIED]
+Host:          ${host}:22
+Environment:   Portable Application Solutions Environment (PASE on IBM i)
+Shell:         /QOpenSys/usr/bin/bash
+Open Source:   Python 3.11, Node.js, and git packages verified in /QOpenSys/pkgs.`;
     } else {
       consoleOut.innerText = `✓ [AT-TLS CONNECTIVITY VERIFIED]
-Host:          ${(document.getElementById('txtMainframeHost') as HTMLInputElement)?.value || 'mainframe.bank.internal'}:10443
+Host:          ${host}:${port}
 Protocol:      HTTPS with AT-TLS Encryption (TLSv1.3)
 Character Set: Hardware EBCDIC (IBM-1047) -> UTF-8 Active
 Authorization: READ-ONLY SAF Profile (IZUDFSG.DATASET.READ-ONLY)`;
+    }
+  });
+
+  // ── Interactive Mainframe & iSeries Screen Controller ──────────────────────
+  const mfScreenModule = (globalThis as any).EvolveMainframeScreen;
+  const screenEngine = mfScreenModule?.MainframeScreenEngine ? new mfScreenModule.MainframeScreenEngine() : null;
+
+  const selScreenSystem = document.getElementById('selMainframeScreenSystem') as HTMLSelectElement;
+  const selScreenPreset = document.getElementById('selMainframeScreenPreset') as HTMLSelectElement;
+  const btnViewCrt = document.getElementById('btnMainframeViewCrt');
+  const btnViewModern = document.getElementById('btnMainframeViewModern');
+  const selPhosphor = document.getElementById('selMainframePhosphorTheme') as HTMLSelectElement;
+  const crtViewport = document.getElementById('mainframeCrtViewport');
+  const crtContent = document.getElementById('mainframeCrtContent');
+  const modernViewport = document.getElementById('mainframeModernViewport');
+  const badgeActiveScreen = document.getElementById('badgeActiveScreenId');
+  const txtCmdInput = document.getElementById('txtMainframeCommandInput') as HTMLInputElement;
+  const btnRunCmd = document.getElementById('btnMainframeRunCommand');
+  const btnResetScreen = document.getElementById('btnMainframeResetScreen');
+  const btnJumpTerminal = document.getElementById('btnMainframeJumpTerminal');
+  const apiSpecBox = document.getElementById('mainframeApiSpecBox');
+  const reactCodeBox = document.getElementById('mainframeReactCodeBox');
+  const lblApiSummary = document.getElementById('lblMainframeApiSummary');
+  const lblEmulProto = document.getElementById('lblEmulProto');
+  const lblEmulHost = document.getElementById('lblEmulHost');
+  const lblEmulCcsid = document.getElementById('lblEmulCcsid');
+  const lblEmulCursor = document.getElementById('lblEmulCursor');
+
+  function populateScreenPresets() {
+    if (!screenEngine || !selScreenPreset) return;
+    const sys = screenEngine.systemType;
+    const screens = screenEngine.getScreensForSystem(sys);
+    selScreenPreset.innerHTML = screens.map((s: any) => `<option value="${s.id}">${s.id} - ${s.title}</option>`).join('');
+    selScreenPreset.value = screenEngine.currentScreenId;
+  }
+
+  function renderActiveMainframeScreen() {
+    if (!screenEngine) return;
+    const screen = screenEngine.getCurrentScreen();
+
+    // Update badge
+    if (badgeActiveScreen) {
+      badgeActiveScreen.innerText = `${screen.system === 'iseries_5250' ? 'IBM i' : 'z/OS'}: ${screen.id}`;
+    }
+
+    // Update system selector if needed
+    if (selScreenSystem && selScreenSystem.value !== screen.system) {
+      selScreenSystem.value = screen.system;
+      populateScreenPresets();
+    }
+
+    // Update preset dropdown selection
+    if (selScreenPreset) {
+      selScreenPreset.value = screen.id;
+    }
+
+    // Render CRT Viewport
+    if (crtContent) {
+      crtContent.innerHTML = screenEngine.renderCrtHtml(screen);
+
+      // Attach click listeners to hotspots
+      crtContent.querySelectorAll('.crt-hotspot').forEach((span: Element) => {
+        span.addEventListener('click', () => {
+          const cmd = span.getAttribute('data-cmd');
+          if (cmd) {
+            const res = screenEngine.executeCommand(cmd);
+            showToast(res.message);
+            renderActiveMainframeScreen();
+          }
+        });
+      });
+    }
+
+    // Render Modern Card Viewport
+    if (modernViewport) {
+      modernViewport.innerHTML = screenEngine.renderModernCardHtml(screen);
+
+      // Attach click listeners to modern card action buttons
+      modernViewport.querySelectorAll('.btn-mf-card-action').forEach((btn: Element) => {
+        btn.addEventListener('click', () => {
+          const cmd = btn.getAttribute('data-cmd');
+          if (cmd) {
+            const res = screenEngine.executeCommand(cmd);
+            showToast(res.message);
+            renderActiveMainframeScreen();
+          }
+        });
+      });
+    }
+
+    // Update Telemetry
+    if (lblEmulProto) lblEmulProto.innerText = screen.system === 'iseries_5250' ? 'TN5250 (Model 11)' : 'TN3270 (3278-2)';
+    if (lblEmulHost) lblEmulHost.innerText = screen.system === 'iseries_5250' ? 'ISYSTEM1 (Power10)' : 'SYS1 (z16 Enterprise)';
+    if (lblEmulCcsid) lblEmulCcsid.innerText = screen.system === 'iseries_5250' ? 'EBCDIC CCSID 37' : 'EBCDIC IBM-1047';
+    if (lblEmulCursor) lblEmulCursor.innerText = 'Row 20, Col 7';
+
+    // Update API Spec
+    if (apiSpecBox && screen.apiSpec) {
+      apiSpecBox.innerText = `${screen.apiSpec.method} ${screen.apiSpec.path}\n\n// Response Payload Sample:\n` + JSON.stringify(screen.apiSpec.responseExample, null, 2);
+    }
+    if (lblApiSummary && screen.apiSpec) {
+      lblApiSummary.innerText = screen.apiSpec.summary;
+    }
+
+    // Update React Code
+    if (reactCodeBox && screen.reactSnippet) {
+      reactCodeBox.innerText = screen.reactSnippet;
+    }
+  }
+
+  // Initial population of presets and render
+  if (screenEngine) {
+    populateScreenPresets();
+    renderActiveMainframeScreen();
+  }
+
+  // System selector change
+  selScreenSystem?.addEventListener('change', () => {
+    if (!screenEngine) return;
+    screenEngine.setSystemType(selScreenSystem.value);
+    populateScreenPresets();
+    renderActiveMainframeScreen();
+    showToast(`Switched screen terminal architecture to ${selScreenSystem.value === 'iseries_5250' ? 'IBM iSeries (TN5250)' : 'IBM z/OS (TN3270)'}`);
+  });
+
+  // Preset dropdown change
+  selScreenPreset?.addEventListener('change', () => {
+    if (!screenEngine) return;
+    screenEngine.navigateTo(selScreenPreset.value);
+    renderActiveMainframeScreen();
+    showToast(`Loaded screen: ${selScreenPreset.value}`);
+  });
+
+  // View toggle: CRT vs Modern Card View
+  btnViewCrt?.addEventListener('click', () => {
+    if (crtViewport) crtViewport.style.display = 'block';
+    if (modernViewport) modernViewport.style.display = 'none';
+    btnViewCrt.classList.add('active');
+    btnViewModern?.classList.remove('active');
+  });
+
+  btnViewModern?.addEventListener('click', () => {
+    if (crtViewport) crtViewport.style.display = 'none';
+    if (modernViewport) modernViewport.style.display = 'block';
+    btnViewModern.classList.add('active');
+    btnViewCrt?.classList.remove('active');
+  });
+
+  // Phosphor Theme switcher
+  selPhosphor?.addEventListener('change', () => {
+    const theme = selPhosphor.value;
+    if (!crtViewport || !crtContent) return;
+
+    if (theme === 'green') {
+      crtViewport.style.background = '#060e08';
+      crtViewport.style.borderColor = 'rgba(0, 255, 102, 0.4)';
+      crtContent.style.color = '#00ff66';
+      crtContent.style.textShadow = '0 0 4px rgba(0,255,102,0.45)';
+    } else if (theme === 'amber') {
+      crtViewport.style.background = '#120d04';
+      crtViewport.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+      crtContent.style.color = '#f59e0b';
+      crtContent.style.textShadow = '0 0 4px rgba(245,158,11,0.45)';
+    } else if (theme === 'blue') {
+      crtViewport.style.background = '#05101a';
+      crtViewport.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+      crtContent.style.color = '#38bdf8';
+      crtContent.style.textShadow = '0 0 4px rgba(56,189,248,0.45)';
+    } else if (theme === 'white') {
+      crtViewport.style.background = '#0f172a';
+      crtViewport.style.borderColor = 'rgba(248, 250, 252, 0.4)';
+      crtContent.style.color = '#f8fafc';
+      crtContent.style.textShadow = '0 0 3px rgba(255,255,255,0.3)';
+    }
+  });
+
+  // Function Key Buttons
+  document.querySelectorAll('.btn-mf-fkey').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-key');
+      if (screenEngine && key) {
+        const res = screenEngine.pressFunctionKey(key);
+        showToast(res.message);
+        renderActiveMainframeScreen();
+      }
+    });
+  });
+
+  // Command input execution
+  const executeUserCmd = () => {
+    if (!screenEngine || !txtCmdInput) return;
+    const input = txtCmdInput.value.trim();
+    if (!input) return;
+
+    const res = screenEngine.executeCommand(input);
+    showToast(res.message);
+    txtCmdInput.value = '';
+    renderActiveMainframeScreen();
+  };
+
+  btnRunCmd?.addEventListener('click', executeUserCmd);
+  txtCmdInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      executeUserCmd();
+    }
+  });
+
+  // Quick Command Chips
+  document.querySelectorAll('.btn-mf-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.getAttribute('data-cmd');
+      if (screenEngine && cmd) {
+        const res = screenEngine.executeCommand(cmd);
+        showToast(res.message);
+        renderActiveMainframeScreen();
+      }
+    });
+  });
+
+  // Reset Screen Button
+  btnResetScreen?.addEventListener('click', () => {
+    if (!screenEngine) return;
+    const root = screenEngine.systemType === 'iseries_5250' ? 'MAIN' : 'ISPF_PRIM';
+    screenEngine.navigateTo(root);
+    renderActiveMainframeScreen();
+    showToast(`🔄 Screen reset to root menu (${root}).`);
+  });
+
+  // Jump to Terminal Button from Hero
+  btnJumpTerminal?.addEventListener('click', () => {
+    const card = document.getElementById('cardMainframeScreenStudio');
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      txtCmdInput?.focus();
+      showToast('🖥️ Jumped to Interactive Screen Terminal');
+    }
+  });
+
+  // Copy API Spec
+  document.getElementById('btnCopyMainframeApiSpec')?.addEventListener('click', () => {
+    if (apiSpecBox && api?.system?.copyToClipboard) {
+      api.system.copyToClipboard(apiSpecBox.innerText);
+      showToast('📋 Copied OpenAPI Specification to Clipboard!');
+    }
+  });
+
+  // Copy React Component
+  document.getElementById('btnCopyMainframeReactCode')?.addEventListener('click', () => {
+    if (reactCodeBox && api?.system?.copyToClipboard) {
+      api.system.copyToClipboard(reactCodeBox.innerText);
+      showToast('📋 Copied React Component Blueprint to Clipboard!');
+    }
+  });
+
+  // Export Contracts Button
+  document.getElementById('btnExportScreenContracts')?.addEventListener('click', () => {
+    if (!screenEngine) return;
+    const screen = screenEngine.getCurrentScreen();
+    const manifest = `# 🚀 Modernized Screen Specification: ${screen.id} (${screen.title})
+System: ${screen.system === 'iseries_5250' ? 'IBM iSeries (AS/400 TN5250)' : 'IBM z/OS (TN3270)'}
+
+## 1. OpenAPI 3.0 REST Contract
+Endpoint: ${screen.apiSpec.method} ${screen.apiSpec.path}
+Summary:  ${screen.apiSpec.summary}
+
+Payload Example:
+\`\`\`json
+${JSON.stringify(screen.apiSpec.responseExample, null, 2)}
+\`\`\`
+
+## 2. Modern React / Web Component Blueprint
+\`\`\`tsx
+${screen.reactSnippet}
+\`\`\`
+`;
+    if (api?.system?.copyToClipboard) {
+      api.system.copyToClipboard(manifest);
+      showToast(`💾 Modernized Contracts for screen ${screen.id} copied to clipboard! Ready to save in docs/`);
     }
   });
 
@@ -51097,10 +51420,10 @@ function setupModals(api: any): void {
   const DESKTOP_PLUGINS: DesktopPluginDef[] = [
     {
       id: 'mainframe',
-      name: 'IBM Mainframe (z/OS) & DB2 Connected Studio',
+      name: 'IBM Mainframe (z/OS & iSeries) & DB2 Connected Studio',
       icon: '📟',
       category: 'Mainframe Modernization',
-      description: 'Connect via z/OSMF REST (HTTPS 10443), DB2 DRDA, or Offline Enterprise Sandbox. Extract JCL batch DAGs, CICS online transactions, and export Claude Code contracts.',
+      description: 'Interactive TN5250 (iSeries/AS400) & TN3270 (z/OS) screen modernization, z/OSMF REST gateway, Db2 DRDA, and offline enterprise sandbox. Extract workflows & export React/API contracts.',
       targetTab: 'mainframe',
     },
     {
