@@ -50958,7 +50958,7 @@ function setupModals(api: any): void {
     {
       id: 'mainframe',
       name: 'IBM Mainframe (z/OS) & DB2 Connected Studio',
-      icon: '🖥️',
+      icon: '📟',
       category: 'Mainframe Modernization',
       description: 'Connect via z/OSMF REST (HTTPS 10443), DB2 DRDA, or Offline HCM Sandbox. Extract JCL batch DAGs, CICS online transactions, and export Claude Code contracts.',
       targetTab: 'mainframe',
