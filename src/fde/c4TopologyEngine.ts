@@ -1216,9 +1216,9 @@ export class C4TopologyEngine {
       `}
 
       <!-- Active Architect Lens Indicator -->
-      <g class="c4-lens-indicator" transform="translate(1080, ${isExecutiveMode ? '68' : '32'})">
-        <rect width="290" height="28" rx="14" fill="rgba(15, 23, 42, 0.9)" stroke="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#10b981' : 'rgba(148, 163, 184, 0.4)'))}" stroke-width="1.4"/>
-        <text x="145" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#34d399' : '#e2e8f0'))}">
+      <g class="c4-lens-indicator" transform="translate(1080, ${isExecutiveMode ? '68' : '32'})" style="cursor: pointer; pointer-events: all;" title="Click to cycle Architect Lens (Unified ➔ System ➔ App ➔ Data)">
+        <rect width="290" height="28" rx="14" fill="rgba(15, 23, 42, 0.9)" stroke="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#10b981' : 'rgba(148, 163, 184, 0.4)'))}" stroke-width="1.4" style="pointer-events: all;"/>
+        <text x="145" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#34d399' : '#e2e8f0'))}" style="pointer-events: all;">
           ${lens === 'system' ? '🏛️ SYSTEM ARCHITECT VIEW' : (lens === 'application' ? '⚙️ APPLICATION ARCHITECT VIEW' : (lens === 'data' ? '📊 DATA ARCHITECT VIEW' : '🌐 UNIFIED ARCHITECTURE VIEW'))}
         </text>
       </g>
@@ -1230,36 +1230,38 @@ export class C4TopologyEngine {
         const isDataLens = lens === 'data';
         const isAppLens = lens === 'application';
         const perimeterTag = isSystemLens
-          ? (b.id === 'client' ? ' • [DMZ / TLS 1.3 INGRESS]' :
-             b.id === 'governance' ? ' • [SOX / HIPAA HITL AUDIT]' :
-             b.id === 'core' ? ' • [ZERO-TRUST VPC / AES-256]' :
-             ' • [mTLS & IAM SCOPED]')
+          ? (b.id === 'client' ? '[DMZ / TLS 1.3 INGRESS]' :
+             b.id === 'governance' ? '[SOX / HIPAA HITL AUDIT]' :
+             b.id === 'core' ? '[ZERO-TRUST VPC / AES-256]' :
+             '[mTLS & IAM SCOPED]')
           : (isDataLens
-             ? (b.id === 'core' ? ' • [ACID STORAGE & LINEAGE]' :
-                b.id === 'governance' ? ' • [QUALITY QUARANTINE & AUDIT]' :
-                ' • [DATA STREAM & PIPELINE]')
+             ? (b.id === 'core' ? '[ACID STORAGE & LINEAGE]' :
+                b.id === 'governance' ? '[QUALITY QUARANTINE & AUDIT]' :
+                '[DATA STREAM & PIPELINE]')
              : (isAppLens
-                ? (b.id === 'client' ? ' • [CLIENT APPS & INGRESS]' :
-                   b.id === 'integration' ? ' • [SERVICES & QUEUES]' :
-                   ' • [CORE CAPABILITIES]')
+                ? (b.id === 'client' ? '[CLIENT APPS & INGRESS]' :
+                   b.id === 'integration' ? '[SERVICES & QUEUES]' :
+                   '[CORE CAPABILITIES]')
                 : ''));
 
         const strokeWidth = isSystemLens ? '2.4' : '1.8';
         const glow = isSystemLens ? 'filter="url(#c4-glow-cyan)"' : '';
+        const headerH = perimeterTag ? 36 : 30;
         return `
         <g class="c4-boundary-group" data-c4-boundary-id="${b.id}" transform="translate(${b.x}, ${b.y})" style="cursor: grab;">
           <!-- Dashed boundary card -->
           <rect class="c4-boundary-card" width="${b.w}" height="${b.h}" rx="14" fill="${b.fill}" stroke="${b.stroke}" stroke-width="${strokeWidth}" stroke-dasharray="7 5" ${glow}/>
           <!-- Boundary Header Drag Bar -->
-          <rect class="c4-boundary-header" x="0" y="0" width="${b.w}" height="32" rx="14" fill="${b.headerBg}" style="cursor: move;"/>
-          <text x="14" y="21" fill="${b.text}" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(b.label.toUpperCase())}${perimeterTag}</text>
+          <rect class="c4-boundary-header" x="0" y="0" width="${b.w}" height="${headerH}" rx="14" fill="${b.headerBg}" style="cursor: move;"/>
+          <text x="14" y="${perimeterTag ? '16' : '20'}" fill="${b.text}" font-size="11.5" font-weight="800" letter-spacing="0.5">BOUNDARY: ${escapeXml(b.label.toUpperCase())}</text>
+          ${perimeterTag ? `<text x="14" y="29" fill="${b.stroke}" font-size="9.5" font-weight="700" opacity="0.95">${escapeXml(perimeterTag)}</text>` : ''}
           
           <!-- Boundary Action Pills -->
-          <g class="c4-edit-boundary-pill" data-c4-edit-boundary-id="${b.id}" transform="translate(${b.w - 116}, 6)" style="cursor: pointer; pointer-events: all;">
+          <g class="c4-edit-boundary-pill" data-c4-edit-boundary-id="${b.id}" transform="translate(${b.w - 116}, ${perimeterTag ? 8 : 5})" style="cursor: pointer; pointer-events: all;" title="Edit Boundary">
             <rect width="52" height="20" rx="4" fill="rgba(255, 255, 255, 0.08)" stroke="${b.stroke}" stroke-width="0.8" style="pointer-events: all;"/>
             <text x="26" y="14" fill="${b.text}" font-size="10" font-weight="700" text-anchor="middle" style="pointer-events: all;">✏️ Edit</text>
           </g>
-          <g class="c4-delete-boundary-pill" data-c4-delete-boundary-id="${b.id}" transform="translate(${b.w - 58}, 6)" style="cursor: pointer; pointer-events: all;">
+          <g class="c4-delete-boundary-pill" data-c4-delete-boundary-id="${b.id}" transform="translate(${b.w - 58}, ${perimeterTag ? 8 : 5})" style="cursor: pointer; pointer-events: all;" title="Delete Boundary">
             <rect width="48" height="20" rx="4" fill="rgba(239, 68, 68, 0.15)" stroke="#ef4444" stroke-width="0.8" style="pointer-events: all;"/>
             <text x="24" y="14" fill="#f87171" font-size="10" font-weight="700" text-anchor="middle" style="pointer-events: all;">🗑️ Del</text>
           </g>
@@ -1561,9 +1563,9 @@ export class C4TopologyEngine {
       `}
 
       <!-- Active Architect Lens Indicator in Level 2 -->
-      <g class="c4-lens-indicator" transform="translate(1080, ${isExecutiveMode ? '68' : '32'})">
-        <rect width="290" height="28" rx="14" fill="rgba(15, 23, 42, 0.9)" stroke="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#10b981' : 'rgba(148, 163, 184, 0.4)'))}" stroke-width="1.4"/>
-        <text x="145" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#34d399' : '#e2e8f0'))}">
+      <g class="c4-lens-indicator" transform="translate(1080, ${isExecutiveMode ? '68' : '32'})" style="cursor: pointer; pointer-events: all;" title="Click to cycle Architect Lens (Unified ➔ System ➔ App ➔ Data)">
+        <rect width="290" height="28" rx="14" fill="rgba(15, 23, 42, 0.9)" stroke="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#10b981' : 'rgba(148, 163, 184, 0.4)'))}" stroke-width="1.4" style="pointer-events: all;"/>
+        <text x="145" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="${lens === 'system' ? '#38bdf8' : (lens === 'application' ? '#c084fc' : (lens === 'data' ? '#34d399' : '#e2e8f0'))}" style="pointer-events: all;">
           ${lens === 'system' ? '🏛️ SYSTEM ARCHITECT VIEW' : (lens === 'application' ? '⚙️ APPLICATION ARCHITECT VIEW' : (lens === 'data' ? '📊 DATA ARCHITECT VIEW' : '🌐 UNIFIED ARCHITECTURE VIEW'))}
         </text>
       </g>

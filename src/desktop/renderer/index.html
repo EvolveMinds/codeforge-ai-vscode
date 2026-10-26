@@ -2171,277 +2171,7 @@
                       <div id="fdeC4InspectorBody"></div>
                     </div>
 
-                    <!-- Modal: Human-in-the-Loop (HITL) Review & Override Console -->
-                    <div id="fdeC4HitlModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
-                      <div style="background: #0f172a; border: 2px solid #ef4444; border-radius: 10px; width: 560px; max-width: 92vw; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 25px rgba(239, 68, 68, 0.3); color: #f8fafc;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding-bottom: 8px;">
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 20px;">🚨</span>
-                            <div>
-                              <h3 style="margin: 0; font-size: 14px; color: #f87171;">Human-in-the-Loop Exception Review Console</h3>
-                              <span style="font-size: 10px; color: #94a3b8;">Deterministic Exception Gate — Automation Paused for Clinical Review</span>
-                            </div>
-                          </div>
-                          <button type="button" id="btnFdeC4HitlModalClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer;">✕</button>
-                        </div>
-                        <div id="fdeC4HitlModalBody" style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 16px;"></div>
-                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                          <button type="button" id="btnFdeHitlReject" class="btn-quick" style="border-color: #ef4444; color: #f87171; font-weight: 700;">✕ Reject Referral &amp; Notify</button>
-                          <button type="button" id="btnFdeHitlOverride" class="btn-quick" style="border-color: #10b981; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.15);">✓ Sign &amp; Authorize Manual Override</button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- C4 System / Container / Flow Editor Modal -->
-                    <div id="fdeC4EditModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2100; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
-                      <div style="background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 12px; width: 540px; max-width: 95vw; box-shadow: 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; display: flex; flex-direction: column;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.9);">
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">✏️</span>
-                            <h3 id="fdeC4EditModalTitle" style="margin: 0; font-size: 13px; font-weight: 700; color: #f8fafc;">Edit Architecture Node</h3>
-                          </div>
-                          <button id="btnFdeC4EditModalClose" type="button" class="btn-quick" style="border: none; background: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
-                        </div>
-                        <div id="fdeC4EditModalBody" style="padding: 16px 20px; font-size: 12px; color: #cbd5e1; max-height: 70vh; overflow-y: auto;">
-                          <div style="margin-bottom: 12px;">
-                            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">System / Node Label</label>
-                            <input type="text" id="txtC4EditLabel" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                          </div>
-                          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                            <div style="flex: 1;">
-                              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Role / Subtitle</label>
-                              <input type="text" id="txtC4EditRole" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                            </div>
-                            <div style="flex: 1;">
-                              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Domain Boundary Zone</label>
-                              <select id="selC4EditZone" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                                <option value="client">Client &amp; Ingress</option>
-                                <option value="integration">Integration &amp; Compute</option>
-                                <option value="core">Core Data &amp; Storage</option>
-                                <option value="governance">Human Governance &amp; HITL</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div style="margin-bottom: 12px;">
-                            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Description / Business Capability</label>
-                            <textarea id="txtC4EditDesc" rows="3" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: inherit; resize: vertical;"></textarea>
-                          </div>
-                          <div style="margin-bottom: 12px;">
-                            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Technologies (comma-separated)</label>
-                            <input type="text" id="txtC4EditTech" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                          </div>
-                          <!-- Container-specific Component Contracts & SLA editing -->
-                          <div id="c4EditContractSection" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.25);">
-                            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">SLA Target (ms)</label>
-                                <input type="number" id="txtC4EditSla" placeholder="150" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Retry Policy</label>
-                                <input type="text" id="txtC4EditRetry" placeholder="Max 3 retries (100ms backoff)" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                            </div>
-                            <div>
-                              <label style="font-size: 11px; color: #38bdf8; display: block; margin-bottom: 4px; font-weight: 600;">Data Contracts &amp; Schema (JSON)</label>
-                              <textarea id="txtC4EditContracts" rows="5" placeholder='[{"field":"Visit_ID","type":"String","required":true,"source":"Salesforce","destination":"EMR"}]' style="width: 100%; box-sizing: border-box; background: #0f172a; color: #fbbf24; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px 10px; font-size: 11px; font-family: monospace; resize: vertical;"></textarea>
-                              <span style="font-size: 10px; color: #64748b; margin-top: 3px; display: block;">Edit the Level 3 contracts payload array directly or leave blank to keep existing contracts.</span>
-                            </div>
-                          </div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.6);">
-                          <button id="btnFdeC4EditDelete" type="button" class="btn-quick" style="border-color: #ef4444; color: #ef4444; font-size: 11px; padding: 4px 10px;">🗑️ Delete Node</button>
-                          <div style="display: flex; gap: 8px;">
-                            <button id="btnFdeC4EditCancel" type="button" class="btn-quick" style="font-size: 11px; padding: 4px 12px;">Cancel</button>
-                            <button id="btnFdeC4EditSave" type="button" class="btn-quick active" style="font-size: 11px; padding: 4px 16px; border-color: #38bdf8; color: #38bdf8; font-weight: 700;">Save Changes</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- C4 Boundary Zone Editor & Creation Modal -->
-                    <div id="fdeC4BoundaryModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2150; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
-                      <div style="background: #0f172a; border: 1px solid rgba(192, 132, 252, 0.4); border-radius: 12px; width: 480px; max-width: 95vw; box-shadow: 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; display: flex; flex-direction: column;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid rgba(192, 132, 252, 0.2); background: rgba(15, 23, 42, 0.9);">
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 16px;">🌐</span>
-                            <h3 id="fdeC4BoundaryModalTitle" style="margin: 0; font-size: 13px; font-weight: 700; color: #f8fafc;">Edit Architecture Boundary</h3>
-                          </div>
-                          <button id="btnFdeC4BoundaryClose" type="button" class="btn-quick" style="border: none; background: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
-                        </div>
-                        <div style="padding: 16px 20px; font-size: 12px; color: #cbd5e1;">
-                          <div style="margin-bottom: 12px;">
-                            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Boundary Label / Name</label>
-                            <input type="text" id="txtC4BoundaryLabel" placeholder="e.g. Banking DMZ, PCI Gateway, Analytics Lakehouse" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                          </div>
-                          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                            <div style="flex: 1;">
-                              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Boundary ID (Unique)</label>
-                              <input type="text" id="txtC4BoundaryId" placeholder="e.g. dmz, pci, lakehouse" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                            </div>
-                            <div style="flex: 1;">
-                              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Zone Color Theme</label>
-                              <select id="selC4BoundaryTheme" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                                <option value="client">Client &amp; Ingress (Cyan)</option>
-                                <option value="integration">Integration &amp; Mesh (Purple)</option>
-                                <option value="core">Core Stores &amp; DB (Amber)</option>
-                                <option value="governance">Human Governance &amp; HITL (Red)</option>
-                                <option value="cloud">Cloud / SaaS (Emerald)</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div style="margin-bottom: 12px;">
-                            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Description / Security Isolation Notes</label>
-                            <textarea id="txtC4BoundaryDesc" rows="3" placeholder="Security posture, network isolation, or organizational boundary details" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: inherit; resize: vertical;"></textarea>
-                          </div>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.6);">
-                          <button id="btnFdeC4BoundaryDelete" type="button" class="btn-quick" style="border-color: #ef4444; color: #ef4444; font-size: 11px; padding: 4px 10px;">🗑️ Delete Boundary</button>
-                          <div style="display: flex; gap: 8px;">
-                            <button id="btnFdeC4BoundaryCancel" type="button" class="btn-quick" style="font-size: 11px; padding: 4px 12px;">Cancel</button>
-                            <button id="btnFdeC4BoundarySave" type="button" class="btn-quick active" style="font-size: 11px; padding: 4px 16px; border-color: #c084fc; color: #c084fc; font-weight: 700;">Save Boundary</button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Enterprise Atlassian Synchronization Modal (Jira & Confluence) -->
-                    <div id="fdeAtlassianSyncModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2200; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
-                      <div style="background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 12px; width: 680px; max-width: 95vw; max-height: 90vh; box-shadow: 0 25px 60px rgba(0,0,0,0.85); overflow: hidden; display: flex; flex-direction: column;">
-                        <!-- Modal Header -->
-                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid rgba(99, 102, 241, 0.25); background: rgba(15, 23, 42, 0.95);">
-                          <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 18px;">🔌</span>
-                            <div>
-                              <h3 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #f8fafc;">Enterprise Atlassian Connector (Jira &amp; Confluence)</h3>
-                              <p style="margin: 0; font-size: 11px; color: #94a3b8;">Bi-directional architecture sync, standard C4 / Mermaid export, and corporate security guard</p>
-                            </div>
-                          </div>
-                          <button id="btnFdeAtlassianModalClose" type="button" class="btn-quick" style="border: none; background: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
-                        </div>
-
-                        <!-- Tab Strip -->
-                        <div style="display: flex; gap: 4px; padding: 8px 16px; background: rgba(30, 41, 59, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
-                          <button type="button" class="btn-quick active btn-atlassian-tab" id="btnTabAtlassianConfluence" data-tab="confluence" style="font-size: 11px; font-weight: 700; border-color: #38bdf8; color: #38bdf8;">📘 Confluence Blueprint</button>
-                          <button type="button" class="btn-quick btn-atlassian-tab" id="btnTabAtlassianJira" data-tab="jira" style="font-size: 11px; font-weight: 700; border-color: #a855f7; color: #c084fc;">📗 Jira Issues &amp; Epics</button>
-                          <button type="button" class="btn-quick btn-atlassian-tab" id="btnTabAtlassianSecurity" data-tab="security" style="font-size: 11px; font-weight: 700; border-color: #f59e0b; color: #fbbf24;">🔒 Corporate Security &amp; Credentials</button>
-                        </div>
-
-                        <!-- Scrollable Modal Body -->
-                        <div style="padding: 18px 20px; overflow-y: auto; flex: 1; font-size: 12px; color: #cbd5e1;">
-                          <!-- Tab 1: Confluence -->
-                          <div id="tabAtlassianConfluenceContent">
-                            <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-                              <div style="font-weight: 700; color: #38bdf8; margin-bottom: 2px;">📘 Publish Architecture Specification to Confluence</div>
-                              <div style="font-size: 11px; color: #94a3b8;">Generates an authoritative Confluence page containing the 2D System Context SVG, interactive Mermaid sequence diagram, editable PlantUML C4 DSL, systems catalog, and data contracts.</div>
-                            </div>
-
-                            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Target Space Key</label>
-                                <input type="text" id="txtAtlassianConfSpace" placeholder="e.g. ARCH, ENGR, CLOUD" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                              <div style="flex: 2;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Page Title</label>
-                                <input type="text" id="txtAtlassianConfTitle" placeholder="e.g. Target Architecture Blueprint" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                            </div>
-
-                            <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-                              <button type="button" id="btnAtlassianPublishConfLive" class="btn-quick active" style="font-size: 11px; padding: 6px 14px; border-color: #38bdf8; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15);">🚀 Publish to Confluence (REST API)</button>
-                              <button type="button" id="btnAtlassianExportConfXhtml" class="btn-quick" style="font-size: 11px; padding: 6px 12px; border-color: #10b981; color: #34d399;" title="Download Confluence Storage Format XHTML to import offline or via browser">📄 Download Storage XHTML (.xhtml)</button>
-                              <button type="button" id="btnAtlassianExportConfMd" class="btn-quick" style="font-size: 11px; padding: 6px 12px; border-color: #06b6d4; color: #22d3ee;" title="Download Confluence Markdown">📝 Download Markdown (.md)</button>
-                              <button type="button" id="btnAtlassianCopyConfMarkup" class="btn-quick" style="font-size: 11px; padding: 6px 12px;" title="Copy Confluence-ready markup to clipboard">📋 Copy Confluence Markup</button>
-                            </div>
-
-                            <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
-                              <div style="font-weight: 700; color: #f8fafc; margin-bottom: 4px;">📥 Import Existing Specification from Confluence</div>
-                              <p style="font-size: 11px; color: #94a3b8; margin: 0 0 8px 0;">Paste a Confluence Page URL or Page ID to import existing architecture runbooks or PRDs directly into Evolve AI:</p>
-                              <div style="display: flex; gap: 8px;">
-                                <input type="text" id="txtAtlassianImportConfPage" placeholder="e.g. https://company.atlassian.net/wiki/spaces/ARCH/pages/123456 or 123456" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                                <button type="button" id="btnAtlassianDoImportConf" class="btn-quick" style="border-color: #38bdf8; color: #38bdf8; font-weight: 700; padding: 6px 12px;">📥 Import Spec</button>
-                              </div>
-                            </div>
-                          </div>
-
-                          <!-- Tab 2: Jira -->
-                          <div id="tabAtlassianJiraContent" hidden style="display: none;">
-                            <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-                              <div style="font-weight: 700; color: #c084fc; margin-bottom: 2px;">📗 Export Architecture to Jira Epics &amp; Tasks</div>
-                              <div style="font-size: 11px; color: #94a3b8;">Translates C4 systems into Jira Epics and each integration step into implementation Stories with acceptance criteria, protocols, and data contracts.</div>
-                            </div>
-
-                            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Target Jira Project Key</label>
-                                <input type="text" id="txtAtlassianJiraProject" placeholder="e.g. PROJ, ENG, ARCH" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Default Issue Type</label>
-                                <select id="selAtlassianJiraIssueType" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                                  <option value="Epic">Epic + Stories</option>
-                                  <option value="Task">Tasks Only</option>
-                                </select>
-                              </div>
-                            </div>
-
-                            <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-                              <button type="button" id="btnAtlassianExportJiraLive" class="btn-quick active" style="font-size: 11px; padding: 6px 14px; border-color: #c084fc; color: #c084fc; font-weight: 700; background: rgba(168, 85, 247, 0.15);">🚀 Sync to Jira Board (REST API)</button>
-                              <button type="button" id="btnAtlassianExportJiraCsv" class="btn-quick" style="font-size: 11px; padding: 6px 12px; border-color: #f59e0b; color: #fbbf24;" title="Standard CSV ready for Jira External System Import wizard">📊 Download Bulk Import CSV (.csv)</button>
-                              <button type="button" id="btnAtlassianCopyJiraWiki" class="btn-quick" style="font-size: 11px; padding: 6px 12px;" title="Copy Jira Wiki Markup to clipboard">📋 Copy Jira Wiki Markup</button>
-                            </div>
-                          </div>
-
-                          <!-- Tab 3: Security & Credentials -->
-                          <div id="tabAtlassianSecurityContent" hidden style="display: none;">
-                            <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
-                              <div style="font-weight: 700; color: #fbbf24; margin-bottom: 2px;">🔒 Enterprise Security &amp; Compliance Configuration</div>
-                              <div style="font-size: 11px; color: #94a3b8;">Configure your Atlassian credentials. Evolve AI supports Atlassian Cloud API Tokens, Data Center Personal Access Tokens (PAT), and offline air-gapped workflows.</div>
-                            </div>
-
-                            <div style="margin-bottom: 12px;">
-                              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Atlassian Base URL</label>
-                              <input type="text" id="txtAtlassianBaseUrl" placeholder="https://yourcompany.atlassian.net or internal URL" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                            </div>
-
-                            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">User Email</label>
-                                <input type="email" id="txtAtlassianEmail" placeholder="user@company.com" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                              <div style="flex: 1;">
-                                <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">API Token / PAT</label>
-                                <input type="password" id="txtAtlassianToken" placeholder="Atlassian API Token or PAT" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
-                              </div>
-                            </div>
-
-                            <div style="margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
-                              <label style="font-size: 11.5px; color: #94a3b8; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
-                                <input type="checkbox" id="chkAtlassianIsDc" style="cursor: pointer;"> On-Premise Jira / Confluence Data Center (Bearer Token Auth)
-                              </label>
-                              <button type="button" id="btnAtlassianTestConnection" class="btn-quick" style="border-color: #38bdf8; color: #38bdf8; font-weight: 700; padding: 4px 12px;">🧪 Test Connection &amp; Permissions</button>
-                            </div>
-
-                            <!-- Live Security Diagnostic Result Banner -->
-                            <div id="atlassianDiagBanner" hidden style="display: none; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 11.5px; line-height: 1.45;"></div>
-
-                            <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #94a3b8;">
-                              <strong style="color: #f8fafc;">Enterprise Security Advisory:</strong>
-                              <ul style="margin: 6px 0 0 16px; padding: 0;">
-                                <li><strong>Atlassian Guard IP Allowlist:</strong> If your company enforces an IP allowlist, direct API calls must originate from your corporate VPN or approved IP. Otherwise, use the 1-click offline export buttons.</li>
-                                <li><strong>SSO / SAML Enforcement:</strong> SSO passwords do not work for REST APIs. Generate an API token at <code>id.atlassian.com</code>.</li>
-                                <li><strong>Air-Gapped Compliance:</strong> When operating in high-security isolation, zero network calls leave your machine; all files are emitted locally to <code>exports/architecture/</code>.</li>
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Modal Footer -->
-                        <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.9);">
-                          <button id="btnFdeAtlassianModalDone" type="button" class="btn-quick active" style="font-size: 11.5px; padding: 5px 18px; border-color: #6366f1; color: #a5b4fc; font-weight: 700;">Done</button>
-                        </div>
-                      </div>
-                    </div>
+                    <!-- C4 Modals (HITL, Edit Node, Edit Boundary, Atlassian Sync) moved to body root for global stacking context -->
 
                     <!-- Drag & Drop Requirements Document Overlay -->
                     <div id="fdeTopologyDropOverlay" hidden style="display: none; position: absolute; inset: 0; background: rgba(15, 23, 42, 0.94); border: 2px dashed #38bdf8; border-radius: 8px; z-index: 500; align-items: center; justify-content: center; flex-direction: column; gap: 8px; pointer-events: none;">
@@ -14502,6 +14232,282 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
   <div id="zoomHudToast" style="position: fixed; bottom: 38px; right: 24px; z-index: 10000; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px); border: 1px solid rgba(56, 189, 248, 0.4); color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6); opacity: 0; pointer-events: none; transition: opacity 0.25s ease, transform 0.25s ease; transform: translateY(8px);">
     <span style="color: var(--accent); font-size: 15px;">🔍</span>
     <span id="zoomHudText">Zoom: 100%</span>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- Global C4 Topology & Architecture Modals (Body Root, z-index: 1000005) -->
+  <!-- ===================================================================== -->
+
+  <!-- Modal: Human-in-the-Loop (HITL) Review & Override Console -->
+  <div id="fdeC4HitlModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000005; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+    <div style="background: #0f172a; border: 2px solid #ef4444; border-radius: 10px; width: 560px; max-width: 92vw; padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.9), 0 0 25px rgba(239, 68, 68, 0.3); color: #f8fafc;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🚨</span>
+          <div>
+            <h3 style="margin: 0; font-size: 14px; color: #f87171;">Human-in-the-Loop Exception Review Console</h3>
+            <span style="font-size: 10px; color: #94a3b8;">Deterministic Exception Gate — Automation Paused for Clinical Review</span>
+          </div>
+        </div>
+        <button type="button" id="btnFdeC4HitlModalClose" style="background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer;">✕</button>
+      </div>
+      <div id="fdeC4HitlModalBody" style="font-size: 11.5px; line-height: 1.5; color: #cbd5e1; margin-bottom: 16px;"></div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end;">
+        <button type="button" id="btnFdeHitlReject" class="btn-quick" style="border-color: #ef4444; color: #f87171; font-weight: 700;">✕ Reject Referral &amp; Notify</button>
+        <button type="button" id="btnFdeHitlOverride" class="btn-quick" style="border-color: #10b981; color: #34d399; font-weight: 700; background: rgba(16, 185, 129, 0.15);">✓ Sign &amp; Authorize Manual Override</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- C4 System / Container / Flow Editor Modal -->
+  <div id="fdeC4EditModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000005; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+    <div style="background: #0f172a; border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 12px; width: 540px; max-width: 95vw; box-shadow: 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.9);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">✏️</span>
+          <h3 id="fdeC4EditModalTitle" style="margin: 0; font-size: 13px; font-weight: 700; color: #f8fafc;">Edit Architecture Node</h3>
+        </div>
+        <button id="btnFdeC4EditModalClose" type="button" class="btn-quick" style="border: none; background: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
+      </div>
+      <div id="fdeC4EditModalBody" style="padding: 16px 20px; font-size: 12px; color: #cbd5e1; max-height: 70vh; overflow-y: auto;">
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">System / Node Label</label>
+          <input type="text" id="txtC4EditLabel" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Role / Subtitle</label>
+            <input type="text" id="txtC4EditRole" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Domain Boundary Zone</label>
+            <select id="selC4EditZone" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+              <option value="client">Client &amp; Ingress</option>
+              <option value="integration">Integration &amp; Compute</option>
+              <option value="core">Core Data &amp; Storage</option>
+              <option value="governance">Human Governance &amp; HITL</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Description / Business Capability</label>
+          <textarea id="txtC4EditDesc" rows="3" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: inherit; resize: vertical;"></textarea>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Technologies (comma-separated)</label>
+          <input type="text" id="txtC4EditTech" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+        </div>
+        <!-- Container-specific Component Contracts & SLA editing -->
+        <div id="c4EditContractSection" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(148, 163, 184, 0.25);">
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">SLA Target (ms)</label>
+              <input type="number" id="txtC4EditSla" placeholder="150" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Retry Policy</label>
+              <input type="text" id="txtC4EditRetry" placeholder="Max 3 retries (100ms backoff)" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+          </div>
+          <div>
+            <label style="font-size: 11px; color: #38bdf8; display: block; margin-bottom: 4px; font-weight: 600;">Data Contracts &amp; Schema (JSON)</label>
+            <textarea id="txtC4EditContracts" rows="5" placeholder='[{"field":"Visit_ID","type":"String","required":true,"source":"Salesforce","destination":"EMR"}]' style="width: 100%; box-sizing: border-box; background: #0f172a; color: #fbbf24; border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 8px 10px; font-size: 11px; font-family: monospace; resize: vertical;"></textarea>
+            <span style="font-size: 10px; color: #64748b; margin-top: 3px; display: block;">Edit the Level 3 contracts payload array directly or leave blank to keep existing contracts.</span>
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.6);">
+        <button id="btnFdeC4EditDelete" type="button" class="btn-quick" style="border-color: #ef4444; color: #ef4444; font-size: 11px; padding: 4px 10px;">🗑️ Delete Node</button>
+        <div style="display: flex; gap: 8px;">
+          <button id="btnFdeC4EditCancel" type="button" class="btn-quick" style="font-size: 11px; padding: 4px 12px;">Cancel</button>
+          <button id="btnFdeC4EditSave" type="button" class="btn-quick active" style="font-size: 11px; padding: 4px 16px; border-color: #38bdf8; color: #38bdf8; font-weight: 700;">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C4 Boundary Zone Editor & Creation Modal -->
+  <div id="fdeC4BoundaryModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000005; align-items: center; justify-content: center; backdrop-filter: blur(6px);">
+    <div style="background: #0f172a; border: 1px solid rgba(192, 132, 252, 0.4); border-radius: 12px; width: 480px; max-width: 95vw; box-shadow: 0 20px 50px rgba(0,0,0,0.8); overflow: hidden; display: flex; flex-direction: column;">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid rgba(192, 132, 252, 0.2); background: rgba(15, 23, 42, 0.9);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">🌐</span>
+          <h3 id="fdeC4BoundaryModalTitle" style="margin: 0; font-size: 13px; font-weight: 700; color: #f8fafc;">Edit Architecture Boundary</h3>
+        </div>
+        <button id="btnFdeC4BoundaryClose" type="button" class="btn-quick" style="border: none; background: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
+      </div>
+      <div style="padding: 16px 20px; font-size: 12px; color: #cbd5e1;">
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Boundary Label / Name</label>
+          <input type="text" id="txtC4BoundaryLabel" placeholder="e.g. Banking DMZ, PCI Gateway, Analytics Lakehouse" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Boundary ID (Unique)</label>
+            <input type="text" id="txtC4BoundaryId" placeholder="e.g. dmz, pci, lakehouse" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Zone Color Theme</label>
+            <select id="selC4BoundaryTheme" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+              <option value="client">Client &amp; Ingress (Cyan)</option>
+              <option value="integration">Integration &amp; Mesh (Purple)</option>
+              <option value="core">Core Stores &amp; DB (Amber)</option>
+              <option value="governance">Human Governance &amp; HITL (Red)</option>
+              <option value="cloud">Cloud / SaaS (Emerald)</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Description / Security Isolation Notes</label>
+          <textarea id="txtC4BoundaryDesc" rows="3" placeholder="Security posture, network isolation, or organizational boundary details" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px; font-family: inherit; resize: vertical;"></textarea>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid rgba(148, 163, 184, 0.15); background: rgba(15, 23, 42, 0.6);">
+        <button id="btnFdeC4BoundaryDelete" type="button" class="btn-quick" style="border-color: #ef4444; color: #ef4444; font-size: 11px; padding: 4px 10px;">🗑️ Delete Boundary</button>
+        <div style="display: flex; gap: 8px;">
+          <button id="btnFdeC4BoundaryCancel" type="button" class="btn-quick" style="font-size: 11px; padding: 4px 12px;">Cancel</button>
+          <button id="btnFdeC4BoundarySave" type="button" class="btn-quick active" style="font-size: 11px; padding: 4px 16px; border-color: #c084fc; color: #c084fc; font-weight: 700;">Save Boundary</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enterprise Atlassian Synchronization Modal (Jira & Confluence) -->
+  <div id="fdeAtlassianSyncModal" hidden style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000005; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div style="background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 12px; width: 680px; max-width: 95vw; max-height: 90vh; box-shadow: 0 25px 60px rgba(0,0,0,0.85); overflow: hidden; display: flex; flex-direction: column;">
+      <!-- Modal Header -->
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid rgba(99, 102, 241, 0.25); background: rgba(15, 23, 42, 0.95);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">🔌</span>
+          <div>
+            <h3 style="margin: 0; font-size: 13.5px; font-weight: 700; color: #f8fafc;">Enterprise Atlassian Connector (Jira &amp; Confluence)</h3>
+            <p style="margin: 0; font-size: 11px; color: #94a3b8;">Bi-directional architecture sync, standard C4 / Mermaid export, and corporate security guard</p>
+          </div>
+        </div>
+        <button id="btnFdeAtlassianModalClose" type="button" class="btn-quick" style="border: none; background: none; color: #94a3b8; font-size: 16px; cursor: pointer; padding: 2px 6px;">✕</button>
+      </div>
+
+      <!-- Tab Strip -->
+      <div style="display: flex; gap: 4px; padding: 8px 16px; background: rgba(30, 41, 59, 0.6); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+        <button type="button" class="btn-quick active btn-atlassian-tab" id="btnTabAtlassianConfluence" data-tab="confluence" style="font-size: 11px; font-weight: 700; border-color: #38bdf8; color: #38bdf8;">📘 Confluence Blueprint</button>
+        <button type="button" class="btn-quick btn-atlassian-tab" id="btnTabAtlassianJira" data-tab="jira" style="font-size: 11px; font-weight: 700; border-color: #a855f7; color: #c084fc;">📗 Jira Issues &amp; Epics</button>
+        <button type="button" class="btn-quick btn-atlassian-tab" id="btnTabAtlassianSecurity" data-tab="security" style="font-size: 11px; font-weight: 700; border-color: #f59e0b; color: #fbbf24;">🔒 Corporate Security &amp; Credentials</button>
+      </div>
+
+      <!-- Scrollable Modal Body -->
+      <div style="padding: 18px 20px; overflow-y: auto; flex: 1; font-size: 12px; color: #cbd5e1;">
+        <!-- Tab 1: Confluence -->
+        <div id="tabAtlassianConfluenceContent">
+          <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 2px;">📘 Publish Architecture Specification to Confluence</div>
+            <div style="font-size: 11px; color: #94a3b8;">Generates an authoritative Confluence page containing the 2D System Context SVG, interactive Mermaid sequence diagram, editable PlantUML C4 DSL, systems catalog, and data contracts.</div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Target Space Key</label>
+              <input type="text" id="txtAtlassianConfSpace" placeholder="e.g. ARCH, ENGR, CLOUD" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+            <div style="flex: 2;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Page Title</label>
+              <input type="text" id="txtAtlassianConfTitle" placeholder="e.g. Target Architecture Blueprint" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <button type="button" id="btnAtlassianPublishConfLive" class="btn-quick active" style="font-size: 11px; padding: 6px 14px; border-color: #38bdf8; color: #38bdf8; font-weight: 700; background: rgba(56, 189, 248, 0.15);">🚀 Publish to Confluence (REST API)</button>
+            <button type="button" id="btnAtlassianExportConfXhtml" class="btn-quick" style="font-size: 11px; padding: 6px 12px; border-color: #10b981; color: #34d399;" title="Download Confluence Storage Format XHTML to import offline or via browser">📄 Download Storage XHTML (.xhtml)</button>
+            <button type="button" id="btnAtlassianExportConfMd" class="btn-quick" style="font-size: 11px; padding: 6px 12px; border-color: #06b6d4; color: #22d3ee;" title="Download Confluence Markdown">📝 Download Markdown (.md)</button>
+            <button type="button" id="btnAtlassianCopyConfMarkup" class="btn-quick" style="font-size: 11px; padding: 6px 12px;" title="Copy Confluence-ready markup to clipboard">📋 Copy Confluence Markup</button>
+          </div>
+
+          <div style="border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 14px;">
+            <div style="font-weight: 700; color: #f8fafc; margin-bottom: 4px;">📥 Import Existing Specification from Confluence</div>
+            <p style="font-size: 11px; color: #94a3b8; margin: 0 0 8px 0;">Paste a Confluence Page URL or Page ID to import existing architecture runbooks or PRDs directly into Evolve AI:</p>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="txtAtlassianImportConfPage" placeholder="e.g. https://company.atlassian.net/wiki/spaces/ARCH/pages/123456 or 123456" style="flex: 1; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+              <button type="button" id="btnAtlassianDoImportConf" class="btn-quick" style="border-color: #38bdf8; color: #38bdf8; font-weight: 700; padding: 6px 12px;">📥 Import Spec</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Jira -->
+        <div id="tabAtlassianJiraContent" hidden style="display: none;">
+          <div style="background: rgba(168, 85, 247, 0.08); border: 1px solid rgba(168, 85, 247, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+            <div style="font-weight: 700; color: #c084fc; margin-bottom: 2px;">📗 Export Architecture to Jira Epics &amp; Tasks</div>
+            <div style="font-size: 11px; color: #94a3b8;">Translates C4 systems into Jira Epics and each integration step into implementation Stories with acceptance criteria, protocols, and data contracts.</div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Target Jira Project Key</label>
+              <input type="text" id="txtAtlassianJiraProject" placeholder="e.g. PROJ, ENG, ARCH" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Default Issue Type</label>
+              <select id="selAtlassianJiraIssueType" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+                <option value="Epic">Epic + Stories</option>
+                <option value="Task">Tasks Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <button type="button" id="btnAtlassianExportJiraLive" class="btn-quick active" style="font-size: 11px; padding: 6px 14px; border-color: #c084fc; color: #c084fc; font-weight: 700; background: rgba(168, 85, 247, 0.15);">🚀 Sync to Jira Board (REST API)</button>
+            <button type="button" id="btnAtlassianExportJiraCsv" class="btn-quick" style="font-size: 11px; padding: 6px 12px; border-color: #f59e0b; color: #fbbf24;" title="Standard CSV ready for Jira External System Import wizard">📊 Download Bulk Import CSV (.csv)</button>
+            <button type="button" id="btnAtlassianCopyJiraWiki" class="btn-quick" style="font-size: 11px; padding: 6px 12px;" title="Copy Jira Wiki Markup to clipboard">📋 Copy Jira Wiki Markup</button>
+          </div>
+        </div>
+
+        <!-- Tab 3: Security & Credentials -->
+        <div id="tabAtlassianSecurityContent" hidden style="display: none;">
+          <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 10px 14px; margin-bottom: 14px;">
+            <div style="font-weight: 700; color: #fbbf24; margin-bottom: 2px;">🔒 Enterprise Security &amp; Compliance Configuration</div>
+            <div style="font-size: 11px; color: #94a3b8;">Configure your Atlassian credentials. Evolve AI supports Atlassian Cloud API Tokens, Data Center Personal Access Tokens (PAT), and offline air-gapped workflows.</div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Atlassian Base URL</label>
+            <input type="text" id="txtAtlassianBaseUrl" placeholder="https://yourcompany.atlassian.net or internal URL" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">User Email</label>
+              <input type="email" id="txtAtlassianEmail" placeholder="user@company.com" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">API Token / PAT</label>
+              <input type="password" id="txtAtlassianToken" placeholder="Atlassian API Token or PAT" style="width: 100%; box-sizing: border-box; background: #1e293b; color: #fff; border: 1px solid rgba(148, 163, 184, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 12px;">
+            </div>
+          </div>
+
+          <div style="margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;">
+            <label style="font-size: 11.5px; color: #94a3b8; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="checkbox" id="chkAtlassianIsDc" style="cursor: pointer;"> On-Premise Jira / Confluence Data Center (Bearer Token Auth)
+            </label>
+            <button type="button" id="btnAtlassianTestConnection" class="btn-quick" style="border-color: #38bdf8; color: #38bdf8; font-weight: 700; padding: 4px 12px;">🧪 Test Connection &amp; Permissions</button>
+          </div>
+
+          <!-- Live Security Diagnostic Result Banner -->
+          <div id="atlassianDiagBanner" hidden style="display: none; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 11.5px; line-height: 1.45;"></div>
+
+          <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 6px; padding: 10px 12px; font-size: 11px; color: #94a3b8;">
+            <strong style="color: #f8fafc;">Enterprise Security Advisory:</strong>
+            <ul style="margin: 6px 0 0 16px; padding: 0;">
+              <li><strong>Atlassian Guard IP Allowlist:</strong> If your company enforces an IP allowlist, direct API calls must originate from your corporate VPN or approved IP. Otherwise, use the 1-click offline export buttons.</li>
+              <li><strong>SSO / SAML Enforcement:</strong> SSO passwords do not work for REST APIs. Generate an API token at <code>id.atlassian.com</code>.</li>
+              <li><strong>Air-Gapped Compliance:</strong> When operating in high-security isolation, zero network calls leave your machine; all files are emitted locally to <code>exports/architecture/</code>.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div style="display: flex; justify-content: flex-end; align-items: center; padding: 12px 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); background: rgba(15, 23, 42, 0.9);">
+        <button id="btnFdeAtlassianModalDone" type="button" class="btn-quick active" style="font-size: 11.5px; padding: 5px 18px; border-color: #6366f1; color: #a5b4fc; font-weight: 700;">Done</button>
+      </div>
+    </div>
   </div>
 
   <script>

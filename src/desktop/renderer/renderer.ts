@@ -5653,10 +5653,20 @@ function setupPhase1Discovery(api: any): void {
   };
 
   const openC4Inspector = (containerId: string) => {
-    if (!c4InspectorDrawer || !cachedC4Model) return;
+    if (!c4InspectorDrawer) return;
+    if (!cachedC4Model) {
+      const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+      const src = topologyContainer?.value || '';
+      const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+      if (c4Engine) cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
+    }
+    if (!cachedC4Model) return;
     activeC4ContainerId = containerId;
-    const l3Data = cachedC4Model.level3?.[containerId];
-    const parentContainer = l3Data?.parentContainer || cachedC4Model.level2?.[activeC4SystemId || '']?.containers?.find((c: any) => c.id === containerId);
+    const l3Key = Object.keys(cachedC4Model.level3 || {}).find(k => k.toLowerCase() === containerId.toLowerCase()) || containerId;
+    const l3Data = cachedC4Model.level3?.[l3Key];
+    const parentContainer = l3Data?.parentContainer || cachedC4Model.level2?.[activeC4SystemId || '']?.containers?.find((c: any) =>
+      c.id === containerId || c.id.toLowerCase() === containerId.toLowerCase() || c.label === containerId
+    );
 
     if (c4InspectorTitle) {
       c4InspectorTitle.textContent = parentContainer ? `${parentContainer.label} (Level 3 Component Contracts)` : 'Component Contracts';
@@ -6014,7 +6024,15 @@ function setupPhase1Discovery(api: any): void {
   };
 
   const openC4EditModal = (nodeId: string, isContainer = false) => {
-    if (!modalC4Edit || !cachedC4Model) return;
+    if (!modalC4Edit) return;
+    if (!cachedC4Model) {
+      const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+      const src = topologyContainer?.value || '';
+      const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+      if (c4Engine) cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
+    }
+    if (!cachedC4Model) return;
+
     editingC4NodeId = nodeId;
     isEditingContainer = isContainer;
 
@@ -6023,8 +6041,14 @@ function setupPhase1Discovery(api: any): void {
         c4EditContractSection.hidden = true;
         c4EditContractSection.style.display = 'none';
       }
-      const sys = cachedC4Model.level1.systems.find((s: any) => s.id === nodeId);
+      const sys = cachedC4Model.level1.systems.find((s: any) =>
+        s.id === nodeId ||
+        s.id.toLowerCase() === nodeId.toLowerCase() ||
+        s.label === nodeId ||
+        s.label.toLowerCase() === nodeId.toLowerCase()
+      ) || cachedC4Model.level1.systems[0];
       if (!sys) return;
+      editingC4NodeId = sys.id;
       if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit System: ${sys.label}`;
       if (txtC4EditLabel) txtC4EditLabel.value = sys.label || '';
       if (txtC4EditRole) txtC4EditRole.value = sys.role || '';
@@ -6043,11 +6067,19 @@ function setupPhase1Discovery(api: any): void {
       }
       let cont: any = null;
       if (activeC4SystemId && cachedC4Model.level2?.[activeC4SystemId]) {
-        cont = cachedC4Model.level2[activeC4SystemId].containers.find((c: any) => c.id === nodeId);
+        cont = cachedC4Model.level2[activeC4SystemId].containers.find((c: any) =>
+          c.id === nodeId ||
+          c.id.toLowerCase() === nodeId.toLowerCase() ||
+          c.label === nodeId
+        );
       }
       if (!cont && cachedC4Model.level2) {
         for (const sysId of Object.keys(cachedC4Model.level2)) {
-          const found = cachedC4Model.level2[sysId]?.containers?.find((c: any) => c.id === nodeId);
+          const found = cachedC4Model.level2[sysId]?.containers?.find((c: any) =>
+            c.id === nodeId ||
+            c.id.toLowerCase() === nodeId.toLowerCase() ||
+            c.label === nodeId
+          );
           if (found) {
             cont = found;
             activeC4SystemId = sysId;
@@ -6055,7 +6087,11 @@ function setupPhase1Discovery(api: any): void {
           }
         }
       }
+      if (!cont && activeC4SystemId && cachedC4Model.level2?.[activeC4SystemId]?.containers?.length > 0) {
+        cont = cachedC4Model.level2[activeC4SystemId].containers[0];
+      }
       if (!cont) return;
+      editingC4NodeId = cont.id;
       if (lblC4EditTitle) lblC4EditTitle.textContent = `Edit Container: ${cont.label}`;
       if (txtC4EditLabel) txtC4EditLabel.value = cont.label || '';
       if (txtC4EditRole) txtC4EditRole.value = cont.type?.toUpperCase() || 'API';
@@ -6063,7 +6099,7 @@ function setupPhase1Discovery(api: any): void {
       if (txtC4EditDesc) txtC4EditDesc.value = cont.description || '';
       if (txtC4EditTech) txtC4EditTech.value = cont.technology || '';
 
-      const l3 = cachedC4Model.level3?.[nodeId];
+      const l3 = cachedC4Model.level3?.[cont.id] || cachedC4Model.level3?.[nodeId];
       const comp = l3?.components?.[0];
       if (txtC4EditSla) txtC4EditSla.value = comp?.slaMs ? String(comp.slaMs) : '150';
       if (txtC4EditRetry) txtC4EditRetry.value = comp?.retryPolicy || 'Max 3 retries (100ms backoff)';
@@ -6242,11 +6278,20 @@ function setupPhase1Discovery(api: any): void {
   };
 
   const openC4BoundaryModal = (boundaryId?: string) => {
-    if (!modalC4Boundary || !cachedC4Model) return;
+    if (!modalC4Boundary) return;
+    if (!cachedC4Model) {
+      const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+      const src = topologyContainer?.value || '';
+      const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+      if (c4Engine) cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
+    }
+    if (!cachedC4Model) return;
     editingC4BoundaryId = boundaryId || null;
 
     if (boundaryId) {
-      const z = (cachedC4Model.level1.zones || []).find((zone: any) => zone.id === boundaryId);
+      const z = (cachedC4Model.level1.zones || []).find((zone: any) =>
+        zone.id === boundaryId || zone.id.toLowerCase() === boundaryId.toLowerCase()
+      );
       if (lblC4BoundaryTitle) lblC4BoundaryTitle.textContent = `Edit Architecture Boundary: ${z?.label || boundaryId}`;
       if (txtC4BoundaryLabel) txtC4BoundaryLabel.value = z?.label || '';
       if (txtC4BoundaryId) {
@@ -6323,8 +6368,16 @@ function setupPhase1Discovery(api: any): void {
   });
 
   const deleteC4Boundary = (boundaryId: string) => {
+    if (!cachedC4Model) {
+      const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
+      const src = topologyContainer?.value || '';
+      const archTitle = activeTopologyPresetModified ? `${activeTopologyPresetName} (Modified)` : activeTopologyPresetName;
+      if (c4Engine) cachedC4Model = c4Engine.synthesizeModel(src, archTitle);
+    }
     if (!cachedC4Model) return;
-    const z = (cachedC4Model.level1.zones || []).find((zone: any) => zone.id === boundaryId);
+    const z = (cachedC4Model.level1.zones || []).find((zone: any) =>
+      zone.id === boundaryId || zone.id.toLowerCase() === boundaryId.toLowerCase()
+    );
     const ok = window.confirm(`Are you sure you want to delete boundary "${z?.label || boundaryId}"?`);
     if (!ok) return;
 
@@ -8682,14 +8735,50 @@ function setupPhase1Discovery(api: any): void {
 
   // --- Delegated On-Canvas Click Handlers ---
   renderedPane?.addEventListener('click', (e: MouseEvent) => {
-    if (currentInteractionMode === 'pan' || didDragOnCanvas) return;
     const target = e.target as HTMLElement | SVGElement | null;
     if (!target) return;
 
+    // Explicit action pills & indicators in C4 Topology
+    const editNodePill = target.closest('.c4-edit-node-pill') as SVGElement | null;
+    const editContPill = target.closest('.c4-edit-container-pill') as SVGElement | null;
+    const editBoundaryPill = target.closest('.c4-edit-boundary-pill') as SVGElement | null;
+    const delBoundaryPill = target.closest('.c4-delete-boundary-pill') as SVGElement | null;
+    const drillPill = target.closest('.c4-drill-pill') as SVGElement | null;
+    const contractPill = target.closest('.c4-contract-pill') as SVGElement | null;
+    const c4Hitl = target.closest('.c4-hitl-gate') as SVGElement | null;
+    const lensIndicator = target.closest('.c4-lens-indicator') as SVGElement | null;
+    const c4Node = target.closest('.c4-node-group') as SVGElement | null;
+    const c4Container = target.closest('.c4-container-group') as SVGElement | null;
+
+    const isAction = editNodePill || editContPill || editBoundaryPill || delBoundaryPill || drillPill || contractPill || c4Hitl || lensIndicator || c4Node || c4Container;
+
+    if (!isAction && (currentInteractionMode === 'pan' || didDragOnCanvas)) return;
+    if (didDragOnCanvas) return;
+
     // C4 Topology Delegated Drill-Down & Inspector Click Handlers
     if (currentTopologyViewMode === 'c4') {
-      // 1. Edit Pill clicks
-      const editNodePill = target.closest('.c4-edit-node-pill') as SVGElement | null;
+      // 1. Lens Indicator click: Cycle active architect lens (Unified -> System -> App -> Data)
+      if (lensIndicator) {
+        e.stopPropagation();
+        const lensCycle: Array<'all' | 'system' | 'application' | 'data'> = ['all', 'system', 'application', 'data'];
+        const nextIdx = (lensCycle.indexOf(activeC4Lens) + 1) % lensCycle.length;
+        const nextLens = lensCycle[nextIdx];
+        activeC4Lens = nextLens;
+        document.querySelectorAll('.btn-fde-lens').forEach(b => {
+          b.classList.toggle('active', (b as HTMLElement).dataset.lens === nextLens);
+        });
+        paintC4Topology();
+        const lensNames: Record<string, string> = {
+          all: '🌐 Unified Architecture View',
+          system: '🏛️ System Architect Lens (Trust Boundaries & Security)',
+          application: '⚙️ Application Architect Lens (APIs, Queues & Modularity)',
+          data: '📊 Data Architect Lens (Data Assets, Schemas & Lineage)'
+        };
+        showToast(`Active Lens: ${lensNames[nextLens]}`);
+        return;
+      }
+
+      // 2. Edit Pill clicks
       if (editNodePill) {
         e.stopPropagation();
         const sysId = editNodePill.getAttribute('data-c4-edit-id') || editNodePill.closest('.c4-node-group')?.getAttribute('data-c4-id');
@@ -8697,7 +8786,6 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
-      const editContPill = target.closest('.c4-edit-container-pill') as SVGElement | null;
       if (editContPill) {
         e.stopPropagation();
         const contId = editContPill.getAttribute('data-c4-edit-container-id') || editContPill.closest('.c4-container-group')?.getAttribute('data-c4-id');
@@ -8705,8 +8793,7 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
-      // Boundary Edit & Delete Pills
-      const editBoundaryPill = target.closest('.c4-edit-boundary-pill') as SVGElement | null;
+      // 3. Boundary Edit & Delete Pills
       if (editBoundaryPill) {
         e.stopPropagation();
         const bId = editBoundaryPill.getAttribute('data-c4-edit-boundary-id') || editBoundaryPill.closest('.c4-boundary-group')?.getAttribute('data-c4-boundary-id');
@@ -8714,7 +8801,6 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
-      const delBoundaryPill = target.closest('.c4-delete-boundary-pill') as SVGElement | null;
       if (delBoundaryPill) {
         e.stopPropagation();
         const bId = delBoundaryPill.getAttribute('data-c4-delete-boundary-id') || delBoundaryPill.closest('.c4-boundary-group')?.getAttribute('data-c4-boundary-id');
@@ -8722,17 +8808,14 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
-      // 2. HITL Review Console
-      const c4Hitl = target.closest('.c4-hitl-gate') as SVGElement | null;
+      // 4. HITL Review Console
       if (c4Hitl) {
         e.stopPropagation();
         openHitlReviewConsole();
         return;
       }
 
-      // 3. Drill Down Pill or direct node card click in Level 1
-      const drillPill = target.closest('.c4-drill-pill') as SVGElement | null;
-      const c4Node = target.closest('.c4-node-group') as SVGElement | null;
+      // 5. Drill Down Pill or direct node card click in Level 1
       if ((drillPill || c4Node) && activeC4Level === 1) {
         e.stopPropagation();
         const sysId = (drillPill ? (drillPill.getAttribute('data-c4-drill-id') || drillPill.closest('.c4-node-group')?.getAttribute('data-c4-id')) : c4Node?.getAttribute('data-c4-id'));
@@ -8757,9 +8840,7 @@ function setupPhase1Discovery(api: any): void {
         return;
       }
 
-      // 4. View Contract Pill or direct container card click in Level 2
-      const contractPill = target.closest('.c4-contract-pill') as SVGElement | null;
-      const c4Container = target.closest('.c4-container-group') as SVGElement | null;
+      // 6. View Contract Pill or direct container card click in Level 2
       if ((contractPill || c4Container) && activeC4Level === 2) {
         e.stopPropagation();
         const contId = (contractPill ? (contractPill.getAttribute('data-c4-contract-id') || contractPill.closest('.c4-container-group')?.getAttribute('data-c4-id')) : c4Container?.getAttribute('data-c4-id'));
@@ -9042,13 +9123,20 @@ function setupPhase1Discovery(api: any): void {
       isPanDragging = false;
       try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
       updateCanvasCursor();
-      setTimeout(() => { didDragOnCanvas = false; }, 40);
+      const dist = Math.hypot(e.clientX - panStartX, e.clientY - panStartY);
+      if (dist >= 6) {
+        didDragOnCanvas = true;
+        setTimeout(() => { didDragOnCanvas = false; }, 80);
+      } else {
+        didDragOnCanvas = false;
+      }
       return;
     }
     if (dragKind === ('c4-node' as any) && draggedC4NodeId) {
       const sysId = draggedC4NodeId;
       try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
-      if (didDragOnCanvas) {
+      const dist = Math.hypot(e.clientX - dragC4StartX, e.clientY - dragC4StartY);
+      if (isDraggingOnCanvas || didDragOnCanvas || dist >= 6) {
         const dx = (e.clientX - dragC4StartX) / canvasZoom;
         const dy = (e.clientY - dragC4StartY) / canvasZoom;
         const nx = Math.round(dragC4OrigNodePos.x + dx);
@@ -9056,48 +9144,23 @@ function setupPhase1Discovery(api: any): void {
         c4CustomPositions[sysId] = { x: nx, y: ny };
         paintC4Topology();
         showToast(`📌 Repositioned box: ${sysId}`);
+        didDragOnCanvas = true;
+        setTimeout(() => { didDragOnCanvas = false; }, 80);
       } else {
-        // Direct click on C4 node card or pills
-        const target = (document.elementFromPoint(e.clientX, e.clientY) || e.target) as HTMLElement | SVGElement | null;
-        const editNodePill = target?.closest('.c4-edit-node-pill') || (target?.getAttribute && target.getAttribute('data-c4-edit-id') === sysId);
-        const editContPill = target?.closest('.c4-edit-container-pill') || (target?.getAttribute && target.getAttribute('data-c4-edit-container-id') === sysId);
-
-        if (editNodePill) {
-          openC4EditModal(sysId, false);
-        } else if (editContPill) {
-          openC4EditModal(sysId, true);
-        } else if (activeC4Level === 1) {
-          const isHitl = sysId === 'hitl' || sysId.toLowerCase().includes('hitl') || sysId === 'gov' || sysId === 'HITL_Gate';
-          if (isHitl) {
-            openHitlReviewConsole();
-          } else {
-            const c4Engine = (globalThis as any).EvolveC4Topology?.C4TopologyEngine;
-            if (cachedC4Model) {
-              if (!cachedC4Model.level2?.[sysId] && c4Engine?.ensureLevel2) {
-                c4Engine.ensureLevel2(cachedC4Model, sysId);
-              }
-            }
-            activeC4Level = 2;
-            activeC4SystemId = sysId;
-            paintC4Topology();
-            fitToView();
-          }
-        } else if (activeC4Level === 2) {
-          openC4Inspector(sysId);
-        }
+        didDragOnCanvas = false;
       }
       dragKind = null;
       draggedC4NodeId = null;
       isDraggingC4Node = false;
       isDraggingOnCanvas = false;
-      didDragOnCanvas = false;
       return;
     }
 
     if (dragKind === ('c4-boundary' as any) && draggedC4BoundaryId) {
       const bId = draggedC4BoundaryId;
       try { renderedPane?.releasePointerCapture(e.pointerId); } catch (_) {}
-      if (didDragOnCanvas) {
+      const dist = Math.hypot(e.clientX - dragC4StartX, e.clientY - dragC4StartY);
+      if (isDraggingOnCanvas || didDragOnCanvas || dist >= 6) {
         const dx = (e.clientX - dragC4StartX) / canvasZoom;
         const dy = (e.clientY - dragC4StartY) / canvasZoom;
         const nx = Math.round(dragC4OrigBoundaryPos.x + dx);
@@ -9105,20 +9168,15 @@ function setupPhase1Discovery(api: any): void {
         c4CustomPositions['boundary_' + bId] = { x: nx, y: ny };
         paintC4Topology();
         showToast(`📌 Repositioned boundary: ${bId}`);
+        didDragOnCanvas = true;
+        setTimeout(() => { didDragOnCanvas = false; }, 80);
       } else {
-        const target = (document.elementFromPoint(e.clientX, e.clientY) || e.target) as HTMLElement | SVGElement | null;
-        const delPill = target?.closest('.c4-delete-boundary-pill');
-        if (delPill) {
-          deleteC4Boundary(bId);
-        } else {
-          openC4BoundaryModal(bId);
-        }
+        didDragOnCanvas = false;
       }
       dragKind = null;
       draggedC4BoundaryId = null;
       isDraggingC4Boundary = false;
       isDraggingOnCanvas = false;
-      didDragOnCanvas = false;
       return;
     }
 
@@ -9126,7 +9184,7 @@ function setupPhase1Discovery(api: any): void {
       dragKind = null;
       dragFromIdx = -1;
       isDraggingOnCanvas = false;
-      setTimeout(() => { didDragOnCanvas = false; }, 60);
+      didDragOnCanvas = false;
       return;
     }
     if (isDraggingOnCanvas) {
