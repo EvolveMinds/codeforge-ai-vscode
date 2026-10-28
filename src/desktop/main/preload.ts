@@ -175,7 +175,9 @@ const desktopApi = {
     chat: (req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) =>
       ipcRenderer.invoke(DESKTOP_CHANNELS.AI.CHAT, req),
     getModels: () => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.GET_MODELS),
-    pullModel: (modelName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.PULL_MODEL, modelName)
+    pullModel: (modelName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.PULL_MODEL, modelName),
+    testKey: (req: { provider: string; apiKey?: string; trustCorporateProxy?: boolean }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.AI.TEST_KEY, req)
   },
 
   // --- ENTERPRISE & FDE CORE ENGINES ---

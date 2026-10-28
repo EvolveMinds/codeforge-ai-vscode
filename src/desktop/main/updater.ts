@@ -37,9 +37,31 @@ if not exist "%CER_PATH%" (
     set CER_PATH=%~dp0..\\build-certs\\evolve-enterprise-dev.cer
 )
 if not exist "%CER_PATH%" (
-    echo [ERROR] Certificate file not found (checked %~dp0evolve-enterprise-dev.cer and %~dp0..\\build-certs\\evolve-enterprise-dev.cer)
-    pause
-    exit /b 1
+    echo [INFO] Local certificate file not found. Extracting embedded pilot certificate...
+    set CER_PATH=%TEMP%\\evolve-enterprise-dev.cer
+    (
+        echo -----BEGIN CERTIFICATE-----
+        echo MIIDRjCCAi6gAwIBAgIQaQQYdD9LYJ9HRRCmlWoxnTANBgkqhkiG9w0BAQsFADA7MTkwNwYDVQQD
+        echo DDBFdm9sdmUgTWluZCBTb2x1dGlvbnMgUHR5IEx0ZCAoRW50ZXJwcmlzZSBQaWxvdCkwHhcNMjYx
+        echo MDE5MDQyMDIzWhcNMzExMDE5MDQzMDIzWjA7MTkwNwYDVQQDDDBFdm9sdmUgTWluZCBTb2x1dGlv
+        echo bnMgUHR5IEx0ZCAoRW50ZXJwcmlzZSBQaWxvdCkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK
+        echo AoIBAQC2ClJ2O5XzhkoBvkpI5NrMauQEYHzF5sZkdeTFUPrMbozhqD7WM/KCl1DLvL2+cpetGz9n
+        echo IrI6QFHR46lgR0/qx3ww7Ag1seKNl+zB25hhkk/2cfc4O+59kQv+cnWsYpo7re3q1+X4eycD6uFZ
+        echo 6lK+bh9btHmjEAnBYuG601noMEm2gZDS5jTzuEt6VkTIFt9JhgRzfxANSqqDIf9Sdy5zI8xlTN+b
+        echo CRU6ieX4OBlHl03PCW1Q9Bs3m5TclD5H1P2OyQjFX+lHcHMiWdwpGJDAxNCum0Bk20jGBKEhPQfj
+        echo TWOEDViAXfVgTZCrLj8RBKguF33O9RJ63QQ2lwdi6DS9AgMBAAGjRjBEMA4GA1UdDwEB/wQEAwIH
+        echo gDATBgNVHSUEDDAKBggrBgEFBQcDAzAdBgNVHQ4EFgQUg0w0/she8JGj6M3tel/ANTcOdP0wDQYJ
+        echo KoZIhvcNAQELBQADggEBABTBujXb5YdDQWskK892W0oPZGMPFe6BDtPTNeoIFFGZlK3XvCTcChgp
+        echo GKr9IQNYSzBdMffHap/CZxiCs4zeZDiVo0i14KFniSM0NuLywhNR2rMw01LGP1Tp7P3TycqfseuS
+        echo K5TW4FC+iNXQpoRG/UTWjR9T91XoyT7Z8JQHCXSSpn0WLeP6easRkKGYC2ayXka8dSinSnzoN7Vl
+        echo /Wn+/YLiIIX/NT4YeEkEaYDpC7hBWve66/74VwcZQhg2Fb59DY91MMCghjmg7V2lI5eI5tCVYXGd
+        echo RqPoEoIzRheNf3PP6s4h5hTPEAV5GUcj3ptJ59UzVkYHex7cGrlAxSVthyg=
+        echo -----END CERTIFICATE-----
+    ) > "%TEMP%\\evolve-enterprise-dev-b64.pem"
+    certutil.exe -decode "%TEMP%\\evolve-enterprise-dev-b64.pem" "%CER_PATH%" >nul 2>&1
+    if not exist "%CER_PATH%" (
+        set CER_PATH=%TEMP%\\evolve-enterprise-dev-b64.pem
+    )
 )
 
 echo [1/3] Installing Certificate into Local Machine: Trusted Publishers...
@@ -100,12 +122,15 @@ if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Adm
     exit
 }
 
-if (-not (Test-Path $CerPath)) {
-    Write-Error "Certificate not found at: $CerPath"
-    exit 1
+$cert = $null
+if (-not [string]::IsNullOrWhiteSpace($CerPath) -and (Test-Path $CerPath)) {
+    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($CerPath)
+} else {
+    Write-Host "[INFO] Local certificate file not found. Loading embedded pilot certificate..." -ForegroundColor Yellow
+    $b64Cert = "MIIDRjCCAi6gAwIBAgIQaQQYdD9LYJ9HRRCmlWoxnTANBgkqhkiG9w0BAQsFADA7MTkwNwYDVQQDDDBFdm9sdmUgTWluZCBTb2x1dGlvbnMgUHR5IEx0ZCAoRW50ZXJwcmlzZSBQaWxvdCkwHhcNMjYxMDE5MDQyMDIzWhcNMzExMDE5MDQzMDIzWjA7MTkwNwYDVQQDDDBFdm9sdmUgTWluZCBTb2x1dGlvbnMgUHR5IEx0ZCAoRW50ZXJwcmlzZSBQaWxvdCkwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC2ClJ2O5XzhkoBvkpI5NrMauQEYHzF5sZkdeTFUPrMbozhqD7WM/KCl1DLvL2+cpetGz9nIrI6QFHR46lgR0/qx3ww7Ag1seKNl+zB25hhkk/2cfc4O+59kQv+cnWsYpo7re3q1+X4eycD6uFZ6lK+bh9btHmjEAnBYuG601noMEm2gZDS5jTzuEt6VkTIFt9JhgRzfxANSqqDIf9Sdy5zI8xlTN+bCRU6ieX4OBlHl03PCW1Q9Bs3m5TclD5H1P2OyQjFX+lHcHMiWdwpGJDAxNCum0Bk20jGBKEhPQfjTWOEDViAXfVgTZCrLj8RBKguF33O9RJ63QQ2lwdi6DS9AgMBAAGjRjBEMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDAzAdBgNVHQ4EFgQUg0w0/she8JGj6M3tel/ANTcOdP0wDQYJKoZIhvcNAQELBQADggEBABTBujXb5YdDQWskK892W0oPZGMPFe6BDtPTNeoIFFGZlK3XvCTcChgpGKr9IQNYSzBdMffHap/CZxiCs4zeZDiVo0i14KFniSM0NuLywhNR2rMw01LGP1Tp7P3TycqfseuSK5TW4FC+iNXQpoRG/UTWjR9T91XoyT7Z8JQHCXSSpn0WLeP6easRkKGYC2ayXka8dSinSnzoN7Vl/Wn+/YLiIIX/NT4YeEkEaYDpC7hBWve66/74VwcZQhg2Fb59DY91MMCghjmg7V2lI5eI5tCVYXGdRqPoEoIzRheNf3PP6s4h5hTPEAV5GUcj3ptJ59UzVkYHex7cGrlAxSVthyg="
+    $certBytes = [Convert]::FromBase64String($b64Cert)
+    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(,$certBytes)
 }
-
-$cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($CerPath)
 Write-Host "Certificate: $($cert.Subject)" -ForegroundColor Yellow
 Write-Host "Thumbprint:  $($cert.Thumbprint)" -ForegroundColor Yellow
 

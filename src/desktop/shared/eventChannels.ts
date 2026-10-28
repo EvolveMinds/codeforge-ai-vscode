@@ -122,7 +122,8 @@ export const DESKTOP_CHANNELS = {
   AI: {
     CHAT: 'evolve:ai:chat',
     GET_MODELS: 'evolve:ai:get-models',
-    PULL_MODEL: 'evolve:ai:pull-model'
+    PULL_MODEL: 'evolve:ai:pull-model',
+    TEST_KEY: 'evolve:ai:test-key'
   },
 
   ENGINES: {

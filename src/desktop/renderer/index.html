@@ -961,7 +961,6 @@
         </div>
       </div>
 
-      <button class="btn-quick" id="btnHeaderConnectDb" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.4); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Connect to Live Database (PostgreSQL, MySQL, Snowflake, BigQuery, etc.)" aria-label="Connect Live Database">🔌 Live DB</button>
       <button class="btn-quick" id="btnHeaderHelpGuide" style="background: rgba(99, 102, 241, 0.18); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.45); font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s ease;" title="Evolve Virtual Assistant &amp; Workflow Navigation Guide" aria-label="Virtual Assistant Guide">💡 Virtual Guide</button>
       <button class="header-pill success" id="btnLicenseModal" style="font-weight: 700;" aria-label="Enterprise Platinum">💎 Enterprise Platinum</button>
     </div>
@@ -13303,37 +13302,102 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
 
         <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">CLOUD AI API KEYS (ENCRYPTED IN HARDWARE VAULT)</div>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 10px;">
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyAnthropic">ANTHROPIC API KEY</label>
-              <input type="password" id="cfgKeyAnthropic" placeholder="sk-ant-api03-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="sk-ant-api03-..."/>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyAnthropic">ANTHROPIC API KEY / AUTH TOKEN</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyAnthropic" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="anthropic" data-input="cfgKeyAnthropic" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify Anthropic key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
+              <input type="password" id="cfgKeyAnthropic" placeholder="sk-ant-api03-... or ANTHROPIC_AUTH_TOKEN bearer token" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="sk-ant-api03-... or ANTHROPIC_AUTH_TOKEN bearer token"/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyGemini">GOOGLE GEMINI API KEY</label>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgAnthropicBaseUrl">ANTHROPIC BASE URL / GATEWAY ENDPOINT (ENTERPRISE / OPTIONAL)</label>
+              <input type="text" id="cfgAnthropicBaseUrl" placeholder="https://api.anthropic.com (or corporate proxy e.g. https://ai-gateway.clientcorp.internal/v1)" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="Anthropic Base URL" />
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                Leave empty for direct API. Set if client routes Claude via internal AI gateway (LiteLLM, Portkey, Azure APIM, or PrivateLink VPC proxy).
+              </div>
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyGemini">GOOGLE GEMINI API KEY</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyGemini" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="gemini" data-input="cfgKeyGemini" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify Gemini key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
               <input type="password" id="cfgKeyGemini" placeholder="AIzaSy..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="AIzaSy..."/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyOpenai">OPENAI API KEY</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyOpenai">OPENAI API KEY</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyOpenai" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="openai" data-input="cfgKeyOpenai" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify OpenAI key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
               <input type="password" id="cfgKeyOpenai" placeholder="sk-proj-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="sk-proj-..."/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyZai">GLM / Z.AI API KEY</label>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgOpenaiBaseUrl">OPENAI BASE URL / AZURE OPENAI (ENTERPRISE / OPTIONAL)</label>
+              <input type="text" id="cfgOpenaiBaseUrl" placeholder="https://api.openai.com/v1 (or corporate gateway / Azure OpenAI endpoint)" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="OpenAI Base URL" />
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyZai">GLM / Z.AI API KEY</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyZai" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="zai" data-input="cfgKeyZai" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify Z.ai key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
               <input type="password" id="cfgKeyZai" placeholder="Z.ai API key..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="Z.ai API key"/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyDeepseek">DEEPSEEK API KEY</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyDeepseek">DEEPSEEK API KEY</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyDeepseek" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="deepseek" data-input="cfgKeyDeepseek" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify DeepSeek key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
               <input type="password" id="cfgKeyDeepseek" placeholder="sk-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="DeepSeek API key"/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyGroq">GROQ API KEY</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyGroq">GROQ API KEY</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyGroq" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="groq" data-input="cfgKeyGroq" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify Groq key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
               <input type="password" id="cfgKeyGroq" placeholder="gsk_..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="Groq API key"/>
             </div>
             <div>
-              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgKeyHuggingface">HUGGING FACE API KEY</label>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyHuggingface">HUGGING FACE API KEY</label>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span id="statusKeyHuggingface" style="font-size: 10.5px; display: none;"></span>
+                  <button type="button" class="btn-quick btn-test-key" data-provider="huggingface" data-input="cfgKeyHuggingface" style="font-size: 10px; padding: 2px 8px; border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Send a 1-token test ping to verify Hugging Face key and connectivity">⚡ Test Key</button>
+                </div>
+              </div>
               <input type="password" id="cfgKeyHuggingface" placeholder="hf_..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="Hugging Face API key"/>
             </div>
           </div>
-          <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+
+          <!-- Corporate Proxy & TLS Interception Setting -->
+          <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: #cbd5e1; cursor: pointer;">
+              <input type="checkbox" id="chkTrustCorporateProxy" checked />
+              <span>🛡️ <strong>Trust Corporate SSL Inspection Proxies</strong> (Permits Zscaler, Netskope &amp; enterprise root CAs)</span>
+            </label>
+            <div style="font-size: 10px; color: var(--text-muted); margin-left: 22px; margin-top: 3px; line-height: 1.35;">
+              Prevents <code>self signed certificate in certificate chain</code> errors when operating inside corporate office firewalls.
+            </div>
+          </div>
+
+          <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
             <button class="btn" id="btnSaveAiSettings" style="background: var(--accent); color: #1e1e1e; font-weight: 700; font-size: 11.5px; padding: 6px 14px;" aria-label="Save AI Config">💾 Save AI Config</button>
           </div>
         </div>

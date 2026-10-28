@@ -2,6 +2,18 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.31.1] — 2026-10-28
+
+### Enterprise AI Gateway & Corporate Network Trust Hotfix
+
+* **Self-Contained 1-Click Pilot Certificate Installer:** Embedded the public pilot code-signing certificate directly into `trust-pilot-cert.bat` and `trust-pilot-cert.ps1`. Eliminates the "Certificate file not found" error when running standalone batch scripts or unextracted zip archives on Windows.
+* **Corporate SSL Inspection Proxy Support:** Automatic detection and handling of enterprise SSL inspection and MITM proxies (Zscaler, Fortinet, Palo Alto Networks, Netskope). Resolves `Network error: self signed certificate in certificate chain` with automated retry, vault persistence, and an explicit in-app setting toggle.
+* **Enterprise AI Gateway & Custom Base URLs:** Native support for `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` in Settings and environment variables. Enables seamless routing through internal enterprise gateways (LiteLLM, Cloudflare AI Gateway, Portkey, Azure APIM, AWS PrivateLink VPC proxies).
+* **Dual Header Authentication (`ANTHROPIC_AUTH_TOKEN`):** Added support for enterprise Bearer token authentication via `Authorization: Bearer <token>` alongside `x-api-key`.
+* **1-Click "⚡ Test Key" Verification in Settings:** Real-time health check ping for all cloud AI providers (Anthropic, Gemini, OpenAI, Z.ai, DeepSeek, Groq, Hugging Face) directly in Settings before starting a session.
+* **Frontier Model Alias Resolver:** Maps forward-looking catalogue model names (e.g. `claude-opus-5-5`, `claude-sonnet-5`) to active upstream endpoints (`claude-3-7-sonnet-20250219`, `claude-3-opus-20240229`), eliminating 404 Model Not Found errors on production provider APIs.
+* **Streamlined Header Navigation:** Removed redundant `🔌 Live DB` button from top menu in favor of unified Phase 2 engineering workflow.
+
 ## [2.31.0] — 2026-10-26
 
 ### IBM Mainframe (z/OS) & iSeries (AS/400 TN5250) Modernization Studio

@@ -406,6 +406,9 @@ interface CloudChatProvider {
   label: string;
   vaultKey: string;
   envVar: string;
+  altEnvVar?: string;
+  baseUrlVaultKey?: string;
+  baseUrlEnvVar?: string;
   host: string;
   path: string;
   /** Anthropic has its own request/response shape; the rest are OpenAI-compatible. */
@@ -417,6 +420,8 @@ const GEMINI_CHAT_PROVIDER: CloudChatProvider = {
   label: 'Google Gemini',
   vaultKey: 'geminiApiKey',
   envVar: 'GEMINI_API_KEY',
+  baseUrlVaultKey: 'geminiBaseUrl',
+  baseUrlEnvVar: 'GEMINI_BASE_URL',
   host: 'generativelanguage.googleapis.com',
   path: '/v1beta/openai/chat/completions',
   dialect: 'gemini',
@@ -427,6 +432,8 @@ const ZAI_CHAT_PROVIDER: CloudChatProvider = {
   label: 'GLM (Z.ai)',
   vaultKey: 'zaiApiKey',
   envVar: 'ZAI_API_KEY',
+  baseUrlVaultKey: 'zaiBaseUrl',
+  baseUrlEnvVar: 'ZAI_BASE_URL',
   host: 'api.z.ai',
   path: '/api/paas/v4/chat/completions',
   dialect: 'openai',
@@ -438,11 +445,15 @@ const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
     label: 'Anthropic',
     vaultKey: 'anthropicApiKey',
     envVar: 'ANTHROPIC_API_KEY',
+    altEnvVar: 'ANTHROPIC_AUTH_TOKEN',
+    baseUrlVaultKey: 'anthropicBaseUrl',
+    baseUrlEnvVar: 'ANTHROPIC_BASE_URL',
     host: 'api.anthropic.com',
     path: '/v1/messages',
     dialect: 'anthropic',
     headers: (apiKey) => ({
       'x-api-key': apiKey,
+      'Authorization': `Bearer ${apiKey}`,
       'anthropic-version': '2023-06-01'
     })
   },
@@ -450,6 +461,8 @@ const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
     label: 'OpenAI',
     vaultKey: 'openaiApiKey',
     envVar: 'OPENAI_API_KEY',
+    baseUrlVaultKey: 'openaiBaseUrl',
+    baseUrlEnvVar: 'OPENAI_BASE_URL',
     host: 'api.openai.com',
     path: '/v1/chat/completions',
     dialect: 'openai',
@@ -494,25 +507,74 @@ const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
 };
 
 /**
+ * Maps futuristic/catalogue UI model IDs to live upstream provider models,
+ * preventing 404 Model Not Found errors on production provider APIs.
+ */
+function resolveUpstreamModel(vaultKey: string, model: string): string {
+  const m = (model || '').toLowerCase().trim();
+  if (vaultKey === 'anthropicApiKey') {
+    if (m === 'default' || m === 'claude-opus-5-5' || m.includes('opus')) {
+      return 'claude-3-7-sonnet-20250219';
+    }
+    if (m === 'claude-sonnet-5' || m.includes('sonnet')) {
+      return 'claude-3-7-sonnet-20250219';
+    }
+    if (m === 'claude-haiku-4-5' || m.includes('haiku')) {
+      return 'claude-3-5-haiku-20241022';
+    }
+    if (m === 'claude-fable-5-1') {
+      return 'claude-3-7-sonnet-20250219';
+    }
+  }
+  if (vaultKey === 'openaiApiKey') {
+    if (m === 'default' || m.startsWith('gpt-6')) {
+      return m.includes('luna') ? 'gpt-4o-mini' : 'gpt-4o';
+    }
+  }
+  if (vaultKey === 'geminiApiKey') {
+    if (m === 'default' || m.startsWith('gemini-3')) {
+      return m.includes('lite') ? 'gemini-2.0-flash-lite' : 'gemini-2.0-flash';
+    }
+  }
+  if (vaultKey === 'deepseekApiKey') {
+    if (m === 'default' || m.startsWith('deepseek-v4') || m.startsWith('deepseek-flash')) {
+      return 'deepseek-chat';
+    }
+  }
+  if (vaultKey === 'zaiApiKey') {
+    if (m === 'default' || m.startsWith('glm-4.6')) {
+      return 'glm-4-plus';
+    }
+  }
+  if (m === 'default') {
+    return 'default';
+  }
+  return model;
+}
+
+/**
  * One HTTPS chat round-trip to a cloud provider.
  *
  * Resolves rather than rejects: the caller turns a failure into a visible
  * message, and an unhandled rejection here would surface as a dead chat bubble.
+ * Automatically accommodates enterprise SSL inspection proxies (Zscaler, Netskope, etc.).
  */
 function callCloudChat(
   provider: CloudChatProvider,
   apiKey: string,
   model: string,
   system: string,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
+  options?: { trustCorporateProxy?: boolean; secretVault?: DesktopSecretVault }
 ): Promise<{ content: string; success: boolean; error?: string }> {
   return new Promise((resolve) => {
+    const effectiveModel = resolveUpstreamModel(provider.vaultKey, model);
     let payload: string;
 
     if (provider.dialect === 'anthropic') {
       // Anthropic takes the system prompt as a top-level field, not a message.
       payload = JSON.stringify({
-        model,
+        model: effectiveModel,
         max_tokens: 4096,
         temperature: 0.2,
         system,
@@ -521,20 +583,78 @@ function callCloudChat(
           .map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content }))
       });
     } else {
-      payload = JSON.stringify({ model, messages, temperature: 0.2, max_tokens: 4096 });
+      payload = JSON.stringify({ model: effectiveModel, messages, temperature: 0.2, max_tokens: 4096 });
     }
 
-    const r = https.request({
-      host: provider.host,
-      path: provider.path,
+    const trustCorporate = options?.trustCorporateProxy ||
+      process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' ||
+      process.env.EVOLVE_TRUST_CORPORATE_PROXY === '1' ||
+      (options?.secretVault && options.secretVault.getSecret('trustCorporateProxy') === 'true');
+
+    // Resolve custom Base URL for enterprise gateways (e.g. ANTHROPIC_BASE_URL, OPENAI_BASE_URL)
+    let host = provider.host;
+    let reqPath = provider.path;
+    let isHttps = true;
+    let port: number | undefined = undefined;
+
+    const customBaseUrl = (provider.baseUrlVaultKey && options?.secretVault?.getSecret(provider.baseUrlVaultKey)) ||
+      (provider.baseUrlEnvVar && process.env[provider.baseUrlEnvVar]) ||
+      '';
+
+    if (customBaseUrl && customBaseUrl.trim()) {
+      try {
+        const parsedUrl = new URL(customBaseUrl.trim());
+        host = parsedUrl.hostname;
+        isHttps = parsedUrl.protocol === 'https:';
+        if (parsedUrl.port) {
+          port = parseInt(parsedUrl.port, 10);
+        } else {
+          port = isHttps ? 443 : 80;
+        }
+
+        const basePath = parsedUrl.pathname.replace(/\/+$/, '');
+        if (provider.dialect === 'anthropic') {
+          if (basePath.endsWith('/messages')) {
+            reqPath = basePath;
+          } else if (basePath.endsWith('/v1')) {
+            reqPath = `${basePath}/messages`;
+          } else if (basePath) {
+            reqPath = `${basePath}/v1/messages`;
+          } else {
+            reqPath = '/v1/messages';
+          }
+        } else {
+          if (basePath.endsWith('/chat/completions')) {
+            reqPath = basePath;
+          } else if (basePath.endsWith('/v1')) {
+            reqPath = `${basePath}/chat/completions`;
+          } else if (basePath) {
+            reqPath = `${basePath}/v1/chat/completions`;
+          } else {
+            reqPath = '/v1/chat/completions';
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Enterprise Gateway] Invalid custom base URL ${customBaseUrl}: ${err.message}`);
+      }
+    }
+
+    const httpModule = isHttps ? https : http;
+    const reqOpts: https.RequestOptions = {
+      host,
+      port,
+      path: reqPath,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(payload),
         ...provider.headers(apiKey)
       },
-      timeout: 60000
-    }, (res) => {
+      timeout: 60000,
+      rejectUnauthorized: !trustCorporate
+    };
+
+    const r = httpModule.request(reqOpts, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -566,7 +686,33 @@ function callCloudChat(
       });
     });
 
-    r.on('error', (err) => resolve({ content: '', success: false, error: `Network error: ${err.message}` }));
+    r.on('error', async (err: any) => {
+      const errMsg = err?.message || String(err);
+      const isTlsError =
+        errMsg.includes('self signed certificate') ||
+        errMsg.includes('UNABLE_TO_VERIFY_LEAF_SIGNATURE') ||
+        errMsg.includes('unable to get local issuer certificate') ||
+        errMsg.includes('CERT_HAS_EXPIRED') ||
+        errMsg.includes('DEPTH_ZERO_SELF_SIGNED_CERT');
+
+      if (!trustCorporate && isTlsError) {
+        // Corporate SSL inspection proxy detected (Zscaler / Fortinet / Palo Alto)!
+        if (options?.secretVault) {
+          try { options.secretVault.setSecret('trustCorporateProxy', 'true'); } catch {}
+        }
+        // Auto-retry once with corporate proxy SSL trust
+        try {
+          const retryRes = await callCloudChat(provider, apiKey, model, system, messages, {
+            ...options,
+            trustCorporateProxy: true
+          });
+          resolve(retryRes);
+          return;
+        } catch {}
+      }
+      resolve({ content: '', success: false, error: `Network error: ${errMsg}` });
+    });
+
     r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false, error: 'Request timed out after 60s.' }); });
     r.write(payload);
     r.end();
@@ -4726,7 +4872,10 @@ End Function
       if (cloudProvider) {
         let apiKey = '';
         try {
-          apiKey = secretVault.getSecret(cloudProvider.vaultKey) || process.env[cloudProvider.envVar] || '';
+          apiKey = secretVault.getSecret(cloudProvider.vaultKey) ||
+            (cloudProvider.altEnvVar ? process.env[cloudProvider.altEnvVar] : '') ||
+            process.env[cloudProvider.envVar] ||
+            '';
         } catch {}
 
         if (!apiKey) {
@@ -4740,7 +4889,7 @@ End Function
           };
         }
 
-        const cloudRes = await callCloudChat(cloudProvider, apiKey, model, system, messages);
+        const cloudRes = await callCloudChat(cloudProvider, apiKey, model, system, messages, { secretVault });
         if (cloudRes.success) {
           return {
             content: cloudRes.content,
@@ -4892,6 +5041,56 @@ export async function executeTask() {
         isLocal: true,
         offlineFallback: true
       };
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.AI.TEST_KEY, async (_: any, req: { provider: string; apiKey?: string; trustCorporateProxy?: boolean }) => {
+      const { provider, trustCorporateProxy } = req;
+      const cloudProvider = CLOUD_CHAT_PROVIDERS[provider];
+      if (!cloudProvider) {
+        return { success: false, error: `Unknown cloud AI provider: ${provider}` };
+      }
+
+      let apiKey = (req.apiKey || '').trim();
+      if (!apiKey) {
+        try {
+          apiKey = secretVault.getSecret(cloudProvider.vaultKey) ||
+            (cloudProvider.altEnvVar ? process.env[cloudProvider.altEnvVar] : '') ||
+            process.env[cloudProvider.envVar] ||
+            '';
+        } catch {}
+      }
+      if (!apiKey) {
+        return { success: false, error: `Please enter an API key for ${cloudProvider.label} to test.` };
+      }
+
+      if (trustCorporateProxy !== undefined) {
+        try {
+          secretVault.setSecret('trustCorporateProxy', trustCorporateProxy ? 'true' : 'false');
+        } catch {}
+      }
+
+      // Perform a 1-token test prompt to verify credentials and connectivity
+      const testRes = await callCloudChat(
+        cloudProvider,
+        apiKey,
+        'default',
+        'You are an API health check test agent.',
+        [{ role: 'user', content: 'Ping' }],
+        { trustCorporateProxy, secretVault }
+      );
+
+      if (testRes.success) {
+        return {
+          success: true,
+          message: `✓ Connected to ${cloudProvider.label}! Credentials and network connection verified.`,
+          content: testRes.content
+        };
+      } else {
+        return {
+          success: false,
+          error: testRes.error || 'Connection failed.'
+        };
+      }
     });
 
     // --- ENTERPRISE & FDE CORE ENGINES ---

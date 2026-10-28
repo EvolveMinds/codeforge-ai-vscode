@@ -38,8 +38,10 @@ const CLOUD_PROVIDER_KEYS: Record<string, { label: string; vaultKey: string }> =
 /** Settings → Security & Vault key fields, as {input element id: vault key}. */
 const VAULT_KEY_FIELDS: Record<string, string> = {
   cfgKeyAnthropic: 'anthropicApiKey',
+  cfgAnthropicBaseUrl: 'anthropicBaseUrl',
   cfgKeyGemini: 'geminiApiKey',
   cfgKeyOpenai: 'openaiApiKey',
+  cfgOpenaiBaseUrl: 'openaiBaseUrl',
   cfgKeyZai: 'zaiApiKey',
   cfgKeyDeepseek: 'deepseekApiKey',
   cfgKeyGroq: 'groqApiKey',
@@ -57967,6 +57969,11 @@ if __name__ == '__main__':
           if (input && stored) input.value = stored;
         } catch {}
       }
+      try {
+        const trustProxy = await api.vault.getSecret('trustCorporateProxy');
+        const chkProxy = document.getElementById('chkTrustCorporateProxy') as HTMLInputElement;
+        if (chkProxy) chkProxy.checked = trustProxy !== 'false';
+      } catch {}
     }
   };
 
@@ -58111,8 +58118,102 @@ if __name__ == '__main__':
         const value = (document.getElementById(inputId) as HTMLInputElement)?.value.trim();
         if (value) await api.vault.setSecret(vaultKey, value);
       }
+      const chkProxy = document.getElementById('chkTrustCorporateProxy') as HTMLInputElement;
+      if (chkProxy) {
+        await api.vault.setSecret('trustCorporateProxy', chkProxy.checked ? 'true' : 'false');
+      }
     }
-    showToast('✓ AI server URLs & API keys safely stored in local encrypted vault.');
+    showToast('✓ AI server URLs, API keys & proxy settings safely stored in local encrypted vault.');
+  });
+
+  // Test Cloud AI API Keys
+  document.querySelectorAll('.btn-test-key').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const target = e.currentTarget as HTMLButtonElement;
+      const provider = target.dataset.provider || '';
+      const inputId = target.dataset.input || '';
+      const input = document.getElementById(inputId) as HTMLInputElement;
+      const keyVal = input?.value.trim();
+      const chkProxy = document.getElementById('chkTrustCorporateProxy') as HTMLInputElement;
+      const trustCorporate = chkProxy ? chkProxy.checked : true;
+
+      const providerCap = provider.charAt(0).toUpperCase() + provider.slice(1);
+      const statusEl = document.getElementById(`statusKey${providerCap}`);
+      if (statusEl) {
+        statusEl.style.display = 'inline';
+        statusEl.style.color = '#38bdf8';
+        statusEl.innerHTML = 'Testing... ⏳';
+      }
+      target.disabled = true;
+
+      try {
+        if (!keyVal && api?.vault) {
+          const vaultKey = VAULT_KEY_FIELDS[inputId];
+          if (vaultKey) {
+            const stored = await api.vault.getSecret(vaultKey);
+            if (!stored) {
+              if (statusEl) {
+                statusEl.style.color = '#ef4444';
+                statusEl.innerHTML = '✗ Missing Key';
+              }
+              showToast(`⚠️ Please enter an API key for ${providerCap} first.`);
+              target.disabled = false;
+              return;
+            }
+          }
+        }
+
+        if (api?.vault) {
+          if (provider === 'anthropic') {
+            const baseUrlVal = (document.getElementById('cfgAnthropicBaseUrl') as HTMLInputElement)?.value.trim();
+            if (baseUrlVal !== undefined) await api.vault.setSecret('anthropicBaseUrl', baseUrlVal);
+          } else if (provider === 'openai') {
+            const baseUrlVal = (document.getElementById('cfgOpenaiBaseUrl') as HTMLInputElement)?.value.trim();
+            if (baseUrlVal !== undefined) await api.vault.setSecret('openaiBaseUrl', baseUrlVal);
+          }
+        }
+
+        if (api?.ai?.testKey) {
+          const res = await api.ai.testKey({
+            provider,
+            apiKey: keyVal,
+            trustCorporateProxy: trustCorporate
+          });
+          if (res.success) {
+            if (statusEl) {
+              statusEl.style.color = '#22c55e';
+              statusEl.innerHTML = '✓ Verified';
+              statusEl.title = res.message || 'Key verified successfully';
+            }
+            showToast(res.message || `✓ ${providerCap} API key verified successfully!`);
+            // Auto-persist valid key into vault
+            if (keyVal && api?.vault) {
+              const vaultKey = VAULT_KEY_FIELDS[inputId];
+              if (vaultKey) await api.vault.setSecret(vaultKey, keyVal);
+            }
+          } else {
+            if (statusEl) {
+              statusEl.style.color = '#ef4444';
+              statusEl.innerHTML = '✗ Failed';
+              statusEl.title = res.error || 'Connection failed';
+            }
+            showToast(`⚠️ ${providerCap} test failed: ${res.error}`);
+          }
+        } else {
+          showToast('⚠️ AI test API not available.');
+        }
+      } catch (err: any) {
+        if (statusEl) {
+          statusEl.style.color = '#ef4444';
+          statusEl.innerHTML = '✗ Error';
+          statusEl.title = err.message || 'Error testing key';
+        }
+        showToast(`⚠️ Test error: ${err.message}`);
+      } finally {
+        target.disabled = false;
+      }
+    });
   });
 
   // Save Profile Settings

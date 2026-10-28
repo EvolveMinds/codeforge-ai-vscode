@@ -1,5 +1,27 @@
 # Evolve AI — Release Notes
 
+## Version 2.31.1 — October 28, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.31.1 is an enterprise operational hotfix addressing corporate SSL inspection proxies, internal AI gateways, custom base URLs, self-contained trust tooling, and direct API key testing.
+
+* **Embedded 1-Click Trust Certificate Tool:** The public pilot certificate is now embedded directly inside `trust-pilot-cert.bat` and `trust-pilot-cert.ps1`. Works 100% standalone anywhere without requiring sibling files or extracting archives first.
+* **Corporate SSL Inspection Proxy Compatibility:** Automatic handling of enterprise TLS interception (Zscaler, Netskope, Fortinet, Palo Alto) preventing `self signed certificate in certificate chain` errors on office workstations.
+* **Enterprise AI Gateway & Custom Base URLs:** Native support for `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` for routing through corporate proxies (LiteLLM, Cloudflare AI Gateway, Portkey, Azure APIM, PrivateLink).
+* **Dual Header Auth (`ANTHROPIC_AUTH_TOKEN`):** Automatic support for Bearer tokens alongside standard `x-api-key` headers.
+* **In-App 1-Click "⚡ Test Key" Health Check:** Instant verification of API keys and connectivity inside Settings.
+* **Frontier Model Alias Resolver:** Maps futuristic catalogue names to active upstream provider models to eliminate 404 Model Not Found errors.
+* **Cleaned Header Bar:** Removed the redundant "Live DB" button from the top navigation bar.
+
+---
+
 ## Version 2.31.0 — October 26, 2026
 
 **Publisher:** `codeforge-ai`  

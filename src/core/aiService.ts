@@ -556,7 +556,10 @@ export class AIService implements IAIService {
 
   private async* _streamAnthropic(req: AIRequest, cfg: vscode.WorkspaceConfiguration): AsyncGenerator<string> {
     // [FIX-4] Read from SecretStorage only — never fall back to settings.json
-    const key = await this._secrets.get(SECRET_ANTHROPIC) ?? '';
+    const key = (await this._secrets.get(SECRET_ANTHROPIC)) ??
+      process.env.ANTHROPIC_AUTH_TOKEN ??
+      process.env.ANTHROPIC_API_KEY ??
+      '';
     if (!key) {
       yield `⚠ **No Anthropic API key configured**\n\n`;
       yield `To use Claude:\n`;
@@ -565,7 +568,10 @@ export class AIService implements IAIService {
       yield `Your key is stored securely in VS Code's encrypted storage — never in plaintext.\n`;
       return;
     }
-    const url  = new URL('https://api.anthropic.com/v1/messages');
+    const rawBaseUrl = readHostSetting('aiForge', 'anthropicBaseUrl', process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com');
+    const baseUrl = (rawBaseUrl || 'https://api.anthropic.com').trim();
+    const endpointUrl = baseUrl.endsWith('/messages') ? baseUrl : (baseUrl.endsWith('/v1') ? baseUrl + '/messages' : baseUrl + '/v1/messages');
+    const url  = new URL(endpointUrl);
     const body = JSON.stringify({
       model: req.modelOverride || cfg.get<string>('anthropicModel', 'claude-sonnet-4-6'),
       max_tokens: req.maxOutputTokens ?? 4096, stream: true,
@@ -577,7 +583,7 @@ export class AIService implements IAIService {
         if (!c.startsWith('data:')) return '';
         try { return JSON.parse(c.slice(5).trim()).delta?.text || ''; } catch { return ''; }
       },
-      { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      { 'x-api-key': key, 'Authorization': `Bearer ${key}`, 'anthropic-version': '2023-06-01' },
       req.signal, this._timeoutMs('cloud')
     );
   }

@@ -204,7 +204,10 @@ export class CoreAIService {
   }
 
   private async* _streamAnthropic(req: CoreAIRequest): AsyncGenerator<string> {
-    const key = await this._vault.getSecret('aiForge.anthropicKey');
+    const key = (await this._vault.getSecret('aiForge.anthropicKey')) ||
+      (await this._vault.getSecret('anthropicApiKey')) ||
+      process.env.ANTHROPIC_AUTH_TOKEN ||
+      process.env.ANTHROPIC_API_KEY;
     if (!key) {
       yield* this._streamOffline(req);
       return;
@@ -228,9 +231,13 @@ export class CoreAIService {
       stream: true
     });
 
-    const parsed = new URL('https://api.anthropic.com/v1/messages');
+    const rawBaseUrl = process.env.ANTHROPIC_BASE_URL || (await this._vault.getSecret('anthropicBaseUrl')) || 'https://api.anthropic.com';
+    const baseUrl = rawBaseUrl.trim();
+    const endpointUrl = baseUrl.endsWith('/messages') ? baseUrl : (baseUrl.endsWith('/v1') ? `${baseUrl}/messages` : `${baseUrl}/v1/messages`);
+    const parsed = new URL(endpointUrl);
     const headers = {
       'x-api-key': key,
+      'Authorization': `Bearer ${key}`,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json'
     };
