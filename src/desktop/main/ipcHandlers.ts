@@ -5163,8 +5163,11 @@ End Function
         else model = 'gemini-2.0-flash';
       }
 
+      // Inform the model of its exact identity so it never hallucinates or gets confused about its model
+      const modelContextPrompt = `${system}\n\n[Active Model Identity]\nYou are running as active model: "${model}" (Provider: ${provider.toUpperCase()}). When asked what model, version, or AI you are, state directly that you are running on "${model}".`;
+
       const messages = [
-        { role: 'system', content: system },
+        { role: 'system', content: modelContextPrompt },
         ...history.map((h: any) => ({ role: h.role || 'user', content: h.content })),
         { role: 'user', content: prompt }
       ];
@@ -5191,7 +5194,7 @@ End Function
           };
         }
 
-        const cloudRes = await callCloudChat(cloudProvider, apiKey, model, system, messages, { secretVault });
+        const cloudRes = await callCloudChat(cloudProvider, apiKey, model, modelContextPrompt, messages, { secretVault });
         if (cloudRes.success) {
           return {
             content: cloudRes.content,

@@ -48133,6 +48133,49 @@ function setupAiChatStudio(api: any): void {
     }
   });
 
+    // Query /v1/models directly from gateway
+  const btnDiscoverGateway = document.getElementById('btnDiscoverGatewayModels');
+  const lblDiscoverStatus = document.getElementById('lblGatewayDiscoverStatus');
+
+  btnDiscoverGateway?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!api?.ai?.listRemoteModels) return;
+
+    if (lblDiscoverStatus) lblDiscoverStatus.textContent = 'Probing endpoint...';
+    try {
+      const res = await api.ai.listRemoteModels({ provider: activeSelectedProvider });
+      if (res && res.success && Array.isArray(res.models) && res.models.length > 0) {
+        if (lblDiscoverStatus) lblDiscoverStatus.textContent = `Found ${res.models.length} gateway models!`;
+
+        // Prepend discovered models to IN_CHAT_ALL_MODELS
+        res.models.forEach((remoteId: string) => {
+          if (!IN_CHAT_ALL_MODELS.some(x => x.id === remoteId)) {
+            IN_CHAT_ALL_MODELS.unshift({
+              id: remoteId,
+              name: remoteId,
+              provider: activeSelectedProvider,
+              providerLabel: activeSelectedProvider.toUpperCase() + ' (Gateway Live)',
+              icon: '📡',
+              badge: 'Live Gateway Model',
+              context: 'Gateway',
+              desc: 'Discovered from live gateway /v1/models endpoint.'
+            });
+          }
+        });
+
+        renderInChatModelList('', activeChatModelTab);
+        showToast(`✓ Discovered ${res.models.length} models on your gateway!`);
+      } else {
+        const msg = res?.error || 'No models returned from /v1/models.';
+        if (lblDiscoverStatus) lblDiscoverStatus.textContent = 'Endpoint probe failed';
+        showToast('⚠️ Gateway probe: ' + msg);
+      }
+    } catch (err: any) {
+      if (lblDiscoverStatus) lblDiscoverStatus.textContent = 'Error querying endpoint';
+      showToast('⚠️ Query error: ' + err.message);
+    }
+  });
+
   btnCloseChatModelPopover?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (chatModelPopover) chatModelPopover.style.display = 'none';
@@ -48527,8 +48570,13 @@ function setupAiChatStudio(api: any): void {
     const aiDiv = document.createElement('div');
     aiDiv.className = 'chat-bubble ai';
     aiDiv.style.cssText = 'background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;';
-    aiDiv.innerHTML = `<div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-      <span>🚀</span> Evolve AI:
+    aiDiv.innerHTML = `<div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span>🚀</span> Evolve AI:
+      </div>
+      <span class="ai-model-tag" style="font-size: 10px; font-family: monospace; color: var(--text-muted); background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border); font-weight: normal;">
+        ${escapeHtml(safeModel)}
+      </span>
     </div>
     <div class="ai-content-body" style="color: var(--text-secondary); font-size: 12px; font-style: italic;">
       Thinking &amp; generating solution... ⏳
@@ -48547,6 +48595,14 @@ function setupAiChatStudio(api: any): void {
         });
 
         const content = response.content || 'I processed your request.';
+        const modelUsed = response.modelUsed || safeModel;
+        const isError = response.error || content.includes('request failed') || content.includes('HTTP 400') || content.includes('HTTP 404');
+
+        const modelTag = aiDiv.querySelector('.ai-model-tag');
+        if (modelTag) {
+          modelTag.textContent = modelUsed;
+        }
+
         const contentBody = aiDiv.querySelector('.ai-content-body');
         if (contentBody) {
           contentBody.removeAttribute('style');
@@ -48555,7 +48611,11 @@ function setupAiChatStudio(api: any): void {
         }
 
         attachDesktopMessageToolbar(aiDiv, content);
-        curSession.history.push({ role: 'assistant', content });
+
+        // Only save successful responses into conversation history so errors don't confuse future turns
+        if (!isError) {
+          curSession.history.push({ role: 'assistant', content });
+        }
         curSession.updatedAt = Date.now();
         saveSessions();
       } else {
