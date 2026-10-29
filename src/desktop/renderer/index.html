@@ -11501,13 +11501,32 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
         <!-- =================================================================== -->
         <!-- MODE 6: AI COPILOT CHAT -->
         <!-- =================================================================== -->
-        <section id="pane-chat" class="phase-pane" style="display: none;">
+        <section id="pane-chat" class="phase-pane" style="display: none; position: relative;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); flex: 0 0 auto;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-size: 15px; font-weight: 700; color: #fff;">💬 Evolve AI: Copilot Chat</span>
-              <span class="brand-pill" id="lblChatActiveModelBadge" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: bold; text-transform: uppercase;">OLLAMA: QWEN2.5-CODER:7B</span>
+              <button class="brand-pill" id="lblChatActiveModelBadge" style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: bold; text-transform: uppercase; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;" title="Click to Switch AI Model / Provider">OLLAMA: QWEN2.5-CODER:7B ▾</button>
             </div>
-            <button class="btn-quick" id="btnChatClear" style="font-size: 11px;" aria-label="Clear">Clear</button>
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <button class="btn-quick" id="btnChatNewSession" style="font-size: 11px; color: var(--accent); border-color: var(--accent);" title="Start fresh session">+ New</button>
+              <button class="btn-quick" id="btnChatHistory" style="font-size: 11px;" title="View chat history &amp; sessions">🕒 History</button>
+              <button class="btn-quick" id="btnChatClear" style="font-size: 11px;" aria-label="Clear current messages">Clear</button>
+            </div>
+          </div>
+
+          <!-- Desktop Chat Session Drawer Overlay -->
+          <div id="desktopSessionDrawer" style="display: none; position: absolute; top: 48px; right: 0; bottom: 0; width: 340px; background: #1e1e1e; border-left: 1px solid var(--border); z-index: 50; box-shadow: -4px 0 16px rgba(0,0,0,0.5); flex-direction: column; padding: 12px; box-sizing: border-box;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
+              <span style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">🕒 Chat Sessions</span>
+              <button class="btn-quick" id="btnCloseDesktopSessionDrawer" style="font-size: 11px; padding: 2px 7px;">✕ Close</button>
+            </div>
+            <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+              <input type="text" id="txtDesktopSessionSearch" placeholder="Search sessions..." style="flex: 1; padding: 6px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;" />
+              <button class="btn-quick" id="btnDrawerNewSession" style="font-size: 11px; color: var(--accent); border-color: var(--accent); padding: 5px 8px;">+ New</button>
+            </div>
+            <div id="desktopSessionList" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+              <!-- Session items injected here -->
+            </div>
           </div>
 
           <div id="chatMessagesStream" style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 14px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 12px;">
@@ -11521,9 +11540,9 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
             </div>
           </div>
 
-          <div class="chat-input-bar" style="display: flex; gap: 8px; align-items: center;">
-            <input type="text" id="txtChatInput" placeholder="Ask about your code, data, or architecture... (Shift+Enter for newline)" style="flex: 1; padding: 10px 14px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px;" aria-label="Ask about your code, data, or architecture... (Shift+Enter for newline)">
-            <button class="btn" id="btnChatSend" style="padding: 10px 20px; font-size: 12.5px; font-weight: 700; background: var(--accent); color: #1e1e1e; white-space: nowrap;" aria-label="Send">Send &rarr;</button>
+          <div class="chat-input-bar" style="display: flex; gap: 8px; align-items: flex-end;">
+            <textarea id="txtChatInput" rows="1" placeholder="Ask about your code, data, or architecture... (Enter to send, Shift+Enter for newline, ↑/↓ for prompt history)" style="flex: 1; min-height: 38px; max-height: 130px; padding: 9px 14px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; resize: none; font-family: inherit; line-height: 1.4;" aria-label="Ask about your code, data, or architecture..."></textarea>
+            <button class="btn" id="btnChatSend" style="padding: 10px 20px; font-size: 12.5px; font-weight: 700; background: var(--accent); color: #1e1e1e; white-space: nowrap; height: 38px;" aria-label="Send">Send &rarr;</button>
           </div>
         </section>
 

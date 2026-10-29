@@ -47911,39 +47911,417 @@ function setupSecurityStudio(api: any): void {
 }
 
 // --- AI COPILOT CHAT (Real Local Inference & Code Markdown Rendering) ---
+interface DesktopChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  provider: string;
+  model: string;
+  isPinned?: boolean;
+  history: Array<{ role: string; content: string }>;
+}
+
+(window as any).copyDesktopCodeSnippet = function(btn: HTMLElement) {
+  const codeEl = btn.closest('.code-block-wrapper')?.querySelector('code');
+  if (!codeEl) return;
+  const text = codeEl.innerText;
+  navigator.clipboard.writeText(text);
+  const oldHtml = btn.innerHTML;
+  btn.innerHTML = '✓ Copied!';
+  setTimeout(() => { btn.innerHTML = oldHtml; }, 2000);
+};
+
+function quoteDesktopReply(text: string): void {
+  const inp = document.getElementById('txtChatInput') as HTMLTextAreaElement;
+  if (!inp) return;
+  const clean = text.replace(/^[>\s]+/gm, '').trim();
+  const quote = '> ' + clean.split('\n').join('\n> ') + '\n\nRegarding this: ';
+  inp.value = quote;
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(inp.scrollHeight, 130) + 'px';
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+
+function attachDesktopMessageToolbar(bubble: HTMLElement, rawText?: string): void {
+  if (bubble.querySelector('.msg-toolbar')) return;
+  const toolbar = document.createElement('div');
+  toolbar.className = 'msg-toolbar';
+  toolbar.innerHTML = `
+    <button class="msg-toolbar-btn btn-copy" title="Copy text">📋 Copy</button>
+    <button class="msg-toolbar-btn btn-reply" title="Quote text and reply in chat">💬 Reply</button>
+  `;
+
+  toolbar.querySelector('.btn-copy')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const toCopy = rawText || bubble.innerText.replace(/📋 Copy|💬 Reply|📋 Copy Code|✓ Copied!/g, '').trim();
+    navigator.clipboard.writeText(toCopy);
+    const btn = toolbar.querySelector('.btn-copy') as HTMLElement;
+    if (btn) {
+      btn.innerText = '✓ Copied!';
+      setTimeout(() => { btn.innerText = '📋 Copy'; }, 2000);
+    }
+  });
+
+  toolbar.querySelector('.btn-reply')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const sel = window.getSelection()?.toString();
+    const toQuote = (sel && sel.trim())
+      ? sel.trim()
+      : (rawText || bubble.innerText.replace(/📋 Copy|💬 Reply|📋 Copy Code|✓ Copied!/g, '').trim());
+    quoteDesktopReply(toQuote);
+  });
+
+  bubble.appendChild(toolbar);
+}
+
 function setupAiChatStudio(api: any): void {
   const btnSend = document.getElementById('btnChatSend');
-  const txtInput = document.getElementById('txtChatInput') as HTMLInputElement;
+  const txtInput = document.getElementById('txtChatInput') as HTMLTextAreaElement;
   const messagesStream = document.getElementById('chatMessagesStream');
   const btnClear = document.getElementById('btnChatClear');
+  const btnNewSession = document.getElementById('btnChatNewSession');
+  const btnHistory = document.getElementById('btnChatHistory');
+  const sessionDrawer = document.getElementById('desktopSessionDrawer');
+  const btnCloseDrawer = document.getElementById('btnCloseDesktopSessionDrawer');
+  const btnDrawerNewSession = document.getElementById('btnDrawerNewSession');
+  const txtSessionSearch = document.getElementById('txtDesktopSessionSearch') as HTMLInputElement;
+  const sessionListContainer = document.getElementById('desktopSessionList');
+  const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
+
+  // Model Picker Trigger from Chat Header
+  lblChatBadge?.addEventListener('click', () => {
+    const btnPicker = document.getElementById('btnHeaderModelPicker');
+    if (btnPicker) btnPicker.click();
+    else (window as any).openModelPicker?.();
+  });
+
+  // Prompt History Navigation
+  let promptHistory: string[] = [];
+  try {
+    promptHistory = JSON.parse(localStorage.getItem('evolve_desktop_prompt_history') || '[]');
+  } catch {}
+  let promptHistoryIndex = promptHistory.length;
+  let currentDraft = '';
+
+  const savePrompt = (prompt: string) => {
+    if (!prompt.trim()) return;
+    if (promptHistory.length === 0 || promptHistory[promptHistory.length - 1] !== prompt) {
+      promptHistory.push(prompt);
+      if (promptHistory.length > 50) promptHistory.shift();
+      try { localStorage.setItem('evolve_desktop_prompt_history', JSON.stringify(promptHistory)); } catch {}
+    }
+    promptHistoryIndex = promptHistory.length;
+    currentDraft = '';
+  };
+
+  // Sessions Management
+  let sessions: DesktopChatSession[] = [];
+  try {
+    sessions = JSON.parse(localStorage.getItem('evolve_desktop_chat_sessions') || '[]');
+  } catch {}
+
+  let activeSessionId = localStorage.getItem('evolve_desktop_active_session_id') || '';
+
+  const saveSessions = () => {
+    try {
+      localStorage.setItem('evolve_desktop_chat_sessions', JSON.stringify(sessions));
+      localStorage.setItem('evolve_desktop_active_session_id', activeSessionId);
+    } catch {}
+  };
+
+  const getOrCreateActiveSession = (): DesktopChatSession => {
+    let s = sessions.find(x => x.id === activeSessionId);
+    if (!s) {
+      s = {
+        id: 'sess_' + Date.now(),
+        title: 'New Session',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        provider: activeSelectedProvider,
+        model: activeSelectedModel,
+        history: []
+      };
+      sessions.unshift(s);
+      activeSessionId = s.id;
+      saveSessions();
+    }
+    return s;
+  };
+
+  const renderWelcomeBubble = () => {
+    if (!messagesStream) return;
+    messagesStream.innerHTML = `<div class="chat-bubble ai" style="background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;">
+      <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+        <span>🚀</span> Evolve AI Copilot:
+      </div>
+      <div style="color: #e2e8f0; font-size: 12px; line-height: 1.5;">
+        Hello! I am your air-gapped Enterprise Delivery AI Copilot. Ask me about schema migrations, dbt marts, client APIs, or code modernizations.
+      </div>
+    </div>`;
+    const initialAi = messagesStream.querySelector('.chat-bubble.ai') as HTMLElement;
+    if (initialAi) attachDesktopMessageToolbar(initialAi);
+  };
+
+  const loadSessionToUi = (session: DesktopChatSession) => {
+    if (!messagesStream) return;
+    messagesStream.innerHTML = '';
+    renderWelcomeBubble();
+
+    session.history.forEach(msg => {
+      if (msg.role === 'user') {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'chat-bubble user';
+        userDiv.style.cssText = 'background: #1e3a29; padding: 10px 14px; border-radius: 8px; border: 1px solid #89d185; align-self: flex-end; max-width: 80%;';
+        userDiv.innerHTML = `<div style="font-weight: 700; font-size: 11px; color: #89d185; margin-bottom: 3px;">You:</div><div style="color: #fff; font-size: 12px; white-space: pre-wrap;">${escapeHtml(msg.content)}</div>`;
+        attachDesktopMessageToolbar(userDiv, msg.content);
+        messagesStream.appendChild(userDiv);
+      } else {
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'chat-bubble ai';
+        aiDiv.style.cssText = 'background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;';
+        aiDiv.innerHTML = `<div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+          <span>🚀</span> Evolve AI:
+        </div>
+        <div class="ai-content-body" style="color: #e2e8f0; font-size: 12px; line-height: 1.5;">
+          ${formatMarkdownToHtml(msg.content)}
+        </div>`;
+        attachDesktopMessageToolbar(aiDiv, msg.content);
+        messagesStream.appendChild(aiDiv);
+      }
+    });
+
+    messagesStream.scrollTop = messagesStream.scrollHeight;
+  };
+
+  const renderSessionDrawer = (filter = '') => {
+    if (!sessionListContainer) return;
+    const q = filter.trim().toLowerCase();
+    const filtered = sessions.filter(s => {
+      if (!q) return true;
+      if (s.title.toLowerCase().includes(q)) return true;
+      return s.history.some(m => m.content.toLowerCase().includes(q));
+    });
+
+    // Pinned first, then by updatedAt
+    filtered.sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return b.updatedAt - a.updatedAt;
+    });
+
+    if (filtered.length === 0) {
+      sessionListContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 11px; text-align: center; padding: 20px;">No sessions found.</div>';
+      return;
+    }
+
+    sessionListContainer.innerHTML = filtered.map(s => {
+      const isActive = s.id === activeSessionId;
+      const dateStr = new Date(s.updatedAt).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="desktop-session-card ${isActive ? 'active' : ''}" data-id="${s.id}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; font-size: 11.5px; color: ${isActive ? 'var(--accent)' : '#fff'}; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+              ${s.isPinned ? '📌 ' : ''}${escapeHtml(s.title)}
+            </span>
+            <div style="display: flex; gap: 3px; align-items: center;">
+              <button class="btn-quick btn-session-pin" data-id="${s.id}" title="${s.isPinned ? 'Unpin' : 'Pin'}" style="padding: 1px 5px; font-size: 10px;">${s.isPinned ? '📌' : '📍'}</button>
+              <button class="btn-quick btn-session-rename" data-id="${s.id}" title="Rename" style="padding: 1px 5px; font-size: 10px;">✏️</button>
+              <button class="btn-quick btn-session-export" data-id="${s.id}" title="Export session" style="padding: 1px 5px; font-size: 10px;">💾</button>
+              <button class="btn-quick btn-session-del" data-id="${s.id}" title="Delete session" style="padding: 1px 5px; font-size: 10px; color: var(--error);">🗑️</button>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted);">
+            <span>${s.provider.toUpperCase()} · ${s.model}</span>
+            <span>${dateStr}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire clicks on session cards
+    sessionListContainer.querySelectorAll('.desktop-session-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('button')) return;
+        const id = card.getAttribute('data-id');
+        if (!id) return;
+        activeSessionId = id;
+        saveSessions();
+        const s = sessions.find(x => x.id === id);
+        if (s) loadSessionToUi(s);
+        if (sessionDrawer) sessionDrawer.style.display = 'none';
+        showToast(`Switched to: ${s?.title}`);
+      });
+    });
+
+    // Wire Pin
+    sessionListContainer.querySelectorAll('.btn-session-pin').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        const s = sessions.find(x => x.id === id);
+        if (s) {
+          s.isPinned = !s.isPinned;
+          saveSessions();
+          renderSessionDrawer(txtSessionSearch?.value || '');
+        }
+      });
+    });
+
+    // Wire Rename
+    sessionListContainer.querySelectorAll('.btn-session-rename').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        const s = sessions.find(x => x.id === id);
+        if (s) {
+          const newTitle = prompt('Enter new session title:', s.title);
+          if (newTitle && newTitle.trim()) {
+            s.title = newTitle.trim();
+            saveSessions();
+            renderSessionDrawer(txtSessionSearch?.value || '');
+          }
+        }
+      });
+    });
+
+    // Wire Export
+    sessionListContainer.querySelectorAll('.btn-session-export').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        const s = sessions.find(x => x.id === id);
+        if (s) {
+          const mdContent = `# Session: ${s.title}\n\n**Date:** ${new Date(s.createdAt).toISOString()}\n**Provider:** ${s.provider} | **Model:** ${s.model}\n\n---\n\n`
+            + s.history.map(m => `### ${m.role.toUpperCase()}:\n\n${m.content}\n\n`).join('\n---\n\n');
+          navigator.clipboard.writeText(mdContent);
+          showToast('✓ Session copied to clipboard as Markdown!');
+        }
+      });
+    });
+
+    // Wire Delete
+    sessionListContainer.querySelectorAll('.btn-session-del').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        if (!confirm('Are you sure you want to delete this session?')) return;
+        sessions = sessions.filter(x => x.id !== id);
+        if (activeSessionId === id) {
+          activeSessionId = sessions.length > 0 ? sessions[0].id : '';
+          if (activeSessionId) {
+            const nextSess = sessions.find(x => x.id === activeSessionId);
+            if (nextSess) loadSessionToUi(nextSess);
+          } else {
+            renderWelcomeBubble();
+          }
+        }
+        saveSessions();
+        renderSessionDrawer(txtSessionSearch?.value || '');
+        showToast('✓ Session deleted.');
+      });
+    });
+  };
+
+  const createNewSession = () => {
+    const newSess: DesktopChatSession = {
+      id: 'sess_' + Date.now(),
+      title: 'New Session',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      provider: activeSelectedProvider,
+      model: activeSelectedModel,
+      history: []
+    };
+    sessions.unshift(newSess);
+    activeSessionId = newSess.id;
+    saveSessions();
+    renderWelcomeBubble();
+    if (sessionDrawer) sessionDrawer.style.display = 'none';
+    if (txtInput) txtInput.focus();
+    showToast('✓ Started new chat session.');
+  };
+
+  // Wire Session Buttons
+  btnNewSession?.addEventListener('click', createNewSession);
+  btnDrawerNewSession?.addEventListener('click', createNewSession);
+
+  btnHistory?.addEventListener('click', () => {
+    if (!sessionDrawer) return;
+    const isVisible = sessionDrawer.style.display === 'flex';
+    sessionDrawer.style.display = isVisible ? 'none' : 'flex';
+    if (!isVisible) {
+      renderSessionDrawer(txtSessionSearch?.value || '');
+      txtSessionSearch?.focus();
+    }
+  });
+
+  btnCloseDrawer?.addEventListener('click', () => {
+    if (sessionDrawer) sessionDrawer.style.display = 'none';
+  });
+
+  txtSessionSearch?.addEventListener('input', () => {
+    renderSessionDrawer(txtSessionSearch.value);
+  });
 
   btnClear?.addEventListener('click', () => {
-    chatHistory = [];
-    if (messagesStream) {
-      messagesStream.innerHTML = `<div class="chat-bubble ai" style="background: var(--card-bg); padding: 12px 14px; border-radius: 8px; border: 1px solid var(--border); max-width: 90%;">
-        <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          <span>🚀</span> Evolve AI Copilot:
-        </div>
-        <div style="color: #e2e8f0; font-size: 12px; line-height: 1.5;">
-          Hello! I am your air-gapped Enterprise Delivery AI Copilot. Ask me about schema migrations, dbt marts, client APIs, or code modernizations.
-        </div>
-      </div>`;
-    }
+    const s = getOrCreateActiveSession();
+    s.history = [];
+    s.updatedAt = Date.now();
+    saveSessions();
+    renderWelcomeBubble();
     showToast('✓ Chat history cleared.');
   });
+
+  // Load existing session on boot if available
+  const initialSession = sessions.find(x => x.id === activeSessionId);
+  if (initialSession && initialSession.history.length > 0) {
+    loadSessionToUi(initialSession);
+  } else {
+    renderWelcomeBubble();
+  }
 
   const sendMessage = async () => {
     const text = txtInput?.value.trim();
     if (!text || !messagesStream) return;
+
+    savePrompt(text);
+
+    // Ensure model alignment with provider before query
+    let safeModel = activeSelectedModel;
+    if (activeSelectedProvider === 'anthropic' && (!safeModel || !safeModel.toLowerCase().startsWith('claude-'))) {
+      safeModel = 'claude-3-7-sonnet-20250219';
+      activeSelectedModel = safeModel;
+    } else if (activeSelectedProvider === 'gemini' && (!safeModel || !safeModel.toLowerCase().startsWith('gemini-'))) {
+      safeModel = 'gemini-2.0-flash';
+      activeSelectedModel = safeModel;
+    } else if (activeSelectedProvider === 'openai' && (!safeModel || (!safeModel.toLowerCase().startsWith('gpt-') && !safeModel.toLowerCase().startsWith('o1') && !safeModel.toLowerCase().startsWith('o3')))) {
+      safeModel = 'gpt-4o';
+      activeSelectedModel = safeModel;
+    }
+
+    const curSession = getOrCreateActiveSession();
+    if (curSession.history.length === 0 || curSession.title === 'New Session') {
+      curSession.title = text.length > 38 ? text.slice(0, 38) + '...' : text;
+    }
+    curSession.provider = activeSelectedProvider;
+    curSession.model = safeModel;
+    curSession.updatedAt = Date.now();
 
     // 1. Append User Bubble
     const userDiv = document.createElement('div');
     userDiv.className = 'chat-bubble user';
     userDiv.style.cssText = 'background: #1e3a29; padding: 10px 14px; border-radius: 8px; border: 1px solid #89d185; align-self: flex-end; max-width: 80%;';
     userDiv.innerHTML = `<div style="font-weight: 700; font-size: 11px; color: #89d185; margin-bottom: 3px;">You:</div><div style="color: #fff; font-size: 12px; white-space: pre-wrap;">${escapeHtml(text)}</div>`;
+    attachDesktopMessageToolbar(userDiv, text);
     messagesStream.appendChild(userDiv);
 
+    curSession.history.push({ role: 'user', content: text });
+    saveSessions();
+
     txtInput.value = '';
+    txtInput.style.height = '38px';
     messagesStream.scrollTop = messagesStream.scrollHeight;
 
     // 2. Append Thinking Indicator Bubble
@@ -47954,7 +48332,7 @@ function setupAiChatStudio(api: any): void {
       <span>🚀</span> Evolve AI:
     </div>
     <div class="ai-content-body" style="color: var(--text-secondary); font-size: 12px; font-style: italic;">
-      Thinking & generating solution... ⏳
+      Thinking &amp; generating solution... ⏳
     </div>`;
     messagesStream.appendChild(aiDiv);
     messagesStream.scrollTop = messagesStream.scrollHeight;
@@ -47964,8 +48342,8 @@ function setupAiChatStudio(api: any): void {
       if (api?.ai) {
         const response = await api.ai.chat({
           prompt: text,
-          history: chatHistory,
-          model: activeSelectedModel,
+          history: curSession.history.slice(0, -1),
+          model: safeModel,
           provider: activeSelectedProvider
         });
 
@@ -47977,8 +48355,10 @@ function setupAiChatStudio(api: any): void {
           contentBody.innerHTML = formatMarkdownToHtml(content);
         }
 
-        chatHistory.push({ role: 'user', content: text });
-        chatHistory.push({ role: 'assistant', content: content });
+        attachDesktopMessageToolbar(aiDiv, content);
+        curSession.history.push({ role: 'assistant', content });
+        curSession.updatedAt = Date.now();
+        saveSessions();
       } else {
         const contentBody = aiDiv.querySelector('.ai-content-body');
         if (contentBody) {
@@ -47996,10 +48376,48 @@ function setupAiChatStudio(api: any): void {
   };
 
   btnSend?.addEventListener('click', sendMessage);
+
+  // Up/Down Arrow prompt navigation & Auto-resize
+  txtInput?.addEventListener('input', () => {
+    txtInput.style.height = 'auto';
+    txtInput.style.height = Math.min(txtInput.scrollHeight, 130) + 'px';
+  });
+
   txtInput?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
+      return;
+    }
+
+    // Arrow navigation
+    if (e.key === 'ArrowUp') {
+      const isAtTop = !txtInput.value.includes('\n') || txtInput.selectionStart === 0;
+      if (isAtTop && promptHistory.length > 0) {
+        if (promptHistoryIndex === promptHistory.length) {
+          currentDraft = txtInput.value;
+        }
+        if (promptHistoryIndex > 0) {
+          promptHistoryIndex--;
+          txtInput.value = promptHistory[promptHistoryIndex];
+          txtInput.style.height = 'auto';
+          txtInput.style.height = Math.min(txtInput.scrollHeight, 130) + 'px';
+          e.preventDefault();
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      const isAtBottom = !txtInput.value.includes('\n') || txtInput.selectionEnd === txtInput.value.length;
+      if (isAtBottom && promptHistoryIndex < promptHistory.length) {
+        promptHistoryIndex++;
+        if (promptHistoryIndex === promptHistory.length) {
+          txtInput.value = currentDraft;
+        } else {
+          txtInput.value = promptHistory[promptHistoryIndex];
+        }
+        txtInput.style.height = 'auto';
+        txtInput.style.height = Math.min(txtInput.scrollHeight, 130) + 'px';
+        e.preventDefault();
+      }
     }
   });
 }
@@ -48024,8 +48442,16 @@ function formatMarkdownToHtml(markdown: string): string {
   const codeBlocks: string[] = [];
   let text = markdown.replace(/```([a-zA-Z0-9_-]*)\n?([\s\S]*?)```/g, (_match, _lang, code) => {
     const idx = codeBlocks.length;
-    codeBlocks.push(`<pre style="background: #111; padding: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); overflow-x: auto; margin: 10px 0;"><code style="font-family: Consolas, monospace; font-size: 11.5px; color: #9cdcfe;">${escapeHtml(code.trim())}</code></pre>`);
-    return `%%%CODEBLOCK_${idx}%%%`;
+    const langLabel = (_lang || 'CODE').toUpperCase();
+    const wrapper = '<div class="code-block-wrapper">'
+      + '<div class="code-block-header">'
+      + '<span style="font-weight: 700; color: #4ec9b0;">' + escapeHtml(langLabel) + '</span>'
+      + '<button class="code-copy-btn" onclick="copyDesktopCodeSnippet(this)">📋 Copy Code</button>'
+      + '</div>'
+      + '<pre style="background: #111; padding: 12px; margin: 0; overflow-x: auto; border: none;"><code style="font-family: Consolas, monospace; font-size: 11.5px; color: #9cdcfe;">' + escapeHtml(code.trim()) + '</code></pre>'
+      + '</div>';
+    codeBlocks.push(wrapper);
+    return '%%%CODEBLOCK_' + idx + '%%%';
   });
 
   const lines = text.split('\n');
@@ -48283,7 +48709,21 @@ function setActiveAiModel(
   modelName?: string,
   providerLabel?: string
 ): void {
-  activeSelectedModel = modelId;
+  // Normalize model if switching to cloud provider
+  let safeModelId = (modelId || '').trim();
+  let safeModelName = modelName || safeModelId;
+  if (provider === 'anthropic' && (!safeModelId || !safeModelId.toLowerCase().startsWith('claude-'))) {
+    safeModelId = 'claude-3-7-sonnet-20250219';
+    safeModelName = 'Claude 3.7 Sonnet';
+  } else if (provider === 'gemini' && (!safeModelId || !safeModelId.toLowerCase().startsWith('gemini-'))) {
+    safeModelId = 'gemini-2.0-flash';
+    safeModelName = 'Gemini 2.0 Flash';
+  } else if (provider === 'openai' && (!safeModelId || (!safeModelId.toLowerCase().startsWith('gpt-') && !safeModelId.toLowerCase().startsWith('o1') && !safeModelId.toLowerCase().startsWith('o3')))) {
+    safeModelId = 'gpt-4o';
+    safeModelName = 'GPT-4o';
+  }
+
+  activeSelectedModel = safeModelId;
   activeSelectedProvider = provider;
   (window as any).activeSelectedModel = modelId;
   (window as any).activeSelectedProvider = provider;
@@ -48318,7 +48758,7 @@ function setActiveAiModel(
       lblChatBadge.innerText = 'BUILT-IN: OFFLINE DETERMINISTIC ENGINE';
     } else {
       const pLabel = (providerLabel || provider).toUpperCase();
-      lblChatBadge.innerText = `${pLabel}: ${modelId.toUpperCase()}`;
+      lblChatBadge.innerText = `${pLabel}: ${safeModelId.toUpperCase()} ▾`;
     }
   }
 
@@ -48351,7 +48791,19 @@ function setupHardwareStudio(api: any): void {
     const savedName = localStorage.getItem('evolve_active_model_name');
     const savedLabel = localStorage.getItem('evolve_active_provider_label');
     if (savedModel && savedProv) {
-      setActiveAiModel(api, savedProv, savedModel, savedName || savedModel, savedLabel || savedProv);
+      let healedModel = savedModel;
+      let healedName = savedName || savedModel;
+      if (savedProv === 'anthropic' && (!healedModel || !healedModel.toLowerCase().startsWith('claude-'))) {
+        healedModel = 'claude-3-7-sonnet-20250219';
+        healedName = 'Claude 3.7 Sonnet';
+      } else if (savedProv === 'gemini' && (!healedModel || !healedModel.toLowerCase().startsWith('gemini-'))) {
+        healedModel = 'gemini-2.0-flash';
+        healedName = 'Gemini 2.0 Flash';
+      } else if (savedProv === 'openai' && (!healedModel || (!healedModel.toLowerCase().startsWith('gpt-') && !healedModel.toLowerCase().startsWith('o1') && !healedModel.toLowerCase().startsWith('o3')))) {
+        healedModel = 'gpt-4o';
+        healedName = 'GPT-4o';
+      }
+      setActiveAiModel(api, savedProv, healedModel, healedName, savedLabel || savedProv);
     }
   } catch {}
   const btnInspect = document.getElementById('btnRunHwInspect');

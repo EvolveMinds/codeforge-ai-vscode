@@ -674,3 +674,107 @@ body.resizing-v .resizer-vertical {
     max-height: 100vh !important;
   }
 }
+
+/* --- Desktop Chat Enhancements --- */
+.chat-bubble {
+  position: relative;
+}
+.chat-bubble:hover .msg-toolbar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.msg-toolbar {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  background: var(--card-bg, #252526);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.msg-toolbar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  user-select: none;
+}
+.msg-toolbar-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Code Block Wrapper with Header & Copy */
+.code-block-wrapper {
+  margin: 8px 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #111;
+  overflow: hidden;
+}
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.35);
+  border-bottom: 1px solid var(--border);
+  font-size: 10.5px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+.code-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.code-copy-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.code-block-wrapper pre {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+/* Desktop Chat Session Drawer Card */
+.desktop-session-card {
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.12s ease;
+}
+.desktop-session-card:hover {
+  border-color: var(--accent);
+  background: rgba(78, 201, 176, 0.05);
+}
+.desktop-session-card.active {
+  border-color: var(--accent);
+  background: rgba(78, 201, 176, 0.12);
+}

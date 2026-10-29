@@ -514,9 +514,9 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
   const raw = (model || '').trim();
   const m = raw.toLowerCase();
   if (vaultKey === 'anthropicApiKey') {
-    if (m === 'default' || !m) {
+    if (m === 'default' || !m || !m.startsWith('claude-')) {
       const configured = secretVault?.getSecret('anthropicModel');
-      if (configured && configured.trim()) return configured.trim();
+      if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('claude-')) return configured.trim();
       return 'claude-3-7-sonnet-20250219';
     }
     if (m === 'claude-opus-5-5') return 'claude-3-7-sonnet-20250219';
@@ -526,7 +526,7 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
     return raw;
   }
   if (vaultKey === 'openaiApiKey') {
-    if (m === 'default' || !m) {
+    if (m === 'default' || !m || (!m.startsWith('gpt-') && !m.startsWith('o1') && !m.startsWith('o3') && !m.startsWith('chatgpt-'))) {
       const configured = secretVault?.getSecret('openaiModel');
       if (configured && configured.trim()) return configured.trim();
       return 'gpt-4o';
@@ -536,9 +536,9 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
     return raw;
   }
   if (vaultKey === 'geminiApiKey') {
-    if (m === 'default' || !m) {
+    if (m === 'default' || !m || !m.startsWith('gemini-')) {
       const configured = secretVault?.getSecret('geminiModel');
-      if (configured && configured.trim()) return configured.trim();
+      if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('gemini-')) return configured.trim();
       return 'gemini-2.0-flash';
     }
     if (m === 'gemini-3.8-flash' || m === 'gemini-3.1-pro-preview') return 'gemini-2.0-flash';
@@ -546,7 +546,7 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
     return raw;
   }
   if (vaultKey === 'deepseekApiKey') {
-    if (m === 'default' || !m) {
+    if (m === 'default' || !m || !m.startsWith('deepseek-')) {
       const configured = secretVault?.getSecret('deepseekModel');
       if (configured && configured.trim()) return configured.trim();
       return 'deepseek-chat';
@@ -555,7 +555,7 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
     return raw;
   }
   if (vaultKey === 'zaiApiKey') {
-    if (m === 'default' || !m) return 'glm-4-plus';
+    if (m === 'default' || !m || (!m.startsWith('glm-') && !m.startsWith('codegeex'))) return 'glm-4-plus';
     if (m === 'glm-4.6') return 'glm-4-plus';
     return raw;
   }
@@ -5130,15 +5130,18 @@ End Function
 
     ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {
       let { prompt, history = [], model = 'qwen2.5-coder:7b', provider = 'ollama', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
-      if (provider === 'anthropic' && (!req.model || req.model === 'default')) {
+      if (provider === 'anthropic' && (!req.model || req.model === 'default' || !req.model.toLowerCase().startsWith('claude-'))) {
         const configured = secretVault.getSecret('anthropicModel');
-        if (configured && configured.trim()) model = configured.trim();
-      } else if (provider === 'openai' && (!req.model || req.model === 'default')) {
+        if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('claude-')) model = configured.trim();
+        else model = 'claude-3-7-sonnet-20250219';
+      } else if (provider === 'openai' && (!req.model || req.model === 'default' || (!req.model.toLowerCase().startsWith('gpt-') && !req.model.toLowerCase().startsWith('o1') && !req.model.toLowerCase().startsWith('o3')))) {
         const configured = secretVault.getSecret('openaiModel');
         if (configured && configured.trim()) model = configured.trim();
-      } else if (provider === 'gemini' && (!req.model || req.model === 'default')) {
+        else model = 'gpt-4o';
+      } else if (provider === 'gemini' && (!req.model || req.model === 'default' || !req.model.toLowerCase().startsWith('gemini-'))) {
         const configured = secretVault.getSecret('geminiModel');
-        if (configured && configured.trim()) model = configured.trim();
+        if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('gemini-')) model = configured.trim();
+        else model = 'gemini-2.0-flash';
       }
 
       const messages = [
