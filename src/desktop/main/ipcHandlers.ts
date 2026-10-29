@@ -513,32 +513,45 @@ const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
 function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: DesktopSecretVault): string {
   const raw = (model || '').trim();
   const m = raw.toLowerCase();
+  const isJunkOrArchitecture = (s: string) => !s || s === 'default' || s.includes('(') || s.includes('+') || s.includes('nomic') || s.includes('offline-engine') || s.includes('slm');
+
   if (vaultKey === 'anthropicApiKey') {
-    if (m === 'default' || !m || !m.startsWith('claude-')) {
+    if (isJunkOrArchitecture(m)) {
       const configured = secretVault?.getSecret('anthropicModel');
-      if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('claude-')) return configured.trim();
+      if (configured && !isJunkOrArchitecture(configured.trim())) return configured.trim();
       return 'claude-3-7-sonnet-20250219';
     }
-    if (m === 'claude-opus-5-5') return 'claude-3-7-sonnet-20250219';
-    if (m === 'claude-sonnet-5') return 'claude-3-7-sonnet-20250219';
-    if (m === 'claude-haiku-4-5') return 'claude-3-5-haiku-20241022';
-    if (m === 'claude-fable-5-1') return 'claude-3-7-sonnet-20250219';
+    const hasCustomBaseUrl = !!(secretVault?.getSecret('anthropicBaseUrl') || process.env.ANTHROPIC_BASE_URL);
+    if (!hasCustomBaseUrl) {
+      if (m === 'claude-opus-5-5' || m === 'claude-sonnet-5' || m === 'claude-fable-5-1' || m === 'claude-opus-4-7' || m === 'claude-opus-4-6' || m === 'claude-sonnet-4-6') {
+        return 'claude-3-7-sonnet-20250219';
+      }
+      if (m === 'claude-haiku-4-5') return 'claude-3-5-haiku-20241022';
+      if (m === 'claude-3-7-sonnet') return 'claude-3-7-sonnet-20250219';
+      if (m === 'claude-3-5-sonnet') return 'claude-3-5-sonnet-20241022';
+      if (m === 'claude-3-5-haiku') return 'claude-3-5-haiku-20241022';
+      if (m === 'claude-3-opus') return 'claude-3-opus-20240229';
+      if (m === 'claude-3-haiku') return 'claude-3-haiku-20240307';
+    }
     return raw;
   }
   if (vaultKey === 'openaiApiKey') {
-    if (m === 'default' || !m || (!m.startsWith('gpt-') && !m.startsWith('o1') && !m.startsWith('o3') && !m.startsWith('chatgpt-'))) {
+    if (isJunkOrArchitecture(m)) {
       const configured = secretVault?.getSecret('openaiModel');
-      if (configured && configured.trim()) return configured.trim();
+      if (configured && !isJunkOrArchitecture(configured.trim())) return configured.trim();
       return 'gpt-4o';
     }
-    if (m === 'gpt-6-sol' || m === 'gpt-6-astra') return 'gpt-4o';
-    if (m === 'gpt-6-luna') return 'gpt-4o-mini';
+    const hasCustomBaseUrl = !!(secretVault?.getSecret('openaiBaseUrl') || process.env.OPENAI_BASE_URL);
+    if (!hasCustomBaseUrl) {
+      if (m === 'gpt-6-sol' || m === 'gpt-6-astra') return 'gpt-4o';
+      if (m === 'gpt-6-luna') return 'gpt-4o-mini';
+    }
     return raw;
   }
   if (vaultKey === 'geminiApiKey') {
-    if (m === 'default' || !m || !m.startsWith('gemini-')) {
+    if (isJunkOrArchitecture(m)) {
       const configured = secretVault?.getSecret('geminiModel');
-      if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('gemini-')) return configured.trim();
+      if (configured && !isJunkOrArchitecture(configured.trim())) return configured.trim();
       return 'gemini-2.0-flash';
     }
     if (m === 'gemini-3.8-flash' || m === 'gemini-3.1-pro-preview') return 'gemini-2.0-flash';
@@ -546,21 +559,18 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
     return raw;
   }
   if (vaultKey === 'deepseekApiKey') {
-    if (m === 'default' || !m || !m.startsWith('deepseek-')) {
+    if (isJunkOrArchitecture(m)) {
       const configured = secretVault?.getSecret('deepseekModel');
-      if (configured && configured.trim()) return configured.trim();
+      if (configured && !isJunkOrArchitecture(configured.trim())) return configured.trim();
       return 'deepseek-chat';
     }
     if (m === 'deepseek-v4-pro' || m === 'deepseek-flash') return 'deepseek-chat';
     return raw;
   }
   if (vaultKey === 'zaiApiKey') {
-    if (m === 'default' || !m || (!m.startsWith('glm-') && !m.startsWith('codegeex'))) return 'glm-4-plus';
+    if (isJunkOrArchitecture(m)) return 'glm-4-plus';
     if (m === 'glm-4.6') return 'glm-4-plus';
     return raw;
-  }
-  if (m === 'default') {
-    return 'default';
   }
   return raw;
 }
@@ -4937,9 +4947,14 @@ End Function
         // Model IDs verified against each provider's live documentation.
         // A retired ID returns 404 no matter how good the API key is, so keep
         // this list current rather than accumulating historical snapshots.
-
         // Google Gemini Family
-        { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Recommended', context: '1M', mode: 'Cloud API', description: 'Google\'s most intelligent Flash model for long-horizon engineering and autonomous agents.', isInstalled: true },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Frontier Reasoning', context: '2M', mode: 'Cloud API', description: 'Google\'s flagship model for massive-context architectural synthesis and complex reasoning.', isInstalled: true },
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Next-Gen Flash', context: '1M', mode: 'Cloud API', description: 'Next-generation frontier Flash model combining blazing speed with breakthrough intelligence.', isInstalled: true },
+        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Recommended', context: '1M', mode: 'Cloud API', description: 'High-speed multimodal flagship for rapid code conversions and tool orchestration.', isInstalled: true },
+        { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Ultra-Fast', context: '1M', mode: 'Cloud API', description: 'High-throughput cost-effective tier for continuous bulk transformations.', isInstalled: true },
+        { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: '1M Context', context: '1M', mode: 'Cloud API', description: 'Established 1M token context benchmark for multi-repo analysis and legacy codebases.', isInstalled: true },
+        { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Fast', context: '1M', mode: 'Cloud API', description: 'Lightweight and fast model for day-to-day code pairs and test assertions.', isInstalled: true },
+        { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Autonomous Agent', context: '1M', mode: 'Cloud API', description: 'Specialized for long-horizon engineering and autonomous build/compile loops.', isInstalled: true },
         { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Deep Reasoning', context: '1M', mode: 'Cloud API', description: 'Advanced reasoning for complex architecture and multi-repository analysis.', isInstalled: true },
         { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Cost Efficient', context: '1M', mode: 'Cloud API', description: 'Most cost-effective tier for high-throughput structured extraction and conversions.', isInstalled: true },
 
@@ -4954,20 +4969,23 @@ End Function
         { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Balanced', context: '1M', mode: 'Cloud API', description: 'The best combination of speed and intelligence for everyday code transformation.', isInstalled: true },
         { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Speed Leader', context: '200k', mode: 'Cloud API', description: 'Fastest Claude model with near-frontier intelligence for quick edits and tests.', isInstalled: true },
         { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Max Reasoning', context: '1M', mode: 'Cloud API', description: 'For the most demanding reasoning and long-horizon agentic migrations.', isInstalled: true },
-
         // OpenAI Family (Official & Enterprise Models)
+        { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview (Orion)', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Orion Flagship', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s largest and most capable model with profound world knowledge and nuanced code design.', isInstalled: true },
+        { id: 'o3-mini', name: 'OpenAI o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Fast STEM Reasoning', context: '128k', mode: 'Cloud API', description: 'Lightweight, high-speed STEM and coding reasoning model with flexible reasoning effort.', isInstalled: true },
+        { id: 'o1', name: 'OpenAI o1', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Reasoning CoT', context: '128k', mode: 'Cloud API', description: 'Deep reasoning model for math, complex architectural refactoring and hard problem solving.', isInstalled: true },
+        { id: 'o1-mini', name: 'OpenAI o1-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Fast Reasoning', context: '128k', mode: 'Cloud API', description: 'Fast reasoning model optimized for code and math pipelines.', isInstalled: true },
         { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Omni Flagship', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s flagship multimodal intelligence model.', isInstalled: true },
         { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Fast & Efficient', context: '128k', mode: 'Cloud API', description: 'Fast, cost-effective OpenAI model for rapid transformations.', isInstalled: true },
-        { id: 'o1', name: 'OpenAI o1', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Reasoning CoT', context: '128k', mode: 'Cloud API', description: 'Deep reasoning model for math, coding and hard problem solving.', isInstalled: true },
-        { id: 'o3-mini', name: 'OpenAI o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Fast Reasoning', context: '128k', mode: 'Cloud API', description: 'Lightweight, high-speed STEM and coding reasoning model.', isInstalled: true },
+        { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Turbo', context: '128k', mode: 'Cloud API', description: 'High-capability 128k model with JSON mode and structured outputs.', isInstalled: true },
         { id: 'gpt-6-sol', name: 'GPT-6 Sol', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Coding Flagship', context: '256k', mode: 'Cloud API', description: 'Built to power complex coding and agentic engineering workflows.', isInstalled: true },
         { id: 'gpt-6-astra', name: 'GPT-6 Astra', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Most Capable', context: '256k', mode: 'Cloud API', description: 'OpenAI\'s most capable model, built for the hardest end-to-end work.', isInstalled: true },
         { id: 'gpt-6-luna', name: 'GPT-6 Luna', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Efficient', context: '256k', mode: 'Cloud API', description: 'Most efficient tier for focused, high-volume refactoring tasks.', isInstalled: true },
 
         // GLM (Zhipu AI / Z.ai Cloud) Family
         { id: 'glm-4.6', name: 'GLM-4.6', provider: 'zai', providerLabel: 'GLM / Z.ai Cloud', category: 'cloud', isCoding: true, icon: '💻', badge: 'Cloud Flagship', context: '200k', mode: 'Cloud API', description: 'Flagship multilingual coding model with deep enterprise schema knowledge.', isInstalled: true },
-
         // DeepSeek Cloud Family
+        { id: 'deepseek-reasoner', name: 'DeepSeek R1 (Reasoner)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Chain of Thought', context: '64k', mode: 'Cloud API', description: 'DeepSeek\'s official R1 reasoning model with open chain-of-thought verification.', isInstalled: true },
+        { id: 'deepseek-chat', name: 'DeepSeek V3 (Chat)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'V3 Flagship', context: '64k', mode: 'Cloud API', description: 'DeepSeek\'s official V3 model delivering frontier performance across code and language.', isInstalled: true },
         { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Frontier', context: '128k', mode: 'Cloud API', description: 'DeepSeek\'s frontier model for complex repository transformations.', isInstalled: true },
         { id: 'deepseek-flash', name: 'DeepSeek V4.1 Flash', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', category: 'cloud', isCoding: true, icon: '🧠', badge: 'Fast', context: '128k', mode: 'Cloud API', description: 'High-throughput tier for batch code conversion and routine engineering tasks.', isInstalled: true },
 
@@ -5130,17 +5148,18 @@ End Function
 
     ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {
       let { prompt, history = [], model = 'qwen2.5-coder:7b', provider = 'ollama', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
-      if (provider === 'anthropic' && (!req.model || req.model === 'default' || !req.model.toLowerCase().startsWith('claude-'))) {
+      const isJunkOrArch = (s: string) => !s || s === 'default' || s.includes('(') || s.includes('+') || s.includes('nomic') || s.includes('offline-engine') || s.includes('SLM') || s.includes('slm');
+      if (provider === 'anthropic' && isJunkOrArch(model)) {
         const configured = secretVault.getSecret('anthropicModel');
-        if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('claude-')) model = configured.trim();
+        if (configured && !isJunkOrArch(configured.trim())) model = configured.trim();
         else model = 'claude-3-7-sonnet-20250219';
-      } else if (provider === 'openai' && (!req.model || req.model === 'default' || (!req.model.toLowerCase().startsWith('gpt-') && !req.model.toLowerCase().startsWith('o1') && !req.model.toLowerCase().startsWith('o3')))) {
+      } else if (provider === 'openai' && isJunkOrArch(model)) {
         const configured = secretVault.getSecret('openaiModel');
-        if (configured && configured.trim()) model = configured.trim();
+        if (configured && !isJunkOrArch(configured.trim())) model = configured.trim();
         else model = 'gpt-4o';
-      } else if (provider === 'gemini' && (!req.model || req.model === 'default' || !req.model.toLowerCase().startsWith('gemini-'))) {
+      } else if (provider === 'gemini' && isJunkOrArch(model)) {
         const configured = secretVault.getSecret('geminiModel');
-        if (configured && configured.trim() && configured.trim().toLowerCase().startsWith('gemini-')) model = configured.trim();
+        if (configured && !isJunkOrArch(configured.trim())) model = configured.trim();
         else model = 'gemini-2.0-flash';
       }
 

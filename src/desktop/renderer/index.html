@@ -11514,6 +11514,37 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
             </div>
           </div>
 
+          
+          <!-- In-Chat Instant Model Selector Popover -->
+          <div id="chatModelPopover" style="display: none; position: absolute; top: 46px; left: 10px; width: 440px; max-width: 95%; max-height: calc(100vh - 190px); background: #1e1e1e; border: 1px solid var(--border); border-radius: 8px; z-index: 60; box-shadow: 0 8px 30px rgba(0,0,0,0.65); flex-direction: column; overflow: hidden;">
+            <div style="padding: 10px 12px; background: rgba(0,0,0,0.3); border-bottom: 1px solid var(--border);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-size: 12.5px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                  <span>🤖</span> Select Active AI Model
+                </span>
+                <button class="btn-quick" id="btnCloseChatModelPopover" style="font-size: 11px; padding: 2px 7px;">✕</button>
+              </div>
+              <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                <input type="text" id="txtChatModelFilter" placeholder="Filter models (e.g. fable, sonnet, gemini, o3, qwen)..." style="flex: 1; padding: 6px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;" />
+              </div>
+              <div style="display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px;" id="chatModelTabs">
+                <button class="btn-quick active chat-mod-tab" data-prov="all" style="font-size: 10px; padding: 2px 8px;">All</button>
+                <button class="btn-quick chat-mod-tab" data-prov="anthropic" style="font-size: 10px; padding: 2px 8px;">☁️ Anthropic</button>
+                <button class="btn-quick chat-mod-tab" data-prov="gemini" style="font-size: 10px; padding: 2px 8px;">✨ Gemini</button>
+                <button class="btn-quick chat-mod-tab" data-prov="openai" style="font-size: 10px; padding: 2px 8px;">🌐 OpenAI</button>
+                <button class="btn-quick chat-mod-tab" data-prov="deepseek" style="font-size: 10px; padding: 2px 8px;">🧠 DeepSeek</button>
+                <button class="btn-quick chat-mod-tab" data-prov="local" style="font-size: 10px; padding: 2px 8px;">🦙 Local / Ollama</button>
+              </div>
+            </div>
+            <div style="padding: 8px 12px; background: rgba(78, 201, 176, 0.06); border-bottom: 1px solid var(--border); display: flex; gap: 6px; align-items: center;">
+              <input type="text" id="txtCustomGatewayModel" placeholder="Or enter custom gateway model ID..." style="flex: 1; padding: 5px 8px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: monospace;" />
+              <button class="btn-quick" id="btnApplyCustomGatewayModel" style="font-size: 11px; color: var(--accent); border-color: var(--accent); padding: 5px 10px; white-space: nowrap;">Apply</button>
+            </div>
+            <div id="chatModelListContainer" style="flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; max-height: 380px;">
+              <!-- Injected dynamically -->
+            </div>
+          </div>
+
           <!-- Desktop Chat Session Drawer Overlay -->
           <div id="desktopSessionDrawer" style="display: none; position: absolute; top: 48px; right: 0; bottom: 0; width: 340px; background: #1e1e1e; border-left: 1px solid var(--border); z-index: 50; box-shadow: -4px 0 16px rgba(0,0,0,0.5); flex-direction: column; padding: 12px; box-sizing: border-box;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border);">
@@ -13407,12 +13438,19 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               </div>
               <input type="text" id="cfgAnthropicModel" list="dlAnthropicModels" placeholder="claude-3-5-sonnet-20241022, claude-3-5-sonnet, or gateway model..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="Anthropic Model ID" />
               <datalist id="dlAnthropicModels">
-                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (v2)</option>
+                <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Official Hybrid Reasoning)</option>
+                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (v2 Recommended)</option>
                 <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Gateway Alias)</option>
-                <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Official)</option>
+                <option value="claude-fable-5-1">Claude Fable 5.1 (Max Reasoning Frontier)</option>
+                <option value="claude-opus-5-5">Claude Opus 5.5 (Autonomous Agentic Flagship)</option>
+                <option value="claude-sonnet-5">Claude Sonnet 5 (Balanced Frontier)</option>
+                <option value="claude-haiku-4-5">Claude Haiku 4.5 (Speed Leader)</option>
                 <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+                <option value="claude-3-opus-20240229">Claude 3 Opus (Deep Context)</option>
                 <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
-                <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+                <option value="claude-opus-4-7">Claude Opus 4.7</option>
+                <option value="claude-opus-4-6">Claude Opus 4.6</option>
+                <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
               </datalist>
               <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
                 Pick from list, click <strong>Query /v1/models</strong>, or type custom model ID. Used in tests &amp; AI sessions.
@@ -13432,11 +13470,15 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgGeminiModel">GOOGLE GEMINI MODEL ID</label>
               <input type="text" id="cfgGeminiModel" list="dlGeminiModels" placeholder="gemini-2.0-flash, gemini-2.5-pro..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="Gemini Model ID" />
               <datalist id="dlGeminiModels">
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro (Flagship Reasoning &amp; Context)</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Next-Gen Intelligence)</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Fast Multimodal)</option>
+                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite (High Throughput)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (1M Context)</option>
                 <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                <option value="gemini-3.8-flash">Gemini 3.8 Flash (Agentic)</option>
+                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Preview)</option>
+                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite</option>
               </datalist>
             </div>
             <div>
@@ -13460,11 +13502,16 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               </div>
               <input type="text" id="cfgOpenaiModel" list="dlOpenaiModels" placeholder="gpt-4o, gpt-4o-mini, o1, or Azure deployment name..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="OpenAI Model ID" />
               <datalist id="dlOpenaiModels">
-                <option value="gpt-4o">GPT-4o</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="o1">o1</option>
-                <option value="o3-mini">o3-mini</option>
+                <option value="gpt-4.5-preview">GPT-4.5 Preview (Orion Frontier)</option>
+                <option value="o3-mini">o3-mini (High-Speed STEM Reasoning)</option>
+                <option value="o1">o1 (Flagship Reasoning)</option>
+                <option value="o1-mini">o1-mini (Fast Reasoning)</option>
+                <option value="gpt-4o">GPT-4o (Omni Flagship)</option>
+                <option value="gpt-4o-mini">GPT-4o Mini (Cost Efficient)</option>
                 <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                <option value="gpt-6-sol">GPT-6 Sol (Coding Flagship)</option>
+                <option value="gpt-6-astra">GPT-6 Astra (Most Capable)</option>
+                <option value="gpt-6-luna">GPT-6 Luna (Refactoring Tier)</option>
               </datalist>
             </div>
             <div>

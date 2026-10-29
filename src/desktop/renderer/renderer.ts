@@ -47990,11 +47990,210 @@ function setupAiChatStudio(api: any): void {
   const sessionListContainer = document.getElementById('desktopSessionList');
   const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
 
-  // Model Picker Trigger from Chat Header
-  lblChatBadge?.addEventListener('click', () => {
-    const btnPicker = document.getElementById('btnHeaderModelPicker');
-    if (btnPicker) btnPicker.click();
-    else (window as any).openModelPicker?.();
+  // ─── IN-CHAT INSTANT MODEL SELECTOR POPOVER ──────────────────────────
+  const chatModelPopover = document.getElementById('chatModelPopover');
+  const btnCloseChatModelPopover = document.getElementById('btnCloseChatModelPopover');
+  const txtChatModelFilter = document.getElementById('txtChatModelFilter') as HTMLInputElement;
+  const chatModelListContainer = document.getElementById('chatModelListContainer');
+  const txtCustomGatewayModel = document.getElementById('txtCustomGatewayModel') as HTMLInputElement;
+  const btnApplyCustomGatewayModel = document.getElementById('btnApplyCustomGatewayModel');
+  const chatModelTabs = document.getElementById('chatModelTabs');
+
+  let activeChatModelTab = 'all';
+
+  const IN_CHAT_ALL_MODELS = [
+    // Anthropic Claude
+    { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Official Hybrid Reasoning', context: '200k', desc: 'Anthropic\'s flagship hybrid reasoning and premier coding model.' },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (v2)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Recommended', context: '200k', desc: 'Industry benchmark for autonomous coding, refactoring, and agentic workflows.' },
+    { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet (Gateway Alias)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Gateway Alias', context: '200k', desc: 'Standard enterprise proxy model alias for corporate AI gateways.' },
+    { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Max Reasoning Frontier', context: '1M', desc: 'For the most demanding reasoning, high-depth synthesis, and long-horizon migrations.' },
+    { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Frontier Preview', context: '1M', desc: 'Flagship model for long-running autonomous agentic coding and knowledge work.' },
+    { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Balanced Frontier', context: '1M', desc: 'The optimal combination of speed and intelligence for enterprise transformation.' },
+    { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Speed Leader', context: '200k', desc: 'Fastest Claude model with near-frontier intelligence for rapid turns.' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Fast Coding', context: '200k', desc: 'High-speed code generation model.' },
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Deep Context', context: '200k', desc: 'Anthropic\'s powerhouse for complex synthesis.' },
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Cost Efficient', context: '200k', desc: 'Ultra-fast, compact model for rapid queries.' },
+    { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Frontier', context: '200k', desc: 'Enterprise deep reasoning tier.' },
+    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Deep Reasoning', context: '200k', desc: 'High-depth reasoning tier.' },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Balanced', context: '200k', desc: 'High-accuracy code pair model.' },
+
+    // Google Gemini
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Frontier Reasoning', context: '2M', desc: 'Google\'s flagship model for massive-context architectural synthesis.' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Next-Gen Flash', context: '1M', desc: 'Next-generation frontier Flash model combining blazing speed with breakthrough intelligence.' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Recommended', context: '1M', desc: 'High-speed multimodal flagship for rapid code conversions and tool orchestration.' },
+    { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Ultra-Fast', context: '1M', desc: 'High-throughput cost-effective tier for continuous bulk transformations.' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: '1M Context', context: '1M', desc: 'Established 1M token context benchmark for multi-repo analysis.' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Fast', context: '1M', desc: 'Lightweight and fast model for day-to-day code pairs and test assertions.' },
+    { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Autonomous Agent', context: '1M', desc: 'Specialized for long-horizon engineering and autonomous build/compile loops.' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Deep Reasoning', context: '1M', desc: 'Advanced reasoning for complex architecture and multi-repository analysis.' },
+    { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', provider: 'gemini', providerLabel: 'Google Gemini', icon: '✨', badge: 'Cost Efficient', context: '1M', desc: 'Most cost-effective tier for high-throughput structured extraction.' },
+
+    // OpenAI
+    { id: 'gpt-4.5-preview', name: 'GPT-4.5 Preview (Orion)', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Orion Flagship', context: '128k', desc: 'OpenAI\'s largest and most capable model with profound world knowledge.' },
+    { id: 'o3-mini', name: 'OpenAI o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Fast STEM Reasoning', context: '128k', desc: 'Lightweight, high-speed STEM and coding reasoning model.' },
+    { id: 'o1', name: 'OpenAI o1', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Reasoning CoT', context: '128k', desc: 'Deep reasoning model for math, complex architectural refactoring.' },
+    { id: 'o1-mini', name: 'OpenAI o1-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Fast Reasoning', context: '128k', desc: 'Fast reasoning model optimized for code and math pipelines.' },
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Omni Flagship', context: '128k', desc: 'OpenAI\'s flagship multimodal intelligence model.' },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Fast & Efficient', context: '128k', desc: 'Fast, cost-effective OpenAI model for rapid transformations.' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Turbo', context: '128k', desc: 'High-capability 128k model with JSON mode and structured outputs.' },
+    { id: 'gpt-6-sol', name: 'GPT-6 Sol', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Coding Flagship', context: '256k', desc: 'Built to power complex coding and agentic engineering workflows.' },
+    { id: 'gpt-6-astra', name: 'GPT-6 Astra', provider: 'openai', providerLabel: 'OpenAI Cloud', icon: '🌐', badge: 'Most Capable', context: '256k', desc: 'OpenAI\'s most capable model, built for the hardest end-to-end work.' },
+
+    // DeepSeek
+    { id: 'deepseek-reasoner', name: 'DeepSeek R1 (Reasoner)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', icon: '🧠', badge: 'Chain of Thought', context: '64k', desc: 'DeepSeek\'s official R1 reasoning model with open chain-of-thought verification.' },
+    { id: 'deepseek-chat', name: 'DeepSeek V3 (Chat)', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', icon: '🧠', badge: 'V3 Flagship', context: '64k', desc: 'DeepSeek\'s official V3 model delivering frontier performance across code and language.' },
+    { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro', provider: 'deepseek', providerLabel: 'DeepSeek Cloud', icon: '🧠', badge: 'Frontier', context: '128k', desc: 'DeepSeek\'s frontier model for complex repository transformations.' },
+
+    // Local / Ollama
+    { id: 'qwen2.5-coder:7b', name: 'Qwen 2.5 Coder 7B', provider: 'ollama', providerLabel: 'Ollama (Local)', icon: '🦙', badge: 'Fast Coding', context: '32k', desc: 'Fast, high-precision coding model optimized for code transformations.' },
+    { id: 'qwen2.5-coder:14b', name: 'Qwen 2.5 Coder 14B', provider: 'ollama', providerLabel: 'Ollama (Local)', icon: '🦙', badge: 'High Accuracy', context: '32k', desc: 'Mid-sized coding model with superior reasoning and schema generation.' },
+    { id: 'qwen2.5-coder:32b', name: 'Qwen 2.5 Coder 32B', provider: 'ollama', providerLabel: 'Ollama (Local)', icon: '🦙', badge: 'Frontier Local', context: '32k', desc: 'Frontier-grade local coding performance.' },
+    { id: 'deepseek-r1:7b', name: 'DeepSeek R1 7B (Local)', provider: 'deepseek', providerLabel: 'Ollama (Local)', icon: '🧠', badge: 'Local Reasoner', context: '64k', desc: 'Distilled local chain-of-thought mathematical and algorithmic reasoner.' },
+    { id: 'llama3.3:70b', name: 'Llama 3.3 70B', provider: 'ollama', providerLabel: 'Meta LLaMA', icon: '🦙', badge: 'Meta Flagship', context: '128k', desc: 'Meta\'s premier open-source reasoning model.' },
+    { id: 'offline-engine', name: 'Offline Deterministic Engine', provider: 'builtin', providerLabel: 'Evolve Built-in', icon: '⚙️', badge: 'Instant AST', context: 'Unlimited', desc: '100% air-gapped deterministic compiler & heuristic AST engine.' }
+  ];
+
+  const renderInChatModelList = (filter = '', provTab = 'all') => {
+    if (!chatModelListContainer) return;
+    const q = filter.trim().toLowerCase();
+
+    const filtered = IN_CHAT_ALL_MODELS.filter(m => {
+      const matchProv = provTab === 'all'
+        || (provTab === 'local' && (m.provider === 'ollama' || m.provider === 'builtin' || m.provider === 'offline'))
+        || m.provider === provTab;
+
+      const matchQuery = !q
+        || m.name.toLowerCase().includes(q)
+        || m.id.toLowerCase().includes(q)
+        || m.providerLabel.toLowerCase().includes(q)
+        || m.badge.toLowerCase().includes(q)
+        || m.desc.toLowerCase().includes(q);
+
+      return matchProv && matchQuery;
+    });
+
+    if (filtered.length === 0) {
+      chatModelListContainer.innerHTML = `<div style="color: var(--text-secondary); font-size: 11px; text-align: center; padding: 24px;">No matching models found for "${escapeHtml(filter)}".<br><span style="font-size: 10px; color: var(--text-muted); margin-top: 4px; display: inline-block;">You can type any custom model ID in the box above and click Apply.</span></div>`;
+      return;
+    }
+
+    chatModelListContainer.innerHTML = filtered.map(m => {
+      const isCur = m.id === activeSelectedModel || (activeSelectedModel && activeSelectedModel.toLowerCase() === m.id.toLowerCase());
+      return `
+        <div class="chat-model-item ${isCur ? 'active' : ''}" data-id="${m.id}" data-name="${m.name}" data-provider="${m.provider}" data-label="${m.providerLabel}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 700; font-size: 12px; color: ${isCur ? 'var(--accent)' : '#fff'}; display: flex; align-items: center; gap: 6px;">
+              <span>${m.icon}</span> ${escapeHtml(m.name)}
+              ${isCur ? '<span style="font-size: 9px; background: var(--accent); color: #1e1e1e; padding: 1px 5px; border-radius: 4px; font-weight: 800;">ACTIVE</span>' : ''}
+            </div>
+            <span style="font-size: 9.5px; background: rgba(78, 201, 176, 0.12); color: var(--accent); border: 1px solid rgba(78, 201, 176, 0.3); padding: 1px 6px; border-radius: 4px; font-weight: 600;">${m.badge}</span>
+          </div>
+          <div style="font-size: 10.5px; font-family: monospace; color: var(--text-secondary); margin-top: 2px;">${m.id}</div>
+          <div style="font-size: 10px; color: var(--text-muted); display: flex; justify-content: space-between; margin-top: 3px;">
+            <span>${m.providerLabel}</span>
+            <span>Context: ${m.context}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire clicks on each model item
+    chatModelListContainer.querySelectorAll('.chat-model-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const id = item.getAttribute('data-id') || '';
+        const name = item.getAttribute('data-name') || id;
+        const prov = item.getAttribute('data-provider') || 'anthropic';
+        const label = item.getAttribute('data-label') || prov;
+
+        setActiveAiModel(api, prov, id, name, label);
+
+        const cur = getOrCreateActiveSession();
+        cur.provider = prov;
+        cur.model = id;
+        cur.updatedAt = Date.now();
+        saveSessions();
+
+        if (chatModelPopover) chatModelPopover.style.display = 'none';
+        showToast(`✓ Switched chat model to: ${name} (${label})`);
+      });
+    });
+  };
+
+  // Toggle in-chat popover
+  lblChatBadge?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!chatModelPopover) return;
+    const isVis = chatModelPopover.style.display === 'flex';
+    chatModelPopover.style.display = isVis ? 'none' : 'flex';
+    if (!isVis) {
+      if (sessionDrawer) sessionDrawer.style.display = 'none';
+      if (txtCustomGatewayModel) txtCustomGatewayModel.value = activeSelectedModel;
+      renderInChatModelList(txtChatModelFilter?.value || '', activeChatModelTab);
+      txtChatModelFilter?.focus();
+    }
+  });
+
+  btnCloseChatModelPopover?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (chatModelPopover) chatModelPopover.style.display = 'none';
+  });
+
+  txtChatModelFilter?.addEventListener('input', () => {
+    renderInChatModelList(txtChatModelFilter.value, activeChatModelTab);
+  });
+
+  // Tab switching
+  chatModelTabs?.querySelectorAll('.chat-mod-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      chatModelTabs.querySelectorAll('.chat-mod-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeChatModelTab = tab.getAttribute('data-prov') || 'all';
+      renderInChatModelList(txtChatModelFilter?.value || '', activeChatModelTab);
+    });
+  });
+
+  // Apply custom gateway model
+  const applyCustomModel = () => {
+    const rawVal = (txtCustomGatewayModel?.value || '').trim();
+    if (!rawVal) {
+      showToast('⚠️ Please enter a model ID.');
+      return;
+    }
+
+    let inferredProv = activeSelectedProvider;
+    if (rawVal.toLowerCase().startsWith('claude-')) inferredProv = 'anthropic';
+    else if (rawVal.toLowerCase().startsWith('gemini-')) inferredProv = 'gemini';
+    else if (rawVal.toLowerCase().startsWith('gpt-') || rawVal.toLowerCase().startsWith('o1') || rawVal.toLowerCase().startsWith('o3')) inferredProv = 'openai';
+    else if (rawVal.toLowerCase().startsWith('deepseek-')) inferredProv = 'deepseek';
+
+    setActiveAiModel(api, inferredProv, rawVal, rawVal, inferredProv.toUpperCase() + ' (Custom)');
+
+    const cur = getOrCreateActiveSession();
+    cur.provider = inferredProv;
+    cur.model = rawVal;
+    cur.updatedAt = Date.now();
+    saveSessions();
+
+    if (chatModelPopover) chatModelPopover.style.display = 'none';
+    showToast(`✓ Activated custom model: ${rawVal} (${inferredProv.toUpperCase()})`);
+  };
+
+  btnApplyCustomGatewayModel?.addEventListener('click', applyCustomModel);
+  txtCustomGatewayModel?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      applyCustomModel();
+    }
+  });
+
+  // Close popover when clicking outside
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    if (chatModelPopover && chatModelPopover.style.display === 'flex') {
+      if (!chatModelPopover.contains(target) && !lblChatBadge?.contains(target)) {
+        chatModelPopover.style.display = 'none';
+      }
+    }
   });
 
   // Prompt History Navigation

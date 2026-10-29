@@ -778,3 +778,29 @@ body.resizing-v .resizer-vertical {
   border-color: var(--accent);
   background: rgba(78, 201, 176, 0.12);
 }
+
+/* In-Chat Model Selector Popover */
+.chat-model-item {
+  padding: 8px 10px;
+  background: var(--bg-primary, #141414);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.12s ease;
+}
+.chat-model-item:hover {
+  border-color: var(--accent);
+  background: rgba(78, 201, 176, 0.06);
+}
+.chat-model-item.active {
+  border-color: var(--accent);
+  background: rgba(78, 201, 176, 0.12);
+}
+.chat-mod-tab.active {
+  color: var(--accent) !important;
+  border-color: var(--accent) !important;
+  font-weight: 700 !important;
+}
