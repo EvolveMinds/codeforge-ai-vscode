@@ -54,6 +54,8 @@ export interface AIRequest {
    * prompts must set this or risk a confident answer based on half the input.
    */
   contextTokens?:   number;
+  thinkingBudget?:  number;
+  groundingEnabled?: boolean;
 }
 
 export interface RequestInterceptor {
