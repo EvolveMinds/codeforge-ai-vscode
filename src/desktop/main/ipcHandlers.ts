@@ -516,23 +516,22 @@ function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: Des
   const isJunkOrArchitecture = (s: string) => !s || s === 'default' || s.includes('(') || s.includes('+') || s.includes('nomic') || s.includes('offline-engine') || s.includes('slm');
 
   if (vaultKey === 'anthropicApiKey') {
+    const configured = secretVault?.getSecret('anthropicModel');
     if (isJunkOrArchitecture(m)) {
-      const configured = secretVault?.getSecret('anthropicModel');
       if (configured && !isJunkOrArchitecture(configured.trim())) return configured.trim();
-      return 'claude-3-7-sonnet-20250219';
+      return 'claude-3-5-sonnet-20241022';
     }
-    const hasCustomBaseUrl = !!(secretVault?.getSecret('anthropicBaseUrl') || process.env.ANTHROPIC_BASE_URL);
-    if (!hasCustomBaseUrl) {
-      if (m === 'claude-opus-5-5' || m === 'claude-sonnet-5' || m === 'claude-fable-5-1' || m === 'claude-opus-4-7' || m === 'claude-opus-4-6' || m === 'claude-sonnet-4-6') {
-        return 'claude-3-7-sonnet-20250219';
-      }
-      if (m === 'claude-haiku-4-5') return 'claude-3-5-haiku-20241022';
-      if (m === 'claude-3-7-sonnet') return 'claude-3-7-sonnet-20250219';
-      if (m === 'claude-3-5-sonnet') return 'claude-3-5-sonnet-20241022';
-      if (m === 'claude-3-5-haiku') return 'claude-3-5-haiku-20241022';
-      if (m === 'claude-3-opus') return 'claude-3-opus-20240229';
-      if (m === 'claude-3-haiku') return 'claude-3-haiku-20240307';
+    // Universal Anthropic aliases (supported on both direct API and Enterprise Gateways)
+    if (m === 'claude-3-5-sonnet') return 'claude-3-5-sonnet-20241022';
+    if (m === 'claude-3-5-haiku') return 'claude-3-5-haiku-20241022';
+    if (m === 'claude-3-7-sonnet') return 'claude-3-7-sonnet-20250219';
+    if (m === 'claude-3-opus') return 'claude-3-opus-20240229';
+    if (m === 'claude-3-haiku') return 'claude-3-haiku-20240307';
+    if (m === 'claude-opus-5-5' || m === 'claude-sonnet-5' || m === 'claude-fable-5-1' || m === 'claude-opus-4-7' || m === 'claude-opus-4-6' || m === 'claude-sonnet-4-6') {
+      if (configured && !isJunkOrArchitecture(configured.trim())) return configured.trim();
+      return 'claude-3-5-sonnet-20241022';
     }
+    if (m === 'claude-haiku-4-5') return 'claude-3-5-haiku-20241022';
     return raw;
   }
   if (vaultKey === 'openaiApiKey') {
@@ -589,7 +588,7 @@ function callCloudChat(
   system: string,
   messages: Array<{ role: string; content: string }>,
   options?: { trustCorporateProxy?: boolean; secretVault?: DesktopSecretVault }
-): Promise<{ content: string; success: boolean; error?: string }> {
+): Promise<{ content: string; success: boolean; actualModel?: string; error?: string }> {
   return new Promise((resolve) => {
     const effectiveModel = resolveUpstreamModel(provider.vaultKey, model, options?.secretVault);
     let payload: string;
@@ -702,7 +701,8 @@ function callCloudChat(
             resolve({ content: '', success: false, error: 'Provider returned an empty response.' });
             return;
           }
-          resolve({ content, success: true });
+          const actualModel = parsed.model || effectiveModel;
+          resolve({ content, success: true, actualModel });
         } catch (err: any) {
           resolve({ content: '', success: false, error: `Could not parse response: ${err.message}` });
         }
@@ -5152,7 +5152,7 @@ End Function
       if (provider === 'anthropic' && isJunkOrArch(model)) {
         const configured = secretVault.getSecret('anthropicModel');
         if (configured && !isJunkOrArch(configured.trim())) model = configured.trim();
-        else model = 'claude-3-7-sonnet-20250219';
+        else model = 'claude-3-5-sonnet-20241022';
       } else if (provider === 'openai' && isJunkOrArch(model)) {
         const configured = secretVault.getSecret('openaiModel');
         if (configured && !isJunkOrArch(configured.trim())) model = configured.trim();
@@ -5164,11 +5164,13 @@ End Function
       }
 
       // Inform the model of its exact identity so it never hallucinates or gets confused about its model
-      const modelContextPrompt = `${system}\n\n[Active Model Identity]\nYou are running as active model: "${model}" (Provider: ${provider.toUpperCase()}). When asked what model, version, or AI you are, state directly that you are running on "${model}".`;
+      const modelContextPrompt = `${system}\n\n[Active Execution Environment]\n- Active AI Model: "${model}" (Provider: ${provider.toUpperCase()}).\n- When asked what model, version, or engine you are, state directly and concisely that you are running on model "${model}". Do not guess, speculate, or mention previous errors.`;
 
       const messages = [
         { role: 'system', content: modelContextPrompt },
-        ...history.map((h: any) => ({ role: h.role || 'user', content: h.content })),
+        ...history
+          .filter((h: any) => h && h.content && !String(h.content).includes('HTTP 400') && !String(h.content).includes('request failed') && !String(h.content).includes('Invalid model name'))
+          .map((h: any) => ({ role: h.role || 'user', content: h.content })),
         { role: 'user', content: prompt }
       ];
 
@@ -5198,7 +5200,7 @@ End Function
         if (cloudRes.success) {
           return {
             content: cloudRes.content,
-            modelUsed: model,
+            modelUsed: cloudRes.actualModel || model,
             isLocal: false,
             offlineFallback: false,
             provider

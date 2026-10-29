@@ -48006,7 +48006,7 @@ function setupAiChatStudio(api: any): void {
     { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Official Hybrid Reasoning', context: '200k', desc: 'Anthropic\'s flagship hybrid reasoning and premier coding model.' },
     { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (v2)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Recommended', context: '200k', desc: 'Industry benchmark for autonomous coding, refactoring, and agentic workflows.' },
     { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet (Gateway Alias)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Gateway Alias', context: '200k', desc: 'Standard enterprise proxy model alias for corporate AI gateways.' },
-    { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Max Reasoning Frontier', context: '1M', desc: 'For the most demanding reasoning, high-depth synthesis, and long-horizon migrations.' },
+    { id: 'claude-fable-5-1', name: 'Claude Fable 5.1 (Alias → Claude 3.5 Sonnet)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Alias → 3.5 Sonnet', context: '1M', desc: 'Enterprise alias routing to Claude 3.5 Sonnet.' },
     { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Frontier Preview', context: '1M', desc: 'Flagship model for long-running autonomous agentic coding and knowledge work.' },
     { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Balanced Frontier', context: '1M', desc: 'The optimal combination of speed and intelligence for enterprise transformation.' },
     { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', icon: '☁️', badge: 'Speed Leader', context: '200k', desc: 'Fastest Claude model with near-frontier intelligence for rapid turns.' },
@@ -48311,6 +48311,8 @@ function setupAiChatStudio(api: any): void {
     messagesStream.innerHTML = '';
     renderWelcomeBubble();
 
+    // Cleanse any old error bubbles from history
+    session.history = session.history.filter(m => m && m.content && !m.content.includes('HTTP 400') && !m.content.includes('request failed') && !m.content.includes('Invalid model name'));
     session.history.forEach(msg => {
       if (msg.role === 'user') {
         const userDiv = document.createElement('div');
@@ -48533,7 +48535,7 @@ function setupAiChatStudio(api: any): void {
     // Ensure model alignment with provider before query
     let safeModel = activeSelectedModel;
     if (activeSelectedProvider === 'anthropic' && (!safeModel || !safeModel.toLowerCase().startsWith('claude-'))) {
-      safeModel = 'claude-3-7-sonnet-20250219';
+      safeModel = 'claude-3-5-sonnet-20241022';
       activeSelectedModel = safeModel;
     } else if (activeSelectedProvider === 'gemini' && (!safeModel || !safeModel.toLowerCase().startsWith('gemini-'))) {
       safeModel = 'gemini-2.0-flash';
@@ -48615,6 +48617,15 @@ function setupAiChatStudio(api: any): void {
         // Only save successful responses into conversation history so errors don't confuse future turns
         if (!isError) {
           curSession.history.push({ role: 'assistant', content });
+          curSession.model = modelUsed;
+          curSession.updatedAt = Date.now();
+          saveSessions();
+
+          // Auto-synchronize UI when gateway confirmed a specific model
+          if (modelUsed && modelUsed !== activeSelectedModel && !modelUsed.includes('(')) {
+            setActiveAiModel(api, activeSelectedProvider, modelUsed, modelUsed);
+            showToast(`✓ Model synchronized to gateway: ${modelUsed}`);
+          }
         }
         curSession.updatedAt = Date.now();
         saveSessions();
@@ -48972,8 +48983,8 @@ function setActiveAiModel(
   let safeModelId = (modelId || '').trim();
   let safeModelName = modelName || safeModelId;
   if (provider === 'anthropic' && (!safeModelId || !safeModelId.toLowerCase().startsWith('claude-'))) {
-    safeModelId = 'claude-3-7-sonnet-20250219';
-    safeModelName = 'Claude 3.7 Sonnet';
+    safeModelId = 'claude-3-5-sonnet-20241022';
+    safeModelName = 'Claude 3.5 Sonnet';
   } else if (provider === 'gemini' && (!safeModelId || !safeModelId.toLowerCase().startsWith('gemini-'))) {
     safeModelId = 'gemini-2.0-flash';
     safeModelName = 'Gemini 2.0 Flash';
@@ -49053,8 +49064,8 @@ function setupHardwareStudio(api: any): void {
       let healedModel = savedModel;
       let healedName = savedName || savedModel;
       if (savedProv === 'anthropic' && (!healedModel || !healedModel.toLowerCase().startsWith('claude-'))) {
-        healedModel = 'claude-3-7-sonnet-20250219';
-        healedName = 'Claude 3.7 Sonnet';
+        healedModel = 'claude-3-5-sonnet-20241022';
+        healedName = 'Claude 3.5 Sonnet';
       } else if (savedProv === 'gemini' && (!healedModel || !healedModel.toLowerCase().startsWith('gemini-'))) {
         healedModel = 'gemini-2.0-flash';
         healedName = 'Gemini 2.0 Flash';
