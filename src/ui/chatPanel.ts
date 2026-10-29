@@ -13,6 +13,9 @@ import * as path   from 'path';
 import type { IServices } from '../core/services';
 import type { AIRequest, Message } from '../core/aiService';
 import type { LineageSchema }      from '../core/plugin';
+import { SessionManager } from '../core/session/sessionManager';
+import { ProviderAdapter } from '../core/providers/providerAdapter';
+import { AgentRunner } from '../core/agent/agentRunner';
 
 const HISTORY_KEY     = 'aiForge.chatHistory';
 const MAX_HISTORY     = 40; // messages to keep in state
@@ -77,6 +80,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
   private _history: Array<{ role: 'user' | 'assistant'; content: string; images?: string[] }> = [];
   private _activeAbort: AbortController | null = null;   // FIX 5
   private _lastActiveFileUri: string | undefined;        // [FIX-5] Track file for apply safety
+  private _sessionMgr: SessionManager;
 
   // [FIX-18] Status debouncing and caching
   private _statusTimer: ReturnType<typeof setTimeout> | null = null;
@@ -87,6 +91,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     // Restore persisted history (FIX 12)
     const saved = _svc.vsCtx.workspaceState.get<typeof this._history>(HISTORY_KEY, []);
     this._history = saved.slice(-MAX_HISTORY);
+    this._sessionMgr = new SessionManager(_svc.vsCtx.workspaceState);
 
     // Allow CoreCommands to push messages into the panel
     _svc.vsCtx.subscriptions.push(
@@ -145,6 +150,56 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
           case 'getStatus':      await this._postStatus();               break;
           case 'getHistory':     this._sendHistory();                    break;
           case 'switchProvider': await vscode.commands.executeCommand('aiForge.switchProvider'); break;
+          case 'switchSession':
+            if (typeof msg.id === 'string') {
+              await this._sessionMgr.setActiveSession(msg.id);
+              this._sendHistory();
+            }
+            break;
+          case 'newSession': {
+            const p = (await this._svc.ai.detectProvider()) as any;
+            this._sessionMgr.createSession({ provider: p });
+            this._sendHistory();
+            break;
+          }
+          case 'renameSession':
+            if (typeof msg.id === 'string' && typeof msg.title === 'string') {
+              await this._sessionMgr.renameSession(msg.id, msg.title);
+              this._sendSessionsList();
+            }
+            break;
+          case 'pinSession':
+            if (typeof msg.id === 'string') {
+              await this._sessionMgr.togglePinSession(msg.id);
+              this._sendSessionsList();
+            }
+            break;
+          case 'deleteSession':
+            if (typeof msg.id === 'string') {
+              await this._sessionMgr.deleteSession(msg.id);
+              this._sendHistory();
+            }
+            break;
+          case 'exportSession':
+            if (typeof msg.id === 'string') {
+              const format = msg.format || 'markdown';
+              const exportContent = this._sessionMgr.exportSession(msg.id, format);
+              const doc = await vscode.workspace.openTextDocument({
+                content: exportContent,
+                language: format === 'json' ? 'json' : 'markdown',
+              });
+              await vscode.window.showTextDocument(doc, { preview: true });
+            }
+            break;
+          case 'getSessions':
+            this._sendSessionsList();
+            break;
+          case 'searchSessions': {
+            const query = typeof msg.query === 'string' ? msg.query : '';
+            const results = this._sessionMgr.searchSessions(query);
+            this._post({ type: 'sessionSearchResults', sessions: results });
+            break;
+          }
           // Allowlisted command launch from the chat UI (Analyse, Code Convertor, FDE).
           case 'runCommand':
             if (typeof msg.command === 'string' &&
@@ -214,8 +269,20 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 
   // ── Send ──────────────────────────────────────────────────────────────────────
 
-  async send(instruction: string, mode: 'chat' | 'edit' | 'new' = 'chat', images?: string[]): Promise<void> {
+  async send(instruction: string, mode: 'chat' | 'edit' | 'new' | 'build' = 'chat', images?: string[]): Promise<void> {
     this.show();
+
+    // 1. Check for slash command
+    if (instruction.trim().startsWith('/')) {
+      const handled = await this._handleSlashCommand(instruction);
+      if (handled) return;
+    }
+
+    // 2. Check for build (agent) mode
+    if (mode === 'build') {
+      await this._runAgentBuild(instruction);
+      return;
+    }
 
     // [FIX-5] Track the active file at request time for safe apply
     this._lastActiveFileUri = vscode.window.activeTextEditor?.document.uri.toString();
@@ -265,6 +332,7 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     const userMsg: { role: 'user' | 'assistant'; content: string; images?: string[] } = { role: 'user', content: user };
     if (images?.length) { userMsg.images = images; }
     this._history.push(userMsg);
+    void this._sessionMgr.addMessageToActiveSession({ role: 'user', content: instruction, images });
     this._post({ type: 'aiStart' });
 
     // FIX 5 — create abort controller, send stop signal to panel
@@ -292,6 +360,8 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
 
     this._activeAbort = null;
     this._history.push({ role: 'assistant', content: full });
+    await this._sessionMgr.addMessageToActiveSession({ role: 'assistant', content: full });
+    this._sendSessionsList();
 
     // FIX 12 — persist history after every exchange
     await this._saveHistory();
@@ -325,14 +395,108 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
   private async _clearHistory(): Promise<void> {
     this._history = [];
     await this._svc.vsCtx.workspaceState.update(HISTORY_KEY, []);
+    await this._sessionMgr.updateActiveSession({ messages: [] });
     this._statusCache = null;  // Invalidate so onboarding guide re-evaluates
     this._post({ type: 'historyClear' });
+    this._sendSessionsList();
   }
 
   private _sendHistory(): void {
-    // Send last N messages to populate the panel on load
-    const recent = this._history.slice(-HISTORY_UI_SHOW);
-    this._post({ type: 'historyLoad', messages: recent });
+    const active = this._sessionMgr.getActiveSession();
+    const recent = active.messages.slice(-HISTORY_UI_SHOW);
+    this._post({
+      type: 'historyLoad',
+      messages: recent,
+      sessionId: active.id,
+      sessionTitle: active.title,
+      sessionModel: active.model,
+      sessionProvider: active.provider,
+      filesTouched: active.filesTouched,
+    });
+    this._sendSessionsList();
+  }
+
+  private _sendSessionsList(): void {
+    const groups = this._sessionMgr.getTimelineGroups();
+    const active = this._sessionMgr.getActiveSession();
+    this._post({
+      type: 'sessionsList',
+      groups,
+      activeId: active.id,
+    });
+  }
+
+  private async _handleSlashCommand(text: string): Promise<boolean> {
+    const provider = (await this._svc.ai.detectProvider()) as any;
+    const activeSession = this._sessionMgr.getActiveSession();
+    const res = await ProviderAdapter.executeSlashCommand(text, {
+      sessionManager: this._sessionMgr,
+      activeProvider: provider,
+      activeModel: activeSession.model,
+      workspaceRoot: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath,
+      postMessage: (msg) => this._post(msg),
+      sendToAi: async (prompt, m = 'chat') => {
+        await this.send(prompt, m as any);
+      },
+    });
+
+    if (res && res.handled) {
+      if (res.notification) {
+        this._post({ type: 'notice', text: res.notification });
+      }
+      if (res.output) {
+        this._post({ type: 'aiChunk', text: res.output });
+      }
+      this._sendSessionsList();
+      return true;
+    }
+    return false;
+  }
+
+  private async _runAgentBuild(instruction: string): Promise<void> {
+    this.show();
+    this._post({ type: 'userMsg', text: instruction, context: '🚀 Agent Build Mode' });
+    this._post({ type: 'agentBuildStart', instruction });
+
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '.';
+    const abort = new AbortController();
+    this._activeAbort = abort;
+
+    const runner = new AgentRunner({
+      workspaceRoot: ws,
+      aiService: this._svc.ai,
+      sessionManager: this._sessionMgr,
+      signal: abort.signal,
+      onProgress: (step, detail) => {
+        this._post({ type: 'agentStep', step, detail });
+      },
+      onFileTouched: (filePath) => {
+        this._post({ type: 'agentFileTouched', filePath });
+      },
+    });
+
+    try {
+      const summary = await runner.runBuild(instruction);
+      this._post({
+        type: 'agentBuildDone',
+        summary,
+      });
+    } catch (err: any) {
+      this._post({
+        type: 'agentBuildDone',
+        summary: {
+          success: false,
+          filesTouched: [],
+          totalTurns: 0,
+          lastBuildStatus: 'failed',
+          durationMs: 0,
+          message: err.message,
+        },
+      });
+    } finally {
+      this._activeAbort = null;
+      this._sendSessionsList();
+    }
   }
 
   // ── Apply ─────────────────────────────────────────────────────────────────────
@@ -461,8 +625,20 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     // model pill can switch within the active provider without a full
     // provider-change quick-pick.
     const { currentModel, availableModels } = resolveModelView(provider, cfg, models);
+    const profile = ProviderAdapter.getProfile(provider);
+    const commands = ProviderAdapter.getCommandsForProvider(provider);
 
     const statusMsg: Record<string, unknown> = {
+      providerProfile: {
+        ...profile,
+        commands: commands.map(c => ({
+          name: c.name,
+          description: c.description,
+          icon: c.icon,
+          usage: c.usage,
+          argsHint: c.argsHint,
+        })),
+      },
       type: 'status',
       provider,
       ollamaRunning: running,
@@ -657,6 +833,96 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 #sendBtn:disabled { opacity: .4; cursor: not-allowed; }
 #stopBtn { display: none; background: var(--vscode-errorForeground); color: #fff; border: none; border-radius: 4px; padding: 7px 12px; cursor: pointer; font-size: 12px; flex-shrink: 0; }
 .hint { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+/* Multi-Session Drawer */
+#sessionDrawer {
+  display: none;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: var(--vscode-editor-background, #1e1e1e);
+  z-index: 1000;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.drawer-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.18);
+}
+.session-card {
+  background: var(--vscode-list-inactiveSelectionBackground, rgba(255,255,255,0.04));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.session-card:hover {
+  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.08));
+  border-color: var(--accent);
+}
+.session-card.active {
+  border-color: var(--accent);
+  background: rgba(56, 189, 248, 0.1);
+}
+.session-title-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 4px;
+}
+.session-title {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+}
+.session-meta {
+  font-size: 10px; color: var(--muted); display: flex; gap: 8px; align-items: center;
+}
+.session-btn {
+  background: transparent; border: none; color: var(--muted);
+  cursor: pointer; padding: 2px 5px; border-radius: 3px; font-size: 11px;
+}
+.session-btn:hover {
+  background: rgba(255,255,255,0.1); color: #fff;
+}
+.timeline-bucket-label {
+  font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+  color: var(--muted); margin: 12px 0 6px 4px; letter-spacing: 0.5px;
+}
+
+/* Slash Autocomplete Popover */
+#slashPopover {
+  position: absolute; bottom: 100%; left: 8px; right: 8px;
+  max-height: 220px; overflow-y: auto; margin-bottom: 6px;
+  z-index: 900; background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+.slash-item {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  cursor: pointer; font-size: 11.5px;
+}
+.slash-item:hover, .slash-item.selected {
+  background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.08));
+  color: #fff;
+}
+.slash-name { font-weight: 700; color: #38bdf8; font-family: monospace; }
+.slash-desc { font-size: 10.5px; color: var(--muted); flex: 1; }
+
+/* Autonomous Agent Cards */
+.agent-card {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px; padding: 12px; margin: 10px 0;
+  font-size: 11.5px;
+}
+.agent-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 700; color: #c7d2fe; margin-bottom: 8px;
+}
+.agent-step-item {
+  padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: var(--text); font-size: 11px;
+}
 </style>
 </head>
 <body>
@@ -683,6 +949,8 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   </div>
 
   <div id="rightBtns">
+    <button class="hbtn" id="newSessionBtn" title="Start a new clean coding session (+ New Chat)" style="color: #38bdf8; font-weight: 700; border-color: rgba(56,189,248,0.5); background: rgba(56,189,248,0.12);">➕ New</button>
+    <button class="hbtn" id="historyDrawerBtn" title="Open multi-session history drawer (Ctrl+Shift+L)" style="color: #c084fc; font-weight: 600; border-color: rgba(192,132,252,0.4); background: rgba(192,132,252,0.1);">🕒 History</button>
     <button class="hbtn" id="desktopBtn" title="💎 Upgrade to Evolve AI Enterprise Desktop Edition (Air-Gapped Standalone .exe) from Company Website" style="color: #e8825a; font-weight: 700; border-color: rgba(196,86,43,0.5); background: rgba(196,86,43,0.12);">🖥️ Enterprise Desktop ↗</button>
     <button class="hbtn" id="studioBtn" title="Launch Forward-Deployed Engineers Delivery Studio (FDE Studio)" style="color: #4ec9b0; font-weight: 700; border-color: rgba(78,201,176,0.5); background: rgba(78,201,176,0.12);">🚀 FDE Studio</button>
     <button class="hbtn" id="dataBtn" title="Launch Data Analysis &amp; Reporting Studio" style="color: #3794ff; font-weight: 600; border-color: rgba(55,148,255,0.4); background: rgba(55,148,255,0.1);">📊 Data</button>
@@ -725,7 +993,27 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
   </div>
 </div>
 
+<div id="sessionDrawer">
+  <div class="drawer-header">
+    <strong style="font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px;">
+      <span>🕒</span> Coding Sessions &amp; History
+    </strong>
+    <div style="display: flex; gap: 6px;">
+      <button class="hbtn" id="drawerNewBtn" style="color: #38bdf8; font-weight: 700;">➕ New</button>
+      <button class="hbtn" id="drawerCloseBtn">&times; Close</button>
+    </div>
+  </div>
+  <div style="padding: 8px 12px; border-bottom: 1px solid var(--border);">
+    <input type="text" id="sessionSearchInput" placeholder="Search sessions, prompts, files..." style="width: 100%; box-sizing: border-box; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; padding: 6px 10px; font-size: 11.5px;" />
+  </div>
+  <div id="sessionDrawerList" style="flex: 1; overflow-y: auto; padding: 10px;"></div>
+</div>
+
 <div id="inputArea" style="position:relative;">
+  <div id="slashPopover" hidden>
+    <div class="pop-title">Available Slash Commands</div>
+    <div id="slashPopoverList"></div>
+  </div>
   <div id="imagePreview" style="display:none;"></div>
 
   <div id="pillRow">
@@ -750,6 +1038,14 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
             <div class="pop-name" style="color: var(--vscode-charts-blue, #38bdf8); font-weight: 700;">Python AI Studio <span style="font-size: 9px; background: rgba(56,189,248,0.2); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">STUDIO</span></div>
             <div class="pop-desc">Python AI Studio &amp; Neural Debugger &mdash; 1-click Python setup, auto package sync, airtight wheelhouse, and PyTorch tensor shape tracing.</div>
           </div>
+        </div>
+        <div class="pop-item" data-mode="build" data-action="buildAgent" style="border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; background: rgba(99, 102, 241, 0.12);">
+          <div class="pop-icon">🚀</div>
+          <div class="pop-body">
+            <div class="pop-name" style="color: #a5b4fc; font-weight: 700;">Build (Agent) <span style="font-size: 9px; background: rgba(99,102,241,0.25); padding: 1px 4px; border-radius: 4px; margin-left: 4px;">AUTONOMOUS</span></div>
+            <div class="pop-desc">Autonomous multi-file generation &amp; build verification. Reads specs, coordinates Java/Vue slices, runs Gradle/npm, and self-corrects compiler errors.</div>
+          </div>
+          <div class="pop-check" data-check="build" style="display:none;">&#10003;</div>
         </div>
         <div class="pop-item" data-mode="chat">
           <div class="pop-icon">&#128172;</div>
@@ -836,17 +1132,19 @@ const MOD = '${mod}';
 
 function setMode(m) {
   mode = m;
-  const labels  = { chat: 'Chat', edit: 'Edit', new: 'Create' };
-  const icons   = { chat: '\\u{1F4AC}', edit: '\\u270E', new: '\\u271A' };
+  const labels  = { chat: 'Chat', edit: 'Edit', new: 'Create', build: 'Build (Agent)' };
+  const icons   = { chat: '\u{1F4AC}', edit: '\u270E', new: '\u271A', build: '🚀' };
   const hints = {
-    chat: 'Chat: ask anything \\u00B7 Shift+Enter for newline',
-    edit: 'Edit: describe the change to apply \\u00B7 Shift+Enter for newline',
-    new:  'Create: describe what to generate \\u00B7 Shift+Enter for newline'
+    chat: 'Chat: ask anything \u00B7 Shift+Enter for newline',
+    edit: 'Edit: describe the change to apply \u00B7 Shift+Enter for newline',
+    new:  'Create: describe what to generate \u00B7 Shift+Enter for newline',
+    build: 'Build: autonomous multi-file generation & compiler verification \u00B7 Shift+Enter for newline'
   };
   const placeholders = {
     chat: 'Ask about your code...',
     edit: 'Describe the change to make...',
-    new:  'Describe what to create...'
+    new:  'Describe what to create...',
+    build: 'Describe the feature or spec to build (e.g. Implement PERS Option 51)...'
   };
   const lbl = document.getElementById('modePillLabel');
   const icn = document.getElementById('modePillIcon');
@@ -1185,6 +1483,207 @@ function clearHistory() {
   vscode.postMessage({ type: 'clear' });
 }
 
+
+// ─── Multi-Session Drawer Client Helpers ─────────────────────────────────────
+let currentSessions = [];
+let providerCommands = [];
+
+function toggleSessionDrawer(show) {
+  const drawer = document.getElementById('sessionDrawer');
+  if (!drawer) return;
+  const isShown = drawer.style.display === 'flex';
+  drawer.style.display = (show !== undefined ? show : !isShown) ? 'flex' : 'none';
+  if (drawer.style.display === 'flex') {
+    vscode.postMessage({ type: 'getSessions' });
+    const inp = document.getElementById('sessionSearchInput');
+    if (inp) inp.focus();
+  }
+}
+
+function renderSessionsList(groups, activeId) {
+  const list = document.getElementById('sessionDrawerList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (!groups || groups.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted); font-size:11.5px; text-align:center; padding:20px;">No saved sessions yet. Start coding!</div>';
+    return;
+  }
+
+  groups.forEach(g => {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'session-group';
+    groupEl.innerHTML = '<div class="timeline-bucket-label">' + esc(g.bucket) + '</div>';
+
+    g.sessions.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'session-card' + (s.id === activeId ? ' active' : '');
+      const filesCount = s.filesTouched ? s.filesTouched.length : 0;
+      const dateStr = new Date(s.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      card.innerHTML = '<div class="session-title-row">'
+        + '<div class="session-title">' + (s.isPinned ? '📌 ' : '') + esc(s.title) + '</div>'
+        + '<div style="display:flex; gap:2px;">'
+        + '<button class="session-btn btn-pin" title="' + (s.isPinned ? 'Unpin' : 'Pin') + '">' + (s.isPinned ? '📌' : '📍') + '</button>'
+        + '<button class="session-btn btn-rename" title="Rename">✏️</button>'
+        + '<button class="session-btn btn-export" title="Export">📤</button>'
+        + '<button class="session-btn btn-delete" title="Delete">&times;</button>'
+        + '</div>'
+        + '</div>'
+        + '<div class="session-meta">'
+        + '<span>' + esc(s.model) + '</span>'
+        + '<span>&bull;</span>'
+        + '<span>' + filesCount + ' file(s)</span>'
+        + '<span>&bull;</span>'
+        + '<span>' + dateStr + '</span>'
+        + '</div>';
+
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.session-btn')) return;
+        vscode.postMessage({ type: 'switchSession', id: s.id });
+        toggleSessionDrawer(false);
+      });
+
+      card.querySelector('.btn-pin')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        vscode.postMessage({ type: 'pinSession', id: s.id });
+      });
+
+      card.querySelector('.btn-rename')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const newTitle = prompt('Enter new session title:', s.title);
+        if (newTitle && newTitle.trim()) {
+          vscode.postMessage({ type: 'renameSession', id: s.id, title: newTitle.trim() });
+        }
+      });
+
+      card.querySelector('.btn-export')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        vscode.postMessage({ type: 'exportSession', id: s.id, format: 'markdown' });
+      });
+
+      card.querySelector('.btn-delete')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Delete session "' + s.title + '"?')) {
+          vscode.postMessage({ type: 'deleteSession', id: s.id });
+        }
+      });
+
+      groupEl.appendChild(card);
+    });
+
+    list.appendChild(groupEl);
+  });
+}
+
+function renderSessionSearchResults(sessions) {
+  renderSessionsList([{ bucket: 'Search Results', sessions: sessions || [] }]);
+}
+
+// ─── Slash Autocomplete Client Helpers ───────────────────────────────────────
+let selectedSlashIndex = 0;
+let filteredSlashCommands = [];
+
+function updateSlashAutocomplete(val) {
+  const pop = document.getElementById('slashPopover');
+  const list = document.getElementById('slashPopoverList');
+  if (!pop || !list) return;
+
+  if (!val.startsWith('/') || val.includes(' ')) {
+    pop.setAttribute('hidden', '');
+    return;
+  }
+
+  const query = val.slice(1).toLowerCase();
+  filteredSlashCommands = providerCommands.filter(c => c.name.toLowerCase().startsWith(query));
+
+  if (filteredSlashCommands.length === 0) {
+    pop.setAttribute('hidden', '');
+    return;
+  }
+
+  selectedSlashIndex = 0;
+  list.innerHTML = '';
+  filteredSlashCommands.forEach((c, idx) => {
+    const item = document.createElement('div');
+    item.className = 'slash-item' + (idx === 0 ? ' selected' : '');
+    item.innerHTML = '<span class="pop-icon">' + esc(c.icon || '⚡') + '</span>'
+      + '<span class="slash-name">/' + esc(c.name) + '</span>'
+      + '<span class="slash-desc">' + esc(c.description) + '</span>';
+
+    item.addEventListener('click', () => {
+      applySlashCommand(c);
+    });
+    list.appendChild(item);
+  });
+
+  pop.removeAttribute('hidden');
+}
+
+function applySlashCommand(cmd) {
+  const inp = document.getElementById('input');
+  if (!inp) return;
+  inp.value = '/' + cmd.name + ' ';
+  inp.focus();
+  document.getElementById('slashPopover')?.setAttribute('hidden', '');
+}
+
+// ─── Agent Card Rendering Helpers ───────────────────────────────────────────
+let currentAgentCard = null;
+
+function renderAgentBuildStart(instruction) {
+  const msgs = document.getElementById('msgs');
+  const card = document.createElement('div');
+  card.className = 'agent-card';
+  card.innerHTML = '<div class="agent-card-header">'
+    + '<span>🚀 Autonomous Agent Build Running...</span>'
+    + '<span class="brand-pill" style="background:rgba(99,102,241,0.2); color:#c7d2fe; font-size:9.5px;">AUTONOMOUS LOOP</span>'
+    + '</div>'
+    + '<div style="font-size:11px; margin-bottom:8px; opacity:0.85;">Task: ' + esc(instruction) + '</div>'
+    + '<div class="agent-steps-container"></div>';
+
+  msgs.appendChild(card);
+  card.scrollIntoView({ behavior: 'smooth' });
+  currentAgentCard = card;
+}
+
+function renderAgentStep(step, detail) {
+  if (!currentAgentCard) renderAgentBuildStart('Autonomous Build');
+  const container = currentAgentCard.querySelector('.agent-steps-container');
+  if (!container) return;
+
+  const item = document.createElement('div');
+  item.className = 'agent-step-item';
+  item.innerHTML = '<strong>' + esc(step) + '</strong>' + (detail ? '<div style="opacity:0.75; font-size:10px; margin-top:2px;">' + esc(detail) + '</div>' : '');
+  container.appendChild(item);
+  item.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderAgentBuildDone(summary) {
+  if (!currentAgentCard) return;
+  const header = currentAgentCard.querySelector('.agent-card-header');
+  if (header) {
+    header.innerHTML = summary.success
+      ? '<span style="color:#4ade80;">✅ Autonomous Build Succeeded!</span>'
+      : '<span style="color:#f87171;">⚠️ Autonomous Build Finished</span>';
+  }
+  const container = currentAgentCard.querySelector('.agent-steps-container');
+  if (container) {
+    const summaryEl = document.createElement('div');
+    summaryEl.style.marginTop = '8px';
+    summaryEl.style.paddingTop = '8px';
+    summaryEl.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+    summaryEl.style.fontSize = '11px';
+    summaryEl.innerHTML = '<div>' + esc(summary.message) + '</div>'
+      + '<div style="margin-top:4px; color:var(--muted); font-size:10px;">'
+      + 'Files touched: ' + (summary.filesTouched ? summary.filesTouched.length : 0)
+      + ' &bull; Turns: ' + summary.totalTurns
+      + ' &bull; Duration: ' + Math.round(summary.durationMs / 1000) + 's'
+      + '</div>';
+    container.appendChild(summaryEl);
+  }
+}
+
 window.addEventListener('message', ({ data }) => {
   switch (data.type) {
     case 'whatsNew': {
@@ -1198,6 +1697,9 @@ window.addEventListener('message', ({ data }) => {
     }
     case 'status': {
       currentProvider = data.provider;
+      if (data.providerProfile && Array.isArray(data.providerProfile.commands)) {
+        providerCommands = data.providerProfile.commands;
+      }
       const d = document.getElementById('dot');
       // Green when any provider is configured and working
       const isReady = (data.provider === 'ollama' || data.provider === 'gemma4' || data.provider === 'glm') ? data.ollamaRunning
@@ -1593,6 +2095,38 @@ on('modelPopoverMore', 'click', () => {
   vscode.postMessage({ type: 'switchProvider' });
   closeAllPopovers();
 });
+
+
+on('newSessionBtn', 'click', () => { vscode.postMessage({ type: 'newSession' }); });
+on('historyDrawerBtn', 'click', () => { toggleSessionDrawer(); });
+on('drawerNewBtn', 'click', () => { vscode.postMessage({ type: 'newSession' }); toggleSessionDrawer(false); });
+on('drawerCloseBtn', 'click', () => { toggleSessionDrawer(false); });
+
+const searchInput = document.getElementById('sessionSearchInput');
+if (searchInput) {
+  searchInput.addEventListener('input', function() {
+    vscode.postMessage({ type: 'searchSessions', query: this.value });
+  });
+}
+
+// Keyboard shortcuts for drawer
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+    e.preventDefault();
+    toggleSessionDrawer();
+  }
+  if (e.key === 'Escape') {
+    toggleSessionDrawer(false);
+    document.getElementById('slashPopover')?.setAttribute('hidden', '');
+  }
+});
+
+const txtInput = document.getElementById('input');
+if (txtInput) {
+  txtInput.addEventListener('input', function() {
+    updateSlashAutocomplete(this.value);
+  });
+}
 
 on('sendBtn',   'click', () => send());
 on('stopBtn',   'click', () => cancel());
