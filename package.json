@@ -1668,6 +1668,18 @@
         "command": "evolve.pythonStudio.runSetupSelfTest",
         "title": "Python Studio: Run Setup Verification & Self-Test",
         "category": "Evolve AI"
+      },
+      {
+        "command": "aiForge.newSession",
+        "title": "Evolve AI: New Chat Session"
+      },
+      {
+        "command": "aiForge.historyDrawer",
+        "title": "Evolve AI: Open Session History"
+      },
+      {
+        "command": "aiForge.startBuild",
+        "title": "Evolve AI: Run Autonomous Build Agent"
       }
     ],
     "keybindings": [
@@ -1718,6 +1730,11 @@
         "key": "ctrl+alt+d",
         "mac": "cmd+alt+d",
         "when": "editorLangId == python"
+      },
+      {
+        "command": "aiForge.historyDrawer",
+        "key": "ctrl+shift+l",
+        "mac": "cmd+shift+l"
       }
     ],
     "menus": {

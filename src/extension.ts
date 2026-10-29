@@ -69,6 +69,20 @@ export async function activate(vsCtx: vscode.ExtensionContext): Promise<void> {
     vscode.commands.registerCommand('aiForge.openChatTab', () => {
       ChatEditorPanel.show(vsCtx, chatProvider);
     }),
+    vscode.commands.registerCommand('aiForge.newSession', () => {
+      chatProvider.newSession();
+    }),
+    vscode.commands.registerCommand('aiForge.historyDrawer', () => {
+      chatProvider.toggleHistoryDrawer();
+    }),
+    vscode.commands.registerCommand('aiForge.startBuild', (instruction?: string) => {
+      if (instruction) {
+        chatProvider.send(instruction, 'build');
+      } else {
+        chatProvider.show();
+        chatProvider.setMode('build');
+      }
+    }),
     // Plugin & Delivery Studio Manager (top menus & command palette)
     vscode.commands.registerCommand('aiForge.managePlugins', async () => {
       const { PluginManager } = await import('./ui/pluginManager');

@@ -258,6 +258,22 @@ export class ChatPanelProvider implements vscode.WebviewViewProvider {
     for (const s of this._surfaces) { s.reveal(); return; }
   }
 
+  newSession(): void {
+    this.show();
+    this._sessionMgr.createSession();
+    this._sendHistory();
+  }
+
+  toggleHistoryDrawer(): void {
+    this.show();
+    this._post({ type: 'toggleHistoryDrawer' });
+  }
+
+  setMode(mode: 'chat' | 'edit' | 'new' | 'build'): void {
+    this.show();
+    this._post({ type: 'setMode', mode });
+  }
+
   // ── Static info (no AI call) ─────────────────────────────────────────────────
   // Renders pre-written markdown directly into the chat. Used for release notes,
   // Gemma 4 tips, and other informational content that should NOT round-trip
