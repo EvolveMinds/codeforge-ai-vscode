@@ -351,8 +351,31 @@ export class CoreCommands {
       // [SEC-6] Inform user that code will be sent to cloud API
       if (!await this._confirmCloudConsent('Anthropic API')) return;
       // [FIX-4] Store in SecretStorage, not settings
-      const key = await vscode.window.showInputBox({ prompt: 'Anthropic API key', password: true });
+      const key = await vscode.window.showInputBox({ prompt: 'Anthropic API key / Auth Token', password: true });
       if (key) await this._svc.ai.storeSecret(SECRET_ANTHROPIC, key);
+      const customUrl = await vscode.window.showInputBox({
+        prompt: 'Base URL (leave empty for direct api.anthropic.com, or enter enterprise gateway endpoint)',
+        value: cfg.get<string>('anthropicBaseUrl', ''),
+      });
+      if (customUrl !== undefined) await cfg.update('anthropicBaseUrl', customUrl, vscode.ConfigurationTarget.Global);
+      const anthropicModels = [
+        'claude-3-5-sonnet-20241022',
+        'claude-3-5-sonnet',
+        'claude-3-7-sonnet-20250219',
+        'claude-3-5-haiku-20241022',
+        'claude-3-haiku-20240307',
+        'claude-3-opus-20240229',
+      ];
+      const modelChoice = await vscode.window.showQuickPick(
+        [...anthropicModels, '$(edit) Enter custom model ID…'],
+        { placeHolder: 'Choose an Anthropic model' }
+      );
+      if (modelChoice?.includes('custom')) {
+        const custom = await vscode.window.showInputBox({ prompt: 'Anthropic model ID (e.g. claude-3-5-sonnet)' });
+        if (custom) await cfg.update('anthropicModel', custom, vscode.ConfigurationTarget.Global);
+      } else if (modelChoice) {
+        await cfg.update('anthropicModel', modelChoice, vscode.ConfigurationTarget.Global);
+      }
     } else if (provider === 'openai') {
       // [SEC-6] Inform user that code will be sent to cloud API
       if (!await this._confirmCloudConsent('OpenAI API')) return;

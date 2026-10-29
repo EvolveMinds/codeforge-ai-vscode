@@ -65,6 +65,8 @@ export const DESKTOP_CHANNELS = {
     PULL: 'evolve:git:pull',
     STASH: 'evolve:git:stash',
     GET_LOG: 'evolve:git:get-log',
+    FETCH: 'evolve:git:fetch',
+    GET_REMOTE_DIFF: 'evolve:git:get-remote-diff',
     ANALYZE_CODEBASE: 'evolve:git:analyze-codebase',
     GET_CODEBASE_GRAPH: 'evolve:git:get-codebase-graph',
     GENERATE_MODERNIZATION_TOPOLOGY: 'evolve:git:generate-modernization-topology',
@@ -123,7 +125,8 @@ export const DESKTOP_CHANNELS = {
     CHAT: 'evolve:ai:chat',
     GET_MODELS: 'evolve:ai:get-models',
     PULL_MODEL: 'evolve:ai:pull-model',
-    TEST_KEY: 'evolve:ai:test-key'
+    TEST_KEY: 'evolve:ai:test-key',
+    LIST_REMOTE_MODELS: 'evolve:ai:list-remote-models'
   },
 
   ENGINES: {

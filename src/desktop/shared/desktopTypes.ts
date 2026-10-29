@@ -19,6 +19,8 @@ export interface FileNode {
   path: string;
   relativePath: string;
   isDirectory: boolean;
+  isSymlink?: boolean;
+  symlinkTarget?: string;
   size?: number;
   extension?: string;
   children?: FileNode[];

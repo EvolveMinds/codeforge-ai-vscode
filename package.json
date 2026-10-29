@@ -1938,6 +1938,11 @@
           "default": "gpt-4o",
           "description": "OpenAI model name"
         },
+        "aiForge.anthropicBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Anthropic-compatible base URL (e.g. enterprise AI gateway, LiteLLM, or corporate VPC proxy)"
+        },
         "aiForge.anthropicModel": {
           "type": "string",
           "default": "claude-sonnet-4-6",

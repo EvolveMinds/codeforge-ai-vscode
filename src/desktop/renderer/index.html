@@ -11687,6 +11687,9 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 <button class="btn" id="btnGitScanSecurity" style="padding: 6px 14px; font-size: 12px; background: linear-gradient(135deg, #f59e0b, #ef4444); color: #fff; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="Security &amp; Secret Scan" title="Scans for leaked API keys, credentials, multi-jurisdiction PII, SAST vulnerabilities, and .gitignore hygiene">
                   <span>🛡️</span> Security &amp; Secret Scan
                 </button>
+                <button class="btn-quick" id="btnGitPaneCheckRemote" style="padding: 6px 12px; font-size: 12px; border-color: #38bdf8; color: #38bdf8; font-weight: 700; display: flex; align-items: center; gap: 5px;" aria-label="Check Remote (Fetch)" title="Safely fetch and inspect remote updates without altering local working tree">
+                  <span>🔍</span> Check Remote
+                </button>
                 <button class="btn" id="btnGitPaneSync" style="padding: 6px 14px; font-size: 12px; background: var(--success); color: #1e1e1e; font-weight: 700; display: flex; align-items: center; gap: 6px;" aria-label="Sync & Fetch">
                   <span>🔄</span> Sync &amp; Fetch
                 </button>
@@ -11705,8 +11708,8 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               </div>
             </div>
 
-            <!-- Top Metric Status Bar -->
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                        <!-- Top Metric Status Bar -->
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;">
               <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 20px;">🌿</span>
                 <div style="min-width: 0; flex: 1;">
@@ -11720,6 +11723,15 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 <div style="min-width: 0; flex: 1;">
                   <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Remote Provider</div>
                   <div id="gitPaneRemoteProvider" style="font-size: 12px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                </div>
+              </div>
+
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;" id="gitCardSyncStatus">
+                <span style="font-size: 20px;" id="gitPaneSyncStatusIcon">🔄</span>
+                <div style="min-width: 0; flex: 1;">
+                  <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Remote Sync Status</div>
+                  <div id="gitPaneSyncStatusText" style="font-size: 12px; font-weight: 700; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Checking...</div>
+                  <div id="gitPaneSyncStatusSub" style="font-size: 9.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px;">Click Check Remote to inspect</div>
                 </div>
               </div>
 
@@ -11821,6 +11833,33 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               </div>
             </div>
 
+                        <!-- INCOMING REMOTE UPDATES BANNER -->
+            <div id="gitIncomingBanner" style="display: none; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 12px; min-width: 260px;">
+                <span style="font-size: 24px;">📥</span>
+                <div>
+                  <div style="font-size: 13px; font-weight: 700; color: #93c5fd; display: flex; align-items: center; gap: 8px;">
+                    <span id="gitIncomingBannerTitle">Remote has incoming updates</span>
+                    <span id="gitIncomingCountBadge" style="font-size: 10px; font-weight: 800; background: #3b82f6; color: #fff; padding: 1px 7px; border-radius: 10px;">0 Commits</span>
+                  </div>
+                  <div id="gitIncomingBannerDesc" style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+                    Upstream tracking branch has commits not yet in local branch.
+                  </div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <button class="btn-quick" id="btnGitPreviewIncoming" style="padding: 6px 12px; font-size: 11.5px; border-color: #38bdf8; color: #38bdf8;" aria-label="Preview Remote Changes">
+                  👁️ Inspect Diff &amp; Files
+                </button>
+                <button class="btn" id="btnGitPullFastForward" style="padding: 6px 14px; font-size: 11.5px; background: var(--accent); color: #1e1e1e; font-weight: 700;" aria-label="Pull Changes">
+                  ⬇️ Pull / Fast-Forward
+                </button>
+                <button class="btn-quick" id="btnGitPullRebaseBanner" style="padding: 6px 12px; font-size: 11.5px;" aria-label="Pull Rebase">
+                  🔄 Pull (Rebase)
+                </button>
+              </div>
+            </div>
+
             <!-- 2-COLUMN MAIN CONTENT: WORKING TREE / SMART COMMIT & BRANCH MANAGER -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
 
@@ -11919,8 +11958,12 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
                 <div>
                   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
-                      <span>📜</span> Recent Commit History &amp; PR Link
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                      <button class="btn-quick active" id="btnGitHistoryTabLocal" style="font-size: 11px; padding: 3px 8px; font-weight: 700;" aria-label="Local History">📜 Local History</button>
+                      <button class="btn-quick" id="btnGitHistoryTabRemote" style="font-size: 11px; padding: 3px 8px; display: flex; align-items: center; gap: 4px;" aria-label="Remote Updates">
+                        <span>📥 Remote Updates</span>
+                        <span id="gitIncomingBadgeTab" style="font-size: 9px; font-weight: 800; background: rgba(59,130,246,0.3); color: #93c5fd; padding: 1px 5px; border-radius: 8px;">0</span>
+                      </button>
                     </div>
                     <button class="btn-quick" id="btnGitOpenPrBrowser" style="font-size: 10.5px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);" aria-label="Open PR">
                       ✨ Open PR ↗
@@ -11930,6 +11973,24 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                   <!-- Recent Commits List -->
                   <div id="gitRecentCommitsList" style="max-height: 145px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
                     <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">Loading recent commits...</div>
+
+                  <!-- Remote Updates List Area (shown when Remote Updates tab active) -->
+                  <div id="gitRemoteUpdatesContainer" style="display: none; flex-direction: column; gap: 8px;">
+                    <div id="gitIncomingCommitsList" style="max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+                      <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 15px 0;">✓ Local branch is fully up to date with remote.</div>
+                    </div>
+                    <div id="gitIncomingFilesBox" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; display: none;">
+                      <div style="font-size: 10.5px; font-weight: 700; color: #94a3b8; margin-bottom: 4px; display: flex; justify-content: space-between;">
+                        <span>Files Changed on Remote</span>
+                        <span id="gitIncomingFilesCount" style="color: var(--accent);">0 files</span>
+                      </div>
+                      <div id="gitIncomingFilesList" style="max-height: 70px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; font-family: var(--font-mono); font-size: 10px;"></div>
+                    </div>
+                    <div style="display: flex; gap: 6px; justify-content: flex-end;">
+                      <button class="btn-quick" id="btnGitTabPreviewDiff" style="font-size: 10.5px; padding: 3px 8px; border-color: #38bdf8; color: #38bdf8;">👁️ View Diff</button>
+                      <button class="btn" id="btnGitTabPullNow" style="font-size: 10.5px; padding: 3px 10px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⬇️ Pull Changes</button>
+                    </div>
+                  </div>
                   </div>
                 </div>
 
@@ -13322,6 +13383,24 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
             </div>
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgAnthropicModel">ANTHROPIC MODEL ID (SELECT OR ENTER CUSTOM GATEWAY MODEL)</label>
+                <button type="button" class="btn-quick btn-fetch-remote-models" data-provider="anthropic" data-input-model="cfgAnthropicModel" data-datalist="dlAnthropicModels" style="font-size: 9.5px; padding: 1px 7px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc; cursor: pointer;" title="Query /v1/models on this endpoint to discover which models are active for your API key">📋 Query /v1/models</button>
+              </div>
+              <input type="text" id="cfgAnthropicModel" list="dlAnthropicModels" placeholder="claude-3-5-sonnet-20241022, claude-3-5-sonnet, or gateway model..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="Anthropic Model ID" />
+              <datalist id="dlAnthropicModels">
+                <option value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (v2)</option>
+                <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Gateway Alias)</option>
+                <option value="claude-3-7-sonnet-20250219">Claude 3.7 Sonnet (Official)</option>
+                <option value="claude-3-5-haiku-20241022">Claude 3.5 Haiku</option>
+                <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
+                <option value="claude-3-opus-20240229">Claude 3 Opus</option>
+              </datalist>
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">
+                Pick from list, click <strong>Query /v1/models</strong>, or type custom model ID. Used in tests &amp; AI sessions.
+              </div>
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                 <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgKeyGemini">GOOGLE GEMINI API KEY</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span id="statusKeyGemini" style="font-size: 10.5px; display: none;"></span>
@@ -13329,6 +13408,17 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 </div>
               </div>
               <input type="password" id="cfgKeyGemini" placeholder="AIzaSy..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="AIzaSy..."/>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgGeminiModel">GOOGLE GEMINI MODEL ID</label>
+              <input type="text" id="cfgGeminiModel" list="dlGeminiModels" placeholder="gemini-2.0-flash, gemini-2.5-pro..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="Gemini Model ID" />
+              <datalist id="dlGeminiModels">
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                <option value="gemini-2.0-flash-lite">Gemini 2.0 Flash-Lite</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              </datalist>
             </div>
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
@@ -13343,6 +13433,20 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
             <div>
               <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgOpenaiBaseUrl">OPENAI BASE URL / AZURE OPENAI (ENTERPRISE / OPTIONAL)</label>
               <input type="text" id="cfgOpenaiBaseUrl" placeholder="https://api.openai.com/v1 (or corporate gateway / Azure OpenAI endpoint)" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="OpenAI Base URL" />
+            </div>
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted);" for="cfgOpenaiModel">OPENAI MODEL ID (SELECT OR ENTER CUSTOM GATEWAY MODEL)</label>
+                <button type="button" class="btn-quick btn-fetch-remote-models" data-provider="openai" data-input-model="cfgOpenaiModel" data-datalist="dlOpenaiModels" style="font-size: 9.5px; padding: 1px 7px; border-color: rgba(168, 85, 247, 0.4); color: #c084fc; cursor: pointer;" title="Query /v1/models on this endpoint to discover which models are active for your API key">📋 Query /v1/models</button>
+              </div>
+              <input type="text" id="cfgOpenaiModel" list="dlOpenaiModels" placeholder="gpt-4o, gpt-4o-mini, o1, or Azure deployment name..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="OpenAI Model ID" />
+              <datalist id="dlOpenaiModels">
+                <option value="gpt-4o">GPT-4o</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="o1">o1</option>
+                <option value="o3-mini">o3-mini</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+              </datalist>
             </div>
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
@@ -13363,6 +13467,14 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                 </div>
               </div>
               <input type="password" id="cfgKeyDeepseek" placeholder="sk-..." style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;"  aria-label="DeepSeek API key"/>
+            </div>
+            <div>
+              <label style="font-size: 10.5px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 3px;" for="cfgDeepseekModel">DEEPSEEK MODEL ID</label>
+              <input type="text" id="cfgDeepseekModel" list="dlDeepseekModels" placeholder="deepseek-chat or deepseek-reasoner" style="width: 100%; box-sizing: border-box; padding: 7px 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 11.5px; font-family: monospace;" aria-label="DeepSeek Model ID" />
+              <datalist id="dlDeepseekModels">
+                <option value="deepseek-chat">deepseek-chat (DeepSeek-V3)</option>
+                <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
+              </datalist>
             </div>
             <div>
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
@@ -14890,5 +15002,39 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
   <script src="c4Topology.js"></script>
   <script src="mainframeScreen.js"></script>
   <script src="renderer.js"></script>
+  <!-- MODAL: GIT REMOTE DIFF INSPECTOR -->
+  <div id="modalGitRemoteDiff" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: #18191f; border: 1px solid var(--accent); border-radius: 10px; width: 780px; max-width: 95%; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.6);">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.03);">
+        <div style="font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>📥</span> Remote Changes Inspector (<span id="modalGitDiffUpstream" style="color: var(--accent); font-family: var(--font-mono);">origin/main</span>)
+        </div>
+        <button class="btn-quick" id="btnCloseGitRemoteDiffModal" style="font-size: 12px; padding: 2px 8px;">✕ Close</button>
+      </div>
+      <div style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+        <div id="modalGitDiffSummary" style="font-size: 11.5px; color: var(--text-secondary); background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; font-family: var(--font-mono); white-space: pre-wrap;"></div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📜</span> Incoming Commits from Remote
+          </div>
+          <div id="modalGitDiffCommitsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;"></div>
+        </div>
+        <div>
+          <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📝</span> Diff Stat &amp; Content Preview
+          </div>
+          <pre id="modalGitDiffRaw" style="font-size: 11px; font-family: var(--font-mono); background: #0c0d11; border: 1px solid var(--border); border-radius: 6px; padding: 10px; max-height: 200px; overflow-y: auto; color: #cbd5e1; margin: 0; white-space: pre-wrap; word-break: break-all;"></pre>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.02);">
+        <span style="font-size: 11px; color: var(--text-secondary);">Pulling will fast-forward or merge these remote commits into your active local branch.</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-quick" id="btnModalGitDiffClose">Cancel</button>
+          <button class="btn" id="btnModalGitDiffPull" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px;">⬇️ Pull Changes (Fast-Forward)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

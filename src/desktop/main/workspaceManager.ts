@@ -116,7 +116,12 @@ export class DesktopWorkspaceManager {
     } catch {}
   }
 
-  public getFileTree(dirPath?: string, maxDepth: number = 5, currentDepth: number = 0): FileNode {
+  public getFileTree(
+    dirPath?: string,
+    maxDepth: number = 5,
+    currentDepth: number = 0,
+    visitedRealPaths: Set<string> = new Set()
+  ): FileNode {
     const targetDir = dirPath || (this._currentWorkspace ? this._currentWorkspace.path : process.cwd());
     const baseName = path.basename(targetDir);
     const rootRelative = this._currentWorkspace ? path.relative(this._currentWorkspace.path, targetDir) : '';
@@ -132,11 +137,46 @@ export class DesktopWorkspaceManager {
     if (currentDepth >= maxDepth) return rootNode;
 
     try {
+      let targetReal = targetDir;
+      try { targetReal = fs.realpathSync(targetDir); } catch {}
+      visitedRealPaths.add(targetReal);
+
       const entries = fs.readdirSync(targetDir, { withFileTypes: true });
-      // Sort: Directories first, then alphabetically
+
+      // Helper to evaluate if an entry is a directory (following symlinks and directory junctions)
+      const isEntryDir = (entry: fs.Dirent, fullPath: string): boolean => {
+        if (entry.isDirectory()) return true;
+        if (entry.isSymbolicLink()) {
+          try {
+            return fs.statSync(fullPath).isDirectory();
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      };
+
+      // Helper to evaluate if an entry is a file (following symlinks)
+      const isEntryFile = (entry: fs.Dirent, fullPath: string): boolean => {
+        if (entry.isFile()) return true;
+        if (entry.isSymbolicLink()) {
+          try {
+            return fs.statSync(fullPath).isFile();
+          } catch {
+            return false;
+          }
+        }
+        return false;
+      };
+
+      // Sort: Directories first, then alphabetically (correctly classifying symlink directories)
       entries.sort((a, b) => {
-        if (a.isDirectory() && !b.isDirectory()) return -1;
-        if (!a.isDirectory() && b.isDirectory()) return 1;
+        const aFull = path.join(targetDir, a.name);
+        const bFull = path.join(targetDir, b.name);
+        const aIsDir = isEntryDir(a, aFull);
+        const bIsDir = isEntryDir(b, bFull);
+        if (aIsDir && !bIsDir) return -1;
+        if (!aIsDir && bIsDir) return 1;
         return a.name.localeCompare(b.name);
       });
 
@@ -145,11 +185,43 @@ export class DesktopWorkspaceManager {
 
         const fullPath = path.join(targetDir, entry.name);
         const relPath = this._currentWorkspace ? path.relative(this._currentWorkspace.path, fullPath) : entry.name;
+        const isSymlink = entry.isSymbolicLink();
+        let symlinkTarget: string | undefined = undefined;
+        if (isSymlink) {
+          try {
+            symlinkTarget = fs.readlinkSync(fullPath);
+          } catch {}
+        }
 
-        if (entry.isDirectory()) {
-          const childNode = this.getFileTree(fullPath, maxDepth, currentDepth + 1);
+        if (isEntryDir(entry, fullPath)) {
+          let childReal = fullPath;
+          try {
+            childReal = fs.realpathSync(fullPath);
+          } catch {
+            childReal = fullPath;
+          }
+
+          // Cycle detection to prevent infinite recursion
+          if (visitedRealPaths.has(childReal)) {
+            rootNode.children?.push({
+              name: entry.name,
+              path: fullPath,
+              relativePath: relPath,
+              isDirectory: true,
+              isSymlink,
+              symlinkTarget,
+              children: []
+            });
+            continue;
+          }
+
+          const nextVisited = new Set(visitedRealPaths);
+          nextVisited.add(childReal);
+          const childNode = this.getFileTree(fullPath, maxDepth, currentDepth + 1, nextVisited);
+          childNode.isSymlink = isSymlink;
+          childNode.symlinkTarget = symlinkTarget;
           rootNode.children?.push(childNode);
-        } else if (entry.isFile()) {
+        } else if (isEntryFile(entry, fullPath)) {
           const ext = path.extname(entry.name).toLowerCase();
           let size = 0;
           try { size = fs.statSync(fullPath).size; } catch {}
@@ -159,8 +231,22 @@ export class DesktopWorkspaceManager {
             path: fullPath,
             relativePath: relPath,
             isDirectory: false,
+            isSymlink,
+            symlinkTarget,
             size,
             extension: ext
+          });
+        } else if (isSymlink) {
+          // Visible even if broken symlink
+          rootNode.children?.push({
+            name: entry.name,
+            path: fullPath,
+            relativePath: relPath,
+            isDirectory: false,
+            isSymlink: true,
+            symlinkTarget: symlinkTarget || '(broken link)',
+            size: 0,
+            extension: path.extname(entry.name).toLowerCase()
           });
         }
       }
@@ -300,16 +386,21 @@ export class DesktopWorkspaceManager {
       ? targetPath
       : (this._currentWorkspace ? path.join(this._currentWorkspace.path, targetPath) : path.resolve(targetPath));
 
-    if (fs.existsSync(fullPath)) {
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
+    try {
+      const lstat = fs.lstatSync(fullPath);
+      if (lstat.isSymbolicLink()) {
+        fs.unlinkSync(fullPath);
+        return true;
+      }
+      if (lstat.isDirectory()) {
         fs.rmSync(fullPath, { recursive: true, force: true });
       } else {
         fs.unlinkSync(fullPath);
       }
       return true;
+    } catch {
+      return false;
     }
-    return false;
   }
 
   public renameItem(oldPath: string, newPath: string): boolean {

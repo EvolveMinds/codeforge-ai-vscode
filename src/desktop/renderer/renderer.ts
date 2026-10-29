@@ -39,11 +39,15 @@ const CLOUD_PROVIDER_KEYS: Record<string, { label: string; vaultKey: string }> =
 const VAULT_KEY_FIELDS: Record<string, string> = {
   cfgKeyAnthropic: 'anthropicApiKey',
   cfgAnthropicBaseUrl: 'anthropicBaseUrl',
+  cfgAnthropicModel: 'anthropicModel',
   cfgKeyGemini: 'geminiApiKey',
+  cfgGeminiModel: 'geminiModel',
   cfgKeyOpenai: 'openaiApiKey',
   cfgOpenaiBaseUrl: 'openaiBaseUrl',
+  cfgOpenaiModel: 'openaiModel',
   cfgKeyZai: 'zaiApiKey',
   cfgKeyDeepseek: 'deepseekApiKey',
+  cfgDeepseekModel: 'deepseekModel',
   cfgKeyGroq: 'groqApiKey',
   cfgKeyHuggingface: 'huggingfaceApiKey'
 };
@@ -2550,12 +2554,18 @@ async function renderFileTree(api: any): Promise<void> {
       let html = '';
       nodes.forEach(node => {
         const pad = depth * 14 + 10;
+        const symlinkTitle = node.isSymlink ? ` title="Symlink${node.symlinkTarget ? ' → ' + escapeHtml(node.symlinkTarget) : ''}"` : '';
+        const symlinkBadge = node.isSymlink ? `
+          <span class="tree-symlink-badge" style="margin-left: auto; margin-right: 6px; font-size: 11px; opacity: 0.65; color: var(--text-muted); display: inline-flex; align-items: center;" title="Symlink${node.symlinkTarget ? ' → ' + escapeHtml(node.symlinkTarget) : ''}">↳</span>
+        ` : '';
+
         if (node.isDirectory) {
           html += `<div class="tree-folder-wrapper">
-            <div class="file-tree-item directory" style="padding-left: ${pad}px; display: flex; align-items: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; cursor: pointer; user-select: none; border-radius: 4px;" data-path="${node.path}">
+            <div class="file-tree-item directory" style="padding-left: ${pad}px; display: flex; align-items: center; gap: 6px; padding-top: 4px; padding-bottom: 4px; cursor: pointer; user-select: none; border-radius: 4px;" data-path="${node.path}"${symlinkTitle}>
               <span class="tree-arrow" style="font-size: 9px; width: 10px; color: var(--text-secondary);">▶</span>
               <span class="tree-icon-folder" style="font-size: 13px;">📁</span>
-              <span class="tree-label" style="font-weight: 600; color: #e2e8f0;">${node.name}</span>
+              <span class="tree-label" style="font-weight: 600; color: #e2e8f0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.name}</span>
+              ${symlinkBadge}
             </div>
             <div class="tree-children" style="display: none;">
               ${node.children && node.children.length > 0 ? buildTreeHtml(node.children, depth + 1) : '<div style="padding-left:' + (pad + 18) + 'px; font-size:10.5px; color:var(--text-muted); padding-top:2px; padding-bottom:2px;">(empty folder)</div>'}
@@ -2563,9 +2573,10 @@ async function renderFileTree(api: any): Promise<void> {
           </div>`;
         } else {
           const icon = getFileIcon(node.name);
-          html += `<div class="file-tree-item file" style="padding-left: ${pad + 16}px; display: flex; align-items: center; gap: 6px; padding-top: 3px; padding-bottom: 3px; cursor: pointer; user-select: none; border-radius: 4px;" data-path="${node.path}">
+          html += `<div class="file-tree-item file" style="padding-left: ${pad + 16}px; display: flex; align-items: center; gap: 6px; padding-top: 3px; padding-bottom: 3px; cursor: pointer; user-select: none; border-radius: 4px;" data-path="${node.path}"${symlinkTitle}>
             <span style="font-size: 12px;">${icon}</span>
-            <span class="tree-label" style="color: #cbd5e1;">${node.name}</span>
+            <span class="tree-label" style="color: #cbd5e1; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.name}</span>
+            ${symlinkBadge}
           </div>`;
         }
       });
@@ -47621,6 +47632,7 @@ function setupCodeConverterStudio(api: any): void {
           fromLang,
           toLang: selectedTarget,
           model: activeSelectedModel,
+          provider: activeSelectedProvider,
           fidelity: selectedFidelity,
           dependencies: selectedDependencies,
           includeTests,
@@ -48222,7 +48234,7 @@ const LOCAL_SPECS: CustomAiModel[] = [
   // --- Local Server Probers & Offline Engine ---
   { id: 'lmstudio-local', name: 'LM Studio Local Server (Port 1234)', family: 'LM Studio', provider: 'LM Studio', provFamily: 'server', icon: '🖥️', minRamGb: 8, reqVramGb: 4.0, diskGb: 0, context: 'Dynamic', badge: 'Port 1234', description: 'Connects dynamically to any model currently loaded in LM Studio via local OpenAI-compatible endpoint.' },
   { id: 'vllm-local', name: 'vLLM / Triton Cluster (Port 8000)', family: 'vLLM Engine', provider: 'vLLM', provFamily: 'server', icon: '⚡', minRamGb: 16, reqVramGb: 8.0, diskGb: 0, context: 'Dynamic', badge: 'Port 8000', description: 'Air-gapped high-throughput inference engine with PagedAttention for private enterprise clusters.' },
-  { id: 'offline-engine', name: 'Offline Deterministic Engine', family: 'Evolve Built-in', provider: 'Built-in', provFamily: 'server', icon: '⚙️', minRamGb: 2, reqVramGb: 0, diskGb: 0, context: 'Unlimited', badge: '100% Offline', description: 'Built-in deterministic AST transformations, transpilers, and pattern heuristics. Instant and 100% offline.' }
+  { id: 'offline-engine', name: 'Offline Deterministic Engine', family: 'Evolve Built-in', provider: 'Built-in', provFamily: 'builtin', icon: '⚙️', minRamGb: 2, reqVramGb: 0, diskGb: 0, context: 'Unlimited', badge: 'Always Active', description: 'Built-in deterministic AST transformations, transpilers, and pattern heuristics. Instant, zero-latency, and 100% offline.' }
 ];
 
 const CLOUD_SPECS: CustomAiModel[] = [
@@ -48264,7 +48276,84 @@ let currentLocalSearchQuery = '';
 let currentCloudProvFilter = 'all'; // 'all' | 'google' | 'anthropic' | 'openai' | 'glm' | 'deepseek' | 'open'
 let currentCloudSearchQuery = '';
 
+function setActiveAiModel(
+  api: any,
+  provider: string,
+  modelId: string,
+  modelName?: string,
+  providerLabel?: string
+): void {
+  activeSelectedModel = modelId;
+  activeSelectedProvider = provider;
+  (window as any).activeSelectedModel = modelId;
+  (window as any).activeSelectedProvider = provider;
+
+  try {
+    localStorage.setItem('evolve_active_model_id', modelId);
+    localStorage.setItem('evolve_active_provider', provider);
+    if (modelName) localStorage.setItem('evolve_active_model_name', modelName);
+    if (providerLabel) localStorage.setItem('evolve_active_provider_label', providerLabel);
+  } catch {}
+
+  // 1. Update Global Header Bar Pill
+  const lblHeader = document.getElementById('lblHeaderModel');
+  const btnHeader = document.getElementById('btnHeaderModelPicker');
+  if (modelId === 'offline-engine' || provider === 'builtin' || provider === 'offline') {
+    if (lblHeader) lblHeader.innerText = 'BUILT-IN · Offline Deterministic Engine';
+    if (btnHeader) {
+      btnHeader.title = 'Active Engine: Evolve Built-in Deterministic Engine\nStatus: 100% Air-Gapped (AST Transformations, SQL Transpilation, Zero Cloud Egress)';
+    }
+  } else {
+    const provShort = (providerLabel || provider).split(' ')[0].toUpperCase();
+    if (lblHeader) lblHeader.innerText = `${provShort} · ${modelId}`;
+    if (btnHeader) {
+      btnHeader.title = `Active AI Copilot: ${providerLabel || provider} (${modelName || modelId})\nOffline Foundation Engine: Always Active in Background (AST, SQL Transpilation, PII Masking)`;
+    }
+  }
+
+  // 2. Update Chat Badge
+  const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
+  if (lblChatBadge) {
+    if (modelId === 'offline-engine' || provider === 'builtin') {
+      lblChatBadge.innerText = 'BUILT-IN: OFFLINE DETERMINISTIC ENGINE';
+    } else {
+      const pLabel = (providerLabel || provider).toUpperCase();
+      lblChatBadge.innerText = `${pLabel}: ${modelId.toUpperCase()}`;
+    }
+  }
+
+  // 3. Update Data Studio Badge
+  const lblDataModel = document.getElementById('lblDataModelName');
+  if (lblDataModel) {
+    if (modelId === 'offline-engine' || provider === 'builtin') {
+      lblDataModel.innerText = 'Built-in · Offline Deterministic Engine';
+    } else {
+      lblDataModel.innerText = `${providerLabel || provider} · ${modelId}`;
+    }
+  }
+
+  // 4. Update Converter Studio Fit
+  updateConverterModelFit(activeSelectedModel, currentConverterTarget);
+
+  // 5. Synchronize Both Cloud and Local Matrices
+  renderCloudModelsGrid(api);
+  if (lastHwProfile) {
+    renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
+  }
+}
+(window as any).setActiveAiModel = setActiveAiModel;
+
 function setupHardwareStudio(api: any): void {
+  // Restore previously saved active AI model from localStorage
+  try {
+    const savedModel = localStorage.getItem('evolve_active_model_id');
+    const savedProv = localStorage.getItem('evolve_active_provider');
+    const savedName = localStorage.getItem('evolve_active_model_name');
+    const savedLabel = localStorage.getItem('evolve_active_provider_label');
+    if (savedModel && savedProv) {
+      setActiveAiModel(api, savedProv, savedModel, savedName || savedModel, savedLabel || savedProv);
+    }
+  } catch {}
   const btnInspect = document.getElementById('btnRunHwInspect');
   btnInspect?.addEventListener('click', () => runHardwareInspect(api));
 
@@ -48475,7 +48564,7 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
     if (currentLocalProvFilter === 'qwen') return spec.provFamily === 'qwen' || spec.id.includes('qwen');
     if (currentLocalProvFilter === 'meta') return spec.provFamily === 'meta' || spec.id.includes('llama');
     if (currentLocalProvFilter === 'mistral_ms') return spec.provFamily === 'mistral_ms' || spec.id.includes('codestral') || spec.id.includes('phi');
-    if (currentLocalProvFilter === 'server') return spec.provFamily === 'server' || spec.id.includes('lmstudio') || spec.id.includes('vllm') || spec.id.includes('offline');
+    if (currentLocalProvFilter === 'server') return spec.provFamily === 'server' || spec.provFamily === 'builtin' || spec.id.includes('lmstudio') || spec.id.includes('vllm') || spec.id.includes('offline');
     return spec.provFamily === currentLocalProvFilter;
   });
 
@@ -48516,8 +48605,8 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
 
     if (spec.id === 'offline-engine') {
       compTier = 'optimal';
-      compBadge = '<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 100% Instant (Built-in)</span>';
-      compDesc = 'Runs with 0 dependencies and 0 local hardware constraints.';
+      compBadge = '<span style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid #22c55e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px;">🟢 ALWAYS ON (Foundation)</span>';
+      compDesc = 'Runs with 0 dependencies and 0 local hardware constraints. Always active in background alongside all models.';
     } else if (vramGb >= reqVram && vramGb > 0) {
       compTier = 'optimal';
       compBadge = `<span style="background: rgba(137, 209, 133, 0.15); color: var(--success); border: 1px solid var(--success); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;">🟢 Optimal GPU Fit (${Math.round(reqVram)}GB / ${vramGb}GB VRAM · ~60+ tok/s)</span>`;
@@ -48540,17 +48629,38 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
     if (currentHwFilter === 'compatible' && compTier === 'insufficient') return '';
     if (currentHwFilter === 'installed' && !isInstalled) return '';
 
-    const isActive = activeSelectedModel === spec.id || activeSelectedModel.includes(spec.id) || spec.id.includes(activeSelectedModel);
+    const isPureAirGapped = (activeSelectedModel === 'offline-engine' || activeSelectedProvider === 'builtin') && spec.id === 'offline-engine';
+    const isActive = activeSelectedModel === spec.id;
 
     // Action button
     let actionBtnHtml = '';
-    if (isActive) {
+    if (spec.id === 'offline-engine') {
+      if (isPureAirGapped) {
+        actionBtnHtml = `
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 6px;">● PURE AIR-GAPPED MODE</span>
+            <span style="font-size: 10px; color: var(--text-muted);">Zero Cloud / External Egress</span>
+          </div>
+        `;
+      } else {
+        actionBtnHtml = `
+          <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+            <span style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.35); font-weight: 700; font-size: 11px; padding: 3px 9px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px;" title="The Offline Deterministic Engine runs continuously in the background alongside your active AI model (AST, SQL Transpilation, PII Masking).">
+              <span style="width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block;"></span> Active Alongside All Models
+            </span>
+            <button class="btn btn-hw-pure-offline" style="padding: 2px 8px; font-size: 10px; background: transparent; color: var(--text-muted); border: 1px solid var(--border); border-radius: 4px; cursor: pointer;" title="Force 100% air-gapped offline-only mode with zero external cloud or local server inference">
+              🔒 Force Air-Gapped Only
+            </button>
+          </div>
+        `;
+      }
+    } else if (isActive) {
       actionBtnHtml = `<span style="background: var(--accent); color: #1e1e1e; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 6px;">● ACTIVE ENGINE</span>`;
     } else if (isInstalled) {
       actionBtnHtml = `
         <div style="display: flex; gap: 6px; align-items: center;">
           <span style="color: var(--success); font-size: 11px; font-weight: bold;">✓ Installed</span>
-          <button class="btn btn-hw-activate" data-model="${spec.id}" data-name="${spec.name}" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Activate</button>
+          <button class="btn btn-hw-activate" data-model="${spec.id}" data-name="${spec.name}" data-prov="${spec.provFamily || 'ollama'}" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Activate</button>
         </div>
       `;
     } else if (spec.pullCommand) {
@@ -48563,7 +48673,7 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
       actionBtnHtml = `
         <div style="display: flex; gap: 6px; align-items: center;">
           <span style="font-size: 11px; color: var(--text-muted);">Server Cluster</span>
-          <button class="btn btn-hw-activate" data-model="${spec.id}" data-name="${spec.name}" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Connect</button>
+          <button class="btn btn-hw-activate" data-model="${spec.id}" data-name="${spec.name}" data-prov="${spec.provFamily || 'server'}" style="padding: 5px 12px; font-size: 11px; background: var(--accent); color: #1e1e1e; font-weight: 700;">⚡ Connect</button>
         </div>
       `;
     }
@@ -48605,26 +48715,33 @@ function renderLocalModelsMatrix(api: any, profile: any, installedModels: string
     </div>
   `;
 
+  // Wire Pure Offline Mode Button
+  container.querySelectorAll('.btn-hw-pure-offline').forEach(btn => {
+    btn.addEventListener('click', () => {
+      setActiveAiModel(api, 'builtin', 'offline-engine', 'Offline Deterministic Engine', 'Built-in');
+      showToast('🔒 Activated Pure Air-Gapped Mode (100% Offline, Zero Cloud Egress)');
+    });
+  });
+
   // Wire Activate Buttons
   container.querySelectorAll('.btn-hw-activate').forEach(btn => {
     btn.addEventListener('click', () => {
       const modelId = btn.getAttribute('data-model') || 'qwen2.5-coder:7b';
       const modelName = btn.getAttribute('data-name') || modelId;
-
-      activeSelectedModel = modelId;
-      activeSelectedProvider = 'ollama';
-
-      const lblHeader = document.getElementById('lblHeaderModel');
-      if (lblHeader) lblHeader.innerText = `OLLAMA · ${activeSelectedModel}`;
-
-      const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
-      if (lblChatBadge) lblChatBadge.innerText = `OLLAMA: ${activeSelectedModel.toUpperCase()}`;
-
-      const lblDataModel = document.getElementById('lblDataModelName');
-      if (lblDataModel) lblDataModel.innerText = `ollama (local) · ${activeSelectedModel}`;
-
-      renderLocalModelsMatrix(api, profile, installedModels);
-      updateConverterModelFit(activeSelectedModel, currentConverterTarget);
+      const provAttr = btn.getAttribute('data-prov') || 'ollama';
+      let provKey = provAttr;
+      let provLabel = 'Ollama';
+      if (modelId === 'offline-engine') {
+        provKey = 'builtin';
+        provLabel = 'Built-in';
+      } else if (modelId.includes('lmstudio')) {
+        provKey = 'lmstudio';
+        provLabel = 'LM Studio';
+      } else if (modelId.includes('vllm')) {
+        provKey = 'vllm';
+        provLabel = 'vLLM';
+      }
+      setActiveAiModel(api, provKey, modelId, modelName, provLabel);
       showToast(`✓ Switched active local AI Model to: ${modelName}`);
     });
   });
@@ -48767,22 +48884,7 @@ function renderCloudModelsGrid(api: any): void {
       // reporting success and failing silently on the first message.
       if (!await ensureProviderApiKey(api, provFamily, modelName)) return;
 
-      activeSelectedModel = modelId;
-      activeSelectedProvider = provFamily || 'ollama';
-
-      const lblHeader = document.getElementById('lblHeaderModel');
-      if (lblHeader) lblHeader.innerText = `${provider.split(' ')[0].toUpperCase()} · ${activeSelectedModel}`;
-
-      const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
-      if (lblChatBadge) lblChatBadge.innerText = `${provider.toUpperCase()}: ${activeSelectedModel.toUpperCase()}`;
-
-      const lblDataModel = document.getElementById('lblDataModelName');
-      if (lblDataModel) lblDataModel.innerText = `${provider} · ${activeSelectedModel}`;
-
-      renderCloudModelsGrid(api);
-      if (lastHwProfile) renderLocalModelsMatrix(api, lastHwProfile, lastInstalledLocalModels);
-      updateConverterModelFit(activeSelectedModel, currentConverterTarget);
-
+      setActiveAiModel(api, provFamily || 'ollama', modelId, modelName, provider);
       showToast(`✓ Switched active AI Engine to: ${modelName} (${provider})`);
     });
   });
@@ -49469,6 +49571,118 @@ function setupGitStudio(api: any): void {
     await refreshGitStatus(api);
   };
   btnGitPaneSync?.addEventListener('click', handleSync);
+
+  // Check Remote (Fetch without pulling)
+  const btnGitPaneCheckRemote = document.getElementById('btnGitPaneCheckRemote');
+  btnGitPaneCheckRemote?.addEventListener('click', async () => {
+    if (!api?.git) return;
+    showToast('🔍 Fetching remote references (git fetch --prune)...');
+    const res = await api.git.fetch();
+    if (res.success) {
+      const inspected = await api.git.inspect();
+      const behindCount = inspected.behind || 0;
+      if (behindCount > 0) {
+        showToast(`📥 Found ${behindCount} incoming commit${behindCount > 1 ? 's' : ''} on remote (${inspected.upstreamBranch || 'origin/main'})!`);
+      } else {
+        showToast(`✓ Local branch is fully up to date with remote (${inspected.upstreamBranch || 'origin/main'}).`);
+      }
+    } else {
+      showToast(`⚠️ Remote fetch: ${res.error || 'Check network connection'}`);
+    }
+    await refreshGitStatus(api);
+  });
+
+  // Pull Handlers for Incoming Updates
+  const handlePullChanges = async (rebase: boolean = false) => {
+    if (!api?.git) return;
+    showToast(`⬇️ Pulling remote updates into local branch (${rebase ? 'git pull --rebase' : 'git pull'})...`);
+    const res = await api.git.pull({ rebase });
+    if (res.success) {
+      showToast(`✓ Synchronized with remote: ${res.output || 'Branch updated'}`);
+    } else {
+      showToast(`🔴 Pull warning: ${res.error || 'Conflict or fast-forward rejected'}`);
+    }
+    await refreshGitStatus(api);
+  };
+  document.getElementById('btnGitPullFastForward')?.addEventListener('click', () => handlePullChanges(false));
+  document.getElementById('btnGitPullRebaseBanner')?.addEventListener('click', () => handlePullChanges(true));
+  document.getElementById('btnGitTabPullNow')?.addEventListener('click', () => handlePullChanges(false));
+
+  // History card tabs: Local vs Remote
+  const btnGitHistoryTabLocal = document.getElementById('btnGitHistoryTabLocal');
+  const btnGitHistoryTabRemote = document.getElementById('btnGitHistoryTabRemote');
+  const gitRecentCommitsList = document.getElementById('gitRecentCommitsList');
+  const gitRemoteUpdatesContainer = document.getElementById('gitRemoteUpdatesContainer');
+
+  btnGitHistoryTabLocal?.addEventListener('click', () => {
+    btnGitHistoryTabLocal.classList.add('active');
+    btnGitHistoryTabRemote?.classList.remove('active');
+    if (gitRecentCommitsList) gitRecentCommitsList.style.display = 'flex';
+    if (gitRemoteUpdatesContainer) gitRemoteUpdatesContainer.style.display = 'none';
+  });
+  btnGitHistoryTabRemote?.addEventListener('click', () => {
+    btnGitHistoryTabRemote.classList.add('active');
+    btnGitHistoryTabLocal?.classList.remove('active');
+    if (gitRecentCommitsList) gitRecentCommitsList.style.display = 'none';
+    if (gitRemoteUpdatesContainer) gitRemoteUpdatesContainer.style.display = 'flex';
+  });
+
+  // Remote Diff Inspector Modal Handlers
+  const openRemoteDiffModal = async () => {
+    if (!api?.git) return;
+    const modal = document.getElementById('modalGitRemoteDiff');
+    const upstreamEl = document.getElementById('modalGitDiffUpstream');
+    const summaryEl = document.getElementById('modalGitDiffSummary');
+    const commitsEl = document.getElementById('modalGitDiffCommitsList');
+    const rawEl = document.getElementById('modalGitDiffRaw');
+    if (modal) modal.style.display = 'flex';
+    if (summaryEl) summaryEl.innerText = 'Inspecting remote diff HEAD...@{u}...';
+    if (rawEl) rawEl.innerText = 'Analyzing changes on remote...';
+    const diffRes = await api.git.getRemoteDiff();
+    const gitInfo = await api.git.inspect();
+    if (upstreamEl) upstreamEl.innerText = diffRes.upstream || gitInfo.upstreamBranch || 'origin/main';
+    if (summaryEl) {
+      summaryEl.innerText = diffRes.stat || (gitInfo.behind ? `${gitInfo.behind} commit(s) on remote waiting to be pulled.` : 'Local branch is up to date with remote.');
+    }
+    if (rawEl) {
+      rawEl.innerText = diffRes.diff ? diffRes.diff.slice(0, 15000) : (gitInfo.behind ? 'No file content differences detected.' : 'Working copy already matches remote HEAD.');
+    }
+    if (commitsEl) {
+      const incCommits: Array<any> = gitInfo.incomingCommits || [];
+      if (incCommits.length === 0) {
+        commitsEl.innerHTML = '<div style="font-size: 11px; color: var(--text-secondary); padding: 8px 0;">No incoming commits from remote.</div>';
+      } else {
+        commitsEl.innerHTML = incCommits.map((c: any) => `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid rgba(59,130,246,0.3); border-radius: 4px; padding: 6px 10px; font-size: 11px;">
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="color: #93c5fd; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.message}</div>
+              <div style="color: var(--text-secondary); font-size: 10px;">${c.author} · ${c.timeAgo}</div>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 10px; color: #60a5fa; background: rgba(59,130,246,0.15); padding: 1px 5px; border-radius: 3px;">${c.shortHash}</span>
+          </div>
+        `).join('');
+      }
+    }
+  };
+  document.getElementById('btnGitPreviewIncoming')?.addEventListener('click', openRemoteDiffModal);
+  document.getElementById('btnGitTabPreviewDiff')?.addEventListener('click', openRemoteDiffModal);
+  document.getElementById('btnCloseGitRemoteDiffModal')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalGitRemoteDiff');
+    if (modal) modal.style.display = 'none';
+  });
+  document.getElementById('btnModalGitDiffClose')?.addEventListener('click', () => {
+    const modal = document.getElementById('modalGitRemoteDiff');
+    if (modal) modal.style.display = 'none';
+  });
+  document.getElementById('btnModalGitDiffPull')?.addEventListener('click', async () => {
+    const modal = document.getElementById('modalGitRemoteDiff');
+    if (modal) modal.style.display = 'none';
+    await handlePullChanges(false);
+  });
+  document.getElementById('gitCardSyncStatus')?.addEventListener('click', () => {
+    const checkBtn = document.getElementById('btnGitPaneCheckRemote');
+    checkBtn?.click();
+  });
   btnDeliveryGitSync?.addEventListener('click', handleSync);
   document.getElementById('btnDeliverySyncFetch')?.addEventListener('click', handleSync);
   btnRefresh?.addEventListener('click', () => refreshGitStatus(api));
@@ -51646,6 +51860,132 @@ async function refreshGitStatus(api: any): Promise<void> {
     const gitPaneAuthorIdentity = document.getElementById('gitPaneAuthorIdentity');
     if (gitPaneAuthorIdentity) {
       gitPaneAuthorIdentity.innerText = git.userName ? `${git.userName} (${git.userEmail || 'no-email'})` : 'Default Git Author';
+    }
+
+    // 1b. Remote Sync Status Metric & Banner Rendering
+    const ahead = git.ahead || 0;
+    const behind = git.behind || 0;
+    const upstream = git.upstreamBranch || (remote ? `origin/${cur}` : '');
+    const incomingCommits: Array<any> = git.incomingCommits || [];
+    const incomingFiles: Array<any> = git.incomingFiles || [];
+
+    const gitPaneSyncStatusIcon = document.getElementById('gitPaneSyncStatusIcon');
+    const gitPaneSyncStatusText = document.getElementById('gitPaneSyncStatusText');
+    const gitPaneSyncStatusSub = document.getElementById('gitPaneSyncStatusSub');
+
+    if (gitPaneSyncStatusText) {
+      if (!git.isRepo) {
+        gitPaneSyncStatusText.innerText = 'Not a Git Repo';
+        gitPaneSyncStatusText.style.color = 'var(--text-secondary)';
+        if (gitPaneSyncStatusIcon) gitPaneSyncStatusIcon.innerText = '📁';
+        if (gitPaneSyncStatusSub) gitPaneSyncStatusSub.innerText = 'Initialize repository';
+      } else if (!git.hasUpstream && !remote) {
+        gitPaneSyncStatusText.innerText = 'No Remote Set';
+        gitPaneSyncStatusText.style.color = 'var(--text-secondary)';
+        if (gitPaneSyncStatusIcon) gitPaneSyncStatusIcon.innerText = '🌐';
+        if (gitPaneSyncStatusSub) gitPaneSyncStatusSub.innerText = 'Configure remote in Setup Wizard';
+      } else if (behind > 0 && ahead > 0) {
+        gitPaneSyncStatusText.innerText = `⚠️ Diverged (↓${behind} / ↑${ahead})`;
+        gitPaneSyncStatusText.style.color = 'var(--warning)';
+        if (gitPaneSyncStatusIcon) gitPaneSyncStatusIcon.innerText = '⚠️';
+        if (gitPaneSyncStatusSub) gitPaneSyncStatusSub.innerText = `${behind} incoming from ${upstream} · ${ahead} unpushed`;
+      } else if (behind > 0) {
+        gitPaneSyncStatusText.innerText = `⬇️ ${behind} Commit${behind > 1 ? 's' : ''} Behind`;
+        gitPaneSyncStatusText.style.color = '#60a5fa';
+        if (gitPaneSyncStatusIcon) gitPaneSyncStatusIcon.innerText = '📥';
+        if (gitPaneSyncStatusSub) gitPaneSyncStatusSub.innerText = `${behind} incoming from ${upstream} · Click to pull`;
+      } else if (ahead > 0) {
+        gitPaneSyncStatusText.innerText = `⬆️ ${ahead} Commit${ahead > 1 ? 's' : ''} Ahead`;
+        gitPaneSyncStatusText.style.color = 'var(--accent)';
+        if (gitPaneSyncStatusIcon) gitPaneSyncStatusIcon.innerText = '🚀';
+        if (gitPaneSyncStatusSub) gitPaneSyncStatusSub.innerText = `Ready to push to ${upstream}`;
+      } else {
+        gitPaneSyncStatusText.innerText = '✓ Up to Date';
+        gitPaneSyncStatusText.style.color = 'var(--success)';
+        if (gitPaneSyncStatusIcon) gitPaneSyncStatusIcon.innerText = '✓';
+        const timeStr = git.lastFetched ? `Checked ${new Date(git.lastFetched).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Fully in sync';
+        if (gitPaneSyncStatusSub) gitPaneSyncStatusSub.innerText = `${upstream ? upstream + ' · ' : ''}${timeStr}`;
+      }
+    }
+
+    // Incoming Updates Notification Banner
+    const gitIncomingBanner = document.getElementById('gitIncomingBanner');
+    const gitIncomingBannerTitle = document.getElementById('gitIncomingBannerTitle');
+    const gitIncomingCountBadge = document.getElementById('gitIncomingCountBadge');
+    const gitIncomingBannerDesc = document.getElementById('gitIncomingBannerDesc');
+
+    if (gitIncomingBanner) {
+      if (behind > 0) {
+        gitIncomingBanner.style.display = 'flex';
+        if (gitIncomingBannerTitle) {
+          gitIncomingBannerTitle.innerText = `Remote has ${behind} incoming commit${behind > 1 ? 's' : ''} ready to sync`;
+        }
+        if (gitIncomingCountBadge) {
+          gitIncomingCountBadge.innerText = `${behind} Incoming`;
+        }
+        if (gitIncomingBannerDesc) {
+          const filesCount = incomingFiles.length;
+          gitIncomingBannerDesc.innerText = `Upstream: ${upstream} • ${filesCount} file${filesCount !== 1 ? 's' : ''} updated on remote. Preview diff or pull to update local branch.`;
+        }
+      } else {
+        gitIncomingBanner.style.display = 'none';
+      }
+    }
+
+    // Incoming Badge in History Tab
+    const gitIncomingBadgeTab = document.getElementById('gitIncomingBadgeTab');
+    if (gitIncomingBadgeTab) {
+      gitIncomingBadgeTab.innerText = String(behind);
+      gitIncomingBadgeTab.style.background = behind > 0 ? 'rgba(59,130,246,0.45)' : 'rgba(255,255,255,0.1)';
+      gitIncomingBadgeTab.style.color = behind > 0 ? '#93c5fd' : 'var(--text-secondary)';
+    }
+
+    // Incoming Commits List in Tab View
+    const gitIncomingCommitsList = document.getElementById('gitIncomingCommitsList');
+    if (gitIncomingCommitsList) {
+      if (behind === 0) {
+        gitIncomingCommitsList.innerHTML = `
+          <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 25px 0;">
+            ✓ Local branch is fully up to date with ${upstream || 'remote origin'}.<br>
+            <span style="font-size: 10px; color: #64748b; margin-top: 4px; display: inline-block;">Click &quot;Check Remote&quot; in the header to check for new upstream commits anytime.</span>
+          </div>
+        `;
+      } else {
+        gitIncomingCommitsList.innerHTML = incomingCommits.map((c: any) => `
+          <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); border: 1px solid rgba(59,130,246,0.3); border-radius: 4px; padding: 6px 8px; font-size: 11px;">
+            <div style="min-width: 0; flex: 1; padding-right: 8px;">
+              <div style="color: #93c5fd; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${c.message || 'commit'}</div>
+              <div style="color: var(--text-secondary); font-size: 10px;">${c.author} · ${c.timeAgo}</div>
+            </div>
+            <span style="font-family: var(--font-mono); font-size: 10px; color: #60a5fa; background: rgba(59, 130, 246, 0.15); padding: 1px 5px; border-radius: 3px;">${c.shortHash}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Incoming Files List in Tab View
+    const gitIncomingFilesBox = document.getElementById('gitIncomingFilesBox');
+    const gitIncomingFilesList = document.getElementById('gitIncomingFilesList');
+    const gitIncomingFilesCount = document.getElementById('gitIncomingFilesCount');
+    if (gitIncomingFilesBox && gitIncomingFilesList) {
+      if (incomingFiles.length > 0) {
+        gitIncomingFilesBox.style.display = 'block';
+        if (gitIncomingFilesCount) gitIncomingFilesCount.innerText = `${incomingFiles.length} file${incomingFiles.length !== 1 ? 's' : ''}`;
+        gitIncomingFilesList.innerHTML = incomingFiles.map((f: any) => {
+          const col = f.code?.startsWith('A') ? 'var(--accent)' : (f.code?.startsWith('D') ? 'var(--error)' : '#60a5fa');
+          return `
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 2px 0;">
+              <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <span style="font-weight: 800; color: ${col}; background: rgba(0,0,0,0.3); padding: 0 4px; border-radius: 2px;">${f.code || 'M'}</span>
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #e2e8f0;">${f.path}</span>
+              </div>
+              <span style="color: var(--text-secondary); font-size: 9px;">${f.statusLabel}</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        gitIncomingFilesBox.style.display = 'none';
+      }
     }
 
     // 2. Delivery Studio Header Elements
@@ -57814,30 +58154,8 @@ if __name__ == '__main__':
 
               if (!await ensureProviderApiKey(api, providerKey, modelName)) return;
 
-              activeSelectedModel = chosen.replace(/ \(offline\)/, '');
-              activeSelectedProvider = providerKey;
-
-              // 1. Update Global Header Bar
-              const lblHeader = document.getElementById('lblHeaderModel');
-              if (lblHeader) {
-                lblHeader.innerText = `${providerLabel.split(' ')[0].toUpperCase()} · ${activeSelectedModel}`;
-              }
-
-              // 2. Update Chat Badge
-              const lblChatBadge = document.getElementById('lblChatActiveModelBadge');
-              if (lblChatBadge) {
-                lblChatBadge.innerText = `${providerLabel.toUpperCase()}: ${activeSelectedModel.toUpperCase()}`;
-              }
-
-              // 3. Update Data Studio Badge
-              const lblDataModel = document.getElementById('lblDataModelName');
-              if (lblDataModel) {
-                lblDataModel.innerText = `${providerLabel} · ${activeSelectedModel}`;
-              }
-
-              // 4. Update Converter Studio Fit & Recommendation
-              updateConverterModelFit(activeSelectedModel, currentConverterTarget);
-
+              const cleanModel = chosen.replace(/ \(offline\)/, '');
+              setActiveAiModel(api, providerKey, cleanModel, modelName, providerLabel);
               modalAiProvider.style.display = 'none';
               showToast(`✓ Switched active AI Model to: ${modelName} (${providerLabel})`);
             });
@@ -58164,13 +58482,36 @@ if __name__ == '__main__':
           }
         }
 
+        let testModel = '';
         if (api?.vault) {
           if (provider === 'anthropic') {
             const baseUrlVal = (document.getElementById('cfgAnthropicBaseUrl') as HTMLInputElement)?.value.trim();
             if (baseUrlVal !== undefined) await api.vault.setSecret('anthropicBaseUrl', baseUrlVal);
+            const modelVal = (document.getElementById('cfgAnthropicModel') as HTMLInputElement)?.value.trim();
+            if (modelVal !== undefined) {
+              await api.vault.setSecret('anthropicModel', modelVal);
+              testModel = modelVal;
+            }
           } else if (provider === 'openai') {
             const baseUrlVal = (document.getElementById('cfgOpenaiBaseUrl') as HTMLInputElement)?.value.trim();
             if (baseUrlVal !== undefined) await api.vault.setSecret('openaiBaseUrl', baseUrlVal);
+            const modelVal = (document.getElementById('cfgOpenaiModel') as HTMLInputElement)?.value.trim();
+            if (modelVal !== undefined) {
+              await api.vault.setSecret('openaiModel', modelVal);
+              testModel = modelVal;
+            }
+          } else if (provider === 'gemini') {
+            const modelVal = (document.getElementById('cfgGeminiModel') as HTMLInputElement)?.value.trim();
+            if (modelVal !== undefined) {
+              await api.vault.setSecret('geminiModel', modelVal);
+              testModel = modelVal;
+            }
+          } else if (provider === 'deepseek') {
+            const modelVal = (document.getElementById('cfgDeepseekModel') as HTMLInputElement)?.value.trim();
+            if (modelVal !== undefined) {
+              await api.vault.setSecret('deepseekModel', modelVal);
+              testModel = modelVal;
+            }
           }
         }
 
@@ -58178,12 +58519,13 @@ if __name__ == '__main__':
           const res = await api.ai.testKey({
             provider,
             apiKey: keyVal,
+            model: testModel,
             trustCorporateProxy: trustCorporate
           });
           if (res.success) {
             if (statusEl) {
               statusEl.style.color = '#22c55e';
-              statusEl.innerHTML = '✓ Verified';
+              statusEl.innerHTML = res.modelUsed ? `✓ Verified (${res.modelUsed})` : '✓ Verified';
               statusEl.title = res.message || 'Key verified successfully';
             }
             showToast(res.message || `✓ ${providerCap} API key verified successfully!`);
@@ -58212,6 +58554,71 @@ if __name__ == '__main__':
         showToast(`⚠️ Test error: ${err.message}`);
       } finally {
         target.disabled = false;
+      }
+    });
+  });
+
+  // Query /v1/models for available gateway models
+  document.querySelectorAll('.btn-fetch-remote-models').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const target = e.currentTarget as HTMLButtonElement;
+      const provider = target.dataset.provider || '';
+      const inputModelId = target.dataset.inputModel || '';
+      const datalistId = target.dataset.datalist || '';
+      const inputModel = document.getElementById(inputModelId) as HTMLInputElement;
+      const datalist = document.getElementById(datalistId) as HTMLElement;
+
+      const providerCap = provider.charAt(0).toUpperCase() + provider.slice(1);
+      const chkProxy = document.getElementById('chkTrustCorporateProxy') as HTMLInputElement;
+      const trustCorporate = chkProxy ? chkProxy.checked : true;
+
+      let keyVal = '';
+      let baseUrlVal = '';
+      if (provider === 'anthropic') {
+        keyVal = (document.getElementById('cfgKeyAnthropic') as HTMLInputElement)?.value.trim() || '';
+        baseUrlVal = (document.getElementById('cfgAnthropicBaseUrl') as HTMLInputElement)?.value.trim() || '';
+      } else if (provider === 'openai') {
+        keyVal = (document.getElementById('cfgKeyOpenai') as HTMLInputElement)?.value.trim() || '';
+        baseUrlVal = (document.getElementById('cfgOpenaiBaseUrl') as HTMLInputElement)?.value.trim() || '';
+      }
+
+      target.disabled = true;
+      const origText = target.innerText;
+      target.innerText = 'Querying... ⏳';
+
+      try {
+        if (api?.ai?.listRemoteModels) {
+          const res = await api.ai.listRemoteModels({
+            provider,
+            apiKey: keyVal,
+            baseUrl: baseUrlVal,
+            trustCorporateProxy: trustCorporate
+          });
+
+          if (res.success && res.models && res.models.length > 0) {
+            if (datalist) {
+              datalist.innerHTML = res.models.map((m: string) => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+            }
+            if (inputModel && (!inputModel.value || !res.models.includes(inputModel.value))) {
+              const preferred = res.models.find((m: string) => m.includes('sonnet') || m.includes('4o') || m.includes('claude')) || res.models[0];
+              inputModel.value = preferred;
+              if (api?.vault) {
+                await api.vault.setSecret(`${provider}Model`, preferred);
+              }
+            }
+            showToast(`✓ Retrieved ${res.models.length} model(s) from gateway: ${res.models.slice(0, 3).join(', ')}${res.models.length > 3 ? '...' : ''}`);
+          } else {
+            showToast(`⚠️ Could not list models: ${res.error || 'No models returned from /v1/models'}`);
+          }
+        } else {
+          showToast('⚠️ listRemoteModels API not available in current runtime.');
+        }
+      } catch (err: any) {
+        showToast(`⚠️ Error querying /v1/models: ${err.message}`);
+      } finally {
+        target.disabled = false;
+        target.innerText = origText;
       }
     });
   });

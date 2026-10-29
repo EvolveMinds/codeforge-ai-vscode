@@ -92,6 +92,8 @@ const desktopApi = {
     pull: (branch?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.PULL, branch),
     stash: (action: 'save' | 'pop') => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.STASH, action),
     getLog: (limit?: number) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_LOG, limit),
+    fetch: (remote?: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.FETCH, remote),
+    getRemoteDiff: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_REMOTE_DIFF),
     analyzeCodebase: (options?: any) => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.ANALYZE_CODEBASE, options),
     getCodebaseGraph: () => ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_CODEBASE_GRAPH),
     generateModernizationTopology: (target?: 'as-is' | 'to-be' | 'both' | any, repoPath?: string) =>
@@ -176,8 +178,10 @@ const desktopApi = {
       ipcRenderer.invoke(DESKTOP_CHANNELS.AI.CHAT, req),
     getModels: () => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.GET_MODELS),
     pullModel: (modelName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.PULL_MODEL, modelName),
-    testKey: (req: { provider: string; apiKey?: string; trustCorporateProxy?: boolean }) =>
-      ipcRenderer.invoke(DESKTOP_CHANNELS.AI.TEST_KEY, req)
+    testKey: (req: { provider: string; apiKey?: string; trustCorporateProxy?: boolean; model?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.AI.TEST_KEY, req),
+    listRemoteModels: (req: { provider: string; apiKey?: string; baseUrl?: string; trustCorporateProxy?: boolean }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.AI.LIST_REMOTE_MODELS, req)
   },
 
   // --- ENTERPRISE & FDE CORE ENGINES ---

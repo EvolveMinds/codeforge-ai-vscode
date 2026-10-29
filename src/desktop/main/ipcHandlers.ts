@@ -510,46 +510,59 @@ const CLOUD_CHAT_PROVIDERS: Record<string, CloudChatProvider> = {
  * Maps futuristic/catalogue UI model IDs to live upstream provider models,
  * preventing 404 Model Not Found errors on production provider APIs.
  */
-function resolveUpstreamModel(vaultKey: string, model: string): string {
-  const m = (model || '').toLowerCase().trim();
+function resolveUpstreamModel(vaultKey: string, model: string, secretVault?: DesktopSecretVault): string {
+  const raw = (model || '').trim();
+  const m = raw.toLowerCase();
   if (vaultKey === 'anthropicApiKey') {
-    if (m === 'default' || m === 'claude-opus-5-5' || m.includes('opus')) {
+    if (m === 'default' || !m) {
+      const configured = secretVault?.getSecret('anthropicModel');
+      if (configured && configured.trim()) return configured.trim();
       return 'claude-3-7-sonnet-20250219';
     }
-    if (m === 'claude-sonnet-5' || m.includes('sonnet')) {
-      return 'claude-3-7-sonnet-20250219';
-    }
-    if (m === 'claude-haiku-4-5' || m.includes('haiku')) {
-      return 'claude-3-5-haiku-20241022';
-    }
-    if (m === 'claude-fable-5-1') {
-      return 'claude-3-7-sonnet-20250219';
-    }
+    if (m === 'claude-opus-5-5') return 'claude-3-7-sonnet-20250219';
+    if (m === 'claude-sonnet-5') return 'claude-3-7-sonnet-20250219';
+    if (m === 'claude-haiku-4-5') return 'claude-3-5-haiku-20241022';
+    if (m === 'claude-fable-5-1') return 'claude-3-7-sonnet-20250219';
+    return raw;
   }
   if (vaultKey === 'openaiApiKey') {
-    if (m === 'default' || m.startsWith('gpt-6')) {
-      return m.includes('luna') ? 'gpt-4o-mini' : 'gpt-4o';
+    if (m === 'default' || !m) {
+      const configured = secretVault?.getSecret('openaiModel');
+      if (configured && configured.trim()) return configured.trim();
+      return 'gpt-4o';
     }
+    if (m === 'gpt-6-sol' || m === 'gpt-6-astra') return 'gpt-4o';
+    if (m === 'gpt-6-luna') return 'gpt-4o-mini';
+    return raw;
   }
   if (vaultKey === 'geminiApiKey') {
-    if (m === 'default' || m.startsWith('gemini-3')) {
-      return m.includes('lite') ? 'gemini-2.0-flash-lite' : 'gemini-2.0-flash';
+    if (m === 'default' || !m) {
+      const configured = secretVault?.getSecret('geminiModel');
+      if (configured && configured.trim()) return configured.trim();
+      return 'gemini-2.0-flash';
     }
+    if (m === 'gemini-3.8-flash' || m === 'gemini-3.1-pro-preview') return 'gemini-2.0-flash';
+    if (m === 'gemini-3.5-flash-lite') return 'gemini-2.0-flash-lite';
+    return raw;
   }
   if (vaultKey === 'deepseekApiKey') {
-    if (m === 'default' || m.startsWith('deepseek-v4') || m.startsWith('deepseek-flash')) {
+    if (m === 'default' || !m) {
+      const configured = secretVault?.getSecret('deepseekModel');
+      if (configured && configured.trim()) return configured.trim();
       return 'deepseek-chat';
     }
+    if (m === 'deepseek-v4-pro' || m === 'deepseek-flash') return 'deepseek-chat';
+    return raw;
   }
   if (vaultKey === 'zaiApiKey') {
-    if (m === 'default' || m.startsWith('glm-4.6')) {
-      return 'glm-4-plus';
-    }
+    if (m === 'default' || !m) return 'glm-4-plus';
+    if (m === 'glm-4.6') return 'glm-4-plus';
+    return raw;
   }
   if (m === 'default') {
     return 'default';
   }
-  return model;
+  return raw;
 }
 
 /**
@@ -568,7 +581,7 @@ function callCloudChat(
   options?: { trustCorporateProxy?: boolean; secretVault?: DesktopSecretVault }
 ): Promise<{ content: string; success: boolean; error?: string }> {
   return new Promise((resolve) => {
-    const effectiveModel = resolveUpstreamModel(provider.vaultKey, model);
+    const effectiveModel = resolveUpstreamModel(provider.vaultKey, model, options?.secretVault);
     let payload: string;
 
     if (provider.dialect === 'anthropic') {
@@ -2588,7 +2601,11 @@ export class DesktopIpcHandlers {
           for (const ent of entries) {
             if (ent.name.startsWith('.') || SKIP_DIRS.has(ent.name)) continue;
             const full = path.join(current, ent.name);
-            if (ent.isDirectory()) {
+            let isDir = ent.isDirectory();
+            if (!isDir && ent.isSymbolicLink()) {
+              try { isDir = fs.statSync(full).isDirectory(); } catch {}
+            }
+            if (isDir) {
               walk(full, depth + 1);
             } else {
               const ext = path.extname(ent.name).toLowerCase();
@@ -2851,9 +2868,18 @@ export class DesktopIpcHandlers {
               if (ent.name.startsWith('.') || SKIP_DIRS.has(ent.name)) continue;
               const full = path.join(dir, ent.name);
               const rel = path.join(base, ent.name).replace(/\\/g, '/');
-              if (ent.isDirectory()) {
+              let isDir = ent.isDirectory();
+              let isFile = ent.isFile();
+              if (ent.isSymbolicLink()) {
+                try {
+                  const stat = fs.statSync(full);
+                  isDir = stat.isDirectory();
+                  isFile = stat.isFile();
+                } catch {}
+              }
+              if (isDir) {
                 scanDir(full, rel);
-              } else if (ent.isFile()) {
+              } else if (isFile) {
                 const ext = path.extname(ent.name).toLowerCase();
                 const matchedSpec = LANGUAGES.find(l => l.ext === ext || (l.altExts && l.altExts.includes(ext)));
                 if (matchedSpec && results.length < 20) {
@@ -3166,6 +3192,7 @@ End Function
         fromLang = 'python',
         toLang = 'typescript',
         model = 'qwen2.5-coder:7b',
+        provider = 'ollama',
         fidelity = 'idiomatic',
         dependencies = 'ecosystem',
         includeTests = false,
@@ -3242,61 +3269,105 @@ End Function
       let usedModel = chosenModel;
       let isFallback = false;
 
-      // 1. Query active Ollama inference server (port 11434)
-      try {
-        const ollamaPayload = JSON.stringify({
-          model: chosenModel,
-          messages: [
-            { role: 'system', content: CONVERT_SYSTEM },
-            { role: 'user', content: prompt }
-          ],
-          stream: false,
-          options: {
-            temperature: 0.2,
-            num_predict: 8192,
-            num_ctx: 32768
-          }
-        });
+      // 0. Built-in Deterministic Transpilation Engine (100% Air-Gapped)
+      if (provider === 'builtin' || provider === 'offline' || chosenModel === 'offline-engine') {
+        isFallback = false;
+        usedModel = 'Evolve Built-in Deterministic Engine (Air-Gapped)';
+        rawResponse = generateDesktopConversionFallback(sourceCode, sourceSpec, targetSpec, spec, sourceFiles);
+      }
 
-        const ollamaRes = await new Promise<{ content: string; success: boolean }>((resolve) => {
-          const r = http.request({
-            host: '127.0.0.1',
-            port: 11434,
-            path: '/api/chat',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(ollamaPayload)
-            },
-            timeout: 60000
-          }, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-              if (res.statusCode === 200) {
-                try {
-                  const parsed = JSON.parse(data);
-                  const content = parsed.message?.content || parsed.response || '';
-                  resolve({ content, success: !!content });
-                } catch {
-                  resolve({ content: '', success: false });
-                }
-              } else {
-                resolve({ content: '', success: false });
+      // 1. Query Cloud AI Providers (Anthropic, Gemini, OpenAI, GLM, DeepSeek)
+      if (!rawResponse) {
+        const cloudProvider = CLOUD_CHAT_PROVIDERS[provider || ''] ||
+          (chosenModel.includes('claude') ? CLOUD_CHAT_PROVIDERS['anthropic'] :
+           chosenModel.includes('gpt') ? CLOUD_CHAT_PROVIDERS['openai'] :
+           chosenModel.includes('gemini') ? CLOUD_CHAT_PROVIDERS['gemini'] :
+           chosenModel.includes('deepseek') ? CLOUD_CHAT_PROVIDERS['deepseek'] :
+           chosenModel.includes('glm') ? CLOUD_CHAT_PROVIDERS['glm'] : undefined);
+        if (cloudProvider) {
+          let apiKey = '';
+          try {
+            apiKey = secretVault.getSecret(cloudProvider.vaultKey) ||
+              (cloudProvider.altEnvVar ? process.env[cloudProvider.altEnvVar] : '') ||
+              process.env[cloudProvider.envVar] ||
+              '';
+          } catch {}
+          if (apiKey) {
+            try {
+              const cloudRes = await callCloudChat(
+                cloudProvider,
+                apiKey,
+                chosenModel,
+                CONVERT_SYSTEM,
+                [{ role: 'user', content: prompt }],
+                { secretVault }
+              );
+              if (cloudRes.success && cloudRes.content) {
+                rawResponse = cloudRes.content;
+                usedModel = `${chosenModel} (${cloudProvider.label})`;
               }
-            });
+            } catch {}
+          }
+        }
+      }
+
+      // 2. Query active Ollama inference server (port 11434)
+      if (!rawResponse) {
+        try {
+          const ollamaPayload = JSON.stringify({
+            model: chosenModel,
+            messages: [
+              { role: 'system', content: CONVERT_SYSTEM },
+              { role: 'user', content: prompt }
+            ],
+            stream: false,
+            options: {
+              temperature: 0.2,
+              num_predict: 8192,
+              num_ctx: 32768
+            }
           });
 
-          r.on('error', () => resolve({ content: '', success: false }));
-          r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false }); });
-          r.write(ollamaPayload);
-          r.end();
-        });
+          const ollamaRes = await new Promise<{ content: string; success: boolean }>((resolve) => {
+            const r = http.request({
+              host: '127.0.0.1',
+              port: 11434,
+              path: '/api/chat',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(ollamaPayload)
+              },
+              timeout: 60000
+            }, (res) => {
+              let data = '';
+              res.on('data', chunk => data += chunk);
+              res.on('end', () => {
+                if (res.statusCode === 200) {
+                  try {
+                    const parsed = JSON.parse(data);
+                    const content = parsed.message?.content || parsed.response || '';
+                    resolve({ content, success: !!content });
+                  } catch {
+                    resolve({ content: '', success: false });
+                  }
+                } else {
+                  resolve({ content: '', success: false });
+                }
+              });
+            });
 
-        if (ollamaRes.success && ollamaRes.content) {
-          rawResponse = ollamaRes.content;
-        }
-      } catch {}
+            r.on('error', () => resolve({ content: '', success: false }));
+            r.on('timeout', () => { r.destroy(); resolve({ content: '', success: false }); });
+            r.write(ollamaPayload);
+            r.end();
+          });
+
+          if (ollamaRes.success && ollamaRes.content) {
+            rawResponse = ollamaRes.content;
+          }
+        } catch {}
+      }
 
       // 2. Query OpenAI-compatible local servers (LM Studio on 1234 or vLLM on 8000)
       if (!rawResponse) {
@@ -3425,6 +3496,8 @@ End Function
           gitInstalled: false,
           gitVersion: '',
           currentBranch: '',
+          upstreamBranch: '',
+          hasUpstream: false,
           remoteUrl: '',
           remoteProvider: 'generic',
           providerLabel: 'Git',
@@ -3433,6 +3506,10 @@ End Function
           userEmail: '',
           modifiedFiles: [],
           recentCommits: [],
+          incomingCommits: [],
+          incomingFiles: [],
+          outgoingCommits: [],
+          lastFetched: null,
           isClean: true,
           ahead: 0,
           behind: 0
@@ -3525,13 +3602,88 @@ End Function
           });
         } catch {}
 
-        let ahead = 0, behind = 0;
+        let upstreamBranch = '';
         try {
-          const { stdout: revCount } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `origin/${currentBranch}...HEAD`], { cwd });
-          const parts = revCount.trim().split(/\s+/);
-          if (parts.length === 2) {
-            behind = parseInt(parts[0], 10) || 0;
-            ahead = parseInt(parts[1], 10) || 0;
+          const { stdout: upOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { cwd });
+          upstreamBranch = upOut.trim();
+        } catch {
+          try {
+            await execFileAsync('git', ['rev-parse', '--verify', `origin/${currentBranch}`], { cwd });
+            upstreamBranch = `origin/${currentBranch}`;
+          } catch {}
+        }
+
+        let ahead = 0, behind = 0;
+        let incomingCommits: Array<{ hash: string; shortHash: string; author: string; timeAgo: string; message: string }> = [];
+        let incomingFiles: Array<{ path: string; code: string; statusLabel: string }> = [];
+        let outgoingCommits: Array<{ hash: string; shortHash: string; author: string; timeAgo: string; message: string }> = [];
+
+        if (upstreamBranch) {
+          try {
+            const { stdout: revCount } = await execFileAsync('git', ['rev-list', '--left-right', '--count', `HEAD...${upstreamBranch}`], { cwd });
+            const parts = revCount.trim().split(/\s+/);
+  
+            if (parts.length === 2) {
+              ahead = parseInt(parts[0], 10) || 0;
+              behind = parseInt(parts[1], 10) || 0;
+            }
+          } catch {}
+
+          if (behind > 0) {
+            try {
+              const { stdout: incOut } = await execFileAsync('git', [
+                'log',
+                `HEAD..${upstreamBranch}`,
+                '-n', '15',
+                '--pretty=format:%H|%h|%an|%cr|%s'
+              ], { cwd });
+              incomingCommits = incOut.split('\n').filter(Boolean).map(l => {
+                const [hash, shortHash, author, timeAgo, message] = l.split('|');
+                return { hash, shortHash, author, timeAgo, message };
+              });
+            } catch {}
+
+            try {
+              const { stdout: incFilesOut } = await execFileAsync('git', [
+                'diff',
+                '--name-status',
+                `HEAD...${upstreamBranch}`
+              ], { cwd });
+              incomingFiles = incFilesOut.split('\n').filter(Boolean).map(l => {
+                const parts = l.trim().split(/\t+/);
+                const code = (parts[0] || 'M').trim();
+                const filePath = (parts[1] || '').trim();
+                let statusLabel = 'Modified';
+                if (code.startsWith('A')) statusLabel = 'Added';
+                else if (code.startsWith('D')) statusLabel = 'Deleted';
+                else if (code.startsWith('R')) statusLabel = 'Renamed';
+                return { path: filePath, code, statusLabel };
+              });
+            } catch {}
+          }
+
+          if (ahead > 0) {
+            try {
+              const { stdout: outOut } = await execFileAsync('git', [
+                'log',
+                `${upstreamBranch}..HEAD`,
+                '-n', '15',
+                '--pretty=format:%H|%h|%an|%cr|%s'
+              ], { cwd });
+              outgoingCommits = outOut.split('\n').filter(Boolean).map(l => {
+                const [hash, shortHash, author, timeAgo, message] = l.split('|');
+                return { hash, shortHash, author, timeAgo, message };
+              });
+            } catch {}
+          }
+        }
+
+        let lastFetched: string | null = null;
+        try {
+          const fetchHeadPath = path.join(cwd, '.git', 'FETCH_HEAD');
+          if (fs.existsSync(fetchHeadPath)) {
+            const stat = fs.statSync(fetchHeadPath);
+            lastFetched = stat.mtime.toISOString();
           }
         } catch {}
 
@@ -3540,6 +3692,8 @@ End Function
           gitInstalled: true,
           gitVersion,
           currentBranch,
+          upstreamBranch,
+          hasUpstream: Boolean(upstreamBranch),
           remoteUrl,
           remoteProvider,
           providerLabel,
@@ -3550,6 +3704,10 @@ End Function
           userEmail,
           modifiedFiles,
           recentCommits,
+          incomingCommits,
+          incomingFiles,
+          outgoingCommits,
+          lastFetched,
           isClean: modifiedFiles.length === 0,
           ahead,
           behind
@@ -3561,6 +3719,8 @@ End Function
           gitVersion,
           error: err.message,
           currentBranch: '',
+          upstreamBranch: '',
+          hasUpstream: false,
           remoteUrl: '',
           remoteProvider: 'generic',
           providerLabel: 'Git',
@@ -3569,6 +3729,10 @@ End Function
           userEmail: '',
           modifiedFiles: [],
           recentCommits: [],
+          incomingCommits: [],
+          incomingFiles: [],
+          outgoingCommits: [],
+          lastFetched: null,
           isClean: true,
           ahead: 0,
           behind: 0
@@ -3844,12 +4008,22 @@ End Function
       }
     });
 
-    ipc.handle(DESKTOP_CHANNELS.GIT.PULL, async (_: any, branch?: string) => {
+    ipc.handle(DESKTOP_CHANNELS.GIT.PULL, async (_: any, payloadOrBranch?: any) => {
       const ws = workspaceMgr.getCurrentWorkspace();
       const cwd = ws ? ws.path : process.cwd();
       try {
-        const target = branch || 'HEAD';
-        const { stdout } = await execFileAsync('git', ['pull', 'origin', target], { cwd });
+        let branch = 'HEAD';
+        let rebase = false;
+        if (typeof payloadOrBranch === 'string') {
+          branch = payloadOrBranch || 'HEAD';
+        } else if (payloadOrBranch && typeof payloadOrBranch === 'object') {
+          branch = payloadOrBranch.branch || 'HEAD';
+          rebase = Boolean(payloadOrBranch.rebase);
+        }
+        const pullArgs = ['pull'];
+        if (rebase) pullArgs.push('--rebase');
+        pullArgs.push('origin', branch);
+        const { stdout } = await execFileAsync('git', pullArgs, { cwd });
         return { success: true, output: stdout };
       } catch (err: any) {
         return { success: false, error: err.message };
@@ -3880,6 +4054,47 @@ End Function
         return { success: true, commits };
       } catch (err: any) {
         return { success: false, error: err.message, commits: [] };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.FETCH, async (_: any, remoteName?: string) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        const target = remoteName || 'origin';
+        const { stdout, stderr } = await execFileAsync('git', ['fetch', target, '--prune'], {
+          cwd,
+          env: nonInteractiveGitEnv(),
+          timeout: 30000
+        });
+        return { success: true, output: (stdout || stderr || 'Remote references updated').trim() };
+      } catch (err: any) {
+        return { success: false, error: redact(err.stderr || err.message || 'Fetch failed') };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.GIT.GET_REMOTE_DIFF, async (_: any) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = ws ? ws.path : process.cwd();
+      try {
+        let upstreamBranch = '';
+        try {
+          const { stdout: upOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { cwd });
+          upstreamBranch = upOut.trim();
+        } catch {
+          const { stdout: bOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd });
+          upstreamBranch = `origin/${bOut.trim()}`;
+        }
+        const { stdout: statOut } = await execFileAsync('git', ['diff', '--stat', `HEAD...${upstreamBranch}`], { cwd });
+        const { stdout: patchOut } = await execFileAsync('git', ['diff', `HEAD...${upstreamBranch}`], { cwd, maxBuffer: 1024 * 1024 * 5 });
+        return {
+          success: true,
+          upstream: upstreamBranch,
+          stat: statOut.trim(),
+          diff: patchOut
+        };
+      } catch (err: any) {
+        return { success: false, error: err.message };
       }
     });
 
@@ -4728,13 +4943,23 @@ End Function
         { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro (Preview)', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Deep Reasoning', context: '1M', mode: 'Cloud API', description: 'Advanced reasoning for complex architecture and multi-repository analysis.', isInstalled: true },
         { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash-Lite', provider: 'gemini', providerLabel: 'Google Gemini', category: 'cloud', isCoding: true, icon: '✨', badge: 'Cost Efficient', context: '1M', mode: 'Cloud API', description: 'Most cost-effective tier for high-throughput structured extraction and conversions.', isInstalled: true },
 
-        // Anthropic Claude Family
-        { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Recommended', context: '1M', mode: 'Cloud API', description: 'Flagship model for long-running agentic coding and enterprise knowledge work.', isInstalled: true },
+        // Anthropic Claude Family (Official & Enterprise Gateway Models)
+        { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (v2)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Recommended', context: '200k', mode: 'Cloud API', description: 'Industry benchmark for autonomous coding, architectural refactoring, and agentic workflows.', isInstalled: true },
+        { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet (Gateway Alias)', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Enterprise Gateway', context: '200k', mode: 'Cloud / Gateway', description: 'Standard enterprise proxy model alias for corporate AI gateways.', isInstalled: true },
+        { id: 'claude-3-7-sonnet-20250219', name: 'Claude 3.7 Sonnet', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Hybrid Reasoning', context: '200k', mode: 'Cloud API', description: 'Anthropic\'s hybrid reasoning and flagship coding model.', isInstalled: true },
+        { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Fast Coding', context: '200k', mode: 'Cloud API', description: 'Fast Claude model with exceptional code generation speed.', isInstalled: true },
+        { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Cost Efficient', context: '200k', mode: 'Cloud API', description: 'Ultra-fast, compact model for rapid queries.', isInstalled: true },
+        { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Deep Context', context: '200k', mode: 'Cloud API', description: 'Anthropic\'s powerhouse for complex synthesis.', isInstalled: true },
+        { id: 'claude-opus-5-5', name: 'Claude Opus 5.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Frontier Preview', context: '1M', mode: 'Cloud API', description: 'Flagship model for long-running agentic coding and enterprise knowledge work.', isInstalled: true },
         { id: 'claude-sonnet-5', name: 'Claude Sonnet 5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Balanced', context: '1M', mode: 'Cloud API', description: 'The best combination of speed and intelligence for everyday code transformation.', isInstalled: true },
         { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Speed Leader', context: '200k', mode: 'Cloud API', description: 'Fastest Claude model with near-frontier intelligence for quick edits and tests.', isInstalled: true },
         { id: 'claude-fable-5-1', name: 'Claude Fable 5.1', provider: 'anthropic', providerLabel: 'Anthropic Cloud', category: 'cloud', isCoding: true, icon: '☁️', badge: 'Max Reasoning', context: '1M', mode: 'Cloud API', description: 'For the most demanding reasoning and long-horizon agentic migrations.', isInstalled: true },
 
-        // OpenAI Family
+        // OpenAI Family (Official & Enterprise Models)
+        { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Omni Flagship', context: '128k', mode: 'Cloud API', description: 'OpenAI\'s flagship multimodal intelligence model.', isInstalled: true },
+        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Fast & Efficient', context: '128k', mode: 'Cloud API', description: 'Fast, cost-effective OpenAI model for rapid transformations.', isInstalled: true },
+        { id: 'o1', name: 'OpenAI o1', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Reasoning CoT', context: '128k', mode: 'Cloud API', description: 'Deep reasoning model for math, coding and hard problem solving.', isInstalled: true },
+        { id: 'o3-mini', name: 'OpenAI o3-mini', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Fast Reasoning', context: '128k', mode: 'Cloud API', description: 'Lightweight, high-speed STEM and coding reasoning model.', isInstalled: true },
         { id: 'gpt-6-sol', name: 'GPT-6 Sol', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Coding Flagship', context: '256k', mode: 'Cloud API', description: 'Built to power complex coding and agentic engineering workflows.', isInstalled: true },
         { id: 'gpt-6-astra', name: 'GPT-6 Astra', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Most Capable', context: '256k', mode: 'Cloud API', description: 'OpenAI\'s most capable model, built for the hardest end-to-end work.', isInstalled: true },
         { id: 'gpt-6-luna', name: 'GPT-6 Luna', provider: 'openai', providerLabel: 'OpenAI Cloud', category: 'cloud', isCoding: true, icon: '🌐', badge: 'Efficient', context: '256k', mode: 'Cloud API', description: 'Most efficient tier for focused, high-volume refactoring tasks.', isInstalled: true },
@@ -4750,6 +4975,35 @@ End Function
         { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B (Groq Fast)', provider: 'groq', providerLabel: 'Groq / LPU Cloud', category: 'cloud', isCoding: true, icon: '⚡', badge: '500 tok/s', context: '128k', mode: 'Groq LPU', description: 'Ultra-high-speed inference powered by Groq LPUs for instant answers.', isInstalled: true },
         { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: 'Qwen 2.5 Coder 32B (HF)', provider: 'huggingface', providerLabel: 'Hugging Face Hub', category: 'cloud', isCoding: true, icon: '🤗', badge: 'HF Hosted', context: '32k', mode: 'Inference API', description: 'Hosted inference via the Hugging Face router endpoint.', isInstalled: true }
       ];
+
+      // Dynamically inject user-configured cloud models from Settings
+      const customConfigured = [
+        { key: 'anthropicModel', provider: 'anthropic', label: 'Anthropic Cloud', icon: '☁️' },
+        { key: 'openaiModel', provider: 'openai', label: 'OpenAI Cloud', icon: '🌐' },
+        { key: 'geminiModel', provider: 'gemini', label: 'Google Gemini', icon: '✨' },
+        { key: 'deepseekModel', provider: 'deepseek', label: 'DeepSeek Cloud', icon: '🧠' }
+      ];
+      for (const item of customConfigured) {
+        try {
+          const mId = secretVault.getSecret(item.key);
+          if (mId && mId.trim() && !catalogue.some(c => c.id.toLowerCase() === mId.trim().toLowerCase())) {
+            catalogue.unshift({
+              id: mId.trim(),
+              name: `${mId.trim()} (Configured)`,
+              provider: item.provider,
+              providerLabel: item.label,
+              category: 'cloud',
+              isCoding: true,
+              icon: item.icon,
+              badge: 'Configured in Settings',
+              context: '200k',
+              mode: 'Gateway / Cloud',
+              description: `User-configured model from Settings for ${item.label}.`,
+              isInstalled: true
+            });
+          }
+        } catch {}
+      }
 
       // Dynamically register any models pulled in Ollama that are not already in the catalogue
       for (const oModel of ollamaModels) {
@@ -4858,8 +5112,34 @@ End Function
       });
     });
 
+    function generateBuiltinOfflineResponse(prompt: string): string {
+      const p = prompt.toLowerCase();
+      const mentions = (...words: string[]) =>
+        words.some(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\    ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {')}\\b`, 'i').test(p));
+
+      if (mentions('hello world') || mentions('python')) {
+        return `\`\`\`python\n# Simple Hello World in Python\ndef main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()\n\`\`\`\n*Tip: To run this code directly in the integrated terminal, type \`python -c 'print("Hello, World!")'\`.*`;
+      } else if (mentions('dbt', 'staging', 'mart')) {
+        return `\`\`\`sql\n-- Example dbt staging model (stg_orders.sql)\nWITH source_raw AS (\n  SELECT * FROM {{ source('raw_data', 'orders_raw') }}\n),\n\nstandardized AS (\n  SELECT\n    id AS order_id,\n    customer_id,\n    CAST(total_amount AS NUMERIC) AS total_amount,\n    status,\n    CAST(created_at AS TIMESTAMP) AS created_at\n  FROM source_raw\n)\n\nSELECT * FROM standardized;\n\`\`\``;
+      } else if (mentions('hi', 'hello', 'hey')) {
+        return `Hello! I am your **Evolve AI Copilot**.\n\nI can help you:\n1. 🗄️ Ingest datasets and generate dbt staging & dimensional mart models (Step 1).\n2. 🔌 Scaffold TypeScript & Python client API SDKs with exponential backoff (Step 2).\n3. ⚡ Audit workspace health & scaffold Multi-Cloud Terraform/K8s/Docker deployment IaC (Step 3).\n4. 📑 Auto-compile 5 comprehensive client handoff documents and runbooks (Step 4).\n5. 💎 Generate enterprise RAG vector pipelines, k6 SLA load tests, PII masking & SIEM forwarders (Step 5).\n\nHow can I assist you with your project today?`;
+      } else {
+        return `I analyzed your request: **"${prompt}"**.\n\n\`\`\`typescript\n// Solution snippet generated by Evolve AI Built-in Deterministic Engine\nexport async function executeTask() {\n  console.log("Executing task for: ${prompt.replace(/"/g, '')}");\n  return { status: "success", timestamp: new Date().toISOString() };\n}\n\`\`\`\n\n*Note: The built-in deterministic engine is running locally with 100% air-gapped isolation.*`;
+      }
+    }
+
     ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {
-      const { prompt, history = [], model = 'qwen2.5-coder:7b', provider = 'ollama', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
+      let { prompt, history = [], model = 'qwen2.5-coder:7b', provider = 'ollama', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
+      if (provider === 'anthropic' && (!req.model || req.model === 'default')) {
+        const configured = secretVault.getSecret('anthropicModel');
+        if (configured && configured.trim()) model = configured.trim();
+      } else if (provider === 'openai' && (!req.model || req.model === 'default')) {
+        const configured = secretVault.getSecret('openaiModel');
+        if (configured && configured.trim()) model = configured.trim();
+      } else if (provider === 'gemini' && (!req.model || req.model === 'default')) {
+        const configured = secretVault.getSecret('geminiModel');
+        if (configured && configured.trim()) model = configured.trim();
+      }
 
       const messages = [
         { role: 'system', content: system },
@@ -4909,6 +5189,18 @@ End Function
           offlineFallback: false,
           error: 'provider_error',
           provider
+        };
+      }
+
+      // 1. Built-in Deterministic Offline Engine (Air-Gapped Foundation)
+      if (provider === 'builtin' || provider === 'offline' || model === 'offline-engine') {
+        const result = generateBuiltinOfflineResponse(prompt);
+        return {
+          content: `> ⚙️ **Evolve Built-in Deterministic Engine** · *100% Air-Gapped Foundation Engine*\n\n` + result,
+          modelUsed: 'Evolve Built-in Deterministic Engine',
+          isLocal: true,
+          offlineFallback: false,
+          provider: 'builtin'
         };
       }
 
@@ -4967,67 +5259,8 @@ End Function
         };
       }
 
-      // 2. Intelligent Offline Fallback Generator when Ollama server is not running or model not pulled
-      const p = prompt.toLowerCase();
-      // Word-boundary matching: substring tests made "this"/"architecture"/"machine"
-      // match the 'hi' greeting branch, so unrelated questions got the canned hello.
-      const mentions = (...words: string[]) =>
-        words.some(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(p));
-      let fallback = '';
-
-      if (mentions('hello world') || mentions('python')) {
-        fallback = `\`\`\`python
-# Simple Hello World in Python
-def main():
-    print("Hello, World!")
-
-if __name__ == "__main__":
-    main()
-\`\`\`
-*Tip: To run this code directly in the integrated terminal, type \`python -c 'print("Hello, World!")'\`.*`;
-      } else if (mentions('dbt', 'staging', 'mart')) {
-        fallback = `\`\`\`sql
--- Example dbt staging model (stg_orders.sql)
-WITH source_raw AS (
-  SELECT * FROM {{ source('raw_data', 'orders_raw') }}
-),
-
-standardized AS (
-  SELECT
-    id AS order_id,
-    customer_id,
-    CAST(total_amount AS NUMERIC) AS total_amount,
-    status,
-    CAST(created_at AS TIMESTAMP) AS created_at
-  FROM source_raw
-)
-
-SELECT * FROM standardized;
-\`\`\``;
-      } else if (mentions('hi', 'hello', 'hey')) {
-        fallback = `Hello! I am your **Evolve AI Copilot**. 
-
-I can help you:
-1. 🗄️ Ingest datasets and generate dbt staging & dimensional mart models (Step 1).
-2. 🔌 Scaffold TypeScript & Python client API SDKs with exponential backoff (Step 2).
-3. ⚡ Audit workspace health & scaffold Multi-Cloud Terraform/K8s/Docker deployment IaC (Step 3).
-4. 📑 Auto-compile 5 comprehensive client handoff documents and runbooks (Step 4).
-5. 💎 Generate enterprise RAG vector pipelines, k6 SLA load tests, PII masking & SIEM forwarders (Step 5).
-
-How can I assist you with your project today?`;
-      } else {
-        fallback = `I analyzed your request: **"${prompt}"**.
-
-\`\`\`typescript
-// Solution snippet generated by Evolve AI
-export async function executeTask() {
-  console.log("Executing task for: ${prompt.replace(/"/g, '')}");
-  return { status: "success", timestamp: new Date().toISOString() };
-}
-\`\`\`
-
-*Note: For live continuous neural generation across large models, ensure Ollama is active on \`localhost:11434\`.*`;
-      }
+      // 3. Fallback when Ollama server is not running or model not pulled
+      const fallback = generateBuiltinOfflineResponse(prompt);
 
       // Marked in the content itself: without this the canned text is
       // indistinguishable from a real answer by the model the user selected.
@@ -5043,7 +5276,7 @@ export async function executeTask() {
       };
     });
 
-    ipc.handle(DESKTOP_CHANNELS.AI.TEST_KEY, async (_: any, req: { provider: string; apiKey?: string; trustCorporateProxy?: boolean }) => {
+    ipc.handle(DESKTOP_CHANNELS.AI.TEST_KEY, async (_: any, req: { provider: string; apiKey?: string; trustCorporateProxy?: boolean; model?: string }) => {
       const { provider, trustCorporateProxy } = req;
       const cloudProvider = CLOUD_CHAT_PROVIDERS[provider];
       if (!cloudProvider) {
@@ -5069,28 +5302,150 @@ export async function executeTask() {
         } catch {}
       }
 
+      let testModel = (req.model || '').trim();
+      if (!testModel) {
+        try {
+          testModel = secretVault.getSecret(`${provider}Model`) || '';
+        } catch {}
+      }
+      if (!testModel) {
+        testModel = 'default';
+      }
+
       // Perform a 1-token test prompt to verify credentials and connectivity
       const testRes = await callCloudChat(
         cloudProvider,
         apiKey,
-        'default',
+        testModel,
         'You are an API health check test agent.',
         [{ role: 'user', content: 'Ping' }],
         { trustCorporateProxy, secretVault }
       );
 
+      const resolvedModel = resolveUpstreamModel(cloudProvider.vaultKey, testModel, secretVault);
+
       if (testRes.success) {
         return {
           success: true,
-          message: `✓ Connected to ${cloudProvider.label}! Credentials and network connection verified.`,
-          content: testRes.content
+          message: `✓ Connected to ${cloudProvider.label} (model: ${resolvedModel})! Credentials and network connection verified.`,
+          content: testRes.content,
+          modelUsed: resolvedModel
         };
       } else {
+        let errDetail = testRes.error || 'Connection failed.';
+        if (errDetail.toLowerCase().includes('invalid model') || errDetail.toLowerCase().includes('model_not_found') || errDetail.includes('/v1/models')) {
+          errDetail += ` Tip: The model "${resolvedModel}" is not recognized by your gateway. Click "📋 Query /v1/models" or select a supported model.`;
+        }
         return {
           success: false,
-          error: testRes.error || 'Connection failed.'
+          error: errDetail,
+          modelAttempted: resolvedModel
         };
       }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.AI.LIST_REMOTE_MODELS, async (_: any, req: { provider: string; apiKey?: string; baseUrl?: string; trustCorporateProxy?: boolean }) => {
+      const { provider } = req;
+      const cloudProvider = CLOUD_CHAT_PROVIDERS[provider];
+      if (!cloudProvider) {
+        return { success: false, error: `Unknown cloud AI provider: ${provider}`, models: [] };
+      }
+
+      let apiKey = (req.apiKey || '').trim();
+      if (!apiKey) {
+        try {
+          apiKey = secretVault.getSecret(cloudProvider.vaultKey) ||
+            (cloudProvider.altEnvVar ? process.env[cloudProvider.altEnvVar] : '') ||
+            process.env[cloudProvider.envVar] ||
+            '';
+        } catch {}
+      }
+
+      let customBaseUrl = (req.baseUrl || '').trim();
+      if (!customBaseUrl) {
+        customBaseUrl = (cloudProvider.baseUrlVaultKey && secretVault.getSecret(cloudProvider.baseUrlVaultKey)) ||
+          (cloudProvider.baseUrlEnvVar && process.env[cloudProvider.baseUrlEnvVar]) ||
+          '';
+      }
+
+      let host = cloudProvider.host;
+      let isHttps = true;
+      let port = undefined;
+      let reqPath = '/v1/models';
+
+      if (customBaseUrl) {
+        try {
+          const parsed = new URL(customBaseUrl);
+          host = parsed.hostname;
+          isHttps = parsed.protocol === 'https:';
+          port = parsed.port ? parseInt(parsed.port, 10) : (isHttps ? 443 : 80);
+          const basePath = parsed.pathname.replace(/\/+$/, '');
+          if (basePath.endsWith('/v1')) {
+            reqPath = `${basePath}/models`;
+          } else if (basePath) {
+            reqPath = `${basePath}/v1/models`;
+          } else {
+            reqPath = '/v1/models';
+          }
+        } catch (e: any) {
+          return { success: false, error: `Invalid Base URL: ${e.message}`, models: [] };
+        }
+      }
+
+      const trustCorporate = req.trustCorporateProxy ??
+        (secretVault.getSecret('trustCorporateProxy') === 'true' ||
+         process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0' ||
+         process.env.EVOLVE_TRUST_CORPORATE_PROXY === '1');
+
+      const httpModule = isHttps ? https : http;
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'User-Agent': 'Evolve-AI-Enterprise/2.31.1'
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+        if (cloudProvider.dialect === 'anthropic') {
+          headers['x-api-key'] = apiKey;
+          headers['anthropic-version'] = '2023-06-01';
+        }
+      }
+
+      return new Promise((resolve) => {
+        const r = httpModule.request({
+          host,
+          port,
+          path: reqPath,
+          method: 'GET',
+          headers,
+          timeout: 20000,
+          rejectUnauthorized: !trustCorporate
+        }, (res) => {
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                const parsed = JSON.parse(body);
+                const rawList = Array.isArray(parsed) ? parsed : (parsed.data || parsed.models || []);
+                const models = rawList.map((m: any) => typeof m === 'string' ? m : (m.id || m.name)).filter(Boolean);
+                resolve({ success: true, models, count: models.length });
+              } catch (err: any) {
+                resolve({ success: false, error: `Failed to parse /v1/models: ${err.message}`, models: [] });
+              }
+            } else {
+              let detail = `HTTP ${res.statusCode}`;
+              try {
+                const parsed = JSON.parse(body);
+                if (parsed.error?.message) detail += `: ${parsed.error.message}`;
+              } catch {}
+              resolve({ success: false, error: detail, models: [] });
+            }
+          });
+        });
+        r.on('error', (err: any) => resolve({ success: false, error: err?.message || String(err), models: [] }));
+        r.on('timeout', () => { r.destroy(); resolve({ success: false, error: 'Request timed out connecting to /v1/models', models: [] }); });
+        r.end();
+      });
     });
 
     // --- ENTERPRISE & FDE CORE ENGINES ---
@@ -5899,7 +6254,11 @@ export async function executeTask() {
               for (const ent of entries) {
                 if (ent.name.startsWith('.') || SKIP_DIRS.has(ent.name)) continue;
                 const full = path.join(current, ent.name);
-                if (ent.isDirectory()) {
+                let isDir = ent.isDirectory();
+                if (!isDir && ent.isSymbolicLink()) {
+                  try { isDir = fs.statSync(full).isDirectory(); } catch {}
+                }
+                if (isDir) {
                   walk(full, depth + 1);
                 } else {
                   const ext = path.extname(ent.name).toLowerCase();

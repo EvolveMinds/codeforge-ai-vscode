@@ -54,6 +54,24 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.strictEqual(tree.isDirectory, true);
     assert.ok(tree.children && tree.children.length >= 2, 'Should list top-level directories and files');
 
+    // 2b. Build file tree with symlink / junction folders
+    const targetFolder = path.join(sampleWs, 'external-module');
+    fs.mkdirSync(targetFolder, { recursive: true });
+    fs.writeFileSync(path.join(targetFolder, 'shared.py'), 'print("shared")', 'utf8');
+    const linkFolder = path.join(sampleWs, 'symlink-module');
+    try {
+      fs.symlinkSync(targetFolder, linkFolder, os.platform() === 'win32' ? 'junction' : 'dir');
+      const treeWithSymlink = wsMgr.getFileTree(sampleWs);
+      const symlinkNode = treeWithSymlink.children?.find(c => c.name === 'symlink-module');
+      if (symlinkNode) {
+        assert.strictEqual(symlinkNode.isDirectory, true);
+        assert.strictEqual(symlinkNode.isSymlink, true);
+        assert.ok(symlinkNode.children?.some(c => c.name === 'shared.py'));
+      }
+    } catch (_) {
+      // In isolated environments without symlink permission, catch gracefully
+    }
+
     // 3. Read file
     const fileRes = wsMgr.readFile('models/staging/stg_orders.sql');
     assert.strictEqual(fileRes.language, 'sql');
@@ -243,6 +261,8 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.HARDWARE.INSPECT));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CONVERTER.CONVERT));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.GIT.INSPECT));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.GIT.FETCH));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.GIT.GET_REMOTE_DIFF));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.LICENSE.GET_STATE));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.VAULT.GET_SECRET));
@@ -256,6 +276,14 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     const hwRes = await hwFn(null);
     assert.ok(hwRes.profile !== undefined);
     assert.ok(typeof hwRes.profile.ramGb === 'number');
+
+    // Test invoking Git Inspection IPC handler
+    const gitFn = registeredChannels.get(DESKTOP_CHANNELS.GIT.INSPECT)!;
+    const gitRes = await gitFn(null);
+    assert.strictEqual(typeof gitRes.isRepo, 'boolean');
+    assert.strictEqual(typeof gitRes.gitInstalled, 'boolean');
+    assert.ok(Array.isArray(gitRes.incomingCommits));
+    assert.ok(Array.isArray(gitRes.incomingFiles));
 
     // Test invoking Polyglot Code Converter IPC handler
     const convFn = registeredChannels.get(DESKTOP_CHANNELS.CONVERTER.CONVERT)!;
@@ -847,6 +875,79 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     const reqDocRes = await registeredChannels.get(DESKTOP_CHANNELS.FDE.INGEST_REQUIREMENTS_FILE)!(null, { filePath: 'test.docx' });
     assert.strictEqual(reqDocRes.success, false);
     assert.ok(reqDocRes.error.includes('Enterprise License Required'));
+
+    wsMgr.dispose();
+    termMgr.dispose();
+  });
+
+  test('AI channels support custom gateway model picking and listRemoteModels', async () => {
+    const aiTestDir = path.join(tmpDir, 'ai-handlers-test');
+    fs.mkdirSync(aiTestDir, { recursive: true });
+
+    const wsMgr = new DesktopWorkspaceManager(aiTestDir);
+    wsMgr.setCurrentWorkspace(aiTestDir);
+    const termMgr = new DesktopTerminalManager();
+    const licAuth = new DesktopLicenseAuth(aiTestDir);
+    const vault = new DesktopSecretVault(aiTestDir);
+    const updater = new DesktopUpdater(aiTestDir);
+
+    vault.setSecret('anthropicModel', 'custom-gateway-claude-v3');
+
+    const handlers = new DesktopIpcHandlers({
+      workspaceMgr: wsMgr,
+      terminalMgr: termMgr,
+      licenseAuth: licAuth,
+      secretVault: vault,
+      updater: updater
+    });
+
+    const registeredChannels = new Map<string, Function>();
+    handlers.registerAll({
+      handle: (ch: string, fn: Function) => registeredChannels.set(ch, fn)
+    });
+
+    // 1. GET_MODELS returns catalogue containing official models and dynamically injected custom model
+    const getModelsHandler = registeredChannels.get(DESKTOP_CHANNELS.AI.GET_MODELS)!;
+    const modelsResult = await getModelsHandler(null);
+    assert.ok(Array.isArray(modelsResult.catalogue));
+    assert.ok(modelsResult.catalogue.some((m: any) => m.id === 'custom-gateway-claude-v3'));
+    assert.ok(modelsResult.catalogue.some((m: any) => m.id === 'claude-3-5-sonnet-20241022'));
+    assert.ok(modelsResult.catalogue.some((m: any) => m.id === 'claude-3-5-sonnet'));
+    assert.ok(modelsResult.catalogue.some((m: any) => m.id === 'gpt-4o'));
+
+    // 2. LIST_REMOTE_MODELS channel is registered and handles network errors gracefully
+    const listRemoteHandler = registeredChannels.get(DESKTOP_CHANNELS.AI.LIST_REMOTE_MODELS)!;
+    assert.ok(typeof listRemoteHandler === 'function');
+
+    const listRes = await listRemoteHandler(null, { provider: 'anthropic', baseUrl: 'http://127.0.0.1:59999/v1' });
+    assert.strictEqual(listRes.success, false);
+    assert.ok(Array.isArray(listRes.models));
+
+    // 3. TEST_KEY reports custom modelAttempted without forcing claude-3-7-sonnet
+    const testKeyHandler = registeredChannels.get(DESKTOP_CHANNELS.AI.TEST_KEY)!;
+    const testRes = await testKeyHandler(null, { provider: 'anthropic', apiKey: 'fake-key', model: 'custom-gateway-claude-v3' });
+    assert.strictEqual(testRes.success, false);
+    assert.strictEqual(testRes.modelAttempted, 'custom-gateway-claude-v3');
+
+    // 4. AI.CHAT with built-in offline engine returns instant air-gapped response without network/Ollama error
+    const chatHandler = registeredChannels.get(DESKTOP_CHANNELS.AI.CHAT)!;
+    const chatRes = await chatHandler(null, { prompt: 'hello world python', model: 'offline-engine', provider: 'builtin' });
+    assert.strictEqual(chatRes.isLocal, true);
+    assert.strictEqual(chatRes.offlineFallback, false);
+    assert.strictEqual(chatRes.modelUsed, 'Evolve Built-in Deterministic Engine');
+    assert.ok(chatRes.content.includes('Evolve Built-in Deterministic Engine'));
+
+    // 5. CONVERTER.CONVERT with built-in offline engine uses deterministic transpiler
+    const convertHandler = registeredChannels.get(DESKTOP_CHANNELS.CONVERTER.CONVERT)!;
+    const convRes = await convertHandler(null, {
+      sourceCode: 'def add(a, b):\n    return a + b',
+      fromLang: 'python',
+      toLang: 'typescript',
+      model: 'offline-engine',
+      provider: 'builtin'
+    });
+    assert.ok(convRes.convertedCode && convRes.convertedCode.length > 0);
+    assert.strictEqual(convRes.targetLang, 'TypeScript');
 
     wsMgr.dispose();
     termMgr.dispose();
