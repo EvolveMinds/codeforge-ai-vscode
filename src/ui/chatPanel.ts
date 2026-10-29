@@ -850,6 +850,90 @@ code { font-family: var(--mono); font-size: 12px; background: var(--vscode-textB
 #stopBtn { display: none; background: var(--vscode-errorForeground); color: #fff; border: none; border-radius: 4px; padding: 7px 12px; cursor: pointer; font-size: 12px; flex-shrink: 0; }
 .hint { font-size: 10px; color: var(--muted); margin-top: 4px; }
 
+/* Message Actions Toolbar */
+.msg {
+  position: relative;
+}
+.msg:hover .msg-toolbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+.msg-toolbar {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  gap: 3px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+  z-index: 20;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.msg-toolbar-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  user-select: none;
+}
+.msg-toolbar-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+/* Code Block Wrapper with Header & Copy */
+.code-block-wrapper {
+  margin: 8px 0;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--vscode-editor-background, #1e1e1e);
+  overflow: hidden;
+}
+.code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(0,0,0,0.28);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+.code-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.code-copy-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.code-block-wrapper pre {
+  margin: 0;
+  padding: 10px;
+  overflow-x: auto;
+  border: none;
+}
+
 /* Multi-Session Drawer */
 #sessionDrawer {
   display: none;
@@ -1202,6 +1286,61 @@ document.addEventListener('click', (e) => {
 let availableModels = [];
 let currentModel = '';
 
+// ─── Prompt Navigation & Message Actions ────────────────────────────────────
+let promptHistory = [];
+let promptHistoryIndex = -1;
+let currentDraft = '';
+
+function copyCodeSnippet(btn) {
+  const pre = btn.closest('.code-block-wrapper')?.querySelector('pre');
+  if (!pre) return;
+  const code = pre.innerText;
+  navigator.clipboard.writeText(code);
+  btn.textContent = '✓ Copied!';
+  setTimeout(() => { btn.textContent = '📋 Copy Code'; }, 2000);
+}
+
+function quoteReply(text) {
+  const inp = document.getElementById('input');
+  if (!inp) return;
+  const clean = text.replace(/^[>\s]+/gm, '').trim();
+  const quote = '> ' + clean.split('\n').join('\n> ') + '\n\nRegarding this: ';
+  inp.value = quote;
+  resize(inp);
+  inp.focus();
+  inp.setSelectionRange(inp.value.length, inp.value.length);
+}
+
+function attachMsgToolbar(el, rawText) {
+  if (el.querySelector('.msg-toolbar')) return;
+  const toolbar = document.createElement('div');
+  toolbar.className = 'msg-toolbar';
+  toolbar.innerHTML = '<button class="msg-toolbar-btn btn-msg-copy" title="Copy text">📋 Copy</button>'
+    + '<button class="msg-toolbar-btn btn-msg-reply" title="Quote text and reply in chat">💬 Reply</button>';
+
+  toolbar.querySelector('.btn-msg-copy')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const textToCopy = rawText || el.innerText.replace(/📋 Copy|💬 Reply|📋 Copy Code|✓ Copied!/g, '').trim();
+    navigator.clipboard.writeText(textToCopy);
+    const btn = toolbar.querySelector('.btn-msg-copy');
+    if (btn) {
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+    }
+  });
+
+  toolbar.querySelector('.btn-msg-reply')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const selection = window.getSelection()?.toString();
+    const textToQuote = (selection && selection.trim())
+      ? selection.trim()
+      : (rawText || el.innerText.replace(/📋 Copy|💬 Reply|📋 Copy Code|✓ Copied!/g, '').trim());
+    quoteReply(textToQuote);
+  });
+
+  el.appendChild(toolbar);
+}
+
 function renderModelPopover() {
   const list = document.getElementById('modelPopoverList');
   const title = document.getElementById('modelPopoverTitle');
@@ -1247,7 +1386,42 @@ function updateModelPill(model) {
 }
 
 function resize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 140) + 'px'; }
-function onKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }
+function onKey(e) {
+  const inp = document.getElementById('input');
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    send();
+    return;
+  }
+
+  // Up/Down Arrow Prompt Navigation
+  if (e.key === 'ArrowUp') {
+    const isAtTop = !inp.value.includes('\n') || inp.selectionStart === 0;
+    if (isAtTop && promptHistory.length > 0) {
+      if (promptHistoryIndex === promptHistory.length) {
+        currentDraft = inp.value;
+      }
+      if (promptHistoryIndex > 0) {
+        promptHistoryIndex--;
+        inp.value = promptHistory[promptHistoryIndex];
+        resize(inp);
+        e.preventDefault();
+      }
+    }
+  } else if (e.key === 'ArrowDown') {
+    const isAtBottom = !inp.value.includes('\n') || inp.selectionEnd === inp.value.length;
+    if (isAtBottom && promptHistoryIndex < promptHistory.length) {
+      promptHistoryIndex++;
+      if (promptHistoryIndex === promptHistory.length) {
+        inp.value = currentDraft;
+      } else {
+        inp.value = promptHistory[promptHistoryIndex];
+      }
+      resize(inp);
+      e.preventDefault();
+    }
+  }
+}
 
 function showOnboardingGuide(statusData) {
   // Don't duplicate
@@ -1411,7 +1585,15 @@ function md(s) {
 function mdInner(s) {
   const blocks = [];
   s = s.replace(/\`\`\`(\\w*)\\n([\\s\\S]*?)\`\`\`/g, (_, lang, code) => {
-    blocks.push('<pre>' + code + '</pre>');
+    const langLabel = lang || 'code';
+    const wrapper = '<div class="code-block-wrapper">'
+      + '<div class="code-block-header">'
+      + '<span class="code-lang">' + esc(langLabel) + '</span>'
+      + '<button class="code-copy-btn" onclick="copyCodeSnippet(this)">📋 Copy Code</button>'
+      + '</div>'
+      + '<pre>' + code + '</pre>'
+      + '</div>';
+    blocks.push(wrapper);
     return '%%BLK' + (blocks.length - 1) + '%%';
   });
   s = s.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
@@ -1436,12 +1618,17 @@ function clearWelcome() {
   if (w) w.remove();
 }
 
-function addMsg(cls, html, id) {
+function addMsg(cls, html, id, rawText) {
   clearWelcome();
   const el = document.createElement('div');
   el.className = 'msg ' + cls;
   el.innerHTML = html;
   if (id) el.id = id;
+
+  if (cls.includes('user') || cls.includes('ai')) {
+    attachMsgToolbar(el, rawText);
+  }
+
   document.getElementById('msgs').appendChild(el);
   el.scrollIntoView({ behavior: 'smooth' });
   return el;
@@ -1482,6 +1669,14 @@ function send() {
   const inp = document.getElementById('input');
   const t = inp.value.trim();
   if (!t && !pendingImages.some(Boolean)) return;
+
+  if (t) {
+    if (promptHistory.length === 0 || promptHistory[promptHistory.length - 1] !== t) {
+      promptHistory.push(t);
+    }
+    promptHistoryIndex = promptHistory.length;
+    currentDraft = '';
+  }
   inp.value = ''; inp.style.height = 'auto';
   document.getElementById('sendBtn').disabled = true;
   const images = pendingImages.filter(Boolean);
@@ -1965,6 +2160,7 @@ window.addEventListener('message', ({ data }) => {
       if (aiEl) {
         aiEl.classList.remove('streaming');
         aiEl.innerHTML = md(esc(lastContent));
+        attachMsgToolbar(aiEl, lastContent);
         const acts = document.createElement('div');
         acts.className = 'actions';
         if (data.mode === 'edit') {
