@@ -52691,7 +52691,7 @@ async function loadCicdStudioData(api: any): Promise<void> {
     currentCicdScan = scan;
 
     // 1. Update Top Metric Cards
-    const hostName = scan.detectedHost === "github" ? "GitHub Actions" : (scan.detectedHost === "bitbucket" ? "Bitbucket Pipelines" : (scan.detectedHost === "gitlab" ? "GitLab CI/CD" : "Generic Git Host"));
+    const hostName = scan.providerLabel || (scan.detectedHost === "github" ? (scan.isEnterprise ? `GitHub Enterprise (${scan.hostname || "GHE"})` : "GitHub Actions") : (scan.detectedHost === "bitbucket" ? "Bitbucket Pipelines" : (scan.detectedHost === "gitlab" ? "GitLab CI/CD" : "Generic Git Host")));
     const cardPlatform = document.getElementById("cicdCardPlatform");
     if (cardPlatform) cardPlatform.innerText = hostName;
 
@@ -52814,6 +52814,8 @@ async function loadCicdStudioData(api: any): Promise<void> {
     const lnkSettings = document.getElementById("lnkCicdOpenRemoteSettings") as HTMLAnchorElement;
     if (lnkSettings && prereqs.settingsUrl) {
       lnkSettings.href = prereqs.settingsUrl;
+      lnkSettings.title = `Open ${prereqs.settingsUrl}`;
+      lnkSettings.innerText = prereqs.isEnterprise ? `Open Enterprise Settings (${prereqs.hostname || "GHE"}) ↗` : "Open Remote Settings ↗";
     }
 
     const prereqsContent = document.getElementById("cicdPrereqsContent");

@@ -37,6 +37,9 @@ export interface PipelineInfo {
 export interface PipelineScanResult {
   success: boolean;
   detectedHost: 'github' | 'bitbucket' | 'gitlab' | 'azure' | 'generic';
+  hostname?: string;
+  providerLabel?: string;
+  isEnterprise?: boolean;
   owner: string;
   repo: string;
   remoteUrl: string;
@@ -84,6 +87,8 @@ export interface GitSettingsPrereqsResult {
   success: boolean;
   platform: CIPlatform;
   platformLabel: string;
+  hostname?: string;
+  isEnterprise?: boolean;
   filePath: string;
   settingsUrl: string;
   generalActionsSettingsUrl?: string;
@@ -239,6 +244,9 @@ export class DevopsPipelineEngine {
     return {
       success: true,
       detectedHost: gitInfo.host,
+      hostname: gitInfo.hostname,
+      providerLabel: gitInfo.providerLabel,
+      isEnterprise: gitInfo.isEnterprise,
       owner: gitInfo.owner,
       repo: gitInfo.repo,
       remoteUrl: gitInfo.url,
@@ -270,6 +278,8 @@ export class DevopsPipelineEngine {
     const platform = this._detectPlatformFromPath(filePath || 'ci.yml');
     const owner = gitInfo.owner || 'workspace';
     const repo = gitInfo.repo || 'repo';
+    const hostname = gitInfo.hostname || (platform === 'bitbucket-pipelines' ? 'bitbucket.org' : (platform === 'gitlab-ci' ? 'gitlab.com' : 'github.com'));
+    const baseUrl = `https://${hostname}`;
 
     // 1. Extract Secrets
     const secretsMap = new Map<string, SecretPrereq>();
@@ -288,10 +298,14 @@ export class DevopsPipelineEngine {
           else if (secName.includes('SLACK')) desc = 'Slack Incoming Webhook URL for CI status notifications';
           else if (secName.includes('FIREBASE')) desc = 'Firebase CI Deployment Auth Token';
 
+          const cliCommand = (gitInfo.host === 'github' && hostname !== 'github.com')
+            ? `gh secret set ${secName} --hostname ${hostname} --body "PASTE_VALUE_HERE"`
+            : `gh secret set ${secName} --body "PASTE_VALUE_HERE"`;
+
           secretsMap.set(secName, {
             name: secName,
             description: desc,
-            cliCommand: `gh secret set ${secName} --body "PASTE_VALUE_HERE"`
+            cliCommand
           });
         }
       }
@@ -402,24 +416,32 @@ export class DevopsPipelineEngine {
     }
 
     // Pre-calculate Direct Settings URLs
-    let settingsUrl = `https://github.com/${owner}/${repo}/settings/secrets/actions`;
-    let generalActionsSettingsUrl: string | undefined = `https://github.com/${owner}/${repo}/settings/actions`;
-    let branchProtectionSettingsUrl: string | undefined = `https://github.com/${owner}/${repo}/settings/branches`;
+    let settingsUrl = `${baseUrl}/${owner}/${repo}/settings/secrets/actions`;
+    let generalActionsSettingsUrl: string | undefined = `${baseUrl}/${owner}/${repo}/settings/actions`;
+    let branchProtectionSettingsUrl: string | undefined = `${baseUrl}/${owner}/${repo}/settings/branches`;
 
     if (platform === 'bitbucket-pipelines') {
-      settingsUrl = `https://bitbucket.org/${owner}/${repo}/admin/addon/admin/pipelines/repository-variables`;
-      generalActionsSettingsUrl = `https://bitbucket.org/${owner}/${repo}/admin/addon/admin/pipelines/settings`;
-      branchProtectionSettingsUrl = `https://bitbucket.org/${owner}/${repo}/admin/branch-restrictions`;
+      if (hostname === 'bitbucket.org') {
+        settingsUrl = `https://bitbucket.org/${owner}/${repo}/admin/addon/admin/pipelines/repository-variables`;
+        generalActionsSettingsUrl = `https://bitbucket.org/${owner}/${repo}/admin/addon/admin/pipelines/settings`;
+        branchProtectionSettingsUrl = `https://bitbucket.org/${owner}/${repo}/admin/branch-restrictions`;
+      } else {
+        settingsUrl = `${baseUrl}/projects/${owner}/repos/${repo}/settings`;
+        generalActionsSettingsUrl = `${baseUrl}/projects/${owner}/repos/${repo}/settings`;
+        branchProtectionSettingsUrl = `${baseUrl}/projects/${owner}/repos/${repo}/settings/branch-permissions`;
+      }
     } else if (platform === 'gitlab-ci') {
-      settingsUrl = `https://gitlab.com/${owner}/${repo}/-/settings/ci_cd#js-cicd-variables-settings`;
-      generalActionsSettingsUrl = `https://gitlab.com/${owner}/${repo}/-/settings/ci_cd`;
-      branchProtectionSettingsUrl = `https://gitlab.com/${owner}/${repo}/-/settings/repository#js-protected-branches-settings`;
+      settingsUrl = `${baseUrl}/${owner}/${repo}/-/settings/ci_cd#js-cicd-variables-settings`;
+      generalActionsSettingsUrl = `${baseUrl}/${owner}/${repo}/-/settings/ci_cd`;
+      branchProtectionSettingsUrl = `${baseUrl}/${owner}/${repo}/-/settings/repository#js-protected-branches-settings`;
     }
 
     return {
       success: true,
       platform,
       platformLabel: this._platformLabel(platform),
+      hostname,
+      isEnterprise: gitInfo.isEnterprise,
       filePath: filePath || (platform === 'github-actions' ? '.github/workflows/ci.yml' : 'bitbucket-pipelines.yml'),
       settingsUrl,
       generalActionsSettingsUrl,
@@ -853,32 +875,120 @@ export class DevopsPipelineEngine {
     }
   }
 
-  private static _detectGitRemote(cwd: string): { host: 'github' | 'bitbucket' | 'gitlab' | 'azure' | 'generic'; owner: string; repo: string; url: string } {
+  private static _detectGitRemote(cwd: string): {
+    host: 'github' | 'bitbucket' | 'gitlab' | 'azure' | 'generic';
+    hostname: string;
+    owner: string;
+    repo: string;
+    url: string;
+    providerLabel: string;
+    isEnterprise: boolean;
+  } {
     let url = '';
     try {
       url = execSync('git remote get-url origin', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
     } catch {}
 
-    let host: 'github' | 'bitbucket' | 'gitlab' | 'azure' | 'generic' = 'generic';
+    const hasGithubDir = fs.existsSync(path.join(cwd, '.github'));
+    const hasBitbucketYaml = fs.existsSync(path.join(cwd, 'bitbucket-pipelines.yml'));
+    const hasGitlabYaml = fs.existsSync(path.join(cwd, '.gitlab-ci.yml'));
+
+    let hostname = '';
     let owner = 'workspace';
     let repo = path.basename(cwd);
 
     if (url) {
-      const lower = url.toLowerCase();
-      if (lower.includes('github.com')) host = 'github';
-      else if (lower.includes('bitbucket.org')) host = 'bitbucket';
-      else if (lower.includes('gitlab.com')) host = 'gitlab';
-      else if (lower.includes('dev.azure.com') || lower.includes('visualstudio.com')) host = 'azure';
-
-      // Parse git@host:owner/repo.git or https://host/owner/repo.git
-      const match = url.match(/[:/]([^/]+)\/([^/.]+)(?:\.git)?$/);
-      if (match) {
-        owner = match[1];
-        repo = match[2];
+      const clean = url.trim();
+      if (clean.startsWith('http://') || clean.startsWith('https://')) {
+        try {
+          const u = new URL(clean);
+          hostname = u.hostname;
+          const parts = u.pathname.replace(/^\/+/, '').replace(/\.git$/, '').split('/');
+          if (parts.length >= 2) {
+            owner = parts[parts.length - 2];
+            repo = parts[parts.length - 1];
+          } else if (parts.length === 1 && parts[0]) {
+            repo = parts[0];
+          }
+        } catch {}
+      } else {
+        // SSH format: git@hostname:owner/repo.git or ssh://git@hostname/owner/repo.git
+        const sshMatch = clean.match(/^(?:ssh:\/\/)?(?:[^@]+@)?([^:/]+)[:/](.+?)\/([^/.]+)(?:\.git)?$/i);
+        if (sshMatch) {
+          hostname = sshMatch[1];
+          owner = sshMatch[2].replace(/^.*\//, '');
+          repo = sshMatch[3];
+        }
       }
     }
 
-    return { host, owner, repo, url };
+    const lowerHost = hostname.toLowerCase();
+    let host: 'github' | 'bitbucket' | 'gitlab' | 'azure' | 'generic' = 'generic';
+    let providerLabel = 'Generic Git Remote';
+    let isEnterprise = false;
+
+    const isGitHubDomain = lowerHost === 'github.com' ||
+                           lowerHost.endsWith('.github.com') ||
+                           lowerHost.endsWith('.ghe.com') ||
+                           lowerHost.includes('github') ||
+                           lowerHost.includes('ghe');
+
+    const isBitbucketDomain = lowerHost === 'bitbucket.org' ||
+                             lowerHost.includes('bitbucket') ||
+                             lowerHost.includes('stash');
+
+    const isGitLabDomain = lowerHost === 'gitlab.com' ||
+                           lowerHost.includes('gitlab');
+
+    const isAzureDomain = lowerHost === 'dev.azure.com' ||
+                          lowerHost.includes('visualstudio.com');
+
+    if (isGitHubDomain) {
+      host = 'github';
+      if (lowerHost === 'github.com') {
+        providerLabel = 'GitHub';
+      } else if (lowerHost.endsWith('.ghe.com') || lowerHost.includes('ghe')) {
+        providerLabel = `GitHub Enterprise (${hostname})`;
+        isEnterprise = true;
+      } else {
+        providerLabel = `GitHub (${hostname})`;
+        isEnterprise = true;
+      }
+    } else if (isBitbucketDomain) {
+      host = 'bitbucket';
+      if (lowerHost === 'bitbucket.org') {
+        providerLabel = 'Bitbucket Cloud';
+      } else {
+        providerLabel = `Bitbucket Server (${hostname})`;
+        isEnterprise = true;
+      }
+    } else if (isGitLabDomain) {
+      host = 'gitlab';
+      if (lowerHost === 'gitlab.com') {
+        providerLabel = 'GitLab';
+      } else {
+        providerLabel = `GitLab (${hostname})`;
+        isEnterprise = true;
+      }
+    } else if (isAzureDomain) {
+      host = 'azure';
+      providerLabel = 'Azure DevOps';
+    } else if (hasGithubDir) {
+      host = 'github';
+      providerLabel = hostname ? `GitHub (${hostname})` : 'GitHub';
+    } else if (hasBitbucketYaml) {
+      host = 'bitbucket';
+      providerLabel = hostname ? `Bitbucket (${hostname})` : 'Bitbucket';
+    } else if (hasGitlabYaml) {
+      host = 'gitlab';
+      providerLabel = hostname ? `GitLab (${hostname})` : 'GitLab';
+    }
+
+    if (!hostname) {
+      hostname = host === 'github' ? 'github.com' : (host === 'bitbucket' ? 'bitbucket.org' : (host === 'gitlab' ? 'gitlab.com' : ''));
+    }
+
+    return { host, hostname, owner, repo, url, providerLabel, isEnterprise };
   }
 
   private static _detectStack(cwd: string): { language: string; packageManager: string; testFramework: string; hasDocker: boolean } {

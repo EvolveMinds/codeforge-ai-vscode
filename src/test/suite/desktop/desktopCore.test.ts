@@ -775,6 +775,8 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.ok(Array.isArray(prereqRes.secrets));
     assert.ok(Array.isArray(prereqRes.permissions));
     assert.ok(prereqRes.oidcTrust !== undefined);
+    assert.ok(prereqRes.settingsUrl.includes("/settings/secrets/actions"));
+    assert.ok(prereqRes.hostname !== undefined);
 
     const cicdFixFn = registeredChannels.get(DESKTOP_CHANNELS.CICD.APPLY_FIX)!;
     const fixRes = await cicdFixFn(null, {

@@ -3563,34 +3563,88 @@ End Function
         let bitbucketRepo = '';
 
         if (remoteUrl) {
-          const cleanRemote = remoteUrl.toLowerCase();
-          if (cleanRemote.includes('bitbucket.org') || cleanRemote.includes('bitbucket')) {
+          const clean = remoteUrl.trim();
+          let hostname = '';
+          let owner = '';
+          let repo = '';
+
+          if (clean.startsWith('http://') || clean.startsWith('https://')) {
+            try {
+              const u = new URL(clean);
+              hostname = u.hostname;
+              const parts = u.pathname.replace(/^\/+/, '').replace(/\.git$/, '').split('/');
+              if (parts.length >= 2) {
+                owner = parts[parts.length - 2];
+                repo = parts[parts.length - 1];
+              } else if (parts.length === 1 && parts[0]) {
+                repo = parts[0];
+              }
+            } catch {}
+          } else {
+            const sshMatch = clean.match(/^(?:ssh:\/\/)?(?:[^@]+@)?([^:/]+)[:/](.+?)\/([^/.]+)(?:\.git)?$/i);
+            if (sshMatch) {
+              hostname = sshMatch[1];
+              owner = sshMatch[2].replace(/^.*\//, '');
+              repo = sshMatch[3];
+            }
+          }
+
+          const lowerHost = hostname.toLowerCase();
+          const hasGithubFolder = fs.existsSync(path.join(cwd, '.github'));
+          const hasBitbucketYaml = fs.existsSync(path.join(cwd, 'bitbucket-pipelines.yml'));
+          const hasGitlabYaml = fs.existsSync(path.join(cwd, '.gitlab-ci.yml'));
+
+          const isGitHub = lowerHost === 'github.com' ||
+                           lowerHost.endsWith('.github.com') ||
+                           lowerHost.endsWith('.ghe.com') ||
+                           lowerHost.includes('github') ||
+                           lowerHost.includes('ghe') ||
+                           hasGithubFolder;
+
+          const isBitbucket = lowerHost === 'bitbucket.org' ||
+                             lowerHost.includes('bitbucket') ||
+                             lowerHost.includes('stash') ||
+                             hasBitbucketYaml;
+
+          const isGitLab = lowerHost === 'gitlab.com' ||
+                           lowerHost.includes('gitlab') ||
+                           hasGitlabYaml;
+
+          const isAzure = lowerHost === 'dev.azure.com' ||
+                          lowerHost.includes('visualstudio.com');
+
+          if (isBitbucket) {
             remoteProvider = 'bitbucket';
-            providerLabel = 'Bitbucket Cloud';
-            // Parse git@bitbucket.org:workspace/repo.git or https://bitbucket.org/workspace/repo.git
-            const match = remoteUrl.match(/bitbucket\.org[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
-            if (match) {
-              bitbucketWorkspace = match[1];
-              bitbucketRepo = match[2];
-              prUrl = `https://bitbucket.org/${bitbucketWorkspace}/${bitbucketRepo}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=main`;
+            if (lowerHost === 'bitbucket.org') {
+              providerLabel = 'Bitbucket Cloud';
+              bitbucketWorkspace = owner;
+              bitbucketRepo = repo;
+              prUrl = `https://bitbucket.org/${owner}/${repo}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=main`;
+            } else {
+              providerLabel = `Bitbucket Server (${hostname || 'self-hosted'})`;
+              prUrl = `https://${hostname || 'bitbucket'}/projects/${owner}/repos/${repo}/pull-requests?create&sourceBranch=${encodeURIComponent(currentBranch)}`;
             }
-          } else if (cleanRemote.includes('github.com')) {
+          } else if (isGitHub) {
             remoteProvider = 'github';
-            providerLabel = 'GitHub Enterprise / Cloud';
-            const match = remoteUrl.match(/github\.com[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
-            if (match) {
-              const owner = match[1];
-              const repo = match[2];
-              prUrl = `https://github.com/${owner}/${repo}/compare/${encodeURIComponent(currentBranch)}?expand=1`;
+            const effHost = hostname || 'github.com';
+            if (lowerHost === 'github.com') {
+              providerLabel = 'GitHub';
+            } else if (lowerHost.endsWith('.ghe.com') || lowerHost.includes('ghe')) {
+              providerLabel = `GitHub Enterprise (${effHost})`;
+            } else {
+              providerLabel = `GitHub (${effHost})`;
             }
-          } else if (cleanRemote.includes('gitlab.com') || cleanRemote.includes('gitlab')) {
+            if (owner && repo) {
+              prUrl = `https://${effHost}/${owner}/${repo}/compare/${encodeURIComponent(currentBranch)}?expand=1`;
+            }
+          } else if (isGitLab) {
             remoteProvider = 'gitlab';
-            providerLabel = 'GitLab CI/CD';
-            const match = remoteUrl.match(/gitlab\.com[:/](.+?)\/([^/.]+)(?:\.git)?/i);
-            if (match) {
-              prUrl = `https://gitlab.com/${match[1]}/${match[2]}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}`;
+            const effHost = hostname || 'gitlab.com';
+            providerLabel = lowerHost === 'gitlab.com' ? 'GitLab' : `GitLab (${effHost})`;
+            if (owner && repo) {
+              prUrl = `https://${effHost}/${owner}/${repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}`;
             }
-          } else if (cleanRemote.includes('dev.azure.com') || cleanRemote.includes('visualstudio.com')) {
+          } else if (isAzure) {
             remoteProvider = 'azure_devops';
             providerLabel = 'Azure DevOps Repos';
           }
@@ -4120,21 +4174,50 @@ End Function
         const remote = remoteOut.trim();
         const target = prInfo.targetBranch || 'main';
 
-        if (remote.includes('bitbucket.org') || remote.includes('bitbucket')) {
-          const match = remote.match(/bitbucket\.org[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
-          if (match) {
-            prUrl = `https://bitbucket.org/${match[1]}/${match[2]}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=${encodeURIComponent(target)}`;
+        const clean = remote.trim();
+        let hostname = '';
+        let owner = '';
+        let repo = '';
+
+        if (clean.startsWith('http://') || clean.startsWith('https://')) {
+          try {
+            const u = new URL(clean);
+            hostname = u.hostname;
+            const parts = u.pathname.replace(/^\/+/, '').replace(/\.git$/, '').split('/');
+            if (parts.length >= 2) {
+              owner = parts[parts.length - 2];
+              repo = parts[parts.length - 1];
+            } else if (parts.length === 1 && parts[0]) {
+              repo = parts[0];
+            }
+          } catch {}
+        } else {
+          const sshMatch = clean.match(/^(?:ssh:\/\/)?(?:[^@]+@)?([^:/]+)[:/](.+?)\/([^/.]+)(?:\.git)?$/i);
+          if (sshMatch) {
+            hostname = sshMatch[1];
+            owner = sshMatch[2].replace(/^.*\//, '');
+            repo = sshMatch[3];
           }
-        } else if (remote.includes('github.com')) {
-          const match = remote.match(/github\.com[:/]([^/]+)\/([^/.]+)(?:\.git)?/i);
-          if (match) {
-            prUrl = `https://github.com/${match[1]}/${match[2]}/compare/${encodeURIComponent(target)}...${encodeURIComponent(currentBranch)}?expand=1`;
-          }
-        } else if (remote.includes('gitlab.com')) {
-          const match = remote.match(/gitlab\.com[:/](.+?)\/([^/.]+)(?:\.git)?/i);
-          if (match) {
-            prUrl = `https://gitlab.com/${match[1]}/${match[2]}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}`;
-          }
+        }
+
+        const lowerHost = hostname.toLowerCase();
+        const isGitHub = lowerHost === 'github.com' ||
+                         lowerHost.endsWith('.github.com') ||
+                         lowerHost.endsWith('.ghe.com') ||
+                         lowerHost.includes('github') ||
+                         lowerHost.includes('ghe') ||
+                         fs.existsSync(path.join(cwd, '.github'));
+
+        if (lowerHost === 'bitbucket.org') {
+          prUrl = `https://bitbucket.org/${owner}/${repo}/pull-requests/new?source=${encodeURIComponent(currentBranch)}&dest=${encodeURIComponent(target)}`;
+        } else if (lowerHost.includes('bitbucket') || lowerHost.includes('stash')) {
+          prUrl = `https://${hostname || 'bitbucket'}/projects/${owner}/repos/${repo}/pull-requests?create&sourceBranch=${encodeURIComponent(currentBranch)}&targetBranch=${encodeURIComponent(target)}`;
+        } else if (isGitHub) {
+          const effHost = hostname || 'github.com';
+          prUrl = `https://${effHost}/${owner}/${repo}/compare/${encodeURIComponent(target)}...${encodeURIComponent(currentBranch)}?expand=1`;
+        } else if (lowerHost.includes('gitlab')) {
+          const effHost = hostname || 'gitlab.com';
+          prUrl = `https://${effHost}/${owner}/${repo}/-/merge_requests/new?merge_request%5Bsource_branch%5D=${encodeURIComponent(currentBranch)}&merge_request%5Btarget_branch%5D=${encodeURIComponent(target)}`;
         }
       } catch {}
 
