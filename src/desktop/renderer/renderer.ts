@@ -2585,6 +2585,24 @@ async function renderFileTree(api: any): Promise<void> {
 
     container.innerHTML = buildTreeHtml(rootNodes, 0);
 
+    // Quick "Ask Copilot Chat about this file/folder" button
+    container.querySelectorAll('.tree-chat-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const p = (btn as HTMLElement).getAttribute('data-path') || '';
+        if (!p) return;
+        // Switch to Copilot Chat tab
+        const chatTabBtn = document.querySelector('.activity-btn[data-tab="chat"]') as HTMLElement;
+        chatTabBtn?.click();
+        const txtChat = document.getElementById('txtChatInput') as HTMLTextAreaElement;
+        if (txtChat) {
+          const prev = txtChat.value.trim();
+          txtChat.value = prev ? `${prev} "${p}"` : `see if you can read "${p}"`;
+          txtChat.focus();
+        }
+      });
+    });
+
     container.querySelectorAll('.file-tree-item.directory').forEach(dirItem => {
       dirItem.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -47979,6 +47997,114 @@ function attachDesktopMessageToolbar(bubble: HTMLElement, rawText?: string): voi
 function setupAiChatStudio(api: any): void {
   const btnSend = document.getElementById('btnChatSend');
   const txtInput = document.getElementById('txtChatInput') as HTMLTextAreaElement;
+  const btnAttach = document.getElementById('btnChatAttach');
+  const fileInput = document.getElementById('chatFileInput') as HTMLInputElement;
+  const attachmentChipsContainer = document.getElementById('chatAttachmentChips');
+
+  let currentChatAttachments: Array<{
+    name: string;
+    path?: string;
+    type: 'file' | 'image';
+    content?: string;
+    dataUrl?: string;
+    size?: number;
+  }> = [];
+
+  const renderAttachmentChips = () => {
+    if (!attachmentChipsContainer) return;
+    if (currentChatAttachments.length === 0) {
+      attachmentChipsContainer.style.display = 'none';
+      attachmentChipsContainer.innerHTML = '';
+      return;
+    }
+    attachmentChipsContainer.style.display = 'flex';
+    attachmentChipsContainer.innerHTML = currentChatAttachments.map((att, idx) => {
+      const isImg = att.type === 'image';
+      const icon = isImg ? '🖼️' : '📄';
+      const szStr = att.size ? ` (${(att.size / 1024).toFixed(1)} KB)` : '';
+      return `<div style="display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: rgba(78, 201, 176, 0.12); border: 1px solid rgba(78, 201, 176, 0.35); border-radius: 4px; font-size: 11px; color: #e2e8f0;">
+        <span>${icon}</span>
+        <span style="font-weight: 600; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(att.name)}${szStr}</span>
+        <button class="btn-remove-att" data-idx="${idx}" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 11px; padding: 0 2px;" title="Remove attachment">✕</button>
+      </div>`;
+    }).join('');
+
+    attachmentChipsContainer.querySelectorAll('.btn-remove-att').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).getAttribute('data-idx') || '0', 10);
+        currentChatAttachments.splice(idx, 1);
+        renderAttachmentChips();
+      });
+    });
+  };
+
+  btnAttach?.addEventListener('click', () => {
+    fileInput?.click();
+  });
+
+  fileInput?.addEventListener('change', async () => {
+    if (!fileInput.files || fileInput.files.length === 0) return;
+    for (let i = 0; i < fileInput.files.length; i++) {
+      const file = fileInput.files[i];
+      const isImage = file.type.startsWith('image/');
+      if (isImage) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          currentChatAttachments.push({
+            name: file.name,
+            type: 'image',
+            dataUrl: reader.result as string,
+            size: file.size
+          });
+          renderAttachmentChips();
+          showToast(`✓ Attached image: ${file.name}`);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          currentChatAttachments.push({
+            name: file.name,
+            type: 'file',
+            content: reader.result as string,
+            size: file.size
+          });
+          renderAttachmentChips();
+          showToast(`✓ Attached file: ${file.name}`);
+        };
+        reader.readAsText(file);
+      }
+    }
+    fileInput.value = '';
+  });
+
+  // Screenshot / Image Paste handler (Ctrl+V)
+  txtInput?.addEventListener('paste', (e: ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) {
+          e.preventDefault();
+          const reader = new FileReader();
+          reader.onload = () => {
+            currentChatAttachments.push({
+              name: `screenshot-${Date.now()}.png`,
+              type: 'image',
+              dataUrl: reader.result as string,
+              size: file.size
+            });
+            renderAttachmentChips();
+            showToast('✓ Screenshot captured from clipboard and attached');
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+      }
+    }
+  });
   const messagesStream = document.getElementById('chatMessagesStream');
   const btnClear = document.getElementById('btnChatClear');
   const btnNewSession = document.getElementById('btnChatNewSession');
@@ -48557,7 +48683,11 @@ function setupAiChatStudio(api: any): void {
     const userDiv = document.createElement('div');
     userDiv.className = 'chat-bubble user';
     userDiv.style.cssText = 'background: #1e3a29; padding: 10px 14px; border-radius: 8px; border: 1px solid #89d185; align-self: flex-end; max-width: 80%;';
-    userDiv.innerHTML = `<div style="font-weight: 700; font-size: 11px; color: #89d185; margin-bottom: 3px;">You:</div><div style="color: #fff; font-size: 12px; white-space: pre-wrap;">${escapeHtml(text)}</div>`;
+    const attChipsHtml = currentChatAttachments.length > 0 ? `
+      <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;">
+        ${currentChatAttachments.map(a => `<span style="display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; background: rgba(0,0,0,0.3); border: 1px solid rgba(137, 209, 133, 0.4); border-radius: 4px; font-size: 10.5px; color: #89d185;">${a.type === 'image' ? '🖼️' : '📄'} ${escapeHtml(a.name)}</span>`).join('')}
+      </div>` : '';
+    userDiv.innerHTML = `<div style="font-weight: 700; font-size: 11px; color: #89d185; margin-bottom: 3px;">You:</div>${attChipsHtml}<div style="color: #fff; font-size: 12px; white-space: pre-wrap;">${escapeHtml(text)}</div>`;
     attachDesktopMessageToolbar(userDiv, text);
     messagesStream.appendChild(userDiv);
 
@@ -48589,11 +48719,16 @@ function setupAiChatStudio(api: any): void {
     // 3. Query Real AI Backend
     try {
       if (api?.ai) {
+        const activeAttachments = [...currentChatAttachments];
+        currentChatAttachments = [];
+        renderAttachmentChips();
+
         const response = await api.ai.chat({
           prompt: text,
           history: curSession.history.slice(0, -1),
           model: safeModel,
-          provider: activeSelectedProvider
+          provider: activeSelectedProvider,
+          attachments: activeAttachments
         });
 
         const content = response.content || 'I processed your request.';
@@ -50673,6 +50808,8 @@ function setupGitStudio(api: any): void {
   const btnGitTabBusFactor = document.getElementById('btnGitTabBusFactor');
   const btnGitTabSecurity = document.getElementById('btnGitTabSecurity');
   const btnGitTabQualityGate = document.getElementById('btnGitTabQualityGate');
+  const btnGitTabCicdDevOps = document.getElementById('btnGitTabCicdDevOps');
+  const gitViewCicdDevOps = document.getElementById('gitViewCicdDevOps');
 
   const gitViewWorkingTree = document.getElementById('gitViewWorkingTree');
   const gitViewCodebaseCosmos = document.getElementById('gitViewCodebaseCosmos');
@@ -50709,8 +50846,8 @@ function setupGitStudio(api: any): void {
   const codebaseRisksList = document.getElementById('codebaseRisksList');
 
   // Subview Switcher
-  const switchGitSubview = (view: 'tree' | 'cosmos' | 'hotspots' | 'busfactor' | 'security' | 'quality') => {
-    [btnGitTabWorkingTree, btnGitTabCodebaseCosmos, btnGitTabHotspots, btnGitTabBusFactor, btnGitTabSecurity, btnGitTabQualityGate].forEach(b => {
+  const switchGitSubview = (view: 'tree' | 'cosmos' | 'hotspots' | 'busfactor' | 'security' | 'quality' | 'cicd') => {
+    [btnGitTabWorkingTree, btnGitTabCodebaseCosmos, btnGitTabHotspots, btnGitTabBusFactor, btnGitTabSecurity, btnGitTabQualityGate, btnGitTabCicdDevOps].forEach(b => {
       b?.classList.remove('active');
       b?.setAttribute('aria-selected', 'false');
     });
@@ -50720,6 +50857,7 @@ function setupGitStudio(api: any): void {
     if (gitViewBusFactor) gitViewBusFactor.style.display = 'none';
     if (gitViewSecurity) gitViewSecurity.style.display = 'none';
     if (gitViewQualityGate) gitViewQualityGate.style.display = 'none';
+    if (gitViewCicdDevOps) gitViewCicdDevOps.style.display = 'none';
 
     if (view === 'tree') {
       btnGitTabWorkingTree?.classList.add('active');
@@ -50748,6 +50886,11 @@ function setupGitStudio(api: any): void {
       btnGitTabQualityGate?.classList.add('active');
       btnGitTabQualityGate?.setAttribute('aria-selected', 'true');
       if (gitViewQualityGate) gitViewQualityGate.style.display = 'block';
+    } else if (view === 'cicd') {
+      btnGitTabCicdDevOps?.classList.add('active');
+      btnGitTabCicdDevOps?.setAttribute('aria-selected', 'true');
+      if (gitViewCicdDevOps) gitViewCicdDevOps.style.display = 'block';
+      loadCicdStudioData(api);
     }
   };
 
@@ -50757,6 +50900,7 @@ function setupGitStudio(api: any): void {
   btnGitTabBusFactor?.addEventListener('click', () => switchGitSubview('busfactor'));
   btnGitTabSecurity?.addEventListener('click', () => switchGitSubview('security'));
   btnGitTabQualityGate?.addEventListener('click', () => switchGitSubview('quality'));
+  btnGitTabCicdDevOps?.addEventListener('click', () => switchGitSubview('cicd'));
 
   // Initialize Canvas Engine
   if (codebaseCosmosCanvas && !activeCodebaseEngine) {
@@ -52533,7 +52677,337 @@ _Audited offline by Evolve AI Enterprise Security Studio._`;
       activeCodebaseEngine?.filterSubsystem(selCodebaseSubsystemFilter.value);
     }
   });
+  setupCicdStudioEvents(api);
 }
+
+// --- DEVOPS & CI/CD PIPELINE STUDIO RUNTIME ---
+let currentCicdScan: any = null;
+let currentCicdPendingDiff: { filePath: string; content: string } | null = null;
+
+async function loadCicdStudioData(api: any): Promise<void> {
+  if (!api?.cicd) return;
+  try {
+    const scan = await api.cicd.scanPipelines();
+    currentCicdScan = scan;
+
+    // 1. Update Top Metric Cards
+    const hostName = scan.detectedHost === "github" ? "GitHub Actions" : (scan.detectedHost === "bitbucket" ? "Bitbucket Pipelines" : (scan.detectedHost === "gitlab" ? "GitLab CI/CD" : "Generic Git Host"));
+    const cardPlatform = document.getElementById("cicdCardPlatform");
+    if (cardPlatform) cardPlatform.innerText = hostName;
+
+    const badgePlatform = document.getElementById("cicdActivePlatformBadge");
+    if (badgePlatform) badgePlatform.innerText = hostName;
+
+    const cardCount = document.getElementById("cicdCardCount");
+    const filesCount = scan.pipelines?.length || 0;
+    if (cardCount) cardCount.innerText = `${filesCount} Pipeline File${filesCount !== 1 ? "s" : ""}`;
+
+    const gitBadgeCicdCount = document.getElementById("gitBadgeCicdCount");
+    if (gitBadgeCicdCount) gitBadgeCicdCount.innerText = `${filesCount} Active`;
+
+    // 2. Populate Pipeline Selector
+    const selActive = document.getElementById("selCicdActiveFile") as HTMLSelectElement;
+    if (selActive && scan.pipelines && scan.pipelines.length > 0) {
+      const prevVal = selActive.value;
+      selActive.innerHTML = scan.pipelines.map((p: any) => `<option value="${p.relativePath}">${p.relativePath} (${p.platformLabel})</option>`).join("");
+      if (prevVal && scan.pipelines.some((p: any) => p.relativePath === prevVal)) {
+        selActive.value = prevVal;
+      }
+    } else if (selActive) {
+      selActive.innerHTML = "<option value=\"\">No pipeline files found</option>";
+    }
+
+    const activeRelPath = selActive?.value || (scan.pipelines?.[0]?.relativePath) || "";
+    const activePipe = scan.pipelines?.find((p: any) => p.relativePath === activeRelPath) || scan.pipelines?.[0];
+
+    // 3. Render Visual Pipeline Flow (DAG)
+    const flowContainer = document.getElementById("cicdVisualFlowContainer");
+    const metaInfo = document.getElementById("cicdPipelineMetaInfo");
+    if (flowContainer) {
+      if (!activePipe) {
+        flowContainer.innerHTML = `
+          <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 25px 0;">
+            No CI/CD pipeline configured yet.<br>
+            <span style="color: #38bdf8; font-weight: 600; margin-top: 4px; display: inline-block;">Click &quot;1-Click Hardened Pipeline&quot; above to generate a production-ready starter.</span>
+          </div>
+        `;
+        if (metaInfo) metaInfo.innerText = "Stack: " + (scan.stack?.language || "node") + " · " + (scan.stack?.packageManager || "npm");
+      } else {
+        const triggersList = (activePipe.triggers || ["push", "pull_request"]).map((t: string) => `<span style="background: rgba(56,189,248,0.2); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 1px 6px; border-radius: 4px; font-size: 10px;">${t}</span>`).join(" ");
+        const jobsList = (activePipe.jobs || [{ id: "job", name: "Build & Test", stepsCount: 3 }]).map((j: any) => `
+          <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: var(--success); font-weight: bold;">●</span>
+              <span style="font-weight: 600; color: #fff;">${j.name}</span>
+            </div>
+            <span style="font-size: 10px; color: var(--text-secondary); background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">${j.stepsCount} steps</span>
+          </div>
+        `).join("");
+        flowContainer.innerHTML = `
+          <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 10.5px; color: var(--text-secondary);">Triggers:</span>
+            ${triggersList}
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            ${jobsList}
+          </div>
+        `;
+        if (metaInfo) metaInfo.innerText = `${activePipe.platformLabel} • ${activePipe.size} bytes • File: ${activePipe.relativePath}`;
+      }
+    }
+
+    // 4. Run Audit Scorecard
+    const audit = await api.cicd.auditPipeline({ filePath: activePipe?.path, content: activePipe?.content });
+    const cardScore = document.getElementById("cicdCardScore");
+    const badgePill = document.getElementById("cicdScoreBadgePill");
+    if (cardScore && audit.success) {
+      cardScore.innerText = `${audit.score}% · Grade ${audit.grade}`;
+      cardScore.style.color = audit.score >= 85 ? "var(--success)" : (audit.score >= 60 ? "var(--warning)" : "var(--error)");
+    }
+    if (badgePill && audit.success) {
+      badgePill.innerText = `${audit.score}% · Grade ${audit.grade}`;
+      badgePill.style.color = audit.score >= 85 ? "var(--success)" : (audit.score >= 60 ? "var(--warning)" : "var(--error)");
+      badgePill.style.borderColor = badgePill.style.color;
+    }
+
+    const findingsList = document.getElementById("cicdAuditFindingsList");
+    if (findingsList) {
+      if (!audit.findings || audit.findings.length === 0) {
+        findingsList.innerHTML = "<div style=\"font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;\">No pipeline available to audit.</div>";
+      } else {
+        findingsList.innerHTML = audit.findings.map((f: any) => {
+          const isPass = f.severity === "PASSED";
+          const badgeCol = isPass ? "var(--success)" : (f.severity === "CRITICAL" || f.severity === "HIGH" ? "#f87171" : "#fbbf24");
+          const fixBtn = f.fixAction ? `<button class="btn-quick btn-cicd-fix-direct" data-action="${f.fixAction}" style="font-size: 9.5px; padding: 1px 6px; border-color: #38bdf8; color: #38bdf8;">🛠️ ${f.fixLabel || "Fix"}</button>` : "";
+          return `
+            <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: #fff;">
+                  <span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; font-weight: 800; background: rgba(0,0,0,0.3); color: ${badgeCol};">${f.severity}</span>
+                  <span>${f.title}</span>
+                </div>
+                ${fixBtn}
+              </div>
+              <div style="color: var(--text-secondary); font-size: 10px; line-height: 1.3;">${f.description}</div>
+            </div>
+          `;
+        }).join("");
+
+        // Wire direct fix buttons
+        findingsList.querySelectorAll(".btn-cicd-fix-direct").forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            const action = (e.currentTarget as HTMLElement).getAttribute("data-action");
+            if (action) triggerCicdFix(api, action, activePipe?.path, activePipe?.content);
+          });
+        });
+      }
+    }
+
+    // 5. Run Git Settings & Remote Prerequisites Guide
+    const prereqs = await api.cicd.getSettingsPrereqs({ filePath: activePipe?.path, content: activePipe?.content });
+    const cardPrereqs = document.getElementById("cicdCardPrereqs");
+    if (cardPrereqs) {
+      const secCount = prereqs.secrets?.length || 0;
+      cardPrereqs.innerText = secCount > 0 ? `${secCount} Secrets Needed` : "OIDC & Settings Ready";
+    }
+
+    const lnkSettings = document.getElementById("lnkCicdOpenRemoteSettings") as HTMLAnchorElement;
+    if (lnkSettings && prereqs.settingsUrl) {
+      lnkSettings.href = prereqs.settingsUrl;
+    }
+
+    const prereqsContent = document.getElementById("cicdPrereqsContent");
+    if (prereqsContent) {
+      let secretsHtml = "";
+      if (prereqs.secrets && prereqs.secrets.length > 0) {
+        secretsHtml = `
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">🔑 Required Remote Secrets (${prereqs.secrets.length})</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              ${prereqs.secrets.map((s: any) => `
+                <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 10.5px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <span style="font-family: var(--font-mono); font-weight: 700; color: #fff;">${s.name}</span>
+                    <div style="font-size: 9.5px; color: var(--text-secondary);">${s.description}</div>
+                  </div>
+                  <button class="btn-quick btn-copy-cmd" data-cmd="${s.cliCommand}" style="font-size: 9px; padding: 1px 5px;">Copy CLI</button>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      } else {
+        secretsHtml = "<div style=\"font-size: 10.5px; color: var(--success);\">✓ No static third-party secrets required.</div>";
+      }
+
+      let permsHtml = "";
+      if (prereqs.permissions && prereqs.permissions.length > 0) {
+        permsHtml = `
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #fbbf24; margin-bottom: 4px;">⚙️ Required Settings &amp; Toggles</div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              ${prereqs.permissions.map((p: any) => `
+                <div style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 4px; padding: 5px 8px; font-size: 10.5px;">
+                  <div style="font-weight: 700; color: #fbbf24;">${p.name}: <code>${p.requiredSetting}</code></div>
+                  <div style="font-size: 9.5px; color: var(--text-secondary); margin-top: 2px;">${p.reason}</div>
+                  <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">📍 Path: ${p.settingsPath}</div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      let oidcHtml = "";
+      if (prereqs.oidcTrust) {
+        oidcHtml = `
+          <div>
+            <div style="font-size: 11px; font-weight: 700; color: #a7f3d0; margin-bottom: 4px;">☁️ Cloud OIDC IAM Trust Policy</div>
+            <div style="background: #0c0d11; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; font-size: 10px;">
+              <div style="color: var(--text-secondary); margin-bottom: 4px;">${prereqs.oidcTrust.providerName} (Subject: <code>${prereqs.oidcTrust.subjectClaim}</code>)</div>
+              <pre style="margin: 0; max-height: 80px; overflow-y: auto; color: #cbd5e1; font-family: var(--font-mono);">${prereqs.oidcTrust.trustPolicySnippet}</pre>
+            </div>
+          </div>
+        `;
+      }
+
+      prereqsContent.innerHTML = `${secretsHtml}${permsHtml}${oidcHtml}`;
+
+      // Wire copy buttons
+      prereqsContent.querySelectorAll(".btn-copy-cmd").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const cmd = (e.currentTarget as HTMLElement).getAttribute("data-cmd") || "";
+          navigator.clipboard.writeText(cmd);
+          showToast(`📋 Copied: ${cmd}`);
+        });
+      });
+    }
+
+  } catch (err: any) {
+    console.error("Failed to load CI/CD Studio:", err);
+  }
+}
+
+// Trigger 1-Click Fix & Open Diff Modal
+async function triggerCicdFix(api: any, action: string, filePath?: string, content?: string) {
+  if (!api?.cicd) return;
+  showToast(`⚡ Applying automated pipeline hardening: ${action}...`);
+  const res = await api.cicd.applyFix({ action, filePath: filePath || ".github/workflows/ci.yml", content });
+  if (res.success) {
+    openCicdDiffModal(api, res.filePath, res.updatedContent, res.diff, res.summary);
+  } else {
+    showToast(`⚠️ Could not apply fix: ${res.error || "Unknown error"}`);
+  }
+}
+
+// Open Diff Modal
+function openCicdDiffModal(api: any, filePath: string, newContent: string, diffText: string, summaryText: string) {
+  const modal = document.getElementById("modalCicdDiffInspector");
+  const pathEl = document.getElementById("modalCicdDiffPath");
+  const summaryEl = document.getElementById("modalCicdDiffSummary");
+  const diffBox = document.getElementById("modalCicdDiffBox");
+  const rawEditor = document.getElementById("modalCicdRawEditor") as HTMLTextAreaElement;
+
+  currentCicdPendingDiff = { filePath, content: newContent };
+
+  if (modal) modal.style.display = "flex";
+  if (pathEl) pathEl.innerText = filePath;
+  if (summaryEl) summaryEl.innerText = summaryText || "Hardened pipeline ready to be applied.";
+  if (diffBox) {
+    diffBox.style.display = "block";
+    diffBox.innerText = diffText || newContent;
+  }
+  if (rawEditor) {
+    rawEditor.style.display = "none";
+    rawEditor.value = newContent;
+  }
+}
+
+function setupCicdStudioEvents(api: any) {
+  document.getElementById("btnCicdScanWorkspace")?.addEventListener("click", () => {
+    showToast("🔄 Scanning workspace for CI/CD pipelines & stack signals...");
+    loadCicdStudioData(api);
+  });
+  document.getElementById("btnCicdRunAudit")?.addEventListener("click", () => {
+    showToast("🛡️ Running CIS/SLSA supply chain security audit...");
+    loadCicdStudioData(api);
+  });
+  document.getElementById("selCicdActiveFile")?.addEventListener("change", () => {
+    loadCicdStudioData(api);
+  });
+  document.getElementById("btnCicdViewFullYaml")?.addEventListener("click", () => {
+    const selActive = document.getElementById("selCicdActiveFile") as HTMLSelectElement;
+    const activeRel = selActive?.value;
+    const pipe = currentCicdScan?.pipelines?.find((p: any) => p.relativePath === activeRel) || currentCicdScan?.pipelines?.[0];
+    if (pipe) {
+      openCicdDiffModal(api, pipe.relativePath, pipe.content, pipe.content, `Inspecting ${pipe.relativePath} (${pipe.platformLabel})`);
+    } else {
+      showToast("⚠️ No active pipeline selected");
+    }
+  });
+
+  // Hardening buttons in right card
+  document.querySelectorAll(".btn-cicd-fix").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      const action = (e.currentTarget as HTMLElement).getAttribute("data-action");
+      const selActive = document.getElementById("selCicdActiveFile") as HTMLSelectElement;
+      const activeRel = selActive?.value;
+      const pipe = currentCicdScan?.pipelines?.find((p: any) => p.relativePath === activeRel) || currentCicdScan?.pipelines?.[0];
+      if (action) triggerCicdFix(api, action, pipe?.path, pipe?.content);
+    });
+  });
+
+  // 1-Click Generator Submit
+  const handleGen = async () => {
+    const platform = (document.getElementById("selCicdGenPlatform") as HTMLSelectElement)?.value || "github-actions";
+    const template = (document.getElementById("selCicdGenTemplate") as HTMLSelectElement)?.value || "test-only";
+    const deployTarget = (document.getElementById("selCicdGenDeploy") as HTMLSelectElement)?.value || "none";
+    showToast(`⚡ Scaffolding hardened ${platform} pipeline (${template})...`);
+    const gen = await api.cicd.generatePipeline({ platform, template, deployTarget });
+    if (gen.success) {
+      openCicdDiffModal(api, gen.path, gen.content, gen.content, gen.summary);
+    } else {
+      showToast(`⚠️ Generator warning: ${gen.error}`);
+    }
+  };
+  document.getElementById("btnCicdGenerateSubmit")?.addEventListener("click", handleGen);
+  document.getElementById("btnCicdQuickGenStarter")?.addEventListener("click", handleGen);
+
+  // Modal Buttons
+  document.getElementById("btnCloseCicdDiffModal")?.addEventListener("click", () => {
+    const modal = document.getElementById("modalCicdDiffInspector");
+    if (modal) modal.style.display = "none";
+  });
+  document.getElementById("btnCicdModalCancel")?.addEventListener("click", () => {
+    const modal = document.getElementById("modalCicdDiffInspector");
+    if (modal) modal.style.display = "none";
+  });
+  document.getElementById("btnCicdToggleRawYaml")?.addEventListener("click", () => {
+    const diffBox = document.getElementById("modalCicdDiffBox");
+    const rawEditor = document.getElementById("modalCicdRawEditor");
+    if (diffBox && rawEditor) {
+      const isDiff = diffBox.style.display !== "none";
+      diffBox.style.display = isDiff ? "none" : "block";
+      rawEditor.style.display = isDiff ? "block" : "none";
+    }
+  });
+  document.getElementById("btnCicdModalSave")?.addEventListener("click", async () => {
+    if (!currentCicdPendingDiff || !api?.cicd) return;
+    const rawEditor = document.getElementById("modalCicdRawEditor") as HTMLTextAreaElement;
+    const finalContent = (rawEditor && rawEditor.style.display !== "none") ? rawEditor.value : currentCicdPendingDiff.content;
+    showToast(`💾 Saving pipeline to ${currentCicdPendingDiff.filePath}...`);
+    const saveRes = await api.cicd.savePipeline({ filePath: currentCicdPendingDiff.filePath, content: finalContent });
+    if (saveRes.success) {
+      showToast(`✓ Pipeline saved successfully: ${currentCicdPendingDiff.filePath}`);
+      const modal = document.getElementById("modalCicdDiffInspector");
+      if (modal) modal.style.display = "none";
+      await loadCicdStudioData(api);
+    } else {
+      showToast(`🔴 Failed to write file: ${saveRes.error}`);
+    }
+  });
+}
+
 
 async function refreshGitStatus(api: any): Promise<void> {
   if (!api?.git) return;

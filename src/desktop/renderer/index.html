@@ -6595,6 +6595,8 @@ Click "Run Test" above to execute the multi-agent consensus workflow across App 
                     </div>
                   </div>
                 </div>
+
+            
                 </div>
 
                 <!-- 4B: GROUNDEDNESS CITATION GATE -->
@@ -11579,7 +11581,12 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
             </div>
           </div>
 
+          <!-- Attachment Previews Container -->
+          <div id="chatAttachmentChips" style="display: none; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; padding: 4px 6px; background: rgba(0,0,0,0.25); border: 1px dashed var(--border); border-radius: 6px;"></div>
+
           <div class="chat-input-bar" style="display: flex; gap: 8px; align-items: flex-end;">
+            <button class="btn-quick" id="btnChatAttach" title="Attach Workspace File, Folder, or Screenshot (or paste with Ctrl+V)" style="height: 38px; width: 38px; min-width: 38px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; border-color: var(--border); border-radius: 6px; cursor: pointer; color: var(--accent);" aria-label="Attach File or Screenshot">📎</button>
+            <input type="file" id="chatFileInput" style="display: none;" multiple />
             <textarea id="txtChatInput" rows="1" placeholder="Ask about your code, data, or architecture... (Enter to send, Shift+Enter for newline, ↑/↓ for prompt history)" style="flex: 1; min-height: 38px; max-height: 130px; padding: 9px 14px; background: var(--bg-primary); color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; resize: none; font-family: inherit; line-height: 1.4;" aria-label="Ask about your code, data, or architecture..."></textarea>
             <button class="btn" id="btnChatSend" style="padding: 10px 20px; font-size: 12.5px; font-weight: 700; background: var(--accent); color: #1e1e1e; white-space: nowrap; height: 38px;" aria-label="Send">Send &rarr;</button>
           </div>
@@ -11834,6 +11841,10 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
               <button role="tab" id="btnGitTabQualityGate" class="btn-quick" style="font-size: 11.5px; padding: 5px 12px; display: flex; align-items: center; gap: 6px;" aria-selected="false">
                 <span>✅</span> Quality &amp; Pre-Push Gatekeeper
                 <span id="gitBadgeQualityCount" style="font-size: 9.5px; background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid #10b981; padding: 1px 5px; border-radius: 8px;">Ready</span>
+              </button>
+              <button role="tab" id="btnGitTabCicdDevOps" class="btn-quick" style="font-size: 11.5px; padding: 5px 12px; display: flex; align-items: center; gap: 6px;" aria-selected="false">
+                <span>🚀</span> CI/CD &amp; DevOps Studio
+                <span id="gitBadgeCicdCount" style="font-size: 9.5px; background: rgba(56,189,248,0.2); color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); padding: 1px 5px; border-radius: 8px;">Ready</span>
               </button>
             </div>
 
@@ -12538,6 +12549,195 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
                   </table>
                 </div>
               </div>
+            </div>
+
+            <!-- VIEW 7: CI/CD & DEVOPS PIPELINE STUDIO -->
+            <div id="gitViewCicdDevOps" style="display: none;">
+
+              <!-- Top DevOps Studio Banner & Quick Actions -->
+              <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                <div>
+                  <div style="font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <span>🚀</span> Enterprise CI/CD &amp; DevOps Studio
+                    <span id="cicdActivePlatformBadge" style="font-size: 10px; font-weight: 700; background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); padding: 1px 6px; border-radius: 4px;">GitHub Actions</span>
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+                    Auto-detects multi-platform pipelines, audits CIS/SLSA supply chain security, and guides required Git repository settings &amp; secrets.
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                  <button class="btn-quick" id="btnCicdScanWorkspace" style="font-size: 11.5px; border-color: var(--accent); color: var(--accent);" aria-label="Scan Pipelines">
+                    <span>🔄</span> Scan Pipelines
+                  </button>
+                  <button class="btn-quick" id="btnCicdRunAudit" style="font-size: 11.5px; border-color: #f59e0b; color: #f59e0b;" aria-label="Audit Security">
+                    <span>🛡️</span> Audit Scorecard
+                  </button>
+                  <button class="btn" id="btnCicdQuickGenStarter" style="padding: 6px 14px; font-size: 11.5px; background: linear-gradient(135deg, #0284c7, #3b82f6); color: #fff; font-weight: 700;" aria-label="New Pipeline">
+                    <span>⚡</span> 1-Click Hardened Pipeline
+                  </button>
+                </div>
+              </div>
+
+              <!-- Top 4 Metric Cards -->
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 20px;">🌐</span>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">CI/CD Platform</div>
+                    <div id="cicdCardPlatform" style="font-size: 12.5px; font-weight: 700; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Detecting...</div>
+                    <div id="cicdCardPlatformSub" style="font-size: 9.5px; color: var(--text-secondary);">Matching remote host</div>
+                  </div>
+                </div>
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 20px;">📑</span>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Active Pipelines</div>
+                    <div id="cicdCardCount" style="font-size: 13px; font-weight: 700; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">0 Files</div>
+                    <div id="cicdCardCountSub" style="font-size: 9.5px; color: var(--text-secondary);">In workspace</div>
+                  </div>
+                </div>
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 20px;">🛡️</span>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">CIS/SLSA Score</div>
+                    <div id="cicdCardScore" style="font-size: 13px; font-weight: 800; color: var(--success); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">100% · Grade A+</div>
+                    <div id="cicdCardScoreSub" style="font-size: 9.5px; color: var(--text-secondary);">Supply chain hygiene</div>
+                  </div>
+                </div>
+                <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 10px;">
+                  <span style="font-size: 20px;">🔑</span>
+                  <div style="min-width: 0; flex: 1;">
+                    <div style="font-size: 10.5px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Git Settings Prereqs</div>
+                    <div id="cicdCardPrereqs" style="font-size: 12.5px; font-weight: 700; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Ready to Check</div>
+                    <div id="cicdCardPrereqsSub" style="font-size: 9.5px; color: var(--text-secondary);">Secrets &amp; permissions</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 2-COLUMN MAIN LAYOUT -->
+              <div style="display: grid; grid-template-columns: 1.1fr 1.3fr; gap: 16px; margin-bottom: 20px;">
+
+                <!-- LEFT COLUMN: PIPELINE EXPLORER & VISUAL FLOW & SCAFFOLDER -->
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+
+                  <!-- Pipeline Selector & Visual Flow Card -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                      <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>📊</span> Active Pipeline Flow &amp; Jobs
+                      </div>
+                      <select id="selCicdActiveFile" style="padding: 4px 8px; font-size: 11px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 4px; max-width: 220px;"></select>
+                    </div>
+
+                    <!-- Visual DAG Pipeline Steps Flow -->
+                    <div id="cicdVisualFlowContainer" style="background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                      <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">Scanning repository for pipeline files...</div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                      <span id="cicdPipelineMetaInfo" style="font-size: 10.5px; color: var(--text-secondary);">Triggers: push, pull_request</span>
+                      <button class="btn-quick" id="btnCicdViewFullYaml" style="font-size: 10.5px; padding: 2px 8px; border-color: var(--accent); color: var(--accent);">👁️ View / Edit YAML</button>
+                    </div>
+                  </div>
+
+                  <!-- 1-Click Hardened Pipeline Generator Wizard Card -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                      <span>⚡</span> Generate New Industry-Standard Pipeline
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+                      Generates a production-ready starter pipeline enforcing SLSA Level 3 immutable SHA pinning, lockfile caching, 15m timeouts, and OIDC.
+                    </p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                      <div>
+                        <label style="font-size: 10.5px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selCicdGenPlatform">Target CI Platform</label>
+                        <select id="selCicdGenPlatform" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                          <option value="github-actions">GitHub Actions (.github/workflows/ci.yml)</option>
+                          <option value="bitbucket-pipelines">Bitbucket Pipelines (bitbucket-pipelines.yml)</option>
+                          <option value="gitlab-ci">GitLab CI/CD (.gitlab-ci.yml)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style="font-size: 10.5px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selCicdGenTemplate">Template Tier</label>
+                        <select id="selCicdGenTemplate" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                          <option value="test-only">1. Lint, Security Scan &amp; Unit Tests</option>
+                          <option value="test-build-deploy">2. Test + Multi-Arch Container Build</option>
+                          <option value="test-deploy-cloud">3. Test + Build + OIDC Cloud Deploy</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style="margin-bottom: 12px;">
+                      <label style="font-size: 10.5px; color: var(--text-secondary); display: block; margin-bottom: 4px;" for="selCicdGenDeploy">Deployment Target (Optional)</label>
+                      <select id="selCicdGenDeploy" style="width: 100%; box-sizing: border-box; padding: 6px 8px; font-size: 11.5px; background: rgba(0,0,0,0.3); color: #fff; border: 1px solid var(--border); border-radius: 4px;">
+                        <option value="none">None (Build &amp; Test Only)</option>
+                        <option value="gcp-cloud-run">Google Cloud Run (OIDC Federated Auth)</option>
+                        <option value="aws-ecs">AWS ECS / Fargate (OIDC IAM Role)</option>
+                        <option value="azure-app">Azure App Service (Federated Credential)</option>
+                        <option value="docker-registry">Docker Hub / GHCR Container Registry</option>
+                      </select>
+                    </div>
+
+                    <button class="btn" id="btnCicdGenerateSubmit" style="width: 100%; padding: 8px; font-size: 12px; background: var(--accent); color: #1e1e1e; font-weight: 700; border-radius: 5px;" aria-label="Generate &amp; Review Pipeline">
+                      ⚡ Scaffold Hardened Pipeline (Preview &amp; Save)
+                    </button>
+                  </div>
+
+                </div>
+
+                <!-- RIGHT COLUMN: AUDIT SCORECARD & GIT SETTINGS PREREQUISITES GUIDE -->
+                <div style="display: flex; flex-direction: column; gap: 16px;">
+
+                  <!-- CIS/SLSA Security Scorecard Card -->
+                  <div style="background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <div style="font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;">
+                        <span>🛡️</span> CIS &amp; SLSA Supply-Chain Scorecard
+                      </div>
+                      <div style="display: flex; gap: 6px; align-items: center;">
+                        <span id="cicdScoreBadgePill" style="font-size: 11px; font-weight: 800; background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid var(--success); padding: 2px 8px; border-radius: 12px;">100% · A+</span>
+                      </div>
+                    </div>
+
+                    <!-- Findings List Container -->
+                    <div id="cicdAuditFindingsList" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 10px;">
+                      <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 15px 0;">✓ Pipeline adheres to all SLSA Level 3 security benchmarks.</div>
+                    </div>
+
+                    <!-- 1-Click Hardening Action Bar -->
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 10px;">
+                      <button class="btn-quick btn-cicd-fix" data-action="pin_shas" style="font-size: 10.5px; padding: 3px 8px; border-color: #38bdf8; color: #38bdf8;">📌 Pin Action SHAs</button>
+                      <button class="btn-quick btn-cicd-fix" data-action="add_cache" style="font-size: 10.5px; padding: 3px 8px; border-color: var(--accent); color: var(--accent);">⚡ Add Lockfile Caching</button>
+                      <button class="btn-quick btn-cicd-fix" data-action="add_concurrency" style="font-size: 10.5px; padding: 3px 8px;">🔄 Add PR Concurrency</button>
+                      <button class="btn-quick btn-cicd-fix" data-action="add_timeouts" style="font-size: 10.5px; padding: 3px 8px;">⏱️ Add 15m Timeouts</button>
+                      <button class="btn-quick btn-cicd-fix" data-action="add_oidc" style="font-size: 10.5px; padding: 3px 8px; border-color: #f59e0b; color: #f59e0b;">🔑 Upgrade to OIDC</button>
+                    </div>
+                  </div>
+
+                  <!-- GIT SETTINGS & REMOTE SECRETS ACTION GUIDE (USER SPECIFIC REQUIREMENT) -->
+                  <div style="background: var(--bg-primary); border: 1px solid #38bdf8; border-radius: 8px; padding: 16px; box-shadow: 0 4px 16px rgba(56,189,248,0.06);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                      <div style="font-size: 13.5px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 6px;">
+                        <span>📋</span> Git Settings &amp; Remote Secrets Action Guide
+                      </div>
+                      <a id="lnkCicdOpenRemoteSettings" href="#" target="_blank" class="btn-quick" style="font-size: 10.5px; padding: 2px 8px; border-color: #38bdf8; color: #38bdf8; text-decoration: none;">
+                        Open Remote Settings ↗
+                      </a>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin: 0 0 12px 0;">
+                      Your pipeline will fail if these remote secrets, workflow permission checkboxes, or branch protection rules are not configured.
+                    </p>
+
+                    <div id="cicdPrereqsContent" style="display: flex; flex-direction: column; gap: 10px; max-height: 240px; overflow-y: auto;">
+                      <!-- Dynamic content loaded via JS -->
+                      <div style="font-size: 11px; color: var(--text-secondary); text-align: center; padding: 20px 0;">Analyzing pipeline requirements...</div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
             </div>
           </div>
         </section>
@@ -15105,6 +15305,34 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", 
         <div style="display: flex; gap: 8px;">
           <button class="btn-quick" id="btnModalGitDiffClose">Cancel</button>
           <button class="btn" id="btnModalGitDiffPull" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px;">⬇️ Pull Changes (Fast-Forward)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CI/CD PIPELINE DIFF INSPECTOR & SAVER -->
+  <div id="modalCicdDiffInspector" class="modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 10001; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+    <div style="background: #18191f; border: 1px solid var(--accent); border-radius: 10px; width: 840px; max-width: 95%; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.7);">
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.03);">
+        <div style="font-weight: 700; font-size: 14px; color: #fff; display: flex; align-items: center; gap: 8px;">
+          <span>🚀</span> Pipeline Modification Inspector &amp; Diff (<span id="modalCicdDiffPath" style="color: var(--accent); font-family: var(--font-mono);">.github/workflows/ci.yml</span>)
+        </div>
+        <button class="btn-quick" id="btnCloseCicdDiffModal" style="font-size: 12px; padding: 2px 8px;">✕ Close</button>
+      </div>
+      <div style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
+        <div id="modalCicdDiffSummary" style="font-size: 11.5px; color: #a5f3fc; background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.3); border-radius: 6px; padding: 8px 12px;"></div>
+        <div style="font-size: 11.5px; font-weight: 700; color: #fff; display: flex; justify-content: space-between;">
+          <span>Unified YAML Diff (- Removed, + Added)</span>
+          <button class="btn-quick" id="btnCicdToggleRawYaml" style="font-size: 10px; padding: 1px 6px;">Toggle Full Code</button>
+        </div>
+        <pre id="modalCicdDiffBox" style="font-size: 11px; font-family: var(--font-mono); background: #0c0d11; border: 1px solid var(--border); border-radius: 6px; padding: 12px; max-height: 380px; overflow-y: auto; color: #cbd5e1; margin: 0; white-space: pre;"></pre>
+        <textarea id="modalCicdRawEditor" style="display: none; width: 100%; box-sizing: border-box; height: 350px; font-size: 11px; font-family: var(--font-mono); background: #0c0d11; border: 1px solid var(--accent); border-radius: 6px; padding: 10px; color: #fff; resize: vertical;"></textarea>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.02);">
+        <span style="font-size: 11px; color: var(--text-secondary);">Saving writes the hardened pipeline file directly to your workspace repository.</span>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-quick" id="btnCicdModalCancel">Cancel</button>
+          <button class="btn" id="btnCicdModalSave" style="background: var(--accent); color: #1e1e1e; font-weight: 700; padding: 6px 16px;">💾 Apply &amp; Save Pipeline</button>
         </div>
       </div>
     </div>

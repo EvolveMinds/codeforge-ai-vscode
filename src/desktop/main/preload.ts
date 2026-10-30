@@ -125,6 +125,30 @@ const desktopApi = {
       ipcRenderer.invoke(DESKTOP_CHANNELS.GIT.GET_PROJECT_ORIENTATION, options)
   },
 
+  // --- DEVOPS & CI/CD STUDIO APIS ---
+  cicd: {
+    scanPipelines: (options?: { repoPath?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.CICD.SCAN_PIPELINES, options),
+    getSettingsPrereqs: (payload?: { filePath?: string; content?: string; repoPath?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.CICD.GET_SETTINGS_PREREQS, payload),
+    generatePipeline: (options: {
+      platform: 'github-actions' | 'bitbucket-pipelines' | 'gitlab-ci' | 'azure-pipelines' | 'jenkins' | 'circleci';
+      template: 'test-only' | 'test-and-deploy' | 'test-build-deploy';
+      deployTarget?: string;
+      repoPath?: string;
+    }) => ipcRenderer.invoke(DESKTOP_CHANNELS.CICD.GENERATE_PIPELINE, options),
+    auditPipeline: (payload?: { filePath?: string; content?: string; repoPath?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.CICD.AUDIT_PIPELINE, payload),
+    applyFix: (payload: {
+      action: 'pin_shas' | 'add_oidc' | 'add_cache' | 'add_concurrency' | 'add_timeouts';
+      filePath: string;
+      content?: string;
+      repoPath?: string;
+    }) => ipcRenderer.invoke(DESKTOP_CHANNELS.CICD.APPLY_FIX, payload),
+    savePipeline: (payload: { filePath: string; content: string; repoPath?: string }) =>
+      ipcRenderer.invoke(DESKTOP_CHANNELS.CICD.SAVE_PIPELINE, payload)
+  },
+
   // --- MULTI-CLOUD CONNECT APIS ---
   cloud: {
     testConnection: (provider: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION, provider),
@@ -174,7 +198,7 @@ const desktopApi = {
 
   // --- LOCAL AI & LLM INFERENCE APIS ---
   ai: {
-    chat: (req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) =>
+    chat: (req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string; attachments?: any[] }) =>
       ipcRenderer.invoke(DESKTOP_CHANNELS.AI.CHAT, req),
     getModels: () => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.GET_MODELS),
     pullModel: (modelName: string) => ipcRenderer.invoke(DESKTOP_CHANNELS.AI.PULL_MODEL, modelName),

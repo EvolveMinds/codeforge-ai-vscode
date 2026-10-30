@@ -804,3 +804,7 @@ body.resizing-v .resizer-vertical {
   border-color: var(--accent) !important;
   font-weight: 700 !important;
 }
+
+/* Quick Copilot Chat action in Workspace Explorer */
+.file-tree-item:hover .tree-chat-btn { opacity: 0.75 !important; }
+.file-tree-item .tree-chat-btn:hover { opacity: 1 !important; transform: scale(1.18); }

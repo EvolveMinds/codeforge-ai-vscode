@@ -81,6 +81,15 @@ export const DESKTOP_CHANNELS = {
     GET_PROJECT_ORIENTATION: 'evolve:git:get-project-orientation'
   },
 
+  CICD: {
+    SCAN_PIPELINES: 'evolve:cicd:scan-pipelines',
+    GET_SETTINGS_PREREQS: 'evolve:cicd:get-settings-prereqs',
+    GENERATE_PIPELINE: 'evolve:cicd:generate-pipeline',
+    AUDIT_PIPELINE: 'evolve:cicd:audit-pipeline',
+    APPLY_FIX: 'evolve:cicd:apply-fix',
+    SAVE_PIPELINE: 'evolve:cicd:save-pipeline'
+  },
+
   CLOUD: {
     TEST_CONNECTION: 'evolve:cloud:test-connection',
     GET_DETAILED_STATUS: 'evolve:cloud:get-detailed-status',

@@ -48,6 +48,7 @@ import { SchemaMapperEngine } from '../../fde/schemaMapper';
 import { FdeAiEngine } from '../../fde/aiEngine';
 import { ApiConnectorGenerator } from '../../fde/apiConnectorGen';
 import { DeployScriptScaffolder } from '../../deployment/deployScriptScaffolder';
+import { DevopsPipelineEngine } from '../../deployment/devopsPipelineEngine';
 import { PreflightAuditor } from '../../deployment/preflightAuditor';
 import { RunbookGenerator } from '../../fde/runbookGenerator';
 import { McpScaffolder, McpScaffoldOptions } from '../../fde/mcpScaffolder';
@@ -4479,6 +4480,83 @@ End Function
       });
     });
 
+
+    // --- DEVOPS & CI/CD PIPELINE STUDIO CHANNELS ---
+    ipc.handle(DESKTOP_CHANNELS.CICD.SCAN_PIPELINES, async (_: any, options?: { repoPath?: string }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = options?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        return DevopsPipelineEngine.scanPipelines(cwd);
+      } catch (err: any) {
+        return { success: false, error: err.message, pipelines: [], detectedHost: 'generic', stack: {} };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.CICD.GET_SETTINGS_PREREQS, async (_: any, payload?: { filePath?: string; content?: string; repoPath?: string }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        return DevopsPipelineEngine.getSettingsPrereqs(cwd, payload);
+      } catch (err: any) {
+        return { success: false, error: err.message, secrets: [], permissions: [] };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.CICD.GENERATE_PIPELINE, async (_: any, options: {
+      platform: string;
+      template: string;
+      deployTarget?: string;
+      repoPath?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = options?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        const res = DevopsPipelineEngine.generatePipeline(cwd, options);
+        return { success: true, ...res };
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.CICD.AUDIT_PIPELINE, async (_: any, payload?: { filePath?: string; content?: string; repoPath?: string }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        return DevopsPipelineEngine.auditPipeline(cwd, payload);
+      } catch (err: any) {
+        return { success: false, error: err.message, score: 0, grade: 'F', findings: [] };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.CICD.APPLY_FIX, async (_: any, payload: {
+      action: string;
+      filePath: string;
+      content?: string;
+      repoPath?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        return DevopsPipelineEngine.applyFix(cwd, payload);
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
+    ipc.handle(DESKTOP_CHANNELS.CICD.SAVE_PIPELINE, async (_: any, payload: {
+      filePath: string;
+      content: string;
+      repoPath?: string;
+    }) => {
+      const ws = workspaceMgr.getCurrentWorkspace();
+      const cwd = payload?.repoPath || (ws ? ws.path : process.cwd());
+      try {
+        return DevopsPipelineEngine.savePipeline(cwd, payload);
+      } catch (err: any) {
+        return { success: false, error: err.message };
+      }
+    });
+
     // --- REAL MULTI-CLOUD AUTH & LATENCY TEST ---
     ipc.handle(DESKTOP_CHANNELS.CLOUD.TEST_CONNECTION, async (_: any, provider: string) => {
       const envVars: Record<string, string[]> = {
@@ -5133,20 +5211,191 @@ End Function
     function generateBuiltinOfflineResponse(prompt: string): string {
       const p = prompt.toLowerCase();
       const mentions = (...words: string[]) =>
-        words.some(w => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\    ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {')}\\b`, 'i').test(p));
+        words.some(w => p.includes(w.toLowerCase()));
 
-      if (mentions('hello world') || mentions('python')) {
-        return `\`\`\`python\n# Simple Hello World in Python\ndef main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()\n\`\`\`\n*Tip: To run this code directly in the integrated terminal, type \`python -c 'print("Hello, World!")'\`.*`;
-      } else if (mentions('dbt', 'staging', 'mart')) {
-        return `\`\`\`sql\n-- Example dbt staging model (stg_orders.sql)\nWITH source_raw AS (\n  SELECT * FROM {{ source('raw_data', 'orders_raw') }}\n),\n\nstandardized AS (\n  SELECT\n    id AS order_id,\n    customer_id,\n    CAST(total_amount AS NUMERIC) AS total_amount,\n    status,\n    CAST(created_at AS TIMESTAMP) AS created_at\n  FROM source_raw\n)\n\nSELECT * FROM standardized;\n\`\`\``;
-      } else if (mentions('hi', 'hello', 'hey')) {
-        return `Hello! I am your **Evolve AI Copilot**.\n\nI can help you:\n1. 🗄️ Ingest datasets and generate dbt staging & dimensional mart models (Step 1).\n2. 🔌 Scaffold TypeScript & Python client API SDKs with exponential backoff (Step 2).\n3. ⚡ Audit workspace health & scaffold Multi-Cloud Terraform/K8s/Docker deployment IaC (Step 3).\n4. 📑 Auto-compile 5 comprehensive client handoff documents and runbooks (Step 4).\n5. 💎 Generate enterprise RAG vector pipelines, k6 SLA load tests, PII masking & SIEM forwarders (Step 5).\n\nHow can I assist you with your project today?`;
+      if (mentions("hello world", "python")) {
+        return "```python\n# Simple Hello World in Python\ndef main():\n    print(\"Hello, World!\")\n\nif __name__ == \"__main__\":\n    main()\n```\n*Tip: To run this code directly in the integrated terminal, type `python -c 'print(\"Hello, World!\")'`.*";
+      } else if (mentions("dbt", "staging", "mart")) {
+        return "```sql\n-- Example dbt staging model (stg_orders.sql)\nWITH source_raw AS (\n  SELECT * FROM {{ source('raw_data', 'orders_raw') }}\n),\n\nstandardized AS (\n  SELECT\n    id AS order_id,\n    customer_id,\n    CAST(total_amount AS NUMERIC) AS total_amount,\n    status,\n    CAST(created_at AS TIMESTAMP) AS created_at\n  FROM source_raw\n)\n\nSELECT * FROM standardized;\n```";
+      } else if (mentions("hi", "hello", "hey")) {
+        return "Hello! I am your **Evolve AI Copilot**.\n\nI can help you:\n1. 🗄️ Ingest datasets and generate dbt staging & dimensional mart models (Step 1).\n2. 🔌 Scaffold TypeScript & Python client API SDKs with exponential backoff (Step 2).\n3. ⚡ Audit workspace health & scaffold Multi-Cloud Terraform/K8s/Docker deployment IaC (Step 3).\n4. 📑 Auto-compile 5 comprehensive client handoff documents and runbooks (Step 4).\n5. 💎 Generate enterprise RAG vector pipelines, k6 SLA load tests, PII masking & SIEM forwarders (Step 5).\n\nHow can I assist you with your project today?";
       } else {
-        return `I analyzed your request: **"${prompt}"**.\n\n\`\`\`typescript\n// Solution snippet generated by Evolve AI Built-in Deterministic Engine\nexport async function executeTask() {\n  console.log("Executing task for: ${prompt.replace(/"/g, '')}");\n  return { status: "success", timestamp: new Date().toISOString() };\n}\n\`\`\`\n\n*Note: The built-in deterministic engine is running locally with 100% air-gapped isolation.*`;
+        return "I analyzed your request: **\"" + prompt + "\"**.\n\n```typescript\n// Solution snippet generated by Evolve AI Built-in Deterministic Engine\nexport async function executeTask() {\n  console.log(\"Executing task for: " + prompt.replace(/"/g, "") + "\");\n  return { status: \"success\", timestamp: new Date().toISOString() };\n}\n```\n\n*Note: The built-in deterministic engine is running locally with 100% air-gapped isolation.*";
       }
     }
 
-    ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string }) => {
+    // --- WORKSPACE GROUNDING & FILE REFERENCE RESOLVER ---
+    function generateCompactTree(rootDir: string, maxDepth: number = 2, curDepth: number = 0): string {
+      if (!rootDir || !fs.existsSync(rootDir) || curDepth >= maxDepth) return "";
+      const ignored = new Set([".git", "node_modules", ".vscode", "dist", "out", "build", ".dbt"]);
+      let res = "";
+      try {
+        const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+        entries.sort((a, b) => {
+          if (a.isDirectory() && !b.isDirectory()) return -1;
+          if (!a.isDirectory() && b.isDirectory()) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        for (const ent of entries) {
+          if (ignored.has(ent.name) || ent.name.startsWith(".")) continue;
+          const indent = "  ".repeat(curDepth);
+          if (ent.isDirectory()) {
+            res += `${indent}${ent.name}/\n`;
+            res += generateCompactTree(path.join(rootDir, ent.name), maxDepth, curDepth + 1);
+          } else {
+            res += `${indent}${ent.name}\n`;
+          }
+        }
+      } catch {}
+      return res;
+    }
+
+    function findMatchingWorkspacePath(name: string, rootDir: string, maxDepth: number = 4, curDepth: number = 0): string | null {
+      if (!rootDir || !fs.existsSync(rootDir) || curDepth > maxDepth) return null;
+      const targetLower = name.toLowerCase().replace(/['"`]/g, "").trim();
+      if (targetLower.length < 3) return null;
+      const ignored = new Set([".git", "node_modules", ".vscode", "dist", "out", "build", ".dbt"]);
+      try {
+        const entries = fs.readdirSync(rootDir, { withFileTypes: true });
+        for (const ent of entries) {
+          if (ent.name.toLowerCase() === targetLower) {
+            return path.join(rootDir, ent.name);
+          }
+        }
+        for (const ent of entries) {
+          if (ent.isDirectory() && !ignored.has(ent.name) && !ent.name.startsWith(".")) {
+            const found = findMatchingWorkspacePath(name, path.join(rootDir, ent.name), maxDepth, curDepth + 1);
+            if (found) return found;
+          }
+        }
+      } catch {}
+      return null;
+    }
+
+    function resolveWorkspaceReferences(prompt: string, workspaceRoot?: string, attachments?: any[]): { inspections: string; imageAttachments: Array<{ mimeType: string; data: string; name: string }> } {
+      const candidates: string[] = [];
+      const visited = new Set<string>();
+
+      // 1. Quoted paths: "..." or '...'
+      const quoteRegex = /["']([^"']+)["']/g;
+      let qm: RegExpExecArray | null;
+      while ((qm = quoteRegex.exec(prompt)) !== null) {
+        candidates.push(qm[1].trim());
+      }
+
+      // 2. Windows drive paths: D:\... or C:\...
+      const winPathRegex = /\b([a-zA-Z]:\\[^\s"'`]+)/g;
+      let wm: RegExpExecArray | null;
+      while ((wm = winPathRegex.exec(prompt)) !== null) {
+        candidates.push(wm[1].trim());
+      }
+
+      // 3. Slash paths: path/to/file or path\to\file
+      const slashRegex = /\b([a-zA-Z0-9_\-.]+[\\/][a-zA-Z0-9_\-./\\]+)/g;
+      let sm: RegExpExecArray | null;
+      while ((sm = slashRegex.exec(prompt)) !== null) {
+        candidates.push(sm[1].trim());
+      }
+
+      // 4. @mentions: @src/index.ts
+      const atRegex = /@([a-zA-Z0-9_./\\-]+)/g;
+      let am: RegExpExecArray | null;
+      while ((am = atRegex.exec(prompt)) !== null) {
+        candidates.push(am[1].trim());
+      }
+
+      // 5. Look for named components or folders mentioned in prompt (e.g. bundle-a-reference)
+      if (workspaceRoot && fs.existsSync(workspaceRoot)) {
+        const words = prompt.match(/\b[a-zA-Z0-9_-]{4,}\b/g) || [];
+        for (const w of words) {
+          const directCheck = path.join(workspaceRoot, w);
+          if (fs.existsSync(directCheck)) {
+            candidates.push(directCheck);
+          } else {
+            const deepCheck = findMatchingWorkspacePath(w, workspaceRoot, 3);
+            if (deepCheck) candidates.push(deepCheck);
+          }
+        }
+      }
+
+      let inspections = "";
+      const imageAttachments: Array<{ mimeType: string; data: string; name: string }> = [];
+
+      for (const rawCandidate of candidates) {
+        if (!rawCandidate || rawCandidate.length < 2) continue;
+        let targetPath = rawCandidate;
+
+        if (!fs.existsSync(targetPath) && workspaceRoot) {
+          targetPath = path.resolve(workspaceRoot, rawCandidate);
+        }
+
+        if (!fs.existsSync(targetPath)) continue;
+        const normalized = path.normalize(targetPath);
+        if (visited.has(normalized.toLowerCase())) continue;
+        visited.add(normalized.toLowerCase());
+
+        try {
+          const stat = fs.statSync(normalized);
+          if (stat.isDirectory()) {
+            const entries = fs.readdirSync(normalized, { withFileTypes: true });
+            entries.sort((a, b) => {
+              if (a.isDirectory() && !b.isDirectory()) return -1;
+              if (!a.isDirectory() && b.isDirectory()) return 1;
+              return a.name.localeCompare(b.name);
+            });
+
+            const list = entries.slice(0, 60).map(e => {
+              if (e.isDirectory()) return `📁 [DIR]  ${e.name}/`;
+              let sz = "";
+              try {
+                const fsz = fs.statSync(path.join(normalized, e.name)).size;
+                sz = ` (${(fsz / 1024).toFixed(1)} KB)`;
+              } catch {}
+              return `📄 [FILE] ${e.name}${sz}`;
+            }).join("\n");
+
+            inspections += `\n\n[Attached Workspace Directory Inspection: "${normalized}"]\nStatus: Verified Accessible Directory on Local Disk\nTotal Items: ${entries.length}\nContents:\n${list}\n`;
+            if (entries.length > 60) {
+              inspections += `... and ${entries.length - 60} more items.\n`;
+            }
+          } else if (stat.isFile()) {
+            const sz = (stat.size / 1024).toFixed(1);
+            if (stat.size <= 256_000) {
+              const fileContent = fs.readFileSync(normalized, "utf8");
+              inspections += "\n\n[Attached Workspace File: \"" + normalized + "\"]\nStatus: Verified Accessible File (" + sz + " KB)\nContent:\n```\n" + fileContent.slice(0, 50000) + "\n```\n";
+            } else {
+              const fileContent = fs.readFileSync(normalized, "utf8").slice(0, 10000);
+              inspections += "\n\n[Attached Workspace File: \"" + normalized + "\"]\nStatus: Verified Accessible Large File (" + sz + " KB, showing first 10KB preview)\nContent:\n```\n" + fileContent + "\n```\n";
+            }
+          }
+        } catch {}
+      }
+
+      // Process attached files & screenshots from UI
+      if (Array.isArray(attachments)) {
+        for (const att of attachments) {
+          if (!att) continue;
+          if (att.type === "image" && att.dataUrl) {
+            const m = att.dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (m) {
+              imageAttachments.push({ mimeType: m[1], data: m[2], name: att.name || "screenshot.png" });
+              inspections += `\n\n[Attached Image / Screenshot: "${att.name || "screenshot.png"}"] (Multimodal image content attached)`;
+            }
+          } else if (att.type === "file" && att.content) {
+            inspections += "\n\n[Attached User File: \"" + att.name + "\"]\nContent:\n```\n" + att.content.slice(0, 50000) + "\n```\n";
+          } else if (att.path && fs.existsSync(att.path)) {
+            try {
+              const fContent = fs.readFileSync(att.path, "utf8");
+              inspections += "\n\n[Attached User File: \"" + (att.name || path.basename(att.path)) + "\"]\nContent:\n```\n" + fContent.slice(0, 50000) + "\n```\n";
+            } catch {}
+          }
+        }
+      }
+
+      return { inspections, imageAttachments };
+    }
+
+    ipc.handle(DESKTOP_CHANNELS.AI.CHAT, async (_: any, req: { prompt: string; history?: any[]; model?: string; system?: string; provider?: string; attachments?: any[] }) => {
       let { prompt, history = [], model = 'qwen2.5-coder:7b', provider = 'ollama', system = 'You are Evolve AI, an expert enterprise code and data engineering assistant. Provide direct, high-quality, executable code and answers with concise explanations.' } = req;
       const isJunkOrArch = (s: string) => !s || s === 'default' || s.includes('(') || s.includes('+') || s.includes('nomic') || s.includes('offline-engine') || s.includes('SLM') || s.includes('slm');
       if (provider === 'anthropic' && isJunkOrArch(model)) {
@@ -5163,15 +5412,37 @@ End Function
         else model = 'gemini-2.0-flash';
       }
 
-      // Inform the model of its exact identity so it never hallucinates or gets confused about its model
-      const modelContextPrompt = `${system}\n\n[Active Execution Environment]\n- Active AI Model: "${model}" (Provider: ${provider.toUpperCase()}).\n- When asked what model, version, or engine you are, state directly and concisely that you are running on model "${model}". Do not guess, speculate, or mention previous errors.`;
+      // Active Workspace Grounding & Environment Context
+      const ws = workspaceMgr.getCurrentWorkspace();
+      let workspaceContext = '';
+      if (ws && ws.path && fs.existsSync(ws.path)) {
+        const treeOverview = generateCompactTree(ws.path, 3);
+        workspaceContext = `\n\n[Active Workspace Environment]\n- Workspace Name: "${ws.name}"\n- Workspace Root Directory: "${ws.path}"\n- Host OS: Windows (${process.platform})\n- Active Workspace Tree Overview:\n${treeOverview}\n- Workspace & File-System Access: You have direct, verified access to the local disk and workspace files in Evolve AI. When the user references or asks about any file or directory (e.g. paths, folders, code), their contents are resolved from the host disk and provided in the prompt context. NEVER claim you do not have file-system access or that you cannot touch the local disk. Acknowledge the files or directories found, describe their contents, and provide helpful analysis.`;
+      }
+
+      // Inform the model of its exact identity and workspace capabilities
+      const modelContextPrompt = `${system}${workspaceContext}\n\n[Active Execution Environment]\n- Active AI Model: "${model}" (Provider: ${provider.toUpperCase()}).\n- When asked what model, version, or engine you are, state directly and concisely that you are running on model "${model}". Do not guess, speculate, or mention previous errors.`;
+
+      const { inspections, imageAttachments } = resolveWorkspaceReferences(prompt, ws?.path, req.attachments);
+      const augmentedPrompt = inspections ? `${prompt}${inspections}` : prompt;
+
+      const userMessage = (imageAttachments.length > 0 && provider === 'anthropic') ? {
+        role: 'user',
+        content: [
+          { type: 'text', text: augmentedPrompt },
+          ...imageAttachments.map(img => ({
+            type: 'image',
+            source: { type: 'base64', media_type: img.mimeType || 'image/png', data: img.data }
+          }))
+        ]
+      } : { role: 'user', content: augmentedPrompt };
 
       const messages = [
         { role: 'system', content: modelContextPrompt },
         ...history
           .filter((h: any) => h && h.content && !String(h.content).includes('HTTP 400') && !String(h.content).includes('request failed') && !String(h.content).includes('Invalid model name'))
           .map((h: any) => ({ role: h.role || 'user', content: h.content })),
-        { role: 'user', content: prompt }
+        userMessage
       ];
 
       // 0. Cloud providers route to their own API — never to Ollama.

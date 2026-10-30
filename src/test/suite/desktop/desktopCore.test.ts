@@ -270,6 +270,12 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.PII_MASKING));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.REVERSE_ETL));
     assert.ok(registeredChannels.has(DESKTOP_CHANNELS.ENGINES.RLS_POLICIES));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CICD.SCAN_PIPELINES));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CICD.GET_SETTINGS_PREREQS));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CICD.GENERATE_PIPELINE));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CICD.AUDIT_PIPELINE));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CICD.APPLY_FIX));
+    assert.ok(registeredChannels.has(DESKTOP_CHANNELS.CICD.SAVE_PIPELINE));
 
     // Test invoking Hardware Inspection IPC handler
     const hwFn = registeredChannels.get(DESKTOP_CHANNELS.HARDWARE.INSPECT)!;
@@ -743,6 +749,41 @@ suite('Enterprise Desktop Edition — Core Architecture & Subsystems', function 
     assert.strictEqual(tabExportDbtRes.success, true);
     assert.ok(tabExportDbtRes.content.includes('version: 2'));
     assert.ok(tabExportDbtRes.content.includes('models:'));
+
+    // Test CI/CD DevOps Pipeline Studio channels
+    const cicdScanFn = registeredChannels.get(DESKTOP_CHANNELS.CICD.SCAN_PIPELINES)!;
+    const scanRes = await cicdScanFn(null);
+    assert.ok(scanRes.detectedHost !== undefined);
+    assert.ok(Array.isArray(scanRes.pipelines));
+    assert.ok(scanRes.stack !== undefined);
+
+    const cicdGenFn = registeredChannels.get(DESKTOP_CHANNELS.CICD.GENERATE_PIPELINE)!;
+    const genRes = await cicdGenFn(null, { platform: 'github-actions', template: 'test-and-lint', deployTarget: 'aws-oidc' });
+    assert.strictEqual(genRes.success, true);
+    assert.ok(genRes.content.includes('aws-actions/configure-aws-credentials'));
+    assert.ok(genRes.content.includes('id-token: write'));
+
+    const cicdAuditFn = registeredChannels.get(DESKTOP_CHANNELS.CICD.AUDIT_PIPELINE)!;
+    const auditRes = await cicdAuditFn(null, { content: genRes.content });
+    assert.strictEqual(auditRes.success, true);
+    assert.ok(typeof auditRes.score === 'number');
+    assert.ok(Array.isArray(auditRes.findings));
+
+    const cicdPrereqFn = registeredChannels.get(DESKTOP_CHANNELS.CICD.GET_SETTINGS_PREREQS)!;
+    const prereqRes = await cicdPrereqFn(null, { content: genRes.content });
+    assert.strictEqual(prereqRes.success, true);
+    assert.ok(Array.isArray(prereqRes.secrets));
+    assert.ok(Array.isArray(prereqRes.permissions));
+    assert.ok(prereqRes.oidcTrust !== undefined);
+
+    const cicdFixFn = registeredChannels.get(DESKTOP_CHANNELS.CICD.APPLY_FIX)!;
+    const fixRes = await cicdFixFn(null, {
+      action: 'add_timeouts',
+      filePath: '.github/workflows/ci.yml',
+      content: 'name: CI\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm test\n'
+    });
+    assert.strictEqual(fixRes.success, true);
+    assert.ok(fixRes.updatedContent.includes('timeout-minutes: 15'));
 
     wsMgr.dispose();
     termMgr.dispose();
