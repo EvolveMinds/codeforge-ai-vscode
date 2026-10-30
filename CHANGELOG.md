@@ -2,6 +2,16 @@
 
 All notable changes to Evolve AI are documented here.
 
+## [2.31.2] — 2026-10-30
+
+### Domain-Native Asset Delivery & Enterprise Chat Grounding Hotfix
+
+* **Direct Corporate Domain Asset Delivery:** Fixed company download portal release delivery by directly provisioning signed portable binaries, trust tools, and offline patch bundles into static public deployment assets, completely eliminating CloudFront 404 "File wasn't available on site" errors.
+* **Enterprise CI/CD Host Detection:** Added intelligent enterprise remote host detection and dynamic settings URL resolution supporting GitHub Enterprise (GHE), Bitbucket Server/Data Center, and GitLab self-hosted instances.
+* **Active Workspace Grounding & Autonomous Inspection:** Enhanced copilot chat with active workspace context grounding, automated project file tree and directory inspection, and media/screenshot attachment support.
+* **Gateway Model Extraction & UI Synchronization:** Automatically extracts actual upstream model identities from AI gateway responses, auto-syncs model badge UI indicators in real-time, and sanitizes error history traces.
+* **In-Chat Model Selector & Navigation Tools:** Added quick model selector popover, prompt history arrow navigation, message copy and reply toolbar, code block copy buttons, and multi-session storage manager.
+
 ## [2.31.1] — 2026-10-28
 
 ### Enterprise AI Gateway & Corporate Network Trust Hotfix

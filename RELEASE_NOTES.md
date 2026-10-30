@@ -1,5 +1,25 @@
 # Evolve AI — Release Notes
 
+## Version 2.31.2 — October 30, 2026
+
+**Publisher:** `codeforge-ai`  
+**Company:** [Evolve Mind Solutions Pty Ltd](https://www.evolveminds.com.au/)  
+**License:** Proprietary Commercial (Enterprise Edition)
+
+---
+
+### Highlights & Summary
+
+Version 2.31.2 resolves corporate site domain-native asset delivery, active workspace grounding, enterprise remote CI/CD host resolution, and automated model badge synchronization.
+
+* **Domain-Native Zero-Redirect Downloads:** Fully resolved the corporate download portal delivery issue by bundling Authenticode-signed binaries and trust tools directly into website public assets, preventing 404 "File wasn't available on site" errors.
+* **Enterprise CI/CD Host Detection:** Automatic remote URL resolution for self-hosted GitHub Enterprise (GHE), Bitbucket Data Center, and GitLab, enabling instant 1-click CI/CD navigation.
+* **Active Workspace Grounding & Inspection:** Copilot chat autonomously discovers workspace structure, active file paths, and attachment/screenshot payloads for grounded reasoning.
+* **Gateway Model Extraction & Badge Sync:** Real-time extraction of live model identifiers from reverse proxy headers with synchronized UI badges.
+* **In-Chat Model Selector & History Engine:** In-place model switching popover, prompt history recall with arrow keys, and multi-session persistence.
+
+---
+
 ## Version 2.31.1 — October 28, 2026
 
 **Publisher:** `codeforge-ai`  

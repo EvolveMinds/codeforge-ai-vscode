@@ -177,6 +177,17 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
   git checkout main && git pull origin main
   git checkout -b release/evolve-ai-X.Y.Z
   ```
+- [ ] **Deploy Physical Assets to Website Public Directory (`public/products/evolve-ai/releases/assets/`):**
+  - **CRITICAL / ZERO-404 MANDATE:** Next.js static export serves static assets directly from `public/`. Because AWS Amplify static hosting serves `out/` directly, and does NOT auto-sync `amplify-redirects.json` from git without manual console intervention, **the active release assets MUST be physically copied into `../Company/public/products/evolve-ai/releases/assets/`**:
+    - `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe`
+    - `dist-desktop/evolve-ai-pilot-trust-tool.zip`
+    - `dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip`
+    - `scripts/trust-pilot-cert.bat` (with embedded cert)
+    - `scripts/trust-pilot-cert.ps1` (with embedded cert)
+    - `build-certs/evolve-enterprise-dev.cer`
+  - **Prune Outgoing Version Binary:** Delete the outgoing version's `.exe` and `.patch.zip` from `../Company/public/products/evolve-ai/releases/assets/` so the git repository only holds the latest release binary and remains under GitHub's 100 MB file limit.
+  - **Verify File Existence in `out/`:** After `pnpm run build`, confirm `../Company/out/products/evolve-ai/releases/assets/<filename>` exists with exact byte count and SHA-256 match.
+
 - [ ] **Update Release Data Registry (`src/content/evolveAiReleases.ts`):**
   - Add new release entry at index 0 with `version: "vX.Y.Z"`, `tag: "vX.Y.Z-desktop"`, `isLatest: true`.
   - Register all release assets with exact size, bytes, and uppercase SHA-256 checksum:
@@ -228,12 +239,18 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
   curl -s "https://www.evolveminds.com.au/products/evolve-ai/releases/" | grep -o "v[0-9]\+\.[0-9]\+\.[0-9]\+" | sort -u
   ```
 - [ ] **Live Customer Download & Integrity Match (Domain-Native Endpoint):**  
-  ```powershell
-  Invoke-WebRequest -Uri "https://www.evolveminds.com.au/products/evolve-ai/releases/assets/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe" -OutFile "$env:TEMP\verify_dl.exe"
-  $hash = (Get-FileHash "$env:TEMP\verify_dl.exe" -Algorithm SHA256).Hash
-  Remove-Item "$env:TEMP\verify_dl.exe"
-  # Must equal downloadSha256
-  ```
+  - **STRICT RELEASE GATE:** Execute HTTP head check and download verification:
+    ```powershell
+    curl.exe -sI "https://www.evolveminds.com.au/products/evolve-ai/releases/assets/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe"
+    # MUST return HTTP 200 OK (or HTTP 302 with valid location) — NEVER 404!
+    ```
+  - Download and verify binary hash:
+    ```powershell
+    Invoke-WebRequest -Uri "https://www.evolveminds.com.au/products/evolve-ai/releases/assets/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe" -OutFile "$env:TEMP\verify_dl.exe"
+    $hash = (Get-FileHash "$env:TEMP\verify_dl.exe" -Algorithm SHA256).Hash
+    Remove-Item "$env:TEMP\verify_dl.exe"
+    # Must equal downloadSha256
+    ```
 - [ ] **Confirm Zero Leaked Git URLs:** Verify users never see raw github.com links when downloading .exe or .zip files.
 - [ ] **Update Execution Audit Log:** Append sign-off record to table below and to `RELEASE_RUNBOOK.md` §11.
 
@@ -243,6 +260,7 @@ The corporate site on AWS Amplify is the public delivery channel for customers a
 
 | Version | Release Date | Desktop EXE SHA-256 (Size) | VSIX SHA-256 (Size) | GitHub Releases | Website Status | Verified By |
 |---|---|---|---|---|---|---|
+| **v2.31.2** | 2026-10-30 | `4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`<br>(79.7 MB / 83,597,856 B)<br>*Authenticode Signed* | Trust Tool:<br>`37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6`<br>(6.1 KB / 6,283 B)<br><br>Patch Bundle:<br>`8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461`<br>(2.6 KB / 2,674 B)<br><br>VSIX:<br>`318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1`<br>(151.7 MB / 159,022,977 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.2-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.2-desktop) | Verified & Live on AWS Amplify | Antigravity AI Engine |
 | **v2.31.1** | 2026-10-28 | `3E49460AC1E9448EFD720209049E24D8D6711A09FE917E8A316E4D1E9955CBD1`<br>(79.6 MB / 83,500,752 B)<br>*Authenticode Signed* | Trust Tool:<br>`F95FF1A6596B21A37FC239CA4784424C67D6D3CA7F07B752B2D0B85F84DBF260`<br>(6.1 KB / 6,283 B)<br><br>Patch Bundle:<br>`B5216B53FFF5BE5941F4B8E15FC6900CB7E38AF91F0178DA149D08337DF3B19D`<br>(2.6 KB / 2,674 B)<br><br>VSIX:<br>`507973E77A58BE3FFF6F80EEB16F5AA44FC531DC04A09DFE6DC19D090A0CD555`<br>(151.6 MB / 158,966,710 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.1-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.1-desktop) | Verified & Live on AWS Amplify | Antigravity AI Engine |
 | **v2.31.0** | 2026-10-26 | `A5D4CDB1FB870E40002A64B6BCBF44B3F32BC8CC435F079408130C652F3698FF`<br>(79.6 MB / 83,488,216 B)<br>*Authenticode Signed* | Trust Tool:<br>`B69ED6B226AE7B720C2F58F26B14EFFF49C23DDB07EA0089C86015D503DA165D`<br>(4.8 KB / 4,772 B)<br><br>Patch Bundle:<br>`68C852857CD134CB125F99B2E41063FF00586BD0D65BC19BBA8C9A913A62D0C7`<br>(4.2 KB / 4,257 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Verified & Live on AWS Amplify | Antigravity AI Engine |
 | **v2.30.0** | 2026-10-15 | `A3AB286B7C8A610A9B0B2FA0572D205D97715FB4953C4E99675EA27AD3ACB17D`<br>(79.4 MB / 83,259,726 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.30.0-desktop)<br>[Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.30.0-desktop) | Staged & Updated | Antigravity AI Engine |

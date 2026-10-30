@@ -438,6 +438,15 @@ Never remove superseded builds from `releaseHistory` in `src/content/site.ts`.
 Enterprise clients qualifying specific builds in banking/air-gapped enclaves
 require permanent access to superseded binaries and hashes.
 
+### 9.9 Direct Corporate Domain Asset Delivery (Zero-404 Mandate)
+
+Next.js static export (`output: "export"`) only bundles files physically present in `public/`.
+Because AWS Amplify serves `out/` as static files on CloudFront/S3 and does **not** automatically apply `amplify-redirects.json` via git commits without manual web console intervention, **the active version's signed `.exe`, `pilot-trust-tool.zip`, `.patch.zip`, batch scripts, and certificate MUST be physically copied into `../Company/public/products/evolve-ai/releases/assets/`**.
+
+* Delete the outgoing version's `.exe` and `.patch.zip` so the repository only holds the latest binary and stays well under GitHub's 100 MB limit.
+* Verify `../Company/out/products/evolve-ai/releases/assets/<filename>` exists after `pnpm run build`.
+* **Zero 404 Gate:** `curl.exe -sI https://www.evolveminds.com.au/products/evolve-ai/releases/assets/<file>` MUST return HTTP 200 (or HTTP 302). Never sign off on a release with a 404 download.
+
 ---
 
 ## 10. Release checklist
@@ -483,15 +492,22 @@ Copy into the release PR or issue before beginning every version upgrade:
 **5. Update Company Website**
 - [ ] Switch to `Company` repo: `git checkout main && git pull origin main`
 - [ ] Create branch `release/evolve-ai-X.Y.Z`
+- [ ] **Deploy Physical Assets to Website Public Directory (`public/products/evolve-ai/releases/assets/`):**
+  - Copy `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` to `../Company/public/products/evolve-ai/releases/assets/`
+  - Copy `dist-desktop/evolve-ai-pilot-trust-tool.zip` to `../Company/public/products/evolve-ai/releases/assets/`
+  - Copy `dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip` to `../Company/public/products/evolve-ai/releases/assets/`
+  - Copy `scripts/trust-pilot-cert.bat` and `scripts/trust-pilot-cert.ps1` to `../Company/public/products/evolve-ai/releases/assets/`
+  - Copy `build-certs/evolve-enterprise-dev.cer` to `../Company/public/products/evolve-ai/releases/assets/`
+  - Prune outgoing version `.exe` and `.patch.zip` from `../Company/public/products/evolve-ai/releases/assets/`
 - [ ] Update `src/content/evolveAiReleases.ts` with new release entry, verified assets (Portable .exe, 1-Click Pilot Trust Tool, Offline Patch .zip; exclude .vsix), exact sizes, bytes, and SHA-256
 - [ ] Update `src/content/site.ts`: `downloadUrl` to `/products/evolve-ai/releases/assets/...` (ZERO raw GitHub download URLs exposed!), `downloadVersion`, `downloadSize`, `downloadSha256`, `downloadSigned: true`, `trustToolUrl`, and `releaseHistory`
 - [ ] Update `amplify-redirects.json` with 302 rules mapping each `/products/evolve-ai/releases/assets/<file>` to GitHub releases asset target (placed ABOVE the 404 rule). Never use `/downloads/`.
 - [ ] Update `fileSize` (bytes), `trustToolUrl`, and `newFeatures` in `src/app/products/evolve-ai/download/page.tsx`
 - [ ] `pnpm exec tsc --noEmit` exits 0
 - [ ] `pnpm run build` exits 0
-- [ ] Built HTML verification: new version on all pages; `/products/evolve-ai/releases/` renders all releases; zero GitHub download links
+- [ ] Built HTML verification: confirm `out/products/evolve-ai/releases/assets/<file>` exists; new version on all pages; `/products/evolve-ai/releases/` renders all releases; zero GitHub download links
 - [ ] PR created, reviewed, and merged to `main` (`gh pr merge --merge --delete-branch`)
-- [ ] Amplify production deployment completed; live URLs & downloads verified against SHA-256
+- [ ] Amplify production deployment completed; live URLs & downloads verified against SHA-256 (MUST return HTTP 200, ZERO 404s allowed!)
 
 **6. Audit & Documentation**
 - [ ] Release recorded in §11 of this runbook with checksums, date, and status
@@ -505,6 +521,7 @@ Historical record of verified production releases:
 
 | Version | Release Date | Desktop EXE SHA-256 (Size) | Additional Release Assets SHA-256 (Size) | GitHub Releases | Website Status |
 |---|---|---|---|---|---|
+| **v2.31.2** | 2026-10-30 | `4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`<br>(79.7 MB / 83,597,856 B)<br>*Authenticode Signed* | Trust Tool: `37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6` (6.1 KB / 6,283 B)<br>Patch: `8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461` (2.6 KB / 2,674 B)<br>VSIX: `318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1` (151.7 MB / 159,022,977 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.2-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.2-desktop) | Verified & Live on AWS Amplify |
 | **v2.31.1** | 2026-10-28 | `3E49460AC1E9448EFD720209049E24D8D6711A09FE917E8A316E4D1E9955CBD1`<br>(79.6 MB / 83,500,752 B)<br>*Authenticode Signed* | Trust Tool: `F95FF1A6596B21A37FC239CA4784424C67D6D3CA7F07B752B2D0B85F84DBF260` (6.1 KB / 6,283 B)<br>Patch: `B5216B53FFF5BE5941F4B8E15FC6900CB7E38AF91F0178DA149D08337DF3B19D` (2.6 KB / 2,674 B)<br>VSIX: `507973E77A58BE3FFF6F80EEB16F5AA44FC531DC04A09DFE6DC19D090A0CD555` (151.6 MB / 158,966,710 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.1-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.1-desktop) | Verified & Live on AWS Amplify |
 | **v2.31.0** | 2026-10-26 | `A5D4CDB1FB870E40002A64B6BCBF44B3F32BC8CC435F079408130C652F3698FF`<br>(79.6 MB / 83,488,216 B)<br>*Authenticode Signed* | Trust Tool: `B69ED6B226AE7B720C2F58F26B14EFFF49C23DDB07EA0089C86015D503DA165D` (4.8 KB / 4,772 B)<br>Patch: `68C852857CD134CB125F99B2E41063FF00586BD0D65BC19BBA8C9A913A62D0C7` (4.2 KB / 4,257 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Verified & Live on AWS Amplify |
 | **v2.30.0** | 2026-10-15 | `A3AB286B7C8A610A9B0B2FA0572D205D97715FB4953C4E99675EA27AD3ACB17D` (79.4 MB / 83,259,726 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.30.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.30.0-desktop) | Staged & Updated |
