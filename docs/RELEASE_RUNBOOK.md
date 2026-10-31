@@ -447,6 +447,22 @@ Because AWS Amplify serves `out/` as static files on CloudFront/S3 and does **no
 * Verify `../Company/out/products/evolve-ai/releases/assets/<filename>` exists after `pnpm run build`.
 * **Zero 404 Gate:** `curl.exe -sI https://www.evolveminds.com.au/products/evolve-ai/releases/assets/<file>` MUST return HTTP 200 (or HTTP 302). Never sign off on a release with a 404 download.
 
+### 9.10 Packaging Portable .zip vs Standalone .exe vs Offline In-App Hot Patch .zip
+
+Chrome and Chromium browsers employ Safe Browsing heuristics that flag brand-new bare `.exe` downloads as *"isn't commonly downloaded and it may be dangerous"* solely because new binary hashes have low global download volume. To completely eliminate this friction on corporate workstations:
+
+1. **Main Portable Studio Package (`.zip`, Recommended)**:
+   - Command: `npm run desktop:package:zip` (bundles signed `.exe`, `trust-pilot-cert.bat`, `trust-pilot-cert.ps1`, `evolve-enterprise-dev.cer`, and `README.txt` into `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.zip`).
+   - Downloads cleanly in Chrome with **zero** reputation warnings.
+2. **Standalone Portable (`.exe`)**:
+   - Single-file direct execution without zip extraction. Retained for direct automation or users who prefer a single binary.
+3. **Air-Gapped Offline Hot Patch (`.zip`, In-App Maintenance Only)**:
+   - `dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip` (~2-5 KB).
+   - Contains incremental AST rules and templates. Applied strictly within the application via **Settings → Updates → Apply from Disk**.
+   - **Crucial Rule:** Never label or distribute the patch `.zip` as an application installer. Maintain strict taxonomy distinction across documentation, website, and GitHub releases.
+4. **1-Click Pilot Trust Tool (`.zip`)**:
+   - `dist-desktop/evolve-ai-pilot-trust-tool.zip` (~6 KB). Standalone IT utility to pre-install the pilot certificate and unblock SmartScreen.
+
 ---
 
 ## 10. Release checklist
@@ -470,22 +486,24 @@ Copy into the release PR or issue before beginning every version upgrade:
 - [ ] `npm run desktop:build:portable` succeeds (electron-builder ≥ 26)
 - [ ] Authenticode Code Signing applied: `npm run desktop:sign`
 - [ ] Digital signature verified: `Get-AuthenticodeSignature` confirms Valid / Signed
+- [ ] Portable Studio Zip packaged: `npm run desktop:package:zip` produces `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.zip` (bundles signed `.exe`, trust tool `.bat`/`.ps1`, cert, and README)
 - [ ] 1-Click Pilot Trust Tool packaged: `npm run trust:package` produces `dist-desktop/evolve-ai-pilot-trust-tool.zip` (containing `trust-pilot-cert.bat`, `trust-pilot-cert.ps1`, `evolve-enterprise-dev.cer`, `README.txt`)
 - [ ] Air-Gapped Offline Hot Patch Bundle created: `npm run patch:create`
 - [ ] EXE metadata shows ProductVersion and Company: `(Get-Item 'dist-desktop\*.exe').VersionInfo`
 - [ ] Package VS Code Extension: `npx @vscode/vsce package --no-dependencies -o evolve-ai-X.Y.Z.vsix`
-- [ ] SHA-256 and byte sizes recorded for all artifacts (`.exe`, `.zip` trust tool, `.zip` patch, `.vsix`)
+- [ ] SHA-256 and byte sizes recorded for all artifacts (`.zip` portable package, `.exe`, `.zip` trust tool, `.zip` patch, `.vsix`)
 - [ ] Smoke-test packaged desktop app (Settings shows X.Y.Z, not Electron version)
 - [ ] `app.asar` contains no `node_modules` (`npx asar list ... | grep -c node_modules` is 0)
 
 **4. Publish GitHub Releases**
 - [ ] Code + `vX.Y.Z` tag pushed to `origin` **and** `enterprise` mirrors
 - [ ] `vX.Y.Z-desktop` release created on **both** repos (`codeforge-ai-vscode` and `evolve-ai-enterprise`)
-- [ ] All 3+ artifacts attached:
-  1. `evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` (Signed)
-  2. `evolve-ai-pilot-trust-tool.zip`
-  3. `evolve-ai-enterprise-patch-X.Y.Z.zip`
-  4. `evolve-ai-X.Y.Z.vsix`
+- [ ] All 4+ artifacts attached:
+  1. `evolve-ai-enterprise-portable-X.Y.Z-win32-x64.zip` (Portable Package, Zero Warnings)
+  2. `evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` (Signed Standalone)
+  3. `evolve-ai-pilot-trust-tool.zip` (1-Click Trust Tool)
+  4. `evolve-ai-enterprise-patch-X.Y.Z.zip` (Offline Hot Patch)
+  5. `evolve-ai-X.Y.Z.vsix` (Extension Package)
 - [ ] Release body contains SmartScreen & Pilot Trust Tool notice, verification table with SHA-256, and Known Gaps
 - [ ] Asset upload verified (`state == uploaded`; download URLs return 200)
 
@@ -493,16 +511,17 @@ Copy into the release PR or issue before beginning every version upgrade:
 - [ ] Switch to `Company` repo: `git checkout main && git pull origin main`
 - [ ] Create branch `release/evolve-ai-X.Y.Z`
 - [ ] **Deploy Physical Assets to Website Public Directory (`public/products/evolve-ai/releases/assets/`):**
+  - Copy `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.zip` to `../Company/public/products/evolve-ai/releases/assets/`
   - Copy `dist-desktop/evolve-ai-enterprise-portable-X.Y.Z-win32-x64.exe` to `../Company/public/products/evolve-ai/releases/assets/`
   - Copy `dist-desktop/evolve-ai-pilot-trust-tool.zip` to `../Company/public/products/evolve-ai/releases/assets/`
   - Copy `dist-desktop/evolve-ai-enterprise-patch-X.Y.Z.zip` to `../Company/public/products/evolve-ai/releases/assets/`
   - Copy `scripts/trust-pilot-cert.bat` and `scripts/trust-pilot-cert.ps1` to `../Company/public/products/evolve-ai/releases/assets/`
   - Copy `build-certs/evolve-enterprise-dev.cer` to `../Company/public/products/evolve-ai/releases/assets/`
-  - Prune outgoing version `.exe` and `.patch.zip` from `../Company/public/products/evolve-ai/releases/assets/`
-- [ ] Update `src/content/evolveAiReleases.ts` with new release entry, verified assets (Portable .exe, 1-Click Pilot Trust Tool, Offline Patch .zip; exclude .vsix), exact sizes, bytes, and SHA-256
-- [ ] Update `src/content/site.ts`: `downloadUrl` to `/products/evolve-ai/releases/assets/...` (ZERO raw GitHub download URLs exposed!), `downloadVersion`, `downloadSize`, `downloadSha256`, `downloadSigned: true`, `trustToolUrl`, and `releaseHistory`
+  - Prune outgoing version `.zip`, `.exe`, and `.patch.zip` from `../Company/public/products/evolve-ai/releases/assets/`
+- [ ] Update `src/content/evolveAiReleases.ts` with new release entry, verified assets (Portable Package .zip, Standalone Portable .exe, 1-Click Pilot Trust Tool, Offline Patch .zip; exclude .vsix), exact sizes, bytes, and SHA-256
+- [ ] Update `src/content/site.ts`: `downloadZipUrl`, `downloadZipSha256`, `downloadZipSize`, `downloadUrl`, `downloadVersion`, `downloadSize`, `downloadSha256`, `downloadSigned: true`, `trustToolUrl`, and `releaseHistory`
 - [ ] Update `amplify-redirects.json` with 302 rules mapping each `/products/evolve-ai/releases/assets/<file>` to GitHub releases asset target (placed ABOVE the 404 rule). Never use `/downloads/`.
-- [ ] Update `fileSize` (bytes), `trustToolUrl`, and `newFeatures` in `src/app/products/evolve-ai/download/page.tsx`
+- [ ] Update `fileSize` (bytes), `trustToolUrl`, and `newFeatures` in `src/app/products/evolve-ai/download/page.tsx`, featuring dual-CTA (Primary Portable .zip, Secondary .exe)
 - [ ] `pnpm exec tsc --noEmit` exits 0
 - [ ] `pnpm run build` exits 0
 - [ ] Built HTML verification: confirm `out/products/evolve-ai/releases/assets/<file>` exists; new version on all pages; `/products/evolve-ai/releases/` renders all releases; zero GitHub download links
@@ -519,9 +538,9 @@ Copy into the release PR or issue before beginning every version upgrade:
 
 Historical record of verified production releases:
 
-| Version | Release Date | Desktop EXE SHA-256 (Size) | Additional Release Assets SHA-256 (Size) | GitHub Releases | Website Status |
+| Version | Release Date | Desktop Package SHA-256 (Size) | Additional Release Assets SHA-256 (Size) | GitHub Releases | Website Status |
 |---|---|---|---|---|---|
-| **v2.31.2** | 2026-10-30 | `4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`<br>(79.7 MB / 83,597,856 B)<br>*Authenticode Signed* | Trust Tool: `37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6` (6.1 KB / 6,283 B)<br>Patch: `8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461` (2.6 KB / 2,674 B)<br>VSIX: `318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1` (151.7 MB / 159,022,977 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.2-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.2-desktop) | Verified & Live on AWS Amplify |
+| **v2.31.2** | 2026-10-30 | **Portable ZIP (Recommended):**<br>`8DEF61B5C0D77881FCA81B11E75C5BC57CA8AC102335342DB1F92F6FD270C84B`<br>(79.7 MB / 83,609,794 B)<br><br>**Standalone EXE:**<br>`4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`<br>(79.7 MB / 83,597,856 B)<br>*Authenticode Signed* | Trust Tool: `37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6` (6.1 KB / 6,283 B)<br>Patch (In-App Only): `8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461` (2.6 KB / 2,674 B)<br>VSIX: `318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1` (151.7 MB / 159,022,977 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.2-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.2-desktop) | Verified & Live on AWS Amplify |
 | **v2.31.1** | 2026-10-28 | `3E49460AC1E9448EFD720209049E24D8D6711A09FE917E8A316E4D1E9955CBD1`<br>(79.6 MB / 83,500,752 B)<br>*Authenticode Signed* | Trust Tool: `F95FF1A6596B21A37FC239CA4784424C67D6D3CA7F07B752B2D0B85F84DBF260` (6.1 KB / 6,283 B)<br>Patch: `B5216B53FFF5BE5941F4B8E15FC6900CB7E38AF91F0178DA149D08337DF3B19D` (2.6 KB / 2,674 B)<br>VSIX: `507973E77A58BE3FFF6F80EEB16F5AA44FC531DC04A09DFE6DC19D090A0CD555` (151.6 MB / 158,966,710 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.1-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.1-desktop) | Verified & Live on AWS Amplify |
 | **v2.31.0** | 2026-10-26 | `A5D4CDB1FB870E40002A64B6BCBF44B3F32BC8CC435F079408130C652F3698FF`<br>(79.6 MB / 83,488,216 B)<br>*Authenticode Signed* | Trust Tool: `B69ED6B226AE7B720C2F58F26B14EFFF49C23DDB07EA0089C86015D503DA165D` (4.8 KB / 4,772 B)<br>Patch: `68C852857CD134CB125F99B2E41063FF00586BD0D65BC19BBA8C9A913A62D0C7` (4.2 KB / 4,257 B) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.31.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.31.0-desktop) | Verified & Live on AWS Amplify |
 | **v2.30.0** | 2026-10-15 | `A3AB286B7C8A610A9B0B2FA0572D205D97715FB4953C4E99675EA27AD3ACB17D` (79.4 MB / 83,259,726 B) | N/A (Desktop & Offline Patch Bundle) | [Public](https://github.com/EvolveMinds/codeforge-ai-vscode/releases/tag/v2.30.0-desktop) / [Enterprise](https://github.com/EvolveMinds/evolve-ai-enterprise/releases/tag/v2.30.0-desktop) | Staged & Updated |

@@ -25,22 +25,31 @@ On test workstations and corporate machines where commercial public root CAs are
 
 ### 📦 Binary Verification
 
-* **Desktop Executable (Signed)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.exe`
-* **Architecture**: `win32-x64` (Windows 10 / 11 64-bit)
-* **Size**: 79.7 MB (83,597,856 bytes)
-* **SHA-256**: `4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`
+* **Portable Studio Package (.zip, Recommended)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.zip`
+  * *Description*: Full standalone portable application bundle. Extract anywhere and run with zero installation. Eliminates browser "uncommon download" warnings.
+  * *Architecture*: `win32-x64` (Windows 10 / 11 64-bit)
+  * *Size*: 79.7 MB (83,609,794 bytes)
+  * *SHA-256*: `8DEF61B5C0D77881FCA81B11E75C5BC57CA8AC102335342DB1F92F6FD270C84B`
 
-* **1-Click Pilot Trust Tool**: `evolve-ai-pilot-trust-tool.zip`
-* **Size**: 6.1 KB (6,283 bytes)
-* **SHA-256**: `37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6`
+* **Desktop Standalone Executable (.exe)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.exe`
+  * *Description*: Single direct executable (Authenticode signed). Runs directly without extraction.
+  * *Architecture*: `win32-x64` (Windows 10 / 11 64-bit)
+  * *Size*: 79.7 MB (83,597,856 bytes)
+  * *SHA-256*: `4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`
 
-* **Air-Gapped Patch Archive**: `evolve-ai-enterprise-patch-2.31.2.zip`
-* **Size**: 2.6 KB (2,674 bytes)
-* **SHA-256**: `8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461`
+* **Air-Gapped Offline Hot Patch (.zip, In-App Maintenance Only)**: `evolve-ai-enterprise-patch-2.31.2.zip`
+  * *Description*: Maintenance patch archive containing AST rules and templates. **Do not run as an installer.** Applied from inside the application via *Settings → Updates → Apply from Disk*.
+  * *Size*: 2.6 KB (2,674 bytes)
+  * *SHA-256*: `8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461`
 
-* **VS Code Extension Package**: `evolve-ai-2.31.2.vsix`
-* **Size**: 151.7 MB (159,022,977 bytes)
-* **SHA-256**: `318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1`
+* **1-Click Pilot Trust Tool (.zip)**: `evolve-ai-pilot-trust-tool.zip`
+  * *Description*: IT workstation configuration utility to install pilot root certificate and unblock Windows SmartScreen.
+  * *Size*: 6.1 KB (6,283 bytes)
+  * *SHA-256*: `37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6`
+
+* **VS Code Extension Package (.vsix)**: `evolve-ai-2.31.2.vsix`
+  * *Size*: 151.7 MB (159,022,977 bytes)
+  * *SHA-256*: `318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1`
 
 Verify before running:
 ```powershell

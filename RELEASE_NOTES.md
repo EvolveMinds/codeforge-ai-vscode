@@ -18,6 +18,28 @@ Version 2.31.2 resolves corporate site domain-native asset delivery, active work
 * **Gateway Model Extraction & Badge Sync:** Real-time extraction of live model identifiers from reverse proxy headers with synchronized UI badges.
 * **In-Chat Model Selector & History Engine:** In-place model switching popover, prompt history recall with arrow keys, and multi-session persistence.
 
+### Binary Verification & Distribution Packages
+
+* **Main Portable Studio Package (.zip, Recommended)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.zip`
+  * *Description*: Full standalone portable application bundle with embedded trust tool. Bypasses browser reputation heuristics.
+  * *Size*: 79.7 MB (83,609,794 bytes)
+  * *SHA-256*: `8DEF61B5C0D77881FCA81B11E75C5BC57CA8AC102335342DB1F92F6FD270C84B`
+* **Standalone Portable Executable (.exe)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.exe`
+  * *Description*: Single direct executable (Authenticode signed with Enterprise Pilot certificate).
+  * *Size*: 79.7 MB (83,597,856 bytes)
+  * *SHA-256*: `4A74F9C5CDD8E3929B80E8CB826D8A934DF5A482714AF3384D57E4A5B75F906D`
+* **1-Click Pilot Trust Tool (.zip)**: `evolve-ai-pilot-trust-tool.zip`
+  * *Description*: IT workstation utility to install pilot root certificate and unblock Windows SmartScreen.
+  * *Size*: 6.1 KB (6,283 bytes)
+  * *SHA-256*: `37AEE092BB1804801576E5CE611EFC2C270B4AC2FF629CEC28A664D6B205ABF6`
+* **Air-Gapped Offline Hot Patch (.zip, In-App Maintenance Only)**: `evolve-ai-enterprise-patch-2.31.2.zip`
+  * *Description*: Maintenance patch archive containing updated rules and templates. Applied strictly within the application via *Settings → Updates → Apply from Disk*.
+  * *Size*: 2.6 KB (2,674 bytes)
+  * *SHA-256*: `8B207ECFE1496F3805EA5C639904018A530C36126B5FB23C06E4404B95E5E461`
+* **VS Code Extension (.vsix)**: `evolve-ai-2.31.2.vsix`
+  * *Size*: 151.7 MB (159,022,977 bytes)
+  * *SHA-256*: `318568581FB85518819B6B2A339DD8A081F16EE75D22FFE6228F413FE139E2B1`
+
 ---
 
 ## Version 2.31.1 — October 28, 2026
