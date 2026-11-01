@@ -22,8 +22,8 @@ Version 2.31.2 resolves corporate site domain-native asset delivery, active work
 
 * **Main Portable Studio Package (.zip, Recommended)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.zip`
   * *Description*: Full standalone portable application bundle with embedded trust tool. Bypasses browser reputation heuristics.
-  * *Size*: 79.7 MB (83,609,794 bytes)
-  * *SHA-256*: `8DEF61B5C0D77881FCA81B11E75C5BC57CA8AC102335342DB1F92F6FD270C84B`
+  * *Size*: 79.7 MB (83,609,797 bytes)
+  * *SHA-256*: `0637B84A2DCD701B7F62399015227DCBC1203D3F9360619BA8283E8331DC0E00`
 * **Standalone Portable Executable (.exe)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.exe`
   * *Description*: Single direct executable (Authenticode signed with Enterprise Pilot certificate).
   * *Size*: 79.7 MB (83,597,856 bytes)

@@ -28,8 +28,8 @@ On test workstations and corporate machines where commercial public root CAs are
 * **Portable Studio Package (.zip, Recommended)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.zip`
   * *Description*: Full standalone portable application bundle. Extract anywhere and run with zero installation. Eliminates browser "uncommon download" warnings.
   * *Architecture*: `win32-x64` (Windows 10 / 11 64-bit)
-  * *Size*: 79.7 MB (83,609,794 bytes)
-  * *SHA-256*: `8DEF61B5C0D77881FCA81B11E75C5BC57CA8AC102335342DB1F92F6FD270C84B`
+  * *Size*: 79.7 MB (83,609,797 bytes)
+  * *SHA-256*: `0637B84A2DCD701B7F62399015227DCBC1203D3F9360619BA8283E8331DC0E00`
 
 * **Desktop Standalone Executable (.exe)**: `evolve-ai-enterprise-portable-2.31.2-win32-x64.exe`
   * *Description*: Single direct executable (Authenticode signed). Runs directly without extraction.

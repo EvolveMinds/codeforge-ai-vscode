@@ -99,7 +99,7 @@ AIR-GAPPED & SOVEREIGN OPERATION:
 
 SUPPORT & ENTERPRISE LICENSING:
 * Corporate Portal: https://www.evolveminds.com.au/products/evolve-ai/
-* Enterprise Inquiries: info@evolveminds.com.au
+* Enterprise Inquiries: support@evolveminds.com.au
 ======================================================================
 `;
   fs.writeFileSync(path.join(stagingDir, 'README.txt'), readme, 'utf8');
