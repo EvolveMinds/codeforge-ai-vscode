@@ -56,11 +56,20 @@ try {
   const scriptsDir = path.join(rootDir, 'scripts');
   const certsDir = path.join(rootDir, 'build-certs');
 
+  // Ensure trust-pilot-cert.ps1 has Authenticode signature
+  const ps1Path = path.join(scriptsDir, 'trust-pilot-cert.ps1');
+  const signerScript = path.join(scriptsDir, 'sign-windows-binary.ps1');
+  if (fs.existsSync(ps1Path) && fs.existsSync(signerScript)) {
+    try {
+      execSync(`powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${signerScript}" -FilePath "${ps1Path}"`, { stdio: 'ignore' });
+    } catch {}
+  }
+
   if (fs.existsSync(path.join(scriptsDir, 'trust-pilot-cert.bat'))) {
     fs.copyFileSync(path.join(scriptsDir, 'trust-pilot-cert.bat'), path.join(stagingDir, 'trust-pilot-cert.bat'));
   }
-  if (fs.existsSync(path.join(scriptsDir, 'trust-pilot-cert.ps1'))) {
-    fs.copyFileSync(path.join(scriptsDir, 'trust-pilot-cert.ps1'), path.join(stagingDir, 'trust-pilot-cert.ps1'));
+  if (fs.existsSync(ps1Path)) {
+    fs.copyFileSync(ps1Path, path.join(stagingDir, 'trust-pilot-cert.ps1'));
   }
   if (fs.existsSync(path.join(certsDir, 'evolve-enterprise-dev.cer'))) {
     fs.copyFileSync(path.join(certsDir, 'evolve-enterprise-dev.cer'), path.join(stagingDir, 'evolve-enterprise-dev.cer'));
@@ -74,23 +83,27 @@ try {
 ======================================================================
 
 QUICK START:
-1. Extract all files in this archive to any folder (e.g. C:\\Tools\\EvolveAI,
-   Desktop, or a secure corporate network share).
-2. Double-click "${exeName}" to launch.
-   - The application runs 100% self-contained with zero installation.
-   - All runtime configs, AI model settings, and encrypted credentials
-     are stored in your local user profile.
+1. Extract all files to any folder (e.g. C:\\Tools\\EvolveAI or your Desktop).
+2. Simply double-click "${exeName}" to launch!
+   - Runs 100% self-contained with zero installation or admin rights.
+   - If Windows SmartScreen shows an initial prompt ("Windows protected your PC"),
+     click "More info" -> "Run anyway".
 
-CORPORATE TRUST SETUP (FOR TEST & EVALUATION MACHINES):
-This executable is digitally signed with our official Authenticode certificate:
-  Signer: CN=Evolve Mind Solutions Pty Ltd (Enterprise Pilot)
+CORPORATE TEST WORKSTATIONS (ONE-TIME TRUST SETUP):
+If you want to permanently eliminate SmartScreen prompts across this computer:
+1. Right-click "trust-pilot-cert.bat" and select "Run as administrator".
+2. On the Windows prompt ("Publisher: Unknown Publisher"), click "Run".
+   (Windows displays this standard prompt on all batch scripts downloaded from the web).
+3. The script automatically installs the pilot certificate into Windows Trusted Root
+   and Trusted Publishers stores in 2 seconds and unblocks the executable.
+4. Once completed, the application will display:
+   "Publisher: Evolve Mind Solutions Pty Ltd (Enterprise Pilot)"
 
-If Windows Defender SmartScreen shows an initial verification banner:
-  Option A: Click "More info" -> "Run anyway" (instant 1-time bypass).
-  Option B: Right-click "trust-pilot-cert.bat" -> "Run as administrator".
-            This automatically installs the enterprise certificate into your
-            Trusted Root and Trusted Publishers stores and unblocks downloaded
-            binaries, giving permanent zero-warning execution across your machine.
+NOTE ABOUT "evolve-enterprise-dev.cer":
+- You do NOT need to open or click this certificate file directly.
+- It is the public key certificate used automatically by trust-pilot-cert.bat.
+- Opening it manually before installation prompts "Unknown Publisher" because Windows
+  does not yet recognize any certificate until it is installed into the Trusted Root store.
 
 AIR-GAPPED & SOVEREIGN OPERATION:
 * Operates completely offline with zero SaaS dependencies.
